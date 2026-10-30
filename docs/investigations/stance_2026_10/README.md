@@ -424,6 +424,22 @@ in both) and **redact** (22 workflow run ids, 11 distinct, and 1
 background-job id). No copy holds a model identifier, an email address or a
 commit trailer.
 
+*Added 2026-10-29, later (`ecs_results/` but its run log):* no new kind of
+change. Each copy has its source at the same path in the screen's scratch
+folder (`run_logs/` and `build_notes/` are its `logs/` and `build/`). Every
+copy is byte-identical to its source, absolute session-scratch paths included
+(no **prefix**, **prefix2** or **checkout**, as in `stance6/`), so that its
+sha256 is the one the approval, the screen's `SHA256SUMS.txt` or its durable
+copy records, but for **redact** (one workflow run id in each of five design
+and build notes) and **gzip** (`tools/run_ecs.py`, which reads
+`policy_loading._ensure_sb3`; `test_policy_loading.py` parses every Python
+file under `docs/`). The two copies of the approved criteria, `criteria.txt`
+and `final/criteria_ecs_final.txt`, keep the one workflow run id of their line
+5: their sha256 is the approved pin, so **redact** is not applied to them.
+`run_logs/crash_ledger.tsv` is empty, as its source is. No other copy holds a
+session tool id, and none holds a model identifier, an email address or a
+commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -1450,6 +1466,20 @@ tail habit, and the maintainer's decisions on each (D-D52's amendment and
 D-D53 to D-D55). Its [README](ecs_results/README.md) names the decision
 entries.
 
+### Added on 2026-10-29, later (decision D-D52's outcome: the entropy continuation screen)
+
+**`ecs_results/` but its run log: the entropy continuation screen, from its
+approved criteria to its reading, final (179 files, about 2.2 MB).** The
+approved criteria and the approval (`criteria.txt`, `APPROVED`, `final/`), the
+screen's design notes for the maintainer, the five pinned tools with their
+tests and the builders' notes (`tools/`, `build_notes/`), each continuation's
+run record and check (`runs/`, `run_logs/`), the scorer's reading and readouts
+(`score/`: line 3, "NO DIFFERENCE DETECTED", s42 6 of 6 in both arms and s80 1
+of 6 in both) and the reading's two independent checks (`check/stat/`,
+`check/proc/`: both agree). The ledgers, traces and checkpoints are not here;
+the text ones are on the never-merged orphan branch `claude/handoff-ecs`. Its
+[README](ecs_results/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1552,6 +1582,10 @@ copies.
 | The third run-log copy against its source (2026-10-29; session scratch only) | `head -759 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 721 to 759 against `ecs_results/run_log.txt` with the ids SOURCES.txt names put back | `f2a95d7b…`, the value SOURCES.txt gives; equal |
 | The run-log copies against each other (2026-10-29) | `tail -1 stance6_results/run_log.txt` and `head -1 ecs_results/run_log.txt` | the entries timed 19:32 UTC and 21:05 UTC on 2026-10-28, the source's lines 720 and 721: no gap and no line in both |
 | The files themselves (2026-10-29, with `ecs_results/run_log.txt`) | `sha256sum -c SHA256SUMS` | all 850 files OK |
+| The screen's approved text and pinned tools (2026-10-29, later) | `sha256sum ecs_results/criteria.txt` against `ecs_results/APPROVED`; in a copy of `ecs_results/`: `gunzip tools/run_ecs.py.gz`, then `sha256sum -c SHA256SUMS.txt` and each tool's sha256 against `APPROVED`'s `tool_sha256` | `04813918…`, its `criteria_sha256`; 14 files OK; 5 of 5 equal |
+| The screen's reading (2026-10-29, later) | `sed -n '/^STATUS/,/^TABLES/p' ecs_results/score/score.txt` | `STATUS: final`; line 3, "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES (not tested: …)"; s42 arm A 6 of 6, arm B 6 of 6; s80 arm A 1 of 6, arm B 1 of 6 |
+| The copies against the screen's durable copy (2026-10-29, later; needs the durable branch) | `git show 067b8a10:SHA256SUMS` of `claude/handoff-ecs` against the source sha256 SOURCES.txt gives each `ecs_results/` row but the run log's | equal for all 179 |
+| The files themselves (2026-10-29, later, with `ecs_results/`) | `sha256sum -c SHA256SUMS` | all 1029 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

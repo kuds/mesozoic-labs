@@ -1,0 +1,23 @@
+read after last write, BEFORE the decided line:
+  01_stance/policy_probe.npz                23  e.g. ('s42_A_1101', '02:55:45.165', '02:55:47.329')
+  models/start-pair                         23  e.g. ('s42_A_1101', '01:44:06.187', '01:44:06.189')
+  run_meta.json                             23  e.g. ('s42_A_1101', '02:55:45.383', '02:55:47.277')
+read after last write, AFTER the decided line:
+  01_stance/eval_episodes.csv               24  e.g. ('s42_A_1101', '02:55:45.035', '12:15:20.975')
+  01_stance/evaluations.npz                 24  e.g. ('s42_A_1101', '02:55:45.177', '12:22:33.899')
+  01_stance/policy_probe.npz                 1  e.g. ('s80_B_1451', '12:05:14.104', '12:05:20.367')
+  01_stance/stage_config.json               24  e.g. ('s42_A_1101', '02:55:45.207', '12:05:20.839')
+  check.json                                24  e.g. ('s42_A_1101', '02:55:47.335', '12:15:20.967')
+  models/E-pair                             48  e.g. ('s42_A_1101', '02:55:45.060', '12:05:20.839')
+  run_meta.json                              1  e.g. ('s80_B_1451', '12:05:14.365', '12:05:20.303')
+no read after last write (atime <= mtime):
+  01_stance/diagnostics.npz                 24
+  01_stance/gate_progress.npz               24
+  01_stance/plant_identity.json             24
+  01_stance/progress.json                   24
+  01_stance/task_fingerprint.json           24
+  01_stance/train_episodes.csv              24
+  models/E-pair                             24
+  models/final                              48
+  models/other-ckpt                        216
+  models/start-pair                         25

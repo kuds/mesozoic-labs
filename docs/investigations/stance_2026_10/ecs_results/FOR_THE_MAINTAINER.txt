@@ -1,0 +1,58 @@
+ENTROPY CONTINUATION SCREEN (ECS) -- FOR THE MAINTAINER. Draft v2, NOT approved; nothing has trained or simulated.
+Text: ecs/v2/criteria_ecs_v2.txt; options and reasons: decisions_ecs_v2.txt; review fixes: changes_v2.txt (41 of 41).
+Folder: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs
+Written 2026-10-28 21:00 UTC (date -u) by the fixer of workflow [id removed].
+
+WHAT IT WOULD DO
+- Continue two of stance6's own F2-held checkpoints, s42 at 3,145,728 and s80 at 4,194,304 (each 655,360 steps before
+  its run's first ANY-flagged evaluation), for 1,572,864 steps each, on this container's CPU.
+- Arm A keeps the recorded entropy schedule (bonus 0.0027 -> 0.0016 at s42, 0.0020 -> 0.0009 at s80); arm B sets
+  ent_coef to 0. Physics, reward, task, gate, policy interface and every other hyperparameter as the run.
+- 6 continuations per arm per start (24), each with its own seed, 3 at a time; nothing reads an outcome until all 24
+  are done. A harness fault found by the per-run check stops the queue, with its remedy fixed in advance.
+- One statistic: does a continuation have at least one ANY-flagged evaluation by its end (M5, unchanged)? Exact
+  stratified test over both starts, two-sided at 0.025 per side; a LOST continuation counts against any line.
+  It prints B LOWER, B HIGHER or NO DIFFERENCE DETECTED.
+
+WHAT IT WOULD ANSWER, AND WHAT NOT
+- It answers whether removing the remaining bonus changes how often the bound is crossed within 1.57M steps from
+  these mid-rise states, for a large effect: if arm A crosses at about 0.9, it detects B at 0.1 / 0.25 / 0.5 with
+  probability 0.99 / 0.90 / 0.43; at arm A 0.6, 0.64 / 0.29 / 0.04 [computed]. Arm A's r10 rate is unknown (inferred
+  0.75-0.95 from r9's 3 of 3, whose 95% interval is [0.29, 1]).
+- It does not answer: the early rise or the first 3.1M steps (only Option 3, from scratch); "when" (a delay shorter
+  than about 0.9M steps reads as no effect); modest effects; a protective effect at the expected rates (0.004 at
+  arm A 0.9); log_std_init, the sigma floor or the saturation weight; a GPU result; a fix.
+- Predicted before anything runs: NO DIFFERENCE DETECTED [inferred]. A null is not evidence against Option 3.
+
+COST
+- 26-32 CPU-hours, about 9-11 h of wall clock at 3 processes (nice 10) if the session is kept live; a container
+  restart costs up to one wave of 3. About 1 h of validation first. 0 L4-hours, no Drive, no GitHub, no push.
+- Disk about 1.7 GB; 4.9 GiB was free at 20:44 UTC, so housekeeping to 6 GiB comes first.
+- Before the approval request: the harness build (about 1,400 new lines, scratch only, never in the repository), one
+  review and a fixer. The approval request will name the harness files and their sha256.
+
+DECISIONS (recommended option first). One line takes every recommendation:
+  "D1 (a) approved; D2 (a) approved; D7 (a) approved; D3-D6, D8 and D9 as recommended; D10-D12 off; T1-T6 as listed."
+D1  Approve the training-loss change, arm B at ent_coef 0 (in-memory config edit, scratch continuations only)?
+    (a) yes; (b) no, nothing trains.
+D2  May the build run its validation through learn() before approval (train() a no-op, no optimizer step; 4 runs of
+    262,144 steps, 1 process, nice 15, about 1 h)? (a) yes, so the request shows the results; (b) only after approval.
+D3  Starts: (a) s42 3,145,728 + s80 4,194,304, matched lead (s80 starts after its one neck over-bar episode);
+    (b) NEXT's s80 3,145,728 (x1.33 cost); (c) both 2,097,152 (x2); (d) both 1,048,576, most of the rise (x2.67).
+D4  Continuations per arm per start: (a) 6; (b) 4, NEXT's (0.93 / 0.70 / 0.22 at arm A 0.9).
+D5  Primary outcome: (a) any ANY-flagged evaluation by the end; (b) an ANY ALARM (lower arm-A rate); (c) (a) plus "when"
+    as a co-primary at half the alpha (exact size, unknown power).
+D6  Direction: (a) two-sided, 0.025 per side (0.10-0.15 less power at modest effects; B HIGHER visible only if arm A
+    runs low); (b) one-sided, B lower, at 0.05 (NEXT's).
+D7  May the screen use 3 processes at nice 10 for about 9-11 h, above this step's 1 process at nice 15? (a) yes, under
+    a harness-tracked watcher; (b) 2 at a time (about 1.5x the wall clock).
+D8  The run's own collapse stop: (a) keep (a stopped run counts if already positive, else it counts against each
+    line); (b) disable it (a training-procedure change).
+D9  Durable copy: (a) none while running, text outputs to a never-merged branch after the reading on your word;
+    (b) a per-wave push to an orphan never-merged branch.
+D10 Add-on C, the bonus re-instated from s60's 6,291,456: (a) off, decide after the core; (b) on, reading named first.
+D11 Add-on N, normalisation frozen at the start: (a) off (confounded by the posture); (b) on, form N2.
+D12 Add-on S, std reset to -1.5: (a) off for now; (b) on, against arm A at the same starts.
+T1-T6 Technical defaults, change any if you wish: distinct seeds per start and arm; a fresh code copy in ecs/code; the
+    run branch's own resume path; a 6 GiB disk target and 3 GiB floor; the K3 panel off; the CPU and fresh-reset
+    departures accepted with D1.

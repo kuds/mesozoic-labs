@@ -1,0 +1,75 @@
+--- v3/criteria_ecs_v3.txt
++++ final/criteria_ecs_final.txt
+@@ -297,5 +297,67 @@
+-PINS (all filled before approval; nothing here is pinned yet)
+-  this text's sha256 (in <ECS>/APPROVED and RUNLOG); v1/table_e_ecs.py and .out; v2/check_v2.py and .out;
+-  <ECS>/code's tree digest (= 331fe8fc...); the sha256 of run_ecs.py, ecs_common.py, read_ecs.py, score_ecs.py,
+-  run_waves_ecs.sh and their tests; M1 and M5 as above; the parent records' sha256 from FMAN (BL item 2); V1-V5
+-  results.
++PINS (filled 2026-10-29 01:38 UTC (date -u) by the build's pin step, BL item 12; nothing else differs from v3)
++  This text's sha256 cannot be held in the text itself: it is in final/APPROVAL_REQUEST.txt and
++  <ECS>/SHA256SUMS.txt, and goes into <ECS>/APPROVED and RUNLOG on approval. The text filled:
++  v3/criteria_ecs_v3.txt, sha256 90a9f9aa6c3d87947817aceb93e23b1bb107214c22e0cdd294e7790056ad6d58.
++  Paths are under <ECS> unless another root is named. [measured: each value below recomputed by
++  build/pin/make_final.py from its file and checked equal to the pin named beside it]
++  Cited outputs (equal to v1/ and v2/ MANIFEST.sha256):
++    v1/table_e_ecs.py                         3609e13790b0df0d15c4d242deee368e50a66762897ded3392126e4638a48e41
++    v1/table_e_ecs.out                        07d32255b904a62985996599ee57ea9ff5ea039322279bdb58ce41bbee4bb542
++    v2/check_v2.py                            c6ee618beacdf1b1a8544e8a7d483667eeee17e2c68eaf4c3873aa4bf8e2402d
++    v2/check_v2.out                           a8c05b9e09e85e49b3ea2aa0875b3979f3e05c47162cdda2cb34e17d0cee6448
++  Code copy <ECS>/code (M1 check-copy, exit 0, 2026-10-29 01:32 UTC, build/pin/check_copy.log): commit
++    8737cd3d86431de1bdd0fcdb49a0d956a45e084d, 1,406 files, tree digest (= COPY's seal)
++    331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1
++  ECS tools (equal to build/fixes/logs_r2/tool_sha256_frozen_r2.txt; listed in <ECS>/SHA256SUMS.txt):
++    tools/ecs_common.py                       05864c64d29944aaa849231a3d95f37a51aff13bc2811e6fdf7171f6bd12af57
++    tools/run_ecs.py                          f136b7e35b34c35ccba8d69b5ff7ee8f6233c5ce58fcba539f25ed32cca585cf
++    tools/read_ecs.py                         6f55b3b96bae795d46c3ef693b5b542895186adb4ccb51957076f3421c2fee15
++    tools/score_ecs.py                        51b2cbe340281917302c4e286f61dbeb34bf10ec8c9c80505cb4bb4a05017fba
++    tools/run_waves_ecs.sh                    c007762ca72ebd888210e1a03f5a69f62b3a3eccf48e1fe921cf16b6c3caaae9
++    tools/tests/test_harness_run_ecs.py       0c7ebf200f4664a45d9845e8c742533907ca476171400ecdad1762eeca9f21e1
++    tools/tests/test_harness_waves.py         a999316c50133bb8e035cced6d47059916c32543c45899e1914a1b993aec2596
++    tools/tests/test_read_score_fixtures.py   b5b941d022d09e9182f0a54e962119513c9d06bf7c9e28e1cb9f5f8fcafb0622
++    tools/tests/test_read_score_mutants.py    bb9f0f3fc711c10e44d81152dbd976ec5d7454822ae45c07c5d1b59b521bd970
++    tools/tests/test_read_score_reader.py     3c73623fe271045c814d54df3a056d68a2bc760795bbfd0aa02158af81feaa99
++    tools/tests/test_read_score_scorer.py     39a8b340984ec8bbde11bf8ea9aced4dc0abdcca4ed6e992bbba73372f6434e4
++  M1 and M5 (root S2/r10round/lean/build; equal to the lane SHA256SUMS.txt and ecs_common's pins):
++    laneA/tools/measure_r10round.py           b293a511d8beb5b6d6f24cec8744e601382748ce9b2f89e6bb653b6c97f5840c
++    laneA/tools/r10m_common.py                97431323a84a45026671d681dbd0dc5fe3914aa4068ab20a49e428620b26f5bf
++    laneB/tools/ledger_r10round.py            0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511
++    laneB/tools/r10round_common.py            ea2c5ea6984b8dc00c1c066a4441a59526c515ceb111da17eaf1688a009226c5
++  Start pairs and parent records (F2 01_stance/ .copy1 files; equal to FMAN and ecs_common;
++  build/pin/f2_recheck.out, 01:32 UTC):
++    s42 stage1_3145728_steps.zip              3c054bd738304965bbbcfde588982635ed047436311a267b91f8855e02edad18
++    s42 stage1_vecnormalize_3145728_steps.pkl 997f31421d805f6e6cd366b9a9bd05451ed7ab679fd615e7567d259a310f22e0
++    s42 eval_episodes.csv                     d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e
++    s42 evaluations.npz                       3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9
++    s42 gate_progress.npz                     4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e
++    s42 train_episodes.csv                    14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d
++    s42 policy_probe.npz                      4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11
++    s42 stage_config.json                     5d54e6deac8ddda5c37914da97d4d59b6838a8daef52cb7bec237c49d63d24ec
++    s80 stage1_4194304_steps.zip              51197dbd7f90e481a99214ba7bd63ebbe92804367c2e5edab988c0b4c4840096
++    s80 stage1_vecnormalize_4194304_steps.pkl f405244b94662bdffae9bbe1b047fda9b34bb62012bec9491ed09131ef6155cb
++    s80 eval_episodes.csv                     b677ce762e739513c18eaa35ffb7b149c0532753746259d5037356580e934d13
++    s80 evaluations.npz                       89e18b1006deb304b368284d6106299fa219cce9e7f1d73c3ef37f5120c39be8
++    s80 gate_progress.npz                     02dc43115adff9096f175cc6387f01e81cc816aca54c7070b1e8a9b6400cb65c
++    s80 train_episodes.csv                    fd65c2058c4b6970c5fca7a32a6461131f41a768ec792b5d625ea8a5049af8c6
++    s80 policy_probe.npz                      0e61919dc9a0a2a508095cec5e14a673c2d909b61420d9b6c95c74d7562b3957
++    s80 stage_config.json                     ec1c49a551badd146416a12d874a9ecf5db5574886e21c6df414a07d533e72c5
++  V1-V5 (D2 (a): one process at a time, OMP 1, nice 15, cwd /tmp; no optimizer step; on the tools above):
++    V1 PASS. validate/fix_logs/v1_check.out (4 load-and-save runs, 2026-10-28 23:45-23:46 UTC, outputs
++       validate/fix_v1, fix_v1_m1; run_ecs.py and ecs_common.py as pinned), checked again on those
++       outputs in validate/fix2_logs/v1_check.out (2026-10-29 00:45 UTC).
++    V2 PASS. validate/fix2_logs/v2v3_check.out, v2_extra_check.out (4 no-update runs to S + 262,144 in
++       validate/fix2_v2, 00:45-01:26 UTC, driver log fix2_logs/v2_driver.log; train() reached 31 times
++       each, parameter and Adam digests unchanged; re-read: build/pin/v2_recheck.out).
++    V3 PASS. validate/fix2_logs/v2v3_check.out (M5's outputs in validate/fix2_v3_m5).
++    V4 PASS. Tests 167 passed (build/fixes/logs_r2/tests_all.log; the runner's 20 passed 3 more times,
++       tests_waves_x3.log); mutants killed 26 of 26 and 82 of 85, the 3 survivors equivalent
++       (fix_mutants_harness.out, fix_mutants_reading.out); ruff and bash -n (logs_r2/lint.log; again
++       build/pin/lint.log, 01:33 UTC); in validate/fix2_logs: v4_reader.out, v4_scorer.out,
++       v4_check_<name>.log, v4_read_<name>.log, v4_r3_trace.log, v4_negatives.out and v4_waves.out
++       (the runner's stub dry run, scenarios A-G).
++    V5 PASS. validate/fix2_logs/v5_check.out (8 stage_config.json files); hyperparameters_sha256
++       A 054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
++       B be2e243b3fef90cdc4809ca9455c51e1fe07bb27fd30678c4e3e463fed9a0a76
++  Superseded, not results: validate/v1, v1_m1, v2, v3_m5, v4*, fix_v2 (earlier tools; build/FIXES.txt).

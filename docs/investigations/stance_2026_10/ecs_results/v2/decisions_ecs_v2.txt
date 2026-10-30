@@ -1,0 +1,151 @@
+ENTROPY CONTINUATION SCREEN (ECS): DECISIONS FOR THE MAINTAINER (v2)
+Every open choice of criteria_ecs_v2.txt. The RECOMMENDED option is first, with why. D1-D12 are real choices; T1-T6
+are technical defaults, written into the text as listed, which the maintainer may change. v1's D-numbers map to these
+in changes_v2.txt. Written 2026-10-28 20:53-21:00 UTC (date -u) by the fixer of workflow [id removed]. Nothing
+trained or simulated. Short names as criteria_ecs_v2.txt. Labels: [measured] read or computed from the named file or
+code; [inferred] reasoned, basis named.
+
+TO TAKE EVERY RECOMMENDATION, ONE LINE IS ENOUGH:
+  "D1 (a) approved; D2 (a) approved; D7 (a) approved; D3-D6, D8 and D9 as recommended; D10-D12 off; T1-T6 as listed."
+Three items need the maintainer's explicit word because they train or simulate: D1 (the training change), D2 (the
+validation runs through learn() before approval, with no optimizer step) and D7 (this container's CPU, 3 processes at
+nice 10 for about 9-11 h, above this drafting step's 1 process at nice 15). D8 (b) and D10-D12 would be
+training-procedure or training-loss changes too.
+
+D1  THE TRAINING CHANGE: ent_coef PER ARM (NEEDS EXPLICIT APPROVAL)
+    What: arm A keeps the run's recorded schedule (0.005 to 0 by 7,000,000); arm B uses ent_coef 0 from the start.
+    ent_coef weights the entropy term of the PPO loss (mirror_kl_ppo.py l379), so this is a training-loss change, as
+    DD43's bound was named (RUNLOG l509). Scratch diagnostic continuations only; nothing on main or in a round.
+    Approving D1 also accepts the named departures of T6.
+    (a) RECOMMENDED: approve, applied as an in-memory edit of the stage config's [ppo] ent_coef and ent_coef_end (both
+        0 for B) before the load. Why: no repository change is needed; the load applies the config's value over the
+        zip's, and the run's own decay callback then holds 0 at every step [measured, code, RF NOTES]; each
+        continuation's stage_config.json records the arm's [ppo] block and hash (V5). Arm A is the config unchanged.
+    (b) Do not approve. Nothing trains; the pre-registration is kept for the record.
+
+D2  VALIDATION RUNS THROUGH learn() BEFORE APPROVAL (NO OPTIMIZER STEP; NEEDS YOUR WORD)
+    What: V2 runs the run's own training loop with the model's train() replaced by a no-op that counts its calls: 4
+    runs (2 starts x 2 arms) of 262,144 steps, every callback on, evaluations and probe rows written, VecNormalize
+    statistics moving in scratch, parameters and Adam state unchanged (checked). The others make no learn() call: V1
+    loads, saves and runs M1's evaluation-only trace; V3-V5 read files. Outputs only under <ECS>/validate/.
+    (a) RECOMMENDED: allow them before approval, one process at a time, OMP 1, nice 15, about 1 h in all. Why: they
+        check the arm edit, the stop at E and the reader on real code before you approve, so the approval request can
+        show their results; precedent: the run-branch build's full-length rollouts with "updates 0" (RUNLOG l640;
+        HS 5 (b)).
+    (b) Run them after approval, before the first continuation. The approval request then shows no V2 or V3 result.
+
+D3  STARTS AND LENGTHS: HOW FAR BACK THE SCREEN REACHES, AGAINST HOW SURE ARM A IS TO SHOW THE OUTCOME
+    (a) RECOMMENDED: s42 at 3,145,728 and s80 at 4,194,304, 1,572,864 steps each (to 4,718,592 and 5,767,168).
+        Why: both pairs are F2-held and manifest-equal (no fetch); both are 655,360 steps before their original first
+        ANY-flagged evaluation and both windows end 917,504 after it, so lead and margin match and arm A is likeliest
+        to show the outcome at both [measured, DS 1-2]. Against: s80's start comes after its single neck over-bar
+        episode at 3,801,088, which REVIEW 4.3 counts as s80's first onset, and the bonus gets only 0.66M steps of
+        lead at both starts. Cost x1.00: 26-32 CPU-hours, 8.6-10.6 h [computed, CHK 6; rate inferred, HS 7].
+    (b) NEXT's s80 at 3,145,728 (before that episode) with s42 as (a). s80 then needs 2,621,440 steps (to 5,767,168)
+        to keep the window rule; NEXT's 2,359,296 leaves 655,360 of margin, and its only ANY ALARM falls on the
+        window's last evaluation [measured, DS 2]. 1.70M steps of lead at s80; arm A's rate there less sure (the
+        original flagged 3 of 18 evaluations to 5,505,024). Cost x1.33: 34-42 CPU-hours, 11.5-14 h.
+    (c) Both from 2,097,152 (CMD s42 tail_3 +0.151, s80 neck -0.036) to the same ends: reaches into the rise; leads
+        1.70M and 2.75M; arm A's rate less sure. Cost x2.00: 52-64 CPU-hours, 17-21 h.
+    (d) Both from 1,048,576 (CMD -0.035 and -0.005; bonus 0.004251), F2-held, to the same ends: the most of the rise
+        a continuation can reach; leads 2.75M and 3.80M; arm A's rate least sure. Cost x2.67: 69-85 CPU-hours,
+        23-28 h, and about 1 GB more disk [measured, DS 1.3; computed, CHK 6; disk inferred].
+    Not offered: REVIEW 4.5's s42 3,407,872 and s80 3,670,016: not in F2, so a Drive fetch, and s42 3,407,872 is
+    already at ledger tail_3 +0.822 [measured, DS 1.2].
+
+D4  CONTINUATIONS PER ARM PER START (k)
+    (a) RECOMMENDED k = 6 (24 continuations). P(B LOWER), two-sided, at A 0.9 against B 0.1 / 0.25 / 0.5: 0.993 /
+        0.897 / 0.428; at A 0.6: 0.642 / 0.294 / 0.037 [computed, TE 4; CHK 2]. A single start can decide alone (5/6
+        against 0/6). CPU time costs no L4-hours.
+    (b) k = 4 (16; NEXT's number): at A 0.9 0.932 / 0.700 / 0.220; at A 0.6 0.396 / 0.181 / 0.028 [computed, TE 4].
+        About 17-21 CPU-hours, 6-7 h.
+    The A 0.9 row assumes arm A near DD43's r9 3 of 3, whose 95% interval is [0.29, 1] [computed, CHK 4].
+
+D5  THE PRIMARY OUTCOME
+    (a) RECOMMENDED: at least one ANY-flagged evaluation in (S, T], as M5 reads it. Why: it catches both habits
+        (tail_3 + at s42, neck_pitch - at s80); it fired in both original windows with a 917,504-step margin; it is
+        specific: 0 of 364 evaluations of the four non-alarm runs (r10 s60, r9 s52, s60, s70) were ANY-flagged
+        [measured, DS 2]. "When" is printed, not tested.
+    (b) An ANY ALARM in (S, T]: more specific, smaller margins (786,432 s42, 262,144 s80), so a lower arm-A rate.
+    (c) (a) plus "when" as a co-primary, each at 0.0125 per side: an exact within-start permutation test on the
+        first-flag step, censored at E. Its size is exact; its power cannot be sized, because the spread of the
+        first-flag step across continuations is unmeasured. It can see a delay shorter than 917,504 steps, which (a)
+        cannot; it halves (a)'s alpha.
+
+D6  TEST DIRECTION
+    (a) RECOMMENDED: two-sided, 0.025 per side (B LOWER or B HIGHER). Why: the question is whether removing the bonus
+        changes the crossing, and each direction has a mechanism story (DS D-5). What it costs against (b): little at
+        large effects (A 0.9: 0.993 against 0.996 at B 0.1, 0.897 against 0.944 at B 0.25) and 0.10-0.15 at modest
+        ones (0.428 against 0.578 at A 0.9 vs B 0.5; 0.609 against 0.704 at A 0.75 vs B 0.25) [computed, CHK 2].
+        What it buys is small unless arm A runs low: P(B HIGHER) is 0.004 at A 0.9 vs B 1.0, 0.158 at A 0.75 and
+        0.562 at A 0.6 [computed, CHK 2].
+    (b) One-sided, B lower, at 0.05 (NEXT's choice): the power above at modest effects; blind to "removing the
+        bonus made it worse".
+
+D7  PROCESSES AND NICE (THIS CONTAINER'S CPU FOR ABOUT 9-11 h; NEEDS YOUR WORD)
+    (a) RECOMMENDED: 3 continuations at a time at nice 10, under a harness-tracked watcher relaunched when it exits;
+        the end traces after the last continuation, 3 at a time; no other simulation beside them. Why: DD43 ran 3 at a
+        time on this 4-core container, 18 of 18 without a crash, under a tracked watcher [measured, RUNLOG l565-l573];
+        detached workers are reclaimed about 10 min after a turn ends (RUNLOG l295-l297).
+    (b) 2 at a time, if another job needs a core (the records PR build may be running): about 1.5x the wall clock.
+
+D8  THE RUN'S OWN EARLY STOPS
+    (a) RECOMMENDED: keep them as the run had them. Only the collapse stop can act in these windows, and only from a
+        window's 10th evaluation (patience 10 [measured, stance.toml l1041]); the hop watch starts at 7,000,000. A
+        STOPPED continuation is POSITIVE if an ANY-flagged evaluation came before its stop; otherwise it is censored
+        and filled against each line.
+    (b) Disable them: a training-procedure change from the run, needing its own word.
+
+D9  DURABLE COPY
+    (a) RECOMMENDED: none while the screen runs. Scratch was kept through the recorded container restarts (RUNLOG
+        l458, l659), and a lost continuation reruns from F2's pair. After the reading, the derived text outputs (run
+        metadata, M5 JSON, the reader and scorer outputs, end-trace summaries) go to a never-merged durable branch
+        only on your word.
+    (b) DD43's per-wave push to an orphan never-merged branch, as NEXT's RISKS suggested (needs your word to push).
+
+D10 ADD-ON C, THE CONVERSE (OFF; a training-loss change, its own approval)
+    What: from s60's F2-held 6,291,456 pair (bonus 0.000506, 0 from 7,004,160), arm A' recorded against arm C held at
+    0.002 to 8,388,608 (2,097,152 steps), own seeds, about 13-14 CPU-hours at k = 4 [inferred, NEXT; HS 7].
+    (a) RECOMMENDED: off now. Decide after the core, and fix its reading together with its direction: the ANY flag
+        reads 0 in the original window, so only "C higher" can show on it; the end-trace tail_3 CMD is +0.880, so only
+        "C lower" can show on that [measured, DS 2, 5.6]. NEXT's "C higher if the bonus delays the crossing" looks
+        inverted for M6 and CMD readings [inferred, DS 5.6]. The hop watch is live after 7,000,000 (D8 applies).
+    (b) On, with a reading and direction named before approval.
+
+D11 ADD-ON N, NORMALISATION FROZEN AT THE START (OFF; a training-procedure change, its own approval)
+    What: tests REVIEW D-15's observation-statistics drift. It needs a freeze before learn() (HS 6).
+    (a) RECOMMENDED: off. The drift may follow the posture rather than lead it (NEXT RISKS), which confounds it.
+    (b) On, form N2 (observation statistics only, about 15 lines) rather than N1 (training=False, which also freezes
+        the return statistics), against the core's arm A at the same starts, own seeds.
+
+D12 ADD-ON S, STD RESET (OFF; a training-procedure change, its own approval)
+    What: log_std filled with -1.5 on all 15 actuators after the load, Adam moments kept (pilot 2's planned reset is
+    the precedent, NEXT Option 1 add-on S; HS 6); it tests the noise-level path REVIEW 4.3 leaves open.
+    (a) RECOMMENDED: off for now; most informative after the core reads.
+    (b) On, against the core's arm A at the same starts, own seeds; proof: the first probe row's std 0.2231 on all 15.
+
+TECHNICAL DEFAULTS (written into the text as listed; change any if you wish)
+T1  SEEDS: distinct per start and arm: s42 A 1101-1151, s42 B 1201-1251, s80 A 1301-1351, s80 B 1401-1451, in steps
+    of 10 (no derived seed repeats or meets M1's or the runs' own [computed, CHK 5]). Why: the exact test assumes
+    independent, exchangeable continuations, and distinct lists make that hold by construction, also across starts
+    (one seed list at both starts would raise the size per side from 0.0116 to 0.0238 if seed j's outcomes
+    correlated at 0.3 across starts [computed, RS recheck_stats.out 5]); pairing buys no power for this outcome
+    (POW 6b; RS sign_check.out). Alternative: one seed list shared by both arms (DS D-8), read by the same test,
+    which stays valid and grows conservative.
+T2  CODE COPY: a fresh copy of 8737cd3d at <ECS>/code by M1's build-copy from CLONE, tree digest equal to COPY's
+    331fe8fc..., so every write stays in <ECS>. Alternative: COPY itself, read only.
+T3  HARNESS FORM: the run branch's own same-stage resume (train_base._train_stage_body) with StopAtEnd, the parent's
+    five records seeded, and the stage1_<E>_steps pair as the end state (no update on the rollout ending at E): the
+    run's exact callback set with the least new code; seeding lets C6 and the collapse stop behave as in the run
+    [measured, code, RF NOTES]. Alternative: DD43's re-implemented body (more code to review).
+T4  DISK: housekeeping to at least 6 GiB free (df -B1) before the launch; at least 3 GiB (M1's floor) before each
+    continuation starts, else pause and tell you; every checkpoint kept, as the run kept them. About 1.7 GB in all;
+    4.9 GiB free at 20:44 UTC [measured, df -B1; inferred, HS 8]. Alternative: DD43's 5 GB floor per continuation.
+T5  THE IN-RUN K3 PANEL: off. No reading needs it; it is inert for training on CPU (the inertness proof passes with it
+    on, RUNLOG l630); off saves about 3% [inferred, HS 7]. The runs had it on (RUNLOG l645 (4)). Alternative: on,
+    report only.
+T6  NAMED DEPARTURES, ACCEPTED WITH D1: CPU, not CUDA; a fresh env reset at S; the original's update on the rollout
+    ending at S is not made; new random streams (arm A is a fresh draw, not a replay); a freshly seeded evaluation
+    env; the K3 panel off (T5). No continuation can avoid the first four; DD43 had them too [inferred, HS 3.2].
+
+END (decisions v2).
