@@ -1,0 +1,306 @@
+{
+ "mine_digests": {
+  "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "obs_rms": "sha256:ab9568d8ad8ac6647f5c76bd64f2361c16425cf0032dcf0a173a894d0f5174da"
+ },
+ "zip_data": {
+  "num_timesteps": 2097152,
+  "_n_updates": 2471,
+  "_total_timesteps": 12000000,
+  "ent_coef": 0.003502037142857143,
+  "gae_lambda": 0.95,
+  "n_steps": 2048,
+  "batch_size": 128,
+  "n_epochs": 10,
+  "gamma": 0.98,
+  "target_kl": 0.03
+ },
+ "opt_step": [
+  157349.0
+ ],
+ "param_groups_lr": [
+  2.65184e-05
+ ],
+ "tensor_names": {
+  "log_std": [
+   15
+  ],
+  "mlp_extractor.policy_net.0.weight": [
+   512,
+   63
+  ],
+  "mlp_extractor.policy_net.0.bias": [
+   512
+  ],
+  "mlp_extractor.policy_net.2.weight": [
+   256,
+   512
+  ],
+  "mlp_extractor.policy_net.2.bias": [
+   256
+  ],
+  "mlp_extractor.value_net.0.weight": [
+   512,
+   63
+  ],
+  "mlp_extractor.value_net.0.bias": [
+   512
+  ],
+  "mlp_extractor.value_net.2.weight": [
+   256,
+   512
+  ],
+  "mlp_extractor.value_net.2.bias": [
+   256
+  ],
+  "action_net.weight": [
+   15,
+   256
+  ],
+  "action_net.bias": [
+   15
+  ],
+  "value_net.weight": [
+   1,
+   256
+  ],
+  "value_net.bias": [
+   1
+  ]
+ },
+ "few_tensors": {
+  "log_std": [
+   -1.7406218,
+   -1.6683599,
+   -1.6672817,
+   -3.1557832,
+   -2.0065975,
+   -3.7300007,
+   -3.4043012,
+   -3.1557832,
+   -2.0065975,
+   -3.7300007,
+   -3.4043012,
+   -1.6568092,
+   -1.6249474,
+   -1.6508691,
+   -1.7057067
+  ],
+  "action_net.bias[14]": 0.03730311244726181,
+  "value_net.bias": 0.07196719944477081,
+  "value_net.weight[0,:4]": [
+   0.00393742136657238,
+   -0.0014477615477517247,
+   -0.28375405073165894,
+   -0.09714773297309875
+  ],
+  "mlp_extractor.value_net.0.weight[:,6] sum|.|": 22.979324340820312,
+  "mlp_extractor.policy_net.0.weight[0,:3]": [
+   0.0921679437160492,
+   -0.07335017621517181,
+   0.14548411965370178
+  ]
+ },
+ "vecnorm": {
+  "class": "VecNormalize",
+  "obs_rms_class": "RunningMeanStd",
+  "ret_rms_class": "RunningMeanStd",
+  "obs_count": 4194312.0001,
+  "ret_count": 2097152.0001,
+  "ret_var": 2057.4123244768098,
+  "obs_mean[6]": 0.0015010003790966267,
+  "obs_var[6]": 5.3508865564017226e-05,
+  "clip_obs": 10.0,
+  "clip_reward": 50.0,
+  "epsilon": 1e-08,
+  "gamma": 0.98,
+  "norm_obs": true,
+  "norm_reward": true,
+  "training": true
+ },
+ "v1_compare": {
+  "control": {
+   "run_meta_digest_start_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true,
+    "obs_rms": true
+   },
+   "v1_loaded_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true
+   },
+   "saved_zip_tensors_equal_f2": true,
+   "saved_adam_equal_f2": true,
+   "saved_pkl_stats_equal_f2": true,
+   "saved_pkl_classes": [
+    "RunningMeanStd",
+    "RunningMeanStd"
+   ],
+   "saved_num_timesteps": 2097152,
+   "saved_n_updates": 2471,
+   "n_updates_start": 2471,
+   "num_timesteps_start": 2097152,
+   "ent_coef_after_load": 0.005,
+   "gae_lambda_after_load": 0.95,
+   "bank_tail3": [
+    0.0975351482629776,
+    0.17029765248298645
+   ]
+  },
+  "critic_blind_tail3": {
+   "run_meta_digest_start_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true,
+    "obs_rms": true
+   },
+   "v1_loaded_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true
+   },
+   "saved_zip_tensors_equal_f2": true,
+   "saved_adam_equal_f2": true,
+   "saved_pkl_stats_equal_f2": true,
+   "saved_pkl_classes": [
+    "RunningMeanStd",
+    "RunningMeanStd"
+   ],
+   "saved_num_timesteps": 2097152,
+   "saved_n_updates": 2471,
+   "n_updates_start": 2471,
+   "num_timesteps_start": 2097152,
+   "ent_coef_after_load": 0.005,
+   "gae_lambda_after_load": 0.95,
+   "bank_tail3": [
+    0.0975351482629776,
+    0.17029765248298645
+   ]
+  },
+  "gae_lambda_1": {
+   "run_meta_digest_start_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true,
+    "obs_rms": true
+   },
+   "v1_loaded_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true
+   },
+   "saved_zip_tensors_equal_f2": true,
+   "saved_adam_equal_f2": true,
+   "saved_pkl_stats_equal_f2": true,
+   "saved_pkl_classes": [
+    "RunningMeanStd",
+    "RunningMeanStd"
+   ],
+   "saved_num_timesteps": 2097152,
+   "saved_n_updates": 2471,
+   "n_updates_start": 2471,
+   "num_timesteps_start": 2097152,
+   "ent_coef_after_load": 0.005,
+   "gae_lambda_after_load": 1.0,
+   "bank_tail3": [
+    0.0975351482629776,
+    0.17029765248298645
+   ]
+  },
+  "frozen_obs_norm": {
+   "run_meta_digest_start_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true,
+    "obs_rms": true
+   },
+   "v1_loaded_equal_mine": {
+    "params": true,
+    "adam": true,
+    "vecnormalize": true
+   },
+   "saved_zip_tensors_equal_f2": true,
+   "saved_adam_equal_f2": true,
+   "saved_pkl_stats_equal_f2": true,
+   "saved_pkl_classes": [
+    "RunningMeanStd",
+    "RunningMeanStd"
+   ],
+   "saved_num_timesteps": 2097152,
+   "saved_n_updates": 2471,
+   "n_updates_start": 2471,
+   "num_timesteps_start": 2097152,
+   "ent_coef_after_load": 0.005,
+   "gae_lambda_after_load": 0.95,
+   "bank_tail3": [
+    0.0975351482629776,
+    0.17029765248298645
+   ]
+  }
+ },
+ "probe_rows_at_S": [
+  255
+ ],
+ "probe_vs_pkl": {
+  "obs_mean_equal": false,
+  "obs_mean_maxabs": 1.278512092994788e-05,
+  "obs_var_maxabs": 0.0005757164399255998,
+  "obs_count": [
+   4194312.0001,
+   4194312.0001
+  ],
+  "ret_var": [
+   2057.412353515625,
+   2057.4123244768098
+  ],
+  "probe_dtypes": [
+   "float32",
+   "float32"
+  ]
+ },
+ "bank_forward": {
+  "statue_settled_rows": [
+   0,
+   5
+  ],
+  "mine_tail3_mu": [
+   0.0975351482629776,
+   0.17029765248298645
+  ],
+  "probe_tail3": [
+   0.0975351482629776,
+   0.17029765248298645
+  ],
+  "max_abs_mu_vs_probe_all": 8.940696716308594e-08,
+  "max_abs_clipmu_vs_probe_all": 8.940696716308594e-08,
+  "max_abs_value_vs_probe": 4.76837158203125e-07,
+  "value_mine": [
+   4.695233,
+   4.749808,
+   4.285162,
+   4.322247,
+   -0.29109,
+   4.527813,
+   4.690803,
+   4.445268,
+   4.486409,
+   2.720398
+  ],
+  "value_blind_obs6_minus_plain": [
+   0.002673,
+   0.0031,
+   0.006201,
+   0.000629,
+   0.001261,
+   0.019623,
+   0.008017,
+   -0.001626,
+   0.000257,
+   0.004781
+  ]
+ }
+}

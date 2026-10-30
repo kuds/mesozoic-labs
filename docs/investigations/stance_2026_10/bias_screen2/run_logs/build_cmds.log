@@ -1,0 +1,15 @@
+BS2 builder command log (UTC). Every command and result.
+2026-10-30T10:29:14Z  mkdir -p BS2/logs && touch BS2/logs/build_start.marker -> created; marker mtime 2026-10-30 10:29:07.053766108 +0000
+2026-10-30T10:29Z  read BS/NOTES.txt (all), BS/tools/*.py, run_waves_bs.sh, tests/*.py (not score_bs / test_score_bs: criteria lane's), BS/check/proc/{pc_meta,pc_evidence,pc_atime}.{py,out}, RUNLOG line 780 (P1-P4)
+2026-10-30T10:31Z  cp -p BS/tools/{bs_common,bs_hooks,check_inputs,read_bs,run_bs,verify_copy}.py run_waves_bs.sh and tests/{test_bs_hooks,test_read_bs,test_run_bs,test_waves_bs}.py -> BS2/tools (score_bs.py, test_score_bs.py NOT copied); sha256 of the copies = BS/SHA256SUMS.txt's (logs/tools_sha256_as_copied.txt; diff: ordering only); cd BS && sha256sum -c --ignore-missing SHA256SUMS.txt -> 22 OK
+2026-10-30T10:31:48Z  PY -I -B BS/tools/verify_copy.py BS/code -> exit 0; seal 331fe8fc..., recomputed 331fe8fc..., 1,406 files, equal_to_pinned true (logs/verify_copy_start.out); find BS/code -perm /222 -> 0 writable; __pycache__ dirs 0
+2026-10-30T10:3xZ  read M1 r10m_common.check_copy / tree_digest (read only: no write); code copy config.get_git_commit (git rev-parse, read only)
+2026-10-30T10:35-10:38Z  edits: bs_common.py, run_bs.py, read_bs.py, run_waves_bs.sh, check_inputs.py (rewritten from bs_common); see logs/tools_vs_bs.diff
+2026-10-30T10:38:30Z  PY -I -B BS2/tools/check_inputs.py -> exit 0; 8/8 equal FMAN (lines 241, 243, 71, 103, 106, 82, 80, 68) and the bs_common pins (logs/check_inputs.out)
+2026-10-30T10:38:37Z  PY -I -B BS2/validate/parent_schedule.py BS2/tools -> exit 0 (validate/logs/parent_schedule.out)
+2026-10-30T10:40:58Z  pytest (78 tests) -> 78 passed, 74 s (validate/logs/pytest_1.out); ruff E,F,W,B line 120 -> 12 findings (E501 x11, B007 x1), fixed (docstring reflow only) -> All checks passed
+2026-10-30T10:43:57Z  run_bs.py --preflight-only: V1 control 9201 pass; V2 control 9201 --until 2359296 pass; continuation control 2101 REFUSED (APPROVED: missing; SCREEN: missing); V1 seed 9101 REFUSED (not a BS2 validation seed) (validate/logs/preflight_1.out)
+2026-10-30T10:44:07Z  tools frozen: validate/logs/final_tools_sha256_at_launch.txt; df 2.9 G free; machine idle (load 0.18)
+2026-10-30T10:44:12Z  bash validate/final_driver.sh (background): V1 x4 sequential 10:44:12-10:44:47 all exit 0; V2 x4 at once started 10:44:47
+2026-10-30T10:45:49Z  PY -I -B validate/v1_independent.py validate/v1final 9201 -> exit 0, V1 INDEPENDENT: PASS (validate/logs/v1_independent.out); run_meta summary validate/logs/v1_runmeta_summary.out
+2026-10-30T11:06:57Z  NOTES.txt written (the full command log is in NOTES.txt's LOG section); SHA256SUMS.txt written 11:03Z

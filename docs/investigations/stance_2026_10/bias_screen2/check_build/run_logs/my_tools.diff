@@ -1,0 +1,458 @@
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/bs_common.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_common.py
+1c1
+< """Bias screen (BS): pins and constants.  No logic beyond lookups and checks.
+---
+> """Bias screen 2 (BS2): pins and constants.  No logic beyond lookups and checks.
+3,4c3,6
+< Importable without torch, numpy or the code copy.  Derived from the entropy continuation screen's ecs_common.py
+< (S2/r10round/ecs/tools/ecs_common.py, sha256 05864c64...); every value cites its source:
+---
+> Importable without torch, numpy or the code copy.  BS2 is the bias screen (BS, S2/r10round/bias_screen, finished
+> and verified; its bs_common.py sha256 3b3727e2...) re-run from s42's 2,097,152 checkpoint: only the root, the start
+> pair, the window, the validation seeds and the code-copy path (BS's own copy, reused read only) differ from BS's file.
+> Every value cites its source:
+6,9c8,14
+<   FMAN   = S1/foot/stance6/fetch/manifest.csv (F2 COPY rows, copy 1) [measured 2026-10-30 03:53 UTC, check_inputs.py];
+<   TASK   = the build task of 2026-10-30 (S = 1,048,576; E = S + 1,441,792; at most 9 continuations of at most 1.5M
+<            steps; 4 at a time at nice 10; disk floor 1.5 GB; arms control / critic_blind_tail3 / gae_lambda_1 /
+<            frozen_obs_norm, none chosen);
+---
+>   FMAN   = S1/foot/stance6/fetch/manifest.csv (F2 COPY rows, copy 1) [measured 2026-10-30 03:53 UTC by BS's
+>            check_inputs.py; re-measured for BS2 2026-10-30 by BS2's check_inputs.py: FMAN lines 241 / 243 for the
+>            2,097,152 pair];
+>   TASK   = BS's build task of 2026-10-30 (at most 9 continuations of at most 1.5M steps; 4 at a time at nice 10; disk
+>            floor 1.5 GB; arms control / critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm, none chosen here);
+>   TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; LENGTH = BS's 1,441,792, so E = 3,538,944; validation seeds
+>            9201-9241; the maintainer's approval of 2026-10-30 10:23 UTC, "Go with option a");
+11,12c16,18
+< The intervention and the queue are NOT here: they are <BS>/SCREEN.json, written when the intervention is chosen and the
+< criteria are reviewed, and pinned by sha256 in <BS>/APPROVED (screen_sha256) with the criteria and these tools.
+---
+> The intervention and the queue are NOT here: they are <BS2>/SCREEN.json, written when the criteria are reviewed, and
+> pinned by sha256 in <BS2>/APPROVED (screen_sha256) with the criteria and these tools.  (In this file and the other BS2
+> tools "<BS>" means the screen's own root, BS2.)
+26,27c32,35
+< BS = S2 + "/r10round/bias_screen"               # every file the screen writes is under it (TASK)
+< CODE = BS + "/code"                             # cp -a of ECS/code; tree digest = TREE_DIGEST (never edited)
+---
+> BS = S2 + "/r10round/bias_screen2"              # every file the screen writes is under it (TASK2)
+> BS1 = S2 + "/r10round/bias_screen"              # the finished first screen: read only (its code copy is reused)
+> CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+>                                                 # edited; BS2 reads it only: no tool writes under it, see run_bs.py)
+71,73c79,81
+< S = 1_048_576                                   # TASK: s42's 1,048,576 checkpoint (before the tail bias appears)
+< LENGTH = 1_441_792                              # TASK: 11 evaluations of 131,072; 176 rollouts, 175 updates
+< E = S + LENGTH                                  # 2,490,368 (on the evaluation grid; NOT on the 262,144 save grid)
+---
+> S = 2_097_152                                   # TASK2: s42's 2,097,152 checkpoint (the early-bias probe's driver)
+> LENGTH = 1_441_792                              # TASK2 = BS's: 11 evaluations of 131,072; 176 rollouts, 175 updates
+> E = S + LENGTH                                  # 3,538,944 (on the evaluation grid; NOT on the 262,144 save grid)
+78c86
+< SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 1,310,720 ... 2,359,296 (5)
+---
+> SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 3,407,872 (5)
+80c88
+< VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 (TASK item 5)
+---
+> VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 = 2,359,296 (TASK item 5)
+125,129c133,137
+<     "zip_rel": "01_stance/models/stage1_1048576_steps.zip",
+<     "zip_sha256": "0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80",
+<     "pkl_rel": "01_stance/models/stage1_vecnormalize_1048576_steps.pkl",
+<     "pkl_sha256": "52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb",
+<     "records": {
+---
+>     "zip_rel": "01_stance/models/stage1_2097152_steps.zip",                              # FMAN line 241
+>     "zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+>     "pkl_rel": "01_stance/models/stage1_vecnormalize_2097152_steps.pkl",                 # FMAN line 243
+>     "pkl_sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90",
+>     "records": {                                # the same F2 files BS pinned (FMAN lines 71, 103, 106, 82, 80, 68)
+137c145
+<     "probe_row_at_S": 127,                      # update_timesteps == 1,048,576 in the parent's probe [measured]
+---
+>     "probe_row_at_S": 255,                      # update_timesteps == 2,097,152 in the parent's probe [measured]
+142,143c150,151
+< # them, so a validation folder and a continuation can never share a name.
+< VALIDATION_SEEDS = (9101, 9111, 9121, 9131, 9141)
+---
+> # them, so a validation folder and a continuation can never share a name.  BS2's own (TASK2; BS used 9101-9141).
+> VALIDATION_SEEDS = (9201, 9211, 9221, 9231, 9241)
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/check_inputs.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/check_inputs.py
+1c1,3
+< """The start pair and the parent records: sha256 of the F2 .copy1 files against the fetch manifest's COPY rows."""
+---
+> """The start pair and the parent records: sha256 of the F2 .copy1 files against the fetch manifest's COPY rows (FMAN)
+> and against the pins in bs_common.START.  BS2: the paths and pins come from bs_common (BS's version listed the
+> 1,048,576 pair literally); the FMAN line of each row is printed.  Reads only.  Exit 0 iff every file equals both."""
+3a6
+> import importlib.util
+5a9
+> from pathlib import Path
+7,12c11,20
+< FETCH = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch"
+< RUN = "stance6_r10LTSB_s42"
+< RELS = ["01_stance/models/stage1_1048576_steps.zip", "01_stance/models/stage1_vecnormalize_1048576_steps.pkl",
+<         "01_stance/eval_episodes.csv", "01_stance/evaluations.npz", "01_stance/gate_progress.npz",
+<         "01_stance/train_episodes.csv", "01_stance/policy_probe.npz", "01_stance/stage_config.json"]
+< rows = list(csv.DictReader(open(f"{FETCH}/manifest.csv", newline="")))
+---
+> _spec = importlib.util.spec_from_file_location("bs_common", str(Path(__file__).resolve().parent / "bs_common.py"))
+> C = importlib.util.module_from_spec(_spec)
+> _spec.loader.exec_module(C)
+> 
+> ST = C.START
+> RUN = ST["run_id"]
+> PINS = {ST["zip_rel"]: ST["zip_sha256"], ST["pkl_rel"]: ST["pkl_sha256"]}
+> PINS.update({f"{C.STAGE_DIR}/{n}": ST["records"][n] for n in (*C.PARENT_RECORDS, "stage_config.json")})
+> with open(C.FMAN, newline="") as fh:
+>     rows = list(csv.DictReader(fh))                 # data rows: the file's line number is index + 2
+14,21c22,35
+< for rel in RELS:
+<     path = f"{FETCH}/F2/{RUN}/copies/{rel}.copy1"
+<     got = hashlib.sha256(open(path, "rb").read()).hexdigest()
+<     man = sorted({r["sha256"] for r in rows if r["fetch"] == "F2" and r["run_id"] == RUN and r["path"] == rel
+<                   and r["status"] == "COPY" and r["copy"] == "1"})
+<     eq = man == [got]
+<     ok &= eq
+<     out[rel] = {"sha256": got, "manifest_copy1": man, "equal": eq}
+---
+> for rel, pin in PINS.items():
+>     path = f"{C.f2_copies()}/{rel}.copy1"
+>     h = hashlib.sha256()
+>     with open(path, "rb") as fh:
+>         for b in iter(lambda: fh.read(1 << 20), b""):
+>             h.update(b)
+>     got = h.hexdigest()
+>     man = [(i + 2, r["sha256"]) for i, r in enumerate(rows) if r["fetch"] == "F2" and r["run_id"] == RUN
+>            and r["path"] == rel and r["status"] == "COPY" and r["copy"] == "1"]
+>     eq_man = sorted({s for _, s in man}) == [got]
+>     eq_pin = got == pin
+>     ok &= eq_man and eq_pin
+>     out[rel] = {"sha256": got, "fman_lines": [ln for ln, _ in man], "manifest_copy1": sorted({s for _, s in man}),
+>                 "equal_fman": eq_man, "equal_bs_common_pin": eq_pin}
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/read_bs.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/read_bs.py
+1,2c1,5
+< """Bias screen (BS): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts and
+< stochastic on-policy rollouts with frozen statistics, no update, no optimizer).
+---
+> """Bias screen 2 (BS2): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts and
+> stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS's read_bs.py (sha256 04036e53...)
+> with the window from BS2's bs_common.py, the parent's F2 pairs in [S, E] derived (2,097,152 and 3,145,728), their
+> reproduction targets, and the loop cache keyed on this file's own sha256 (and its two modules') as well (BS's process
+> lens P3: an entry can never outlive the reader that wrote it).
+16,17c19,21
+<         and its two F2 checkpoints in [S, E] (1,048,576 and 2,097,152; F2 holds every 1,048,576).  Doubles as the
+<         reader's reproduction check against the early-warning (ew_r10.jsonl) and early-bias (eb_realized.json) values.
+---
+>         and its two F2 checkpoints in [S, E] (2,097,152 and 3,145,728; F2 holds every 1,048,576).  Doubles as the
+>         reader's reproduction check against the early-warning (ew_r10.jsonl), early-bias (eb_realized.json), its
+>         verifier's (vew_analyze.txt) and the warning-margin (warning_margin/NOTES.txt) values (REPRO below).
+49,50c53,56
+< Every simulation runs from the sealed code copy <BS>/code, OMP/MKL 1 thread; checkpoints are opened read only.  A pair's
+< loop markers are cached under <BS>/reads/_cache/ by (zip sha256, pkl sha256, critic form).
+---
+> Every simulation runs from the sealed code copy bs_common.CODE (BS's, read only), OMP/MKL 1 thread; checkpoints are
+> opened read only.  A pair's loop markers are cached under <BS>/reads/_cache/ by (this file's sha256, the sha256 of
+> bs_common.py and bs_hooks.py, zip sha256, pkl sha256, critic form, read form): cache_key(); an entry whose recorded
+> reader digests differ from this reader's is refused, never used.
+71c77
+< VERSION = "read_bs 1.0 (2026-10-30; bias screen scaffold)"
+---
+> VERSION = "read_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from read_bs 1.0)"
+108c114,125
+< # Reproduction targets for --reference (parent s42; [measured] by their studies)
+---
+> F2_EVERY = 1_048_576                            # the F2 fetch holds the parent's pairs at every 1,048,576 (FMAN)
+> # The parent's F2 pairs in [S, E] (the reference read's M-LOOP pairs): 2,097,152 and 3,145,728 for BS2.
+> REFERENCE_PAIRS = tuple(s for s in range(F2_EVERY, C.E + 1, F2_EVERY) if s >= C.S)
+> # Reproduction targets for --reference (parent s42 at its F2 pairs in [S, E]; [measured] by their studies; paths under
+> # S2/com_revisit/notes/):
+> #   ew_*   early_warning/ew_r10.jsonl line 3 (2,097,152) and line 1 (3,145,728), full precision: own.primary.G,
+> #          own.primary.c0, own14_win_median, ref_statue_settled.primary.G;
+> #   eb_*   early_bias/eb_realized.json lines 88 / 91 (s42_2097152_3145728.sens_N) and 140 / 143
+> #          (s42_3145728_3670016.sens_N): dV_dq3_per_deg (compared), loop_gain_G_5p16 (recorded only: another method);
+> #   vew_*  verify_early_warning/vew_analyze.txt section C lines 64 / 62 (G_H, G_L) and section G lines 160 / 158
+> #          (b*_P, b*_L), printed to 3 decimals;
+> #   wm_*   warning_margin/NOTES.txt lines 20 / 21 (the b*_P "(verifier)" column), printed to 3 decimals.
+110,113c127,134
+<     1048576: {"ew_own": {"G": -0.725, "c0": -0.059, "own14": -0.033}, "ew_ref_G": -0.704,
+<               "eb_dV_dq3_per_deg": -0.007809669245034456, "eb_G": -0.7412073612213135},
+<     2097152: {"ew_own": {"G": -0.636, "c0": 0.238, "own14": 0.143}, "ew_ref_G": -0.619,
+<               "eb_dV_dq3_per_deg": 0.02142920531332493, "eb_G": -0.6060763597488403},
+---
+>     2097152: {"ew_own": {"G": -0.6363920116424561, "c0": 0.23771291971206665, "own14": 0.14250202003121376},
+>               "ew_ref_G": -0.6194893866330384, "eb_dV_dq3_per_deg": 0.02142920531332493,
+>               "eb_G": -0.6060763597488403, "vew_G_H": -0.625, "vew_G_L": -0.648, "vew_b_star_P": 1.399,
+>               "vew_b_star_L": 1.413, "wm_b_star_P": 1.399},
+>     3145728: {"ew_own": {"G": 0.3489333643913269, "c0": 0.4114188253879547, "own14": 0.6013715491890907},
+>               "ew_ref_G": 0.32630227160453795, "eb_dV_dq3_per_deg": 0.05854005739092827,
+>               "eb_G": 0.25905266404151917, "vew_G_H": 0.354, "vew_G_L": 0.259, "vew_b_star_P": 0.240,
+>               "vew_b_star_L": 0.296, "wm_b_star_P": 0.240},
+120a142,165
+> # The reader's own digests, for the loop cache (P3): this file, and the two modules it loads (bs_common.py: the pins
+> # and grid; bs_hooks.py: the critic-blind class the EFFECTIVE critic slope installs).
+> READER_SHA256 = C.sha256_file(Path(__file__).resolve())
+> DEPS_SHA256 = hashlib.sha256((C.sha256_file(TOOLS / "bs_common.py") + C.sha256_file(TOOLS / "bs_hooks.py"))
+>                              .encode()).hexdigest()
+> 
+> 
+> def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, reader=READER_SHA256, deps=DEPS_SHA256):
+>     """The loop cache's file stem: the reader's own sha256 and its modules' digest first (an entry never outlives the
+>     reader that wrote it: BS's process lens P3), then the pair and the read's form (pure)."""
+>     return (f"r{reader[:16]}_d{deps[:8]}_{zip_sha256[:16]}_{pkl_sha256[:16]}_{'blind' if blind else 'plain'}_"
+>             f"{'on' if onpolicy else 'off'}{'_own' if own else ''}")
+> 
+> 
+> def cache_entry_problem(row, reader=READER_SHA256, deps=DEPS_SHA256):
+>     """None if a cache entry was written by this reader (its recorded digests), else the reason (pure)."""
+>     if not isinstance(row, dict):
+>         return "not a JSON object"
+>     if row.get("reader_sha256") != reader or row.get("deps_sha256") != deps:
+>         return (f"written by reader {str(row.get('reader_sha256'))[:16]} / modules {str(row.get('deps_sha256'))[:8]}, "
+>                 f"not this reader {reader[:16]} / {deps[:8]}")
+>     return None
+> 
+> 
+951,952c996
+<         key = f"{C.sha256_file(z)[:16]}_{C.sha256_file(p)[:16]}_{'blind' if blind else 'plain'}_" \
+<               f"{'on' if onpolicy else 'off'}{'_own' if own else ''}"
+---
+>         key = cache_key(C.sha256_file(z), C.sha256_file(p), blind=blind, onpolicy=onpolicy, own=own)
+955a1000,1002
+>             bad = cache_entry_problem(row)
+>             if bad:
+>                 raise InputError(f"loop cache entry {cpath}: {bad}")
+959a1007
+>             row.update(reader_sha256=READER_SHA256, deps_sha256=DEPS_SHA256, reader_version=VERSION)
+1049c1097
+<     """The parent's markers over (S, E] and its F2 pairs at 1,048,576 and 2,097,152, with the reproduction check."""
+---
+>     """The parent's markers over (S, E] and its F2 pairs in [S, E] (REFERENCE_PAIRS), with the reproduction check."""
+1069c1117
+<               C.f2_file(f"{C.STAGE_DIR}/models/{C.periodic_names(s)[1]}")) for s in (1048576, 2097152)]
+---
+>               C.f2_file(f"{C.STAGE_DIR}/models/{C.periodic_names(s)[1]}")) for s in REFERENCE_PAIRS]
+1080a1129,1133
+>             r["vew_G_H"] = [row["OWN"]["H"]["G"], want["vew_G_H"]]
+>             r["vew_G_L"] = [row["OWN"]["L"]["G"], want["vew_G_L"]]
+>             r["vew_b_star_P"] = [row["OWN"]["P"]["b_star"], want["vew_b_star_P"]]
+>             r["vew_b_star_L"] = [row["OWN"].get("b_star_L"), want["vew_b_star_L"]]
+>             r["wm_b_star_P"] = [row["OWN"]["P"]["b_star"], want["wm_b_star_P"]]
+1085c1138,1142
+<         r["max_abs_diff_ew"] = max(abs(a - b) for k, (a, b) in r.items() if k.startswith("ew_"))
+---
+>         pairs_ = dict(r)
+>         r["max_abs_diff_ew"] = max(abs(a - b) for k, (a, b) in pairs_.items() if k.startswith("ew_"))
+>         printed = [abs(a - b) for k, (a, b) in pairs_.items() if k.startswith(("vew_", "wm_")) and a is not None]
+>         if printed:
+>             r["max_abs_diff_printed_3dp"] = max(printed)          # against values printed to 3 decimals: <= 5e-4
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/run_bs.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_bs.py
+1c1
+< """BS: one continuation of r10 stance6 s42 from its 1,048,576 pair under one arm, or a run that makes no optimizer step.
+---
+> """BS2: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
+8,9c8,11
+< bs_common.ARM_CHANGE, applied by bs_hooks.install_arm / arm_config here).  S = 1,048,576, E = S + 1,441,792 =
+< 2,490,368 (11 evaluations of 131,072; 176 rollouts, 175 updates).
+---
+> bs_common.ARM_CHANGE, applied by bs_hooks.install_arm / arm_config here).  S = 2,097,152, E = S + 1,441,792 =
+> 3,538,944 (11 evaluations of 131,072; 176 rollouts, 175 updates).  BS2 = BS's run_bs.py (sha256 0a5a9851...) with the
+> window, the start pair and the validation seeds taken from BS2's bs_common.py, the code copy BS's own (read only), and
+> GIT_CEILING_DIRECTORIES also naming the code copy's parent folder (so the code's `git rev-parse` stops there, as in BS).
+65c67
+< VERSION = "run_bs 1.0 (2026-10-30; bias screen scaffold, derived from run_ecs 1.0)"
+---
+> VERSION = "run_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from run_bs 1.0 and run_ecs 1.0)"
+645c647,648
+<            "MPLCONFIGDIR": str(tmp / "mpl"), "GITHUB_SHA": C.COMMIT, "GIT_CEILING_DIRECTORIES": str(bs_root())}
+---
+>            "MPLCONFIGDIR": str(tmp / "mpl"), "GITHUB_SHA": C.COMMIT,
+>            "GIT_CEILING_DIRECTORIES": os.pathsep.join((str(bs_root()), os.path.dirname(os.path.realpath(C.CODE))))}
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/run_waves_bs.sh /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_waves_bs.sh
+1a2,3
+> # BS2: BS's run_waves_bs.sh (sha256 13fb6182...) with only the root changed (BS_REAL = S2/r10round/bias_screen2); the
+> # queue mechanics, slots, nice, floors, crash rules and the outcome-blind reads are BS's, unchanged.  "<BS>" below = BS2.
+48c50
+< BS_REAL=$S2/r10round/bias_screen
+---
+> BS_REAL=$S2/r10round/bias_screen2
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/tests/test_read_bs.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_read_bs.py
+25a26,27
+> VS = C.VALIDATION_SEEDS[0]                             # BS2: 9201 (BS's tests used 9101)
+> N_PARENT = C.E // R8 + 8                               # a synthetic parent probe that runs past E (BS's used 399 rows)
+37c39
+<         steps = [R8 * k for k in range(1, 400)]
+---
+>         steps = [R8 * k for k in range(1, N_PARENT)]
+52c54
+<     steps = np.asarray([R8 * k for k in range(1, 400)], np.int64)
+---
+>     steps = np.asarray([R8 * k for k in range(1, N_PARENT)], np.int64)
+93c95
+<     return {"schema": C.RUN_SCHEMA, "name": C.run_name(arm, 9101), "arm": arm, "seed": 9101, "S": C.S, "E": C.E,
+---
+>     return {"schema": C.RUN_SCHEMA, "name": C.run_name(arm, VS), "arm": arm, "seed": VS, "S": C.S, "E": C.E,
+110c112
+<     fails, ident = RB.check_meta(_good_meta(arm), "validation", C.run_name(arm, 9101))
+---
+>     fails, ident = RB.check_meta(_good_meta(arm), "validation", C.run_name(arm, VS))
+117c119
+<         assert RB.check_meta(m, "validation", C.run_name(arm, 9101))[0] != [], key
+---
+>         assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != [], key
+120c122
+<     assert RB.check_meta(m, "validation", C.run_name(arm, 9101))[0] != []
+---
+>     assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != []
+123c125,131
+<     assert RB.check_meta(m, "validation", C.run_name(arm, 9101))[0] != []
+---
+>     assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != []
+>     m = _good_meta(arm)
+>     m.update(S=1_048_576, E=2_490_368)                    # BS's window is not BS2's
+>     assert any("S, E" in f for f in RB.check_meta(m, "validation", C.run_name(arm, VS))[0])
+>     m = _good_meta(arm)
+>     m.update(seed=9101, name=C.run_name(arm, 9101))      # BS's validation seed is not BS2's
+>     assert any("validation seed" in f for f in RB.check_meta(m, "validation", C.run_name(arm, 9101))[0])
+257a266,297
+> 
+> 
+> # ------------------------------------------------------------------------------------------------ BS2 additions
+> def test_loop_cache_key_carries_the_reader_sha256():
+>     """P3 (BS's process lens): the cache key starts with this reader's sha256 (and its modules' digest), so an entry
+>     written by another reader is never found; an entry whose recorded digests differ is refused, never used."""
+>     z, p = "a" * 64, "b" * 64
+>     k = RB.cache_key(z, p, blind=False, onpolicy=True, own=True)
+>     assert k.startswith("r" + RB.READER_SHA256[:16] + "_d" + RB.DEPS_SHA256[:8] + "_")
+>     assert RB.READER_SHA256 == C.sha256_file(TOOLS / "read_bs.py")
+>     assert k == f"r{RB.READER_SHA256[:16]}_d{RB.DEPS_SHA256[:8]}_{'a' * 16}_{'b' * 16}_plain_on_own"
+>     assert RB.cache_key(z, p, blind=False, onpolicy=True, own=True, reader="c" * 64) != k
+>     assert RB.cache_key(z, p, blind=False, onpolicy=True, own=True, deps="d" * 64) != k
+>     assert RB.cache_key(z, p, blind=True, onpolicy=True, own=True) != k
+>     assert RB.cache_key(z, p, blind=False, onpolicy=False, own=True) != k
+>     assert RB.cache_key(z, p, blind=False, onpolicy=True, own=False) != k
+>     good = {"reader_sha256": RB.READER_SHA256, "deps_sha256": RB.DEPS_SHA256}
+>     assert RB.cache_entry_problem(good) is None
+>     assert RB.cache_entry_problem({**good, "reader_sha256": "0" * 64}) is not None
+>     assert RB.cache_entry_problem({**good, "deps_sha256": "0" * 64}) is not None
+>     assert RB.cache_entry_problem({"OWN": {}}) is not None                 # a BS-era entry (no reader digests)
+> 
+> 
+> def test_reference_pairs_and_reproduction_targets():
+>     assert RB.REFERENCE_PAIRS == (2_097_152, 3_145_728)
+>     assert all(C.S <= s <= C.E for s in RB.REFERENCE_PAIRS) and set(RB.REPRO) == set(RB.REFERENCE_PAIRS)
+>     for s in RB.REFERENCE_PAIRS:
+>         w = RB.REPRO[s]
+>         assert set(w["ew_own"]) == {"G", "c0", "own14"}
+>         # the verifier's b*_P = 1 - G - c0 (printed to 3 decimals) agrees with the early-warning values
+>         assert abs((1.0 - w["ew_own"]["G"] - w["ew_own"]["c0"]) - w["vew_b_star_P"]) <= 5e-4
+>         assert w["wm_b_star_P"] == w["vew_b_star_P"]
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/tests/test_run_bs.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_run_bs.py
+29a30
+> V0, V4 = C.VALIDATION_SEEDS[0], C.VALIDATION_SEEDS[-1]     # BS2: 9201, 9241 (BS's tests used 9101 / 9141)
+34c35
+<     assert (C.S, C.E, C.LENGTH) == (1_048_576, 2_490_368, 1_441_792)
+---
+>     assert (C.S, C.E, C.LENGTH) == (2_097_152, 3_538_944, 1_441_792)
+37,38c38,41
+<     assert C.expected_update_rows(C.S, C.E) == 175
+<     assert C.SAVED_STEPS == (1_310_720, 1_572_864, 1_835_008, 2_097_152, 2_359_296)
+---
+>     assert C.S % C.EVAL_FREQ == 0 and C.E % C.EVAL_FREQ == 0 and C.E // C.EVAL_FREQ == 27   # E on the 131,072 grid
+>     assert C.S % C.SAVE_FREQ == 0 and C.S % C.ROLLOUT == 0
+>     assert C.LENGTH // C.ROLLOUT == 176 and C.expected_update_rows(C.S, C.E) == 175
+>     assert C.SAVED_STEPS == (2_359_296, 2_621_440, 2_883_584, 3_145_728, 3_407_872)
+40c43
+<     assert C.VALIDATE_UNTIL == C.S + 262_144
+---
+>     assert C.VALIDATE_UNTIL == C.S + 262_144 == 2_359_296
+42c45,61
+<     assert C.DISK_FLOOR_BYTES >= 1_500_000_000
+---
+>     assert C.DISK_FLOOR_BYTES == 1_610_612_736 and C.LAUNCH_DISK_BYTES == 1_610_612_736 + 9 * 50 * 1024**2
+>     assert C.BS.endswith("/r10round/bias_screen2") and C.CODE == C.BS1 + "/code" and C.BS1 != C.BS
+> 
+> 
+> def test_start_pair_pins():
+>     st = C.START
+>     assert st["S"] == C.S and st["probe_row_at_S"] == C.S // C.ROLLOUT - 1 == 255
+>     assert st["zip_rel"] == "01_stance/models/" + C.periodic_names(C.S)[0]
+>     assert st["pkl_rel"] == "01_stance/models/" + C.periodic_names(C.S)[1]
+>     assert st["zip_sha256"] == "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+>     assert st["pkl_sha256"] == "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+>     assert set(st["records"]) == {*C.PARENT_RECORDS, "stage_config.json"}
+> 
+> 
+> def test_validation_seeds_are_bs2s():
+>     assert C.VALIDATION_SEEDS == (9201, 9211, 9221, 9231, 9241)
+>     assert all(s not in C.VALIDATION_SEEDS for s in (2101, 2111, 2121, 2131))
+70c89
+<         "validation seed": _screen(queue=[["control", 9101], ["critic_blind_tail3", 2]]),
+---
+>         "validation seed": _screen(queue=[["control", V0], ["critic_blind_tail3", 2]]),
+107c126
+< def _written(parent, arm, seed=9101, hp_digest=None):
+---
+> def _written(parent, arm, seed=V0, hp_digest=None):
+122c141
+<     kw = dict(arm=arm, seed=9101, label=f"BS {arm} 9101", load_path="/x/z.zip", zip_sha256=C.START["zip_sha256"],
+---
+>     kw = dict(arm=arm, seed=V0, label=f"BS {arm} {V0}", load_path="/x/z.zip", zip_sha256=C.START["zip_sha256"],
+220c239
+<     base = dict(arm="control", seed=9101, save_loaded_only=False, no_update=False, until=None, out=None,
+---
+>     base = dict(arm="control", seed=V0, save_loaded_only=False, no_update=False, until=None, out=None,
+227,228c246,247
+<     assert R.preflight(_ns(save_loaded_only=True, seed=9141, out=str(Path(C.VALIDATE) / "never_made"))) == []
+<     p = R.preflight(_ns(no_update=True, seed=9141, until=C.S + 100, out=str(Path(C.VALIDATE) / "never_made")))
+---
+>     assert R.preflight(_ns(save_loaded_only=True, seed=V4, out=str(Path(C.VALIDATE) / "never_made"))) == []
+>     p = R.preflight(_ns(no_update=True, seed=V4, until=C.S + 100, out=str(Path(C.VALIDATE) / "never_made")))
+232c251
+<     p = R.preflight(_ns(no_update=True, seed=9141, until=C.S + C.ROLLOUT, out="/tmp/elsewhere"))
+---
+>     p = R.preflight(_ns(no_update=True, seed=V4, until=C.S + C.ROLLOUT, out="/tmp/elsewhere"))
+234c253,255
+<     assert any("--no-update needs --until" in x for x in R.preflight(_ns(no_update=True, seed=9141)))
+---
+>     assert any("--no-update needs --until" in x for x in R.preflight(_ns(no_update=True, seed=V4)))
+>     p = R.preflight(_ns(no_update=True, seed=9101, until=C.S + C.ROLLOUT, out=str(Path(C.VALIDATE) / "nm")))
+>     assert any("validation seed" in x for x in p)          # BS's validation seeds are not BS2's
+268a290,303
+> 
+> 
+> def test_environment_keeps_git_inside_the_copy_s_parent(monkeypatch, tmp_path):
+>     # setup_environment only sets variables (the folder it makes is under the given root)
+>     monkeypatch.setattr(R, "bs_root", lambda: tmp_path)
+>     saved = dict(R.os.environ)
+>     try:
+>         env = R.setup_environment("x")
+>     finally:
+>         R.os.environ.clear()
+>         R.os.environ.update(saved)
+>     ceil = env["GIT_CEILING_DIRECTORIES"].split(R.os.pathsep)
+>     assert ceil == [str(tmp_path), R.os.path.dirname(R.os.path.realpath(C.CODE))]
+>     assert env["TMPDIR"] == str(tmp_path / "tmp" / "x")
+diff -r -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/tests/test_waves_bs.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_waves_bs.py
+34c34
+< S = 1048576
+---
+> S = int(os.environ["BS_STUB_S"])
+111c111
+<            "BS_POLL_SECONDS": "0.2", "BS_LAUNCH_DISK_BYTES": "0"}
+---
+>            "BS_POLL_SECONDS": "0.2", "BS_LAUNCH_DISK_BYTES": "0", "BS_STUB_S": str(C.S)}   # BS2: S from bs_common
+147c147
+<     assert "S 1048576, E 2490368" in r.stdout
+---
+>     assert f"S {C.S}, E {C.E}" in r.stdout and "S 2097152, E 3538944" in r.stdout
+233c233
+<                        (second, {"status": "crashed", "exit": 1, "last_step": 1048576 + 3 * 131072}),
+---
+>                        (second, {"status": "crashed", "exit": 1, "last_step": C.S + 3 * C.EVAL_FREQ}),
+307a308,312
+> 
+> 
+> def test_real_root_is_bs2():
+>     text = RUNNER.read_text()
+>     assert "BS_REAL=$S2/r10round/bias_screen2\n" in text and C.BS.endswith("/r10round/bias_screen2")

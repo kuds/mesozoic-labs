@@ -1,0 +1,193 @@
+BS2 FIXES (the fixer, 2026-10-30, date -u; notes and every command: <BS2>/review/fix/NOTES.txt)
+
+Scope. Each finding of the build check, the design review and the process review was first checked against its
+sources (a finding can be wrong); the confirmed ones were fixed in <BS2>/criteria.txt, <BS2>/tools/run_waves_bs.sh,
+<BS2>/tools/score_bs.py and their tests. Not touched: APPROVED (does not exist), SCREEN.json (unchanged), run_bs.py,
+read_bs.py, bs_common.py, bs_hooks.py, check_inputs.py, verify_copy.py, anything in <BS> (the finished screen). No
+training, no optimizer step, no continuation; nothing pushed. Before the first edit: review/criteria_reviewed_v1.txt
+(the reviewed criteria.txt, sha256 c6535c884e0003ed247db87b5b3c555a5c34ddc98085503fe2e6d8e44d7291c9) and
+review/reviewed_sha256.txt (the 15 reviewed files).
+
+Ids. The task's list repeats M1 and I1-I7 in two lenses, so here each id carries its source:
+  build-check:<id>, review:design:<id>, review:process:<id>.
+
+----------------------------------------------------------------------------------------------------------------- MINOR
+build-check:M1  REJECTED
+  Claim: the criteria cite <BS>/reads/parent_s42/markers.txt, "no such folder exists".
+  Evidence [measured]: in criteria.txt <BS> is defined (SHORT NAMES) as the finished first screen,
+  S2/r10round/bias_screen, and bias_screen/reads/parent_s42/markers.txt exists (2,291 B, 04:54Z); its line 18 holds
+  exactly the 2,097,152 values cited where it is cited (G -0.636, c0 +0.238, own14 +0.143, b* +1.399, slope
+  +0.02143). The checker looked in BS2/reads: in the BS2 tools' own docstrings "<BS>" means BS2 (bs_common.py
+  lines 17-18). The real defect nearby is review:process:I2 (two citations for 3,145,728 values), fixed below; the
+  naming clash is now stated in SHORT NAMES. No rerun of read_bs.py --reference was needed.
+
+review:design:D1  CONFIRMED-FIXED
+  Verified: rd_power.out P2 and rd_power2.out; my own Monte Carlo (review/fix/work/mc_check.py, 200,000 draws, seed
+  20261030; mc_check.out): equal means with SDs 0.137/0.03 -> P(REDUCED) 0.0603; 0.2/0.05 -> 0.0592; 0.34/0.05 ->
+  0.0633; 0.05/0.2 -> 0.0595; equal SDs 0.0428; at a true rise 0.29 with 0.34/0.05, given the gate, 0.0914.
+  Changed: criteria THE TEST (size 3/70 only under exchangeability; about 0.06, 0.057-0.064, and up to about 0.09
+  given the gate if blinding changes only the spread; studentizing does not help with 4 + 4; read a REDUCED with each
+  arm's SD), the Multiplicity item (9/70 under exchangeability, about 0.18 if spreads differ), KNOWN LIMITS (the gate
+  item and the secondaries item). score_bs.py prints the same qualifications under THE TEST and the secondaries'
+  header (test_line_reduced asserts both).
+
+review:design:D2  CONFIRMED-FIXED
+  Verified: rd_power.out P3 and mc_check.out: two-state q 0.75/0.6/0.5/0.4/0.25, P(REDUCED | informative)
+  0.045/0.051/0.060/0.075/0.106; given a control median rise >= 0.29, 0.050/0.063/0.076/0.098/0.140.
+  Changed: the last sentence of the KNOWN LIMITS gate item replaced with the finding's text (normal model: confined
+  below about 0.29; two-state model: 0.06-0.10 given the gate at q 0.5-0.25, 0.08-0.14 when the median rise >= 0.29;
+  a REDUCED with only 2 of 4 control climbs is less secure than its p).
+
+review:design:D3  CONFIRMED-FIXED
+  Verified: <BS>/scratch/criteria_work/ecs_spread.out lines 2-13, last 8 minus own first 8 rows: s42_A 0.422 0.397
+  0.354 0.475 0.366 0.249 (mean 0.377); s42_B 0.280 0.337 0.283 0.242 0.364 0.269 (mean 0.296).
+  Changed: PREDICTED OUTCOME now "all rose, by 0.24-0.48 (group means 0.30 and 0.38) over 1.57M".
+
+review:design:D4  CONFIRMED-FIXED
+  Verified: the named departures (CPU, fresh reset at S, no update on the rollout ending at S, new seeds) differ from
+  "fresh rollout seeds" alone. Changed: the NOT INFORMATIVE meaning now reads "not reproduced from 2,097,152 under this
+  harness's fresh draws (new seeds, CPU, a fresh reset at S ...); it does not separate those causes". Inferred text only.
+
+review:process:M1  CONFIRMED-FIXED
+  Verified [measured]: BS/tmp/control_2101/eval_stage1_jgwp58qy/evaluations.npz (3,962 B, written at the run's end);
+  code train_base.py l799 (mkdtemp in TMPDIR) and l813 (log_path); SB3 callbacks.py l424-425 (folder made at init
+  only) and l476-490 (np.savez each evaluation); run_bs.py l642-647 (TMPDIR = <BS2>/tmp/<name>), read_bs.py l1088
+  (tmp/read_<name>); criteria l119-121 named "tmp/" as space to free; BS/tmp 2.5 MB, BS2/tmp 196 KB.
+  Changed: OUTCOME-BLINDNESS lists <BS2>/tmp/<name>/ (its live evaluations.npz) and <BS2>/tmp/read_<name>/ as
+  continuation files; the disk rule now frees only validation folders and validation runs' tmp/ folders, never
+  tmp/<queue name> or tmp/read_<queue name>; Outputs names tmp/ and reads/_cache as harness-owned. The runner's P4
+  re-arm (process M2) also covers tmp/<name>.
+
+review:process:M2  CONFIRMED-FIXED
+  Verified: / is ext4 rw,relatime (/proc/mounts); review/process/logs/atime_demo.out; RUNLOG l780 (P4); no P4 text
+  in the criteria or the runner.
+  Changed, tools/run_waves_bs.sh (additions only): rearm() right after a COUNTED or STOPPED decision sets atime =
+  mtime - 1 ns (os.utime, no file opened) on every regular file under runs/<name>/ and tmp/<name>/ and on
+  logs/<name>.attempt<k>.log; atime_snapshot() writes logs/atimes_at_ALL_DECIDED.tsv (path, atime_ns, mtime_ns,
+  ctime_ns, rearmed_unread; lstat only) before logs/ALL_DECIDED is written and before the full reads.
+  criteria: OUTCOME-BLINDNESS has a P4 item (what is re-armed, the snapshot, how the process verification compares
+  them: rearmed_unread must be 1 for every such file except run_meta.json and check.json) and the TSV among the
+  runner's readable records; KNOWN LIMITS says reads before a decision are not covered and the audit needs relatime.
+  Tests: test_atimes_rearmed_at_the_decision_and_recorded_before_the_reads; test_a_read_after_the_decision_shows_in_
+  the_snapshot (a real read of a decided run's probe between the decision and ALL_DECIDED shows rearmed_unread 0 for
+  that file only).
+
+review:process:M3  CONFIRMED-FIXED
+  Verified: run_waves_bs.sh l318-325 pointed to the attempt log; run_bs.py main() l976-989 prints the preflight
+  problems and creates nothing; criteria l338 and l343-351 forbade that log.
+  Changed: the runner's REFUSED note now names the read-only command (cd /tmp && <RUN_CMD> --arm A --seed N
+  --preflight-only, or the folder's run_meta error and traceback) and says "never the attempt log"; criteria RUN
+  HANDLING (REFUSED) and OUTCOME-BLINDNESS say the same. Test: test_refusal_halts asserts the note.
+
+review:process:M4  CONFIRMED-FIXED
+  Verified: run_bs.approval_problems checks the five bs_common.TOOL_FILES only (bs_common l70); score_bs
+  PINNED_TOOLS adds score_bs.py (l539) and provisional_items checks it also when incomplete; step 4 ran only preflight
+  and --plan.
+  Changed: (1) criteria HOW THE COORDINATOR PINS step 4: before launch the scorer must exit 3, STATUS incomplete, with
+  NO PROVISIONAL item; --preflight-only for all 8 entries; RUNLOG grep (P1, P2); df >= 2.6 GiB; --plan. (2) the runner
+  refuses (exit 2, nothing started, no folder made) unless APPROVED's tool_sha256["score_bs.py"] equals the current
+  tools/score_bs.py (chosen over editing run_bs.py / bs_common.TOOL_FILES, which would change pinned harness files
+  that V2 validated and invalidate the reader's cache key). Test: test_needs_the_scorer_pin_in_approved ({} / wrong
+  sha / unparsable). Measured on the real BS2 now (no APPROVED): the prelaunch scorer exits 3 with exactly one item,
+  "no <BS2>/APPROVED".
+
+------------------------------------------------------------------------------------------------------------------ INFO
+build-check:I1  CONFIRMED-FIXED (wording)
+  The control-untouched claim is indirect (as in BS). The MANIPULATION CHECK now says so (control's loaded state =
+  an independent load; stock classes; the other arms reproduce its environment side on 31/31; no hook-free run).
+  No extra run: a truly plain run needs a second harness. bs_hooks.value_dependence uses no_grad, deterministic
+  passes and mode() and restores action_dist [measured, bs_hooks.py l262-294].
+build-check:I2  CONFIRMED-FIXED (wording)
+  bs_common l39/l41 (READS, TMP). criteria WHERE AND HOW Outputs now names <BS2>/tmp/<run>/, tmp/read_<run>/ and
+  reads/_cache/ as harness-owned by design.
+build-check:I3  CONFIRMED-FIXED
+  Same cause as review:process:M4; fixed there (runner refusal + step 4).
+build-check:I4  CONFIRMED-FIXED (wording)
+  Free 2,853,748,736 B at 12:09Z, 2,729,107,456 B at 12:23Z after my V1 re-run (72 MB) [measured, df -B1]. The disk
+  rule now names the removal of validate/v1final, v2final and v1fix (about 200 MB) after copying their records.
+build-check:I5  CONFIRMED-FIXED (wording)
+  SHORT NAMES: <BS>/code must not be removed or modified while BS2 may run or be read.
+build-check:I6  CONFIRMED-NOT-FIXED
+  Optional. Adding the seeded-row equality to CHECK changes read_bs.py, whose sha256 keys the loop cache (P3): every
+  cache entry would be refused and V3 recomputed, for a check the build checker already made independently (4 of 4
+  V2 arms bitwise equal). Left for the coordinator.
+build-check:I7  CONFIRMED-NOT-FIXED
+  No fix needed (APPROVED's content is checked per continuation by run_bs.py's preflight). The runner now also checks
+  the scorer pin (review:process:M4).
+
+review:design:D5  CONFIRMED-FIXED
+  P(REDUCED) at half the parent's rise 1.000/0.960/0.799/0.518/0.253 at SD 0.05-0.34 (rd_power.out P1). Line 3's clause
+  now "power about 0.25-1.00 at half the parent's rise", in criteria.txt and score_bs.LINE_TEXT[3] together
+  (test_line_texts_are_the_criteria_text passes; new mutant line3_power_text_0_96 is caught by the texts check).
+review:design:D6  CONFIRMED-FIXED (with review:process:I4)
+  See review:process:I4.
+review:design:D7  CONFIRMED-FIXED
+  read_bs.saved_pairs (l960-971) omits a missing final pair silently and CHECK never looks at the models. score_bs 2.1
+  adds a PROVISIONAL item for a COUNTED continuation whose markers hold != 1 loop row at E ("the final pair was not
+  read: a tool or file defect"); SEC-G and SEC-MARGIN still read MISSING, filled. criteria THE SECONDARIES, WHEN THE
+  READING IS MADE (PROVISIONAL list) and VALIDATIONS (the parent dry run now carries 8 such items) say so. Tests:
+  test_counted_without_the_final_pair_is_provisional; the dry-run test; kill check odd_ok; mutant final_pair_item_lost.
+review:design:D8  CONFIRMED-NOT-FIXED
+  Nothing to fix (an agreement report).
+
+review:process:I1  CONFIRMED-NOT-FIXED
+  Nothing to fix. Re-measured after the fix: --plan exit 0 with 8 entries; --preflight-only x 8 exit 2 with exactly
+  ["APPROVED: missing"]; BS2's top-level listing unchanged.
+review:process:I2  CONFIRMED-FIXED
+  BS/reads/parent_s42/markers.txt has M-LOOP at 1,048,576 and 2,097,152 only; BS2/validate/v3final/parent_s42/
+  markers.txt line 18 holds 3,145,728 (OWN G +0.349, c0 +0.411, b* +0.240); EW ew_r10.jsonl lines 1/3/4. SEC-G and
+  SEC-MARGIN now cite the BS2 reference read (lines 17-18) and the EW lines; SHORT NAMES states the "<BS>" clash.
+review:process:I3  CONFIRMED-FIXED (wording)
+  The disk rule: launch only with >= 2.6 GiB free, else first remove the validation folders after copying their
+  records. Note: free is now 2,729,107,456 B = 2.54 GiB (below 2.6 GiB) because of my V1 re-run; the coordinator
+  removes validate/v1fix (a bitwise-equal duplicate of v1final's checks) and v1final / v2final as the text says.
+review:process:I4  CONFIRMED-FIXED (with review:design:D6)
+  F2 evaluations.npz.copy1: 16 evaluations at or before S, 11 in (S, E]; stage_config.json.copy1 collapse_min_evals 20,
+  collapse_patience 10; early_stopping.py l129-130, l188-193, l254; checkpoints.py l387-429 seed the history. At most 8
+  patience observations < 10. RUN HANDLING STOPPED now says it cannot fire in (S, E] and keeps the handling as a guard.
+review:process:I5  CONFIRMED-NOT-FIXED
+  Optional. Recording code_seal_before needs a run_bs.py change (and a V2 re-run); preflight already refuses a start
+  on any seal problem, run_meta records code_seal_after, and the scorer re-measures the copy at reading.
+review:process:I6  CONFIRMED-FIXED (procedure)
+  Step 4(c): before launch the coordinator greps RUNLOG for APPROVED's sha256 and every re-reviewed sha256 (P1, P2).
+  No tool check (RUNLOG is outside <BS2>; a tool reading it would be a new pinned dependency).
+
+------------------------------------------------------------------------------------------------- new observation
+OBS-1 (info, not changed) [measured, review/fix/logs/v3fix_vs_v3final.out]: read_bs.py's loop cache stores the writer's
+  zip/pkl paths. In my V3 re-run the parent's S row names validate/v2final/control_9201's start copy (byte-identical to
+  F2, same sha256 prefix in the key) because the builder's concurrent control read wrote that entry. All values equal;
+  only the provenance paths in markers.json differ. The 8 continuations' S rows will likewise name whichever identical
+  start copy was cached first.
+
+----------------------------------------------------------------------------------------------------- checks re-run
+  All after the last tool edit (logs under review/fix/logs/):
+  - unit tests, all five files: 182 passed (pytest_full_2.out; 78 builder, 18 runner incl. 3 new, 101 scorer incl.
+    1 new test and 2 new mutants); ruff E,F,W,B line 120 on tools: clean (ruff_3.out).
+  - scorer mutation matrix (work/kill_matrix.py): original fails no check; 32 of 32 mutants caught (kill_matrix.out).
+  - dry runs (review/fix/dryrun_root): parent_as_all line 3, p 70/70, control rise +0.57878, informative, every
+    secondary NOT SUPPORTED p 70/70, 8 D7 items; synthetic_E SEC-G 1/70 SUPPORTED with Bonferroni, SEC-MARGIN and
+    SEC-CMD 70/70, G(E) > G(S) control 2 of 4, blind 4 of 4.
+  - prelaunch scorer on the real BS2: exit 3, incomplete, one item (no APPROVED).
+  - --plan (exit 0, 8 entries) and --preflight-only x 8 (exit 2, ["APPROVED: missing"]).
+  - V1 re-run (validate/v1fix): 4 arms exit 0; v1_independent PASS; digests and bank values equal v1final's.
+  - V3 re-run on V2's outputs (validate/v3fix): 5 reads exit 0 (cache hits); every value equal the builder's; REPRO
+    max_abs_diff_ew 0.0 and rel_diff_eb 0.0 at 2,097,152 and 3,145,728.
+  - V2 not re-run: run_bs.py and bs_hooks.py unchanged (sha256 acd5b499..., 1ff4c8be...).
+
+------------------------------------------------------------------------------------------------- final sha256
+  (the same values are in <BS2>/SHA256SUMS.txt; criteria.txt's own value goes into APPROVED, not into its PINS)
+  291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f  criteria.txt  [CHANGED (reviewed c6535c884e0003ed...)]
+  255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0  SCREEN.json  [unchanged]
+  6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66  tools/bs_common.py  [unchanged]
+  1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc  tools/bs_hooks.py  [unchanged]
+  acd5b499e70b6eb76ca6ac4218cf01b86f2beac6f1dd33f701b31d1e68a6471f  tools/run_bs.py  [unchanged]
+  6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5  tools/run_waves_bs.sh  [CHANGED (reviewed 0f687d7755a41671...)]
+  06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60  tools/read_bs.py  [unchanged]
+  05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7  tools/score_bs.py  [CHANGED (reviewed 695d8a59c12d208a...)]
+  437ae5e85a08923907f002302a785a9d9a1cf31ee317fe8036677414e1a36743  tools/check_inputs.py  [unchanged]
+  3fb7933d528a77162749c5e3755493ea4db8fad933bbc247187d5f4ce6866189  tools/verify_copy.py  [unchanged]
+  6d9c2727cbf83cbf28f7ea8c29633927dc65313cb0f33251e163cf22c26a062c  tools/tests/test_bs_hooks.py  [unchanged]
+  4e34256f6ca8f748f61f00fc40539edd1df0393634f0c1b5f8b6327a45598e54  tools/tests/test_read_bs.py  [unchanged]
+  efbda64e19b6bbcb35b17a863f5bb78987f4c87dff2fc2b9815b814174b202b5  tools/tests/test_run_bs.py  [unchanged]
+  7ace28fb01ad59fc9829232410f5235b13e809e8cc5786b1a4dc8efd32a8feb8  tools/tests/test_score_bs.py  [CHANGED (reviewed 9a4039ad43962be2...)]
+  72d4f69d59657159be7a2374ab21614c459904f52a37c6caa5763e2f0d17e6c4  tools/tests/test_waves_bs.py  [CHANGED (reviewed 8034a7cbed62f464...)]

@@ -1,0 +1,48 @@
+===== 2026-10-30T12:55:12.186Z
+SP=S1; R=$SP/foot/stance4/live/run_log.txt; echo "<long text>" >> $R
+cat > S2/r10round/bs2_watch.sh <<'EOF'
+#!/usr/bin/env bash
+# Watch BS2's runner log only (outcome-blind). Exit when a new 'decided'/HALTED/PAUSED/finished line appears, or the runner dies.
+L=S2/r10round/bias_screen2/logs/run_waves_bs.log
+X=S2/r10round/bias_screen2/logs/run_waves_bs.exit
+n0=$(grep -c -E 'decided|HALTED|PAUSED|ALL_DECIDED|finish|exit' "$L")
+while true; do
+  n=$(grep -c -E 'decided|HALTED|PAUSED|ALL_DECIDED|finish|exit' "$L")
+  if (( n > n0 )); then echo "EVENT"; tail -6 "$L"; exit 0; fi
+  if [[ -e "$X" ]]; then echo "EXIT FILE"; cat "$X"; tail -6 "$L"; exit 0; fi
+  if ! pgrep -f 'bias_screen2/tools/run_waves_bs.sh' >/dev/null; then echo "RUNNER NOT RUNNING"; tail -8 "$L"; exit 0; fi
+  sleep 60
+done
+EOF
+chmod +x S2/r10round/bs2_watch.sh; echo ok
+===== 2026-10-30T12:55:17.408Z
+bash S2/r10round/bs2_watch.sh
+===== 2026-10-30T13:36:56.223Z
+S2=S2; SP=S1; R=$SP/foot/stance4/live/run_log.txt; W=$S2/com_revisit/wt_records
+MAIN=$(git ls-remote https://github.com/kuds/mesozoic-labs refs/heads/main | cut -f1); echo "main now $MAIN"
+H=$(git -C $W rev-parse HEAD); D=$(git -C $W status --porcelain | wc -l); echo "wt_records head $H dirty $D"
+if [[ $H == af5935af1021099e1839e99f2eec69301c1810b5 && $D == 0 ]]; then git -C $S2/com_revisit/base worktree remove $W && echo removed; fi
+git -C $S2/com_revisit/base worktree list
+echo "<long text>" >> $R
+df -B1 /tmp | tail -1 | awk '{printf "%.2f GiB free\n", $4/2^30}'; tail -4 $S2/r10round/bias_screen2/logs/run_waves_bs.log
+===== 2026-10-30T14:16:28.475Z
+date -u; cat TASKS/[id removed].output; echo ----; tail -8 S2/r10round/bias_screen2/logs/run_waves_bs.log; pgrep -fa 'bias_screen2/tools/run_bs.py' | awk '{print $1, $(NF-2), $(NF-1), $NF}'; df -B1 /tmp | tail -1 | awk '{printf "%.2f GiB free\n", $4/2^30}'
+===== 2026-10-30T14:16:39.644Z
+B2=S2/r10round/bias_screen2; grep -o -E 'note "[^"]{0,90}' $B2/tools/run_waves_bs.sh | sort -u | head -60
+===== 2026-10-30T14:16:52.622Z
+cat > S2/r10round/bs2_watch2.sh <<'EOF'
+#!/usr/bin/env bash
+# Watch BS2's runner log only (outcome-blind). Exit on a problem line, on "all ... decided"<long text>"$P" "$L")
+while true; do
+  n=$(grep -c -E "$P" "$L")
+  if (( n > n0 )); then echo "EVENT"; grep -E "$P" "$L" | tail -4; echo "-- tail"; tail -5 "$L"; exit 0; fi
+  if [[ -e "$X" ]]; then echo "EXIT FILE"; cat "$X"; tail -6 "$L"; exit 0; fi
+  if ! pgrep -f 'bias_screen2/tools/run_waves_bs.sh' >/dev/null; then echo "RUNNER NOT RUNNING"; tail -8 "$L"<long text>"$(date -u '+%Y-%m-%d %H:%M UTC')  BS2: control_2511 exited 0 at 14:16:18 and COUNTED (CHECK passed, stop reason end; about 82 min); atimes re-armed (P4); control_2521 started 14:16:20. Runner log only read. Watcher re-armed to wake on problems, ALL_DECIDED or the runner's exit. Free 2.73 GiB." >> $SP/foot/stance4/live/run_log.txt
+===== 2026-10-30T14:16:56.534Z
+bash S2/r10round/bs2_watch2.sh
+===== 2026-10-30T14:17:04.666Z
+cat TRANSCRIPTS/workflows/scripts/bias-screen-check-[id removed].js | head -150
+===== 2026-10-30T15:09:38.013Z
+date -u; B2=S2/r10round/bias_screen2; tail -14 $B2/logs/run_waves_bs.log; echo ----; pgrep -fa 'bias_screen2/tools/run_waves_bs.sh' | head -2 | cut -c1-120; pgrep -fa 'bias_screen2/tools/run_bs.py' | awk '{print $1, $(NF-2), $(NF-1), $NF}'; ls $B2/logs | grep -E 'HALTED|PAUSED|ALL_DECIDED|exit' ; df -B1 /tmp | tail -1 | awk '{printf "%.2f GiB free\n", $4/2^30}'; cat TASKS/[id removed].output 2>/dev/null | head
+===== 2026-10-30T15:09:49.296Z
+SP=S1; echo "<long text>" >> $SP/foot/stance4/live/run_log.txt

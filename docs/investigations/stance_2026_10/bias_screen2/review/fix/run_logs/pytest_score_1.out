@@ -1,0 +1,27 @@
+..................................................................F..... [ 71%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+__________________ test_criteria_pins_name_the_current_files ___________________
+
+    def test_criteria_pins_name_the_current_files():
+        """PINS: the installed criteria.txt names each pinned file's current sha256 (a change to a pinned file changes its
+        line; P2: the re-reviewed versions are the pinned ones)."""
+        crit = BS2 / "criteria.txt"
+        if not crit.exists():
+            pytest.skip("criteria.txt not installed")
+        raw = crit.read_text(encoding="utf-8")
+        pins = raw.split("\nPINS")[1].split("\nHOW THE COORDINATOR PINS")[0]
+        for rel in PIN_FILES:
+            m = re.search(rf"^\s+{re.escape(rel)}\s+([0-9a-f]{{64}})\b", pins, re.M)
+            assert m, rel
+>           assert m.group(1) == _sha(BS2 / rel), rel
+E           AssertionError: tools/score_bs.py
+E           assert '695d8a59c12d...93ef16f5a9b92' == '05dd4b38b24a...8ed07726f5ac7'
+E             
+E             - 05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7
+E             + 695d8a59c12d208aa3d091308480742b497494b65b9788663a093ef16f5a9b92
+
+claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_score_bs.py:900: AssertionError
+=========================== short test summary info ============================
+FAILED claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_score_bs.py::test_criteria_pins_name_the_current_files
+1 failed, 100 passed in 7.10s

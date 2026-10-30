@@ -1,0 +1,316 @@
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/criteria_reviewed_v1.txt	2026-10-30 11:32:25.662836174 +0000
++++ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/criteria.txt	2026-10-30 12:17:43.592592964 +0000
+@@ -15,13 +15,25 @@
+ (sha256 8e49dbf96e4a3106bb6227073161645962aff79710d384705a6de4229aaee155), with the harness-alignment edits A1-A12
+ listed in WORK/ADAPT_NOTES.txt (none changes the question, the arms, the primary, B_S, the gate, the test, a line's
+ text or a secondary); PINS filled from the files as installed (to be re-filled after the fix, before the re-review: P2).
++FIXED by the fixer (2026-10-30 12:01-12:5x UTC, date -u) after the independent review (build check; design and process
++  lenses): each finding verified against its sources, and the confirmed ones fixed, as listed in <BS2>/review/FIXES.txt
++  (the reviewed text: <BS2>/review/criteria_reviewed_v1.txt, sha256 c6535c88..., in full in
++  <BS2>/review/reviewed_sha256.txt). No fix changes the question, the arms, the primary, B_S, the gate, the test's statistic, alpha or a
++  secondary's definition. Changed: wording and figures (PREDICTED OUTCOME, THE TEST's size, the multiplicity bound,
++  KNOWN LIMITS, line 3's power clause 0.25-0.96 -> 0.25-1.00), citations, RUN HANDLING (STOPPED, REFUSED),
++  OUTCOME-BLINDNESS (tmp/<name>, P4), the disk rule, the pinning steps, and three tool changes (run_waves_bs.sh: the
++  scorer pin, the P4 atime re-arm and snapshot, the REFUSED note; score_bs.py 2.1: the qualified size and bound, line
++  3's clause, a PROVISIONAL item for a COUNTED continuation without its final pair). To be RE-REVIEWED (P2) before the
++  pin.
+ 
+ SHORT NAMES
+   S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+   S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+   <BS2> = S2/r10round/bias_screen2 (every file the screen writes is under it)  RUNLOG = S1/foot/stance4/live/run_log.txt
+   <BS> = S2/r10round/bias_screen (the finished first screen, read only; its criteria v2, sha256 9c490cc6..., are the
+-         form followed here; its code copy <BS>/code is reused read only)
++         form followed here; its code copy <BS>/code is reused read only and must not be removed or modified while
++         BS2 may run or be read). In this text <BS> is always the finished first screen; in the BS2 tools' own
++         docstrings and messages "<BS>" means the screen's root, <BS2> (bs_common.py lines 17-18).
+   F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies (read only)      FMAN = S1/foot/stance6/fetch/manifest.csv
+   EB = S2/com_revisit/notes/early_bias   VEB = S2/com_revisit/notes/verify_early_bias   EW = .../early_warning
+   VEW = .../verify_early_warning   WM = .../warning_margin   REPORT = S2/overnight/MORNING_REPORT.md
+@@ -47,8 +59,9 @@
+   first (4 of 10, all tail_3) at 3,670,016, the evaluation after E.
+ - PREDICTED OUTCOME, stated before anything runs [inferred]: the control arm passes the gate more likely than not
+   (the push at S is already present, t 2.8, and grows tenfold by 3,145,728 in the parent; the ECS's twelve s42
+-  continuations from 3,145,728 all rose, by 0.30-0.38 over 1.57M [measured, <BS>/scratch/criteria_work/
+-  ecs_spread.out]). Between REDUCED and NO REDUCTION DETECTED, REDUCED is somewhat more likely: the window is the
++  continuations from 3,145,728 all rose, by 0.24-0.48 (group means 0.30 and 0.38) over 1.57M [measured,
++  <BS>/scratch/criteria_work/ecs_spread.out lines 2-13: last 8 rows minus own first 8 rows]). Between REDUCED and NO
++  REDUCTION DETECTED, REDUCED is somewhat more likely: the window is the
+   phase where the probe supports the critic as the source, and in BS (report only, not evidence) no blinded run rose
+   by more than 0.07. Against it: the critic still sees the tail_3 velocity (observation 27), the other tail angles
+   and the pitch channels, which can carry the angle (KNOWN LIMITS).
+@@ -110,15 +123,25 @@
+ - Harness (the builder's, <BS2>/tools): run_bs.py (one continuation; preflight refuses without APPROVED pinning this
+   text, SCREEN.json, the code digest and the tools); run_waves_bs.sh (SCREEN.json's queue, 4 at a time at nice 10,
+   outcome-blind); read_bs.py (--check, then the markers once all are decided; its loop cache is keyed on read_bs.py's
+-  own sha256 and its modules' (P3)); score_bs.py (this text's reading, by the scorer adapter). Launch: the builder's
+-  NOTES, HOW TO LAUNCH.
++  own sha256 and its modules' (P3)); score_bs.py (this text's reading, by the scorer adapter). The runner also refuses
++  unless APPROVED pins tools/score_bs.py at its current sha256, and keeps the P4 atime record (OUTCOME-BLINDNESS).
++  Launch: the builder's NOTES, HOW TO LAUNCH, after HOW THE COORDINATOR PINS step 4.
+ - Outputs: <BS2>/runs/<arm>_<seed>/, <BS2>/reads/<arm>_<seed>/markers.{json,txt}, <BS2>/lost.json, <BS2>/logs/,
+-  <BS2>/score/score.{json,txt}.
++  <BS2>/score/score.{json,txt}; and, harness-owned by design as in BS: <BS2>/tmp/<run>/ (each run's TMPDIR and
++  MPLCONFIGDIR; a continuation's holds its live eval_stage1_*/evaluations.npz), <BS2>/tmp/read_<run>/ (the reader's)
++  and <BS2>/reads/_cache/ (the reader's loop cache, P3).
+ - Disk: a fresh queue starts only with at least 2,082,471,936 bytes free (1.5 GiB + 9 x 50 MiB, the runner's launch
+   floor, bs_common.LAUNCH_DISK_BYTES); before each start at least 1,610,612,736 bytes (1.5 GiB): below it the runner
+-  pauses (logs/PAUSED_disk), the running ones go on, and it resumes by itself. 2.8 GB was free at 10:45 UTC [measured,
+-  df -h /tmp]. If it pauses, the coordinator frees space inside <BS2> only (validation folders after copying their
+-  records; tmp/), never a continuation's file, and reads nothing of any outcome while doing so.
++  pauses (logs/PAUSED_disk), the running ones go on, and it resumes by itself. 2.8 GB was free at 10:45 UTC and
++  2,853,748,736 bytes at 12:09 UTC [measured, df]. The coordinator launches only with at least 2.6 GiB free (df -h
++  /tmp; about 40 MB per BS2 continuation plus the reads, above the agents' 2.2 GB working floor [inferred, process
++  review I3]); below that it first removes <BS2>/validate/v1final, v2final and the fixer's v1fix (about 200 MB in all)
++  after copying their records. If the runner pauses, the coordinator frees space inside <BS2> only: validation folders
++  after copying their records, and the tmp/ folders of validation runs (tmp/save_loaded_only_*, tmp/no_update_*,
++  tmp/read_<validation run>, tmp/read_parent_s42, tmp/parent_schedule); never tmp/<queue name> or tmp/read_<queue
++  name> (a running continuation's TMPDIR holds its live evaluations.npz; removing it crashes the run at its next
++  evaluation [inferred: SB3 EvalCallback makes the folder only at init and saves into it at every evaluation]), never
++  a continuation's file, and it reads nothing of any outcome while doing so.
+ 
+ THE MANIPULATION CHECK (per rollout; it decides VOID, never the reading) -- as BS, unchanged
+ - CHECK (read_bs.py --check, run by the runner as each continuation exits) passes only if, on every one of the 175
+@@ -136,7 +159,10 @@
+   at the end; 175 probe rows exactly at S + 8,192 k with ent_coef and learning_rate equal (float32) to the parent's F2
+   probe at the same step; parameters changed and n_updates grew; the code seal unchanged; start pair and records at
+   FMAN sha256; stop reason "end" at E or "collapse" at T < E.
+-- That the control arm is untouched is shown before launch by the builder's V2 (same seed, train() a no-op, from S).
++- That the control arm is untouched is shown before launch by the builder's V2 (same seed, train() a no-op, from S),
++  indirectly as in BS: control's loaded state equals an independent load of the start pair, it installs nothing (its
++  classes are the stock ones before and after), and the other arms reproduce its environment side on 31 of 31
++  rollouts; no separate hook-free run exists (build check I1).
+ - The scorer prints each COUNTED continuation's evidence summary and refuses (input error) markers whose critic form
+   is not the arm's, whose blind-arm effective critic slope on observation 6 is not 0.0, or whose loop row at E
+   records a num_timesteps other than E (the final pair must be the model at E).
+@@ -171,8 +197,13 @@
+   ways to choose 4 of the 8 primaries as "control" whose statistic is at least the observed one (the observed split
+   included; a tie counts against the reading). Exact rational arithmetic on the recorded values: two sums tie only if
+   equal as exact rationals of the recorded doubles.
+-- Minimum attainable p = 1/70 = 0.0143. Attainable p <= 0.05: 1/70, 2/70, 3/70 (0.0429); 4/70 = 0.0571 is not. Size
+-  under exchangeable continuous values: 3/70 = 0.0429 [computed, WORK power_bs2.out A].
++- Minimum attainable p = 1/70 = 0.0143. Attainable p <= 0.05: 1/70, 2/70, 3/70 (0.0429); 4/70 = 0.0571 is not. Size:
++  3/70 = 0.0429 when the 8 primaries are exchangeable under no effect (continuous values) [computed, WORK
++  power_bs2.out A]. If blinding changes only the between-continuation spread (BS: SD 0.137 control, 0.029 blind),
++  P(REDUCED) with equal means is about 0.06 (0.057-0.064 for SD ratios 3-7), and up to about 0.09 given the gate at a
++  control rise near 0.29 [computed, <BS2>/review/design/work/rd_power.out P2; reproduced by the fixer,
++  <BS2>/review/fix/work/mc_check.out]. A studentized statistic does not change this with 4 + 4 (it ranks the 70
++  relabelings identically: rd_power2.out). Read a REDUCED with each arm's printed SD.
+ - Beside it, report only (never a line): the four paired differences control - blind (same seed), their exact
+   one-sided sign-flip p (minimum 1/16 = 0.0625: it can never reach 0.05), and the as-counted p.
+ - Pairing [computed, WORK power_bs2.out F, normal model, total between-continuation SD held fixed]: a shared-seed pair
+@@ -216,8 +247,9 @@
+       larger than from 1,048,576) 213/256 = 0.83.
+ - What each outcome would mean [inferred]:
+     NOT INFORMATIVE: the median control continuation did not make a third of the parent's climb in 1.44M steps from
+-      the same state; with BS this would say the climb is not locked in even at 2,097,152 under fresh rollout seeds,
+-      and a screen of the critic would need a later start (3,145,728, where every ECS s42 continuation rose) or more
++      the same state; with BS this would say the climb is not reproduced from 2,097,152 under this harness's fresh
++      draws (new seeds, CPU, a fresh reset at S: the named departures above); it does not separate those causes. A
++      screen of the critic would then need a later start (3,145,728, where every ECS s42 continuation rose) or more
+       seeds. No reading about the critic.
+     REDUCED: in the phase where the probe supports the critic as the source, hiding the tail angle from the critic
+       lowered the policy's on-policy tail command: a causal effect at this state (KNOWN LIMITS: not a fix).
+@@ -235,7 +267,7 @@
+      p <= 0.05)".
+   3. NO REDUCTION DETECTED: "NO REDUCTION DETECTED IN THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E FROM
+      BLINDING THE CRITIC TO THE TAIL_3 ANGLE (not excluded: a reduction of about half the rise or smaller (power about
+-     0.25-0.96 at half the parent's rise, by the between-continuation spread; about 0.1-0.3 if blinding makes climbs
++     0.25-1.00 at half the parent's rise, by the between-continuation spread; about 0.1-0.3 if blinding makes climbs
+      rarer rather than smaller), other inputs that carry the angle, the phase after E, the rail)". When the as-counted
+      p is <= 0.05 and the filled one is not, it adds "(the as-counted p, report only, is <= 0.05; the filled p
+      decides)". A null is not evidence that the critic plays no part (KNOWN LIMITS, power).
+@@ -251,7 +283,9 @@
+   (a MISSING value counts as the infinity that works against the secondary's direction), and prints "SUPPORTED (p <=
+   0.05, unadjusted)" or "NOT SUPPORTED", the 8 values, each arm's n, mean and median, the filled and as-counted p.
+ - Multiplicity: three secondaries at 3/70 each; under the global null the chance that at least one reads SUPPORTED is
+-  at most 9/70 = 0.129 (Bonferroni bound). A secondary with p = 1/70 (0.0143 <= 0.05 / 3 = 0.0167) is printed as also
++  at most 9/70 = 0.129 (Bonferroni bound) when each secondary's 8 values are exchangeable under no effect; about 0.18
++  (3 x 0.06) if the arms' spreads differ (THE TEST). A secondary with p = 1/70 (0.0143 <= 0.05 / 3 = 0.0167) is
++  printed as also
+   "(survives Bonferroni over the 3 secondaries)"; no other p can.
+   SEC-G, the end loop gain (BS's post hoc pattern, now out of sample). VALUE = OWN G at the final pair (E): the
+     markers' loop row whose steps equal E (stage1_final.zip / stage1_final_vecnorm.pkl), OWN.P.G (read_bs M-LOOP (a):
+@@ -262,7 +296,8 @@
+     (<BS>/score/score.txt; post hoc and untested, RUNLOG 09:13 UTC STAT-3). Report only beside it: the count per arm
+     with G at E above G at S (the start pair's own value, the same for all; the parent's -0.636). Prediction
+     [inferred]: unclear. In this window the parent's own G rose from -0.636 (S) to +0.349 (3,145,728) and +0.539
+-    (3,670,016) [measured, EW ew_r10.jsonl; <BS>/reads/parent_s42/markers.txt], so a control arm that climbs like the
++    (3,670,016) [measured, EW ew_r10.jsonl lines 3, 1 and 4; <BS2>/validate/v3final/parent_s42/markers.txt lines
++    17-18 for S and 3,145,728 (<BS>/reads/parent_s42/markers.txt has S only)], so a control arm that climbs like the
+     parent works against this secondary: NOT SUPPORTED here does not refute BS's pattern at 1.05-2.49M, and SUPPORTED
+     would mean blinding raised G even against the control's own climb.
+   SEC-CMD, the ledger tail command at E. VALUE = CMD_L at E: the markers' ledger.direct.per_evaluation[E].cmd_l (JSON
+@@ -278,13 +313,17 @@
+     value counts as -infinity, a MISSING control value as +infinity. Why: it is the practical form of the question
+     (option A: "does hiding the tail angle from the critic stop the progression toward the rail?", REPORT section 6);
+     the gain-aware margin ranked all seven margin-study checkpoints by their closeness to the rail (WM; RUNLOG 04:40
+-    UTC); in the parent it fell +1.399 (S) -> +0.240 (3,145,728) -> -0.061 (3,670,016) [measured: <BS>/reads/
+-    parent_s42/markers.txt; 1 - G - c0 from EW ew_r10.jsonl]. It shares G with SEC-G: if SEC-G holds, SEC-MARGIN
++    UTC); in the parent it fell +1.399 (S) -> +0.240 (3,145,728) -> -0.061 (3,670,016) [measured: <BS2>/validate/
++    v3final/parent_s42/markers.txt lines 17-18 for S and 3,145,728; 1 - G - c0 from EW ew_r10.jsonl line 4 for
++    3,670,016]. It shares G with SEC-G: if SEC-G holds, SEC-MARGIN
+     holds only if c0 falls by more than G rises (in BS, report only, the blind margins were the lower ones, 0.67-1.47
+     against 0.82-2.95).
+   A secondary's value is MISSING for a LOST, STOPPED or UNREADABLE continuation and when its marker is absent or not
+   finite (cause printed). Secondaries need M-LOOP's final-pair row: a full-read failure confined to the loop markers
+-  is a tool defect (RUN HANDLING) and holds the reading, as BS.
++  is a tool defect (RUN HANDLING) and holds the reading, as BS. Likewise a COUNTED continuation whose markers lack the
++  loop row at E (the final pair stage1_final.zip / stage1_final_vecnorm.pkl not read: read_bs.saved_pairs leaves out
++  a missing pair silently and CHECK does not look at it) reads SEC-G and SEC-MARGIN MISSING, filled, and is a
++  PROVISIONAL item (score_bs 2.1): a tool or file defect, which holds the reading until it is found.
+ - Not pre-registered as tested (report only, reasons in WORK DESIGN_NOTES.txt): c0 alone; own14; b*_L; the
+   statue_settled offset (it did not climb in the parent's window); the first over-bar episode and the CMD_L >= 0.30 /
+   0.60 / 0.90 crossings (mostly censored at E with 4 per arm); returns and falls (a safety read, not a hypothesis).
+@@ -310,8 +349,12 @@
+ RUN HANDLING (as the runner and reader implement it; no Colab rule carries over) -- as BS
+ - Fails stay fails. No continuation is stopped, changed, extended or rerun because of an outcome.
+ - COUNTED: CHECK passed, stop reason "end" at E. Its primary and secondaries are read from its markers.
+-- STOPPED: CHECK passed, stop reason "collapse" (the run's own collapse stop, patience 10) at T < E; possible, if at
+-  all, only at the window's 10th evaluation, 3,407,872 [inferred, as BS]. MISSING, filled (primary and secondaries).
++- STOPPED: CHECK passed, stop reason "collapse" (the run's own collapse stop, patience 10) at T < E. Not expected: the
++  stop cannot fire in (S, E] (collapse_min_evals 20, patience 10; the resume seeds the parent's 16 evaluations at or
++  before S, so the 11 window evaluations give at most 8 patience observations < 10, and without the seeding none)
++  [measured: F2 evaluations.npz.copy1 (16 at or before S, 11 in (S, E]), stage_config.json.copy1; inferred from
++  <BS>/code environments/shared/curriculum/early_stopping.py lines 129-130, 188-193 and 254, and checkpoints.py lines
++  387-429]. Kept as a guard: if it occurs, MISSING, filled (primary and secondaries).
+ - UNREADABLE: a COUNTED continuation whose 8 primary rows are not each present once with a finite value: MISSING,
+   filled, cause printed.
+ - CRASH: the process died (an exception, out of memory, killed) or a container restart left it half-way. The folder
+@@ -336,22 +379,36 @@
+   changes a pinned file or this text needs the maintainer's word and a re-pin first. Unfixed, the screen reads VOID:
+   no line, and any rerun is a new pre-registration.
+ - REFUSED by preflight (exit 2, before any optimizer step): fixed and restarted under the same name; a pinned-file
+-  change needs the maintainer's word and a re-pin; unfixed, VOID.
++  change needs the maintainer's word and a re-pin; unfixed, VOID. Its cause is found by re-running, read only,
++      cd /tmp && nice -n 10 S2/venv/bin/python -I -B <BS2>/tools/run_bs.py --arm ARM --seed N --preflight-only
++  (it prints the same problems and creates nothing; the runner's REFUSED note names this command), or, if the refusal
++  left a folder, from its run_meta.json error and traceback; never from the attempt log.
+ - The runner is restarted only by the coordinator (after a container restart or a fixed halt); it re-reads its
+   ledgers (logs/decided.tsv, crash_ledger.tsv, lost.json).
+ 
+ OUTCOME-BLINDNESS -- as BS (an allow-list)
+ - Until every queue entry is decided (COUNTED, STOPPED or LOST) and none is VOID, nobody (no person and no agent; the
+   pinned tools' own work, run_bs.py and CHECK, excepted) opens any file of a continuation (runs/<name> and every
+-  runs/<name>_crashed<k> / _void<k> / _refused<k>, reads/<name>, logs/<name>.attempt<k>.log) except: run_meta.json's
+-  fields status, exit, stop_reason, heartbeat, last_step, error and traceback (the last two only to find a crash's or a
+-  refusal's cause); check.json's pass / fail with its failures list and its identity and source fields, and
+-  logs/<name>.check.log. Everything else is outcome-bearing or may be (01_stance/progress.json, evaluations.npz,
+-  train_episodes.csv, eval_episodes.csv, diagnostics.npz, gate_progress.npz, policy_probe.npz, the checkpoints,
+-  arm_evidence.jsonl, run_meta's other fields, the attempt logs) and is not opened. The runner's own records
+-  (logs/run_waves_bs.log, decided.tsv, crash_ledger.tsv, PAUSED_disk, HALTED, proctable.log, run_waves_bs.exit) and
++  runs/<name>_crashed<k> / _void<k> / _refused<k>; its TMPDIR <BS2>/tmp/<name>/, which holds its live
++  eval_stage1_*/evaluations.npz (the evaluation returns); the reader's <BS2>/tmp/read_<name>/; reads/<name>;
++  logs/<name>.attempt<k>.log) except: run_meta.json's fields status, exit, stop_reason, heartbeat, last_step, error and
++  traceback (the last two only to find a crash's or a refusal's cause; a preflight refusal that left no folder is
++  diagnosed by re-running --preflight-only, RUN HANDLING, never from its attempt log); check.json's pass / fail with
++  its failures list and its identity and source fields, and logs/<name>.check.log. Everything else is
++  outcome-bearing or may be (01_stance/progress.json, evaluations.npz, train_episodes.csv, eval_episodes.csv,
++  diagnostics.npz, gate_progress.npz, policy_probe.npz, the checkpoints, arm_evidence.jsonl, run_meta's other fields,
++  the attempt logs, tmp/<name>/) and is not opened. The runner's own records (logs/run_waves_bs.log, decided.tsv,
++  crash_ledger.tsv, PAUSED_disk, HALTED, proctable.log, run_waves_bs.exit, atimes_at_ALL_DECIDED.tsv) and
+   <BS2>/lost.json may be read. read_bs.py refuses a continuation's markers until all are decided; score_bs.py, while
+   any entry is undecided or unread, prints only which are decided and opens no markers and no run_meta.
++- P4 (relatime; BS's process lesson, RUNLOG 09:13 UTC): right after the runner decides a continuation COUNTED or
++  STOPPED it re-arms every regular file under runs/<name>/ and tmp/<name>/ and its logs/<name>.attempt<k>.log (atime =
++  mtime - 1 ns; content, mtime and sha256 unchanged), so any later read of one moves its atime; at ALL_DECIDED, before
++  it writes logs/ALL_DECIDED and before the full reads, it writes logs/atimes_at_ALL_DECIDED.tsv (path, atime, mtime,
++  ctime and rearmed_unread for runs/**, logs/** and tmp/**; lstat only, which moves no atime). The process
++  verification compares them: every such file of a COUNTED or STOPPED continuation must still read rearmed_unread 1
++  there, except run_meta.json and check.json (whose allowed fields may have been read); any other 0 is a read after
++  the decision and is reported. Reads before a decision (while the run runs, and CHECK's own) are not covered.
+ - The parent's own data (F2) are not an outcome of this screen and were used for this design (B_S, the parent's
+   rise, the gate's basis); BS's finished records were read for the design (its spread and its G pattern).
+ 
+@@ -365,7 +422,8 @@
+   differing; this text not naming score_bs.py's sha256 (PINS); a continuation's run_meta naming another criteria.txt /
+   SCREEN.json / APPROVED / tool sha256, or changed since CHECK; a check.json or markers.json made by another
+   read_bs.py; a ledger changed since the read; M5 off its pins; the code copy (<BS>/code = bs_common.CODE, not under
+-  <BS2>) failing M1's check_copy. Cleared only by measuring again with the pinned files, never by a ruling.
++  <BS2>) failing M1's check_copy; a COUNTED continuation whose markers lack the loop row at E (THE SECONDARIES).
++  Cleared only by measuring again with the pinned files, never by a ruling.
+ - A reading neither incomplete nor provisional is final and goes to the maintainer at once. Report only: nothing is
+   merged or pushed by the screen.
+ 
+@@ -385,8 +443,13 @@
+   line 3, NO REDUCTION DETECTED, with p = 70/70 and the control rise +0.57878 (informative) [computed from the values
+   above]; every secondary NOT SUPPORTED with p 70/70 (SEC-CMD: 8 equal values; SEC-G and SEC-MARGIN: MISSING in all
+   8 if the parent's markers have no loop row at E, as read_bs.py --reference gives: the parent's F2 pairs in [S, E]
+-  are 2,097,152 and 3,145,728 only). A synthetic dry run with loop rows at E exercises SEC-G and SEC-MARGIN (WORK
+-  dryrun_root/, ADAPT_NOTES.txt).
++  are 2,097,152 and 3,145,728 only; with score_bs 2.1 each of the 8 is then also a PROVISIONAL item, "the final pair
++  was not read"). A synthetic dry run with loop rows at E exercises SEC-G and SEC-MARGIN (WORK dryrun_root/,
++  ADAPT_NOTES.txt).
++- After the fixer's changes (run_waves_bs.sh, score_bs.py and their tests; run_bs.py, read_bs.py, bs_common.py and
++  bs_hooks.py unchanged): all unit tests, ruff, the scorer's mutation tests and both dry runs re-run; V1 re-run
++  (<BS2>/validate/v1fix) and V3 re-run on V2's outputs (<BS2>/validate/v3fix); V2 not re-run (run_bs.py and
++  bs_hooks.py unchanged) [measured: <BS2>/review/FIXES.txt, <BS2>/review/fix/NOTES.txt].
+ 
+ COMPUTE [inferred from BS, measured there: <BS>/check/proc/pc_meta.out]
+ - One continuation about 83-86 min with 4 running (BS: 06:00:19 -> 07:23:21 and 07:23:13 -> 08:48:14); 8 at 4 at a
+@@ -429,13 +492,22 @@
+   f)): at f = 1, 1.00 / 0.84 / 0.61 / 0.29 for q = 1 / 0.9 / 0.75 / 0.5; at f = 0.5, 0.12-0.31. A null therefore does
+   not exclude a reduction of about half the rise at the larger spreads, nor any smaller one (the scorer prints each
+   arm's SD, report only, to place it).
+-- The informativeness gate and the test read the same control values. Under no effect, P(REDUCED) is at most 3/70
+-  over the whole screen; given that the gate passed, it is about 0.08 if the control arm's true rise is 0.20 (the
+-  gate), 0.11-0.15 at 0.15, 0.15-0.26 at 0.10, 0.05-0.06 at 0.25 and at most 0.053 at 0.29 or more [computed, WORK
+-  power_bs2.out E]. A REDUCED read with a control median rise below about 0.29 is less secure than its p says.
++- The informativeness gate and the test read the same control values. Under no effect, with the 8 primaries
++  exchangeable, P(REDUCED) is at most 3/70 over the whole screen; given that the gate passed, it is about 0.08 if the
++  control arm's true rise is 0.20 (the gate), 0.11-0.15 at 0.15, 0.15-0.26 at 0.10, 0.05-0.06 at 0.25 and at most
++  0.053 at 0.29 or more [computed, WORK power_bs2.out E]. If blinding changes only the spread, about 0.06 overall and
++  up to about 0.09 given the gate (THE TEST). In the normal model this risk is confined to control rises below about
++  0.29. In the two-state model, where each continuation climbs or stays, it is 0.06-0.10 given the gate when half or
++  fewer continuations climb (q 0.5-0.25), and 0.08-0.14 when the control median rise is >= 0.29 [computed,
++  <BS2>/review/design/work/rd_power.out P3; reproduced by the fixer, <BS2>/review/fix/work/mc_check.out]. A REDUCED in
++  which only 2 of the 4 control primaries climbed (the printed values show it) is therefore less secure than its p
++  says.
+ - With 4 per arm one MISSING continuation makes REDUCED unreadable (THE FILL); the secondaries likewise.
+-- The three secondaries are tested at 0.05 each, unadjusted (up to 0.129 family-wise under the global null); SEC-G and
+-  SEC-MARGIN share G. A SUPPORTED secondary is a pre-registered observation, not a line.
++- The three secondaries are tested at 0.05 each, unadjusted (up to 0.129 family-wise under the global null with
++  exchangeable values, about 0.18 if the arms' spreads differ); SEC-G and SEC-MARGIN share G. A SUPPORTED secondary is
++  a pre-registered observation, not a line.
++- Outcome-blindness is audited from atimes (P4): a read of a continuation's file before its decision (while it runs,
++  or CHECK's own) is not visible, and the audit holds only on this relatime ext4 filesystem (/proc/mounts) [measured].
+ - The full read writes markers.json only after the loop simulations; a failure confined to them holds the reading
+   until the maintainer decides a reader change, and the secondaries need them. Unlikely, not excluded [measured: BS
+   logs, 8 of 8 full reads exit 0; ECS 24 of 24].
+@@ -445,15 +517,16 @@
+ changes its line)
+   This text's sha256 cannot be held in the text itself: it goes into <BS2>/APPROVED (criteria_sha256) and RUNLOG.
+     SCREEN.json                          255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0
+-    tools/score_bs.py                    695d8a59c12d208aa3d091308480742b497494b65b9788663a093ef16f5a9b92
+-    tools/tests/test_score_bs.py         9a4039ad43962be2f7e94bfa6d371af5850ad4643d1c9bb8a38341ad5a7325d6
++    tools/score_bs.py                    05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7
++    tools/tests/test_score_bs.py         7ace28fb01ad59fc9829232410f5235b13e809e8cc5786b1a4dc8efd32a8feb8
+     tools/bs_common.py                   6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66
+     tools/bs_hooks.py                    1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc
+     tools/run_bs.py                      acd5b499e70b6eb76ca6ac4218cf01b86f2beac6f1dd33f701b31d1e68a6471f
+-    tools/run_waves_bs.sh                0f687d7755a416713d5ee6bd28d37df55d63beb20d5e8251c4b7079832526a07
++    tools/run_waves_bs.sh                6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5
+     tools/read_bs.py                     06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60
+-  (filled by the scorer adapter at 11:32 UTC from the files as installed; the five builder tools as the builder froze
+-  them, <BS2>/SHA256SUMS.txt and validate/logs/final_tools_sha256_at_launch.txt; bs_hooks.py = BS's)
++  (filled by the scorer adapter at 11:32 UTC from the files as installed; RE-FILLED by the fixer at 12:17 UTC from
++  the files as fixed: run_waves_bs.sh, score_bs.py and test_score_bs.py changed, the other five unchanged (bs_hooks.py
++  = BS's); every file's sha256 also in <BS2>/SHA256SUMS.txt and <BS2>/review/FIXES.txt)
+   The code copy <BS>/code (read only, reused): commit 8737cd3d86431de1bdd0fcdb49a0d956a45e084d, 1,406 files, tree
+     digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1 [<BS> criteria PINS; to be re-measured]
+   The start pair: F2 01_stance/models/stage1_2097152_steps.zip.copy1
+@@ -475,7 +548,13 @@
+   3. P1: in the SAME RUNLOG entry that records the pin, and before the launch entry, APPROVED's full text (verbatim)
+      and its sha256, and criteria.txt's sha256. (In BS the full text reached RUNLOG only at 09:13 UTC, after the
+      reading; process check P1.)
+-  4. run_bs.py --preflight-only for one entry on the real <BS2> (expected exit 0); run_waves_bs.sh --plan; launch.
++  4. Before launch, all read only: (a) cd /tmp && S2/venv/bin/python -I -B <BS2>/tools/score_bs.py --out
++     <BS2>/logs/prelaunch_score must exit 3 with STATUS incomplete (0 of 8 decided) and NO PROVISIONAL item (it
++     checks APPROVED's criteria, SCREEN and code digest and all six tool pins, score_bs.py's included, this text's
++     naming of the scorer, M5's pins and the code copy); (b) run_bs.py --preflight-only for all 8 entries on the real
++     <BS2> (expected exit 0 each); (c) RUNLOG holds APPROVED's sha256 and every re-reviewed sha256 (grep; P1, P2); (d)
++     df -h /tmp shows at least 2.6 GiB free (WHERE AND HOW); (e) run_waves_bs.sh --plan; then launch. The runner
++     itself refuses (exit 2, nothing started) unless APPROVED pins tools/score_bs.py at its current sha256.
+   APPROVED is written once, before the first start, and never edited. Every run_meta records APPROVED's sha256 at its
+   start, so a later change to APPROVED (a re-pin, only with the maintainer's word) leaves every continuation started
+   before it PROVISIONAL for good (cleared only by running it again).

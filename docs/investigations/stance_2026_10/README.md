@@ -494,6 +494,21 @@ lines ending in spaces (the README names them). No other copy holds a
 session tool id, and none holds a model identifier, an email address or a
 commit trailer.
 
+*Added 2026-10-30, later still (`bias_screen2/`):* no new kind of change.
+Each copy has its source at the same path in the screen's scratch folder
+(each `run_logs/` is the `logs/` beside it). Every copy is byte-identical to
+its source, absolute session-scratch paths included, but for **redact** (one
+workflow run id in the design notes, and 3 workflow run ids, 1
+scheduled-task id and 8 background-job ids in four of the process check's
+transcript reads) and **gzip** (`tools/run_bs.py`, as in `bias_screen/`).
+`criteria.txt` and `APPROVED` keep the one workflow run id each holds: their
+sha256 are the approved pin and the run log's, so **redact** is not applied
+to them. `run_logs/crash_ledger.tsv` is empty, as its source is. Kept as
+their sources have them, so to leave out of a manual pre-commit run: 2 JSON
+files without a final newline and 27 files with lines ending in spaces (the
+README names them). No other copy holds a session tool id, and none holds a
+model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -512,6 +527,7 @@ commit trailer.
 *Added 2026-10-30:* nor `critic_blind_results/README.md`, likewise.
 *Added 2026-10-30, later:* nor `overnight_probes/README.md`, likewise.
 *Added 2026-10-30, later:* nor `bias_screen/README.md`, likewise.
+*Added 2026-10-30, later still:* nor `bias_screen2/README.md`, likewise.
 
 ## Contents
 
@@ -1609,6 +1625,24 @@ checkpoints, ledgers and code copy are not here; the ledgers are on the
 never-merged orphan branch `claude/handoff-bias-screen`. Its
 [README](bias_screen/README.md) indexes it.
 
+### Added on 2026-10-30, later still (decision D-D57: the second critic-blind screen)
+
+**`bias_screen2/`: the second critic-blind screen, from its build and
+criteria to its reading, final, the reading's two independent checks and the
+report (324 files, about 1.8 MB).** Eight CPU continuations of seed 42 from
+its checkpoint at 2,097,152 steps to 3,538,944, four of them with the
+`tail_3` angle hidden from the critic: the approved criteria and the
+approval, the six pinned tools with their tests, the build check
+(`check_build/`), the criteria's design notes (`criteria_work/`), the design
+and process reviews, the fixer's record and the re-review of the fixed
+version (`review/`), each continuation's run record, check and read, the
+scorer's reading (`score/`: line 2, "REDUCED", p 1/70, the control median
+rise +0.46382 against 0.20), the two checks (`check/stat/`, `check/proc/`:
+both agree) and the report with the checkers' wording corrections
+(`REPORT.md`). The checkpoints, ledgers and code copy are not here; the
+ledgers are on the never-merged orphan branch `claude/handoff-bias-screen2`.
+Its [README](bias_screen2/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1731,6 +1765,10 @@ copies.
 | The first critic-blind screen's reading (2026-10-30, later) | `sed -n 5,24p bias_screen/score/score.txt` | `STATUS: final`; line 1, "NOT INFORMATIVE: THE CONTROL ARM DID NOT REPRODUCE THE EARLY RISE OF THE ON-POLICY TAIL_3 COMMAND (…)"; the control median +0.06027, rise +0.09184 -> NOT INFORMATIVE; p (filled, decides) 13/70 |
 | The copies against the screen's durable copy (2026-10-30, later; needs the durable branch) | `git show cfed2c70:SHA256SUMS` of `claude/handoff-bias-screen` against the source sha256 SOURCES.txt gives each `bias_screen/` row (`run_logs/` as `logs/`) | equal for all 150 |
 | The files themselves (2026-10-30, later, with `bias_screen/`) | `sha256sum -c SHA256SUMS` | all 1678 files OK |
+| The second critic-blind screen's approved text and pinned tools (2026-10-30, later still) | `sha256sum bias_screen2/criteria.txt bias_screen2/SCREEN.json bias_screen2/APPROVED`; in a copy of `bias_screen2/`: `gunzip tools/run_bs.py.gz`, then `sha256sum -c --ignore-missing SHA256SUMS.txt` and each tool's sha256 against `APPROVED`'s `tool_sha256` | `291ff457…` and `255d0ba4…`, `APPROVED`'s `criteria_sha256` and `screen_sha256`, and `184f9ab9…`, the run log's; 24 files OK (26 where the session's scratch holds the start checkpoint's two files, which the list names by their absolute paths); 6 of 6 equal |
+| The second critic-blind screen's reading (2026-10-30, later still) | `sed -n 5,25p bias_screen2/score/score.txt` | `STATUS: final`; line 2, "REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"; the control median +0.59041, rise +0.46382 -> informative; p (filled, decides) 1/70 |
+| The copies against the screen's durable copy (2026-10-30, later still; needs the durable branch) | `git show 2d241410:SHA256SUMS` of `claude/handoff-bias-screen2` against the source sha256 SOURCES.txt gives each `bias_screen2/` row (each `run_logs/` as `logs/`) | equal for the 323 it lists; it does not list `review/process/work/copyroot_sha256.txt` |
+| The files themselves (2026-10-30, later still, with `bias_screen2/`) | `sha256sum -c SHA256SUMS` | all 2002 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

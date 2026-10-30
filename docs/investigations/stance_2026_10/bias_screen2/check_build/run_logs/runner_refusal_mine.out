@@ -1,0 +1,19 @@
+== (a) empty root
+exit 2 | out:  | err: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/check_build/work/rroot/SCREEN.json missing (the intervention is not chosen yet)
+== (b) valid SCREEN.json only
+exit 2 | out:  | err: run_waves_bs: refused: no <BS>/APPROVED
+SCREEN.json
+== (b2) --plan with valid SCREEN
+exit 0 | out: slots 4 at nice 10; disk floor 1610612736 bytes; launch floor 0 bytes; crash limit 3; early crash: last step below S + 131072
+orphan pattern: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/check_build/work/stub_run.py --arm
+  /tmp/claude- | err: 
+== (c) SCREEN + APPROVED, no criteria
+exit 2 | out:  | err: run_waves_bs: refused: no <BS>/criteria.txt
+APPROVED
+SCREEN.json
+== (d) APPROVED + criteria, no SCREEN
+exit 2 | out:  | err: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/check_build/work/rroot/SCREEN.json missing (the intervention is not chosen yet)
+APPROVED
+criteria.txt
+== stub called?
+cat: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/check_build/work/stub_called.txt: No such file or directory
