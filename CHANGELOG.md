@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **One record of everything tried on the T. rex tail saturation habit, with
   the entropy continuation screen judged, final: line 3, no difference
-  detected** (decision D-D52's amendment and D-D53 to D-D55;
+  detected** (#654; decision D-D52's amendment and D-D53 to D-D55;
   `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md`, with its
   ledger, and the appended §28 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the entropy continuation screen read its line 3, no difference detected;
   next, the centre-of-mass follow-ups with a tail clamp test, a normaliser
   probe, three posture tests and one record of everything tried on the T. rex
-  tail saturation habit** (the maintainer's decisions and requests of
+  tail saturation habit** (#654; the maintainer's decisions and requests of
   2026-10-28 21:05 UTC to 2026-10-29 23:21 UTC in the stance run log;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6). Records only. D-D52 is amended with the screen's design, as the
