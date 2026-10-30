@@ -458,6 +458,14 @@ made LF); `update/CHANGES.txt` and `update_check/FIXES.txt` carry **redact**
 (2 workflow run ids each); the other four copies are byte-identical. No copy
 holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-30 (`critic_blind_results/`):* no new kind of change.
+`critic_blind_results/run_log.txt` carries **lines** (lines 760 to 801 of the
+session's run log; it continues `ecs_results/run_log.txt` with no line in
+both) and **redact** (16 workflow run ids, 9 distinct, 3 scheduled-task ids,
+2 distinct, and the assistant's name in a GitHub check's name);
+`MORNING_REPORT.md` is byte-identical. No copy holds a model identifier, an
+email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -473,6 +481,7 @@ holds a model identifier, an email address or a commit trailer.
 *Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
 *Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
 *Added 2026-10-29, latest:* nor `tail_record/README.md`, likewise.
+*Added 2026-10-30:* nor `critic_blind_results/README.md`, likewise.
 
 ## Contents
 
@@ -1527,6 +1536,19 @@ record and number check, the update's changes and its fact check).** Its
 [README](tail_record/README.md) holds the record's build notes, among them
 each edit that made the repository note from the session draft.
 
+### Added on 2026-10-30 (decisions D-D56 to D-D58: the run log and the overnight report)
+
+**`critic_blind_results/`: the overnight probes of the T. rex tail saturation
+habit and the two critic-blind screens (2026-10-29 23:47 UTC to 2026-10-30
+16:32 UTC; lines 760 to 801 of the session's run log), with the overnight
+report.** The run log holds the maintainer's decisions (D-D56 to D-D58), the
+early-bias probe and the early-warning curve with their follow-ups and
+verifiers, the first critic-blind screen (line 1, not informative), the
+second (line 2, reduced), their independent checks and durable copies, and
+the landings of #653 and #654; the overnight report is the one the
+maintainer read before choosing the second screen. Its
+[README](critic_blind_results/README.md) names the decision entries.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1638,6 +1660,10 @@ copies.
 | The files themselves (2026-10-29, later still, with `com_revisit/` and `tail_probes/`) | `sha256sum -c SHA256SUMS` | all 1357 files OK |
 | The record's ledger (2026-10-29, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `167 L001 L167` |
 | The files themselves (2026-10-29, latest, with `tail_record/`) | `sha256sum -c SHA256SUMS` | all 1364 files OK |
+| The fourth run-log copy against its source (2026-10-30; session scratch only) | `head -801 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 760 to 801 against `critic_blind_results/run_log.txt` with the ids and the name SOURCES.txt names put back | `35b00201…`, the value SOURCES.txt gives; equal |
+| The run-log copies against each other (2026-10-30) | `tail -1 ecs_results/run_log.txt` and `head -1 critic_blind_results/run_log.txt` | the entries timed 23:21 UTC and 23:47 UTC on 2026-10-29, the source's lines 759 and 760: no gap and no line in both |
+| The overnight report against the first screen's durable copy (2026-10-30; needs the durable branch) | `git show cfed2c70:FOR_THE_MAINTAINER.md` of `claude/handoff-bias-screen` against `critic_blind_results/MORNING_REPORT.md` | equal but for the copy's §4 last bullet (two lines), written after that push |
+| The files themselves (2026-10-30, with `critic_blind_results/`) | `sha256sum -c SHA256SUMS` | all 1366 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
