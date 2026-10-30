@@ -1,0 +1,97 @@
+--- review/fixer/orig/test_score_bs.py	2026-10-30 05:21:54.322415142 +0000
++++ tools/tests/test_score_bs.py	2026-10-30 05:51:26.175856034 +0000
+@@ -11,6 +11,7 @@
+ import itertools
+ import json
+ import random
++import statistics
+ import sys
+ from fractions import Fraction
+ from pathlib import Path
+@@ -295,6 +296,22 @@
+         assert dec["control_rise"] == ctrl - Fraction(B_S)
+ 
+ 
++def test_informativeness_uses_the_median_not_the_mean():
++    # control rises 0.05, 0.06, 0.07, 0.40 from B_S: median 0.065 (< 0.10, NOT INFORMATIVE), mean 0.145 (>= 0.10)
++    classes = [{"name": C.run_name(a, sd), "arm": a, "seed": sd} for a, sd in SB.QUEUE]
++    rises = dict(zip(SB.SEEDS, (Fraction(5, 100), Fraction(6, 100), Fraction(7, 100), Fraction(40, 100)), strict=True))
++    prim = {C.run_name(a, sd): (Fraction(B_S) + rises[sd] if a == C.CONTROL else Fraction(B_S)) for a, sd in SB.QUEUE}
++    dec = SB.decide(classes, prim)
++    assert dec["medians"]["control"] - Fraction(B_S) == Fraction(65, 1000)
++    assert dec["informative"] is False and dec["line"] == 1
++    # and the other way round: 0.00, 0.11, 0.12, 0.13 -> median 0.115 informative although the mean 0.09 is below
++    # 0.10 (the zero ties with the blind values: p = 5/70, line 3)
++    rises = dict(zip(SB.SEEDS, (Fraction(0), Fraction(11, 100), Fraction(12, 100), Fraction(13, 100)), strict=True))
++    prim = {C.run_name(a, sd): (Fraction(B_S) + rises[sd] if a == C.CONTROL else Fraction(B_S)) for a, sd in SB.QUEUE}
++    dec = SB.decide(classes, prim)
++    assert dec["control_rise"] == Fraction(115, 1000) and dec["informative"] is True and dec["line"] == 3
++
++
+ # ------------------------------------------------------------------------------------------------ missing and the fill
+ def test_fill_blind_lost(tmp_path):
+     s = Screen(tmp_path)
+@@ -303,7 +320,9 @@
+     res, text, _ = _score(tmp_path)
+     assert res["line"] == 3 and res["p_filled"]["count"] == 36
+     assert res["p_as_counted"]["count"] == 1 and res["p_as_counted"]["total"] == 35
+-    assert res["additions"] == ["(REDUCED holds only without the 1 missing continuation)"]
++    assert res["additions"] == [SB.ADDITION_AS_COUNTED]
++    assert res["additions"] == ["(the as-counted p, report only, is <= 0.05; the filled p decides)"]
++    assert "REDUCED holds only" not in text                                  # not worded as partial support (R2)
+     assert "MISSING, filled at +inf: lost.json: crashes" in text
+ 
+ 
+@@ -462,6 +481,7 @@
+     ("criteria", "criteria.txt sha256"), ("scorer_pin", "does not name this scorer"),
+     ("run_meta_criteria", "ran under criteria.txt"), ("tool", "tools/score_bs.py"), ("ledger", "ledger"),
+     ("approved_missing", "no "), ("run_meta_changed", "run_meta.json changed since CHECK"),
++    ("markers_tool", "markers.json made by read_bs.py"),
+ ])
+ def test_provisional_items(tmp_path, monkeypatch, breakage, match):
+     s = Screen(tmp_path)
+@@ -484,6 +504,11 @@
+     if breakage == "run_meta_changed":
+         p = tmp_path / "runs" / f"{BLIND}_2111" / C.RUN_META
+         p.write_text(p.read_text() + " ")
++    if breakage == "markers_tool":                                          # markers made by another read_bs.py (R6)
++        p = tmp_path / "reads" / "control_2121" / "markers.json"
++        m = json.loads(p.read_text())
++        m["tool_sha256"] = "d" * 64
++        _write(p, m)
+     res, _text, code = _score(tmp_path)
+     assert res["status"] == "PROVISIONAL" and code == SB.EXIT_NOT_FINAL
+     assert any(match in x for x in res["provisional"]), res["provisional"]
+@@ -503,6 +528,32 @@
+     assert "MANIPULATION" in text and "CriticBlindTail3MlpExtractor" in text and "PAIRED DIFFERENCES" in text
+     assert [p["diff"] for p in res["paired"]] == pytest.approx([0.20, 0.20, 0.20, 0.20])
+     assert float(Fraction(ro["early8_rollout_mu14"])) < 0.01
++    # each arm's SD of the primaries read, report only (R2): printed beside the mean and median, in score.json
++    sd = statistics.stdev(HIGH)
++    assert res["arm_sd_report_only"]["control"] == pytest.approx(sd)
++    assert res["arm_sd_report_only"][BLIND] == pytest.approx(statistics.stdev((0.00, 0.01, 0.02, 0.03)))
++    assert f"SD {sd:.5f} (report only)" in text
++
++
++def test_arm_sd_needs_two_values_and_never_decides():
++    classes = [{"name": C.run_name(a, sd), "arm": a, "seed": sd} for a, sd in SB.QUEUE]
++    prim = {C.run_name(a, sd): (Fraction(1, 4) if a == C.CONTROL else Fraction(1, 8)) for a, sd in SB.QUEUE}
++    prim[C.run_name(BLIND, 2101)] = prim[C.run_name(BLIND, 2111)] = prim[C.run_name(BLIND, 2121)] = None
++    dec = SB.decide(classes, prim)
++    assert dec["sds"] == {"control": 0.0, BLIND: None}
++    # three blind values filled at +inf: 65 relabelings hold one of them, plus the observed split itself
++    assert dec["line"] == 3 and dec["filled"][1] == 66 and dec["additions"] == []
++
++
++def test_line_texts_are_the_criteria_text():
++    """The scorer's line texts and the line-3 addition appear verbatim (whitespace collapsed) in <BS>/criteria.txt."""
++    real = Path(C.BS) / "criteria.txt"
++    if not real.exists():
++        pytest.skip("no criteria.txt in this build")
++    text = " ".join(real.read_text(encoding="utf-8").split())
++    for line, t in SB.LINE_TEXT.items():
++        assert " ".join(t.split()) in text, line
++    assert SB.ADDITION_AS_COUNTED in text
+ 
+ 
+ def test_report_only_never_fails_the_score(tmp_path):

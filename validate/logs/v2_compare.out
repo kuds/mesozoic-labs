@@ -1,0 +1,22 @@
+control: 31 rollout ends; arms present ['control', 'critic_blind_tail3', 'gae_lambda_1', 'frozen_obs_norm']
+critic_blind_tail3 vs control, rollouts equal: {'digest_env_side': '31/31', 'digest_rewards': '0/31', 'digest_values': '0/31', 'digest_advantages': '0/31'}
+  [ok] critic_blind_tail3: 31 rollout ends = control's 31
+  [ok] critic_blind: env side identical on every rollout
+  [ok] critic_blind: values differ on every rollout
+gae_lambda_1 vs control, rollouts equal: {'digest_env_side': '31/31', 'digest_rewards': '31/31', 'digest_values': '31/31', 'digest_advantages': '0/31'}
+  [ok] gae_lambda_1: 31 rollout ends = control's 31
+  [ok] gae_lambda_1: env side, rewards and values identical on every rollout
+  [ok] gae_lambda_1: advantages differ on every rollout
+frozen_obs_norm vs control, rollouts equal: {'digest_env_side': '0/31', 'digest_rewards': '0/31', 'digest_values': '0/31', 'digest_advantages': '0/31'}
+  [ok] frozen_obs_norm: 31 rollout ends = control's 31
+  [ok] frozen_obs_norm: env side differs on every rollout
+  [ok] critic_blind_tail3: evaluation ledger identical to control's (100 rows, 193 columns compared; time columns dropped)
+  [ok] critic_blind_tail3: probe bank actions identical to control's on every row
+  [ok] critic_blind_tail3: probe bank values differ
+  [ok] gae_lambda_1: evaluation ledger identical to control's (100 rows, 193 columns compared; time columns dropped)
+  [ok] gae_lambda_1: probe bank actions identical to control's on every row
+  [ok] gae_lambda_1: probe bank values identical
+  [ok] frozen_obs_norm: probe obs statistics constant over 31 rows
+  [ok] frozen_obs_norm: return statistics (ret_rms_var) move
+  [ok] control: probe obs statistics move every row
+V2 PAIRING: PASS

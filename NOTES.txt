@@ -1,0 +1,345 @@
+BIAS SCREEN (BS) SCAFFOLD -- NOTES (every command and its result).  Written by the scaffold builder, 2026-10-30 (date -u).
+Folder: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen
+NO TRAINING in this build: no learn() with real updates, no optimizer step.  The intervention is NOT chosen here.
+Short names: S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad;
+BS = S2/r10round/bias_screen; ECS = S2/r10round/ecs; S1F = /tmp/claude-0/-home-user-mesozoic-labs/
+0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch; PY = S2/venv/bin/python.
+
+==================================================================================================================
+SUMMARY (05:00Z)
+==================================================================================================================
+- Built: the arm-agnostic bias-screen scaffold.  A verified code copy (BS/code, tree digest 331fe8fc..., 1,406 files,
+  never edited, read-only); run_bs.py (one continuation of r10 stance6 s42 from 1,048,576 to 2,490,368 under one arm,
+  or a no-optimizer-step validation run); run_waves_bs.sh (SCREEN.json's queue, 4 at a time at nice 10,
+  outcome-blind, ECS crash handling, disk floor 1.5 GiB); read_bs.py (CHECK, and the markers: the probe's
+  statue_settled tail_3 command per update, the ledger's tail_3 command and M5 flags, and at each saved pair G / c0
+  (+ the verifier's G_L, b*) and the critic's slope on observation 6); bs_hooks.py (THE ARM HOOK: control,
+  critic_blind_tail3, gae_lambda_1, frozen_obs_norm, none chosen); bs_common.py (pins).
+- Validated with no optimizer step anywhere: V1 (all four arms reproduce the start pair; independent tensor check),
+  V2 (each arm's change in force on every rollout, the control changing nothing: same-seed pairing), V3 (the reader
+  on V2's outputs; and it reproduces the early-warning and early-bias numbers on the parent), 72 unit tests.
+- Estimate: 8 continuations at 4 at a time = 2 waves of about 75 min = about 2.5 h on a free machine (3.1-4.4 h with
+  1-3 other processes), then about 15 min of reads.
+- NOT done here (by design): no intervention chosen, no SCREEN.json / criteria.txt / APPROVED (every continuation is
+  refused by preflight), no scorer, no continuation launched, nothing pushed or merged.
+- Folder 239 MB (< 300 MB).  One slip of mine: a `2>/dev/null` in a wait loop at 04:28Z (against the rule; /dev/null
+  verified intact).  Open items at the end.
+
+==================================================================================================================
+LOG (commands and results, in order)
+==================================================================================================================
+[03:51Z] 1. Code copy.
+  mkdir -p BS/tools/tests BS/logs; cp -a ECS/code BS/code   (97 MB)
+  PY -I -B BS/tools/verify_copy.py ECS/code BS/code   (M1's r10m_common.check_copy + tree_digest, r10m_common at its
+    pin 97431323...): both 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, 1,406 files, equal to the
+    pinned digest -> exit 0.
+  chmod -R a-w BS/code   (permissions only; not part of the digest; guards against edits and __pycache__ writes)
+[03:53Z] 2. Start pair and parent records.
+  PY -I -B BS/tools/check_inputs.py: the F2 .copy1 files of stance6_r10LTSB_s42 against S1F/manifest.csv (F2, COPY,
+  copy 1), all 8 equal:
+    models/stage1_1048576_steps.zip               0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80
+    models/stage1_vecnormalize_1048576_steps.pkl  52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb
+    eval_episodes.csv   d1bcb789...  evaluations.npz 3e111361...  gate_progress.npz 4097099b...
+    train_episodes.csv  14b2f9e4...  policy_probe.npz 4e0e7220...  stage_config.json 5d54e6de...  (full values in
+    bs_common.py; the five records and stage_config.json are the same files ECS pinned for s42).
+[03:55-04:07Z] 3. Read before building (read only): ECS tools/run_ecs.py, run_waves_ecs.sh, read_ecs.py, ecs_common.py,
+  tests/test_harness_waves.py, FOR_THE_MAINTAINER.txt, APPROVED, validate/VALIDATIONS.txt; the code copy's
+  train_base (_create_or_load_model l548-l708, _train_stage_body l1249-l1420, checkpoint callbacks l840-l890,
+  _save_final_and_sync_tb l1136), mirror_kl_ppo.py (all), policy_probe.py (l1-l110, l600-l700), SB3 2.9.0
+  policies.py (forward l636, evaluate_actions l719, predict_values l754), torch_layers.MlpExtractor (forward_critic),
+  vec_normalize.py (step_wait l174, reset l292), on_policy_algorithm.collect_rollouts, buffers.compute_returns_and_
+  advantage, base_class.load (kwargs override data, then _setup_model); early_warning/NOTES.txt, ew_common.py,
+  ew_measure.py; verify_early_warning/vew_measure.py, vew_analyze.txt, vew_probecheck.txt, vew_clip.txt (its
+  NOTES.txt does not exist; its corrections are taken from vew_analyze.txt B, C, G and vew_probecheck.txt);
+  early_bias/eb_common.py, eb_realized.py, eb_proxy.py, eb_summary.txt, eb_realized.json.
+  Findings used by the build [measured]:
+  - the start policy (PY -B scratch/explore_policy.py): ActorCriticPolicy, share_features_extractor True,
+    FlattenExtractor, MlpExtractor with separate 63-512-256 tanh MLPs, value_net 256->1; model gae_lambda 0.95, gamma
+    0.98; the observation mirror map keeps index 6 (perm 6, sign +1); action 14 is tail_3_pitch_act; tail_3
+    normaliser at S: mean -0.061 deg, SD 0.381 deg.
+  - every value path of SB3 2.9.0 (forward, evaluate_actions via MlpExtractor.forward, predict_values) calls
+    mlp_extractor.forward_critic; MirrorKLPPO's mirrored value loss calls predict_values; collect_rollouts' time-limit
+    bootstrap and last values call predict_values.
+  - VecNormalize.step_wait/reset update obs_rms only through obs_rms.update(); ret_rms through _update_reward, both
+    gated by .training; MirrorKLPPO.learn() keeps an obs_rms that is already a SymmetricRunningMeanStd.
+  - the parent probe's row at S is row 127; the bank's statue_settled rows are 0 and 5.
+  - E = 2,490,368 is on the evaluation grid but not on the 262,144 save grid: a continuation's end pair is
+    stage1_final.zip / stage1_final_vecnorm.pkl (num_timesteps E); periodic pairs at 1,310,720 ... 2,359,296.
+[04:00-04:20Z] 4. Tools written (BS/tools): bs_common.py, bs_hooks.py, run_bs.py, run_waves_bs.sh, read_bs.py, tests/
+  (test_bs_hooks.py, test_run_bs.py, test_waves_bs.py, test_read_bs.py), verify_copy.py, check_inputs.py.
+[04:03Z] 5. Trial runs (tools before their final edits; superseded by the final validation below, kept out of it):
+  run_bs.py --preflight-only: V1 control 9101 pass; a continuation control 2101 refused ("APPROVED: missing",
+  "SCREEN: ... missing (the intervention is not chosen yet)").
+  V1 trial, 4 arms, seed 9101 (validate/v1/): each exit 0, 6 s; params/Adam/VecNormalize digests equal, num_timesteps
+  S, saved pkl stock RunningMeanStd, bank tail_3 diff 1.5e-8; critic_blind's bank values differ by 0.0205 (the hook).
+  Smoke no-update (critic_blind, until S + 16,384): exit 0; evidence dv_* 0.0, dmu 0.264, adv vs GAE(0.95) 3.3e-6.
+[04:07Z] 6. V2 trial (validate/v2/, control + critic_blind_tail3, seed 9101, until 1,310,720): driver
+  validate/v2_pair.sh (2 processes, nice 10).  Other workflows' processes were running at the same time (2-3 of them),
+  so wall times are contended; CPU seconds are recorded from here on (run_meta heartbeat/cpu_seconds).
+[04:18-04:22Z] 7. Unit tests: PY -I -B -m pytest -q -p no:cacheprovider BS/tools/tests -> 72 passed (18 s).
+  ruff check --line-length 120 --select E,F,W,B BS/tools (venv-lint) -> All checks passed.  bash -n run_waves_bs.sh ok.
+[04:23Z] 8. V2 trial results (control, critic_blind_tail3; records kept in validate/trial_records/): both exit 0, T
+  1,310,720, stop "end", train() reached 31 times, parameter and Adam digests unchanged, hook "in force" at the end,
+  wall 939 / 942 s under contention (5 processes on 4 CPUs).  read_bs.py --check on both: pass.
+[04:23-04:25Z] 9. Reader trial (validate/v3_trial.sh: the trial control run's full read and --reference, 2 processes):
+  both exit 0.  THE REPRODUCTION CHECK (reads/parent_s42/markers.txt, the parent's F2 pairs), the reader's numbers
+  against the studies' own [measured]:
+    1,048,576: OWN G -0.725355 (ew -0.725), c0 -0.059156 (-0.059), own14 -0.032897 (-0.033), REF G -0.704125
+               (-0.704); G_L -0.806 and b*_P +1.785 (vew_analyze.txt C and G: -0.806, +1.785); critic slope on the
+               on-policy states -0.007809669245034456 per deg (eb_realized.json sens_N: -0.007809669245034456, equal).
+    2,097,152: OWN G -0.636392 (-0.636), c0 +0.237713 (+0.238), own14 +0.142502 (+0.143), REF G -0.619489 (-0.619);
+               G_L -0.648, b* +1.399 (vew: -0.648, +1.399); critic slope +0.02142920531332493 (eb: equal).
+    The parent's probe statue_settled 8-row trailing mean first above 0.10 / 0.14 / 0.15 / 0.16 at 1,523,712 /
+    2,154,496 / 2,244,608 / 2,269,184 (ew_events / vew_events: the same steps).
+  The trial reference ledger read M5 on the parent's whole ledger (C6 then names its 72 evaluations beyond E): fixed
+  (read_bs.truncate_ledger: the reference read now runs M5 on a copy truncated to timesteps <= E).
+[04:25Z] 10. Tool edits after the trial: bs_hooks digest split (env side without rewards: SB3's time-limit bootstrap
+  puts gamma V(terminal obs) into the buffer's rewards, so the rewards follow the critic); run_bs evidence lines carry
+  a clock {utc, cpu_seconds}; read_bs ledger truncation for --reference; lint fixes.  72 tests pass, ruff clean.
+  The trial folders validate/v1 and validate/v2 were deleted (disk; their run_meta / check / markers are in
+  validate/trial_records/); one cache entry of the deleted trial pair was removed from reads/_cache/.
+[04:27Z] 11. FINAL VALIDATION, tools frozen (sha256 in validate/logs/final_tools_sha256_at_launch.txt:
+  run_bs.py 0a5a9851..., bs_hooks.py 1ff4c8be..., bs_common.py 3b3727e2...): validate/final_driver.sh (setsid
+  nohup): V1 four arms one at a time -> validate/v1final/; V2 in two pairs -> validate/v2final/; CHECK on each.
+  NOTE (my slip, reported): at about 04:28Z one wait loop of mine used `grep ... 2>/dev/null`, a redirection onto
+  a path outside BS, against the rule.  /dev/null checked right after: character special 1:3, mode 666, unchanged
+  since its 01:06 repair.  No other redirection onto a path outside BS was used (the `< /dev/null` of the setsid
+  launches only reads it).
+  V1 FINAL [measured, run_meta v1 + validate/v1_independent.py]: all four arms exit 0, 6-7 s each:
+    num_timesteps S; parameter / Adam / VecNormalize digests of the start zip = the loaded model = the saved zip
+    (params sha256:1c78bc1a..., Adam 5bbfa15a..., VecNormalize edb7a653..., the same in every arm); the saved pkl's
+    obs_rms and ret_rms are the stock RunningMeanStd (also frozen_obs_norm's); recipe V5 problems [] (gae_lambda_1's
+    recomputed hyperparameters digest sha256:a9a3e2d5..., the others the run's 054ab483...); the bank's deterministic
+    tail_3 on the two statue_settled rows -0.1113859 / -0.05817978 against the parent probe's row 127 (S)
+    -0.11138591 / -0.05817978: max |diff| 1.5e-8 (all 15 actions on all 10 bank rows: 3.0e-8) in every arm; the bank
+    values against the probe's: 9.5e-7 in control / gae_lambda_1 / frozen_obs_norm, 0.0205 in critic_blind_tail3 (the
+    blinded critic, as intended); classes after the hook: control MlpExtractor / SymmetricRunningMeanStd,
+    critic_blind CriticBlindTail3MlpExtractor, frozen FrozenObsSymmetricRunningMeanStd, gae_lambda_1 gae_lambda 1.0
+    on the model and its rollout buffer.
+    Independent check (validate/v1_independent.py, torch.load weights_only, not run_bs's helpers): 13 policy tensors
+    and 39 Adam entries equal (torch.equal, dtype), param_groups equal, pkl arrays and settings equal, classes stock,
+    zip data num_timesteps 1,048,576, _total_timesteps 12,000,000, _n_updates 1,270 (the start's), gae_lambda the
+    arm's, ent_coef 0.005 -> V1 INDEPENDENT: PASS (validate/logs/v1_independent.out).
+  V2 FINAL [measured; validate/v2final/<arm>_9101, logs validate/logs/v2final_*.log, final_driver.log]:
+    run_bs.py --arm <arm> --seed 9101 --no-update --until 1310720 --out BS/validate/v2final, pairs (control,
+    critic_blind_tail3) 04:27:48-04:38:48Z and (gae_lambda_1, frozen_obs_norm) 04:38:50-04:49:44Z; each exit 0, stop
+    "end" at T = 1,310,720 (S + 2 x 131,072), train() reached 31 times and returned (no optimizer step: parameter
+    and Adam digests equal at start and end), the hook "in force" at the end, code seal unchanged; 31 rollout ends of
+    evidence each.  read_bs.py --check on each: PASS (probe rows 31, ent_coef / learning_rate equal to the parent's
+    F2 probe on all 31, observation statistics rows equal to the start's: frozen 31/31, the others 0/31).
+    Evidence over the 31 rollouts (run_meta arm_evidence; arm_evidence.jsonl):
+      arm                 lambda  |adv - GAE(0.95)|   |adv - (MC - V)|   d V(obs6) pred/fwd/eval/mirror   min d mu  obs_rms
+      control             0.95    <= 3.8e-6           >= 0.13            >= 0.096 (max 0.29-0.30)         0.188     moved 31/31
+      critic_blind_tail3  0.95    <= 3.5e-6           >= 0.13            0.0 / 0.0 / 0.0 / 0.0 exactly     0.188     moved 31/31
+      gae_lambda_1        1.0     >= 0.13             <= 9.1e-6          >= 0.096                         0.188     moved 31/31
+      frozen_obs_norm     0.95    <= 3.9e-6           >= 0.15            >= 0.096                         0.189     = start 31/31
+    (|adv - recomputation| as max over a rollout, max (or min) over rollouts; the direct Monte Carlo sum and the
+    lambda-1 recursion agree to 8.8e-15; the buffer's values equal the run's critic to 1.9e-6 everywhere and, for
+    critic_blind_tail3 only, differ from the raw value MLP by at least 0.005 on every rollout; frozen_obs_norm's
+    no-op update was reached 2,049 times by the first rollout end and 63,489 by the last, while ret_rms count grew
+    1,056,768 -> 1,302,528 as in the other arms.)
+    V2 PAIRING (validate/v2_compare.py, files only; validate/logs/v2_compare_preread.out): same seed, train() a no-op:
+      critic_blind_tail3 vs control: env side (obs, actions, episode starts) identical on 31/31 rollouts; values
+        differ 31/31 (and the rewards 31/31: SB3's time-limit bootstrap adds gamma V(terminal obs)); the evaluation
+        ledger identical (100 rows x 193 columns, time columns dropped); probe bank actions identical, bank values
+        differ.
+      gae_lambda_1 vs control: env side, rewards and values identical 31/31; advantages differ 31/31; ledger and
+        probe (actions and values) identical.
+      frozen_obs_norm vs control: env side differs 31/31 (frozen normalisation); probe observation statistics constant
+        over its 31 rows; ret_rms_var moves; control's observation statistics move on every row.
+      -> V2 PAIRING: PASS.  So the control arm changes nothing the others do not, and each intervention changes only
+      what it says: critic_blind the critic's values (not the actor, not the env), gae_lambda_1 only the advantages /
+      returns, frozen_obs_norm only the observation normalisation.
+[04:50-04:54Z] 12. V3, THE READER ON V2'S OUTPUTS (validate/v3_final.sh; logs validate/logs/v3final_*.log, v3_final.log):
+  read_bs.py --check then read_bs.py <run> on each final V2 run (two at a time), v2_compare.py, read_bs.py --reference.
+  All exit 0.  Markers in validate/v2final/<arm>_9101/read/markers.{json,txt} (and m5.json / m5.txt):
+    M-PROBE   31 update rows each; the statue_settled tail_3 command -0.0849 -> -0.0855 (control, critic_blind,
+              gae_lambda_1: identical, as the pairing requires), -0.0848 constant (frozen_obs_norm: fixed weights and
+              frozen statistics); no 8-row line crossed (none expected without updates).
+    M-LEDGER  M5 (pinned, --E 1,310,720): no ANY / TAIL flag, C6 counting failures 0; the direct reduction: 2
+              evaluations (1,179,648 and 1,310,720), 10 episodes each, CMD_L -0.058 / -0.028 (control = critic_blind =
+              gae_lambda_1), -0.031 last for frozen_obs_norm; no episode over the bar.
+    M-LOOP    pairs read: the start copy (1,048,576) and the end pair (stage1_final, 1,310,720):
+              control / gae_lambda_1: OWN G -0.725 -> -0.756, c0 -0.059 -> -0.056, G_L -0.806 -> -0.849, REF G -0.704 ->
+                -0.729; critic slope (on-policy states) -0.00781 -> -0.01256 per deg (the weights are the start's; the
+                statistics moved);
+              critic_blind_tail3: the same loop values; the critic slope EFFECTIVE 0.00000 on the on-policy, OWN and REF
+                states (the hook installed by the reader), RAW -0.00781 / -0.01256 (= control's);
+              frozen_obs_norm: the end pair equals the start pair in every loop value (its saved statistics are the
+                frozen ones: the reader confirms the end pkl carries them).
+  REFERENCE (reads/parent_s42/markers.{json,txt}; the parent over (S, E] and its F2 pairs 1,048,576 and 2,097,152):
+    the reproduction check of step 9 again, now with the ledger truncated to E (C6 counting failures 0): equal to
+    the early-warning study to its printed 3 decimals (max |diff| 5.0e-4 = rounding of the printed values), the
+    verifier's G_L and b* to theirs, and the early-bias probe's critic slope bit for bit (relative difference 0.0).
+    The parent's own markers over the window, for reference (not an outcome of this screen): probe statue_settled
+    tail_3 mean -0.093 (S + 8,192) -> +0.215 (E - 8,192), 8-row line 0.15 first crossed at 2,244,608; ledger CMD_L
+    -0.025 (1,179,648) -> +0.255 (2,490,368), no flag, no over-bar episode, no CMD_L >= 0.30 in the window.
+  -> V3 PASS.
+[04:55Z] 13. TIMING (validate/timing.py -> validate/logs/timing.out; files only).
+  Measured, the four final no-update runs (2 at a time; 1-3 other processes on the 4 CPUs during them):
+    17.7-18.0 CPU-s per rollout of 8,192 steps (wall 18.0 s), +29 CPU-s per evaluation (10 episodes), 14 CPU-s setup;
+    640-650 CPU-s for S -> S + 262,144.
+  Not measured (no optimizer step allowed here): the update.  From the ECS records on this machine and code
+    [measured there, inferred here]: real continuations 23.9 s per rollout (3 at a time) against no-update 18.0 s:
+    about 5.9 s per update (an upper estimate: the real runs also shared CPUs).
+  ESTIMATE: one continuation = 14 + 176 x (17.8 + 5.9) + 11 x 29 = about 4,500 CPU-s = 75 min (63-75 min if the
+    update costs 3-5.9 s).  8 continuations at 4 at a time = 2 waves = about 2.5 h on a free machine (4 CPUs, 4
+    processes); x1.25 / x1.5 / x1.75 with 1 / 2 / 3 other busy processes (3.1 / 3.8 / 4.4 h).  The machine was idle
+    at 04:55Z (load 0.5).  After the last wave: the full reads, about 60 CPU-s per pair, 6-7 new pairs per
+    continuation, 4 at a time: about 15 min.  Memory: 490 MB per run (RSS), 15.7 GB total.
+[04:55Z] 14. Final checks: verify_copy.py BS/code -> 331fe8fc..., 1,406 files, equal to the pin (after every run);
+  run_bs.py / bs_hooks.py / bs_common.py / read_bs.py / run_waves_bs.sh sha256 unchanged since the 04:27Z freeze
+  (diff against validate/logs/final_tools_sha256_at_launch.txt: none); pytest BS/tools/tests: 72 passed; ruff (E, F,
+  W, B, line 120) on BS/tools: clean (5 B905 style notes in validate/timing.py and v2_compare.py, zip of offset lists
+  on purpose); bash -n run_waves_bs.sh ok.  Nothing was written outside BS (find -newer over /tmp (only the harness's
+  own logs), /root (outside .claude), the repository and BS/code: nothing of mine; no __pycache__ in BS/code).
+  Disk: BS 239 MB (code 97, validate 140, reads 0.8, tmp 2.3, tools 0.3); 2.5 GB free on / at 04:55Z.
+
+==================================================================================================================
+DESIGN OF THE SCAFFOLD (what each file does; nothing here chooses the intervention)
+==================================================================================================================
+bs_common.py   pins and constants: BS paths; the code copy's pins (ECS's: commit 8737cd3d, tree digest 331fe8fc...,
+               1,406 files; M1-common / M5 sha256; the stack); S 1,048,576, E 2,490,368 (LENGTH 1,441,792 <= 1.5M;
+               11 evaluations, 176 rollouts, 175 updates; periodic pairs at 1,310,720 ... 2,359,296, the end pair is
+               stage1_final at E); the start pair and the five parent records + stage_config.json with their FMAN
+               sha256; the four arms and what each changes (ARM_CHANGE, recorded verbatim in run_meta); the
+               validation seeds 9101-9141 (never a screen seed); 4 slots at nice 10; the disk floor 1.5 GiB (and a
+               launch floor of 1.5 GiB + 9 x 50 MiB); MAX_CONTINUATIONS 9; SCREEN.json's schema and checks
+               (screen_problems: intervention one of the three, arms only control + it, <= 9 entries, no repeats,
+               no validation seed).
+bs_hooks.py    THE ARM HOOK.  install_arm(arm, model, train_env) after the run's own load (already a MirrorKLPPO) and
+               before learn():
+                 control             nothing (classes and gae_lambda checked stock).
+                 critic_blind_tail3  class swap of policy.mlp_extractor to a MlpExtractor subclass whose
+                                     forward_critic clones the features and sets [..., 6] = 0.0 before the value MLP.
+                                     All of SB3 2.9.0's value paths go through it (forward and evaluate_actions via
+                                     MlpExtractor.forward, predict_values directly; MirrorKLPPO's mirrored-critic loss
+                                     and collect_rollouts' bootstraps call predict_values).  The actor reads the
+                                     unchanged features.  No parameter, key or shape changes (checked: state_dict
+                                     before == after); the saved zip is stock.  Refused unless the extractor is SB3's
+                                     FlattenExtractor, the value MLP's input is the 63-wide observation, and the
+                                     observation mirror map keeps index 6 in place with sign +1 (it does).
+                 gae_lambda_1        the in-memory [ppo] edit gae_lambda 0.95 -> 1.0 before the load (run_bs.arm_
+                                     config); SB3's load applies kwargs over the zip's data and builds the rollout
+                                     buffer with it; the hook checks model and buffer carry 1.0.  hyperparameters_
+                                     sha256 changes (recomputed, V5).
+                 frozen_obs_norm     class swap of the training VecNormalize's obs_rms (a SymmetricRunningMeanStd
+                                     after enable_mirror_kl) to a subclass whose update() is a counted no-op and which
+                                     pickles / deep-copies as the stock RunningMeanStd.  VecNormalize.training stays
+                                     True: ret_rms keeps updating and rewards are normalised exactly as the run does
+                                     (the "closest faithful form": training=False would also have frozen ret_rms).
+                                     The reset observations at learn() start do not update it either.  The eval env
+                                     gets the frozen statistics through the run's own sync.  MirrorKLPPO.learn() keeps
+                                     an obs_rms that is already a SymmetricRunningMeanStd (checked in a unit test).
+               rollout_evidence(...) at every rollout end (after GAE, before train()): read-only no_grad passes and
+               numpy: the buffer's advantages against an independent GAE(0.95) and an independent bootstrapped Monte
+               Carlo sum minus V; the value through predict_values / forward / evaluate_actions / the mirrored
+               observations and the actor's mean under three perturbations of observation 6 (first 256 buffer rows);
+               the buffer's values against the run's critic and the raw value MLP; the obs_rms digest against the
+               start's, the frozen no-op's call count, ret_rms count; class / gae_lambda state; digests of the env
+               side (obs, actions, episode starts), the rewards, the values, the advantages.  The policy's
+               action_dist is saved and restored (the policy probe's rule).  evidence_problems(arm, summary): CHECK's
+               reading (the arm's signature on every rollout and no other arm's).
+run_bs.py      derived from run_ecs.py: preflight (APPROVED pins criteria.txt, SCREEN.json, the code digest and the five
+               tools; SCREEN names (arm, seed); inputs at FMAN sha256; the seal; stack; pins; disk); the run (start pair
+               byte-copied under the periodic names, records copied, stage_config.json by the copy's own
+               save_stage_config and V5 against the parent's, TB._train_stage_body with every keyword named; the load
+               wrapper's checks, then the arm hook, then digests re-checked equal; StopAtEnd at E; heartbeat;
+               evidence; end checks incl. the hook still in force).  Modes --save-loaded-only (V1) and --no-update
+               --until (V2): validation seeds only, under <BS>/validate/ only.  run_meta records arm, arm_change,
+               arm_ppo, ppo_applied, arm_applied, arm_evidence (summary), arm_state_end, obs_rms_end_equal_start,
+               cpu_seconds.  Exit codes as ECS (0, 2, 5, 1).
+run_waves_bs.sh derived from run_waves_ecs.sh: SCREEN.json's queue, 4 at a time at nice 10, outcome-blind (exit codes,
+               run_meta status/exit/stop_reason/heartbeat/last_step, CHECK's exit code), crash handling as ECS (early
+               crash halts, own crashes rerun, third to lost.json, VOID on CHECK failure or exit 5, refusal halts,
+               logs/HALTED, relaunch reading the ledgers, lock), disk floor 1.5 GiB (PAUSED_disk) and the launch floor.
+               After all are decided: logs/ALL_DECIDED, then read_bs.py's full read of each COUNTED/STOPPED one, 4 at
+               a time.  No scorer (the criteria's).  No redirection onto any path outside <BS>.
+read_bs.py     --check RUN (CHECK: run_meta, the evidence, the probe's ent_coef / learning_rate rows against the parent's
+               and its observation statistics rows; check.json carries pass/fail only, no marker values); RUN (the
+               markers, refused for a continuation until every SCREEN entry is decided); --reference (the parent over
+               the same window, and the reproduction check).  Markers: M-PROBE, M-LEDGER (M5 pinned + the ledger
+               directly), M-LOOP (G, c0, FP, b*, G_H, G_L on OWN and REF; the critic slope on obs 6 on the on-policy,
+               OWN and REF states, effective and raw).  See its docstring.
+
+HOW TO LAUNCH (after the intervention is chosen and the criteria are reviewed; none of this was done here)
+  1. <BS>/criteria.txt: the reviewed criteria (the statistic over these markers, the decision rule, the queue).
+  2. <BS>/SCREEN.json from SCREEN.template.json (the intervention; <= 9 entries).
+  3. <BS>/APPROVED (JSON): {"criteria_sha256": sha256(criteria.txt), "screen_sha256": sha256(SCREEN.json),
+     "code_tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+     "tool_sha256": {"run_bs.py": ..., "read_bs.py": ..., "run_waves_bs.sh": ..., "bs_common.py": ..., "bs_hooks.py":
+     ...}} (values in SHA256SUMS.txt; any extra keys, e.g. who approved, are allowed).
+  4. Check: PY -I -B BS/tools/run_bs.py --arm <arm> --seed <seed> --preflight-only for one entry (exit 0), and
+     bash BS/tools/run_waves_bs.sh --plan.
+  5. Launch: setsid nohup bash BS/tools/run_waves_bs.sh > BS/logs/run_waves_bs.out 2>&1 < /dev/null &   (from /tmp)
+     Watch only BS/logs/run_waves_bs.log (and run_waves_bs.exit when it ends).
+
+==================================================================================================================
+OPEN ITEMS
+==================================================================================================================
+O1  The intervention is not chosen.  <BS>/SCREEN.json, <BS>/criteria.txt and <BS>/APPROVED do not exist, so run_bs.py
+    refuses every continuation and run_waves_bs.sh refuses to start (both checked).  Choose after the early-bias
+    verifier (still running at build time) reports.
+O2  No scorer.  read_bs.py writes the markers; the reviewed criteria must name the statistic and decision rule over
+    them (and which markers: the probe's 8-row line, CMD_L, G / c0 at a pair, the critic slope).  A scorer, if one is
+    written, should be pinned too: either as an extra APPROVED key checked by the criteria's own procedure, or added
+    to bs_common.TOOL_FILES (a bs_common change: then re-run V1 (1 min) and the tests; V2's evidence does not depend
+    on TOOL_FILES).
+O3  The update's cost is inferred from the ECS (5.9 s per rollout, an upper estimate), not measured (no optimizer step
+    was allowed).  The first wave's heartbeats (run_meta heartbeat cpu_seconds) will measure it.
+O4  CHECK's continuation-only branches (parameters changed, n_updates grew, SCREEN membership, 175 probe rows whose
+    ent_coef / learning_rate equal the parent's, the evidence over 175 rollouts) are tested on synthetic inputs only;
+    the first real continuation exercises them.  The ECS's identical R4 passed on its 24 real continuations.
+    run_waves_bs.sh was exercised only with stub commands (tests/test_waves_bs.py, 14 cases) and its --plan; its real
+    mode starts real continuations, which this build may not do.
+O5  Design points for the criteria writer (facts, not choices):
+    - critic_blind_tail3 blinds exactly observation 6 (qpos.tail_3_pitch) as specified; the critic still sees
+      qvel.tail_3_pitch (27), the other tail angles (3-5) and velocities (24-26) and the pitch-carrying channels; at
+      S the blinded critic's values differ from the trained critic's (V1: by up to 0.0205 on the bank; V2: the
+      rollout values by >= 0.005 per rollout), so its first updates fit a changed value function.
+    - gae_lambda_1 also changes the value target (returns = the bootstrapped Monte Carlo return) and the
+      hyperparameters digest (sha256:a9a3e2d5...); its advantages carry more variance.
+    - frozen_obs_norm freezes obs_rms only (ret_rms keeps updating, rewards normalised as the run); with the start's
+      tail_3 normaliser (SD 0.38 deg) a tail angle beyond about 3.7 deg clips at z = 10 for both actor and critic for
+      the rest of the run (the ECS's D11 called this arm "confounded by the posture").  If the criteria prefer
+      VecNormalize.training = False (both statistics frozen), that is a change in bs_hooks.install_arm and needs
+      V1 / V2 for that arm again.
+O6  Seeds and pairing: SCREEN.template.json suggests 4 + 4 with paired seeds 2101-2131 (a pair shares env seeds and,
+    for critic_blind / gae_lambda_1, its whole first rollout).  The criteria decide; at most 9 entries.
+O7  "Its verifier's corrections" (early warning): verify_early_warning/NOTES.txt does not exist; the reader takes them
+    from vew_analyze.txt (B held-out states, C the local slope G_L and the 0-0.5 deg slope, G the margin b*) and
+    vew_probecheck.txt (the probe row at step N is checkpoint N's network; a final pair differs from the probe's last
+    row).  If the verifier's own report names other corrections, M-LOOP may need one more readout (read_bs.py only;
+    re-run V3).
+O8  Disk: the runner's launch floor is 1.5 GiB + 450 MiB (1.94 GiB); 2.5 GB was free at 04:55Z and 8 continuations add
+    about 300 MB (36 MB each, as the ECS's) plus the reads.  If needed, validate/v1final and v2final (140 MB) can go
+    after copying their run_meta.json / check.json / read/ into a records folder.
+O9  BS/code is chmod a-w (to remove the folder later: chmod -R u+w BS/code first).
+O10 Wall clock depends on other workflows' processes on the 4 CPUs (x1.25-1.75 with 1-3 of them).
+O11 Not in this task: the durable text copy and its push; nothing was pushed or merged.
+
+==================================================================================================================
+FILES
+==================================================================================================================
+tools/bs_common.py, bs_hooks.py, run_bs.py, run_waves_bs.sh, read_bs.py      the scaffold (pinned in a future APPROVED)
+tools/tests/test_bs_hooks.py (23), test_run_bs.py (20), test_waves_bs.py (14), test_read_bs.py (15)    72 tests
+tools/verify_copy.py, check_inputs.py                                          the copy's digest; the start inputs
+SCREEN.template.json                                                           template only (refused as written)
+validate/final_driver.sh, v3_final.sh, v1_independent.py, v2_compare.py, timing.py   the validation drivers / checks
+validate/v1final/<arm>_9101/       V1 (run_meta.json v1 block; saved/ pair)
+validate/v2final/<arm>_9101/       V2 (run_meta.json, arm_evidence.jsonl, check.json, read/markers.{json,txt})
+validate/logs/                     every run's log, final_driver.log, v3_final.log, v1_independent.out,
+                                   v2_compare(.out, _preread.out), timing.out, final_tools_sha256_at_launch.txt
+validate/trial_records/            the superseded trial runs' run_meta / check / markers (steps 5-9)
+validate/v2_pair.sh, v3_trial.sh   the trial drivers (steps 6, 9)
+reads/parent_s42/                  the reference read (markers, M5 on the truncated ledger); reads/_cache/ (loop cache)
+scratch/                           explore_policy.py and the notes drafts
+NOTES.txt, SHA256SUMS.txt          this file; sha256 of the tools, tests, drivers and the template (sha256sum -c)
+[05:00Z] 15. SHA256SUMS.txt written (19 files: the five tools, two helpers, four test files, the template, seven
+  validation scripts); sha256sum -c SHA256SUMS.txt: all OK.  The five tools for a future APPROVED tool_sha256:
+    bs_common.py     3b3727e29b66f5b31f14d50af5a682448e46fc5e160069fb463abc03ecebf024
+    bs_hooks.py      1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc
+    run_bs.py        0a5a98515da81f61a0b9f0b4b278f2eb7ab3df4ebdfef850200b684ca55731ff
+    run_waves_bs.sh  13fb61829ce3d5ba878a804b765a5ddf3927531af9ff8dcbceb9da0b122a027a
+    read_bs.py       04036e5361348391f13689182a1b759d616e069bd64f9a20bc0bfcc995c83d02
+  (the same as at the 04:27Z freeze under which V1, V2 and V3 ran).

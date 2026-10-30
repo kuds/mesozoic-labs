@@ -1,0 +1,79 @@
+
+==================================================================================================================
+DESIGN OF THE SCAFFOLD (what each file does; nothing here chooses the intervention)
+==================================================================================================================
+bs_common.py   pins and constants: BS paths; the code copy's pins (ECS's: commit 8737cd3d, tree digest 331fe8fc...,
+               1,406 files; M1-common / M5 sha256; the stack); S 1,048,576, E 2,490,368 (LENGTH 1,441,792 <= 1.5M;
+               11 evaluations, 176 rollouts, 175 updates; periodic pairs at 1,310,720 ... 2,359,296, the end pair is
+               stage1_final at E); the start pair and the five parent records + stage_config.json with their FMAN
+               sha256; the four arms and what each changes (ARM_CHANGE, recorded verbatim in run_meta); the
+               validation seeds 9101-9141 (never a screen seed); 4 slots at nice 10; the disk floor 1.5 GiB (and a
+               launch floor of 1.5 GiB + 9 x 50 MiB); MAX_CONTINUATIONS 9; SCREEN.json's schema and checks
+               (screen_problems: intervention one of the three, arms only control + it, <= 9 entries, no repeats,
+               no validation seed).
+bs_hooks.py    THE ARM HOOK.  install_arm(arm, model, train_env) after the run's own load (already a MirrorKLPPO) and
+               before learn():
+                 control             nothing (classes and gae_lambda checked stock).
+                 critic_blind_tail3  class swap of policy.mlp_extractor to a MlpExtractor subclass whose
+                                     forward_critic clones the features and sets [..., 6] = 0.0 before the value MLP.
+                                     All of SB3 2.9.0's value paths go through it (forward and evaluate_actions via
+                                     MlpExtractor.forward, predict_values directly; MirrorKLPPO's mirrored-critic loss
+                                     and collect_rollouts' bootstraps call predict_values).  The actor reads the
+                                     unchanged features.  No parameter, key or shape changes (checked: state_dict
+                                     before == after); the saved zip is stock.  Refused unless the extractor is SB3's
+                                     FlattenExtractor, the value MLP's input is the 63-wide observation, and the
+                                     observation mirror map keeps index 6 in place with sign +1 (it does).
+                 gae_lambda_1        the in-memory [ppo] edit gae_lambda 0.95 -> 1.0 before the load (run_bs.arm_
+                                     config); SB3's load applies kwargs over the zip's data and builds the rollout
+                                     buffer with it; the hook checks model and buffer carry 1.0.  hyperparameters_
+                                     sha256 changes (recomputed, V5).
+                 frozen_obs_norm     class swap of the training VecNormalize's obs_rms (a SymmetricRunningMeanStd
+                                     after enable_mirror_kl) to a subclass whose update() is a counted no-op and which
+                                     pickles / deep-copies as the stock RunningMeanStd.  VecNormalize.training stays
+                                     True: ret_rms keeps updating and rewards are normalised exactly as the run does
+                                     (the "closest faithful form": training=False would also have frozen ret_rms).
+                                     The reset observations at learn() start do not update it either.  The eval env
+                                     gets the frozen statistics through the run's own sync.  MirrorKLPPO.learn() keeps
+                                     an obs_rms that is already a SymmetricRunningMeanStd (checked in a unit test).
+               rollout_evidence(...) at every rollout end (after GAE, before train()): read-only no_grad passes and
+               numpy: the buffer's advantages against an independent GAE(0.95) and an independent bootstrapped Monte
+               Carlo sum minus V; the value through predict_values / forward / evaluate_actions / the mirrored
+               observations and the actor's mean under three perturbations of observation 6 (first 256 buffer rows);
+               the buffer's values against the run's critic and the raw value MLP; the obs_rms digest against the
+               start's, the frozen no-op's call count, ret_rms count; class / gae_lambda state; digests of the env
+               side (obs, actions, episode starts), the rewards, the values, the advantages.  The policy's
+               action_dist is saved and restored (the policy probe's rule).  evidence_problems(arm, summary): CHECK's
+               reading (the arm's signature on every rollout and no other arm's).
+run_bs.py      derived from run_ecs.py: preflight (APPROVED pins criteria.txt, SCREEN.json, the code digest and the five
+               tools; SCREEN names (arm, seed); inputs at FMAN sha256; the seal; stack; pins; disk); the run (start pair
+               byte-copied under the periodic names, records copied, stage_config.json by the copy's own
+               save_stage_config and V5 against the parent's, TB._train_stage_body with every keyword named; the load
+               wrapper's checks, then the arm hook, then digests re-checked equal; StopAtEnd at E; heartbeat;
+               evidence; end checks incl. the hook still in force).  Modes --save-loaded-only (V1) and --no-update
+               --until (V2): validation seeds only, under <BS>/validate/ only.  run_meta records arm, arm_change,
+               arm_ppo, ppo_applied, arm_applied, arm_evidence (summary), arm_state_end, obs_rms_end_equal_start,
+               cpu_seconds.  Exit codes as ECS (0, 2, 5, 1).
+run_waves_bs.sh derived from run_waves_ecs.sh: SCREEN.json's queue, 4 at a time at nice 10, outcome-blind (exit codes,
+               run_meta status/exit/stop_reason/heartbeat/last_step, CHECK's exit code), crash handling as ECS (early
+               crash halts, own crashes rerun, third to lost.json, VOID on CHECK failure or exit 5, refusal halts,
+               logs/HALTED, relaunch reading the ledgers, lock), disk floor 1.5 GiB (PAUSED_disk) and the launch floor.
+               After all are decided: logs/ALL_DECIDED, then read_bs.py's full read of each COUNTED/STOPPED one, 4 at
+               a time.  No scorer (the criteria's).  No redirection onto any path outside <BS>.
+read_bs.py     --check RUN (CHECK: run_meta, the evidence, the probe's ent_coef / learning_rate rows against the parent's
+               and its observation statistics rows; check.json carries pass/fail only, no marker values); RUN (the
+               markers, refused for a continuation until every SCREEN entry is decided); --reference (the parent over
+               the same window, and the reproduction check).  Markers: M-PROBE, M-LEDGER (M5 pinned + the ledger
+               directly), M-LOOP (G, c0, FP, b*, G_H, G_L on OWN and REF; the critic slope on obs 6 on the on-policy,
+               OWN and REF states, effective and raw).  See its docstring.
+
+HOW TO LAUNCH (after the intervention is chosen and the criteria are reviewed; none of this was done here)
+  1. <BS>/criteria.txt: the reviewed criteria (the statistic over these markers, the decision rule, the queue).
+  2. <BS>/SCREEN.json from SCREEN.template.json (the intervention; <= 9 entries).
+  3. <BS>/APPROVED (JSON): {"criteria_sha256": sha256(criteria.txt), "screen_sha256": sha256(SCREEN.json),
+     "code_tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+     "tool_sha256": {"run_bs.py": ..., "read_bs.py": ..., "run_waves_bs.sh": ..., "bs_common.py": ..., "bs_hooks.py":
+     ...}} (values in SHA256SUMS.txt; any extra keys, e.g. who approved, are allowed).
+  4. Check: PY -I -B BS/tools/run_bs.py --arm <arm> --seed <seed> --preflight-only for one entry (exit 0), and
+     bash BS/tools/run_waves_bs.sh --plan.
+  5. Launch: setsid nohup bash BS/tools/run_waves_bs.sh > BS/logs/run_waves_bs.out 2>&1 < /dev/null &   (from /tmp)
+     Watch only BS/logs/run_waves_bs.log (and run_waves_bs.exit when it ends).

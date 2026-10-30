@@ -1,0 +1,84 @@
+parent probe sha256 ok; rows used [120, 121, 122, 123, 124, 125, 126, 127]
+B_S exact -135608119/4294967296 float -0.03157372563146055
+  B_S np.float64 mean -0.03157372563146055 np.float32 mean -0.03157372772693634
+parent primary-form at E 0.19955920986831188 rise 0.23113293549977243 rows [295, 296, 297, 298, 299, 300, 301, 302]
+control_2101             rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact -133212873/4294967296 = -0.031016038963571191; rise +0.00055768666788935661; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+critic_blind_tail3_2101  rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact 30798461/1073741824 = +0.028683301992714405; rise +0.060257027624174953; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+control_2111             rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact 441092559/17179869184 = +0.025674966105725616; rise +0.057248691737186164; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+critic_blind_tail3_2111  rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact -244372523/8589934592 = -0.02844870591070503; rise +0.0031250197207555175; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+control_2121             rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact 12732307/134217728 = +0.094863079488277435; rise +0.12643680511973798; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+critic_blind_tail3_2121  rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact 158458143/4294967296 = +0.036893911426886916; rise +0.068467637058347464; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+control_2131             rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact 75894721/268435456 = +0.2827298678457737; rise +0.31430359347723424; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+critic_blind_tail3_2131  rows 303 window 175 ok_win True pre 128 pre==parent True dup 0 primary rows 295..302 rollout_rows [8192]
+    primary exact 268557531/17179869184 = +0.015632105700206012; rise +0.047205831331666559; own-copy B_S equal True
+    markers.json probe: 175 steps; 8 primary values identical True; whole window column identical True
+control primaries [-0.03101603896357119, 0.025674966105725616, 0.09486307948827744, 0.2827298678457737]
+blind primaries   [0.028683301992714405, -0.02844870591070503, 0.036893911426886916, 0.01563210570020601]
+control mean 0.09306296861905139 median 0.060269022797001526 SD 0.13652046985323685
+blind mean   0.013190153302275576 median 0.02215770384646021 SD 0.029107064054660355
+diff of means 0.07987281531677581
+control median rise 0.09184274842846207 exact 3155692807/34359738368 informative (>= 1/10) False
+  (not the rule) control MEAN rise 0.12463669425051194
+permutation p = 13/70 = 0.18571428571428572
+  ties with observed (incl. itself): 1
+  control-sum statistic p 13 /70
+paired diffs [-0.059699340956285596, 0.054123672016430646, 0.05796916806139052, 0.2670977621455677] sign-flip p 4 /16
+ranks (lowest first): ['C2101', 'B2111', 'B2131', 'C2111', 'B2101', 'B2121', 'C2121', 'C2131']
+COMPARE with score.json
+  baseline_S                               mine         -0.03157372563146055 score.json         -0.03157372563146055 EQUAL
+  control_median                           mine         0.060269022797001526 score.json         0.060269022797001526 EQUAL
+  control_rise                             mine          0.09184274842846207 score.json          0.09184274842846207 EQUAL
+  informative                              mine                        False score.json                        False EQUAL
+  arm_means.control                        mine          0.09306296861905139 score.json          0.09306296861905139 EQUAL
+  arm_means.blind                          mine         0.013190153302275576 score.json         0.013190153302275576 EQUAL
+  arm_medians.blind                        mine          0.02215770384646021 score.json          0.02215770384646021 EQUAL
+  sd.control                               mine          0.13652046985323685 score.json          0.13652046985323685 EQUAL
+  sd.blind                                 mine         0.029107064054660355 score.json         0.029107064054660355 EQUAL
+  p_filled                                 mine                      '13/70' score.json                      '13/70' EQUAL
+  p_as_counted                             mine                      '13/70' score.json                      '13/70' EQUAL
+  sign_flip                                mine                       '4/16' score.json                       '4/16' EQUAL
+  primary_steps                            mine [2424832, 2433024, 2441216, 2449408, 2457600, 2465792, 2473984, 2482176] score.json [2424832, 2433024, 2441216, 2449408, 2457600, 2465792, 2473984, 2482176] EQUAL
+  primary control_2101                     mine         -0.03101603896357119 score.json         -0.03101603896357119 EQUAL
+  primary_exact control_2101               mine      '-133212873/4294967296' score.json      '-133212873/4294967296' EQUAL
+  cls control_2101                         mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary critic_blind_tail3_2101          mine         0.028683301992714405 score.json         0.028683301992714405 EQUAL
+  primary_exact critic_blind_tail3_2101    mine        '30798461/1073741824' score.json        '30798461/1073741824' EQUAL
+  cls critic_blind_tail3_2101              mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary control_2111                     mine         0.025674966105725616 score.json         0.025674966105725616 EQUAL
+  primary_exact control_2111               mine      '441092559/17179869184' score.json      '441092559/17179869184' EQUAL
+  cls control_2111                         mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary critic_blind_tail3_2111          mine         -0.02844870591070503 score.json         -0.02844870591070503 EQUAL
+  primary_exact critic_blind_tail3_2111    mine      '-244372523/8589934592' score.json      '-244372523/8589934592' EQUAL
+  cls critic_blind_tail3_2111              mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary control_2121                     mine          0.09486307948827744 score.json          0.09486307948827744 EQUAL
+  primary_exact control_2121               mine         '12732307/134217728' score.json         '12732307/134217728' EQUAL
+  cls control_2121                         mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary critic_blind_tail3_2121          mine         0.036893911426886916 score.json         0.036893911426886916 EQUAL
+  primary_exact critic_blind_tail3_2121    mine       '158458143/4294967296' score.json       '158458143/4294967296' EQUAL
+  cls critic_blind_tail3_2121              mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary control_2131                     mine           0.2827298678457737 score.json           0.2827298678457737 EQUAL
+  primary_exact control_2131               mine         '75894721/268435456' score.json         '75894721/268435456' EQUAL
+  cls control_2131                         mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  primary critic_blind_tail3_2131          mine          0.01563210570020601 score.json          0.01563210570020601 EQUAL
+  primary_exact critic_blind_tail3_2131    mine      '268557531/17179869184' score.json      '268557531/17179869184' EQUAL
+  cls critic_blind_tail3_2131              mine                    'COUNTED' score.json                    'COUNTED' EQUAL
+  paired diff 2101                         mine        -0.059699340956285596 score.json        -0.059699340956285596 EQUAL
+  paired diff 2111                         mine         0.054123672016430646 score.json         0.054123672016430646 EQUAL
+  paired diff 2121                         mine          0.05796916806139052 score.json          0.05796916806139052 EQUAL
+  paired diff 2131                         mine           0.2670977621455677 score.json           0.2670977621455677 EQUAL
+  line                                     mine                            1 score.json                            1 EQUAL
+ALL EQUAL

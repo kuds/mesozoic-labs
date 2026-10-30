@@ -1,0 +1,111 @@
+warning_r9 apply: r10; thr9 = 0.1500; EARLY = lead >= 524288
+======================================================================================================================
+A. METADATA AND OUTCOMES (ledger)
+======================================================================================================================
+--- s42: ledger /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1 (schema UNNAMED (screen_v2_reasons))
+    evals 91, cadence median 131072 (min 131072, max 131072), episodes/eval [10], first 131072, last 11927552
+    probe /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1
+    probe rows 1465, row spacing median 8192, t 8192..12001280; bank sha1 767bab20e8; statue_settled rows 2; labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+    outcomes: O1u over-bar 3670016; O2u ANY flag 3801088; O2u ANY alarm 3932160
+    also:     first over-bar (any) 3670016; ANY flag 3801088; TAIL flag None; RAIL None
+    n over-bar episodes 249 (tail 0); ANY-flagged evals 26, TAIL-flagged 0; over-bar actuators ['unnamed']; max CMD_L n/a (no column)
+--- s60: ledger /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/eval_episodes.csv.copy1 (schema UNNAMED (screen_v2_reasons))
+    evals 91, cadence median 131072 (min 131072, max 131072), episodes/eval [10], first 131072, last 11927552
+    probe /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/policy_probe.npz.copy1
+    probe rows 1465, row spacing median 8192, t 8192..12001280; bank sha1 767bab20e8; statue_settled rows 2; labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+    outcomes: O1u over-bar 8126464; O2u ANY flag None; O2u ANY alarm None
+    also:     first over-bar (any) 8126464; ANY flag None; TAIL flag None; RAIL None
+    n over-bar episodes 24 (tail 0); ANY-flagged evals 0, TAIL-flagged 0; over-bar actuators ['unnamed']; max CMD_L n/a (no column)
+--- s80: ledger /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/eval_episodes.csv.copy1 (schema UNNAMED (screen_v2_reasons))
+    evals 91, cadence median 131072 (min 131072, max 131072), episodes/eval [10], first 131072, last 11927552
+    probe /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/policy_probe.npz.copy1
+    probe rows 1465, row spacing median 8192, t 8192..12001280; bank sha1 767bab20e8; statue_settled rows 2; labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+    outcomes: O1u over-bar 3801088; O2u ANY flag 4849664; O2u ANY alarm 5505024
+    also:     first over-bar (any) 3801088; ANY flag 4849664; TAIL flag None; RAIL None
+    n over-bar episodes 119 (tail 0); ANY-flagged evals 12, TAIL-flagged 0; over-bar actuators ['unnamed']; max CMD_L n/a (no column)
+
+======================================================================================================================
+B. RULES PER RUN: first firing, lead against each outcome (o - f, steps), classification
+======================================================================================================================
+--- s42 (ledger last 11927552)
+  P1 trail8(bank_ss)>0.150
+      fires 2244608; up-crossings [2244608] (n 1); steps from firing to ledger end 9682944
+      max before first outcome +0.2673; max over run +0.2673 at 2981888; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 1425408 | O2u ANY flag: TRUE WARNING (early) lead 1556480 | O2u ANY alarm: TRUE WARNING (early) lead 1687552
+  S1 trail8(bank_ss)>0.186
+      fires 2400256; up-crossings [2400256] (n 1); steps from firing to ledger end 9527296
+      max before first outcome +0.2673; max over run +0.2673 at 2981888; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 1269760 | O2u ANY flag: TRUE WARNING (early) lead 1400832 | O2u ANY alarm: TRUE WARNING (early) lead 1531904
+  S2 trail8(bank_ss)>thr9=0.1500
+      fires 2244608; up-crossings [2244608] (n 1); steps from firing to ledger end 9682944
+      max before first outcome +0.2673; max over run +0.2673 at 2981888; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 1425408 | O2u ANY flag: TRUE WARNING (early) lead 1556480 | O2u ANY alarm: TRUE WARNING (early) lead 1687552
+  S3 trail8(bank_ss)-B>0.13 (B=-0.0530)
+      fires 1482752; up-crossings [1482752, 11862016] (n 2); steps from firing to ledger end 10444800
+      max before first outcome +0.3203; max over run +0.3203 at 2981888; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 2187264 | O2u ANY flag: TRUE WARNING (early) lead 2318336 | O2u ANY alarm: TRUE WARNING (early) lead 2449408
+  S5 trail8(rollout_mu)>0.638
+      fires 3358720; up-crossings [3358720, 7929856, 7987200, 8282112, 8921088, 9027584] ... (n 9); steps from firing to ledger end 8568832
+      max before first outcome +0.7500; max over run +0.9710 at 4669440; fell back below before it: False
+      O1u over-bar: TRUE WARNING (short) lead 311296 | O2u ANY flag: TRUE WARNING (short) lead 442368 | O2u ANY alarm: TRUE WARNING (early) lead 573440
+--- s60 (ledger last 11927552)
+  P1 trail8(bank_ss)>0.150
+      fires 3670016; up-crossings [3670016, 4349952] (n 2); steps from firing to ledger end 8257536
+      max before first outcome +0.1763; max over run +0.1763 at 3973120; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 4456448 | O2u ANY flag: FALSE ALARM | O2u ANY alarm: FALSE ALARM
+  S1 trail8(bank_ss)>0.186
+      fires None; up-crossings [] (n 0)
+      max before first outcome +0.1763; max over run +0.1763 at 3973120; fell back below before it: None
+      O1u over-bar: MISS | O2u ANY flag: true negative | O2u ANY alarm: true negative
+  S2 trail8(bank_ss)>thr9=0.1500
+      fires 3670016; up-crossings [3670016, 4349952] (n 2); steps from firing to ledger end 8257536
+      max before first outcome +0.1763; max over run +0.1763 at 3973120; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 4456448 | O2u ANY flag: FALSE ALARM | O2u ANY alarm: FALSE ALARM
+  S3 trail8(bank_ss)-B>0.13 (B=+0.0211)
+      fires 3670016; up-crossings [3670016, 4358144] (n 2); steps from firing to ledger end 8257536
+      max before first outcome +0.1552; max over run +0.1552 at 3973120; fell back below before it: True
+      O1u over-bar: TRUE WARNING (early) lead 4456448 | O2u ANY flag: FALSE ALARM | O2u ANY alarm: FALSE ALARM
+  S5 trail8(rollout_mu)>0.638
+      fires 7618560; up-crossings [7618560, 9871360, 9904128, 10067968, 10207232, 10452992] ... (n 8); steps from firing to ledger end 4308992
+      max before first outcome +0.7408; max over run +0.7549 at 8314880; fell back below before it: False
+      O1u over-bar: TRUE WARNING (short) lead 507904 | O2u ANY flag: FALSE ALARM | O2u ANY alarm: FALSE ALARM
+--- s80 (ledger last 11927552)
+  P1 trail8(bank_ss)>0.150
+      fires None; up-crossings [] (n 0)
+      max before first outcome +0.1041; max over run +0.1041 at 2785280; fell back below before it: None
+      O1u over-bar: MISS | O2u ANY flag: MISS | O2u ANY alarm: MISS
+  S1 trail8(bank_ss)>0.186
+      fires None; up-crossings [] (n 0)
+      max before first outcome +0.1041; max over run +0.1041 at 2785280; fell back below before it: None
+      O1u over-bar: MISS | O2u ANY flag: MISS | O2u ANY alarm: MISS
+  S2 trail8(bank_ss)>thr9=0.1500
+      fires None; up-crossings [] (n 0)
+      max before first outcome +0.1041; max over run +0.1041 at 2785280; fell back below before it: None
+      O1u over-bar: MISS | O2u ANY flag: MISS | O2u ANY alarm: MISS
+  S3 trail8(bank_ss)-B>0.13 (B=+0.0129)
+      fires None; up-crossings [] (n 0)
+      max before first outcome +0.0913; max over run +0.0913 at 2785280; fell back below before it: None
+      O1u over-bar: MISS | O2u ANY flag: MISS | O2u ANY alarm: MISS
+  S5 trail8(rollout_mu)>0.638
+      fires None; up-crossings [] (n 0)
+      max before first outcome +0.0790; max over run +0.5149 at 11927552; fell back below before it: None
+      O1u over-bar: MISS | O2u ANY flag: MISS | O2u ANY alarm: MISS
+
+======================================================================================================================
+C. TALLY PER RULE AND OUTCOME (runs: true warnings / positives; false alarms / negatives; leads)
+======================================================================================================================
+  P1  O1u over-bar  : warned 2/3 [s42 1425408, s60 4456448]; missed/late [s80 MISS]; false alarms 0/0 []  
+  P1  O2u ANY flag  : warned 1/2 [s42 1556480]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  P1  O2u ANY alarm : warned 1/2 [s42 1687552]; missed/late [s80 MISS]; false alarms 1/1 [s60]  PARTIAL
+  S1  O1u over-bar  : warned 1/3 [s42 1269760]; missed/late [s60 MISS, s80 MISS]; false alarms 0/0 []  
+  S1  O2u ANY flag  : warned 1/2 [s42 1400832]; missed/late [s80 MISS]; false alarms 0/1 []  
+  S1  O2u ANY alarm : warned 1/2 [s42 1531904]; missed/late [s80 MISS]; false alarms 0/1 []  PARTIAL
+  S2  O1u over-bar  : warned 2/3 [s42 1425408, s60 4456448]; missed/late [s80 MISS]; false alarms 0/0 []  
+  S2  O2u ANY flag  : warned 1/2 [s42 1556480]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S2  O2u ANY alarm : warned 1/2 [s42 1687552]; missed/late [s80 MISS]; false alarms 1/1 [s60]  PARTIAL
+  S3  O1u over-bar  : warned 2/3 [s42 2187264, s60 4456448]; missed/late [s80 MISS]; false alarms 0/0 []  
+  S3  O2u ANY flag  : warned 1/2 [s42 2318336]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S3  O2u ANY alarm : warned 1/2 [s42 2449408]; missed/late [s80 MISS]; false alarms 1/1 [s60]  PARTIAL
+  S5  O1u over-bar  : warned 2/3 [s42 311296, s60 507904]; missed/late [s80 MISS]; false alarms 0/0 []  
+  S5  O2u ANY flag  : warned 1/2 [s42 442368]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S5  O2u ANY alarm : warned 1/2 [s42 573440]; missed/late [s80 MISS]; false alarms 1/1 [s60]  PARTIAL

@@ -1,0 +1,24 @@
+=== r10: trail8(bank_ss) at the marks (M steps)
+run    1.05   2.10   3.15   4.19   5.24   6.29   7.34   8.39   9.44  10.49  11.53  11.93 | first outcome used
+s42  -0.088 +0.134 +0.224 -0.093 -0.140 -0.174 -0.148 -0.177 -0.275 -0.130 +0.042 +0.103 | FOB 3670016; first over-bar 3670016; over-bar episodes 249
+s60  +0.019 +0.008 +0.122 +0.159 +0.060 +0.061 -0.087 -0.125 -0.148 -0.231 -0.181 -0.181 | FOB 8126464; first over-bar 8126464; over-bar episodes 24
+s80  -0.017 +0.080 +0.090 +0.054 +0.043 +0.013 -0.024 -0.044 +0.009 +0.053 +0.016 +0.003 | FOB None; first over-bar 3801088; over-bar episodes 119
+  positives: max trail8 before the outcome: s42 +0.267, s60 +0.176
+  negatives: max trail8 over the run (to 11,927,552): s80 +0.104
+  negatives: max trail8 up to 2,097,152: s80 +0.080 | positives up to the same step: s42 +0.134, s60 +0.061
+  negatives: max trail8 up to 3,145,728: s80 +0.104 | positives up to the same step: s42 +0.267, s60 +0.127
+  negatives: max trail8 up to 4,194,304: s80 +0.104 | positives up to the same step: s42 +0.267, s60 +0.176
+  separating threshold exists (min positive pre-outcome max +0.176 > max negative +0.104): True
+=== r9: trail8(bank_ss) at the marks (M steps)
+run    1.05   2.10   3.15   4.19   5.24   6.29   7.34   8.39   9.44  10.49  11.53  11.93 | first outcome used
+s42  +0.013 +0.197 +0.253 +0.323 +0.528 +0.498 +0.481 +0.396 +0.323 +0.259 +0.406 +0.344 | O2u alarm 3670016; first over-bar 3145728; over-bar episodes 270
+s52  -0.072 +0.185 +0.066 +0.188 +0.509 +0.405 +0.541 +0.760 +0.737 +0.586 +0.567 +0.548 | O2u alarm None; first over-bar 6946816; over-bar episodes 3
+s60  +0.042 +0.231 +0.260 +0.205 +0.172 +0.100 +0.285 +0.236 +0.217 +0.167 +0.027 -0.025 | O2u alarm None; first over-bar 11403264; over-bar episodes 1
+s70  -0.013 +0.224 +0.190 +0.168 +0.390 +0.411 +0.411 +0.509 +0.402 +0.255 +0.146 +0.165 | O2u alarm None; first over-bar 8126464; over-bar episodes 1
+s80  +0.027 +0.032 -0.080 +0.014 +0.139 +0.149 +0.123 +0.229 +0.145 +0.246 +0.280 +0.365 | O2u alarm 4456448; first over-bar 4325376; over-bar episodes 294
+  positives: max trail8 before the outcome: s42 +0.337, s80 +0.167
+  negatives: max trail8 over the run (to 11,927,552): s52 +0.843, s60 +0.332, s70 +0.556
+  negatives: max trail8 up to 2,097,152: s52 +0.185, s60 +0.231, s70 +0.224 | positives up to the same step: s42 +0.197, s80 +0.167
+  negatives: max trail8 up to 3,145,728: s52 +0.225, s60 +0.315, s70 +0.255 | positives up to the same step: s42 +0.329, s80 +0.167
+  negatives: max trail8 up to 4,194,304: s52 +0.225, s60 +0.315, s70 +0.304 | positives up to the same step: s42 +0.337, s80 +0.167
+  separating threshold exists (min positive pre-outcome max +0.167 > max negative +0.843): False

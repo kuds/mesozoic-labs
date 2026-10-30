@@ -1,0 +1,130 @@
+PRE-REGISTRATION, STAGE 1: r9 HELD-OUT TEST OF THE EARLY-WARNING SIGNALS (com_revisit, role warning_r9)
+Written 2026-10-30, about 02:50 UTC, BEFORE reading any r9 series (probe values, ledger rows, CMD_L).
+Exploratory, report only, never a gate.  No training, no optimizer step, no simulation (rollouts) in this role.
+Folder: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/warning_r9/
+
+------------------------------------------------------------------------------------------------------------------
+0. WHAT I HAD SEEN OF r9 WHEN WRITING THIS (disclosure)
+------------------------------------------------------------------------------------------------------------------
+- File and folder NAMES only:
+  - ledgers  .../0fdf74a4-.../scratchpad/foot/stance5/runs/stance5_LTSB_{s42,s52,s60}/01_stance/eval_episodes.csv
+             .../0fdf74a4-.../scratchpad/foot/stance5/replication/runs/stance5_LTSB_{s70,s80}/01_stance/eval_episodes.csv
+  - probes   .../184ee67c-.../scratchpad/tailround/fetch/stance5_LTSB_{s42,s52,s60,s70,s80}/A/policy_probe.npz
+  - weights  only stage1_4194304_steps (s42 and s80); no other r9 checkpoint is local.
+  - the repo evidence folder (com_revisit/base/docs/investigations/stance_2026_10/stance5/) holds no further r9
+    probe or ledger file (names searched: *eval_episodes*, *probe*.npz, *.csv); so the r9 test set is these 5 runs.
+- Outcome summaries quoted in early_warning/NOTES.txt section 9 (not looked up by me): r9 s42 first tail over-bar
+  3,145,728; r9 s80 "flagged from 4,325,376"; s52, s60, s70 called negatives.  The brief: the r9 bank sha1 is
+  084cf5c2b7 (r10: 767bab20e8).  NOTES also say an earlier agent (L070) read the r9 10-row bank mean.
+- I have NOT seen any r9 probe value, any r9 ledger row, or any r9 CMD_L.
+
+------------------------------------------------------------------------------------------------------------------
+1. SIGNAL DEFINITIONS (identical to early_warning/ew_events.py and ew_analyze.py, which produced the r10 numbers)
+------------------------------------------------------------------------------------------------------------------
+- bank_ss(row)   = mean over the bank rows labelled exactly "statue_settled" of bank_action_now[row, bank_row, 14]
+                   (tail_3_pitch_act, raw Gaussian mean, pre-clip), one value per probe row (PPO update).
+- rollout_mu(row)= rollout_mu_mean[row, 14].
+- trail8(x)[i]   = mean of x[max(0, i-7) .. i]: causal 8-row trailing mean over the rows as stored (update order).
+                   In r10 one row = 8,192 steps, so 8 rows = 65,536 steps.  If an r9 probe has another row spacing,
+                   the rule still uses 8 rows; the step span is reported.
+- CMD_L(eval)    = mean over that evaluation's episodes of tail_3_pitch_act_command_mean (eval_episodes.csv).
+- "fires" = the first row (probe) or evaluation (ledger) at which the rule's condition holds; time = that row's
+  update_timesteps or the evaluation's timesteps.  Strict ">" unless the rule says ">=".
+
+------------------------------------------------------------------------------------------------------------------
+2. RULES (thresholds fixed from r10 results only; the r10 numbers in brackets are from early_warning/ew_analyze.txt
+   sections 2, 2b, 4 and my r10_baseline.txt)
+------------------------------------------------------------------------------------------------------------------
+PRIMARY
+ P1  trail8(bank_ss) > 0.150.   (T1, the fixed-reference offset; "about 0.15", the 0.14-0.16 band read off the r10
+     grid, not blind.  r10: s42 2,244,608 (lead 1.43M), s60 3,670,016 (lead 4.46M); r10 s80 max 0.104, never;
+     ECS s80 after S max 0.122, 0/12.)
+ P2  CMD_L >= 0.30.             (T3, the ledger baseline.  r10: s42 2,883,584 (lead 0.79M), s60 6,422,528 (lead
+     1.70M); r10 s80 fires 9,830,400 with no tail over-bar episode; ECS s80 0/12.)
+SECONDARY
+ S1  trail8(bank_ss) > 0.186.   (the pre-stated TRAIN midpoint rule at native resolution; it missed r10 s60.)
+ S2  trail8(bank_ss) > thr9.    thr9 = 0.150 translated to the r9 bank by procedure X (section 3); its value is
+     fixed in PREREG_STAGE2.txt, with sha256, before any r9 series is read.
+ S3  trail8(bank_ss) - B > 0.13, B = mean of the RAW bank_ss rows with update_timesteps <= 1,048,576 (the run's own
+     early level).  (r10, r10_baseline.txt: B = -0.053 / +0.021 / +0.013 for s42 / s60 / s80; delta maxima s42 pre-FOB
+     0.320, s60 pre-FOB 0.155, r10 s80 whole run 0.091, ECS s80 after S 0.109 (max of 12); 0.13 is about the midpoint
+     of 0.109 and 0.155.  r10 fires: s42 1,499,136 at 0.14 / 1,523,712 at 0.15; s60 3,653,632 at 0.12, 3,702,784 at
+     0.14.)  Caveat [inferred]: the policy starts near zero output on any state, so B mostly measures the early
+     policy, not the bank; S3 may not remove a bank offset that grows with training.
+ S4  CMD_L > 0.723.             (pre-stated TRAIN rule at native resolution: r10 leads 0.26M / 0.66M; ECS s42 8/12;
+     no s80 firing.)
+ S5  trail8(rollout_mu) > 0.638. (pre-stated TRAIN rule: r10 leads 0.31M / 0.51M; no s80 firing.)  Independent of
+     the bank (training rows), so not affected by the bank change.
+NOT TESTABLE ON r9 (named so they cannot be quietly dropped)
+ - RULE A (G_own > 0.311), G_ref > 0 and > 0.300 (T2), c0, FP, own14, pitch pathway, and the verifier's margin
+   b* = 1 - G - c0 = (1 - G)(1 - FP): they need a checkpoint series (r9 has local weights only at 4,194,304 for s42
+   and s80, which is after r9 s42's recorded first tail over-bar), and the own-state forms need rollouts
+   (simulation, outside this role).  Not evaluated.
+
+------------------------------------------------------------------------------------------------------------------
+3. BANK CARRY-OVER AND PROCEDURE X (stage 2)
+------------------------------------------------------------------------------------------------------------------
+- The r9 bank holds different raw states (sha1 084cf5c2b7 against r10's 767bab20e8).  0.150 was fixed on r10's two
+  statue_settled rows (seeds 3042/3043, step 199).  The policy's tail_3 output is a function of the state, so the
+  same policy can give a different bank_ss on another bank: the absolute threshold MAY NOT carry over.  P1 is
+  tested as the study proposed it (absolute 0.150).  S2 and S3 are the two pre-specified corrections.
+- Before reading r9 series I will read r9 METADATA only: npz keys, shapes, dtypes, bank_labels, sha1 of
+  bank_raw_obs, update_timesteps spacing and range; ledger header, number of rows, evaluation cadence, episodes per
+  evaluation, last step.  If an r9 bank has no row labelled "statue_settled", P1, S1, S2, S3 are untestable for it.
+  If the r9 banks differ between runs, procedure X is done per distinct bank.
+- Procedure X (r10 networks + r9 bank STATES; no r9 series; no simulation):
+  - For each r10 checkpoint of s42, s60, s80 in the F2 copies (numbered checkpoints + finals, 37 in all), load with
+    the harness loader (sealed code copy, CPU, normaliser frozen) and compute the raw mu[14] on the r10 bank's
+    statue_settled rows (y10, mean of the rows) and on the r9 bank's statue_settled rows (y9, mean of the rows).
+  - Validation: y10 must equal the r10 probe's recorded bank_ss at that step to <= 1e-5 (finals excepted, as in
+    early_warning section 0).  If the r9 bank's observation length differs from the network's input, X is void.
+  - Fit y9 = a + b * y10 by least squares over the 37 checkpoints.  thr9 = a + b * 0.150 (also report
+    a + b * 0.186).
+  - Transfer ADEQUATE if Pearson r >= 0.90 and residual SD <= 0.03.  If not adequate, S2 is still applied and
+    reported, flagged "transfer poor", and P1's result is read as a test of the number 0.150 on a different bank,
+    not of the signal.
+  - Also reported: y9 - y10 at the checkpoints with y10 in [0.05, 0.30] (the threshold region).
+  - Limitation [inferred]: the translation goes through r10 networks; r9 networks may map the two banks
+    differently.
+
+------------------------------------------------------------------------------------------------------------------
+4. OUTCOMES (per r9 run, from its own ledger only; the ew_events.py definitions)
+------------------------------------------------------------------------------------------------------------------
+- over the BAR: an episode with saturated_actuator_fraction > 0.10.  TAIL: saturated_actuator is one of
+  tail_1_pitch_act, tail_1_yaw_act, tail_2_pitch_act, tail_3_pitch_act.
+ O1  FOB  = first evaluation with >= 1 TAIL over-bar episode (first tail over-bar episode).  PRIMARY outcome.
+ O2  ANY alarm  = first evaluation that is the second of two consecutive ANY-flagged evaluations; ANY flag = >= 5
+     episodes over the bar (if an evaluation holds n != 10 episodes: >= ceil(n/2); n reported).
+ O3  TAIL alarm = the same with TAIL over-bar episodes.
+ O4  PARK = first evaluation with CMD_L >= 0.60.  (RAIL, CMD_L >= 0.90, and first ANY / TAIL flags also reported.)
+
+------------------------------------------------------------------------------------------------------------------
+5. COUNTING
+------------------------------------------------------------------------------------------------------------------
+- For each rule x run x outcome:
+  - TRUE WARNING: the rule fires at step f and the outcome occurs at step o with f < o.  LEAD = o - f (steps).
+    "Early" = lead >= 524,288 (4 evaluation intervals).
+  - LATE: fires at f >= o.  Counted as a MISS for that outcome.
+  - MISS: never fires, outcome occurs.
+  - FALSE ALARM: fires, outcome never occurs within the ledger's recorded span.  Probe rows after the last ledger
+    evaluation are ignored (no outcome can be seen there).  The steps from the firing to the ledger's end are
+    reported (censoring: a late firing in a short run is weak evidence either way).
+  - TRUE NEGATIVE: never fires, outcome never occurs.
+- Only the first firing defines the lead.  Also reported: whether the signal fell back below its threshold before
+  the outcome, later re-crossings, and each signal's maximum before the outcome and over the run.
+- P2 and S4 are CMD_L itself; their relation to PARK (O4) is mechanical and is reported but not counted as evidence.
+- Per-rule verdict on O1 (primary):
+  - HOLDS: a true warning in every r9 run with an O1, and no O1 false alarm in any r9 run without one.
+  - PARTIAL: at least one true warning and at most one O1 false alarm.
+  - FAILS: otherwise.
+  The same tally is reported for O2, O3 and O4.
+- Sample size: 5 runs (n positives set by the ledgers).  No rate is estimated with useful precision; exact counts
+  are reported (e.g. 2/2 warned has a 95% Clopper-Pearson interval on sensitivity of [0.16, 1]; 0/3 false alarms
+  has an upper bound of 0.71).  Everything is correlational.
+
+------------------------------------------------------------------------------------------------------------------
+6. ORDER OF WORK
+------------------------------------------------------------------------------------------------------------------
+ (a) this file + PREREG.sha256;  (b) r10 reproduction of my apply code (must reproduce the r10 firing steps above);
+ (c) r9 metadata check;  (d) procedure X -> PREREG_STAGE2.txt + PREREG_STAGE2.sha256;  (e) apply the rules to the r9
+ series exactly as written here; any deviation is listed as a deviation, with its reason.

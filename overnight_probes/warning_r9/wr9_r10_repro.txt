@@ -1,0 +1,148 @@
+warning_r9 apply: r10; thr9 = 0.1500; EARLY = lead >= 524288
+======================================================================================================================
+A. METADATA AND OUTCOMES (ledger)
+======================================================================================================================
+--- s42: ledger /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1
+    evals 91, cadence median 131072 (min 131072, max 131072), episodes/eval [10], first 131072, last 11927552
+    probe /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1
+    probe rows 1465, row spacing median 8192, t 8192..12001280; bank sha1 767bab20e8; statue_settled rows 2; labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+    outcomes: O1 FOB 3670016; O2 ANY alarm 3932160; O3 TAIL alarm 3932160; O4 PARK 3407872
+    also:     first over-bar (any) 3670016; ANY flag 3801088; TAIL flag 3801088; RAIL 3670016
+    n over-bar episodes 249 (tail 249); ANY-flagged evals 26, TAIL-flagged 26; over-bar actuators ['tail_3_pitch_act']; max CMD_L +1.000 at 4587520
+--- s60: ledger /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/eval_episodes.csv.copy1
+    evals 91, cadence median 131072 (min 131072, max 131072), episodes/eval [10], first 131072, last 11927552
+    probe /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/policy_probe.npz.copy1
+    probe rows 1465, row spacing median 8192, t 8192..12001280; bank sha1 767bab20e8; statue_settled rows 2; labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+    outcomes: O1 FOB 8126464; O2 ANY alarm None; O3 TAIL alarm None; O4 PARK 6946816
+    also:     first over-bar (any) 8126464; ANY flag None; TAIL flag None; RAIL None
+    n over-bar episodes 24 (tail 24); ANY-flagged evals 0, TAIL-flagged 0; over-bar actuators ['tail_3_pitch_act']; max CMD_L +0.894 at 8650752
+--- s80: ledger /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/eval_episodes.csv.copy1
+    evals 91, cadence median 131072 (min 131072, max 131072), episodes/eval [10], first 131072, last 11927552
+    probe /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/policy_probe.npz.copy1
+    probe rows 1465, row spacing median 8192, t 8192..12001280; bank sha1 767bab20e8; statue_settled rows 2; labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+    outcomes: O1 FOB None; O2 ANY alarm 5505024; O3 TAIL alarm None; O4 PARK 11796480
+    also:     first over-bar (any) 3801088; ANY flag 4849664; TAIL flag None; RAIL None
+    n over-bar episodes 119 (tail 0); ANY-flagged evals 12, TAIL-flagged 0; over-bar actuators ['neck_pitch_act']; max CMD_L +0.616 at 11796480
+
+======================================================================================================================
+B. RULES PER RUN: first firing, lead against each outcome (o - f, steps), classification
+======================================================================================================================
+--- s42 (ledger last 11927552)
+  P1 trail8(bank_ss)>0.150
+      fires 2244608; up-crossings [2244608] (n 1); steps from firing to ledger end 9682944
+      max before O1 +0.2673; max over run +0.2673 at 2981888; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 1425408 | O2 ANY alarm: TRUE WARNING (early) lead 1687552 | O3 TAIL alarm: TRUE WARNING (early) lead 1687552 | O4 PARK: TRUE WARNING (early) lead 1163264
+  S1 trail8(bank_ss)>0.186
+      fires 2400256; up-crossings [2400256] (n 1); steps from firing to ledger end 9527296
+      max before O1 +0.2673; max over run +0.2673 at 2981888; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 1269760 | O2 ANY alarm: TRUE WARNING (early) lead 1531904 | O3 TAIL alarm: TRUE WARNING (early) lead 1531904 | O4 PARK: TRUE WARNING (early) lead 1007616
+  S2 trail8(bank_ss)>thr9=0.1500
+      fires 2244608; up-crossings [2244608] (n 1); steps from firing to ledger end 9682944
+      max before O1 +0.2673; max over run +0.2673 at 2981888; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 1425408 | O2 ANY alarm: TRUE WARNING (early) lead 1687552 | O3 TAIL alarm: TRUE WARNING (early) lead 1687552 | O4 PARK: TRUE WARNING (early) lead 1163264
+  S3 trail8(bank_ss)-B>0.13 (B=-0.0530)
+      fires 1482752; up-crossings [1482752, 11862016] (n 2); steps from firing to ledger end 10444800
+      max before O1 +0.3203; max over run +0.3203 at 2981888; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 2187264 | O2 ANY alarm: TRUE WARNING (early) lead 2449408 | O3 TAIL alarm: TRUE WARNING (early) lead 2449408 | O4 PARK: TRUE WARNING (early) lead 1925120
+  P2 CMD_L>=0.30
+      fires 2883584; up-crossings [2883584, 7208960] (n 2); steps from firing to ledger end 9043968
+      max before O1 +0.8296; max over run +1.0000 at 4587520; fell back below before O1: False
+      O1 FOB: TRUE WARNING (early) lead 786432 | O2 ANY alarm: TRUE WARNING (early) lead 1048576 | O3 TAIL alarm: TRUE WARNING (early) lead 1048576 | O4 PARK: TRUE WARNING (early) lead 524288
+  S4 CMD_L>0.723
+      fires 3407872; up-crossings [3407872, 7733248] (n 2); steps from firing to ledger end 8519680
+      max before O1 +0.8296; max over run +1.0000 at 4587520; fell back below before O1: False
+      O1 FOB: TRUE WARNING (short) lead 262144 | O2 ANY alarm: TRUE WARNING (early) lead 524288 | O3 TAIL alarm: TRUE WARNING (early) lead 524288 | O4 PARK: LATE (miss) lead 0
+  S5 trail8(rollout_mu)>0.638
+      fires 3358720; up-crossings [3358720, 7929856, 7987200, 8282112, 8921088, 9027584] ... (n 9); steps from firing to ledger end 8568832
+      max before O1 +0.7500; max over run +0.9710 at 4669440; fell back below before O1: False
+      O1 FOB: TRUE WARNING (short) lead 311296 | O2 ANY alarm: TRUE WARNING (early) lead 573440 | O3 TAIL alarm: TRUE WARNING (early) lead 573440 | O4 PARK: TRUE WARNING (short) lead 49152
+--- s60 (ledger last 11927552)
+  P1 trail8(bank_ss)>0.150
+      fires 3670016; up-crossings [3670016, 4349952] (n 2); steps from firing to ledger end 8257536
+      max before O1 +0.1763; max over run +0.1763 at 3973120; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 4456448 | O2 ANY alarm: FALSE ALARM | O3 TAIL alarm: FALSE ALARM | O4 PARK: TRUE WARNING (early) lead 3276800
+  S1 trail8(bank_ss)>0.186
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.1763; max over run +0.1763 at 3973120; fell back below before O1: None
+      O1 FOB: MISS | O2 ANY alarm: true negative | O3 TAIL alarm: true negative | O4 PARK: MISS
+  S2 trail8(bank_ss)>thr9=0.1500
+      fires 3670016; up-crossings [3670016, 4349952] (n 2); steps from firing to ledger end 8257536
+      max before O1 +0.1763; max over run +0.1763 at 3973120; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 4456448 | O2 ANY alarm: FALSE ALARM | O3 TAIL alarm: FALSE ALARM | O4 PARK: TRUE WARNING (early) lead 3276800
+  S3 trail8(bank_ss)-B>0.13 (B=+0.0211)
+      fires 3670016; up-crossings [3670016, 4358144] (n 2); steps from firing to ledger end 8257536
+      max before O1 +0.1552; max over run +0.1552 at 3973120; fell back below before O1: True
+      O1 FOB: TRUE WARNING (early) lead 4456448 | O2 ANY alarm: FALSE ALARM | O3 TAIL alarm: FALSE ALARM | O4 PARK: TRUE WARNING (early) lead 3276800
+  P2 CMD_L>=0.30
+      fires 6422528; up-crossings [6422528] (n 1); steps from firing to ledger end 5505024
+      max before O1 +0.8675; max over run +0.8936 at 8650752; fell back below before O1: False
+      O1 FOB: TRUE WARNING (early) lead 1703936 | O2 ANY alarm: FALSE ALARM | O3 TAIL alarm: FALSE ALARM | O4 PARK: TRUE WARNING (early) lead 524288
+  S4 CMD_L>0.723
+      fires 7471104; up-crossings [7471104, 10092544] (n 2); steps from firing to ledger end 4456448
+      max before O1 +0.8675; max over run +0.8936 at 8650752; fell back below before O1: False
+      O1 FOB: TRUE WARNING (early) lead 655360 | O2 ANY alarm: FALSE ALARM | O3 TAIL alarm: FALSE ALARM | O4 PARK: LATE (miss) lead -524288
+  S5 trail8(rollout_mu)>0.638
+      fires 7618560; up-crossings [7618560, 9871360, 9904128, 10067968, 10207232, 10452992] ... (n 8); steps from firing to ledger end 4308992
+      max before O1 +0.7408; max over run +0.7549 at 8314880; fell back below before O1: False
+      O1 FOB: TRUE WARNING (short) lead 507904 | O2 ANY alarm: FALSE ALARM | O3 TAIL alarm: FALSE ALARM | O4 PARK: LATE (miss) lead -671744
+--- s80 (ledger last 11927552)
+  P1 trail8(bank_ss)>0.150
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.1041; max over run +0.1041 at 2785280; fell back below before O1: None
+      O1 FOB: true negative | O2 ANY alarm: MISS | O3 TAIL alarm: true negative | O4 PARK: MISS
+  S1 trail8(bank_ss)>0.186
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.1041; max over run +0.1041 at 2785280; fell back below before O1: None
+      O1 FOB: true negative | O2 ANY alarm: MISS | O3 TAIL alarm: true negative | O4 PARK: MISS
+  S2 trail8(bank_ss)>thr9=0.1500
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.1041; max over run +0.1041 at 2785280; fell back below before O1: None
+      O1 FOB: true negative | O2 ANY alarm: MISS | O3 TAIL alarm: true negative | O4 PARK: MISS
+  S3 trail8(bank_ss)-B>0.13 (B=+0.0129)
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.0913; max over run +0.0913 at 2785280; fell back below before O1: None
+      O1 FOB: true negative | O2 ANY alarm: MISS | O3 TAIL alarm: true negative | O4 PARK: MISS
+  P2 CMD_L>=0.30
+      fires 9830400; up-crossings [9830400] (n 1); steps from firing to ledger end 2097152
+      max before O1 +0.6158; max over run +0.6158 at 11796480; fell back below before O1: None
+      O1 FOB: FALSE ALARM | O2 ANY alarm: LATE (miss) lead -4325376 | O3 TAIL alarm: FALSE ALARM | O4 PARK: TRUE WARNING (early) lead 1966080
+  S4 CMD_L>0.723
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.6158; max over run +0.6158 at 11796480; fell back below before O1: None
+      O1 FOB: true negative | O2 ANY alarm: MISS | O3 TAIL alarm: true negative | O4 PARK: MISS
+  S5 trail8(rollout_mu)>0.638
+      fires None; up-crossings [] (n 0)
+      max before O1 +0.5149; max over run +0.5149 at 11927552; fell back below before O1: None
+      O1 FOB: true negative | O2 ANY alarm: MISS | O3 TAIL alarm: true negative | O4 PARK: MISS
+
+======================================================================================================================
+C. TALLY PER RULE AND OUTCOME (runs: true warnings / positives; false alarms / negatives; leads)
+======================================================================================================================
+  P1  O1 FOB        : warned 2/2 [s42 1425408, s60 4456448]; missed/late []; false alarms 0/1 []  HOLDS
+  P1  O2 ANY alarm  : warned 1/2 [s42 1687552]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  P1  O3 TAIL alarm : warned 1/1 [s42 1687552]; missed/late []; false alarms 1/2 [s60]  
+  P1  O4 PARK       : warned 2/3 [s42 1163264, s60 3276800]; missed/late [s80 MISS]; false alarms 0/0 []  
+  S1  O1 FOB        : warned 1/2 [s42 1269760]; missed/late [s60 MISS]; false alarms 0/1 []  PARTIAL
+  S1  O2 ANY alarm  : warned 1/2 [s42 1531904]; missed/late [s80 MISS]; false alarms 0/1 []  
+  S1  O3 TAIL alarm : warned 1/1 [s42 1531904]; missed/late []; false alarms 0/2 []  
+  S1  O4 PARK       : warned 1/3 [s42 1007616]; missed/late [s60 MISS, s80 MISS]; false alarms 0/0 []  
+  S2  O1 FOB        : warned 2/2 [s42 1425408, s60 4456448]; missed/late []; false alarms 0/1 []  HOLDS
+  S2  O2 ANY alarm  : warned 1/2 [s42 1687552]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S2  O3 TAIL alarm : warned 1/1 [s42 1687552]; missed/late []; false alarms 1/2 [s60]  
+  S2  O4 PARK       : warned 2/3 [s42 1163264, s60 3276800]; missed/late [s80 MISS]; false alarms 0/0 []  
+  S3  O1 FOB        : warned 2/2 [s42 2187264, s60 4456448]; missed/late []; false alarms 0/1 []  HOLDS
+  S3  O2 ANY alarm  : warned 1/2 [s42 2449408]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S3  O3 TAIL alarm : warned 1/1 [s42 2449408]; missed/late []; false alarms 1/2 [s60]  
+  S3  O4 PARK       : warned 2/3 [s42 1925120, s60 3276800]; missed/late [s80 MISS]; false alarms 0/0 []  
+  P2  O1 FOB        : warned 2/2 [s42 786432, s60 1703936]; missed/late []; false alarms 1/1 [s80]  PARTIAL
+  P2  O2 ANY alarm  : warned 1/2 [s42 1048576]; missed/late [s80 LATE (miss)]; false alarms 1/1 [s60]  
+  P2  O3 TAIL alarm : warned 1/1 [s42 1048576]; missed/late []; false alarms 2/2 [s60, s80]  
+  P2  O4 PARK       : warned 3/3 [s42 524288, s60 524288, s80 1966080]; missed/late []; false alarms 0/0 []  
+  S4  O1 FOB        : warned 2/2 [s42 262144, s60 655360]; missed/late []; false alarms 0/1 []  HOLDS
+  S4  O2 ANY alarm  : warned 1/2 [s42 524288]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S4  O3 TAIL alarm : warned 1/1 [s42 524288]; missed/late []; false alarms 1/2 [s60]  
+  S4  O4 PARK       : warned 0/3 []; missed/late [s42 LATE (miss), s60 LATE (miss), s80 MISS]; false alarms 0/0 []  
+  S5  O1 FOB        : warned 2/2 [s42 311296, s60 507904]; missed/late []; false alarms 0/1 []  HOLDS
+  S5  O2 ANY alarm  : warned 1/2 [s42 573440]; missed/late [s80 MISS]; false alarms 1/1 [s60]  
+  S5  O3 TAIL alarm : warned 1/1 [s42 573440]; missed/late []; false alarms 1/2 [s60]  
+  S5  O4 PARK       : warned 1/3 [s42 49152]; missed/late [s60 LATE (miss), s80 MISS]; false alarms 0/0 []  

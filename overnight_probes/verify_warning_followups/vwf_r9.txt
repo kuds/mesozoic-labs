@@ -1,0 +1,34 @@
+s42: evals 91 eps/eval [10] last 11927552; over-bar eps 270; flagged evals 30; first over-bar 3145728; first flag 3538944; first alarm 3670016
+     statue_settled cols [0, 5]; B -0.0513; fires P1 1802240, S1 2048000, S2 3670016, S3 1236992
+     reason tokens: {'max_actuator_saturation_fraction': 270, 'max_sole_tilt_deg': 15, 'max_sole_corner_lift_m': 9, 'horizon': 6, 'max_window_displacement_m': 6, 'min_sole_contacts': 6, 'max_sole_cop_fore_aft': 6, 'min_foot_load_share': 5}
+s52: evals 91 eps/eval [10] last 11927552; over-bar eps 3; flagged evals 0; first over-bar 6946816; first flag None; first alarm None
+     statue_settled cols [0, 5]; B -0.0700; fires P1 2056192, S1 2195456, S2 4440064, S3 1695744
+     reason tokens: {'max_sole_tilt_deg': 10, 'max_actuator_saturation_fraction': 3, 'max_sole_corner_lift_m': 2, 'max_settle_peak_floor_force_bw': 2}
+s60: evals 91 eps/eval [10] last 11927552; over-bar eps 1; flagged evals 0; first over-bar 11403264; first flag None; first alarm None
+     statue_settled cols [0, 5]; B -0.0206; fires P1 1744896, S1 1835008, S2 None, S3 1318912
+     reason tokens: {'max_sole_tilt_deg': 11, 'max_sole_corner_lift_m': 2, 'max_settle_peak_floor_force_bw': 1, 'max_actuator_saturation_fraction': 1}
+s70: evals 91 eps/eval [10] last 11927552; over-bar eps 1; flagged evals 0; first over-bar 8126464; first flag None; first alarm None
+     statue_settled cols [0, 5]; B -0.0593; fires P1 2007040, S1 2056192, S2 5111808, S3 1449984
+     reason tokens: {'max_sole_tilt_deg': 5, 'max_sole_corner_lift_m': 5, 'horizon': 4, 'max_window_displacement_m': 4, 'max_sole_cop_fore_aft': 4, 'max_settle_peak_floor_force_bw': 4, 'min_foot_load_share_windowed': 2, 'min_sole_contacts': 2}
+s80: evals 91 eps/eval [10] last 11927552; over-bar eps 294; flagged evals 37; first over-bar 4325376; first flag 4325376; first alarm 4456448
+     statue_settled cols [0, 5]; B -0.0535; fires P1 1384448, S1 6504448, S2 11902976, S3 1138688
+     reason tokens: {'max_actuator_saturation_fraction': 294, 'max_sole_tilt_deg': 10, 'max_sole_corner_lift_m': 5, 'horizon': 2, 'min_all_feet_support': 2, 'max_window_displacement_m': 2, 'min_foot_load_share': 2, 'min_foot_load_share_windowed': 2}
+
+Verdicts on the ANY alarm (positives = runs with an alarm):
+  P1: warned 2/2 ['s42 lead 1867776', 's80 lead 3072000']; late/miss []; false alarms 3/3 ['s52', 's60', 's70']; true neg [] -> FAILS
+  S1: warned 1/2 ['s42 lead 1622016']; late/miss ['s80 f=6504448']; false alarms 3/3 ['s52', 's60', 's70']; true neg [] -> FAILS
+  S2: warned 0/2 []; late/miss ['s42 f=3670016', 's80 f=11902976']; false alarms 2/3 ['s52', 's70']; true neg ['s60'] -> FAILS
+  S3: warned 2/2 ['s42 lead 2433024', 's80 lead 3317760']; late/miss []; false alarms 3/3 ['s52', 's60', 's70']; true neg [] -> FAILS
+
+Against the first over-bar episode (O1u): lead = first over-bar - firing
+  P1: s42 1343488, s52 4890624, s60 9658368, s70 6119424, s80 2940928
+  S1: s42 1097728, s52 4751360, s60 9568256, s70 6070272, s80 -2179072
+  S2: s42 -524288, s52 2506752, s60 None, s70 3014656, s80 -7577600
+  S3: s42 1908736, s52 5251072, s60 10084352, s70 6676480, s80 3186688
+
+Exploratory: trail8 maxima (pre-alarm for positives; whole run to the last eval for negatives; matched windows)
+  s42: pre-alarm max 0.3371; run max 0.5313; max to 2.10/3.15/4.19M (positives cut before alarm) 0.197 / 0.329 / 0.337
+  s52: pre-alarm max None; run max 0.8430; max to 2.10/3.15/4.19M (positives cut before alarm) 0.185 / 0.225 / 0.225
+  s60: pre-alarm max None; run max 0.3315; max to 2.10/3.15/4.19M (positives cut before alarm) 0.231 / 0.315 / 0.315
+  s70: pre-alarm max None; run max 0.5562; max to 2.10/3.15/4.19M (positives cut before alarm) 0.224 / 0.255 / 0.304
+  s80: pre-alarm max 0.1668; run max 0.3654; max to 2.10/3.15/4.19M (positives cut before alarm) 0.167 / 0.167 / 0.167

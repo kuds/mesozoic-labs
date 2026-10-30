@@ -1,0 +1,11 @@
+{"run": "control_9101", "cpu_total": 639.6, "wall_total": 648.2, "first_rollout_end_cpu": 31.41, "cpu_per_rollout_median": 17.72, "cpu_rollout_with_eval": 46.079999999999984, "wall_per_rollout_median": 18.0}
+{"run": "critic_blind_tail3_9101", "cpu_total": 650.1, "wall_total": 659.1, "first_rollout_end_cpu": 32.35, "cpu_per_rollout_median": 18.0, "cpu_rollout_with_eval": 46.89999999999998, "wall_per_rollout_median": 18.0}
+{"run": "frozen_obs_norm_9101", "cpu_total": 636.7, "wall_total": 642.7, "first_rollout_end_cpu": 30.99, "cpu_per_rollout_median": 17.669999999999987, "cpu_rollout_with_eval": 47.120000000000005, "wall_per_rollout_median": 18.0}
+{"run": "gae_lambda_1_9101", "cpu_total": 644.5, "wall_total": 650.9, "first_rollout_end_cpu": 31.46, "cpu_per_rollout_median": 17.81000000000006, "cpu_rollout_with_eval": 48.110000000000014, "wall_per_rollout_median": 18.0}
+ECS: real continuations 24: median 23.93 s/rollout (3 at a time); no-update V2 4: median 18.02 s/rollout; the update's share 5.90 s/rollout [inferred]
+BS no-update: 17.77 CPU-s per rollout (median over runs), +29.24 CPU-s per evaluation, setup 13.7 CPU-s
+ONE CONTINUATION (estimate): 4501 CPU-s = 75 min on one free CPU (176 rollouts x (17.77 + 5.90 update) + 11 evals + setup)
+8 continuations, 4 at a time, 2 waves, with 0 other busy process(es) on the 4 CPUs: about 2.5 h wall (x1.00)
+8 continuations, 4 at a time, 2 waves, with 1 other busy process(es) on the 4 CPUs: about 3.1 h wall (x1.25)
+8 continuations, 4 at a time, 2 waves, with 2 other busy process(es) on the 4 CPUs: about 3.8 h wall (x1.50)
+8 continuations, 4 at a time, 2 waves, with 3 other busy process(es) on the 4 CPUs: about 4.4 h wall (x1.75)

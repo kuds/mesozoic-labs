@@ -1,0 +1,126 @@
+score_bs 1.1 (2026-10-30; bias screen criteria v2)
+tool sha256 869898c59439fd7e61aa409b6ed48b1afa48da3b6feec02e26b2c4bf9ff0542b  utc 2026-10-30T09:03:04Z
+root /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen
+
+STATUS: final
+THE READING (line 1, NOT INFORMATIVE):
+  NOT INFORMATIVE: THE CONTROL ARM DID NOT REPRODUCE THE EARLY RISE OF THE ON-POLICY TAIL_3 COMMAND (its median primary rose by less than 0.10 from the value at S, or no control primary was read); no reading about the critic is made
+
+THE PRIMARY (on-policy tail_3 command: mean of rollout_mu14_mean over the probe rows 2,424,832 ... 2,482,176); B_S = -0.03157 (the parent's 8 rows ending at S)
+  control_2101             COUNTED  -0.03102  (rise from B_S +0.00056)
+  critic_blind_tail3_2101  COUNTED  +0.02868  (rise from B_S +0.06026)
+  control_2111             COUNTED  +0.02567  (rise from B_S +0.05725)
+  critic_blind_tail3_2111  COUNTED  -0.02845  (rise from B_S +0.00313)
+  control_2121             COUNTED  +0.09486  (rise from B_S +0.12644)
+  critic_blind_tail3_2121  COUNTED  +0.03689  (rise from B_S +0.06847)
+  control_2131             COUNTED  +0.28273  (rise from B_S +0.31430)
+  critic_blind_tail3_2131  COUNTED  +0.01563  (rise from B_S +0.04721)
+  control                  n counted 4, missing 0; mean +0.09306, median +0.06027, SD 0.13652 (report only)
+  critic_blind_tail3       n counted 4, missing 0; mean +0.01319, median +0.02216, SD 0.02911 (report only)
+  difference of arm means (control - critic_blind_tail3), as counted: +0.07987
+INFORMATIVENESS (line 1): the control arm's median primary must rise by >= 0.10 from B_S
+  control median +0.06027, rise +0.09184 -> NOT INFORMATIVE
+THE TEST: exact one-sided permutation test (control higher), difference of arm means, alpha 0.05; missing values filled against REDUCED (control -inf, critic_blind_tail3 +inf)
+  p (filled, decides) = 13/70 (0.1857)  > 0.05; minimum attainable 1/70 (0.0143)
+  p as counted (report only) = 13/70 (0.1857)
+PAIRED DIFFERENCES (control - critic_blind_tail3, same seeds; report only, not a test):
+  seed 2101: control -0.03102  blind +0.02868  diff -0.05970
+  seed 2111: control +0.02567  blind -0.02845  diff +0.05412
+  seed 2121: control +0.09486  blind +0.03689  diff +0.05797
+  seed 2131: control +0.28273  blind +0.01563  diff +0.26710
+  exact one-sided sign-flip p (report only; 4 pairs cannot reach 0.05: minimum 1/16) = 4/16 (0.2500)
+MANIPULATION (CHECK passed on every COUNTED / STOPPED one: the per-rollout evidence; summary from run_meta arm_evidence):
+  control_2101             MlpExtractor, hook in force; value change with obs 6 perturbed, min over 175 rollouts: 0.033307552337646484 (the critic sees it); actor dmu min 0.19767101109027863; lambda [0.95]; |adv - GAE(0.95)| max 3.6086751299541087e-06
+  critic_blind_tail3_2101  CriticBlindTail3MlpExtractor, hook in force; value change with obs 6 perturbed, max over 175 rollouts: predict 0.0 forward 0.0 evaluate 0.0 mirrored 0.0; buffer values vs the unblinded value MLP, min 0.005793094635009766; actor dmu min 0.09990159422159195; lambda [0.95]; |adv - GAE(0.95)| max 3.7442278269638612e-06
+  control_2111             MlpExtractor, hook in force; value change with obs 6 perturbed, min over 175 rollouts: 0.03587675094604492 (the critic sees it); actor dmu min 0.18716083467006683; lambda [0.95]; |adv - GAE(0.95)| max 3.8135633903396693e-06
+  critic_blind_tail3_2111  CriticBlindTail3MlpExtractor, hook in force; value change with obs 6 perturbed, max over 175 rollouts: predict 0.0 forward 0.0 evaluate 0.0 mirrored 0.0; buffer values vs the unblinded value MLP, min 0.0062427520751953125; actor dmu min 0.08894521743059158; lambda [0.95]; |adv - GAE(0.95)| max 3.7221786900734286e-06
+  control_2121             MlpExtractor, hook in force; value change with obs 6 perturbed, min over 175 rollouts: 0.041718482971191406 (the critic sees it); actor dmu min 0.16902655363082886; lambda [0.95]; |adv - GAE(0.95)| max 3.840294129918084e-06
+  critic_blind_tail3_2121  CriticBlindTail3MlpExtractor, hook in force; value change with obs 6 perturbed, max over 175 rollouts: predict 0.0 forward 0.0 evaluate 0.0 mirrored 0.0; buffer values vs the unblinded value MLP, min 0.006563663482666016; actor dmu min 0.07675394415855408; lambda [0.95]; |adv - GAE(0.95)| max 3.617724350077345e-06
+  control_2131             MlpExtractor, hook in force; value change with obs 6 perturbed, min over 175 rollouts: 0.04252958297729492 (the critic sees it); actor dmu min 0.18019165098667145; lambda [0.95]; |adv - GAE(0.95)| max 3.860144422412892e-06
+  critic_blind_tail3_2131  CriticBlindTail3MlpExtractor, hook in force; value change with obs 6 perturbed, max over 175 rollouts: predict 0.0 forward 0.0 evaluate 0.0 mirrored 0.0; buffer values vs the unblinded value MLP, min 0.005887031555175781; actor dmu min 0.09285081923007965; lambda [0.95]; |adv - GAE(0.95)| max 3.730696729174754e-06
+REPORT ONLY, PER CONTINUATION (never tested):
+  control_2101             COUNTED T 2,490,368: on-policy first 8 rows -0.0265, last 8 before T -0.0310; statue_settled last 8 rows -0.0014, 8-row trailing at the last row -0.0014 (max +0.0189), first above {'0.10': None, '0.14': None, '0.15': None, '0.16': None}; std14 last +0.1754; tail_3 normaliser mean last -0.072 deg
+      ledger: CMD_L at T -0.028 (max -0.007); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4465.0 / 4434.9, window 4456.0 over 110 episodes in 11 evaluations; falls 0 
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff -0.00781 raw -0.00781
+      pair 1,310,720: OWN G -1.275 c0 -0.056 b* +2.331 G_L -1.421 b*_L +2.484 own14 -0.026 falls 0 | REF G -1.244 | critic dV/dq3 on-policy eff -0.00716 raw -0.00716
+      pair 1,572,864: OWN G -1.563 c0 -0.031 b* +2.594 G_L -1.733 b*_L +2.771 own14 -0.014 falls 0 | REF G -1.515 | critic dV/dq3 on-policy eff +0.00341 raw +0.00341
+      pair 1,835,008: OWN G -1.226 c0 -0.046 b* +2.272 G_L -1.375 b*_L +2.423 own14 -0.021 falls 0 | REF G -1.204 | critic dV/dq3 on-policy eff +0.00694 raw +0.00694
+      pair 2,097,152: OWN G -1.249 c0 -0.013 b* +2.262 G_L -1.394 b*_L +2.409 own14 -0.006 falls 0 | REF G -1.243 | critic dV/dq3 on-policy eff -0.00148 raw -0.00148
+      pair 2,359,296: OWN G -1.437 c0 -0.058 b* +2.496 G_L -1.619 b*_L +2.683 own14 -0.024 falls 0 | REF G -1.467 | critic dV/dq3 on-policy eff -0.00472 raw -0.00472
+      pair 2,490,368: OWN G -1.862 c0 -0.088 b* +2.950 G_L -2.144 b*_L +3.235 own14 -0.029 falls 0 | REF G -1.926 | critic dV/dq3 on-policy eff -0.01948 raw -0.01948
+  critic_blind_tail3_2101  COUNTED T 2,490,368: on-policy first 8 rows -0.0277, last 8 before T +0.0287; statue_settled last 8 rows -0.0453, 8-row trailing at the last row -0.0453 (max -0.0023), first above {'0.10': None, '0.14': None, '0.15': None, '0.16': None}; std14 last +0.1769; tail_3 normaliser mean last -0.002 deg
+      ledger: CMD_L at T +0.030 (max +0.044); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4466.7 / 4476.0, window 4473.5 over 110 episodes in 11 evaluations; falls 0 
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff +0.00000 raw -0.00781
+      pair 1,310,720: OWN G -1.043 c0 -0.045 b* +2.088 G_L -1.160 b*_L +2.211 own14 -0.023 falls 0 | REF G -1.016 | critic dV/dq3 on-policy eff +0.00000 raw -0.01651
+      pair 1,572,864: OWN G -0.942 c0 -0.029 b* +1.971 G_L -1.040 b*_L +2.065 own14 -0.012 falls 0 | REF G -0.884 | critic dV/dq3 on-policy eff +0.00000 raw -0.01092
+      pair 1,835,008: OWN G -0.637 c0 +0.014 b* +1.623 G_L -0.694 b*_L +1.677 own14 +0.010 falls 0 | REF G -0.582 | critic dV/dq3 on-policy eff +0.00000 raw -0.02149
+      pair 2,097,152: OWN G -0.518 c0 +0.069 b* +1.450 G_L -0.545 b*_L +1.477 own14 +0.044 falls 0 | REF G -0.457 | critic dV/dq3 on-policy eff +0.00000 raw -0.04496
+      pair 2,359,296: OWN G -0.619 c0 +0.073 b* +1.546 G_L -0.636 b*_L +1.565 own14 +0.043 falls 0 | REF G -0.572 | critic dV/dq3 on-policy eff +0.00000 raw -0.03543
+      pair 2,490,368: OWN G -0.520 c0 +0.049 b* +1.470 G_L -0.536 b*_L +1.487 own14 +0.032 falls 0 | REF G -0.467 | critic dV/dq3 on-policy eff +0.00000 raw -0.03506
+  control_2111             COUNTED T 2,490,368: on-policy first 8 rows -0.0337, last 8 before T +0.0257; statue_settled last 8 rows +0.0571, 8-row trailing at the last row +0.0571 (max +0.0572), first above {'0.10': None, '0.14': None, '0.15': None, '0.16': None}; std14 last +0.1825; tail_3 normaliser mean last -0.100 deg
+      ledger: CMD_L at T +0.045 (max +0.045); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4465.4 / 4454.4, window 4465.7 over 110 episodes in 11 evaluations; falls 0 
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff -0.00781 raw -0.00781
+      pair 1,310,720: OWN G -0.934 c0 -0.102 b* +2.035 G_L -1.065 b*_L +2.170 own14 -0.051 falls 0 | REF G -0.907 | critic dV/dq3 on-policy eff +0.00038 raw +0.00038
+      pair 1,572,864: OWN G -1.274 c0 -0.075 b* +2.349 G_L -1.421 b*_L +2.499 own14 -0.032 falls 0 | REF G -1.238 | critic dV/dq3 on-policy eff +0.01250 raw +0.01250
+      pair 1,835,008: OWN G -1.495 c0 -0.109 b* +2.604 G_L -1.730 b*_L +2.845 own14 -0.042 falls 0 | REF G -1.477 | critic dV/dq3 on-policy eff -0.00545 raw -0.00545
+      pair 2,097,152: OWN G -1.625 c0 -0.066 b* +2.691 G_L -1.846 b*_L +2.918 own14 -0.025 falls 0 | REF G -1.595 | critic dV/dq3 on-policy eff +0.01177 raw +0.01177
+      pair 2,359,296: OWN G -1.621 c0 +0.044 b* +2.578 G_L -1.740 b*_L +2.703 own14 +0.013 falls 0 | REF G -1.567 | critic dV/dq3 on-policy eff +0.01641 raw +0.01641
+      pair 2,490,368: OWN G -1.406 c0 +0.127 b* +2.279 G_L -1.457 b*_L +2.335 own14 +0.050 falls 0 | REF G -1.348 | critic dV/dq3 on-policy eff +0.00405 raw +0.00405
+  critic_blind_tail3_2111  COUNTED T 2,490,368: on-policy first 8 rows -0.0354, last 8 before T -0.0284; statue_settled last 8 rows -0.0280, 8-row trailing at the last row -0.0280 (max -0.0280), first above {'0.10': None, '0.14': None, '0.15': None, '0.16': None}; std14 last +0.1816; tail_3 normaliser mean last -0.121 deg
+      ledger: CMD_L at T -0.014 (max -0.014); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4463.9 / 4477.5, window 4464.3 over 110 episodes in 11 evaluations; falls 0 
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff +0.00000 raw -0.00781
+      pair 1,310,720: OWN G -0.566 c0 -0.094 b* +1.660 G_L -0.658 b*_L +1.755 own14 -0.058 falls 0 | REF G -0.556 | critic dV/dq3 on-policy eff +0.00000 raw -0.00538
+      pair 1,572,864: OWN G -0.562 c0 -0.058 b* +1.620 G_L -0.626 b*_L +1.687 own14 -0.037 falls 0 | REF G -0.554 | critic dV/dq3 on-policy eff +0.00000 raw -0.01824
+      pair 1,835,008: OWN G -0.714 c0 -0.052 b* +1.766 G_L -0.797 b*_L +1.850 own14 -0.029 falls 0 | REF G -0.698 | critic dV/dq3 on-policy eff +0.00000 raw -0.02377
+      pair 2,097,152: OWN G -0.481 c0 -0.038 b* +1.519 G_L -0.533 b*_L +1.573 own14 -0.026 falls 0 | REF G -0.467 | critic dV/dq3 on-policy eff +0.00000 raw -0.02499
+      pair 2,359,296: OWN G -0.259 c0 -0.042 b* +1.301 G_L -0.295 b*_L +1.340 own14 -0.034 falls 0 | REF G -0.257 | critic dV/dq3 on-policy eff +0.00000 raw -0.02723
+      pair 2,490,368: OWN G -0.264 c0 -0.025 b* +1.289 G_L -0.291 b*_L +1.318 own14 -0.021 falls 0 | REF G -0.259 | critic dV/dq3 on-policy eff +0.00000 raw -0.04545
+  control_2121             COUNTED T 2,490,368: on-policy first 8 rows -0.0313, last 8 before T +0.0949; statue_settled last 8 rows +0.2076, 8-row trailing at the last row +0.2076 (max +0.2297), first above {'0.10': 1810432, '0.14': 1990656, '0.15': 2064384, '0.16': 2105344}; std14 last +0.1790; tail_3 normaliser mean last +0.052 deg
+      ledger: CMD_L at T +0.120 (max +0.120); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4087.5 / 4475.9, window 4399.5 over 110 episodes in 11 evaluations; falls 2 [(1179648, '237', 'fallen'), (1572864, '166', 'fallen')]
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff -0.00781 raw -0.00781
+      pair 1,310,720: OWN G -0.823 c0 -0.002 b* +1.825 G_L -0.894 b*_L +1.899 own14 -0.002 falls 0 | REF G -0.810 | critic dV/dq3 on-policy eff -0.00099 raw -0.00099
+      pair 1,572,864: OWN G -0.758 c0 +0.050 b* +1.709 G_L -0.797 b*_L +1.748 own14 +0.027 falls 0 | REF G -0.747 | critic dV/dq3 on-policy eff +0.00942 raw +0.00942
+      pair 1,835,008: OWN G -1.122 c0 +0.080 b* +2.042 G_L -1.171 b*_L +2.096 own14 +0.035 falls 0 | REF G -1.091 | critic dV/dq3 on-policy eff +0.01020 raw +0.01020
+      pair 2,097,152: OWN G -1.021 c0 +0.101 b* +1.920 G_L -1.047 b*_L +1.945 own14 +0.050 falls 0 | REF G -0.996 | critic dV/dq3 on-policy eff +0.00611 raw +0.00611
+      pair 2,359,296: OWN G -0.988 c0 +0.188 b* +1.800 G_L -0.997 b*_L +1.814 own14 +0.091 falls 0 | REF G -0.956 | critic dV/dq3 on-policy eff +0.02911 raw +0.02911
+      pair 2,490,368: OWN G -0.830 c0 +0.214 b* +1.615 G_L -0.837 b*_L +1.628 own14 +0.114 falls 0 | REF G -0.800 | critic dV/dq3 on-policy eff +0.01181 raw +0.01181
+  critic_blind_tail3_2121  COUNTED T 2,490,368: on-policy first 8 rows -0.0314, last 8 before T +0.0369; statue_settled last 8 rows +0.0010, 8-row trailing at the last row +0.0010 (max +0.0084), first above {'0.10': None, '0.14': None, '0.15': None, '0.16': None}; std14 last +0.1835; tail_3 normaliser mean last -0.001 deg
+      ledger: CMD_L at T +0.044 (max +0.044); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4092.8 / 4483.1, window 4439.7 over 110 episodes in 11 evaluations; falls 1 [(1179648, '246', 'fallen')]
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff +0.00000 raw -0.00781
+      pair 1,310,720: OWN G -0.201 c0 -0.013 b* +1.214 G_L -0.229 b*_L +1.240 own14 -0.009 falls 0 | REF G -0.194 | critic dV/dq3 on-policy eff +0.00000 raw -0.01910
+      pair 1,572,864: OWN G -0.189 c0 -0.003 b* +1.192 G_L -0.206 b*_L +1.208 own14 -0.002 falls 0 | REF G -0.169 | critic dV/dq3 on-policy eff +0.00000 raw -0.02377
+      pair 1,835,008: OWN G -0.406 c0 +0.038 b* +1.368 G_L -0.422 b*_L +1.383 own14 +0.027 falls 0 | REF G -0.378 | critic dV/dq3 on-policy eff +0.00000 raw -0.04432
+      pair 2,097,152: OWN G -0.365 c0 +0.044 b* +1.320 G_L -0.378 b*_L +1.335 own14 +0.031 falls 0 | REF G -0.334 | critic dV/dq3 on-policy eff +0.00000 raw -0.04200
+      pair 2,359,296: OWN G -0.336 c0 +0.089 b* +1.246 G_L -0.341 b*_L +1.252 own14 +0.066 falls 0 | REF G -0.302 | critic dV/dq3 on-policy eff +0.00000 raw -0.04862
+      pair 2,490,368: OWN G -0.183 c0 +0.084 b* +1.100 G_L -0.184 b*_L +1.101 own14 +0.071 falls 0 | REF G -0.159 | critic dV/dq3 on-policy eff +0.00000 raw -0.04478
+  control_2131             COUNTED T 2,490,368: on-policy first 8 rows -0.0326, last 8 before T +0.2827; statue_settled last 8 rows +0.1209, 8-row trailing at the last row +0.1209 (max +0.1492), first above {'0.10': 1957888, '0.14': 2269184, '0.15': None, '0.16': None}; std14 last +0.1760; tail_3 normaliser mean last +0.124 deg
+      ledger: CMD_L at T +0.320 (max +0.320); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': 2490368, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4485.0 / 4422.3, window 4468.6 over 110 episodes in 11 evaluations; falls 0 
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff -0.00781 raw -0.00781
+      pair 1,310,720: OWN G -1.105 c0 -0.049 b* +2.155 G_L -1.220 b*_L +2.268 own14 -0.022 falls 0 | REF G -1.095 | critic dV/dq3 on-policy eff +0.03067 raw +0.03067
+      pair 1,572,864: OWN G -1.067 c0 +0.021 b* +2.046 G_L -1.148 b*_L +2.127 own14 +0.009 falls 0 | REF G -1.045 | critic dV/dq3 on-policy eff +0.00836 raw +0.00836
+      pair 1,835,008: OWN G -0.754 c0 +0.071 b* +1.683 G_L -0.787 b*_L +1.718 own14 +0.038 falls 0 | REF G -0.727 | critic dV/dq3 on-policy eff +0.04431 raw +0.04431
+      pair 2,097,152: OWN G -0.990 c0 +0.197 b* +1.793 G_L -1.003 b*_L +1.810 own14 +0.096 falls 0 | REF G -0.953 | critic dV/dq3 on-policy eff +0.02061 raw +0.02061
+      pair 2,359,296: OWN G -0.452 c0 +0.417 b* +1.035 G_L -0.536 b*_L +1.108 own14 +0.278 falls 0 | REF G -0.488 | critic dV/dq3 on-policy eff +0.05454 raw +0.05454
+      pair 2,490,368: OWN G -0.329 c0 +0.510 b* +0.819 G_L -0.466 b*_L +0.926 own14 +0.369 falls 0 | REF G -0.410 | critic dV/dq3 on-policy eff +0.06041 raw +0.06041
+  critic_blind_tail3_2131  COUNTED T 2,490,368: on-policy first 8 rows -0.0332, last 8 before T +0.0156; statue_settled last 8 rows -0.0499, 8-row trailing at the last row -0.0499 (max -0.0185), first above {'0.10': None, '0.14': None, '0.15': None, '0.16': None}; std14 last +0.1804; tail_3 normaliser mean last -0.091 deg
+      ledger: CMD_L at T -0.008 (max +0.002); firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      returns: mean at the first / last evaluation 4484.0 / 4454.0, window 4406.9 over 110 episodes in 11 evaluations; falls 2 [(1310720, '278', 'fallen'), (1441792, '235', 'fallen')]
+      pair 1,048,576: OWN G -0.725 c0 -0.059 b* +1.785 G_L -0.806 b*_L +1.866 own14 -0.033 falls 0 | REF G -0.704 | critic dV/dq3 on-policy eff +0.00000 raw -0.00781
+      pair 1,310,720: OWN G -0.803 c0 -0.053 b* +1.856 G_L -0.896 b*_L +1.953 own14 -0.030 falls 0 | REF G -0.799 | critic dV/dq3 on-policy eff +0.00000 raw -0.01972
+      pair 1,572,864: OWN G -0.520 c0 -0.047 b* +1.568 G_L -0.588 b*_L +1.638 own14 -0.032 falls 0 | REF G -0.532 | critic dV/dq3 on-policy eff +0.00000 raw -0.01792
+      pair 1,835,008: OWN G -0.116 c0 -0.020 b* +1.136 G_L -0.138 b*_L +1.157 own14 -0.017 falls 0 | REF G -0.108 | critic dV/dq3 on-policy eff +0.00000 raw -0.02064
+      pair 2,097,152: OWN G -0.039 c0 -0.015 b* +1.054 G_L -0.054 b*_L +1.070 own14 -0.015 falls 0 | REF G -0.029 | critic dV/dq3 on-policy eff +0.00000 raw -0.03861
+      pair 2,359,296: OWN G +0.174 c0 +0.008 b* +0.818 G_L +0.184 b*_L +0.807 own14 +0.011 falls 0 | REF G +0.180 | critic dV/dq3 on-policy eff +0.00000 raw -0.05304
+      pair 2,490,368: OWN G +0.320 c0 +0.008 b* +0.672 G_L +0.335 b*_L +0.656 own14 +0.014 falls 0 | REF G +0.330 | critic dV/dq3 on-policy eff +0.00000 raw -0.03701
+REPORT ONLY, ARM MEDIANS OVER THE READ CONTINUATIONS:
+  control                  statue_settled trailing at last row +0.0890; CMD_L at T +0.083; at the end pair OWN G -1.118 c0 +0.171 b* +1.947; critic slope on-policy eff +0.00793 raw +0.00793
+  critic_blind_tail3       statue_settled trailing at last row -0.0366; CMD_L at T +0.011; at the end pair OWN G -0.224 c0 +0.029 b* +1.194; critic slope on-policy eff +0.00000 raw -0.04089
+MISSING (STOPPED, LOST or primary unreadable; filled against REDUCED):
+  none

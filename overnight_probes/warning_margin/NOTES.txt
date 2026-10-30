@@ -1,0 +1,231 @@
+THE MARGIN-TO-RAIL TEST (com_revisit, role warning_margin)
+Written 2026-10-30, about 03:55 UTC.  Simulation only: no training, no optimizer step; checkpoints opened read only.
+Every file I wrote is in this folder:
+  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/warning_margin/
+Labels: [measured] = a named script here computed it; [inferred] = reasoned, basis given.  All links are
+correlational across checkpoints (7 checkpoints, 3 runs); within a checkpoint the nudge IS the isolated cause of the
+rail (deterministic paired episodes, same seed, only the nudge changed).
+
+==================================================================================================================
+0. ANSWER IN SHORT
+==================================================================================================================
+Pre-registration: PREREG.txt, sha256 1711108ef609767f51c9a43e99959221c45708176ff4db7c136fb7618b7947bd, hashed at
+02:50:47 UTC; the main run started 02:51:15 and ended 03:48:51 (sha256sum -c PREREG.sha256: OK).
+
+Measured margin M = the smallest constant nudge at which >= 11 of 20 seeds (3042-3061) park the tail_3 command at the
+rail (command >= 0.99 for more than 250 of the 500 steps in 501-1000).  Bootstrap 95% over seeds in brackets.
+[measured, wm_analyze.txt sections 2a/2b]
+
+  checkpoint        role                 M_bias [95%]          b*_P (verifier)   M_obs (deg)          b*_S   1-own14
+  s42 2,097,152     2 ckpts before FOB   1.094 [1.062, 1.109]  1.399             unreachable (0/20)   1.201  0.858
+  s42 3,145,728     1 ckpt before FOB    0.281 [0.266, 0.328]  0.240             unreachable (0/20)   0.321  0.399
+  s60 6,291,456     2 ckpts before FOB   0.703 [0.688, 0.703]  0.784             unreachable (0/20)   0.830  0.736
+  s60 7,340,032     1 ckpt before FOB    0.203 [0.188, 0.219]  0.198             4.03 [3.84, 6.00]    0.266  0.331
+                                                                                 (15/20 park at 12)
+  s80 10,485,760    late, no FOB         0.516 [0.516, 0.547]  0.505             unreachable (0/20)   0.591  0.545
+  s80 11,534,336    late, no FOB         0.328 [0.297, 0.359]  0.301             unreachable (0/20)   0.365  0.397
+  s80 12,001,280    late, no FOB         0.297 [0.250, 0.328]  0.241             unreachable (0/20)   0.306  0.358
+  ("unreachable": the observation offset cannot park the command even at 12 deg, where the observed tail_3 angle is
+  pinned at the normaliser's cap.)
+
+Q1. Is late s80 as close to the rail as s42 and s60 were one checkpoint before their first over-bar episode?
+- On the bias channel: as close as s42 was, but not as close as s60 was.  [measured]
+  - s80 12.0M (0.297) and s42 3.15M (0.281) differ by one bisection step (0.016); their intervals overlap almost
+    entirely.  The pre-registered rule says AS CLOSE for 12.0M and also for 11.5M (0.328 <= 0.281 + 0.05).
+  - s60 7.34M (0.203 [0.188, 0.219]) is 0.09 closer than s80 12.0M; the intervals do not overlap.
+  - s80 10.5M (0.516) is FARTHER.
+- On the observation channel, late s80 is again like s42 3.15M, not like s60 7.34M.  [measured]
+  - Of the three, only s60 7.34M can be railed through its tail-angle observation.  s42 3.15M and s80 12.0M cannot,
+    even at the cap (0/20 seeds each).
+  - s42 3.15M nonetheless reached its first over-bar episode 0.52M steps later, and all 12 ECS continuations from it
+    did within 0.26-0.66M.  So unreachability on this channel does not protect a policy.
+- What separates late s80 from s42 is not the level but the approach rate (post hoc; n = 1 run each).  [measured
+  levels; rate inferred from 2-3 checkpoints, wm_posthoc.txt A]
+  - s42 lost 0.81 of margin per 1.05M steps before its FOB, and s60 lost 0.50.
+  - s80 lost 0.19 per 1.05M from 10.5M to 11.5M, then 0.07 per 1.05M from 11.5M to 12.0M.
+  - At the last rate s80 needs about 4 more x 1.05M steps to reach the rail.
+
+Q2. Does the measured margin match b* = 1 - G - c0?
+- It ranks right; the scale is close but not inside the pre-registered tolerance everywhere.  [measured, C1]
+  - Spearman rho(M_bias, b*_P) = +1.000 over the 7 checkpoints.  5 of 7 match within max(0.05, 0.2 b*).  The
+    pre-registered verdict is "ranks right, scale wrong".
+  - The two misses:
+    - s80 12.0M: +0.056 against a tolerance of 0.05, a miss by 0.006.  M's lower bound (0.250) is above 0.241.
+    - s42 2.10M: -0.305.  The far-from-rail, strongly restoring checkpoint has a much SMALLER margin than the
+      linear b* says.  Its observed tail_3 angle is capped at 4.28 deg, and in closed loop the restoring gain is
+      -0.29, not -0.64 (D1).
+  - Near the rail (the 4 checkpoints with M < 0.4), b* is always slightly low: M - b* = +0.005 to +0.056, mean
+    +0.032.  So b* errs on the side of calling a policy closer than it is.  [post hoc, wm_posthoc.txt B]
+- On the observation channel, the linear b*/G (D* = 5.16 b*/G within the cap) matched 6 of 7 rows.  [measured, C2]
+  - It correctly called six unreachable.
+  - It predicted 3.26 deg at s60 7.34M; the measurement is 4.03 deg, outside the 0.65 deg tolerance.
+  - The static-curve predictor S said all seven were unreachable; it is wrong at s60 7.34M.
+
+Q3. Which single number best says how close a policy is to the rail?
+- By the pre-registered criterion (smallest MAE to M_bias over the 7 checkpoints) the winner is
+  b*_S = 1 - c(5.19 deg).  [measured, section 6]
+  - c(5.19 deg) is the policy's static tail_3 command on its own settled states with the tail_3 input set to the
+    angle the rail produces.  This uses the normaliser cap.
+  - b*_S: MAE 0.065, rho 0.964, 6/7 matches; its verdict is MATCHES.
+  - b*_P: MAE 0.075, rho 1.000.  b*_L: MAE 0.088.  1 - own14: MAE 0.096, rho 0.893, does not match.
+- The margin between b*_S and b*_P comes from one row, s42 2.10M (errors -0.107 against -0.305).  Without it, or near
+  the rail, b*_P and b*_L do as well or better than b*_S.  [post hoc]
+  - Excluding s42 2.10M: b*_P MAE 0.037, b*_L 0.049, b*_S 0.058.
+  - Near the rail: b*_L 0.026, b*_P 0.032, b*_S 0.037.
+- My reading: any gain-aware margin in command units (b*_P or b*_S) is the right single number.  They differ by
+  0.01-0.02 in MAE and by up to 0.06 on any near-rail row, within the seeds' spread (per-seed threshold IQR
+  0.02-0.09, wm_posthoc.txt C).  [inferred]
+  - The command level alone (1 - own14, i.e. CMD_L's gap) is clearly worse.  It misranks s42 3.15M, the
+    highest-gain checkpoint, as the farthest of the four near-rail checkpoints, when it is the second closest.
+  - b*_P has the practical edge: it is already recorded in ew_series.csv, and it ranks perfectly.
+- Caveat on what this number does and does not do.  The level of the margin does NOT separate late s80 from s42
+  one checkpoint before FOB: they have the same margin.  Only the change in margin between checkpoints separates
+  them, and that rests on n = 1 run per lineage.  [inferred]
+
+==================================================================================================================
+1. METHOD (fixed in PREREG.txt; code wm_common.py, wm_run.py)
+==================================================================================================================
+- Checkpoints: the local F2 copies (read only).
+  - s80: 10,485,760, 11,534,336, and 12,001,280 (stage1_final).
+  - s60: 6,291,456 and 7,340,032.
+  - s42: 2,097,152 and 3,145,728.
+- Loader: load_sb3_checkpoint from the sealed code copy (r10round/ecs/code), CPU.
+- Environment: the stance config's own constructor (reset noise 0.05), one env, env.reset(seed).
+  - Seeds 3042-3061 (n = 20), 1,000 steps.
+  - Deterministic predict on normalizer.normalize_obs.
+- Nudges (constant from step 1, applied separately):
+  - BIAS b: action[14] = own14 + b before env.step.  This is the clamp test's override path, D-9 style: the env clips,
+    low-passes and maps it.  The command is clip(own14 + b).
+  - OBS d: the policy sees obs[6] + radians(d) (tail_3 angle); the normaliser clips at z = 10.  The command is
+    own14.
+- Parking rule: the window is steps 501-1000.  A railed step has command >= 0.99.  An episode is PARKED when more
+  than 250 window steps are railed.
+- Per-seed threshold T_s, by bisection:
+  - BIAS on (0, 2.0].  2.0 parks by construction (SB3 predict clips own14 to [-1, 1]).  7 halvings give a step of
+    0.0156.
+  - OBS: 12 deg first.  If it does not park, the seed is unreachable.  Otherwise 7 halvings on (0, 12] give a step of
+    0.094 deg.
+- M = the 11th smallest T_s of 20 seeds.
+- Predictors, all fixed before the run (wm_predict.txt, PREREG.txt section 3):
+  - b*_P = 1 - G_P - c0, from ew_series.csv (seeds 5001-5010 states).
+  - b*_L from vew_analyze.txt section G.
+  - b*_S from wm_static.py: network only, the 60 early-warning own states, tail_3 input 0-12 deg.
+
+==================================================================================================================
+2. VALIDATION [measured]
+==================================================================================================================
+- wm_check.txt confirms the channel indices and output limits:
+  - obs[6] equals qpos(tail_3_pitch) to 1e-9.
+  - Actuator 14 is tail_3_pitch_act.
+  - The action space is Box(-1, 1).
+  - SB3 predict clips (policies.py l379).
+- An unnudged episode reproduces the early-warning episode exactly: s80 12,001,280, seed 5001 gives own 0.642277,
+  tail_3 3.3424 deg and pitch -0.5032 deg, all equal to ew_r10.jsonl.
+- A nudged episode repeated twice is bit-identical.
+- The baselines on seeds 3042-3061 agree with the early-warning own14 (seeds 5001-5010) to within 0.026 in median
+  (wm_analyze.txt section 1).  No baseline episode parks, and none exceeds frac99 0.10.
+- Episode totals: 1,470 episodes; 0 terminated before 1,000 steps.
+- Monotonicity (D4): 0 seeds out of 140 checkpoint x seed pairs, on either nudge, had a parked value below an
+  unparked one.
+- Railed-angle check (D5): the joint at the rail sits at +5.17 to +5.21 deg (median by checkpoint).  This matches the
+  clamp test's +5.19 deg, the value used in b*_S.
+
+==================================================================================================================
+3. PRE-REGISTERED VERDICTS [measured unless marked]
+==================================================================================================================
+C1 BIAS (match = |M - pred| <= max(0.05, 0.2 pred)):
+  b*_P  5/7, rho +1.000, MAE 0.075, mean signed error -0.035  -> ranks right, scale wrong
+  b*_L  5/7, rho +0.964, MAE 0.088, mean signed error -0.087  -> ranks right, scale wrong
+  b*_S  6/7, rho +0.964, MAE 0.065, mean signed error -0.065  -> MATCHES (misses only s60 7.34M, -0.063)
+  1-own 4/7, rho +0.893, MAE 0.096                             -> does not match
+  Ranking-only Spearman with M_bias: G_P -0.964, FP -0.964, own14 -0.893, c0 -0.643.
+C2 OBS:
+  linear P 6/7 (s60 7.34M 4.03 deg against a predicted 3.26 deg: a miss).
+  static S 6/7 (s60 7.34M reachable against a prediction of unreachable: a miss).
+Q1: s80 12.0M AS CLOSE; s80 11.5M AS CLOSE; s80 10.5M FARTHER (against max pre-FOB 0.281 + 0.05).
+Q3: b*_S (MAE 0.065), then b*_P (0.075), b*_L (0.088), 1 - own14 (0.096).
+Expectations (not criteria):
+  E1 (M > b*_P at the G > 0 rows): held in sign at all 5 G > 0 rows (+0.005 to +0.056).
+     "b*_L and b*_S closer" held for both at 2 of 5 (s80 12.0M, s42 3.15M) and for b*_L only at s80 11.5M; it
+     failed at s60 7.34M and s80 10.5M, where b*_P is closer.
+  E2 (OBS rails none): FAILED at s60 7.34M.
+  E3 (s80 12.0M within 0.05 of s42 3.15M): held (+0.016).
+
+==================================================================================================================
+4. DESCRIPTIVE (pre-registered D1-D5) [measured, wm_analyze.txt sections 7-10]
+==================================================================================================================
+D1 Closed-loop gain under BIAS below the rail (G_cl = 1 - 1/slope of the window command against b, median of 18-20
+   seeds), against the static sweep:
+     s42 2.10M -0.29 (G_P -0.64) | s42 3.15M +0.33 (+0.35)
+     s60 6.29M +0.05 (-0.07)     | s60 7.34M +0.43 (+0.31)
+     s80 10.5M +0.07 (+0.03)     | s80 11.5M +0.22 (+0.20) | s80 12.0M +0.24 (+0.27)
+   - Near the rail, G_cl is within 0.03 of G_P for s42 and s80.
+   - For s60 7.34M it is 0.12 HIGHER.  This is why s60, alone, can be railed through the observation channel, and
+     why its margin is smallest.  [inferred from D1, D3, D5 together]
+   - The strongly restoring checkpoint (s42 2.10M) restores much less in closed loop than the sweep says.
+D2 The over-bar analogue (frac99 > 0.10) sits at the same visited value as parking at 6 of 7 checkpoints.  The
+   transition from no rail to most-of-the-window is sharp: within one bisection step.
+D3 OBS response, seeds 3042-3046 (n = 5):
+   - s60 7.34M follows the linear prediction (0.79 / 0.88 / 1.00 at 1 / 2 / 4 deg, against 0.80 / 0.89 / 1.00).
+   - s42 3.15M, s80 11.5M and s80 12.0M flatten at 0.70-0.80, near the static curve (S).
+   - s60 6.29M rises slightly (0.26 to 0.31) although its swept G is negative.
+D4 0 monotonicity violations.
+D5 The policy's own (pre-bias) command while railed by the bias, against the static command at the railed angle:
+     s60 6.29M 0.300 vs 0.170 | s60 7.34M 0.802 vs 0.734 | s42 2.10M -0.094 vs -0.201 | s42 3.15M 0.721 vs 0.679
+     s80 10.5M 0.477 vs 0.409 | s80 11.5M 0.672 vs 0.635 | s80 12.0M 0.707 vs 0.694
+   - So in closed loop a raised tail draws more drive than the tail_3 input alone gives: +0.01 to +0.13.
+   - It comes from other observation channels that change as the tail rises.  Which channels was not isolated.
+     [inferred]
+
+==================================================================================================================
+5. POST HOC (not pre-registered; wm_posthoc.txt) [measured unless marked]
+==================================================================================================================
+- Approach rate of M per 1.05M steps:
+  - s42 -0.81, then FOB 0.52M after 3.15M.
+  - s60 -0.50, then FOB 0.79M after 7.34M.
+  - s80 -0.19 (10.5M to 11.5M), then -0.07 (11.5M to 12.0M).
+  - The rates rest on n = 1 run per lineage and 2-3 checkpoints.  [inferred]
+- Within a checkpoint, a seed's threshold tracks its baseline command (Spearman -0.76 to -0.96, except -0.27 at s60
+  6.29M).  Seed 3050 is the largest-threshold seed in s80 (all three checkpoints) and in s42 (both).
+  - It settles with a low tail command.  For example, s42 3.15M seed 3050 has base 0.067 and threshold 0.547, against
+    a checkpoint median of 0.600 / 0.281.
+  - The 11th order statistic is robust to it.
+
+==================================================================================================================
+6. LIMITS
+==================================================================================================================
+- n = 7 checkpoints from 3 runs; 2 independent positive onsets (s42, s60) and 1 late negative (s80).  The predictor
+  ranking (Q3) holds on this set only.
+- 20 seeds per checkpoint; the bisection resolution is 0.0156 (bias) and 0.094 deg (obs).  Q1's "as close" rests on
+  a 0.05 tolerance that I fixed in advance, not on a test of equality.
+- Deterministic episodes from reset noise 0.05.  Training rollouts are stochastic and keep changing the policy; the
+  margin measures distance for a FROZEN policy, not the probability or time to rail under training.
+- b*_P comes from seeds 5001-5010 states; the closed loop uses seeds 3042-3061 (baselines agree to 0.026).
+- The bias nudge adds to the raw command, which is also what the reward's raw-command terms price; that does not
+  matter here, because the policy is frozen.
+- "Unreachable" on the observation channel depends on the checkpoint's normaliser cap (4.28-9.68 deg), a training
+  statistic, not only on the network.
+
+==================================================================================================================
+7. DEVIATIONS, RULES, COST, FILES
+==================================================================================================================
+- Timestamps: PREREG.txt says "about 02:55 UTC"; it was hashed at 02:50:47 UTC, and the run started after that.
+- The verifier's NOTES.txt (verify_early_warning/NOTES.txt) did not exist at 02:43, 03:50 or the time of writing.  I
+  used its vew_analyze.txt (b* in section G), as PREREG section 0 says.
+- wm_analyze.py was patched during the run, after an interim look at the completed checkpoints:
+  - D2 now skips seeds with no rows, and is labelled an upper bound.
+  - D3's linear curve now applies the normaliser cap, as PREREG's linear-P definition does.
+  - No criterion, threshold, grid or seed set changed.
+  - Interim looks happened after 3 of 7 checkpoints; nothing in the run was changed after them.
+- Rules: one simulation process (wm_run.py) at a time, nice 15, OMP/MKL 1 thread, venv python -B, PYTHONPATH = the
+  sealed code copy plus this folder.  No mv, cp or redirection outside this folder.  Nothing was written under
+  r10round or the 0fdf74a4 scratch.  Folder size 840 KB.
+- Cost: 1,470 episodes, 3,455 s wall (median 2.31 CPU-s per episode).  wm_check and wm_static took a few minutes.
+- Files:
+  - PREREG.txt, PREREG.sha256: design, predictions and criteria, hashed before the run.
+  - wm_common.py: env, nudges, the episode readout.  wm_run.py -> episodes.jsonl (1,470 rows), wm_run.log.
+  - wm_check.py -> wm_check.txt: channel checks, timing, reproduction.
+  - wm_static.py -> wm_static.txt/json: static curves, predictor S.
+  - wm_predict.py -> wm_predict.txt/json: the prediction table.
+  - wm_analyze.py -> wm_analyze.txt, wm_summary.json: C1, C2, Q1, Q3, D1-D5.
+  - wm_posthoc.py -> wm_posthoc.txt: approach rates, subsets, seed spread.

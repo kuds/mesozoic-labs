@@ -1,0 +1,246 @@
+{
+ "schema": "bs-run/1",
+ "version": "run_bs 1.0 (2026-10-30; bias screen scaffold, derived from run_ecs 1.0)",
+ "name": "control_9101",
+ "mode": "no_update",
+ "status": "done",
+ "exit": 0,
+ "utc_start": "2026-10-30T04:07:22Z",
+ "argv": [
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/run_bs.py",
+  "--arm",
+  "control",
+  "--seed",
+  "9101",
+  "--no-update",
+  "--until",
+  "1310720",
+  "--out",
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2"
+ ],
+ "arm": "control",
+ "seed": 9101,
+ "S": 1048576,
+ "E": 2490368,
+ "target": 1310720,
+ "T": 1310720,
+ "stop_reason": "end",
+ "run_id_parent": "stance6_r10LTSB_s42",
+ "code": {
+  "dir": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code",
+  "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+  "files": 1406
+ },
+ "stack": {
+  "python": "3.13.17",
+  "torch": "2.13.0+cpu",
+  "numpy": "2.5.4",
+  "gymnasium": "1.4.0",
+  "stable_baselines3": "2.9.0",
+  "mujoco": "3.10.0"
+ },
+ "environment": {
+  "OMP_NUM_THREADS": "1",
+  "MKL_NUM_THREADS": "1",
+  "OPENBLAS_NUM_THREADS": "1",
+  "TMPDIR": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tmp/no_update_control_9101",
+  "MPLCONFIGDIR": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tmp/no_update_control_9101/mpl",
+  "GITHUB_SHA": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "GIT_CEILING_DIRECTORIES": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen"
+ },
+ "criteria_sha256": null,
+ "approved_sha256": null,
+ "screen_sha256": null,
+ "tool_sha256": {
+  "run_bs.py": "62c68080926181df08e525afaf6a864b04b8897ded251ed46752217ab48734fc",
+  "bs_common.py": "3b3727e29b66f5b31f14d50af5a682448e46fc5e160069fb463abc03ecebf024",
+  "bs_hooks.py": "2b25c96de2675a4c0e188d7d45c48864df144a95d4227a43a6c7f7186690aa36"
+ },
+ "arm_change": "nothing: the run's own same-stage resume, every setting as recorded",
+ "arm_ppo": "unchanged",
+ "ppo_applied": {
+  "gae_lambda": 0.95,
+  "gamma": 0.98,
+  "ent_coef": 0.005,
+  "ent_coef_end": 0.0,
+  "ent_coef_decay_timesteps": 7000000
+ },
+ "arm_applied": {
+  "arm": "control",
+  "policy_class": "ActorCriticPolicy",
+  "mlp_extractor_class_before": "MlpExtractor",
+  "obs_rms_class_before": "SymmetricRunningMeanStd",
+  "gae_lambda": 0.95,
+  "rollout_buffer_gae_lambda": 0.95,
+  "mlp_extractor_class": "MlpExtractor",
+  "obs_rms_class": "SymmetricRunningMeanStd"
+ },
+ "arm_evidence": {
+  "n": 31,
+  "max_adv_err_vs_gae095": 3.818264753971401e-06,
+  "max_adv_err_vs_mc": 0.37146394931258264,
+  "max_mc_vs_gae_lambda1_recursion": 8.770761894538737e-15,
+  "max_returns_minus_adv_minus_values": 2.384185791015625e-07,
+  "max_dv_predict_values": 0.2937593460083008,
+  "max_dv_forward": 0.2937593460083008,
+  "max_dv_evaluate_actions": 0.2937593460083008,
+  "max_dv_mirrored": 0.3025333881378174,
+  "max_buffer_values_vs_critic": 1.9073486328125e-06,
+  "min_adv_err_vs_gae095": 2.99749456138948e-06,
+  "min_adv_err_vs_mc": 0.12780705028375738,
+  "min_gae095_vs_mc": 0.12780560942447775,
+  "min_dmu_actor": 0.18806195259094238,
+  "min_dv_predict_values": 0.09569072723388672,
+  "min_buffer_values_vs_raw_value_mlp": 9.5367431640625e-07,
+  "max_adv_scale": 1.0,
+  "max_value_scale": 4.798025131225586,
+  "buffer_gae_lambda": [
+   0.95
+  ],
+  "model_gae_lambda": [
+   0.95
+  ],
+  "obs_rms_equal_start_all": false,
+  "obs_rms_equal_start_any": false,
+  "obs_rms_distinct_digests": 31,
+  "ret_rms_count_first_last": [
+   1056768.0001,
+   1302528.0001
+  ],
+  "obs_rms_count_first_last": [
+   2113552.0001,
+   2605072.0001
+  ],
+  "frozen_update_calls_first_last": null,
+  "state_problems": [],
+  "steps_first_last": [
+   1056768,
+   1302528
+  ]
+ },
+ "copies": {
+  "stage1_1048576_steps.zip": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_1048576_steps.zip.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/models/stage1_1048576_steps.zip",
+   "sha256": "0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80"
+  },
+  "stage1_vecnormalize_1048576_steps.pkl": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_1048576_steps.pkl.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/models/stage1_vecnormalize_1048576_steps.pkl",
+   "sha256": "52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb"
+  },
+  "eval_episodes.csv": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/eval_episodes.csv",
+   "sha256": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+  },
+  "evaluations.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/evaluations.npz.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/evaluations.npz",
+   "sha256": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9"
+  },
+  "gate_progress.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/gate_progress.npz.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/gate_progress.npz",
+   "sha256": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e"
+  },
+  "train_episodes.csv": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/train_episodes.csv.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/train_episodes.csv",
+   "sha256": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d"
+  },
+  "policy_probe.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/policy_probe.npz",
+   "sha256": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+  }
+ },
+ "start_pair": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/models/stage1_1048576_steps.zip",
+  "zip_sha256": "0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/models/stage1_vecnormalize_1048576_steps.pkl",
+  "pkl_sha256": "52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb"
+ },
+ "parent_records": {
+  "eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+  "evaluations.npz": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+  "gate_progress.npz": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+  "train_episodes.csv": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+  "policy_probe.npz": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+ },
+ "modules_root": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/__init__.py",
+ "recipe_v5": {
+  "problems": [],
+  "recomputed_hyperparameters_sha256": {
+   "control": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "critic_blind_tail3": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "gae_lambda_1": "sha256:a9a3e2d5da8910e78c20e2f192e86c59dac5fd705634d420942c85fbe4270695",
+   "frozen_obs_norm": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+  },
+  "stage_config_sha256": "037c10ab41e21fd50c9fc00759c0ca49caa4213f334eaa6f8198331187d439ae"
+ },
+ "heartbeat": {
+  "rollout_end": 1302528,
+  "utc": "2026-10-30T04:22:16Z"
+ },
+ "num_timesteps_end": 1310720,
+ "stop_at_end": {
+  "target": 1310720,
+  "flag": true,
+  "step": 1310720,
+  "calls": 65536,
+  "last_step": 1310720
+ },
+ "collapse": {
+  "found": 1,
+  "consecutive_drops": 0,
+  "patience": 10,
+  "tripped": false
+ },
+ "ent_coef_after_load": 0.005,
+ "gae_lambda_after_load": 0.95,
+ "arm_state_end": "in force",
+ "obs_rms_end_equal_start": false,
+ "torch_threads": 1,
+ "torch_interop_threads": 4,
+ "digest_start": {
+  "params": "sha256:1c78bc1a8e6ef7f36e478dabb20ab60a6017644c4f55e6cecdea7217641bf325",
+  "adam": "sha256:5bbfa15a172cb01be79dd4511a22e4ca0d8709c993aeeb71c723a33d320cee8c",
+  "vecnormalize": "sha256:edb7a65387e454ee95fafc206d25a6cd68b82453e3f29b2fc3513a272847e194",
+  "obs_rms": "sha256:2fe6f0617fed0d7f726c63dd45451d1d30eb475eb9d2d843dfa778b2aa1d6638",
+  "all": "sha256:e8601b4f4bb5ca90fdaff8163fbbb069e26462e787140e58d185a3d37b475ae2",
+  "n_updates": 1270,
+  "num_timesteps": 1048576
+ },
+ "digest_end": {
+  "params": "sha256:1c78bc1a8e6ef7f36e478dabb20ab60a6017644c4f55e6cecdea7217641bf325",
+  "adam": "sha256:5bbfa15a172cb01be79dd4511a22e4ca0d8709c993aeeb71c723a33d320cee8c",
+  "vecnormalize": "sha256:46e324b61735c171be440801d9bc7db7e749360e95278012ab23d207112352b6",
+  "obs_rms": "sha256:183602ceab551314460142257ed77affe4124d184a69a700bb0b54b60c744a01",
+  "all": "sha256:e77f90df692bd6250b39d190251ee39c68f59532fce10170c055b24f268a4b5e",
+  "n_updates": 1270,
+  "num_timesteps": 1310720
+ },
+ "final_path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/validate/v2/control_9101/01_stance/models/stage1_final",
+ "learn_seconds": 926.6,
+ "checkpoints": [
+  "robust_best_model.zip",
+  "robust_best_model_vecnorm.pkl",
+  "stage1_1048576_steps.zip",
+  "stage1_1310720_steps.zip",
+  "stage1_final.zip",
+  "stage1_final_vecnorm.pkl",
+  "stage1_vecnormalize_1048576_steps.pkl",
+  "stage1_vecnormalize_1310720_steps.pkl"
+ ],
+ "train_calls": 31,
+ "no_update_check": {
+  "problems": [],
+  "pass": true
+ },
+ "modules_outside_code": [],
+ "code_seal_after": "unchanged",
+ "utc_end": "2026-10-30T04:23:02Z",
+ "wall_seconds": 939.1
+}

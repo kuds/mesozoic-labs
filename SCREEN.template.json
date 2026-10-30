@@ -1,0 +1,7 @@
+{
+ "schema": "bs-screen/1",
+ "_note": "TEMPLATE ONLY: the runner reads <BS>/SCREEN.json, which the build never writes. Fill INTERVENTION with one of critic_blind_tail3 | gae_lambda_1 | frozen_obs_norm (the one the reviewed criteria name), keep or change the queue (at most 9 continuations, control and that intervention only, no seed in 9101-9141), save as SCREEN.json, then pin its sha256 in APPROVED (screen_sha256). As written it is refused (bs_common.screen_problems). Suggested: 4 + 4, paired seeds (each control seed repeated in the intervention arm: same env seeds and the same first rollout, so pairs differ only by the arm from the first update on), interleaved so an interruption leaves both arms equally advanced.",
+ "intervention": "INTERVENTION",
+ "queue": [["control", 2101], ["INTERVENTION", 2101], ["control", 2111], ["INTERVENTION", 2111],
+           ["control", 2121], ["INTERVENTION", 2121], ["control", 2131], ["INTERVENTION", 2131]]
+}

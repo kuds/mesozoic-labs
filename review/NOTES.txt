@@ -1,0 +1,39 @@
+BS CRITERIA REVIEW -- commands and results (independent reviewer, workflow wf_4d69bd40-35d), 2026-10-30 05:30-05:45 UTC.
+<BS> = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen
+PY = S2/venv/bin/python.  No training, no optimizer step; run_bs.py / run_waves_bs.sh not run; nothing outside <BS> written
+(pytest --basetemp under <BS>/review/tmp, removed after).  The findings are in the reviewer's structured output.
+
+Read: criteria.txt (all), SCREEN.json, tools/score_bs.py (all), tools/tests/test_score_bs.py (all), NOTES.txt (all),
+NOTES_criteria.txt (all), run_waves_bs.sh (all), read_bs.py (header, CHECK, decided, probe_markers, full_read, loop),
+bs_hooks.evidence_problems, run_bs.approval_problems / stop_reason, code copy policy_probe.py (rollout means, _row,
+_on_rollout_end), mirror_kl_ppo.py value paths, early_stopping.py (collapse), FOLLOW_UPS l17-28, RUNLOG l765-774,
+eb_realized.txt, vb_realized.txt, vb_aggregate.txt (s42 1.05M / 1.31M / 2.10M blocks).  The cited
+early_bias/NOTES.txt and verify_early_bias/NOTES.txt do not exist (ls), as the writer reported.
+
+1. sha256sum -c SHA256SUMS.txt: 22 OK.  criteria.txt 7302a26d..., score_bs.py c284d02b... (= criteria PINS).
+   reviewed_sha256.txt holds the sha256 of every reviewed file at review time.
+2. pytest tools/tests/test_score_bs.py: 43 passed; whole tools/tests: 115 passed; the B_S test ran (not skipped).
+3. B_S and the parent's primary from the F2 probe npz directly (PY -I -B): B_S -0.03157372563146055 (rows 120-127),
+   parent primary at E 0.19955920986831188, rise 0.23113293549977243, markers.json values = npz float32 values; all
+   175 window rows finite.  V2 records (control / critic_blind_tail3 9101): markers' rollout_mu14_mean = npz
+   rollout_mu_mean[:, 14] widened, probe sha = check.json's, score_bs.mean_over on their last 8 rows = an independent
+   Fraction mean from the npz (exact).
+4. rv_rederive.py -> rv_rederive.out: sets worked by hand in units of 1/1024: A 3/70 (REDUCED), A' 5/70 (line 3),
+   B 1/70 but line 1 (control rise 0.056), C 70/70; scorer = hand = own enumeration on each; fill = brute-force
+   supremum over completions (37/70; 51/70 with one missing per arm); attainable p <= 0.05: 1/70, 2/70, 3/70; a
+   decimal set on the doubles' exact rationals 3/70 = scorer.
+5. rv_endtoend.py -> rv_endtoend.out (+ rv_endtoend_scorer_stdout.txt): score_bs.main on copies of the writer's dry-run
+   root (the parent's real markers, only the 8 primary rows replaced): lines 2 / 3 / 3 (blind LOST, 36/70, addition) /
+   3 (NaN primary, 36/70) / 1 as derived.  Audit hook on open() with one entry undecided: only APPROVED, SCREEN.json,
+   criteria.txt and the 8 check.json opened; no markers / run_meta / run record; no outcome printed.
+6. rv_sim.py -> rv_sim.out (normal model, 40,000 per cell): power reproduces WORK/power_bs.out (0.427/0.137 at 0.05,
+   0.899/0.311 at 0.10, 1.000/0.858 at 0.231; sd 0.04/0.10).  Size under H0 overall <= 3/70 in every cell; given the
+   informativeness gate passed: 0.079 at a true rise of 0.10, 0.050-0.063 at 0.12, 0.045-0.053 at 0.15, 0.043 at 0.231
+   (0.10-0.15 at 0.08).  Paired-seed effect tau (own sd 0.06): size 0.044 / 0.033 / 0.017 / 0.005 at tau 0 / 0.03 /
+   0.06 / 0.12 (conservative); power at delta 0.10: 0.62 (tau 0) -> 0.38 (tau 0.06).
+7. Own scorer mutants (copies under review/tmp, removed): ties strict killed (14 fail); line-3 addition dropped killed;
+   NaN accepted killed; collapse at T = E accepted SURVIVES (harmless: run_bs names that "end" and CHECK refuses it);
+   markers.json read_bs sha not checked SURVIVES (PROVISIONAL item untested).
+8. score_bs.py on the real root (--out under review/tmp): incomplete, 0 of 8 decided, PROVISIONAL "no APPROVED" only;
+   code seal measured and passing; no <BS>/runs created (score_real_root_incomplete.txt).
+9. df -B1 /: 2,642,575,360 free at 05:37 UTC (launch floor 2,082,471,936).
