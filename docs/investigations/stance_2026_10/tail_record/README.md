@@ -18,8 +18,9 @@ session's scratch, `scratchpad2/tail_record/`.
 
 ## The files
 
-- **`ledger.csv`**: one row per merged entry, L001 to L167 (167 rows and a
-  header), the record's bracketed ids. Columns: id, date, kind, title,
+- **`ledger.csv`**: one row per merged entry, L001 to L187 (187 rows and a
+  header; rows L168 to L187 were appended on 2026-10-30, as the last section
+  says), the record's bracketed ids. Columns: id, date, kind, title,
   verdict, label, what, result, sources, merged_from (the sweep entries it
   merges), where_in_record, sources_disagree. Its source is the draft's
   `draft/ledger.csv` as the update's fact check left it (sha256 in
@@ -90,3 +91,31 @@ records of what was run, not to be run from here.
    in §8, the heading and evidence list of §8.1, §8.2's run-log paragraph,
    range table and scratch-file rows, and §8.5. No finding, number, label,
    ledger id or verdict changed.
+
+## The update of 2026-10-30: rows L168 to L187
+
+The records change of decision D-D58 (3) added §9 to the record (the work of
+2026-10-29 23:47 UTC to 2026-10-30 16:32 UTC: the early-bias probe, the
+early-warning curve and its follow-ups, and the two critic-blind screens)
+and appended rows L168 to L187 to `ledger.csv`: one row per entry of §9.1
+(L168 to L186) and one for §9.8's lessons (L187). §9 and these rows were
+written in the repository from the copies that change keeps and the run
+log's lines 760 to 801 (`../critic_blind_results/run_log.txt`); there was no
+session draft, sweep or merge map for them, so `build_ledger.py` rebuilds
+none of them, and their `merged_from` names the update's own entries, "N01
+(update of 2026-10-30; …)" to "N20 (update of 2026-10-30)". Their `sources`
+cite the copies by their paths from `docs/investigations/`
+(`stance_2026_10/overnight_probes/…` and the like) and the run log by the
+copy's line with the source's "RUNLOG lN". The rows were appended as
+Python's `csv` module writes them (every field quoted, LF line ends), by a
+script of the change's build notes (session scratch, not kept) that first
+checks that the last row is L167, so the file's first 168 lines are
+unchanged (sha256
+`ff3acd39336355b45c0e85a02a9ba0c9060bf24c35eb5e3d84a649fa9d4a9012`, before
+and after); SOURCES.txt marks the copy's row with the kind **appended**. §9
+cites no row before L168, and no earlier row changed. The ids each section
+of §9 cites equal the rows' `where_in_record` (`update_check/check_cites.py`
+on the note and the ledger), but for the status block, §9's opening and
+§9.9, which name the rows' range, as the status block and §8.5 do for the
+earlier rows. §9 and these rows have not been through the record's
+completeness critic or its fact checks.

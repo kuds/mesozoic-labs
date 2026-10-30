@@ -392,6 +392,32 @@ robustness, **LOW** = cosmetic / QoL.
   [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md).
   The two-seed ask stands. Record: §28 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 24 (2026-10-30):** report-only work on why the loop forms
+  (decisions D-D56 and D-D57,
+  [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). A no-training
+  probe found that only the policy-gradient term moves the tail command's
+  mean and that, from seed 42's mid-rise checkpoint at 2.1M steps on, the
+  critic's bootstrapped value is the source of its upward push; just after
+  the onset (at 1.31M, about 0.1M after the tail began to rise) a push
+  carried by the tail's own exploration noise is already there, its source
+  unresolved. No loop-only early warning separates the runs that rail from
+  those that park late. Two scratch CPU screens then hid the `tail_3` angle
+  from the critic (the actor still sees it): from 1.05M the first read not
+  informative (its controls did not rise enough); from 2.1M the second read
+  line 2, reduced: every control continuation ended above every blinded one
+  (p 1/70, though a spread-only effect would give such a separation about 3%
+  of the time), and two of the four controls had tail over-bar episodes
+  where no blinded run had any. So, from that mid-rise state, removing the
+  critic's view of the tail angle stopped the climb toward the rail
+  (measured on one start over 1.44M steps; the critic as the climb's driver
+  is inferred). Next, as the maintainer chose at 16:23 UTC (D-D58): a long
+  critic-blind study to 12M steps, its criteria reviewed and pinned before
+  any training; pending as of 16:32 UTC, where the run-log copy this update
+  draws on ends (what followed goes to the next records change). As screens
+  they certify nothing. The two-seed ask stands. Record: §9 of
+  [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+  and §29 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -1030,6 +1056,16 @@ robustness, **LOW** = cosmetic / QoL.
   2026-07-09, and what is open, is gathered in
   [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
   (the T-Rex stance entry's Update 23 has the latest).
+
+  **Update 2026-10-30:** on the T-Rex the policy-gradient term alone moves
+  the saturating tail command, and from mid-rise on the critic's
+  bootstrapped value pays for raising it: in a scratch CPU screen from seed
+  42's checkpoint at 2.1M steps, hiding the tail angle from the critic (at
+  its input only) kept the tail command far below the bound while every
+  control climbed toward it. A long critic-blind study was chosen next
+  (pending as of 16:32 UTC that day); see §9 of
+  [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+  (the T-Rex stance entry's Update 24 has the latest).
 
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular

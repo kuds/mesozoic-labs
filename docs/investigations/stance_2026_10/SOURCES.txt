@@ -387,6 +387,12 @@
 # (check/proc/my_atime_scan_before_reading.tsv, 1,073,346 bytes); 47 empty files; the runner's lock file and its
 # process-table snapshots (logs/proctable.log); and two listings of the container's files outside the session's folders
 # (logs/outside_bs2_newer_than_marker.txt, review/fix/logs/tmp_top_newer.txt).  bias_screen2/README.md has no source.
+# Added 2026-10-30, latest (tail_record/ledger.csv): one more kind of change, nothing else:
+#   appended    rows written in the repository below the copy's last row: tail_record/ledger.csv's rows L168 to L187,
+#               the record's update of 2026-10-30 (its section 9), each field quoted, as Python's csv module writes them
+#               with QUOTE_ALL, and LF line ends; the file's first 168 lines are the copy as made from the source
+#               (sha256 of those lines ff3acd39336355b45c0e85a02a9ba0c9060bf24c35eb5e3d84a649fa9d4a9012), and the source
+#               and its sha256 below are as before.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -2384,7 +2390,7 @@ tail_probes/verify_posture/vt1c_boot_ecs.txt scratchpad2/com_revisit/notes/verif
 tail_record/build_ledger.py scratchpad2/tail_record/draft/build/build_ledger.py 904320de7b0d15a20e7bf21e38da8d57bc4c6438f7e89cbd5bc00d402f26a812 none
 tail_record/fix/FIXES.txt scratchpad2/tail_record/fix/FIXES.txt 48ed06f6d9e6297b304ae4b3eba40b674d3d82f59d6edc891538c544a0450fd4 none
 tail_record/fix/numcheck.py scratchpad2/tail_record/fix/numcheck.py b31836ef454f32682a0c335b7842aa6da5d3d81ee959e2687f2a0db3f6b039ea none
-tail_record/ledger.csv scratchpad2/tail_record/draft/ledger.csv ebe524e53e2a3a041b78afe0b23638dc0ad59e27c39ac8c2d1147ee8515e6ad6 redact,lineends
+tail_record/ledger.csv scratchpad2/tail_record/draft/ledger.csv ebe524e53e2a3a041b78afe0b23638dc0ad59e27c39ac8c2d1147ee8515e6ad6 redact,lineends,appended
 tail_record/update/CHANGES.txt scratchpad2/tail_record/update/CHANGES.txt 3818ca6086fcbc2ecc92d7a40d2ed308a8bd0c7f94f8d0f05689e6276b3dc9a5 redact
 tail_record/update_check/FIXES.txt scratchpad2/tail_record/update_check/FIXES.txt cc1529ee02c1263ad901e2559486e96bbe6c51bcc18a2aaa3ea00df573203173 redact
 tail_record/update_check/check_cites.py scratchpad2/tail_record/update_check/check_cites.py d927993d6621c223c4168bc2e4065e3f5e6bb2085d220ddff1f30a9e8b60b2f7 none

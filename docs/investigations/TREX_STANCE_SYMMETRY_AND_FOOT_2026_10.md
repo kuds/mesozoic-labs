@@ -179,6 +179,24 @@ stance is certified. Its evidence is in
 folders `com_revisit/`, `tail_probes/` and `tail_record/` beside it. The
 statuses above are unchanged.*
 
+*Status 2026-10-30 (appended): §29, appended that day, records in short the
+night's no-training probes of the tail habit and the two critic-blind screens
+that followed them, with decisions D-D56 to D-D58. From seed 42's r10
+checkpoint at 1,048,576 steps the first screen read line 1, "NOT INFORMATIVE"
+(its control arm did not rise enough); from its mid-rise checkpoint at
+2,097,152 the second read line 2, "REDUCED": hiding the `tail_3` angle from
+the critic stopped the climb of the policy's tail command toward the rail
+(every control continuation ended above every blinded one, p 1/70, the
+smallest attainable, though a spread-only effect would give such a separation
+about 3% of the time). A long critic-blind study to 12M steps was chosen
+next, pending as of 16:32 UTC, where the run-log copy this update draws on
+ends. No T. rex stance is certified. The detail is in §9 of
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
+and the evidence in
+[stance_2026_10/critic_blind_results/](stance_2026_10/critic_blind_results/README.md)
+and the folders `overnight_probes/`, `bias_screen/` and `bias_screen2/`
+beside it. The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -5315,3 +5333,122 @@ with every correction the verifiers made, are in the note's §3.6 and §4.
   in the second session's scratch (`scratchpad2/r10round/ecs/`,
   `scratchpad2/com_revisit/`); the text ones of the screen are also on the
   durable branch.
+
+## 29. Status 2026-10-30 (appended): the overnight probes and two critic-blind screens: line 1, not informative, then line 2, reduced; decisions D-D56 to D-D58
+
+*Appended 2026-10-30; §1–§28 above are unchanged, so §28.3's "why the loop
+forms in training is open" is the state when §28's copied log ends (23:21
+UTC on 2026-10-29).* This section is a pointer, as §28 is. The work of
+2026-10-29 23:47 UTC to 2026-10-30 16:32 UTC on the T. rex tail saturation
+habit is recorded in §9 of
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
+with its ledger rows L168 to L187; this section gives the outcome in short
+and says what it changes here. The evidence is the session's run log, lines
+760 to 801, copied as `critic_blind_results/run_log.txt` of
+[stance_2026_10/](stance_2026_10/README.md) with the overnight report, and
+the folders `overnight_probes/` (the probes and their verifiers),
+`bias_screen/` and `bias_screen2/` (the two screens) there. Labels as in §27:
+measured, as each source records it; inferred, where said. Pull requests are
+named by what they carry.
+
+### 29.1 The overnight probes (D-D56)
+
+At 00:24 UTC on 2026-10-30 the maintainer asked for a no-training probe of
+what first pushes the tail command up ("Early-bias probe (Recommended)"),
+and at 00:45 UTC, going to bed, authorised its follow-ups and one scratch
+CPU training screen without asking again ("Probes + one small screen
+(Recommended)"). The probes are network evaluation and simulation with no
+training, exploratory and report only, each checked by an adversarial
+verifier (the note's §9.2 and §9.3):
+
+- Only the policy-gradient term moves the tail command's mean. At 1,310,720
+  steps, about 0.1M after s42's tail began to rise, s42 already has an
+  upward push on `tail_3` carried by its own exploration noise; s80 has
+  none then. From 2,097,152 on, the critic's bootstrapped value is the
+  push's source; at the onset it is unresolved.
+- The tail loop's gain turns positive one checkpoint before the first tail
+  over-bar episode in s42 and s60, but late s80 reaches the same loop state
+  with none, so no loop-only rule separates the runs. The one warning signal
+  testable on the r9 runs, the policy probe's `tail_3` offset, fired in all
+  five of them by 2.06M, the cleanest negative included, so it fails as a
+  cross-run warning. The note's early loop gains for s42 (its §2, §4.7,
+  §4.11 and §7) came from a sweep that reaches the observation normaliser's
+  clip; unclipped they are more negative, the signs unchanged.
+
+### 29.2 The two critic-blind screens (D-D56 and D-D57)
+
+Under the 00:45 UTC authorisation the session chose, at 04:22 UTC,
+`critic_blind_tail3`: the normalised `tail_3` angle (observation 6) set to 0
+at the value network's input only, the actor still seeing it. Both screens
+continued `stance6_r10LTSB_s42` on the session's CPUs for 175 updates
+(1,441,792 steps), 4 control and 4 blinded continuations each, with criteria
+reviewed and sha-pinned before launch, an outcome-blind runner and two
+independent checks of each reading (the note's §9.4 and §9.5).
+
+- **The first screen** (from 1,048,576, before s42's tail rose, to
+  2,490,368; approved at 06:00:05 UTC) read, final, at 09:03 UTC: line 1,
+  "NOT INFORMATIVE": the control median rose +0.09184 against the
+  pre-registered 0.10, so no reading about the critic is made. From the
+  same networks the early rise came in some seeds and not others under
+  fresh rollout seeds (report only).
+- **The second screen** (from 2,097,152, mid-rise, to 3,538,944), the
+  maintainer's choice at 10:23 UTC ("Go with option a"), approved with its
+  0.20 gate at the maintainer's answer of 12:53 UTC ("Launch with 0.20
+  (Recommended)") and launched at 12:54:36 UTC, read, final, at 15:57 UTC:
+  line 2, "REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6)
+  REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E,
+  FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)":
+  control +0.67001, +0.79227, +0.51081 and +0.41938 against blinded
+  +0.14283, +0.12485, +0.13810 and +0.06516, the control median rising
+  +0.46382; p 1/70, the smallest attainable with 4 per arm (the arms'
+  spreads differ, SD 0.166 against 0.036: had blinding only narrowed the
+  spread, with no shift in the mean, a separation this complete would occur
+  about 3% of the time, not 1.4%; the pre-registered p decides, and the line
+  stands). Report only: two of the four controls had tail over-bar episodes
+  within the window and no blinded run had any. From s42's mid-rise state,
+  hiding the `tail_3` angle from the critic stopped the climb of the
+  policy's tail command toward the rail: the most direct causal evidence so
+  far for the critic as the climb's driver (inferred in the screen's
+  report). Not shown: other runs or states, a run blinded from the start,
+  the onset at about 1.2M, whether the critic would recover the angle from
+  its other inputs, and whether the habit moves to another joint.
+
+Screen runs certify nothing, and nothing the screens ran is on `main`. Their
+text outputs are on the orphan branches `claude/handoff-bias-screen` at
+`cfed2c70` (pushed at 09:17 UTC under the overnight authorisation) and
+`claude/handoff-bias-screen2` at `2d241410` (pushed at 16:26 UTC at the
+maintainer's word), never to be merged.
+
+### 29.3 What changes in §13–§28
+
+- **§13 and §27.8, certification:** none. No T. rex stance is certified, and
+  the two-seed ask stands on physics r10.
+- **§28.3, the tail habit:** "why the loop forms in training is open" is
+  narrowed (the note's §9.6): the policy gradient alone moves the tail
+  command, the critic's bootstrapped value pays for a raised tail from
+  mid-rise on, and in s42 from 2,097,152 hiding the tail angle from the
+  critic stopped the climb. Why the critic values a raised tail, what
+  drives the first push at about 1.2M, and whether the effect holds
+  elsewhere or over a full run stay open.
+- **Next (D-D58):** at 16:23 UTC the maintainer chose a long critic-blind
+  study ("Long blind run to 12M (Recommended)"): s42 continued from
+  2,097,152 steps to 12M, mostly blinded with a normal control, its criteria
+  reviewed and pinned before any training; its build and criteria were
+  started at 16:32 UTC, and as of then, where the run-log copy this section
+  draws on ends, its pin, launch and result were pending (the note's §9.7);
+  what followed goes to the next records change. It would train scratch
+  continuations only, and nothing trains on `main`. The candidate next steps
+  of the note's §7 stand behind it.
+- **§14, this repository:** §9 of the note and the folders
+  `critic_blind_results/`, `overnight_probes/`, `bias_screen/` and
+  `bias_screen2/` of [stance_2026_10/](stance_2026_10/README.md), with their
+  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 2002 files).
+- **§14, branches:** `claude/handoff-bias-screen` at `cfed2c70` and
+  `claude/handoff-bias-screen2` at `2d241410`, the two screens' durable
+  copies, never merged.
+- **§14, session scratch:** the screens' checkpoints, ledgers, training
+  episodes and code copy, the probes' per-rollout outputs and stored states,
+  and the checkpoints the verifier fetched, in the second session's scratch
+  (`scratchpad2/r10round/bias_screen/`, `scratchpad2/r10round/bias_screen2/`,
+  `scratchpad2/com_revisit/notes/`); the ledgers of the screens are also on
+  the durable branches.

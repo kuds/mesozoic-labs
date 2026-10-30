@@ -509,6 +509,13 @@ files without a final newline and 27 files with lines ending in spaces (the
 README names them). No other copy holds a session tool id, and none holds a
 model identifier, an email address or a commit trailer.
 
+*Added 2026-10-30, latest (`tail_record/ledger.csv`):* one more kind of
+change, nothing else: **appended**, rows written in the repository below the
+copy's last row, in `tail_record/ledger.csv` only (rows L168 to L187, the
+record's update of 2026-10-30); SOURCES.txt defines it. The file's first 168
+lines are the copy as it was. No copy holds a model identifier, an email
+address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -1643,6 +1650,14 @@ both agree) and the report with the checkers' wording corrections
 ledgers are on the never-merged orphan branch `claude/handoff-bias-screen2`.
 Its [README](bias_screen2/README.md) indexes it.
 
+### Added on 2026-10-30, latest (decisions D-D56 to D-D58: the tail-habit record's update)
+
+**`tail_record/ledger.csv`: rows L168 to L187 appended, the ledger rows of
+§9 of [TREX_TAIL_SATURATION_HABIT_2026_10.md](../TREX_TAIL_SATURATION_HABIT_2026_10.md),
+the record's update of 2026-10-30 (187 rows, L001 to L187).** The
+[README](tail_record/README.md) of `tail_record/` says how they were
+written.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1769,6 +1784,9 @@ copies.
 | The second critic-blind screen's reading (2026-10-30, later still) | `sed -n 5,25p bias_screen2/score/score.txt` | `STATUS: final`; line 2, "REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"; the control median +0.59041, rise +0.46382 -> informative; p (filled, decides) 1/70 |
 | The copies against the screen's durable copy (2026-10-30, later still; needs the durable branch) | `git show 2d241410:SHA256SUMS` of `claude/handoff-bias-screen2` against the source sha256 SOURCES.txt gives each `bias_screen2/` row (each `run_logs/` as `logs/`) | equal for the 323 it lists; it does not list `review/process/work/copyroot_sha256.txt` |
 | The files themselves (2026-10-30, later still, with `bias_screen2/`) | `sha256sum -c SHA256SUMS` | all 2002 files OK |
+| The record's ledger (2026-10-30, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `187 L001 L187` |
+| The ledger's rows before the update (2026-10-30, latest) | `head -168 tail_record/ledger.csv \| sha256sum` | `ff3acd39…`, the ledger's sha256 before the update |
+| The files themselves (2026-10-30, latest, with the ledger's rows L168 to L187) | `sha256sum -c SHA256SUMS` | all 2002 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

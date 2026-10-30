@@ -13,8 +13,9 @@ checkpoint at 2,097,152), their reviews, readings, independent checks and
 durable copies, and the landings of #653 and #654. Nothing in it is a gate
 reading, and the screens certify nothing.
 
-The probes' files are in `../overnight_probes/`, the screens' in
-`../bias_screen/` and `../bias_screen2/`. The screens continued
+The probes' files are in [`../overnight_probes/`](../overnight_probes/README.md),
+the screens' in [`../bias_screen/`](../bias_screen/README.md) and
+[`../bias_screen2/`](../bias_screen2/README.md). The screens continued
 checkpoints of the first r10 stance round, whose results are
 [`../stance6_results/`](../stance6_results/README.md).
 
