@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decisions D-D56 to D-D58 recorded: an early-bias probe and its follow-ups,
+  two critic-blind screens (the first not informative, the second reduced) and
+  next a long critic-blind study to 12M steps** (the maintainer's decisions of
+  2026-10-30 00:24 UTC to 16:23 UTC in the stance run log;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6). Records only. D-D56: a no-training probe of what first pushes the T.
+  rex tail command up, then, overnight and without asking again, its
+  no-training follow-ups (an early-warning curve of the tail loop among them)
+  and one scratch CPU training screen from seed 42's r10 checkpoint at
+  1,048,576 steps, control against one intervention on the driver the probe
+  names, pinned before launch; the verified probe found the critic's
+  bootstrapped value the push's source from mid-rise on, the session chose to
+  hide the `tail_3` angle from the critic (`critic_blind_tail3`, at its input
+  only), and the screen read line 1, "NOT INFORMATIVE" (its control arm did
+  not rise enough). D-D57: the screen re-run from the 2,097,152 checkpoint,
+  its criteria reviewed and the fixed version re-reviewed, launched with its
+  0.20 gate; it read line 2, "REDUCED": every control continuation ended above
+  every blinded one (p 1/70, the smallest attainable with 4 per arm, though a
+  spread-only effect would give such a separation about 3% of the time),
+  agreed by two independent checks. D-D58: a long critic-blind study, seed 42
+  continued from 2,097,152 steps to 12M, its criteria reviewed and pinned
+  before any training (pending as of 16:32 UTC that day); the second screen's
+  text outputs on a never-merged orphan branch; and this records change.
+  Screen runs certify nothing, nothing trains on `main`, and no gate, reward,
+  plant or criterion changes.
 - **One record of everything tried on the T. rex tail saturation habit, with
   the entropy continuation screen judged, final: line 3, no difference
   detected** (#654; decision D-D52's amendment and D-D53 to D-D55;
