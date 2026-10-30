@@ -1,0 +1,128 @@
+FIXER NOTES (BS2 criteria and harness fixes). Times are date -u.
+Folder: S2/r10round/bias_screen2/review/fix (NOTES.txt, logs/, work/).
+
+12:01:36Z Started. df -h /tmp: 2.7G avail [measured].
+12:01:31Z cp -p criteria.txt review/criteria_reviewed_v1.txt (sha256 c6535c88..., equal to criteria.txt) and wrote review/reviewed_sha256.txt (15 files) BEFORE any edit [measured].
+
+VERIFICATION (12:01-12:10Z; read only unless said)
+Finding ids: the task's list repeats M1 and I1-I7 across two lenses; here BC-* = build check, D* = design review,
+PR-* = process review.
+- BC-M1 [measured]: <BS>/reads/parent_s42/markers.txt EXISTS (bias_screen/reads/parent_s42, 2,291 B, 04:54Z); its
+  lines 18 and 20 hold the 2,097,152 values the criteria cite there (G -0.636, c0 +0.238, own14 +0.143, b* +1.399,
+  slope +0.02143). The criteria's SHORT NAMES define <BS> as the finished screen; the tools' docstrings (bs_common.py
+  l17-18) use "<BS>" for BS2. The checker looked in BS2/reads. -> REJECTED as stated; the real defect is PR-I2.
+- PR-I2 [measured]: BS/reads/parent_s42/markers.txt M-LOOP lines 17-18 are 1,048,576 and 2,097,152 only;
+  BS2/validate/v3final/parent_s42/markers.txt line 18 = 3,145,728 (OWN G +0.349 c0 +0.411 b* +0.240). EW
+  ew_r10.jsonl lines 1/3/4 hold s42 3145728/2097152/3670016 (own.primary.G 0.3489 at 3145728). criteria.txt l265
+  and l281-282 cite the BS file for 3,145,728 values. CONFIRMED.
+- D1 [measured, review/design/work/rd_power.out P2; rd_power2.out] and my own MC (work/mc_check.py/.out, 200k
+  draws, seed 20261030): equal means sc/sb 0.137/0.03 -> 0.0603, 0.2/0.05 -> 0.0592, 0.34/0.05 -> 0.0633,
+  0.05/0.2 -> 0.0595; at m 0.29, sc 0.34 sb 0.05, given the gate 0.0914. Equal SDs 0.0428. CONFIRMED.
+- D2 [measured, rd_power.out P3] and my MC: two-state q 0.75/0.6/0.5/0.4/0.25: P(REDUCED | informative)
+  0.045/0.051/0.060/0.075/0.106; given median rise >= 0.29 0.050/0.063/0.076/0.098/0.140; overall 0.042-0.044.
+  CONFIRMED.
+- D3 [measured, BS/scratch/criteria_work/ecs_spread.out lines 2-13]: rises (last8 - first8) s42_A 0.422 0.397
+  0.354 0.475 0.366 0.249; s42_B 0.280 0.337 0.283 0.242 0.364 0.269; group means 0.377 / 0.296. CONFIRMED.
+- D4 [measured, criteria.txt l89-91 vs l218-221]: CONFIRMED (wording).
+- D5 [measured, rd_power.out P1 D rows f 0.5]: 1.000/0.960/0.799/0.518/0.253 at SD 0.05/0.10/0.137/0.20/0.34;
+  score_bs.LINE_TEXT[3] and criteria l236-239 say "0.25-0.96". CONFIRMED (says less than the data).
+- D6 / PR-I4 [measured]: F2 evaluations.npz.copy1 has 91 evaluations, 16 at or before S, 11 in (S, E];
+  stage_config.json.copy1 collapse_min_evals 20, collapse_patience 10; code early_stopping.py l129-130 (fresh
+  _consecutive_drops 0), l188-193 (nothing until n_evals >= max(min_evals, window); one observation per new
+  evaluation), l254 (stop at patience); checkpoints.py l387-429 seeds the history and _last_seen_n_evals. [inferred]
+  16 + 11 = 27 evaluations give at most 8 observations (n_evals 20..27) < 10; without seeding n_evals <= 11 < 20.
+  STOPPED cannot occur. CONFIRMED.
+- D7 [measured, read_bs.py l960-971 saved_pairs omits the final pair silently; check_run/check_meta l313-484 never
+  look at models/stage1_final*; score_bs.secondary_value gives "0 M-LOOP rows at E" and the fill]. CONFIRMED.
+- D8: nothing to fix.
+- PR-M1 [measured]: BS/tmp/control_2101/eval_stage1_jgwp58qy/evaluations.npz (3,962 B, mtime 07:23 = run end);
+  BS2/tmp/no_update_*_9201/eval_stage1_*; code train_base.py l799 mkdtemp(prefix eval_...) in TMPDIR, l813
+  log_path; SB3 callbacks.py l424-425 makedirs at init only, l476-490 np.savez per evaluation; run_bs.py l642-647
+  TMPDIR = <BS2>/tmp/<name>; read_bs.py l1088 tmp/read_<name>. du: BS/tmp 2.5M, BS2/tmp 196K. criteria l119-121
+  names "tmp/" as space to free. CONFIRMED.
+- PR-M2 [measured]: /proc/mounts / ext4 rw,relatime; review/process/logs/atime_demo.out shows re-arm works;
+  RUNLOG l780 "P4 relatime cannot exclude re-reads of CHECK's inputs"; criteria has no P4/atime text. CONFIRMED.
+- PR-M3 [measured]: run_waves_bs.sh l318-325 (REFUSED note points to the attempt log); run_bs.py main() l976-989
+  prints preflight problems to stdout, creates nothing; criteria l338, l343-351. CONFIRMED.
+- PR-M4 [measured]: run_bs.approval_problems loops C.TOOL_FILES only (bs_common l70, 5 files); score_bs
+  PINNED_TOOLS adds score_bs.py (l539) and provisional_items checks it, also when incomplete (score() l764-783);
+  criteria step 4 runs only preflight and --plan. CONFIRMED.
+- BC-I1..I7, PR-I1, PR-I3, PR-I5, PR-I6: read; see FIXES.txt for each.
+
+EDITS AND RE-RUNS (12:10-12:22Z)
+12:10Z tools/score_bs.py edited (in-place python replacements, each old text found once): VERSION 2.1; LINE_TEXT[3]
+  0.25-0.96 -> 0.25-1.00 (D5); THE TEST print qualified (D1); the secondaries' header qualified (D1); new PROVISIONAL item
+  in provisional_items for a COUNTED continuation whose markers hold != 1 loop row at E (D7); docstring.
+12:10Z tools/tests/test_score_bs.py: D1 asserts in test_line_reduced; new test_counted_without_the_final_pair_is_
+  provisional; the dry-run test asserts one D7 item per entry; kill check odd_ok also requires the D7 item; 2 new
+  mutants (final_pair_item_lost, line3_power_text_0_96).
+12:12Z tools/run_waves_bs.sh edited by work/edit_runner.py (8 replacements; the first attempt, a heredoc inside a heredoc,
+  failed to parse and changed nothing: sha256 still 0f687d77 at 12:12Z) -> PR-M4 scorer pin refusal, PR-M2 rearm /
+  atime_snapshot, PR-M3 REFUSED note; bash -n OK.
+12:13Z tools/tests/test_waves_bs.py edited by work/edit_test_waves.py (7 replacements): fixture APPROVED pins score_bs.py;
+  stub run writes a probe file and a tmp/<name> evaluations.npz, and has a vslow variant; 3 new tests; refusal note
+  asserts. pytest test_waves_bs.py: 18 passed in 23.7 s (logs/pytest_waves_1.out).
+12:16Z criteria.txt edited by work/edit_criteria.py (20 replacements; first attempt refused at its first anchor, which
+  had no indentation in the file; nothing written; fixed and re-run). sha256 then d71e2d7e.
+12:16Z pytest test_score_bs.py: 100 passed, 1 failed (test_criteria_pins_name_the_current_files: PINS not yet re-filled,
+  expected) (logs/pytest_score_1.out).
+12:17Z ruff (S2/venv-lint/bin/ruff check --no-cache --line-length 120 --select E,F,W,B BS2/tools): 1 E501 in my new
+  test docstring (logs/ruff_1.out); shortened; re-run clean (logs/ruff_2.out).
+12:17Z PINS re-filled by work/fill_pins.py (logs/fill_pins_1.out): score_bs 695d8a59 -> 05dd4b38, test_score_bs
+  9a4039ad -> 7ace28fb, run_waves_bs.sh 0f687d77 -> 6e0484f6; SCREEN, bs_common, bs_hooks, run_bs, read_bs unchanged.
+12:17-12:18Z full suite: 182 passed in 36.1 s (logs/pytest_full_1.out; 78 builder + 3 runner + 98 scorer + 1 scorer test
+  + 2 mutants). No __pycache__ under tools.
+12:18Z kill matrix (work/kill_matrix.py; logs/kill_matrix.out): original fails []; 32 of 32 mutants caught.
+12:19Z dry runs (work/make_dryrun_fix.py = the adapter's make_dryrun.py with OUT -> review/fix/dryrun_root only;
+  logs/dryrun_*.stdout; dryrun_root/*/score/score.txt): parent_as_all line 3, p 70/70, rise +0.57878, informative;
+  secondaries NOT SUPPORTED 70/70; 17 PROVISIONAL items = the 9 from the missing APPROVED + 8 D7 items. synthetic_E:
+  line 3, SEC-G 1/70 SUPPORTED with the Bonferroni note, SEC-MARGIN and SEC-CMD 70/70; G(E) > G(S) control 2 of 4,
+  blind 4 of 4; 9 PROVISIONAL items (no D7 item). Exit 3 both.
+12:19Z prelaunch scorer on real BS2 (--out review/fix/work/prelaunch_score): exit 3, STATUS incomplete (0 of 8
+  decided), exactly 1 PROVISIONAL item "no <BS2>/APPROVED" (so this text names the scorer's sha256, M5 pins and the code
+  copy pass).
+12:19Z run_waves_bs.sh --plan on real BS2: exit 0, 8 entries in SCREEN order (logs/plan_real.out). run_bs.py
+  --preflight-only for all 8 entries: exit 2 each, problems exactly ["APPROVED: missing"] (logs/preflight_*.out). BS2
+  top-level listing unchanged (logs/bs2_listing_*_dry_checks.txt).
+12:20Z removed my own superseded pytest temp folders work/pytest_base/{score1,waves} (28 MB).
+12:20Z V1 re-run (run_bs.py --save-loaded-only, seed 9201, --out validate/v1fix, one at a time, nice 10): 4 x exit 0,
+  9 s each (logs/v1fix_driver.log); validate/v1_independent.py on v1fix: PASS (logs/v1fix_independent.out); against
+  v1final: params/Adam/VecNormalize/obs_rms digests (7-8 fields) and 10 bank fields equal in all 4 arms
+  (logs/v1fix_vs_v1final.out); the other differences are expected (criteria/SCREEN sha now exist, run_waves_bs.sh sha,
+  paths, saved-zip bytes; stage_config.json differs only in load_path, logs/v1_stage_config_diff.out). 72 MB.
+12:21Z V3 re-run (read_bs.py on validate/v2final/<arm>_9201 --out validate/v3fix/<arm>_9201; --reference --out
+  validate/v3fix/parent_s42; 3 then 2 at once, nice 10): all exit 0 in 3-6 s (cache hits; 7 cache entries before and
+  after). markers.json against the builder's: every loop G / b* / slope field equal; differences only utc, cache flags,
+  output paths (m5_argv, ledger.file) and, for the parent, loop[0].zip/pkl paths (OBS-1 below); REPRO 2097152 and
+  3145728 max_abs_diff_ew 0.0, rel_diff_eb 0.0 (logs/v3fix_vs_v3final.out); markers.txt differs only in the header
+  time (logs/v3fix_control_markers_txt.diff).
+OBS-1 [measured]: in v3fix/parent_s42/markers.json the S row's zip/pkl paths name validate/v2final/control_9201's start
+  copy, not the F2 file: the loop cache entry for that (byte-identical, same sha256) pair was written by the builder's
+  concurrent control read and stores the writer's paths. Values identical; provenance only. Reported, not changed.
+RULE NOTE: at 12:22Z one diff command of mine wrote its output with "> /dev/stdout" (into the pipe, no file written);
+  that is a redirect onto a path outside BS2 by the letter of the rules. Not repeated.
+
+FINAL (12:24-12:27Z)
+12:24Z review/FIXES.txt written (each finding: verdict, evidence, change).
+12:25Z criteria STATUS time set (12:01-12:25 UTC). Full suite again: 182 passed in 35.9 s (logs/pytest_full_2.out);
+  ruff clean (logs/ruff_3.out); no __pycache__ under tools; removed my superseded work/pytest_base/full1.
+12:26Z kill matrix again on the final files: original fails []; 32 of 32 caught (logs/kill_matrix.out). Dry runs again
+  (rebuilt in review/fix/dryrun_root): parent_as_all line 3, rise +0.57878, 3 x NOT SUPPORTED, 8 D7 items; synthetic_E
+  SEC-G SUPPORTED with Bonferroni, 0 D7 items. Prelaunch scorer on real BS2: exit 3, one item (no APPROVED).
+12:26Z final sha256 (logs/final_sha256.txt; FIXES.txt final block): criteria.txt 291ff457..., SCREEN.json 255d0ba4...
+  (unchanged), run_waves_bs.sh 6e0484f6..., score_bs.py 05dd4b38..., test_score_bs.py 7ace28fb..., test_waves_bs.py
+  72d4f69d...; bs_common 6c4c36ea..., bs_hooks 1ff4c8be..., run_bs acd5b499..., read_bs 06f4173d..., check_inputs
+  437ae5e8..., verify_copy 3fb7933d..., other tests unchanged.
+12:26Z SHA256SUMS.txt updated (the 5 changed files re-hashed in place; 10 review entries appended; 29 lines; copy of
+  the old file in work/SHA256SUMS.before_fixer.txt); sha256sum -c: 29 OK (logs/sha256sum_check.out). SHA256SUMS.txt
+  sha256 76576d3c...
+12:27Z find S2 and S1 (venv excluded) newer than review/fix/start.marker, BS2 pruned: 0 paths
+  (logs/outside_bs2_newer_than_marker.txt). Inside BS2 the fixer changed only: criteria.txt, SCREEN.json (no),
+  SHA256SUMS.txt, review/{FIXES.txt, reviewed_sha256.txt, criteria_reviewed_v1.txt}, tools/{run_waves_bs.sh,
+  score_bs.py, tests/test_score_bs.py, tests/test_waves_bs.py}, review/fix/**, validate/v1fix, validate/v3fix (and the
+  harness's own tmp/ folders reused by the V1/V3 re-runs). APPROVED not created. BS untouched. reads/_cache: 7 entries,
+  unchanged. Free disk 2,728,845,312 B (df -h 2.6G) [measured].
+NOTE for the coordinator: free is now 2.54 GiB, below the 2.6 GiB launch rule now in the criteria; removing
+  validate/v1fix (72 MB, a duplicate of v1final's checks) and v1final / v2final (129 MB) after copying their records
+  restores about 2.73 GiB. Log files under review/fix/logs carry full paths printed by the tools (which contain the
+  system folder name, as the designer's O5 noted for the S1/S2 paths); no file I wrote names an AI model otherwise.

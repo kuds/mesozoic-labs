@@ -1,0 +1,66 @@
+== 2026-10-30T11:45:34Z CASE A: SCREEN.json and criteria.txt, no APPROVED (run, not --plan)
+run_waves_bs: refused: no <BS>/APPROVED
+-- exit 2; copy root now: SCREEN.json criteria.txt tools 
+== 2026-10-30T11:45:34Z CASE A2: --plan with no APPROVED
+slots 1 at nice 10; disk floor 1610612736 bytes; launch floor 2082471936 bytes; crash limit 3; early crash: last step below S + 131072
+orphan pattern: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/[s]tub_preflight[.]py --arm
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/stub_preflight.py --arm control --seed 2501 > /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/copyroot/logs/control_2501.attempt<k>.log  (S 2097152, E 3538944)
+-- exit 141
+== 2026-10-30T11:45:34Z CASE B: fake APPROVED pinning the copy, then one byte of criteria.txt changed
+[run_waves_bs 2026-10-30T11:45:34Z] launch: 2856378368 bytes free >= the launch floor 2082471936 bytes; queue control_2501 critic_blind_tail3_2501 control_2511 critic_blind_tail3_2511 control_2521 critic_blind_tail3_2521 control_2531 critic_blind_tail3_2531
+[run_waves_bs 2026-10-30T11:45:34Z] queue: 8 pending of 8; 1 slots
+[run_waves_bs 2026-10-30T11:45:34Z] start control_2501 (control_2501.attempt1.log)
+[run_waves_bs 2026-10-30T11:45:35Z] control_2501 exited 2
+[run_waves_bs 2026-10-30T11:45:35Z] control_2501: REFUSED before any optimizer step (the reason: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/copyroot/logs/control_2501.attempt1.log, an attempt that exits 2 never reaches learn(); folder none); no new start
+[run_waves_bs 2026-10-30T11:45:35Z] halted: refused control_2501 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt logs runs tools 
+-- runs/: 
+-- logs/run_waves_bs.log:
+     [run_waves_bs 2026-10-30T11:45:34Z] launch: 2856378368 bytes free >= the launch floor 2082471936 bytes; queue control_2501 critic_blind_tail3_2501 control_2511 critic_blind_tail3_2511 control_2521 critic_blind_tail3_2521 control_2531 critic_blind_tail3_2531
+     [run_waves_bs 2026-10-30T11:45:34Z] queue: 8 pending of 8; 1 slots
+     [run_waves_bs 2026-10-30T11:45:34Z] start control_2501 (control_2501.attempt1.log)
+     [run_waves_bs 2026-10-30T11:45:35Z] control_2501 exited 2
+     [run_waves_bs 2026-10-30T11:45:35Z] control_2501: REFUSED before any optimizer step (the reason: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/copyroot/logs/control_2501.attempt1.log, an attempt that exits 2 never reaches learn(); folder none); no new start
+     [run_waves_bs 2026-10-30T11:45:35Z] halted: refused control_2501 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/decided.tsv:
+-- logs/HALTED:
+     2026-10-30T11:45:35Z	refused control_2501
+-- logs/run_waves_bs.exit:
+     2 2026-10-30T11:45:35Z
+-- logs/control_2501.attempt1.log:
+     {"stub": "the copy's run_bs.preflight only; run() never called", "argv": ["--arm", "control", "--seed", "2501"], "problems": ["APPROVED: criteria_sha256 'c6535c884e0003ed247db87b5b3c555a5c34ddc98085503fe2e6d8e44d7291c9' != sha256(criteria.txt)"]}
+== 2026-10-30T11:45:35Z CASE B2: relaunch while logs/HALTED exists
+run_waves_bs: refused: halted (2026-10-30T11:45:35Z	refused control_2501); the coordinator fixes the cause and removes /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/copyroot/logs/HALTED
+-- exit 2
+== 2026-10-30T11:45:35Z CASE C: fake APPROVED, nothing changed: the stub preflight passes (exit 0); CHECK = false
+[run_waves_bs 2026-10-30T11:45:35Z] launch: 2856431616 bytes free >= the launch floor 2082471936 bytes; queue control_2501 critic_blind_tail3_2501 control_2511 critic_blind_tail3_2511 control_2521 critic_blind_tail3_2521 control_2531 critic_blind_tail3_2531
+[run_waves_bs 2026-10-30T11:45:35Z] queue: 8 pending of 8; 1 slots
+[run_waves_bs 2026-10-30T11:45:35Z] start control_2501 (control_2501.attempt1.log)
+[run_waves_bs 2026-10-30T11:45:36Z] control_2501 exited 0
+[run_waves_bs 2026-10-30T11:45:36Z] control_2501: CHECK ERROR (read_bs exit 1, logs/control_2501.check.log); folder left as it is; no new start
+[run_waves_bs 2026-10-30T11:45:36Z] halted: CHECK ERROR on control_2501 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt logs runs tools 
+-- runs/: 
+-- logs/run_waves_bs.log:
+     [run_waves_bs 2026-10-30T11:45:35Z] launch: 2856431616 bytes free >= the launch floor 2082471936 bytes; queue control_2501 critic_blind_tail3_2501 control_2511 critic_blind_tail3_2511 control_2521 critic_blind_tail3_2521 control_2531 critic_blind_tail3_2531
+     [run_waves_bs 2026-10-30T11:45:35Z] queue: 8 pending of 8; 1 slots
+     [run_waves_bs 2026-10-30T11:45:35Z] start control_2501 (control_2501.attempt1.log)
+     [run_waves_bs 2026-10-30T11:45:36Z] control_2501 exited 0
+     [run_waves_bs 2026-10-30T11:45:36Z] control_2501: CHECK ERROR (read_bs exit 1, logs/control_2501.check.log); folder left as it is; no new start
+     [run_waves_bs 2026-10-30T11:45:36Z] halted: CHECK ERROR on control_2501 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/decided.tsv:
+-- logs/HALTED:
+     2026-10-30T11:45:36Z	CHECK ERROR on control_2501
+-- logs/run_waves_bs.exit:
+     2 2026-10-30T11:45:36Z
+-- logs/control_2501.attempt1.log:
+     {"stub": "the copy's run_bs.preflight only; run() never called", "argv": ["--arm", "control", "--seed", "2501"], "problems": []}
+== 2026-10-30T11:45:36Z done; copy root: SCREEN.json criteria.txt tools 
+criteria.txt: OK
+SCREEN.json: OK
+tools/bs_common.py: OK
+tools/bs_hooks.py: OK
+tools/read_bs.py: OK
+tools/run_bs.py: OK
+tools/run_waves_bs.sh: OK
+tools/score_bs.py: OK

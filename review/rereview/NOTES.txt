@@ -1,0 +1,62 @@
+RE-REVIEW NOTES (rereview lane). Started 2026-10-30T12:28:32Z
+12:28:32Z mkdir rereview/{work,logs,copies}; start_marker touched. df -B1 /tmp: 2728603648 avail [measured]
+12:30:07Z copied reviewed run_waves_bs.sh (0f687d77) and score_bs.py (695d8a59) from review/process/work/copyroot/tools and criteria_reviewed_v1.txt (c6535c88) into rereview/copies [measured sha256 match]
+12:31:18Z diffs: runner (119 lines), score_bs (33 lines), criteria -> work/diff_*.txt
+12:33:15Z START pytest (5 files)
+12:33:51Z pytest exit 0: 182 passed in 35.26s (logs/pytest_full.out)
+12:34:39Z wrote work/rr_tests/test_rr_runner.py (own runner probes, stub harness)
+12:35:25Z START prelaunch scorer on real BS2, --out rereview/work/prelaunch_real
+12:35:25Z prelaunch scorer real BS2 exit 3
+12:35:38Z built work/root_prelaunch_pinned (criteria+SCREEN copies, a temp APPROVED pinning all 6 tools; NOT BS2/APPROVED)
+12:35:38Z scorer on pinned temp root exit 3
+12:37:10Z built work/rr_roots/{rr_A,rr_B} with work/rr_build.py (logs/rr_build.out)
+12:37:17Z score_bs on rr_A exit 0
+12:37:17Z score_bs on rr_B exit 0
+12:38:26Z own scorer (work/rr_score.py) vs score_bs on rr_A, rr_B: exit 0 (logs/rr_score_compare.out)
+12:38:59Z rebuilt rr_A-D (added rr_C REDUCED, rr_D line 1); score_bs on 4 roots; own scorer compare (logs/rr_score_compare2.out)
+12:39:19Z dry runs rebuilt with the adapter's make_dryrun.py (OUT -> rereview/work/dryrun_root) and scored
+12:39:28Z note: first make_dryrun_rr.py via sed failed (sed delimiter); the empty script built nothing and score_bs on missing roots exited 2; rebuilt the copy with python
+12:39:47Z dry runs built and scored (logs/dryrun_*.stdout)
+12:39:55Z own scorer on the 2 dry roots: disagreements: 0
+12:40:13Z kill matrix (fixer's script, OUT=rereview/work/killroots): 32 of 32 mutants caught; survivors []
+12:40:23Z START --plan and --preflight-only x8 on real BS2 (read only)
+12:40:26Z plan + preflight x8 done (logs/plan_real.out, logs/preflight_*.out)
+12:42:45Z ruff on tools: All checks passed!; bash -n runner OK
+12:43:33Z removed my own bulky inputs (rr_roots/*/runs,reads; dryrun_root/*/runs,reads; pytest_base; killroots); score outputs kept, sha256 in logs/score_outputs_sha256.txt; inputs reproducible with work/rr_build.py and work/make_dryrun_rr.py; df 2725310464 B
+12:46:34Z outside-write check: find S1, S2 (venvs and BS2 pruned) newer than start_marker: 0 paths; inside BS2 outside rereview/: 0 paths (logs/outside_bs2_newer_than_marker.txt, logs/bs2_newer_outside_my_folder.txt). BS2/APPROVED absent. df 2,725,126,144 B.
+
+SUMMARY OF MEASUREMENTS [measured unless marked]
+- Hashes now = FIXES final block = PINS lines (8 of 8) ; sha256sum -c SHA256SUMS.txt 29 OK.
+- Reviewed versions: run_waves_bs.sh 0f687d77 and score_bs.py 695d8a59 recovered from review/process/work/copyroot (sha match);
+  criteria from review/criteria_reviewed_v1.txt; test_waves_bs.py changes from review/fix/work/edit_test_waves.py (7 pairs; only
+  the fixture's APPROVED "{}" line replaced, nothing else removed); no pre-edit copy of test_score_bs.py exists anywhere in S2.
+- pytest 5 files: 182 passed (logs/pytest_full.out; per file logs/pytest_counts.txt: 23/17/23/101/18). ruff clean. bash -n OK.
+- Kill matrix (fixer's script, my OUT): original fails none; 32 of 32 mutants caught (logs/kill_matrix.out).
+- Dry runs (adapter's make_dryrun.py, OUT -> my folder): parent_as_all line 3, p 70/70, rise +0.57878, 3 x NOT SUPPORTED, 8 D7
+  items; synthetic_E SEC-G 1/70 SUPPORTED + Bonferroni, SEC-CMD/SEC-MARGIN 70/70, G(E)>G(S) control 2/4 blind 4/4, no D7 item.
+- Own scorer work/rr_score.py vs score_bs on 6 roots (rr_A final line 3 with a cross-arm tie; rr_B LOST+STOPPED+UNREADABLE+D7+
+  SEC-CMD missing; rr_C REDUCED with SEC-G/SEC-CMD 1/70 Bonferroni; rr_D line 1 with the filled-p addition; both dry roots):
+  0 disagreements (logs/rr_score_compare2.out, rr_score_compare_dry.out). rr_A, rr_C, rr_D pinned by a temp APPROVED: STATUS final.
+- Prelaunch scorer on real BS2: exit 3, incomplete, one item "no APPROVED"; on a temp root pinned like step 2: exit 3, NO item
+  (step 4(a) attainable). --plan exit 0 (8 entries); --preflight-only x 8: exit 2, problems exactly ["APPROVED: missing"]
+  (preflight accumulates all checks, so every other check passed).
+- Own runner probes (work/rr_tests/test_rr_runner.py, 5 passed): R1 a relaunch after ALL_DECIDED overwrites
+  logs/atimes_at_ALL_DECIDED.tsv with a post-read snapshot (probe flag 1 -> 0; reads issued twice); STOPPED and found-done-at-
+  relaunch are re-armed; both attempt logs re-armed, crashed folder not; APPROVED with "tools/score_bs.py" key or upper-case
+  hex refused, correct pin accepted.
+- D1/D2/D3/D6 figures re-checked against rd_power.out P2/P3, ecs_spread.out, F2 evaluations.npz.copy1 (91 evals: 16 <= S, 11 in
+  (S,E]), stage_config collapse_min_evals 20 / patience 10, early_stopping.py l188-193, checkpoints.py l359-372 (history cut at
+  the resumed step) and l415-422 (cursor past the seed). Citations: v3final markers.txt l17-18 (S, 3,145,728) and ew_r10.jsonl
+  l3/l1/l4 verified; ECS values sit on ecs_spread.out lines 2-7 and 9-14 (cited 2-13); b* at 3,670,016 is -0.0604 (text -0.061).
+
+VERDICT 12:47:04Z: READY TO PIN (no blocking finding). One minor finding (RR-1, introduced by the PR-M2 fix: a relaunch
+after ALL_DECIDED overwrites logs/atimes_at_ALL_DECIDED.tsv with a post-read snapshot) and info items RR-2..RR-8, in the
+structured output. Re-reviewed files (sha256, as now on disk):
+  criteria.txt 291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f
+  SCREEN.json 255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0
+  tools/run_waves_bs.sh 6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5
+  tools/score_bs.py 05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7
+  tools/tests/test_score_bs.py 7ace28fb01ad59fc9829232410f5235b13e809e8cc5786b1a4dc8efd32a8feb8
+  tools/tests/test_waves_bs.py 72d4f69d59657159be7a2374ab21614c459904f52a37c6caa5763e2f0d17e6c4
+  unchanged and re-hashed: bs_common.py 6c4c36ea..., bs_hooks.py 1ff4c8be..., run_bs.py acd5b499..., read_bs.py 06f4173d...
+Nothing outside review/rereview/ written; no APPROVED; no training; no optimizer step.

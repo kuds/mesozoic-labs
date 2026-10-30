@@ -1,0 +1,159 @@
+SCREEN queue: [('control', 2501), ('critic_blind_tail3', 2501), ('control', 2511), ('critic_blind_tail3', 2511), ('control', 2521), ('critic_blind_tail3', 2521), ('control', 2531), ('critic_blind_tail3', 2531)]
+F2 probe sha256 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 pin match True
+B_S rows (0-based) [248, 249, 250, 251, 252, 253, 254, 255] steps 2039808 ... 2097152
+B_S exact 135930855/1073741824 float 0.1265954738482833 == criteria True
+parent primary at E (same 8 rows) 47337175/67108864 0.7053788751363754 rise 0.5787834012880921
+control_2501             probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 89927853/134217728  float +0.67001471668481827  rise +0.54341924283653498
+critic_blind_tail3_2501  probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 153357555/1073741824  float +0.14282535295933485  rise +0.016229879111051559
+control_2511             probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 53168547/67108864  float +0.79227308928966522  rise +0.66567761544138193
+critic_blind_tail3_2511  probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 134058473/1073741824  float +0.12485168222337961  rise -0.0017437916249036789
+control_2521             probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 137120485/268435456  float +0.51081361249089241  rise +0.38421813864260912
+critic_blind_tail3_2521  probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 9267399/67108864  float +0.13809500634670258  rise +0.011499532498419285
+control_2531             probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 7035995/16777216  float +0.41937798261642456  rise +0.29278250876814127
+critic_blind_tail3_2531  probe rows 431, window rows 175 at S+8192k exact: True; pre-S rows 256: True; pre-S col14 == parent F2: True; primary rows idx 423..430 (window rank 168-175); markers 175 values == npz: True; markers probe sha == file: True
+    primary exact 69969699/1073741824  float +0.065164360217750072  rise -0.061431113630533218
+control sorted ['+0.41938', '+0.51081', '+0.67001', '+0.79227']
+control median (midpoint rule) 316976191/536870912 0.5904141645878553 rise 498021527/1073741824 0.46381869073957205
+gate: rise >= 1/5 exact: True ; rise >= Fraction(0.2 double): True
+arm means 0.5981198502704501 0.11773410043679178 diff 0.48038574983365834
+arm medians 0.5904141645878553 0.1314733442850411
+arm SDs (n-1) 0.16576628773272142 0.03586258495892603
+permutation p (filled == as counted; nothing missing): 1/70 = 0.014286
+  relabelings with statistic >= observed: 1 ; distinct values: 70 ; second largest statistic 0.3421094350051135
+  complete separation (min control > max blind): True min control +0.41938 max blind +0.14283
+  fill check (hypothetical control0 MISSING on these data): 36/70
+  fill check (hypothetical blind0 MISSING on these data): 36/70
+  fill check (hypothetical both MISSING on these data): 51/70
+paired diffs ['+0.52719', '+0.66742', '+0.37272', '+0.35421'] sign-flip p 1/16 = 0.0625
+control_2501             E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form plain, eff on-policy slope 0.06176559627056122; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.88400568453595041; float-sum mean +0.88400568453595041; markers +0.88400568453595041; equal(float sum) True
+critic_blind_tail3_2501  E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form blind+raw, eff on-policy slope 0.0; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.18058780032768845; float-sum mean +0.18058780032768845; markers +0.18058780032768845; equal(float sum) True
+control_2511             E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form plain, eff on-policy slope 0.053242288529872894; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.95537211535871025; float-sum mean +0.95537211535871036; markers +0.95537211535871036; equal(float sum) True
+critic_blind_tail3_2511  E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form blind+raw, eff on-policy slope 0.0; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.12518754258332773; float-sum mean +0.12518754258332773; markers +0.12518754258332773; equal(float sum) True
+control_2521             E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form plain, eff on-policy slope 0.02259919047355652; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.59730171463266013; float-sum mean +0.59730171463266024; markers +0.59730171463266024; equal(float sum) True
+critic_blind_tail3_2521  E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form blind+raw, eff on-policy slope 0.0; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.14573265082156286; float-sum mean +0.14573265082156286; markers +0.14573265082156286; equal(float sum) True
+control_2531             E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form plain, eff on-policy slope 0.04146882891654968; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.47532675492018461; float-sum mean +0.47532675492018461; markers +0.47532675492018461; equal(float sum) True
+critic_blind_tail3_2531  E row: zip stage1_final.zip sha ok True, pkl stage1_final_vecnorm.pkl sha ok True, num_timesteps 3538944, critic_form blind+raw, eff on-policy slope 0.0; b*-(1-G-c0) = 0; CMD_L n 10
+    CMD_L at E from eval_episodes.csv: n 10 mean(exact) +0.068051772896200416; float-sum mean +0.068051772896200416; markers +0.068051772896200416; equal(float sum) True
+SEC-G: higher critic_blind_tail3; p 70/70; NOT SUPPORTED; survives Bonferroni (p <= 1/60): False; means c +0.24098 b -0.32958; medians c +0.28006 b -0.28503; min c -0.18557 max c +0.58938 min b -0.55124 max b -0.19704
+SEC-CMD: higher control; p 1/70; SUPPORTED (p <= 0.05, unadjusted); survives Bonferroni (p <= 1/60): True; means c +0.72800 b +0.12989; medians c +0.74065 b +0.13546; min c +0.47533 max c +0.95537 min b +0.06805 max b +0.18059
+SEC-MARGIN: higher critic_blind_tail3; p 1/70; SUPPORTED (p <= 0.05, unadjusted); survives Bonferroni (p <= 1/60): True; means c +0.16666 b +1.14651; medians c +0.16112 b +1.15139; min c -0.05955 max c +0.40395 min b +0.98264 max b +1.30061
+COMPARE WITH score.json
+  OK  status: mine 'final' score 'final'
+  OK  provisional: mine [] score []
+  OK  line: mine 2 score 2
+  OK  line_key: mine 'REDUCED' score 'REDUCED'
+  OK  baseline_S: mine 0.1265954738482833 score 0.1265954738482833
+  OK  primary_steps: mine [3473408, 3481600, 3489792, 3497984, 3506176, 3514368, 3522560, 3530752] score [3473408, 3481600, 3489792, 3497984, 3506176, 3514368, 3522560, 3530752]
+  OK  control_2501 cls: mine 'COUNTED' score 'COUNTED'
+  OK  control_2501 T: mine 3538944 score 3538944
+  OK  control_2501 primary_exact: mine '89927853/134217728' score '89927853/134217728'
+  OK  control_2501 primary: mine 0.6700147166848183 score 0.6700147166848183
+  OK  critic_blind_tail3_2501 cls: mine 'COUNTED' score 'COUNTED'
+  OK  critic_blind_tail3_2501 T: mine 3538944 score 3538944
+  OK  critic_blind_tail3_2501 primary_exact: mine '153357555/1073741824' score '153357555/1073741824'
+  OK  critic_blind_tail3_2501 primary: mine 0.14282535295933485 score 0.14282535295933485
+  OK  control_2511 cls: mine 'COUNTED' score 'COUNTED'
+  OK  control_2511 T: mine 3538944 score 3538944
+  OK  control_2511 primary_exact: mine '53168547/67108864' score '53168547/67108864'
+  OK  control_2511 primary: mine 0.7922730892896652 score 0.7922730892896652
+  OK  critic_blind_tail3_2511 cls: mine 'COUNTED' score 'COUNTED'
+  OK  critic_blind_tail3_2511 T: mine 3538944 score 3538944
+  OK  critic_blind_tail3_2511 primary_exact: mine '134058473/1073741824' score '134058473/1073741824'
+  OK  critic_blind_tail3_2511 primary: mine 0.12485168222337961 score 0.12485168222337961
+  OK  control_2521 cls: mine 'COUNTED' score 'COUNTED'
+  OK  control_2521 T: mine 3538944 score 3538944
+  OK  control_2521 primary_exact: mine '137120485/268435456' score '137120485/268435456'
+  OK  control_2521 primary: mine 0.5108136124908924 score 0.5108136124908924
+  OK  critic_blind_tail3_2521 cls: mine 'COUNTED' score 'COUNTED'
+  OK  critic_blind_tail3_2521 T: mine 3538944 score 3538944
+  OK  critic_blind_tail3_2521 primary_exact: mine '9267399/67108864' score '9267399/67108864'
+  OK  critic_blind_tail3_2521 primary: mine 0.13809500634670258 score 0.13809500634670258
+  OK  control_2531 cls: mine 'COUNTED' score 'COUNTED'
+  OK  control_2531 T: mine 3538944 score 3538944
+  OK  control_2531 primary_exact: mine '7035995/16777216' score '7035995/16777216'
+  OK  control_2531 primary: mine 0.41937798261642456 score 0.41937798261642456
+  OK  critic_blind_tail3_2531 cls: mine 'COUNTED' score 'COUNTED'
+  OK  critic_blind_tail3_2531 T: mine 3538944 score 3538944
+  OK  critic_blind_tail3_2531 primary_exact: mine '69969699/1073741824' score '69969699/1073741824'
+  OK  critic_blind_tail3_2531 primary: mine 0.06516436021775007 score 0.06516436021775007
+  OK  control_median: mine 0.5904141645878553 score 0.5904141645878553
+  OK  control_rise: mine 0.46381869073957205 score 0.46381869073957205
+  OK  informative: mine True score True
+  OK  rise_min: mine '1/5' score '1/5'
+  OK  alpha: mine '1/20' score '1/20'
+  OK  p_filled: mine '1/70' score '1/70'
+  OK  p_filled count: mine 1 score 1
+  OK  p_as_counted: mine '1/70' score '1/70'
+  OK  arm mean control: mine 0.5981198502704501 score 0.5981198502704501
+  OK  arm mean blind: mine 0.11773410043679178 score 0.11773410043679178
+  OK  arm median control: mine 0.5904141645878553 score 0.5904141645878553
+  OK  arm median blind: mine 0.1314733442850411 score 0.1314733442850411
+  OK  SD control: mine 0.16576628773272142 score 0.16576628773272142
+  OK  SD blind: mine 0.03586258495892603 score 0.03586258495892603
+  OK  n_missing: mine 0 score 0
+  OK  paired 2501 seed: mine 2501 score 2501
+  OK  paired 2501 diff: mine 0.5271893637254834 score 0.5271893637254834
+  OK  paired 2511 seed: mine 2511 score 2511
+  OK  paired 2511 diff: mine 0.6674214070662856 score 0.6674214070662856
+  OK  paired 2521 seed: mine 2521 score 2521
+  OK  paired 2521 diff: mine 0.37271860614418983 score 0.37271860614418983
+  OK  paired 2531 seed: mine 2531 score 2531
+  OK  paired 2531 diff: mine 0.3542136223986745 score 0.3542136223986745
+  OK  sign flip: mine '1/16' score '1/16'
+  OK  SEC-G p_filled: mine '1' score '1'
+  OK  SEC-G p_as_counted: mine '1' score '1'
+  OK  SEC-G verdict: mine 'NOT SUPPORTED' score 'NOT SUPPORTED'
+  OK  SEC-G bonferroni note: mine [] score []
+  OK  SEC-G control_2501 value_exact: mine '5308675512393007/9007199254740992' score '5308675512393007/9007199254740992'
+  OK  SEC-G critic_blind_tail3_2501 value_exact: mine '-7099107510337929/36028797018963968' score '-7099107510337929/36028797018963968'
+  OK  SEC-G control_2511 value_exact: mine '3376725647714943/9007199254740992' score '3376725647714943/9007199254740992'
+  OK  SEC-G critic_blind_tail3_2511 value_exact: mine '-4972441208044389/18014398509481984' score '-4972441208044389/18014398509481984'
+  OK  SEC-G control_2521 value_exact: mine '-6685837154297315/36028797018963968' score '-6685837154297315/36028797018963968'
+  OK  SEC-G critic_blind_tail3_2521 value_exact: mine '-2482546693292163/4503599627370496' score '-2482546693292163/4503599627370496'
+  OK  SEC-G control_2531 value_exact: mine '6673447470728479/36028797018963968' score '6673447470728479/36028797018963968'
+  OK  SEC-G critic_blind_tail3_2531 value_exact: mine '-2648412910283391/9007199254740992' score '-2648412910283391/9007199254740992'
+  OK  SEC-G higher: mine 'critic_blind_tail3' score 'critic_blind_tail3'
+  OK  SEC-CMD p_filled: mine '1/70' score '1/70'
+  OK  SEC-CMD p_as_counted: mine '1/70' score '1/70'
+  OK  SEC-CMD verdict: mine 'SUPPORTED (p <= 0.05, unadjusted)' score 'SUPPORTED (p <= 0.05, unadjusted)'
+  OK  SEC-CMD bonferroni note: mine ['(survives Bonferroni over the 3 secondaries)'] score ['(survives Bonferroni over the 3 secondaries)']
+  OK  SEC-CMD control_2501 value_exact: mine '7962415342939013/9007199254740992' score '7962415342939013/9007199254740992'
+  OK  SEC-CMD critic_blind_tail3_2501 value_exact: mine '3253180601053741/18014398509481984' score '3253180601053741/18014398509481984'
+  OK  SEC-CMD control_2511 value_exact: mine '8605227005459301/9007199254740992' score '8605227005459301/9007199254740992'
+  OK  SEC-CMD critic_blind_tail3_2511 value_exact: mine '4510356561037623/36028797018963968' score '4510356561037623/36028797018963968'
+  OK  SEC-CMD control_2521 value_exact: mine '2690007779447407/4503599627370496' score '2690007779447407/4503599627370496'
+  OK  SEC-CMD critic_blind_tail3_2521 value_exact: mine '5250572095485641/36028797018963968' score '5250572095485641/36028797018963968'
+  OK  SEC-CMD control_2531 value_exact: mine '4281362792675541/9007199254740992' score '4281362792675541/9007199254740992'
+  OK  SEC-CMD critic_blind_tail3_2531 value_exact: mine '4903647024915677/72057594037927936' score '4903647024915677/72057594037927936'
+  OK  SEC-CMD higher: mine 'control' score 'control'
+  OK  SEC-MARGIN p_filled: mine '1/70' score '1/70'
+  OK  SEC-MARGIN p_as_counted: mine '1/70' score '1/70'
+  OK  SEC-MARGIN verdict: mine 'SUPPORTED (p <= 0.05, unadjusted)' score 'SUPPORTED (p <= 0.05, unadjusted)'
+  OK  SEC-MARGIN bonferroni note: mine ['(survives Bonferroni over the 3 secondaries)'] score ['(survives Bonferroni over the 3 secondaries)']
+  OK  SEC-MARGIN control_2501 value_exact: mine '-266406858120495/9007199254740992' score '-266406858120495/9007199254740992'
+  OK  SEC-MARGIN critic_blind_tail3_2501 value_exact: mine '4425420228003889/4503599627370496' score '4425420228003889/4503599627370496'
+  OK  SEC-MARGIN control_2511 value_exact: mine '-536362574703231/9007199254740992' score '-536362574703231/9007199254740992'
+  OK  SEC-MARGIN critic_blind_tail3_2511 value_exact: mine '4995219837144793/4503599627370496' score '4995219837144793/4503599627370496'
+  OK  SEC-MARGIN control_2521 value_exact: mine '454810665278767/1125899906842624' score '454810665278767/1125899906842624'
+  OK  SEC-MARGIN critic_blind_tail3_2521 value_exact: mine '5857447907082371/4503599627370496' score '5857447907082371/4503599627370496'
+  OK  SEC-MARGIN control_2531 value_exact: mine '396115294856151/1125899906842624' score '396115294856151/1125899906842624'
+  OK  SEC-MARGIN critic_blind_tail3_2531 value_exact: mine '83992948865237/70368744177664' score '83992948865237/70368744177664'
+  OK  SEC-MARGIN higher: mine 'critic_blind_tail3' score 'critic_blind_tail3'
+  OK  line_text verbatim (criteria lines 265-267, whitespace joined): mine "REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)" score "REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"
+  OK  score.txt line 7: mine "  REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)" score "  REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"
+  OK  additions: mine [] score []
+DIFFERENCES: 0

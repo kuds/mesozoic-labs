@@ -1,0 +1,129 @@
+E501 Line too long (121 > 120)
+ --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_common.py:4:121
+  |
+3 | Importable without torch, numpy or the code copy.  BS2 is the bias screen (BS, S2/r10round/bias_screen, finished and
+4 | verified; its bs_common.py sha256 3b3727e2...) re-run from s42's 2,097,152 checkpoint: only the root, the start pair, the
+  |                                                                                                                         ^
+5 | window, the validation seeds and the code-copy path (BS's own copy, reused read only) differ from BS's file.  Every value
+6 | cites its source:
+  |
+
+E501 Line too long (121 > 120)
+ --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_common.py:5:121
+  |
+3 | Importable without torch, numpy or the code copy.  BS2 is the bias screen (BS, S2/r10round/bias_screen, finished and
+4 | verified; its bs_common.py sha256 3b3727e2...) re-run from s42's 2,097,152 checkpoint: only the root, the start pair, the
+5 | window, the validation seeds and the code-copy path (BS's own copy, reused read only) differ from BS's file.  Every value
+  |                                                                                                                         ^
+6 | cites its source:
+7 |   ECS    = ecs_common.py (the pins it shares with this screen: the code copy, M1/M5, the stack, the s42 records);
+  |
+
+E501 Line too long (121 > 120)
+ --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_bs.py:1:121
+  |
+1 | """BS2: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run that makes no optimizer step.
+  |                                                                                                                         ^
+2 |
+3 |     PY -I -B run_bs.py --arm ARM --seed N [--preflight-only]                          (a continuation: S -> E)
+  |
+
+E501 Line too long (121 > 120)
+  --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:17:121
+   |
+15 |     obs_rms row at S (float32), and the counts;
+16 |   - the ledger's (eval_episodes.csv) evaluations in (S, E] and their episode counts, and the evaluations.npz grid;
+17 |   - B_S candidate: the mean of the probe's rollout_mu_mean[:, 14] over the 8 rows ending at S (exact Fraction mean of the
+   |                                                                                                                         ^
+18 |     float32 values as float64, the BS scorer's mean_over form), and the same at the BS start 1,048,576 as a check of the
+19 |     form against BS's pinned -0.03157372563146055;
+   |
+
+E501 Line too long (122 > 120)
+  --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:59:121
+   |
+58 | # ---- grid
+59 | out["grid"] = {"E_mod_eval_freq": E % C.EVAL_FREQ, "E_mod_save_freq": E % C.SAVE_FREQ, "S_mod_save_freq": S % C.SAVE_FREQ,
+   |                                                                                                                         ^^
+60 |                "n_evals": C.LENGTH // C.EVAL_FREQ, "evals": [S + C.EVAL_FREQ * k for k in range(1, C.N_EVALS + 1)],
+61 |                "rollouts": C.LENGTH // R, "update_rows": C.expected_update_rows(S, E),
+   |
+
+E501 Line too long (124 > 120)
+  --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:77:121
+   |
+75 | where = {int(u): i for i, u in enumerate(ut.tolist())}
+76 | missing = [s for s in want if s not in where]
+77 | out["probe"] = {"rows": int(len(ut)), "first": int(ut[0]), "last": int(ut[-1]), "all_spaced_8192": bool((diffs == R).all()),
+   |                                                                                                                         ^^^^
+78 |                 "unique": bool(len(set(ut.tolist())) == len(ut)), "row_at_S": row_S.tolist(),
+79 |                 "rows_at_or_before_S": int((ut <= S).sum()), "window_rows_expected": len(want),
+   |
+
+E501 Line too long (135 > 120)
+  --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:89:121
+   |
+87 |     "ent_coef_first_last": [float(ent[idx[0]]), float(ent[idx[-1]])],
+88 |     "learning_rate_first_last": [float(lr[idx[0]]), float(lr[idx[-1]])],
+89 |     "ent_coef_formula_equal_rows": int((ent[idx] == ent_f).sum()), "ent_coef_formula_max_abs": float(np.max(np.abs(ent[idx] - ent_f))),
+   |                                                                                                                         ^^^^^^^^^^^^^^^
+90 |     "lr_formula_equal_rows": int((lr[idx] == lr_f).sum()), "lr_formula_max_abs": float(np.max(np.abs(lr[idx] - lr_f))),
+91 |     "lr_formula_max_rel": float(np.max(np.abs(lr[idx] - lr_f) / lr_f)), "rows": len(idx)}
+   |
+
+E501 Line too long (140 > 120)
+  --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:96:121
+   |
+94 | …
+95 | …at32(0.005 + np.minimum(1.0, tt / 7e6) * -0.005)))),
+96 | …-5 + (1 - tt / 12e6) * 2e-5)) / np.float32(1e-5 + (1 - tt / 12e6) * 2e-5))),
+   |                                                          ^^^^^^^^^^^^^^^^^^^^
+97 | …== 0).all())}
+   |
+
+E501 Line too long (123 > 120)
+   --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:152:121
+    |
+150 |                     "training": bool(vn.training), "norm_obs": bool(vn.norm_obs), "norm_reward": bool(vn.norm_reward),
+151 |                     "probe_row_S_obs_count": float(oc[i]),
+152 |                     "obs_mean_f32_equal_probe_row_S": bool(np.array_equal(np.float32(vn.obs_rms.mean), np.float32(om[i]))),
+    |                                                                                                                         ^^^
+153 |                     "obs_var_f32_equal_probe_row_S": bool(np.array_equal(np.float32(vn.obs_rms.var), np.float32(ov[i]))),
+154 |                     "obs_count_equal_probe_row_S": float(vn.obs_rms.count) == float(oc[i]),
+    |
+
+E501 Line too long (121 > 120)
+   --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:153:121
+    |
+151 |                     "probe_row_S_obs_count": float(oc[i]),
+152 |                     "obs_mean_f32_equal_probe_row_S": bool(np.array_equal(np.float32(vn.obs_rms.mean), np.float32(om[i]))),
+153 |                     "obs_var_f32_equal_probe_row_S": bool(np.array_equal(np.float32(vn.obs_rms.var), np.float32(ov[i]))),
+    |                                                                                                                         ^
+154 |                     "obs_count_equal_probe_row_S": float(vn.obs_rms.count) == float(oc[i]),
+155 |                     "t3_norm_mean_deg": float(np.degrees(vn.obs_rms.mean[C.OBS_TAIL3])),
+    |
+
+E501 Line too long (124 > 120)
+   --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:171:121
+    |
+169 | out["ledger"] = {"rows": len(rows), "first": min(by), "last": max(by), "at_S": by.get(S),
+170 |                  "window_evals": {s: by.get(s) for s in evs}, "window_complete": all(by.get(s) for s in evs),
+171 |                  "evals_after_E": sum(1 for s in by if s > E), "has_cmd_column": "tail_3_pitch_act_command_mean" in rows[0]}
+    |                                                                                                                         ^^^^
+172 | with np.load(files["evaluations.npz"][0], allow_pickle=False) as z:
+173 |     ts = np.asarray(z["timesteps"]).astype(np.int64)
+    |
+
+B007 Loop control variable `last_line` not used within loop body
+   --> claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/parent_schedule.py:179:9
+    |
+177 |     head = fh.readline().strip().split(",")
+178 |     last_line = None
+179 |     for last_line in fh:
+    |         ^^^^^^^^^
+180 |         pass
+181 | out["train_episodes"] = {"columns": len(head), "has_timesteps": "timesteps" in head}
+    |
+help: Rename unused `last_line` to `_last_line`
+
+Found 12 errors.

@@ -1,0 +1,89 @@
+THE DIFF OF BS2/tools AGAINST BS/tools (logs/tools_vs_bs.diff; made from S2/r10round with
+  diff -ru -x score_bs.py -x test_score_bs.py bias_screen/tools bias_screen2/tools ; 38 hunks, 666 lines)
+Files with NO hunk (byte-identical to BS's, cmp): bs_hooks.py (THE ARM HOOK, unchanged), verify_copy.py,
+tests/test_bs_hooks.py.  Not copied (the criteria lane's): score_bs.py, tests/test_score_bs.py.
+
+bs_common.py
+  #1  (-1,15 +1,21)   docstring: names BS2, cites BS's file (sha256 3b3727e2...), the FMAN re-measurement (lines 241 / 243)
+                      and TASK2 (S 2,097,152, LENGTH = BS's, E 3,538,944, seeds 9201-9241, the 10:23 approval).  Text only.
+  #2  (-23,8 +29,10)  BS = S2/r10round/bias_screen2 (was bias_screen); new BS1 = the finished screen (read only); CODE =
+                      BS1/code (BS's copy reused read only, digest 331fe8fc..., instead of a new cp).  Every other path
+                      (TOOLS, RUNS, VALIDATE, READS, LOGS, TMP, APPROVED, CRITERIA, SCREEN, LOST_JSON) follows BS.
+  #3  (-68,16 +76,16) S = 2_097_152 (was 1_048_576); LENGTH unchanged 1_441_792; E = S + LENGTH -> 3,538,944 (comment);
+                      SAVED_STEPS comment 2,359,296 ... 3,407,872 (the expression is unchanged); VALIDATE_UNTIL comment
+                      2,359,296 (expression unchanged: S + 2 x 131,072).
+  #4  (-122,11 +130,11) START: zip_rel / pkl_rel -> stage1_2097152_steps.zip / stage1_vecnormalize_2097152_steps.pkl;
+                      zip_sha256 83b6c88e..., pkl_sha256 991d434f... (FMAN lines 241, 243; check_inputs.py); comment that
+                      the records are the same F2 files BS pinned (FMAN lines 71, 103, 106, 82, 80, 68; values unchanged).
+  #5  (-134,13 +142,13) probe_row_at_S 255 (was 127; measured: parent_schedule.out "row_at_S": [255]; a record only, no
+                      tool reads it); VALIDATION_SEEDS (9201, 9211, 9221, 9231, 9241) (was 9101-9141).
+check_inputs.py
+  #6  (-1,23 +1,37)   rewritten: the paths and pins come from bs_common.START (BS's listed the 1,048,576 pair literally);
+                      each file is compared with FMAN's F2 COPY copy-1 row AND with the bs_common pin, and the FMAN line is
+                      printed.  Reads only; exit 0 iff all equal.
+read_bs.py
+  #7  (-1,5 +1,8)     docstring head: BS2, cites BS's reader (sha256 04036e53...), the derived reference pairs and P3.
+  #8  (-13,8 +16,9)   docstring of --reference: the parent's F2 pairs in [S, E] are 2,097,152 and 3,145,728 (were
+                      1,048,576 and 2,097,152); the reproduction sources now include vew_analyze.txt and warning_margin.
+  #9  (-46,8 +50,10)  docstring: the code copy is bs_common.CODE (BS's, read only); the loop cache key now includes the
+                      reader's own sha256 and its modules' digest; a mismatching entry is refused.
+  #10 (-68,7 +74,7)   VERSION "read_bs 1.1 (... bias screen 2 ...)".
+  #11 (-105,12 +111,27) F2_EVERY = 1,048,576 (the F2 fetch cadence, FMAN), REFERENCE_PAIRS derived from it inside [S, E]
+                      (replaces the literal (1048576, 2097152) of hunk #15); REPRO replaced: targets at 2,097,152 and
+                      3,145,728 with every source and line cited (ew_r10.jsonl lines 3 / 1 at full precision instead of
+                      BS's 3-decimal values; eb_realized.json lines 88 / 91 and 140 / 143; vew_analyze.txt lines 64 / 62
+                      and 160 / 158; warning_margin/NOTES.txt lines 20 / 21).
+  #12 (-118,6 +139,30) P3 FIX: READER_SHA256 = sha256 of read_bs.py itself; DEPS_SHA256 = sha256 of (sha256(bs_common.py)
+                      + sha256(bs_hooks.py)); cache_key() puts "r<reader[:16]>_d<deps[:8]>_" before BS's key fields;
+                      cache_entry_problem() refuses an entry whose recorded digests differ.
+  #13 (-948,15 +993,18) loop_markers uses cache_key(); on a hit it refuses (InputError) an entry not written by this
+                      reader; on a miss it records reader_sha256, deps_sha256 and VERSION in the entry it writes.  So a
+                      cache entry can never outlive the reader (or the two modules) that wrote it.
+  #14 (-1046,7 +1094,7) reference_read docstring (REFERENCE_PAIRS).
+  #15 (-1066,7 +1114,7) the reference read's pairs: REFERENCE_PAIRS instead of the literal (1048576, 2097152).
+  #16 (-1078,11 +1126,20) the reproduction check also compares G_H, G_L, b*_P, b*_L (vew) and b*_P (wm) and reports
+                      max_abs_diff_printed_3dp for those (printed to 3 decimals: <= 5e-4 expected); max_abs_diff_ew is
+                      now computed over a snapshot of the pairs (so adding keys cannot break the comprehension).
+run_bs.py
+  #17 (-1,12 +1,14)   docstring: BS2, S 2,097,152 / E 3,538,944, what differs from BS's run_bs.py (sha256 0a5a9851...).
+  #18 (-62,7 +64,7)   VERSION "run_bs 1.1 (... bias screen 2 ...)" (recorded in run_meta).
+  #19 (-642,7 +644,8) setup_environment: GIT_CEILING_DIRECTORIES = "<BS2>:<BS>" (the screen root and the code copy's parent).
+                      In BS the code copy's parent WAS the screen root, so the code's `git rev-parse HEAD` (config.
+                      get_git_commit, read only) stopped there; with the code now under BS, naming BS keeps that.
+                      (No .git exists on the path anyway; GITHUB_SHA supplies the commit, as in BS.)
+run_waves_bs.sh
+  #20 (-1,4 +1,6)     header: BS2 = BS's runner with only the root changed.
+  #21 (-45,7 +47,7)   BS_REAL=$S2/r10round/bias_screen2 (was bias_screen).  Nothing else: queue mechanics, slots, nice,
+                      floors (1.5 GiB; launch 1.5 GiB + 9 x 50 MiB), crash rules, outcome-blind reads unchanged.
+tests/test_read_bs.py
+  #22 (-23,6 +23,8)   VS = the first BS2 validation seed (9201); N_PARENT = E // 8,192 + 8 (a synthetic parent probe that
+                      runs past E; BS's used a literal 399 rows, which ended before BS2's E).
+  #23 (-34,7 +36,7)   the synthetic parent probe uses N_PARENT.
+  #24 (-49,7 +51,7)   same for _parent_cols.
+  #25 (-90,7 +92,7)   _good_meta: seed VS instead of 9101.
+  #26 (-107,20 +109,26) check_meta tests use VS; two new mutants: BS's window (S, E = 1,048,576, 2,490,368) and BS's
+                      validation seed 9101 must both fail CHECK.
+  #27 (-255,3 +263,35) new tests: test_loop_cache_key_carries_the_reader_sha256 (P3: the key starts with the reader's
+                      sha256, every form field changes it, a different reader / module digest changes it, an entry
+                      written by another reader or a BS-era entry without digests is refused);
+                      test_reference_pairs_and_reproduction_targets (REFERENCE_PAIRS = (2,097,152, 3,145,728), inside
+                      [S, E], = REPRO's keys; the verifier's b*_P agrees with 1 - G - c0 from ew_r10 within 5e-4).
+tests/test_run_bs.py
+  #28 (-27,19 +27,38) V0 / V4 = BS2's first / last validation seed; test_window_and_grid now asserts S 2,097,152, E
+                      3,538,944, LENGTH 1,441,792, S and E on the 131,072 grid (E = 27 x 131,072), 176 rollouts / 175
+                      update rows, SAVED_STEPS (2,359,296 ... 3,407,872), VALIDATE_UNTIL 2,359,296, the floors (1.5 GiB;
+                      launch 1.5 GiB + 9 x 50 MiB) and the BS2 / BS1 / CODE paths; new test_start_pair_pins (zip / pkl
+                      names and sha256, probe_row_at_S 255) and test_validation_seeds_are_bs2s.
+  #29 (-67,7 +86,7)   the "validation seed" SCREEN refusal uses V0.
+  #30 (-104,7 +123,7) _written default seed V0.
+  #31 (-119,7 +138,7) test_recipe_problems seed / label V0.
+  #32 (-217,21 +236,23) _ns default seed V0; preflight tests use V4; new assertion: BS's seed 9101 is refused as a
+                      validation seed.
+  #33 (-266,3 +287,17) new test_environment_keeps_git_inside_the_copy_s_parent (setup_environment's GIT_CEILING_DIRECTORIES
+                      = [root, the code copy's parent]; TMPDIR under the root; os.environ restored).
+tests/test_waves_bs.py
+  #34 (-31,7 +31,7)   the stub run reads S from the env (BS_STUB_S) instead of the literal 1048576.
+  #35 (-108,7 +108,7) the fixture sets BS_STUB_S = str(C.S).
+  #36 (-144,7 +144,7) --plan must print "S 2097152, E 3538944" (was "S 1048576, E 2490368").
+  #37 (-230,7 +230,7) the half-way relaunch case's last_step C.S + 3 x EVAL_FREQ (was 1048576 + 3 x 131072).
+  #38 (-305,3 +305,8) new test_real_root_is_bs2 (the runner's BS_REAL is bias_screen2, as bs_common.BS).

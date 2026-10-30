@@ -1,0 +1,120 @@
+(1) primary rises from B_S
+   control_2501             primary +0.67001 rise +0.54342
+   critic_blind_tail3_2501  primary +0.14283 rise +0.01623
+   control_2511             primary +0.79227 rise +0.66568
+   critic_blind_tail3_2511  primary +0.12485 rise -0.00174
+   control_2521             primary +0.51081 rise +0.38422
+   critic_blind_tail3_2521  primary +0.13810 rise +0.01150
+   control_2531             primary +0.41938 rise +0.29278
+   critic_blind_tail3_2531  primary +0.06516 rise -0.06143
+   blind rises -0.06143 .. +0.01623; max |rise| 0.06143
+   control rises +0.29278 .. +0.66568
+   min control primary +0.41938 > max blind +0.14283: True
+   blind arm, the 11 evaluation-step 8-row means: max |value - B_S| 0.06143 (critic_blind_tail3_2531 at 3538944)
+(2) trajectory: parent vs control median vs blind median (8-row means; at E the primary's rows)
+   parent's mean over the 8 rows ENDING at E (3,481,600..3,538,944), for reference: +0.69397
+   2,228,224 parent +0.1551 ctrl-med +0.1326 (diff -0.0226; ctrl +0.1284..+0.1460) blind-med +0.1198
+   2,359,296 parent +0.1686 ctrl-med +0.1519 (diff -0.0167; ctrl +0.1373..+0.1660) blind-med +0.1200
+   2,490,368 parent +0.1955 ctrl-med +0.1777 (diff -0.0178; ctrl +0.1253..+0.1919) blind-med +0.1290
+   2,621,440 parent +0.1902 ctrl-med +0.2103 (diff +0.0201; ctrl +0.1783..+0.2362) blind-med +0.1129
+   2,752,512 parent +0.2414 ctrl-med +0.2412 (diff -0.0002; ctrl +0.1844..+0.3005) blind-med +0.1055
+   2,883,584 parent +0.2918 ctrl-med +0.2610 (diff -0.0308; ctrl +0.2064..+0.3835) blind-med +0.0968
+   3,014,656 parent +0.3277 ctrl-med +0.3314 (diff +0.0037; ctrl +0.2512..+0.4815) blind-med +0.1132
+   3,145,728 parent +0.4317 ctrl-med +0.4025 (diff -0.0293; ctrl +0.2997..+0.6265) blind-med +0.1181
+   3,276,800 parent +0.6135 ctrl-med +0.5016 (diff -0.1119; ctrl +0.3403..+0.6859) blind-med +0.1336
+   3,407,872 parent +0.6914 ctrl-med +0.5735 (diff -0.1179; ctrl +0.4035..+0.7309) blind-med +0.1358
+   3,538,944 parent +0.7054 ctrl-med +0.5904 (diff -0.1150; ctrl +0.4194..+0.7923) blind-med +0.1315
+   at E: control median rise +0.46382 = 0.801 of the parent's +0.57878
+   control_2501: above the parent at E? False (+0.6700 vs +0.7054)
+   control_2511: above the parent at E? True (+0.7923 vs +0.7054)
+   control_2521: above the parent at E? False (+0.5108 vs +0.7054)
+   control_2531: above the parent at E? False (+0.4194 vs +0.7054)
+   score.json parent_trajectory == mine: True; trajectory_arm_medians == mine: True; per-run trajectories == mine: True
+(3)(4)(7) from eval_episodes.csv (window (S, E])
+   control_2501             over-bar per eval {3407872: 1} actuators ['tail_3_pitch_act']; first tail over-bar 3407872; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.88401; window mean return 4432.03; falls []; lengths ['1000']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': 3407872, 'first_over_any': 3407872, 'first_t3_over': 3407872, 'cmd_l_ge_0.30': 2883584, 'cmd_l_ge_0.60': 3145728, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4432.029236509091 vs mine 4432.029236509091
+   critic_blind_tail3_2501  over-bar per eval {} actuators []; first tail over-bar None; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.18059; window mean return 4438.46; falls []; lengths ['1000']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4438.464954309091 vs mine 4438.464954309091
+   control_2511             over-bar per eval {3407872: 2, 3538944: 8} actuators ['tail_3_pitch_act']; first tail over-bar 3407872; >=5 tail over-bar (M5 TAIL-flag rule) at [3538944]; CMD_L(E) +0.95537; window mean return 4423.06; falls []; lengths ['1000']
+                            markers M5 any_flagged [3538944] tail_flagged [3538944] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': 3407872, 'first_over_any': 3407872, 'first_t3_over': 3407872, 'cmd_l_ge_0.30': 2752512, 'cmd_l_ge_0.60': 3145728, 'cmd_l_ge_0.90': 3538944}
+                            score.json mean_return_window 4423.055055009091 vs mine 4423.055055009091
+   critic_blind_tail3_2511  over-bar per eval {} actuators []; first tail over-bar None; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.12519; window mean return 4457.17; falls []; lengths ['1000']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4457.172452945454 vs mine 4457.172452945454
+   control_2521             over-bar per eval {} actuators []; first tail over-bar None; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.59730; window mean return 4390.73; falls [(2359296, '303', 'tail_contact')]; lengths ['1000', '303']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': 3014656, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4390.734562790909 vs mine 4390.734562790909
+   critic_blind_tail3_2521  over-bar per eval {} actuators []; first tail over-bar None; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.14573; window mean return 4422.51; falls [(2359296, '249', 'tail_contact')]; lengths ['1000', '249']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4422.5142072 vs mine 4422.5142072
+   control_2531             over-bar per eval {} actuators []; first tail over-bar None; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.47533; window mean return 4425.37; falls []; lengths ['1000']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': 3145728, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4425.371877872727 vs mine 4425.371877872727
+   critic_blind_tail3_2531  over-bar per eval {} actuators []; first tail over-bar None; >=5 tail over-bar (M5 TAIL-flag rule) at []; CMD_L(E) +0.06805; window mean return 4451.60; falls []; lengths ['1000']
+                            markers M5 any_flagged [] tail_flagged [] any_alarms [] tail_alarms []; markers firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': None, 'cmd_l_ge_0.60': None, 'cmd_l_ge_0.90': None}
+                            score.json mean_return_window 4451.598824118182 vs mine 4451.598824118182
+   window mean return: control median 4424.21 (values [4432.0, 4423.1, 4390.7, 4425.4]), blind median 4445.03 (values [4438.5, 4457.2, 4422.5, 4451.6]); per pair blind - control [6.4, 34.1, 31.8, 26.2]
+(4) CMD_L at E: control 0.47533..0.95537; blind 0.06805..0.18059
+(5)(6)(8) loop rows (markers; each pair's files re-hashed)
+   control_2501             sha/bstar problems []; forms ['plain']
+                            G  [-0.636, -0.592, -0.273, 0.054, 0.394, 0.539, 0.589]  G(E) > G(S): True
+                            c0 [0.238, 0.317, 0.392, 0.352, 0.45, 0.483, 0.44]
+                            b* [1.399, 1.275, 0.881, 0.594, 0.156, -0.022, -0.03]
+                            on-policy slope eff [0.02143, 0.01056, 0.02819, 0.04947, 0.05415, 0.05475, 0.06177] raw [0.02143, 0.01056, 0.02819, 0.04947, 0.05415, 0.05475, 0.06177]
+   critic_blind_tail3_2501  sha/bstar problems []; forms ['blind+raw']
+                            G  [-0.636, -0.712, -0.457, -0.309, -0.324, -0.138, -0.197]  G(E) > G(S): True
+                            c0 [0.238, 0.245, 0.245, 0.167, 0.193, 0.19, 0.214]
+                            b* [1.399, 1.468, 1.213, 1.142, 1.131, 0.949, 0.983]
+                            on-policy slope eff [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] raw [0.02143, 0.00458, 0.02266, 0.028, 0.02644, 0.02265, 0.03062]
+   control_2511             sha/bstar problems []; forms ['plain']
+                            G  [-0.636, -0.619, -0.086, 0.111, 0.387, 0.384, 0.375]  G(E) > G(S): True
+                            c0 [0.238, 0.279, 0.352, 0.468, 0.567, 0.614, 0.685]
+                            b* [1.399, 1.339, 0.734, 0.421, 0.046, 0.002, -0.06]
+                            on-policy slope eff [0.02143, 0.01395, 0.03674, 0.04283, 0.05548, 0.0528, 0.05324] raw [0.02143, 0.01395, 0.03674, 0.04283, 0.05548, 0.0528, 0.05324]
+   critic_blind_tail3_2511  sha/bstar problems []; forms ['blind+raw']
+                            G  [-0.636, -0.619, -0.335, -0.311, -0.465, -0.212, -0.276]  G(E) > G(S): True
+                            c0 [0.238, 0.243, 0.226, 0.233, 0.233, 0.195, 0.167]
+                            b* [1.399, 1.376, 1.109, 1.079, 1.232, 1.017, 1.109]
+                            on-policy slope eff [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] raw [0.02143, 0.00844, 0.01327, 0.01737, 0.01566, 0.01615, 0.01557]
+   control_2521             sha/bstar problems []; forms ['plain']
+                            G  [-0.636, -0.514, -0.448, -0.52, -0.355, -0.226, -0.186]  G(E) > G(S): True
+                            c0 [0.238, 0.249, 0.352, 0.483, 0.572, 0.684, 0.782]
+                            b* [1.399, 1.265, 1.096, 1.037, 0.783, 0.542, 0.404]
+                            on-policy slope eff [0.02143, 0.02594, 0.02442, 0.0085, 0.02783, 0.01905, 0.0226] raw [0.02143, 0.02594, 0.02442, 0.0085, 0.02783, 0.01905, 0.0226]
+   critic_blind_tail3_2521  sha/bstar problems []; forms ['blind+raw']
+                            G  [-0.636, -0.493, -0.517, -0.757, -0.638, -0.579, -0.551]  G(E) > G(S): True
+                            c0 [0.238, 0.179, 0.194, 0.2, 0.228, 0.248, 0.251]
+                            b* [1.399, 1.313, 1.323, 1.557, 1.41, 1.331, 1.301]
+                            on-policy slope eff [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] raw [0.02143, 0.02633, 0.01824, 0.03843, 0.0181, 0.00946, 0.00331]
+   control_2531             sha/bstar problems []; forms ['plain']
+                            G  [-0.636, -0.464, -0.223, -0.008, 0.053, 0.15, 0.185]  G(E) > G(S): True
+                            c0 [0.238, 0.247, 0.282, 0.265, 0.374, 0.42, 0.463]
+                            b* [1.399, 1.217, 0.941, 0.743, 0.572, 0.43, 0.352]
+                            on-policy slope eff [0.02143, 0.02235, 0.0245, 0.01043, 0.01987, 0.03708, 0.04147] raw [0.02143, 0.02235, 0.0245, 0.01043, 0.01987, 0.03708, 0.04147]
+   critic_blind_tail3_2531  sha/bstar problems []; forms ['blind+raw']
+                            G  [-0.636, -0.618, -0.347, -0.238, -0.301, -0.373, -0.294]  G(E) > G(S): True
+                            c0 [0.238, 0.216, 0.149, 0.079, 0.139, 0.101, 0.1]
+                            b* [1.399, 1.402, 1.199, 1.159, 1.162, 1.272, 1.194]
+                            on-policy slope eff [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] raw [0.02143, 0.0182, 0.02466, 0.03052, 0.01956, 0.031, 0.03012]
+   control: c0 at E 0.440..0.782; c0 over the 6 window pairs min (0.24738414585590363, 'control_2531', 2359296) max (0.7816162407398224, 'control_2521', 3538944)
+   control: b* at E -0.05955..+0.40395; b* over the 6 window pairs min (-0.05954820799827576, 'control_2511', 3538944) max (1.3392509182691574, 'control_2511', 2359296)
+   critic_blind_tail3: c0 at E 0.100..0.251; c0 over the 6 window pairs min (0.07922500371932983, 'critic_blind_tail3_2531', 2883584) max (0.25062139332294464, 'critic_blind_tail3_2521', 3538944)
+   critic_blind_tail3: b* at E +0.98264..+1.30061; b* over the 6 window pairs min (0.9486848197579385, 'critic_blind_tail3_2501', 3407872) max (1.5565340086221695, 'critic_blind_tail3_2521', 2883584)
+   control on-policy slope over all 7 pairs x 4: min (0.008499223738908768, 'control_2521', 2883584) max (0.06176559627056122, 'control_2501', 3538944); all > 0: True
+   (6) seed 2501: G(E) control +0.58938 blind -0.19704 blind lower: True
+   (6) seed 2511: G(E) control +0.37489 blind -0.27603 blind lower: True
+   (6) seed 2521: G(E) control -0.18557 blind -0.55124 blind lower: True
+   (6) seed 2531: G(E) control +0.18523 blind -0.29403 blind lower: True
+(9) SD control 0.16577 blind 0.03586 ratio 4.622; gap min control - max blind 0.27655 = 7.7 blind SDs = 1.67 control SDs
+   equal means, SD ratio      1.000: P(complete separation, i.e. p = 1/70) = 0.01429 (quad err 1.3e-14)
+   equal means, SD ratio      2.000: P(complete separation, i.e. p = 1/70) = 0.01863 (quad err 4.2e-15)
+   equal means, SD ratio      3.000: P(complete separation, i.e. p = 1/70) = 0.02468 (quad err 2.7e-15)
+   equal means, SD ratio      4.622: P(complete separation, i.e. p = 1/70) = 0.03252 (quad err 1.8e-13)
+   equal means, SD ratio      5.000: P(complete separation, i.e. p = 1/70) = 0.03396 (quad err 1.4e-14)
+   equal means, SD ratio      7.000: P(complete separation, i.e. p = 1/70) = 0.03991 (quad err 3.3e-14)
+   equal means, SD ratio     20.000: P(complete separation, i.e. p = 1/70) = 0.05313 (quad err 8.3e-14)
+   equal means, SD ratio 1000000.000: P(complete separation, i.e. p = 1/70) = 0.06250 (quad err 1.1e-13)
+   references: 1/70 = 0.01429, 1/16 = 0.06250
+   post hoc only: Welch t 5.665 df 3.28 one-sided p 0.0043 (diff 0.48039, SE 0.08480)

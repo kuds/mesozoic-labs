@@ -1,0 +1,105 @@
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/tests/test_read_bs.py	2026-10-30 05:23:47.495442805 +0000
++++ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_read_bs.py	2026-10-30 10:40:17.464944517 +0000
+@@ -23,6 +23,8 @@
+ _spec.loader.exec_module(RB)
+ C, H = RB.C, RB.H
+ S, R8 = C.S, C.ROLLOUT
++VS = C.VALIDATION_SEEDS[0]                             # BS2: 9201 (BS's tests used 9101)
++N_PARENT = C.E // R8 + 8                               # a synthetic parent probe that runs past E (BS's used 399 rows)
+ 
+ 
+ def _rms(mean, var, count):
+@@ -34,7 +36,7 @@
+     n_seed = S // R8                                   # rows at or before S, as a resumed probe keeps them
+     steps = [R8 * k for k in range(1, n_seed + 1)] + [S + R8 * k for k in range(1, (T - S) // R8)]
+     if parent:
+-        steps = [R8 * k for k in range(1, 400)]
++        steps = [R8 * k for k in range(1, N_PARENT)]
+     n = len(steps)
+     mean = np.tile(np.asarray(start.mean, np.float32), (n, 1))
+     var = np.tile(np.asarray(start.var, np.float32), (n, 1))
+@@ -49,7 +51,7 @@
+ 
+ 
+ def _parent_cols():
+-    steps = np.asarray([R8 * k for k in range(1, 400)], np.int64)
++    steps = np.asarray([R8 * k for k in range(1, N_PARENT)], np.int64)
+     return {"update_timesteps": steps, "ent_coef": np.linspace(0.005, 0.004, len(steps)).astype(np.float32),
+             "learning_rate": np.full(len(steps), 3e-5, np.float32)}
+ 
+@@ -90,7 +92,7 @@
+         arm, ("MlpExtractor", "SymmetricRunningMeanStd"))
+     d0 = {"params": "p0", "adam": "a0", "n_updates": 10}
+     d1 = dict(d0) if kind == "validation" else {"params": "p1", "adam": "a1", "n_updates": 30}
+-    return {"schema": C.RUN_SCHEMA, "name": C.run_name(arm, 9101), "arm": arm, "seed": 9101, "S": C.S, "E": C.E,
++    return {"schema": C.RUN_SCHEMA, "name": C.run_name(arm, VS), "arm": arm, "seed": VS, "S": C.S, "E": C.E,
+             "mode": "no_update" if kind == "validation" else "continuation", "status": "done", "exit": 0,
+             "code": {"tree_digest": C.TREE_DIGEST, "commit": C.COMMIT}, "code_seal_after": "unchanged",
+             "modules_outside_code": [],
+@@ -107,20 +109,26 @@
+ 
+ @pytest.mark.parametrize("arm", C.ARMS)
+ def test_check_meta_validation(arm):
+-    fails, ident = RB.check_meta(_good_meta(arm), "validation", C.run_name(arm, 9101))
++    fails, ident = RB.check_meta(_good_meta(arm), "validation", C.run_name(arm, VS))
+     assert fails == [] and ident["T"] == S + 2 * R8
+     for key, val in (("arm_state_end", ["x"]), ("gae_lambda_after_load", 0.5), ("ent_coef_after_load", 0.0),
+                      ("status", "failed"), ("stop_reason", "other"), ("train_calls", 0),
+                      ("obs_rms_end_equal_start", arm != "frozen_obs_norm"), ("arm_change", "x"), ("seed", 2101)):
+         m = _good_meta(arm)
+         m[key] = val
+-        assert RB.check_meta(m, "validation", C.run_name(arm, 9101))[0] != [], key
++        assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != [], key
+     m = _good_meta(arm)
+     m["arm_applied"]["mlp_extractor_class"] = "Other"
+-    assert RB.check_meta(m, "validation", C.run_name(arm, 9101))[0] != []
++    assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != []
+     m = _good_meta(arm)
+     m["digest_end"] = {"params": "changed", "adam": "a0"}
+-    assert RB.check_meta(m, "validation", C.run_name(arm, 9101))[0] != []
++    assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != []
++    m = _good_meta(arm)
++    m.update(S=1_048_576, E=2_490_368)                    # BS's window is not BS2's
++    assert any("S, E" in f for f in RB.check_meta(m, "validation", C.run_name(arm, VS))[0])
++    m = _good_meta(arm)
++    m.update(seed=9101, name=C.run_name(arm, 9101))      # BS's validation seed is not BS2's
++    assert any("validation seed" in f for f in RB.check_meta(m, "validation", C.run_name(arm, 9101))[0])
+ 
+ 
+ def test_check_meta_continuation_needs_screen_and_updates(tmp_path, monkeypatch):
+@@ -255,3 +263,35 @@
+     RB.require_under(Path(C.BS) / "reads" / "x", C.BS)
+     with pytest.raises(RB.InputError):
+         RB.require_under("/tmp/x", C.BS)
++
++
++# ------------------------------------------------------------------------------------------------ BS2 additions
++def test_loop_cache_key_carries_the_reader_sha256():
++    """P3 (BS's process lens): the cache key starts with this reader's sha256 (and its modules' digest), so an entry
++    written by another reader is never found; an entry whose recorded digests differ is refused, never used."""
++    z, p = "a" * 64, "b" * 64
++    k = RB.cache_key(z, p, blind=False, onpolicy=True, own=True)
++    assert k.startswith("r" + RB.READER_SHA256[:16] + "_d" + RB.DEPS_SHA256[:8] + "_")
++    assert RB.READER_SHA256 == C.sha256_file(TOOLS / "read_bs.py")
++    assert k == f"r{RB.READER_SHA256[:16]}_d{RB.DEPS_SHA256[:8]}_{'a' * 16}_{'b' * 16}_plain_on_own"
++    assert RB.cache_key(z, p, blind=False, onpolicy=True, own=True, reader="c" * 64) != k
++    assert RB.cache_key(z, p, blind=False, onpolicy=True, own=True, deps="d" * 64) != k
++    assert RB.cache_key(z, p, blind=True, onpolicy=True, own=True) != k
++    assert RB.cache_key(z, p, blind=False, onpolicy=False, own=True) != k
++    assert RB.cache_key(z, p, blind=False, onpolicy=True, own=False) != k
++    good = {"reader_sha256": RB.READER_SHA256, "deps_sha256": RB.DEPS_SHA256}
++    assert RB.cache_entry_problem(good) is None
++    assert RB.cache_entry_problem({**good, "reader_sha256": "0" * 64}) is not None
++    assert RB.cache_entry_problem({**good, "deps_sha256": "0" * 64}) is not None
++    assert RB.cache_entry_problem({"OWN": {}}) is not None                 # a BS-era entry (no reader digests)
++
++
++def test_reference_pairs_and_reproduction_targets():
++    assert RB.REFERENCE_PAIRS == (2_097_152, 3_145_728)
++    assert all(C.S <= s <= C.E for s in RB.REFERENCE_PAIRS) and set(RB.REPRO) == set(RB.REFERENCE_PAIRS)
++    for s in RB.REFERENCE_PAIRS:
++        w = RB.REPRO[s]
++        assert set(w["ew_own"]) == {"G", "c0", "own14"}
++        # the verifier's b*_P = 1 - G - c0 (printed to 3 decimals) agrees with the early-warning values
++        assert abs((1.0 - w["ew_own"]["G"] - w["ew_own"]["c0"]) - w["vew_b_star_P"]) <= 5e-4
++        assert w["wm_b_star_P"] == w["vew_b_star_P"]

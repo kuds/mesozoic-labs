@@ -1,0 +1,18 @@
+step 2,097,152: learning_rate 2.65047e-05  ent_coef 0.00350  [computed from stage_config.json.copy1: lr 3e-05 -> 1e-05 over 12,000,000; ent 0.005 -> 0.0 by 7,000,000]
+step 3,538,944: learning_rate 2.41018e-05  ent_coef 0.00247  [computed from stage_config.json.copy1: lr 3e-05 -> 1e-05 over 12,000,000; ent 0.005 -> 0.0 by 7,000,000]
+probe row 255 (update_timesteps 2,097,152): obs_rms mean[6] +0.001501 rad = +0.086 deg, SD 0.419 deg; std14 0.1816; probe learning_rate 2.65047e-05 ent_coef 0.00350
+probe row 430 (update_timesteps 3,530,752): obs_rms mean[6] +0.013347 rad = +0.765 deg, SD 1.198 deg; std14 0.1643; probe learning_rate 2.41154e-05 ent_coef 0.00248
+
+PROPOSED seeds (2501, 2511, 2521, 2531):
+  2501: derived (2501, 2502, 2503, 2504, 3501) -> collisions none
+  2511: derived (2511, 2512, 2513, 2514, 3511) -> collisions none
+  2521: derived (2521, 2522, 2523, 2524, 3521) -> collisions none
+  2531: derived (2531, 2532, 2533, 2534, 3531) -> collisions none
+
+task's example seeds (2201, 2211, 2221, 2231):
+  2201: derived (2201, 2202, 2203, 2204, 3201) -> collisions {2201: ['ECS s42_B_1201 (derived)']}
+  2211: derived (2211, 2212, 2213, 2214, 3211) -> collisions {2211: ['ECS s42_B_1211 (derived)']}
+  2221: derived (2221, 2222, 2223, 2224, 3221) -> collisions {2221: ['ECS s42_B_1221 (derived)']}
+  2231: derived (2231, 2232, 2233, 2234, 3231) -> collisions {2231: ['ECS s42_B_1231 (derived)']}
+
+BS's own seeds against ECS (for the record): {2101: ['BS control_2101 (derived)', 'BS critic_blind_tail3_2101 (derived)', 'ECS s42_A_1101 (derived)'], 2111: ['BS control_2111 (derived)', 'BS critic_blind_tail3_2111 (derived)', 'ECS s42_A_1111 (derived)'], 2121: ['BS control_2121 (derived)', 'BS critic_blind_tail3_2121 (derived)', 'ECS s42_A_1121 (derived)'], 2131: ['BS control_2131 (derived)', 'BS critic_blind_tail3_2131 (derived)', 'ECS s42_A_1131 (derived)']}

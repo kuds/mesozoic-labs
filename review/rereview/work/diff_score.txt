@@ -1,0 +1,33 @@
+47c47,48
+< continuation and when its marker is absent or not finite (cause printed).
+---
+> continuation and when its marker is absent or not finite (cause printed); a COUNTED continuation whose markers lack the
+> loop row at E (the final pair not read: a tool or file defect) is also a PROVISIONAL item (score_bs 2.1, finding D7).
+72c73
+< VERSION = "score_bs 2.0 (2026-10-30; bias screen 2 criteria v1; derived from score_bs 1.1)"
+---
+> VERSION = "score_bs 2.1 (2026-10-30; bias screen 2 criteria v1 as fixed; derived from score_bs 1.1)"
+130c131
+<         "0.25-0.96 at half the parent's rise, by the between-continuation spread; about 0.1-0.3 if blinding makes "
+---
+>         "0.25-1.00 at half the parent's rise, by the between-continuation spread; about 0.1-0.3 if blinding makes "
+652a654,659
+>         # criteria THE SECONDARIES / RUN HANDLING: a COUNTED continuation's markers must hold exactly one loop row at E
+>         # (the final pair, read_bs.saved_pairs); without it the final pair was not read (a tool or file defect), so
+>         # SEC-G and SEC-MARGIN read MISSING and the reading is held (review finding D7)
+>         if c["cls"] == COUNTED and mk is not None and len(loop_rows_at(mk, C.E)) != 1:
+>             items.append(f"{name}: COUNTED but its markers hold {len(loop_rows_at(mk, C.E))} loop rows at E = "
+>                          f"{C.E:,} (the final pair was not read: a tool or file defect; SEC-G and SEC-MARGIN MISSING)")
+835c842,844
+<              "missing values filled against REDUCED (control -inf, critic_blind_tail3 +inf)")
+---
+>              "missing values filled against REDUCED (control -inf, critic_blind_tail3 +inf); size 3/70 when the 8 "
+>              "primaries are exchangeable under no effect, about 0.06 (up to about 0.09 given the gate) if blinding "
+>              "changes only the spread: read a REDUCED with each arm's SD")
+846,847c855,857
+<              "the global null at most 9/70 = 0.129 that any reads SUPPORTED; only p = 1/70 survives Bonferroni over "
+<              "the 3, 0.05 / 3 = 0.0167):")
+---
+>              "the global null at most 9/70 = 0.129 that any reads SUPPORTED when each secondary's 8 values are "
+>              "exchangeable, about 0.18 if the arms' spreads differ; only p = 1/70 survives Bonferroni over the 3, "
+>              "0.05 / 3 = 0.0167):")

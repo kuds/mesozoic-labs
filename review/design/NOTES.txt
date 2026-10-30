@@ -1,0 +1,48 @@
+2026-10-30T11:36:55Z mkdir review/design: ok
+2026-10-30T11:37:39Z sha256sum F2 policy_probe.npz.copy1 -> 4e0e7220... = FMAN line 80; eval_episodes.csv.copy1 -> d1bcb789... = FMAN line 71 [measured]
+2026-10-30T11:38:05Z PY -I -B work/rd_parent.py > work/rd_parent.out: exit 0
+2026-10-30T11:46:06Z rd_compare.py 1500 roots x seeds 11,12,13 on the candidate score_bs.py -> work/rd_compare.out
+2026-10-30T11:46:11Z start rd_power.py
+2026-10-30T11:46:40Z start rd_mutants.py 800 21
+2026-10-30T11:46:47Z rd_power.py exit 0 -> work/rd_power.out
+2026-10-30T11:48:07Z ECS s42 individual rises from ecs_spread.out (last8 - own first 8) -> work/rd_ecs_rises.out
+2026-10-30T11:48:54Z line texts / additions / secondary strings vs criteria.txt -> work/rd_texts.out
+2026-10-30T11:49:37Z start rd_power2.py
+2026-10-30T11:50:09Z rd_power2.py exit -> work/rd_power2.out
+2026-10-30T11:51:07Z rd_power2.py: studentized ranks == diff-of-means ranks on 20,000 draws (equal n: Welch t = pooled t, monotone in d) [measured]
+2026-10-30T11:51:32Z statue_settled / normaliser / schedule spot checks -> work/rd_parent_extras.out
+------------------------------------------------------------------------------------------------------------------
+RESULTS SO FAR (design / statistics lens; no training, no validation run, nothing written outside review/design)
+[measured, work/rd_parent.out] B_S = 135930855/1073741824 = 0.1265954738482833 (rows 248-255), parent primary at E
+  47337175/67108864 = 0.7053788751363754 (rows 423-430), rise 0.5787834012880921; all 11 trajectory values equal
+  score_bs.PARENT_TRAJECTORY bit for bit; 175 window rows finite; row SD 0.01077 / 0.04342; first 8 window rows
+  0.12513; CMD_L per evaluation equals the criteria (0.1251 ... 0.8296; first >= 0.30 at 2,883,584, >= 0.60 at 3,407,872).
+[measured, work/rd_parent_extras.out] statue_settled 0.1340 / 0.1145; normaliser +0.086 (0.419) / +0.765 (1.198) deg;
+  lr 2.6505e-5 / 2.4115e-5; ent 0.00350 / 0.00248 = criteria.
+[measured, work/rd_compare.out] independent scorer (rd_scorer.py, from the text) vs score_bs.score on 4,500 random
+  synthetic roots (seeds 11-13; lines 1/2/3, additions, fills, ties, UNREADABLE/STOPPED/LOST/undecided, secondaries
+  with missing rows / NaN / missing evaluation): 0 disagreements on line, additions, p filled, p as counted,
+  informative, control median and rise, primaries (exact), each secondary's p filled / as counted / verdict / notes / n.
+[measured, work/rd_texts.out] the 3 line texts, both additions and the 4 secondary strings appear verbatim in criteria.txt.
+[measured, work/rd_power.out] designer's D / E / G / H cells reproduced (MC within 0.003; H exact equal).
+  NEW: P2 equal means, unequal SDs: P(REDUCED) 0.057-0.064 (> 3/70 and > 0.05); given the gate up to 0.093.
+  NEW: P3 two-state null: P(REDUCED | informative) 0.060 / 0.074 / 0.104 at q 0.5 / 0.4 / 0.25; among informative
+  screens with control median rise >= 0.29: 0.078 / 0.097 / 0.138.
+[measured, work/rd_power2.out] the inflation is two-sided (P(control among the 3 LOWEST) the same) and a studentized
+  permutation test ranks identically with 4 + 4 (no fix by changing the statistic).
+[measured, work/rd_ecs_rises.out] ECS s42 individual rises 0.242-0.475 (group means 0.296 / 0.377).
+2026-10-30T11:53:03Z summary block written
+2026-10-30T11:59:52Z rd_mutants.py exit -> work/rd_mutants.out
+[measured, work/rd_mutants.out, 800 roots seed 21 per mutant] 25 text-to-code mutants of score_bs.py: 22 detected by the
+  independent scorer; 3 survive and are equivalent on real data: "gate strict >" (rise = dyadic median - dyadic B_S
+  never equals 1/5), "alpha strict <" (k/70 never equals 1/20), "STOPPED counted" (a STOPPED run has no row at or
+  after its T <= 3,407,872, so its primary is MISSING either way).  Mutant copies removed (work/mutants).
+2026-10-30T12:00:13Z rmdir work/roots (empty); mutant summary written
+REVIEWED FILES (sha256 at 12:01Z, unchanged since the adapter's install): criteria.txt c6535c88..., tools/score_bs.py
+  695d8a59..., SCREEN.json 255d0ba4..., tools/tests/test_score_bs.py 9a4039ad....  find over BS2 and BS newer than
+  11:36:50, excluding review/design: only the root's mtime and review/process (the process reviewer's) [measured].
+FINDINGS (details in the structured output): 0 blocking.  minor: D1 spread-only size inflation (wording), D2 two-state
+  conditional size vs the "below 0.29" heuristic (wording), D3 ECS rise misquote, D4 NOT INFORMATIVE meaning overreach.
+  info: D5 line-3 power range, D6 STOPPED inference, D7 A4 / missing final row, D8 verification summary.
+No training, no optimizer step, no validation run, no APPROVED, nothing outside review/design written, no push.
+2026-10-30T12:00:28Z END

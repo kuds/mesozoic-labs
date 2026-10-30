@@ -1,0 +1,27 @@
+Fri Oct 30 10:47:47 UTC 2026
+== test-mode root /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/runner_test_root: SCREEN.json valid, criteria.txt present, NO APPROVED
+exit 2
+stderr: run_waves_bs: refused: no <BS>/APPROVED
+== --plan in the same root (reads the queue only)
+exit 0
+slots 4 at nice 10; disk floor 1610612736 bytes; launch floor 2082471936 bytes; crash limit 3; early crash: last step below S + 131072
+orphan pattern: ^/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/[r]un_bs[.]py --arm 
+  false --arm control --seed 2101 > /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/runner_test_root/logs/control_2101.attempt<k>.log  (S 2097152, E 3538944)
+  false --arm critic_blind_tail3 --seed 2101 > /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/runner_test_root/logs/critic_blind_tail3_2101.attempt<k>.log  (S 2097152, E 3538944)
+then: false <run>; after all are decided: false <run> (the markers; no scorer)
+== APPROVED present, SCREEN.json removed
+exit 2
+stderr: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/validate/runner_test_root/SCREEN.json missing (the intervention is not chosen yet)
+root after:
+total 28
+drwxr-xr-x 2 root root 4096 Oct 30 10:47 .
+drwxr-xr-x 7 root root 4096 Oct 30 10:47 ..
+-rw-r--r-- 1 root root    3 Oct 30 10:47 APPROVED
+-rw-r--r-- 1 root root   42 Oct 30 10:47 criteria.txt
+-rw-r--r-- 1 root root   40 Oct 30 10:47 err1.txt
+-rw-r--r-- 1 root root    0 Oct 30 10:47 err2.txt
+-rw-r--r-- 1 root root  239 Oct 30 10:47 err3.txt
+-rw-r--r-- 1 root root    0 Oct 30 10:47 out1.txt
+-rw-r--r-- 1 root root  954 Oct 30 10:47 out2.txt
+-rw-r--r-- 1 root root    0 Oct 30 10:47 out3.txt
+removed the test root's placeholder APPROVED and criteria.txt

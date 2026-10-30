@@ -1,0 +1,20 @@
+BS MARKERS parent stance6_r10LTSB_s42 (F2, read only)  (read_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from read_bs 1.0); 2026-10-30T10:57:10Z)
+window (S, T] = (2,097,152, 3,538,944]; arm parent
+M-PROBE 175 rows; statue_settled tail_3 mean first/last [0.14219499379396439, 0.105189960449934]; 8-row trailing max 0.2672817902639508; first above {'0.10': 2162688, '0.14': 2162688, '0.15': 2244608, '0.16': 2269184}
+M-LEDGER CMD_L max 0.8296340662539006 last 0.8296340662539006; firsts {'FOB_tail': None, 'first_over_any': None, 'first_t3_over': None, 'cmd_l_ge_0.30': 2883584, 'cmd_l_ge_0.60': 3407872, 'cmd_l_ge_0.90': None}; absent []
+  M5: ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      2228224  n 10  CMD_L   0.163  over 0  tail 0  t3 0
+      2359296  n 10  CMD_L   0.202  over 0  tail 0  t3 0
+      2490368  n 10  CMD_L   0.255  over 0  tail 0  t3 0
+      2621440  n 10  CMD_L   0.197  over 0  tail 0  t3 0
+      2752512  n 10  CMD_L   0.248  over 0  tail 0  t3 0
+      2883584  n 10  CMD_L   0.328  over 0  tail 0  t3 0
+      3014656  n 10  CMD_L   0.394  over 0  tail 0  t3 0
+      3145728  n 10  CMD_L    0.56  over 0  tail 0  t3 0
+      3276800  n 10  CMD_L   0.596  over 0  tail 0  t3 0
+      3407872  n 10  CMD_L   0.822  over 0  tail 0  t3 0
+      3538944  n 10  CMD_L    0.83  over 0  tail 0  t3 0
+M-LOOP   2097152: OWN G -0.636 c0 +0.238 own14 +0.143 G_L -0.648 b* +1.399 | REF G -0.619 c0 +0.124 | dV/dq3 on-policy eff +0.02143 raw +0.02143 own eff +0.03040
+M-LOOP   3145728: OWN G +0.349 c0 +0.411 own14 +0.601 G_L +0.259 b* +0.240 | REF G +0.326 c0 +0.213 | dV/dq3 on-policy eff +0.05854 raw +0.05854 own eff +0.06477
+REPRO 2097152: {'ew_own_G': [-0.6363920116424561, -0.6363920116424561], 'ew_own_c0': [0.23771291971206665, 0.23771291971206665], 'ew_own14': [0.14250202003121376, 0.14250202003121376], 'vew_G_H': [-0.6251649194955826, -0.625], 'vew_G_L': [-0.6483667051792145, -0.648], 'vew_b_star_P': [1.3986790919303895, 1.399], 'vew_b_star_L': [1.4134711199389802, 1.413], 'wm_b_star_P': [1.3986790919303895, 1.399], 'ew_ref_G': [-0.6194893866330384, -0.6194893866330384], 'eb_dV_dq3_per_deg': [0.02142920531332493, 0.02142920531332493], 'max_abs_diff_ew': 0.0, 'max_abs_diff_printed_3dp': 0.0004711199389801912, 'rel_diff_eb': 0.0}
+REPRO 3145728: {'ew_own_G': [0.3489333643913269, 0.3489333643913269], 'ew_own_c0': [0.4114188253879547, 0.4114188253879547], 'ew_own14': [0.6013715491890907, 0.6013715491890907], 'vew_G_H': [0.35430508375167846, 0.354], 'vew_G_L': [0.2585422897338867, 0.259], 'vew_b_star_P': [0.23964781022071846, 0.24], 'vew_b_star_L': [0.29556613838518475, 0.296], 'wm_b_star_P': [0.23964781022071846, 0.24], 'ew_ref_G': [0.32630227160453795, 0.32630227160453795], 'eb_dV_dq3_per_deg': [0.05854005739092827, 0.05854005739092827], 'max_abs_diff_ew': 0.0, 'max_abs_diff_printed_3dp': 0.0004577102661132981, 'rel_diff_eb': 0.0}
