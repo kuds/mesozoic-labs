@@ -1,0 +1,375 @@
+TAIL CLAMP TEST: WHAT THE tail_3 RAIL DOES TO THE STANCE (com_revisit, role "clamp")
+Written 2026-10-29 17:10 UTC.  EXPLORATORY AND REPORT-ONLY: NOT PRE-REGISTERED.  No hypothesis, window or test was fixed
+before the data were read, and nothing here is a gate reading.  The p-values are two-sided sign tests, reported as
+descriptions.  Many keys were read, so a single p near 0.04 means little.
+No training of any kind.  Simulation only.  Checkpoints, r10round/ecs, r10round/f2, the repository and the other
+agents' folders were only read.  Every file I wrote is in this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/clamp/
+Labels: [measured] = the named script computed it, and the output file is named.  [inferred] = reasoned from data, with
+the basis given.  Paths below are relative to this folder.
+
+==================================================================================================================
+0. IN SHORT
+==================================================================================================================
+- Mechanically the rail does almost nothing to the stance.  With the rail, tail_3 sits at +5.2 deg and the tail tip is
+  about 65-70 mm higher.  The whole-body CoM moves 0.2 mm forward and 1.6 mm up, and the pelvis pitches 0.01 deg.  The
+  numbers are the same in the s42 policies, the s80 policies and the neutral-action statue.  Two arms give them: the
+  open-loop replay (the policy's own other 14 commands replayed exactly) and the statue.  So the rail is not a
+  counterweight, as the static check found.  [measured: run_replay.py -> analysis.txt OPEN-LOOP and STATUE]
+- The rail does cost reward directly: about 80-100 per 10 s episode.  In the open-loop replay it is -81 (s42), -97
+  (s80) and -97.5 (statue).  The terms are action_saturation (-24 to -33), tail_home_pose (-55 to -62) and energy
+  (-4 to -5).  [measured: analysis.txt]
+- (i) Holding tail_3 at 0 on the 12 railed s42 end policies:
+  - No falls.  No change in sway, CoM speed, lateral lean, roll or creep.
+  - Return rises +63.6 per episode on 12 of 12 policies and 239 of 240 episodes.  D-9's window (2-10 s) gains +60.4.
+  - The pelvis pitches 0.16 deg further nose-down (10 of 12, p 0.039).  The CoM drops 3.4 mm (10 of 12, p 0.039).
+  - The fore-aft CoM moves +1.6 mm forward on the median (8 forward, 4 back, p 0.39).  Each policy is consistent over
+    its 20 seeds, but the policies range from -6.1 to +11.6 mm.
+  - So removing the rail does not move s42 toward s80's posture.  Pitch, height and fore-aft all move away from s80, or
+    not at all.
+  - It does not reverse the 5 mm backward drift at the ends: the lineage median goes from -25.7 to -24.9 mm, against
+    -20.7 mm at the start.  [measured: run_clamp.py -> analysis.txt s42]
+- (ii) Forcing tail_3 to +1 on the 12 s80 end policies:
+  - No falls.  Return falls -180 per episode (12 of 12).
+  - No consistent posture shift.  Pitch moves nose-up +0.45 deg (8 of 12, p 0.39).  Fore-aft moves +1.0 mm (7/5) and
+    height -5.7 mm (5/7).
+  - The spread across policies doubles to triples: fore-aft SD 4.9 -> 9.5 mm, pitch SD 0.32 -> 0.96 deg.
+  - The lateral stance gets worse.  |CoM sideways| rises +0.58 mm (11 of 12, p 0.006) and |roll| +0.04 deg (12 of 12).
+    The per-seed lateral SD goes from 1.75 to 4.05 mm (10 of 12).  In 20 s runs the sideways lean keeps growing:
+    +3.7 mm at 15-20 s, 3 of 3 policies.
+  - So imposing the rail does not move s80 "the same way".  The one shared direction is a nose-up pitch, and in s80 it
+    is not consistent.  [measured: run_clamp.py -> analysis.txt s80, LONG RUNS]
+- (iii) What the rail is, as far as these data show:
+  - It is a closed loop inside the policy's own tail_3 channel.  When the s42 policies' tail is held at 0, their own
+    tail_3 command settles at 0.35.  When the tail is free, the command climbs to 0.9 within about 2.5 s, as the tail
+    rises.  The s80 policies push the other way: their own command is -0.27 when the tail is forced up.
+  - What the rail changes in the stance, it changes through the policy, not the plant.  The s42 policies hold the head
+    3.5 deg higher with the rail (head_pitch command -0.14 on 12 of 12).  They hold the pelvis 0.17 deg more nose-up and
+    the CoM about 2 mm higher.
+  - That coupling is opposite in sign to the s42-versus-s80 pitch gap: s42 is the more nose-down lineage.  So it does
+    not explain the gap.
+  [measured: rail_onset.txt, analysis.txt; loop interpretation inferred]
+
+==================================================================================================================
+1. WHAT tail_3_pitch_act MEANS, AND WHAT D-9 OVERRODE
+==================================================================================================================
+[measured: probe_env.py -> probe_env.txt; code read in policies/code_copy]
+- Action index 14 of 15 (the last), actuator tail_3_pitch_act on hinge tail_3_pitch.
+  - It is a position servo: kp 60 N m/rad, force range +-50 N m.
+  - ctrlrange is +-0.2094 rad (+-12 deg), with the joint range +-12 deg.
+  - The joint has a preloaded spring: stiffness 80 N m/rad, springref +0.1815 rad (+10.4 deg).  This is physics r10's
+    tail preload.
+- Mapping, from tyrannosaurus_rex/base_env.py:
+  - The action is clipped to [-1, 1].
+  - It is then low-pass filtered: action_filter_cutoff_hz 10, alpha 0.386 per 10 ms step.  The filter is seeded with the
+    first post-reset action (shared/base_env.py _filter_action).
+  - _scale_action maps it as a residual about the home keyframe control, "home-keyframe-residual/v1".  tail_3's home
+    ctrl is 0, so action 0 -> ctrl 0 rad and action +1 -> ctrl +0.2094 rad.
+  - action_penalty_source = "raw": the saturation, jerk and smoothness terms price the pre-filter command; energy
+    prices the applied one.
+- The joint angle actually reached [measured: analysis.txt LEVELS]:
+  - Command +1 reaches +5.19 deg, not +12 deg.
+    - s80 forced: per-policy medians +5.17..+5.22.
+    - s42 unforced: per-policy medians +4.42..+5.20.  s42_A_1151, whose window command averages 0.85, is the lowest.
+      Single episodes go down to +2.0 deg where the command sits below the bound.
+  - Command 0 reaches +0.014 deg.
+  - The +1 command adds about 7.1 N m of servo torque (actuator force -7.13 when held at 0; +6.95 when forced).  Against
+    gravity and the spring, that lifts the joint by about 5 deg.  [inferred from the parameters above and the measured
+    angles]
+  - + is tail tip up: +5.2 deg raises the tail tip 67.9 mm by forward kinematics [measured: probe_signs.py ->
+    probe_signs.txt].  In the rollouts the tail tip is 63.5 mm (s42) and 72.0 mm (s80) higher.
+- What D-9 overrode:
+  - D-9 used the copy's episode_trace_report.py --hold tail_3_pitch_act=0.  Its reporting/episode_trace.py
+    trace_episode takes action = model.predict(obs, deterministic=True)[0] and sets action[14] = 0 before env.step,
+    every step.  So the policy acts on the true (held) state, and the env filters, scales and prices the held command.
+  - run_clamp.py does exactly that: the policy's own action every step, with only entry 14 replaced.
+- D-9 is reproduced [measured: d9_repro.py -> d9_repro.txt].  On D-9's own onset checkpoint (stance6 s42 3,670,016,
+  the copy D-9 read, seeds 3042-3061):
+  - Every seed's return and window return equal D-9's to within 9e-12.
+  - The held joint angle matches to 6 digits.
+  - The held-minus-baseline window return is +78.29 with 20 of 20 positive, D-9's number.
+
+==================================================================================================================
+2. CONDITIONS AND HARNESS
+==================================================================================================================
+- The rollout is the policies lens's run_policies.py (copied, not imported).  run_clamp.py writes out PR #650's
+  run_tracked_episode loop so that the reward and info can be kept.
+  - Constructor: env_class(mid)(**load_stage_config(mid, "stance")["env_kwargs"]), reset noise 0.05.
+  - A fresh env per seed, env.reset(seed); seeds 3042-3061 (the lens's seeds and spawns); 1,000 steps.
+  - Deterministic model.predict(normalizer.normalize_obs(obs)).
+  - CoM families from stance_track_quality, window from 5 s.
+  - PYTHONPATH = policies/code_copy, OMP/MKL 1 thread, nice 10, at most two simulation processes (run_all.sh,
+    run_replay_all.sh, run_d9.sh, run_start.sh ran in series).
+- The unforced arm was re-run in full, because the lens kept no reward.  All 480 unforced episodes are bit-identical
+  to the lens's, checked per episode [measured: run/s42_unforced/compare.jsonl and run/s80_unforced/compare.jsonl, 240
+  of 240 each]:
+  - float32 CoM, quaternion, feet, loads, headings and actions;
+  - t exactly;
+  - the metrics at 2, 5 and 9 s, as JSON;
+  - cmd_mean_from_2s.
+- Conditions (each 12 policies x 20 seeds):
+  - s42 unforced, and s42 with tail_3 held at 0 (run/s42_unforced, run/s42_held0);
+  - s80 unforced, and s80 with tail_3 forced to +1 (run/s80_unforced, run/s80_forced1);
+  - long runs of 2,000 steps (max_episode_steps override), 3 policies per arm, chosen by name before any forced result
+    was read: s42_A_1101, s42_A_1151, s42_B_1201 and s80_A_1301, s80_A_1351, s80_B_1401 (long/).  Their first 1,000
+    steps are bit-identical to the 1,000-step episodes, 240 of 240 [measured: check_long.py -> check_long.txt].
+- Added beyond the brief, all simulation only:
+  - Open-loop replay (run_replay.py, replay/): the unforced episode's exact recorded 15 commands, with entry 14
+    replaced.  The policy is frozen at what it did with or without the rail.
+    - Replay minus unforced is the plant's response to tail_3 alone.  Closed-loop minus replay is the policy's feedback.
+    - Without the replacement, the replay reproduces the lens's track bit for bit (replay/check/compare.jsonl, 4 of 4).
+  - The statue (zeros), with tail_3 forced to +1 against the statue at 0 (replay/statue, replay/statue_forced1).
+  - The two START checkpoints clamped the same way as their ends (run_start.py, start/).  Their unforced arms are
+    bit-identical to the lens's, 40 of 40 (start/*/compare.jsonl).
+- Falls or terminations: none in any arm.  The count is 0 in run/ (960 episodes), long/ (240), replay/ (484) and
+  start/ (80) [measured: analysis.txt "falls"].
+- Cost: about 95 min of one-core simulation, from the logs' per-policy times.  Wall time 16:12-17:01 UTC.  The folder
+  holds 203 MB.
+- Analysis: analyze_clamp.py -> analysis.txt and analysis.json.
+  - It pairs each forced episode with the unforced episode of the same (policy, seed), forced - unforced.
+  - Per policy it takes the median over the 20 seeds and the count of seeds moving each way.
+  - Across the 12 policies it counts the medians > 0 and < 0, with a sign test.
+  - Also: levels (the median of per-policy medians), the reward terms summed per episode, and window means of the
+    commands, joints, actuator forces and env diagnostics.
+
+==================================================================================================================
+3. (i) THE s42 POLICIES WITH THE RAIL REMOVED (tail_3 held at 0)
+==================================================================================================================
+[measured: analysis.txt section s42.  Format: median of per-policy medians [range]; policies +/-; p]
+Posture:
+- com_fore_aft_mean_m +1.63 mm [-6.13, +11.55]; 8 forward / 4 back; p 0.39; 167/73 episodes.
+  - The level moves from -25.70 to -24.88 mm.
+- root_pitch_mean_deg -0.16 deg [-1.46, +0.15]; 10 nose-down / 2; p 0.039.
+  - The level moves from -1.35 to -1.68 deg.
+- com_height_mean_m -3.42 mm [-10.70, +0.87]; 10 lower / 2; p 0.039.
+  - The level moves from 867.9 to 863.8 mm.
+- Each policy answers the same way on nearly every seed (most per-policy splits are 20/0 or 0/20).  The policies
+  differ among themselves (per-policy table: analysis.json groups.s42.com).
+  - Fore-aft: s42_A_1121 +11.6, s42_A_1151 +8.4, s42_B_1211 +5.9, s42_B_1221 -6.1 and s42_B_1231 -4.8 mm.
+  - Across policies the fore-aft change tracks the neck-pitch joint change (Spearman +0.87).  It runs against the
+    pitch change (-0.86).  [measured: per_policy_links.txt; exploratory]
+- Lateral, roll, sway, pivot and creep show no consistent change.
+  - com_lateral -0.11 mm (4/8); |com_lateral| +0.03 (8/4); roll 6/6.
+  - Per-seed lateral SD 1.35 -> 1.35 mm (6/6).
+  - CoM speed +0.002 mm/s (8/4); creep +0.0006 mm/s.  The creep's fore-aft part is -0.0002 mm/s; its sign is
+    consistent (1/11) but it is about 1/2500 of the 0.5 mm/s floor.
+  - Support margin +1.4 mm (8/4).
+Toward s80?  s80 stands at pitch -0.25 deg, CoM -32.4 mm and height 874.4 mm.
+- Removing the rail moves s42 pitch further nose-down, away from s80 (10 of 12).
+- It lowers the CoM, away from s80 (10 of 12).
+- It moves the fore-aft median forward, away from s80's further-back CoM, and not consistently (8/4).
+- So it does not bring s42 toward s80's posture on any of the three.  [measured]
+Reverse the 5 mm backward drift?  Not at the ends: the lineage median moves 0.8 mm (level -25.7 -> -24.9 mm, start
+-20.7), and the sign is mixed (8/4).  For the start checkpoint clamped as well, see section 7.  [measured]
+Return and terms (per 10 s episode):
+- Return +63.6 [+25.2, +99.7], 12/0, p 0.0005, 239/240 episodes.
+- Window 2-10 s (D-9's) +60.4, 12/0.  Window 5-10 s +39.2.
+- Gains: action_saturation +24.2, tail_home_pose +54.7, energy +4.2, all 12/0.
+- Losses: leg_home_pose -5.9 (2/10), nosedive -3.0 (2/10), posture -0.14 (2/10).
+- tail_stability (reward_tail) changes by only +0.04.  The rail is static, so the tail-tip angular-velocity term
+  barely sees it.
+- The open-loop replay gains +81.4.  So the policy's feedback response to the missing rail costs about 18 of the direct
+  gain (section 5).  [measured]
+- For comparison: D-9's onset gain was +78.3 per window, and its final lost -64.5.  The ECS ends behave like D-9's
+  onset checkpoint.  [measured: D-9 numbers from REVIEW.txt l456-l463, reproduced in d9_repro.txt]
+Compensation by the other 14 actuators [measured: analysis.txt OTHER ACTUATORS, s42]:
+- head_pitch command +0.142 [+0.083, +0.253], 12/0, 240/240 episodes; head_pitch joint +3.5 deg (12/0).
+  - + on head_pitch lowers the snout: +5 deg is -34 mm [measured: probe_signs.txt].
+  - So every s42 policy lowers its head about 3.5 deg when the rail is taken away; with the rail it holds the head up.
+- The leg commands show no consistent change.  Hip pitch, knee and ankle each move one way on only 3-5 of 12
+  policies, and every policy's median is under 0.015.  The tail_2 command moves -0.023 (2/10).
+  - The sum of |cmd| of the other 14 changes by -0.05 (4/8).  No large compensation.
+- The policy's own tail_3 output with the tail held: 0.33 [0.19, 0.53], against +1.0 unforced.
+
+==================================================================================================================
+4. (ii) THE s80 POLICIES WITH THE RAIL IMPOSED (tail_3 forced to +1)
+==================================================================================================================
+[measured: analysis.txt section s80]
+Posture:
+- com_fore_aft_mean_m +1.04 mm [-8.94, +15.60]; 7/5; p 0.77.
+- root_pitch_mean_deg +0.45 deg [-0.95, +2.97]; 8 nose-up / 4; p 0.39.  Time-course mean +0.48 deg.
+- com_height_mean_m -5.69 mm [-29.0, +23.8]; 5/7; p 0.77.
+- The spread across policies of their levels grows:
+  - fore-aft SD 4.89 -> 9.53 mm;
+  - pitch SD 0.32 -> 0.96 deg;
+  - height SD 11.0 -> 14.4 mm.
+- The policies' responses are large and idiosyncratic, mostly in the neck: neck_pitch joint +12.4 deg median
+  [-24.1, +38.6], 9/3.  Across policies the neck change tracks the height change (Spearman -0.99, per_policy_links.txt).
+  - + on neck_pitch lowers the head: +5 deg is snout -52 mm, CoM +1.6 mm forward and -4.3 mm down [probe_signs.txt].
+  - Two policies, s80_B_1411 and s80_B_1451, drop the head into the head-clearance penalty (-312 and -332).
+Lateral (the s80-only effect):
+- |com_lateral| +0.58 mm, 11/1, p 0.006.  |roll| +0.042 deg, 12/0, p 0.0005.
+- Per-seed lateral SD 1.75 -> 4.05 mm, 10/2.
+- The lightest-foot share falls 0.0036 (2/10).
+- In the long runs the lean keeps growing past 10 s, and the CoM does not settle (section 6).
+Stability: no falls.  CoM speed -0.02 mm/s (5/7) at 5-10 s.
+Return and terms:
+- Return -179.9 [-582.3, -114.1], 0/12, 0/240 episodes.  The open-loop replay gives -96.8.
+- action_saturation -33.3, tail_home_pose -61.8, energy -5.4, leg_home_pose -35.0, neck_posture -15.6 (3/9),
+  lateral_lean -1.7 (2/10), foot_flatness -2.7 (2/10), head_clearance down to -332.
+Policy's own tail_3 output with the tail forced up: -0.27 [-0.59, +0.27], against +0.03 unforced.  The s80 policies
+command against the raised tail.
+"The same way" as removing it from s42, on the rail-minus-no-rail convention [analysis.txt RAIL - NO RAIL]:
+  key                     s42 (unforced - held)        s80 (forced - unforced)
+  root_pitch_mean_deg     +0.16 nose-up (10/2)         +0.45 nose-up (8/4)          same sign; consistent only in s42
+  com_height_mean_m       +3.4 mm up (10/2)            -5.7 mm (5/7)                opposite; s80 inconsistent
+  com_fore_aft_mean_m     -1.6 mm back (4/8)           +1.0 mm (7/5)                opposite; neither consistent
+  |com_lateral|, |roll|   none (4/8, 3/9)              larger (11/1, 12/0)          s80 only
+  return                  -63.6 (0/12)                 -179.9 (0/12)                rail costs in both
+So no: imposing the rail does not reproduce, in the s80 policies, the change seen when it is removed from s42.  The two
+shared parts are the plant's small part (section 5), and a nose-up pitch tendency that is consistent in s42 only.
+
+==================================================================================================================
+5. PLANT AGAINST POLICY: THE OPEN-LOOP REPLAY AND THE STATUE
+==================================================================================================================
+[measured: run_replay.py -> analysis.txt OPEN-LOOP REPLAY, STATUE]
+Rail minus no rail, from the plant alone (each 12/0 or 20/0, every policy and seed the same way):
+                          s42 replay (sign flipped)   s80 replay           statue (zeros), 20 spawns
+  CoM fore-aft            +0.20 mm                    +0.18 mm             +0.23 mm
+  CoM height              +1.61 mm                    +1.55 mm             +1.61 mm
+  root pitch              -0.011 deg                  -0.0105 deg          -0.014 deg
+  CoM lateral, roll       0                           0                    0
+- These match the kinematic shift at the home pose: tail_3 +5.2 deg moves the CoM +0.09 mm forward and +1.56 mm up
+  [probe_signs.txt].
+- The rail's mechanical part is about 0.2 mm, 1.6 mm and 0.01 deg.  It is the same in every policy and in the statue.
+- The rest of every posture change in sections 3 and 4 is the policy's feedback.  Policy feedback (closed loop minus
+  replay):
+  - s42 pitch -0.17 deg (2/10) and height -1.85 mm (2/10).  Fore-aft +1.8 mm (9/3, n.s.).
+  - s80 pitch +0.46 (8/4) and height -7.2 mm (5/7).  Fore-aft +0.9 mm (7/5).
+- In the open-loop replay the CoM speed rises (+0.05 and +0.16 mm/s, 12/0 each).  The policy's feedback removes it
+  (0/12 in s42, 1/11 in s80).  Over 5-10 s the closed-loop policies stay as quiet as unforced.  The forced s80 arm
+  stops settling only after 10 s (section 6).
+- Return, plant alone (replay): s42 +81.4, s80 -96.8.  The statue at +1 loses -97.5 against the statue at 0.
+
+==================================================================================================================
+6. LONG RUNS (2,000 steps; 3 policies per group x 20 seeds), windows 5-10, 10-20 and 15-20 s
+==================================================================================================================
+[measured: analysis.txt LONG RUNS; check_long.txt]
+- s42, rail held at 0: the changes do not grow or fade after 10 s.
+  - Fore-aft +1.64 / +1.57 / +1.48 mm.
+  - Pitch -0.39 / -0.39 / -0.38 deg.
+  - Height -4.13 / -4.17 / -4.17 mm.
+  - Each is 3/0 policies; the episode splits are 58/2, 7/53 and 0/60.
+  - Lateral and roll unchanged; CoM speed unchanged.
+  - Return over 10-20 s +84.2 (3/0); over 0-20 s +162.1.
+- s80, rail imposed: the sideways lean grows.
+  - |com_lateral| +0.03 / +2.76 / +3.67 mm (2/1, 3/0, 3/0; episodes 37/23, 42/18, 44/16).  The level goes from 0.35 to
+    4.80 mm at 15-20 s.
+  - |roll| +0.039 / +0.055 / +0.057 deg (3/0).
+  - CoM speed +0.04 / +0.12 / +0.11 mm/s (3/0 after 10 s).  The level is 0.138 against 0.025 mm/s at 15-20 s: forced,
+    the policy does not settle.
+  - Pitch -0.51 / -0.57 / -0.59 deg, 3/0 nose-down.  These three policies sit in the nose-down part of the 12 (section
+    4: 4 of 12 went nose-down).
+  - Height +9.8 / +10.8 / +11.0 mm (2/1).
+  - Return over 10-20 s -217 (0/3).
+- So the slow lateral settling the brief warned of does matter for the forced s80 arm.  The 5-10 s window under-reads
+  its lean.  It does not matter for the s42 arm.
+
+==================================================================================================================
+7. THE START CHECKPOINTS CLAMPED THE SAME WAY, AND THE 5 mm DRIFT
+==================================================================================================================
+[measured: run_start.py -> analysis.txt START CHECKPOINTS; one start per lineage, 20 seeds]
+- start_s42 (tail_3 command 0.52, joint +3.1 deg unforced) with tail_3 held at 0:
+  - The CoM moves back 3.4 mm, from -20.7 to -24.2 (0/20 seeds).
+  - Pitch moves +0.25 deg nose-up, from -1.45 to -1.20 (20/0).
+  - Height drops 2.9 mm; return rises +42.
+  - The plant's part at 3.1 deg is about 0.1 mm.  So this is the start policy's own feedback, opposite in fore-aft
+    sign to most ends' responses.  [inferred from section 5, scaled]
+- The s42 lineage's change from start to ends, each end against the start (12 ends):
+                          unforced (start and ends)          tail_3 held at 0 in both
+  CoM fore-aft            -4.98 mm (1 above / 11 below, p 0.006)   -0.72 mm (6/6, p 1.0)
+  root pitch              +0.10 deg (7/5)                          -0.48 deg (1/11, p 0.006)
+  CoM height              +2.2 mm (9/3)                            +0.9 mm (8/4)
+  So with the tail held at 0 in the start and in the ends, the backward CoM drift is gone (-0.7 mm, 6/6).  A
+  nose-down pitch change of about 0.5 deg appears in its place.  [measured]
+- start_s80 forced to +1 moves a lot: CoM +10.5 mm forward (20/0), height -21 mm, pitch -0.58 deg.  It is out of
+  distribution, like its ends.
+- Reading [inferred]:
+  - The unforced 5 mm drift is not a fixed property of the ends' posture independent of the tail.  How each policy
+    stands depends on the tail state it sees, and the start and the ends respond to the clamp in opposite fore-aft
+    directions.
+  - It is still not shown to be caused by the rail.  There is one start, the clamp tests the trained policies'
+    dependence on the tail state, and it does not test what training without the rail would have produced.  The
+    lineage confound of the policies lens stands.
+
+==================================================================================================================
+8. (iii) WHAT THE RAIL IS DOING TO THE STANCE, AND WHAT THESE DATA CANNOT SHOW
+==================================================================================================================
+What they show:
+1. Mechanics [measured: section 5]
+   - The rail lifts the distal tail about 5 deg, so the tail tip rises 64-72 mm.
+   - It moves the CoM 0.2 mm forward and 1.6 mm up, and the pelvis pitch by 0.01 deg.
+   - That is negligible against the lineage differences (6.7 mm, 1.1 deg) and against the policies' own spawn-to-spawn
+     spread (lateral SD 1.4-1.8 mm).  Not a counterweight.
+2. Cost [measured: sections 3-5]
+   - It costs about 80-97 reward per episode, directly in action_saturation, tail_home_pose and energy.
+   - Removing it from the s42 ends gains +64 (closed loop) to +81 (open loop).
+3. The rail is a self-reinforcing loop in the policy's tail_3 channel [measured: rail_onset.txt; loop interpretation
+   inferred]
+   - s42 unforced: the policy's own command goes from 0 at spawn to 0.53 at 0.75 s and 0.90 at 2.5 s, as the tail
+     rises (+2.1 deg, then +4.6).
+   - With the tail held at 0, the own command stays at 0.35 from 0.5 s on.
+   - So the higher the tail, the more the s42 policy commands it up, until the bound.
+   - The s80 policies have the opposite sign: with the tail forced up, their own command is -0.29.
+4. The rail is tolerated, not needed [measured: sections 3 and 6]
+   - Without it the s42 stance keeps the same lateral lean, roll, sway, creep and margins over 10 and 20 s.  None fall,
+     and the return is higher.
+   - What the s42 policies have learned to pair with the rail is a posture shift through the other actuators: the head
+     held 3.5 deg higher (12/12), the pelvis about 0.17 deg more nose-up and the CoM about 2 mm higher (policy
+     feedback).  The fore-aft CoM shifts by an amount and sign that depend on the policy.
+5. The rail does not account for the s42-versus-s80 posture differences [measured: sections 3-4; inferred as stated]
+   - Its pitch effect (nose-up) is opposite to s42's nose-down offset.
+   - Removing it moves s42 further from s80 in pitch and height.
+   - Imposing it on s80 does not move them toward s42 consistently.
+6. For a policy not trained with it (s80), the rail is a perturbation [measured: sections 4 and 6]
+   - It brings large, policy-specific neck re-postures, a lateral lean that grows over 20 s, and a return loss of
+     -180, of which about -83 is the policies' own response.
+   - The s42 policies' tolerance of the tail being up or down is therefore learned [inferred].
+What they cannot show:
+- Why the rail formed in training, or whether s42's posture would differ had it trained without the rail.  A clamp
+  probes the trained policy's dependence on the tail state; it is not a training counterfactual.  The lineage confound
+  (all s42 continuations railed, no s80 one) is untouched.  [inferred]
+- The 5 mm drift: one start checkpoint per lineage.  The drift's disappearance under the clamp (section 7) rests on one
+  start's response.  [measured n = 1 start]
+- Own-noise (stochastic) behaviour, pushes, other noise levels, other seeds or other checkpoints.  Everything here is
+  deterministic, at reset noise 0.05, on seeds 3042-3061, on 24 ends plus 2 starts and D-9's onset checkpoint.
+- Which internal mechanism turns the missing rail into the s42 head and pelvis change.  The replay shows it is the
+  policy's response, not the plant; how the network maps the tail_3 joint observation to head_pitch is not opened here.
+- Partial clamps (other held values) and a clamp of tail_1 or tail_2 were not run.
+- Multiplicity: about 30 CoM keys, 25 reward terms and 15 commands were read per group, unplanned.  The consistent
+  results are the ones with 10+/12 and 200+/240 episodes, or 12/0.  The p near 0.04 results are suggestive only.
+
+==================================================================================================================
+9. RULE NOTES (what touched anything outside this folder)
+==================================================================================================================
+- At 17:02 UTC I ran one check with "python -c" and forgot -B.  It printed the free joint's body name and simulated
+  nothing.  Python wrote 68 .pyc files, in 8 new __pycache__ folders, under the policies lens's
+  com_revisit/notes/policies/code_copy/.
+  - I deleted exactly those files (all created 17:02:20-17:02:23; no .pyc existed there before) and the 8 now-empty
+    folders.
+  - No source file there changed.  Only the parent folders' mtimes moved.  [measured: find -newer, see the session]
+- A read-only "git status" in /home/user/mesozoic-labs at about 17:06 changed only the .git folder's mtime: a lock
+  file was made and removed, and .git/index is still 15:13.  Nothing was written to the tree.
+- Nothing was written under r10round/ecs, r10round/f2 or the other session's stance6 copies.  find -newer shows no
+  file there newer than this folder's first file.
+- Disk: this folder is 203 MB.  Simulation processes: at most two at a time, always.
+
+==================================================================================================================
+10. FILES (this folder)
+==================================================================================================================
+probe_env.py -> probe_env.txt          actuator table, ctrl ranges, home ctrl, spring, filter, info keys
+probe_signs.py -> probe_signs.txt      sign conventions (neck, head, tail_3) and kinematic CoM shifts
+run_clamp.py                           the harness: unforced (--compare checks bit identity) and --force V
+run_all.sh, run_p1.log, run_p2.log, run.started, run.finished     the main and long queue
+run/{s42_unforced,s42_held0,s80_unforced,s80_forced1}/   episodes.jsonl (per episode: metrics at 2/5/9 s, return,
+    window sums of every reward term, window means of commands, own commands, ctrl, forces, joints, tail tip),
+    tracks/*.npz (forced: full tracks; unforced: extras only, the tracks being the lens's), compare.jsonl, meta.json
+long/{s42_unforced,s42_held0,s80_unforced,s80_forced1}/  the same for 2,000 steps (metrics at 2/5/9/10/15 s and 5-10 s)
+check_long.py -> check_long.txt        first 1,000 steps of the long episodes = the 1,000-step episodes (240/240)
+run_replay.py, run_replay_all.sh, replay_p1.log, replay_p2.log    open-loop replay and statue arms
+replay/{check,s42_held0,s80_forced1,statue,statue_forced1}/
+d9_repro.py, run_d9.sh -> d9_repro.txt, d9_repro.err             D-9 reproduced (to 9e-12)
+run_start.py, run_start.sh, start_p1.log, start_p2.log -> start/{s42_unforced,s42_held0,s80_unforced,s80_forced1}/
+analyze_clamp.py -> analysis.txt, analysis.json, analysis.err (empty)    the whole paired analysis
+per_policy_links.txt, rail_onset.txt   inline scripts, logged in the files
+smoke/                                 the two-seed smoke test (s42_A_1101), kept for the record

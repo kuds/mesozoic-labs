@@ -440,6 +440,17 @@ and `final/criteria_ecs_final.txt`, keep the one workflow run id of their line
 session tool id, and none holds a model identifier, an email address or a
 commit trailer.
 
+*Added 2026-10-29, later still (`com_revisit/`, `tail_probes/`):* no new kind
+of change. Every copy is byte-identical to its source, absolute
+session-scratch paths and checkout paths included, but `com_revisit/REPORT.txt`
+(**redact**: 2 workflow run ids); no other copy held a session tool id. Each
+notes folder keeps its top-level text files, run markers, small JSON and
+JSONL outputs and its verifier's `out/` text outputs, as the two READMEs
+state. Kept as their sources have them, so to leave out of a manual
+pre-commit run: 12 JSON files without a final newline, 5 files ending in a
+blank line and 6 with lines ending in spaces (each README names its own). No
+copy holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -453,6 +464,7 @@ commit trailer.
 *Added 2026-10-27, later still:* nor `stance6/README.md`, likewise.
 *Added 2026-10-28:* nor `stance6_results/README.md`, likewise.
 *Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
+*Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
 
 ## Contents
 
@@ -1480,6 +1492,23 @@ of 6 in both) and the reading's two independent checks (`check/stat/`,
 the text ones are on the never-merged orphan branch `claude/handoff-ecs`. Its
 [README](ecs_results/README.md) indexes it.
 
+### Added on 2026-10-29, later still (decisions D-D53 to D-D55: the centre-of-mass revisit and the tail probes)
+
+**`com_revisit/`: the centre-of-mass revisit's report, its checks on the
+entropy screen's 26 policies and the creep scan of two more models, each with
+its adversarial verifier (114 files, about 0.7 MB).** No policy leans to one
+side or creeps, railed and unrailed policies lean alike, and neither scanned
+model creeps. Its [README](com_revisit/README.md) indexes it.
+
+**`tail_probes/`: the tail clamp test, the normaliser probe and the three
+posture tests, each with its adversarial verifier (214 files, about 1.8
+MB).** The rail is no counterweight, costs reward and persists through a
+learned positive feedback from the observed tail angle; the loop's growth is
+in the weights, not the normaliser's drift; no nose-down or forward
+centre-of-mass shift came before the tail rose, and the railed lineage's
+networks read their posture as a tail offset from mid-rise on. Exploratory and
+report only. Its [README](tail_probes/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1586,6 +1615,9 @@ copies.
 | The screen's reading (2026-10-29, later) | `sed -n '/^STATUS/,/^TABLES/p' ecs_results/score/score.txt` | `STATUS: final`; line 3, "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES (not tested: …)"; s42 arm A 6 of 6, arm B 6 of 6; s80 arm A 1 of 6, arm B 1 of 6 |
 | The copies against the screen's durable copy (2026-10-29, later; needs the durable branch) | `git show 067b8a10:SHA256SUMS` of `claude/handoff-ecs` against the source sha256 SOURCES.txt gives each `ecs_results/` row but the run log's | equal for all 179 |
 | The files themselves (2026-10-29, later, with `ecs_results/`) | `sha256sum -c SHA256SUMS` | all 1029 files OK |
+| The clamp test's loop gain (2026-10-29, later still) | `head -49 tail_probes/verify_clamp/loop_summary.txt` | the s42 ends' loop gain median +0.630 (range +0.480 to +0.910, positive in 12 of 12), start_s42 +0.268, the s80 ends' median -0.255 |
+| The copies against their sources (2026-10-29, later still; session scratch only) | `sha256sum` of each source SOURCES.txt names for `com_revisit/` and `tail_probes/` | equal to the sha256 given, and to the copy's for all but `com_revisit/REPORT.txt` |
+| The files themselves (2026-10-29, later still, with `com_revisit/` and `tail_probes/`) | `sha256sum -c SHA256SUMS` | all 1357 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

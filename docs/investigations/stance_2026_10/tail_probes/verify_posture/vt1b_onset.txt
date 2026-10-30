@@ -1,0 +1,36 @@
+VERIFY TEST 1b: noise-matched onset detection and short-window hinge (vt1b_onset.py)
+
+s42: reference (0.524, 1.049], search to 3.670M; direction as named (+1 up)
+  tail mu      dir +1 ref -0.022 sd 0.007: k2 1.311M, k3 1.376M, k5 1.442M
+  q3 angle     dir +1 ref -0.097 sd 0.032: k2 1.311M, k3 1.376M, k5 1.442M
+  pitch        dir -1 ref -0.452 sd 0.052: k2 1.638M, k3 1.704M, k5 1.901M
+  CoM train    dir +1 ref -27.049 sd 1.290: k2 1.901M, k3 2.163M, k5 -
+  pitch train  dir -1 ref -0.505 sd 0.055: k2 1.704M, k3 1.704M, k5 1.901M
+  neck         dir +1 ref +12.604 sd 0.155: k2 1.442M, k3 1.573M, k5 1.638M
+  head joint   dir +1 ref +12.974 sd 0.143: k2 2.032M, k3 2.163M, k5 -
+  hinge on [0.524M, 2.10M] (t0, slope/M):
+    tail mu      t0 1.204M slope +0.179/M
+    q3 angle     t0 1.212M slope +0.912/M
+    pitch        t0 1.384M slope -0.807/M
+    CoM train    t0 1.638M slope +11.291/M
+    pitch train  t0 1.442M slope -0.892/M
+    neck         t0 1.294M slope +2.458/M
+    head joint   t0 1.769M slope +1.706/M
+
+s42: reference (6.554, 6.816], search to 7.602M; direction as named (+1 up)
+  tail mu      dir +1 ref -0.334 sd 0.057: k2 7.078M, k3 7.078M, k5 7.143M
+  q3 angle     dir +1 ref -1.645 sd 0.285: k2 7.078M, k3 7.078M, k5 7.143M
+  pitch        dir -1 ref -0.828 sd 0.051: k2 7.078M, k3 7.078M, k5 7.143M
+  CoM train    dir +1 ref -18.827 sd 0.369: k2 -, k3 -, k5 -
+  pitch train  dir -1 ref -0.801 sd 0.068: k2 7.078M, k3 7.078M, k5 7.143M
+  neck         dir +1 ref +17.377 sd 0.733: k2 -, k3 -, k5 -
+  head joint   dir -1 ref +12.558 sd 0.776: k2 7.012M, k3 7.078M, k5 7.209M
+
+s60: reference (4.981, 5.636], search to 8.126M; direction as named (+1 up)
+  tail mu      dir +1 ref +0.129 sd 0.012: k2 5.964M, k3 6.029M, k5 6.095M
+  q3 angle     dir +1 ref +0.674 sd 0.061: k2 5.964M, k3 6.029M, k5 6.095M
+  pitch        dir +1 ref -1.070 sd 0.065: k2 5.833M, k3 5.964M, k5 6.816M
+  CoM train    dir -1 ref -27.055 sd 1.859: k2 5.964M, k3 6.095M, k5 -
+  pitch train  dir +1 ref -1.123 sd 0.087: k2 5.833M, k3 5.964M, k5 6.881M
+  neck         dir -1 ref +8.422 sd 1.674: k2 6.685M, k3 -, k5 -
+  head joint   dir -1 ref +9.376 sd 0.177: k2 7.471M, k3 7.602M, k5 7.668M

@@ -1,0 +1,68 @@
+
+===== s42  (12 runs x 7 checkpoints)
+start pickles: 1 distinct sha256 over runs; statistics identical: True
+counts: start 6291464.0001; per step (run 0): 6291464, 6815760, 7340048, 7864336, 8388624, 8912912, 9437200
+  frames added per interval: [524288, 524296]
+tail_3 angle (obs 6): step, median mean deg, median sd deg, median scale /deg [min..max]
+   3145728  +0.466  0.781  1.281 [1.281..1.281]
+   3407872  +0.643  1.028  0.973 [0.933..1.008]
+   3670016  +0.839  1.266  0.790 [0.757..0.829]
+   3932160  +1.023  1.451  0.689 [0.667..0.708]
+   4194304  +1.191  1.588  0.630 [0.607..0.645]
+   4456448  +1.346  1.694  0.590 [0.566..0.610]
+   4718592  +1.488  1.787  0.559 [0.538..0.578]
+  end/start scale ratio per run: min 0.420 max 0.451 median 0.437
+63 dims ranked by median |log(scale_end/scale_start)| (top 6), median ratio:
+    6 tail_3_pitch:q     ratio 0.437 [0.420..0.451]
+   44 gravity[2]         ratio 1.223 [1.204..1.224]
+   37 l_knee:v           ratio 1.212 [1.211..1.212]
+   30 r_knee:v           ratio 1.212 [1.211..1.212]
+   28 r_hip_pitch:v      ratio 1.209 [1.208..1.210]
+   35 l_hip_pitch:v      ratio 1.209 [1.208..1.210]
+  rank of obs 6: 1 of 63; by mean shift rank 1 (median shift 1.31 start sd)
+  dims with start var < 1e-6: ['command[0]', 'command[1]', 'command[2]']
+  tail dims, median end/start scale ratio [range over runs]:
+   obs  3 tail_1_pitch:q   1.039 [0.968..1.080]  mean shift 0.20 sd0
+   obs  4 tail_1_yaw:q     0.961 [0.942..0.975]  mean shift 0.00 sd0
+   obs  5 tail_2_pitch:q   1.133 [1.119..1.147]  mean shift 0.02 sd0
+   obs  6 tail_3_pitch:q   0.437 [0.420..0.451]  mean shift 1.31 sd0
+   obs 24 tail_1_pitch:v   1.194 [1.191..1.195]  mean shift 0.00 sd0
+   obs 25 tail_1_yaw:v     1.177 [1.175..1.182]  mean shift 0.00 sd0
+   obs 26 tail_2_pitch:v   1.152 [1.140..1.155]  mean shift 0.00 sd0
+   obs 27 tail_3_pitch:v   1.153 [1.145..1.160]  mean shift 0.03 sd0
+  implied tail_3 mean of frames added per interval (deg, median over runs): +2.77, +3.35, +3.61, +3.75, +3.89, +3.86
+
+===== s80  (12 runs x 7 checkpoints)
+start pickles: 1 distinct sha256 over runs; statistics identical: True
+counts: start 8388616.0001; per step (run 0): 8388616, 8912912, 9437200, 9961488, 10485776, 11010064, 11534352
+  frames added per interval: [524288, 524296]
+tail_3 angle (obs 6): step, median mean deg, median sd deg, median scale /deg [min..max]
+   4194304  +0.114  0.309  3.238 [3.238..3.238]
+   4456448  +0.109  0.307  3.262 [3.248..3.267]
+   4718592  +0.100  0.306  3.266 [3.234..3.282]
+   4980736  +0.089  0.308  3.241 [3.115..3.292]
+   5242880  +0.081  0.310  3.227 [2.965..3.307]
+   5505024  +0.081  0.311  3.210 [2.761..3.319]
+   5767168  +0.079  0.314  3.184 [2.499..3.328]
+  end/start scale ratio per run: min 0.772 max 1.028 median 0.983
+63 dims ranked by median |log(scale_end/scale_start)| (top 6), median ratio:
+    0 neck_pitch:q       ratio 0.838 [0.697..0.898]
+   44 gravity[2]         ratio 1.166 [1.162..1.171]
+   35 l_hip_pitch:v      ratio 1.163 [1.162..1.163]
+   28 r_hip_pitch:v      ratio 1.163 [1.162..1.163]
+   30 r_knee:v           ratio 1.162 [1.162..1.163]
+   37 l_knee:v           ratio 1.162 [1.162..1.163]
+  rank of obs 6: 53 of 63; by mean shift rank 4 (median shift 0.11 start sd)
+  dims with start var < 1e-6: ['command[0]', 'command[1]', 'command[2]']
+  tail dims, median end/start scale ratio [range over runs]:
+   obs  3 tail_1_pitch:q   1.063 [1.027..1.103]  mean shift 0.13 sd0
+   obs  4 tail_1_yaw:q     1.003 [0.984..1.026]  mean shift 0.00 sd0
+   obs  5 tail_2_pitch:q   1.099 [0.991..1.117]  mean shift 0.06 sd0
+   obs  6 tail_3_pitch:q   0.983 [0.772..1.028]  mean shift 0.11 sd0
+   obs 24 tail_1_pitch:v   1.147 [1.144..1.150]  mean shift 0.00 sd0
+   obs 25 tail_1_yaw:v     1.133 [1.127..1.136]  mean shift 0.00 sd0
+   obs 26 tail_2_pitch:v   1.109 [1.104..1.115]  mean shift 0.00 sd0
+   obs 27 tail_3_pitch:v   1.104 [1.097..1.110]  mean shift 0.00 sd0
+  implied tail_3 mean of frames added per interval (deg, median over runs): +0.03, -0.05, -0.12, -0.06, +0.00, +0.05
+
+(eps, clip, norm_obs, norm_reward) over all pickles: [(1e-08, 10.0, True, True)]

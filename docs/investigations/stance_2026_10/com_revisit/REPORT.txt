@@ -1,0 +1,179 @@
+CENTRE-OF-MASS REVISIT: REPORT FOR THE MAINTAINER
+Written 2026-10-29 (date -u) from workflow [id removed] (4 lenses, 3 adversarial verifiers) and the tail clamp
+workflow [id removed] (runner and verifier). Nothing is committed, pushed or opened as a PR; every code change is an
+uncommitted patch in a scratch worktree of origin/main 378ae2f8 (S2/com_revisit/wt_*). No training anywhere.
+[measured] = run in this work, with its file; [inferred] = reasoned, basis named. "Verified" = an adversarial verifier
+re-ran or re-computed it; the design lens (section 5) had no verifier.
+S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; notes under
+S2/com_revisit/notes/<lens>/ (NOTES.txt in each), verifiers under notes/verify_<lens>/.
+
+======================================================================================================
+1. ABSOLUTE TARGET TESTS (verified; notes/targets, notes/verify_targets)
+======================================================================================================
+Six targets, measured on every model's statue and its 80 committed spawns (486 episodes):
+  your three: turn under 1 deg from the spawn; no rocking after 3 s (CoM speed RMS <= 1 mm/s and fore-aft spread
+  <= 1 mm from 3 s); lean under 5 mm. Three analogues: settled by 2 s, kept roll under 0.3 deg, foot slip after the
+  landing under 2 mm.
+Today 22 of the 36 model-target pairs are missed [measured, verified]:
+  - Turn: every model misses (T. rex 49 of 80 spawns, worst 4.85 deg; Velociraptor 52, 5.66; Compsognathus 52,
+    5.11; robot 23, 3.85; Brachiosaurus 6, 1.48; Dibothrosuchus 7, 1.40). The statues meet it (mirror symmetry).
+  - No rocking after 3 s: the T. rex statue (2.09 mm/s; 75 of 80 spawns) and the Brachiosaurus (80 of 80) miss,
+    and the robot's two creep spawns. The T. rex's 0.5 Hz sway has a damping ratio of about 0.12-0.15; meeting this
+    target needs about 0.19-0.24 [inferred, one-mode fit, verified range].
+  - Lean 5 mm: only the Brachiosaurus misses (52 of 80; median 6.5 mm, worst 22.8 mm). Others stay under 0.41 mm.
+  - Kept roll 0.3 deg: only the Brachiosaurus (35 of 80).
+  - Slip after landing 2 mm: missed on every model but the robot's ordinary spawns; the Brachiosaurus statue
+    itself slips 7.0 mm after 1 s.
+  - Settled by 2 s: T. rex and Brachiosaurus on all 80, Velociraptor 60 of 80, Compsognathus 4, robot 2 (creep).
+  14 pairs are already met by the statue and all 80 spawns (they would be real bars, not expected failures).
+Drafted: 22 strict expected failures (targets_xfail.patch), each carrying its measured value; they fail today as
+expected, flip to failures when a model meets the target, and fail outright on a fall. About +9-11 s per run.
+Verifier's corrections, to fix before any PR:
+  - A renamed or missing reading counts as a "miss", so a broken reduction would hide inside the expected
+    failures. The draft must fail loudly on a missing key or a NaN.
+  - The rocking reading averages from 3 s to the end, so on 20 s horizons a spawn rocking at 1.8 mm/s at 3-4 s
+    passes at 0.6 mm/s. The per-second settle rule at 3 s is the stricter, horizon-independent reading.
+  - The turn target reads the final turn; reading the largest turn along the way changes the Brachiosaurus from
+    6 to 24 of 80 misses. Which reading is yours.
+  - The Velociraptor's foot site under-reads its toes' slip (median 1.4x); the 2 mm slip basis fits only the
+    robot's foot spacing (a 1 deg pivot slides a foot 1.1 mm on the small models, 5.2 mm on the Brachiosaurus).
+  - The patch also routes an existing test through a shared spawn cache (outcomes unchanged).
+
+======================================================================================================
+2. THE COMPSOGNATHUS ROBOT CREEP (cause found; verified with corrections; notes/creep, notes/verify_creep)
+======================================================================================================
+What it is [measured, verified]: a simulation artefact, not physics. The ankle-roll servo's damping acts on a very
+light joint (armature an assumed 1e-4). MuJoCo steps that damping implicitly (through M + h*D) while the contact
+solver predicts each step with the plain M. On a spawn that lands pre-stressed on its sole edges, the mismatch lets
+the contacts do net positive work (+7.7 mJ per cycle), which drives an exact 25 Hz rock-and-hop; each foot leaves the
+floor once per cycle and the robot slides back 3-4 mm/s. The servo commands are constant: the 50 Hz control rate
+plays no part (#650's "aliased" reading was wrong). The same happens with implicit joint damping under Euler.
+Corrected by the verifier: the lens's simple criterion (a damping eigenvalue above 2) is refuted. At the same
+eigenvalue, more armature or a 1 ms step removes the creep, so it is not a usable plant check.
+The fix [measured, verified]: robot armature 1e-4 -> 3e-4 (robot physics r1 -> r2). It stops all 10 known creepers,
+0 of 200 new seeds creep (against 6 of 200 today), resting spawns keep their posture within 0.003 mm and 0.002 deg,
+and it holds even at 2-3x the servo damping. But:
+  - It is a plant change: every robot checkpoint is invalidated and the robot's recovery calibration must be redone.
+  - As drafted it leaves 9 shared tests failing (3 robot dynamics goldens to recapture, 6 tied to the recovery
+    calibration), and its notes state the refuted criterion; both need fixing before it could land.
+  - The robot trains and evaluates at reset noise 0.01, where 0 of 202 spawns creep (including the 10 known
+    creepers). The creep shows only at the CoM tests' noise 0.02. So it does not touch training today.
+Also found: the anatomical Compsognathus's ankle and the Velociraptor's claw have similarly light, heavily damped
+joints; whether they creep is untested (the eigenvalue cannot say). The robot README's note that damping was halved
+"to remove transient rocking" was plausibly this same artefact [inferred].
+
+======================================================================================================
+3. CoM CHECKS ON THE 24 TRAINED POLICIES (verified; notes/policies, notes/verify_policies)
+======================================================================================================
+[measured, verified] The 24 entropy-screen end policies and their 2 start checkpoints, deterministic, M1 seeds
+3042-3061, against the neutral-action statue at the same spawns:
+  - No policy leans to the same side across seeds and none creeps (also on the verifier's 10 further seeds).
+  - The same harness flags the r9 checkpoint's known lean at once. But the verifier showed r9 does not lean on its
+    own r9 plant: its lean (#650's "balances but leans" example) appears only when it runs on r10, a plant-transfer
+    effect. The lens's explanation (the lean bonus and mirror PPO) is refuted.
+  - Main's T. rex plant and dynamics equal the sealed run-branch copy's bit for bit.
+  - Rail (s42) vs no rail (s80): lean does not differ. Pitch (-1.35 vs -0.25 deg) is inherited from the parents. The
+    fore-aft CoM gap is mostly inherited, but the railed lineage moved its CoM about 5 mm back during the
+    continuation (11 of 12) while tail_3 went to the rail: the one change not already in the starts. Section 4
+    tests whether the rail causes it.
+  - Arms A and B (entropy on or off): no difference in any CoM measure.
+  - Better than the statue: the policies stop the plant's rocking (0.23 vs 2.64 mm/s). Worse: a spawn-dependent
+    sideways offset (spread 1.35-1.75 mm against 0.15), mostly a slow re-centring that continues past 10 s; one
+    episode still holds 7 mm at 20 s.
+  - One end policy falls: s80_A_1321 on seed 3072 at 2.85 s (deterministic).
+  - On 40 seeds, 3 of 26 policies have a reproducible one-sided roll of 0.007-0.020 deg; the drafted check passes
+    them only because of its 0.10 deg floor.
+Drafted: CoM-P1, a check for trained policies (a same-side sign test with a magnitude floor, plus a creep bar),
+fixed before the end policies were read; it flags 0 of 26 policies on both seed sets, 0 statue runs, and flags r9.
+policy_com_check.patch adds it as test helpers (no gate change); 3 of 7 simple mutations survive its tests, to fix
+before any PR. Putting it in the stance gate or a round's pre-registration is your call.
+
+======================================================================================================
+4. THE TAIL CLAMP TEST (notes/clamp, notes/verify_clamp)
+======================================================================================================
+Exploratory and report-only (not pre-registered). The 24 entropy-screen end policies, deterministic, seeds 3042-3061,
+1,000 steps (and 2,000 on 3 policies per arm): the 12 s42 (railed) policies unforced and with tail_3 held at 0; the 12
+s80 (no rail) policies unforced and with tail_3 forced to +1. The override is D-9's (only action entry 14 replaced) and
+reproduces D-9 exactly; every unforced episode is bit-identical to the policies lens's; no falls in any arm. The
+verifier re-ran a subset with its own loop (bit-identical) and checked the override inside the env at every step.
+What the rail is mechanically [measured, verified]:
+  - Command +1 holds the tail tip up only +5.2 deg, not 12: the servo and the tail's preloaded spring split the
+    stiffness (60 against 80), and the preload cancels gravity at 0.
+  - On the plant alone (open-loop replay of each episode's own commands, and the statue) it moves the CoM 0.2 mm
+    forward and 1.6 mm up and the pelvis 0.01 deg: the same in every policy. It is not a counterweight.
+  - It costs about 80-100 reward per episode directly (action saturation, tail home pose, energy).
+(i) Removing it from s42 [measured, verified]: return +63.6 per episode (12 of 12 policies). The stance is otherwise
+  unchanged: lateral lean, roll, sway, creep and margins the same over 20 s. The pelvis goes 0.16 deg further nose-down
+  and the CoM 3.4 mm lower (10 of 12), and every policy lowers its head 3.5 deg (12 of 12). The rail is tolerated, not
+  needed. Removing it moves s42 away from s80's posture, not toward it, and does not undo the lineage's 5 mm drift.
+(ii) Imposing it on s80 [measured, verified with corrections]: return -180 (12 of 12; about half direct, half the
+  policies' reaction). No shared posture shift; instead large, policy-specific neck re-postures (five policies lose
+  head-clearance reward, two by 312-332), a worse sideways stance (11-12 of 12), and on some policies a lean that keeps
+  growing (s80_B_1411 from 14 to 20 mm between 5 and 20 s). A body not trained with the rail is destabilised by it.
+The mechanism [measured by the verifier's observation-only tail-angle sweep]: in the s42 policies the tail_3 command
+  rises with the tail angle they observe (12 of 12), loop gain about 0.63 (0.48-0.91). That is a positive-feedback
+  loop below 1, so it settles at a fixed point, but that point lies past the +1 bound: the command parks at the rail.
+  Within an episode the command climbs from 0 to 0.9 in 2.5 s as the tail rises; with the tail held at 0 it stays at
+  0.35. The continuation roughly doubled the gain (start checkpoint 0.27 -> ends 0.63). The s80 policies have the
+  opposite sign (10 of 12 push back). The head-up coupling is the same kind of direct mapping from the observed tail
+  angle (12 of 12).
+The 5 mm backward drift of the railed lineage: it exists only in the tail-up state. With the tail held at 0 in both the
+  start and the ends the drift is -0.7 mm; with both railed it is -7.7 mm. The policies' response to the rail reversed
+  during the continuation. One start checkpoint; not shown to be caused by the rail in training.
+What it means for the CoM question [inferred]: the rail is not a balance or CoM strategy, and the CoM tests cannot see
+  it on the s42 policies, because their stance is the same with or without it. The actuator-saturation ledger stays the
+  right detector. What the clamp adds is the mechanism: a learned positive feedback from the observed tail angle to the
+  tail command, whose gain grew in training. That fits the round review's finding that the observation dimension that
+  drifts most in normalisation is the joint that later saturates [inferred link, untested]: a shrinking normaliser std
+  on the tail angle would raise exactly this gain.
+Not shown: why the loop formed in training or what training without it would give; one start checkpoint per lineage;
+  deterministic rollouts at one reset noise only; no tail_1/tail_2 clamps. Many keys were read unplanned, so isolated p
+  near 0.04 are suggestive only.
+Disclosed slip: one check wrote 68 .pyc files into the policies lens's code copy; deleted, no source changed (verified).
+
+======================================================================================================
+5. THE RATCHET AND #650's OPEN ITEMS (design lens; measured by the lens, not independently verified)
+======================================================================================================
+  - Ratchet (ratchet.patch): com_stance_calibration gains --diff (a unified diff git apply takes), --write, and
+    --allow-loosen (required before a looser bar is written). On today's robot plant --diff prints an empty diff;
+    40 synthetic tests pass and 11 of 11 deliberate bugs fail one. On the creep fix it would ask for --allow-loosen:
+    7 spread widths widen 6-17 % because the calibration spawns' settle path moves.
+  - Body-size floors: scaling by CoM height (today's floors at the T. rex size) fails nothing today, but catches
+    only 2 (linear) to 4 (also angles) of the 7 poor stances the 1 mm floors miss; 3 Dibothrosuchus cases stay
+    missed under every rule. Floors are not the main lever.
+  - Moving the reduction to environments/shared/gait/stance_track.py: a pure move, 3 import sites (all tests); the
+    110 CoM tests give the same outcome. It is the precondition for any gate or evaluation use. It conflicts with
+    the ratchet patch in one import block (a variant built on top exists).
+  - Robot lean without force pads: a per-foot load estimate from servo torques and leg kinematics reads a 1 deg
+    lean exactly in simulation (13.75x, as force pads), against the IMU roll's 4.85x; on hardware it needs torque
+    read-back better than about 5 % of servo range.
+  - CI split (ci_split.patch): a full_depth marker sends 31 of the 110 CoM tests to the nightly / full-ci depth; the
+    79 kept per push run in 15 s.
+
+======================================================================================================
+6. DECISIONS FOR YOU (the recommended option first in each)
+======================================================================================================
+  1. A CoM test PR. Recommended: one PR with the 22 target expected failures (after the verifier's fixes: loud failure
+     on a missing reading, the per-second rocking reading, the slip limit scaled to each model's foot spacing), the
+     ratchet (--diff, --write, --allow-loosen) and the pure move of the reduction into environments/shared/gait/.
+     Target numbers as proposed (1 deg turn read at the end, 1 mm/s and 1 mm from 3 s, 5 mm lean, 0.3 deg roll, 2 mm
+     slip at the robot's size, settled by 2 s); you can change any in review. Floors and the CI split later.
+  2. The robot creep. Recommended: before any plant change, scan the anatomical Compsognathus and the Velociraptor for
+     the same creep (no plant change; a few CPU-hours). The robot fix (armature 3e-4, physics r2) works, but it
+     invalidates every robot checkpoint and the recovery calibration, and at the robot's own training noise (0.01) no
+     spawn creeps.
+  3. A CoM check on trained policies (CoM-P1). Recommended: as a report-only reading in the next round's
+     pre-registration (no gate change); the stance gate later, after a round of record.
+  4. The tail loop. Recommended: a no-training normaliser probe: compare the tail_3 angle's observation statistics
+     between the start and the end checkpoints, and re-run the end policies with the start's normaliser to see whether
+     the loop gain falls back. If it does, normalisation drift is the lever to study, not entropy.
+
+======================================================================================================
+7. FILES
+======================================================================================================
+  Patches (uncommitted): notes/targets/targets_xfail.patch, targets_bars_proposal.patch; notes/creep/
+  robot_armature_r2.patch; notes/policies/policy_com_check.patch; notes/design/ratchet.patch, move_reduction.patch,
+  move_after_ratchet.patch, ci_split.patch.
+  Tables: notes/targets/targets_table.txt; notes/creep/battery_table.txt, audit_models_main.txt; notes/policies/
+  analysis_w5.txt, rail_posture.txt, PREREG.txt; notes/verify_policies/lineage.txt, panel40.txt; notes/design/
+  floors/floors.txt; notes/clamp/ (section 4).

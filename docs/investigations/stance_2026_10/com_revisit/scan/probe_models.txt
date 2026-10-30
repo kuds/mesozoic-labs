@@ -1,0 +1,52 @@
+== compsognathus_longipes/anatomical: class TestAnatomicalComStanceQuality, window 3.0, horizon_steps None, max_episode_steps 1000, dt 0.02, timestep 0.002, frame_skip 10
+   integrator 3 cone 1 solver 2 iters 100 tol 1e-08 noslip 0 impratio 1.0
+   nq 24 nv 23 nu 14 ngeom 31 nbody 20; mass 1.0000 kg; root body pelvis
+   feet: [('r', 'r_foot_touch_volume'), ('l', 'l_foot_touch_volume')]
+   leg geoms per foot: [['r_thigh_geom', 'r_tibia_geom', 'r_metatarsus_geom', 'r_plantar_pad', 'r_toe_d2_geom', 'r_toe_d3_geom', 'r_toe_d4_geom'], ['l_thigh_geom', 'l_tibia_geom', 'l_metatarsus_geom', 'l_plantar_pad', 'l_toe_d2_geom', 'l_toe_d3_geom', 'l_toe_d4_geom']]
+   floor geoms ['floor']
+   reset_noise_scale attr None; keyframe 0
+     act neck_pitch_act           joint neck_pitch           kp 8 kv 0.12 armature 5e-05 damping 0.01 frange [-0.4  0.4] gear 1.0
+     act jaw_pitch_act            joint jaw_pitch            kp 0.3 kv 0.01 armature 5e-05 damping 0.01 frange [-0.04  0.04] gear 1.0
+     act tail_1_pitch_act         joint tail_1_pitch         kp 10 kv 0.16 armature 5e-05 damping 0.01 frange [-0.7  0.7] gear 1.0
+     act tail_1_yaw_act           joint tail_1_yaw           kp 8 kv 0.12 armature 5e-05 damping 0.01 frange [-0.5  0.5] gear 1.0
+     act r_hip_pitch_act          joint r_hip_pitch          kp 20 kv 0.2 armature 5e-05 damping 0.01 frange [-1.  1.] gear 1.0
+     act r_hip_roll_act           joint r_hip_roll           kp 20 kv 0.2 armature 5e-05 damping 0.01 frange [-1.  1.] gear 1.0
+     act r_knee_act               joint r_knee               kp 20 kv 0.2 armature 5e-05 damping 0.01 frange [-1.  1.] gear 1.0
+     act r_ankle_act              joint r_ankle              kp 16 kv 0.2 armature 5e-05 damping 0.01 frange [-0.8  0.8] gear 1.0
+     act r_toe_act                joint r_toe                kp 12 kv 0.2 armature 0.0002 damping 0.01 frange [-0.6  0.6] gear 1.0
+     act l_hip_pitch_act          joint l_hip_pitch          kp 20 kv 0.2 armature 5e-05 damping 0.01 frange [-1.  1.] gear 1.0
+     act l_hip_roll_act           joint l_hip_roll           kp 20 kv 0.2 armature 5e-05 damping 0.01 frange [-1.  1.] gear 1.0
+     act l_knee_act               joint l_knee               kp 20 kv 0.2 armature 5e-05 damping 0.01 frange [-1.  1.] gear 1.0
+     act l_ankle_act              joint l_ankle              kp 16 kv 0.2 armature 5e-05 damping 0.01 frange [-0.8  0.8] gear 1.0
+     act l_toe_act                joint l_toe                kp 12 kv 0.2 armature 0.0002 damping 0.01 frange [-0.6  0.6] gear 1.0
+   one episode seed 0 at 0.02: stood True steps 1000 1.8 s; ncon per substep mean 17.8 max 20
+== velociraptor_mongoliensis/anatomical: class TestComStanceQuality, window 3.0, horizon_steps None, max_episode_steps 1000, dt 0.01, timestep 0.002, frame_skip 5
+   integrator 3 cone 1 solver 2 iters 100 tol 1e-08 noslip 0 impratio 1.0
+   nq 31 nv 30 nu 22 ngeom 24 nbody 22; mass 13.5000 kg; root body pelvis
+   feet: [('r', 'r_foot'), ('l', 'l_foot')]
+   leg geoms per foot: [['r_thigh_geom', 'r_tibia_geom', 'r_metatarsus_geom', 'r_toe_d3_geom', 'r_toe_d4_geom', 'r_claw_geom'], ['l_thigh_geom', 'l_tibia_geom', 'l_metatarsus_geom', 'l_toe_d3_geom', 'l_toe_d4_geom', 'l_claw_geom']]
+   floor geoms ['floor']
+   reset_noise_scale attr None; keyframe 0
+     act r_hip_pitch_act          joint r_hip_pitch          kp 150 kv -0 armature 0.05 damping 10 frange [-225.  225.] gear 1.0
+     act r_hip_roll_act           joint r_hip_roll           kp 100 kv -0 armature 0.05 damping 10 frange [-80.  80.] gear 1.0
+     act r_knee_act               joint r_knee               kp 180 kv -0 armature 0.05 damping 10 frange [-270.  270.] gear 1.0
+     act r_ankle_act              joint r_ankle              kp 100 kv -0 armature 0.05 damping 10 frange [-150.  150.] gear 1.0
+     act r_toe_d3_act             joint r_toe_d3_joint       kp 50 kv -0 armature 0.05 damping 10 frange [-40.  40.] gear 1.0
+     act r_toe_d4_act             joint r_toe_d4_joint       kp 50 kv -0 armature 0.05 damping 10 frange [-40.  40.] gear 1.0
+     act r_claw_act               joint r_claw               kp 1 kv -0 armature 0.005 damping 5 frange [0. 0.] gear 50.0
+     act l_hip_pitch_act          joint l_hip_pitch          kp 150 kv -0 armature 0.05 damping 10 frange [-225.  225.] gear 1.0
+     act l_hip_roll_act           joint l_hip_roll           kp 100 kv -0 armature 0.05 damping 10 frange [-80.  80.] gear 1.0
+     act l_knee_act               joint l_knee               kp 180 kv -0 armature 0.05 damping 10 frange [-270.  270.] gear 1.0
+     act l_ankle_act              joint l_ankle              kp 100 kv -0 armature 0.05 damping 10 frange [-150.  150.] gear 1.0
+     act l_toe_d3_act             joint l_toe_d3_joint       kp 50 kv -0 armature 0.05 damping 10 frange [-40.  40.] gear 1.0
+     act l_toe_d4_act             joint l_toe_d4_joint       kp 50 kv -0 armature 0.05 damping 10 frange [-40.  40.] gear 1.0
+     act l_claw_act               joint l_claw               kp 1 kv -0 armature 0.005 damping 5 frange [0. 0.] gear 50.0
+     act tail_1_pitch_act         joint tail_1_pitch         kp 60 kv -0 armature 0.03 damping 15 frange [-50.  50.] gear 1.0
+     act tail_1_yaw_act           joint tail_1_yaw           kp 50 kv -0 armature 0.03 damping 15 frange [-40.  40.] gear 1.0
+     act tail_2_pitch_act         joint tail_2_pitch         kp 50 kv -0 armature 0.03 damping 15 frange [-40.  40.] gear 1.0
+     act tail_3_pitch_act         joint tail_3_pitch         kp 40 kv -0 armature 0.03 damping 15 frange [-32.  32.] gear 1.0
+     act r_shoulder_pitch_act     joint r_shoulder_pitch     kp 15 kv -0 armature 0.01 damping 2 frange [-12.  12.] gear 1.0
+     act r_shoulder_roll_act      joint r_shoulder_roll      kp 15 kv -0 armature 0.01 damping 2 frange [-12.  12.] gear 1.0
+     act l_shoulder_pitch_act     joint l_shoulder_pitch     kp 15 kv -0 armature 0.01 damping 2 frange [-12.  12.] gear 1.0
+     act l_shoulder_roll_act      joint l_shoulder_roll      kp 15 kv -0 armature 0.01 damping 2 frange [-12.  12.] gear 1.0
+   one episode seed 0 at 0.02: stood True steps 1000 1.1 s; ncon per substep mean 8.0 max 8

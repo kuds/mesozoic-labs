@@ -1,0 +1,114 @@
+TEST 1 / ECS within-lineage co-movement (ecs_comovement.py; read only on r10round/ecs/runs)
+Exploratory, report only, correlational.  n = 12 continuations per lineage (6 per arm); arms pooled unless stated (the screen found no arm difference in flagging).
+
+0. PARENT ROW AT S (ledger, the evaluation each continuation starts from) [measured]
+  s42 at 3,145,728: identical in all 12: True; tail cmd +0.560, pitch -1.436 deg, CoM -20.55 mm, head tip 0.930 m, neck +13.98, head +12.39 deg
+  s80 at 4,194,304: identical in all 12: True; tail cmd +0.008, pitch -0.225 deg, CoM -36.20 mm, head tip 1.265 m, neck -6.27, head +3.53 deg
+
+1. PER CONTINUATION, LEDGER (deterministic, 10 episodes per evaluation): first tail over-bar episode, first tail-flagged evaluation, and change from S to the mean of the last 3 evaluations (end):
+   name         1st tail ob  1st tail flag  1st ANY flag   d tail_cmd  d pitch  d CoM mm  d head m  d neck  d headj  d hgt mm
+   s42_A_1101     3,407,872      3,538,944     3,538,944      +0.408   +0.240     -5.53    +0.030   -0.05    -3.21    +0.14
+   s42_A_1111     3,538,944      3,670,016     3,670,016      +0.424   +0.195     -3.28    +0.005   +0.48    -0.94    -0.27
+   s42_A_1121     3,407,872      4,063,232     4,063,232      +0.369   +0.569    -11.22    +0.027   -1.41    +0.26    +0.22
+   s42_A_1131     3,538,944      3,670,016     3,670,016      +0.413   -0.323     -3.33    -0.008   +0.24    -0.09    +0.43
+   s42_A_1141     3,538,944      3,932,160     3,932,160      +0.397   -0.363     +0.58    +0.002   +0.49    -2.00    +0.05
+   s42_A_1151     3,801,088      4,063,232     4,063,232      +0.341   +0.145     -7.50    +0.086   -4.63    -3.76    +0.18
+   s42_B_1201     3,801,088      3,932,160     3,932,160      +0.391   +0.029     -7.10    +0.051   -3.21    -1.75    +0.15
+   s42_B_1211     3,670,016      3,670,016     3,670,016      +0.328   +0.388    -13.86    +0.088   -5.50    -1.98    +0.50
+   s42_B_1221     3,801,088      4,063,232     4,063,232      +0.386   -0.036     -3.97    +0.039   -2.01    -2.13    +0.18
+   s42_B_1231     3,670,016      3,670,016     3,670,016      +0.347   +0.176     -7.48    +0.028   -1.63    -0.69    +0.07
+   s42_B_1241     3,670,016      3,932,160     3,932,160      +0.388   -0.234     -2.59    +0.027   -1.35    -2.13    -0.09
+   s42_B_1251     3,538,944      3,932,160     3,932,160      +0.410   -0.260     -1.98    +0.013   +0.87    -3.82    +0.05
+   s80_A_1301             -              -             -      +0.014   -0.119     +4.51    -0.224  +14.64    +6.00    -0.47
+   s80_A_1311             -              -             -      -0.018   -0.324     +0.53    +0.014   -5.24    +4.62    -0.25
+   s80_A_1321             -              -             -      -0.018   +0.122     +0.23    -0.170   +6.59   +11.59    -0.84
+   s80_A_1331             -              -             -      +0.032   +0.295     +5.99    -0.280  +18.02    +8.69    -4.60
+   s80_A_1341             -              -     4,849,664      -0.053   +0.573    -11.50    +0.024   -5.47    +5.58    -2.73
+   s80_A_1351             -              -             -      +0.043   -0.088     +6.65    -0.298  +20.04    +7.56    +0.42
+   s80_B_1401             -              -             -      +0.131   -0.184     +8.82    -0.310  +21.66    +6.26    -0.18
+   s80_B_1411             -              -             -      +0.016   -0.195     +4.07    -0.116   +6.23    +4.57    -0.80
+   s80_B_1421             -              -             -      -0.166   -0.739     +7.87    -0.244  +15.49    +5.62    +0.21
+   s80_B_1431             -              -             -      +0.002   -0.123     +3.91    -0.168  +10.10    +5.53    -0.52
+   s80_B_1441             -              -     5,111,808      -0.070   +0.161     -3.37    +0.052   -8.09    +5.06    -0.44
+   s80_B_1451             -              -             -      +0.009   +0.071     -0.19    -0.069   +2.18    +5.31    -0.83
+
+   sign counts of the start-to-end change, per lineage (n 12; exact two-sided sign test p, description only):
+   s42: tail median +0.390 (+12/-0, p 0.000); pitch median +0.087 (+7/-5, p 0.774); com median -4.746 (+1/-11, p 0.006); head median +0.027 (+11/-1, p 0.006); neck median -1.380 (+4/-8, p 0.388); headj median -1.989 (+1/-11, p 0.006); hgt median +0.143 (+10/-2, p 0.039)
+   s80: tail median +0.005 (+7/-5, p 0.774); pitch median -0.104 (+5/-7, p 0.774); com median +3.991 (+9/-3, p 0.146); head median -0.169 (+3/-9, p 0.146); neck median +8.343 (+9/-3, p 0.146); headj median +5.603 (+12/-0, p 0.000); hgt median -0.496 (+2/-10, p 0.039)
+
+2. WITHIN EACH CONTINUATION, OVER TIME: Spearman rho across its 12 evaluations between the ledger tail_3 command and each posture signal; and across its 191 rollouts between the probe tail_3 mu and the training-time posture (probe pitch, neck, head; diagnostics head_tip_z, tilt).  Median rho and sign counts per lineage.
+   s42 ledger (12 evals):   pitch +0.48 (+9/-3); com -0.51 (+1/-11); head tip +0.36 (+9/-3); neck +0.15 (+8/-4); headj -0.77 (+0/-12); height -0.32 (+3/-9)
+   s42 rollouts (191):      pitch +0.06 (+7/-5); neck +0.07 (+6/-6); headj -0.77 (+0/-12); head_z +0.47 (+10/-2); tilt -0.10 (+5/-7); pel_h -0.02 (+5/-7)
+   s80 ledger (12 evals):   pitch -0.03 (+6/-6); com +0.44 (+8/-4); head tip -0.32 (+3/-9); neck +0.40 (+10/-2); headj +0.22 (+6/-6); height -0.50 (+4/-8)
+   s80 rollouts (191):      pitch -0.02 (+6/-6); neck +0.56 (+10/-2); headj +0.24 (+7/-5); head_z -0.43 (+2/-10); tilt +0.04 (+6/-6); pel_h -0.31 (+4/-8)
+   (pitch + nose up; neck/head joint + lowers the head; tilt_angle is unsigned)
+
+3. LEAD-LAG, POOLED PER LINEAGE (descriptive): first differences of 8-rollout (65,536-step) bin means; Pearson r of d posture(t) with d tail_mu(t+lag); lag > 0 = posture change precedes the tail change.  Each continuation contributes its 23 bins; pooled n given.
+   s42 probe pitch  n(lag 0) 264  r(lag -4..+4) -0.10 -0.01 +0.02 -0.10 -0.50 +0.02 -0.02 -0.03 -0.03
+   s42 probe neck   n(lag 0) 264  r(lag -4..+4) -0.03 +0.14 -0.01 -0.04 -0.13 -0.10 +0.04 +0.08 -0.06
+   s42 probe head   n(lag 0) 264  r(lag -4..+4) -0.01 +0.10 +0.07 +0.10 -0.41 +0.00 +0.20 +0.16 -0.07
+   s42 diag head_z  n(lag 0) 264  r(lag -4..+4) -0.00 -0.15 -0.01 -0.03 +0.07 +0.09 -0.11 -0.12 +0.06
+   s80 probe pitch  n(lag 0) 264  r(lag -4..+4) -0.07 -0.02 +0.03 -0.14 +0.06 +0.09 +0.03 +0.05 +0.03
+   s80 probe neck   n(lag 0) 264  r(lag -4..+4) -0.09 +0.07 -0.03 -0.04 +0.30 +0.19 +0.16 +0.18 +0.09
+   s80 probe head   n(lag 0) 264  r(lag -4..+4) -0.21 -0.06 -0.19 -0.22 +0.36 +0.06 +0.06 +0.16 +0.00
+   s80 diag head_z  n(lag 0) 264  r(lag -4..+4) +0.12 -0.05 +0.06 +0.07 -0.32 -0.17 -0.14 -0.18 -0.07
+
+4. s42 CONTINUATIONS: STATE AT THE LAST EVALUATION BEFORE THE FIRST TAIL OVER-BAR EPISODE, minus S (ledger)
+   name          eval before   d tail_cmd  d pitch  d CoM mm  d head m  d neck  d headj
+   s42_A_1101     3,276,800     +0.207    -0.364    +2.074    +0.002    -0.650    -0.328
+   s42_A_1111     3,407,872     +0.123    -0.175    -2.475    +0.009    -1.164    +0.138
+   s42_A_1121     3,276,800     +0.120    -0.126    -1.505    +0.006    -1.067    +0.511
+   s42_A_1131     3,407,872     +0.241    -0.498    +0.857    +0.000    -1.143    +0.379
+   s42_A_1141     3,407,872     +0.163    -0.344    -0.689    +0.021    -1.923    -0.694
+   s42_A_1151     3,670,016     +0.226    -0.316    +0.560    +0.017    -1.657    -0.551
+   s42_B_1201     3,670,016     +0.255    -0.095    -3.135    +0.006    -0.312    -0.546
+   s42_B_1211     3,538,944     +0.135    -0.027    -5.862    +0.030    -2.118    -0.813
+   s42_B_1221     3,670,016     +0.195    -0.258    -1.890    +0.029    -2.580    -0.622
+   s42_B_1231     3,538,944     +0.196    -0.296    -0.900    +0.012    -1.907    +0.502
+   s42_B_1241     3,538,944     +0.171    -0.183    -2.646    +0.033    -2.324    -1.326
+   s42_B_1251     3,407,872     +0.216    -0.347    +1.365    +0.004    -0.528    -0.666
+   median                    +0.196    -0.277    -1.202    +0.010    -1.411    -0.549   (n 12)
+
+5. BETWEEN CONTINUATIONS (n 12 per lineage), Spearman rho, descriptive:
+   s42 first tail over-bar step vs pitch2 (change over the first 2 evaluations): rho +0.37
+   s42 first tail over-bar step vs com2 (change over the first 2 evaluations): rho -0.55
+   s42 first tail over-bar step vs head2 (change over the first 2 evaluations): rho +0.54
+   s42 first tail over-bar step vs tail2 (change over the first 2 evaluations): rho -0.46
+   s42 end level (last 3 evals) tail_3 command vs pitch: rho -0.43
+   s42 end level (last 3 evals) tail_3 command vs CoM: rho +0.74
+   s42 end level (last 3 evals) tail_3 command vs head tip: rho -0.74
+   s42 end level (last 3 evals) tail_3 command vs neck: rho +0.83
+   s42 end tail_3 command range +0.888 .. +0.983
+   s80 end level (last 3 evals) tail_3 command vs pitch: rho -0.01
+   s80 end level (last 3 evals) tail_3 command vs CoM: rho +0.55
+   s80 end level (last 3 evals) tail_3 command vs head tip: rho -0.66
+   s80 end level (last 3 evals) tail_3 command vs neck: rho +0.67
+   s80 end tail_3 command range -0.159 .. +0.139
+
+6. LINEAGE MEDIAN TIME COURSE (ledger, change from S; median over the 12 continuations at each evaluation)
+   s42: step(M)  tail_cmd  pitch    CoM mm   head m   neck    headj   tail_ob(sum of 12)
+          3.277   +0.109  -0.176    -0.47   +0.005   -1.04   +0.15     0
+          3.408   +0.207  -0.314    -0.68   +0.011   -1.37   -0.57     2
+          3.539   +0.225  -0.289    -1.04   +0.015   -1.72   -0.47    18
+          3.670   +0.282  -0.351    -0.95   +0.017   -1.46   -0.81    38
+          3.801   +0.338  -0.319    -1.04   +0.018   -1.34   -0.84    40
+          3.932   +0.322  -0.268    -1.43   +0.020   -1.48   -1.00    57
+          4.063   +0.350  -0.250    -1.47   +0.017   -1.46   -1.22    77
+          4.194   +0.396  -0.166    -2.00   +0.017   -0.72   -1.58    87
+          4.325   +0.366  -0.056    -3.58   +0.022   -0.92   -1.34    68
+          4.456   +0.405  -0.046    -4.07   +0.025   -1.66   -1.68    86
+          4.588   +0.389  +0.064    -5.23   +0.032   -1.45   -1.94    91
+          4.719   +0.403  +0.079    -5.14   +0.027   -0.50   -2.01    87
+   s80: step(M)  tail_cmd  pitch    CoM mm   head m   neck    headj   tail_ob(sum of 12)
+          4.325   +0.000  -0.199    +0.53   +0.026   -2.26   -0.21     0
+          4.456   -0.012  -0.136    +0.05   +0.047   -3.88   -0.50     0
+          4.588   -0.018  -0.184    -0.56   +0.044   -4.31   +0.39     0
+          4.719   -0.025  -0.131    -0.21   +0.042   -4.50   +0.40     0
+          4.850   -0.030  -0.177    +1.11   +0.002   -2.03   +1.78     0
+          4.981   -0.031  -0.143    +2.32   -0.037   +0.55   +3.50     0
+          5.112   -0.014  -0.127    +2.70   -0.070   +2.66   +3.97     0
+          5.243   -0.011  -0.142    +2.08   -0.114   +6.08   +5.04     0
+          5.374   -0.006  -0.188    +2.81   -0.107   +4.46   +5.46     0
+          5.505   -0.000  -0.076    +4.08   -0.153   +8.89   +5.87     0
+          5.636   +0.003  -0.055    +3.29   -0.153   +7.74   +5.54     0
+          5.767   +0.009  -0.058    +4.00   -0.183   +8.89   +5.64     0

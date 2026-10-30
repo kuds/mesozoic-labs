@@ -1,0 +1,481 @@
+TAIL CLAMP TEST: paired forced - unforced, per (policy, seed); window from 5 s unless named.
+Exploratory, report-only, not pre-registered.  'policies +a/-b' counts per-policy medians; p = two-sided sign test.
+
+==================== s42: tail_3 held at 0  (unforced 240 episodes, forced 240) ====================
+  falls/terminations unforced: 0 of 240
+  falls/terminations forced: 0 of 240
+
+  LEVELS (median over policies of the per-policy median over seeds): unforced -> forced
+  com_fore_aft_mean_m                   -25.703 ->    -24.882 mm
+  com_fore_aft_drift_m                   +0.779 ->     +0.666 mm
+  root_pitch_mean_deg                    -1.351 ->     -1.679 deg
+  com_height_mean_m                    +867.891 ->   +863.781 mm
+  com_height_drift_m                     -0.354 ->     -0.345 mm
+  com_lateral_mean_m                     +0.110 ->     +0.005 mm
+  root_roll_mean_deg                     +0.002 ->     +0.006 deg
+  return                              +4387.088 ->  +4452.119    (forced range +4412.541..+4468.861)
+  tail_3 joint 5-10 s                    +5.194 ->     +0.014 deg   (forced range +0.013..+0.015)
+  tail_3 applied cmd 5-10 s              +1.000 ->     +0.000    (forced range +0.000..+0.000)
+  tail_3 policy's own cmd 5-10 s         +1.000 ->     +0.331    (forced range +0.192..+0.532)
+
+  COM FAMILIES, forced - unforced (median of per-policy medians [min, max])
+  com_fore_aft_mean_m                   +1.6294 mm    [  -6.1260,  +11.5537]  policies +8/-4 p 0.3877   episodes +167/-73
+  com_fore_aft_drift_m                  -0.0483 mm    [  -1.0931,   +0.2464]  policies +4/-8 p 0.3877   episodes +100/-140
+  root_pitch_mean_deg                   -0.1624 deg   [  -1.4607,   +0.1483]  policies +2/-10 p 0.0386   episodes +46/-194
+  com_height_mean_m                     -3.4217 mm    [ -10.7030,   +0.8718]  policies +2/-10 p 0.0386   episodes +33/-207
+  com_height_drift_m                    -0.0128 mm    [  -0.3936,   +0.7622]  policies +5/-7 p 0.7744   episodes +110/-130
+  com_lateral_mean_m                    -0.1119 mm    [  -0.2796,   +0.2664]  policies +4/-8 p 0.3877   episodes +89/-151
+  abs_com_lateral_mean_m                +0.0327 mm    [  -0.1817,   +0.2367]  policies +8/-4 p 0.3877   episodes +127/-113
+  com_lateral_drift_m                   +0.0023 mm    [  -0.1121,   +0.1474]  policies +7/-5 p 0.7744   episodes +129/-111
+  root_roll_mean_deg                    -0.0003 deg   [  -0.0353,   +0.0408]  policies +6/-6 p 1.0000   episodes +125/-115
+  abs_root_roll_mean_deg                +0.0022 deg   [  -0.0123,   +0.0303]  policies +9/-3 p 0.1460   episodes +141/-99
+  root_roll_drift_deg                   +0.0005 deg   [  -0.0044,   +0.0040]  policies +8/-4 p 0.3877   episodes +126/-114
+  com_speed_rms_mps                     +0.0017 mm/s  [  -0.0212,   +0.0701]  policies +8/-4 p 0.3877   episodes +117/-123
+  com_speed_end_rms_mps                 -0.0013 mm/s  [  -0.0542,   +0.0603]  policies +6/-6 p 1.0000   episodes +120/-120
+  com_fore_aft_sd_m                     -0.0018 mm    [  -0.0112,   +0.0326]  policies +4/-8 p 0.3877   episodes +109/-131
+  com_lateral_sd_m                      -0.0002 mm    [  -0.0205,   +0.0095]  policies +5/-7 p 0.7744   episodes +118/-122
+  com_height_sd_m                       +0.0006 mm    [  -0.0103,   +0.0197]  policies +7/-5 p 0.7744   episodes +119/-121
+  root_pitch_sd_deg                     -0.0001 deg   [  -0.0007,   +0.0026]  policies +5/-7 p 0.7744   episodes +122/-118
+  root_roll_sd_deg                      +0.0000 deg   [  -0.0004,   +0.0003]  policies +6/-6 p 1.0000   episodes +117/-123
+  root_turn_deg                         -0.0193 deg   [  -0.0563,   +0.0680]  policies +3/-9 p 0.1460   episodes +107/-133
+  root_turn_from_spawn_deg              -0.0168 deg   [  -0.4002,   +0.1870]  policies +5/-7 p 0.7744   episodes +112/-128
+  foot_travel_max_m                     +0.3121 mm    [  -1.7767,   +2.7067]  policies +8/-4 p 0.3877   episodes +133/-107
+  foot_travel_from_spawn_max_m          +0.5022 mm    [  -0.7730,   +4.3467]  policies +8/-4 p 0.3877   episodes +139/-101
+  com_margin_min_m                      +1.4159 mm    [  -6.0872,  +11.4994]  policies +8/-4 p 0.3877   episodes +168/-72
+  com_margin_fore_aft_min_m             +1.4428 mm    [  -6.0873,  +11.4980]  policies +8/-4 p 0.3877   episodes +168/-72
+  com_margin_lateral_min_m              -0.8534 mm    [  -5.4379,   +1.9504]  policies +4/-8 p 0.3877   episodes +89/-151
+  xcom_margin_min_m                     +1.4377 mm    [  -6.0719,  +11.5747]  policies +8/-4 p 0.3877   episodes +168/-72
+  left_load_share_mean                  -0.0004       [  -0.0012,   +0.0024]  policies +4/-8 p 0.3877   episodes +103/-137
+  lightest_foot_share_min               -0.0004       [  -0.0025,   +0.0008]  policies +4/-8 p 0.3877   episodes +101/-139
+  creep_mmps                            +0.0006 mm/s  [  -0.0045,   +0.0026]  policies +7/-5 p 0.7744   episodes +135/-105
+  creep_fa_mmps                         -0.0002 mm/s  [  -0.0046,   +0.0001]  policies +1/-11 p 0.0063   episodes +88/-152
+
+  RETURN AND REWARD TERMS, forced - unforced (per episode sums)
+  return (0-10 s)                      +63.5766       [ +25.1921,  +99.7163]  policies +12/-0 p 0.0005   episodes +239/-1
+  window return 2-10 s (D-9's)         +60.3959       [ +20.5500,  +90.3715]  policies +12/-0 p 0.0005   episodes +237/-3
+  window return 5-10 s                 +39.1774       [ +11.3739,  +59.5153]  policies +12/-0 p 0.0005   episodes +235/-5
+  reward_action_saturation (0-10 s)    +24.1763       [  +0.7949,  +27.3014]  policies +12/-0 p 0.0005   episodes +213/-0
+  reward_tail_home_pose (0-10 s)       +54.7025       [ +50.1255,  +57.3899]  policies +12/-0 p 0.0005   episodes +240/-0
+  reward_tail (0-10 s)                  +0.0430       [  +0.0261,   +0.0549]  policies +12/-0 p 0.0005   episodes +221/-19
+  reward_posture (0-10 s)               -0.1419       [  -1.5549,   +0.1043]  policies +2/-10 p 0.0386   episodes +41/-199
+  reward_energy (0-10 s)                +4.2362       [  +3.7237,   +4.5596]  policies +12/-0 p 0.0005   episodes +240/-0
+  reward_nosedive (0-10 s)              -2.9953       [ -28.0659,   +2.5734]  policies +2/-10 p 0.0386   episodes +38/-201
+  reward_neck_posture (0-10 s)          +0.1555       [  -1.2003,   +4.6769]  policies +6/-6 p 1.0000   episodes +131/-109
+  reward_leg_home_pose (0-10 s)         -5.8969       [ -14.1347,  +19.2842]  policies +2/-10 p 0.0386   episodes +63/-177
+  reward_lateral_lean (0-10 s)          -0.0220       [  -0.5573,   +0.5275]  policies +5/-7 p 0.7744   episodes +118/-122
+  reward_foot_flatness (0-10 s)         +0.3286       [  -3.8195,   +1.4480]  policies +8/-4 p 0.3877   episodes +131/-109
+  reward_height (0-10 s)                -0.0000       [  -0.1033,   +0.1575]  policies +6/-6 p 1.0000   episodes +119/-121
+  reward_heading (0-10 s)               +0.0005       [  -0.0035,   +0.0108]  policies +6/-6 p 1.0000   episodes +119/-121
+  reward_stance_width (0-10 s)          -0.2322       [  -2.2287,   +1.0418]  policies +4/-8 p 0.3877   episodes +105/-135
+  reward_foot_load_balance (0-10 s)     -0.0353       [  -0.7693,   +0.3945]  policies +6/-6 p 1.0000   episodes +106/-134
+  reward_smoothness (0-10 s)            +0.0027       [  +0.0015,   +0.0077]  policies +12/-0 p 0.0005   episodes +235/-5
+  reward_drift (0-10 s)                 +0.0062       [  -0.0204,   +0.0370]  policies +10/-2 p 0.0386   episodes +174/-66
+  reward_stance_stagger (0-10 s)        +0.0177       [  -0.5348,   +0.0991]  policies +7/-5 p 0.7744   episodes +123/-117
+  reward_head_clearance (0-10 s)        +0.0000       [ -20.3640,   +0.0000]  policies +0/-4 p 0.1250   episodes +8/-81
+
+  DIAGNOSTICS 5-10 s means, forced - unforced
+  tail_instability                      -0.0000       [  -0.0003,   +0.0000]  policies +2/-10 p 0.0386   episodes +93/-147
+  tail_home_pose_error                  -0.0389       [  -0.0417,   -0.0317]  policies +0/-12 p 0.0005   episodes +0/-240
+  action_saturation                     -0.0667       [  -0.0667,   +0.0000]  policies +0/-11 p 0.0010   episodes +0/-205
+  tilt_angle                            +0.0028       [  -0.0025,   +0.0255]  policies +10/-2 p 0.0386   episodes +194/-46
+  forward_z                             -0.0028       [  -0.0255,   +0.0026]  policies +2/-10 p 0.0386   episodes +46/-194
+  pelvis_height                         +0.0000       [  -0.0011,   +0.0007]  policies +6/-6 p 1.0000   episodes +121/-119
+  neck_posture_error                    -0.0047       [  -0.0420,   +0.0155]  policies +5/-7 p 0.7744   episodes +99/-141
+  leg_home_pose_error                   +0.0016       [  -0.0047,   +0.0039]  policies +9/-3 p 0.1460   episodes +174/-66
+  r_foot_contact                        +0.3310       [  -2.0023,   +1.0168]  policies +8/-4 p 0.3877   episodes +136/-104
+  l_foot_contact                        -0.3410       [  -1.0160,   +2.0020]  policies +4/-8 p 0.3877   episodes +103/-137
+
+  TAIL (5-10 s means), forced - unforced
+  tail_1_pitch joint                    +0.0591 deg   [  -1.2030,   +0.4013]  policies +7/-5 p 0.7744   episodes +141/-99
+  tail_1_yaw joint                      -0.0033 deg   [  -0.0514,   +0.0839]  policies +5/-7 p 0.7744   episodes +120/-120
+  tail_2_pitch joint                    -0.1728 deg   [  -0.8672,   +0.0454]  policies +1/-11 p 0.0063   episodes +20/-220
+  tail_3_pitch joint                    -5.1805 deg   [  -5.1901,   -4.4052]  policies +0/-12 p 0.0005   episodes +0/-240
+  tail tip height                      -62.7388 mm    [ -79.8315,  -48.9775]  policies +0/-12 p 0.0005   episodes +0/-240
+  tail tip fwd of pelvis                -6.9393 mm    [  -7.8700,   -6.6520]  policies +0/-12 p 0.0005   episodes +0/-240
+
+  OTHER ACTUATORS: applied command means 5-10 s (forced - unforced); then joint angles (deg)
+  cmd neck_pitch                        -0.0023       [  -0.1045,   +0.1398]  policies +6/-6 p 1.0000   episodes +112/-128
+  cmd neck_yaw                          -0.0007       [  -0.0039,   +0.0046]  policies +3/-9 p 0.1460   episodes +97/-143
+  cmd head_pitch                        +0.1420       [  +0.0832,   +0.2533]  policies +12/-0 p 0.0005   episodes +240/-0
+  cmd r_hip_pitch                       -0.0012       [  -0.0086,   +0.0030]  policies +4/-8 p 0.3877   episodes +88/-152
+  cmd r_hip_roll                        +0.0196       [  -0.1351,   +0.1377]  policies +8/-4 p 0.3877   episodes +160/-80
+  cmd r_knee                            -0.0022       [  -0.0069,   +0.0114]  policies +4/-8 p 0.3877   episodes +84/-156
+  cmd r_ankle                           -0.0008       [  -0.0140,   +0.0084]  policies +3/-9 p 0.1460   episodes +75/-165
+  cmd l_hip_pitch                       -0.0015       [  -0.0080,   +0.0057]  policies +4/-8 p 0.3877   episodes +74/-166
+  cmd l_hip_roll                        -0.0177       [  -0.1354,   +0.1347]  policies +4/-8 p 0.3877   episodes +80/-160
+  cmd l_knee                            -0.0033       [  -0.0063,   +0.0104]  policies +5/-7 p 0.7744   episodes +100/-140
+  cmd l_ankle                           -0.0014       [  -0.0146,   +0.0095]  policies +4/-8 p 0.3877   episodes +70/-170
+  cmd tail_1_pitch                      +0.0146       [  -0.1759,   +0.0660]  policies +7/-5 p 0.7744   episodes +148/-92
+  cmd tail_1_yaw                        -0.0004       [  -0.0109,   +0.0162]  policies +5/-7 p 0.7744   episodes +126/-114
+  cmd tail_2_pitch                      -0.0228       [  -0.1394,   +0.0133]  policies +2/-10 p 0.0386   episodes +45/-195
+  cmd tail_3_pitch                      -1.0000       [  -1.0000,   -0.8505]  policies +0/-12 p 0.0005   episodes +0/-240
+  sum |cmd| of the other 14             -0.0496       [  -0.2768,   +0.2100]  policies +4/-8 p 0.3877   episodes +98/-142
+  joint neck_pitch                      -0.2496 deg   [  -3.8779,   +4.2662]  policies +5/-7 p 0.7744   episodes +100/-140
+  joint neck_yaw                        -0.0108 deg   [  -0.0865,   +0.0879]  policies +3/-9 p 0.1460   episodes +91/-149
+  joint head_pitch                      +3.5292 deg   [  +2.1693,   +6.4858]  policies +12/-0 p 0.0005   episodes +240/-0
+  joint tail_1_pitch                    +0.0591 deg   [  -1.2030,   +0.4013]  policies +7/-5 p 0.7744   episodes +141/-99
+  joint tail_1_yaw                      -0.0033 deg   [  -0.0514,   +0.0839]  policies +5/-7 p 0.7744   episodes +120/-120
+  joint tail_2_pitch                    -0.1728 deg   [  -0.8672,   +0.0454]  policies +1/-11 p 0.0063   episodes +20/-220
+  joint tail_3_pitch                    -5.1805 deg   [  -5.1901,   -4.4052]  policies +0/-12 p 0.0005   episodes +0/-240
+  joint r_hip_pitch                     -0.0671 deg   [  -0.5472,   +0.2533]  policies +4/-8 p 0.3877   episodes +87/-152
+  joint r_hip_roll                      +0.0696 deg   [  -0.3195,   +0.4400]  policies +7/-5 p 0.7744   episodes +150/-90
+  joint r_knee                          -0.1309 deg   [  -0.3871,   +0.5198]  policies +4/-8 p 0.3877   episodes +86/-154
+  joint r_ankle                         -0.0783 deg   [  -0.8756,   +0.5541]  policies +3/-9 p 0.1460   episodes +63/-177
+  joint l_hip_pitch                     -0.0775 deg   [  -0.5730,   +0.3158]  policies +4/-8 p 0.3877   episodes +80/-160
+  joint l_hip_roll                      -0.0747 deg   [  -0.3790,   +0.3205]  policies +4/-8 p 0.3877   episodes +87/-153
+  joint l_knee                          -0.1485 deg   [  -0.3412,   +0.4735]  policies +5/-7 p 0.7744   episodes +99/-141
+  joint l_ankle                         -0.0651 deg   [  -1.0335,   +0.6340]  policies +3/-9 p 0.1460   episodes +54/-186
+
+  ACTUATOR FORCE means 5-10 s (N or N m), forced - unforced
+  force neck_pitch                      +0.4560       [  -0.0470,   +0.9135]  policies +11/-1 p 0.0063   episodes +226/-14
+  force neck_yaw                        +0.0010       [  -0.0234,   +0.0344]  policies +6/-6 p 1.0000   episodes +129/-111
+  force head_pitch                      +0.6175       [  -0.0993,   +1.0243]  policies +11/-1 p 0.0063   episodes +221/-19
+  force r_hip_pitch                     -0.2245       [  -1.7882,   +0.5591]  policies +4/-8 p 0.3877   episodes +89/-151
+  force r_hip_roll                      +4.3078       [ -31.8234,  +31.4627]  policies +8/-4 p 0.3877   episodes +160/-80
+  force r_knee                          +0.5737       [  -2.4218,   +1.6228]  policies +8/-4 p 0.3877   episodes +151/-89
+  force r_ankle                         +0.8177       [  -2.6694,   +2.9776]  policies +8/-4 p 0.3877   episodes +162/-78
+  force l_hip_pitch                     -0.2335       [  -1.3415,   +1.3225]  policies +5/-7 p 0.7744   episodes +96/-144
+  force l_hip_roll                      -4.0760       [ -32.1409,  +31.4131]  policies +4/-8 p 0.3877   episodes +81/-159
+  force l_knee                          -0.0323       [  -1.4798,   +3.4186]  policies +5/-7 p 0.7744   episodes +133/-107
+  force l_ankle                         +0.3003       [  -2.4492,   +4.8571]  policies +8/-4 p 0.3877   episodes +150/-90
+  force tail_1_pitch                    +0.2022       [  -1.5823,   +0.6849]  policies +8/-4 p 0.3877   episodes +159/-81
+  force tail_1_yaw                      +0.0046       [  -0.0854,   +0.0716]  policies +8/-4 p 0.3877   episodes +134/-106
+  force tail_2_pitch                    -0.1402       [  -1.1247,   +0.1648]  policies +4/-8 p 0.3877   episodes +66/-174
+  force tail_3_pitch                    -7.1327       [  -7.1379,   -6.0716]  policies +0/-12 p 0.0005   episodes +0/-240
+
+  per-policy SD over seeds of com_lateral: unforced 1.350 mm -> forced 1.350 mm (policies +6/-6, p 1.0000)
+
+  OPEN-LOOP REPLAY (240 episodes): the unforced episode's own 14 other commands replayed, tail_3 forced
+  falls/terminations replay: 0
+  com_fore_aft_mean_m [plant]           -0.2016 mm    [  -0.2430,   -0.1869]  policies +0/-12 p 0.0005   episodes +0/-240
+  com_fore_aft_mean_m [policy feedback]    +1.8213 mm    [  -5.9123,  +11.7514]  policies +9/-3 p 0.1460   episodes +172/-68
+  com_fore_aft_drift_m [plant]          -0.0158 mm    [  -0.0504,   +0.0054]  policies +1/-11 p 0.0063   episodes +78/-162
+  com_fore_aft_drift_m [policy feedback]    -0.0466 mm    [  -1.0729,   +0.2755]  policies +5/-7 p 0.7744   episodes +107/-133
+  root_pitch_mean_deg [plant]           +0.0108 deg   [  +0.0098,   +0.0133]  policies +12/-0 p 0.0005   episodes +240/-0
+  root_pitch_mean_deg [policy feedback]    -0.1742 deg   [  -1.4695,   +0.1368]  policies +2/-10 p 0.0386   episodes +42/-198
+  com_height_mean_m [plant]             -1.6065 mm    [  -1.6164,   -1.3720]  policies +0/-12 p 0.0005   episodes +0/-240
+  com_height_mean_m [policy feedback]    -1.8530 mm    [  -9.3432,   +2.3229]  policies +2/-10 p 0.0386   episodes +47/-193
+  com_height_drift_m [plant]            -0.0017 mm    [  -0.0398,   +0.0072]  policies +4/-8 p 0.3877   episodes +96/-144
+  com_height_drift_m [policy feedback]    -0.0007 mm    [  -0.3487,   +0.7603]  policies +6/-6 p 1.0000   episodes +114/-126
+  com_lateral_mean_m [plant]            +0.0002 mm    [  -0.0001,   +0.0007]  policies +11/-1 p 0.0063   episodes +141/-99
+  com_lateral_mean_m [policy feedback]    -0.1125 mm    [  -0.2825,   +0.2663]  policies +4/-8 p 0.3877   episodes +89/-151
+  root_roll_mean_deg [plant]            +0.0000 deg   [  -0.0000,   +0.0001]  policies +6/-6 p 1.0000   episodes +117/-123
+  root_roll_mean_deg [policy feedback]    -0.0003 deg   [  -0.0352,   +0.0409]  policies +6/-6 p 1.0000   episodes +126/-114
+  com_speed_rms_mps [plant]             +0.0529 mm/s  [  +0.0165,   +0.0928]  policies +12/-0 p 0.0005   episodes +209/-31
+  com_speed_rms_mps [policy feedback]    -0.0680 mm/s  [  -0.1228,   -0.0305]  policies +0/-12 p 0.0005   episodes +57/-183
+  tail_3 joint [plant]                  -5.1810 deg   [  -5.1883,   -4.4027]  policies +0/-12 p 0.0005   episodes +0/-240
+  return (0-10 s) [plant]              +81.4340       [ +58.5084,  +86.2582]  policies +12/-0 p 0.0005   episodes +240/-0
+
+  PER POLICY: unforced level vs paired change (Spearman over the 12), and the across-policy SD of the levels
+  com_fore_aft_mean_m          rho(level, change) -0.38 (p 0.226); across-policy SD 4.837 -> 4.532 mm
+    A_1101:-27.04->-25.87  A_1111:-23.71->-21.19  A_1121:-33.51->-22.12  A_1131:-25.14->-25.77  A_1141:-18.21->-16.32  A_1151:-32.34->-23.63  B_1201:-28.45->-27.57  B_1211:-34.67->-29.04  B_1221:-25.19->-31.43  B_1231:-26.22->-31.18  B_1241:-22.25->-20.39  B_1251:-24.12->-24.00
+  root_pitch_mean_deg          rho(level, change) -0.65 (p 0.022); across-policy SD 0.403 -> 0.369 deg
+    A_1101:-1.10->-1.48  A_1111:-1.22->-1.82  A_1121:-0.65->-1.94  A_1131:-1.82->-1.82  A_1141:-1.93->-1.96  A_1151:-0.79->-2.29  B_1201:-1.36->-1.40  B_1211:-1.00->-1.24  B_1221:-1.35->-1.19  B_1231:-1.46->-1.32  B_1241:-1.78->-2.17  B_1251:-1.51->-1.54
+  com_height_mean_m            rho(level, change) -0.38 (p 0.217); across-policy SD 3.458 -> 2.694 mm
+    A_1101:+868.89->+864.83  A_1111:+865.99->+861.80  A_1121:+868.77->+861.63  A_1131:+864.73->+862.80  A_1141:+864.08->+859.75  A_1151:+874.51->+863.19  B_1201:+869.45->+866.75  B_1211:+874.58->+865.61  B_1221:+868.79->+868.85  B_1231:+866.69->+867.85  B_1241:+864.92->+863.25  B_1251:+867.02->+864.31
+
+  TIME COURSE: mean over episodes per 1 s bin (0-1 ... 9-10 s), forced - unforced
+  fa      mm    -0.022  +0.948  +1.621  +1.765  +1.747  +1.728  +1.720  +1.708  +1.687  +1.664
+  pitch   deg   -0.085  -0.255  -0.328  -0.338  -0.336  -0.335  -0.335  -0.334  -0.333  -0.331
+  height  mm    -0.691  -2.887  -3.638  -3.797  -3.839  -3.857  -3.872  -3.880  -3.882  -3.879
+  tail3   deg   -0.888  -3.401  -4.457  -4.775  -4.871  -4.910  -4.931  -4.945  -4.956  -4.964
+
+==================== s80: tail_3 forced to +1  (unforced 240 episodes, forced 240) ====================
+  falls/terminations unforced: 0 of 240
+  falls/terminations forced: 0 of 240
+
+  LEVELS (median over policies of the per-policy median over seeds): unforced -> forced
+  com_fore_aft_mean_m                   -32.413 ->    -32.884 mm
+  com_fore_aft_drift_m                   -0.062 ->     +0.121 mm
+  root_pitch_mean_deg                    -0.245 ->     +0.134 deg
+  com_height_mean_m                    +874.423 ->   +878.427 mm
+  com_height_drift_m                     -0.502 ->     -0.136 mm
+  com_lateral_mean_m                     -0.136 ->     -0.035 mm
+  root_roll_mean_deg                     +0.010 ->     -0.024 deg
+  return                              +4461.405 ->  +4266.782    (forced range +3888.111..+4322.580)
+  tail_3 joint 5-10 s                    +0.141 ->     +5.197 deg   (forced range +5.168..+5.221)
+  tail_3 applied cmd 5-10 s              +0.026 ->     +1.000    (forced range +1.000..+1.000)
+  tail_3 policy's own cmd 5-10 s         +0.026 ->     -0.265    (forced range -0.589..+0.269)
+
+  COM FAMILIES, forced - unforced (median of per-policy medians [min, max])
+  com_fore_aft_mean_m                   +1.0440 mm    [  -8.9380,  +15.6017]  policies +7/-5 p 0.7744   episodes +126/-114
+  com_fore_aft_drift_m                  +0.2054 mm    [  -0.9451,   +1.8851]  policies +10/-2 p 0.0386   episodes +159/-81
+  root_pitch_mean_deg                   +0.4505 deg   [  -0.9520,   +2.9715]  policies +8/-4 p 0.3877   episodes +160/-80
+  com_height_mean_m                     -5.6872 mm    [ -29.0119,  +23.8020]  policies +5/-7 p 0.7744   episodes +95/-145
+  com_height_drift_m                    +0.4617 mm    [  -1.6254,   +2.5618]  policies +8/-4 p 0.3877   episodes +146/-94
+  com_lateral_mean_m                    -0.0511 mm    [ -11.3653,   +3.2926]  policies +6/-6 p 1.0000   episodes +113/-127
+  abs_com_lateral_mean_m                +0.5821 mm    [  -0.0316,  +10.7427]  policies +11/-1 p 0.0063   episodes +171/-69
+  com_lateral_drift_m                   +0.0318 mm    [  -4.1398,   +0.7125]  policies +7/-5 p 0.7744   episodes +126/-114
+  root_roll_mean_deg                    -0.0158 deg   [  -0.1520,   +0.3731]  policies +5/-7 p 0.7744   episodes +106/-134
+  abs_root_roll_mean_deg                +0.0418 deg   [  +0.0010,   +0.3329]  policies +12/-0 p 0.0005   episodes +175/-65
+  root_roll_drift_deg                   -0.0017 deg   [  -0.0301,   +0.1146]  policies +3/-9 p 0.1460   episodes +126/-114
+  com_speed_rms_mps                     -0.0234 mm/s  [  -0.1697,   +0.2630]  policies +5/-7 p 0.7744   episodes +111/-129
+  com_speed_end_rms_mps                 +0.0099 mm/s  [  -0.1124,   +0.3471]  policies +8/-4 p 0.3877   episodes +127/-113
+  com_fore_aft_sd_m                     -0.0112 mm    [  -0.0883,   +0.0032]  policies +3/-9 p 0.1460   episodes +77/-163
+  com_lateral_sd_m                      +0.0013 mm    [  -0.0034,   +0.0407]  policies +7/-5 p 0.7744   episodes +119/-121
+  com_height_sd_m                       -0.0327 mm    [  -0.0994,   -0.0007]  policies +0/-12 p 0.0005   episodes +56/-184
+  root_pitch_sd_deg                     -0.0003 deg   [  -0.0043,   +0.0003]  policies +1/-11 p 0.0063   episodes +81/-159
+  root_roll_sd_deg                      +0.0000 deg   [  -0.0009,   +0.0015]  policies +7/-5 p 0.7744   episodes +123/-117
+  root_turn_deg                         +0.0157 deg   [  -0.1582,   +0.0835]  policies +6/-6 p 1.0000   episodes +123/-117
+  root_turn_from_spawn_deg              -0.1528 deg   [  -1.7375,   +0.5711]  policies +4/-8 p 0.3877   episodes +91/-149
+  foot_travel_max_m                     +0.2630 mm    [  -1.5060,   +3.9229]  policies +7/-5 p 0.7744   episodes +131/-109
+  foot_travel_from_spawn_max_m          -0.5977 mm    [  -4.3205,   +4.8333]  policies +4/-8 p 0.3877   episodes +109/-131
+  com_margin_min_m                      +1.0416 mm    [  -8.6479,  +15.4622]  policies +7/-5 p 0.7744   episodes +127/-113
+  com_margin_fore_aft_min_m             +1.0427 mm    [  -8.6596,  +15.4635]  policies +7/-5 p 0.7744   episodes +128/-112
+  com_margin_lateral_min_m              -3.5643 mm    [ -34.1468,   +2.9519]  policies +4/-8 p 0.3877   episodes +111/-129
+  xcom_margin_min_m                     +1.0529 mm    [  -8.4505,  +15.5262]  policies +7/-5 p 0.7744   episodes +128/-112
+  left_load_share_mean                  +0.0026       [  -0.0071,   +0.0091]  policies +7/-5 p 0.7744   episodes +137/-103
+  lightest_foot_share_min               -0.0036       [  -0.0194,   +0.0019]  policies +2/-10 p 0.0386   episodes +76/-164
+  creep_mmps                            +0.0040 mm/s  [  -0.0007,   +0.2044]  policies +10/-2 p 0.0386   episodes +158/-82
+  creep_fa_mmps                         -0.0006 mm/s  [  -0.0049,   +0.0017]  policies +2/-10 p 0.0386   episodes +81/-159
+
+  RETURN AND REWARD TERMS, forced - unforced (per episode sums)
+  return (0-10 s)                     -179.8825       [-582.3401, -114.1398]  policies +0/-12 p 0.0005   episodes +0/-240
+  window return 2-10 s (D-9's)        -147.8791       [-514.8090,  -90.9105]  policies +0/-12 p 0.0005   episodes +0/-240
+  window return 5-10 s                 -95.4033       [-339.0367,  -55.9646]  policies +0/-12 p 0.0005   episodes +0/-240
+  reward_action_saturation (0-10 s)    -33.3333       [ -33.3333,  -16.8957]  policies +0/-12 p 0.0005   episodes +0/-240
+  reward_tail_home_pose (0-10 s)       -61.7500       [ -69.1868,  -57.3108]  policies +0/-12 p 0.0005   episodes +0/-240
+  reward_tail (0-10 s)                  -0.0236       [  -0.0579,   +0.0070]  policies +3/-9 p 0.1460   episodes +94/-146
+  reward_posture (0-10 s)               -0.2046       [  -1.0892,   +0.1514]  policies +2/-10 p 0.0386   episodes +42/-198
+  reward_energy (0-10 s)                -5.3880       [  -6.4833,   -2.2955]  policies +0/-12 p 0.0005   episodes +0/-240
+  reward_nosedive (0-10 s)              +0.0000       [  -4.1462,   +3.4164]  policies +3/-3 p 1.0000   episodes +78/-62
+  reward_neck_posture (0-10 s)         -15.6234       [ -31.5164,  +35.0407]  policies +3/-9 p 0.1460   episodes +79/-161
+  reward_leg_home_pose (0-10 s)        -34.9523       [-122.4667,   -3.7056]  policies +0/-12 p 0.0005   episodes +5/-235
+  reward_lateral_lean (0-10 s)          -1.7191       [ -66.6949,   +0.3760]  policies +2/-10 p 0.0386   episodes +73/-167
+  reward_foot_flatness (0-10 s)         -2.6590       [ -14.5551,   +2.5328]  policies +2/-10 p 0.0386   episodes +88/-152
+  reward_height (0-10 s)                -0.7158       [  -2.4593,   +0.0465]  policies +3/-9 p 0.1460   episodes +45/-195
+  reward_heading (0-10 s)               +0.0083       [  -0.0181,   +0.0611]  policies +9/-3 p 0.1460   episodes +138/-102
+  reward_stance_width (0-10 s)          +0.0127       [  -3.4235,   +1.1482]  policies +6/-6 p 1.0000   episodes +116/-124
+  reward_bilateral_support (0-10 s)     +0.0036       [  -0.0043,   +0.0337]  policies +7/-3 p 0.3438   episodes +139/-76
+  reward_foot_load_balance (0-10 s)     -1.3600       [  -7.9488,   +0.3251]  policies +2/-10 p 0.0386   episodes +78/-162
+  reward_smoothness (0-10 s)            +0.0036       [  +0.0016,   +0.0078]  policies +12/-0 p 0.0005   episodes +221/-19
+  reward_drift (0-10 s)                 -0.0097       [  -0.0594,   +0.0274]  policies +5/-7 p 0.7744   episodes +92/-148
+  reward_alive (0-10 s)                 +0.0030       [  -0.0036,   +0.0280]  policies +7/-3 p 0.3438   episodes +139/-76
+  reward_stance_stagger (0-10 s)        -0.2214       [  -5.3183,   +1.4985]  policies +2/-10 p 0.0386   episodes +84/-156
+  reward_stance_cop_band (0-10 s)       +0.0000       [  -0.0269,   +0.0000]  policies +0/-1 p 1.0000   episodes +7/-31
+  reward_spin (0-10 s)                  +0.0054       [  -0.0116,   +0.0306]  policies +9/-3 p 0.1460   episodes +138/-102
+  reward_speed (0-10 s)                 -0.0101       [  -0.2130,   +0.0088]  policies +2/-9 p 0.0654   episodes +54/-136
+  reward_head_clearance (0-10 s)        +0.0000       [-331.9408,   +0.4329]  policies +1/-5 p 0.2188   episodes +22/-106
+
+  DIAGNOSTICS 5-10 s means, forced - unforced
+  tail_instability                      -0.0000       [  -0.0007,   +0.0004]  policies +5/-7 p 0.7744   episodes +108/-132
+  tail_home_pose_error                  +0.0404       [  +0.0363,   +0.0419]  policies +12/-0 p 0.0005   episodes +240/-0
+  action_saturation                     +0.0667       [  +0.0234,   +0.0667]  policies +12/-0 p 0.0005   episodes +227/-0
+  tilt_angle                            +0.0079       [  -0.0071,   +0.0163]  policies +10/-2 p 0.0386   episodes +202/-38
+  forward_z                             +0.0079       [  -0.0166,   +0.0519]  policies +8/-4 p 0.3877   episodes +160/-80
+  pelvis_height                         +0.0017       [  -0.0035,   +0.0040]  policies +11/-1 p 0.0063   episodes +206/-34
+  neck_posture_error                    +0.0673       [  -0.1808,   +0.1433]  policies +8/-4 p 0.3877   episodes +151/-89
+  leg_home_pose_error                   +0.0072       [  +0.0018,   +0.0208]  policies +12/-0 p 0.0005   episodes +238/-2
+  r_foot_contact                        -2.2153       [  -7.6168,   +5.9294]  policies +5/-7 p 0.7744   episodes +103/-137
+  l_foot_contact                        +2.2182       [  -5.9819,   +7.6384]  policies +7/-5 p 0.7744   episodes +137/-103
+
+  TAIL (5-10 s means), forced - unforced
+  tail_1_pitch joint                    +0.4754 deg   [  +0.0620,   +1.5083]  policies +12/-0 p 0.0005   episodes +239/-1
+  tail_1_yaw joint                      -0.0782 deg   [  -0.2599,   +0.1550]  policies +3/-9 p 0.1460   episodes +74/-166
+  tail_2_pitch joint                    +0.4052 deg   [  -0.9809,   +1.5004]  policies +8/-4 p 0.3877   episodes +177/-63
+  tail_3_pitch joint                    +5.0635 deg   [  +4.2364,   +6.0284]  policies +12/-0 p 0.0005   episodes +240/-0
+  tail tip height                      +71.9705 mm    [ +35.7910, +118.2845]  policies +12/-0 p 0.0005   episodes +240/-0
+  tail tip fwd of pelvis                +6.8395 mm    [  +4.4315,   +9.6450]  policies +12/-0 p 0.0005   episodes +240/-0
+
+  OTHER ACTUATORS: applied command means 5-10 s (forced - unforced); then joint angles (deg)
+  cmd neck_pitch                        +0.3642       [  -0.7099,   +1.0762]  policies +9/-3 p 0.1460   episodes +177/-63
+  cmd neck_yaw                          +0.0046       [  -0.0293,   +0.0133]  policies +8/-4 p 0.3877   episodes +146/-94
+  cmd head_pitch                        -0.0360       [  -0.3141,   +0.2965]  policies +6/-6 p 1.0000   episodes +119/-121
+  cmd r_hip_pitch                       +0.0095       [  -0.0277,   +0.0459]  policies +11/-1 p 0.0063   episodes +215/-25
+  cmd r_hip_roll                        -0.0370       [  -0.1522,   +0.1169]  policies +3/-9 p 0.1460   episodes +72/-168
+  cmd r_knee                            -0.0104       [  -0.0300,   +0.0239]  policies +4/-8 p 0.3877   episodes +69/-171
+  cmd r_ankle                           +0.0061       [  -0.0217,   +0.0223]  policies +8/-4 p 0.3877   episodes +161/-79
+  cmd l_hip_pitch                       +0.0085       [  -0.0130,   +0.0392]  policies +10/-2 p 0.0386   episodes +201/-39
+  cmd l_hip_roll                        +0.0436       [  -0.1182,   +0.1803]  policies +9/-3 p 0.1460   episodes +165/-75
+  cmd l_knee                            -0.0080       [  -0.0302,   +0.0268]  policies +4/-8 p 0.3877   episodes +66/-174
+  cmd l_ankle                           +0.0079       [  -0.0136,   +0.0258]  policies +7/-5 p 0.7744   episodes +148/-92
+  cmd tail_1_pitch                      +0.0688       [  +0.0023,   +0.2243]  policies +12/-0 p 0.0005   episodes +231/-9
+  cmd tail_1_yaw                        -0.0143       [  -0.0528,   +0.0083]  policies +3/-9 p 0.1460   episodes +67/-173
+  cmd tail_2_pitch                      +0.0611       [  -0.1684,   +0.2455]  policies +8/-4 p 0.3877   episodes +174/-66
+  cmd tail_3_pitch                      +0.9742       [  +0.8126,   +1.1669]  policies +12/-0 p 0.0005   episodes +240/-0
+  sum |cmd| of the other 14             +0.2958       [  -0.5107,   +0.8919]  policies +10/-2 p 0.0386   episodes +183/-57
+  joint neck_pitch                     +12.3626 deg   [ -24.1257,  +38.5548]  policies +9/-3 p 0.1460   episodes +177/-63
+  joint neck_yaw                        +0.0922 deg   [  -0.4905,   +0.2213]  policies +8/-4 p 0.3877   episodes +145/-95
+  joint head_pitch                      -1.8307 deg   [  -7.2041,   +5.0691]  policies +5/-7 p 0.7744   episodes +98/-142
+  joint tail_1_pitch                    +0.4754 deg   [  +0.0620,   +1.5083]  policies +12/-0 p 0.0005   episodes +239/-1
+  joint tail_1_yaw                      -0.0782 deg   [  -0.2599,   +0.1550]  policies +3/-9 p 0.1460   episodes +74/-166
+  joint tail_2_pitch                    +0.4052 deg   [  -0.9809,   +1.5004]  policies +8/-4 p 0.3877   episodes +177/-63
+  joint tail_3_pitch                    +5.0635 deg   [  +4.2364,   +6.0284]  policies +12/-0 p 0.0005   episodes +240/-0
+  joint r_hip_pitch                     +0.5855 deg   [  -1.5950,   +2.9985]  policies +11/-1 p 0.0063   episodes +219/-21
+  joint r_hip_roll                      -0.2157 deg   [  -0.6178,   +0.4703]  policies +3/-9 p 0.1460   episodes +80/-160
+  joint r_knee                          -0.4430 deg   [  -1.5676,   +1.3410]  policies +3/-9 p 0.1460   episodes +56/-184
+  joint r_ankle                         +0.3572 deg   [  -1.0112,   +1.3377]  policies +7/-5 p 0.7744   episodes +141/-99
+  joint l_hip_pitch                     +0.5796 deg   [  -0.9382,   +2.5503]  policies +11/-1 p 0.0063   episodes +206/-34
+  joint l_hip_roll                      +0.2075 deg   [  -0.4375,   +1.2071]  policies +10/-2 p 0.0386   episodes +184/-56
+  joint l_knee                          -0.4640 deg   [  -1.4685,   +1.3147]  policies +4/-8 p 0.3877   episodes +72/-168
+  joint l_ankle                         +0.4778 deg   [  -0.8767,   +1.3575]  policies +7/-5 p 0.7744   episodes +140/-100
+
+  ACTUATOR FORCE means 5-10 s (N or N m), forced - unforced
+  force neck_pitch                      -0.7519       [  -5.4036,   +2.9046]  policies +4/-8 p 0.3877   episodes +83/-157
+  force neck_yaw                        -0.0003       [  -0.1458,   +0.2406]  policies +6/-6 p 1.0000   episodes +117/-123
+  force head_pitch                      -0.0058       [  -1.9737,   +5.5197]  policies +6/-6 p 1.0000   episodes +137/-103
+  force r_hip_pitch                     +0.6598       [  -4.1963,   +3.9352]  policies +7/-5 p 0.7744   episodes +134/-106
+  force r_hip_roll                      -8.7270       [ -36.4090,  +25.8314]  policies +3/-9 p 0.1460   episodes +74/-166
+  force r_knee                          +0.0076       [  -3.5953,   +4.1529]  policies +6/-6 p 1.0000   episodes +119/-121
+  force r_ankle                         +0.3457       [  -4.9646,   +4.4925]  policies +7/-5 p 0.7744   episodes +122/-118
+  force l_hip_pitch                     +0.6401       [  -2.5638,   +7.1679]  policies +7/-5 p 0.7744   episodes +155/-85
+  force l_hip_roll                      +7.5552       [ -26.0707,  +36.4879]  policies +9/-3 p 0.1460   episodes +164/-76
+  force l_knee                          -0.0680       [  -2.2410,  +10.1625]  policies +6/-6 p 1.0000   episodes +116/-124
+  force l_ankle                         +0.0935       [  -4.4168,  +11.1979]  policies +6/-6 p 1.0000   episodes +123/-117
+  force tail_1_pitch                    +0.6131       [  -0.0611,   +2.0649]  policies +11/-1 p 0.0063   episodes +225/-15
+  force tail_1_yaw                      -0.1159       [  -0.2761,   +0.1246]  policies +2/-10 p 0.0386   episodes +63/-177
+  force tail_2_pitch                    +0.4553       [  -1.4508,   +2.0150]  policies +8/-4 p 0.3877   episodes +166/-74
+  force tail_3_pitch                    +6.9536       [  +5.7743,   +8.3480]  policies +12/-0 p 0.0005   episodes +240/-0
+
+  per-policy SD over seeds of com_lateral: unforced 1.745 mm -> forced 4.048 mm (policies +10/-2, p 0.0386)
+
+  OPEN-LOOP REPLAY (240 episodes): the unforced episode's own 14 other commands replayed, tail_3 forced
+  falls/terminations replay: 0
+  com_fore_aft_mean_m [plant]           +0.1763 mm    [  +0.1509,   +0.2106]  policies +12/-0 p 0.0005   episodes +240/-0
+  com_fore_aft_mean_m [policy feedback]    +0.8550 mm    [  -9.0894,  +15.3908]  policies +7/-5 p 0.7744   episodes +126/-114
+  com_fore_aft_drift_m [plant]          -0.0470 mm    [  -0.0949,   -0.0138]  policies +0/-12 p 0.0005   episodes +58/-182
+  com_fore_aft_drift_m [policy feedback]    +0.2413 mm    [  -0.9121,   +1.9753]  policies +10/-2 p 0.0386   episodes +163/-77
+  root_pitch_mean_deg [plant]           -0.0105 deg   [  -0.0127,   -0.0084]  policies +0/-12 p 0.0005   episodes +1/-239
+  root_pitch_mean_deg [policy feedback]    +0.4603 deg   [  -0.9409,   +2.9817]  policies +8/-4 p 0.3877   episodes +160/-80
+  com_height_mean_m [plant]             +1.5546 mm    [  +1.3105,   +1.8495]  policies +12/-0 p 0.0005   episodes +240/-0
+  com_height_mean_m [policy feedback]    -7.1569 mm    [ -30.5464,  +22.2251]  policies +5/-7 p 0.7744   episodes +90/-150
+  com_height_drift_m [plant]            +0.0060 mm    [  -0.0105,   +0.0178]  policies +8/-4 p 0.3877   episodes +156/-84
+  com_height_drift_m [policy feedback]    +0.4578 mm    [  -1.6509,   +2.5420]  policies +8/-4 p 0.3877   episodes +146/-94
+  com_lateral_mean_m [plant]            -0.0001 mm    [  -0.0010,   +0.0008]  policies +5/-7 p 0.7744   episodes +119/-121
+  com_lateral_mean_m [policy feedback]    -0.0546 mm    [ -11.3662,   +3.2882]  policies +6/-6 p 1.0000   episodes +113/-127
+  root_roll_mean_deg [plant]            -0.0000 deg   [  -0.0001,   +0.0001]  policies +5/-7 p 0.7744   episodes +122/-118
+  root_roll_mean_deg [policy feedback]    -0.0156 deg   [  -0.1517,   +0.3734]  policies +5/-7 p 0.7744   episodes +107/-133
+  com_speed_rms_mps [plant]             +0.1599 mm/s  [  +0.0263,   +0.2267]  policies +12/-0 p 0.0005   episodes +232/-8
+  com_speed_rms_mps [policy feedback]    -0.2141 mm/s  [  -0.3188,   +0.0684]  policies +1/-11 p 0.0063   episodes +38/-202
+  tail_3 joint [plant]                  +5.0426 deg   [  +4.2183,   +6.0312]  policies +12/-0 p 0.0005   episodes +240/-0
+  return (0-10 s) [plant]              -96.8356       [ -97.5217,  -91.8249]  policies +0/-12 p 0.0005   episodes +0/-240
+
+  PER POLICY: unforced level vs paired change (Spearman over the 12), and the across-policy SD of the levels
+  com_fore_aft_mean_m          rho(level, change) +0.20 (p 0.527); across-policy SD 4.890 -> 9.533 mm
+    A_1301:-32.33->-31.57  A_1311:-35.89->-34.20  A_1321:-34.51->-29.58  A_1331:-32.50->-40.01  A_1341:-41.74->-37.92  A_1351:-28.05->-29.67  B_1401:-25.50->-17.89  B_1411:-31.95->-16.21  B_1421:-27.66->-35.93  B_1431:-31.99->-29.68  B_1441:-40.76->-49.48  B_1451:-35.02->-42.94
+  root_pitch_mean_deg          rho(level, change) -0.10 (p 0.746); across-policy SD 0.322 -> 0.961 deg
+    A_1301:-0.07->-1.05  A_1311:-0.60->+0.15  A_1321:-0.10->+0.11  A_1331:+0.09->+0.76  A_1341:-0.13->+0.99  A_1351:-0.43->-0.97  B_1401:-0.59->-0.77  B_1411:-0.61->-0.95  B_1421:-1.03->+1.98  B_1431:-0.34->-0.15  B_1441:-0.11->+1.02  B_1451:-0.15->+0.52
+  com_height_mean_m            rho(level, change) -0.55 (p 0.063); across-policy SD 11.045 -> 14.416 mm
+    A_1301:+861.14->+884.69  A_1311:+890.65->+881.92  A_1321:+872.83->+863.02  A_1331:+870.46->+890.25  A_1341:+891.57->+884.25  A_1351:+868.65->+878.68  B_1401:+865.96->+862.76  B_1411:+882.79->+853.74  B_1421:+867.71->+878.17  B_1431:+876.02->+859.11  B_1441:+894.56->+894.64  B_1451:+880.37->+854.10
+
+  TIME COURSE: mean over episodes per 1 s bin (0-1 ... 9-10 s), forced - unforced
+  fa      mm    -1.677  -1.387  -0.889  -0.447  -0.179  -0.034  +0.039  +0.090  +0.127  +0.152
+  pitch   deg   +0.406  +0.544  +0.544  +0.530  +0.517  +0.506  +0.498  +0.491  +0.485  +0.479
+  height  mm    -0.298  -1.809  -2.932  -3.400  -3.527  -3.478  -3.391  -3.301  -3.206  -3.107
+  tail3   deg   +4.219  +5.173  +5.130  +5.126  +5.123  +5.120  +5.116  +5.112  +5.110  +5.107
+
+==================== RAIL - NO RAIL on one convention: s42 (unforced - held 0), s80 (forced +1 - unforced) ====================
+  com_fore_aft_mean_m            s42   -1.6294 mm   (+4/-8, p 0.3877)   s80   +1.0440 mm   (+7/-5, p 0.7744)
+  com_fore_aft_drift_m           s42   +0.0483 mm   (+8/-4, p 0.3877)   s80   +0.2054 mm   (+10/-2, p 0.0386)
+  root_pitch_mean_deg            s42   +0.1624 deg  (+10/-2, p 0.0386)   s80   +0.4505 deg  (+8/-4, p 0.3877)
+  com_height_mean_m              s42   +3.4217 mm   (+10/-2, p 0.0386)   s80   -5.6872 mm   (+5/-7, p 0.7744)
+  com_height_drift_m             s42   +0.0128 mm   (+7/-5, p 0.7744)   s80   +0.4617 mm   (+8/-4, p 0.3877)
+  com_lateral_mean_m             s42   +0.1119 mm   (+8/-4, p 0.3877)   s80   -0.0511 mm   (+6/-6, p 1.0000)
+  abs_com_lateral_mean_m         s42   -0.0327 mm   (+4/-8, p 0.3877)   s80   +0.5821 mm   (+11/-1, p 0.0063)
+  com_lateral_drift_m            s42   -0.0023 mm   (+5/-7, p 0.7744)   s80   +0.0318 mm   (+7/-5, p 0.7744)
+  root_roll_mean_deg             s42   +0.0003 deg  (+6/-6, p 1.0000)   s80   -0.0158 deg  (+5/-7, p 0.7744)
+  abs_root_roll_mean_deg         s42   -0.0022 deg  (+3/-9, p 0.1460)   s80   +0.0418 deg  (+12/-0, p 0.0005)
+  root_roll_drift_deg            s42   -0.0005 deg  (+4/-8, p 0.3877)   s80   -0.0017 deg  (+3/-9, p 0.1460)
+  return                         s42  -63.5766      (+0/-12, p 0.0005)   s80 -179.8825      (+0/-12, p 0.0005)
+
+==================== START CHECKPOINTS clamped the same way: does the s42 lineage's drift survive the clamp? ====================
+  s42: start unforced 20, forced 20 episodes; falls []
+  com_fore_aft_mean_m    start   -20.727 -> clamped   -24.165 mm (seeds +0/-20); ends - start: unforced  -4.976 (1/11, p 0.0063), both clamped  -0.716 (6/6, p 1.0000)
+  root_pitch_mean_deg    start    -1.448 -> clamped    -1.197 deg (seeds +20/-0); ends - start: unforced  +0.096 (7/5, p 0.7744), both clamped  -0.483 (1/11, p 0.0063)
+  com_height_mean_m      start  +865.687 -> clamped  +862.837 mm (seeds +0/-20); ends - start: unforced  +2.204 (9/3, p 0.1460), both clamped  +0.944 (8/4, p 0.3877)
+  com_lateral_mean_m     start    +0.167 -> clamped    +0.428 mm (seeds +16/-4); ends - start: unforced  -0.057 (6/6, p 1.0000), both clamped  -0.422 (3/9, p 0.1460)
+  root_roll_mean_deg     start    -0.002 -> clamped    -0.030 deg (seeds +0/-20); ends - start: unforced  +0.004 (9/3, p 0.1460), both clamped  +0.036 (12/0, p 0.0005)
+  return                 start +4425.709 -> clamped +4467.653
+  tail_3 joint deg       start    +3.116 -> clamped    +0.013
+  s80: start unforced 20, forced 20 episodes; falls []
+  com_fore_aft_mean_m    start   -34.191 -> clamped   -23.668 mm (seeds +20/-0); ends - start: unforced  +1.778 (7/5, p 0.7744), both clamped  -9.217 (2/10, p 0.0386)
+  root_pitch_mean_deg    start    -0.457 -> clamped    -1.032 deg (seeds +0/-20); ends - start: unforced  +0.213 (8/4, p 0.3877), both clamped  +1.167 (11/1, p 0.0063)
+  com_height_mean_m      start  +889.440 -> clamped  +868.016 mm (seeds +0/-20); ends - start: unforced -15.017 (3/9, p 0.1460), both clamped +10.412 (7/5, p 0.7744)
+  com_lateral_mean_m     start    -0.070 -> clamped    -1.378 mm (seeds +1/-19); ends - start: unforced  -0.066 (5/7, p 0.7744), both clamped  +1.343 (9/3, p 0.1460)
+  root_roll_mean_deg     start    +0.017 -> clamped    +0.132 deg (seeds +20/-0); ends - start: unforced  -0.006 (4/8, p 0.3877), both clamped  -0.156 (1/11, p 0.0063)
+  return                 start +4436.819 -> clamped +4369.586
+  tail_3 joint deg       start    +0.103 -> clamped    +5.205
+
+==================== STATUE (neutral action, tail_3 at 0) with tail_3 forced to +1: 20 paired spawns ====================
+  com_fore_aft_mean_m                   +0.2301 mm    seeds +20/-0 p 0.0000
+  com_fore_aft_drift_m                  -0.1095 mm    seeds +2/-18 p 0.0004
+  root_pitch_mean_deg                   -0.0136 deg   seeds +0/-20 p 0.0000
+  com_height_mean_m                     +1.6061 mm    seeds +20/-0 p 0.0000
+  com_height_drift_m                    +0.0119 mm    seeds +19/-1 p 0.0000
+  com_lateral_mean_m                    +0.0002 mm    seeds +12/-8 p 0.5034
+  abs_com_lateral_mean_m                -0.0001 mm    seeds +9/-11 p 0.8238
+  com_lateral_drift_m                   -0.0023 mm    seeds +5/-15 p 0.0414
+  root_roll_mean_deg                    -0.0000 deg   seeds +8/-12 p 0.5034
+  abs_root_roll_mean_deg                +0.0000 deg   seeds +14/-6 p 0.1153
+  root_roll_drift_deg                   +0.0001 deg   seeds +11/-9 p 0.8238
+  tail_3 joint                          +5.1833 deg
+  return                               -97.5025
+  falls: []
+
+==================== LONG RUNS (2,000 steps; 3 policies per group, 20 seeds), forced - unforced ====================
+  s42: unforced 60, forced 60 episodes; falls []
+  com_fore_aft_mean_m@5.0_to10          +1.6402 mm    [  +0.9216,   +8.4017]  policies +3/-0 p 0.2500   episodes +58/-2   level -28.455 -> -25.875
+  com_fore_aft_mean_m@10.0              +1.5730 mm    [  +0.8496,   +8.6802]  policies +3/-0 p 0.2500   episodes +58/-2   level -27.683 -> -24.622
+  com_fore_aft_mean_m@15.0              +1.4808 mm    [  +0.8282,   +8.7133]  policies +3/-0 p 0.2500   episodes +59/-1   level -27.389 -> -24.269
+  com_fore_aft_drift_m@5.0_to10         +0.1226 mm    [  +0.0230,   +0.2031]  policies +3/-0 p 0.2500   episodes +36/-24   level +1.020 -> +0.841
+  com_fore_aft_drift_m@10.0             -0.0818 mm    [  -0.0872,   +0.2290]  policies +1/-2 p 1.0000   episodes +31/-29   level +0.708 -> +0.602
+  com_fore_aft_drift_m@15.0             -0.0468 mm    [  -0.1112,   +0.0285]  policies +1/-2 p 1.0000   episodes +27/-33   level +0.254 -> +0.226
+  root_pitch_mean_deg@5.0_to10          -0.3900 deg   [  -1.4607,   -0.0327]  policies +0/-3 p 0.2500   episodes +7/-53   level -1.103 -> -1.479
+  root_pitch_mean_deg@10.0              -0.3883 deg   [  -1.5221,   -0.0198]  policies +0/-3 p 0.2500   episodes +7/-53   level -1.215 -> -1.603
+  root_pitch_mean_deg@15.0              -0.3816 deg   [  -1.5409,   -0.0170]  policies +0/-3 p 0.2500   episodes +7/-53   level -1.230 -> -1.624
+  com_height_mean_m@5.0_to10            -4.1340 mm    [ -10.7030,   -2.6809]  policies +0/-3 p 0.2500   episodes +0/-60   level +869.455 -> +864.832
+  com_height_mean_m@10.0                -4.1744 mm    [ -11.1057,   -2.6794]  policies +0/-3 p 0.2500   episodes +0/-60   level +869.000 -> +864.413
+  com_height_mean_m@15.0                -4.1689 mm    [ -11.1918,   -2.6733]  policies +0/-3 p 0.2500   episodes +0/-60   level +868.897 -> +864.298
+  com_lateral_mean_m@5.0_to10           -0.1841 mm    [  -0.2796,   +0.0943]  policies +1/-2 p 1.0000   episodes +15/-45   level +0.036 -> -0.172
+  com_lateral_mean_m@10.0               -0.1587 mm    [  -0.2160,   +0.0808]  policies +1/-2 p 1.0000   episodes +15/-45   level +0.096 -> +0.007
+  com_lateral_mean_m@15.0               -0.1564 mm    [  -0.2134,   +0.0816]  policies +1/-2 p 1.0000   episodes +16/-44   level +0.109 -> +0.074
+  abs_com_lateral_mean_m@5.0_to10       +0.0372 mm    [  -0.0877,   +0.2009]  policies +2/-1 p 1.0000   episodes +32/-28   level +0.685 -> +1.167
+  abs_com_lateral_mean_m@10.0           +0.0155 mm    [  -0.1089,   +0.1353]  policies +2/-1 p 1.0000   episodes +31/-29   level +0.634 -> +0.752
+  abs_com_lateral_mean_m@15.0           -0.0309 mm    [  -0.1051,   -0.0265]  policies +0/-3 p 0.2500   episodes +27/-33   level +0.591 -> +0.642
+  com_lateral_drift_m@5.0_to10          +0.0135 mm    [  -0.1121,   +0.0697]  policies +2/-1 p 1.0000   episodes +37/-23   level +0.037 -> +0.045
+  com_lateral_drift_m@10.0              +0.0096 mm    [  +0.0033,   +0.0338]  policies +3/-0 p 0.2500   episodes +42/-18   level +0.015 -> +0.026
+  com_lateral_drift_m@15.0              +0.0067 mm    [  +0.0008,   +0.0077]  policies +3/-0 p 0.2500   episodes +40/-20   level +0.003 -> +0.008
+  root_roll_mean_deg@5.0_to10           -0.0029 deg   [  -0.0163,   +0.0047]  policies +1/-2 p 1.0000   episodes +29/-31   level +0.001 -> -0.001
+  root_roll_mean_deg@10.0               -0.0047 deg   [  -0.0140,   +0.0031]  policies +1/-2 p 1.0000   episodes +23/-37   level +0.000 -> -0.003
+  root_roll_mean_deg@15.0               -0.0041 deg   [  -0.0138,   +0.0030]  policies +1/-2 p 1.0000   episodes +23/-37   level +0.001 -> -0.003
+  abs_root_roll_mean_deg@5.0_to10       -0.0008 deg   [  -0.0011,   +0.0034]  policies +1/-2 p 1.0000   episodes +30/-30   level +0.014 -> +0.015
+  abs_root_roll_mean_deg@10.0           +0.0016 deg   [  -0.0026,   +0.0059]  policies +2/-1 p 1.0000   episodes +29/-31   level +0.013 -> +0.009
+  abs_root_roll_mean_deg@15.0           +0.0000 deg   [  -0.0027,   +0.0053]  policies +2/-1 p 1.0000   episodes +28/-32   level +0.013 -> +0.009
+  com_speed_rms_mps@5.0_to10            +0.0017 mm/s  [  +0.0016,   +0.0103]  policies +3/-0 p 0.2500   episodes +32/-28   level +0.254 -> +0.253
+  com_speed_rms_mps@10.0                -0.0056 mm/s  [  -0.0071,   +0.0271]  policies +1/-2 p 1.0000   episodes +32/-28   level +0.073 -> +0.095
+  com_speed_rms_mps@15.0                -0.0074 mm/s  [  -0.0160,   +0.0031]  policies +1/-2 p 1.0000   episodes +26/-34   level +0.053 -> +0.046
+  return 10-20 s                       +84.1666       [ +12.4690,  +98.0035]  policies +3/-0 p 0.2500   episodes +55/-5
+  return 0-20 s                       +162.0928       [ +38.1941, +179.1590]  policies +3/-0 p 0.2500   episodes +57/-3
+  s80: unforced 60, forced 60 episodes; falls []
+  com_fore_aft_mean_m@5.0_to10          +0.4102 mm    [  -1.5847,   +7.7368]  policies +2/-1 p 1.0000   episodes +31/-29   level -28.049 -> -29.673
+  com_fore_aft_mean_m@10.0              -0.2557 mm    [  -1.1451,   +8.0608]  policies +1/-2 p 1.0000   episodes +28/-32   level -28.212 -> -29.452
+  com_fore_aft_mean_m@15.0              -0.4163 mm    [  -1.0280,   +8.1378]  policies +1/-2 p 1.0000   episodes +26/-34   level -28.254 -> -29.397
+  com_fore_aft_drift_m@5.0_to10         +0.3867 mm    [  -0.4491,   +0.4659]  policies +2/-1 p 1.0000   episodes +39/-21   level -0.209 -> +0.167
+  com_fore_aft_drift_m@10.0             +0.4620 mm    [  -0.9355,   +0.5682]  policies +2/-1 p 1.0000   episodes +43/-17   level -0.189 -> +0.227
+  com_fore_aft_drift_m@15.0             +0.1884 mm    [  -0.4111,   +0.2700]  policies +2/-1 p 1.0000   episodes +43/-17   level -0.071 -> +0.088
+  root_pitch_mean_deg@5.0_to10          -0.5061 deg   [  -0.9520,   -0.1668]  policies +0/-3 p 0.2500   episodes +0/-60   level -0.430 -> -0.969
+  root_pitch_mean_deg@10.0              -0.5740 deg   [  -0.9596,   -0.2007]  policies +0/-3 p 0.2500   episodes +0/-60   level -0.385 -> -0.947
+  root_pitch_mean_deg@15.0              -0.5915 deg   [  -0.9493,   -0.2203]  policies +0/-3 p 0.2500   episodes +0/-60   level -0.378 -> -0.933
+  com_height_mean_m@5.0_to10            +9.7744 mm    [  -4.1128,  +23.8020]  policies +2/-1 p 1.0000   episodes +40/-20   level +865.957 -> +878.684
+  com_height_mean_m@10.0               +10.8375 mm    [  -2.5495,  +25.4240]  policies +2/-1 p 1.0000   episodes +40/-20   level +866.403 -> +878.893
+  com_height_mean_m@15.0               +11.0374 mm    [  -2.5221,  +25.8560]  policies +2/-1 p 1.0000   episodes +40/-20   level +866.357 -> +879.074
+  com_lateral_mean_m@5.0_to10           -0.1419 mm    [  -0.2311,   +1.5565]  policies +1/-2 p 1.0000   episodes +31/-29   level -0.079 -> +0.106
+  com_lateral_mean_m@10.0               +0.0829 mm    [  -0.1500,   +1.0070]  policies +2/-1 p 1.0000   episodes +36/-24   level +0.070 -> +0.207
+  com_lateral_mean_m@15.0               +0.2031 mm    [  -0.1927,   +1.0915]  policies +2/-1 p 1.0000   episodes +38/-22   level +0.112 -> +0.235
+  abs_com_lateral_mean_m@5.0_to10       +0.0332 mm    [  -0.0316,   +0.4292]  policies +2/-1 p 1.0000   episodes +37/-23   level +0.634 -> +1.333
+  abs_com_lateral_mean_m@10.0           +2.7643 mm    [  +0.5380,   +3.7122]  policies +3/-0 p 0.2500   episodes +42/-18   level +0.358 -> +4.226
+  abs_com_lateral_mean_m@15.0           +3.6681 mm    [  +0.6200,   +5.1347]  policies +3/-0 p 0.2500   episodes +44/-16   level +0.352 -> +4.804
+  com_lateral_drift_m@5.0_to10          +0.0459 mm    [  -0.0069,   +0.2491]  policies +2/-1 p 1.0000   episodes +35/-25   level -0.017 -> +0.019
+  com_lateral_drift_m@10.0              +0.0620 mm    [  +0.0199,   +0.4817]  policies +3/-0 p 0.2500   episodes +37/-23   level -0.008 -> +0.137
+  com_lateral_drift_m@15.0              +0.0429 mm    [  -0.1440,   +0.2695]  policies +2/-1 p 1.0000   episodes +36/-24   level -0.002 -> +0.084
+  root_roll_mean_deg@5.0_to10           -0.0129 deg   [  -0.1000,   +0.1093]  policies +1/-2 p 1.0000   episodes +27/-33   level -0.008 -> -0.025
+  root_roll_mean_deg@10.0               -0.0208 deg   [  -0.0946,   +0.0996]  policies +1/-2 p 1.0000   episodes +22/-38   level -0.010 -> -0.034
+  root_roll_mean_deg@15.0               -0.0222 deg   [  -0.0942,   +0.0968]  policies +1/-2 p 1.0000   episodes +23/-37   level -0.010 -> -0.035
+  abs_root_roll_mean_deg@5.0_to10       +0.0387 deg   [  +0.0137,   +0.0518]  policies +3/-0 p 0.2500   episodes +43/-17   level +0.025 -> +0.061
+  abs_root_roll_mean_deg@10.0           +0.0550 deg   [  +0.0383,   +0.0789]  policies +3/-0 p 0.2500   episodes +54/-6   level +0.017 -> +0.074
+  abs_root_roll_mean_deg@15.0           +0.0568 deg   [  +0.0455,   +0.0806]  policies +3/-0 p 0.2500   episodes +56/-4   level +0.016 -> +0.073
+  com_speed_rms_mps@5.0_to10            +0.0368 mm/s  [  -0.0272,   +0.0810]  policies +2/-1 p 1.0000   episodes +38/-22   level +0.122 -> +0.193
+  com_speed_rms_mps@10.0                +0.1227 mm/s  [  +0.0624,   +0.1287]  policies +3/-0 p 0.2500   episodes +52/-8   level +0.038 -> +0.175
+  com_speed_rms_mps@15.0                +0.1062 mm/s  [  +0.0784,   +0.1223]  policies +3/-0 p 0.2500   episodes +55/-5   level +0.025 -> +0.138
+  return 10-20 s                      -217.0464       [-235.5125, -167.1957]  policies +0/-3 p 0.2500   episodes +0/-60
+  return 0-20 s                       -388.9790       [-414.4866, -308.6267]  policies +0/-3 p 0.2500   episodes +0/-60

@@ -1,0 +1,17 @@
+CP 0/280: 0.00-1.31 %
+CP 0/200: 0.00-1.83 %
+CP 0/480: 0.00-0.77 %
+CP 0/960: 0.00-0.38 %
+CP 10/280: 1.73-6.47 %
+CP 16/480: 1.92-5.36 %
+CP 6/200: 1.11-6.42 %
+CP 46/200: 17.36-29.46 %
+CP 68/200: 27.47-41.02 %
+CP 0/202: 0.00-1.81 %
+binomtest check 0/280: ConfidenceInterval(low=np.float64(0.0), high=np.float64(0.013088164703296644))
+Fisher model 0.02 vs robot same seeds 0.02: 0/280 vs 10/280: p = 0.0018
+Fisher model pooled (0.02 + own train noise) vs robot 0.02 (480): 0/480 vs 16/480: p = 2.69e-05
+Fisher matched noise: model 0.02 (280) vs robot 0.02 (480): 0/280 vs 16/480: p = 0.000906
+Fisher compy 0.01 vs robot 0.01 (verifier M2): 0/200 vs 0/202: p = 1
+Fisher model pooled vs robot all measured (0.02 480 + 0.01 202): 0/480 vs 16/682: p = 0.000359
+P(0 of 280 | p=3.6%) = 3.780987039572721e-05 ; P(0/280 | 1%) = 0.05995901467146544

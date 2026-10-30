@@ -1,0 +1,61 @@
+policies 26 (starts 2, s42 12, s80 12); M1 episodes stood (len 1001): 540/540
+
+0. MY REDUCTION (float32 tracks) AGAINST THE LENS'S IN-RUN METRICS (float64), window 5 s, all 920 episodes
+  com_lat_mm       vs com_lateral_mean_m        : max |diff| 3.87e-07  sign disagreements 0/920
+  roll_deg         vs root_roll_mean_deg        : max |diff| 8.46e-10  sign disagreements 0/920
+  pitch_deg        vs root_pitch_mean_deg       : max |diff| 1.41e-08  sign disagreements 0/920
+  com_fa_mm        vs com_fore_aft_mean_m       : max |diff| 4.89e-07  sign disagreements 0/920
+  speed_rms_mmps   vs com_speed_rms_mps         : max |diff| 3.71e-06  sign disagreements 0/920
+  turn_window_deg  vs root_turn_deg             : max |diff| 1.13e-06  sign disagreements 0/920
+  turn_from_spawn  max |diff| 9.49e-07 deg
+
+1. SAME-SIDE LEAN (sign test) AND CREEP, my numbers
+  window 2.0: keys at p<=0.005 (no floor): 0/52; CoM-P1 flags (with floor): 0; smallest p: s42_B_1251 roll_deg +16/4 p 0.0118 med +0.0129; s80_B_1431 roll_deg +15/5 p 0.0414 med +0.0132; s42_A_1121 roll_deg +14/6 p 0.1153 med +0.0296
+  window 5.0: keys at p<=0.005 (no floor): 0/52; CoM-P1 flags (with floor): 0; smallest p: s42_B_1251 roll_deg +16/4 p 0.0118 med +0.0071; s80_B_1401 roll_deg +5/15 p 0.0414 med -0.0083; s80_B_1431 roll_deg +15/5 p 0.0414 med +0.0152
+  window 9.0: keys at p<=0.005 (no floor): 1/52; CoM-P1 flags (with floor): 0; smallest p: s80_A_1301 roll_deg +19/1 p 0.0000 med +0.0180; s42_A_1131 roll_deg +16/4 p 0.0118 med +0.0077; s80_A_1301 com_lat_mm +5/15 p 0.0414 med -0.1792
+  feet creep LS speed 5-10 s: policies M1 max 0.513 mm/s (s80_A_1301 3047); held-out max 0.346 (s80_A_1351 3063); statue (M1 + null, 120) max 0.048; policy episodes >= 1 mm/s: 0
+  held-out 3062-3071: keys at p<=0.005: [('s80_B_1401', 'roll_deg', 0, 10, -0.012984696332306728, np.False_)]
+  statue: 6 panels x 2 keys, smallest sign-test p 0.1153; keys at p<=0.005: 0/12
+  pooled statue com_lat_mm: 53+/67- of 120, p 0.235; |v| 95th pct 0.4032
+  pooled statue roll_deg: 70+/50- of 120, p 0.082; |v| 95th pct 0.0218
+  statue feet creep direction: 85 forward / 35 backward of 120
+
+2. r9 POSITIVE CONTROL
+  r9 5 s com_lat_mm: 1+/19-, p 4.01e-05, median -1.3042
+  r9 5 s roll_deg: 19+/1-, p 4.01e-05, median +0.1264
+  2 s roll seeds 3042-3051: PR demo median 0.13009 min 0.00746 max 0.14827; lens run_r9 max|diff to PR| 0.00e+00; mine (float32 tracks) max|diff to PR| 6.54e-10
+  2 s com_lateral seeds 3042-3051: lens vs PR max|diff| 0.00e+00 m
+
+3. RAIL (s42) vs NO RAIL (s80): per-policy medians over M1, exact two-sided Mann-Whitney
+  com_lat_mm   s42   +0.110  s80   -0.136  p 0.07802   start_s42   +0.167 start_s80   -0.070
+  roll_deg     s42   +0.002  s80   +0.010  p 0.40951   start_s42   -0.002 start_s80   +0.017
+  pitch_deg    s42   -1.351  s80   -0.245  p 0.00001   start_s42   -1.448 start_s80   -0.457
+  com_fa_mm    s42  -25.703  s80  -32.413  p 0.00681   start_s42  -20.727 start_s80  -34.191
+  SD over seeds com_lat_mm: statue 0.1493; s42 median 1.3504 [0.8506,1.9103]; s80 median 1.7451 [0.4212,4.1640]; p 0.0684; starts 1.5140 / 2.1672
+  SD over seeds roll_deg  : statue 0.0094; s42 median 0.0332 [0.0146,0.0654]; s80 median 0.0689 [0.0241,0.0995]; p 0.0056; starts 0.0304 / 0.1079
+  change from own start pitch_deg: s42 median +0.096, s80 median +0.213 (start-to-end shift of each lineage)
+  change from own start com_fa_mm: s42 median -4.976, s80 median +1.778 (start-to-end shift of each lineage)
+  arm A vs B within s42: com_lat_mm p 0.310; roll_deg p 0.937; pitch_deg p 0.589; com_fa_mm p 0.937; speed_rms_mmps p 0.485
+  arm A vs B within s80: com_lat_mm p 0.937; roll_deg p 0.394; pitch_deg p 0.132; com_fa_mm p 0.310; speed_rms_mmps p 0.937
+
+4. SPAWN-DEPENDENT LEAN
+  s42: mean pairwise Spearman +0.73; per-policy rho vs statue median -0.10; |CoM lat| > 5 mm: 0/240; median of per-policy medians +0.110 mm
+  s80: mean pairwise Spearman +0.43; per-policy rho vs statue median -0.11; |CoM lat| > 5 mm: 16/240; median of per-policy medians -0.136 mm
+  statue: |CoM lat| > 5 mm 0/20, max |.| 0.554 mm
+  seed 3059 most-right policies: s80_A_1311 -13.68, s80_A_1301 -11.78, s80_A_1321 -10.88, s80_B_1411 -9.57, start_s80 -7.59, s80_B_1431 -6.14; statue -0.554
+  s80 > 5 mm episodes by seed: {'3045': 3, '3047': 4, '3059': 7, '3050': 1, '3061': 1}
+  the same four at window 9-10 s: s80_A_1311 -12.07, s80_A_1301 -9.03, s80_A_1321 -9.77, s80_B_1411 -7.79
+
+5. ROCK, SETTLE, TURN FROM SPAWN
+  statue  CoM speed RMS 5-10 s median 2.641 mm/s; settled by 3 s 0.00, by 5 s 0.00; |turn from spawn| < 1 deg 0.100, max 13.0 deg
+  starts  CoM speed RMS 5-10 s median 0.316 mm/s; settled by 3 s 0.50, by 5 s 0.88; |turn from spawn| < 1 deg 0.125, max 12.5 deg
+  s42     CoM speed RMS 5-10 s median 0.219 mm/s; settled by 3 s 0.66, by 5 s 0.91; |turn from spawn| < 1 deg 0.133, max 15.5 deg
+  s80     CoM speed RMS 5-10 s median 0.240 mm/s; settled by 3 s 0.46, by 5 s 0.83; |turn from spawn| < 1 deg 0.083, max 11.5 deg
+  turn from spawn, policy vs statue at the same spawn: Spearman median +0.96 [+0.93, +0.99] over 26 policies
+  policy minus statue turn: median |.| 0.77 deg, 90th pct 2.13
+
+6. HIP-ROLL COMMANDS (actuators 4, 8 as the lens names them), mean over M1 seeds of the 2-10 s mean
+  |r + l| max 0.0042; max |each| 0.1014
+
+7. ANALYTIC NULL RATES
+  P(>= 17 of 20 one way) = 0.002577 (2702/1048576); union of 2 keys <= 0.00515; P(>= 30 of 40 one way) = 0.00222

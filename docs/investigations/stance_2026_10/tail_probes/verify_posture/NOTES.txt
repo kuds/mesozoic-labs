@@ -1,0 +1,239 @@
+ADVERSARIAL VERIFICATION OF TESTS 1-3, "is the tail habit a reflection of body positioning?" (role verify_posture)
+Written 2026-10-29 ~22:40 UTC.  I ran none of tests 1-3.  EXPLORATORY, REPORT ONLY.  No training of any kind.
+Folder (everything I wrote is here, 15 MB):
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/verify_posture/
+Labels: [measured] = my script named, output file named.  [inferred] = reasoned, basis given.  All between-run and
+over-training comparisons are correlational (one run per seed; deterministic play; 10 seeds per checkpoint).
+Sign conventions: pitch + = nose up; CoM + = forward; cmd14 = tail_3_pitch_act command.
+
+==================================================================================================================
+0. IN SHORT
+==================================================================================================================
+- Test 1's main negative answer holds and gets stronger: in r10 s42 no posture shift came before the tail.  But the
+  "together, within one bin" wording is threshold-dependent.  With noise-matched detection and a block-bootstrapped
+  change-point, the tail command started first (about 1.20M).  The nose-down pitch followed about 0.17M later
+  (95% 0.07-0.27M) and the forward CoM about 0.4M later still.  At a fixed observation (the probe bank) the s42 tail
+  command was already rising at 1.3-1.6M, so the first rise was a posture-independent change in the policy.
+- Test 2's measurements reproduce closely on my own settled states, which come from different seeds (5001-5010).
+  This covers the observation indices, the pitch / knee / hip pathway at the ends, the transplant, the closed-loop
+  illusion and the cross-policy correlations.  Test 3's plant map and tail-up cost reproduce as well.
+- Missed, and it changes the reading.  Neither test examined a checkpoint before 3,145,728 (the ECS "start", which is
+  mid-rise).  The F2 copies hold 1,048,576 and 2,097,152 locally.
+  - At 1,048,576 (before the rise) the s42 network had no nose-down-to-tail pathway (+0.005 per deg) and a NEGATIVE
+    tail loop (G -0.25).
+  - At 2,097,152 (early rise, cmd 0.14) the pathway was -0.020 per deg, about 1/8 of its 3.15M value.  G was still
+    -0.39.  The s80 posture transplant removed only 0.058 of a 0.238 offset.
+  - So the posture pathway and the positive loop grew AFTER the tail began rising.  They amplify the habit at 3.15M
+    and later.  They are not where it started.
+- Missed: the s60 run, which also parked, has the OPPOSITE pitch sensitivity at 5.2-8.4M: nose-UP raises its tail
+  command.  Its loop turned positive and its offset grew with no nose-down pathway.  The nose-down pathway is
+  specific to the s42 lineage, not a general mechanism of the habit.
+
+==================================================================================================================
+1. WHAT I RAN (my own code; nothing imported from posture_timing or posture_policy)
+==================================================================================================================
+Test 1 (records only):
+- vt1_timing.py -> vt1_timing.txt / .json: per-rollout recovery from obs_rms, M5 onsets, s42 time course,
+  change-points, proportional timing with endpoint sensitivity, lag cross-correlation, pre-rise gaps, s60 / s80
+  episodes, all 24 ECS continuations.
+- vt1b_onset.py -> vt1b_onset.txt: noise-matched departures (k = 2/3/5 SD, sustained 4 bins) and a short-window hinge.
+- vt1c_boot_ecs.py -> vt1c_boot_ecs.txt: block bootstrap of the hinge t0 (r10 s42); per-continuation and pooled lag
+  correlations in the ECS (the named continuations are s42_A_1101 and s42_B_1211).
+- vt1_timing_lib.py: loaders shared by vt1b and vt1c.
+Tests 2-3 (simulation, one process at a time, nice 15, OMP / MKL 1, python -B, PYTHONPATH = policies/code_copy):
+- vp_sim.py layout -> vp_layout.txt: live checks of the observation and actuator layout, the forward axis, and the
+  illusion against the env's own heading_free_root_segments on a rotated root quaternion.
+- vp_sim.py roll -> vp_roll.jsonl, settled_<who>.npz: 26 policies (statue excluded), seeds 5001-5010, 1,000 steps,
+  deterministic; settled states at steps 500..1000 by 100.
+- vp_sim.py illus -> vp_illus.jsonl: closed-loop pitch illusion, +1.1 deg seen on 4 s42 ends, -1.1 on s42_A_1151 and
+  s80_A_1311; 10 seeds each, paired with the baseline.
+- vp_sim.py plant -> vp_plant.jsonl: s42_A_1111, s80_A_1311 and the statue.  Tail command a in {-1, -0.5, 0, 0.5, 1}
+  on 5 seeds.  Arms: closed loop with entry 14 clamped (policy drives the rest), and open-loop replay of the
+  policy's own actions with entry 14 replaced.  2 unchanged replays per policy.
+- vp_analyze.py -> vp_analyze.txt: the illusion and plant summaries.
+- vp_sweep2.py -> vp_sweep2.txt / .json: network-only sweep on all 26 policies' own states.  G is computed both as
+  the local derivative and as test 2's 0..6 deg fit.  Includes transplants with typical values from all 12 ends per
+  lineage, own-lineage controls and cross-policy Spearman.
+- vp_sweep.py -> vp_sweep.txt: the first attempt, with "typical" values from 4 s42 and 2 s80 ends.  Superseded by
+  sweep2.  The 2-policy s80 typical (pitch -0.73) was unrepresentative, which shrank the transplant.
+- vp_prerise.py -> vp_prerise.txt / .jsonl: the missed check on F2 checkpoints s42 / s80 at 1,048,576, 2,097,152 and
+  3,145,728.
+- vp_s60.py -> vp_s60.txt / .jsonl: s60 at 1.05, 5.24, 6.29, 7.34 and 8.39M; s80 at 5.24-8.39M.
+- *.err: stderr.  vp_roll2.err holds one numpy empty-slice warning, from s80_A_1321 seed 5009, which fell at step 419.
+
+==================================================================================================================
+2. VERDICTS, TEST 1 (posture_timing)
+==================================================================================================================
+F1 CORRECTED.  Values reproduce.
+  - Probe tail mu: -0.012 / +0.009 / +0.074 / +0.125 at 1.31 / 1.44 / 1.84 / 2.10M.
+  - Training CoM: -29.8 / -26.5 / -23.3 mm at 1.31 / 1.84 / 2.10M.
+  - Onsets: over-bar 3,670,016; flag 3,801,088; alarm 3,932,160.
+  But "started together within one bin" is an artefact of fixed thresholds (0.1 command against 0.3 deg).  Tail
+  first by ~0.17M; method and numbers:
+  - Hinge on [0.524, 2.10M]: tail mu t0 1.204M, q3 1.212M, probe pitch 1.384M, training pitch 1.442M,
+    training CoM 1.638M.
+  - Block bootstrap, 400 resamples: t0(pitch) - t0(tail) = +0.172M [+0.074, +0.270], with 100% of resamples above 0.
+  - Noise-matched departures at k = 3: tail 1.376M, pitch 1.704M, CoM 2.163M.
+  Both come 1.8-2.5M before the onsets, as stated.
+  [measured: vt1_timing.txt sections 2-3, vt1b_onset.txt, vt1c_boot_ecs.txt section 1]
+F2 CORRECTED (r10 part).  The r10 s42 proportional points reproduce in shape: with END 3.67M, tail 1.72 / 2.38 / 3.07M
+  and pitch 1.65 / 1.86 / 2.36M.  But the ordering depends on the endpoint: with END 3.15M the tail leads at 10%
+  (1.52 against 1.60M).  So "pitch ahead in r10 s42" holds only for the 25-50% points.
+  Lag-0 first-difference correlation in r10 s42: -0.42 in my window [0.52, 3.67M], not -0.52.  Lags +1 and +3 carry
+  -0.29 and -0.26 (pitch after tail), so "other lags near 0" does not hold there.  ECS pooled: -0.56 at lag 0, |r| <=
+  0.11 elsewhere (n 264); that part is confirmed.
+  r9 numbers: UNCHECKED.
+  [measured: vt1_timing.txt sections 3b and 4, vt1c_boot_ecs.txt section 2]
+F3 CONFIRMED (r10).  s42 minus s80 over (0.524, 1.049]:
+  - pitch: ledger +0.37, training +0.24, probe +0.27 deg (nose-up);
+  - CoM: ledger -1.8, training -1.3 mm;
+  - against s60: +0.31 to +0.51 deg.
+  The gap reversed at 2.1-3.15M (-0.5 deg, +7 mm) and at 3.15-3.67M (-1.3 deg, +12 mm).  Deterministic play at
+  the 1,048,576 checkpoint agrees: s42 -0.27 against s80 -0.75 deg.  r9 part: UNCHECKED.
+  [measured: vt1_timing.txt section 5; vp_prerise.txt]
+F4 CONFIRMED (direction; magnitudes about 2/3 of those stated).
+  - s60 main rise, 6.03 -> 7.34M: tail +0.37; pitch +0.18 (nose-up); CoM -3.0 to -3.2 mm; neck -2.8 to -3.2 deg.
+  - s60 final approach: pitch -0.38 to -0.43 deg, CoM +4.7 mm.
+  - s80 bumps came with nose-up: +0.18 to +0.26 deg and +0.04 to +0.13 deg.  The tail fell as the pitch went 0.7 deg
+    nose-down.  Run-level lag-0 correlation +0.38.
+  [measured: vt1_timing.txt sections 4 and 6, vt1b_onset.txt]
+F5 CONFIRMED (r10 parts).
+  - s60 at 5.0-5.5M: pitch -0.28 to -0.33 deg and CoM +5.3 to +7.3 mm with the tail at -0.03.
+  - s80 head raised (neck -15 deg, head tip +0.25 m) with the tail at +0.04.
+  - Extra instance: ECS end s80_B_1421 holds -0.98 deg with cmd14 -0.18 (vp_roll.jsonl).
+  - r9 s60: UNCHECKED.
+  [measured: vt1_timing.txt section 6]
+F6 CONFIRMED, with small numeric differences.
+  - PRE: tail +0.196 (12/0); pitch -0.277 (all 12 nose-down); CoM -1.2 mm (4 forward / 8 back); neck -1.41 (12 down);
+    head +0.010.
+  - END: CoM -5.1 mm (1/11; stated -4.7); pitch +0.08 (8/4; stated 7/5); head joint -2.0 (1/11).
+  [measured: vt1_timing.txt section 7; vt1c_boot_ecs.txt]
+F7 CONFIRMED.  s80 lineage END: tail +0.009 (6/6); CoM +3.6 mm (9/3); head tip -0.18 m (2/10); neck +8.9 deg (9/3);
+  head joint +5.6 deg (12/0); pitch -0.06 deg (6/6).  [measured: vt1_timing.txt section 7]
+F8 UNCHECKED (the r9 tail screen was not re-read).
+F9 CONFIRMED.
+  - My own recovery: pitch against training episodes, r +0.990 to +0.997, median difference -0.006 to +0.050 deg.
+  - Tail angle against the ledger: r +0.987 to +0.999.
+  - Batch g_y is 0 and r/l hip are identical (mirror symmetric).
+  - The pitch sign was checked live: the skull sits at +0.78 m on pelvis x, and asin(-g_x) equals the quaternion's
+    nose-up angle.
+  [measured: vt1_timing.txt section 0; vp_layout.txt]
+F10 UNCHECKED: the start-checkpoint clamp was not re-run.  Supporting evidence at the ends [measured, vp_analyze.txt]:
+  - With the tail clamped at a = 0, s42_A_1111 stands at -1.83 deg; at a = +1 it stands at -1.22 deg.  At the ends a
+    lower tail gives MORE nose-down.
+  - Open loop, pitch does not change with a (-1.20 / -1.20 / -1.22), so the mechanics play no part.
+F11 CORRECTED.  The negative claim stands: no body position comes first.  But "one reorganisation, changing together" is
+  not accurate.  The order is:
+  1. the tail bias rose first, also at a fixed observation;
+  2. nose-down followed about 0.17M later;
+  3. forward CoM followed about 0.4M after the tail;
+  4. the network's posture-to-tail pathway and positive tail loop developed later, between 2.1M and 3.15M (see M1).
+  [measured: vt1b, vt1c, vp_prerise.txt; probe bank tail_3 at statue_settled: -0.11 (1.05M) -> +0.08 (1.57M)]
+F12 CONFIRMED, but incomplete.
+  - Spot-checked: no F2 diagnostics.npz; stance4 has eval_episodes only; the r9 probe has no rollout_mu.
+  - Its coverage list does not say that the r10 F2 checkpoints at 1.05M / 2.10M ARE local, so a pre-rise network probe
+    was possible without fetching.
+
+==================================================================================================================
+3. VERDICTS, TESTS 2-3 (posture_policy)
+==================================================================================================================
+Layout (their section 1) CONFIRMED live [vp_layout.txt]:
+- obs 0-20 = qpos[7:28] in joint order; tail_3_pitch = obs 6.
+- Actuator 14 = tail_3_pitch_act (position servo, kp 60, ctrlrange +-0.2094 rad).
+- The IMU site is on the pelvis (the root body) with identity orientation.
+- Gravity / prey illusion against the env's own function on a rotated quaternion: 4e-8 / 1.3e-6.
+T2-1 CONFIRMED.  Sweep on my own states, 12 s42 ends:
+  - pitch -0.163 [-0.215, -0.130] per deg nose-up (0/12 positive);
+  - by channel: gravity -0.071, prey -0.088, accelerometer -0.002;
+  - knees -0.228 (0/12); hips -0.150 (0/12);
+  - 1 deg nose-down = 1.30 deg of observed tail angle;
+  - neck and head small.
+  My forward pass equals model.predict to 2e-7.  [measured: vp_sweep2.txt]
+T2-2 CORRECTED (wording only).
+  Main result reproduces:
+  - c0 0.397 and G 0.631 (0..6 deg fit), fixed point 1.045, predicted rail 9/12;
+  - s80 typical orientation + legs + feet: dc0 -0.436 [-0.765, -0.250] (0/12), dG +0.010, rail 9 -> 0;
+  - reverse: -0.021 (5/7).
+  The control does not fit "changes c0 by at most 0.03":
+  - median dc0 is -0.052 here (their own file: -0.026);
+  - per policy the range is -0.280 to +0.124 (theirs -0.270 to +0.131);
+  - the control alone takes the linear rail count 9 -> 5.
+  The lineage-specific part (transplant minus control) is still about -0.38.  [measured: vp_sweep2.txt]
+T2-3 CONFIRMED (+1.1 deg and reverse arms).  My seeds, 4 s42 ends, +1.1 deg seen nose-up:
+  - own cmd14 -0.19 to -0.29 per policy (40/40 episodes lower);
+  - railed 28/40 -> 0/40;
+  - bodies pitched 0.25-0.57 deg further nose-down.
+  Reverse on s42_A_1151: +0.127 (10/0), railed 1 -> 8.
+  Note: my baseline railed share is 0.82 (98/120, seeds 5001-5010) against their 0.67, so closed-loop rail shares are
+  seed-sample dependent.
+  Gravity-only arm and the 20 s check: UNCHECKED.  [measured: vp_analyze.txt, vp_roll.jsonl]
+T2-4 CONFIRMED.
+  - s80 ends: pitch -0.020 (4/8); G -0.278 (1/11) by the 0..6 deg fit.  The local derivative at the held state gives
+    -0.72, so the size of G depends on its definition; it is negative either way.
+  - Closed loop, s80_A_1311 shown -1.1 deg: cmd +0.010 (10/0), no rail (0/10), body +0.64 deg nose-up.
+  [measured: vp_sweep2.txt, vp_analyze.txt]
+T2-5 CORRECTED.  The numbers reproduce:
+  - start: pitch -0.093, G 0.261, c0 0.411;
+  - transplants: <- start_s80 -0.206 (stated -0.157); <- s80 ends -0.250 (stated -0.207).
+  But "already existed at the start" refers to 3,145,728, which is mid-rise: training tail mu 0.36, deterministic
+  cmd 0.60.  Before and early in the rise:
+  - 1,048,576: pathway +0.005 per deg, G -0.250, c0 -0.06;
+  - 2,097,152: pathway -0.020, G -0.386, c0 +0.238, and the s80 transplant removed only -0.058 (control -0.002).
+  [measured: vp_prerise.txt; F2 3,145,728 equals the ECS start in every column]
+T2-6 CONFIRMED.
+  - s42 ends: held pitch against c0 -0.64; against the pathway +0.64; against G +0.50; c0 against G -0.94.
+  - s80 ends: |rho| <= 0.24 (stated <= 0.16).
+  n 12, correlational.  [measured: vp_sweep2.txt]
+T2-7 CORRECTED [inferred].
+  - What holds: for the 3.15M checkpoint and the ends, the posture inputs set much of the offset and the loop
+    amplifies it (arithmetic and closed loop both reproduced).
+  - "The habit tracks the s42 body positioning", and the summary's "it is the source of the tail loop's offset", do
+    not hold as an account of how the habit arose.  The tail rose first (F1), with no pathway and a negative loop at
+    1.05M and 2.10M (T2-5).  s60 parked with the opposite pitch sensitivity (M2).
+  - The linear arithmetic also freezes the posture.  At s42_A_1111 the posture itself moves with the tail: +0.60 deg
+    nose-up per unit command in closed loop (a = -1 / 0 / +1 gives -2.42 / -1.83 / -1.22 deg).  That is a negative
+    tail -> posture -> tail path of about -0.1 per unit, which the arithmetic leaves out (one policy, 5 seeds).
+T3-1 CONFIRMED (time-stepped).  Least squares over a, deg:
+  - s42_A_1111: q3 = +0.027 + 5.162 a (closed loop) and +0.027 + 5.163 a (open replay);
+  - s80_A_1311: +0.024 + 5.150 a and +0.025 + 5.156 a;
+  - statue: +0.028 + 5.159 a.
+  Unchanged replays are bit-identical.  Static torques and hold commands: UNCHECKED.  [measured: vp_analyze.txt]
+T3-2 CONFIRMED (totals).  Open replay, reward per step at a = +1 minus a = 0: s42 -0.0982, s80 -0.0978, statue -0.0978
+  (stated -0.0989 / -0.0984 / -0.0986).  Tail-up costs about 0.0004 per step more in the s42 posture; it is not
+  cheaper.  Term split and tail-tip gyro: UNCHECKED.
+  Closed loop the picture differs, through the policy rather than the plant: s42_A_1111 loses only -0.071 per step
+  with its tail clamped up, against s80_A_1311's -0.122.  [measured: vp_analyze.txt]
+T3-3 UNCHECKED (the pure rotation was not re-run).
+
+==================================================================================================================
+4. MISSED ITEMS
+==================================================================================================================
+M1 Pre-rise checkpoints were never probed, though they are local
+   (S1/foot/stance6/fetch/F2/stance6_r10LTSB_<r>/copies/01_stance/models, 1,048,576 and 2,097,152).  See T2-5.  This
+   is the most direct test of "did a body position encourage the habit": at the time the tail began to rise, the
+   s42 network did not answer posture with tail.  [measured: vp_prerise.txt; one run, 10 seeds, deterministic]
+M2 s60, the other run that parked, was not examined in test 2.  It has no nose-down pathway:
+   - pitch slope per deg nose-up: +0.013 (1.05M), +0.085 (5.24M), +0.045 (6.29M), +0.027 (7.34M), +0.005 (8.39M);
+     positive means nose-up raises the command;
+   - G -0.47 -> -0.27 -> -0.11 -> +0.23 -> +0.32; c0 +0.02 -> +0.61.
+   So "offset growth plus a loop turning positive" is common to both habits, and the nose-down perception pathway is
+   specific to s42.  [measured: vp_s60.txt; correlational, one run]
+M3 Test 1's own bank_drive.txt (a fixed observation) shows the tail command rising at 1.3-1.6M, ahead of the pitch.
+   Its conclusions did not use this.  The bank reads through each checkpoint's own normaliser, so normaliser drift is
+   not separated there [inferred].
+M4 Threshold dependence of the timing claims was not tested in test 1 (see F1 and F2).
+M5 The closed-loop tail -> posture coupling at the ends is missing from test 2's arithmetic (see T2-7).
+M6 The definition of G matters for s80 (local -0.72 against a 0..6 deg fit of -0.28).  The rail share depends on the
+   seed sample (0.82 against 0.67).
+M7 Not checked by me: every r9 claim (F2 r9, F3 r9, F5 r9 s60, F8, the stance4 ordering), the start-checkpoint clamp
+   (F10), and test 2's gravity-only arm, 20 s check and static plant (T3-3).
+
+==================================================================================================================
+5. RULE NOTES
+==================================================================================================================
+- No training.  Simulation ran only as my own processes, strictly one after another, at nice 15 with OMP / MKL 1 and
+  python -B.  A pytest run belonging to another agent (pr_fix) was running at the same time; it was not mine.
+- PYTHONPATH = com_revisit/notes/policies/code_copy, which I did not write to.  Checkpoints were opened read only, from
+  r10round/ecs/runs and from S1's F2 copies.
+- Nothing fetched.  A find -newer check after the runs shows no new file in posture_timing, posture_policy, code_copy,
+  r10round/ecs or S1 foot/stance6, and no __pycache__.  Folder size 15 MB.

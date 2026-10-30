@@ -1,0 +1,12 @@
+actuator tail_3_pitch_act trn joint tail_3_pitch
+gainprm[0] 60.0 biasprm[:3] [0.0, -60.0, 0.0] forcerange [-50.0, 50.0] ctrlrange [-0.2094, 0.2094]
+joint stiffness 80.0 springref (qpos_spring) 0.18151424220741028 rad = 10.4 deg; range deg [-12.000000000000002, 12.000000000000002] damping 30.0 armature 0.05 frictionloss 0.0
+tail_3 at +0.0 deg: gravity/bias torque qfrc_bias +14.4943 N m; passive (spring) +14.5211 N m; spring+gravity net +0.0269 N m
+tail_3 at +5.2 deg: gravity/bias torque qfrc_bias +14.4173 N m; passive (spring) +7.2606 N m; spring+gravity net -7.1567 N m
+static equilibrium for ctrl +0.0000 rad: q +0.011 deg; servo torque -0.012 N m
+static equilibrium for ctrl +0.2094 rad: q +5.184 deg; servo torque +7.135 N m
+two-stiffness split kp/(kp+k) = 0.4286; x 12 deg = 5.143 deg; spring preload k*qref +14.521 N m vs gravity torque at 0 +14.494 N m
+_scale_action: action -1.0 -> ctrl -0.20940 rad
+_scale_action: action +0.0 -> ctrl +0.00000 rad
+_scale_action: action +0.5 -> ctrl +0.10470 rad
+_scale_action: action +1.0 -> ctrl +0.20940 rad

@@ -1,0 +1,19 @@
+CLOSED-LOOP PITCH ILLUSION, paired with each policy's own baseline on the same seed (seeds 5001-5010)
+  arm: obs gravity, accelerometer and prey direction rotated as if the pelvis were pitched D more nose-up
+  s42_A_1111 illusion+1.1: n 10 (full 10); own cmd14 window mean change median -0.291 (+0/-10); railed 10/10 -> 0/10; tail_3 -1.54 deg; actual pelvis pitch -0.574 deg (perceived change +0.526)
+  s42_B_1211 illusion+1.1: n 10 (full 10); own cmd14 window mean change median -0.186 (+0/-10); railed 8/10 -> 0/10; tail_3 -0.98 deg; actual pelvis pitch -0.254 deg (perceived change +0.846)
+  s42_B_1241 illusion+1.1: n 10 (full 10); own cmd14 window mean change median -0.246 (+0/-10); railed 9/10 -> 0/10; tail_3 -1.28 deg; actual pelvis pitch -0.476 deg (perceived change +0.624)
+  s42_A_1151 illusion+1.1: n 10 (full 10); own cmd14 window mean change median -0.198 (+0/-10); railed 1/10 -> 0/10; tail_3 -1.03 deg; actual pelvis pitch -0.520 deg (perceived change +0.580)
+  s42_A_1151 illusion-1.1: n 10 (full 10); own cmd14 window mean change median +0.127 (+10/-0); railed 1/10 -> 8/10; tail_3 +0.66 deg; actual pelvis pitch +0.407 deg (perceived change -0.693)
+  s80_A_1311 illusion-1.1: n 10 (full 10); own cmd14 window mean change median +0.010 (+10/-0); railed 0/10 -> 0/10; tail_3 +0.05 deg; actual pelvis pitch +0.638 deg (perceived change -0.462)
+
+PLANT: tail_3 angle (window mean steps 501-1000) against the tail_3 command a; least squares over 5 values x 5 seeds
+  s42_A_1111  closed_clamp: q3 = +0.027 + 5.162 a deg (max |resid| 0.015; n 25, full 25); pelvis pitch at a=-1/0/+1: -2.422 / -1.834 / -1.215; return/step a=+1 minus a=0: -0.0714
+  s42_A_1111  open_replay : q3 = +0.027 + 5.163 a deg (max |resid| 0.015; n 25, full 25); pelvis pitch at a=-1/0/+1: -1.202 / -1.203 / -1.219; return/step a=+1 minus a=0: -0.0982
+  s42_A_1111 unchanged replay seed 5001: return 4408.029606 vs base 4408.029606 (diff +0.00e+00)
+  s42_A_1111 unchanged replay seed 5002: return 4403.098947 vs base 4403.098947 (diff +0.00e+00)
+  s80_A_1311  closed_clamp: q3 = +0.024 + 5.150 a deg (max |resid| 0.017; n 25, full 25); pelvis pitch at a=-1/0/+1: -0.924 / -0.694 / +0.108; return/step a=+1 minus a=0: -0.1215
+  s80_A_1311  open_replay : q3 = +0.025 + 5.156 a deg (max |resid| 0.022; n 25, full 25); pelvis pitch at a=-1/0/+1: -0.707 / -0.706 / -0.718; return/step a=+1 minus a=0: -0.0978
+  s80_A_1311 unchanged replay seed 5001: return 4438.074522 vs base 4438.074522 (diff +0.00e+00)
+  s80_A_1311 unchanged replay seed 5002: return 4468.384448 vs base 4468.384448 (diff +0.00e+00)
+  statue      statue_clamp: q3 = +0.028 + 5.159 a deg (max |resid| 0.014; n 25, full 25); pelvis pitch at a=-1/0/+1: -0.932 / -0.933 / -0.948; return/step a=+1 minus a=0: -0.0978
