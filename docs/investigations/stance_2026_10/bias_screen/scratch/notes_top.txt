@@ -1,0 +1,23 @@
+==================================================================================================================
+SUMMARY (05:00Z)
+==================================================================================================================
+- Built: the arm-agnostic bias-screen scaffold.  A verified code copy (BS/code, tree digest 331fe8fc..., 1,406 files,
+  never edited, read-only); run_bs.py (one continuation of r10 stance6 s42 from 1,048,576 to 2,490,368 under one arm,
+  or a no-optimizer-step validation run); run_waves_bs.sh (SCREEN.json's queue, 4 at a time at nice 10,
+  outcome-blind, ECS crash handling, disk floor 1.5 GiB); read_bs.py (CHECK, and the markers: the probe's
+  statue_settled tail_3 command per update, the ledger's tail_3 command and M5 flags, and at each saved pair G / c0
+  (+ the verifier's G_L, b*) and the critic's slope on observation 6); bs_hooks.py (THE ARM HOOK: control,
+  critic_blind_tail3, gae_lambda_1, frozen_obs_norm, none chosen); bs_common.py (pins).
+- Validated with no optimizer step anywhere: V1 (all four arms reproduce the start pair; independent tensor check),
+  V2 (each arm's change in force on every rollout, the control changing nothing: same-seed pairing), V3 (the reader
+  on V2's outputs; and it reproduces the early-warning and early-bias numbers on the parent), 72 unit tests.
+- Estimate: 8 continuations at 4 at a time = 2 waves of about 75 min = about 2.5 h on a free machine (3.1-4.4 h with
+  1-3 other processes), then about 15 min of reads.
+- NOT done here (by design): no intervention chosen, no SCREEN.json / criteria.txt / APPROVED (every continuation is
+  refused by preflight), no scorer, no continuation launched, nothing pushed or merged.
+- Folder 239 MB (< 300 MB).  One slip of mine: a `2>/dev/null` in a wait loop at 04:28Z (against the rule; /dev/null
+  verified intact).  Open items at the end.
+
+==================================================================================================================
+LOG (commands and results, in order)
+==================================================================================================================

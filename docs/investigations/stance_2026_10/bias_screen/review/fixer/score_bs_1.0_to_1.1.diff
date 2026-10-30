@@ -1,0 +1,81 @@
+--- review/fixer/orig/score_bs.py	2026-10-30 05:21:54.321609937 +0000
++++ tools/score_bs.py	2026-10-30 05:49:39.511849693 +0000
+@@ -29,8 +29,9 @@
+ THE FILL: a missing control value counts as -infinity and a missing critic_blind_tail3 value as +infinity (the supremum
+ of p over every value the missing ones could have had: it never helps REDUCED).
+ THE READING, the first line that applies: 1 NOT INFORMATIVE (the median control primary rose by less than 0.10 from
+-B_S, or no control primary was read); 2 REDUCED (filled p <= 1/20); 3 NO REDUCTION DETECTED, with "(REDUCED holds only
+-without the n missing continuations)" when the as-counted p is <= 1/20 and the filled one is not.
++B_S, or no control primary was read); 2 REDUCED (filled p <= 1/20); 3 NO REDUCTION DETECTED, with "(the as-counted p,
++report only, is <= 0.05; the filled p decides)" when the as-counted p is <= 1/20 and the filled one is not.
++Each arm's sample SD of the primaries read is printed beside its mean and median (report only: it places the power).
+ 
+ Exit codes (as score_ecs.py): 0 final; 3 provisional or incomplete; 2 input error.
+ """
+@@ -54,7 +55,7 @@
+ from pathlib import Path  # noqa: E402
+ 
+ TOOLS = Path(__file__).resolve().parent
+-VERSION = "score_bs 1.0 (2026-10-30; bias screen criteria v1)"
++VERSION = "score_bs 1.1 (2026-10-30; bias screen criteria v2)"
+ 
+ 
+ def _load(name):
+@@ -97,9 +98,11 @@
+     2: ("REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND "
+         "OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 1,048,576 STATE (exact one-sided permutation test, p <= 0.05)"),
+     3: ("NO REDUCTION DETECTED IN THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E FROM BLINDING THE "
+-        "CRITIC TO THE TAIL_3 ANGLE (not tested: a reduction smaller than about half the rise, other inputs that carry "
+-        "the angle, the phase after E, the rail)"),
++        "CRITIC TO THE TAIL_3 ANGLE (not excluded: a reduction of about half the rise or smaller (power about 0.3-0.9 "
++        "at half the rise, by the between-continuation spread; lower if paired seeds correlate), other inputs that "
++        "carry the angle, the phase after E, the rail)"),
+ }
++ADDITION_AS_COUNTED = "(the as-counted p, report only, is <= 0.05; the filled p decides)"
+ INF_CONTROL, INF_BLIND = (-1, Fraction(0)), (1, Fraction(0))          # THE FILL (lexicographic: infinity first)
+ 
+ 
+@@ -552,8 +555,7 @@
+         line = 3
+     additions = []
+     if line == 3 and as_counted is not None and as_counted[0] <= ALPHA:
+-        additions.append(f"(REDUCED holds only without the {n_missing} missing continuation"
+-                         f"{'s' if n_missing != 1 else ''})")
++        additions.append(ADDITION_AS_COUNTED)
+     if line == 1 and filled[0] <= ALPHA:
+         additions.append("(the filled p is <= 0.05, but the control arm did not rise: no reading about the critic)")
+     pairs = []
+@@ -563,9 +565,12 @@
+                       else None})
+     diffs = [p["diff"] for p in pairs if p["diff"] is not None]
+     means = {arm: (sum(counted[arm], Fraction(0)) / len(counted[arm]) if counted[arm] else None) for arm in ARM_ORDER}
++    # each arm's sample SD of the primaries read (report only, never a line: it places the power, criteria KNOWN LIMITS)
++    sds = {arm: (statistics.stdev([float(v) for v in counted[arm]]) if len(counted[arm]) >= 2 else None)
++           for arm in ARM_ORDER}
+     return dict(line=line, key=LINE_KEYS[line], text=LINE_TEXT[line], additions=additions, filled=filled,
+                 as_counted=as_counted, n_missing=n_missing, missing=missing, counted=counted, medians=med,
+-                means=means, control_rise=rise, informative=informative, pairs=pairs,
++                means=means, sds=sds, control_rise=rise, informative=informative, pairs=pairs,
+                 paired_test=sign_flip_test(diffs), filled_values=vals)
+ 
+ 
+@@ -640,7 +645,8 @@
+         L.append(f"  {c['name']:<24} {c['cls']:<8} {tail}")
+     for arm in ARM_ORDER:
+         L.append(f"  {arm:<24} n counted {len(dec['counted'][arm])}, missing {len(dec['missing'][arm])}; mean "
+-                 f"{fnum(dec['means'][arm], '+.5f')}, median {fnum(dec['medians'][arm], '+.5f')}")
++                 f"{fnum(dec['means'][arm], '+.5f')}, median {fnum(dec['medians'][arm], '+.5f')}, SD "
++                 f"{fnum(dec['sds'][arm], '.5f')} (report only)")
+     if dec["means"][CONTROL] is not None and dec["means"][INTERVENTION] is not None:
+         L.append(f"  difference of arm means (control - critic_blind_tail3), as counted: "
+                  f"{float(dec['means'][CONTROL] - dec['means'][INTERVENTION]):+.5f}")
+@@ -740,7 +746,8 @@
+         alpha=str(ALPHA), informative=dec["informative"], control_median=_f(dec["medians"][CONTROL]),
+         control_rise=_f(dec["control_rise"]), rise_min=str(RISE_MIN), baseline_S=BASELINE_S,
+         primary_steps=list(PRIMARY_STEPS), arm_means={a: _f(v) for a, v in dec["means"].items()},
+-        arm_medians={a: _f(v) for a, v in dec["medians"].items()}, n_missing=dec["n_missing"],
++        arm_medians={a: _f(v) for a, v in dec["medians"].items()}, arm_sd_report_only=dict(dec["sds"]),
++        n_missing=dec["n_missing"],
+         missing=dec["missing"], paired=[{k: (_f(v) if isinstance(v, Fraction) else v) for k, v in p.items()}
+                                         for p in dec["pairs"]], paired_sign_flip=frac(dec["paired_test"]),
+         classes=[{**{k: c[k] for k in ("name", "arm", "seed", "cls", "T", "cause")},

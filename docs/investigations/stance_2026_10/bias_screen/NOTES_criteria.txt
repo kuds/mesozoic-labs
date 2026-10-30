@@ -1,0 +1,190 @@
+BIAS SCREEN (BS) CRITERIA AND SCORER -- NOTES (every command and its result).  Written by the criteria writer of workflow
+[id removed], 2026-10-30 04:58-05:30 UTC (date -u).
+Folder: <BS> = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen
+Short names as criteria.txt: S1, S2, PY = S2/venv/bin/python, WORK = <BS>/scratch/criteria_work.
+NO TRAINING: no learn() with an update, no optimizer step.  run_bs.py ran only as --preflight-only (refused, nothing
+created) and run_waves_bs.sh only as --plan (writes and launches nothing).  APPROVED was NOT written (it enables the
+launch; the coordinator writes it after the independent review).  Nothing pushed or merged.  Every write was under <BS>.
+
+==================================================================================================================
+SUMMARY
+==================================================================================================================
+- Written: <BS>/criteria.txt (v1 draft for the review), <BS>/SCREEN.json (critic_blind_tail3, 4 + 4 paired seeds
+  2101-2131, interleaved), <BS>/tools/score_bs.py (the scorer), <BS>/tools/tests/test_score_bs.py (43 tests), the dry
+  run (WORK/dryrun_root, WORK/dryrun_score.out), WORK's computations (power_bs, ecs_spread, the APPROVED-key check).
+- Primary: the on-policy tail_3 command over the last 8 updates before E (mean of the probe's rollout_mu_mean[:, 14]
+  over the rows 2,424,832 ... 2,482,176).  The records carry it (rollout_mu14_mean in read_bs.py's markers; all 175 of
+  the parent's window rows finite), so the statue_settled fallback was not needed; it is report only.
+- Test: exact unpaired one-sided permutation test, difference of arm means, alpha 0.05, 70 relabelings, minimum
+  p 1/70 = 0.0143 (REDUCED needs at most 3 of 70); exact rationals; ties count against.  Paired differences and their
+  sign-flip p (minimum 1/16) beside it, report only.
+- Fill: a missing control at -inf, a missing blind at +inf (the supremum of p over all completions); with 4 per arm any
+  missing continuation gives p >= 36/70, so REDUCED is then unreadable (stated plainly in the text).
+- Informativeness: control median primary - B_S >= 0.10, B_S = -0.03157372563146055 (the parent's 8 probe rows ending
+  at S); the parent's own rise over the window is +0.23113.
+- Dry run: the parent's markers as all 8 continuations -> NO REDUCTION DETECTED, p = 70/70 = 1.0000 (every relabeling
+  ties), control rise +0.23113 (informative), PROVISIONAL (a synthetic root: no APPROVED, no criteria, no code copy).
+- Pinning score_bs.py WITHOUT editing the five tools: APPROVED's tool_sha256 carries an extra "score_bs.py" key (the
+  unmodified run_bs.approval_problems accepts it and still checks the five: measured); score_bs.py itself reports
+  PROVISIONAL unless APPROVED pins its own sha256, criteria.txt names it (PINS), and every run_meta names the same
+  APPROVED / criteria / SCREEN / tools.  Chain: run_meta.approved_sha256 (written at each start) -> APPROVED ->
+  tool_sha256["score_bs.py"] -> score_bs.py; and APPROVED.criteria_sha256 -> criteria.txt -> its PINS line.
+- Tests: test_score_bs.py 43 passed; the whole <BS>/tools/tests 115 passed; 14 of 14 scorer mutants killed; ruff clean;
+  bash -n ok.  Two scaffold tests (not the five tools) were edited to stop depending on the real <BS> state (they
+  asserted "no SCREEN.json exists in this build"); SHA256SUMS.txt refreshed for them and extended (22 lines, all OK).
+- The five tools and the code copy are unchanged (sha256 = the 04:27 UTC freeze; verify_copy 331fe8fc..., exit 0), so
+  V1 was not re-run (the task's rule re-runs it only after an edit to them).
+
+==================================================================================================================
+LOG (commands and results, in order)
+==================================================================================================================
+[04:58Z] 1. Read (read only): <BS>/NOTES.txt (all 345 lines); SCREEN.template.json; SHA256SUMS.txt (sha256sum -c: all 19
+  OK); reads/parent_s42/markers.txt and the structure of markers.json; tools/read_bs.py (all), bs_common.py (all),
+  run_bs.py (docstring, approval_problems l517-543, bs_root l94, run_root l106, run_meta l715-745, k3_panel=None
+  l862), run_waves_bs.sh (all), bs_hooks.py (docstring, critic_blind_class, evidence_problems, value_dependence);
+  validate/v2final/*/check.json, run_meta.json, read/markers.json (shapes); ECS criteria.txt (all) and
+  tools/score_bs.py's model score_ecs.py (all: exit codes 0 final / 3 provisional or incomplete / 2 input error);
+  the code copy's environments/shared/policy_probe.py l355-395, l595-735 (rollout_mu_mean = mean over the rollout
+  buffer of policy.get_distribution(obs).mode(), at _on_rollout_end, before train()); FOLLOW_UPS.txt l22-28 (AUTH);
+  RUNLOG l765-774; early-bias outputs eb_summary.txt (head), eb_realized.txt, verify outputs vb_aggregate.txt (head),
+  vb_realized.txt.
+  FINDING: the cited S2/com_revisit/notes/early_bias/NOTES.txt and verify_early_bias/NOTES.txt DO NOT EXIST (wc: no
+  such file).  The criteria cite the folders' own outputs and RUNLOG 03:45 / 04:21 UTC instead.
+[05:00Z] 2. The parent's primary and B_S (PY -B, PYTHONPATH=<BS>/code, reads reads/parent_s42/markers.json and the F2
+  probe):
+    window rows 175, first 1,056,768, last 2,482,176, rollout_mu14_mean NaN count 0;
+    last 8 steps [2424832 ... 2482176]; primary (mean) 0.19955920986831188; first 8 rows mean -0.03324194939341396;
+    F2 probe rows (S - 65,536, S]: [991232 ... 1048576], idx 120-127, values -0.0315, -0.0295, -0.0338, -0.0315,
+    -0.0219, -0.0280, -0.0357, -0.0407; B_S = -0.03157372563146055; row at S -0.04070679843425751;
+    F2 probe sha256 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 (= FMAN's).
+    The series every 8 rows (step, rollout mu14, statue_settled mean, std14, obs6 mean deg) shows the rise from -0.034
+    to +0.207 / +0.190 and the tail angle mean from -0.06 to +0.19 deg.
+[05:03Z] 3. Free disk: df -B1 --output=avail / -> 2,677,129,216 (launch floor 2,082,471,936).
+[05:06Z] 4. Between-continuation spread (order of magnitude for power): PY -I -B WORK/ecs_spread.py S2/r10round/ecs
+  > WORK/ecs_spread.out (reads the 24 ECS continuations' policy_probe.npz, read only):
+    s42 A n 6: last-8 mean 0.828 SD 0.076 | s42 B n 6: 0.774 SD 0.038 | s80 A n 6: 0.008 SD 0.037 | s80 B n 6: -0.011
+    SD 0.103  -> sigma 0.04-0.10 used in the power figures (another phase: 3.15M / 4.19M starts).
+[05:06Z] 5. Power and size: PY -I -B WORK/power_bs.py > WORK/power_bs.out (2.6 s; seeded Monte Carlo, 4000 per cell):
+    size 3/70 = 0.0429; minimum p 1/70 = 0.0143; P(REDUCED) delta x sigma (0.04 / 0.06 / 0.08 / 0.10):
+      0.05: 0.420 0.249 0.171 0.129 | 0.10: 0.909 0.621 0.423 0.320 | 0.15: 0.996 0.898 0.705 0.545 |
+      0.20: 1.000 0.985 0.901 0.766 | 0.231: 1.000 0.997 0.955 0.862
+    P(NOT INFORMATIVE) at true rise m: 0.10: 0.50 | 0.15: 0.010-0.186 | 0.20: 0.000-0.031 | 0.231: 0.000-0.007.
+[05:07-05:10Z] 6. Wrote tools/score_bs.py and SCREEN.json:
+    PY -I -B -c "load_screen('SCREEN.json')" -> problems []; queue as in criteria; derived seeds (2101-2104, 3101) ...
+    (2131-2134, 3131); sha256 a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf.
+[05:10-05:14Z] 7. Wrote tools/tests/test_score_bs.py; ran
+      cd /tmp && OMP_NUM_THREADS=1 nice -n 10 PY -I -B -m pytest -q -p no:cacheprovider --basetemp=<BS>/tmp/pytest_score
+      <BS>/tools/tests/test_score_bs.py
+    first run: 40 passed, 1 failed (test_line_no_reduction_detected): the scorer's p 45/70 against a float brute force
+    with a 1e-12 tolerance 46/70.  Cause (measured): {0.15, 0.18, 0.21, 0.24} and the observed {0.20, 0.15, 0.25, 0.18}
+    are both 0.78 in decimal but differ by exactly -2**-55 as the recorded doubles.  The scorer is right by the rule
+    (exact rationals of the recorded values); the test data were changed to binary-exact values (k/64, k/128) and a
+    test pins this very case (45/70 exact against 46/70 with a tolerance).  Then 42 passed.
+[05:14Z] 8. Mutation check (each mutant on a throw-away copy of tools/ under <BS>/tmp/score_mutants, removed after):
+    12 of 12 killed (ties, fill sign, alpha, rise inclusive, decide on as-counted, line order, primary rows, STOPPED
+    counted, blind-slope check, median, outcome-blind branch, B_S).
+[05:15Z] 9. ruff (venv-lint, --no-cache --line-length 120 --select E,F,W,B) on score_bs.py and its tests: 8 E501, wrapped
+    -> "All checks passed!"; tests 42 passed.
+[05:17Z] 10. DRY RUN: PY -I -B WORK/dryrun_build.py <BS> WORK/dryrun_root (8 entries, each with the parent's markers: probe
+    sha 4e0e7220..., 175 rows; identity fields set; blind entries' loop critic form "blind+raw" and effective slope 0.0,
+    as read_bs.py writes them for a blind run; synthetic passing check.json; V2 run_meta of the same arm as a stand-in);
+    PY -I -B tools/score_bs.py --root WORK/dryrun_root --out WORK/dryrun_root/score -> exit 3 (PROVISIONAL: synthetic root);
+    THE READING line 3 NO REDUCTION DETECTED; every primary +0.19956 (rise +0.23113); control median +0.19956 ->
+    informative; p (filled) = 70/70 (1.0000) > 0.05, as counted 70/70; paired diffs 0, sign-flip 16/16; manipulation
+    lines (V2 stand-ins: blind dv 0.0 on all four paths, control min dv 0.0957); report-only rows (CMD_L +0.255, one
+    ledger fall at 1,441,792, length 292, cause "fallen"; G/c0/b* at 1,048,576 and 2,097,152 equal to PARENT).
+[05:18Z] 11. The real root now: PY -I -B tools/score_bs.py --out WORK/score_real_root_now -> exit 3, "STATUS: incomplete
+    (0 of 8 decided ...). No line is read"; PROVISIONAL: no criteria.txt, no APPROVED (then); the code seal (M1's
+    check_copy on <BS>/code) passed (no item).  0.48 s.  No <BS>/runs or <BS>/score created.
+[05:19Z] 12. The runner accepts the scorer's extra APPROVED key: PY -I -B WORK/approved_extra_key_check.py <BS>
+    <BS>/tmp/approved_check (the unmodified run_bs.approval_problems, bs_root patched in memory to a temporary root,
+    removed after) -> with "score_bs.py" in tool_sha256: [] ; with a wrong run_bs.py pin: the refusal names it.
+    (WORK/approved_extra_key_check.out.)
+[05:19Z] 13. Schedule values for the text: lr 2.8252e-05 at S, 2.5849e-05 at E; ent_coef 0.004251 at S, 0.003221 at E
+    (the run's linear schedules; the probe's own values at S, vb_aggregate: lr 2.825e-05, ent 0.00425).  df: 2,663,821,312.
+[05:19-05:21Z] 14. Wrote criteria.txt (v1 draft).  Read again in full; corrected: the line "run_bs.py and run_waves_bs.sh
+    were not run" (they ran in their check modes, items 17-18), a citation, four lines over 120 characters.
+[05:20Z] 15. Report-only robustness: a ledger that does not decode, or a null "effective" slope entry, no longer raise
+    (status "unreadable (...)"; a test added).  Tests 43 passed; ruff clean.
+[05:21Z] 16. Whole suite: cd /tmp && ... pytest <BS>/tools/tests -> 113 passed, 2 failed:
+      test_read_bs.py::test_check_meta_continuation_needs_screen_and_updates  ("# no SCREEN.json exists in this build")
+      test_run_bs.py::test_preflight_continuation_refused_without_approval   (expects a SCREEN refusal)
+    Cause: both assert the build-time state of the real <BS> (no SCREEN.json); SCREEN.json now exists by design.  Edit
+    (originals kept as WORK/test_read_bs.py.orig, test_run_bs.py.orig): each now runs against an empty temporary root
+    (monkeypatch C.BS / R.bs_root); the assertions are unchanged.  Then 115 passed (20.5 s); ruff on <BS>/tools: All
+    checks passed; bash -n run_waves_bs.sh ok.
+[05:24Z] 17. bash <BS>/tools/run_waves_bs.sh --plan > WORK/waves_plan.out -> exit 0: slots 4 at nice 10, floors 1,610,612,736
+    / 2,082,471,936, crash limit 3; the 8 commands in SCREEN.json's order; <BS>/logs unchanged (empty), no <BS>/runs.
+[05:24Z] 18. PY -I -B tools/run_bs.py --arm critic_blind_tail3 --seed 2101 --preflight-only > WORK/preflight_blind_2101.out
+    -> exit 2, problems ["APPROVED: missing"] only (SCREEN entry, inputs, seal, stack, pins, disk all pass); nothing
+    created.
+[05:25Z] 19. Mutants again on the final scorer (WORK/mutants_final.out): 14 of 14 killed (the 12 above plus "probe sha link
+    dropped" and "own-sha pin unchecked").  Dry run again with the final scorer: identical reading (line 3, 70/70,
+    rise +0.23113); WORK/dryrun_score.out = WORK/dryrun_root/score/score.txt (sha256 566dc83e...).
+[05:26Z] 20. criteria.txt PINS filled from the files (SCREEN.json a4eca4dc..., score_bs.py c284d02b..., test_score_bs.py
+    65bd5a87...); the real-root scorer's PROVISIONAL list is then "no APPROVED" alone.
+    SHA256SUMS.txt: the builder's copy saved as WORK/SHA256SUMS.builder_0500Z.txt (sha256sum -c on it: the 2 edited tests
+    FAILED, as expected); lines for the 2 tests refreshed and 3 lines added (score_bs.py, test_score_bs.py, SCREEN.json):
+    sha256sum -c SHA256SUMS.txt -> 22 OK.
+[05:27Z] 21. Final checks: the five tools = validate/logs/final_tools_sha256_at_launch.txt (diff: none); verify_copy.py
+    <BS>/code -> 331fe8fc..., 1,406 files, equal_to_pinned true, exit 0; no __pycache__ in <BS>/code or <BS>/tools;
+    files newer than <BS>/NOTES.txt outside <BS>: none of mine (only the harness's /tmp logs); <BS> 240 MB; free
+    2,674,622,464 bytes.  <BS>/tmp/pytest_score and pytest_all removed.
+
+==================================================================================================================
+DECISIONS AND WHY (for the reviewer)
+==================================================================================================================
+D1 Primary: the on-policy mean (recommended) rather than the statue_settled 8-row trailing mean: the markers carry it for
+   every row; the verified probe's supported source is on the on-policy rows; 65,536 states per row instead of 2.
+   Its cost: it mixes policy change with state-distribution change (stated in KNOWN LIMITS; statue_settled report only).
+D2 Statistic: the difference of means (the usual exact permutation test); ranks would give the same p floor (1/70).
+   Exact rationals of the recorded doubles (no tolerance): reproducible and well defined; step 7 shows the one way a
+   decimal reading of the data could differ.
+D3 Fill at +-infinity: the only fill that never helps for an unbounded continuous outcome (the supremum of p).  Its
+   consequence, written in the text: one MISSING continuation makes REDUCED unreadable (p >= 36/70).  A reviewer may
+   prefer a bounded fill; any finite fill can help relative to some completion.
+D4 Informativeness 0.10 from B_S (43% of the parent's rise), on the median of the control primaries read; inclusive.
+   B_S is a constant (one start), from the parent's own probe rows ending at S (the continuations' probes hold the
+   same seeded rows, but the markers carry only rows in (S, T)).
+D5 4 + 4 (template), paired seeds, interleaved; the ninth slot unused (a third wave for little power).
+D6 Scorer pin via APPROVED's extra key + criteria PINS + run_meta.approved_sha256, not via bs_common.TOOL_FILES
+   (which would change bs_common.py and require V1 again).  The runner never runs the scorer, so it need not check it.
+D7 Manipulation: CHECK's per-rollout evidence (already built and validated by SCAF) decides VOID; the scorer adds a
+   refusal of markers whose critic form / blind effective slope disagree with the arm, and prints each run's
+   evidence summary.
+
+==================================================================================================================
+OPEN ITEMS
+==================================================================================================================
+O1 Independent review of criteria.txt, score_bs.py and its tests.  ANY change to score_bs.py, test_score_bs.py or
+   SCREEN.json changes their lines in criteria.txt PINS and SHA256SUMS.txt (both must be refreshed; the scorer reports
+   PROVISIONAL while criteria.txt does not name its sha256).
+O2 APPROVED is not written.  After the review the coordinator writes it as criteria.txt "HOW THE COORDINATOR PINS" says
+   (tool_sha256 with the five tools AND "score_bs.py"), then runs run_bs.py --preflight-only for one entry (expected
+   exit 0) and run_waves_bs.sh --plan, and launches per SCAF HOW TO LAUNCH step 5.
+O3 The cited early_bias/NOTES.txt and verify_early_bias/NOTES.txt do not exist; the criteria cite eb_summary.txt,
+   eb_realized.txt, vb_aggregate.txt, vb_realized.txt and RUNLOG 03:45 / 04:21 UTC.
+O4 Two scaffold test files were edited (step 16; not among the five tools; assertions unchanged); the builder's
+   SHA256SUMS.txt is kept as WORK/SHA256SUMS.builder_0500Z.txt.
+O5 [inferred] items in the text a reviewer may want to check: STOPPED only at 2,359,296 (from the ECS text's patience
+   reading); pairing makes the unpaired test conservative if pairs correlate positively; power assumes a normal model
+   and sigma 0.04-0.10 from another phase.
+O6 Disk: 2,674,622,464 bytes free at 05:27 UTC against the runner's launch floor 2,082,471,936; 8 continuations add about
+   0.3-0.4 GB; other workflows share the disk.
+O7 WORK/dryrun_root (about 0.5 MB) is a synthetic root used only for the dry run; it can be deleted.
+
+==================================================================================================================
+FILES (sha256 at 05:27 UTC)
+==================================================================================================================
+criteria.txt                     7302a26d73d9a39c52506fa84c17472de683d324660e053d67a904315bbda76d  (draft v1; changes if
+                                 reviewed; its sha256 goes into APPROVED)
+SCREEN.json                      a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf
+tools/score_bs.py                c284d02b35e34d537ab898b385b23d066a8c5dfaa663aeeda9efaa6e35357119
+tools/tests/test_score_bs.py     65bd5a87876d319282af8249f4ab6ce6bd5023a99b040496bdec62ead0353464
+tools/tests/test_read_bs.py      e4a19bacb472df9eab3963a971276bbe531cedeecedb81adff4852b923881969  (edited, step 16)
+tools/tests/test_run_bs.py       acd9cb9baa1a9901e016beee876f3a291c3752c55c446ca7b93853d4a1a962b7  (edited, step 16)
+SHA256SUMS.txt                   refreshed (22 lines, all OK)
+WORK/power_bs.py, .out; ecs_spread.py, .out; dryrun_build.py, .out; dryrun_score.out; dryrun_root/;
+WORK/approved_extra_key_check.py, .out; waves_plan.out; preflight_blind_2101.out; score_real_root_now(.out);
+WORK/mutants_final.out; WORK/SHA256SUMS.builder_0500Z.txt; WORK/test_read_bs.py.orig, test_run_bs.py.orig
+NOTES_criteria.txt               this file
