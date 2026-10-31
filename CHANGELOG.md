@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A dated hardware reference note: Microduck's training stack read against
+  the T. rex tail saturation habit** (`docs/hardware/REFERENCE_MICRODUCK_2026_10.md`,
+  linked from `docs/hardware/README.md`, `docs/hardware/SIM_TO_REAL_PLAN.md`
+  §3.4 and `docs/README.md`). Report only: read at commit `bae39f59` of
+  `pollen-robotics/microduck_rl`, nothing run. It keeps apart the
+  training-setup practices that apply to the anatomical models now (no hidden
+  time in the reward, critic-only inputs; the previous action as an input,
+  deferred) and the sim-to-real practices for when hardware training starts
+  (sensor noise and delay, actuator models, domain randomization, ONNX
+  deployment).
 - **The early-bias probe, the early-warning tests and two critic-blind screens
   added to the record of the T. rex tail saturation habit: from seed 42's
   mid-rise state, hiding the tail angle from the critic reduced the tail

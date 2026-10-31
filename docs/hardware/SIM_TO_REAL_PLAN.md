@@ -209,6 +209,12 @@ default DR ranges but every factory raised `NotImplementedError` —
 a scaffold, not a mechanism. **Any policy trainable today is overfit to one
 idealized plant and would not survive transfer.**
 
+**Reference (2026-10-31):** [REFERENCE_MICRODUCK_2026_10.md](REFERENCE_MICRODUCK_2026_10.md)
+reads one small open biped's training stack against this table and §3.1: actor
+observation noise, delays, encoder bias and IMU mounting error with a clean,
+privileged critic; a fitted servo friction model; and friction, mass and push
+randomization. It was read, not run, and changes nothing in this plan.
+
 ### 3.5 Deployment / software stack
 
 - **No export path.** Inference only runs inside the training stack — SB3
