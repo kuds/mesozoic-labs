@@ -1,0 +1,94 @@
+== 2026-10-31T14:36:25Z CASE A: SCREEN.json and criteria.txt, no APPROVED (run, not --plan)
+run_waves_bs: refused: no <BS>/APPROVED
+-- exit 2; copy root now: SCREEN.json criteria.txt tools 
+== 2026-10-31T14:36:26Z CASE A2: --plan with no APPROVED
+slots 1 at nice 10; disk floor 1610612736 bytes; launch floor 2030043136 bytes; crash limit 3; early crash: last step below S + 131072
+orphan pattern: /home/user/work/phase_screen/review/process/work/[s]tub_preflight[.]py --arm
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm control --seed 2901 > /home/user/work/phase_screen/review/process/work/copyroot/logs/control_2901.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm critic_phase --seed 2901 > /home/user/work/phase_screen/review/process/work/copyroot/logs/critic_phase_2901.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm control --seed 2911 > /home/user/work/phase_screen/review/process/work/copyroot/logs/control_2911.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm critic_phase --seed 2911 > /home/user/work/phase_screen/review/process/work/copyroot/logs/critic_phase_2911.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm control --seed 2921 > /home/user/work/phase_screen/review/process/work/copyroot/logs/control_2921.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm critic_phase --seed 2921 > /home/user/work/phase_screen/review/process/work/copyroot/logs/critic_phase_2921.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm control --seed 2931 > /home/user/work/phase_screen/review/process/work/copyroot/logs/control_2931.attempt<k>.log  (S 2097152, E 3538944)
+  nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm critic_phase --seed 2931 > /home/user/work/phase_screen/review/process/work/copyroot/logs/critic_phase_2931.attempt<k>.log  (S 2097152, E 3538944)
+then: false <run>; after all are decided: false <run> (the markers; no scorer)
+-- exit 0
+== 2026-10-31T14:36:26Z CASE L: fake APPROVED pinning the copy, nothing changed, TODAY's disk (no launch override)
+run_waves_bs: refused: launch: 1893744640 bytes free < the launch floor 2030043136 bytes: housekeeping first
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt logs runs tools 
+-- runs/: 
+-- logs/decided.tsv:
+-- logs/run_waves_bs.exit:
+     2 2026-10-31T14:36:26Z
+== 2026-10-31T14:36:26Z [BS_LAUNCH_DISK_BYTES=0 from here on, test mode only]
+== 2026-10-31T14:36:26Z CASE C: fake APPROVED WITHOUT score_bs.py
+run_waves_bs: refused: APPROVED tool_sha256['score_bs.py'] None != the file's fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040 (APPROVED must pin tools/score_bs.py: criteria, HOW THE COORDINATOR PINS)
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt tools 
+== 2026-10-31T14:36:26Z CASE D: fake APPROVED pinning the copy, then one byte of the copy's score_bs.py changed
+run_waves_bs: refused: APPROVED tool_sha256['score_bs.py'] 'fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040' != the file's 85891747a97281ee52e7bdc6d09b1046b99975d00e7bcbc4d61129ce3c36e864 (APPROVED must pin tools/score_bs.py: criteria, HOW THE COORDINATOR PINS)
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt tools 
+== 2026-10-31T14:36:26Z CASE B: fake APPROVED pinning the copy, then one byte of criteria.txt changed
+[run_waves_bs 2026-10-31T14:36:26Z] launch: 1893670912 bytes free >= the launch floor 0 bytes; queue control_2901 critic_phase_2901 control_2911 critic_phase_2911 control_2921 critic_phase_2921 control_2931 critic_phase_2931
+[run_waves_bs 2026-10-31T14:36:26Z] queue: 8 pending of 8; 1 slots
+[run_waves_bs 2026-10-31T14:36:26Z] start control_2901 (control_2901.attempt1.log)
+[run_waves_bs 2026-10-31T14:36:27Z] control_2901 exited 2
+[run_waves_bs 2026-10-31T14:36:28Z] control_2901: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2901.attempt1.tsv, 1 files
+[run_waves_bs 2026-10-31T14:36:28Z] control_2901: REFUSED before any optimizer step (an attempt that exits 2 never reaches learn(); folder none); the cause: re-run, read only, cd /tmp && nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm control --seed 2901 --preflight-only  - never the attempt log; no new start
+[run_waves_bs 2026-10-31T14:36:28Z] halted: refused control_2901 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt logs runs tools 
+-- runs/: 
+-- logs/run_waves_bs.log:
+     [run_waves_bs 2026-10-31T14:36:26Z] launch: 1893670912 bytes free >= the launch floor 0 bytes; queue control_2901 critic_phase_2901 control_2911 critic_phase_2911 control_2921 critic_phase_2921 control_2931 critic_phase_2931
+     [run_waves_bs 2026-10-31T14:36:26Z] queue: 8 pending of 8; 1 slots
+     [run_waves_bs 2026-10-31T14:36:26Z] start control_2901 (control_2901.attempt1.log)
+     [run_waves_bs 2026-10-31T14:36:27Z] control_2901 exited 2
+     [run_waves_bs 2026-10-31T14:36:28Z] control_2901: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2901.attempt1.tsv, 1 files
+     [run_waves_bs 2026-10-31T14:36:28Z] control_2901: REFUSED before any optimizer step (an attempt that exits 2 never reaches learn(); folder none); the cause: re-run, read only, cd /tmp && nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/process/work/stub_preflight.py --arm control --seed 
+     [run_waves_bs 2026-10-31T14:36:28Z] halted: refused control_2901 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/decided.tsv:
+-- logs/HALTED:
+     2026-10-31T14:36:28Z	refused control_2901
+-- logs/run_waves_bs.exit:
+     2 2026-10-31T14:36:28Z
+-- logs/control_2901.attempt1.log:
+     {"stub": "the copy's run_bs.preflight only; run() never called", "argv": ["--arm", "control", "--seed", "2901"], "problems": ["APPROVED: criteria_sha256 '2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629' != sha256(criteria.txt)"]}
+== 2026-10-31T14:36:28Z CASE B2: relaunch while logs/HALTED exists
+run_waves_bs: refused: halted (2026-10-31T14:36:28Z	refused control_2901); the coordinator fixes the cause and removes /home/user/work/phase_screen/review/process/work/copyroot/logs/HALTED
+-- exit 2
+== 2026-10-31T14:36:28Z CASE E: fake APPROVED, nothing changed: the stub preflight passes (exit 0); CHECK = false
+[run_waves_bs 2026-10-31T14:36:28Z] launch: 1893740544 bytes free >= the launch floor 0 bytes; queue control_2901 critic_phase_2901 control_2911 critic_phase_2911 control_2921 critic_phase_2921 control_2931 critic_phase_2931
+[run_waves_bs 2026-10-31T14:36:28Z] queue: 8 pending of 8; 1 slots
+[run_waves_bs 2026-10-31T14:36:28Z] start control_2901 (control_2901.attempt1.log)
+[run_waves_bs 2026-10-31T14:36:29Z] control_2901 exited 0
+[run_waves_bs 2026-10-31T14:36:29Z] control_2901: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2901.attempt1.tsv, 1 files
+[run_waves_bs 2026-10-31T14:36:29Z] control_2901: CHECK ERROR (read_bs exit 1, logs/control_2901.check.log); folder left as it is; no new start
+[run_waves_bs 2026-10-31T14:36:29Z] halted: CHECK ERROR on control_2901 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- exit 2; copy root now: APPROVED SCREEN.json criteria.txt logs runs tools 
+-- runs/: 
+-- logs/run_waves_bs.log:
+     [run_waves_bs 2026-10-31T14:36:28Z] launch: 1893740544 bytes free >= the launch floor 0 bytes; queue control_2901 critic_phase_2901 control_2911 critic_phase_2911 control_2921 critic_phase_2921 control_2931 critic_phase_2931
+     [run_waves_bs 2026-10-31T14:36:28Z] queue: 8 pending of 8; 1 slots
+     [run_waves_bs 2026-10-31T14:36:28Z] start control_2901 (control_2901.attempt1.log)
+     [run_waves_bs 2026-10-31T14:36:29Z] control_2901 exited 0
+     [run_waves_bs 2026-10-31T14:36:29Z] control_2901: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2901.attempt1.tsv, 1 files
+     [run_waves_bs 2026-10-31T14:36:29Z] control_2901: CHECK ERROR (read_bs exit 1, logs/control_2901.check.log); folder left as it is; no new start
+     [run_waves_bs 2026-10-31T14:36:29Z] halted: CHECK ERROR on control_2901 (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/decided.tsv:
+-- logs/HALTED:
+     2026-10-31T14:36:29Z	CHECK ERROR on control_2901
+-- logs/run_waves_bs.exit:
+     2 2026-10-31T14:36:29Z
+-- logs/control_2901.attempt1.log:
+     {"stub": "the copy's run_bs.preflight only; run() never called", "argv": ["--arm", "control", "--seed", "2901"], "problems": []}
+== 2026-10-31T14:36:29Z done; copy root: SCREEN.json criteria.txt tools 
+criteria.txt: OK
+SCREEN.json: OK
+tools/bs_common.py: OK
+tools/bs_hooks.py: OK
+tools/check_inputs.py: OK
+tools/read_bs.py: OK
+tools/run_bs.py: OK
+tools/run_waves_bs.sh: OK
+tools/score_bs.py: OK
+tools/verify_copy.py: OK

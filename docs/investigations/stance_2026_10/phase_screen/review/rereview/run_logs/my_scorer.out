@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/home/user/work/phase_screen/review/rereview/work/rr_my_scorer.py", line 284, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/user/work/phase_screen/review/rereview/work/rr_my_scorer.py", line 278, in main
+    total = compare(ra, "rootA") + compare(rb, "rootB")
+            ~~~~~~~^^^^^^^^^^^^^
+  File "/home/user/work/phase_screen/review/rereview/work/rr_my_scorer.py", line 197, in compare
+    res, lines, code = SB.score(root)
+                       ~~~~~~~~^^^^^^
+  File "/home/user/work/phase_screen/tools/score_bs.py", line 1096, in score
+    check_markers(m, c, checks[name])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/work/phase_screen/tools/score_bs.py", line 420, in check_markers
+    check_critic_form(name, c["arm"], m)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/user/work/phase_screen/tools/score_bs.py", line 392, in check_critic_form
+    raise InputError(f"{name}: a control loop row {row.get('steps')}'s effective critic on the "
+                     f"{states} states is not the stock (raw) critic")
+score_bs.InputError: control_2901: a control loop row 2097152's effective critic on the ONPOLICY states is not the stock (raw) critic

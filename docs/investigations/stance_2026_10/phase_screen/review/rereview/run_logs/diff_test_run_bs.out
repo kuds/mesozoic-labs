@@ -1,0 +1,64 @@
+--- review/fixer/orig/tools/tests/test_run_bs.py	2026-10-31 13:23:00.846300806 +0000
++++ tools/tests/test_run_bs.py	2026-10-31 15:08:58.020102446 +0000
+@@ -271,11 +271,58 @@
+     m.train()
+     m.train()
+     assert holder["train_calls"] == 2 and type(m).__mro__[1] is M
+-    holder = {"digest_start": 1, "model_class": type(m), "arm_applied": {}, "no_update_class": type(m)}
++    m.tensorboard_log = "/x/tb"                         # fixer P-B1: the wrapper's redirect is required too
++    tb = {"loaded": "/tmp/tb_buffer/y", "set": "/x/tb"}
++    holder = {"digest_start": 1, "model_class": type(m), "arm_applied": {}, "no_update_class": type(m), "model": m,
++              "tensorboard_log": tb}
+     assert R.wrapper_problems(holder, mode="no_update", update_classes=(M,)) == []
+-    assert R.wrapper_problems({"digest_start": 1, "model_class": M, "arm_applied": {}}, mode="no_update",
+-                              update_classes=(M,))
++    assert R.wrapper_problems({"digest_start": 1, "model_class": M, "arm_applied": {}, "model": m,
++                               "tensorboard_log": tb}, mode="no_update", update_classes=(M,))
+     assert R.wrapper_problems({"digest_start": 1, "model_class": M}, mode="continuation")
++    ok = {"digest_start": 1, "model_class": M, "arm_applied": {}, "model": m, "tensorboard_log": tb}
++    assert R.wrapper_problems(ok, mode="continuation") == []
++    no_tb = {k: v for k, v in ok.items() if k != "tensorboard_log"}
++    assert any("TensorBoard" in x for x in R.wrapper_problems(no_tb, mode="continuation"))
++    m2 = SimpleNamespace(tensorboard_log="/tmp/tb_buffer/y")      # the model's folder not the one the wrapper set
++    assert any("TensorBoard" in x for x in R.wrapper_problems({**ok, "model": m2}, mode="continuation"))
++
++
++def test_redirect_tensorboard_into_the_run_tmp(tmp_path, monkeypatch):
++    """Fixer P-B1: the model's tensorboard_log (as SB3's load takes it from the start zip, an absolute /tmp/tb_buffer
++    path) is moved to the run's own <BS>/tmp/<run>/tb; a folder outside <BS>/tmp/ is refused."""
++    monkeypatch.setattr(R, "bs_root", lambda: tmp_path)
++    (tmp_path / "tmp").mkdir()
++    saved = ("/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_"
++             "r10LTSB_s42_01_stance_tensorboard")
++    m = SimpleNamespace(tensorboard_log=saved)
++    rec = R.redirect_tensorboard(m, tmp_path / "tmp" / "control_2901" / "tb")
++    assert rec == {"loaded": saved, "set": str(tmp_path / "tmp" / "control_2901" / "tb")}
++    assert m.tensorboard_log == rec["set"]
++    for bad in (Path(saved), tmp_path / "elsewhere" / "tb", tmp_path / "tmp", tmp_path / "tmp" / ".." / "x"):
++        m = SimpleNamespace(tensorboard_log=saved)
++        with pytest.raises(R.Refused):
++            R.redirect_tensorboard(m, bad)
++        assert m.tensorboard_log == saved
++
++
++def test_start_zip_carries_the_outside_tensorboard_path():
++    """Fixer P-B1's cause, measured on the pinned start pair (read only): the zip's saved data names an absolute
++    tensorboard_log outside <BS>, which SB3's load would keep without the redirect."""
++    import zipfile
++
++    with zipfile.ZipFile(C.f2_file(C.START["zip_rel"])) as z:
++        data = json.loads(z.read("data"))
++    tb = data.get("tensorboard_log")
++    assert isinstance(tb, str) and tb.startswith("/tmp/tb_buffer/") and not tb.startswith(str(C.BS))
++
++
++def test_end_phase_problems():
++    """Fixer P-i3: the end-of-run check of the actor's phase columns and their Adam moments."""
++    good = {"policy_phase_cols_unchanged": True, "policy_phase_adam_max_abs": 0.0}
++    assert R.end_phase_problems(good) == []
++    assert len(R.end_phase_problems({**good, "policy_phase_cols_unchanged": False})) == 1
++    assert len(R.end_phase_problems({**good, "policy_phase_adam_max_abs": 1e-12})) == 1
++    assert len(R.end_phase_problems({})) == 2
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ preflight

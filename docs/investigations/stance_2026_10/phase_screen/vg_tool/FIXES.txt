@@ -1,0 +1,168 @@
+vg_tool FIXES -- the fixer's record after the independent check (check1/), 2026-10-31 (date -u; every command with its
+time in fixer/cmdlog.txt).  Labels: [measured] read or computed from a named file; [inferred] reasoned, basis given.
+Scope: SPEC.txt, vg_sigma.py, tests/**, NOTES.txt, SHA256SUMS.txt edited (orig/ copies of each, before any edit:
+fixer/orig/; unified diffs: fixer/out/diffs.txt); everything else written only under fixer/.  The phase screen PS stayed
+outcome-blind: nothing under PS/runs, reads, score, lost.json, tmp or logs was opened, listed, hashed or statted; only
+PS's criteria.txt, SCREEN.json, APPROVED, tools/** and validate/** were read.  No training, no optimizer step, no git
+or network writes.  Every simulation ran at nice 19, one process at a time.
+
+RESULT: vg_sigma 1.1.  Both minor findings hold and are fixed; the optional info items i2, i3, i4, i7 are applied; i1
+and i5 need nothing; i6 is outside this folder (for the coordinator).  The measured numbers are UNCHANGED: the fixed
+tool reproduces the frozen tool's vg_sigma.json numbers exactly on 5 pairs / roots [measured, fixer/val/*_vs_*.out].
+New pins (SHA256SUMS.txt, sha256sum -c: 7 OK; the builder's 6 sha256 are superseded):
+  SPEC.txt            d1481ec596b1dff6172c5442b8b90fe77e390eccdcaf0199cf73bdecc5688b33
+  vg_sigma.py         a9303859c8de3652dd90f5b70e40c3066cbd4e01fbc300c76166b3d5c9a80981
+  tests/conftest.py   50628a451950036806f6b5ac3671fd7e36456528061ed6c9b33718d7d7e83c57   (unchanged)
+  tests/test_pure.py  11ace7f7a76b9b1188684fb0e53cd1c7d443f700c319476e7f5eeb6c1f542268
+  tests/test_guard.py bf420da32e37493dfebebc6249f9b2215cb383ac2ef14001b95cd31ff7061c26
+  tests/test_real.py  28c963df717a5de63bb189759d3d101de6690e51097b290570a62f18f4a7e42f
+  tests/test_toy.py   91bc16449587c6b6242da0206648116986308c511a4ad65993cc891428056e4d   (new)
+
+==================================================================================================================
+FINDINGS
+==================================================================================================================
+m1 (minor) HOLDS.  Verified [measured by reading the builder's tests + the checker's check1/out/mut_tests.out]: no unit
+   test fed nonzero critic phase columns through _form_values (test_start_pair_forms_agree_bitwise uses the start pair,
+   whose columns are 0 after the transform; the nonzero-column test called critic_values directly); collect() was
+   tested over 40 vector steps with no episode end; the gamma at measure_pair's _stats_for call and run_root's
+   arm -> form wiring had no test.  The PS validate pair critic_phase_9401 has phase columns exactly 0.0 [measured,
+   fixer/val/b2_phase/vg_sigma.txt checks: value_phase_cols_max_abs_read 0.0], so it cannot show the phase path.
+   Fixes (minimal):
+   (a) tests/test_real.py::test_phase_form_values_with_nonzero_phase_columns: the start pair with the arm's frozen slots
+       (H.reseed_phase_slots, as after S) and value_net.0.weight[:, 60:63] = 0.3 N(0,1) (generator 5); _form_values(net,
+       "phase", X, K, TX, TK) with start=False.  V equals the critic on bs_hooks.phase_env_class observations (phi(k))
+       bitwise; V_term equals the critic on the training env's terminal observation (phase_env_class with the counter
+       at 1000: slots (1, 1, 1)) bitwise; V_raw / V_raw_term equal the slots-zero critic; effective and raw differ
+       (> 1e-3 on every terminal row); the runtime check (c) passes on it and flags a record with either difference 0.
+       (The terminal observations come from two lockstep envs whose counter is set to 1000 for one _get_obs and put
+       back; T. rex _get_obs reads no _step_count and writes no state [measured, code copy base_env.py 974-1030].)
+   (b) tests/test_toy.py (new, 3 tests; adapted from check1/toy_collect.py): collect() + episode_rows + _stats_for on
+       a Monitor/DummyVecEnv/VecNormalize toy with falls at k = 300, 50, 999 and at exactly k = 1000 (terminated and
+       truncated: not bootstrapped) and time-limit ends (bootstrapped with V(terminal)); flags, k = 0..L-1, k_term 1000,
+       term_X, Monitor length; G against a direct computation (atol 1e-9) and the bucket stats against bucket_stats of
+       the direct G.
+   (c) vg_sigma.phase_feed_problems + its call in measure_pair (phase form) + a new record key
+       max_abs_eff_minus_raw_term: when value_phase_cols_max_abs_used > 0, max_abs_eff_minus_raw == 0 (states) or, with
+       a truncated episode, max_abs_eff_minus_raw_term == 0 (terminal) is a PROBLEM (exit 3).  A missing record is a
+       PROBLEM too.  Columns exactly 0 (S after the transform, PS validate) trigger nothing.
+   (d) _stats_for refuses (exit 2) any gamma other than GAMMA = 0.98 (measure_pair had already refused a stage / model /
+       VecNormalize gamma other than 0.98; this guards the call itself).
+   (e) tests/test_guard.py::test_root_mode_wiring_forms_per_arm: a synthetic full root (tiny zips with policy.pth
+       log_std, pkl stand-ins, markers rows at E, APPROVED copied), setup_sim and measure_pair stubbed; asserts S once
+       with ("plain", "phase") and phase_start, then each COUNTED run in queue order with the LITERAL form per arm
+       (control ("plain",), critic_phase ("phase",); not read from ARM_FORM), never phase_start, at E, seed 6271,
+       32 episodes; STOPPED / LOST not measured; markers never mismatched.
+   Effect [measured, fixer/out/mutants.out]: the checker's survivors bootstrap_terminations, terminal_phase_k999
+   (test_toy), control_form_phase (wiring test), phase_skipped_states, phase_skipped_terminal (test (a)) are now killed.
+   gamma_099_in_G still passes the unit tests (measure_pair is not unit-tested: it needs the real env); at runtime it
+   now REFUSES: "G with gamma 0.99, not the training gamma 0.98", exit 2, nothing written [measured,
+   fixer/val/rt_gamma_099_in_G.log].  The check (c) at runtime on the checker's synthetic pair (check1/pairs/phase_pert,
+   columns max 1.03): unmutated PROBLEMS none, max_abs_eff_minus_raw 0.492, _term 0.436 [measured,
+   fixer/val/pert_phase/vg_sigma.json]; phase_skipped_states -> exit 3 with "V with the phase equals V with the slots
+   zero on every state"; phase_skipped_terminal -> exit 3 with "V(terminal) with phi(1000) equals V(terminal) with the
+   slots zero" [measured, fixer/val/rt_phase_skipped_*.log].
+
+m2 (minor) HOLDS.  Verified [measured, fixer/orig/vg_sigma.py main(): ap.add_argument("--root", default=str(PS_ROOT));
+   PS tools/score_bs.py main() writes <root>/score/score.json whatever the status (lines 1398-1417)].  Fix: --root has
+   no default; without --pair and without --root the CLI refuses (exit 2, "--root is required without --pair (no
+   default; nothing opened)") before the guard, so nothing is opened; --root / --plan together with --pair also
+   refuse.  Test tests/test_guard.py::test_root_is_required_no_default (guard, run_root and run_pair stubbed to fail,
+   so the test itself can never open PS/score whatever the code does).  CLI demonstration [measured,
+   fixer/val/cli_noroot.log, cli_noroot_plan.log, cli_pair_with_root.log]: the real CLI under fixer/scripts/
+   cli_guarded.py (an audit hook + os.stat/lstat wrappers that BLOCK and record any open / stat / listing of PS/runs,
+   reads, score, lost.json, tmp, logs): exit 2 each, blocked accesses none, --out not created.  Not chosen: a
+   confirmation flag with an explicit --root PS (more surface; no default already makes a mistyped validation command
+   refuse) [inferred].
+
+i1 (info) no change needed.  Confirmed again [measured]: the fixed tool's measured numbers equal the frozen tool's
+   exactly on the checker's phase_pert pair (fixer/val/pert_phase_vs_check1.out, --by-index: the checker used --label
+   pert) and on the builder's b1_S, b2_phase, a_control_2501 and dry root (fixer/val/*_vs_builder.out: IDENTICAL).
+i2 (info) applied (optional): run_root compares SCREEN.json's sha256 with APPROVED's screen_sha256 (a PROBLEM if they
+   differ).  Put in run_root, where APPROVED is already read for the tool sha256, not in the guard (which still opens
+   only score.json and SCREEN.json).  Test test_root_mode_flags_screen_sha_against_approved; the dry root raises no
+   such problem [measured].  PS's SCREEN.json sha256 equals APPROVED's today [measured, fixer/out/pins.out].
+i3 (info) applied (optional): one SPEC sentence (EPISODES, SEEDS).  Verified [measured]: docs/STAGE1_SPLIT_PLAN.md
+   line 1209, "A wider independent scan of seeds 3042-7041 found 43/4000 = 1.075% ..." (a zero-action reset
+   survey).  The checker's 46,710-file scan was not repeated.
+i4 (info) applied (optional): SPEC E2 now cites BS2 control_2501 at E, [150,200) -0.0098 (SE 0.0196) beside the
+   why-probe's +0.0707 (SE 0.0059) at S [measured, val/a_control_2501/vg_sigma.txt line 11, val/why_offline.log
+   line 14; reproduced exactly by fixer/val/a_control_2501].  E2 itself is unchanged.
+i5 (info) the checker's self-report; nothing to fix in the tool.  My outside-write check prunes PS at depth 1 and
+   searches only PS's allowed paths, named explicitly (fixer/scripts/outside_check.sh).
+i6 (info) verified [measured, fixer/out/pins.out]: PS tools/*.py are 0644 and run_waves_bs.sh 0755 (criteria.txt,
+   SCREEN.json, APPROVED 0444); every sha256 equals APPROVED's.  Not changed: this fixer never writes in PS.  For the
+   coordinator (open item).
+i7 (info) applied: vg_sigma.txt's header now carries the caption "G: the Monte Carlo return-to-go (gamma 0.98; ...)
+   under the pair's FROZEN ret_rms; the critic itself was trained on GAE(0.95) lambda-returns under each rollout's
+   running reward statistics" (GAE lambda read from bs_common.ARM_GAE_LAMBDA [measured: 0.95 for both arms]), and SPEC
+   DEFINITIONS says the same.
+
+==================================================================================================================
+WHAT CHANGED IN THE OUTPUTS
+==================================================================================================================
+Version string "vg_sigma 1.1"; the tool / SPEC sha256 recorded; vg_sigma.txt: one caption line (i7); vg_sigma.json:
+the phase form's record gains max_abs_eff_minus_raw_term; problems may now include the phase-feed and SCREEN.json
+lines.  No measured number changed (above).  Outputs stay deterministic: a rerun of b2_phase gives cmp-identical
+vg_sigma.json and vg_sigma.txt [measured, fixer/val/b2_determinism.out].
+
+==================================================================================================================
+CHECKS RE-RUN (fixer/out, fixer/val; nice 19; one heavy process at a time)
+==================================================================================================================
+Unit tests [measured, fixer/out/pytest_final.out]: 55 passed (test_pure 31, test_guard 14, test_real 7, test_toy 3;
+  was 47), 9.1 s.  ruff E,F,W,B line 120 on vg_sigma.py, tests/*.py, fixer/scripts/*.py: All checks passed
+  [fixer/out/ruff_final.out].
+Mutation check [measured, fixer/out/mutants.out, fixer/scripts/mut_run.py]: 35 mutants (builder 10, checker 18, fixer
+  6, identity control 1) against the fixed tests: 32 killed; identity control passes (as it must); gamma_099_in_G and
+  phase_feed_call_removed survive the unit tests BY DESIGN (runtime-only, measure_pair) and are shown at runtime
+  above.  actions_deterministic is killed by test_collect_equals_sb3_collect_rollouts; its 3 extra "errors" are the
+  toy fixture rejecting the mutant's deterministic=True keyword (a consequence of the mutant) [measured,
+  fixer/out/mut_actions_deterministic_errors.out], so the runner's strict error flag listed it; it is a valid kill.
+  (A first mutation run was invalid: pytest's --basetemp parent did not exist, so every run had 15 setup errors; it
+  is kept as fixer/out/mutants_invalid_run1.out and was not used.)
+Validations [measured, fixer/val/, run by fixer/scripts/run_fixer_validations.sh]:
+  pert_phase      check1's synthetic phase pair (nonzero columns), 4 ep, seed 6281: exit 0, PROBLEMS none; numbers
+                  identical to the checker's frozen-tool run; phase-feed records 0.492 / 0.436.
+  b1_S            F2 start pair, --phase-start, 4 ep: exit 0; plain == phase bitwise (0.0); used columns 0.0 (no
+                  phase-feed problem); identical to val/b1_S.
+  b2_phase        PS validate critic_phase_9401 final, 4 ep: exit 0; columns 0.0; identical to val/b2_phase; rerun
+                  cmp-identical.
+  a_control_2501  BS2 control_2501 E, plain, 8 ep: exit 0; identical to val/a_control_2501.
+  dryroot         run_root end to end on a synthetic root under fixer/dryroot (BS2 control_2501, PS validate 9401 as
+                  stand-ins), 4 ep, seed 6281: exit 3 with exactly the builder's 6 expected PROBLEMS (paths aside), no
+                  SCREEN.json problem; numbers identical to val/dryroot.
+  rt_* (runtime mutants) and cli_* (refusals): above.
+  Cost [measured, fixer/out/timing_summary.out]: 2.1-2.9 s CPU per 1,000-step episode including loads (wall/CPU
+  1.01-1.03 beside the 4 running continuations).  In all: the tool's simulations 116.5 s CPU (sum of cpu_s_total
+  over the 10 measured pairs) plus the refused gamma mutant (about 11 s); pytest about 10 min (two mutation runs of
+  34-35 suites x 7-9 s, the first invalid, and five suite runs).
+  The fixer/val and fixer/dryroot outputs record SPEC sha256 4d483bae...: SPEC's only later edit is the doc line
+  reference of i3 ("about line 1208" -> "line 1209"); vg_sigma.py (a9303859...) is the file that ran.
+
+==================================================================================================================
+OUTSIDE-WRITE CHECK AND RULES
+==================================================================================================================
+[measured, fixer/out/outside_check.out and, at the end, outside_check_final.out] since 17:09:00Z: under
+/home/user/work (PS pruned at depth 1, fixer pruned) only vg_tool/vg_sigma.py, SPEC.txt, NOTES.txt, SHA256SUMS.txt,
+FIXES.txt and tests/* (the permitted edits); PS's allowed paths: nothing; no __pycache__ under PS/tools or vg_tool; the
+S2 scratchpad (venv included) and the repo: nothing; /tmp top level: the Claude harness's own logs
+(claude-code*.log, env-manager.log, environment-manager.out) and /tmp/claude-0 (its session tasks dir, cache state,
+bash-edit diffs) [inferred: harness files, not written by any command of mine]; /root: nothing.  PS pins: every
+sha256 equals APPROVED [measured, fixer/out/pins.out].
+RULE DEVIATION (self-report): at about 17:38Z one read-only command (a pytest --co listing of the test names, after the
+final test run) redirected its stderr to the null device; nothing was written; it was not repeated (fixer/cmdlog.txt
+17:38:13Z).  A later grep of my own cmdlog used a search pattern containing "2>/dev"; that is text, no device access.
+
+==================================================================================================================
+OPEN ITEMS
+==================================================================================================================
+OF1 Pinning: the coordinator records the seven sha256 above in the run log BEFORE the screen's reading (the builder's
+    six are superseded).
+OF2 i6: PS tools are 0644 / 0755, not 0444; chmod 0444 only if that is the intended pin state (bytes equal APPROVED).
+OF3 Two self-checks are runtime-only (the gamma at measure_pair's _stats_for call; the phase-feed call): the unit
+    tests cannot reach measure_pair without the real env; shown on mutants at runtime (fixer/val/rt_*.log).
+OF4 [inferred] The phase-feed check could misfire if a critic_phase run's trained columns were nonzero but so small
+    that no state's V changes in float32 (then it is exit 3 with the numbers still written; the message says so).
+    Implausible after 1.44M steps of training (the perturbed pair's effect is 0.49 at columns 1.03), but a reader of
+    a PROBLEM should look at value_phase_cols_max_abs_used first.
+OF5 NOTES O2-O10 are unchanged (PROVISIONAL refuses; V - G at E and S only; G under the frozen ret_rms; falls counted;
+    the torch UserWarning; descriptive arm comparison).

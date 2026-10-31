@@ -516,6 +516,43 @@ record's update of 2026-10-30); SOURCES.txt defines it. The file's first 168
 lines are the copy as it was. No copy holds a model identifier, an email
 address or a commit trailer.
 
+*Added 2026-10-31 (`phase_critic_results/`):* no new kind of change.
+`phase_critic_results/run_log.txt` carries **lines** (lines 802 to 871 of
+the session's run log; it continues `critic_blind_results/run_log.txt` with
+no line in both), **redact** (25 workflow run ids, 12 distinct, 5
+scheduled-task ids, 5 distinct, and 1 background-job id, each by `[id
+removed]`, and the name of another assistant product in a branch name by
+`[name removed]`) and **checkout** (once, in a script's path). No copy
+holds a model identifier, an email address or a commit trailer.
+
+*Added 2026-10-31, later (`why_probe/`):* no new kind of change. Every copy
+is byte-identical to its source, absolute session-scratch paths included,
+but `verify_why/vw_redo.py`, a **gzip** copy: an f-string on its line 260
+has a dictionary key in the same quotes, which Python 3.11 cannot parse.
+None held a session tool id. Each folder keeps its top-level text files,
+run markers and JSON outputs, as its README states. Kept as their sources
+have them, so to leave out of a manual pre-commit run: 12 JSON files without
+a final newline (the README names them). No copy holds a model identifier,
+an email address or a commit trailer.
+
+*Added 2026-10-31, later (`pr655_review/` and `phase_screen/`):* no new
+kind of change; their sources are in the session's work folder,
+`/home/user/work` (the run log's W from 2026-10-31), which SOURCES.txt writes
+as `work/`. `pr655_review/`'s copies are byte-identical to their sources.
+`phase_screen/`'s copies are byte-identical to their sources, absolute paths
+included, but for **redact** (5 workflow run ids, 3 distinct, 6 sub-agent
+ids, 3 distinct, and 3 background-job or tool-result ids, 2 distinct, in six
+of the process check's and the designer's notes, logs and sums) and
+**gzip** (`tools/run_bs.py`, as in `bias_screen/` and `bias_screen2/`).
+`APPROVED` keeps the one workflow run id it holds: its sha256 is the run
+log's pin, so **redact** is not applied to it. Kept as their sources have
+them, so to leave out of a manual pre-commit run: in `pr655_review/`, 4 JSON
+files without a final newline; in `phase_screen/`, 4 JSON files without a
+final newline, 1 file ending in a blank line and 22 files with lines ending
+in spaces (each folder's README names them). No other copy holds a session
+tool id, and none holds a model identifier, an email address or a commit
+trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -535,6 +572,8 @@ address or a commit trailer.
 *Added 2026-10-30, later:* nor `overnight_probes/README.md`, likewise.
 *Added 2026-10-30, later:* nor `bias_screen/README.md`, likewise.
 *Added 2026-10-30, later still:* nor `bias_screen2/README.md`, likewise.
+*Added 2026-10-31:* nor `phase_critic_results/README.md`, likewise.
+*Added 2026-10-31, later:* nor `why_probe/README.md`, `pr655_review/README.md` and `phase_screen/README.md`, likewise.
 
 ## Contents
 
@@ -1658,6 +1697,56 @@ the record's update of 2026-10-30 (187 rows, L001 to L187).** The
 [README](tail_record/README.md) of `tail_record/` says how they were
 written.
 
+### Added on 2026-10-31 (decisions D-D59 to D-D65: the run log)
+
+**`phase_critic_results/`: the why-probe, the review of #655 and the
+critic-phase screen (2026-10-30 16:33 UTC to 2026-10-31 21:00:15 UTC; lines
+802 to 871 of the session's run log).** The run log holds the maintainer's
+decisions (D-D59 to D-D65), the why-probe and its verification, the stop for
+the day and the end-of-day safety copy, the review of #655 and the comment
+posted on it, the landings of #656 and #657, the critic-phase screen's
+build, pin, run (with two container restarts), reading, checks and durable
+copy, the separate V − G tool, the long phase-critic study started and
+abandoned, and the switch to a fresh run on Colab. Its
+[README](phase_critic_results/README.md) names the decision entries.
+
+### Added on 2026-10-31, later (decision D-D59: the why-probe)
+
+**`why_probe/`: the no-training probe of why the critic pays for a raised
+tail, in two pre-registered lenses with an independent verifier (83 files,
+about 1.0 MB).** At matched posture the four stance terms paid only after
+step 200 make settled states worth more, the policy's own tail creep makes
+the tail angle a clock, and a phase-blind critic credits the tail with that
+value; the termination risk is excluded. Exploratory and report only. Its
+[README](why_probe/README.md) indexes it.
+
+### Added on 2026-10-31, later (decision D-D61: the review of #655)
+
+**`pr655_review/`: the reproduction of #655's evidence and the cross-check
+of #655 with this record (24 files, about 0.4 MB).** Every script #655 cites
+reproduces its committed output; the trained r10 policies #655 cites ran
+the run branch's stance configuration, on which the step-200 incentive is
+about three times `main`'s. Report only; one comment was posted on #655.
+Its [README](pr655_review/README.md) indexes it.
+
+### Added on 2026-10-31, later (decisions D-D60 and D-D62: the critic-phase screen)
+
+**`phase_screen/`: the critic-phase screen, from its build and criteria to
+its reading, final, the reading's two independent checks, the report and
+the separate V − G and tail σ tool with its output (474 files, about 5.6
+MB).** Eight CPU continuations of seed 42 from its checkpoint at 2,097,152
+steps to 3,538,944, four of them with the episode phase given to the critic
+alone: the approved criteria and the approval, the six pinned tools with
+their tests, the build check, the criteria's design and adaptation notes,
+the design and process reviews, the fixer's record and the re-review of the
+fixed version, each continuation's run record, check and read (and the
+killed attempts' run records), the scorer's reading (`score/`: line 2,
+"REDUCED", p 1/70, the control median rise +0.48961 against 0.20), the two
+checks (`check/stat/`, `check/proc/`: both agree) and the report
+(`REPORT.md`). The checkpoints, ledgers and code copy are not here; the
+ledgers are on the never-merged orphan branch `claude/handoff-phase-screen`.
+Its [README](phase_screen/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1787,6 +1876,18 @@ copies.
 | The record's ledger (2026-10-30, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `187 L001 L187` |
 | The ledger's rows before the update (2026-10-30, latest) | `head -168 tail_record/ledger.csv \| sha256sum` | `ff3acd39…`, the ledger's sha256 before the update |
 | The files themselves (2026-10-30, latest, with the ledger's rows L168 to L187) | `sha256sum -c SHA256SUMS` | all 2002 files OK |
+| The fifth run-log copy against its source (2026-10-31; session scratch only) | `head -871 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 802 to 871 against `phase_critic_results/run_log.txt` with the ids, the name and the checkout path SOURCES.txt names put back | `0f408d65…`, the value SOURCES.txt gives; equal |
+| The run-log copies against each other (2026-10-31) | `tail -1 critic_blind_results/run_log.txt` and `head -1 phase_critic_results/run_log.txt` | the entries timed 16:32 UTC and 16:33 UTC on 2026-10-30, the source's lines 801 and 802: no gap and no line in both |
+| The files themselves (2026-10-31, with `phase_critic_results/`) | `sha256sum -c SHA256SUMS` | all 2003 files OK |
+| The why-probe's pre-registrations (2026-10-31, later) | in each of `why_probe/phase_probe/`, `why_probe/termination_probe/` and `why_probe/verify_why/`: `sha256sum -c PREREG.sha256` | 3 of 3 OK: `639cd879…`, `7c69819d…`, `8267fcab…` |
+| The why-probe's copies against the safety copy (2026-10-31, later; needs the durable branch) | `git show b25eeaf5:SHA256SUMS` of `claude/handoff-day-2026-10-30` (its `why_probe/` lines) against the source sha256 SOURCES.txt gives each `why_probe/` row | equal for all 83 |
+| The files themselves (2026-10-31, later, with `why_probe/`) | `sha256sum -c SHA256SUMS` | all 2086 files OK |
+| The #655 cross-check's own sums (2026-10-31, later) | `cd pr655_review/xref && sha256sum -c SHA256SUMS.txt` | 10 of 10 OK |
+| The files themselves (2026-10-31, later, with `pr655_review/`) | `sha256sum -c SHA256SUMS` | all 2110 files OK |
+| The critic-phase screen's approved text and pinned tools (2026-10-31, later) | `sha256sum phase_screen/criteria.txt phase_screen/SCREEN.json phase_screen/APPROVED`; in a copy of `phase_screen/`: `gunzip tools/run_bs.py.gz`, then each tool's sha256 against `APPROVED`'s `tool_sha256` | `9875039f…` and `7d6d368a…`, `APPROVED`'s `criteria_sha256` and `screen_sha256`, and `067d97d2…`, the run log's; 6 of 6 equal |
+| The critic-phase screen's reading (2026-10-31, later) | `sed -n 5,7p phase_screen/score/score.txt` and `sed -n 22,24p` of it | `STATUS: final`; line 2, "REDUCED: GIVING THE CRITIC THE EPISODE PHASE (the tail_3 angle still in its input; the actor unchanged) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"; the control median +0.61621, rise +0.48961 -> informative; p (filled, decides) 1/70 |
+| The copies against the screen's durable copy (2026-10-31, later; needs the durable branch) | `git show dd4f0d32:SHA256SUMS` of `claude/handoff-phase-screen` against the source sha256 SOURCES.txt gives each `phase_screen/` row (each `run_logs/` as `logs/`) | equal for all 474 |
+| The files themselves (2026-10-31, later, with `phase_screen/`) | `sha256sum -c SHA256SUMS` | all 2584 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

@@ -1,0 +1,225 @@
+/home/user/work/phase_screen/tools/read_bs.py:1007: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:822.)
+  rec = {"start_transform": bool(start), "value_phase_cols_max_abs_read": float(w_vf[:, lo:hi].abs().max())}
+vg_sigma 1.1 (2026-10-31; report-only V - G by step bucket and tail sigma for the phase screen)
+tool sha256 a9303859c8de3652dd90f5b70e40c3066cbd4e01fbc300c76166b3d5c9a80981  SPEC sha256 d1481ec596b1dff6172c5442b8b90fe77e390eccdcaf0199cf73bdecc5688b33
+REPORT ONLY: outside the phase screen's reading; never a line or a secondary; it changes nothing the screen reads.
+G: the Monte Carlo return-to-go (gamma 0.98; a time-limit truncation bootstrapped with the form's own V(terminal), a termination not) in the critic's units under the pair's FROZEN ret_rms; the critic itself was trained on GAE(0.95) lambda-returns under each rollout's running reward statistics (SPEC DEFINITIONS).
+mode root
+guard: score.json bda79018eec1db58 status final (line REDUCED); entries control_2901 COUNTED, critic_phase_2901 COUNTED, control_2911 COUNTED, critic_phase_2911 COUNTED, control_2921 COUNTED, critic_phase_2921 COUNTED, control_2931 COUNTED, critic_phase_2931 COUNTED
+settings: {"buckets": ["[0,50)", "[50,150)", "[150,200)", "[200,250)", "[250,1000]"], "episodes_per_env": 8, "gamma": 0.98, "horizon": 1000, "n_envs": 4, "n_episodes": 32, "pre_registered_root_settings": true, "se": "sample SD of the per-episode bucket means / sqrt(n episodes)", "seed_base": 6271, "sigma_floor": 0.01, "tail_actions": {"tail_2": 13, "tail_3": 14}}
+
+PAIR S (start pair, F2): num_timesteps 2,097,152; zip 83b6c88edb933005 pkl 991d434f385187e8; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 45.3587, gamma 0.98
+  plain critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  +0.0246 (0.0171)  0.0944 (0.0081)  +0.0246  4.458  4.434
+    [50,150)       32    3200  +0.1402 (0.0153)  0.1587 (0.0104)  +0.1402  4.663  4.522
+    [150,200)      32    1600  +0.0711 (0.0090)  0.0881 (0.0046)  +0.0711  4.764  4.693
+    [200,250)      32    1600  -0.0424 (0.0075)  0.0451 (0.0070)  -0.0424  4.782  4.825
+    [250,1000]     32   24000  -0.0193 (0.0030)  0.0258 (0.0024)  -0.0193  4.810  4.829
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06}
+  phase critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  +0.0246 (0.0171)  0.0944 (0.0081)  +0.0246  4.458  4.434
+    [50,150)       32    3200  +0.1402 (0.0153)  0.1587 (0.0104)  +0.1402  4.663  4.522
+    [150,200)      32    1600  +0.0711 (0.0090)  0.0881 (0.0046)  +0.0711  4.764  4.693
+    [200,250)      32    1600  -0.0424 (0.0075)  0.0451 (0.0070)  -0.0424  4.782  4.825
+    [250,1000]     32   24000  -0.0193 (0.0030)  0.0258 (0.0024)  -0.0193  4.810  4.829
+  phase critic (raw):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  +0.0246 (0.0171)  0.0944 (0.0081)  +0.0246  4.458  4.434
+    [50,150)       32    3200  +0.1402 (0.0153)  0.1587 (0.0104)  +0.1402  4.663  4.522
+    [150,200)      32    1600  +0.0711 (0.0090)  0.0881 (0.0046)  +0.0711  4.764  4.693
+    [200,250)      32    1600  -0.0424 (0.0075)  0.0451 (0.0070)  -0.0424  4.782  4.825
+    [250,1000]     32   24000  -0.0193 (0.0030)  0.0258 (0.0024)  -0.0193  4.810  4.829
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06, "max_abs_minus_plain": 0.0, "max_abs_minus_plain_term": 0.0, "record": {"max_abs_eff_minus_raw": 0.0, "max_abs_eff_minus_raw_term": 0.0, "slots_frozen_after": true, "start_transform": true, "value_phase_cols_max_abs_read": 0.24422062933444977, "value_phase_cols_max_abs_used": 0.0}}
+  sigma: tail_3 0.181644 (floored 0.181644), tail_2 0.191883 (floored 0.191883)
+
+PAIR control_2901: num_timesteps 3,538,944; zip f83bc58dd212f444 pkl c256c3f8e9da4088; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 44.0335, gamma 0.98
+  plain critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0001 (0.0098)  0.0564 (0.0059)  -0.0001  4.591  4.592
+    [50,150)       32    3200  +0.0291 (0.0138)  0.0665 (0.0092)  +0.0291  4.701  4.672
+    [150,200)      32    1600  +0.0106 (0.0108)  0.0580 (0.0059)  +0.0106  4.849  4.838
+    [200,250)      32    1600  -0.0670 (0.0076)  0.0686 (0.0072)  -0.0670  4.909  4.976
+    [250,1000]     32   24000  -0.0211 (0.0033)  0.0279 (0.0019)  -0.0211  4.965  4.986
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06}
+  sigma: tail_3 0.165834 (floored 0.165834), tail_2 0.172452 (floored 0.172452)
+
+PAIR critic_phase_2901: num_timesteps 3,538,944; zip f2128bf3db97e586 pkl 0cbdc95ea1dd434a; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 44.5906, gamma 0.98
+  phase critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0035 (0.0060)  0.0410 (0.0027)  -0.0035  4.582  4.585
+    [50,150)       32    3200  +0.0020 (0.0024)  0.0182 (0.0015)  +0.0020  4.691  4.689
+    [150,200)      32    1600  -0.0085 (0.0021)  0.0161 (0.0009)  -0.0085  4.865  4.874
+    [200,250)      32    1600  +0.0000 (0.0037)  0.0138 (0.0027)  +0.0000  5.017  5.017
+    [250,1000]     32   24000  +0.0012 (0.0026)  0.0105 (0.0022)  +0.0012  5.033  5.031
+  phase critic (raw):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0131 (0.0060)  0.0436 (0.0028)  -0.0131  4.572  4.585
+    [50,150)       32    3200  -0.0565 (0.0024)  0.0571 (0.0023)  -0.0565  4.632  4.689
+    [150,200)      32    1600  -0.2191 (0.0024)  0.2191 (0.0024)  -0.2191  4.655  4.874
+    [200,250)      32    1600  -0.3587 (0.0039)  0.3587 (0.0039)  -0.3587  4.658  5.017
+    [250,1000]     32   24000  -0.3572 (0.0026)  0.3572 (0.0026)  -0.3572  4.674  5.031
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06, "record": {"max_abs_eff_minus_raw": 0.3848857879638672, "max_abs_eff_minus_raw_term": 0.3715686798095703, "slots_frozen_after": true, "start_transform": false, "value_phase_cols_max_abs_read": 0.04674730449914932, "value_phase_cols_max_abs_used": 0.04674730449914932}}
+  sigma: tail_3 0.160062 (floored 0.160062), tail_2 0.161357 (floored 0.161357)
+
+PAIR control_2911: num_timesteps 3,538,944; zip 6a2cadf33af3fb30 pkl 70e29005e95b6006; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 43.7225, gamma 0.98
+  plain critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0082 (0.0096)  0.0549 (0.0055)  -0.0082  4.623  4.632
+    [50,150)       32    3200  +0.0454 (0.0118)  0.0699 (0.0080)  +0.0454  4.749  4.703
+    [150,200)      32    1600  +0.0142 (0.0096)  0.0582 (0.0042)  +0.0142  4.871  4.857
+    [200,250)      32    1600  -0.0716 (0.0063)  0.0717 (0.0062)  -0.0716  4.919  4.991
+    [250,1000]     32   24000  -0.0173 (0.0030)  0.0257 (0.0022)  -0.0173  4.984  5.002
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06}
+  sigma: tail_3 0.160035 (floored 0.160035), tail_2 0.173760 (floored 0.173760)
+
+PAIR critic_phase_2911: num_timesteps 3,538,944; zip c7cdb8987c39de20 pkl bf45a46a08d64b6f; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 44.6519, gamma 0.98
+  phase critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0187 (0.0078)  0.0492 (0.0042)  -0.0187  4.572  4.591
+    [50,150)       32    3200  -0.0016 (0.0041)  0.0174 (0.0030)  -0.0016  4.693  4.695
+    [150,200)      32    1600  -0.0137 (0.0027)  0.0178 (0.0022)  -0.0137  4.871  4.884
+    [200,250)      32    1600  -0.0128 (0.0024)  0.0150 (0.0020)  -0.0128  5.019  5.032
+    [250,1000]     32   24000  -0.0034 (0.0010)  0.0094 (0.0008)  -0.0034  5.034  5.038
+  phase critic (raw):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0303 (0.0079)  0.0535 (0.0045)  -0.0303  4.561  4.591
+    [50,150)       32    3200  -0.0718 (0.0043)  0.0721 (0.0043)  -0.0718  4.623  4.695
+    [150,200)      32    1600  -0.2436 (0.0031)  0.2436 (0.0031)  -0.2436  4.641  4.884
+    [200,250)      32    1600  -0.3876 (0.0025)  0.3876 (0.0025)  -0.3876  4.644  5.032
+    [250,1000]     32   24000  -0.3812 (0.0011)  0.3812 (0.0011)  -0.3812  4.656  5.038
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06, "record": {"max_abs_eff_minus_raw": 0.4154233932495117, "max_abs_eff_minus_raw_term": 0.4019293785095215, "slots_frozen_after": true, "start_transform": false, "value_phase_cols_max_abs_read": 0.045677393674850464, "value_phase_cols_max_abs_used": 0.045677393674850464}}
+  sigma: tail_3 0.153340 (floored 0.153340), tail_2 0.161732 (floored 0.161732)
+
+PAIR control_2921: num_timesteps 3,538,944; zip 49561ff98e73d719 pkl c1c9a8b45f542cda; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 43.7073, gamma 0.98
+  plain critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  +0.0152 (0.0072)  0.0470 (0.0043)  +0.0152  4.645  4.629
+    [50,150)       32    3200  +0.0275 (0.0067)  0.0435 (0.0048)  +0.0275  4.730  4.702
+    [150,200)      32    1600  +0.0147 (0.0076)  0.0530 (0.0031)  +0.0147  4.869  4.854
+    [200,250)      32    1600  -0.0698 (0.0051)  0.0698 (0.0051)  -0.0698  4.925  4.994
+    [250,1000]     32   24000  -0.0243 (0.0017)  0.0273 (0.0014)  -0.0243  4.975  5.000
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06}
+  sigma: tail_3 0.158089 (floored 0.158089), tail_2 0.168871 (floored 0.168871)
+
+PAIR critic_phase_2921: num_timesteps 3,538,944; zip 0fdbf13a2d489ee7 pkl 4422c8d94f4c2d8d; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 44.6614, gamma 0.98
+  phase critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0082 (0.0055)  0.0360 (0.0031)  -0.0082  4.577  4.585
+    [50,150)       32    3200  -0.0049 (0.0042)  0.0165 (0.0035)  -0.0049  4.690  4.695
+    [150,200)      32    1600  -0.0157 (0.0018)  0.0176 (0.0016)  -0.0157  4.869  4.885
+    [200,250)      32    1600  -0.0106 (0.0015)  0.0114 (0.0013)  -0.0106  5.022  5.032
+    [250,1000]     32   24000  -0.0048 (0.0009)  0.0087 (0.0006)  -0.0048  5.035  5.040
+  phase critic (raw):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0188 (0.0055)  0.0396 (0.0036)  -0.0188  4.566  4.585
+    [50,150)       32    3200  -0.0709 (0.0044)  0.0709 (0.0044)  -0.0709  4.624  4.695
+    [150,200)      32    1600  -0.2422 (0.0022)  0.2422 (0.0022)  -0.2422  4.643  4.885
+    [200,250)      32    1600  -0.3857 (0.0020)  0.3857 (0.0020)  -0.3857  4.647  5.032
+    [250,1000]     32   24000  -0.3818 (0.0013)  0.3818 (0.0013)  -0.3818  4.658  5.040
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06, "record": {"max_abs_eff_minus_raw": 0.40888214111328125, "max_abs_eff_minus_raw_term": 0.3930034637451172, "slots_frozen_after": true, "start_transform": false, "value_phase_cols_max_abs_read": 0.047686729580163956, "value_phase_cols_max_abs_used": 0.047686729580163956}}
+  sigma: tail_3 0.156012 (floored 0.156012), tail_2 0.158860 (floored 0.158860)
+
+PAIR control_2931: num_timesteps 3,538,944; zip 3b76d3624bba3bb8 pkl b6a2222307013a8f; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 43.8138, gamma 0.98
+  plain critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  +0.0061 (0.0078)  0.0478 (0.0041)  +0.0061  4.629  4.623
+    [50,150)       32    3200  +0.0526 (0.0081)  0.0648 (0.0059)  +0.0526  4.729  4.676
+    [150,200)      32    1600  +0.0343 (0.0062)  0.0557 (0.0035)  +0.0343  4.855  4.820
+    [200,250)      32    1600  -0.0498 (0.0046)  0.0505 (0.0044)  -0.0498  4.903  4.952
+    [250,1000]     32   24000  +0.0019 (0.0032)  0.0211 (0.0015)  +0.0019  4.944  4.942
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06}
+  sigma: tail_3 0.161897 (floored 0.161897), tail_2 0.172626 (floored 0.172626)
+
+PAIR critic_phase_2931: num_timesteps 3,538,944; zip 52701a779d89aee8 pkl b4fe5198b8dae932; 32 episodes (32 truncated at 1000, 0 terminated), seeds [6271, 6272, 6273, 6274]; sigma_r 44.6152, gamma 0.98
+  phase critic (effective):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0129 (0.0074)  0.0477 (0.0049)  -0.0129  4.574  4.587
+    [50,150)       32    3200  -0.0004 (0.0055)  0.0221 (0.0044)  -0.0004  4.695  4.696
+    [150,200)      32    1600  -0.0078 (0.0016)  0.0151 (0.0006)  -0.0078  4.875  4.883
+    [200,250)      32    1600  -0.0081 (0.0015)  0.0107 (0.0010)  -0.0081  5.021  5.029
+    [250,1000]     32   24000  -0.0043 (0.0012)  0.0093 (0.0005)  -0.0043  5.033  5.037
+  phase critic (raw):  bucket       n_ep  states  mean V-G (SE)       mean |V-G| (SE)     pooled V-G  mean V   mean G
+    [0,50)         32    1600  -0.0236 (0.0075)  0.0505 (0.0053)  -0.0236  4.563  4.587
+    [50,150)       32    3200  -0.0641 (0.0056)  0.0647 (0.0055)  -0.0641  4.632  4.696
+    [150,200)      32    1600  -0.2264 (0.0020)  0.2264 (0.0020)  -0.2264  4.657  4.883
+    [200,250)      32    1600  -0.3709 (0.0021)  0.3709 (0.0021)  -0.3709  4.658  5.029
+    [250,1000]     32   24000  -0.3686 (0.0018)  0.3686 (0.0018)  -0.3686  4.668  5.037
+    checks: {"loop_values_vs_raw_max_abs": 1.430511474609375e-06, "record": {"max_abs_eff_minus_raw": 0.3979625701904297, "max_abs_eff_minus_raw_term": 0.3854074478149414, "slots_frozen_after": true, "start_transform": false, "value_phase_cols_max_abs_read": 0.04535990208387375, "value_phase_cols_max_abs_used": 0.04535990208387375}}
+  sigma: tail_3 0.153196 (floored 0.153196), tail_2 0.161363 (floored 0.161363)
+
+ARMS (effective critic; per bucket: n runs, median [mean] of the per-run mean V-G and mean |V-G|; control - critic_phase of the medians)
+  [0,50)       control n 4 V-G +0.0030 [+0.0032] |V-G| 0.0513; critic_phase n 4 V-G -0.0105 [-0.0108] |V-G| 0.0444; diff V-G +0.0135 |V-G| +0.0070
+      per seed control - phase V-G: 2901 +0.0034, 2911 +0.0105, 2921 +0.0234, 2931 +0.0189
+  [50,150)     control n 4 V-G +0.0373 [+0.0387] |V-G| 0.0656; critic_phase n 4 V-G -0.0010 [-0.0012] |V-G| 0.0178; diff V-G +0.0382 |V-G| +0.0478
+      per seed control - phase V-G: 2901 +0.0271, 2911 +0.0470, 2921 +0.0324, 2931 +0.0530
+  [150,200)    control n 4 V-G +0.0144 [+0.0184] |V-G| 0.0568; critic_phase n 4 V-G -0.0111 [-0.0114] |V-G| 0.0168; diff V-G +0.0256 |V-G| +0.0400
+      per seed control - phase V-G: 2901 +0.0190, 2911 +0.0280, 2921 +0.0303, 2931 +0.0421
+  [200,250)    control n 4 V-G -0.0684 [-0.0645] |V-G| 0.0692; critic_phase n 4 V-G -0.0094 [-0.0079] |V-G| 0.0126; diff V-G -0.0591 |V-G| +0.0566
+      per seed control - phase V-G: 2901 -0.0670, 2911 -0.0588, 2921 -0.0592, 2931 -0.0417
+  [250,1000]   control n 4 V-G -0.0192 [-0.0152] |V-G| 0.0265; critic_phase n 4 V-G -0.0039 [-0.0028] |V-G| 0.0094; diff V-G -0.0153 |V-G| +0.0172
+      per seed control - phase V-G: 2901 -0.0223, 2911 -0.0139, 2921 -0.0195, 2931 +0.0063
+EXPECTATIONS (SPEC; a description, not a test): E1 [150,200): consistent; E1 [200,250): consistent; E2 control sign pattern: consistent
+
+TAIL SIGMA (exp(log_std); sampled, no floor; floored = max(sigma, 0.01) of the mirror-KL loss)
+  control_2901           2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  control_2901           2,359,296  tail_3 0.179404  tail_2 0.190659  floor binds False
+  control_2901           2,621,440  tail_3 0.177481  tail_2 0.185867  floor binds False
+  control_2901           2,883,584  tail_3 0.174800  tail_2 0.182306  floor binds False
+  control_2901           3,145,728  tail_3 0.171356  tail_2 0.177572  floor binds False
+  control_2901           3,407,872  tail_3 0.168366  tail_2 0.174437  floor binds False
+  control_2901           3,538,944  tail_3 0.165834  tail_2 0.172452  floor binds False
+  critic_phase_2901      2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  critic_phase_2901      2,359,296  tail_3 0.178007  tail_2 0.183933  floor binds False
+  critic_phase_2901      2,621,440  tail_3 0.171327  tail_2 0.178168  floor binds False
+  critic_phase_2901      2,883,584  tail_3 0.167592  tail_2 0.172283  floor binds False
+  critic_phase_2901      3,145,728  tail_3 0.164262  tail_2 0.166382  floor binds False
+  critic_phase_2901      3,407,872  tail_3 0.161322  tail_2 0.163294  floor binds False
+  critic_phase_2901      3,538,944  tail_3 0.160062  tail_2 0.161357  floor binds False
+  control_2911           2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  control_2911           2,359,296  tail_3 0.178712  tail_2 0.187081  floor binds False
+  control_2911           2,621,440  tail_3 0.175277  tail_2 0.182554  floor binds False
+  control_2911           2,883,584  tail_3 0.170936  tail_2 0.179664  floor binds False
+  control_2911           3,145,728  tail_3 0.167550  tail_2 0.176441  floor binds False
+  control_2911           3,407,872  tail_3 0.162314  tail_2 0.173336  floor binds False
+  control_2911           3,538,944  tail_3 0.160035  tail_2 0.173760  floor binds False
+  critic_phase_2911      2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  critic_phase_2911      2,359,296  tail_3 0.174194  tail_2 0.185351  floor binds False
+  critic_phase_2911      2,621,440  tail_3 0.167042  tail_2 0.178402  floor binds False
+  critic_phase_2911      2,883,584  tail_3 0.162629  tail_2 0.173905  floor binds False
+  critic_phase_2911      3,145,728  tail_3 0.159096  tail_2 0.168846  floor binds False
+  critic_phase_2911      3,407,872  tail_3 0.155539  tail_2 0.163464  floor binds False
+  critic_phase_2911      3,538,944  tail_3 0.153340  tail_2 0.161732  floor binds False
+  control_2921           2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  control_2921           2,359,296  tail_3 0.178899  tail_2 0.186882  floor binds False
+  control_2921           2,621,440  tail_3 0.176103  tail_2 0.182188  floor binds False
+  control_2921           2,883,584  tail_3 0.170511  tail_2 0.177619  floor binds False
+  control_2921           3,145,728  tail_3 0.166041  tail_2 0.174029  floor binds False
+  control_2921           3,407,872  tail_3 0.160132  tail_2 0.170817  floor binds False
+  control_2921           3,538,944  tail_3 0.158089  tail_2 0.168871  floor binds False
+  critic_phase_2921      2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  critic_phase_2921      2,359,296  tail_3 0.175146  tail_2 0.184393  floor binds False
+  critic_phase_2921      2,621,440  tail_3 0.170487  tail_2 0.177179  floor binds False
+  critic_phase_2921      2,883,584  tail_3 0.166226  tail_2 0.170778  floor binds False
+  critic_phase_2921      3,145,728  tail_3 0.162068  tail_2 0.165774  floor binds False
+  critic_phase_2921      3,407,872  tail_3 0.157459  tail_2 0.160930  floor binds False
+  critic_phase_2921      3,538,944  tail_3 0.156012  tail_2 0.158860  floor binds False
+  control_2931           2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  control_2931           2,359,296  tail_3 0.178437  tail_2 0.187048  floor binds False
+  control_2931           2,621,440  tail_3 0.175639  tail_2 0.182181  floor binds False
+  control_2931           2,883,584  tail_3 0.172815  tail_2 0.179613  floor binds False
+  control_2931           3,145,728  tail_3 0.170665  tail_2 0.176204  floor binds False
+  control_2931           3,407,872  tail_3 0.165244  tail_2 0.174185  floor binds False
+  control_2931           3,538,944  tail_3 0.161897  tail_2 0.172626  floor binds False
+  critic_phase_2931      2,097,152  tail_3 0.181644  tail_2 0.191883  floor binds False
+  critic_phase_2931      2,359,296  tail_3 0.174170  tail_2 0.181956  floor binds False
+  critic_phase_2931      2,621,440  tail_3 0.167401  tail_2 0.175676  floor binds False
+  critic_phase_2931      2,883,584  tail_3 0.162363  tail_2 0.171106  floor binds False
+  critic_phase_2931      3,145,728  tail_3 0.158137  tail_2 0.165776  floor binds False
+  critic_phase_2931      3,407,872  tail_3 0.154316  tail_2 0.162905  floor binds False
+  critic_phase_2931      3,538,944  tail_3 0.153196  tail_2 0.161363  floor binds False
+  median control         2,097,152  tail_3 0.181644  tail_2 0.191883  (n 4)
+  median control         2,359,296  tail_3 0.178805  tail_2 0.187064  (n 4)
+  median control         2,621,440  tail_3 0.175871  tail_2 0.182371  (n 4)
+  median control         2,883,584  tail_3 0.171875  tail_2 0.179638  (n 4)
+  median control         3,145,728  tail_3 0.169107  tail_2 0.176323  (n 4)
+  median control         3,407,872  tail_3 0.163779  tail_2 0.173761  (n 4)
+  median control         3,538,944  tail_3 0.160966  tail_2 0.172539  (n 4)
+  median critic_phase    2,097,152  tail_3 0.181644  tail_2 0.191883  (n 4)
+  median critic_phase    2,359,296  tail_3 0.174670  tail_2 0.184163  (n 4)
+  median critic_phase    2,621,440  tail_3 0.168944  tail_2 0.177673  (n 4)
+  median critic_phase    2,883,584  tail_3 0.164428  tail_2 0.171694  (n 4)
+  median critic_phase    3,145,728  tail_3 0.160582  tail_2 0.166079  (n 4)
+  median critic_phase    3,407,872  tail_3 0.156499  tail_2 0.163099  (n 4)
+  median critic_phase    3,538,944  tail_3 0.154676  tail_2 0.161360  (n 4)
+
+PROBLEMS: none
+STATUS: measured

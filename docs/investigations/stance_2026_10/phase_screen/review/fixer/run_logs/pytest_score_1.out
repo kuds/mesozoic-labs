@@ -1,0 +1,26 @@
+.................................F
+=================================== FAILURES ===================================
+_______________ test_secondary_fill_works_against_its_direction ________________
+
+tmp_path = PosixPath('/home/user/work/phase_screen/review/fixer/tmp/pt/score1/test_secondary_fill_works_agai0')
+
+    def test_secondary_fill_works_against_its_direction(tmp_path):
+        s = _main_screen(tmp_path)
+        s.lost(C.run_name(PHASE, 2931))
+        res, _t, _ = _score(tmp_path)
+        mar, cmd, mech, t2 = (_sec(res, k) for k in ("SEC-MARGIN", "SEC-CMD", "SEC-MECH", "SEC-TAIL2"))
+        f = lambda xs: [(0, Fraction(x)) for x in xs]  # noqa: E731
+        # phase HIGHER: a MISSING phase value is -inf
+        assert mar["values"][f"{PHASE}_2931"] is None and t2["values"][f"{PHASE}_2931"] is None
+        assert mar["p_filled"]["count"] == SB.perm_test(f(SEC_B[PHASE][:3]) + [SB.NEG_INF], f(SEC_B[CTRL]))[1]
+        assert t2["p_filled"]["count"] == SB.perm_test(f(SEC_TAIL2[PHASE][:3]) + [SB.NEG_INF], f(SEC_TAIL2[CTRL]))[1] == 36
+>       assert not t2["supported"] and t2["notes"] == []
+E       AssertionError: assert (not False and ['(with any M...ot assessed)'] == []
+E         
+E         Left contains one more item: '(with any MISSING value the guard cannot warn: read NOT SUPPORTED as not assessed)'
+E         Use -v to get more diff)
+
+../../../tools/tests/test_score_bs.py:672: AssertionError
+=========================== short test summary info ============================
+FAILED ../../../tools/tests/test_score_bs.py::test_secondary_fill_works_against_its_direction
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!

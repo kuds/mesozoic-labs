@@ -1,0 +1,56 @@
+parent (F2 probe): b_j (rows 248-255 ending at S) and m_j at E (rows at 3,473,408 ... 3,530,752)
+   0 neck_pitch    b +0.0600  parent at E -0.0015  rise -0.0615  |.| rise -0.0585
+   1 neck_yaw      b +0.0002  parent at E +0.0006  rise +0.0004  |.| rise +0.0004
+   2 head_pitch    b +0.0256  parent at E -0.0304  rise -0.0560  |.| rise +0.0048
+   3 r_hip_pitch   b +0.0044  parent at E -0.0049  rise -0.0093  |.| rise +0.0006
+   4 r_hip_roll    b +0.0159  parent at E -0.0095  rise -0.0253  |.| rise -0.0064
+   5 r_knee        b +0.0029  parent at E -0.0039  rise -0.0068  |.| rise +0.0010
+   6 r_ankle       b -0.0055  parent at E -0.0004  rise +0.0051  |.| rise -0.0051
+   7 l_hip_pitch   b +0.0043  parent at E -0.0052  rise -0.0095  |.| rise +0.0009
+   8 l_hip_roll    b -0.0154  parent at E +0.0082  rise +0.0236  |.| rise -0.0073
+   9 l_knee        b +0.0029  parent at E -0.0042  rise -0.0071  |.| rise +0.0013
+  10 l_ankle       b -0.0053  parent at E -0.0002  rise +0.0052  |.| rise -0.0052
+  11 tail_1_pitch  b -0.0481  parent at E -0.1402  rise -0.0921  |.| rise +0.0921
+  12 tail_1_yaw    b +0.0088  parent at E +0.0049  rise -0.0039  |.| rise -0.0039
+  13 tail_2_pitch  b +0.0233  parent at E +0.0334  rise +0.0100  |.| rise +0.0100
+  14 tail_3_pitch  b +0.1266  parent at E +0.7054  rise +0.5788  |.| rise +0.5788
+  check b_14 = B_S: np.float64(0.1265954738482833) (criteria B_S 0.1265954738482833)
+
+per continuation: rise_j = m_j - b_j for every actuator (tail_3 = the primary's rise)
+                           neck_pitc  neck_yaw head_pitc r_hip_pit r_hip_rol    r_knee   r_ankle l_hip_pit l_hip_rol    l_knee   l_ankle tail_1_pi tail_1_ya tail_2_pi tail_3_pi
+  control_2501                +0.076    -0.002    -0.022    +0.000    -0.025    -0.001    +0.000    +0.003    +0.024    +0.000    -0.000    -0.073    +0.021    +0.024    +0.543
+  control_2511                +0.063    +0.002    -0.128    -0.010    -0.062    -0.005    +0.012    -0.010    +0.064    -0.005    +0.011    -0.142    -0.021    -0.007    +0.666
+  control_2521                +0.036    +0.002    -0.207    -0.004    +0.017    -0.012    -0.003    -0.004    -0.016    -0.012    -0.004    -0.086    -0.029    -0.032    +0.384
+  control_2531                +0.053    +0.000    -0.040    -0.005    -0.008    -0.006    +0.001    -0.004    +0.007    -0.006    +0.001    -0.053    -0.018    -0.011    +0.293
+  critic_blind_tail3_2501     +0.025    -0.001    -0.007    +0.003    +0.084    -0.000    -0.011    +0.003    -0.085    +0.001    -0.011    -0.075    +0.016    +0.010    +0.016
+  critic_blind_tail3_2511     +0.008    +0.001    -0.005    -0.008    -0.041    +0.002    +0.004    -0.008    +0.041    +0.002    +0.004    -0.034    -0.026    +0.120    -0.002
+  critic_blind_tail3_2521     +0.059    +0.002    -0.048    -0.001    -0.024    -0.001    -0.001    -0.001    +0.024    -0.001    -0.000    -0.004    -0.032    +0.017    +0.011
+  critic_blind_tail3_2531     -0.010    +0.000    +0.021    -0.005    -0.001    -0.005    +0.005    -0.004    +0.001    -0.005    +0.005    +0.045    -0.020    +0.016    -0.061
+
+per continuation: arise_j = |m_j| - |b_j|
+  control_2501                +0.076    +0.002    -0.022    +0.000    -0.007    -0.001    -0.000    +0.003    -0.006    +0.000    +0.000    +0.073    +0.021    +0.024    +0.543
+  control_2511                +0.063    +0.002    +0.077    +0.001    +0.030    -0.001    +0.001    +0.001    +0.033    -0.001    +0.000    +0.142    +0.003    -0.007    +0.666
+  control_2521                +0.036    +0.002    +0.155    -0.004    +0.017    +0.006    +0.003    -0.004    +0.016    +0.006    +0.004    +0.086    +0.011    -0.015    +0.384
+  control_2531                +0.053    +0.000    -0.011    -0.004    -0.008    +0.000    -0.001    -0.004    -0.007    +0.000    -0.001    +0.053    -0.000    -0.011    +0.293
+  critic_blind_tail3_2501     +0.025    +0.001    -0.007    +0.003    +0.084    -0.000    +0.011    +0.003    +0.085    +0.001    +0.011    +0.075    +0.016    +0.010    +0.016
+  critic_blind_tail3_2511     +0.008    +0.001    -0.005    -0.001    +0.009    +0.002    -0.004    -0.000    +0.010    +0.002    -0.004    +0.034    +0.009    +0.120    -0.002
+  critic_blind_tail3_2521     +0.059    +0.002    -0.003    -0.001    -0.008    -0.001    +0.001    -0.001    -0.007    -0.001    +0.000    +0.004    +0.014    +0.017    +0.011
+  critic_blind_tail3_2531     -0.010    +0.000    +0.021    -0.004    -0.001    -0.001    -0.005    -0.004    -0.001    -0.001    -0.005    -0.045    +0.002    +0.016    -0.061
+
+ELSE = max over the 14 others of arise_j (argmax); ELSE_P = over neck_pitch, head_pitch, tail_1_pitch, tail_2_pitch
+  control_2501             ELSE +0.0763 (neck_pitch)   ELSE_P +0.0763 (neck_pitch)   tail_2 arise +0.0236  rise +0.0236
+  control_2511             ELSE +0.1416 (tail_1_pitch)   ELSE_P +0.1416 (tail_1_pitch)   tail_2 arise -0.0073  rise -0.0073
+  control_2521             ELSE +0.1554 (head_pitch)   ELSE_P +0.1554 (head_pitch)   tail_2 arise -0.0146  rise -0.0320
+  control_2531             ELSE +0.0530 (neck_pitch)   ELSE_P +0.0530 (neck_pitch)   tail_2 arise -0.0112  rise -0.0112
+  critic_blind_tail3_2501  ELSE +0.0850 (l_hip_roll)   ELSE_P +0.0745 (tail_1_pitch)   tail_2 arise +0.0105  rise +0.0105
+  critic_blind_tail3_2511  ELSE +0.1204 (tail_2_pitch)   ELSE_P +0.1204 (tail_2_pitch)   tail_2 arise +0.1204  rise +0.1204
+  critic_blind_tail3_2521  ELSE +0.0588 (neck_pitch)   ELSE_P +0.0588 (neck_pitch)   tail_2 arise +0.0171  rise +0.0171
+  critic_blind_tail3_2531  ELSE +0.0210 (head_pitch)   ELSE_P +0.0210 (head_pitch)   tail_2 arise +0.0158  rise +0.0158
+  else    control              mean +0.1066 median +0.1089 SD 0.0496
+  else    critic_blind_tail3   mean +0.0713 median +0.0719 SD 0.0420
+  else_p  control              mean +0.1066 median +0.1089 SD 0.0496
+  else_p  critic_blind_tail3   mean +0.0687 median +0.0666 SD 0.0412
+  POST HOC (BS2 blinded vs control, blinded HIGHER): else exact p = 6/7
+  POST HOC (BS2 blinded vs control, blinded HIGHER): else_p exact p = 61/70
+  POST HOC tail_2 rise, blinded HIGHER: exact p = 2/35
+END

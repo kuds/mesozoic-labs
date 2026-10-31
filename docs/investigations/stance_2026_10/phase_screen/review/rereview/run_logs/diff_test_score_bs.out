@@ -1,0 +1,242 @@
+--- review/fixer/orig/tools/tests/test_score_bs.py	2026-10-31 14:24:14.552284981 +0000
++++ tools/tests/test_score_bs.py	2026-10-31 15:18:12.743963553 +0000
+@@ -669,7 +669,7 @@
+     assert mar["values"][f"{PHASE}_2931"] is None and t2["values"][f"{PHASE}_2931"] is None
+     assert mar["p_filled"]["count"] == SB.perm_test(f(SEC_B[PHASE][:3]) + [SB.NEG_INF], f(SEC_B[CTRL]))[1]
+     assert t2["p_filled"]["count"] == SB.perm_test(f(SEC_TAIL2[PHASE][:3]) + [SB.NEG_INF], f(SEC_TAIL2[CTRL]))[1] == 36
+-    assert not t2["supported"] and t2["notes"] == []
++    assert not t2["supported"] and t2["notes"] == [SB.SEC_GUARD_MISSING]     # fixer, design I3
+     # phase LOWER: a MISSING phase value is +inf
+     assert cmd["p_filled"]["count"] == SB.perm_test(f(SEC_CMD[CTRL]), f(SEC_CMD[PHASE][:3]) + [SB.POS_INF])[1] == 37
+     assert mech["p_filled"]["count"] == SB.perm_test(f(SEC_MECH[CTRL]), f(SEC_MECH[PHASE][:3]) + [SB.POS_INF])[1] == 36
+@@ -913,9 +913,20 @@
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ PROVISIONAL / final
++def _pins_stub(root, scorer_sha=None, override=None, drop=()):
++    """A stub criteria text whose PINS section names SCREEN.json and every pinned tool at its current sha256 (the
++    scorer checks every PINS line: fixer P-m2); override {path: hex} replaces lines, drop removes them."""
++    lines = {"SCREEN.json": _sha(root / "SCREEN.json"), **{f"tools/{t}": _sha(TOOLS / t) for t in SB.PINNED_TOOLS}}
++    if scorer_sha:
++        lines["tools/score_bs.py"] = scorer_sha
++    lines.update(override or {})
++    body = "".join(f"    {k:<36} {v}\n" for k, v in lines.items() if k not in drop)
++    return "criteria ...\nPINS (stub)\n" + body + "HOW THE COORDINATOR PINS (stub)\n"
++
++
+ def _approve(root, scorer_sha=None):
+     crit = root / "criteria.txt"
+-    crit.write_text(f"criteria ... tools/score_bs.py {scorer_sha or _sha(TOOLS / 'score_bs.py')}\n")
++    crit.write_text(_pins_stub(root, scorer_sha))
+     appr = {"criteria_sha256": _sha(crit), "screen_sha256": _sha(root / "SCREEN.json"),
+             "code_tree_digest": C.TREE_DIGEST,
+             "tool_sha256": {t: _sha(TOOLS / t) for t in SB.PINNED_TOOLS}, "approved_by": "test"}
+@@ -1110,7 +1121,7 @@
+     for line, t in SB.LINE_TEXT.items():
+         assert f'"{" ".join(t.split())}"' in text, line
+     for t in (SB.ADDITION_AS_COUNTED, SB.ADDITION_NOT_INFORMATIVE, SB.SEC_SUPPORTED, SB.SEC_BONFERRONI, SB.SEC_GUARD,
+-              SB.SEC_UNDER_LINE1, '"NOT SUPPORTED"'):
++              SB.SEC_UNDER_LINE1, '"NOT SUPPORTED"', SB.SEC_GUARD_MISSING):
+         assert t in text, t
+     for s in SB.SECONDARIES:
+         assert s["key"] in text
+@@ -1135,6 +1146,9 @@
+         m = re.search(rf"^\s+{re.escape(rel)}\s+([0-9a-f]{{64}})\b", pins, re.M)
+         assert m, rel
+         assert m.group(1) == _sha(PS / rel), rel
++    tool_now = {t: _sha(TOOLS / t) for t in SB.PINNED_TOOLS}            # fixer P-m2: the scorer's own PINS check
++    assert SB.pins_items(raw, PS, _sha(PS / "SCREEN.json"), tool_now, None) == []
++    assert sorted(SB.pins_lines(raw)) == sorted(PIN_FILES)
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ the dry run's form
+@@ -1265,6 +1279,20 @@
+         roots[key] = base / key
+         _main_screen(roots[key])
+         _markers_edit(roots[key], f"{who}_2911", fn)
++    # fixer P-m2: the PINS lines (pinned: all current; a stale tool line; a stale other line; APPROVED differing)
++    tools_now = {t: _sha(TOOLS / t) for t in SB.PINNED_TOOLS}
++    for key, kw, appr_tools in (("pinned", {}, tools_now),
++                                ("pinstale_tool", {"override": {"tools/bs_hooks.py": "0" * 64}}, tools_now),
++                                ("pinstale_extra", {"override": {"tools/tests/test_score_bs.py": "2" * 64}},
++                                 tools_now),
++                                ("pinappr", {}, {**tools_now, "run_bs.py": "3" * 64})):
++        roots[key] = base / key
++        Screen(roots[key])
++        (roots[key] / "criteria.txt").write_text(_pins_stub(roots[key], **kw))
++        _write(roots[key] / "APPROVED", {"criteria_sha256": _sha(roots[key] / "criteria.txt"),
++                                         "screen_sha256": _sha(roots[key] / "SCREEN.json"),
++                                         "code_tree_digest": C.TREE_DIGEST, "tool_sha256": appr_tools,
++                                         "approved_by": "test"})
+     return roots
+ 
+ 
+@@ -1306,7 +1334,11 @@
+                 and res["g_end_above_start"]["control"] == {"above": 0, "of": 4}
+                 and ph_end["swing_onpolicy"] == 0.25 and ph_end["swing_own_phase_onpolicy"] == 0.125
+                 and traj[E] == Fraction(HIGH[1]) and set(seen) == {Path(C.CODE)}
+-                and sb.LINE_TEXT[2] in text)
++                and sb.LINE_TEXT[2] in text
++                and res["slope_end_vs_start"] == {CTRL: {"E_le_S": 0, "E_le_0": 0, "of": 4},
++                                                  PHASE: {"E_le_S": 3, "E_le_0": 2, "of": 4}}
++                and res["report_only"][f"{PHASE}_2931"]["slope_end_vs_start"]["E_minus_S"]
++                == SEC_MECH[PHASE][3] - 0.01)
+ 
+     def notinf_ok():
+         res, _t, _ = _score(roots["notinf"], sb)
+@@ -1318,7 +1350,9 @@
+         res, _t, _ = _score(roots["lost"], sb)
+         s = secs(res)
+         return (res["line"] == 3 and res["p_filled"]["count"] == 36 and res["additions"] == [SB.ADDITION_AS_COUNTED]
+-                and s["SEC-TAIL2"]["p_filled"]["count"] == 36 and s["SEC-MECH"]["p_filled"]["count"] == 36)
++                and s["SEC-TAIL2"]["p_filled"]["count"] == 36 and s["SEC-MECH"]["p_filled"]["count"] == 36
++                and s["SEC-TAIL2"]["notes"] == [SB.SEC_GUARD_MISSING]
++                and SB.SEC_GUARD_MISSING not in s["SEC-MECH"]["notes"])
+ 
+     def odd_ok():
+         res, _t, _ = _score(roots["odd"], sb)
+@@ -1388,6 +1422,25 @@
+     def baseline_ok():
+         return Fraction(sb.BASELINE_S) == Fraction(135930855, 1073741824)
+ 
++    def slope_tie_ok():
++        def row(st, v):
++            return {"steps": st, "critic_slope_obs6": {"ONPOLICY": {"effective": {"dV_dq3_per_deg": v},
++                                                                    "raw": {"dV_dq3_per_deg": 1.0}}}}
++        tie = sb.slope_end_vs_start({"loop": [row(C.S, 0.02), row(C.E, 0.02)]})
++        zero = sb.slope_end_vs_start({"loop": [row(C.S, 0.02), row(C.E, 0.0)]})
++        return (tie["E_le_S"] is True and tie["E_minus_S"] == 0.0 and zero["E_le_0"] is True
++                and zero["E_minus_S"] == -0.02 and sb.slope_end_vs_start({"loop": [row(C.S, 0.02)]}) is None)
++
++    def pins_ok():
++        def items(key):
++            return [x for x in sb.provisional_items(roots[key], [], {}) if not x.startswith("M5 pin")]
++        return (items("pinned") == []
++                and any(x.startswith("criteria.txt PINS: tools/bs_hooks.py") for x in items("pinstale_tool"))
++                and any(x.startswith("criteria.txt PINS: tools/tests/test_score_bs.py")
++                        for x in items("pinstale_extra"))
++                and any(x.startswith("criteria.txt PINS: tools/run_bs.py") and "APPROVED's" in x
++                        for x in items("pinappr")))
++
+     try:
+         for name, fn in (("main", main_ok), ("notinf", notinf_ok), ("lost", lost_ok), ("odd", odd_ok),
+                          ("unread", unread_ok), ("undecided", undecided_ok),
+@@ -1400,7 +1453,7 @@
+                          ("form_no_settled", lambda: raises("form_no_settled", "settled")),
+                          ("form_ctrl_phase_record", lambda: raises("form_ctrl_phase_record", "carries a phase")),
+                          ("decide", decide_ok), ("guard", guard_ok), ("ties", ties_ok), ("texts", texts_ok),
+-                         ("baseline", baseline_ok)):
++                         ("baseline", baseline_ok), ("pins", pins_ok), ("slope_tie", slope_tie_ok)):
+             chk(name, fn)
+     finally:
+         sb.code_seal_items = saved
+@@ -1501,6 +1554,23 @@
+     ("g_count_not_strict", "    return ge > gs", "    return ge >= gs"),
+     ("final_pair_item_lost", 'if c["cls"] == COUNTED and mk is not None and len(loop_rows_at(mk, C.E)) != 1:',
+      "if False:"),
++    # fixer additions (design D1, D2, I3; process P-m2)
++    ("line3_rarer_text_old", "at BS2's control spread; about 0.1-0.3 \"", "at BS2's control spread; about 0.1-0.6 \""),
++    ("guard_missing_note_lost", 'if spec["family"] == GUARD and (missing[CONTROL] or missing[INTERVENTION]):',
++     "if False:"),
++    ("guard_missing_note_always", 'if spec["family"] == GUARD and (missing[CONTROL] or missing[INTERVENTION]):',
++     'if spec["family"] == GUARD:'),
++    ("slope_e_minus_s_reversed", '"E_minus_S": e - s,', '"E_minus_S": s - e,'),
++    ("slope_reads_raw", 'SLOPE_KEY = ("critic_slope_obs6", "ONPOLICY", "effective", "dV_dq3_per_deg")',
++     'SLOPE_KEY = ("critic_slope_obs6", "ONPOLICY", "raw", "dV_dq3_per_deg")'),
++    ("slope_le_s_strict", '"E_le_S": e <= s,', '"E_le_S": e < s,'),
++    ("slope_le_0_strict", '"E_le_0": e <= 0.0}', '"E_le_0": e < 0.0}'),
++    ("pins_unchecked", "        items.extend(pins_items(text, root,", "        (pins_items(text, root,"),
++    ("pins_other_lines_unchecked",
++     "        if got != [now]:\n            items.append(f\"criteria.txt PINS: {rel} {got}",
++     "        if False:\n            items.append(f\"criteria.txt PINS: {rel} {got}"),
++    ("pins_approved_unchecked", 'elif approved_pins is not None and rel.startswith("tools/") and got[0] != '
++     'approved_pins.get(rel[6:]):', "elif False:"),
+ ]
+ 
+ 
+@@ -1514,3 +1584,85 @@
+     mutant = _variant(SRC.replace(old, new), tag)
+     failed = _kill_checks(mutant, kill_roots)
+     assert failed, f"mutant {tag} survived every kill check"
++
++
++# ------------------------------------------------------------------------------------------------ fixer additions
++def _pins_root(tmp_path, approve=True, **kw):
++    Screen(tmp_path)
++    (tmp_path / "criteria.txt").write_text(_pins_stub(tmp_path, **kw))
++    if approve:
++        appr = {"criteria_sha256": _sha(tmp_path / "criteria.txt"), "screen_sha256": _sha(tmp_path / "SCREEN.json"),
++                "code_tree_digest": C.TREE_DIGEST, "tool_sha256": {t: _sha(TOOLS / t) for t in SB.PINNED_TOOLS},
++                "approved_by": "test"}
++        _write(tmp_path / "APPROVED", appr)
++    return [x for x in SB.provisional_items(tmp_path, [], {}) if not x.startswith("M5 pin")]
++
++
++def test_pins_lines_hold_when_every_line_is_current(tmp_path):
++    """Fixer P-m2: with every PINS line current and APPROVED pinning the same files, no PINS item."""
++    assert _pins_root(tmp_path) == []
++
++
++@pytest.mark.parametrize("kw, match", [
++    ({"override": {"tools/bs_hooks.py": "0" * 64}}, "criteria.txt PINS: tools/bs_hooks.py 0000"),   # review M6
++    ({"drop": ("tools/read_bs.py",)}, "0 lines name tools/read_bs.py"),
++    ({"override": {"SCREEN.json": "1" * 64}}, "criteria.txt PINS: SCREEN.json 1111"),
++    ({"override": {"tools/tests/test_score_bs.py": "2" * 64}}, "criteria.txt PINS: tools/tests/test_score_bs.py"),
++])
++def test_pins_lines_stale_or_missing_are_provisional(tmp_path, kw, match):
++    """Fixer P-m2 (the process review's case M6: a tool changed and re-pinned in APPROVED with a stale PINS line):
++    every 64-hex PINS line must name its file's current sha256; the pinned tools and SCREEN.json need one line each."""
++    items = _pins_root(tmp_path, **kw)
++    assert [x for x in items if match in x], items
++
++
++def test_pins_line_against_approved_and_no_section(tmp_path):
++    """Fixer P-m2: a PINS line equal to the file but not to APPROVED's pin is an item; so is a text without PINS."""
++    Screen(tmp_path)
++    (tmp_path / "criteria.txt").write_text(_pins_stub(tmp_path))
++    tools = {t: _sha(TOOLS / t) for t in SB.PINNED_TOOLS}
++    tools["run_bs.py"] = "3" * 64
++    _write(tmp_path / "APPROVED", {"criteria_sha256": _sha(tmp_path / "criteria.txt"),
++                                   "screen_sha256": _sha(tmp_path / "SCREEN.json"), "code_tree_digest": C.TREE_DIGEST,
++                                   "tool_sha256": tools, "approved_by": "test"})
++    items = SB.provisional_items(tmp_path, [], {})
++    assert [x for x in items if x.startswith("criteria.txt PINS: tools/run_bs.py") and "APPROVED's" in x], items
++    (tmp_path / "criteria.txt").write_text(f"no section here; tools/score_bs.py {_sha(TOOLS / 'score_bs.py')}\n")
++    assert "criteria.txt has no PINS section" in SB.provisional_items(tmp_path, [], {})
++    assert SB.pins_lines("x\nPINS\n    tools/a.py  " + "a" * 64 + " [note]\n    b.txt " + "b" * 64 + "\n") == {
++        "b.txt": ["b" * 64]}
++
++
++def test_guard_missing_note():
++    """Fixer, design I3: with any MISSING value the guard cannot warn (its filled p >= 36/70); it says so.  The
++    efficacy secondaries never carry the note; with nothing missing the guard does not either."""
++    cl = _classes()
++    base = {C.run_name(a, sd): Fraction(1 if a == CTRL else 2) + Fraction(i, 64) for i, (a, sd) in enumerate(SB.QUEUE)}
++    t = SB.secondary_test(SB.SECONDARIES[3], cl, base, {}, 2)
++    assert t["supported"] and t["notes"] == [SB.SEC_GUARD]
++    for miss in (C.run_name(PHASE, 2931), C.run_name(CTRL, 2901)):
++        vals = {**base, miss: None}
++        t = SB.secondary_test(SB.SECONDARIES[3], cl, vals, {miss: "LOST"}, 2)
++        assert not t["supported"] and t["filled"][1] >= 36 and t["notes"] == [SB.SEC_GUARD_MISSING]
++        t1 = SB.secondary_test(SB.SECONDARIES[3], cl, vals, {miss: "LOST"}, 1)
++        assert t1["notes"] == [SB.SEC_GUARD_MISSING, SB.SEC_UNDER_LINE1]
++        for spec in SB.SECONDARIES[:3]:
++            assert SB.SEC_GUARD_MISSING not in SB.secondary_test(spec, cl, vals, {miss: "LOST"}, 2)["notes"]
++
++
++def test_slope_end_vs_start_report_only(tmp_path):
++    """Fixer, design D2 (report only): per continuation the effective on-policy slope at E minus at S and the counts
++    E <= S and E <= 0 per arm; the reading, the secondaries and the PROVISIONAL list do not depend on it."""
++    _main_screen(tmp_path)
++    res, text, _ = _score(tmp_path)
++    for arm in (CTRL, PHASE):
++        for i, seed in enumerate(SB.SEEDS):
++            r = res["report_only"][C.run_name(arm, seed)]["slope_end_vs_start"]
++            e = SEC_MECH[arm][i]
++            assert r == {"S": 0.01, "E": e, "E_minus_S": e - 0.01, "E_le_S": e <= 0.01, "E_le_0": e <= 0.0}
++    assert res["slope_end_vs_start"] == {CTRL: {"E_le_S": 0, "E_le_0": 0, "of": 4},
++                                         PHASE: {"E_le_S": 3, "E_le_0": 2, "of": 4}}
++    assert "REPORT ONLY, THE CRITIC'S ON-POLICY TAIL SLOPE AT E AGAINST S" in text
++    assert f"{PHASE} E <= S 3 of 4, E <= 0 2 of 4" in text
++    m = {"loop": [{"steps": C.S, "critic_slope_obs6": {"ONPOLICY": {"effective": {"dV_dq3_per_deg": 0.02}}}}]}
++    assert SB.slope_end_vs_start(m) is None                                   # no row at E

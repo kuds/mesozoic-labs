@@ -1,0 +1,14 @@
+BS2 rollouts 31, PS rollouts 15, compared 15
+keys compared: 29 | only in PS: ['adam_steps_since_load', 'digest_env_side_no_phase', 'dmu_phase_entropy', 'dmu_phase_forward_actions', 'dmu_phase_log_prob', 'dmu_phase_mirrored', 'dmu_phase_mode', 'dv_phase_evaluate_actions', 'dv_phase_forward', 'dv_phase_mirrored', 'dv_phase_predict_values', 'envs_swapped', 'mirror_phase_self_map', 'mirror_phase_tensors_ok', 'n_updates_since_load', 'obs_rms_digest_no_phase', 'phase_buffer_max_err', 'phase_k_end_consistent', 'phase_k_max', 'phase_k_min', 'phase_k_start_consistent', 'phase_rms_calls', 'phase_rows', 'phase_rows_presettle', 'phase_stats_frozen', 'policy_phase_adam_max_abs', 'policy_phase_cols_unchanged', 'value_phase_cols_max_abs'] | only in BS2: []
+differing keys (rollout indices): none
+  digest_env_side: 15/15 equal
+  digest_rewards: 15/15 equal
+  digest_values: 15/15 equal
+  digest_advantages: 15/15 equal
+  obs_rms_digest: 15/15 equal
+PS-only phase keys on control: {'adam_steps_since_load': None, 'digest_env_side_no_phase': 'sha256:599c9495bedaead8fc66bb369985c49274f89791b4abc60ba55b0464117b3409', 'envs_swapped': None, 'mirror_phase_self_map': None, 'mirror_phase_tensors_ok': None, 'n_updates_since_load': None, 'obs_rms_digest_no_phase': 'sha256:15e2b8b44ccd6b106a89d303cb17b0dccbd7b57e41624bc5527a223a95bb0a8c', 'phase_buffer_max_err': None, 'phase_k_end_consistent': None, 'phase_k_max': None, 'phase_k_min': None, 'phase_k_start_consistent': None, 'phase_rms_calls': None, 'phase_rows': None, 'phase_rows_presettle': None, 'phase_stats_frozen': None, 'policy_phase_adam_max_abs': None, 'policy_phase_cols_unchanged': None, 'value_phase_cols_max_abs': None}
+control dmu_phase_mode per rollout (actor responds to the slots): [0.1184, 0.1226, 0.1356, 0.1182, 0.1313, 0.1261, 0.131, 0.1199, 0.121, 0.1346, 0.1355, 0.122, 0.1329, 0.1311, 0.1238]
+ledger 01_stance/eval_episodes.csv: rows <= 2228224: BS2 170 PS 170, compared 170 rows x 192 columns; differing: []; timesteps covered [1966080, 2097152, 2228224]
+PS run files: ['01_stance/diagnostics.npz', '01_stance/eval_episodes.csv', '01_stance/evaluations.npz', '01_stance/gate_progress.npz', '01_stance/models/stage1_2097152_steps.zip', '01_stance/models/stage1_final.zip', '01_stance/models/stage1_final_vecnorm.pkl', '01_stance/models/stage1_vecnormalize_2097152_steps.pkl', '01_stance/plant_identity.json', '01_stance/policy_probe.npz', '01_stance/progress.json', '01_stance/stage_config.json', '01_stance/task_fingerprint.json', '01_stance/train_episodes.csv', 'arm_evidence.jsonl', 'run_meta.json']
+probe 01_stance/policy_probe.npz: rows BS2 287 PS 271, compared first 271; arrays differing: []
+exit 0

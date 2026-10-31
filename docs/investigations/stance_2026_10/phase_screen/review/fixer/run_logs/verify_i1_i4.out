@@ -1,0 +1,8 @@
+I1 env_path == float32(phi) for all k 0..1000: True
+I1 float64 path: values differing 17 at k [9, 18, 36, 44, 72, 81, 90, 91, 97, 119, 142, 144, 157, 161, 169, 182, 194]
+I1 settled k exact on the float64 path: True
+I1 max relative difference: 1e-07
+I4 mean 0.98^(200-k) over k 50..199: 0.3109
+I4 0.98^200 = 0.0176
+I4 WHY gap 0.17 -> gated value g 0.247 -> phase-zero-to-settled swing g x (1 - 0.98^200) 0.242
+I4 WHY gap 0.23 -> gated value g 0.334 -> phase-zero-to-settled swing g x (1 - 0.98^200) 0.328

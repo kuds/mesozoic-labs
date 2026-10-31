@@ -1,0 +1,29 @@
+R6a p1048576             n 128 reasons {'truncated': 127, 'fallen': 1} npz/jsonl step counts consistent True
+R6a p2097152             n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a c2511_3145728        n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a c2531_3145728        n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a c2511_E              n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a c2531_E              n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a b2511_E              n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a p2097152_hold0.0     n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a p2097152_hold-1.0    n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6a p2097152_hold1.0     n 128 reasons {'truncated': 128} npz/jsonl step counts consistent True
+R6b parent (1,048,576, 3,538,944]: {'truncated': 2490, 'fallen': 5} total 2495
+    parent <= 1,048,576: {'fallen': 284, 'nosedive': 190, 'tail_contact': 32, 'truncated': 896} total 1402
+R6b BS2 8 runs (2,097,152, 3,538,944]: {'truncated': 11520, 'fallen': 1, 'tail_contact': 1} total 11522; non-truncated per run {'control_2501': {}, 'control_2511': {}, 'control_2521': {'fallen': 1}, 'control_2531': {}, 'critic_blind_tail3_2501': {}, 'critic_blind_tail3_2511': {}, 'critic_blind_tail3_2521': {'tail_contact': 1}, 'critic_blind_tail3_2531': {}}
+R6c pooled critic slope (NB6, t<=800) +0.03036/deg over 614592 states; C_c p1048576 7.090, p2097152 7.018, c2511_3145728 7.166, c2531_3145728 7.171, c2511_E 7.243, c2531_E 7.259; CP upper count 3.680; Dbar_u 2.9939e-04; F_bound 0.0706; beta needed 7.08/deg
+K4  bound with the parent's training-record rate (0/2495, CP upper 0.00148 per episode): F_bound 0.0218
+R6d/K1 p1048576       M3.1 rho(s,tip) -0.300 | K1b within t>=400 -0.306 | K1a rho(tip,t) -0.012 AUC(tip settled vs 50-200) 0.469 | rho(tip,q3) in B3 +0.626 | K1c s by tip quintile in B3 +0.0024 -0.0019 -0.0041 -0.0067 -0.0111
+R6d/K1 p2097152       M3.1 rho(s,tip) -0.277 | K1b within t>=400 -0.276 | K1a rho(tip,t) +0.088 AUC(tip settled vs 50-200) 0.543 | rho(tip,q3) in B3 +0.477 | K1c s by tip quintile in B3 +0.0238 +0.0204 +0.0187 +0.0168 +0.0117
+R6d/K1 c2511_3145728  M3.1 rho(s,tip) +0.025 | K1b within t>=400 -0.240 | K1a rho(tip,t) +0.404 AUC(tip settled vs 50-200) 0.824 | rho(tip,q3) in B3 +0.305 | K1c s by tip quintile in B3 +0.0601 +0.0590 +0.0582 +0.0575 +0.0560
+R6d/K1 c2531_3145728  M3.1 rho(s,tip) -0.196 | K1b within t>=400 -0.360 | K1a rho(tip,t) +0.277 AUC(tip settled vs 50-200) 0.721 | rho(tip,q3) in B3 +0.790 | K1c s by tip quintile in B3 +0.0270 +0.0218 +0.0189 +0.0170 +0.0155
+R6d/K1 c2511_E        M3.1 rho(s,tip) +0.130 | K1b within t>=400 -0.282 | K1a rho(tip,t) +0.338 AUC(tip settled vs 50-200) 0.767 | rho(tip,q3) in B3 +0.716 | K1c s by tip quintile in B3 +0.0587 +0.0583 +0.0579 +0.0575 +0.0562
+R6d/K1 c2531_E        M3.1 rho(s,tip) +0.044 | K1b within t>=400 -0.150 | K1a rho(tip,t) +0.484 AUC(tip settled vs 50-200) 0.905 | rho(tip,q3) in B3 +0.756 | K1c s by tip quintile in B3 +0.0423 +0.0427 +0.0412 +0.0400 +0.0400
+K1b: rho <= -0.10 within t>=400 at 6 of 6 (rule: >= 4 means M3.1 is phase-confounded)
+R6e p1048576       dV/dq per deg q1 +0.00188 q2 -0.00414 q3 -0.00436; V per m tip +0.080 -0.226 -0.333; R31 -4.170 R32 +1.474 | R2 (float16 z) max |V mine - V| 2.96e-04, max |FD mine - dV3| 7.82e-05 (means -0.00512 vs -0.00512)
+R6e p2097152       dV/dq per deg q1 -0.01920 q2 -0.00187 q3 +0.01957; V per m tip -0.815 -0.102 +1.497; R31 -1.837 R32 -14.694 | R2 (float16 z) max |V mine - V| 2.07e-04, max |FD mine - dV3| 4.86e-05 (means +0.01905 vs +0.01905)
+R6e c2511_3145728  dV/dq per deg q1 -0.00197 q2 -0.01768 q3 +0.05507; V per m tip -0.084 -0.968 +4.228; R31 -50.476 R32 -4.368 | R2 (float16 z) max |V mine - V| 1.46e-04, max |FD mine - dV3| 2.86e-05 (means +0.05490 vs +0.05490)
+R6e c2531_3145728  dV/dq per deg q1 -0.00221 q2 -0.01653 q3 +0.01967; V per m tip -0.094 -0.903 +1.507; R31 -16.057 R32 -1.668 | R2 (float16 z) max |V mine - V| 1.73e-04, max |FD mine - dV3| 3.34e-05 (means +0.01934 vs +0.01934)
+R6e c2511_E        dV/dq per deg q1 +0.00548 q2 +0.00229 q3 +0.05340; V per m tip +0.233 +0.125 +4.101; R31 +17.580 R32 +32.762 | R2 (float16 z) max |V mine - V| 1.90e-04, max |FD mine - dV3| 1.34e-05 (means +0.05339 vs +0.05339)
+R6e c2531_E        dV/dq per deg q1 -0.00079 q2 +0.00361 q3 +0.03982; V per m tip -0.034 +0.197 +3.054; R31 -90.701 R32 +15.478 | R2 (float16 z) max |V mine - V| 2.22e-04, max |FD mine - dV3| 3.15e-05 (means +0.03944 vs +0.03944)
+R6e b2511_E        dV/dq per deg q1 -0.00094 q2 +0.03173 q3 +0.00000; V per m tip -0.040 +1.733 +0.000; R31 -0.000 R32 +0.000 | R2 (float16 z) max |V mine - V| 1.96e-04, max |FD mine - dV3| 0.00e+00 (means +0.00000 vs +0.00000)

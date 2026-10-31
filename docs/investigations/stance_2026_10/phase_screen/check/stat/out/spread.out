@@ -1,0 +1,27 @@
+arm sample SDs (n-1): control 0.075991, critic_phase 0.013359; ratio control/phase 5.6886
+arm means: control +0.596667, critic_phase +0.056533; difference +0.540134
+
+P(complete separation, all 4 control above all 4 phase | equal means, normal, this SD ratio):
+  at the observed ratio 5.689: quadrature 0.03631; grid trapezoid 0.03631; Monte Carlo (4e6) 0.03632
+  at ratio 1 (equal SDs): quadrature 0.01429 (exact 1/70 = 0.01429)
+  ratio    2: 0.01863
+  ratio    3: 0.02468
+  ratio    4: 0.02984
+  ratio  4.6: 0.03243
+  ratio    5: 0.03396
+  ratio    6: 0.03725
+  ratio    7: 0.03991
+  ratio    8: 0.04208
+  ratio   10: 0.04539
+  ratio   15: 0.05038
+  ratio   20: 0.05313
+  P reaches 0.05 at an SD ratio of 14.48
+
+90% interval for the true SD ratio given 4 + 4 (F(3,3) 0.95 quantile 9.277): 1.87 to 17.33; P(separation) at the ends 0.0178 / 0.0518
+P(p <= 1/70 | equal means, ratio 5.69) Monte Carlo 0.0365 (n 400,000)
+P(p <= 2/70 | equal means, ratio 5.69) Monte Carlo 0.0509 (n 400,000)
+P(p <= 3/70 | equal means, ratio 5.69) Monte Carlo 0.0626 (n 400,000)
+  check, equal SDs: P(p <= 3/70) 0.0430 (exact 3/70 = 0.0429)
+
+Welch t (post hoc, report only): t 14.0010, df 3.185, one-sided p 0.000287; scipy ttest_ind(Welch, greater): t 14.0010 p 0.000287
+lowest control +0.49357 minus highest phase +0.06832 = 0.42525 = 31.8 phase SDs = 5.6 control SDs

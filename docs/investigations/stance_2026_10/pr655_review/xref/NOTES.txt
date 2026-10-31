@@ -1,0 +1,22 @@
+NOTES (lens xref: PR #655 cross-referenced with our findings)          2026-10-31 UTC
+Folder: /home/user/work/pr655_review/xref/  (the only place written).  S1, S2 = the two session scratchpads named in
+the coordinator's brief (S2 holds BS, BS2, the why-probe, the code copy and the venv; S1 holds the run log).
+- Read (read only): the PR note (1,054 lines) in the PR checkout; its t6_vecnorm.py/.json; widen_checkpoint.py
+  (main = PR base); main's stance.toml and T. rex base_env.py; the habit doc rows L144/L145/L158/L162-L164 and §7
+  Q1-Q5; BS2 REPORT.md and score.txt; BS score.txt and criteria (S, E); phase_probe NOTES/PREREG/analysis.txt/
+  verdicts; termination_probe SUMMARY; verify_why NOTES; run log lines 784-808; the code copy's stance.toml and
+  mirror_kl_ppo.py (mirror critic).
+- Computed (scripts/, python = S2's venv, -I -B, nice 10, one process at a time, OMP 1 thread; S2 passed as
+  environment variable XREF_S2):
+  * scripts/oq1_buckets.py -> out/oq1_buckets.{txt,json}: V - G by the note's OQ1 buckets and 25-step bins, from
+    phase_probe/rollouts/*.npz (8 labels) and verify_why/runs/FR*.npz (3); returns recomputed as phase_analyze.py
+    does (normalised reward, gamma 0.98, truncation bootstrap); episode-clustered bootstrap 400, seed 20261031;
+    SB3 buffer GAE advantages by bucket for FR1/FR3. Rerun after the path change: byte-identical text output.
+  * scripts/hidden_terms_by_bucket.py -> out/hidden_terms_by_bucket.{txt,json}: raw reward terms per step by bucket.
+  * out/sigma_by_checkpoint.txt: exp(log_std) per actuator from the rollout metadata (inline script, see XREF 3.7).
+  * out/stance_toml_main_vs_runbranch.diff: key = value lines of main's vs the code copy's stance.toml.
+- Cross-checks against the probe's own outputs: B_bar, raw gated means and sigma_r equal phase_probe/analysis.txt;
+  the 50-200 V - G and D_err there are consistent with the bucket split here.
+- No environment step, no policy forward pass, no training, no optimizer step; no git, no network writes.
+- First run printed the SB3-advantage line above the wrong label header (print order); fixed in the script and
+  rerun before any number was used; the outputs kept are the fixed run's.

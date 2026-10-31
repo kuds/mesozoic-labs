@@ -1,0 +1,34 @@
+E501 Line too long (121 > 120)
+   --> /home/user/work/phase_screen/tools/score_bs.py:164:121
+    |
+162 | }
+163 | ADDITION_AS_COUNTED = "(the as-counted p, report only, is <= 0.05; the filled p decides)"
+164 | ADDITION_NOT_INFORMATIVE = ("(the filled p is <= 0.05, but the control arm did not climb: no reading about the critic's "
+    |                                                                                                                         ^
+165 |                             "phase input)")
+166 | NEG_INF, POS_INF = (-1, Fraction(0)), (1, Fraction(0))   # THE FILL (lexicographic: the infinite part first)
+    |
+
+E501 Line too long (121 > 120)
+   --> /home/user/work/phase_screen/tools/score_bs.py:482:121
+    |
+480 |     path, want = probe.get("file"), probe.get("sha256")
+481 |     if not path:
+482 |         return None, "the markers name no probe file", f"{c['name']}: the markers name no probe file (SEC-TAIL2 MISSING)"
+    |                                                                                                                         ^
+483 |     try:
+484 |         got = C.sha256_file(path)
+    |
+
+E501 Line too long (121 > 120)
+    --> /home/user/work/phase_screen/tools/score_bs.py:1117:121
+     |
+1115 |                  f"command slots (min {mp['min_dmu_phase']})")
+1116 |         L.append(f"  {c['name']:<24} {mp['mlp_extractor_class']} / {mp['obs_rms_class']}, hook {mp['arm_state_end']}; "
+1117 |                  f"{mp['n']} rollouts; value change with obs 6 perturbed, min {mp['min_dv_predict_values']} (the critic "
+     |                                                                                                                         ^
+1118 |                  f"sees the tail angle); actor dmu min {mp['min_dmu_actor']}; lambda {mp['buffer_gae_lambda']}; |adv - "
+1119 |                  f"GAE(0.95)| max {mp['max_adv_err_vs_gae095']}; {s}")
+     |
+
+Found 3 errors.

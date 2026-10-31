@@ -1,0 +1,48 @@
+RECORDS (read only).  cause = the recorded end of each episode.
+
+M1.2 parent s42 training records /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/train_episodes.csv.copy1
+  (1,048,576, 3,538,944]: 2495 episodes; by cause {'truncated': 2490, 'fallen': 5}
+     tail_contact share 0.0000%; any early end share 0.2004% (largest class = truncated)
+     median length 1000
+  (0, 1,048,576] (descriptive): 1402 episodes; by cause {'truncated': 896, 'fallen': 284, 'nosedive': 190, 'tail_contact': 32}
+   bin (1,048,576, 1,310,720]: n  264  {'truncated': 263, 'fallen': 1}
+   bin (1,310,720, 1,572,864]: n  262  {'truncated': 261, 'fallen': 1}
+   bin (1,572,864, 1,835,008]: n  263  {'truncated': 263}
+   bin (1,835,008, 2,097,152]: n  261  {'truncated': 261}
+   bin (2,097,152, 2,359,296]: n  263  {'truncated': 263}
+   bin (2,359,296, 2,621,440]: n  262  {'truncated': 261, 'fallen': 1}
+   bin (2,621,440, 2,883,584]: n  263  {'truncated': 263}
+   bin (2,883,584, 3,145,728]: n  261  {'truncated': 261}
+   bin (3,145,728, 3,407,872]: n  265  {'truncated': 264, 'fallen': 1}
+   bin (3,407,872, 3,538,944]: n  131  {'truncated': 130, 'fallen': 1}
+  P1.2 (prediction: tail_contact <= 2% of training episodes in the window): 0.0000% -> SUPPORTED
+
+M1.3 BS2 runs' training records, (2,097,152, 3,538,944]
+  control_2501             n 1440  {'truncated': 1440}
+  critic_blind_tail3_2501  n 1440  {'truncated': 1440}
+  control_2511             n 1440  {'truncated': 1440}
+  critic_blind_tail3_2511  n 1440  {'truncated': 1440}
+  control_2521             n 1441  {'truncated': 1440, 'fallen': 1}
+  critic_blind_tail3_2521  n 1441  {'truncated': 1440, 'tail_contact': 1}
+  control_2531             n 1440  {'truncated': 1440}
+  critic_blind_tail3_2531  n 1440  {'truncated': 1440}
+  per-run tail_contact rate: control ['0.0000', '0.0000', '0.0000', '0.0000']  blind ['0.0000', '0.0000', '0.0007', '0.0000']
+  total tail_contact episodes over the eight runs: 1
+  P1.3 (B-genuine: blind > control): mean difference +0.00017; exact one-sided permutation p = 35/70 = 0.5000 -> UNTESTABLE
+  (secondary, report only) per-run share of episodes NOT ending in the commonest cause: control ['0.0000', '0.0000', '0.0007', '0.0000']  blind ['0.0000', '0.0000', '0.0007', '0.0000']
+
+M1.4 evaluation ledgers (deterministic evaluation episodes), by cause
+  parent F2 eval (1,048,576, 3,538,944]: n 190  {'truncated': 189, 'fallen': 1}
+  control_2501             n 110  {'truncated': 110}
+  critic_blind_tail3_2501  n 110  {'truncated': 110}
+  control_2511             n 110  {'truncated': 110}
+  critic_blind_tail3_2511  n 110  {'truncated': 110}
+  control_2521             n 110  {'truncated': 109, 'tail_contact': 1}
+  critic_blind_tail3_2521  n 110  {'truncated': 109, 'tail_contact': 1}
+  control_2531             n 110  {'truncated': 110}
+  critic_blind_tail3_2531  n 110  {'truncated': 110}
+  BS2 evaluation episodes not ending at the horizon (run, timesteps, episode, cause, length):
+     control_2521 2359296 ep 0 tail_contact len 303
+     critic_blind_tail3_2521 2359296 ep 0 tail_contact len 249
+
+written analysis_records.json

@@ -1,0 +1,44 @@
+=== FR1 C11E stoch seed 8810: 48 episodes, truncated 48, reasons {'': 48}, min length 1000
+  R1 fresh: max |z - normalise(raw)| 4.76e-07; max |rn - clip(rr/sigma)| 3.73e-09
+  R3 SB3 buffer: max |buf reward - (r~ + gamma V(s_T) at truncation)| 4.96e-07; max |buf value - V| 0.00e+00; max |my G - buffer discounted sum| 4.96e-07; max |my GAE returns - SB3 returns| 3.30e-06
+  q3 by bin -0.322 +2.273 +4.304 +4.615  mu14 by bin -0.049 +0.555 +0.882 +0.938  G by bin 4.5947 4.7253 4.9616 4.9684  V by bin 4.5851 4.7448 4.9154 4.9568
+  B_bar +0.00749 (max |gated raw| at k<200 0.0e+00)
+  F1 dS +2.265 [+2.014, +2.506] AUC 0.955 -> True
+  F2 c_B1 -0.1674 [-0.1812, -0.1463] -> True
+  F3 D_err +0.0397 [+0.0180, +0.0621] -> True
+  F4 beta_G M0 +0.0717 [+0.0603, +0.0837] M2 +0.0068 [-0.0071, +0.0135] M0-M2 [+0.0577, +0.0802] -> True
+  F5 critic FD B3 +0.0571; W3 beta_G +0.0045 [-0.0116, +0.0219]; FD_B3 - W3 [+0.0358, +0.0687] -> True;  FD all +0.0530, by bin +0.0159 +0.0432 +0.0571 +0.0571
+  F6 tail_contact 0, early ends 0 -> True; lowest tail point min 0.745 m (after step 50: 0.779); tip min 0.822
+  REPLICATION (F1-F5) True;  K3 deterministic-creep rule True
+  K5 validation (lean, stagger, cop reconstructed == paid for k>=200): [1.0, 1.0, 1.0] valid True;  beta M0: G +0.0717  G_gate +0.0677 [+0.0608, +0.0795]  G_rest +0.0039  G_stat +0.0090 [-0.0058, +0.0173] (k<=800: G +0.0694, G_stat +0.0045); G_stat M2 +0.0117, W3 +0.0127 -> stat True, gate True
+  K2 SD target 28.1 mm; B3 width reward mean/SD [0.095320412511323, 0.004442633555905447]; r(q3@200, target) +0.666; r(q3@200, B3 width) +0.498; W3 beta_Gwidth -0.00822
+  K6 r(c_j, b_j) +0.575 (without obs 6 -0.186);  K7 LSTD phase-blind +0.0603 [+0.0525, +0.0694] phase-aware +0.0036 [-0.0063, +0.0097];  K1b rho(s, tip | t>=400) -0.354;  V M0 +0.0783 M2 +0.0644
+=== FR2 C11E det seed 8820: 24 episodes, truncated 24, reasons {'': 24}, min length 1000
+  R1 fresh: max |z - normalise(raw)| 4.60e-07; max |rn - clip(rr/sigma)| 3.73e-09
+  q3 by bin -0.418 +2.333 +4.699 +5.057  mu14 by bin -0.081 +0.574 +0.942 +0.998  G by bin 4.6913 4.8295 5.0523 5.0429  V by bin 4.6158 4.7702 4.9582 5.0002
+  B_bar +0.00761 (max |gated raw| at k<200 0.0e+00)
+  F1 dS +2.635 [+2.191, +3.029] AUC 0.969 -> True
+  F2 c_B1 -0.1410 [-0.1596, -0.0968] -> True
+  F3 D_err -0.0038 [-0.0258, +0.0232] -> False
+  F4 beta_G M0 +0.0339 [-0.0104, +0.0802] M2 +0.0110 [-0.0296, +0.0238] M0-M2 [+0.0079, +0.0703] -> False
+  F5 critic FD B3 +0.0576; W3 beta_G -0.0883 [-1.8792, +1.6991]; FD_B3 - W3 [-1.6410, +1.9363] -> False;  FD all +0.0535, by bin +0.0188 +0.0424 +0.0581 +0.0576
+  F6 tail_contact 0, early ends 0 -> True; lowest tail point min 0.747 m (after step 50: 0.789); tip min 0.812
+  REPLICATION (F1-F5) False;  K3 deterministic-creep rule True
+  K5 validation (lean, stagger, cop reconstructed == paid for k>=200): [1.0, 1.0, 1.0] valid True;  beta M0: G +0.0339  G_gate +0.0391 [+0.0177, +0.0894]  G_rest -0.0052  G_stat +0.0164 [-0.0473, +0.0385] (k<=800: G +0.0346, G_stat +0.0192); G_stat M2 +0.0198, W3 -0.5485 -> stat True, gate True
+  K2 SD target 24.5 mm; B3 width reward mean/SD [0.0976942793938241, 0.003141361109962539]; r(q3@200, target) +0.581; r(q3@200, B3 width) +0.397; W3 beta_Gwidth +0.46029
+  K6 r(c_j, b_j) +0.260 (without obs 6 +0.048);  K7 LSTD phase-blind +0.0267 [+0.0052, +0.0531] phase-aware +0.0018 [-0.0209, +0.0154];  K1b rho(s, tip | t>=400) +0.356;  V M0 +0.0512 M2 +0.0527
+=== FR3 P2 stoch seed 8830: 48 episodes, truncated 48, reasons {'': 48}, min length 1000
+  R1 fresh: max |z - normalise(raw)| 4.75e-07; max |rn - clip(rr/sigma)| 3.73e-09
+  R3 SB3 buffer: max |buf reward - (r~ + gamma V(s_T) at truncation)| 5.19e-07; max |buf value - V| 0.00e+00; max |my G - buffer discounted sum| 5.19e-07; max |my GAE returns - SB3 returns| 3.73e-06
+  q3 by bin -0.041 +0.601 +0.745 +0.717  mu14 by bin -0.049 +0.137 +0.141 +0.136  G by bin 4.3990 4.5556 4.8143 4.8225  V by bin 4.3960 4.6224 4.7557 4.7989
+  B_bar +0.00679 (max |gated raw| at k<200 0.0e+00)
+  F1 dS +0.123 [+0.085, +0.162] AUC 0.610 -> True
+  F2 c_B1 -0.2400 [-0.2456, -0.2276] -> True
+  F3 D_err +0.0992 [+0.0715, +0.1212] -> True
+  F4 beta_G M0 +0.0773 [+0.0493, +0.1082] M2 -0.0088 [-0.0196, +0.0053] M0-M2 [+0.0582, +0.1179] -> True
+  F5 critic FD B3 +0.0217; W3 beta_G -0.0105 [-0.0190, -0.0009]; FD_B3 - W3 [+0.0221, +0.0404] -> True;  FD all +0.0222, by bin -0.0026 +0.0275 +0.0261 +0.0217
+  F6 tail_contact 0, early ends 0 -> True; lowest tail point min 0.725 m (after step 50: 0.757); tip min 0.784
+  REPLICATION (F1-F5) True;  K3 deterministic-creep rule False
+  K5 validation (lean, stagger, cop reconstructed == paid for k>=200): [1.0, 1.0, 1.0] valid True;  beta M0: G +0.0773  G_gate +0.0652 [+0.0404, +0.0934]  G_rest +0.0121  G_stat +0.0336 [+0.0103, +0.0586] (k<=800: G +0.0808, G_stat +0.0327); G_stat M2 -0.0039, W3 +0.0022 -> stat False, gate True
+  K2 SD target 34.7 mm; B3 width reward mean/SD [0.0917262139607351, 0.007500086536573956]; r(q3@200, target) +0.649; r(q3@200, B3 width) -0.401; W3 beta_Gwidth -0.01273
+  K6 r(c_j, b_j) +0.276 (without obs 6 +0.251);  K7 LSTD phase-blind +0.0475 [+0.0282, +0.0684] phase-aware -0.0056 [-0.0175, +0.0042];  K1b rho(s, tip | t>=400) -0.168;  V M0 +0.0390 M2 -0.0138

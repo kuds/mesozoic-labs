@@ -1,0 +1,215 @@
+vg_tool NOTES -- the report-only V - G by step bucket and tail sigma tool for the phase screen (PS)
+Written 2026-10-31 (date -u) by the tool's builder, while PS runs.  Folder /home/user/work/vg_tool (the only place
+written).  Every command with its date -u time: CMDLOG.txt.  Labels: [measured] read or computed from a named file;
+[inferred] reasoned, basis given.  PS = /home/user/work/phase_screen; S2 = the session scratchpad
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; BS2 = S2/r10round/bias_screen2;
+WHY = S2/com_revisit/notes/{phase_probe, verify_why}; PY = S2/venv/bin/python, always -I -B.
+
+==================================================================================================================
+SUMMARY
+==================================================================================================================
+STATUS: built, unit-tested, mutation-checked and validated on finished / validation pairs only.  NOT run on the
+screen: PS is running and outcome-blind; nothing under PS/runs, reads, score, logs, tmp or lost.json was opened,
+listed, hashed or statted [measured: every command is in CMDLOG.txt; val/outside_check.out].  REPORT ONLY: the tool is
+outside the screen's reading, never a line, a secondary or a PROVISIONAL item (SPEC.txt STATUS).
+FIXER REVISION (2026-10-31, after the independent check check1/; details FIXES.txt, fixer/): vg_sigma 1.1.  --root has
+no default; a phase-feeding runtime self-check and a gamma check on G; SCREEN.json against APPROVED; the G caption;
+new tests (the phase form with nonzero critic phase columns incl. the terminal phi(1000), a toy env with falls at
+k < 1000 and at k = 1000, the stubbed run_root wiring per arm, --root required).  The measured numbers are unchanged
+[measured: fixer/val/*_vs_*.out, IDENTICAL on 5 validation pairs incl. the dry root].  The builder's sha256 below
+(62cf6901..., f2b37b14...) are SUPERSEDED; the files to pin now:
+Files to pin (SHA256SUMS.txt; sha256sum -c: 7 OK):
+  SPEC.txt            d1481ec596b1dff6172c5442b8b90fe77e390eccdcaf0199cf73bdecc5688b33
+  vg_sigma.py         a9303859c8de3652dd90f5b70e40c3066cbd4e01fbc300c76166b3d5c9a80981
+  tests/conftest.py   50628a451950036806f6b5ac3671fd7e36456528061ed6c9b33718d7d7e83c57
+  tests/test_pure.py  11ace7f7a76b9b1188684fb0e53cd1c7d443f700c319476e7f5eeb6c1f542268
+  tests/test_guard.py bf420da32e37493dfebebc6249f9b2215cb383ac2ef14001b95cd31ff7061c26
+  tests/test_real.py  28c963df717a5de63bb189759d3d101de6690e51097b290570a62f18f4a7e42f
+  tests/test_toy.py   91bc16449587c6b6242da0206648116986308c511a4ad65993cc891428056e4d
+  The coordinator records these in the run log before the screen's reading (neither the builder nor the fixer writes
+  outside this folder, so neither has done that).
+POST-SCREEN COMMAND (only after <PS>/score/score.json is written with status final; see O1):
+  cd /tmp && nice -n 19 PY -I -B /home/user/work/vg_tool/vg_sigma.py --root /home/user/work/phase_screen \
+      --out /home/user/work/vg_tool/report        (--plan first: the guard and the input list only)
+  --root is required (no default since 1.1): a command with neither --root nor --pair refuses, exit 2, opening nothing.
+  Exit 0 measured, 3 measured with a PROBLEM (listed), 2 refused.  Estimated cost [measured basis, (d) below]: about
+  12-13 min CPU on one core for the 8 final pairs + S at 32 episodes; outputs < 0.2 MB.
+
+==================================================================================================================
+WHAT THE TOOL MEASURES AND HOW (step 1: worked out from the PS tool code, never from PS/runs)
+==================================================================================================================
+Where the pairs are [measured, code]: run_bs.py makes runs/<arm>_<seed>/01_stance/ (stage_dir), copies the start
+  pair there as models/stage1_2097152_steps.zip / stage1_vecnormalize_2097152_steps.pkl (copy_inputs, lines 861-878),
+  and train_base's checkpoint callback writes models/stage1_<s>_steps.zip / stage1_vecnormalize_<s>_steps.pkl at
+  s = 2,359,296 ... 3,407,872 (bs_common.SAVED_STEPS, periodic_names) and the final pair models/stage1_final.zip /
+  stage1_final_vecnorm.pkl at E (bs_common.FINAL_ZIP / FINAL_PKL: E = 3,538,944 is not on the 262,144 save grid,
+  bs_common lines 96-99); read_bs.saved_pairs (lines 1085-1096) reads exactly these.  Confirmed on BS2's finished
+  runs (same harness family): runs/control_2501/01_stance/models holds those 13 files [measured, ls].
+  The COUNTED list and its STATUS come from score_bs.py's score.json: status "final" / "PROVISIONAL" / "incomplete",
+  classes [{name, arm, seed, cls COUNTED|STOPPED|LOST|UNDECIDED, T, cause}] in the queue order, root (score_bs.py
+  lines 1054-1080, 1360-1391) [measured, code].
+How read_bs loads a pair and feeds the phase [measured, code]: read_bs.Net (load_sb3_checkpoint: the model and the
+  VecNormalize frozen); for critic_phase read_bs.phase_prepare (at S: value_net.0.weight[:, 60:63] := 0 and the
+  statistics' slots reseeded to (0, 1); at later pairs the slots must already be (0, 1), else InputError; then the
+  actor's mask class); read_bs.with_phase writes phi(k) (bs_hooks.phase_matrix) into slots 60-62; critic_slope casts
+  to float32 and calls norm.normalize_obs, then policy.predict_values: the "effective" critic of critic form
+  "phase+raw+settled" (raw = slots zero, settled = (1, 1, 1)).  The on-policy states come from read_bs.onpolicy_states:
+  the stage config, create_vec_env with 4 envs seeded seed + rank, VecNormalize.load frozen with norm_reward True,
+  load_sb3_model with the stage's [ppo] kwargs, enable_mirror_kl, vn / torch / numpy seeded, one collect_rollouts.
+What vg_sigma.py reuses (imported read only from PS/tools by sys.path insertion; -B, no bytecode written [measured:
+  no __pycache__ under PS/tools or vg_tool]): read_bs.Net, read_bs.phase_prepare, read_bs.with_phase (the phase
+  feeding), bs_hooks.critic_blind_class (BS2's blinded critic, --pair --form blind only), bs_hooks.phase_slots_frozen,
+  bs_common's paths, pins and names.  It does NOT call read_bs.setup_simulation or loop_markers (they write under
+  PS/tmp and PS/reads/_cache); its own setup_sim does the same steps with its TMPDIR under --out.  The collection is
+  read_bs.onpolicy_states' build line for line (that function cannot be reused as is: it records a fixed 2,048-step
+  rollout and neither the rewards nor the raw terminal observation), with complete episodes.
+The episode loop: SB3 2.9.0 collect_rollouts' action path (policy forward on the normalised observation, sampled,
+  clipped), stepping the inner DummyVecEnv and applying the same VecNormalize's normalize_obs / normalize_reward (its
+  step_wait with training False is exactly that, vec_normalize.py lines 175-205), so the RAW time-limit terminal
+  observation survives for the phase feeding (VecNormalize overwrites it with its normalised copy).
+G: returns_to_go in float64 of the float32 normalised rewards (the buffer's units), bootstrapped with gamma^(T-k) V(s_T)
+  of the arm's own critic at a TimeLimit.truncated end (k_T = 1000, the terminal observation fed phi(1000) for
+  critic_phase), none after a termination: SB3's rewards[last] += gamma V(terminal) (on_policy_algorithm.py lines
+  236-245) unrolled.  V: the arm's form through read_bs.Net (batched, 8,192 rows).  Buckets by the state's k.
+Sigma: exp(float64(log_std)) of policy.pth (zip, torch.load weights_only) for actions 13 (tail_2_pitch_act) and 14
+  (tail_3_pitch_act); the policy applies no floor when it samples (SB3 DiagGaussianDistribution std = exp(log_std),
+  distributions.py line 165); MirrorKLPPO's symmetry_sigma_floor 0.01 enters only its mirror-KL loss
+  (mirror_kl_ppo.py lines 21, 201), so the floored max(sigma, 0.01) is printed beside it with a "binds" flag.
+
+==================================================================================================================
+DECISIONS (each also in SPEC.txt)
+==================================================================================================================
+D1 Complete 1,000-step episodes (not a 2,048-step rollout): every state's G is a full return-to-go, with the
+   truncation bootstrap only where training has it.  The first 8 complete episodes per env (why-probe convention).
+D2 N = 32 per pair.  Basis [measured]: at S with the why-probe's 48 episodes the per-bucket SE across episodes is
+   0.003-0.011 (val/why_offline.log), so about 0.003-0.014 at 32; the effects of interest are 0.02-0.12.  Cost 2.2-2.6
+   s CPU per episode [measured].  48 would cost +50% for SE x 0.82.
+D3 Seeds: one base for every pair (common random numbers): PROD 6271 (envs 6271-6274) for --root, VAL 6281 for --pair
+   and every validation; both checked new (val/seeds_check.out: 1,371 named numbers, 1,181 text files, 7,737
+   distinct numbers / range members; RESULT NO COLLISION; sanity: every known seed found).  PROD was never run.
+D4 V and the phase: the reader's own functions, not a re-implementation (task step 1); the plain form for control,
+   phase (own phi(k), phi(1000) on the terminal observation) for critic_phase, and S read in both forms (they must
+   agree bitwise: zero phase columns after the start transform).  Report-only "raw" variant for critic_phase.
+D5 Statistics: per run per bucket the episode-weighted mean of V - G and |V - G| with the SE across episodes (the
+   episode is the independent unit), plus the why-probe's state-pooled means; per arm the median over runs and the
+   control-minus-phase difference of medians; per-seed differences.  No test, no p-value (report only, 4 per arm).
+D6 The guard opens only score.json and SCREEN.json; it requires status exactly "final" (PROVISIONAL refuses), the
+   score's root equal to --root, the classes equal to the queue in order, each COUNTED / STOPPED / LOST, COUNTED with
+   T = E, and at least one COUNTED; --episodes / --seed / --form are refused in --root mode (pre-registered).
+D7 Outputs: vg_sigma.json + vg_sigma.txt deterministic (no clock; the same inputs give the same bytes [measured: b2
+   rerun cmp-identical]); run_info.json holds the times.  --out is refused inside the root or PS, or if it already
+   holds vg_sigma.json.  TMPDIR / MPLCONFIGDIR = --out/_tmp, removed at the end.
+D8 Self-checks become PROBLEMS (exit 3), never silent (1.1 adds: the phase feeding with nonzero critic phase columns,
+   SCREEN.json against APPROVED; G with another gamma refuses): num_timesteps, k sequence, truncation at k 1000,
+   Monitor length, loop forward values vs the batched plain critic (<= 1e-4; measured 1.43e-6), the S forms, the
+   markers' loop row at E (sha256 of zip and pkl, critic form), each run's start copy sha256, the saved pairs
+   present, the imported PS tools against APPROVED's tool_sha256.  Wrong actuator names, gamma, floor or horizon
+   refuse (exit 2).
+
+==================================================================================================================
+TESTS (step 4) [measured, val/pytest.log, val/mutants.log; ruff E,F,W,B line 120: All checks passed]
+==================================================================================================================
+47 passed (test_pure 30: bucket edges k = 0, 49, 50, 149, 150, 199, 200, 249, 250, 999, 1000 + all k 0-1000
+vectorised vs scalar + refusals; G with exact binary values: [1, 2, 3], gamma 0.5 -> [2.75, 3.5, 3.0] terminated,
+[3.25, 4.5, 5.0] with V(terminal) 4; equal to SB3's fold into the last reward, to the direct sum and to PS's
+bs_hooks.mc_return; the per-episode bootstrap only on truncated episodes; the reward normalisation on hand values incl.
+the +-50 clip, frozen statistics, G_norm = G_raw / sigma_r, the real start pkl (sigma_r 45.35870726207714); bucket
+statistics on a hand-built pair of episodes incl. a fall; the arm summary and E1 / E2; sigma and the floor (a tail_2
+below 0.01 floored, binds); log_std from a zip and from the real start pair.  test_guard 11: synthetic roots under
+vg_tool/tmp/pytest; no score.json, status incomplete / PROVISIONAL / Final / null, an UNDECIDED entry, a swapped queue,
+a missing entry, COUNTED with T != E, another root, all LOST, a broken score.json, --out inside the root or PS, pair
+options in root mode: all exit 2 with nothing written and NO open / stat / listing under <root>/runs or <root>/reads
+(builtins/io/os open, stat, lstat, listdir, scandir wrapped); --plan passes and lists the COUNTED in queue order without
+touching them.  test_real 6: the real env in lockstep with bs_hooks.phase_env_class (the training envs' class): the
+env's slots are float32(phi(k)) and read_bs.with_phase gives the same observation; with nonzero critic phase columns
+the tool's V equals read_bs.critic_slope's V_mean and the critic on the training-env observations bitwise; S's plain
+and phase forms bitwise equal; the phase form refuses unfrozen slots after S; the loop equals SB3's own collect_rollouts
+(actions, values, normalised rewards, 40 vector steps, bitwise); the actuator indices, floor, gamma, log_std.)
+Mutation check (val/mutants.py): 10 of 10 mutants killed (status not checked, undecided accepted, root not checked, no
+bootstrap, bucket edge 199, phase not fed, floor not applied, rewards not normalised, deterministic actions, population
+SD).
+FIXER (1.1) [measured, fixer/out/pytest_final.out, fixer/out/mutants.out, fixer/out/ruff_final.out]: 55 passed
+(test_pure 31, test_guard 14, test_real 7, test_toy 3); ruff clean.  35 mutants (the builder's 10, the checker's 18,
+the fixer's 6 and an identity control): every one killed by the unit tests except the identity control (passes, as it
+must) and the two runtime-only self-checks the unit tests cannot reach (measure_pair is not unit-tested):
+gamma_099_in_G (refused at runtime: fixer/val/rt_gamma_099_in_G.log, exit 2) and the phase-feed call removed (the
+check's effect shown at runtime: fixer/val/rt_phase_skipped_states.log and rt_phase_skipped_terminal.log, exit 3 with
+the PROBLEM).  The checker's survivors (bootstrap_terminations, control_form_phase, phase_skipped_states,
+phase_skipped_terminal, terminal_phase_k999) are now killed by test_toy, test_root_mode_wiring_forms_per_arm and
+test_phase_form_values_with_nonzero_phase_columns.
+
+==================================================================================================================
+VALIDATIONS (step 5; nice 19, one process at a time, on the frozen code 62cf6901...; val/run_validations.sh)
+==================================================================================================================
+(a) BS2's finished final pairs at E [measured, val/a_control_2501/, val/a_blind_2501/; 8 episodes, seed 6281, all 8
+    truncated at 1000]: per bucket mean V - G (SE) / mean |V - G|
+                   [0,50)            [50,150)          [150,200)         [200,250)         [250,1000]
+    control_2501   +0.0043 (0.0217)  +0.0292 (0.0240)  -0.0098 (0.0196)  -0.0833 (0.0106)  +0.0018 (0.0049)
+                    0.0523            0.0599            0.0582            0.0833            0.0208
+    blind_2501     +0.0464 (0.0249)  +0.1564 (0.0237)  +0.0808 (0.0150)  -0.0360 (0.0139)  -0.0118 (0.0072)
+     (effective)    0.0706            0.1573            0.0908            0.0395            0.0242
+    blind_2501 raw +0.0497           +0.1694           +0.1071           -0.0075           +0.0121
+    [inferred] the same signature as the why-probe (pre-settle overvalued, the first settled steps undervalued); the
+    blinded critic's pre-settle error is larger, as the why-probe found (B11E D_err +0.101): it lost its clock.
+    sigma at E: control tail_3 0.160111 / tail_2 0.171048; blind 0.168278 / 0.172906 (floor never binds).
+(b) PS pairs [measured]: the start pair S (val/b1_S/, 4 episodes): plain and phase-with-start-transform forms
+    bitwise equal on every state and terminal value (max |dV| 0.0; phase columns 0.2442 -> 0.0 used); V - G
+    +0.0118 / +0.1272 / +0.0439 / -0.0712 / -0.0307.  PS/validate/v2/critic_phase_9401's final pair (2,359,296, no
+    update; val/b2_phase/): phase fed, the critic's phase columns are 0.0, effective = raw exactly (max 0.0), and its
+    buckets equal the plain form's exactly (val/b2_compare.out: True); a rerun gives a cmp-identical vg_sigma.json
+    (deterministic).
+(c) The why-probe on s42 2,097,152 with its own settings [measured]: (c1) offline, this tool's G on WHY's recorded
+    P2 rollouts (48 episodes, seed 7700) reproduces its V - G by bin EXACTLY (|diff| 0): B0 +0.0223932289282942,
+    B1 +0.1172906297663212, B2 -0.0390413234545129, B3 -0.0177359659604361, D_err +0.1403529351002765
+    (val/why_offline.log); in this tool's buckets at S: +0.0224 (SE 0.0113), +0.1406 (0.0086), +0.0707 (0.0059),
+    -0.0426 (0.0051), -0.0218 (0.0026).  (c2) online, this tool's build and loop with seed 7700 reproduce WHY's first
+    episode of each env bitwise (k, raw obs, actions, values, normalised and raw rewards, V(terminal);
+    val/why_online.log).  Also: equal to read_bs.onpolicy_states' states and k over its 2,048 x 4 steps
+    (val/equiv_onpolicy.log).
+    Root path end to end (val/dryroot.py -> val/dryroot.log, val/dryroot/out/): a synthetic root in vg_tool with
+    PS's SCREEN.json and APPROVED, control_2901 -> BS2 control_2501 and critic_phase_2901 -> PS validate
+    critic_phase_9401 (symlinks; removed afterwards): guard passed, S read in both forms, control's markers matched
+    (sha256 and critic form), the phase stand-in's 6 expected PROBLEMS listed (num_timesteps 2,359,296 != E, 4 saved
+    pairs missing, no markers row at E), exit 3; the imported PS tools equal APPROVED's tool_sha256.
+    CLI refusals (val/refuse_*.log): a missing pair, --phase-start with plain, --out inside PS: exit 2, nothing written.
+(d) Timing [measured, val/timing_summary.out]: 2.1-3.2 ms CPU per env step including the model loads (2.15 ms in the
+    bare loop, val/explore.out); the marginal cost 2.2-2.6 s CPU per 1,000-step episode; wall / CPU 1.01-1.04 beside
+    the 4 running continuations.  Post-screen estimate [inferred]: 9 pairs x 32 episodes x 2.2-2.6 s = 10.6-12.5 min
+    plus about 0.5 min of loads and V batches = about 11-13 min CPU, one core; sigma reads (8 x 6 zips + S) seconds.
+
+==================================================================================================================
+OPEN ITEMS
+==================================================================================================================
+O1 Run it only after the screen's reading: even its guard opens <PS>/score/score.json (outcome-bearing while PS runs).
+   Never pass --root /home/user/work/phase_screen before then.  Since 1.1 --root has no default (a command with
+   neither --root nor --pair refuses, exit 2, opening nothing [measured, fixer/val/cli_noroot*.log under a guard that
+   blocks PS's outcome paths]).  Every validation here used --pair or a synthetic root.
+O2 status PROVISIONAL refuses by design (the task's "STATUS final"); measuring a PROVISIONAL screen would need the
+   maintainer's word and is outside this pre-registration.
+O3 The phase arm's V - G is measured at E only (and S); the saved pairs carry sigma only (the task's scope).
+O4 G uses the final pair's frozen ret_rms; training's buffer used the running statistics of each rollout (they move
+   slowly: sigma_r 45.36 at S, 43.90 at BS2's control E [measured]), so G is in the critic's units at E.
+O5 Falls: a terminated episode is not bootstrapped and its fall penalty enters G; none occurred in any validation
+   episode (all truncated at 1000) [measured]; the counts are printed per pair.
+O6 read_bs.phase_prepare prints a harmless torch UserWarning (PS's own O9) on stderr; cosmetic.
+O7 Pinning: the coordinator records SHA256SUMS.txt's seven sha256 (1.1, fixer) in the run log before the reading
+   (not done here).
+O8 The arm comparison is descriptive (4 per arm, common seeds across pairs, E1 / E2 as "consistent" or not); a
+   reviewer may want the per-seed differences read before the medians.
+O9 Outside-folder check [measured, val/outside_check.out, val/tb_buffer_newer.out]: nothing newer than 15:59:00 UTC
+   in PS's allowed paths, S2 (venv excluded), the repo, /home/user/work (but this folder), or /tmp/tb_buffer (my
+   loads never call learn(); I listed /tmp/tb_buffer's top level once, by mistake, names only, nothing opened); S1's
+   run_log.txt and /tmp's harness logs changed (not written by me).  PS tools' sha256 equal APPROVED's.
+O10 Disk: df -B1 / -> 4,975,054,848 B available at 16:37 UTC; this folder 0.7 MB (temp files removed).
+
+==================================================================================================================
+FILES
+==================================================================================================================
+SPEC.txt (pre-registration), vg_sigma.py (the tool), tests/ (conftest, test_pure, test_guard, test_real, test_toy),
+SHA256SUMS.txt, NOTES.txt, CMDLOG.txt, FIXES.txt (the fixer's record), fixer/ (its scripts, outputs, cmdlog.txt and
+orig/ copies of every file before its edits), check1/ (the independent checker's folder); val/:
+seeds_check.py/.out, explore.py/.out (build facts, step cost), mutants.py, why_offline.py, why_online.py,
+equiv_onpolicy.py, dryroot.py, run_validations.sh and their .log files,
+a_control_2501/, a_blind_2501/, b1_S/, b2_phase/, b2_plain/, b2_phase_rerun/, dryroot/out/ (tool outputs),
+b2_compare.out, timing_summary.out, outside_check.out, tb_buffer_newer.out, prelim/ (the first-round logs, before the
+last code edit; the same numbers).

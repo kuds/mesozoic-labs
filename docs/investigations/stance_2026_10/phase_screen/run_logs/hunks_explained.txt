@@ -1,0 +1,204 @@
+PS/tools against BS2/tools, hunk by hunk (logs/tools_vs_bs2.diff: cd /tmp && diff -ruN -x score_bs.py -x test_score_bs.py
+-x __pycache__ S2/r10round/bias_screen2/tools PS/tools; 91 hunks, 2,748 lines).  Files with NO hunk: check_inputs.py,
+verify_copy.py (byte-identical to BS2's).  Not copied: score_bs.py, tests/test_score_bs.py (the criteria lane's).
+Every behavioural change is for the arm critic_phase or for the screen's identity; control's training path is BS2's
+(the hooks for control change nothing: V1 digests = BS2's V1 digests; V2 pairing shows identical env side, values,
+advantages, ledger and probe with critic_phase at load).
+
+bs_common.py
+  #1  (-1,8 +1,10)     docstring head: PS = BS2 re-run from the same pair and window with the one new arm critic_phase;
+                       BS2's three arms are not arms of PS (bs_hooks keeps their code, unreachable).
+  #2  (-13,9 +15,18)   two new sources: TASK3 (this build task: the maintainer's choice of 2026-10-30 18:27 UTC, 4 + 4,
+                       seeds 9401-9441, the root) and CODE_ (the code lines the phase definition rests on: step() l1335
+                       increments _step_count before _get_obs l1349 and the reward l1352; reset l1642 / l1668; _get_obs
+                       l974-1029 with the command last; the four gates l1278, l1315, l1339, l1421; stance.toml l212).
+                       "<BS2>" -> "<PS>" in the SCREEN / APPROVED sentence.
+  #3  (-29,10 +40,11)  BS = /home/user/work/phase_screen (TASK3); BS2_DIR named (read only, the harness PS derives from);
+                       the CODE comment says PS reads the copy only.  CODE stays BS1 + "/code" (BS's sealed copy).
+  #4  (-65,7 +77,7)    MAX_CONTINUATIONS 9 -> 8: the maintainer's design is 4 critic_phase + 4 controls (TASK3); the
+                       launch floor follows (1.5 GiB + 8 x 50 MiB = 2,030,043,136 bytes).  Open item O3.
+  #5  (-76,8 +88,8)    comments only: S and LENGTH are TASK2 = TASK3 (BS2's values, unchanged: S 2,097,152, E 3,538,944).
+  #6  (-96,34 +108,65) THE PHASE: k (the env's _step_count when the observation is made), the off-by-one against the gates
+                       (k = 200 is the first observation whose own reward is gated), the three features (ramp, settled,
+                       discount) and why each, the slots (60-62, the always-zero command), PHASE_SLOTS / PHASE_FEATURES /
+                       SETTLE_STEPS 200 / PHASE_GAMMA 0.98 / OBS_DIM 63 and phase_features(k) (pure, input-checked).
+                       ARMS = (control, critic_phase); INTERVENTIONS = (critic_phase,); ARM_PPO_EDIT both {} (no [ppo]
+                       edit: the hyperparameters digest is the run's for both arms); ARM_GAE_LAMBDA both 0.95;
+                       ARM_CHANGE["critic_phase"] says the arm in words (recorded verbatim in run_meta, CHECKed).
+  #7  (-147,8 +190,9)  VALIDATION_SEEDS (9201 ... 9241) -> (9401, 9411, 9421, 9431, 9441) (TASK3).
+
+bs_hooks.py
+  #8  (-1,4 +1,4)      docstring title names PS.
+  #9  (-26,6 +26,25)   docstring: critic_phase's five pieces (training envs' _get_obs, the actor's mask, the critic's
+                       zero columns, the reseeded and frozen statistics' slots, the mirror map's sign +1) and the probe.
+  #10 (-35,12 +54,31)  ARMS gains critic_phase (BS2's arms kept: their tests still run); GAE_LAMBDA critic_phase 0.95;
+                       the critic_phase constants (repeated from bs_common: this module imports nothing of it):
+                       OBS_DIM, PHASE_SLOTS / LO / HI, PHASE_FEATURES, SETTLE_STEPS, PHASE_GAMMA, PHASE_RESEED (0, 1),
+                       PHASE_PERTURB (zero, settled, +1, set 3, 1 - x), the evidence key lists.
+  #11 (-95,6 +133,238) the critic_phase building blocks: phase_tuple / phase_matrix (the same float arithmetic as
+                       bs_common.phase_features; tested equal on k = 0..1200); phase_env_class (_get_obs writes the
+                       phase of the env's own counter into slots 60-62; refuses a live command); critic_phase_class
+                       (forward_actor sets the normalised slots to 0.0 on a clone); phase_rms_class (update = the base
+                       update, then the slots put back to mean 0 / var 1; counted; pickles as the stock RunningMeanStd);
+                       reseed_phase_slots / phase_slots_frozen / phase_counter; phase_mirror_map (a new MirrorMap whose
+                       obs map has sign +1 on the slots, perm unchanged and checked); mirror_phase_self_map; train_envs /
+                       env_step_counts (the DummyVecEnv's env instances, read only); the Adam helpers; phase_reference
+                       (the actor's phase columns, n_updates and the Adam step at the load); phase_probe_class (the probe's
+                       _row feeds phase(kept step + 1) into a copy of the bank for the duration of the row) and
+                       probe_phase (critic_phase swaps the one PolicyProbeCallback; other arms check it is stock).
+  #12 (-168,22 +438,135) install_arm calls _install_critic_phase for critic_phase.  _install_critic_phase checks first
+                       (FlattenExtractor; widths 63; the mirror state present; the first layers' Adam moments on the
+                       slots exactly 0; training + norm_obs; the slots' running mean exactly 0; every training env
+                       without a live command; the stock MlpExtractor; the new mirror map built), then applies the five
+                       pieces, then verifies: every state_dict tensor equal except value_net.0.weight, whose other
+                       columns are equal and whose slot columns are 0; the optimizer state digest unchanged; HookError
+                       otherwise.  arm_state_problems: the expected extractor class per arm (BS2's logic generalised),
+                       the phase statistics class only under critic_phase, the slots (0, 1), the mirror self-map, and
+                       every training env carrying the phase under critic_phase and none under any other arm.
+  #13 (-299,8 +682,126) evidence helpers: _phase_perturbed; phase_dependence (the actor's 5 paths and the critic's 4
+                       paths, perturbing the slots 5 ways; action_dist put back); phase_buffer_check (every buffer row's
+                       slots against VecNormalize's formula on the phase of the counter reconstructed from the rollout's
+                       start counters and the episode starts; both ends of the reconstruction checked); phase_state
+                       (columns, Adam, n_updates / Adam steps since the load, statistics, mirror map and tensors, envs).
+                       rollout_evidence gains phase_ctx (the start counters and the load reference).
+  #14 (-335,12 +836,24) evidence for every arm: digest_env_side_no_phase (V2's pairing key) and phase_dependence (control:
+                       the unmasked actor responds to the slots); critic_phase: phase_buffer_check + phase_state (HookError
+                       without its context); other arms: the structural phase keys None.
+  #15 (-348,6 +861,9)  obs_rms_digest_no_phase (the statistics outside the slots: V2's pairing key).
+  #16 (-385,6 +901,47) summarize gains _phase_summary: the actor's max over its paths, the critic's per path, and for
+                       critic_phase the split by n_updates_since_load (0: zero-init rows; >= 1: updated rows), with the
+                       order check, the zero-init maxima and the updated minima.
+  #17 (-429,6 +986,7)  evidence_problems adds _phase_problems.
+  #18 (-444,3 +1002,46) _phase_problems: critic_phase -> the actor moved exactly 0.0; buffer slots exact; counters,
+                       statistics, mirror, actor columns, envs, tensors all as installed; Adam moments of the actor's
+                       phase columns 0; at least one zero-init rollout, where the critic's phase columns and response are
+                       exactly 0; after an update a response > 0 on every path and rollout.  Other arms -> no phase
+                       evidence and an actor that responds to the slots (so a control run cannot carry the mask).
+
+read_bs.py
+  #19 (-1,5 +1,13)     docstring: PS's reader = BS2's with the critic_phase reading and CHECK's phase records.
+  #20 (-49,7 +57,9)    docstring of M-LOOP (c): what effective / raw / settled mean for a critic_phase run.
+  #21 (-74,7 +84,7)    VERSION read_bs 2.0 (recorded in markers and check.json).
+  #22 (-146,10 +156,16) cache_key gains phase and start: form "phase" / "phase_S" (blind and phase exclude each other);
+                       the start copy read with the load transform cannot share an entry with a later pair's reading.
+  #23 (-367,11 +383,13) check_meta: critic_phase's classes (CriticPhaseMlpExtractor, PhaseSlotsSymmetricRunningMeanStd)
+                       and the call to phase_meta_problems.
+  #24 (-421,6 +439,42) phase_meta_problems: critic_phase -> the phase_definition, transform_verified with the slots,
+                       digest_load vs digest_start (Adam equal, params changed), the probe swapped and feeding (1, 1, 1)
+                       to settled rows (k >= 200), the evidence split (continuation: exactly 1 rollout before the first
+                       update and n - 1 after; no-update: all before); other arms -> no phase records and digest_load =
+                       digest_start on params, Adam and VecNormalize.
+  #25 (-737,6 +791,15) Net.refresh_stats (re-read the normaliser after the start transform reseeds the slots).
+  #26 (-800,12 +863,22) with_phase(X, K) and critic_slope(..., K=None): with K the critic is fed each state's phase (the
+                       actor is never fed it here; the slope's gradient is taken on the normalised obs 6 as before).
+  #27 (-824,7 +897,7)  own_rollouts: a K list beside X.
+  #28 (-836,13 +909,14) own_rollouts records each snapshot's counter (env.unwrapped._step_count, read only) and returns K.
+  #29 (-898,13 +972,17) onpolicy_states' recorder keeps each state's counter (read from the vec env's envs, read only).
+  #30 (-912,26 +990,58) onpolicy_states returns (raw, ks); phase_prepare (start copy: the critic's phase columns := 0,
+                       the slots reseeded, the normaliser re-read; later pairs: the slots must be (0, 1) else InputError;
+                       then the actor's mask); loop_markers_one gains phase / start / bank_k and the critic_form name.
+  #31 (-940,11 +1050,26) loop_markers_one: the on-policy states with their counters; for a phase read, effective = each
+                       state's own phase, settled = (1, 1, 1) for all, raw = slots zero; the actor's invariance to the fed
+                       phase on REF (must be 0.0) and the record of what was fed (k ranges, pre-settle counts, the rule).
+  #32 (-971,8 +1096,9) loop_markers gains phase (the pair at S is the start copy).
+  #33 (-989,11 +1115,13) bank_k = the parent bank's kept steps of the two statue_settled rows + 1 (= 200); the cache key
+                       with phase / start.
+  #34 (-1003,7 +1131,7) the cache-miss call passes phase / start / bank_k.
+  #35 (-1086,8 +1214,9) full_read: markers["probe_phase"] (from run_meta) and phase=(arm == critic_phase).
+
+run_bs.py
+  #36 (-1,14 +1,21)    docstring: arms control | critic_phase; what PS changes against BS2's run_bs.py.
+  #37 (-64,7 +71,7)    VERSION run_bs 2.0 (recorded in run_meta).
+  #38 (-286,14 +293,75) V1 helpers: _bank_outputs (the probe's formula), PHASE_V1_K (0 ... 1000), bank_outputs_as_loaded
+                       (the policy before the hook on the bank as recorded), phase_bank_check (the hooked policy with the
+                       phase of every k fed: actions and values must equal the as-loaded ones bitwise); bank_check feeds
+                       the bank's own phase under critic_phase (as the probe does).
+  #39 (-336,21 +404,32) the load wrapper: digest_load (the pair as loaded) recorded before the hook; V1 takes the
+                       as-loaded bank outputs before the hook; after the hook control must equal the load on params / Adam
+                       / VecNormalize (BS2's rule), critic_phase on Adam with transform_verified; digest_start = the
+                       arm's starting state; phase_reference kept; V1 runs phase_bank_check for critic_phase.
+  #40 (-376,10 +455,13) StopAtEnd docstring: training_start / rollout_start.
+  #41 (-389,9 +471,17) StopAtEnd: training_start(siblings) after the earlier callbacks' starts (the probe's bank exists);
+                       _on_rollout_start calls rollout_start.
+  #42 (-491,6 +581,54) phase_pair_compare (V1 for critic_phase, tensor by tensor and array by array).
+  #43 (-735,7 +873,11) run_meta gains probe_phase and phase_definition (None for control).
+  #44 (-832,8 +974,9)  the evidence call passes phase_ctx (critic_phase only).
+  #45 (-845,11 +988,19) training_start = H.probe_phase (both arms: control's only checks; recorded in run_meta);
+                       rollout_start = H.env_step_counts (critic_phase only; control's StopAtEnd gets none).
+  #46 (-884,7 +1035,9) run_meta: digest_load and probe_phase at the end.
+  #47 (-913,22 +1066,43) V1 record: load_equal_start, saved_equal_hooked; control's params / Adam / VecNormalize
+                       equalities as BS2's (plus the hooked digest); critic_phase's: the pair comparison and the bitwise
+                       bank check; ok also needs phase_bitwise.
+  #48 (-936,6 +1110,7) V1 run_meta: digest_load.
+
+run_waves_bs.sh
+  #49 (-1,6 +1,14)     header: PS = BS2's runner with the root and LB's RR-1 and I1 (their hunks named).
+  #50 (-58,7 +66,7)    BS_REAL=/home/user/work/phase_screen.
+  #51 (-76,6 +84,7)    SCORER_OVERRIDE="" (LB's test hook, path only).
+  #52 (-92,6 +101,7)   SCORER_OVERRIDE=${BS_SCORER:-} honoured only inside the BS_WAVES_TEST=1 block.
+  #53 (-157,7 +167,7)  the APPROVED scorer pin is checked against ${SCORER_OVERRIDE:-$TOOLS/score_bs.py} (the real path
+                       unless in test mode; the pinned name stays score_bs.py).
+  #54 (-209,6 +219,37) I1 (LB #58, verbatim but the comment tag): current_attempt and exit_snapshot (lstat of
+                       runs/<name>/**, tmp/<name>/** and the attempt logs into logs/atimes_at_exit/<name>.attempt<k>.tsv).
+  #55 (-247,7 +288,13) RR-1 (LB #59): an existing atimes_at_ALL_DECIDED.tsv is kept; a later one goes to .relaunch<k>.tsv.
+  #56 (-255,7 +302,7)  RR-1 (LB #60): the snapshot lists no atimes_at_ALL_DECIDED* file.
+  #57 (-268,7 +315,7)  RR-1 (LB #61): the note names the file written.
+  #58 (-376,7 +423,12) I1 (LB #63): after_exit takes the snapshot first (before CHECK, the re-arm, any rename).
+  #59 (-536,7 +588,11) RR-1 (LB #67): ALL_DECIDED is kept as first written on a relaunch; the relaunch is noted.
+
+tests/test_bs_hooks.py
+  #60 (-6,6 +6,12)     docstring: the critic_phase tests.
+  #61 (-261,7 +267,9)  _evidence: critic_phase goes to _phase_evidence; the other arms' lambda from bs_hooks (BS2's arms are
+                       not in bs_common any more).
+  #62 (-289,12 +297,12) test_evidence_passes_for_each_arm over bs_hooks.ARMS (all five: the shared machinery).
+  #63 (-346,3 +354,421) the critic_phase tests (19): the real env in lockstep with a plain twin across k = 199 / 200 / 201
+                       and the time limit (terminal observation k = 1000 settled; VecNormalize's formula returns the
+                       float32 phase exactly at every k); a live command refused; the install transform, the mask and the
+                       zero-init (actor bitwise the loaded actor, critic bitwise the loaded critic for any slot content);
+                       gradients (actor's phase columns exactly 0, critic's nonzero; one Adam step leaves the actor's
+                       phase columns bitwise); 7 install refusals; the statistics' slots kept, the other 60 dims and the
+                       count equal to control's statistics under the same updates, pickling / deep-copy stock, kept by
+                       MirrorKLPPO's install; the mirror map on the real map file; the probe feeding the bank's phase
+                       and restoring the bank; the evidence zero-init then response; 8 mutants that must fail (unmask,
+                       nonzero init, no learning, a slot error, a counter error, unfrozen statistics, a mirror sign, the
+                       actor's columns moved); the evidence needs its context; the real start pair bitwise at 6 phases.
+
+tests/test_read_bs.py
+  #64 (-23,7 +23,7)    VS = PS's first validation seed (9401).
+  #65 (-88,10 +88,24)  _good_meta: critic_phase's classes and records (transform, probe, definition, evidence split,
+                       digest_load).
+  #66 (-100,7 +114,8)  _good_meta uses them.
+  #67 (-126,9 +141,46) BS's and BS2's validation seeds refused; test_check_meta_phase_records (11 critic_phase mutants, 4
+                       control mutants, a definition swap); test_phase_meta_continuation_split.
+  #68 (-146,6 +198,23) _phase_keys: synthetic phase evidence per rollout (zero-init then updated).
+  #69 (-163,6 +232,7)  _ev_lines adds them.
+  #70 (-245,16 +315,16) decided(): the queue's intervention critic_phase.
+  #71 (-279,6 +349,13) cache key forms phase / phase_S distinct; start alone is ignored; blind + phase refused.
+  #72 (-295,3 +372,49) with_phase; phase_prepare at the start copy (transform, mask) and at a later pair (refused without
+                       the frozen slots).
+
+tests/test_run_bs.py
+  #73 (-27,7 +27,7)    V0 / V4 = 9401 / 9441.
+  #74 (-41,9 +41,10)   MAX_CONTINUATIONS 8, launch floor, the PS / BS1 / BS2 paths.
+  #75 (-56,9 +57,29)   test_validation_seeds_are_pss; test_phase_definition (the features at k = 0, 100, 199, 200, ...;
+                       monotone; input refusals; bs_hooks' copy equal on 0..1200; the constants equal).
+  #76 (-66,11 +87,12)  run names: critic_phase parsed; BS2's arms not.
+  #77 (-78,17 +100,19) SCREEN: 4 + 4 valid; 9 refused; a BS2 arm refused; PS's validation seed refused, BS2's allowed.
+  #78 (-99,10 +123,11) arm tables: ARMS = (control, critic_phase), no [ppo] edits, lambdas 0.95, bs_common's arms inside
+                       bs_hooks'.
+  #79 (-137,7 +162,7)  recipe: the run's digest for both arms.
+  #80 (-145,12 +170,12) recipe mutants without gae_lambda_1.
+  #81 (-175,7 +200,7)  loaded_problems: the wrong lambda is 1.0.
+  #82 (-217,6 +242,25) test_stop_at_end_training_and_rollout_start_hooks.
+  #83 (-252,8 +296,14) preflight: BS2's seed and BS2's three arms refused; critic_phase V1 preflight passes.
+  #84 (-274,10 +324,10) approval / SCREEN entry with critic_phase.
+
+tests/test_waves_bs.py
+  #85 (-5,6 +5,9)      docstring: the PS / LB additions.
+  #86 (-96,8 +99,8)    QUEUE with critic_phase.
+  #87 (-119,9 +122,11) the fixture pins a stub scorer (LB's: the criteria lane's scorer is not in this build) and writes a
+                       critic_phase SCREEN.json.
+  #88 (-132,8 +137,9)  BS_SCORER in the test environment; the fixture returns the scorer path.
+  #89 (-264,6 +270,12) the scorer pin: also refused through the real path when no override is given (LB's).
+  #90 (-353,13 +365,16) SCREEN refusals with critic_phase (9 > 8 refused) and a BS2 arm refused.
+  #91 (-390,6 +405,42) test_real_root_is_ps; LB's RR-1 and I1 tests (ported).

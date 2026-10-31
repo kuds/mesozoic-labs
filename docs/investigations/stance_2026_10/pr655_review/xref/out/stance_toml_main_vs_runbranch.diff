@@ -1,0 +1,29 @@
+19,20c19,20
+< leg_home_pose_weight = 0.5
+< leg_home_pose_tolerance = 0.10
+---
+> leg_home_pose_weight = 1.0
+> leg_home_pose_tolerance = 0.05
+59a60,65
+> lateral_lean_weight = 0.25
+> lateral_lean_tolerance_m = 0.015
+> leg_home_pose_reference = "settled"
+> stance_stagger_weight = 0.30
+> stance_stagger_tolerance_m = 0.045
+> stance_cop_band_weight = 0.30
+71a78,81
+> symmetry = "mirror_kl"
+> symmetry_kappa = 0.3
+> symmetry_sigma_floor = 0.01
+> symmetry_mirror_critic = true
+114c124,127
+< max_checkpoints = 5
+---
+> eval_freq = 131072
+> eval_episodes = 10
+> checkpoint_freq = 262144
+> max_checkpoints = 0
+121c134
+< collapse_peak_floor_reference = 3766.6
+---
+> collapse_peak_floor_reference = 4470.4

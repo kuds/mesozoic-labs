@@ -1,0 +1,21 @@
+load 0.6 ['p1048576', 'p2097152']
+
+==============================================================================================================
+ITEM 4.  IS THE CRITIC'S TAIL SLOPE EXPLAINED BY THE RISK?  (states t % 4 == 0, |z6| < 10)
+==============================================================================================================
+  -- p1048576: n 31807; critic mean slope FD -0.00442, autograd -0.00436 per deg
+     M4.1 b6 per deg: V M0 -0.02070 [-0.04871,+0.02001]  V M1 +0.82554 [-0.90280,+1.11296]  S +40.875  RF coef V (tip, low, pelvis per SD) [-1.5417, 0.28058, -0.04346]  VIF(z6) 959.7  R2 V M0 0.6618 M1 0.7673 -> UNTESTABLE
+          G M0 -0.01076 [-0.03523,+0.02221]  G M1 +0.58575 [-0.41777,+0.80248]  RF coef G [-1.1085, 0.27547, -0.09718]  R2 G M0 0.6191 M1 0.7120;  M4.4 met False
+     M4.2 V: out-of-sample R2 B0 -21.1463 J -21.0164 R -19.4195  dJ +0.1300  Q +13.287 -> SUPPORTED;  (G: B0 -14.9068 J -14.8516 R -12.6720 Q +40.426)
+     M4.3 [effective] dV/dq per deg q1 +0.00188 q2 -0.00414 q3 -0.00436; dtip/dq mm/deg [23.56, 18.32, 13.09]; V per m of tip q1 +0.080 q2 -0.226 q3 -0.333; R31 -4.170 R32 +1.474 -> NOT SUPPORTED;  (lowest point: R31 -12.658 R32 +3.403 -> NOT SUPPORTED)
+          on-policy SD (deg) q1 0.422 q2 0.337 q3 0.266  flag False;  states with |z3| or |z5| >= 10: 0
+  -- p2097152: n 32000; critic mean slope FD +0.01921, autograd +0.01957 per deg
+     M4.1 b6 per deg: V M0 +0.04935 [+0.03329,+0.07323]  V M1 +1.19763 [+0.12717,+1.96932]  S -23.266  RF coef V (tip, low, pelvis per SD) [-1.39737, 0.01968, 0.06409]  VIF(z6) 6211.0  R2 V M0 0.6970 M1 0.7220 -> UNTESTABLE
+          G M0 +0.06721 [+0.05341,+0.08445]  G M1 +0.37498 [-0.43902,+1.07692]  RF coef G [-0.39069, 0.01932, -0.02852]  R2 G M0 0.5223 M1 0.5434;  M4.4 met True
+     M4.2 V: out-of-sample R2 B0 0.5985 J 0.6095 R 0.6125  dJ +0.0110  Q +1.270 -> SUPPORTED;  (G: B0 0.4564 J 0.4784 R 0.4754 Q +0.860)
+     M4.3 [effective] dV/dq per deg q1 -0.01920 q2 -0.00187 q3 +0.01957; dtip/dq mm/deg [23.55, 18.31, 13.07]; V per m of tip q1 -0.815 q2 -0.102 q3 +1.497; R31 -1.837 R32 -14.694 -> NOT SUPPORTED;  (lowest point: R31 -57.843 R32 -302.838 -> NOT SUPPORTED)
+          on-policy SD (deg) q1 0.372 q2 0.235 q3 0.348  flag False;  states with |z3| or |z5| >= 10: 0
+  OVERALL M4.1 NOT SUPPORTED (supported 0, untestable 2 of 6);  M4.2 INCONCLUSIVE (supported 2, not 0);  M4.3 INCONCLUSIVE (supported 0, not 2);  M4.3 lowest-point (secondary) INCONCLUSIVE;  M4.4 not met (1 of 6)
+item4 s 5.8
+p1048576 {'b6_V_M0': -0.02070325656902579, 'b6_V_M0_gram': -0.02070325656902675, 'b6_V_M1': 0.8255371122112193, 'b6_V_M1_gram': 0.8255371122015414, 'b6_G_M0': -0.010763146972746543, 'b6_G_M0_gram': -0.010763146972766393}
+p2097152 {'b6_V_M0': 0.04935383931264728, 'b6_V_M0_gram': 0.04935383931265721, 'b6_V_M1': 1.197631566385889, 'b6_V_M1_gram': 1.1976315665334718, 'b6_G_M0': 0.06721020864039369, 'b6_G_M0_gram': 0.06721020864042468}

@@ -1,0 +1,127 @@
+--- review/fixer/orig/tools/run_bs.py	2026-10-31 13:32:09.645884307 +0000
++++ tools/run_bs.py	2026-10-31 15:09:35.794132950 +0000
+@@ -35,6 +35,13 @@
+ copy's seal (M1's r10m_common.check_copy); the stack; the M1-common / M5 pins; free disk >= 1.5 GiB.
+ Exit codes: 0 done; 2 refused (no optimizer step); 5 finished but a post-run check failed; 1 crash.
+ Importing this module needs neither torch nor the code copy.
++
++Fixer (2026-10-31, review findings P-B1 and P-i3): (1) before learn() the model's tensorboard_log, which SB3's load
++takes from the start zip (the parent's absolute /tmp/tb_buffer/... path), is set to the run's own <BS>/tmp/<run>/tb
++(redirect_tensorboard; recorded in run_meta "tensorboard_log"; wrapper_problems refuses learn() without it), so every
++file the run writes is under <BS>; (2) critic_phase at the run's end re-checks the actor's phase columns and their
++Adam moments after the last update (end_phase_problems on bs_hooks.phase_state; recorded in run_meta
++"phase_state_end"; a failure joins arm_state_end, which CHECK requires to be "in force").
+ """
+ 
+ from __future__ import annotations
+@@ -71,7 +78,8 @@
+ C = _load("bs_common")
+ H = _load("bs_hooks")
+ 
+-VERSION = "run_bs 2.0 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2)"
++VERSION = ("run_bs 2.1 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2; "
++           "fixer: learn()'s TensorBoard folder under <BS>/tmp/<run>/tb, the end-of-run actor phase check)")
+ LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
+ RUN_KEYS_EXPECTED_TO_DIFFER = frozenset({"seed", "timesteps", "label", "duration_seconds", "hyperparameters_sha256",
+                                          *LINEAGE_KEYS})
+@@ -388,11 +396,41 @@
+             "value_bank": val.tolist(), "value_bank_probe": val_p.tolist()}
+ 
+ 
++def redirect_tensorboard(model: Any, tb_dir: Any) -> dict:
++    """Fixer P-B1: the start zip's saved data carries tensorboard_log = an absolute /tmp/tb_buffer/... path (the
++    parent's Colab buffer); with use_tensorboard=False the body leaves tensorboard_log out of the load's kwargs, so
++    SB3's load keeps that path and learn()'s _setup_learn would write the events file (outcome-bearing scalars) there,
++    OUTSIDE <BS>.  Point it at tb_dir (the run's own TMPDIR/tb, under <BS>/tmp/) before learn(): the logger is built
++    exactly as before (verbose 0: the tensorboard format only; reset_num_timesteps False in an empty folder: PPO_0),
++    only its folder moves.  Refused unless tb_dir is under <BS>/tmp/.  Returns the record for run_meta."""
++    root = os.path.realpath(bs_root() / "tmp")
++    target = os.path.realpath(tb_dir)
++    if not target.startswith(root + os.sep):
++        raise Refused(f"tensorboard: {target} is not under {root}")
++    old = getattr(model, "tensorboard_log", None)
++    model.tensorboard_log = target
++    return {"loaded": old, "set": target}
++
++
++def end_phase_problems(state: dict) -> list[str]:
++    """Fixer P-i3: critic_phase at the run's end (after the last update, which no per-rollout evidence follows): the
++    actor's phase columns must still equal those at the load and their Adam moments must still be exactly 0
++    (bs_hooks.phase_state against the reference taken after install_arm).  [] or the reasons."""
++    p = []
++    if state.get("policy_phase_cols_unchanged") is not True:
++        p.append("the actor's phase columns (policy_net.0.weight[:, 60:63]) changed by the end")
++    if state.get("policy_phase_adam_max_abs") != 0.0:
++        got = state.get("policy_phase_adam_max_abs")
++        p.append(f"the actor's phase-column Adam moments at the end: max |.| {got!r}, not 0")
++    return p
++
++
+ def make_checked_load(original: Any, *, mirror_cls: type, arm: str, start_stats: Any, mode: str,
+-                      holder: dict, save_loaded: Any = None) -> Any:
++                      holder: dict, save_loaded: Any = None, tb_dir: Any = None) -> Any:
+     """The wrapper around train_base._create_or_load_model: the load as the body makes it, the checks (Refused on any
+     failure, before learn()), the start digests, then THE ARM HOOK (bs_hooks.install_arm; Refused if it cannot be
+-    applied as specified), then the mode's step."""
++    applied as specified), then the mode's step.  Before learn() (not in V1's mode, which never calls learn()) the
++    model's tensorboard_log is moved to tb_dir, under <BS>/tmp/ (redirect_tensorboard, fixer P-B1)."""
+ 
+     def checked_load(*args: Any, **kwargs: Any) -> Any:
+         model = original(*args, **kwargs)
+@@ -432,6 +470,9 @@
+                 holder["v1_phase_bank"] = phase_bank_check(model.policy, train_env, *holder["bank_load"])
+             holder["saved"] = save_loaded(model)
+             raise _LoadedOnly()
++        if tb_dir is None:
++            raise Refused("tensorboard: no folder under <BS>/tmp/ given for learn()'s events file")
++        holder["tensorboard_log"] = redirect_tensorboard(model, tb_dir)
+         if mode == "no_update":
+             install_no_update(model, holder)
+         holder["model_class"] = type(model)
+@@ -442,11 +483,16 @@
+ 
+ 
+ def wrapper_problems(holder: dict, *, mode: str, update_classes: tuple = ()) -> list[str]:
+-    """Before learn(): the load wrapper ran (and applied the arm) and, in --no-update, the class carries the no-op."""
++    """Before learn(): the load wrapper ran (and applied the arm), the model's tensorboard_log is the folder the
++    wrapper set under <BS>/tmp/ (fixer P-B1) and, in --no-update, the class carries the no-op."""
+     problems = []
+     if "digest_start" not in holder or "model_class" not in holder or "arm_applied" not in holder:
+         problems.append("the load wrapper did not run (or did not apply the arm) before the callbacks were built")
+-    elif mode == "no_update":
++        return problems
++    tb = holder.get("tensorboard_log")
++    if not isinstance(tb, dict) or getattr(holder.get("model"), "tensorboard_log", None) != tb.get("set"):
++        problems.append("the model's TensorBoard folder was not moved under <BS>/tmp/ before learn() (fixer P-B1)")
++    if mode == "no_update":
+         cls = holder["model_class"]
+         if cls is not holder.get("no_update_class") or any(cls.train is u.train for u in update_classes):
+             problems.append(f"--no-update: the model's class {cls.__name__} does not carry the no-op train()")
+@@ -969,7 +1015,8 @@
+             return sorted(str(p) for p in (run_dir / "saved").iterdir())
+ 
+         checked_load = make_checked_load(original, mirror_cls=MirrorKLPPO, arm=arm, start_stats=pkl_stats(pkl_copy),
+-                                         mode=mode, holder=holder, save_loaded=save_loaded)
++                                         mode=mode, holder=holder, save_loaded=save_loaded,
++                                         tb_dir=Path(env["TMPDIR"]) / "tb")
+         stop_cls = make_stop_at_end_class(BaseCallback)
+         evidence_path = run_dir / C.EVIDENCE
+ 
+@@ -1021,6 +1068,9 @@
+         stop = holder["stop"]
+         digest_end = state_digest(model, train_env)
+         arm_end = H.arm_state_problems(arm, model, train_env)
++        if arm == "critic_phase":                  # fixer P-i3: after the last update (no evidence follows it)
++            holder["phase_state_end"] = H.phase_state(model, train_env, holder["phase_ref"])
++            arm_end += end_phase_problems(holder["phase_state_end"])
+         coll = collapse_state(stop.siblings)
+         T = int(model.num_timesteps)
+         reason = stop_reason(flag=stop.flag, T=T, target=target, collapse_tripped=bool(coll["tripped"]))
+@@ -1038,6 +1088,7 @@
+             "digest_load": holder.get("digest_load"), "digest_start": holder.get("digest_start"),
+             "digest_end": digest_end,
+             "probe_phase": holder.get("probe_phase"),
++            "phase_state_end": holder.get("phase_state_end"), "tensorboard_log": holder.get("tensorboard_log"),
+             "final_path": str(trained.final_path), "learn_seconds": round(trained.learn_seconds, 1),
+             "checkpoints": sorted(p.name for p in (stage_dir / "models").iterdir()),
+         })

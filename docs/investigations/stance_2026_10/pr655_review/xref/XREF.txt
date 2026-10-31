@@ -1,0 +1,191 @@
+PR #655 CROSS-REFERENCE WITH OUR FINDINGS (lens: xref)            2026-10-31, report only; no training, no simulation
+=====================================================================================================================
+PR #655: head cfe5947f on base main 358651fe; docs/investigations/TREX_STANCE_POP_POSE_SATURATION_2026_10.md ("the
+note") and its evidence folder. Checkout read only at /home/user/work/wt_pr655.
+Our sources (all read only): the tail-habit record on main (TREX_TAIL_SATURATION_HABIT_2026_10.md, "habit doc");
+BS (S2/r10round/bias_screen, NOT INFORMATIVE) and BS2 (S2/r10round/bias_screen2, REDUCED, p 1/70); the why-probe
+(S2/com_revisit/notes/{phase_probe,termination_probe,verify_why}); the run log (S1/foot/stance4/live/run_log.txt,
+lines 784-808). S1, S2 = the two session scratchpads named in the coordinator's brief.
+New numbers here come from two read-only scripts over the why-probe's EXISTING rollout files (scripts/, out/); no
+environment step, no network forward pass, no optimizer step.
+Labels: [measured] = read from a file or computed here; [inferred] = reasoning. "raw" = reward units (the note's
+"value units"); "norm" = VecNormalize-normalised units (the critic's units); raw = norm x sigma_r, sigma_r =
+sqrt(ret_rms.var + eps) recorded per checkpoint (42.8-45.4 on the run branch).
+
+0. THE CONFIG FACT THAT FRAMES EVERYTHING BELOW [measured: out/stance_toml_main_vs_runbranch.diff; grep of main code]
+- The note's [M] numbers are on main's committed stance.toml. Every trained r10 policy it cites [D] (the round's
+  s42/s60/s80, the entropy-screen ends, COMREV, L144/L145/L158/L162/L164), and every policy in BS, BS2 and the
+  why-probe, was trained on the r10 round's never-merged screen branch (code copy commit 8737cd3d, arm LTSB).
+- That branch's stance.toml differs from main in: lateral_lean_weight 0.25 (main: absent, code default 0),
+  stance_stagger_weight 0.30 and stance_cop_band_weight 0.30 (main: these terms do not exist in main's code),
+  leg_home_pose_reference "settled" (main: default "keyframe"), leg_home_pose_weight 1.0 / tolerance 0.05 (main 0.5 /
+  0.10), [ppo] symmetry mirror_kl, kappa 0.3, sigma_floor 0.01, symmetry_mirror_critic true (main: none),
+  collapse_peak_floor_reference 4470.4 (main 3766.6), eval/checkpoint cadence.
+- The note never says this (no mention of LTSB, lateral lean, stagger, CoP band or mirror KL); the habit doc does
+  (its lines 117-119, 616-621, 1148).
+
+1. WHERE #655 AND OUR RESULTS AGREE
+1.1 The within-episode tail climb (note §1.4) IS our clock.
+  - Note [D, L144]: s42 entropy-screen ends, tail_3 command -0.01, +0.21, +0.41, +0.53 ... +0.90 at step 250, +0.94
+    later; angle -0.08 -> +4.84 deg; no slam during the pop.
+  - Why-probe [measured, phase_probe C11E = BS2 control_2511 at 3,538,944]: command mu14 -0.145 (0-25), +0.007,
+    +0.212, +0.396, +0.527 (100-125), +0.782 (175-200), +0.855 (225-250), +0.914 (300-400), +0.93-0.94 (400+); angle
+    -0.10 -> +4.65 deg. Same smooth ~300-step creep, no jump at 200, at every climb-era checkpoint (P2, C11a, C11E,
+    C31a, C31E). The creep is in the mean policy, not the noise (verify_why K3, deterministic: dS +2.64 deg, AUC 0.97).
+  - What each makes of it: the note reads the creep as "posture offset + loop amplification" [I]; the why-probe shows
+    the same creep makes the tail angle a clock (AUC of the tail angle alone, settled vs steps 50-200: 0.606, 0.789,
+    0.933, 0.935, 0.953 at P2, C31a, C11a, C31E, C11E; 0.455 at 1,048,576 before the climb). Compatible, not competing.
+1.2 The step-200 switch is a hidden phase that biases the critic (note §6.2 item 2, §7 6a).
+  - Note [I, magnitude M]: stance_width pays +0.099 raw per step only after step 200, driven by an unobserved
+    counter; "a systematic V(s) error the critic cannot remove" of up to ~5 value units.
+  - Why-probe [measured, pre-registered A1-A5 all SUPPORTED, verified and replicated on fresh seeds]: at matched
+    observation, steps 50-200 are worth 0.17-0.23 norm (7.5-10.6 raw) less than settled states; the gated terms'
+    own return-to-go carries all of G's rise there; the critic overvalues steps 50-200 (D_err +0.043 to +0.140 norm
+    = +1.9 to +6.4 raw over the 5 climb-era checkpoints). Same mechanism, measured; the sizes differ (section 2).
+1.3 The loop (note §4.6, from habit doc L145/L158/L162/L164).
+  - Agreement on facts: positive tail loop in the railed s42 ends (G median 0.63), negative at 1.05M (-0.25) and
+    2.10M (-0.386), offset and pathway growing after the tail starts rising; the rail is a learned habit, not a
+    reward barrier and not a counterweight (note §2.3, §4.1, COMREV clamp +63.6).
+  - BS2 [measured, from s42 at 2,097,152 to 3,538,944, 4+4 runs]: with the critic blind to the tail angle the
+    loop never formed: end G -0.20 to -0.55 (controls -0.19 to +0.59, 3 of 4 positive), c0 0.10-0.25 (controls
+    0.44-0.78), margin to the rail 0.98-1.30; control median command rise +0.464 vs blinded +0.009 (p 1/70).
+1.4 The pop is not what drives the tail (note §1.3-1.4, §7 1c-1d).
+  - Note [M]: statue loses 0.203 raw per step in steps 0-50 vs 50-200 (3.489 vs 3.692), through support and contact
+    terms (bilateral_support, alive, foot_load_balance, foot_flatness), about 10 points.
+  - Ours [measured, out/hidden_terms_by_bucket.txt, run-branch policies, stochastic, reset noise 0.05]: 0-50 vs
+    50-150 total reward 3.660 vs 3.858 (P1), 3.849 vs 4.044 (P2), 3.887 vs 4.070 (C11E), 3.876 vs 4.073 (C31E),
+    3.858 vs 4.079 (B11E): a 0.18-0.22 raw per step deficit, the same four terms (head_clearance aside: trained
+    policies hold it at about 0.35 from step 0). The tail command in steps 0-25 is slightly negative (-0.13 to -0.21 in
+    P2-C31E; -0.01 in L144's population): no slam in either.
+  - The critic is not fooled by the pop at these checkpoints: V - G in steps 0-50 is -0.42 to +1.02 raw with every
+    stochastic CI spanning 0 (out/oq1_buckets.txt), although at matched observation steps 0-50 are worth 0.18-0.37
+    norm less (phase_probe M1 c_B0). [inferred] The pop is separable from the observation in trained-policy
+    rollouts, so the critic resolves it; the residual error is concentrated around the step-200 switch.
+1.5 Termination is not the funder (note's head/tail analysis; termination_probe [measured]): 0 tail_contact in
+  1,280 training-like rollouts and in 2,495 parent training episodes over 1.05-3.54M; risk could fund at most 7% of
+  the critic's tail slope. Consistent with the note's finding that a tail rail changes CoM <= 2.1 mm and is pure cost.
+
+2. WHERE THEY DIFFER, OR ONE CORRECTS THE OTHER
+2.1 Size of the step-200 effect: main vs the run branch [measured].
+  - Main (note [M], statue): +0.099 raw per settled step (stance_width only); asymptote 0.099/(1-0.98) = 4.95 raw.
+  - Run branch (phase_probe, trained policies, settled steps): stance_width +0.088 to +0.098, lateral_lean +0.224 to
+    +0.248, stagger -0.000 to -0.004, CoP band -0.008 to -0.033 (-0.104 at 1.05M); sum +0.31 to +0.33 raw (+0.21 at
+    1.05M) = 3.1-3.3x main; asymptote 15.4-16.5 raw = 0.34-0.37 norm. The largest gated term on the run branch
+    (lateral lean) is off on main; two of the four do not exist in main's code.
+  - Consequence [inferred]: the note's 5-unit estimate is about one third of the effect that drove the habit runs;
+    on main the clock incentive would be correspondingly smaller (not zero: stance_width alone is gated).
+2.2 Open Question 1 (critic error by episode step): the why-probe has measured it on the run branch.
+  Table [measured, out/oq1_buckets.txt; V - G mean over episode means, 95% episode-bootstrap CI; raw = norm x sigma_r;
+  stochastic training-like rollouts, frozen statistics, 48 episodes each; PS = the 5 climb-era checkpoints]:
+      bucket (the note's OQ1)   PS range (raw)          fresh replications FR3 (P2) / FR1 (C11E)
+      0-50                      -0.27 to +1.02 (CIs span 0)    -0.14 / -0.42 (span 0)
+      50-150                    +1.51 to +6.38 (CI > 0, 5/5)    +3.69 (CI > 0) / +1.13 (CI spans 0)
+      150-200                   +0.18 to +3.21 (CI > 0, 4/5)    +1.72 (CI > 0) / +0.30 (CI spans 0)
+      200-250                   -1.93 to -3.35 (CI < 0, 5/5)    -3.01 / -3.25
+      250-1000                  -0.47 to -0.99                  -1.36 / -0.73
+    25-step bins: the positive residual peaks at 100-150 (+2.7 to +7.5 raw), is near 0 at 175-200 (-1.5 to +1.1),
+    and is most negative at 200-225 (-2.0 to -3.7). Contrasts: P1 (1.05M) +3.80 / +1.72 / -1.69; B11E (blinded)
+    +4.55 / +2.66 / -2.05; N80 (s80) +4.14 / +1.38 / -3.39 for 50-150 / 150-200 / 200-250.
+    SB3's own GAE(0.98, 0.95) advantages of the rollout buffer, by the same buckets (pooled states; before PPO's
+    per-minibatch normalisation): FR1 +0.10 / -0.12 / -1.17 / +1.21 / +0.24 raw; FR3 +0.21 / -0.90 / -1.88 / +0.89 /
+    +0.43 raw.
+  Against the note's prediction ("a systematic V - G residual of up to about 5 value units in steps 150-200"):
+  - Existence and sign: confirmed, with a 3x larger gated step than the note assumed.
+  - Location: off. [inferred] The critic's value is a blurred step: it rises too early and finishes too late, so the
+    error is positive well before 200 (peak 50-100 steps before), crosses zero near 175-200, and is negative just
+    after 200 (as large as the pre-200 error). A test confined to 150-200 sees the zero crossing; the 150-200 vs
+    200-250 contrast in the note's own bucket list does show the sign flip.
+  - Size: the largest bucket mean is +6.4 raw (50-150, P2) on a 15-16 raw step; the 25-step peak is 16-49% of the
+    asymptote. [inferred] The critic absorbs half or more of the step because the phase is decodable from the
+    observation (linear readout AUC 0.84-0.99, phase_probe). Scaled linearly to main's 0.099 step (x0.30-0.32), the
+    expected residual on main would be about +0.05 to +1.0 raw in 150-200 and +0.8 to +2.4 raw at its peak: well
+    under the note's "up to about 5". Linear scaling is an assumption; no main-config trained checkpoint exists here.
+  - Units: the note's 5 "value units" are raw; in the critic's units 5 raw = 0.11 norm at sigma_r 44.
+2.3 Phase observability (note §6.2 item 2: "only weakly separable (AUC 0.71 for steps 150-200 vs 200-250)").
+  - [measured, t6_vecnorm.json in the PR's own evidence] 0.7057 is at sigma 0 (deterministic statue) for one
+    scalar feature (distance from the quiet centroid); at sigma 0.14 / 0.22 the same AUC is 0.478 / 0.475.
+  - [measured, phase_probe] In trained run-branch policies the phase is much more readable: linear readout of
+    settled vs steps 50-200 AUC 0.84-0.99, tail angle alone 0.61-0.95, mostly because of the policy's own drift.
+  - [inferred] This is the step the note's mechanism misses: aliasing is not only a V error; when the policy's own
+    controllable posture drifts with the phase, the critic credits that posture with the hidden phase value (tail
+    slope +0.019 to +0.055 norm per degree), and the policy gradient follows it.
+2.4 "How training forms it is unexplained" (note §0.5, §4.6, §7 4f, §8.5; habit doc §7 Q1, Q3).
+  - Correct for the records on main at 358651f. Our unmerged evidence answers it in part, on the run branch only:
+    BS2 (causal, from 2.10M): removing the critic's view of the tail angle stops the climb and the loop; the
+    why-probe (correlational, pre-registered, verified): the critic's tail slope is a phase proxy that the realised
+    returns do not support (within steps 400-1000 realised -0.018 to -0.004 per degree; with phase controls -0.013 to
+    -0.002), its sign tracks dS x B_bar at 6/6 checkpoints, SB3's own advantages push the tail_3 command up (PH2: CI
+    > 0) while Monte Carlo advantages do not. This also reads on habit doc Q3 (the training-row mean drifts outward
+    while the open-loop reward falls): the actor follows the critic, not the reward.
+  - Not answered: the onset at about 1.2M (BS from 1.05M was NOT INFORMATIVE: control median rise +0.092 < 0.10);
+    other seeds and lineages (only s42 at 2.10M tested causally; s80's neck shows the same signature at one
+    checkpoint, report only).
+2.5 "During training, steps 0-150 and 150+ look alike to the critic, which must blend them" (note §6.2 item 1, [I]).
+  - [measured] At 1.05M-4.19M on the run branch the critic's V - G in steps 0-50 is ~0 (section 1.4) and the large
+    errors sit at 50-250. Leg sigma there is 0.02-0.17, not the 0.14-0.22 the note's separability test used
+    (out/sigma_by_checkpoint.txt). [inferred] The note's [I] can hold only early in training (sigma ~0.22).
+2.6 Trap in "the policy's dynamics" (note §8.4) vs ours: [inferred from BS2 + PH2] on the run branch from 2.10M the
+  trap is in the actor-critic dynamics: a biased critic keeps paying the actor for a raised tail.
+2.7 Keyframe-reference lean incentive (note §3.4, §8.3, OQ9) does not apply to the cited r10 runs [measured config;
+  inferred consequence]: they used the settled reference, under which the note's own t4d shows the lean losing
+  (-12.2 / -47.0), and with leg weight 1.0 / tolerance 0.05 (the note tested 0.5 / 0.10). OQ9's "re-score existing
+  checkpoints" has no main-config r10 checkpoint to re-score among those cited.
+
+3. WHAT #655 ADDS FOR OUR NEXT STEP (a BS2-style screen with a critic-only phase input)
+3.1 Widening precedent (§6.4) [measured from widen_checkpoint.py]: correctly described (zero columns appended to
+  policy_net.0 and value_net.0, Adam exp_avg / exp_avg_sq padded with shape asserts, sidecar obs_rms padded, exact-
+  transfer self-check, num_timesteps kept, _last_obs cleared). But it is hard-wired to the 3-dim command segment
+  (COMMAND_WIDTH, pad_running_stats reseeding mean 0 / var 1, COMMAND_PROBE_VECTOR), refuses non-handoff checkpoints
+  and non-passing gate verdicts, and pads BOTH networks. [inferred] So: reuse its mechanics, not the tool, for a
+  start from the periodic 2,097,152 pair; and keep the actor's new columns at exactly zero for the whole run (a
+  gradient mask, or an actor-side input slice in the style of BS2's critic-blind hook); zero columns only guarantee
+  exact transfer at load. Self-check at load: actions bit-equal and values equal the parent's.
+3.2 Mirror critic [measured: run-branch config and mirror_kl_ppo.py]: symmetry_mirror_critic is true, so the value
+  loss also fits predict_values on mirrored observations. [inferred] The phase dims must map to themselves with sign
+  +1 in the observation mirror map, and the symmetric running-stats class must treat them as self-mirror.
+3.3 Normalisation of the phase input [inferred, from note §6.3 and habit doc L158]: obs_rms is cumulative with no
+  decay and drift of a normaliser changes effective gains; a bounded phase input (min(k,200)/200, settled flag) is
+  better seeded with its stationary statistics or left unnormalised than learned from zero during a 1.44M window.
+3.4 The second hidden variable, action / filter history (§5.5, §6.2 item 3) [measured, out/hidden_terms_by_bucket]:
+  smoothness + jerk are flat across the episode: -0.0354 / -0.0367 / -0.0355 / -0.0356 / -0.0348 raw per step by
+  bucket at C11E (-0.060 to -0.064 at P1), against a +0.31-0.33 gated step. [inferred] It adds value variance but no
+  phase bias, so it cannot act as the clock; the screen need not add a_{t-1} or filter state to the critic (one
+  change at a time), though the per-bucket V - G should be recorded as a manipulation check.
+3.5 The pop's own phase dependence in steps 0-200 [measured, section 1.4]: real (0.18-0.22 raw per step in 0-50),
+  but the critic already resolves it. [inferred] A phase input carrying min(k,200)/200 will also describe the pop;
+  since the pop is not a source of critic error at these checkpoints, a no-climb result is attributable to the
+  step-200 terms. A flag alone leaves the gamma^(200-k) ramp in steps 50-200 (where the largest residual sits), so
+  the step-index form (plus the flag) is the one that can remove the residual.
+3.6 Transfer constraints (§6.4) [inferred]: irrelevant inside a Stage 1 continuation, but a phase dim changes the
+  observation width, so any checkpoint from the screen cannot be loaded by Stage 2 without the identity / widening
+  path; "phase" is defined against Stage 1's 1000-step episodes and 200-step settle, so it is a Stage 1 training
+  aid, not something to carry forward; ret_rms resets at transfer anyway (the note's point 3).
+3.7 Exploration noise and sigma (§5.4, §8) [measured, out/sigma_by_checkpoint.txt]: legs fall fast on the run
+  branch (knee 0.052 / ankle 0.057 / hip_pitch 0.088 / hip_roll 0.173 at 1.05M; 0.024 / 0.033 / 0.043 / 0.134 at
+  2.10M), while tail sigma stays 0.16-0.20 through the BS2 window (tail_3 0.200 at 1.05M, 0.182 at 2.10M, 0.162-0.173
+  at 3.54M); L/R sigma are tied (mirror KL). At E the blinded run's tail_3 sigma was 0.173 vs 0.164 / 0.162 in the
+  controls. [inferred] For the screen: the score-function push scales with 1/sigma^2, so record tail sigma per arm
+  and compare; the clip dead zone (§4.5) is barely entered in this window (command <= 0.94, sigma 0.16-0.18); the
+  ent_coef schedule (0.005 -> 0 over 7M) is shared by both arms.
+
+4. SHORT SUGGESTIONS THE MAINTAINER COULD CONSIDER FOR #655 ITSELF (no fixes; scope, corrections, cross-links)
+  a. Scope label (most important): say that every trained r10 policy the note cites ran the never-merged screen
+     branch at 8737cd3d, list its stance.toml differences from main (section 0), and mark which conclusions are
+     main-config only (§1.3 effect size, §3.4, §8.3, OQ9) and which are run-branch only (§1.4, §2.1, §4.6 numbers).
+  b. §6.2 item 2: give the gated step for both configs (+0.099 main, +0.31-0.33 run branch) and state that the
+     AUC 0.71 is the deterministic statue (0.48 / 0.47 at sigma 0.14 / 0.22 in t6's own output).
+  c. OQ1: state units (raw vs the critic's normalised units), and phrase the prediction as a sign flip around step
+     200 (positive before, negative after, peak well before 150) rather than "up to about 5 in 150-200"; note that
+     it has been measured on the run branch and cross-link the why-probe once it is recorded on main.
+  d. §0.5, §4.6, §7 4f, §8.5, OQ12: scope "how training forms it is unexplained" to the records on main at 358651f,
+     and cross-link BS2 and the why-probe when they land (they are not on main yet; the records PR is unpushed).
+  e. §6.2 item 1: label the "critic must blend pop and quiet states" inference as early-training; trained
+     checkpoints show V - G ~ 0 in steps 0-50.
+  f. OQ13 (s80's neck): cross-link the why-probe's N80 (neck pitch is a clock in the opposite direction, critic
+     slope toward the habit; one checkpoint, report only).
+  g. §6.4: one line that widen_checkpoint.py is specific to the command segment and handoff pairs and guarantees
+     equality at load only (so "a zero-column widening path exists" does not imply a critic-only path).
+
+CAVEATS: all new numbers are offline reductions of rollouts recorded with frozen statistics at single checkpoints
+(not training dynamics); s42 lineage plus one s80 checkpoint; the run-branch config only; the main-config scaling in
+2.2 is an assumption; buffer advantages are pooled states without episode clustering.

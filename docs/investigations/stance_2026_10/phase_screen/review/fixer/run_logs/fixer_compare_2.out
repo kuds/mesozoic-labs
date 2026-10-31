@@ -1,0 +1,116 @@
+V1 (save-loaded-only, seed 9401): the fixer's run against the builder's
+  [ok] control: status done exit 0
+  [ok] control: v1.params_equal True
+  [ok] control: v1.adam_equal True
+  [ok] control: v1.vecnormalize_equal True
+  [ok] control: v1.num_timesteps_S True
+  [ok] control: v1.saved_pkl_stock_classes True
+  [ok] control: v1.bank_tail3_equal True
+  [ok] control: v1.phase_bitwise True
+  [ok] control: v1.load_equal_start True
+  [ok] control: v1.saved_equal_hooked True
+  [ok] control: v1.loaded digests equal the builder's
+  [ok] control: v1.hooked digests equal the builder's
+  [ok] control: v1.saved_zip digests equal the builder's
+  [ok] control: v1.start_zip digests equal the builder's
+  [ok] control: the saved zip equals the builder's (members other than data; data after the volatile keys; tensorboard_log unchanged in V1: '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard')
+  [ok] control: the saved pkl equals the builder's byte for byte
+  [ok] control: digest_load / digest_start equal the builder's
+  [ok] control: V1 records no TensorBoard redirect (it never calls learn())
+  [ok] critic_phase: status done exit 0
+  [ok] critic_phase: v1.params_equal True
+  [ok] critic_phase: v1.adam_equal True
+  [ok] critic_phase: v1.vecnormalize_equal True
+  [ok] critic_phase: v1.num_timesteps_S True
+  [ok] critic_phase: v1.saved_pkl_stock_classes True
+  [ok] critic_phase: v1.bank_tail3_equal True
+  [ok] critic_phase: v1.phase_bitwise True
+  [ok] critic_phase: v1.load_equal_start True
+  [ok] critic_phase: v1.saved_equal_hooked True
+  [ok] critic_phase: v1.loaded digests equal the builder's
+  [ok] critic_phase: v1.hooked digests equal the builder's
+  [ok] critic_phase: v1.saved_zip digests equal the builder's
+  [ok] critic_phase: v1.start_zip digests equal the builder's
+  [ok] critic_phase: the saved zip equals the builder's (members other than data; data after the volatile keys; tensorboard_log unchanged in V1: '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard')
+  [ok] critic_phase: the saved pkl equals the builder's byte for byte
+  [ok] critic_phase: digest_load / digest_start equal the builder's
+  [ok] critic_phase: V1 records no TensorBoard redirect (it never calls learn())
+V2 (no-update to 2,359,296, seeds 9401 and 9411): the fixer's runs against the builder's
+  [ok] control_9401: status done exit 0 stop end
+  [ok] control_9401: no optimizer step (no_update_check pass, n_updates 2471)
+  [ok] control_9401: digest_load equals the builder's
+  [ok] control_9401: digest_start equals the builder's
+  [ok] control_9401: digest_end equals the builder's
+  [ok] control_9401: arm_state_end 'in force'
+  [ok] control_9401: arm_evidence.jsonl, 31 rollouts, equal to the builder's (clock fields dropped)
+  [ok] control_9401: run_meta arm_evidence summary equal
+  [ok] control_9401: eval_episodes.csv equal (180 rows x 193 columns, time columns dropped)
+  [ok] control_9401: policy_probe.npz 33 arrays equal; differing []
+  [ok] control_9401: CHECK passed True failures []
+  [ok] control_9401: run_meta tensorboard_log loaded '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard' -> set '/home/user/work/phase_screen/tmp/no_update_control_9401/tb'
+  [ok] control_9401: one events file under <PS>/tmp/no_update_control_9401/tb/PPO_0 (events.out.tfevents.1793459448.vm.17513.0, 235953 B)
+  [ok] control_9401: the saved 2,359,296 zip's members other than data equal the builder's (5 members)
+  [ok] control_9401: the zip's data differs from the builder's only in tensorboard_log (['tensorboard_log'])
+  [ok] control_9401: the saved 2,359,296 VecNormalize pkl equals the builder's byte for byte
+  [ok] control_9401: no phase_state_end for control
+  [ok] critic_phase_9401: status done exit 0 stop end
+  [ok] critic_phase_9401: no optimizer step (no_update_check pass, n_updates 2471)
+  [ok] critic_phase_9401: digest_load equals the builder's
+  [ok] critic_phase_9401: digest_start equals the builder's
+  [ok] critic_phase_9401: digest_end equals the builder's
+  [ok] critic_phase_9401: arm_state_end 'in force'
+  [ok] critic_phase_9401: arm_evidence.jsonl, 31 rollouts, equal to the builder's (clock fields dropped)
+  [ok] critic_phase_9401: run_meta arm_evidence summary equal
+  [ok] critic_phase_9401: eval_episodes.csv equal (180 rows x 193 columns, time columns dropped)
+  [ok] critic_phase_9401: policy_probe.npz 33 arrays equal; differing []
+  [ok] critic_phase_9401: CHECK passed True failures []
+  [ok] critic_phase_9401: run_meta tensorboard_log loaded '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard' -> set '/home/user/work/phase_screen/tmp/no_update_critic_phase_9401/tb'
+  [ok] critic_phase_9401: one events file under <PS>/tmp/no_update_critic_phase_9401/tb/PPO_0 (events.out.tfevents.1793459448.vm.17516.0, 235953 B)
+  [ok] critic_phase_9401: the saved 2,359,296 zip's members other than data equal the builder's (5 members)
+  [ok] critic_phase_9401: the zip's data differs from the builder's only in tensorboard_log (['tensorboard_log'])
+  [ok] critic_phase_9401: the saved 2,359,296 VecNormalize pkl equals the builder's byte for byte
+  [ok] critic_phase_9401: phase_state_end actor phase columns unchanged True, Adam max 0.0; value_phase_cols_max_abs 0.0 (0: no update)
+  [ok] control_9411: status done exit 0 stop end
+  [ok] control_9411: no optimizer step (no_update_check pass, n_updates 2471)
+  [ok] control_9411: digest_load equals the builder's
+  [ok] control_9411: digest_start equals the builder's
+  [ok] control_9411: digest_end equals the builder's
+  [ok] control_9411: arm_state_end 'in force'
+  [ok] control_9411: arm_evidence.jsonl, 31 rollouts, equal to the builder's (clock fields dropped)
+  [ok] control_9411: run_meta arm_evidence summary equal
+  [ok] control_9411: eval_episodes.csv equal (180 rows x 193 columns, time columns dropped)
+  [ok] control_9411: policy_probe.npz 33 arrays equal; differing []
+  [ok] control_9411: CHECK passed True failures []
+  [ok] control_9411: run_meta tensorboard_log loaded '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard' -> set '/home/user/work/phase_screen/tmp/no_update_control_9411/tb'
+  [ok] control_9411: one events file under <PS>/tmp/no_update_control_9411/tb/PPO_0 (events.out.tfevents.1793459449.vm.17519.0, 235953 B)
+  [ok] control_9411: the saved 2,359,296 zip's members other than data equal the builder's (5 members)
+  [ok] control_9411: the zip's data differs from the builder's only in tensorboard_log (['tensorboard_log'])
+  [ok] control_9411: the saved 2,359,296 VecNormalize pkl equals the builder's byte for byte
+  [ok] control_9411: no phase_state_end for control
+  [ok] critic_phase_9411: status done exit 0 stop end
+  [ok] critic_phase_9411: no optimizer step (no_update_check pass, n_updates 2471)
+  [ok] critic_phase_9411: digest_load equals the builder's
+  [ok] critic_phase_9411: digest_start equals the builder's
+  [ok] critic_phase_9411: digest_end equals the builder's
+  [ok] critic_phase_9411: arm_state_end 'in force'
+  [ok] critic_phase_9411: arm_evidence.jsonl, 31 rollouts, equal to the builder's (clock fields dropped)
+  [ok] critic_phase_9411: run_meta arm_evidence summary equal
+  [ok] critic_phase_9411: eval_episodes.csv equal (180 rows x 193 columns, time columns dropped)
+  [ok] critic_phase_9411: policy_probe.npz 33 arrays equal; differing []
+  [ok] critic_phase_9411: CHECK passed True failures []
+  [ok] critic_phase_9411: run_meta tensorboard_log loaded '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard' -> set '/home/user/work/phase_screen/tmp/no_update_critic_phase_9411/tb'
+  [ok] critic_phase_9411: one events file under <PS>/tmp/no_update_critic_phase_9411/tb/PPO_0 (events.out.tfevents.1793459449.vm.17522.0, 235953 B)
+  [ok] critic_phase_9411: the saved 2,359,296 zip's members other than data equal the builder's (5 members)
+  [ok] critic_phase_9411: the zip's data differs from the builder's only in tensorboard_log (['tensorboard_log'])
+  [ok] critic_phase_9411: the saved 2,359,296 VecNormalize pkl equals the builder's byte for byte
+  [ok] critic_phase_9411: phase_state_end actor phase columns unchanged True, Adam max 0.0; value_phase_cols_max_abs 0.0 (0: no update)
+V3: the builder's v3_check.py on the fixer's outputs (see logs/val/v3_check.out) and the 2,359,296 markers
+  [ok] control_9401: loop row at 2,097,152 equal to the builder's
+  [ok] control_9401: loop row at 2,359,296 equal to the builder's
+  [ok] critic_phase_9401: loop row at 2,097,152 equal to the builder's
+  [ok] critic_phase_9401: loop row at 2,359,296 equal to the builder's
+  [ok] control_9411: loop row at 2,097,152 equal to the builder's
+  [ok] control_9411: loop row at 2,359,296 equal to the builder's
+  [ok] critic_phase_9411: loop row at 2,097,152 equal to the builder's
+  [ok] critic_phase_9411: loop row at 2,359,296 equal to the builder's
+PASS

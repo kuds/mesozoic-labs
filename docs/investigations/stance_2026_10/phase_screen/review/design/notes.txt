@@ -1,0 +1,66 @@
+2026-10-31T14:29:48Z
+design review notes start
+2026-10-31T14:31:54Z CMD: ls PS, review, criteria_work; cat SCREEN.json; wc -l criteria.txt -> 693 lines; df -h / -> 1.8G avail
+2026-10-31T14:31:54Z READ: PS/criteria.txt lines 1-693 (Read tool)
+2026-10-31T14:32:03Z CMD: read BS2 review/FIXES.txt; grep _step_count in BS/code base_env files
+2026-10-31T14:32:15Z CMD: grep _step_count / settle in BS/code trex base_env.py
+2026-10-31T14:32:41Z CMD: read bs_common.py l60-200, bs_hooks.py l130-340; WHY notes
+2026-10-31T14:32:57Z CMD: read RUNLOG l796-812 (sed); ls pr655_review
+2026-10-31T14:33:11Z CMD: read pr655_review/xref/XREF.txt l100-220 (implications 3.1-3.7: per-bucket V-G manipulation check, tail sigma per arm)
+2026-10-31T14:33:18Z CMD: read criteria_work/DESIGN_NOTES.txt (all)
+2026-10-31T14:33:29Z CMD: work/bs_recompute.py on F2 probe -> logs/bs_recompute.out
+2026-10-31T14:34:21Z CMD: work/power_rd.py (own power code, seed 20261031, 200k draws) -> logs/power_rd.out
+2026-10-31T14:35:02Z CMD: grep time-dependent reward terms (grace|warmup|window|_step_count) in trex + shared env, stance.toml
+2026-10-31T14:35:16Z CMD: inspect dry_line2 root and score_bs.py structure
+2026-10-31T14:36:07Z CMD: inspect reads/_cache phase entry structure; validate/v3 is empty
+2026-10-31T14:36:29Z INCIDENT (my error): the previous command (stat + grep of ADAPT_NOTES/notes_check) redirected grep's stderr with 2>/dev/zero, a path outside PS; nothing was written (grep printed its matches; /dev/zero discards writes). Not repeated; all later stderr goes to files under review/design/logs.
+2026-10-31T14:37:10Z WROTE work/my_score.py (independent reading from the criteria text; sentinel fill)
+2026-10-31T14:37:48Z WROTE work/compare_scorers.py
+2026-10-31T14:37:57Z CMD: compare_scorers.py 3 1 -> 0 diffs (smoke); now 300 x seed 2
+2026-10-31T14:38:07Z CMD: /usr/bin/time missing (exit 127); rerun with date stamps
+2026-10-31T14:38:47Z CMD: compare_scorers.py 300 2 -> 0 diffs (lines 3:223 1:62 2:15); edited generator (reduced mode, separated secondaries); run 600 x seed 3
+2026-10-31T14:40:08Z CMD: work/make_mutants.py -> work/mutants/*.py (22 mutants of a COPY of score_bs.py)
+2026-10-31T14:40:19Z CMD: compare_scorers.py 400 4 <mutant> for each of 22 mutants -> logs/mutants/*.out
+2026-10-31T14:51:23Z CMD: verify cited BS2 score.txt lines (6-24, 46-71, 87, 93, 117, 141, 165, 181, 184, 190)
+2026-10-31T14:51:38Z CMD: read #655 report sections 1.3-1.5 (l139-235), 6.1-6.4 (l774-887), OQ1
+2026-10-31T14:52:05Z CMD: verify #655 cited line numbers 183 229 804-808 864 866-868 873-877
+2026-10-31T14:52:12Z CMD: verify widen_checkpoint.py cited lines (172, 451-456, 512-560, atol)
+2026-10-31T14:52:22Z CMD: list MJCF actuator names in order (code copy)
+2026-10-31T14:52:30Z CMD: grep -0.006 / phase-aware in verify_why; phase_probe NOTES l19, l56-59
+2026-10-31T14:53:36Z RESULT: mutants: 20 of 22 caught by the comparator (m15 B_S rounded to 0.12660 and m19 strict gate are equivalent on dyadic float32 data except within 5e-6 of the gate / never; both are covered by the scorer's own tests: B_S recomputed from F2, inclusive-gate test); logs/mutants/*.out
+2026-10-31T14:53:45Z CMD: work/line_texts.py (line texts and notes verbatim in criteria) -> logs/line_texts.out
+2026-10-31T14:54:16Z CMD: pytest test_score_bs.py (basetemp in my tmp, no cache) -> logs/pytest_score.out; pinned files sha256 unchanged before/after; removed my tmp/pt
+2026-10-31T14:54:55Z CMD: grep V2 / tests for the k=1000 terminal-observation evidence
+2026-10-31T14:56:14Z CMD: work/unit_fuzz.py (20,000 exact-Fraction cases incl. the gate boundary) -> logs/unit_fuzz.out
+2026-10-31T14:56:28Z CMD: verify SB3 on_policy_algorithm.py l236-245, vec_normalize.py l203-204, PPO KL early stop placement, MlpExtractor.forward
+2026-10-31T14:56:36Z CMD: check v2_check.out lines 26-28, 58-60 cited by criteria
+RESULTS SUMMARY (design and statistics lens) [measured unless marked]
+- Gate vs phase: k = _step_count at the observation (shared/base_env.py l1335 increment, l1349 obs, l1352 reward); the
+  four terms gate on _step_count > 200 at the reward (trex base_env l1278, 1315, 1339, 1421; stance.toml l212), i.e.
+  the observation's k >= 200 = settled flag. Only those terms use _step_count in the reward (grep; the 0.1 s spawn
+  grace is a curriculum bar, not a reward). The terms also gate on `not np.any(self._command)`, which the phase env
+  never changes (bs_hooks phase_env_class writes the obs vector only; V2 rewards 31/31 equal).
+- SB3 2.9: truncation bootstrap on_policy_algorithm l236-245, VecNormalize normalises terminal obs l203-204; PPO KL
+  stop is checked before the optimizer step (ppo.py l264-277), so update 1 always makes >= 1 step (ratio 1, KL 0):
+  C3 cannot fail spuriously from early stopping; MlpExtractor.forward calls forward_actor (torch_layers l255).
+- B_S recomputed from F2 probe rows 248-255: exactly 135930855/2^30 (logs/bs_recompute.out); tail_2 at S +0.02331.
+- Power re-run with my own code (work/power_rd.py, 200k draws): every quoted cell reproduced within MC error
+  (logs/power_rd.out). New: if the phase arm's critic slope merely stays at its S value (+0.0214, i.e. it never
+  stops paying for the tail), SEC-MECH reads SUPPORTED with P 0.49 (SD 0.017) to 0.71 (SD 0.005).
+- Line 3 clause check: two-state model at half the rise (f 0.5) gives 0.11-0.30 (q 0.5-1), not 0.1-0.6.
+- Scorer: work/my_score.py (independent, sentinel fill) vs score_bs.score on 903 randomized synthetic roots
+  (seeds 1, 2, 3): 0 differences (lines 1/2/3 all exercised; every secondary SUPPORTED and NOT SUPPORTED seen);
+  20,000 exact-Fraction decide() cases incl. the exact gate boundary: 0 differences; line texts and notes verbatim
+  in criteria.txt; 22 text-to-code mutants: 20 caught (m15 B_S rounded, m19 strict gate equivalent on dyadic data;
+  both covered by the scorer's own tests); pytest test_score_bs.py 142 passed, pinned files unchanged.
+- VALIDATIONS cites V2 for the k = 1000 bootstrap observation; v2_check.out has none; it is in the build checker's
+  c_arm_9421b.out F_time_limit_terminal_obs_settled (8 truncations, (1,1,1)) and test_bs_hooks.py l474/504-506.
+- #655 citations (l183, 229, 804-808, 864, 866-868, 873-877) and main widen_checkpoint.py (l172, 451-456, atol 1e-6
+  l67) hold; BS2 score.txt lines cited hold; WHY numbers hold (FR3 -0.0056 -> -0.006).
+- Not in the criteria: #655 OQ1 / PR-655 review XREF 3.4 per-bucket V - G (0-50, 50-150, 150-200, 200-250,
+  250-1000) as a manipulation check.
+2026-10-31T14:57:19Z CMD: find files newer than notes start outside PS written by me: none expected (all writes under review/design; one /dev/zero stderr redirect incident logged)
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda        252G   37G  1.8G  96% /
+2.3M	/home/user/work/phase_screen/review/design
+2026-10-31T14:57:19Z
