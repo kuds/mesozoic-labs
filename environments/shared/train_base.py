@@ -51,6 +51,7 @@ from .constants import (
     DEFAULT_NORM_REWARD,
     PUBLICATION_SEED_START,
 )
+from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
 from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
 from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS
@@ -663,10 +664,11 @@ def _create_or_load_model(
                     allow_legacy=allow_legacy_plant,
                 )
         model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
-        if critic_phase is not None or getattr(model.policy, "critic_phase", None) is not None:
-            # Both ways, any load mode: a critic built for the phase cannot train without it, nor one built
-            # without it on the phase-carrying observations.  A stock checkpoint on a stage without the
-            # option never enters this branch.
+        # Both ways, any load mode: a critic built for the phase cannot train without it, nor one built without
+        # it on the phase-carrying observations.  A phase checkpoint always carries its JSON record (read from
+        # the instance's own attributes, as SB3's load restores them); a stock checkpoint on a stage without the
+        # option never enters this branch, and nothing else of the loaded model is read for it.
+        if critic_phase is not None or getattr(model, "__dict__", {}).get(CRITIC_PHASE_ATTRIBUTE) is not None:
             from .critic_phase_ppo import critic_phase_mismatch
 
             mismatch = critic_phase_mismatch(model, critic_phase)
@@ -750,8 +752,6 @@ def _create_or_load_model(
         if task_lineage is not None:
             attach_task_lineage(model, task_lineage)
     if critic_phase is not None:
-        from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
-
         setattr(model, CRITIC_PHASE_ATTRIBUTE, critic_phase.record())
     if symmetry is not None and mirror_map is not None:
         from .mirror_kl_ppo import enable_mirror_kl

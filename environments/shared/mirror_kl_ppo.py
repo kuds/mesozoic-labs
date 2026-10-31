@@ -257,7 +257,7 @@ class MirrorKLPPO(PPO):
             # A critic that also reads the episode phase (environments/shared/critic_phase_ppo.py) stores it in
             # the buffer after the observation: those columns are their own mirror image (sign +1).  0 on a stock
             # policy, whose maps are used exactly as they are.
-            extra = int(getattr(self.policy, "critic_phase_width", 0))
+            extra = int(getattr(type(self.policy), "critic_phase_width", 0))
             if extra:
                 obs_perm = np.concatenate([obs_perm, np.arange(len(obs_perm), len(obs_perm) + extra)])
                 obs_sign = np.concatenate([obs_sign, np.ones(extra)])

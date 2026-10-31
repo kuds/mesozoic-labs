@@ -64,6 +64,7 @@ from typing import Any, NamedTuple
 
 import numpy as np
 
+from .critic_phase import CriticPhaseSpec
 from .curriculum import sb3_compat
 from .curriculum.sb3_compat import BaseCallback
 from .model_id import ModelId
@@ -662,7 +663,9 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
         # A critic that also reads the episode phase ([ppo] critic_phase, environments/shared/critic_phase_ppo.py)
         # is given each bank state's own phase: the observation kept after step index s carries _step_count s + 1.
         # The actor reads the bank's observation alone, as it always does; the file's bank is left as built.
-        critic_phase = getattr(policy, "critic_phase", None)
+        critic_phase = getattr(policy, "__dict__", {}).get("critic_phase")
+        if not isinstance(critic_phase, CriticPhaseSpec):
+            critic_phase = None
         # get_distribution() stores the distribution it builds on the policy's action_dist; the one the
         # rollout left there is put back, so the probe leaves the policy object as it found it.
         stored = dict(vars(policy.action_dist))

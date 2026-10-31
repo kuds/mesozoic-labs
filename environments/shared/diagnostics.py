@@ -337,7 +337,13 @@ class DiagnosticsCallback(_BaseCallback):
             # The policy's observation only: a critic that also reads the episode phase ([ppo] critic_phase)
             # stores it in extra trailing buffer columns, which these statistics leave out.
             width = getattr(getattr(self.model, "observation_space", None), "shape", None)
-            if width and len(width) == 1 and getattr(obs, "ndim", 0) >= 1 and obs.shape[-1] > width[0]:
+            if (
+                isinstance(width, tuple)
+                and len(width) == 1
+                and isinstance(obs, _np.ndarray)
+                and obs.ndim >= 1
+                and obs.shape[-1] > width[0]
+            ):
                 obs = obs[..., : width[0]]
             self.logger.record("diagnostics/obs_mean", _sanitize(float(_np.mean(obs))))
             self.logger.record("diagnostics/obs_std", _sanitize(float(_np.std(obs))))
