@@ -600,3 +600,61 @@ def test_the_trainer_reads_the_switch_from_the_ppo_table():
     with pytest.raises(CP.CriticPhaseError):
         CP.read_critic_phase(configs[1]["ppo_kwargs"])
     assert pickle.loads(pickle.dumps(SPEC)) == SPEC  # the spec travels with a pickled policy
+
+
+@pytest.mark.parametrize("switch", [False, True], ids=["off", "on"])
+def test_the_trainer_wires_the_switch_end_to_end(switch, tmp_path, monkeypatch):
+    """train_base.train (the notebook's train_stage call) on the real T. rex stance stage, one tiny update: off, the
+    stock VecNormalize, MlpPolicy and buffer and no record; on, the phase env, policy, buffer and record."""
+    import copy
+
+    from environments.shared import train_base
+    from environments.shared.config import load_all_stages
+    from environments.shared.species_registry import get_species_config
+
+    configs = copy.deepcopy(load_all_stages(TYRANNOSAURUS_REX))
+    configs[1]["ppo_kwargs"].update(n_steps=64, batch_size=64, n_epochs=1)
+    if switch:
+        configs[1]["ppo_kwargs"]["critic_phase"] = True
+    seen = {}
+    original = train_base._create_or_load_model
+
+    def spy(sb3, algorithm, alg_kwargs, train_env, *args, **kwargs):
+        seen["env"] = type(train_env)
+        seen["alg_kwargs"] = dict(alg_kwargs)
+        return original(sb3, algorithm, alg_kwargs, train_env, *args, **kwargs)
+
+    monkeypatch.setattr(train_base, "_create_or_load_model", spy)
+    model = train_base.train(
+        get_species_config(TYRANNOSAURUS_REX),
+        configs,
+        1,
+        64,
+        n_envs=1,
+        seed=42,
+        eval_freq=10**9,
+        save_freq=10**9,
+        verbose=0,
+        output_dir=str(tmp_path / "stage"),
+        use_tensorboard=False,
+        report_metrics=False,
+        save_on_interrupt=False,
+    )
+    assert type(model) is MK.MirrorKLPPO and model.num_timesteps == 64 and model._n_updates == 1
+    assert "critic_phase" not in seen["alg_kwargs"]  # popped: never a PPO constructor argument
+    recorded = json.loads((tmp_path / "stage" / "stage_config.json").read_text())
+    if switch:
+        assert seen["env"] is CPP.CriticPhaseVecNormalize
+        assert type(model.policy) is CPP.CriticPhaseActorCriticPolicy and model.rollout_buffer.obs_shape == (66,)
+        assert model.policy.critic_phase == CP.CriticPhaseSpec(200, 0.98)
+        assert recorded["hyperparameters"]["critic_phase"] is True
+    else:
+        assert seen["env"] is VecNormalize
+        assert type(model.policy) is ActorCriticPolicy and type(model.rollout_buffer) is RolloutBuffer
+        assert model.rollout_buffer.obs_shape == (63,) and CP.CHECKPOINT_ATTRIBUTE not in vars(model)
+        assert "critic_phase" not in recorded["hyperparameters"]
+    with zipfile.ZipFile(tmp_path / "stage" / "models" / "stage1_final.zip") as archive:
+        data = json.loads(archive.read("data"))
+    assert (CP.CHECKPOINT_ATTRIBUTE in data) is switch and data["observation_space"]["_shape"] == [63]
+    with open(tmp_path / "stage" / "models" / "stage1_final_vecnorm.pkl", "rb") as handle:
+        assert type(pickle.load(handle)) is VecNormalize
