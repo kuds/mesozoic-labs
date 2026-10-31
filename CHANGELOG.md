@@ -30,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   creep after each reset makes the tail angle one; a tail-floor termination
   risk was excluded. The review of #655 found its evidence reproducing and
   its trained-policy facts the run branch's, where the step-200 incentive is
-  about 3.5 times `main`'s. A scratch CPU screen of 8 continuations from
+  about 3.5 times `main`'s on the statue (3.1 to 3.3 times on trained
+  policies). A scratch CPU screen of 8 continuations from
   2,097,152 steps then gave the critic alone the episode phase, the actor
   unchanged and the tail angle still seen: line 2, "REDUCED" (every control
   above every phase continuation, p 1/70, though a spread-only effect would

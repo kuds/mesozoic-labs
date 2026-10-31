@@ -2387,20 +2387,20 @@ is outside this record. Nothing here is certified, and nothing trains on
 | 2026-10-30, 16:42 UTC [L188] | Why does the critic pay for a raised tail? | The maintainer, after asking why blinding the critic would be a good fix: "Probe it now, no training (Recommended)" (D-D59): two lenses, each pre-registering its predictions with a sha256 before any data, then an independent verifier and adjudicator; no policy training | [measured] Launched at 16:42 UTC; verified at 18:23 UTC | adopted | RUNLOG l803-l804 |
 | 2026-10-30, 16:56-17:28 UTC [L189] | Lens A: is the tail angle a proxy for a hidden episode phase? | PH: 48 training-like episodes at each of 7 checkpoints (s42 at 1,048,576 and 2,097,152; BS2's controls 2511 and 2531 at 3,145,728 and at E; BS2's blinded 2511 at E) and 32 at s80's 4,194,304; PREREG `639cd879…` recorded at 16:56:47 UTC | [measured] A1 to A5 and A4c SUPPORTED, overall A SUPPORTED: the four stance terms paid only after step 200 make settled states worth 0.17-0.23 more at matched observation; the tail angle is a clock (AUC 0.61-0.95); the critic overvalues steps 50-200 and gives the tail +0.02 to +0.06 per degree, which the realised returns do not pay once the phase is controlled | supported | PH `NOTES.txt` l5-l57, `verdicts.txt` |
 | 2026-10-30, 16:51-17:50 UTC [L190] | Lens B: does the critic value a raised tail because a lower one risks the tail-floor contact that ends an episode? | TP: 128 training-like episodes per condition (10 conditions), and the parent's training records over 1.05-3.54M; PREREG `7c69819d…` recorded at 17:00:42 UTC | [measured] B-genuine NOT SUPPORTED: 0 tail_contact in the rollouts and in the parent's 2,495 training episodes over (1,048,576, 3,538,944]; the risk could fund at most about 7% of the critic's tail slope | ruled out | TP `NOTES.txt` l15-l60, l89-l109 |
-| 2026-10-30, 17:52-18:23 UTC [L191] | Verify and adjudicate | VW: both PREREGs' hashes and times; both lenses re-derived with its own code; fresh rollouts on new seeds; its own pre-registered checks (PREREG `8267fcab…`); post hoc reads | [measured, verified] No broken pre-registration and no wrong number; A favoured strongly, B-genuine excluded, B-apparent (a height preference) unresolved, at most a small modulator within a phase; a TD(0.95) linear critic gives the tail +0.054 to +0.068 per degree without the phase and -0.005 to +0.004 with it | adopted | VW `NOTES.txt` l41-l49 |
+| 2026-10-30, 17:52-18:23 UTC [L191] | Verify and adjudicate | VW: both PREREGs' hashes and times; both lenses re-derived with its own code; fresh rollouts on new seeds; its own pre-registered checks (PREREG `8267fcab…`); post hoc reads | [measured, verified] No broken pre-registration and no wrong number; A favoured strongly, B-genuine excluded, B-apparent (a height preference) unresolved, at most a small modulator within a phase; a TD(0.95) linear critic gives the tail +0.054 to +0.068 per degree without the phase and -0.005 to +0.004 with it at the five climb-era checkpoints (with the fresh rollouts, +0.048 to +0.068 and -0.006 to +0.004, as the run log gives) | adopted | VW `NOTES.txt` l27, l41-l49 |
 | 2026-10-30 to 2026-10-31 [L192] | H-PHASE: the critic credits the tail with a hidden episode phase | Tested without training (L189-L191) and in training by giving the critic the phase (PS) | [inferred] Supported in s42 from 2,097,152: with the phase, the critic's tail slope went to about 0 and the climb stopped (L200); not shown from other runs, states or the start of training | supported | §10.2, §10.4 |
 | 2026-10-30, 18:30 UTC [L193] | What next? | The maintainer: "Test the phase fix first (Recommended)" (D-D60 (1)): a critic-only phase input, the critic keeping the tail angle and the actor unchanged, in BS2's screen design from 2,097,152 against new controls, built and reviewed first; the long critic-blind study's launch held | [measured] The long study's build stopped at 18:29 UTC with its harness, measurement tool and draft criteria kept; it never trained | adopted | RUNLOG l805 |
 | 2026-10-30, 18:32-18:36 UTC [L194] | Stop for the day | The maintainer: "Stop development for now. We'll resume this tomorrow." and "Push a safety copy (Recommended)" (D-D60 (2), (3)) | [measured] The phase screen's build and the records workflow stopped; an end-of-day safety copy pushed to the orphan branch `claude/handoff-day-2026-10-30` at `b25eeaf5` (1,807 files, about 28 MB; the why-probe without its npz rollouts among them), never merged | adopted | RUNLOG l806-l807 |
-| 2026-10-31, 12:53-13:26 UTC [L195] | Review #655 | The maintainer: "Please resume and also take a look at pr 655 and some of its findings"; then "Post a review comment (Recommended)" (D-D61): RP reproduces, XR cross-checks; no training | [measured] Every evidence script of #655 reproduces its committed output byte for byte; the trained r10 policies #655 cites ran the run branch's stance configuration, on which the step-200 incentive is about 3x `main`'s; one comment posted | adopted | RP `SHA256SUMS_reruns.txt`; XR `XREF.txt`; RUNLOG l808-l811 |
+| 2026-10-31, 12:53-13:26 UTC [L195] | Review #655 | The maintainer: "Please resume and also take a look at pr 655 and some of its findings"; then "Post a review comment (Recommended)" (D-D61): RP reproduces, XR cross-checks; no training | [measured] Every evidence script of #655 reproduces its committed output byte for byte; the trained r10 policies #655 cites ran the run branch's stance configuration, on which the step-200 incentive is about 3.5x `main`'s on the statue (3.1 to 3.3x on trained policies); one comment posted | adopted | RP `SHA256SUMS_reruns.txt`; XR `XREF.txt`; RUNLOG l808-l811 |
 | 2026-10-31, 12:58-15:53 UTC [L196] | PS: design, build and review | The phase in the critic's input only (`min(k, 200)/200`, a settled flag, `0.98^max(0, 200 - k)` in the three always-zero command slots); BS2's window, primary, gate and test; seeds 2901-2931; secondaries SEC-CMD, SEC-MARGIN, SEC-MECH and the guard SEC-TAIL2 | [measured] 8 agents, 0 errors; the process review's one blocking finding (P-B1: the training library's TensorBoard events went outside the screen's folder) fixed and re-validated; the fixed version re-reviewed READY TO PIN, 0 blocking | adopted | PS `review/FIXES.txt`, `review/rereview/`; RUNLOG l817-l818 |
 | 2026-10-31, 15:54:59 UTC [L197] | Pin it? | The maintainer: "Confirm as built (Recommended)", "Build it during the runs (Recommended)" (a separate report-only V − G and tail σ tool) and "Delete venvs + caches only (Recommended)" (D-D62) | [measured] 55 regenerable venv and cache folders deleted; free disk 2,128,162,816 to 5,054,861,312 bytes | adopted | RUNLOG l819-l820 |
-| 2026-10-31, 15:56:13-15:56:58 UTC [L198] | PS: pin and launch | APPROVED written once, the criteria and queue made read-only, four read-only pre-launch checks | [measured] Criteria `9875039f…`, SCREEN `7d6d368a…`, APPROVED `067d97d2…` (its bytes in the run log); launched at 15:56:58 UTC | adopted | PS `APPROVED`; RUNLOG l821-l835 |
-| 2026-10-31, 15:56-20:19 UTC [L199] | PS: the run | Two waves of 4 under the pinned runner, outcome-blind | [measured] Two container restarts (about 18:07 and 18:53 UTC) killed the second wave twice; each half-way run was recorded as a crash not counted, its folder retired unread and rerun from the start pair with the same seed; all 8 decided at 20:06:54 UTC, none VOID | n/a | PS `run_logs/crash_ledger.tsv`, `decided.tsv`; RUNLOG l849-l856 |
+| 2026-10-31, 15:56:13-15:56:58 UTC [L198] | PS: pin and launch | APPROVED written once, the criteria and queue made read-only, five read-only pre-launch checks (pin step 4) | [measured] Criteria `9875039f…`, SCREEN `7d6d368a…`, APPROVED `067d97d2…` (its bytes in the run log); launched at 15:56:58 UTC | adopted | PS `APPROVED`; RUNLOG l821-l835 |
+| 2026-10-31, 15:56-20:19 UTC [L199] | PS: the run | Two waves of 4 under the pinned runner, outcome-blind | [measured] Two container restarts (about 18:07 and 18:53 UTC) killed the second wave twice; each half-way run was recorded as a crash not counted, its folder retired unread and rerun from the start pair with the same seed (the killed attempts had stopped writing at about 17:50 and 18:16 UTC, each about 7 minutes after the coordinator's last call, the basis of the inference that an idle session's container is reclaimed); all 8 decided at 20:06:54 UTC, none VOID | n/a | PS `run_logs/crash_ledger.tsv`, `decided.tsv`, `check/proc/NOTES.txt` l132-l137; RUNLOG l849-l856 |
 | 2026-10-31, 20:19:27 UTC [L200] | PS: the reading | `score_bs` 3.1 on the 8 continuations, all COUNTED | [measured] Line 2, REDUCED: control +0.49357, +0.58592, +0.66068, +0.64649 against phase +0.06767, +0.04724, +0.04290, +0.06832; control median rise +0.48961; p 1/70; SEC-CMD, SEC-MARGIN and SEC-MECH SUPPORTED (1/70 each), the guard SEC-TAIL2 SUPPORTED (2/70) | supported | PS `score/score.txt` l5-l75; RUNLOG l857 |
 | 2026-10-31, 20:21-20:41 UTC [L201] | Check the reading | Two independent lenses, statistic and process | [measured] Both agree: 931 comparisons with the score, 0 differences beyond round-off; 0 blocking; process findings M1 (the criteria's early-crash wording against the runner's handling of a container kill) and M2 (redirects to system device files not self-reported) minor | adopted | PS `check/stat/NOTES.txt`, `check/proc/NOTES.txt`; RUNLOG l862 |
 | 2026-10-31, 15:59-20:30 UTC [L202] | How does the critic's error look by episode step? | VG: built, independently checked and fixed during the runs, pinned in the run log at 17:43:18 UTC before the screen was decided, run after the reading; 32 episodes per final checkpoint; report only | [measured] The control critic still mistimes the step-200 gate (median V − G +0.037 in steps 50-150, -0.068 in 200-250); the phase critic is nearly unbiased in every bucket (|V − G| 0.009-0.044); tail σ falls slowly in both arms | n/a | VG `out/vg_sigma.txt` l136-l147; RUNLOG l840, l858, l861 |
 | 2026-10-31, 20:43:59 UTC [L203] | What next? | The maintainer: "Push it (Recommended)" (the screen's durable copy) and "Long phase-critic run (Recommended)" (the paused long harness adapted to the phase critic, s42 from 2.10M to about 12M, design and review first) (D-D63) | [measured] Durable copy pushed at 20:45:54 UTC: orphan branch `claude/handoff-phase-screen` at `dd4f0d32` (1,369 files, 35 MB), never merged; the long study's build launched at 20:47:47 UTC | adopted | RUNLOG l863-l865 |
-| 2026-10-31, 20:47-20:55 UTC [L204] | The long phase-critic study (LP) | A CPU continuation study to about 12M, built from the paused long harness | [measured] Its build was killed by the maintainer's interrupt at about 20:50 UTC with nothing finished, and abandoned at 20:55 UTC in favour of the Colab run (L205); nothing ran | superseded (L205) | RUNLOG l865, l868 |
+| 2026-10-31, 20:47-20:55 UTC [L204] | The long phase-critic study (LP) | A CPU continuation study to about 12M, built from the paused long harness | [measured] Its build was killed by the maintainer's interrupt at about 20:50 UTC (its builder and designer had started; nothing finished) and abandoned at 20:55 UTC in favour of the Colab run (L205); nothing trained | superseded (L205) | RUNLOG l865, l868 |
 | 2026-10-31, 20:54:11-20:57:31 UTC [L205] | Tonight's run | The maintainer: "Switch to Colab run (Recommended)" and "Separate critic input (Recommended)": the phase critic built into the run branch's training code as a critic-only observation, the actor's 63 inputs unchanged, with tests, a notebook switch and a short pre-registration, then 3 seeds from step 0 on Colab; at 20:57:31 UTC, keep the plan, 12M, 3 seeds (D-D64) | [measured] The build launched at 20:57:00 UTC on a new local branch from the run branch at `8737cd3d`; nothing pushed; its pre-registration and results are not in this record (the subsection "Pending: the fresh Colab run" below) | adopted | RUNLOG l867-l870 |
 | 2026-10-31, 20:57:31-21:00:15 UTC [L206] | The records | The maintainer: after the Colab results, a full review and a summary of all the experiments, then a new prompt for a new session; "Start tonight, finish after (Recommended)" (D-D65): this records change drafted tonight with local commits only, finished after the results | [measured] This change's workflow launched at 21:00:15 UTC | adopted | RUNLOG l870-l871 |
 
@@ -2423,15 +2423,21 @@ VW `NOTES.txt` l41-l49, RUNLOG l804, unless said; L189-L192]
   at 1,048,576) it does not (AUC 0.46). The verifier found the clock in the
   deterministic policy too (AUC 0.97): it is the mean policy, not the noise.
 - **The critic makes a phase error and credits the tail.** V − G is +0.02 to
-  +0.12 in steps 50-200 and -0.03 to -0.05 in steps 200-400; the critic's
-  slope on the tail angle is +0.02 to +0.06 per degree, while the realised
-  returns give the tail -0.013 to -0.002 per degree once the phase is
-  controlled, and -0.018 to -0.004 inside steps 400-1000. The sign of the
-  critic's tail slope follows the sign of the tail's phase drift at all 6
-  non-blinded checkpoints (A5). The verifier's TD(0.95) linear critic, fitted
-  like SB3's, gives the tail +0.054 to +0.068 per degree without the phase
-  and -0.005 to +0.004 with it; SB3's own advantages push the tail command up
-  (CI > 0) where Monte Carlo advantages do not detectably (VW PH2).
+  +0.12 in steps 50-200 and -0.03 to -0.05 in steps 200-400 (D_err, the
+  pre-registered episode-paired error in steps 50-200 less that in steps
+  200-1000, is +0.043 to +0.140, the run log's +0.04 to +0.14; PH
+  `NOTES.txt` l27-l28); the critic's slope on the tail angle is +0.02 to
+  +0.06 per degree, while the realised returns give the tail -0.013 to
+  -0.002 per degree once the phase is controlled, and -0.018 to -0.004 inside
+  steps 400-1000. The sign of the critic's tail slope equals sign(dS) ×
+  sign(B_bar), the sign of the tail's phase drift times that of the gated
+  terms' net pay, at all 6 non-blinded checkpoints (A5; PH `NOTES.txt` l35).
+  The verifier's TD(0.95) linear critic, fitted like SB3's, gives the tail
+  +0.054 to +0.068 per degree without the phase and -0.005 to +0.004 with it
+  at the five climb-era checkpoints, and +0.048 to +0.068 and -0.006 to
+  +0.004 with the fresh rollouts, as the run log gives (VW `NOTES.txt` l27,
+  l45); SB3's own advantages push the tail command up (CI > 0) where Monte
+  Carlo advantages do not detectably (VW PH2).
 - **Not termination risk.** 0 tail_contact in 1,280 training-like episodes
   and in the parent's 2,495 training episodes over (1,048,576, 3,538,944];
   tail_contact ended 32 of the parent's first 1,402 episodes, none after
@@ -2471,12 +2477,13 @@ numbers measured on `main`'s committed configuration at `358651fe`.
   adds the lateral lean (0.25), stagger (0.30) and centre-of-pressure band
   (0.30) terms and the settled leg reference (XR `XREF.txt` l15-l26 and
   `out/stance_toml_main_vs_runbranch.diff`). So:
-  - the step-200 incentive is about 3.5x larger on the run branch: on its
-    statue the reward per step rises +0.345 across step 200 (lateral lean
-    +0.248, stance width +0.100, stagger -0.007; the mean over RP
-    `rb_probe.json`'s 5 seeds) against `main`'s +0.099 (stance width only),
-    and on trained run-branch policies the four gated terms sum to +0.31 to
-    +0.33 per settled step, 3.1 to 3.3x (XR l69-l76);
+  - the step-200 incentive is about 3.5x `main`'s on the statue (3.1 to
+    3.3x on trained policies): on the run branch's statue the reward per
+    step rises +0.345 across step 200 (lateral lean +0.248, stance width
+    +0.100, stagger -0.007; the mean over RP `rb_probe.json`'s 5 seeds)
+    against `main`'s +0.099 (stance width only), and on trained run-branch
+    policies the four gated terms sum to +0.31 to +0.33 per settled step,
+    3.1 to 3.3x (XR l69-l76);
   - #655's lean incentive (the statue not the reward optimum, +17 to +24.5)
     is `main`'s only: on the run branch's code and settled leg reference the
     same cases lose 29.1 (hip +0.02), 90.8 (lean 0.25) and 261.3 (lean 0.5)
@@ -2487,10 +2494,13 @@ numbers measured on `main`'s committed configuration at `358651fe`.
     l104-l111).
 - **#655's open question 1 measured.** On the run branch the critic's V − G
   in raw units is +1.5 to +6.4 in steps 50-150, +0.2 to +3.2 in 150-200 and
-  -1.9 to -3.4 in 200-250: a blurred step that peaks well before step 150
-  and flips sign at 200, rather than an error confined to steps 150-200; it
-  is about 0 in steps 0-50, so the critic does not blend the pop (XR
-  l77-l103).
+  -1.9 to -3.4 in 200-250 (XR l77-l85); in 25-step bins the positive error
+  peaks in steps 100-150, 50 to 100 steps before the gate, is near 0 at
+  175-200 and is most negative at 200-225 (XR l86-l88); and it is about 0 in
+  steps 0-50 (XR l60-l61, l124). [inferred, XR l62, l94-l97, l126] A blurred
+  step, not an error confined to steps 150-200; at these checkpoints the
+  critic does not blend the pop, and #655's reading that it must can hold
+  only early in training.
 - **Smaller items** (RUNLOG l810): wording without its qualifier, a figure
   without its correction, a peak inflated by one fall, a range missing a
   cell, a rescaled number labelled measured, cross-configuration score
@@ -2522,8 +2532,9 @@ l817-l862; L196-L201]
   median rise of at least 0.20 from B_S +0.12660) and exact one-sided
   permutation test; three efficacy secondaries and a guard that never change
   the line. Built, checked, reviewed by a design and a process lens, fixed
-  (32 findings; P-B1 blocking, fixed) and re-reviewed READY TO PIN; APPROVED
-  at 15:56:13 UTC, 45 s before the launch.
+  (15 of 32 findings fixed, among them the blocking P-B1, re-validated; 17
+  needed no change or went to the coordinator) and re-reviewed READY TO PIN;
+  APPROVED at 15:56:13 UTC, 45 s before the launch.
 - **Reading, final: line 2, "REDUCED: GIVING THE CRITIC THE EPISODE PHASE
   (the tail_3 angle still in its input; the actor unchanged) REDUCED THE
   ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's
@@ -2545,8 +2556,10 @@ l817-l862; L196-L201]
   because the controls' fell; the phase arm's barely moved (median rise
   +0.004, against the parent's +0.023 at S) (REPORT.md l74-l78).
 - **Report only** (REPORT.md l65-l88): the phase arm's window return was
-  higher in all 4 pairs (+36 to +66); each arm had one fall, both in the
-  same seed-2901 evaluation at 3,407,872 (a shared start state, as in BS2);
+  higher in all 4 pairs (+36 to +66); each arm had one fall, a tail_contact
+  termination, both in the seed-2901 evaluation at 3,407,872 ([inferred
+  there] a shared evaluation start, not the arm; BS2 had the same
+  coincidence; `score/score.txt` l98, l111);
   no control reached the rail in this window, unlike two of BS2's; post hoc
   the phase arm's `tail_1` pitch command rose +0.04 to +0.06 while the
   controls' fell, which a longer run should watch. The arms' spreads differ
@@ -2570,7 +2583,19 @@ l817-l862; L196-L201]
   found before the relaunch); M2, some redirects of a read-only command's
   error stream to system device files by the coordinator and the V − G
   checker were not self-reported; nothing was written (`check/proc/NOTES.txt`
-  l6-l10, l115-l137).
+  l6-l10, l115-l137). In all, the coordinator made 5 such redirects, 3 not
+  self-reported (at 15:57 UTC and twice at 17:06 UTC) and 2 logged by it as
+  rule slips (19:35 and 20:31 UTC), and the V − G checker 2 (REPORT.md
+  l123-l125; RUNLOG l854, l860). The V − G build self-reported three
+  read-only deviations: its builder listed the top level of the training
+  library's temporary TensorBoard folder (names only), its checker's search
+  of the work folder read the file times of the screen folder's top-level
+  entries (not their contents), and its fixer redirected one error stream to
+  a system device file (RUNLOG l848). The only training before the launch
+  was the two throwaway passes the build's briefs allowed: the build
+  checker's one update on a discarded in-memory copy and the builder's one
+  optimizer step in its validation V5 (P-i5; RUNLOG l818). None of these
+  wrote anything outside the folders.
 - **What it means** [measured, REPORT.md l89-l99]: from s42's 2.10M state,
   telling the critic the episode phase stopped the climb of the policy's
   tail command, which fell back below its start, while the critic still saw
@@ -2594,13 +2619,17 @@ l817-l862; L196-L201]
 ### 10.5 The critic's error by episode step (VG, report only)
 
 [measured, VG `out/vg_sigma.txt` l136-l147 and its tail σ table, RUNLOG
-l840, l861; L202]
+l840, l848, l861; L202]
 
-Built during the runs at the maintainer's word, independently checked (0
-blocking, two minor findings fixed) and pinned in the run log at 17:43:18
-UTC, before the screen was decided; run once after the reading on the 8 end
-checkpoints and the start pair, 32 on-policy episodes each; never a line or
-a secondary. Arm medians of each run's mean, in the critic's units:
+Built during the runs at the maintainer's word, outcome-blind (it read no
+run, read or score file), independently checked (0 blocking, two minor
+findings fixed; the build self-reported three read-only deviations, among
+them its checker's read of the screen folder's top-level file times, and the
+checker made two redirects it did not report; §10.4) and pinned in the run
+log at 17:43:18 UTC, before the screen was decided; run once after the
+reading on the 8 end checkpoints and the start pair, 32 on-policy episodes
+each; never a line or a secondary. Arm medians of each run's mean, in the
+critic's units:
 
 | Steps | Control V − G | Phase V − G | Control mean abs V − G | Phase mean abs V − G |
 |---|---|---|---|---|
@@ -2621,22 +2650,24 @@ floor never binds.
 
 ### 10.6 What is answered, and what stays open (§7 and §9.6 updated)
 
-**Answered or narrowed since §9** (each within the scope tested)
+**Answered or narrowed since §9** (each within the scope tested) [inferred,
+from the measured rows cited, but where marked]
 
-- §9.6's "why the critic values a raised tail": on the run branch it is a
-  phase proxy. The step-200 terms make value depend on a hidden phase, the
-  policy's own tail creep makes the tail angle a clock, and a phase-blind
-  critic credits the tail with it [L189, L191]; the termination risk is
-  excluded [L190]; giving the critic the phase removed the credit and the
-  climb from s42's 2.10M state [L200, L201]. H-PHASE is supported there
-  [L192].
+- §9.6's "why the critic values a raised tail": on the run branch, in s42's
+  lineage (and at one s80 checkpoint, post hoc), it is mainly a phase proxy.
+  The step-200 terms make value depend on a hidden phase, the policy's own
+  tail creep makes the tail angle a clock, and a phase-blind critic credits
+  the tail with it [L189, L191]; the termination risk is excluded [L190];
+  giving the critic the phase removed the credit and the climb from s42's
+  2.10M state [L200, L201]. H-PHASE is supported there [L192].
 - §7 open question 1, why the loop forms in training: narrowed further: the
-  critic's credit for a raised tail is a hidden-time artefact of the
-  run branch's reward, not a valuation of the tail itself [L191, L200].
+  critic's credit for a raised tail is mainly a hidden-time artefact of the
+  run branch's reward, not mainly a valuation of the tail itself (a small
+  height preference within a phase is unresolved) [L191, L200].
 - #655's open question 1, the critic's error by step, is measured on the
-  run branch [L195, L202].
+  run branch [measured, L195, L202].
 
-**Still open**
+**Still open** [inferred, from the rows cited]
 
 - What drives the very first push at the onset (about 1.2M) [L171, L179];
   the phase input was not tested there.
@@ -2655,19 +2686,21 @@ floor never binds.
 
 ### 10.7 Next: the long studies set aside, a fresh run on Colab
 
-The long critic-blind study of §9.7 (LB) was never pinned or launched: at
-18:30 UTC on 2026-10-30 the maintainer chose to test the phase fix first,
-and its build stopped at 18:29 UTC with its harness, measurement tool and
-draft criteria kept (D-D60 (1); RUNLOG l805) [L193]. After the screen, the
-maintainer chose a long phase-critic study on the session's CPUs (D-D63;
-RUNLOG l863) [L203]; its build was launched at 20:47:47 UTC, killed by the
-maintainer's interrupt at about 20:50 UTC with nothing finished, and
-abandoned at 20:55 UTC (RUNLOG l865, l868) [L204]. At 20:54:11 UTC the
-maintainer chose instead a fresh run on Colab with a separate critic-only
-input (D-D64; RUNLOG l867) [L205]: its build, with a pre-registration, was
-launched at 20:57:00 UTC, and at 20:57:31 UTC the maintainer kept the plan
-of 12M-step runs on 3 seeds that night (RUNLOG l869-l870). Nothing in this
-section trained on `main`, and no gate, reward, plant or criterion changed.
+[measured, RUNLOG l805, l863-l870; L193, L203-L205] The long critic-blind
+study of §9.7 (LB) was never pinned or launched: at 18:30 UTC on 2026-10-30
+the maintainer chose to test the phase fix first, and its build stopped at
+18:29 UTC with its harness, measurement tool and draft criteria kept (D-D60
+(1); RUNLOG l805) [L193]. After the screen, the maintainer chose a long
+phase-critic study on the session's CPUs (D-D63; RUNLOG l863) [L203]; its
+build was launched at 20:47:47 UTC, killed by the maintainer's interrupt at
+about 20:50 UTC with nothing finished (its builder and designer had
+started), and abandoned at 20:55 UTC (RUNLOG l865, l868) [L204]; nothing
+trained. At 20:54:11 UTC the maintainer chose instead a fresh run on Colab
+with a separate critic-only input (D-D64; RUNLOG l867) [L205]: its build,
+with a pre-registration, was launched at 20:57:00 UTC, and at 20:57:31 UTC
+the maintainer kept the plan of 12M-step runs on 3 seeds that night (RUNLOG
+l869-l870). Nothing in this section trained on `main`, and no gate, reward,
+plant or criterion changed.
 
 ### 10.8 Lessons
 
@@ -2675,14 +2708,16 @@ section trained on `main`, and no gate, reward, plant or criterion changed.
 these (§6.2's numbering continued):
 
 27. Ask why before fixing: the why-probe found that the critic's tail credit
-    was a hidden-time artefact, which turned a stopgap (blinding) into a
-    test of the cause (the phase input).
+    was mainly a hidden-time artefact (on the run branch, in s42's lineage),
+    which turned a stopgap (blinding) into a test of the cause (the phase
+    input).
 28. A reward term switched on by a counter the policy cannot see makes a
     hidden phase; any slowly drifting input the policy controls can become
     its clock, and the critic will pay for that input.
 29. Read a configuration-scoped finding against the configuration the
     trained policies used: #655's measurements on `main`'s configuration
-    understated the run branch's step-200 incentive about threefold.
+    understated the run branch's step-200 incentive about 3.5 times on the
+    statue (3.1 to 3.3 times on trained policies).
 30. An unattended container can be reclaimed while the session is idle; a
     runner that retires killed runs unread and reruns them from the start
     pair keeps a screen valid, but the criteria should say how an external
@@ -2715,8 +2750,10 @@ these (§6.2's numbering continued):
 
 *Placeholder, 2026-10-31.* The fresh run on Colab of D-D64, three seeds
 (42, 60 and 80) trained from step 0 to 12M steps with a separate critic-only
-phase input on a new run branch, was being built and launched when this
-section was written. The next records change adds here: its
+phase input on a new run branch, was being built when this update's
+run-log copy ends (RUNLOG l869, l871); the maintainer's approval of the
+interface change and the launch were to follow. The next records change
+adds here: its
 pre-registration as approved, the run branch and its code, the runs'
 results read by that pre-registration, the review the maintainer asked for
 and the summary of all the experiments.

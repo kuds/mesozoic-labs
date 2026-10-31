@@ -434,7 +434,8 @@ robustness, **LOW** = cosmetic / QoL.
   went to about zero and the phase arm's tail command fell below its start
   (measured on one start over 1.44M steps; the hidden phase as the cause is
   inferred). A review of #655 found its trained-policy facts are the run
-  branch's, where the step-200 incentive is about 3.5 times `main`'s. Next,
+  branch's, where the step-200 incentive is about 3.5 times `main`'s on the
+  statue (3.1 to 3.3 times on trained policies). Next,
   as the maintainer chose on 2026-10-31 (D-D64): a fresh run on Colab with a
   separate critic-only input, three seeds to 12M steps, its
   pre-registration and results to come in a later records change. As
@@ -1091,8 +1092,9 @@ robustness, **LOW** = cosmetic / QoL.
   [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
   (the T-Rex stance entry's Update 24 has the latest).
 
-  **Update 2026-10-31:** on the T-Rex the critic's payment for the raised
-  tail is a hidden-time artefact: reward terms switched on at step 200, with
+  **Update 2026-10-31:** on the never-merged run branch's reward, in seed
+  42's lineage, the T-Rex critic's payment for the raised tail is mainly a
+  hidden-time artefact: reward terms switched on at step 200, with
   no clock in the observation, let the slowly creeping tail angle stand in
   for the episode phase. In a scratch CPU screen from seed 42's checkpoint at
   2.1M steps, giving the critic alone the episode phase stopped the climb of

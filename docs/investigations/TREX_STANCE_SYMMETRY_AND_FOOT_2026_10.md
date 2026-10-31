@@ -5475,9 +5475,10 @@ maintainer's word), never to be merged.
 ## 30. Status 2026-10-31 (appended): the why-probe, the #655 cross-check and the critic-phase screen: line 2, reduced; decisions D-D59 to D-D65
 
 *Appended 2026-10-31; §1–§29 above are unchanged, so §29.3's open questions
-are the state when §29's copied log ends (16:32 UTC on 2026-10-30).* This section is a pointer, as §28 and §29
-are. The work of 2026-10-30 16:33 UTC to 2026-10-31 21:00:15 UTC on the T.
-rex tail saturation habit is recorded in §10 of
+are the state when §29's copied log ends (16:32 UTC on 2026-10-30).* This
+section is a pointer, as §28 and §29 are. The work of 2026-10-30 16:33 UTC
+to 2026-10-31 21:00:15 UTC on the T. rex tail saturation habit is recorded
+in §10 of
 [TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
 with its ledger rows L188 to L207; this section gives the outcome in short
 and says what it changes here. The evidence is the session's run log, lines
@@ -5513,11 +5514,12 @@ independent verifier re-derived and adjudicated them (the note's §10.2):
 
 On 2026-10-31 the session reviewed #655, a report-only pull request on the
 stance pop, the displaced pose and saturation, and posted one comment at the
-maintainer's word (the note's §10.3). Its evidence reproduces byte for
-byte. Its trained-policy facts are the run branch's, where the step-200
-incentive is about 3.5 times `main`'s (+0.345 against +0.099 per step on
-the statue), so its lean incentive and its step-200 magnitude are `main`'s
-only; its open question 1 is measured on the run branch.
+maintainer's word (the note's §10.3). Its evidence reproduces byte for byte.
+Its trained-policy facts are the run branch's, where the step-200 incentive
+is about 3.5 times `main`'s on the statue (+0.345 against +0.099 per step;
+3.1 to 3.3 times on trained policies), so its lean incentive and its
+step-200 magnitude are `main`'s only; its open question 1 is measured on the
+run branch.
 
 ### 30.3 The critic-phase screen (D-D60 and D-D62)
 
