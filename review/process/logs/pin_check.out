@@ -1,0 +1,77 @@
+== M0 nothing changed (APPROVED pins the copy's 8 files)
+   change: none
+   preflight control_2901: PASS []
+   preflight critic_phase_2931: PASS
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': []}
+   preflight all 8 queue entries: {'control_2901': 'PASS', 'critic_phase_2901': 'PASS', 'control_2911': 'PASS', 'critic_phase_2911': 'PASS', 'control_2921': 'PASS', 'critic_phase_2921': 'PASS', 'control_2931': 'PASS', 'critic_phase_2931': 'PASS'}
+== M1 criteria.txt one byte
+   change: criteria.txt: first b'CRITERIA v1 AS INSTALLED' -> b'CRITERIA v2 AS INSTALLED'
+   preflight control_2901: REFUSED ["APPROVED: criteria_sha256 '2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629' != sha256(criteria.txt)"]
+   preflight critic_phase_2931: ["APPROVED: criteria_sha256 '2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629' != sha256(criteria.txt)"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["criteria.txt sha256 b43a241c8a78ed98bc196644af9169bd8798f042ef0011446d93351f873d27b6 != APPROVED criteria_sha256 '2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629'"]}
+== M2a SCREEN.json one byte in _note
+   change: SCREEN.json: first b"PS's queue" -> b"PT's queue"
+   preflight control_2901: REFUSED ["APPROVED: screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392' != sha256(SCREEN.json)"]
+   preflight critic_phase_2931: ["APPROVED: screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392' != sha256(SCREEN.json)"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["SCREEN.json sha256 1b2736e8390941d6c1a264125060cc06cfde5137a34fab86fd682594f3fd027d != APPROVED screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392'"]}
+== M2b SCREEN.json one byte in the queue (seed 2931 -> 2932 for critic_phase)
+   change: SCREEN.json: first b'["critic_phase", 2931]' -> b'["critic_phase", 2932]'
+   preflight control_2901: REFUSED ["APPROVED: screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392' != sha256(SCREEN.json)"]
+   preflight critic_phase_2931: ["APPROVED: screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392' != sha256(SCREEN.json)", 'SCREEN: (critic_phase, 2931) is not in the queue']
+   scorer: {'exit': 2, 'input_error': "SCREEN.json queue (('control', 2901), ('critic_phase', 2901), ('control', 2911), ('critic_phase', 2911), ('control', 2921), ('critic_phase', 2921), ('control', 2931), ('critic_phase', 2932)) is not the criteria's (('control', 2901), ('critic_phase', 2901), ('control', 2911), ('critic_phase', 2911), ('control', 2921), ('critic_phase', 2921), ('control', 2931), ('critic_phase', 2931))"}
+== M2c SCREEN.json queue order (control 2911 <-> control 2921; same bytes, other order)
+   change: SCREEN.json: first b'["control", 2911]' -> b'["control", 29XX]' (swap)
+   preflight control_2901: REFUSED ["APPROVED: screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392' != sha256(SCREEN.json)"]
+   preflight critic_phase_2931: ["APPROVED: screen_sha256 '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392' != sha256(SCREEN.json)"]
+   scorer: {'exit': 2, 'input_error': "SCREEN.json queue (('control', 2901), ('critic_phase', 2901), ('control', 2921), ('critic_phase', 2911), ('control', 2911), ('critic_phase', 2921), ('control', 2931), ('critic_phase', 2931)) is not the criteria's (('control', 2901), ('critic_phase', 2901), ('control', 2911), ('critic_phase', 2911), ('control', 2921), ('critic_phase', 2921), ('control', 2931), ('critic_phase', 2931))"}
+== M3a tools/run_bs.py one byte
+   change: tools/run_bs.py: first b'one continuation' -> b'One continuation'
+   preflight control_2901: REFUSED ["APPROVED: tool_sha256['run_bs.py'] '8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5' != the file's '38315993c5721c566920b687e91daabf55da8827de560f7071328138824a90fa'"]
+   preflight critic_phase_2931: ["APPROVED: tool_sha256['run_bs.py'] '8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5' != the file's '38315993c5721c566920b687e91daabf55da8827de560f7071328138824a90fa'"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["tools/run_bs.py: sha256 38315993c5721c566920b687e91daabf55da8827de560f7071328138824a90fa != APPROVED's 8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5"]}
+== M3b tools/read_bs.py one byte
+   change: tools/read_bs.py: first b'CHECK.  Writes' -> b'CHECK!  Writes'
+   preflight control_2901: REFUSED ["APPROVED: tool_sha256['read_bs.py'] 'cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698' != the file's 'eacd7054bde32f1448ab0ed42c5c588c5f9b26284d99b56a9dbff026239bd542'"]
+   preflight critic_phase_2931: ["APPROVED: tool_sha256['read_bs.py'] 'cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698' != the file's 'eacd7054bde32f1448ab0ed42c5c588c5f9b26284d99b56a9dbff026239bd542'"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["tools/read_bs.py: sha256 eacd7054bde32f1448ab0ed42c5c588c5f9b26284d99b56a9dbff026239bd542 != APPROVED's cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698"]}
+== M3c tools/run_waves_bs.sh one byte
+   change: tools/run_waves_bs.sh: first b"# PS: BS2's" -> b"# PT: BS2's"
+   preflight control_2901: REFUSED ["APPROVED: tool_sha256['run_waves_bs.sh'] 'a00e7316392a95a8937ac2dfc0afb81679de0aa6817fec99663e7753478baa4a' != the file's '3d6d7129083bf324aada797fd499beb05da1f39e02408d42ed3b7f58ef9e03e6'"]
+   preflight critic_phase_2931: ["APPROVED: tool_sha256['run_waves_bs.sh'] 'a00e7316392a95a8937ac2dfc0afb81679de0aa6817fec99663e7753478baa4a' != the file's '3d6d7129083bf324aada797fd499beb05da1f39e02408d42ed3b7f58ef9e03e6'"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["tools/run_waves_bs.sh: sha256 3d6d7129083bf324aada797fd499beb05da1f39e02408d42ed3b7f58ef9e03e6 != APPROVED's a00e7316392a95a8937ac2dfc0afb81679de0aa6817fec99663e7753478baa4a"]}
+== M3d tools/bs_common.py one byte
+   change: tools/bs_common.py: first b'pins and constants' -> b'Pins and constants'
+   preflight control_2901: REFUSED ["APPROVED: tool_sha256['bs_common.py'] 'cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f' != the file's '1b1eb088bf4166e20708586d4b88d992c63f63e7b8a72b22f39ba1863e856885'"]
+   preflight critic_phase_2931: ["APPROVED: tool_sha256['bs_common.py'] 'cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f' != the file's '1b1eb088bf4166e20708586d4b88d992c63f63e7b8a72b22f39ba1863e856885'"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["tools/bs_common.py: sha256 1b1eb088bf4166e20708586d4b88d992c63f63e7b8a72b22f39ba1863e856885 != APPROVED's cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f"]}
+== M3e tools/bs_hooks.py one byte
+   change: tools/bs_hooks.py: first b'the' -> b'thE'
+   preflight control_2901: REFUSED ["APPROVED: tool_sha256['bs_hooks.py'] '0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539' != the file's 'b06c05dbc11f44e4e0e09e7f17906991e77062da0899d4fa6ae463471da366e0'"]
+   preflight critic_phase_2931: ["APPROVED: tool_sha256['bs_hooks.py'] '0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539' != the file's 'b06c05dbc11f44e4e0e09e7f17906991e77062da0899d4fa6ae463471da366e0'"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["tools/bs_hooks.py: sha256 b06c05dbc11f44e4e0e09e7f17906991e77062da0899d4fa6ae463471da366e0 != APPROVED's 0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539"]}
+== M3f tools/score_bs.py one byte
+   change: tools/score_bs.py: first b"the criteria's" -> b"the Criteria's"
+   preflight control_2901: PASS []
+   preflight critic_phase_2931: PASS
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["tools/score_bs.py: sha256 85891747a97281ee52e7bdc6d09b1046b99975d00e7bcbc4d61129ce3c36e864 != APPROVED's fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040", "criteria.txt does not name this scorer's sha256 85891747a97281ee52e7bdc6d09b1046b99975d00e7bcbc4d61129ce3c36e864 (its PINS section)"]}
+== M4 APPROVED code_tree_digest one hex digit
+   change: APPROVED code_tree_digest 331fe8fc... -> 431fe8fc...
+   preflight control_2901: REFUSED ["APPROVED: code_tree_digest '431fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1' != 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"]
+   preflight critic_phase_2931: ["APPROVED: code_tree_digest '431fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1' != 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"]
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["APPROVED code_tree_digest '431fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1' != 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"]}
+== M5 APPROVED without score_bs.py in tool_sha256
+   change: APPROVED tool_sha256 without score_bs.py
+   preflight control_2901: PASS []
+   preflight critic_phase_2931: PASS
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["APPROVED has no bare 64-hex tool_sha256['score_bs.py']"]}
+== M6 bs_hooks.py one byte AND APPROVED re-pinned to it (criteria PINS line for bs_hooks.py now stale)
+   change: tools/bs_hooks.py: first b'the' -> b'thE'; APPROVED pins the changed file
+   preflight control_2901: PASS []
+   preflight critic_phase_2931: PASS
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': []}
+== M7 score_bs.py one byte AND APPROVED re-pinned to it (criteria PINS line for the scorer now stale)
+   change: tools/score_bs.py: first b"the criteria's" -> b"the Criteria's"; APPROVED pins the changed file
+   preflight control_2901: PASS []
+   preflight critic_phase_2931: PASS
+   scorer: {'exit': 3, 'status': 'incomplete', 'provisional': ["criteria.txt does not name this scorer's sha256 85891747a97281ee52e7bdc6d09b1046b99975d00e7bcbc4d61129ce3c36e864 (its PINS section)"]}
+restored the copy's 8 files to their pristine bytes; fake APPROVED removed

@@ -1,0 +1,22 @@
+date -u 2026-10-31T14:11:52Z
+--- test-mode root /home/user/work/phase_screen/check_build/runner_root
+T1 no SCREEN.json: exit 2 (expect 2) OK :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /home/user/work/phase_screen/check_build/runner_root/SCREEN.json missing (the intervention is not chosen yet) 
+T2 no SCREEN.json --plan: exit 2 (expect 2) OK :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /home/user/work/phase_screen/check_build/runner_root/SCREEN.json missing (the intervention is not chosen yet) 
+T3 valid SCREEN --plan: exit 0 (expect 0) OK :: slots 4 at nice 10; disk floor 1610612736 bytes; launch floor 2030043136 bytes; crash limit 3; early crash: last step below S + 131072 orphan pattern: ^/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B
+T4 valid SCREEN, no APPROVED: exit 2 (expect 2) OK :: run_waves_bs: refused: no <BS>/APPROVED 
+T5 APPROVED, no criteria.txt: exit 2 (expect 2) OK :: run_waves_bs: refused: no <BS>/criteria.txt 
+T6 APPROVED with a wrong scorer pin: exit 2 (expect 2) OK :: run_waves_bs: refused: APPROVED tool_sha256['score_bs.py'] '0000' != the file's eca66006f6d055770dcf80d45558e130cf393f7cb00f4f4fa5115367c6492f6c (APPROVED must pin tools/score_bs.py: criteria, HOW THE COORDINATOR PINS) 
+T7 a BS2 arm as the intervention: exit 2 (expect 2) OK :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: intervention 'critic_blind_tail3' not one of ('critic_phase',) 
+T8 a PS validation seed in SCREEN: exit 2 (expect 2) OK :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: queue[0] seed 9401 is a validation seed | SCREEN: queue[1] seed 9401 is a validation seed 
+T9 nine continuations (> 8): exit 2 (expect 2) OK :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: 9 continuations > 8 (AUTH) 
+T10 test mode on the real root: exit 2 (expect 2) OK :: run_waves_bs: refused: BS_WAVES_TEST may not use the real <BS> 
+test-mode root after: /home/user/work/phase_screen/check_build/runner_root/APPROVED /home/user/work/phase_screen/check_build/runner_root/SCREEN.json /home/user/work/phase_screen/check_build/runner_root/criteria.txt 
+--- the real root (no APPROVED: every path below refuses before any write)
+R1 real runner: exit 2 (expect 2) OK :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /home/user/work/phase_screen/SCREEN.json missing (the intervention is not chosen yet) 
+R2 real runner --plan: exit 2 (expect 0or2) MISMATCH :: run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: /home/user/work/phase_screen/SCREEN.json missing (the intervention is not chosen yet) 
+R3 run_bs continuation preflight control: exit 2 (expect 2) OK :: run_bs 2.0 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2) {  "preflight": "refused",  "mode": "continuation",  "problems": [   "APPROVED: missing",   "SCREEN: /home/user/work/phase_screen/SCREEN.json missing (the interv
+R4 run_bs continuation preflight critic_phase: exit 2 (expect 2) OK :: run_bs 2.0 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2) {  "preflight": "refused",  "mode": "continuation",  "problems": [   "APPROVED: missing",   "SCREEN: /home/user/work/phase_screen/SCREEN.json missing (the interv
+R5 run_bs a BS2 arm: exit 2 (expect 2) OK :: run_bs 2.0 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2) {  "preflight": "refused",  "mode": "continuation",  "problems": [   "args: arm 'critic_blind_tail3' not in ['control', 'critic_phase']",   "APPROVED: missing"  
+PS root listing unchanged by R1-R5
+PS/APPROVED absent
+exit 0

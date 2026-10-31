@@ -1,0 +1,9 @@
+...........................................                              [100%]
+=============================== warnings summary ===============================
+test_bs_hooks.py::test_critic_phase_gradients_actor_zero_critic_nonzero
+  /home/user/work/phase_screen/tools/tests/test_bs_hooks.py:585: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:822.)
+    assert float(p.mlp_extractor.value_net[0].weight[:, SL].abs().max()) > 0.0
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+43 passed, 1 warning in 6.31s

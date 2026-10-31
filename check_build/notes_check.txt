@@ -1,0 +1,45 @@
+2026-10-31T13:57:13Z check_build start; folder created; df / avail 1.8G
+2026-10-31T14:01:57Z pytest start (background): cd CB; TMPDIR=CB/tmp nice -n 10 PY -B -m pytest -p no:cacheprovider --basetemp=CB/tmp_pytest PS/tools/tests
+2026-10-31T14:02:54Z pytest done: 102 passed, 1 warning (read_bs l1007 UserWarning), exit 0 (logs/pytest.out); PS listing (excluding check_build) identical before/after (logs/ps_listing_{before,after}_tests.tsv)
+2026-10-31T14:07:20Z c_arm.py 9421 start (background): cd CB/tmp/c_arm; TMPDIR=CB/tmp/c_arm nice -n 10 PY -I -B CB/c_arm.py 9421 > CB/logs/c_arm_9421.out 2> CB/logs/c_arm_9421.err
+2026-10-31T14:07:48Z c_arm.py 9421 exit 1 (logs/c_arm_9421.out): 4 fails, all mine on inspection: (1) my control twin was copy.deepcopy of the
+  SymmetricRunningMeanStd, which deep-copies as a STOCK RunningMeanStd (mirror_kl_ppo.py l147-150 __reduce__), so its update was not the
+  symmetric one (count 4,202,508 vs 4,210,704): fix = SymmetricRunningMeanStd.from_stock; (2) C_z1 slots: my raw phase was float64, not
+  rounded to float32 first as the env's obs is (t-rex base_env l1027 .astype(float32)); fix = pre-round; (3) the probe's zero-init
+  comparison ran after the rollout moved the statistics: fix = run G before F.  Every other check passed (see out file).
+2026-10-31T14:08:53Z c_arm.py (fixed; previous copy kept as c_arm_v1.py) 9431 start (background) -> logs/c_arm_9431.out/.err
+2026-10-31T14:09:30Z c_ctrl.py 2228224 start (background): PS run_bs.py as module, bs_root -> CB/ctrl_root, +9201 to validation seeds; control 9201 --no-update --until 2,228,224 (16 rollouts, 1 eval); nice 10; logs/c_ctrl.out
+2026-10-31T14:09:26Z c_arm.py 9431 exit 1 (logs/c_arm_9431.out): A_twin now symmetric; G zero-init probe bitwise PASS; new fails are mine again:
+  (a) I rounded only raw_phase (all dims) to float32, not raw, so z0 and z1 differed in dims 0-59 (C_other_dims_identical failed; every C/D
+  bitwise check downstream follows from it); (b) twin batches were float64 while VecNormalize updates with the float32 batch (np.mean of
+  float32 accumulates in float32): count now equal, mean diff 5.2e-10.  Fix both; rerun with seed 9421.
+2026-10-31T14:09:59Z c_arm.py (fix 2) 9421 start -> logs/c_arm_9421b.out/.err
+2026-10-31T14:10:59Z c_arm.py 9421 (fix 2) exit 0: RESULT PASS, 63/63 checks (logs/c_arm_9421b.out). Rerun at 9431 -> logs/c_arm_9431b.*
+2026-10-31T14:11:46Z c_arm.py 9431 (fix 2): see logs/c_arm_9431b.out
+2026-10-31T14:11:52Z c_arm 9431 PASS 63/63. r_refusals.sh start -> logs/runner_refusals.out
+2026-10-31T14:12:09Z SELF-REPORT: in the outside-PS find command I redirected the stderr of one `find /home/user/work/records_pr` to the
+  character device /dev/zero (a slip for a file under my folder).  That is a redirection onto a path outside PS, against the rules; nothing
+  was printed there (find ran without error per the count) and /dev/zero discards writes; no other file was touched.  Not repeated.
+2026-10-31T14:12:31Z stat of the null device (and /dev/zero after my slip): logs/null_device_stat.txt
+2026-10-31T14:13:58Z verify_copy BS/code -> logs/verify_copy.out; BS/code newer than marker and __pycache__ counted
+2026-10-31T14:15:35Z c_ctrl finished; ruff (no cache) on 8 tool/test files: All checks passed; bash -n runner ok
+2026-10-31T14:15:29Z c_ctrl (PS run_bs.py, control, BS2 seed 9201, --no-update --until 2,228,224) exit 0, status done, CHECK-style
+  no_update_check pass, train() reached 15 times.  c_ctrl_compare.py exit 0 (logs/c_ctrl_compare.out): against BS2/validate/v2final/
+  control_9201, 15/15 rollouts equal on all 29 evidence keys both carry (digest_env_side, rewards, values, advantages, obs_rms_digest,
+  ...); eval ledger rows <= 2,228,224: 170 x 192 columns identical (incl. the new evaluation at 2,228,224); policy_probe.npz first 271
+  rows: every array identical (bank_build_seconds, a wall time, excluded).  => PS's control = BS2's control on the no-update path.
+2026-10-31T14:16:19Z c_reader.py start -> logs/c_reader.out
+2026-10-31T14:16:55Z c_reader.py exit 0 PASS: read_bs.onpolicy_states' K reproduces the phase each of 8,192 recorded states carried, exactly (logs/c_reader.out)
+2026-10-31T14:16:55Z rm -rf CB/tmp_pytest CB/tmp CB/ctrl_root/tmp (my TMPDIRs / pytest basetemp)
+2026-10-31T14:16:55Z final: sha256sum -c PS/SHA256SUMS.txt -> 24 OK (logs/sha_check_end.out; the five pinned tools unchanged; PS/tools now
+  also holds score_bs.py, the criteria lane's, 14:14); PS/APPROVED absent; BS/code seal 331fe8fc... recomputed equal, 0 files newer than
+  the marker, 0 __pycache__ (logs/verify_copy.out).
+  Outside PS newer than the marker (logs/outside_ps_newer_end.txt + logs/outside_ps_newer.txt): S1 run_log.txt; /home/user/work/records_pr/**;
+  /home/user/work/repo/.git/** (objects 13:40-13:49, refs/heads/claude/records-critic-blind born 13:40:13, origin refs, worktrees/wt_records);
+  /home/user/work/pr655_review/** (12:57-13:49); /home/user/work/wt_records/** (pyc 13:13-13:14, dir 13:52:30).  [inferred] none written by
+  the build (its command log has no git or write there) nor by me; they are the docs-PR workflow's and the PR-655 review lane's.  The
+  builder's logs/outside_ps_newer_than_marker.txt (13:52:09) lists only S1's run log and records_pr: repo/.git, pr655_review and
+  wt_records (born 12:56-13:40, mtimes before 13:52:09) are missing from it -> finding (minor).
+  The only matches of a model-name pattern in my files are the task's own scratch paths (/tmp/claude-0/...) and a branch name in a find
+  listing; no product name written as such.
+2026-10-31T14:18:18Z du CB 11M; df -h /: /dev/vda        252G   37G  1.8G  96% /

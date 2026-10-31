@@ -1,0 +1,125 @@
+{
+ "obs_rms_class": "RunningMeanStd",
+ "obs_rms_mean_58_62": [
+  -0.02525491884219211,
+  12.619939852739904,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "obs_rms_var_58_62": [
+  0.0016376310717280305,
+  2.0375202338494023,
+  2.3841812434940362e-11,
+  2.3841812434940362e-11,
+  2.3841812434940362e-11
+ ],
+ "obs_rms_mean_60_62_exact_zero": true,
+ "obs_rms_count": 4194312.0001,
+ "epsilon": 1e-08,
+ "clip_obs": 10.0,
+ "norm_slot_value_of_raw_zero": [
+  0.0,
+  0.0,
+  0.0
+ ],
+ "norm_slot_value_of_raw_one": [
+  10.0,
+  10.0,
+  10.0
+ ],
+ "policy_keys": [
+  "log_std (15,)",
+  "mlp_extractor.policy_net.0.weight (512, 63)",
+  "mlp_extractor.policy_net.0.bias (512,)",
+  "mlp_extractor.policy_net.2.weight (256, 512)",
+  "mlp_extractor.policy_net.2.bias (256,)",
+  "mlp_extractor.value_net.0.weight (512, 63)",
+  "mlp_extractor.value_net.0.bias (512,)",
+  "mlp_extractor.value_net.2.weight (256, 512)",
+  "mlp_extractor.value_net.2.bias (256,)",
+  "action_net.weight (15, 256)",
+  "action_net.bias (15,)",
+  "value_net.weight (1, 256)",
+  "value_net.bias (1,)"
+ ],
+ "mlp_extractor.policy_net.0.weight max|w| cols 60-62": 0.2103266566991806,
+ "mlp_extractor.policy_net.0.weight max|w| cols 0-59": 0.2689327001571655,
+ "mlp_extractor.value_net.0.weight max|w| cols 60-62": 0.24422062933444977,
+ "mlp_extractor.value_net.0.weight max|w| cols 0-59": 0.26176610589027405,
+ "optimizer_param_groups": [
+  {
+   "lr": 2.65184e-05,
+   "betas": [
+    0.9,
+    0.999
+   ],
+   "eps": 1e-05,
+   "weight_decay": 0,
+   "amsgrad": false,
+   "maximize": false,
+   "foreach": null,
+   "capturable": false,
+   "differentiable": false,
+   "fused": null,
+   "decoupled_weight_decay": false,
+   "n_params": 13
+  }
+ ],
+ "adam[1] mlp_extractor.policy_net.0.weight": {
+  "step": 157349.0,
+  "exp_avg max| cols 60-62": 0.0,
+  "exp_avg_sq max cols 60-62": 0.0,
+  "exp_avg max| cols 0-59": 0.00043393889791332185
+ },
+ "adam[5] mlp_extractor.value_net.0.weight": {
+  "step": 157349.0,
+  "exp_avg max| cols 60-62": 0.0,
+  "exp_avg_sq max cols 60-62": 0.0,
+  "exp_avg max| cols 0-59": 3.898312570527196e-06
+ },
+ "policy_kwargs": {
+  "net_arch": [
+   512,
+   256
+  ],
+  "log_std_init": -1.5
+ },
+ "mirror_obs_dim": 63,
+ "mirror_obs_58_62": [
+  {
+   "i": 58,
+   "perm": 58,
+   "sign": 1.0,
+   "name": "target_direction.z"
+  },
+  {
+   "i": 59,
+   "perm": 59,
+   "sign": 1.0,
+   "name": "target_distance"
+  },
+  {
+   "i": 60,
+   "perm": 60,
+   "sign": 1.0,
+   "name": "command.v_x_cmd"
+  },
+  {
+   "i": 61,
+   "perm": 61,
+   "sign": -1.0,
+   "name": "command.v_y_cmd"
+  },
+  {
+   "i": 62,
+   "perm": 62,
+   "sign": -1.0,
+   "name": "command.yaw_rate_cmd"
+  }
+ ],
+ "mirror_obs_perm_6": [
+  6,
+  1.0
+ ]
+}

@@ -1,0 +1,65 @@
+control_9401: T 2359296, 31 rollout ends, status done exit 0, stop end, CPU 678.2 s, wall 762.2 s
+  [ok] done at VALIDATE_UNTIL with stop reason end
+  [ok] no optimizer step: params / Adam / n_updates (2471) unchanged; train() reached 31 = 31 times
+  [ok] seal unchanged, modules from the copy, the arm in force at the end, ent_coef 0.005 after load
+  [ok] CHECK passed ([])
+  [ok] one evidence line per rollout end
+  [ok] advantages = GAE(0.95) recomputation on every rollout (max err 3.39e-06 <= 0.0001)
+  [ok] the critic and the actor see observation 6 on every rollout (min dV 0.08304, min dmu 0.1489)
+  [ok] control: the actor responds to the slots on every rollout (min 4.036); no phase evidence; its critic responds too (min 0.6302)
+  [ok] control: the stock policy probe
+critic_phase_9401: T 2359296, 31 rollout ends, status done exit 0, stop end, CPU 684.7 s, wall 772.4 s
+  [ok] done at VALIDATE_UNTIL with stop reason end
+  [ok] no optimizer step: params / Adam / n_updates (2471) unchanged; train() reached 31 = 31 times
+  [ok] seal unchanged, modules from the copy, the arm in force at the end, ent_coef 0.005 after load
+  [ok] CHECK passed ([])
+  [ok] one evidence line per rollout end
+  [ok] advantages = GAE(0.95) recomputation on every rollout (max err 3.39e-06 <= 0.0001)
+  [ok] the critic and the actor see observation 6 on every rollout (min dV 0.08304, min dmu 0.1489)
+  [ok] critic_phase: the actor moved by exactly 0.0 on all 31 rollouts and all 5 paths (max 0.0)
+  [ok] critic_phase: no update, so the zero-initialised critic columns stay 0 and the critic's 4 paths move by exactly 0.0 on all 31 rollouts (max 0.0)
+  [ok] critic_phase: every buffer row's slots = the phase of the env counter, exactly (8,192 rows per rollout)
+  [ok] critic_phase: the counters reconstructed from the rollout's start reach the envs' counters
+  [ok] critic_phase: slots' statistics (0, 1), mirror self-map +1, 4 envs with the phase, the actor's phase columns and Adam moments unchanged, on every rollout
+    phase: k from 0 to 999; 51200 of 253952 buffer rows before the settle (k < 200); slots' statistics update calls 2049 -> 63489
+  [ok] critic_phase: the probe feeds the settled phase to all 10 bank rows (k [200, 401, 600])
+seed 9401 pairing, rollouts equal: {'digest_env_side_no_phase': '31/31', 'digest_env_side': '0/31', 'digest_rewards': '31/31', 'digest_values': '31/31', 'digest_advantages': '31/31', 'obs_rms_digest_no_phase': '31/31', 'obs_rms_digest': '0/31'}
+  [ok] the env side without the slots identical on every rollout; with them different on every rollout
+  [ok] rewards, values and advantages identical on every rollout (the zero-initialised critic)
+  [ok] the observation statistics identical outside the slots, different in them, on every rollout
+  [ok] the evaluation ledger identical (180 rows, 193 columns; time columns dropped)
+  [ok] the probe: the same 287 rows (256 seeded at or before S), bank actions and values (now and frozen) identical, the recorded bank identical
+  [ok] the probe's statistics identical outside the slots; critic_phase's slots (0, 1) on every window row
+control_9411: T 2359296, 31 rollout ends, status done exit 0, stop end, CPU 678.7 s, wall 765.9 s
+  [ok] done at VALIDATE_UNTIL with stop reason end
+  [ok] no optimizer step: params / Adam / n_updates (2471) unchanged; train() reached 31 = 31 times
+  [ok] seal unchanged, modules from the copy, the arm in force at the end, ent_coef 0.005 after load
+  [ok] CHECK passed ([])
+  [ok] one evidence line per rollout end
+  [ok] advantages = GAE(0.95) recomputation on every rollout (max err 3.47e-06 <= 0.0001)
+  [ok] the critic and the actor see observation 6 on every rollout (min dV 0.06972, min dmu 0.1556)
+  [ok] control: the actor responds to the slots on every rollout (min 3.787); no phase evidence; its critic responds too (min 0.5794)
+  [ok] control: the stock policy probe
+critic_phase_9411: T 2359296, 31 rollout ends, status done exit 0, stop end, CPU 687.8 s, wall 774.8 s
+  [ok] done at VALIDATE_UNTIL with stop reason end
+  [ok] no optimizer step: params / Adam / n_updates (2471) unchanged; train() reached 31 = 31 times
+  [ok] seal unchanged, modules from the copy, the arm in force at the end, ent_coef 0.005 after load
+  [ok] CHECK passed ([])
+  [ok] one evidence line per rollout end
+  [ok] advantages = GAE(0.95) recomputation on every rollout (max err 3.47e-06 <= 0.0001)
+  [ok] the critic and the actor see observation 6 on every rollout (min dV 0.06972, min dmu 0.1556)
+  [ok] critic_phase: the actor moved by exactly 0.0 on all 31 rollouts and all 5 paths (max 0.0)
+  [ok] critic_phase: no update, so the zero-initialised critic columns stay 0 and the critic's 4 paths move by exactly 0.0 on all 31 rollouts (max 0.0)
+  [ok] critic_phase: every buffer row's slots = the phase of the env counter, exactly (8,192 rows per rollout)
+  [ok] critic_phase: the counters reconstructed from the rollout's start reach the envs' counters
+  [ok] critic_phase: slots' statistics (0, 1), mirror self-map +1, 4 envs with the phase, the actor's phase columns and Adam moments unchanged, on every rollout
+    phase: k from 0 to 999; 51200 of 253952 buffer rows before the settle (k < 200); slots' statistics update calls 2049 -> 63489
+  [ok] critic_phase: the probe feeds the settled phase to all 10 bank rows (k [200, 401, 600])
+seed 9411 pairing, rollouts equal: {'digest_env_side_no_phase': '31/31', 'digest_env_side': '0/31', 'digest_rewards': '31/31', 'digest_values': '31/31', 'digest_advantages': '31/31', 'obs_rms_digest_no_phase': '31/31', 'obs_rms_digest': '0/31'}
+  [ok] the env side without the slots identical on every rollout; with them different on every rollout
+  [ok] rewards, values and advantages identical on every rollout (the zero-initialised critic)
+  [ok] the observation statistics identical outside the slots, different in them, on every rollout
+  [ok] the evaluation ledger identical (180 rows, 193 columns; time columns dropped)
+  [ok] the probe: the same 287 rows (256 seeded at or before S), bank actions and values (now and frozen) identical, the recorded bank identical
+  [ok] the probe's statistics identical outside the slots; critic_phase's slots (0, 1) on every window row
+V2 CHECK: PASS

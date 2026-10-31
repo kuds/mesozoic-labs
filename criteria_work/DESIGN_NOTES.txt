@@ -1,0 +1,347 @@
+PS (PHASE SCREEN) CRITERIA v1: THE DESIGNER'S NOTES
+Written 2026-10-31 by the designer of workflow phase-screen-build-2 (date -u times of every command: CMDLOG.txt, this
+folder). Drafts only: criteria_v1.txt, SCREEN_v1.json, this file, and the scripts and outputs named below. No training,
+no optimizer step, no validation run, nothing written outside <PS>/criteria_work (one incident, section 11). Labels:
+[measured] (file and line), [computed] (script and section), [inferred] (reasoning, basis named).
+
+==================================================================================================================
+0. SUMMARY
+==================================================================================================================
+- Design: BS2's design re-run from s42's 2,097,152 checkpoint to 3,538,944 (176 rollouts, 175 updates, 11
+  evaluations), 4 control + 4 critic_phase, NEW paired seeds 2901 / 2911 / 2921 / 2931 (section 7a), interleaved.
+- The arm critic_phase: the critic alone also receives the episode phase phi(k) = (ramp min(k, 200)/200, settled
+  1[k >= 200], discount 0.98^max(0, 200 - k)), k = the env's own _step_count when it emits the observation (k >= 200
+  is exactly the condition under which the step taken from that observation pays the four gated terms; section 4);
+  the actor is unchanged and never sees it; the critic's weights on the phase are zero at S (MAIN's widen_checkpoint.py
+  rule, critic side only), so at S both arms are the parent exactly. My draft proposed (ramp, settled) through an
+  appended value_net.0 column block; the builder (read at 13:2x UTC, <PS>/tools/bs_common.py lines 111-175) chose the
+  three features in the always-zero command slots 60-62 with the actor's slots held at 0.0 and the slots' VecNormalize
+  statistics frozen at mean 0 / var 1; the criteria now describe the built form and keep an implementation-independent
+  seven-item CONTRACT (C1-C7) that the build must prove and CHECK must see (section 4).
+- Kept from BS2 unchanged: the primary (on-policy tail_3 command over the last 8 updates before E), B_S =
+  0.1265954738482833, the gate (control median rise >= 0.20, midpoint rule), the test (exact one-sided unpaired
+  permutation, alpha 0.05, minimum p 1/70, ties against), the fill, the three-line structure (texts re-worded for the
+  arm), RUN HANDLING, OUTCOME-BLINDNESS (with I1), WHEN THE READING IS MADE.
+- Secondaries (never change the line): EFFICACY family SEC-CMD (BS2's), SEC-MARGIN (BS2's), SEC-MECH (NEW: the
+  critic's own on-policy tail slope at E, phase arm lower); GUARD SEC-TAIL2 (NEW: the on-policy tail_2 command over
+  the primary's rows, phase arm higher; BS2's post hoc observation out of sample). BS2's SEC-G dropped (read once, NOT
+  SUPPORTED; report only here).
+- Power [computed, power_ps.out]: at BS2's observed control arm (mean rise 0.472, SD 0.166), P(REDUCED) 0.955 at a
+  whole reduction, 0.51 at half (0.73 if the phase arm is as tight as BS2's blinded arm), 0.20 at a quarter; exact on
+  BS2's own values: a phase arm like BS2's blinded arm reads REDUCED with probability 1.00; P(informative) 0.998.
+- Decisions for the maintainer before the pin: section 9.
+
+==================================================================================================================
+1. SOURCES READ (all read only)
+==================================================================================================================
+<BS2>/criteria.txt (565 lines; the form followed), REPORT.md, SCREEN.json, APPROVED, score/score.txt (198 lines) and
+score.json, review/{design,process,rereview}/NOTES.txt, review/FIXES.txt, the re-review's structured findings RR-1..RR-8
+(from the workflow record wf_0b1ddf2b-955.json: rr_findings.out), check/{stat,proc} (file lists), criteria_work/
+power_bs2.py/.out; RUNLOG lines 770-809; WHY: phase_probe/{PREREG.txt, verdicts.txt, analysis.txt, NOTES.txt,
+posthoc_bs2_probe.txt}, verify_why/NOTES.txt; #655 lines 139-235 (sections 1.3-1.5), 774-887 (6.1-6.4), 953-1000
+(9, Open Question 1); MAIN widen_checkpoint.py lines 1-140, 451-566, 693-772 and command_frame.py pad_running_stats
+(lines 134-157); BS/code (8737cd3d) tyrannosaurus_rex/base_env.py _get_obs (lines 974-1029) and the gates (lines 1270,
+1278, 1315, 1339, 1421), shared/base_env.py step (lines 1335-1365), stance.toml (lines 159, 189, 212, 400, 418, 425,
+433); BS2/tools/{bs_common.py, read_bs.py (lines 100-120, 800-972)}; LB/{NOTES.txt lines 240-262, criteria_work/
+SCREEN_v1.json, seeds_check.py/.out, seeds_triage.out, DESIGN_NOTES.txt lines 360-400}; the F2 parent probe
+(policy_probe.npz.copy1) and BS2's eight runs' policy_probe.npz (analysis inputs only).
+
+==================================================================================================================
+2. THE QUESTION AND WHY THIS ARM
+==================================================================================================================
+- The question (criteria THE QUESTION) is the task's item 1 verbatim in substance: does a critic that also sees the
+  phase, and still sees the tail angle, reduce the climb? One-sided, lower.
+- Why it is the root-cause test [inferred]: the why-probe's account has two parts: (1) a hidden phase that changes the
+  true value (four terms gated on k >= 200; c_B1 -0.17 to -0.23 at matched posture [measured, phase_probe/analysis.txt
+  M1 G at P2, C11a, C11E, C31a, C31E]); (2) a tail angle that tracks the phase (AUC 0.61-0.95) and so carries value
+  for a phase-blind critic. Blinding (BS2) cut (2) at the channel. Giving the phase cuts (1)'s aliasing at the source:
+  if the account is right the critic should stop paying for the tail even though it can still see it. If the climb
+  continued with a phase-aware critic that has learned the phase (phase swing > 0) and still pays for the tail
+  (SEC-MECH NOT SUPPORTED), the phase account would not be the whole story (the B-apparent height preference the
+  verifier left unresolved, verify_why/NOTES.txt SUMMARY item 5, would gain weight).
+- Alternatives considered and not chosen:
+  (a) making the gated terms stationary (pay from step 0, or centre them): a reward change; the verifier's K5 found it
+      removes only 87% (C11E) / 57% (P2) of the realised phase association [measured, verify_why/NOTES.txt SUMMARY
+      item 6]; it changes the task, which a critic input does not.
+  (b) phase for both actor and critic: changes the policy interface and lets the actor learn a phase-dependent action
+      (a different habit could form); the maintainer's choice is critic-only (RUNLOG line 805).
+  (c) a sham arm (an uninformative extra critic input) to separate "the phase" from "any new input": it would need a
+      third arm (4 + 4 + 4 = 12 > the 8 the maintainer approved; about 4.3 h); left as a KNOWN LIMIT and to SEC-MECH and
+      the phase swing.
+  (d) reusing BS2's controls (the verifier's "cheapest decisive test", verify_why/NOTES.txt SUMMARY item 7): rejected
+      for outcome-blindness (BS2's control outcomes are known: the gate would be decided in advance), for harness
+      identity (PS's tools are a new build), and because the maintainer chose new controls.
+
+==================================================================================================================
+3. PRIMARY, B_S, GATE, TEST, FILL, LINES: WHAT CHANGED FROM BS2 AND WHY
+==================================================================================================================
+- Primary, B_S, window, test, fill: unchanged. Reason: no concrete reason to change was found; keeping them makes the
+  phase arm's reading directly comparable in kind with BS2's arms (report only across screens). B_S re-measured: the
+  parent's rows 248-255 give exactly 0.1265954738482833 [measured, other_actuators_bs2.out "check b_14 = B_S"].
+- Gate 0.20, unchanged. The task asked to keep it unless a change is justified; the new input is BS2's observed
+  control arm (rises 0.543, 0.666, 0.384, 0.293; mean 0.472, SD 0.166 [measured, <BS2>/score/score.json classes]).
+  At that arm P(informative) = 0.998 (normal model), 0.977 at SD 0.25, 1 by exact resampling of BS2's four rises;
+  0.655 if the true control rise were only half BS2's [computed, power_ps.out B]. A higher gate (for example 0.29,
+  half the parent's rise) would lower the inflation of the conditional size only for true rises near the gate, which
+  BS2 suggests is unlikely, and would cost informativeness if the new harness's controls climbed less; a lower gate
+  would let a barely moving control arm pass (BS2 criteria (e)-(f), lines 239-247). Kept.
+- The lines: BS2's structure and every clause kept; only the arm's name changes ("GIVING THE CRITIC THE EPISODE
+  PHASE (the tail_3 angle still in its input; the actor unchanged)") and line 3's power clause is recomputed for this
+  arm: "about 0.3-1.0 at half the control rise, by the between-continuation spread; about 0.5-0.85 at BS2's control
+  spread; about 0.1-0.6 if the phase input makes climbs rarer rather than smaller" [computed, power_ps.out C, D, F:
+  half-rise cells 0.291-0.993 over SD 0.10-0.25; at SD 0.166 0.509-0.857, exact 0.826; two-state q 0.5-0.75, f 0.5-1:
+  0.111-0.583]; and "a critic that had not yet moved its weight from the tail angle to the phase" replaces BS2's "other
+  inputs that carry the angle" (in this arm the angle is not hidden). Line 1 says "no reading about the critic's phase
+  input".
+
+==================================================================================================================
+4. THE ARM critic_phase
+==================================================================================================================
+4.1 The phase and the gate's off-by-one [measured]
+  - shared/base_env.py step(): `self._step_count += 1` (line 1335) BEFORE `obs = self._get_obs()` (line 1349) and the
+    reward (line 1352). reset() zeroes _step_count (line 1642). So the observation the policy acts on at its j-th
+    decision (j = 0 after reset) is emitted with _step_count = j: k := j.
+  - The four terms in the T. rex env gate on `self._step_count > self.stance_width_settle_steps` evaluated during the
+    step's reward, i.e. on k + 1 > 200 (width: zeroed while `_step_count <= settle_steps`, line 1278; lean line 1315;
+    stagger line 1339; CoP band line 1421); stance_width_settle_steps = 200 (code copy stance.toml line 212). So the
+    step taken from the observation with count k pays them iff k >= 200, and settled = 1[k >= 200] is the gate exactly.
+    The why-probe's verifier fixed the same off-by-one ("k=200 is the first gated step", verify_why/NOTES.txt
+    18:09:59). The width target is set at _step_count == 200 (line 1270): during the step from k = 199.
+  - Time limit: max_episode_steps 1000 (stance.toml line 400); SB3 bootstraps V on the terminal observation at
+    truncation (TimeLimit.truncated; RUNLOG line 803); that observation has k = 1000 -> phi = (1, 1, 1). #655
+    section 6.2 item 4: the time limit is not an aliasing source; no k/1000 feature is needed.
+4.2 The features [inferred]
+  - The settled flag 1[k >= 200] is the gate. The ramp min(k, 200)/200 (i) lets the critic represent the discounted
+    anticipation of the gate before k = 200 (at gamma 0.98 the gated value enters over about 50 steps: the phase probe's
+    primary phase control was R(k) = 0.98^max(0, 200 - k), PREREG.txt DEFINITIONS) and (ii) carries the time since
+    reset, which the pop's lower G_rest in steps 0-50 depends on (M1 G_rest c_B0 -0.05 to -0.12 [measured,
+    analysis.txt]; #655 section 1.3: the pop costs 14 of 18 points in steps 0-50). A [512, 256] MLP could form R(k)'s
+    shape from the ramp and the flag; the builder added R(k) itself as a third feature ("discount"), which gives
+    the first layer the value's own phase shape directly. I agree with that choice [inferred]: it costs nothing (a
+    zero-initialised column) and matches the probe's primary phase control. All three equal 1 for k >= 200.
+  - All features are bounded in [0, 1], need no normalisation and are mirror-invariant (time does not flip left and
+    right), so the mirror map sends them to themselves with sign +1.
+  - Not added: the action/filter history (#655 section 6.2 item 3): a second hidden variable this arm does not address
+    (KNOWN LIMITS); it would need the previous actions in the critic's input, a different screen.
+4.3 How the critic alone gets it: the widening precedent, applied to value_net.0 only [measured MAIN; inferred use]
+  - MAIN widen_checkpoint.py (#655 line 864): every first-layer tensor whose in_features equals the parent width gets
+    zero columns APPENDED (lines 451-511; _insert_zero_columns lines 451-456), and the Adam moments exp_avg /
+    exp_avg_sq of those tensors are padded with zeros, matched to their parameters by order with shape assertions
+    (lines 172, 512-560; "unpadded moments load but crash on the first optimizer step", line 37); the VecNormalize
+    sidecar's obs_rms gains a reseeded slice (mean 0, var 1, the count carried: command_frame.pad_running_stats lines
+    134-157); a self-verification proves the widened policy acts exactly as the parent (lines 773-830).
+  - What fits a CRITIC-ONLY input: widen value_net.0 only (63 -> 63 + m columns, zero; its Adam moments padded); keep
+    policy_net.0 at 63 inputs and feed the actor the first 63 normalised values (a slice in mlp_extractor.forward_actor,
+    the same kind of class swap BS2's critic_blind arm used on the mlp_extractor instance), so the actor cannot see or
+    learn from the phase (C1) and needs no zero columns at all; the critic is the parent's exactly at S (C2) and learns
+    the phase from its gradient (C3).
+  - What does NOT fit as it stands: the precedent's VecNormalize reseed (mean 0, var 1, count carried at 4,194,312
+    [measured, parent_facts.out]) left UPDATING would hold the phase features' statistics almost fixed for the window
+    but let them drift slowly; and reusing an always-zero command slot (60-62) with its own statistics would divide by
+    sqrt(2.4e-11 + 1e-8) = about 1e-4 and clip at 10 [measured, parent_facts.out: var 2.3841812e-11 at S]. Hence C6:
+    the features reach the value network unnormalised or through a FIXED affine map. The builder's form satisfies it
+    (the slots reseeded to mean 0 / var 1 AND frozen: f / sqrt(1 + 1e-8) = f in float32). Of the three command slots
+    only v_x is mirror-even in the stock map (v_y and yaw_rate flip sign); the builder's arm maps all three to
+    themselves with sign +1 (bs_common.ARM_CHANGE), as C7 requires.
+  - The builder's slot reuse versus my appended-column proposal [inferred]: both satisfy C1-C7. Slot reuse keeps every
+    shape, the saved-file format and the optimizer state unchanged (the zeroed value_net.0 columns met only zero
+    inputs, so their Adam moments are already zero and the critic at load is bitwise the parent's); the actor's
+    first-layer columns on the slots also met only zeros and stay untouched because the actor's slots are held at
+    0.0. The cost is that the actor's "never sees the phase" rests on the slot-zeroing hook, which C1 checks on every
+    rollout and V5 checks for gradients.
+  - #655 section 6.4 constraints (lines 873-877) apply to any later full run, not to this screen: width identity at
+    every load, obs_rms carried and ret_rms reset at a stage transition (KNOWN LIMITS).
+4.4 The contract C1-C7 (criteria WHAT IS TRAINED, MANIPULATION CHECK) states what is proved before launch (V1, V2,
+  V5) and what CHECK sees on every rollout, independent of how the builder implements it. Why each item:
+  C1 the claim "critic-only" is only as good as the proof the actor never uses the phase; checking the mean AND the
+     log-probabilities on all paths (forward, evaluate_actions, get_distribution, mirrored) closes the routes PPO's loss
+     takes; V5 adds that no actor parameter receives a phase gradient.
+  C2 exact equality at S makes the first rollout of a pair identical across arms (the pairing) and makes any later
+     difference come from training with the phase.
+  C3 rollout 1 must show 0.0 change (zero columns), rollouts 2-176 > 0: a wiring check, not an outcome.
+  C4 the tail angle is not hidden in this arm (the difference from BS2's arm).
+  C5 the phase must be the env's own count, including across rollout boundaries (episodes span rollouts) and at the
+     bootstrapped truncation (k = 1000).
+  C6 scale (above).
+  C7 every path that evaluates the critic: the probe's bank (bank_steps 199/599/599/599/400 [measured,
+     parent_facts.out] are loop indices: policy_probe.py lines 252-268 keep the observation returned by the step of
+     loop index s, i.e. after s + 1 env steps, so k = 200 / 600 / 600 / 600 / 401: every bank row is settled.
+     CORRECTION: my first draft said k = 199 (pre-gate); the builder's "all ten bank states are settled" is
+     right), the reader (on-policy k recounted from each collection's reset; OWN snapshots after 500, 600, ...,
+     1000 steps, read_bs.py lines 823-845), the evaluation env, the saved zip.
+4.5 What the builder may still change (the adapter reconciles; the reviewers see it): the feature set, the masking
+  mechanism, the names (arm, critic_form, marker keys). The contract and the reading do not depend on those choices.
+
+==================================================================================================================
+5. THE SECONDARIES
+==================================================================================================================
+5.1 SEC-CMD and SEC-MARGIN (BS2's, unchanged): the task's (a) and (b). In BS2 both read 1/70 with the primary
+  [measured, <BS2>/score/score.txt lines 46-71; reproduced, power_ps.out G]: they mostly restate the primary on the
+  evaluation episodes and the loop, which is why they are secondaries.
+5.2 SEC-MECH (NEW, the task's (c)). VALUE: the effective critic's mean slope dV/dq3 per degree on the reader's
+  on-policy states at the final pair (BS2's marker critic_slope_obs6.ONPOLICY.effective.dV_dq3_per_deg; read_bs.py
+  critic_slope lines 803-820, onpolicy_states lines 848-916: one stochastic collect_rollouts of 4 x 2,048 steps per
+  seed 9301, 9302 under the pair's frozen statistics). For the phase arm the slope is taken with each state's own
+  phase fed (k recounted from that collection's reset), which is the slope that enters the advantages in training.
+  - Prediction: phase arm about 0 (phase-aware TD(0.95): -0.006 to +0.004; phase-aware MLP regressors -0.019 to
+    +0.002 [measured, verify_why/NOTES.txt SUMMARY item 4; phase_probe/analysis.txt MLP G_phase]); control +0.02 to
+    +0.06 (BS2's controls at E +0.0618, +0.0532, +0.0226, +0.0415 [measured, <BS2>/score/score.txt lines 93, 117,
+    141, 165]).
+  - Power: 0.93 (phase arm ~ N(0, 0.017)), 0.98 (N(0, 0.010)), 1.00 by exact resampling at 0; 0.46 if the phase arm's
+    slope is half the controls'; 0.61-0.63 if it is like BS2's blinded arm's RAW (unused) value-MLP slope (+0.003 to
+    +0.031) [computed, power_ps.out G].
+  - Alternatives considered: (i) the slope at the first saved pair 2,359,296 (less confounded with the climb, since
+    the arms' commands have barely diverged there: BS2 control median +0.152 vs blinded +0.120 [measured,
+    <BS2>/score/score.txt line 181]) but smaller and noisier (BS2's controls +0.011 to +0.026 there [measured, lines
+    88, 112, 136, 160]) and the critic has had only 32 updates to learn the phase; (ii) the OWN states (settled, a
+    within-phase slope) or REF bank states (off-policy; BS2's control REF slopes at E ranged -0.022 to +0.040, lines 93,
+    117, 141, 165). The task specified the final pair; the on-policy population is the one that drives training. The
+    alternatives are report only. The confound (a non-climbing tail is a weaker clock) is stated in KNOWN LIMITS.
+5.3 SEC-TAIL2 (NEW, the task's (d)). Candidates examined on BS2's records (post hoc, other_actuators_bs2.out):
+  (i) the largest |.|-rise among the 14 other actuators: in BS2's controls it is driven by companions of the tail_3
+      climb (tail_1_pitch more negative, head_pitch, neck_pitch: control values +0.053 to +0.155), and in the blinded
+      arm it was LOWER (post hoc p for "blinded higher" 61/70 to 6/7): a phase arm that stops the climb would also
+      stop the companions, so this measure would test the climb again with the opposite sign, not migration. Rejected
+      as a test; kept report only.
+  (ii) tail_2 alone (action 13): in BS2's controls it moved -0.032 to +0.024 (it is not a companion of the climb), in
+      the blinded run 2511 +0.120 (post hoc p blinded higher 4/70) [computed, other_actuators_bs2.out]; the phase probe
+      found that run's blinded critic paying +0.031 per degree for tail_2 with tail_2 tracking the phase [measured,
+      phase_probe/NOTES.txt lines 56-59]. CHOSEN, as a guard: with the phase given no joint is needed as a clock, so
+      the account predicts NOT SUPPORTED; a SUPPORTED is a warning. Low power (0.44 for BS2's blinded values; a single
+      migrating run gives p 19/70 [computed, power_ps.out G]).
+5.4 Families and multiplicity: with 4 + 4 the minimum p is 1/70 = 0.0143 > 0.05/4 = 0.0125, so a Bonferroni over four
+  secondaries could never be passed. The three efficacy secondaries keep BS2's family (p = 1/70 survives 0.05/3); the
+  guard is alone (a harm check, where a false alarm only prompts caution). Over all four the global-null bound is
+  12/70 = 0.171 (exchangeable) [computed, power_ps.out A].
+5.5 Dropped: BS2's SEC-G (BS's post hoc gain pattern; tested once in BS2, NOT SUPPORTED; controls that climb work
+  against it). It is printed report only (G at every pair and the count with G(E) > G(S)). The tail note's lesson
+  (#654, TREX_TAIL_SATURATION_HABIT_2026_10.md section 6.2 item 9, quoted in LB's DESIGN_NOTES line 383: "keep the
+  pre-registration lean") argues against adding more.
+
+==================================================================================================================
+6. POWER (power_ps.py -> power_ps.out; deterministic; 100,000 draws per normal-model cell, 200,000 in E)
+==================================================================================================================
+  A  exact facts as BS2; multiplicity (above).
+  B  gate: 0.998 / 0.977 / 0.655 / 1.000 (BS2 mean and SD / SD 0.25 / half the mean / the parent's rise); exact
+     resampling of BS2's rises: P(not informative) 0; of half of them: 5/16.
+  C  lines (P1 / P2 / P3), control at BS2's mean 0.472, SD 0.166, equal SDs: f 0 0.002/0.044/0.954, f 0.25
+     0.002/0.201/0.798, f 0.5 0.002/0.509/0.490, f 0.75 0.001/0.807/0.191, f 1 0.001/0.955/0.044; with the phase arm's
+     SD 0.036 (BS2's blinded): f 0.5 0.733, f 1 0.991; at the parent's rise and SD 0.166: f 0.5 0.657, f 1 0.992; at SD
+     0.25: f 0.5 0.291-0.603, f 1 0.712-0.961; at SD 0.10: f 0.5 0.870-0.993.
+  D  exact on BS2's own arms: blinded-like 1.0000; 0.25 x control 1.0000; 0.5 x control 0.8260; 0.75 x control
+     0.2510; no effect (both from BS2's controls) 0.0203 (below 3/70 because resampling with replacement makes ties,
+     which count against).
+  E  spread-only effect (equal means, SDs 0.166 / 0.036): P(REDUCED) 0.060-0.061 (0.072 given the gate at a true
+     rise of 0.29); equal SDs 0.0422 (exact 3/70 = 0.0429): the S-3 lesson carried into THE TEST.
+  F  two-state (climb like BS2's controls with probability q, else stay like BS2's blinded arm): f 1: 0.991 / 0.823 /
+     0.583 / 0.252 for q 1 / 0.9 / 0.75 / 0.5; f 0.5: 0.305 / 0.261 / 0.198 / 0.111.
+  G  secondaries (section 5).
+  All models (normal, two-state, resampling) are assumptions [inferred]; the inputs are measured.
+
+==================================================================================================================
+7. SEEDS
+==================================================================================================================
+  - Rule (task item 4): 4 new paired seeds used nowhere before; checked against BS (2101-2134 / 3101-3131), BS2
+    (2501-2534 / 3501-3531), ECS (ecs_common.SEEDS and derived), LB's draft (2701-2724 / 3701-3721) and its named
+    alternative (2801-2824 / 3801-3821), the validation seeds of BS, BS2, LB and PS (the build brief's 9401-9441; PS's
+    bs_common.py was still BS2's copy, 9201-9241, when read at 13:06 UTC), M1 / margin 3042-3081, the reader
+    (5001-5010, 9301-9305), the probes (7001-7216, 7501-7502, 7700-7703, 6001-6002, 12345, 8810-8833, 9990), the
+    training runs (42, 52, 60, 70, 80).
+  - seeds_check_ps.py -> seeds_check_ps.out [measured]: 0 collisions with the named sets for both candidate sets
+    (2601/2611/2621/2631 and 2901/2911/2921/2931); a whole-number text search of 112,828 files in S1, S2 and
+    /home/user/work printed the seed-like lines.
+  - seeds_triage_ps.py -> seeds_triage_ps.out [measured]: strict seed-context triage of every hit (section 7a below,
+    filled from that output).
+7a. TRIAGE RESULT AND CHOICE [measured, seeds_triage_ps.out, 112,815 text files]:
+  - 2601 / 2611 / 2621 / 2631: 12 seed-context hits, all in one file and its two durable copies:
+    <LB>/validate/logs/runner_refusal_testmode.out lines 5-8 (and S2/r10round/safety_durable/{repo,stage}/...): LB's
+    runner, in a refusal test with a stub harness (the command `false`), listed control 2601, critic_blind_tail3 2601,
+    2611 and 2621 in its --plan output. Nothing was simulated, so no random stream was drawn from them; but they were
+    named as a queue, and "never used before" is cleaner without them.
+  - 2901 / 2911 / 2921 / 2931 (derived 2901-2904, 2911-2914, 2921-2924, 2931-2934; evaluation 3901, 3911, 3921, 3931):
+    0 seed-context hits; 0 collisions with the named sets. CHOSEN.
+  - The broad search's other hits (seeds_check_ps.out) are hashes, file sizes, line indices of other tools' outputs
+    (for example lean/v6check/out/*.jsonl "i": 2903) and numbers inside long JSON lines that name other seeds (the early
+    bias probe's eb_out2/*.json): none names one of these numbers as a seed.
+
+==================================================================================================================
+8. LESSONS APPLIED (BS2's checks, reviews and verification; LB)
+==================================================================================================================
+  P1 APPROVED's full text in RUNLOG at the pin, before launch -> HOW THE COORDINATOR PINS step 3.
+  M1 (BS2 process check: RUNLOG line 788 held a compact re-serialisation, not APPROVED's bytes) -> APPROVED written as
+     ONE line of compact JSON + newline; appended to RUNLOG with `cat`; `tail -n 1 RUNLOG | sha256sum` must equal it.
+  P2 re-review of the fixed version -> STATUS and step 1.
+  P3 reader cache key includes the reader's and its modules' sha256 -> step text, and the phase arm's critic form in
+     the key.
+  P4 atime re-arm + snapshot (relatime) -> OUTCOME-BLINDNESS.
+  I1 reads before a decision invisible to P4 -> the exit snapshots (LB's port).
+  I3 the maintainer's answer time to the second -> step 0.
+  I4 criteria.txt was 0644 -> chmod 0444 at the pin (step 2).
+  I5/I6 (post-scoring reads allowed; S-row cache entries from V3 by the same reader) -> nothing to change.
+  STAT-1 claims name their measure; STAT-2 the median rule pinned; STAT-3 post hoc patterns labelled -> REPORT ONLY.
+  S-2 ranges stated for the pairs they hold at; S-3 complete separation and spread (P(REDUCED) about 0.06 under a
+     spread-only effect) -> THE TEST and KNOWN LIMITS; S-4..S-7 wording precision -> STAT-1 rule; S-8 claims as worded.
+  RR-1 the ALL_DECIDED snapshot overwritten by a relaunch -> LB's runner fix if ported, else copy aside (RUN HANDLING).
+  RR-3 the gate rationale's unqualified 0.053 -> the gate text here cites the normal model and power_bs2.out E.
+  RR-4 citation nits -> citations re-checked (section 10).
+  RR-5 a final pair really absent keeps the whole reading PROVISIONAL -> stated in THE SECONDARIES.
+  RR-6 out-of-date HOW TO LAUNCH in the builder's NOTES -> the coordinator follows the criteria's steps 2-4.
+  RR-7 disk below the launch rule -> WHERE AND HOW: 2.0 GB free today, below the 2.6 GiB rule; space must be freed.
+  RR-8 the fixer kept no orig/ copy -> stated in HOW THE COORDINATOR PINS (the fixer keeps orig/).
+  D7 (BS2 design review) the missing final pair is PROVISIONAL -> kept.
+  BS2's review D1/D2 (spread-only inflation, two-state conditional size) -> THE TEST and KNOWN LIMITS.
+
+==================================================================================================================
+9. DECISIONS FOR THE MAINTAINER (to confirm before the pin; the coordinator records the answer with its UTC second)
+==================================================================================================================
+  1. The arm: the critic alone gets phi(k) = (min(k, 200)/200, 1[k >= 200], 0.98^max(0, 200 - k)) (k = the env's
+     own step count; the second feature is exactly the reward gate) in the always-zero command slots, at a fixed
+     scale (VecNormalize slots frozen at mean 0 / var 1); the critic's weights on them zero at S (the widen
+     precedent's rule, critic side only); the actor unchanged and provably blind to it (the builder's form; or the
+     builder's final documented variant).
+  2. 4 control + 4 critic_phase, NEW paired seeds 2901 / 2911 / 2921 / 2931 (section 7a), BS2's window 2,097,152 ->
+     3,538,944.
+  3. BS2's primary, gate 0.20, test, fill and line structure unchanged.
+  4. Four secondaries: SEC-CMD, SEC-MARGIN, SEC-MECH (efficacy family, Bonferroni over 3) and SEC-TAIL2 (a guard,
+     alone); SEC-G dropped to report only.
+  5. Launch only with at least 2.6 GiB free (2.0 GB now): which space to free in the old scratch is the maintainer's
+     call (RUNLOG line 809).
+
+==================================================================================================================
+10. OPEN ITEMS FOR THE BUILDER AND THE SCORER ADAPTER (none changes the reading's definition)
+==================================================================================================================
+  - The reader must export: the phase arm's effective on-policy critic slope at every pair with each state's own phase
+    (SEC-MECH), the phase swing, the slope with the phase held settled, and rollout_mu_mean[:, 13] (or all 15 columns)
+    over the probe rows (SEC-TAIL2); the critic form name for the phase arm (the scorer refuses another).
+  - The probe's fixed bank needs a phase (C7); the probe's rollout_mu_mean must be computed on the actor's 63 inputs.
+  - The adapter fills PINS, the arm name, the feature definition (if the builder's differs), the marker keys, and
+    re-checks every BS2 citation against PS's bs_common (S, E, rows, SAVED_STEPS, FINAL_ZIP) and the I1 / RR-1 port.
+  - Citations re-checked by the designer: <BS2>/criteria.txt line ranges cited in the draft; <BS2>/score/score.txt
+    lines 6-24, 46-71, 87, 93, 117, 141, 165, 181, 184, 190; RUNLOG lines 788, 789, 793, 794, 796, 803-809; #655 lines
+    183, 229, 804-808, 864, 873; WHY phase_probe/NOTES.txt lines 19, 56-59; base_env lines above; widen_checkpoint
+    lines above.
+
+==================================================================================================================
+11. INCIDENT, HOUSEKEEPING, SELF-CHECK, DISK, FILES
+==================================================================================================================
+  - INCIDENT (2026-10-31 12:58:42 UTC, my error): one grep redirected its stderr to /root/grep_err_tmp.txt (outside
+    PS; the file exists, 0 bytes, birth 12:58:42 UTC) and a second grep in the same command named the null device;
+    both break the task's rules. The file was NOT removed (rm outside PS is also forbidden): reported to the
+    coordinator, who may remove it. Every later redirect went to this folder. Nothing else was written outside PS
+    (all other writes: this folder; see CMDLOG.txt).
+  - Name rule: the temp-root folder name of S1 and S2 contains a product name. As LB's criteria did, no file here
+    spells it: the criteria define S1 / S2 without the literal path, my scripts derive S2 from the interpreter path
+    (PY = S2/venv/bin/python), and my outputs print S1 / S2 / <TMPROOT> (CMDLOG 13:29 UTC). A case-insensitive scan of
+    this folder for product names finds none (last run at the end of the work).
+  - Self-check: verify_drafts.py -> verify_drafts.out (the line texts, the queue against SCREEN_v1.json, the derived
+    seeds, B_S, every power figure quoted, and every cited line of BS2's score.txt, RUNLOG, #655, the code copy,
+    main's widen_checkpoint.py and the phase probe's NOTES). It is a designer's check, not the independent review.
+  - Disk: df -h / at 13:30 UTC: /dev/vda 252G size, 37G used, 2.0G available (2,045,698,048 bytes), 96%. This
+    folder: about 0.2 MB (du -sb 219,679 bytes at 13:30 UTC), far under the 250 MB limit. The launch rule (2.6 GiB)
+    is NOT met today: about 0.75 GB must be freed before launch (section 9 item 5).
+  - Files (this folder): criteria_v1.txt, SCREEN_v1.json, DESIGN_NOTES.txt (the drafts); power_ps.py/.out,
+    other_actuators_bs2.py/.out, seeds_check_ps.py/.out, seeds_triage_ps.py/.out, verify_drafts.py/.out,
+    parent_facts.out, probe_keys.out, bs2_scorejson_{keys,detail}.out, rr_findings.out, rr_extract.out, screen_check.out
+    (computations and reads); CMDLOG.txt (every command, date -u); SHA256SUMS_drafts.txt (sha256 of every file here
+    but itself and CMDLOG.txt, written last); small *.err / sanitize*.out / rewrap.out logs.
+END

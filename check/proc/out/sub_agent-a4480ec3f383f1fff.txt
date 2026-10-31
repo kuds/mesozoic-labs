@@ -1,0 +1,727 @@
+=== 2026-10-31T16:41:20.197Z Bash
+echo "$(date -u +%FT%TZ) read vg_sigma.py fully; listing PS allowed files (tools, validate, criteria_work)" >> /home/user/work/vg_tool/check1/cmdlog.txt; ls -la /home/user/work/phase_screen/tools /home/user/work/phase_screen/criteria_work 2>&1 | head -50; find /home/user/work/phase_screen/validate -maxdepth 3 | head -80
+--- RESULT (first 1500)
+/home/user/work/phase_screen/criteria_work:
+total 388
+drwxr-xr-x  8 root root  4096 Oct 31 14:28 .
+drwxr-xr-x 11 root root  4096 Oct 31 15:56 ..
+-rw-r--r--  1 root root    29 Oct 31 12:57 .started
+-rw-r--r--  1 root root 22786 Oct 31 14:28 ADAPT_NOTES.txt
+-rw-r--r--  1 root root  7902 Oct 31 13:31 CMDLOG.txt
+-rw-r--r--  1 root root 33693 Oct 31 13:30 DESIGN_NOTES.txt
+-rw-r--r--  1 root root   961 Oct 31 13:22 SCREEN_v1.json
+-rw-r--r--  1 root root  3882 Oct 31 13:31 SHA256SUMS_drafts.txt
+-rw-r--r--  1 root root  2962 Oct 31 14:20 adapt_dry_runs.py
+-rw-r--r--  1 root root 26254 Oct 31 14:22 adapt_install.py
+drwxr-xr-x  2 root root  4096 Oct 31 14:28 adapt_logs
+-rw-r--r--  1 root root  1106 Oct 31 14:15 adapt_mutant_map.py
+-rw-r--r--  1 root root  4488 Oct 31 14:28 adapt_sums_block.txt
+-rw-r--r--  1 root root     0 Oct 31 13:09 bs2_scorejson_detail.err
+-rw-r--r--  1 root root  6344 Oct 31 13:09 bs2_scorejson_detail.out
+-rw-r--r--  1 root root     0 Oct 31 13:09 bs2_scorejson_keys.err
+-rw-r--r--  1 root root  1977 Oct 31 13:28 bs2_scorejson_keys.out
+-rw-r--r--  1 root root 62940 Oct 31 13:28 criteria_v1.txt
+drwxr-xr-x  5 root root  4096 Oct 31 14:20 dry_line1
+drwxr-xr-x  5 root root  4096 Oct 31 14:20 dry_line2
+drwxr-xr-x  5 root root  4096 Oct 31 14:20 dry_line3
+drwxr-xr-x  5 root root  4096 Oct 31 14:20 dry_parent
+drwxr-xr-x  2 root root  4096 Oct 31 14:23 dry_prelaunch_score
+-rw-r--r--  1 root root     0 Oct 31 13:05 du_err.txt
+-rw-r--r--  1 root root     0 Oct 31 13:30 name_
+=== 2026-10-31T16:41:25.336Z Bash
+ls -la /home/user/work/phase_screen/tools; ls -la /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models /home/user/work/phase_screen/validate/v2/critic_phase_9411/01_stance/models 2>&1; cat /home/user/work/phase_screen/validate/v2/critic_phase_9401/run_meta.json | head -50
+--- RESULT (first 1500)
+total 356
+drwxr-xr-x  3 root root  4096 Oct 31 15:08 .
+drwxr-xr-x 11 root root  4096 Oct 31 15:56 ..
+-rw-r--r--  1 root root 22278 Oct 31 13:12 bs_common.py
+-rw-r--r--  1 root root 62749 Oct 31 13:32 bs_hooks.py
+-rw-r--r--  1 root root  1758 Oct 30 10:38 check_inputs.py
+-rw-r--r--  1 root root 69480 Oct 31 13:31 read_bs.py
+-rw-r--r--  1 root root 66199 Oct 31 15:09 run_bs.py
+-rwxr-xr-x  1 root root 28387 Oct 31 15:17 run_waves_bs.sh
+-rw-r--r--  1 root root 83889 Oct 31 15:12 score_bs.py
+drwxr-xr-x  2 root root  4096 Oct 31 14:13 tests
+-rw-r--r--  1 root root  1124 Oct 30 03:51 verify_copy.py
+/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models:
+total 15800
+drwxr-xr-x 2 root root    4096 Oct 31 13:45 .
+drwxr-xr-x 3 root root    4096 Oct 31 13:45 ..
+-rw-r--r-- 1 root root 4033137 Oct 31 13:38 robust_best_model.zip
+-rw-r--r-- 1 root root    4917 Oct 31 13:38 robust_best_model_vecnorm.pkl
+-rw-r--r-- 1 root root 4033634 Oct 31 13:32 stage1_2097152_steps.zip
+-rw-r--r-- 1 root root 4033138 Oct 31 13:45 stage1_2359296_steps.zip
+-rw-r--r-- 1 root root 4033137 Oct 31 13:45 stage1_final.zip
+-rw-r--r-- 1 root root    4917 Oct 31 13:45 stage1_final_vecnorm.pkl
+-rw-r--r-- 1 root root    5291 Oct 31 13:32 stage1_vecnormalize_2097152_steps.pkl
+-rw-r--r-- 1 root root    4917 Oct 31 13:45 stage1_vecnormalize_2359296_steps.pkl
+
+/home/user/work/phase_screen/validate/v2/critic_phase_9411/01_stance/models:
+total 15800
+drwxr-xr-x 2 root root    4096 Oct 31 13:45 .
+drwxr-xr-x 
+=== 2026-10-31T16:41:31.245Z Bash
+cd /home/user/work/phase_screen/validate; for f in v1/critic_phase_9401/run_meta.json v1/control_9401/run_meta.json v2/critic_phase_9411/run_meta.json; do echo == $f; grep -E '"(mode|status|target|T|stop_reason)"' $f; done; ls -la v1/critic_phase_9401/01_stance/models v1/critic_phase_9401/saved 2>&1 | head; find fixer -maxdepth 4 | head -40; head -40 logs/v5_one_step.out
+--- RESULT (first 1500)
+== v1/critic_phase_9401/run_meta.json
+ "mode": "save_loaded_only",
+ "status": "done",
+ "target": 2097152,
+ "T": 2097152,
+ "stop_reason": null,
+== v1/control_9401/run_meta.json
+ "mode": "save_loaded_only",
+ "status": "done",
+ "target": 2097152,
+ "T": 2097152,
+ "stop_reason": null,
+== v2/critic_phase_9411/run_meta.json
+ "mode": "no_update",
+ "status": "done",
+ "target": 2359296,
+ "T": 2359296,
+ "stop_reason": "end",
+  "target": 2359296,
+v1/critic_phase_9401/01_stance/models:
+total 3956
+drwxr-xr-x 2 root root    4096 Oct 31 13:32 .
+drwxr-xr-x 3 root root    4096 Oct 31 13:32 ..
+-rw-r--r-- 1 root root 4033634 Oct 31 13:32 stage1_2097152_steps.zip
+-rw-r--r-- 1 root root    5291 Oct 31 13:32 stage1_vecnormalize_2097152_steps.pkl
+
+v1/critic_phase_9401/saved:
+total 3952
+drwxr-xr-x 2 root root    4096 Oct 31 13:32 .
+fixer
+fixer/v1
+fixer/v1/control_9401
+fixer/v1/control_9401/01_stance
+fixer/v1/control_9401/01_stance/stage_config.json
+fixer/v1/control_9401/01_stance/eval_episodes.csv
+fixer/v1/control_9401/01_stance/train_episodes.csv
+fixer/v1/control_9401/01_stance/policy_probe.npz
+fixer/v1/control_9401/01_stance/task_fingerprint.json
+fixer/v1/control_9401/01_stance/models
+fixer/v1/control_9401/01_stance/evaluations.npz
+fixer/v1/control_9401/01_stance/gate_progress.npz
+fixer/v1/control_9401/01_stance/plant_identity.json
+fixer/v1/control_9401/run_meta.json
+fixer/v1/control_9401/saved
+fixer/v1/control_9401/saved/stage1_vecnormalize_2097152_steps.pkl
+fixer/v1/control_9401/saved/stage1_2097
+=== 2026-10-31T16:41:41.902Z Bash
+cd /home/user/work/phase_screen/tools; grep -n "PHASE\|def phase\|PHASE_\|def run_name\|def queue_of\|def load_screen\|^E\b\|^E =\|^S =\|SAVED_STEPS\|FINAL_ZIP\|FINAL_PKL\|STAGE_DIR\|def periodic_names\|def f2_file\|^START\|COMMIT\|^CODE" bs_common.py | head -60
+--- RESULT (first 1500)
+46:CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+68:COMMIT = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"        # ECS / the seal
+91:S = 2_097_152                                   # TASK2 = TASK3: s42's 2,097,152 checkpoint (BS2's S)
+93:E = S + LENGTH                                  # 3,538,944 (on the evaluation grid; NOT on the 262,144 save grid)
+98:SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 3,407,872 (5)
+99:FINAL_ZIP, FINAL_PKL = "stage1_final.zip", "stage1_final_vecnorm.pkl"
+102:STAGE_DIR = "01_stance"
+112:# THE PHASE (critic_phase only; TASK3 2(a)).  k = the env's own per-episode step counter _step_count AT THE MOMENT THE
+129:PHASE_SLOTS = (60, 61, 62)                      # the command slots v_x, v_y, yaw_rate (CODE_ _get_obs l1025)
+130:PHASE_FEATURES = ("ramp", "settled", "discount")
+132:PHASE_GAMMA = 0.98                              # the stage's [ppo] gamma (stage_config.json hyperparameters)
+136:def phase_features(k: int) -> tuple[float, float, float]:
+137:    """(ramp, settled, discount) of an observation made at episode step counter k >= 0 (pure; see THE PHASE)."""
+141:            PHASE_GAMMA ** max(0, SETTLE_STEPS - k))
+174:START = {                                       # FMAN F2 COPY rows, copy 1, sha256 in full [measured, check_inputs.py]
+220:def run_name(arm: str, seed: int) -> str:
+238:def f2_file(rel: str) -> str:
+244:    return f2_file(f"{STAGE_DIR}/
+=== 2026-10-31T16:41:43.412Z Bash
+cd /home/user/work/phase_screen/tools; sed -n 85,175p bs_common.py
+--- RESULT (first 1500)
+TOTAL_TIMESTEPS = 12_000_000                    # the run's _total_timesteps; the body's total = 12M - S (ECS)
+N_ENVS = 4
+N_STEPS = 2048
+ROLLOUT = N_ENVS * N_STEPS                      # 8,192 steps per rollout / update
+EVAL_FREQ = 131_072                             # stage eval_freq (ECS)
+SAVE_FREQ = 262_144                             # stage checkpoint_freq (ECS)
+S = 2_097_152                                   # TASK2 = TASK3: s42's 2,097,152 checkpoint (BS2's S)
+LENGTH = 1_441_792                              # TASK2 = TASK3 = BS's: 11 evaluations of 131,072; 176 rollouts
+E = S + LENGTH                                  # 3,538,944 (on the evaluation grid; NOT on the 262,144 save grid)
+MAX_LENGTH = 1_500_000                          # AUTH (b): <= 1.5M steps each
+N_EVALS = LENGTH // EVAL_FREQ                   # 11
+# The saved pairs of a continuation: the periodic ones at S + 262,144 k inside (S, E), and the final pair at E
+# (stage1_final.zip / stage1_final_vecnorm.pkl: E is not on the save grid, so no periodic pair is written there).
+SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 3,407,872 (5)
+FINAL_ZIP, FINAL_PKL = "stage1_final.zip", "stage1_final_vecnorm.pkl"
+VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 = 2,359,296 (TASK item 5)
+EVAL_SEED_OFFSET = 1000                         # eval env seed = seed + 1000 (ECS)
+STAGE_DIR = "01_stance"
+STAGE_KEY = "stance"
+ALGORITHM = "ppo"
+COLLAPSE_PATIENCE = 10                     
+=== 2026-10-31T16:41:48.577Z Bash
+cd /home/user/work/phase_screen/tools; grep -n "^def \|^class \|^    def " bs_hooks.py | head -100
+--- RESULT (first 1500)
+84:class HookError(Exception):
+92:def critic_blind_class(base: type) -> type:
+108:def frozen_rms_class(base: type) -> type:
+131:def frozen_counter(rms: Any) -> dict | None:
+137:def phase_tuple(k: int) -> tuple[float, float, float]:
+146:def phase_matrix(ks: Any) -> Any:
+154:def phase_env_class(base: type) -> type:
+178:def critic_phase_class(base: type) -> type:
+194:def phase_rms_class(base: type) -> type:
+221:def reseed_phase_slots(rms: Any) -> None:
+231:def phase_slots_frozen(rms: Any) -> bool:
+238:def phase_counter(rms: Any) -> dict | None:
+243:def phase_mirror_map(mirror_map: Any) -> Any:
+267:def mirror_phase_self_map(omap: Any) -> bool:
+276:def train_envs(train_env: Any) -> list:
+284:def env_step_counts(train_env: Any) -> list[int]:
+289:def _adam_state(policy: Any, param: Any) -> dict:
+295:def _adam_phase_max_abs(policy: Any, param: Any) -> float:
+302:def _adam_steps(policy: Any) -> float:
+308:def phase_reference(model: Any) -> dict:
+316:def phase_probe_class(base: type) -> type:
+340:def probe_phase(arm: str, callbacks: list) -> dict:
+369:def _hash(arrays: list) -> str:
+379:def rms_digest(rms: Any) -> str:
+386:def _mirror_obs_map(model: Any) -> Any:
+391:def install_arm(arm: str, model: Any, train_env: Any) -> dict:
+447:def _install_critic_phase(model: Any, train_env: Any) -> dict:
+541:def arm_state_problems(arm: str, model: Any, train_env: Any) -> list[str]:
+579:def gae(rewards: Any, values: Any, episode_starts: Any, last_values: Any, dones: Any, gamma: float,
+606:def mc_r
+=== 2026-10-31T16:41:50.993Z Bash
+cd /home/user/work/phase_screen/tools; sed -n 84,290p bs_hooks.py
+--- RESULT (first 1500)
+class HookError(Exception):
+    """An arm could not be applied to the loaded objects as specified (the run refuses: no optimizer step)."""
+
+
+# ------------------------------------------------------------------------------------------------ class factories
+_CLASS_CACHE: dict[tuple[str, type], type] = {}
+
+
+def critic_blind_class(base: type) -> type:
+    """A subclass of the policy's MlpExtractor class whose forward_critic sees features[..., 6] = 0.0."""
+    key = ("critic_blind", base)
+    if key not in _CLASS_CACHE:
+
+        def forward_critic(self: Any, features: Any) -> Any:
+            blinded = features.clone()           # never write into the caller's tensor (the actor reads it too)
+            blinded[..., OBS_TAIL3] = 0.0
+            return base.forward_critic(self, blinded)
+
+        _CLASS_CACHE[key] = type(f"CriticBlindTail3{base.__name__}", (base,),
+                                 {"forward_critic": forward_critic, "bs_blind_index": OBS_TAIL3,
+                                  "bs_base": base, "__module__": base.__module__})
+    return _CLASS_CACHE[key]
+
+
+def frozen_rms_class(base: type) -> type:
+    """A subclass of the observation RunningMeanStd class whose update() is a counted no-op and which pickles as the
+    stock RunningMeanStd (the base's own __reduce__ form: SymmetricRunningMeanStd.__reduce__)."""
+    key = ("frozen", base)
+    if key not in _CLASS_CACHE:
+        from stable_baselines3.common.running_mean_std import RunningMeanStd
+
+        counter = {"call
+=== 2026-10-31T16:41:58.672Z Bash
+cd /home/user/work/phase_screen/tools; grep -n "^def \|^class \|^    def " read_bs.py | head -80
+--- RESULT (first 1500)
+90:def _load(name):
+148:class InputError(Exception):
+159:def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, phase=False, start=False, reader=READER_SHA256,
+172:def cache_entry_problem(row, reader=READER_SHA256, deps=DEPS_SHA256):
+183:def utcnow():
+187:def atomic_write_text(path, text):
+194:def require_under(path, root):
+201:def read_json_file(path):
+215:def run_kind(run_dir, root):
+224:def finite_or_none(v):
+229:def load_probe(path, keys):
+242:def parent_probe(keys):
+251:def window_rows(steps, S, T):
+256:def probe_check(run_cols, parent_cols, arm, S, T, start_stats):
+309:def evidence_check(run, meta, arm, n_expected):
+329:def check_meta(meta, kind, folder):
+442:def phase_meta_problems(meta, arm, kind):
+478:def check_run(run_dir, root=None):
+534:def pkl_stats(path):
+541:def check_is_current(run, check):
+555:def load_lost(path):
+565:def decided(root=None):
+588:def probe_markers(path, S, T, label):
+628:def run_m5(ledger, T, out_dir):
+651:def m5_window(m5, S, T):
+661:    def inwin(s):
+675:def ledger_direct(ledger, S, T):
+688:    def num(r, k):
+716:def truncate_ledger(src, dst, T):
+737:def ledger_markers(ledger, S, T, out_dir):
+744:def setup_simulation(tmp_name):
+767:def _ls_slopes(xs, ys):
+777:class Net:
+780:    def __init__(self, zip_path, pkl_path, factory):
+794:    def refresh_stats(self):
+803:    def z(self, X):
+808:    def act(self, obs):
+811:    def mu(self, X):
+826:def _set_t3(X, deg):
+834:def tail_sweeps(net, X):
+866:def with_phase(X, K):
+875:def critic_slope(
+=== 2026-10-31T16:42:01.797Z Bash
+cd /home/user/work/phase_screen/tools; sed -n 744,830p read_bs.py; sed -n 866,1100p read_bs.py
+--- RESULT (first 1500)
+def setup_simulation(tmp_name):
+    """Before importing numpy/torch/the code: threads 1, TMPDIR under <BS>/tmp, the copy first on sys.path."""
+    tmp = Path(C.TMP) / tmp_name
+    (tmp / "mpl").mkdir(parents=True, exist_ok=True)
+    os.environ.update({"OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1",
+                       "TMPDIR": str(tmp), "MPLCONFIGDIR": str(tmp / "mpl"), "GITHUB_SHA": C.COMMIT})
+    import tempfile
+
+    tempfile.tempdir = None
+    code = os.path.realpath(C.CODE)
+    if sys.path[:1] != [code]:
+        sys.path.insert(0, code)
+    import environments
+
+    origin = os.path.realpath(environments.__file__)
+    if not origin.startswith(code + os.sep):
+        raise InputError(f"environments imported from {origin}, not the code copy {code}")
+    import torch
+
+    torch.set_num_threads(1)
+    return origin
+
+
+def _ls_slopes(xs, ys):
+    import numpy as np
+
+    xs = np.asarray(xs, dtype=np.float64)
+    if xs.ndim == 1:
+        xs = np.repeat(xs[:, None], ys.shape[1], axis=1)
+    xc = xs - xs.mean(axis=0)
+    return (xc * (ys - ys.mean(axis=0))).sum(axis=0) / (xc ** 2).sum(axis=0)
+
+
+class Net:
+    """A loaded pair (ew_common.Net): SB3's own load and normaliser (frozen); mu14 = the raw Gaussian mean."""
+
+    def __init__(self, zip_path, pkl_path, factory):
+        import numpy as np
+
+        from environments.shared.policy_loading import load_sb3_checkpoint
+
+        self.model, self.norm, _ = load_sb3_checkpoint(str(zip_path), str(pkl_path
+=== 2026-10-31T16:43:10.134Z Bash
+cd /home/user/work/phase_screen/tools; grep -n '"classes"\|"root"\|"status"\|"T":\|"cls"\|UNDECIDED\|"COUNTED"\|"STOPPED"\|"LOST"' score_bs.py | head -60
+--- RESULT (first 1500)
+28:stop reason "collapse" at T < E); UNDECIDED otherwise (running, queued, crashed or VOID).  While any entry is UNDECIDED,
+154:COUNTED, STOPPED, LOST, UNDECIDED = "COUNTED", "STOPPED", "LOST", "UNDECIDED"
+301:    out = dict(name=name, arm=arm, seed=seed, cls=UNDECIDED, T=None, cause=None, check_sha256=csha)
+403:                       ("stop_reason", "end" if c["cls"] == COUNTED else "collapse")):
+449:    if c["cls"] != COUNTED:
+450:        return None, c.get("cause") or c["cls"]
+520:    if c["cls"] != COUNTED:
+521:        return None, c.get("cause") or c["cls"]
+559:        return {"status": "no ledger named"}, None
+563:        return {"status": f"unreadable ({exc})"}, None
+565:        return ({"status": "changed since the read (sha256 differs)"},
+573:        return {"status": f"unreadable ({exc.__class__.__name__}: {exc})"}, None
+587:    return {"status": "read", "n_episodes": len(rets), "n_evaluations": len(per),
+753:        return {"status": f"unreadable ({exc})"}
+755:        return {"status": f"{path} absent"}
+756:    out = {"status": "read", "file": str(path), "sha256": sha, "line_key": d.get("line_key"),
+760:    for cl in d.get("classes") or []:
+919:        if c["cls"] not in (COUNTED, STOPPED) or metas is None:
+943:        if c["cls"] == COUNTED and mk is not None and len(loop_rows_at(mk, C.E)) != 1:
+1063:    undecided = [c for c in classes if c["cls"] == UNDECIDED]
+1064:    decided_read = [c for c in classes if c["cls"] in (COUNTED, STOPPED)]
+1070:                    
+=== 2026-10-31T16:43:13.478Z Bash
+cd /home/user/work/phase_screen/tools; sed -n 280,330p score_bs.py; echo ----; sed -n 1040,1110p score_bs.py; echo ----; sed -n 1340,1400p score_bs.py
+--- RESULT (first 1500)
+    if d.get("intervention") != INTERVENTION:
+        raise InputError(f"SCREEN.json intervention {d.get('intervention')!r} is not the criteria's {INTERVENTION}")
+    if C.queue_of(d) != QUEUE:
+        raise InputError(f"SCREEN.json queue {C.queue_of(d)} is not the criteria's {QUEUE}")
+    return d
+
+
+def lost_of(root):
+    try:
+        lost = R.load_lost(Path(root) / "lost.json")
+    except R.InputError as exc:
+        raise InputError(str(exc)) from exc
+    names = {C.run_name(a, s) for a, s in QUEUE}
+    unknown = sorted(set(lost) - names)
+    if unknown:
+        raise InputError(f"lost.json names continuations outside the queue: {unknown}")
+    return lost
+
+
+def classify(name, arm, seed, check, csha, lost_entry):
+    """One entry's class from check.json and its lost.json entry (criteria RUN HANDLING)."""
+    out = dict(name=name, arm=arm, seed=seed, cls=UNDECIDED, T=None, cause=None, check_sha256=csha)
+    if lost_entry is not None:
+        cause = lost_entry.get("cause") if isinstance(lost_entry, dict) else None
+        detail = lost_entry.get("detail") if isinstance(lost_entry, dict) else None
+        out.update(cls=LOST, cause=f"lost.json: {cause or 'listed'}" + (f" ({detail})" if detail else ""))
+        return out
+    if check is None:
+        out["cause"] = "no check.json (queued, running, crashed or VOID)"
+        return out
+    want = dict(name=name, arm=arm, seed=seed, S=C.S, E=C.E, mode="continuation")
+    for key, value in want.items():
+        if check.get(key)
+=== 2026-10-31T16:43:19.530Z Bash
+cd /home/user/work/phase_screen/tools; grep -n 'status = \|status=\b' score_bs.py | head; grep -n "score_bs" run_waves_bs.sh | head; grep -n "def main" -A 30 score_bs.py | grep -n "root\|out" | head -20
+--- RESULT (first 1500)
+1120:    status = "PROVISIONAL" if prov else "final"
+1362:        status=status, provisional=prov, line=dec["line"], line_key=dec["key"], line_text=dec["text"],
+13:#   PR-M4  the runner refuses (exit 2, nothing started) unless APPROVED's tool_sha256["score_bs.py"] equals the current
+14:#          tools/score_bs.py (run_bs.py's preflight pins the five bs_common.TOOL_FILES only);
+168:# PR-M4: APPROVED must pin the scorer as well (the criteria's PROVISIONAL rule needs tool_sha256["score_bs.py"], and
+170:SCORER_PIN=$("$PY" -I -B - "$BS/APPROVED" "${SCORER_OVERRIDE:-$TOOLS/score_bs.py}" <<'PYEOF'
+180:    sys.exit(print(f"tools/score_bs.py unreadable ({exc.__class__.__name__})"))
+181:print("ok" if tp.get("score_bs.py") == got else f"APPROVED tool_sha256['score_bs.py'] {tp.get('score_bs.py')!r} "
+185:[[ "$SCORER_PIN" == ok ]] || die "$SCORER_PIN (APPROVED must pin tools/score_bs.py: criteria, HOW THE COORDINATOR PINS)"
+3:1401-    ap.add_argument("--root", default=C.BS, help="the screen's folder (default <PS>; another root for tests and the "
+5:1403-    ap.add_argument("--out", default=None, help="default <root>/score")
+7:1405-    root = Path(a.root).resolve()
+8:1406-    out = Path(a.out).resolve() if a.out else root / "score"
+10:1408-        R.require_under(out, root)
+11:1409-        result, lines, code = score(root)
+17:1415-    out.mkdir(parents=True, exist_ok=True)
+18:1416-    R.atomic_write_text(out / "score.json", json.dumps(result, indent=1, default=_jsonable) + "\n")
+19:1417- 
+=== 2026-10-31T16:43:28.588Z Bash
+cd /home/user/work/phase_screen/tools; sed -n 1099,1145p read_bs.py; sed -n 1190,1225p read_bs.py; grep -n "def loop_rows_at" -A 8 score_bs.py
+--- RESULT (first 1500)
+def loop_markers(pairs, *, blind, onpolicy, own, tag, phase=False):
+    """M-LOOP over pairs, with the cache under <BS>/reads/_cache/.  phase (PS): critic_phase's reading; the pair at
+    steps S is the start copy (the arm's load transform applied)."""
+    import numpy as np
+
+    from environments.shared.config import load_stage_config
+    from environments.shared.model_id import ModelId
+    from environments.shared.species_registry import env_class
+
+    mid = ModelId("tyrannosaurus_rex", "anatomical")
+    ctor = dict(load_stage_config(mid, "stance")["env_kwargs"])
+
+    def factory():
+        return env_class(mid)(**ctor)
+    env = factory()
+    if env.unwrapped.model.actuator(C.ACT_TAIL3).name != "tail_3_pitch_act":
+        raise InputError("action 14 is not tail_3_pitch_act")
+    with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
+        bank_ss = np.asarray(z["bank_raw_obs"], dtype=np.float64)[list(C.BANK_STATUE_SETTLED)]
+        bank_k = np.asarray(z["bank_steps"], dtype=np.int64)[list(C.BANK_STATUE_SETTLED)] + 1     # PS: k = 200
+    cache = require_under(Path(C.READS) / "_cache", C.BS)
+    cache.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for steps, z, p in pairs:
+        key = cache_key(C.sha256_file(z), C.sha256_file(p), blind=blind, onpolicy=onpolicy, own=own, phase=phase,
+                        start=phase and steps == C.S)
+        cpath = cache / f"{key}.json"
+        if cpath.is_file():
+            row = json.loads(cpath.read_text())
+=== 2026-10-31T16:44:07.524Z Bash
+cd /home/user/work/phase_screen/tools; sed -n 386,545p bs_hooks.py
+--- RESULT (first 1500)
+def _mirror_obs_map(model: Any) -> Any:
+    state = getattr(model, "_mirror", None)
+    return getattr(getattr(state, "mirror_map", None), "obs", None)
+
+
+def install_arm(arm: str, model: Any, train_env: Any) -> dict:
+    """Apply *arm* in place; return the record of what was applied.  HookError (nothing half-applied that could
+    train: the caller refuses before learn()) when the loaded objects are not what the hook is written for."""
+    from stable_baselines3.common.torch_layers import FlattenExtractor, MlpExtractor
+
+    if arm not in ARMS:
+        raise HookError(f"unknown arm {arm!r}")
+    policy = model.policy
+    rec: dict[str, Any] = {"arm": arm, "policy_class": type(policy).__name__,
+                           "mlp_extractor_class_before": type(policy.mlp_extractor).__name__,
+                           "obs_rms_class_before": type(train_env.obs_rms).__name__,
+                           "gae_lambda": float(model.gae_lambda),
+                           "rollout_buffer_gae_lambda": float(model.rollout_buffer.gae_lambda)}
+    want_lam = GAE_LAMBDA[arm]
+    if float(model.gae_lambda) != want_lam or float(model.rollout_buffer.gae_lambda) != want_lam:
+        raise HookError(f"arm {arm}: gae_lambda {model.gae_lambda} / buffer {model.rollout_buffer.gae_lambda} != "
+                        f"{want_lam}")
+    if type(policy.mlp_extractor) is not MlpExtractor:
+        raise HookError(f"the policy's mlp_extractor is {type(policy.mlp_extractor).__name__}, not MlpExtractor")
+    i
+=== 2026-10-31T16:44:14.776Z Bash
+cd /home/user/work/phase_screen/tools; grep -n "^CODE\|^BS1\|^BS =\|^TMP\|^READS" bs_common.py; CODE=$(grep -n '^BS1 = ' bs_common.py | sed 's/.*= "\(.*\)".*/\1/'); echo $CODE; ls $CODE/code/environments 2>&1 | head
+--- RESULT (first 1500)
+43:BS = "/home/user/work/phase_screen"            # PS: every file the screen writes is under it (TASK3)
+44:BS1 = S2 + "/r10round/bias_screen"              # the finished first screen: read only (its code copy is reused)
+46:CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+51:READS = BS + "/reads"                           # read_bs.py's full reads of continuations: <BS>/reads/<name>/
+53:TMP = BS + "/tmp"                               # TMPDIR and MPLCONFIGDIR per run
+44:BS1 = S2 + "/r10round/bias_screen" # the finished first screen: read only (its code copy is reused)
+ls: cannot access '44:BS1': No such file or directory
+ls: cannot access '=': No such file or directory
+ls: cannot access 'S2': No such file or directory
+ls: cannot access '+': No such file or directory
+ls: cannot access '"/r10round/bias_screen"': No such file or directory
+ls: cannot access '#': No such file or directory
+ls: cannot access 'the': No such file or directory
+ls: cannot access 'finished': No such file or directory
+ls: cannot access 'first': No such file or directory
+ls: cannot access 'screen:': No such file or directory
+=== 2026-10-31T16:46:12.251Z Write
+{"file_path": "/home/user/work/vg_tool/check1/own_vg.py", "content": "\"\"\"check1 (independent checker): my own V - G by episode-step bucket, NOT importing vg_sigma.py.\n\nMethod (deliberately different from vg_sigma's loop): SB3 2.9.0's own collect_rollouts into a RolloutBuffer, so\n  - the rewards are the buffer's rewards (VecNormalize-normalised, float32), with SB3's own truncation bootstrap\n    rewards[last] += gamma * V(terminal_observation) folded in (and nothing after a termination),\n  - V is the buffer's values (the policy forward of the collection, batch of 4 envs),\n  - for critic_phase the phase reaches the critic exactly as in training: the training envs' class swap\n    bs_hooks.phase_env_class writes phi(k) into slots 60-62 of every raw observation (incl. the terminal one), the\n    VecNormalize normalises it, and the actor is masked by bs_hooks.critic_phase_class (training's hook),\n  - k = each env's _step_count read before each step (callback), checked equal to the position in the episode,\n  - G_t = backward discounted sum (float64) of the buffer's rewards within the episode.\nBuckets / statistics: my own code.  PS tools are imported read only for paths and the training classes.\n\nUsage: PY -I -B own_vg.py --zip Z --pkl P --arm {control,critic_phase} [--start] --per-env M --seed B --out F.json\n\"\"\"\nimport argparse\nimport copy\nimport json\nimport math\nimport os\nimport sys\nimport time\nfrom pathlib import Path\n\nHERE = Path(__file__).resolve().parent\nos.environ[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\nsys.dont_write_bytecode = True\nos.environ.update({\"OMP_NUM_THREADS\": \"1\", \"MKL_NUM_THREADS\": \"1\", \"OPENBLAS_NUM_THREADS\": \"1\"})\nTMP = HERE / \"tmp\" / f\"own_{os.getpid()}\"\n(TMP / \"mpl\").mkdir(parents=True, exist_ok=True)\nos.environ.update({\"TMPDIR\": str(TMP), \"MPLCONFIGDIR\": str(TMP / \"mpl\")})\nimport tempfile  # noqa: E402\n\ntempfile.tempdir = None\nsys.path.insert(0, \"/home/user/work/phase_screen/tools\")\nimport bs_common as C  # noqa: E402\nimport bs_hooks as H  # noqa: E402\n\nos.environ[\"GITHUB_SHA\"] = C.COMMIT\nCODE = os.path.realpath(C.CODE)\nsys.path.insert(0, CODE)\nimport numpy as np  # noqa: E402\nimport torch  # noqa: E402\n\ntorch.set_num_threads(1)\n\nEDGES = (50, 150, 200, 250)\nNAMES = (\"[0,50)\", \"[50,150)\", \"[150,200)\", \"[200,250)\", \"[250,1000]\")\n\n\ndef my_bucket(k):\n    k = int(k)\n    if k < 50:\n        return 0\n    if k < 150:\n        return 1\n    if k < 200:\n        return 2\n    if k < 250:\n        return 3\n    return 4\n\n\ndef my_phi(k):\n    return (min(k, 200) / 200.0, 1.0 if k >= 200 else 0.0, 0.98 ** max(0, 200 - k))\n\n\ndef build(zip_path, pkl_path, seed, arm, start):\n    from stable_baselines3.common.torch_layers import MlpExtractor\n    from stable_baselines3.common.vec_env import VecNormalize\n\n    import environments\n    from environments.shared.config import load_stage_config\n    from environments.shared.mirror_kl_ppo import enable_mirror_kl\n    from environments.shared.model_id import ModelId\n    from environments.shared.plant_contract import current_plant_identity\n    from environments.shared.policy_loading import load_sb3_model\n    from environments.shared.species_registry import env_class\n    from environments.shared.symmetry import MirrorMap, pop_symmetry_config\n    from environments.shared.train_base import _prepare_alg_kwargs, create_vec_env\n\n    assert os.path.realpath(environments.__file__).startswith(CODE + os.sep)\n    mid = ModelId(\"tyrannosaurus_rex\", \"anatomical\")\n    cfg = copy.deepcopy(load_stage_config(mid, \"stance\"))\n\n    class Sp:\n        model_id = mid\n        env_class = env_class(mid)\n\n    ppo = copy.deepcopy(cfg[\"ppo_kwargs\"])\n    sym = pop_symmetry_config(ppo)\n    venv = create_vec_env(Sp(), {1: {\"env_kwargs\": dict(cfg[\"env_kwargs\"])}}, 1, 4, seed=seed, use_subproc=False,\n                          algorithm=\"ppo\", gamma=float(ppo[\"gamma\"]))\n    vn = VecNormalize.load(str(pkl_path), venv.venv)\n    vn.training = False\n    vn.norm_reward = True\n    ak, _tb, _g = _prepare_alg_kwargs({\"ppo_kwargs\": copy.deepcopy(cfg[\"ppo_kwargs\"])}, \"ppo\", 0,\n                                      TMP / \"_tb_unused\", use_tensorboard=False)\n    pop_symmetry_config(ak)\n    ak.pop(\"policy_kwargs\", None)\n    model = load_sb3_model(str(zip_path), algorithm=\"ppo\", env=vn, device=\"cpu\", **ak)\n    model = enable_mirror_kl(model, sym, MirrorMap.load(mid, current_plant_identity(mid)))\n    rec = {\"arm\": arm, \"start\": start}\n    if arm == \"critic_phase\":\n        w = model.policy.mlp_extractor.value_net[0].weight\n        rec[\"phase_cols_max_abs_read\"] = float(w[:, 60:63].abs().max())\n        if start:\n            with torch.no_grad():\n                w[:, 60:63] = 0.0\n            H.reseed_phase_slots(vn.obs_rms)\n        if not H.phase_slots_frozen(vn.obs_rms):\n            raise SystemExit(\"critic_phase pair whose slots are not mean 0 / var 1\")\n        model.policy.mlp_extractor.__class__ = H.critic_phase_class(MlpExtractor)\n        for e in vn.venv.envs:\n            u = e.unwrapped\n            u.__class__ = H.phase_env_class(type(u))\n        rec[\"phase_cols_max_abs_used\"] = float(w[:, 60:63].abs().max())\n    vn.seed(seed)\n    torch.manual_seed(seed)\n    np.random.seed(seed)\n    return vn, model, rec\n\n\ndef run(zip_path, pkl_path, arm, start, per_env, seed):\n    from stable_baselines3.common.buffers import RolloutBuffer\n    from stable_baselines3.common.callbacks import BaseCallback\n    from stable_baselines3.common.logger import Logger\n\n    t0 = time.process_time()\n    vn, model, rec = build(zip_path, pkl_path, seed, arm, start)\n    n = per_env * 1000\n    buf = RolloutBuffer(n, model.observation_space, model.action_space, device=\"cpu\", gamma=model.gamma,\n                        gae_lambda=model.gae_lambda, n_envs=4)\n    envs = [e.unwrapped for e in vn.venv.envs]\n\n    class Cb(BaseCallback):\n        def __init__(self):\n            super().__init__(0)\n            self.k, self.done, self.trunc, self.r_pre, self.r_raw, self.istep, self.obs60 = [], [], [], [], [], [], []\n\n        def _on_rollout_start(self):\n            self.prev_k = [int(u._step_count) for u in envs]\n            self.prev_obs60 = vn.get_original_obs()[:, 60:63].copy()\n\n        def _on_step(self):\n            self.k.append(list(self.prev_k))\n            self.obs60.append(self.prev_obs60)\n            d = np.asarray(self.locals[\"dones\"]).copy()\n            infos = self.locals[\"infos\"]\n            self.done.append(d)\n            self.trunc.append([bool(infos[i].get(\"TimeLimit.truncated\", False)) for i in range(4)])\n            self.istep.append([int(infos[i].get(\"step\", -1)) if d[i] else -1 for i in range(4)])\n            self.r_pre.append(np.asarray(self.locals[\"rewards\"], dtype=np.float32).copy())\n            self.r_raw.append(vn.get_original_reward().astype(np.float32).copy())\n            self.prev_k = [int(u._step_count) for u in envs]\n            self.prev_obs60 = vn.get_original_obs()[:, 60:63].copy()\n            return True\n\n    cb0 = Cb()\n    model.set_logger(Logger(folder=None, output_formats=[]))\n    model._last_obs = None\n    _t, cb = model._setup_learn(n * 4, cb0, False, \"check1\", False)\n    ok = model.collect_rollouts(model.env, cb, buf, n_rollout_steps=n)\n    assert ok\n    vn.close()\n    R = buf.rewards.astype(np.float32)          # (n, 4), bootstrap folded in\n    V = buf.values.astype(np.float32)\n    ST = buf.episode_starts\n    K = np.asarray(cb0.k, dtype=np.int64)\n    D = np.asarray(cb0.done, dtype=bool)\n    TR = np.asarray(cb0.trunc, dtype=bool)\n    RP = np.asarray(cb0.r_pre, dtype=np.float32)\n    IS = np.asarray(cb0.istep, dtype=np.int64)\n    O60 = np.asarray(cb0.obs60, dtype=np.float64)\n    gamma = float(model.gamma)\n    eps, checks = [], {\"k_ok\": True, \"phase_obs_ok\": True, \"fold_only_at_trunc\": True}\n    for i in range(4):\n        t = 0\n        got = 0\n        while t < n and got < per_env:\n            if ST[t, i] != 1.0:\n                raise SystemExit(f\"env {i}: no episode start at {t}\")\n            t1 = t\n            while t1 < n and not D[t1, i]:\n                t1 += 1\n            if t1 >= n:\n                break\n            idx = np.arange(t, t1 + 1)\n            k = K[idx, i]\n            if not np.array_equal(k, np.arange(len(idx))):\n                checks[\"k_ok\"] = False\n            if arm == \"critic_phase\":\n                want = np.array([my_phi(int(x)) for x in k], dtype=np.float32)\n                if not np.array_equal(O60[idx, i, :].astype(np.float32), want):\n                    checks[\"phase_obs_ok\"] = False\n            else:\n                if np.any(O60[idx, i, :] != 0.0):\n                    checks[\"phase_obs_ok\"] = False\n            fold = R[idx, i].astype(np.float64) - RP[idx, i].astype(np.float64)\n            if np.any(fold[:-1] != 0.0) or (not TR[t1, i] and fold[-1] != 0.0):\n                checks[\"fold_only_at_trunc\"] = False\n            G = np.empty(len(idx), dtype=np.float64)\n            acc = 0.0\n            for j in range(len(idx) - 1, -1, -1):\n                acc = float(R[idx[j], i]) + gamma * acc\n                G[j] = acc\n            eps.append({\"env\": i, \"k\": k, \"V\": V[idx, i].astype(np.float64), \"G\": G, \"trunc\": bool(TR[t1, i]),\n                        \"len\": len(idx), \"k_info_end\": int(IS[t1, i]),\n                        \"V_term_from_fold\": float(fold[-1] / gamma) if TR[t1, i] else None})\n            got += 1\n            t = t1 + 1\n        if got < per_env:\n            raise SystemExit(f\"env {i}: only {got} complete episodes\")\n    # order as vg_sigma's: env-major, first per_env of each env\n    return eps, checks, rec, gamma, round(time.process_time() - t0, 2)\n\n\ndef stats(eps):\n    out = []\n    for b, name in enumerate(NAMES):\n        per_mean, per_abs, pooled, Vs, Gs = [], [], [], [], []\n        for ep in eps:\n            sel = np.array([my_bucket(k) == b for k in ep[\"k\"]])\n            if not sel.any():\n                continue\n            e = ep[\"V\"][sel] - ep[\"G\"][sel]\n            per_mean.append(e.mean())\n            per_abs.append(np.abs(e).mean())\n            pooled.append(e)\n            Vs.append(ep[\"V\"][sel])\n            Gs.append(ep[\"G\"][sel])\n        m = len(per_mean)\n        row = {\"bucket\": name, \"n_episodes\": m, \"n_states\": int(sum(len(x) for x in pooled))}\n        if m:\n            pe = np.concatenate(pooled)\n            sd = (lambda xs: math.sqrt(sum((x - sum(xs) / len(xs)) ** 2 for x in xs) / (len(xs) - 1))\n                  if len(xs) > 1 else None)\n            row.update(mean_err=float(sum(per_mean) / m), mean_abs_err=float(sum(per_abs) / m),\n                       se_err=(sd(per_mean) / math.sqrt(m)) if m > 1 else None,\n                       se_abs_err=(sd(per_abs) / math.sqrt(m)) if m > 1 else None,\n                       pooled_err=float(pe.mean()), pooled_abs_err=float(np.abs(pe).mean()),\n                       mean_V=float(np.concatenate(Vs).mean()), mean_G=float(np.concatenate(Gs).mean()))\n        out.append(row)\n    return out\n\n\ndef main():\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--zip\", required=True)\n    ap.add_argument(\"--pkl\", required=True)\n    ap.add_argument(\"--arm\", choices=(\"control\", \"critic_phase\"), required=True)\n    ap.add_argument(\"--start\", action=\"store_true\")\n    ap.add_argument(\"--per-env\", type=int, required=True)\n    ap.add_argument(\"--seed\", type=int, required=True)\n    ap.add_argument(\"--out\", required=True)\n    a = ap.parse_args()\n    out = Path(a.out).resolve()\n    if HERE not in out.parents:\n        raise SystemExit(\"--out must be inside check1\")\n    eps, checks, rec, gamma, cpu = run(a.zip, a.pkl, a.arm, a.start, a.per_env, a.seed)\n    res = {\"zip\": a.zip, \"pkl\": a.pkl, \"arm\": a.arm, \"start\": a.start, \"seed\": a.seed, \"per_env\": a.per_env,\n           \"gamma\": gamma, \"checks\": checks, \"build\": rec, \"cpu_s\": cpu,\n           \"episodes\": [{\"env\": e[\"env\"], \"len\": e[\"len\"], \"trunc\": e[\"trunc\"], \"k_info_end\": e[\"k_info_end\"],\n                         \"V_term_from_fold\": e[\"V_term_from_fold\"]} for e in eps],\n           \"buckets\": stats(eps)}\n    out.write_text(json.dumps(res, indent=1) + \"\\n\")\n    np.savez_compressed(out.with_suffix(\".npz\"), **{f\"ep{j}_{f}\": e[f] for j, e in enumerate(eps)\n                                                    for f in (\"k\", \"V\", \"G\")})\n    print(json.dumps({k: res[k] for k in (\"checks\", \"build\", \"cpu_s\")}))\n    for r in res[\"buckets\"]:\n        print(r)\n    import shutil\n    shutil.rmtree(TMP, ignore_errors=True)\n\n\nif __name__ == \"__main__\":\n    main()\n"}
+--- RESULT (first 1500)
+File created successfully at: /home/user/work/vg_tool/check1/own_vg.py (file state is current in your context — no need to Read it back)
+=== 2026-10-31T16:47:23.913Z Bash
+cd /home/user/work/vg_tool/check1 && PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; M=/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models; echo "$(date -u +%FT%TZ) START own_vg PS validate v2 critic_phase_9401 final arm critic_phase per-env 1 seed 6281 -> out/own_ph9401.json" >> cmdlog.txt; nice -n 19 $PY -I -B own_vg.py --zip $M/stage1_final.zip --pkl $M/stage1_final_vecnorm.pkl --arm critic_phase --per-env 1 --seed 6281 --out out/own_ph9401.json > out/own_ph9401.log 2>&1; echo "exit $?"; echo "$(date -u +%FT%TZ) END own_vg ph9401; compare -> out/cmp_ph9401.out" >> cmdlog.txt; head -1 out/own_ph9401.log; $PY -I -B compare.py out/own_ph9401.json ../val/b2_phase/vg_sigma.json phase | tee out/cmp_ph9401.out
+--- RESULT (first 1500)
+exit 0
+/home/user/work/vg_tool/check1/own_vg.py:108: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+[0,50)       counts equal (True, True)  own mean_err -0.0236203822 tool -0.0236203894  max|d| 8.119e-09 (se_abs_err)
+[50,150)     counts equal (True, True)  own mean_err +0.0893108197 tool +0.0893108459  max|d| 2.623e-08 (pooled_err)
+[150,200)    counts equal (True, True)  own mean_err +0.0077622733 tool +0.0077622876  max|d| 1.431e-08 (mean_err)
+[200,250)    counts equal (True, True)  own mean_err -0.1062933404 tool -0.1062933071  max|d| 3.338e-08 (pooled_err)
+[250,1000]   counts equal (True, True)  own mean_err -0.0617305181 tool -0.0617304980  max|d| 2.017e-08 (pooled_err)
+episodes: own 4 (trunc 4); tool 4 (trunc 4); seeds own 6281 tool 6281
+WORST max|d| 3.338e-08; worst relative (errors) 1.843e-06
+=== 2026-10-31T16:47:52.670Z Write
+{"file_path": "/home/user/work/vg_tool/check1/make_perturbed.py", "content": "\"\"\"check1: a synthetic critic_phase pair whose critic SEES the phase (value_net.0.weight[:, 60:63] nonzero), so that\nfeeding / not feeding the phase (states and the terminal observation) changes V.  Copy of PS validate v2\ncritic_phase_9401's final pair; only policy.pth's mlp_extractor.value_net.0.weight[:, 60:63] is replaced by\n0.3 * N(0, 1) (torch.Generator seed 5); every other zip member byte-identical; the pkl copied byte for byte.\nWritten only under check1/pairs.  No training.\nUsage: PY -I -B make_perturbed.py\"\"\"\nimport hashlib\nimport io\nimport shutil\nimport sys\nimport zipfile\nfrom pathlib import Path\n\nimport torch\n\nsys.dont_write_bytecode = True\nHERE = Path(__file__).resolve().parent\nSRC = Path(\"/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models\")\nDST = HERE / \"pairs\"\nDST.mkdir(exist_ok=True)\nzin = SRC / \"stage1_final.zip\"\nzout = DST / \"phase_pert.zip\"\nwith zipfile.ZipFile(zin) as zf:\n    infos = zf.infolist()\n    members = {i.filename: zf.read(i.filename) for i in infos}\nstate = torch.load(io.BytesIO(members[\"policy.pth\"]), map_location=\"cpu\", weights_only=True)\nname = \"mlp_extractor.value_net.0.weight\"\nw = state[name]\nprint(\"before max |w[:,60:63]|\", float(w[:, 60:63].abs().max()), \"shape\", tuple(w.shape))\ng = torch.Generator().manual_seed(5)\nw[:, 60:63] = 0.3 * torch.randn(w.shape[0], 3, generator=g)\nbuf = io.BytesIO()\ntorch.save(state, buf)\nmembers[\"policy.pth\"] = buf.getvalue()\nwith zipfile.ZipFile(zout, \"w\", compression=zipfile.ZIP_DEFLATED) as zf:\n    for i in infos:\n        zf.writestr(i, members[i.filename])\nshutil.copyfile(SRC / \"stage1_final_vecnorm.pkl\", DST / \"phase_pert_vecnorm.pkl\")\nfor p in (zout, DST / \"phase_pert_vecnorm.pkl\"):\n    print(p, hashlib.sha256(p.read_bytes()).hexdigest())\nchk = torch.load(io.BytesIO(zipfile.ZipFile(zout).read(\"policy.pth\")), weights_only=True)[name]\nprint(\"after max |w[:,60:63]|\", float(chk[:, 60:63].abs().max()))\n"}
+--- RESULT (first 1500)
+File created successfully at: /home/user/work/vg_tool/check1/make_perturbed.py (file state is current in your context — no need to Read it back)
+=== 2026-10-31T16:50:17.870Z Bash
+for p in /home/user/work/phase_screen/vg_out /home/user/work/phase_screen/vg_report; do if [ -e "$p" ]; then echo "EXISTS $p"; else echo "absent $p"; fi; done; echo "$(date -u +%FT%TZ) test -e PS/vg_out PS/vg_report (refusal targets; no listing)" >> /home/user/work/vg_tool/check1/cmdlog.txt
+--- RESULT (first 1500)
+absent /home/user/work/phase_screen/vg_out
+absent /home/user/work/phase_screen/vg_report
+=== 2026-10-31T16:56:02.448Z Bash
+cat /home/user/work/phase_screen/SCREEN.json; echo; /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B -c "
+import json; d=json.load(open('/home/user/work/phase_screen/APPROVED')); print(list(d)); print(d.get('tool_sha256'))"
+--- RESULT (first 1500)
+{
+ "schema": "bs-screen/1",
+ "_note": "PS's queue (criteria THE QUEUE; installed by the scorer adapter 2026-10-31 from criteria_work/SCREEN_v1.json, the queue unchanged; the intervention name is the builder's arm name, bs_common.INTERVENTIONS): control vs critic_phase from r10 stance6 s42's 2,097,152 state to 3,538,944 (BS2's window), 4 + 4 continuations with NEW paired seeds 2901-2931 (derived 2901-2934 and evaluation seeds 3901-3931; none used by BS, BS2, LB, the ECS, any validation, the reader, the probes or the round: criteria_work/seeds_check_ps.out, seeds_triage_ps.out), interleaved so an interruption leaves both arms equally advanced. Pinned by sha256 in <PS>/APPROVED (screen_sha256); the scorer refuses any other queue.",
+ "intervention": "critic_phase",
+ "queue": [["control", 2901], ["critic_phase", 2901], ["control", 2911], ["critic_phase", 2911],
+           ["control", 2921], ["critic_phase", 2921], ["control", 2931], ["critic_phase", 2931]]
+}
+
+['criteria_sha256', 'screen_sha256', 'code_tree_digest', 'tool_sha256', 'approved_by', 'utc']
+{'run_bs.py': '9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c', 'read_bs.py': 'cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698', 'run_waves_bs.sh': '3ef2746e797e908e87c359e1f3ffe6b483078e6878e0b3be08db20f0fee7f9bb', 'bs_common.py': 'cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f', 'bs_hooks.py': '0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539', 'score_bs.py': 'e63
+=== 2026-10-31T16:56:36.380Z Write
+{"file_path": "/home/user/work/vg_tool/check1/root_audit.py", "content": "\"\"\"check1: the --root guard and the root-mode wiring on SYNTHETIC roots under check1/roots (never in PS).\nEvery open (sys audit hook \"open\") and every os.stat / lstat / listdir / scandir under a synthetic root is recorded.\nmeasure_pair and setup_sim are stubbed (no simulation): the stub records the forms, seed, episodes, expect_steps and\nphase_start requested per pair, so the arm -> critic form wiring is checked without CPU.\nUsage: PY -I -B root_audit.py <dir holding vg_sigma.py> <tag>\"\"\"\nimport hashlib\nimport io\nimport json\nimport os\nimport shutil\nimport sys\nimport zipfile\nfrom pathlib import Path\n\nHERE = Path(__file__).resolve().parent\nos.environ[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\nsys.dont_write_bytecode = True\nos.environ.update({\"TMPDIR\": str(HERE / \"tmp\"), \"MPLCONFIGDIR\": str(HERE / \"mpl\")})\nsys.path.insert(0, str(Path(sys.argv[1]).resolve()))\nTAG = sys.argv[2]\nimport vg_sigma as T  # noqa: E402\n\nimport numpy as np  # noqa: E402\nimport torch  # noqa: E402\n\nPS = Path(\"/home/user/work/phase_screen\")\nQUEUE = [tuple(x) for x in json.loads((PS / \"SCREEN.json\").read_text())[\"queue\"]]\nBASE = HERE / \"roots\" / TAG\nshutil.rmtree(BASE, ignore_errors=True)\nBASE.mkdir(parents=True)\nOUTB = HERE / \"roots_out\" / TAG\nshutil.rmtree(OUTB, ignore_errors=True)\nOUTB.mkdir(parents=True)\n\nHITS = []\nWATCH = [str(BASE)]\n\n\ndef _rec(kind, p):\n    try:\n        s = os.fsdecode(p) if isinstance(p, (str, bytes, os.PathLike)) else \"\"\n    except TypeError:\n        s = \"\"\n    if any(s.startswith(w) for w in WATCH):\n        HITS.append((kind, s))\n\n\ndef hook(event, args):\n    if event == \"open\" and args:\n        _rec(\"open\", args[0])\n    elif event in (\"os.listdir\", \"os.scandir\") and args:\n        _rec(event, args[0])\n\n\nsys.addaudithook(hook)\nfor name in (\"stat\", \"lstat\"):\n    orig = getattr(os, name)\n\n    def wrap(p, *a, _o=orig, _n=name, **k):\n        _rec(\"os.\" + _n, p)\n        return _o(p, *a, **k)\n    setattr(os, name, wrap)\n\n\ndef tiny_zip(path, seed):\n    g = torch.Generator().manual_seed(seed)\n    buf = io.BytesIO()\n    torch.save({\"log_std\": -1.7 + 0.1 * torch.randn(15, generator=g)}, buf)\n    with zipfile.ZipFile(path, \"w\") as zf:\n        zf.writestr(\"policy.pth\", buf.getvalue())\n\n\ndef make_root(case, classes, *, status=\"final\", score=True):\n    root = BASE / case / \"root\"\n    (root / \"score\").mkdir(parents=True)\n    shutil.copyfile(PS / \"SCREEN.json\", root / \"SCREEN.json\")\n    shutil.copyfile(PS / \"APPROVED\", root / \"APPROVED\")\n    for i, (arm, seed) in enumerate(QUEUE):\n        name = f\"{arm}_{seed}\"\n        m = root / \"runs\" / name / \"01_stance\" / \"models\"\n        m.mkdir(parents=True)\n        tiny_zip(m / \"stage1_final.zip\", 100 + i)\n        (m / \"stage1_final_vecnorm.pkl\").write_bytes(b\"pkl \" + name.encode())\n        tiny_zip(m / \"stage1_2097152_steps.zip\", 1)\n        for j, s in enumerate(T.C.SAVED_STEPS):\n            tiny_zip(m / T.C.periodic_names(s)[0], 1000 * i + j)\n        rd = root / \"reads\" / name\n        rd.mkdir(parents=True)\n        zsha = hashlib.sha256((m / \"stage1_final.zip\").read_bytes()).hexdigest()\n        psha = hashlib.sha256((m / \"stage1_final_vecnorm.pkl\").read_bytes()).hexdigest()\n        form = {\"control\": \"plain\", \"critic_phase\": \"phase+raw+settled\"}[arm]\n        (rd / \"markers.json\").write_text(json.dumps({\"loop\": [{\"steps\": T.C.E, \"zip_sha256\": zsha, \"pkl_sha256\": psha,\n                                                                \"critic_form\": form}]}))\n    if score:\n        (root / \"score\" / \"score.json\").write_text(json.dumps({\"version\": \"synthetic\", \"root\": str(root.resolve()),\n                                                                \"status\": status, \"classes\": classes}))\n    return root\n\n\ndef classes_of(cls_of=None):\n    out = []\n    for arm, seed in QUEUE:\n        name = f\"{arm}_{seed}\"\n        cls = (cls_of or {}).get(name, \"COUNTED\")\n        out.append({\"name\": name, \"arm\": arm, \"seed\": seed, \"cls\": cls,\n                    \"T\": T.C.E if cls == \"COUNTED\" else (T.C.E - 131072 if cls == \"STOPPED\" else None),\n                    \"cause\": None})\n    return out\n\n\nCALLS = []\n\n\ndef fake_measure(zip_path, pkl_path, *, forms, seed, n_episodes, label, expect_steps=None, phase_start=False,\n                 max_vec_steps=None):\n    CALLS.append({\"zip\": str(zip_path), \"forms\": tuple(forms), \"seed\": seed, \"n\": n_episodes, \"label\": label,\n                  \"expect\": expect_steps, \"phase_start\": phase_start})\n    zsha = hashlib.sha256(Path(zip_path).read_bytes()).hexdigest()\n    psha = hashlib.sha256(Path(pkl_path).read_bytes()).hexdigest()\n    rows = [{\"bucket\": b, \"lo\": 0, \"hi\": 0, \"n_episodes\": 4, \"n_states\": 10, \"mean_err\": 0.01 * (i + 1),\n             \"se_err\": 0.0, \"mean_abs_err\": 0.02, \"se_abs_err\": 0.0, \"pooled_err\": 0.0, \"pooled_abs_err\": 0.0,\n             \"mean_V\": 0.0, \"mean_G\": 0.0} for i, b in enumerate(T.BUCKET_NAMES)]\n    rec = {\"label\": label, \"zip\": str(zip_path), \"zip_sha256\": zsha, \"pkl\": str(pkl_path), \"pkl_sha256\": psha,\n           \"num_timesteps\": expect_steps, \"seed\": seed, \"env_seeds\": [seed + r for r in range(4)],\n           \"n_episodes\": n_episodes, \"units\": {\"sigma_r\": 1.0, \"gamma\": 0.98},\n           \"episodes\": {\"n\": n_episodes, \"truncated\": n_episodes, \"terminated\": 0},\n           \"forms\": {f: {\"buckets\": rows} for f in forms}, \"sigma\": T.sigma_record(T.read_log_std(zip_path))}\n    return rec, [], {\"label\": label}\n\n\nT.setup_sim = lambda tmp: \"stub\"\nT.measure_pair = fake_measure\n\n\ndef run(case, root, *extra):\n    HITS.clear()\n    CALLS.clear()\n    out = OUTB / case\n    code = T.main([\"--root\", str(root), \"--out\", str(out), *extra])\n    under = sorted({h[1].split(str(root) + \"/\", 1)[1].split(\"/\")[0] + \"/\" + (\n        h[1].split(str(root) + \"/\", 1)[1].split(\"/\")[1] if h[1].count(\"/\") > str(root).count(\"/\") + 1 else \"\")\n        for h in HITS if h[1].startswith(str(root) + \"/\")})\n    rr = sorted({h[1].split(str(root) + \"/\", 1)[1] for h in HITS if h[1].startswith(str(root) + \"/\")})\n    touched_runs = sorted({p.split(\"/\")[1] for p in rr if p.startswith((\"runs/\", \"reads/\")) and p.count(\"/\") >= 1})\n    print(f\"[{case}] exit {code}; out exists {out.exists()}; top-level touched {under}; run names touched \"\n          f\"{touched_runs}\")\n    return code, touched_runs, list(CALLS)\n\n\ndef main():\n    fails = []\n    # 1 no score.json\n    r = make_root(\"no_score\", classes_of(), score=False)\n    code, t, _ = run(\"no_score\", r)\n    if code != 2 or t:\n        fails.append(\"no_score\")\n    # 2 statuses other than final\n    for st in (\"PROVISIONAL\", \"incomplete\", \"FINAL\", \"final \"):\n        r = make_root(f\"status_{st.strip()}_{len(st)}\", classes_of(), status=st)\n        code, t, _ = run(f\"status_{st!r}\", r)\n        if code != 2 or t:\n            fails.append(f\"status {st!r}\")\n    # 3 score_bs's own 'incomplete' shape (decided flags, no cls) but status forced final\n    inc = [{\"name\": f\"{a}_{s}\", \"arm\": a, \"seed\": s, \"decided\": True} for a, s in QUEUE]\n    r = make_root(\"incomplete_shape_final\", inc)\n    code, t, _ = run(\"incomplete_shape_final\", r)\n    if code != 2 or t:\n        fails.append(\"incomplete shape\")\n    # 4 one UNDECIDED / one cls None / COUNTED with T None\n    for case, mod in ((\"undecided\", {\"cls\": \"UNDECIDED\"}), (\"cls_none\", {\"cls\": None}), (\"T_none\", {\"T\": None})):\n        cl = classes_of()\n        cl[5].update(mod)\n        r = make_root(case, cl)\n        code, t, _ = run(case, r)\n        if code != 2 or t:\n            fails.append(case)\n    # 5 mixed decided: STOPPED critic_phase_2911, LOST control_2921 -> only the 6 COUNTED touched; wiring checked\n    stopped, lost = \"critic_phase_2911\", \"control_2921\"\n    r = make_root(\"mixed\", classes_of({stopped: \"STOPPED\", lost: \"LOST\"}))\n    code, t, calls = run(\"mixed\", r)\n    counted = [f\"{a}_{s}\" for a, s in QUEUE if f\"{a}_{s}\" not in (stopped, lost)]\n    ok = code in (0, 3) and t == sorted(counted)\n    S = [c for c in calls if c[\"expect\"] == T.C.S]\n    ok &= len(S) == 1 and S[0][\"forms\"] == (\"plain\", \"phase\") and S[0][\"phase_start\"] is True\n    for c in calls:\n        if c[\"expect\"] == T.C.E:\n            arm = \"critic_phase\" if \"critic_phase_\" in c[\"label\"] else \"control\"\n            want = (\"phase\",) if arm == \"critic_phase\" else (\"plain\",)\n            if c[\"forms\"] != want or c[\"phase_start\"]:\n                ok = False\n                print(f\"   WIRING: {c['label']} forms {c['forms']} (want {want}) phase_start {c['phase_start']}\")\n    ok &= all(c[\"seed\"] == 6271 and c[\"n\"] == 32 for c in calls) and len(calls) == 1 + len(counted)\n    ok &= [c[\"label\"] for c in calls[1:]] == counted\n    res = json.loads((OUTB / \"mixed\" / \"vg_sigma.json\").read_text()) if (OUTB / \"mixed\" / \"vg_sigma.json\").exists() \\\n        else {}\n    print(f\"   calls: {[(c['label'], c['forms'], c['seed'], c['n'], c['expect']) for c in calls]}\")\n    print(f\"   problems: {res.get('problems')}\")\n    sig_runs = sorted({row['run'] for row in res.get('sigma_table', [])})\n    ok &= sig_runs == sorted(counted)\n    if not ok:\n        fails.append(\"mixed\")\n    # 6 refusal of pair options in root mode, and --out inside the root\n    r = make_root(\"opts\", classes_of())\n    for extra in ([\"--episodes\", \"8\"], [\"--seed\", \"6281\"]):\n        code, t, _ = run(f\"opts{extra[0]}\", r, *extra)\n        if code != 2 or t:\n            fails.append(f\"opts {extra}\")\n    code = T.main([\"--root\", str(r), \"--out\", str(r / \"vgout\")])\n    if code != 2 or (r / \"vgout\").exists():\n        fails.append(\"out inside root\")\n    print(\"RESULT\", \"PASS\" if not fails else f\"FAIL {fails}\")\n    return 1 if fails else 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"}
+--- RESULT (first 1500)
+File created successfully at: /home/user/work/vg_tool/check1/root_audit.py (file state is current in your context — no need to Read it back)
+=== 2026-10-31T16:57:34.084Z Bash
+ls /home/user/work; grep -n "ONPOLICY_SEEDS\|OWN_SEEDS\|SEED" /home/user/work/phase_screen/tools/read_bs.py | head; sed -n 220,240p /home/user/work/phase_screen/criteria.txt; echo "$(date -u +%FT%TZ) ls /home/user/work; grep read_bs seeds; read PS criteria.txt 220-240" >> /home/user/work/vg_tool/check1/cmdlog.txt
+--- RESULT (first 1500)
+disk_free_list.txt
+ext
+phase_screen
+phase_screen_build.js
+pr655_review
+ps_rereviewed.txt
+records_pr
+repo
+vg_tool
+wt_hwnote
+wt_pr655
+wt_records
+120:OWN_SEEDS = tuple(range(5001, 5011))
+123:ONPOLICY_SEEDS = (9301, 9302)                   # eb_realized.py SEEDS
+350:    elif seed not in C.VALIDATION_SEEDS:
+896:def own_rollouts(net, env, seeds=OWN_SEEDS):
+1053:        got = [onpolicy_states(zip_path, pkl_path, s) for s in ONPOLICY_SEEDS]
+  step when the clip is active (the actor's loss itself is unchanged; BS2's blinded arm had the same kind of coupling).
+- THE QUEUE (<PS>/SCREEN.json, pinned; installed from WORK/SCREEN_v1.json, the queue unchanged):
+  4 control + 4 critic_phase = 8 continuations, with
+  paired seeds 2901, 2911, 2921, 2931, each seed once in each arm, in this launch order:
+    control 2901, phase 2901, control 2911, phase 2911, control 2921, phase 2921, control 2931, phase 2931.
+  Interleaved so an interruption leaves both arms equally advanced; 4 slots: the first four start together and the
+  rest as slots free. Each seed goes to the model and training env 0 (seed), envs 1-3 (seed + rank) and the evaluation
+  env (seed + 1000): 2901-2904 + 3901, 2911-2914 + 3911, 2921-2924 + 3921, 2931-2934 + 3931. None of these 20 is used
+  by BS (2101-2134, 3101-3131), BS2 (2501-2534, 3501-3531), LB's draft (2701-2724, 3701-3721) or LB's named alternative
+  (2801-2824, 3801-3821), the ECS (1101-1454 and their evaluation seeds), the validation seeds of BS (9101-9141), BS2
+  (920
+=== 2026-10-31T16:57:57.561Z Write
+{"file_path": "/home/user/work/vg_tool/check1/seed_scan.py", "content": "\"\"\"check1: my own seed-collision scan for vg_tool's seeds (6271-6274 PROD, 6281-6284 VAL) and their neighbours that\nan offset convention could hit (seed + rank 0-3 => bases 6268-6284; evaluation env seed + 1000 => bases 5271-5284).\nWhole-number hits and range members (a-b, a..b, a to b, range(a, b[, s])) in text files under the given roots.\nPS is scanned ONLY through its allowed paths (criteria.txt, SCREEN.json, APPROVED, NOTES.txt, tools, validate,\ncriteria_work).  Prints every hit with file:line and a summary.\nUsage: PY -I -B seed_scan.py > out/seed_scan.out\"\"\"\nimport os\nimport re\nfrom pathlib import Path\n\nS2 = \"/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad\"\nPS = \"/home/user/work/phase_screen\"\nROOTS = [f\"{PS}/criteria.txt\", f\"{PS}/SCREEN.json\", f\"{PS}/APPROVED\", f\"{PS}/NOTES.txt\", f\"{PS}/tools\",\n         f\"{PS}/validate\", f\"{PS}/criteria_work\", f\"{S2}/r10round\", f\"{S2}/com_revisit/notes\",\n         \"/home/user/work/pr655_review\", \"/home/user/work/records_pr\", \"/home/user/work/wt_pr655\",\n         \"/home/user/work/ps_rereviewed.txt\"]\nSKIP_DIRS = {\"__pycache__\", \".git\", \"venv\", \"node_modules\", \"code\"}     # code = the frozen code copy (seeds below)\nEXT = {\".txt\", \".py\", \".json\", \".sh\", \".md\", \".toml\", \".out\", \".log\", \".csv\", \".cfg\", \".yaml\", \".yml\", \".jsonl\", \"\"}\nTARGETS = set(range(6271, 6275)) | set(range(6281, 6285))\nNEAR = set(range(6268, 6285)) | set(range(5271, 5285))     # bases whose +rank / +1000 would reach a target\nnum = re.compile(r\"(?<![\\d.])(\\d{4,5})(?![\\d.])\")\nrng = re.compile(r\"(?<![\\d.])(\\d{4,5})\\s*(?:-|\u2013|\\.\\.|to|through)\\s*(\\d{4,5})(?![\\d.])\")\nprng = re.compile(r\"range\\(\\s*(\\d{4,5})\\s*,\\s*(\\d{4,5})\")\n\n\ndef files():\n    for r in ROOTS:\n        p = Path(r)\n        if p.is_file():\n            yield p\n            continue\n        if not p.is_dir():\n            continue\n        for dp, dns, fns in os.walk(p):\n            dns[:] = [d for d in dns if d not in SKIP_DIRS]\n            for f in fns:\n                q = Path(dp) / f\n                if q.suffix.lower() in EXT and not q.name.endswith((\".zip\", \".pkl\", \".npz\")):\n                    try:\n                        if q.stat().st_size < 8_000_000:\n                            yield q\n                    except OSError:\n                        pass\n\n\ndef main():\n    nfiles = hits_t = hits_n = 0\n    for q in files():\n        try:\n            text = q.read_text(errors=\"replace\")\n        except OSError:\n            continue\n        nfiles += 1\n        for ln, line in enumerate(text.splitlines(), 1):\n            if \"6271\" in line or \"6281\" in line or \"627\" in line or \"628\" in line or \"527\" in line or \"528\" in line \\\n                    or \"range(\" in line or \"-\" in line:\n                for m in num.finditer(line):\n                    v = int(m.group(1))\n                    if v in TARGETS:\n                        hits_t += 1\n                        print(f\"TARGET {v} {q}:{ln}: {line.strip()[:150]}\")\n                    elif v in NEAR:\n                        hits_n += 1\n                        print(f\"NEAR {v} {q}:{ln}: {line.strip()[:150]}\")\n                for m in rng.finditer(line):\n                    a, b = int(m.group(1)), int(m.group(2))\n                    if a < b and b - a < 5000 and any(a <= t <= b for t in TARGETS):\n                        hits_t += 1\n                        print(f\"RANGE {a}-{b} {q}:{ln}: {line.strip()[:150]}\")\n                for m in prng.finditer(line):\n                    a, b = int(m.group(1)), int(m.group(2))\n                    if any(a <= t < b for t in TARGETS):\n                        hits_t += 1\n                        print(f\"PYRANGE {a},{b} {q}:{ln}: {line.strip()[:150]}\")\n    print(f\"SUMMARY files {nfiles}; target/range hits {hits_t}; near-base hits {hits_n}\")\n\n\nif __name__ == \"__main__\":\n    main()\n"}
+--- RESULT (first 1500)
+File created successfully at: /home/user/work/vg_tool/check1/seed_scan.py (file state is current in your context — no need to Read it back)
+=== 2026-10-31T17:02:25.584Z Write
+{"file_path": "/home/user/work/vg_tool/check1/tail_idx.py", "content": "\"\"\"check1: the action layout (actuator names in action order), the mirror action permutation, the policy's log_std\nlength, and sigma = exp(log_std) for tail_3 / tail_2 recomputed from the zips (my own read), against the tool's\nreported sigma (builder's val outputs, my tool run on the synthetic pair).  Also: where SB3 samples (no floor).\nUsage: PY -I -B tail_idx.py\"\"\"\nimport io\nimport json\nimport os\nimport sys\nimport zipfile\nfrom pathlib import Path\n\nHERE = Path(__file__).resolve().parent\nsys.dont_write_bytecode = True\nos.environ.update({\"TMPDIR\": str(HERE / \"tmp\"), \"MPLCONFIGDIR\": str(HERE / \"mpl\")})\nsys.path.insert(0, \"/home/user/work/phase_screen/tools\")\nimport bs_common as C  # noqa: E402\n\nos.environ[\"GITHUB_SHA\"] = C.COMMIT\nsys.path.insert(0, os.path.realpath(C.CODE))\nimport numpy as np  # noqa: E402\nimport torch  # noqa: E402\nfrom environments.shared.config import load_stage_config  # noqa: E402\nfrom environments.shared.model_id import ModelId  # noqa: E402\nfrom environments.shared.plant_contract import current_plant_identity  # noqa: E402\nfrom environments.shared.species_registry import env_class  # noqa: E402\nfrom environments.shared.symmetry import MirrorMap  # noqa: E402\n\nmid = ModelId(\"tyrannosaurus_rex\", \"anatomical\")\nenv = env_class(mid)(**dict(load_stage_config(mid, \"stance\")[\"env_kwargs\"]))\nu = env.unwrapped\nnames = [u.model.actuator(i).name for i in range(u.model.nu)]\nprint(\"nu\", u.model.nu, \"action_space\", env.action_space.shape)\nfor i, n in enumerate(names):\n    print(f\"  action {i:2d} -> actuator {n}  ctrlrange {u.model.actuator_ctrlrange[i].tolist()}\")\nmm = MirrorMap.load(mid, current_plant_identity(mid))\nperm = [int(x) for x in mm.action.perm]\nsign = [float(x) for x in mm.action.sign]\nprint(\"mirror action perm\", perm)\nprint(\"mirror action sign\", sign)\nprint(\"tail_3 (14) perm/sign\", perm[14], sign[14], \"; tail_2 (13) perm/sign\", perm[13], sign[13])\nenv.close()\n\n\ndef log_std(z):\n    st = torch.load(io.BytesIO(zipfile.ZipFile(z).read(\"policy.pth\")), map_location=\"cpu\", weights_only=True)\n    return st[\"log_std\"].numpy()\n\n\nS2 = \"/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad\"\ncases = [(f\"{S2}/r10round/bias_screen2/runs/control_2501/01_stance/models/stage1_final.zip\",\n          HERE.parent / \"val/a_control_2501/vg_sigma.json\"),\n         (f\"{S2}/r10round/bias_screen2/runs/critic_blind_tail3_2501/01_stance/models/stage1_final.zip\",\n          HERE.parent / \"val/a_blind_2501/vg_sigma.json\"),\n         (C.f2_file(C.START[\"zip_rel\"]), HERE.parent / \"val/b1_S/vg_sigma.json\"),\n         (str(HERE / \"pairs/phase_pert.zip\"), HERE / \"out/tool_pert_phase/vg_sigma.json\")]\nfor z, tj in cases:\n    ls = log_std(z)\n    mine = {\"tail_3\": float(np.exp(np.float64(ls[14]))), \"tail_2\": float(np.exp(np.float64(ls[13])))}\n    t = json.loads(Path(tj).read_text())[\"pairs\"][0][\"sigma\"]\n    eq = all(mine[k] == t[k][\"sigma\"] for k in mine)\n    print(f\"{Path(z).parent.parent.parent.name}/{Path(z).name}: len(log_std) {len(ls)}; mine tail_3 {mine['tail_3']:.9f} \"\n          f\"tail_2 {mine['tail_2']:.9f}; tool equal {eq}; min sigma over all 15 {float(np.exp(ls.min())):.4f}\")\n"}
+--- RESULT (first 1500)
+File created successfully at: /home/user/work/vg_tool/check1/tail_idx.py (file state is current in your context — no need to Read it back)
+=== 2026-10-31T17:02:47.924Z Bash
+grep -n "tb_buffer\|tensorboard" /home/user/work/phase_screen/tools/run_bs.py | head -10; grep -rn "tb_buffer" /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/shared/train_base.py | head -5; cat /home/user/work/vg_tool/val/tb_buffer_newer.out | head; echo ---; cat /home/user/work/vg_tool/val/outside_check.out | head -60; echo "$(date -u +%FT%TZ) grep tb_buffer in PS run_bs/train_base; read builder val/tb_buffer_newer.out outside_check.out" >> /home/user/work/vg_tool/check1/cmdlog.txt
+--- RESULT (first 1500)
+39:Fixer (2026-10-31, review findings P-B1 and P-i3): (1) before learn() the model's tensorboard_log, which SB3's load
+40:takes from the start zip (the parent's absolute /tmp/tb_buffer/... path), is set to the run's own <BS>/tmp/<run>/tb
+41:(redirect_tensorboard; recorded in run_meta "tensorboard_log"; wrapper_problems refuses learn() without it), so every
+399:def redirect_tensorboard(model: Any, tb_dir: Any) -> dict:
+400:    """Fixer P-B1: the start zip's saved data carries tensorboard_log = an absolute /tmp/tb_buffer/... path (the
+401:    parent's Colab buffer); with use_tensorboard=False the body leaves tensorboard_log out of the load's kwargs, so
+404:    exactly as before (verbose 0: the tensorboard format only; reset_num_timesteps False in an empty folder: PPO_0),
+409:        raise Refused(f"tensorboard: {target} is not under {root}")
+410:    old = getattr(model, "tensorboard_log", None)
+411:    model.tensorboard_log = target
+---
+== PS allowed paths newer than 15:59:00 UTC (tools, validate, criteria_work, criteria.txt, SCREEN.json, APPROVED, NOTES.txt):
+== PS tools sha256 vs APPROVED tool_sha256:
+cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f  bs_common.py
+0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539  bs_hooks.py
+cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698  read_bs.py
+9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c  run_bs.py
+3ef2746e797e908e87c359e1f3ffe6b483078e6878e0b3be08db20f0fee7f9bb  run_w
+=== 2026-10-31T17:03:08.370Z Bash
+cd /home/user/work/vg_tool; grep -n "phase_screen" val/*.py val/*.sh tests/*.py vg_sigma.py | grep -v "^vg_sigma.py:.*PS_ROOT = " | cut -c1-220; echo; grep -n "ROOTS\|roots\s*=\|PS /\|PS}\|/runs\|/reads\|/score\|/logs\|lost.json\|/tmp\b" val/seeds_check.py | head -30; echo "$(date -u +%FT%TZ) grep builder scripts for PS paths" >> check1/cmdlog.txt
+--- RESULT (first 1500)
+val/dryroot.py:19:PS = Path("/home/user/work/phase_screen")
+val/explore.py:11:sys.path.insert(1, "/home/user/work/phase_screen/tools")
+val/seeds_check.py:25:PS = Path("/home/user/work/phase_screen")
+val/run_validations.sh:9:PV=/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models
+val/run_validations.sh:46:    --out /home/user/work/phase_screen/vg_out
+tests/test_guard.py:14:PS_SCREEN = Path("/home/user/work/phase_screen/SCREEN.json")      # read only (allowed: the pinned queue)
+tests/test_guard.py:120:             "od": make_root(tmp_path / "d", root_field="/home/user/work/phase_screen"),     # another root
+tests/test_guard.py:135:    assert _main(root, "/home/user/work/phase_screen/vg_report") == T.EXIT_REFUSED
+tests/test_guard.py:136:    assert not (root / "vg").exists() and not Path("/home/user/work/phase_screen/vg_report").exists()
+
+10:      termination probe, the PS / BS2 / BS validation seeds, the reader's seeds), each as an explicit set;
+17:Usage: cd /tmp && nice -n 19 PY -I -B /home/user/work/vg_tool/val/seeds_check.py > <vg_tool>/val/seeds_check.out
+24:S2 = Path("/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad")
+30:PS_FORBIDDEN = ("runs", "reads", "score", "lost.json", "tmp", "logs")
+61:    roots = []
+63:        roots.append(PS / name)
+65:        roots.append(PS / sub)
+=== 2026-10-31T17:03:22.612Z Bash
+cd /home/user/work/vg_tool/check1; head -1 cmdlog.txt; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; echo "$(date -u +%FT%TZ) pinned-file check: sha256 PS tools/criteria/SCREEN vs APPROVED; stat modes of allowed files -> out/pins.out" >> cmdlog.txt; $PY -I -B - > out/pins.out 2>&1 <<'EOF'
+import hashlib, json, os, stat
+from pathlib import Path
+PS = Path("/home/user/work/phase_screen")
+ap = json.loads((PS / "APPROVED").read_text())
+sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+print("APPROVED keys", sorted(ap))
+for k, f in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json")):
+    print(f, "equal" if ap[k].split(":")[-1] == sha(PS / f) else f"DIFFERS {ap[k]} vs {sha(PS / f)}")
+for t, want in ap["tool_sha256"].items():
+    got = sha(PS / "tools" / t)
+    print(f"tools/{t}", "equal" if got == want else f"DIFFERS {want} vs {got}")
+for f in ["criteria.txt", "SCREEN.json", "APPROVED", "NOTES.txt"] + [f"tools/{t}" for t in sorted(os.listdir(PS / "tools")) if (PS / "tools" / t).is_file()]:
+    st = (PS / f).stat()
+    print(f"mode {stat.filemode(st.st_mode)} {oct(st.st_mode & 0o777)} mtime_utc {__import__('datetime').datetime.utcfromtimestamp(st.st_mtime):%Y-%m-%dT%H:%M:%S} {f}")
+EOF
+cat out/pins.out
+--- RESULT (first 1500)
+2026-10-31T16:39:54Z mkdir check1 tmp mpl
+<stdin>:14: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+APPROVED keys ['approved_by', 'code_tree_digest', 'criteria_sha256', 'screen_sha256', 'tool_sha256', 'utc']
+criteria.txt equal
+SCREEN.json equal
+tools/run_bs.py equal
+tools/read_bs.py equal
+tools/run_waves_bs.sh equal
+tools/bs_common.py equal
+tools/bs_hooks.py equal
+tools/score_bs.py equal
+mode -r--r--r-- 0o444 mtime_utc 2026-10-31T15:32:33 criteria.txt
+mode -r--r--r-- 0o444 mtime_utc 2026-10-31T14:24:14 SCREEN.json
+mode -r--r--r-- 0o444 mtime_utc 2026-10-31T15:56:13 APPROVED
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-31T13:56:06 NOTES.txt
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-31T13:12:23 tools/bs_common.py
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-31T13:32:00 tools/bs_hooks.py
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-30T10:38:27 tools/check_inputs.py
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-31T13:31:52 tools/read_bs.py
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-31T15:09:35 tools/run_bs.py
+mode -rwxr-xr-x 0o755 mtime_utc 2026-10-31T15:17:49 tools/run_waves_bs.sh
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-31T15:12:29 tools/score_bs.py
+mode -rw-r--r-- 0o644 mtime_utc 2026-10-30T03:51:38 tools/verify_copy.py
+=== 2026-10-31T17:03:32.645Z Bash
+cd /home/user/work/vg_tool/check1; echo "$(date -u +%FT%TZ) outside-write check (find -newermt 2026-10-31T15:59:00Z, names only) -> out/outside_check.out" >> cmdlog.txt; T0='2026-10-31 15:59:00 UTC'; PS=/home/user/work/phase_screen; S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; {
+echo "== PS allowed paths newer than $T0"; find $PS/criteria.txt $PS/SCREEN.json $PS/APPROVED $PS/NOTES.txt $PS/tools $PS/validate $PS/criteria_work -newermt "$T0" 2>&1;
+echo "== PS absent refusal targets"; for p in $PS/vg_out $PS/vg_report $PS/vg_tool; do [ -e $p ] && echo "EXISTS $p" || echo "absent $p"; done;
+echo "== S2 newer (venv pruned)"; find $S2 -path $S2/venv -prune -o -newermt "$T0" -print 2>&1 | head -50;
+echo "== repo newer (.git pruned)"; find /home/user/mesozoic-labs -path /home/user/mesozoic-labs/.git -prune -o -newermt "$T0" -print 2>&1 | head -20;
+echo "== /home/user/work maxdepth 2 newer"; find /home/user/work -maxdepth 2 -newermt "$T0" 2>&1 | grep -v "^/home/user/work/phase_screen/\(runs\|reads\|score\|tmp\|logs\|lost.json\)" ;
+echo "== /tmp maxdepth 1 newer"; find /tmp -maxdepth 1 -newermt "$T0" 2>&1;
+echo "== /tmp/tb_buffer newer (names)"; find /tmp/tb_buffer -newermt "$T0" 2>&1 | head;
+echo "== __pycache__ / .pytest_cache under PS/tools, vg_tool"; find $PS/tools /home/user/work/vg_tool -name __pycache__ -o -name .pytest_cache 2>&1;
+} > out/outside_check.out; cat out/outside_check.out
+--- RESULT (first 1500)
+== PS allowed paths newer than 2026-10-31 15:59:00 UTC
+== PS absent refusal targets
+absent /home/user/work/phase_screen/vg_out
+absent /home/user/work/phase_screen/vg_report
+absent /home/user/work/phase_screen/vg_tool
+== S2 newer (venv pruned)
+== repo newer (.git pruned)
+== /home/user/work maxdepth 2 newer
+/home/user/work
+/home/user/work/vg_tool
+/home/user/work/vg_tool/vg_sigma.py
+/home/user/work/vg_tool/mpl
+/home/user/work/vg_tool/NOTES.txt
+/home/user/work/vg_tool/SHA256SUMS.txt
+/home/user/work/vg_tool/check1
+/home/user/work/vg_tool/CMDLOG.txt
+/home/user/work/vg_tool/tmp
+/home/user/work/vg_tool/tests
+/home/user/work/vg_tool/SPEC.txt
+/home/user/work/vg_tool/val
+== /tmp maxdepth 1 newer
+/tmp
+/tmp/claude-code-3448827388.diag.log
+/tmp/env-manager.log
+/tmp/environment-manager.out
+/tmp/claude-code.log
+/tmp/claude-0
+== /tmp/tb_buffer newer (names)
+== __pycache__ / .pytest_cache under PS/tools, vg_tool
+=== 2026-10-31T17:03:51.541Z Bash
+cd /home/user/work/vg_tool/check1; echo "$(date -u +%FT%TZ) NOTE (self-report): the outside check's 'find /home/user/work -maxdepth 2 -newermt' evaluated the mtime of PS top-level entries (incl. runs/reads/score/tmp/logs/lost.json if present) - metadata only, no listing inside, no content; those lines were filtered by grep before display, nothing about them was seen. Not repeated." >> cmdlog.txt; tail -2 cmdlog.txt
+--- RESULT (first 1500)
+2026-10-31T17:03:33Z outside-write check (find -newermt 2026-10-31T15:59:00Z, names only) -> out/outside_check.out
+2026-10-31T17:03:52Z NOTE (self-report): the outside check's 'find /home/user/work -maxdepth 2 -newermt' evaluated the mtime of PS top-level entries (incl. runs/reads/score/tmp/logs/lost.json if present) - metadata only, no listing inside, no content; those lines were filtered by grep before display, nothing about them was seen. Not repeated.
+=== 2026-10-31T17:07:17.577Z Bash
+cd /home/user/work/phase_screen/tools; awk '/^def |^class /{infn=1} /^[^ \t#]/{if ($0 !~ /^def |^class |^@/) infn=0} !infn && /mkdir|write_text|write_bytes|open\(|atomic_write|makedirs|copyfile|rmtree/ {print FILENAME": "FNR": "$0}' read_bs.py bs_common.py bs_hooks.py | head; echo "---module-level statements in read_bs (non-def):"; awk '/^def |^class /{infn=1;next} /^[^ \t#)\]}]/{infn=0} !infn && NF && !/^#/' read_bs.py | head -60 | cut -c1-160; echo "$(date -u +%FT%TZ) awk module-level side effects in PS tools (read only)" >> /home/user/work/vg_tool/check1/cmdlog.txt
+--- RESULT (first 1500)
+---module-level statements in read_bs (non-def):
+"""Phase screen (PS): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts and
+stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  PS = BS2's read_bs.py (sha256
+06f4173d...) with PS's root, arms and validation seeds (bs_common.py) and the critic_phase reading: at every pair of a
+critic_phase run the actor's mask is installed and the critic is fed the phase of each state's own step counter (REF:
+the bank's kept step + 1 = 200, settled; OWN: the snapshot's counter, 500-1000, settled; ONPOLICY: each state's counter
+recorded in the collection), with the slots-zero reading ("raw") and the all-settled reading beside it; at the start
+copy (S) the arm's load transform is applied first (the critic's phase columns zeroed, the statistics' slots reseeded:
+bs_hooks), every later pair must carry the frozen slots (mean 0 / var 1).  CHECK also reads critic_phase's run_meta
+(the hook's verified transform, the probe's phase record, the split of the phase evidence before / after the first
+update).  BS2 = BS's read_bs.py (sha256 04036e53...)
+with the window from BS2's bs_common.py, the parent's F2 pairs in [S, E] derived (2,097,152 and 3,145,728), their
+reproduction targets, and the loop cache keyed on this file's own sha256 (and its two modules') as well (BS's process
+lens P3: an entry can never outlive the reader that wrote it).
+    PY -I -B read_bs.py --check RUN
+        CHECK
+=== 2026-10-31T17:07:45.246Z Bash
+cd /home/user/work/vg_tool/check1 && PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; echo "$(date -u +%FT%TZ) read obs_rms slots 60-62 of BS2 control_2501 final pkl, F2 start pkl, PS validate phase final pkl (pickle, read only) -> out/slots.out" >> cmdlog.txt; TMPDIR=$PWD/tmp nice -n 19 $PY -I -B - > out/slots.out 2>&1 <<'EOF'
+import pickle, numpy as np
+S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+F2 = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_2097152_steps.pkl.copy1"
+for name, p in (("BS2 control_2501 E", S2 + "/r10round/bias_screen2/runs/control_2501/01_stance/models/stage1_final_vecnorm.pkl"),
+                ("F2 start S", F2),
+                ("PS validate critic_phase_9401 final", "/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final_vecnorm.pkl")):
+    with open(p, "rb") as fh:
+        vn = pickle.load(fh)
+    m, v = np.asarray(vn.obs_rms.mean)[60:63], np.asarray(vn.obs_rms.var)[60:63]
+    print(f"{name}: obs_rms mean[60:63] {m.tolist()} var[60:63] {v.tolist()} ret_var {float(vn.ret_rms.var):.6f} clip_obs {vn.clip_obs} clip_reward {vn.clip_reward} gamma {vn.gamma} eps {vn.epsilon} type {type(vn.obs_rms).__name__}")
+EOF
+cat out/slots.out
+--- RESULT (first 1500)
+BS2 control_2501 E: obs_rms mean[60:63] [0.0, 0.0, 0.0] var[60:63] [1.4128476452716253e-11, 1.4128476452716253e-11, 1.4128476452716253e-11] ret_var 1927.481416 clip_obs 10.0 clip_reward 50.0 gamma 0.98 eps 1e-08 type RunningMeanStd
+F2 start S: obs_rms mean[60:63] [0.0, 0.0, 0.0] var[60:63] [2.3841812434940362e-11, 2.3841812434940362e-11, 2.3841812434940362e-11] ret_var 2057.412324 clip_obs 10.0 clip_reward 50.0 gamma 0.98 eps 1e-08 type RunningMeanStd
+PS validate critic_phase_9401 final: obs_rms mean[60:63] [0.0, 0.0, 0.0] var[60:63] [1.0, 1.0, 1.0] ret_var 2043.289317 clip_obs 10.0 clip_reward 50.0 gamma 0.98 eps 1e-08 type RunningMeanStd
+=== 2026-10-31T17:09:42.683Z StructuredOutput
+{"ready": true, "summary": "check1 (independent checker) of /home/user/work/vg_tool. Nothing blocking. The frozen tool (vg_sigma.py 62cf6901..., SPEC f2b37b14...; `sha256sum -c` gives 6 OK) computes V - G by bucket the way training does, and its numbers match my own code to float round-off.\n\n1. Re-implementation [measured]: my own_vg.py does not import vg_sigma. It runs SB3 2.9.0's own collect_rollouts into a RolloutBuffer, takes the buffer's normalised rewards with SB3's own truncation fold, feeds the phase through training's own env class (bs_hooks.phase_env_class) with the actor mask, reads k from each env's _step_count, and uses my own bucket and SE code. Agreement with the tool, seed 6281, same episodes:\n   - BS2 control_2501 final, 8 episodes: max |d| 3.1e-8 (check1/out/cmp_ctrl2501.out).\n   - PS validate v2 critic_phase_9401 final, 4 episodes: max |d| 3.3e-8 (cmp_ph9401.out). This pair's critic phase columns are 0, so it cannot show whether the phase is fed.\n   - A synthetic phase pair whose critic does see the phase (value_net.0.weight[:,60:63] = 0.3 N(0,1); check1/pairs, made by make_perturbed.py), 4 episodes: max |d| 3.3e-8. Effective vs raw differ by up to 0.49 on this pair, so the tool's phase feeding (states and terminal observation with phi(1000)) equals training's (cmp_pert.out).\n   - Against the why-probe's own records (P2.npz, seed 7700, first episode of each env): V bitwise equal, k equal, G within 2.2e-7 (why_cross.out).\n   - The tool's output is deterministic: my rerun of the builder's control pair is cmp-identical.\n   - Cost: 2.26-2.73 s CPU per 1,000-step episode at nice 19, so 32 episodes x 9 pairs is about 12-13 min [measured].\n\n2. Semantics [measured unless marked]:\n   - gamma 0.98 (stage = model = VecNormalize).\n   - Rewards are the buffer's VecNormalize-normalised float32 rewards.\n   - At a time-limit truncation G is bootstrapped with V of the terminal observation, which carries phi(1000) = (1,1,1).\n   - No bootstrap after a termination, including one exactly at k = 1000 (toy env, toy_collect.out).\n   - k = _step_count before the step; the reward gate `_step_count > 200` is equivalent to the observation's k >= 200 (base_env.py lines 1315, 1339, 1421).\n   - Control gets no phase: its slots are 0 and its statistics' var is about 1e-11, so phase_prepare would refuse a control pair (slots.out).\n   - The mirrored critic only enters the value loss; V is stock predict_values (mirror_kl_ppo.py).\n\n3. Mutations: 18 mutants run against the builder's tests (mut_tests.out). 12 killed; 5 survived; 1 changes no value (terminal_phase_k999).\n   - Every survivor is caught by my checks: phase skipped for states (max |d| 0.38) or for the terminal observation (0.026), gamma 0.99 (4.8), bootstrapping terminations (4 of 8 episodes FAIL on the toy env), and control given the phase form (my root wiring audit).\n   - terminal_phase_k999: phi saturates after k = 200, so V does not change, but the runtime self-check flags it (exit 3).\n   - So the code is right, but the tests and runtime checks do not guard the phase wiring (finding m1).\n\n4. Guard: on synthetic roots in check1, with an audit hook on open/stat/listdir/scandir [measured]:\n   - It refuses (exit 2, no output folder, nothing under runs/ or reads/ touched) for: no score.json; status PROVISIONAL, incomplete, FINAL or 'final '; an UNDECIDED entry; cls None; T None; score_bs's own incomplete shape; --episodes or --seed in root mode; --out inside the root.\n   - With 6 COUNTED, 1 STOPPED and 1 LOST, only the 6 COUNTED run folders are touched.\n   - Wiring: S gets (plain, phase) with the start transform; control gets plain; critic_phase gets phase; seed 6271; 32 episodes; expected steps E.\n\n5. SPEC [measured]:\n   - The statistics it states match the code; my independent SE (ddof 1), episode-weighted and pooled means agree.\n   - It says REPORT ONLY.\n   - tail_3 = action 14 and tail_2 = action 13 (actuator order = action order; the mirror maps both to themselves); sigma matches bitwise; SB3 samples with no floor.\n   - Seeds 6271-6274 and 6281-6284 appear in no seed context in 46,710 text files (PS allowed paths, r10round, com_revisit/notes, /home/user/work review folders).\n\n6. Rules [measured]:\n   - PS criteria.txt, SCREEN.json and the 6 pinned tools hash equal to APPROVED.\n   - Nothing newer than 15:59Z in PS's allowed paths, S2 (venv excluded), the repo or /tmp/tb_buffer.\n   - The PS refusal targets vg_out and vg_report were never created.\n   - The builder's CMDLOG and code reach PS only through allowed paths.\n   - One deviation of mine is reported as finding i5.", "findings": [{"id": "m1", "severity": "minor", "claim": "The tool's critic_phase wiring is correct, but neither its unit tests nor its runtime self-checks would catch a break in it: leaving the phase out of the states or the terminal observation in _form_values, using a wrong gamma for G, or bootstrapping terminations. The builder's real-pair phase validation (PS validate critic_phase_9401) cannot show it either, because that pair's critic phase columns are exactly 0.", "evidence": "[measured] check1/out/mut_tests.out: phase_skipped_states, phase_skipped_terminal, gamma_099_in_G and bootstrap_terminations all pass the builder's 47 tests. On the synthetic pair with nonzero phase columns the first three report 'PROBLEMS: none' (exit 0) but differ from my own code by 0.38, 0.026 and 4.8 (check1/out/mut_compare_phase.out). bootstrap_terminations fails 4 of 8 episodes on the toy env (check1/out/toy_collect.out). The unmutated tool matches my own code to 3.3e-8 on the same pair (check1/out/cmp_pert.out) and to 0 on the toy env, so the frozen code is right.", "fix": "Before re-pinning: (a) in test_real, call T._form_values(net, 'phase', X, K, TX, TK) on the start pair with nonzero value_net.0.weight[:,60:63]; assert V and V_term equal the critic on bs_hooks.phase_env_class observations (terminal phi(1000)) and differ from the slots-zero values. (b) Add a toy-env test of collect() + episode_rows with terminations at k < 1000 and at k = 1000 (check1/toy_collect.py can be adapted). (c) Add a runtime PROBLEM in measure_pair when value_phase_cols_max_abs_used > 0 but max_abs_eff_minus_raw == 0. (d) Assert the gamma passed to _stats_for equals GAMMA. (e) Add a stubbed run_root test asserting the forms per arm (as in check1/root_audit.py)."}, {"id": "m2", "severity": "minor", "claim": "--root defaults to the real PS. Running the CLI without --pair or --root opens <PS>/score/score.json, which is outcome-bearing while the screen runs (score_bs writes an 'incomplete' score.json whenever it is run).", "evidence": "[measured] vg_sigma.py main(): ap.add_argument('--root', default=str(PS_ROOT)); guard() calls _read_json(<root>/score/score.json). NOTES O1 only warns. score_bs.main writes score.json even when the status is incomplete (score_bs.py lines 1405-1417).", "fix": "Make --root required (no default), or require an explicit --root /home/user/work/phase_screen together with a confirmation flag, so a mistyped validation command can never open PS/score while the screen runs."}, {"id": "i1", "severity": "info", "claim": "My independent re-implementation, the why-probe records and the tool agree; the semantics match SB3 and training.", "evidence": "[measured] check1/out/cmp_ctrl2501.out (3.1e-8), cmp_ph9401.out (3.3e-8), cmp_pert.out (3.3e-8), why_cross.out (V bitwise, G 2.2e-7), toy_collect.out (G exact incl. termination at 1000). own_*.json checks: k_ok, phase_obs_ok (the training env writes phi(k) equal to my formula, terminal slots (1,1,1)), and the fold appears only at truncation steps. Rerunning the builder's a_control_2501 gives cmp-identical vg_sigma.json and vg_sigma.txt.", "fix": "None needed."}, {"id": "i2", "severity": "info", "claim": "The guard refuses correctly and the root mode reads only COUNTED runs, with the right critic form per arm.", "evidence": "[measured] check1/out/root_audit.out: refusals (exit 2, no output, zero accesses under runs/ or reads/) for no score.json, non-final statuses, UNDECIDED, cls None, T None, the incomplete shape, pair options in root mode and --out inside the root. The mixed case touches only the 6 COUNTED names; the calls are S (plain, phase, start transform), control (plain), critic_phase (phase), seed 6271, 32 episodes, E. The control_form_phase mutant is flagged; at runtime it would also refuse because control's slot var is 1.4e-11 (check1/out/slots.out).", "fix": "None needed. Optionally check SCREEN.json's sha256 against APPROVED screen_sha256 in the guard (it is recorded but not compared)."}, {"id": "i3", "severity": "info", "claim": "The seed sets are clean. The only overlap I found is a historical reset-seed scan in the repo docs whose range ('seeds 3042-7041' in docs/STAGE1_SPLIT_PLAN.md:1209) contains 6271-6284; PS's own evaluation seeds 3901-3931 are in it too.", "evidence": "[measured] check1/out/seed_scan.out: 46,710 files; target hits are only jsonl indices, hex digests and data values (no seed context); RANGE hits are 3042-7041 (that doc, in several repo copies), 6000-8000 kg and a timesteps range().", "fix": "None needed. Optionally add one SPEC sentence that the seeds lie inside that unrelated historical scan range."}, {"id": "i4", "severity": "info", "claim": "E2's [150,200) sign rests on the start checkpoint. At E, BS2's control already read slightly negative there.", "evidence": "[measured] val/a_control_2501 (and my own run): BS2 control_2501 at E, [150,200) = -0.0098 (SE 0.0196). The why-probe at S gives +0.0707. The SPEC's E2 cites only the why-probe.", "fix": "Optionally cite the BS2 value beside E2 in SPEC (it is descriptive and report-only, so no change to the measurement)."}, {"id": "i5", "severity": "info", "claim": "Self-report of a rules deviation: my outside-write check ran `find /home/user/work -maxdepth 2 -newermt`. That evaluated the mtime of PS top-level entries, including runs, reads, score, tmp, logs and lost.json if present (metadata only, nothing inside listed or opened). Those lines were filtered by grep before display, so I saw nothing about them; I did not repeat it.", "evidence": "check1/cmdlog.txt entries at 2026-10-31T17:03:33Z and 17:03:52Z. Nothing was written anywhere outside check1: [measured] check1/out/outside_check.out plus finds of /root, /home/user and /tmp since 16:39Z.", "fix": "Future outside checks should prune /home/user/work/phase_screen at depth 1 and list only its allowed paths explicitly."}, {"id": "i6", "severity": "info", "claim": "PS's pinned tools are mode 0644 / 0755, not 0444 as the task text says. Their bytes are unchanged and the builder did not change them.", "evidence": "[measured] check1/out/pins.out: criteria.txt, SCREEN.json and APPROVED are 0444; tools/*.py are 0644 and run_waves_bs.sh is 0755, with mtimes 13:12-15:17Z, before the builder started at 15:59Z. All sha256 equal APPROVED.", "fix": "For the coordinator: chmod 0444 the PS tools only if that is the intended pin state (bytes unchanged)."}, {"id": "i7", "severity": "info", "claim": "The critic's training target is the GAE(0.95) lambda-return under the rollout's running reward statistics. The tool's G is the Monte Carlo return under the final pair's frozen ret_rms, as in the why-probe (NOTES O4).", "evidence": "[measured] sigma_r is 45.36 at S, 43.90 at BS2 control E and 45.20 for the PS validate phase pair. bs_common ARM_GAE_LAMBDA 0.95.", "fix": "None needed; say this in the post-screen report's caption."}]}
+--- RESULT (first 1500)
+Structured output provided successfully

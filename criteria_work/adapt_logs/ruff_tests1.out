@@ -1,0 +1,20 @@
+E501 Line too long (121 > 120)
+   --> /home/user/work/phase_screen/tools/tests/test_score_bs.py:135:121
+    |
+133 |     """M-LOOP rows at S, the periodic pairs before T and (final) the final pair at T, as read_bs.saved_pairs gives, in
+134 |     the arm's critic form (read_bs.loop_markers_one): control "plain" (effective = raw); critic_phase
+135 |     "phase+raw+settled" with a phase record (raw, effective and settled differ, so a reader of the wrong one is seen)."""
+    |                                                                                                                         ^
+136 |     phase = arm == PHASE
+137 |     rows = []
+    |
+
+E501 Line too long (122 > 120)
+   --> /home/user/work/phase_screen/tools/tests/test_score_bs.py:360:121
+    |
+358 |     pm, cause = SB.parent_actuator_means()
+359 |     assert cause is None and pm[C.ACT_TAIL3] == Fraction(135930855, 1073741824)
+360 |     assert pm[13] == sum((Fraction(float(mu[i, 13])) for i in idx), Fraction(0)) / 8 and round(float(pm[13]), 4) == 0.0233
+    |                                                                                                                         ^^
+
+Found 2 errors.

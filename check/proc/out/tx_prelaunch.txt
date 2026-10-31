@@ -1,0 +1,425 @@
+#0 2026-10-31T15:52:01.552Z Bash
+    F=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/tasks/w57ubeo04.output; python3 - "$F" <<'EOF'
+    import json,sys
+    s=open(sys.argv[1]).read(); d=json.loads(s[s.find('{'):])
+    r=d['result']
+    print('=== DESIGNER\n',r['designer']['summary']); print('--- key\n',r['designer']['key_numbers'])
+    print('--- open'); [print('-',str(o)[:600]) for o in r['designer']['open_items']]
+    EOF
+    RESULT 2026-10-31T15:52:01.888Z === DESIGNER
+    |  I wrote PS's pre-registration v1 draft (criteria_v1.txt, 633 lines), SCREEN_v1.json and DESIGN_NOTES.txt, plus the power, seed and analysis scripts behind them. All of it is in /home/user/work/phase_screen/criteria_work. Nothing was trained, no optimizer step was run, and APPROVED was not touched.
+    | 
+    | Design: BS2's design re-run from s42 at 2,097,152 to 3,538,944, with 4 control and 4 critic_phase continuations interleaved by pair.
+    | 
+    | - **The arm.** The critic alone gets the episode phase. k is the env's own _step_count when it emits the observation. The step taken from that observation pays the four gated terms exactly when k >= 200, because base_env increments _step_count before building the observation and the reward (code copy shared/base_env.py l1335, l1349, l1352; trex base_env.py l1278, l1315, l1339, l1421).
+    |   - I proposed ramp + settled flag through a zero-padded value_net.0, following main's widen_checkpoint.py with the zero columns on the critic side only. The builder chose three features (ramp, settled, discount 0.98^max(0,200-k)), written into the always-zero command slots 60-62. The actor's slots are held at 0.0, the critic's columns on those slots are zeroed at load, and the VecNormalize slots are frozen at mean 0, var 1.
+    |   - The criteria describe the built form. They also keep a seven-item contract (C1-C7) that does not depend on how the arm is built: the actor exactly unchanged on every path, the critic exactly the parent's at load, the critic learns 
+#1 2026-10-31T15:52:07.053Z Bash
+    F=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/tasks/w57ubeo04.output; python3 - "$F" <<'EOF'
+    import json,sys
+    s=open(sys.argv[1]).read(); d=json.loads(s[s.find('{'):])
+    r=d['result']
+    print('=== REVIEW_DESIGN\n',r['review_design']['summary'][:2500])
+    for f in r['review_design']['findings']: print('-',f.get('id'),f.get('severity'),'|',str(f.get('claim'))[:400],'| FIX:',str(f.get('fix'))[:400])
+    print('\n=== FIXER\n',r['fixer']['summary'])
+    EOF
+    RESULT 2026-10-31T15:52:08.257Z === REVIEW_DESIGN
+    |  I found no blocking problem. The design tests the phase explanation. The settled flag matches the reward gate exactly, and nothing else in the reward depends on the episode step. B_S, the gate, the test, the fill and the quoted power figures all reproduce with my own code. The scorer matches the criteria text exactly: 0 differences over 903 random synthetic roots and 20,000 exact-fraction cases, and 20 of 22 mutants were caught. The other 2 behave identically on float32 data, and the scorer's own tests cover both.
+    | 
+    | Four minor wording or design gaps should be fixed before the pin:
+    | - **D1:** line 3's power clause overstates the two-state power.
+    | - **D2:** the known limits overstate what a SUPPORTED SEC-MECH shows.
+    | - **D3:** PR #655's per-bucket V − G check is neither recorded nor discussed.
+    | - **D4:** VALIDATIONS credits the k = 1000 check to V2, which has no record of it.
+    | 
+    | **The arm against the code** [measured]:
+    | - **Gate and phase:** BS/code shared/base_env.py increments the counter at l1335, then builds the observation at l1349 and the reward at l1352. The four terms gate on _step_count > 200 at the reward (trex base_env.py l1278, 1315, 1339, 1421; stance.toml l212). So the step taken from an observation with count k pays them exactly when k >= 200, which is the settled flag.
+    | - **Other step dependence:** a grep of the reward finds none. The 0.1 s spawn grace belongs to the curriculum bars, not the reward.
+    | - **Command gate:** the terms also require `not np.an
+#2 2026-10-31T15:52:21.061Z Bash
+    PS=/home/user/work/phase_screen; grep -n -i -E "log_std|sigma|σ|exploration noise|action std" $PS/criteria.txt | head -12; echo ---; grep -n -i -E "train\(\)|throwaway" /home/user/mesozoic-labs/.claude-work/phase_screen_build.js | head -8; echo ---; ls -l /root/grep_err_tmp.txt; df -B1 / | tail -1
+    RESULT 2026-10-31T15:52:23.046Z 207:  on, sigma floor 0.01); net_arch [512, 256], log_std_init -1.5; learning rate 3e-5 -> 1e-5 on the cumulative step
+    | ---
+    | 37:2. Design and implement the arm critic_phase. Requirements: (a) the critic receives a phase signal derived from the env's own per-episode step count (choose and justify the features, for example f1 = min(k,200)/200 and a settled flag k >= 200, with k exactly as the reward gates count it; check the off-by-one against base_env's gates); (b) the actor is EXACTLY unchanged: at load its outputs are bitwise those of the start checkpoint, and it can never use the phase (masked input, zero gradient); (c) the critic at load gives exactly the start checkpoint's values (new input weights zero-initialised) and then learns to use the phase; (d) every path that evaluates the policy is consistent: rollouts, train() (evaluate_actions, predict_values), the mirrored observations of MirrorKLPPO (the phase features map to themselves), VecNormalize (decide whether the phase features are normalised; if their statistics are new, how they are initialised and whether they update; never let a near-zero variance blow them up), the evaluation callback, the policy probe's fixed bank and BS2's reader (G/c0 loop readings and the critic's tail slope: the probe and reader must feed a phase value, settled = 1 for settled bank states, and record which); (e) the control arm is unchanged from BS2's control (same code path, same outputs). Two implementations are reasonable: extend the obse
+#3 2026-10-31T15:52:31.791Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2 && timeout 120 du -sh prs/* 2>/dev/null | sort -h | tail -12; echo ---; timeout 60 du -sh /tmp/pytest-of-root /tmp/tb_buffer /home/user/work/phase_screen/validate/fixer /home/user/work/phase_screen/validate /home/user/work/pr655_review 2>/dev/null; echo ---; timeout 120 du -sh $S2/tailround/* 2>/dev/null | sort -h | tail -6
+    RESULT 2026-10-31T15:52:33.242Z 99M	prs/telemetry3_spec
+    | 100M	prs/telemetry3
+    | 103M	prs/telemetry2
+    | 104M	prs/r10
+    | 176M	prs/heading
+    | 256M	prs/records_r10b
+    | 448M	prs/records_r10
+    | 599M	prs/telemetry2_work
+    | 783M	prs/heading_work
+    | 803M	prs/telemetry3_work
+    | 877M	prs/com_tests
+    | 1.3G	prs/r10_work
+    | ---
+    | 6.5M	/tmp/pytest-of-root
+    | 70M	/tmp/tb_buffer
+    | 108M	/home/user/work/phase_screen/validate/fixer
+    | 109M	/home/user/work/phase_screen/validate
+    | 2.1M	/home/user/work/pr655_review
+    | ---
+    | 107M	/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/probes
+    | 180M	/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/fixer_scripts
+    | 270M	/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/criteria
+    | 517M	/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/r10probe
+    | 1.1G	/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/r10cpu
+    | 3.9G	/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/screen
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#4 2026-10-31T15:52:38.444Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; for d in r10_work heading_work telemetry3_work; do echo "== $d"; ls $S2/prs/$d | head -5; for g in $(find $S2/prs/$d -maxdepth 2 -name .git 2>/dev/null); do r=$(dirname $g); echo "repo $r"; git -C $r status --short | wc -l; git -C $r log --oneline -1; git -C $r branch --show-current; git -C $r log --oneline origin/main..HEAD 2>/dev/null | wc -l; done; done
+    RESULT 2026-10-31T15:52:40.025Z == r10_work
+    | build
+    | ci
+    | coord
+    | final
+    | fixer
+    | == heading_work
+    | ci_conv
+    | coord
+    | fix
+    | impl
+    | sens
+    | == telemetry3_work
+    | coord
+    | final
+    | fixer
+    | implA
+    | implB
+#5 2026-10-31T15:52:42.676Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2/prs/r10_work && timeout 60 du -sh * | sort -h; find . -maxdepth 3 -name .git | head; find . -maxdepth 3 -name '*.zip' -size +10M | head -5
+    RESULT 2026-10-31T15:52:44.182Z 40K	reword
+    | 248K	plan
+    | 272K	records
+    | 428K	verify_records
+    | 4.0M	scope
+    | 24M	numbers
+    | 78M	coord
+    | 98M	final
+    | 105M	build
+    | 122M	fixer
+    | 361M	followup
+    | 677M	ci
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#6 2026-10-31T15:52:51.502Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2/prs && timeout 90 du -sh r10_work/ci/* r10_work/followup/* heading_work/* 2>/dev/null | sort -h | tail -10; find r10_work/ci r10_work/followup heading_work -maxdepth 4 -name .git -o -maxdepth 4 -name venv -type d 2>/dev/null | head
+    RESULT 2026-10-31T15:52:53.120Z 19M	r10_work/ci/mypycache_lint311_main
+    | 60M	r10_work/ci/mypycache_full_head
+    | 114M	heading_work/fix
+    | 119M	r10_work/followup/verify
+    | 120M	r10_work/followup/implementer
+    | 123M	r10_work/followup/fixer
+    | 143M	r10_work/ci/venv_lint311
+    | 156M	heading_work/impl
+    | 346M	heading_work/ci_conv
+    | 381M	r10_work/ci/wheelvenv
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#7 2026-10-31T15:53:00.260Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2/prs && timeout 120 find . -maxdepth 4 -type d \( -name 'venv*' -o -name '*venv' -o -name 'mypycache*' -o -name '.mypy_cache' -o -name 'pytest_tmp*' \) -prune -print 2>/dev/null | xargs -r du -s 2>/dev/null | sort -n | awk '{s+=$1; printf "%6.0fM %s\n",$1/1024,$2} END{printf "TOTAL %.0fM\n",s/1024}' | tail -25; ls heading_work/ci_conv | head
+    RESULT 2026-10-31T15:53:00.757Z     18M ./r10_work/ci/mypycache_lint311_main
+    |     18M ./r10_work/final/mypycache_lint311
+    |     18M ./r10_work/followup/fixer/mypycache_venv_lint311
+    |     18M ./telemetry2_work/fixer/mypycache_38c71f
+    |     18M ./telemetry2_work/fixer/mypycache_c944f9
+    |     18M ./telemetry3_work/report/mypycache_venv-lint
+    |     18M ./telemetry3_work/report/mypycache_venv_lint311
+    |     18M ./telemetry3_work/implB/mypycache_v2
+    |     18M ./telemetry3_work/implB/mypycache311
+    |     18M ./com_tests/notes/impl/mypycache_lint311
+    |     18M ./com_tests/notes/review_tests/mypycache311
+    |     18M ./com_tests/notes/fix/mypycache
+    |     59M ./r10_work/final/mypycache_full
+    |     59M ./telemetry2_work/report_k3/mypy_cache_venv
+    |     59M ./r10_work/ci/mypycache_full_head
+    |     59M ./telemetry2_work/fixer/mypycache_f5af99
+    |     59M ./telemetry3_work/report/mypycache_full
+    |     59M ./telemetry3_work/implB/mypycache_full
+    |     59M ./com_tests/notes/impl/mypycache_full
+    |     60M ./records_r10/clone/.mypy_cache
+    |    142M ./r10_work/ci/venv_lint311
+    |    248M ./heading_work/ci_conv/venv311test
+    |    380M ./r10_work/ci/wheelvenv
+    |    458M ./com_tests/notes/review_tests/venv311
+    | TOTAL 2096M
+    | logs
+    | mypy311
+    | mypyfull
+    | mypylint
+    | out
+    | ruff_cache
+    | scripts
+    | venv311
+    | venv311test
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#8 2026-10-31T15:53:14.940Z mcp__claude-code-remote__delete_trigger
+    {"trigger_id": "trig_019NLduxCc7VbjDRpHpagPrw"}
+    RESULT 2026-10-31T15:53:25.369Z {"trigger":{"id":"trig_019NLduxCc7VbjDRpHpagPrw", "name":"Phase-screen build check-in 2", "cron_expression":"", "enabled":true, "next_run_at":"2026-10-31T16:21:00Z", "created_at":"2026-10-31T14:50:55.901321Z", "updated_at":"2026-10-31T14:50:55.901321Z", "persist_session":true, "persistent_session_id":"session_01X1VjQXgfkABgkidWb1QS9A", "mcp_connections":[], "creator":{"account_uuid":"fc0c152d-4514-4df5-9169-59a50b441baa", "display_name":"Michael"}, "api_token_hint":"", "enabled_plugins":[], "extra_marketplaces":[], "run_once_at":"2026-10-31T16:21:00Z", "ended_reason":"", "created_via":"meta_mcp", "suspension_reason":"", "derived_state":{"folders_state":"FOLDERS_STATE_NONE", "folders":[], "prompt":"Safety-net check-in for the phase-screen build workflow wf_52e89385-494 (at 14:50 UTC: builder, designer, build check and scorer done; process review done with a blocking finding; design review running; then fixer and re-review). Check its journal (/root/.claude/projects/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/subagents/workflows/wf_52e89385-494/journal.jsonl). If a container restart killed it (no live agents, no completion), resume it with Workflow scriptPath /home/user/mesozoic-labs/.claude-work/phase_screen_build.js, resumeFromRunId wf_52e89385-494, args {\"utc\": \"2026-10-30 18:27 UTC (resumed 2026-10-31)\"}, and log it in the run log. If it finished, handle its result (add the per-bucket V-G and tail sigma readings if missing, then ask the maintainer to c
+#9 2026-10-31T15:53:23.364Z Bash
+    RL=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt; [ ! -s /root/grep_err_tmp.txt ] && rm /root/grep_err_tmp.txt && echo removed; T=$(date -u '+%Y-%m-%d %H:%M:%S UTC'); { echo "$T Phase-screen build wf_52e89385-494 complete (8 agents, 0 errors): builder DONE; designer DONE_WITH_ISSUES; build check ready; scorer DONE_WITH_ISSUES; design review ready (D1-D4 minor); process review NOT ready (P-B1 blocking: TensorBoard events written to /tmp/tb_buffer by V2); fixer fixed 15 of 32 (P-B1 fixed and re-validated), 17 no-change/coordinator; re-review READY TO PIN, 0 blocking (263 unit tests, 65/65 mutants, own scorer 0 diffs, SHA256SUMS 128 OK). Pin candidates: criteria.txt 9875039f...ebc5, SCREEN.json 7d6d368a...0392, run_bs.py 9a42f79e, score_bs.py e63cf15a. D3 taken as (b) by the fixer: per-bucket V-G not in the screen; text allows a separately reviewed, pinned, report-only tool before ALL_DECIDED. Tail sigma not read by the screen."; echo "$T P-i5 record: the build checker's brief (phase_screen_build.js line 62) explicitly allowed one throwaway update on a discarded copy in its own folder; the builder's V5 brief (line 39) allowed one optimizer step on a throwaway copy, outputs deleted. No other optimizer step. Open: RR-i3, the paused LB runner has the same TensorBoard-path defect (port redirect_tensorboard before any LB launch). Housekeeping: removed the designer's empty stray /root/grep_err_tmp.txt (0 B, 12:58:42). Deleted the 16:21 build check-in trig_019NLduxCc7VbjDRpHpagPrw (build done). Disk: 2.13 GB free against the 2.6 GiB launch rule; regenerable venvs and mypy caches in S2/prs total about 2.1 GB (proposed for deletion, awaiting the maintainer)."; } >> "$RL"; wc -l < "$RL"
+    RESULT 2026-10-31T15:53:25.422Z removed
+    | 818
+#10 2026-10-31T15:53:35.376Z AskUserQuestion
+    {"questions": [{"question": "The phase screen is built and its final re-review found nothing blocking. Confirm the design as built? Arm: only the critic sees the episode phase, as 3 numbers (a ramp to step 200, a 'settled' flag, and a discount factor). They go into the 3 command inputs, which are always zero in stance. The actor is proven bit-for-bit unchanged. The screen is 4 control + 4 phase continuations from s42 at 2.10M to 3.54M, on new seeds 2901/2911/2921/2931. BS2's primary, 0.20 gate and exact permutation test are reused. The secondaries are the ledger tail command, the margin to the
+    RESULT 2026-10-31T15:54:52.902Z Your questions have been answered: "The phase screen is built and its final re-review found nothing blocking. Confirm the design as built? Arm: only the critic sees the episode phase, as 3 numbers (a ramp to step 200, a 'settled' flag, and a discount factor). They go into the 3 command inputs, which are always zero in stance. The actor is proven bit-for-bit unchanged. The screen is 4 control + 4 phase continuations from s42 at 2.10M to 3.54M, on new seeds 2901/2911/2921/2931. BS2's primary, 0.20 gate and exact permutation test are reused. The secondaries are the ledger tail command, the margin to the rail, the critic's tail slope, plus a tail_2 guard. About 3 h of CPU, nothing kept on main."="Confirm as built (Recommended)", "Two readings from #655 aren't in the screen: the critic's error by episode step (value minus realised return in step buckets 0-50, 50-150, 150-200, 200-250, 250-1000), and the tail's exploration noise (σ). They are the most direct check that the phase input fixes the critic's misreading around step 200. The pinned text allows a separate, reviewed, report-only tool that never changes the result line. Add it?"="Build it during the runs (Recommended)", "Disk is short: 2.13 GB free against the screen's 2.6 GiB launch rule. The old merged-PR build folders in the read-only scratch (S2/prs: r10_work, heading_work, telemetry2/3_work, com_tests, records_r10) hold about 2.1 GB of virtual environments and type-check caches. All of them can be rebuilt. May I delete 
+#11 2026-10-31T15:54:59.000Z Bash
+    RL=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt; T=$(date -u '+%Y-%m-%d %H:%M:%S UTC'); echo "$T MAINTAINER (AskUserQuestion, answered just before this line): Design 'Confirm as built (Recommended)'; V-G check 'Build it during the runs (Recommended)'; Free disk 'Delete venvs + caches only (Recommended)'." >> "$RL"; echo "$T"; df -B1 / | tail -1
+    RESULT 2026-10-31T15:54:59.224Z 2026-10-31 15:54:59 UTC
+    | /dev/vda       270553174016 39154978816 2128191488  95% /
+#12 2026-10-31T15:55:03.236Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2/prs && timeout 120 find . -maxdepth 4 -type d \( -name 'venv*' -o -name '*venv' -o -name 'mypycache*' -o -name '.mypy_cache' -o -name 'mypy_cache*' \) -prune -print 2>/dev/null | sort > /home/user/work/disk_free_list.txt; wc -l < /home/user/work/disk_free_list.txt; cat /home/user/work/disk_free_list.txt; ls heading_work/ci_conv/venv311 >/dev/null 2>&1 && echo "venv311 exists"; find . -maxdepth 4 -type d -name 'mypy*' -not -name 'mypycache*' -not -name 'mypy_cache*' | head
+    RESULT 2026-10-31T15:55:04.874Z 55
+    | ./com_tests/notes/fix/mypycache
+    | ./com_tests/notes/impl/mypycache_full
+    | ./com_tests/notes/impl/mypycache_lint311
+    | ./com_tests/notes/review_tests/mypycache311
+    | ./com_tests/notes/review_tests/venv311
+    | ./heading_work/ci_conv/venv311
+    | ./heading_work/ci_conv/venv311test
+    | ./heading_work/fix/mypy_cache_full_final
+    | ./heading_work/fix/mypy_cache_lint
+    | ./heading_work/fix/mypy_cache_lint_final
+    | ./heading_work/fix/mypy_cache_py311_final
+    | ./heading_work/impl/mypy_cache_full
+    | ./heading_work/impl/mypy_cache_full2
+    | ./heading_work/impl/mypy_cache_lint
+    | ./heading_work/impl/mypy_cache_lint2
+    | ./r10_work/build/mypy_cache_full
+    | ./r10_work/build/mypy_cache_lint
+    | ./r10_work/ci/mypycache_full_head
+    | ./r10_work/ci/mypycache_lint311_head
+    | ./r10_work/ci/mypycache_lint311_headmerge
+    | ./r10_work/ci/mypycache_lint311_headmerge2
+    | ./r10_work/ci/mypycache_lint311_main
+    | ./r10_work/ci/venv_lint311
+    | ./r10_work/ci/wheelvenv
+    | ./r10_work/final/mypycache_full
+    | ./r10_work/final/mypycache_lint
+    | ./r10_work/final/mypycache_lint311
+    | ./r10_work/fixer/mypy_cache_full
+    | ./r10_work/fixer/mypy_cache_lint
+    | ./r10_work/fixer/mypy_cache_lint311
+    | ./r10_work/followup/fixer/mypycache_venv-lint
+    | ./r10_work/followup/fixer/mypycache_venv_lint311
+    | ./records_r10/clone/.mypy_cache
+    | ./telemetry2_work/finish/mypy_cache_1
+    | ./telemetry2_work/finish/mypy_cache_2
+    | ./telemetry2_work/finish/mypy_cache_3
+    | ./telemetry2_work/finish/verify/mypy_cache_1
+    | ./telemetry2_work/finish/verify/mypy_cache_2
+    | ./telemetry2_work/finish/verify/mypy_cache_3
+    | ./telemetry2_work/fixer/mypycache
+    | ./telemetry
+#13 2026-10-31T15:55:10.130Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2/prs && bad=0; while read -r d; do if [ -f "$d/pyvenv.cfg" ] || [ -f "$d/CACHEDIR.TAG" ] || ls -d "$d"/3.* >/dev/null 2>&1; then :; else echo "NOT CACHE/VENV: $d"; ls "$d" | head -3; bad=1; fi; done < /home/user/work/disk_free_list.txt; echo bad=$bad
+    RESULT 2026-10-31T15:55:10.287Z bad=0
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#14 2026-10-31T15:55:15.845Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cd $S2/prs && before=$(df -B1 / | tail -1 | awk '{print $4}'); while read -r d; do case "$d" in ./*) rm -rf -- "$d";; *) echo "skip $d";; esac; done < /home/user/work/disk_free_list.txt; after=$(df -B1 / | tail -1 | awk '{print $4}'); echo "before $before after $after freed $(( (after-before)/1000000 )) MB"; RL=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt; echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') Disk freed at the maintainer's word: deleted 55 folders under S2/prs, each verified a Python venv (pyvenv.cfg) or a mypy cache (CACHEDIR.TAG or 3.x dir); list in /home/user/work/disk_free_list.txt. Free $before -> $after B. No notes, logs, records or checkpoints touched." >> "$RL"
+    RESULT 2026-10-31T15:55:24.343Z before 2128162816 after 5054861312 freed 2926 MB
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#15 2026-10-31T15:55:27.935Z Bash
+    PS=/home/user/work/phase_screen; sha256sum $PS/criteria.txt $PS/SCREEN.json | cut -c1-20; grep -n -E "^[A-Z][A-Z /()-]{3,}$|^[A-Z][A-Z ]+:" $PS/criteria.txt | head -40
+    RESULT 2026-10-31T15:55:28.122Z 9875039fad039f76dd63
+    | 7d6d368a15b04e3f451e
+    | 5:STATUS: v1 draft, written 2026-10-31 (date -u; times in WORK/CMDLOG.txt) by the designer of the phase-screen build
+    | 39:SHORT NAMES
+    | 62:THE QUESTION
+    | 112:WHAT IS TRAINED
+    | 245:WHERE AND HOW
+    | 631:WHAT THE READING CANNOT SHOW (KNOWN LIMITS)
+#16 2026-10-31T15:55:29.520Z Bash
+    PS=/home/user/work/phase_screen; sed -n 245,330p $PS/criteria.txt
+    RESULT 2026-10-31T15:55:30.553Z WHERE AND HOW
+    | - This container's CPU (4 cores). No Drive, no GitHub, no push by the screen. 0 L4-hours.
+    | - Harness (the builder's, <PS>/tools; names as built): run_bs.py (one continuation; preflight refuses without APPROVED
+    |   pinning this text, SCREEN.json, the code digest and the tools); run_waves_bs.sh (SCREEN.json's queue, 4 at a time at
+    |   nice 10, outcome-blind; refuses unless APPROVED pins the scorer at its current sha256); read_bs.py (--check, then the
+    |   markers once all are decided; its loop cache keyed on read_bs.py's own sha256 and its modules', P3); score_bs.py (the
+    |   scorer, the adapter's: this text's reading; once all are decided it also reads each COUNTED run's
+    |   policy_probe.npz for SEC-TAIL2). Launch: the builder's NOTES, HOW TO LAUNCH, after HOW THE COORDINATOR PINS.
+    | - Outputs: <PS>/runs/<arm>_<seed>/, <PS>/reads/<arm>_<seed>/markers.{json,txt}, <PS>/lost.json, <PS>/logs/,
+    |   <PS>/score/score.{json,txt}; harness-owned by design: <PS>/tmp/<run>/ (each run's TMPDIR and MPLCONFIGDIR; a
+    |   continuation's holds its live eval_stage1_*/evaluations.npz and learn()'s TensorBoard events file,
+    |   tmp/<run>/tb/PPO_0/events.out.tfevents.*), <PS>/tmp/read_<run>/ and <PS>/reads/_cache/.
+    |   The TensorBoard file (fixer, process finding P-B1) [measured]: the start zip's saved data names tensorboard_log =
+    |   /tmp/tb_buffer/_content_drive_..._s42_01_stance_tensorboard (the parent's Colab buffer); with use_tensorboard False
+    |   the code copy's train_base.py (lines 344-370) leaves it out o
+#17 2026-10-31T15:55:32.700Z Bash
+    PS=/home/user/work/phase_screen; grep -n -E "HOW THE COORDINATOR PINS|HOW TO LAUNCH" $PS/NOTES.txt $PS/criteria.txt | head; 
+    RESULT 2026-10-31T15:55:33.893Z /home/user/work/phase_screen/NOTES.txt:207:HOW TO LAUNCH (for the coordinator, after the criteria are reviewed; none of this was done here)
+    | /home/user/work/phase_screen/criteria.txt:252:  policy_probe.npz for SEC-TAIL2). Launch: the builder's NOTES, HOW TO LAUNCH, after HOW THE COORDINATOR PINS.
+    | /home/user/work/phase_screen/criteria.txt:738:HOW THE COORDINATOR PINS (after the independent review, the fixer, the RE-REVIEW of the fixed version (P2) and the
+#18 2026-10-31T15:55:35.415Z Bash
+    PS=/home/user/work/phase_screen; sed -n '738,$p' $PS/criteria.txt; echo =====; sed -n '207,260p' $PS/NOTES.txt
+    RESULT 2026-10-31T15:55:36.346Z HOW THE COORDINATOR PINS (after the independent review, the fixer, the RE-REVIEW of the fixed version (P2) and the
+    | maintainer's confirmation of the final choices)
+    |   0. The maintainer confirms the final choices (DESIGN_NOTES section 9: the phase features and their critic-only path,
+    |      the 4 + 4 new seeds, the gate 0.20, the four secondaries and their families, the window) by an answer recorded in
+    |      RUNLOG with its exact UTC time to the second (BS2 process I3: APPROVED said "~12:50" for an answer at 12:53:09).
+    |   1. The re-reviewer's verdict and the sha256 of every file it re-reviewed go into RUNLOG; APPROVED pins exactly those.
+    |   2. sha256sum <PS>/criteria.txt <PS>/SCREEN.json and every pinned tool; check them against the PINS lines and the
+    |      re-reviewed list (the scorer also checks every PINS line itself: step 4(a); fixer, P-m2). APPROVED's
+    |      tool_sha256 holds exactly the six files score_bs.PINNED_TOOLS names (bs_common.py, bs_hooks.py, run_bs.py,
+    |      run_waves_bs.sh, read_bs.py and score_bs.py); tools/tests/test_score_bs.py is pinned by its PINS line (which the
+    |      scorer checks against the file) and the re-reviewed list, not by APPROVED (fixer, P-i7). chmod 0444
+    |      <PS>/criteria.txt <PS>/SCREEN.json (BS2 process I4); write <PS>/APPROVED ONCE as a
+    |      single line of compact JSON ending in one newline (no other newline in it), e.g.
+    |        {"criteria_sha256":...,"screen_sha256":...,"code_tree_digest":"331fe8fc...(full)","tool_sha256":{...every pinned
+    |         too
+#19 2026-10-31T15:55:39.860Z Bash
+    S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; cat $S2/r10round/bias_screen2/APPROVED; echo; PS=/home/user/work/phase_screen; grep -n -A12 "^PINS" $PS/criteria.txt | head -30; cat $PS/SCREEN.json; ls -l $PS/APPROVED 2>&1 | tail -1
+    RESULT 2026-10-31T15:55:40.017Z {
+    |  "criteria_sha256": "291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f",
+    |  "screen_sha256": "255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0",
+    |  "code_tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+    |  "tool_sha256": {
+    |   "run_bs.py": "acd5b499e70b6eb76ca6ac4218cf01b86f2beac6f1dd33f701b31d1e68a6471f",
+    |   "read_bs.py": "06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60",
+    |   "run_waves_bs.sh": "6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5",
+    |   "bs_common.py": "6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66",
+    |   "bs_hooks.py": "1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc",
+    |   "score_bs.py": "05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7"
+    |  },
+    |  "approved_by": "maintainer: 'Go with option a' (2026-10-30 10:23 UTC, RUNLOG) and 'Launch with 0.20 (Recommended)' (AskUserQuestion, 2026-10-30 ~12:50 UTC): BS2, the critic-blind screen from r10 stance6 s42 2,097,152 to 3,538,944, 4 control + 4 critic_blind_tail3, report only; criteria reviewed (design and process lenses), fixed, and the fixed version re-reviewed READY TO PIN (wf_0b1ddf2b-955, P2)",
+    |  "utc": "2026-10-30T12:53:50Z"
+    | }
+    | 
+    | 711:PINS (filled by the scorer adapter 2026-10-31 from the files as installed; RE-FILLED by the fixer from the files as
+    | 712-fixed; re-reviewed (P2); any change to a pinned file changes its line)
+    | 713-  This text's sha256 cannot be held in the text itself: it goes i
+#20 2026-10-31T15:55:55.025Z Bash
+    PS=/home/user/work/phase_screen; cd $PS && cat > /home/user/work/ps_rereviewed.txt <<'EOF'
+    9875039fad039f76dd63497b5952d5ef5c014fc1f4765ed6b11120526249ebc5  criteria.txt
+    7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392  SCREEN.json
+    cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f  tools/bs_common.py
+    0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539  tools/bs_hooks.py
+    9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c  tools/run_bs.py
+    3ef2746e797e908e87c359e1f3ffe6b483078e6878e0b3be08db20f0fee7f9bb  tools/run_waves_bs.sh
+    cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698  tools/read_bs.py
+    e63cf15a32338c2884ca08c7f72b74e5eab41e515cba09cf705503b9192591b0  tools/score_bs.py
+    a1903520715d8ee10ac2f242f4a1bf48f4ced6e210fd5b1a5b8bee06ea8db0b6  tools/tests/test_score_bs.py
+    335f9b8c5e3e0d4ab9b8f80616b97d4f233fb116a061b95496e3fa17c4fe9c0f  tools/tests/test_run_bs.py
+    EOF
+    sha256sum -c /home/user/work/ps_rereviewed.txt; grep -c "" /home/user/work/ps_rereviewed.txt; python3 - <<'EOF'
+    import re,hashlib
+    t=open('/home/user/work/phase_screen/criteria.txt').read()
+    for m in re.finditer(r'^    (\S+)\s+([0-9a-f]{64})$',t,re.M):
+        p='/home/user/work/phase_screen/'+m.group(1)
+        h=hashlib.sha256(open(p,'rb').read()).hexdigest()
+        print('PINS',m.group(1),'OK' if h==m.group(2) else 'MISMATCH')
+    EOF
+    RESULT 2026-10-31T15:55:56.128Z criteria.txt: OK
+    | SCREEN.json: OK
+    | tools/bs_common.py: OK
+    | tools/bs_hooks.py: OK
+    | tools/run_bs.py: OK
+    | tools/run_waves_bs.sh: OK
+    | tools/read_bs.py: OK
+    | tools/score_bs.py: OK
+    | tools/tests/test_score_bs.py: OK
+    | tools/tests/test_run_bs.py: OK
+    | 10
+    | PINS SCREEN.json OK
+    | PINS tools/score_bs.py OK
+    | PINS tools/tests/test_score_bs.py OK
+    | PINS tools/bs_common.py OK
+    | PINS tools/bs_hooks.py OK
+    | PINS tools/run_bs.py OK
+    | PINS tools/run_waves_bs.sh OK
+    | PINS tools/read_bs.py OK
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#21 2026-10-31T15:56:13.155Z Bash
+    set -e; PS=/home/user/work/phase_screen; RL=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt
+    T=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+    { echo "$T PS pin step 1: re-reviewer's verdict (wf_52e89385-494, P2) READY TO PIN, 0 blocking (RR-m1 disk minor, since freed; RR-i1..i6 info). Re-reviewed sha256 (all verified equal to the files now, sha256sum -c 10/10 OK; the 8 PINS lines equal their files):"; sed 's/^/  /' /home/user/work/ps_rereviewed.txt; } >> "$RL"
+    cd $PS && chmod 0444 criteria.txt SCREEN.json
+    python3 - <<'EOF'
+    import json,hashlib
+    PS='/home/user/work/phase_screen'
+    h=lambda p: hashlib.sha256(open(PS+'/'+p,'rb').read()).hexdigest()
+    d={"criteria_sha256":h('criteria.txt'),"screen_sha256":h('SCREEN.json'),
+       "code_tree_digest":"331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+       "tool_sha256":{k:h('tools/'+k) for k in ["run_bs.py","read_bs.py","run_waves_bs.sh","bs_common.py","bs_hooks.py","score_bs.py"]},
+       "approved_by":"maintainer: 'Confirm as built (Recommended)' (AskUserQuestion on the phase screen design as built: critic-only phase in command slots 60-62, actor unchanged, 4 control + 4 critic_phase from r10 stance6 s42 2,097,152 to 3,538,944, seeds 2901/2911/2921/2931, BS2's primary, gate 0.20 and exact permutation test, secondaries SEC-CMD, SEC-MARGIN, SEC-MECH and guard SEC-TAIL2; answer recorded in RUNLOG at 2026-10-31 15:54:59 UTC, seconds after it was given), with 'Build it during the runs (Recommended)' (a separate report-only V-G and tail sigma tool, never a line or secondary) and 'Delete venvs + caches only (Recommended)' (disk); criteria reviewed (design and process lenses), fixed, and the fixed version re-reviewed READY TO PIN (wf_52e89385-494, P2); report only",
+       "utc":None}
+    import datetime
+    d["utc"]=datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    s=json.dumps(d,separators=(',',':'),ensure_ascii=True)
+    assert '\n' not in s
+    with open(PS+'/APPROVED','x') as f: f.write(s+'\n')
+    EOF
+    chmod 0444 APPROVED; ls -l criteria.txt SCREEN.json APPROVED | awk '{print $1,$NF}'; wc -l < APPROVED; A=$(sha256sum APPROVED | cut -d' ' -f1); echo "APPROVED $A"
+    printf '%s PS pin steps 2-3: chmod 0444 criteria.txt SCREEN.json; APPROVED written once (compact single-line JSON, 0444), pinning criteria.txt sha256 %s, SCREEN.json %s, code tree 331fe8fc...ebf1 and the six tools. APPROVED sha256 %s; its exact bytes follow on the next line:\n' "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" "$(sha256sum criteria.txt | cut -d' ' -f1)" "$(sha256sum SCREEN.json | cut -d' ' -f1)" "$A" >> "$RL"
+    cat APPROVED >> "$RL"
+    L=$(tail -n 1 "$RL" | sha256sum | cut -d' ' -f1); [ "$L" = "$A" ] && echo "RUNLOG last line sha256 == APPROVED: OK" || echo "MISMATCH $L"
+    RESULT 2026-10-31T15:56:13.386Z -r--r--r-- APPROVED
+    | -r--r--r-- SCREEN.json
+    | -r--r--r-- criteria.txt
+    | 1
+    | APPROVED 067d97d2099077d0d6085d5651973ebb44e31e8430fcb2905cd98ffc8e950a79
+    | RUNLOG last line sha256 == APPROVED: OK
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#22 2026-10-31T15:56:17.984Z Bash
+    PS=/home/user/work/phase_screen; grep -n -E "^PY|PY=" $PS/NOTES.txt | head -3; grep -n "add_argument" $PS/tools/score_bs.py | head; grep -n "add_argument" $PS/tools/run_bs.py | head -20; grep -n -i "prelaunch\|score_bs.py" $PS/review/rereview/notes.txt | head -5
+    RESULT 2026-10-31T15:56:19.193Z 1401:    ap.add_argument("--root", default=C.BS, help="the screen's folder (default <PS>; another root for tests and the "
+    | 1403:    ap.add_argument("--out", default=None, help="default <root>/score")
+    | 1192:    ap.add_argument("--arm", required=True)
+    | 1193:    ap.add_argument("--seed", type=int, required=True)
+    | 1194:    ap.add_argument("--save-loaded-only", dest="save_loaded_only", action="store_true")
+    | 1195:    ap.add_argument("--no-update", dest="no_update", action="store_true")
+    | 1196:    ap.add_argument("--until", type=int, default=None)
+    | 1197:    ap.add_argument("--out", default=None, help="the no-optimizer-step modes only: a folder under <BS>/validate/")
+    | 1198:    ap.add_argument("--preflight-only", dest="preflight_only", action="store_true")
+    | 8:  TAIL: tools/tests/test_run_bs.py: OK|tools/tests/test_score_bs.py: OK|tools/tests/test_waves_bs.py: OK|
+    | 32:  CMD: /home/user/work/phase_screen/review/rereview/work/pytest_one.sh score /home/user/work/phase_screen/tools/tests/test_score_bs.py
+    | 35:  CMD: cd /home/user/work/phase_screen/tools && /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 bs_common.py bs_hooks.py run_bs.py read_bs.py score_bs.py tests/*.py; echo rc=$?; bash -n run_waves_bs.sh && echo bash_n_ok
+    | 55:  CMD: cd /home/user/work/phase_screen && awk '/^PINS/{f=1} /^HOW THE COORDINATOR PINS/{f=0} f' criteria.txt | grep -E '^[[:space:]]+[A-Za-z0-9_./-]+[[:space:]]+[0-9a-f]{64}
+#23 2026-10-31T15:56:24.374Z Bash
+    PS=/home/user/work/phase_screen; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; cd /tmp && mkdir -p $PS/logs/prelaunch && TMPDIR=$PS/tmp MPLCONFIGDIR=$PS/tmp timeout 600 nice -n 10 $PY -I -B $PS/tools/score_bs.py --out $PS/logs/prelaunch_score > $PS/logs/prelaunch/score.out 2>&1; echo "score rc=$?"; grep -n -i -E "STATUS|PROVISIONAL|decided" $PS/logs/prelaunch/score.out | head -10
+    RESULT 2026-10-31T15:56:27.516Z score rc=3
+    | 5:STATUS: incomplete (0 of 8 decided; 0 decided without the full read). No line is read; no outcome is printed.
+    | 6:  control_2901             undecided: no check.json (queued, running, crashed or VOID)
+    | 7:  critic_phase_2901        undecided: no check.json (queued, running, crashed or VOID)
+    | 8:  control_2911             undecided: no check.json (queued, running, crashed or VOID)
+    | 9:  critic_phase_2911        undecided: no check.json (queued, running, crashed or VOID)
+    | 10:  control_2921             undecided: no check.json (queued, running, crashed or VOID)
+    | 11:  critic_phase_2921        undecided: no check.json (queued, running, crashed or VOID)
+    | 12:  control_2931             undecided: no check.json (queued, running, crashed or VOID)
+    | 13:  critic_phase_2931        undecided: no check.json (queued, running, crashed or VOID)
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#24 2026-10-31T15:56:32.478Z Bash
+    PS=/home/user/work/phase_screen; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; grep -c -i "provisional" $PS/logs/prelaunch/score.out; sed -n 1,4p $PS/logs/prelaunch/score.out; sed -n '14,40p' $PS/logs/prelaunch/score.out | grep -i -E "provisional|pins|problem" | head; cd /tmp && for e in "control 2901" "critic_phase 2901" "control 2911" "critic_phase 2911" "control 2921" "critic_phase 2921" "control 2931" "critic_phase 2931"; do set -- $e; TMPDIR=$PS/tmp MPLCONFIGDIR=$PS/tmp timeout 300 nice -n 10 $PY -I -B $PS/tools/run_bs.py --arm $1 --seed $2 --preflight-only > $PS/logs/prelaunch/preflight_$1_$2.out 2>&1; echo "preflight $1 $2 rc=$?"; done
+    RESULT 2026-10-31T15:56:38.504Z 0
+    | score_bs 3.1 (2026-10-31; phase screen criteria v1 as installed and fixed; derived from score_bs 2.1 of bias screen 2)
+    | tool sha256 e63cf15a32338c2884ca08c7f72b74e5eab41e515cba09cf705503b9192591b0  utc 2026-10-31T15:56:26Z
+    | root /home/user/work/phase_screen
+    | 
+    | preflight control 2901 rc=0
+    | preflight critic_phase 2901 rc=0
+    | preflight control 2911 rc=0
+    | preflight critic_phase 2911 rc=0
+    | preflight control 2921 rc=0
+    | preflight critic_phase 2921 rc=0
+    | preflight control 2931 rc=0
+    | preflight critic_phase 2931 rc=0
+    | Shell cwd was reset to /home/user/mesozoic-labs
+#25 2026-10-31T15:56:44.553Z Bash
+    PS=/home/user/work/phase_screen; RL=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt; A=$(sha256sum $PS/APPROVED | cut -d' ' -f1); grep -c "$A" "$RL"; grep -qxF "$(cat $PS/APPROVED)" "$RL" && echo "APPROVED bytes in RUNLOG"; n=0; while read -r h f; do grep -q "$h" "$RL" && n=$((n+1)); done < /home/user/work/ps_rereviewed.txt; echo "rereviewed hashes in RUNLOG: $n/10"; df -B1 / | tail -1 | awk '{print "free",$4, ($4>=2791728742?"OK >=2.6GiB":"LOW")}'; cd /tmp && BS_WAVES_TEST= bash $PS/tools/run_waves_bs.sh --plan > $PS/logs/prelaunch/plan.out 2>&1; echo "plan rc=$?"; cat $PS/logs/prelaunch/plan.out | head -30
+    RESULT 2026-10-31T15:56:46.654Z 1
+    | APPROVED bytes in RUNLOG
+    | rereviewed hashes in RUNLOG: 10/10
+    | free 5054468096 OK >=2.6GiB
+    | plan rc=0
+    | slots 4 at nice 10; disk floor 1610612736 bytes; launch floor 2030043136 bytes; crash limit 3; early crash: last step below S + 131072
+    | orphan pattern: ^/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/[r]un_bs[.]py --arm 
+    |   nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/run_bs.py --arm control --seed 2901 > /home/user/work/phase_screen/logs/control_2901.attempt<k>.log  (S 2097152, E 3538944)
+    |   nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/run_bs.py --arm critic_phase --seed 2901 > /home/user/work/phase_screen/logs/critic_phase_2901.attempt<k>.log  (S 2097152, E 3538944)
+    |   nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/run_bs.py --arm control --seed 2911 > /home/user/work/phase_screen/logs/control_2911.attempt<k>.log  (S 2097152, E 3538944)
+    |   nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/run_bs.py --arm critic_phase --seed 2911 > /home/user/work/phase_screen/l
+#26 2026-10-31T15:56:57.318Z Bash
+    PS=/home/user/work/phase_screen; RL=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt; uptime; pgrep -fa "run_bs.py|run_waves" | grep -v pgrep | head; T=$(date -u '+%Y-%m-%d %H:%M:%S UTC'); echo "$T PS pin step 4 (all read only) PASS: (a) score_bs.py --out logs/prelaunch_score exit 3, STATUS incomplete 0 of 8, 0 PROVISIONAL; (b) run_bs.py --preflight-only exit 0 for all 8 SCREEN entries; (c) RUNLOG holds APPROVED's sha256, its exact bytes and all 10 re-reviewed sha256; (d) df -B1 / free 5,054,468,096 B >= 2.6 GiB and >= the runner's 2,030,043,136 floor; (e) run_waves_bs.sh --plan exit 0, 8 entries in SCREEN.json's order, S 2,097,152, E 3,538,944. Outputs in PS/logs/prelaunch/. LAUNCHING run_waves_bs.sh (detached, from /tmp, nice 10, 4 at a time; est. about 3 h plus reads)." >> "$RL"; cd /tmp && setsid nohup bash $PS/tools/run_waves_bs.sh > $PS/logs/run_waves_bs.out 2>&1 0<&- & sleep 0; echo launched
+    RESULT 2026-10-31T15:56:58.156Z  15:56:58 up  3:08,  0 user,  load average: 0.08, 0.07, 0.39
+    | launched

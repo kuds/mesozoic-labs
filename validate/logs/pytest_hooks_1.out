@@ -1,0 +1,28 @@
+......................................F
+=================================== FAILURES ===================================
+__________________ test_phase_evidence_mutants_fail[unfreeze] __________________
+
+mutate = 'unfreeze'
+
+    @pytest.mark.parametrize("mutate", ["unmask", "nonzero_init", "no_learning", "slot_error", "counter", "unfreeze",
+                                        "mirror", "actor_cols"])
+    def test_phase_evidence_mutants_fail(mutate):
+        s = H.summarize(_phase_evidence(3, mutate=mutate))
+>       assert H.evidence_problems("critic_phase", s, n_expected=3) != [], mutate
+E       AssertionError: unfreeze
+E       assert [] != []
+E        +  where [] = <function evidence_problems at 0x7f9a6652a5c0>('critic_phase', {'n': 3, 'max_adv_err_vs_gae095': 1.0478723790896538e-06, 'max_adv_err_vs_mc': 3.5876940529900843, 'max_mc_vs_gae_lambda1_recursion': 2.6645352591003757e-15, ...}, n_expected=3)
+E        +    where <function evidence_problems at 0x7f9a6652a5c0> = H.evidence_problems
+
+/home/user/work/phase_screen/tools/tests/test_bs_hooks.py:729: AssertionError
+=============================== warnings summary ===============================
+test_bs_hooks.py::test_evidence_passes_for_each_arm[critic_phase]
+  /home/user/work/phase_screen/tools/bs_hooks.py:493: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:822.)
+    "value_phase_cols_max_abs_before": float(w_vf[:, PHASE_LO:PHASE_HI].abs().max()),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../home/user/work/phase_screen/tools/tests/test_bs_hooks.py::test_phase_evidence_mutants_fail[unfreeze]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 38 passed, 1 warning in 7.12s

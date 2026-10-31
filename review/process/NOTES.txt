@@ -1,0 +1,91 @@
+PS process/harness review notes (independent reviewer, HARNESS AND PROCESS lens).
+Folder: /home/user/work/phase_screen/review/process (only place written).
+Every command logged with date -u time and result summary.
+2026-10-31T14:29:52Z mkdir review/process; ls PS; df -h / -> 1.8G avail, 96% used
+2026-10-31T14:30:01Z read PS/NOTES.txt (483 lines) and SCREEN.json
+2026-10-31T14:30:09Z read PS/criteria.txt (693 lines)
+2026-10-31T14:30:40Z read BS2 review/process/NOTES.txt; RUNLOG lines 785-813 (read only)
+2026-10-31T14:31:03Z read bs_common.py, run_bs.py (preflight, run, load wrapper, StopAtEnd)
+2026-10-31T14:31:36Z read bs_hooks.py 895-1047 (summarize, evidence_problems, _phase_problems); read_bs.py 251-590 (CHECK)
+2026-10-31T14:31:59Z read run_waves_bs.sh (full), read_bs main/full_read
+2026-10-31T14:32:28Z find /tmp/tb_buffer (stat only); read code tb_sync.py, train_base 340-375; start zip data.tensorboard_log -> zip_tensorboard_log.out
+2026-10-31T14:33:01Z strings on PS V2 TB events file pid 22041 (validation file, not a continuation) -> tb_tags_v2_22041*.out
+2026-10-31T14:33:20Z read BS2 review/process/work/pin_check.py (template)
+2026-10-31T14:33:56Z read bs_hooks.py 682-870 (phase evidence)
+2026-10-31T14:34:34Z mkdir work/copyroot; cp -p PS criteria.txt SCREEN.json + 8 tools into it (inside my folder); sha256 -> work/copyroot_sha256.txt, logs/ps_files_sha256_at_copy.txt
+2026-10-31T14:35:27Z START pin_check.py on copy root (nice 10; TMPDIR=/home/user/work/phase_screen/review/process/work/tmp)
+2026-10-31T14:35:39Z pin_check.py exit 0 -> logs/pin_check.out/.err
+2026-10-31T14:36:13Z wrote work/stub_preflight.py, work/runner_cases.sh
+2026-10-31T14:36:25Z START runner_cases.sh (real runner in test mode on copy root)
+2026-10-31T14:36:29Z runner_cases.sh done -> logs/runner_cases.out
+2026-10-31T14:37:17Z grep check_build/notes_check.txt 14:0x-14:1x: c_ctrl no-update run 14:09:30-14:15:29 = the /tmp/tb_buffer file of 14:15:27 (pid 11844); V2 runs 13:32:58-13:45:54 = the four files of 13:45:40-53
+2026-10-31T14:37:49Z check_mutants.py (pure; reads V2 critic_phase_9401 evidence + run_meta) -> logs/check_mutants.out
+2026-10-31T14:38:11Z grep dev-null in PS tools (none expected); sha256sum -c PS/SHA256SUMS.txt -> logs/ps_sha256sums_check.out; du -sb /tmp/tb_buffer
+2026-10-31T14:38:35Z du -sb on candidate folders (read only) for the disk note
+2026-10-31T14:39:10Z find /tmp /root /var/tmp /dev/shm (pruning /tmp/claude-0, /root/.claude) modified 13:32:50-13:46:10 (V2 window) -> logs/outside_written_during_v2.txt
+2026-10-31T14:40:02Z find /tmp/tb_buffer newer than 2026-10-30 12:50 -printf atime/mtime/size (no file opened) -> logs/tb_buffer_stat.txt. BS2's 8 continuation TB files: atime = creation, < mtime -> not read since written (relatime) [measured]. PS V2 file pid 22041 atime 14:32:56 = my own strings read at 14:32 (a validation file, not a continuation).
+2026-10-31T14:40:02Z SELF-REPORT (rule slip): the same command ended with 'grep -c "" /proc/mounts >/dev/zero 2>&1 || true', a redirection onto /dev/zero, a path outside PS. /dev/zero discards writes; nothing was written anywhere; no permission check refused it. Not repeated. (The null device itself was not referenced.)
+2026-10-31T14:40:10Z grep code copy for tensorboard_log / tb_log_name uses
+2026-10-31T14:41:23Z find PS newer than 14:29:40 outside review/ (expect only others' edits); PS/APPROVED absent check; sha256sum -c count of non-OK
+2026-10-31T14:41:31Z find /tmp /root /var/tmp /dev/shm newer than my start (pruning /tmp/claude-0, /root/.claude); __pycache__ in PS
+2026-10-31T14:42:07Z rmdir work/tmp (mine, empty); df -B1 /, df -h /, du my folder
+
+==================================================================================================================
+FINDINGS (written at the end; labels: [measured] = ran or read, file/line cited; [inferred])
+==================================================================================================================
+VERDICT: NOT READY: 1 blocking, 2 minor, 8 info.
+
+BLOCKING
+ P-B1 Every run_bs.py process (continuation, V2 no-update, a checker's no-update run) writes a TensorBoard events
+      file OUTSIDE PS, under /tmp/tb_buffer/_content_drive_MyDrive_..._s42_01_stance_tensorboard/PPO_0/
+      events.out.tfevents.<epoch>.vm.<pid>.0. Cause [measured]: the start zip's saved data holds tensorboard_log =
+      that absolute path (zip_tensorboard_log.out); run_bs.py passes use_tensorboard=False (l1029-1031), and
+      train_base.py l344-370 then only leaves tensorboard_log out of alg_kwargs, so SB3's load keeps the saved
+      absolute path (TMPDIR does not apply). Files [measured, logs/tb_buffer_stat.txt]: PS V2 13:45:40-53 (pids
+      22041-22047, 235,953 B each), the build checker's no-update c_ctrl 14:15:27 (pid 11844), BS2's 8
+      continuations 2026-10-30 14:16-15:43 (1.53 MB each). Content [measured, logs/tb_tags_v2_22041*.out, on a V2
+      validation file]: 125 tags incl. eval/mean_reward, policy_probe/value_statue, diagnostics/reward_tail,
+      rollout/ep_rew_mean: outcome-bearing. It is outside the criteria's Outputs list, outside OUTCOME-BLINDNESS's
+      list, and outside the I1 exit snapshot, the P4 re-arm and the ALL_DECIDED snapshot; the builder's outside-PS
+      check did not look under /tmp. BS2's 8 files: atime = creation < mtime: not read since written [measured].
+      FIX: in run_bs.make_checked_load, for every arm, after the load checks and before learn(), set
+      model.tensorboard_log = <PS>/tmp/<name>/tb (keeps the logger as BS2 ran it; the file then sits in tmp/<name>,
+      already covered by I1, P4, the blindness list and RUN_BYTES_EST); record old/new in run_meta; unit test; re-run
+      V1 (both arms) and one short V2 pair (digests and pairing unchanged; nothing new under /tmp/tb_buffer; outside-PS
+      find over / -xdev); re-fill PINS / SHA256SUMS; one sentence in WHERE AND HOW.
+
+MINOR
+ P-m1 Disk: 1,890,455,552 B free (df -B1 /, 14:4xZ). The real runner refuses today (runner_cases.out CASE L:
+      "launch: 1893744640 bytes free < the launch floor 2030043136"); the criteria's 2.6 GiB rule needs
+      2,791,728,742 B: about 0.90 GB to free (0.14 GB for the runner's floor alone). The screen adds about 0.28 GB
+      (BS2's 8 run folders 263,746,241 B; reads 1.0 MB; logs 0.2 MB). Candidates [measured du]: /tmp/pytest-of-root
+      234,756,833 B (pytest basetemps, not PS's), /tmp/tb_buffer 72,549,206 B (holds BS2's 8 TB files),
+      PS/validate 112,977,372 B (keep until the re-review), the old scratch /tmp/claude-0 26.5 GB (maintainer's word).
+ P-m2 The criteria's PINS lines for the five harness tools are not checked by any tool: pin_check.out M6 (bs_hooks.py
+      changed, APPROVED re-pinned to it, PINS line stale) -> preflight PASS for both entries, scorer exit 3 with NO
+      PROVISIONAL item. Only the scorer's own line is checked (M7 caught). Fix: step 4 gains a read-only check that
+      every PINS line equals sha256(file) and APPROVED.tool_sha256, or the scorer adds it to PROVISIONAL.
+
+INFO
+ P-i1 CHECK rejects an actor that saw the phase and a critic that never used it: 16/16 mutants of a synthetic
+      continuation built from V2's real critic_phase evidence caught (check_mutants.out); "all rollouts zero-init" is
+      caught by read_bs.phase_meta_problems (1 / n-1 split), not by evidence_problems alone. "Used" = response > 0;
+      size is the report-only phase swing.
+ P-i2 Pin checks on a copy (pin_check.out): criteria byte, SCREEN _note byte, queue seed, queue order, each of the 5
+      tools, APPROVED code digest -> preflight refuses and the scorer lists PROVISIONAL (queue changes: scorer input
+      error, exit 2). score_bs.py byte / scorer missing from APPROVED -> preflight passes (by design), the runner
+      refuses at start (runner_cases.out C, D), the scorer PROVISIONAL. M0: all 8 preflights pass, scorer exit 3,
+      0 PROVISIONAL.
+ P-i3 Runner in test mode on the copy (runner_cases.out): no APPROVED -> exit 2, nothing created; criteria byte ->
+      attempt refused, REFUSED, HALTED, no run folder; relaunch while HALTED refused; unchanged -> starts.
+      The launch-floor refusal comes after mkdir logs/ runs/ and touch decided.tsv/crash_ledger.tsv (harmless).
+ P-i4 The end-of-run check (arm_state_end) re-checks classes, slots, mirror and envs but not the actor's phase
+      columns / Adam moments after update 175 (no evidence follows it); low risk while the mask class is in force.
+ P-i5 Time: 2.76 h (idle) to 3.07 h + 13 min reads (validate/logs/timing.out); loadavg 0.00 at 14:3xZ.
+ P-i6 The build checker ran one throwaway MirrorKLPPO.train() per seed (c_arm.py l3-5; 304 / 640 Adam steps, in
+      memory, nothing saved); the RULES allow no optimizer step except the task's V5: the coordinator records
+      whether the checker's brief allowed it.
+ P-i7 Cosmetic: run_waves_bs.sh l39-41 comments say "at most 9 continuations" / "9 x 50 MiB" (bs_common: 8).
+      tools/tests/test_score_bs.py is a PINS line but no tool checks it; say whether APPROVED pins it.
+ P-i8 Self-report: 14:40:02Z one command redirected onto /dev/zero (outside PS); nothing written; not repeated.
+2026-10-31T14:42:31Z findings appended; df -h /: 1.8G avail (252G, 96%); my folder 0.46 MB

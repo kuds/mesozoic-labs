@@ -1,0 +1,258 @@
+score_bs 3.0 (2026-10-31; phase screen criteria v1 as installed; derived from score_bs 2.1 of bias screen 2)
+tool sha256 fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040  utc 2026-10-31T14:20:57Z
+root /home/user/work/phase_screen/criteria_work/dry_line3
+
+STATUS: PROVISIONAL (printed, not acted on)
+THE READING (line 3, NO REDUCTION DETECTED):
+  NO REDUCTION DETECTED IN THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E FROM GIVING THE CRITIC THE EPISODE PHASE (not excluded: a reduction of about half the rise or smaller (power about 0.3-1.0 at half the control rise, by the between-continuation spread; about 0.5-0.85 at BS2's control spread; about 0.1-0.6 if the phase input makes climbs rarer rather than smaller), a critic that had not yet moved its weight from the tail angle to the phase, the phase after E, the rail)
+
+THE PRIMARY (on-policy tail_3 command: mean of rollout_mu14_mean over the probe rows 3,473,408 ... 3,530,752); B_S = +0.12660 (the parent's 8 rows ending at S = 2,097,152)
+  control_2901             COUNTED  +0.70312  (rise from B_S +0.57653)
+  critic_phase_2901        COUNTED  +0.71094  (rise from B_S +0.58434)
+  control_2911             COUNTED  +0.64844  (rise from B_S +0.52184)
+  critic_phase_2911        COUNTED  +0.67188  (rise from B_S +0.54528)
+  control_2921             COUNTED  +0.75000  (rise from B_S +0.62340)
+  critic_phase_2921        COUNTED  +0.68750  (rise from B_S +0.56090)
+  control_2931             COUNTED  +0.67969  (rise from B_S +0.55309)
+  critic_phase_2931        COUNTED  +0.74219  (rise from B_S +0.61559)
+  control                  n counted 4, missing 0; mean +0.69531, median +0.69141, SD 0.04279 (report only)
+  critic_phase             n counted 4, missing 0; mean +0.70312, median +0.69922, SD 0.03059 (report only)
+  difference of arm means (control - critic_phase), as counted: -0.00781
+INFORMATIVENESS (line 1): the control arm's median primary must rise by >= 0.20 from B_S (inclusive, exact; the median rule: 4 read -> the midpoint of the two middle values, 3 -> the middle one, 2 -> their midpoint, 1 -> the value, none -> not informative)
+  control median +0.69141 over 4 read, rise +0.56481 -> informative (the parent's own rise over the window +0.57878, report only)
+THE TEST: exact one-sided permutation test (control higher), difference of arm means, alpha 0.05; missing values filled against REDUCED (control -inf, critic_phase +inf); size 3/70 when the 8 primaries are exchangeable under no effect, about 0.06 (about 0.07 given the gate at a true rise of 0.29) if the phase input changes only the spread: read a REDUCED with each arm's SD
+  p (filled, decides) = 46/70 (0.6571)  > 0.05; minimum attainable 1/70 (0.0143)
+  p as counted (report only) = 46/70 (0.6571)
+PAIRED DIFFERENCES (control - critic_phase, same seeds; report only, not a test):
+  seed 2901: control +0.70312  phase +0.71094  diff -0.00781
+  seed 2911: control +0.64844  phase +0.67188  diff -0.02344
+  seed 2921: control +0.75000  phase +0.68750  diff +0.06250
+  seed 2931: control +0.67969  phase +0.74219  diff -0.06250
+  exact one-sided sign-flip p (report only; 4 pairs cannot reach 0.05: minimum 1/16) = 12/16 (0.7500)
+THE SECONDARIES (pre-registered; each tested one-sided at 0.05, unadjusted; NONE CHANGES THE LINE). EFFICACY family SEC-CMD, SEC-MARGIN, SEC-MECH: under the global null at most 9/70 = 0.129 that any reads SUPPORTED when each secondary's 8 values are exchangeable, about 0.18 if the arms' spreads differ; only p = 1/70 survives Bonferroni over the 3 (0.05 / 3 = 0.0167). GUARD family SEC-TAIL2, alone at 0.05 (a SUPPORTED is a warning). All four: at most 12/70 = 0.171 under the global null:
+  SEC-CMD (efficacy), the ledger tail command CMD_L at the evaluation at E [ledger.direct.per_evaluation[E].cmd_l]; direction: control HIGHER; fill: a MISSING control value -inf, a MISSING critic_phase value +inf
+    SUPPORTED (p <= 0.05, unadjusted)
+    control_2901             +0.80000
+    critic_phase_2901        +0.40000
+    control_2911             +0.70000
+    critic_phase_2911        +0.30000
+    control_2921             +0.60000
+    critic_phase_2921        +0.20000
+    control_2931             +0.35000
+    critic_phase_2931        +0.10000
+    control                  n read 4, missing 0; mean +0.61250, median +0.65000
+    critic_phase             n read 4, missing 0; mean +0.25000, median +0.25000
+    p (filled, decides SUPPORTED) = 2/70 (0.0286); p as counted (report only) = 2/70 (0.0286)
+  SEC-MARGIN (efficacy), the margin to the rail: OWN b*_P = 1 - G - c0 at the final pair (E) [OWN.P.b_star at the loop row with steps == E (the final pair)]; direction: critic_phase HIGHER; fill: a MISSING critic_phase value -inf, a MISSING control value +inf
+    NOT SUPPORTED
+    control_2901             +1.00000
+    critic_phase_2901        +1.12500
+    control_2911             +1.25000
+    critic_phase_2911        +1.37500
+    control_2921             +1.50000
+    critic_phase_2921        +1.62500
+    control_2931             +1.75000
+    critic_phase_2931        +1.87500
+    control                  n read 4, missing 0; mean +1.37500, median +1.37500
+    critic_phase             n read 4, missing 0; mean +1.50000, median +1.50000
+    p (filled, decides SUPPORTED) = 24/70 (0.3429); p as counted (report only) = 24/70 (0.3429)
+  SEC-MECH (efficacy), the critic's own tail slope: the effective critic's mean dV/dq3 per degree on the on-policy states at the final pair (E) [critic_slope_obs6.ONPOLICY.effective.dV_dq3_per_deg at the loop row with steps == E (the final pair)]; direction: control HIGHER; fill: a MISSING control value -inf, a MISSING critic_phase value +inf
+    SUPPORTED (p <= 0.05, unadjusted) (survives Bonferroni over the 3 efficacy secondaries)
+    control_2901             +0.06250
+    critic_phase_2901        +0.00781
+    control_2911             +0.04688
+    critic_phase_2911        +0.00000
+    control_2921             +0.03125
+    critic_phase_2921        -0.00781
+    control_2931             +0.03906
+    critic_phase_2931        +0.01562
+    control                  n read 4, missing 0; mean +0.04492, median +0.04297
+    critic_phase             n read 4, missing 0; mean +0.00391, median +0.00391
+    p (filled, decides SUPPORTED) = 1/70 (0.0143); p as counted (report only) = 1/70 (0.0143)
+  SEC-TAIL2 (guard), the guard: the on-policy tail_2 command over the last 8 updates before E [policy_probe.npz rollout_mu_mean[:, 13] over the primary's 8 rows (the probe file CHECK passed and the markers were read from)]; direction: critic_phase HIGHER; fill: a MISSING critic_phase value -inf, a MISSING control value +inf
+    SUPPORTED (p <= 0.05, unadjusted) (guard: the habit may be moving to tail_2; a warning, not support for the phase input)
+    control_2901             +0.03906
+    critic_phase_2901        +0.06250
+    control_2911             +0.03125
+    critic_phase_2911        +0.05469
+    control_2921             +0.01562
+    critic_phase_2921        +0.04688
+    control_2931             +0.00781
+    critic_phase_2931        +0.02734
+    control                  n read 4, missing 0; mean +0.02344, median +0.02344
+    critic_phase             n read 4, missing 0; mean +0.04785, median +0.05078
+    p (filled, decides SUPPORTED) = 3/70 (0.0429); p as counted (report only) = 3/70 (0.0429)
+MANIPULATION (CHECK passed on every COUNTED / STOPPED one: the per-rollout evidence; summary from run_meta arm_evidence):
+  control_2901             MlpExtractor / SymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; no phase evidence (0 rollouts with phase rows); the actor responds to the command slots (min 4.0)
+  critic_phase_2901        CriticPhaseMlpExtractor / PhaseSlotsSymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; actor change with the phase slots perturbed, max 0.0; rollouts before / after the first update 1 / 174; critic phase response before 0.0, after (min per path) {'dv_phase_predict_values': 0.0009, 'dv_phase_forward': 0.0009, 'dv_phase_evaluate_actions': 0.0009, 'dv_phase_mirrored': 0.0008}; critic phase columns after (min) 1.7e-05; buffer slots vs the recount, max error 0.0; counters consistent True, slots frozen True, mirror self-map True, actor phase columns unchanged True (Adam 0.0), envs swapped True; pre-settle rows 286720, k max 999; transform verified True
+  control_2911             MlpExtractor / SymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; no phase evidence (0 rollouts with phase rows); the actor responds to the command slots (min 4.0)
+  critic_phase_2911        CriticPhaseMlpExtractor / PhaseSlotsSymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; actor change with the phase slots perturbed, max 0.0; rollouts before / after the first update 1 / 174; critic phase response before 0.0, after (min per path) {'dv_phase_predict_values': 0.0009, 'dv_phase_forward': 0.0009, 'dv_phase_evaluate_actions': 0.0009, 'dv_phase_mirrored': 0.0008}; critic phase columns after (min) 1.7e-05; buffer slots vs the recount, max error 0.0; counters consistent True, slots frozen True, mirror self-map True, actor phase columns unchanged True (Adam 0.0), envs swapped True; pre-settle rows 286720, k max 999; transform verified True
+  control_2921             MlpExtractor / SymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; no phase evidence (0 rollouts with phase rows); the actor responds to the command slots (min 4.0)
+  critic_phase_2921        CriticPhaseMlpExtractor / PhaseSlotsSymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; actor change with the phase slots perturbed, max 0.0; rollouts before / after the first update 1 / 174; critic phase response before 0.0, after (min per path) {'dv_phase_predict_values': 0.0009, 'dv_phase_forward': 0.0009, 'dv_phase_evaluate_actions': 0.0009, 'dv_phase_mirrored': 0.0008}; critic phase columns after (min) 1.7e-05; buffer slots vs the recount, max error 0.0; counters consistent True, slots frozen True, mirror self-map True, actor phase columns unchanged True (Adam 0.0), envs swapped True; pre-settle rows 286720, k max 999; transform verified True
+  control_2931             MlpExtractor / SymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; no phase evidence (0 rollouts with phase rows); the actor responds to the command slots (min 4.0)
+  critic_phase_2931        CriticPhaseMlpExtractor / PhaseSlotsSymmetricRunningMeanStd, hook in force; 175 rollouts; value change with obs 6 perturbed, min 0.09 (the critic sees the tail angle); actor dmu min 0.18; lambda [0.95]; |adv - GAE(0.95)| max 3e-06; actor change with the phase slots perturbed, max 0.0; rollouts before / after the first update 1 / 174; critic phase response before 0.0, after (min per path) {'dv_phase_predict_values': 0.0009, 'dv_phase_forward': 0.0009, 'dv_phase_evaluate_actions': 0.0009, 'dv_phase_mirrored': 0.0008}; critic phase columns after (min) 1.7e-05; buffer slots vs the recount, max error 0.0; counters consistent True, slots frozen True, mirror self-map True, actor phase columns unchanged True (Adam 0.0), envs swapped True; pre-settle rows 286720, k max 999; transform verified True
+REPORT ONLY, PER CONTINUATION (never tested):
+  control_2901             COUNTED T 3,538,944: on-policy first 8 rows +0.1414, last 8 before T +0.7031; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.800 (max +0.800); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.800
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 0 
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.016, tail_3_pitch +0.577; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,538,944: OWN G -1.000 c0 +1.000 b* +1.000 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.06250/+0.06250/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+  critic_phase_2901        COUNTED T 3,538,944: on-policy first 8 rows +0.1416, last 8 before T +0.7109; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.400 (max +0.400); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.400
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 1 [(2228224, '292', 'fall')]
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.039, tail_3_pitch +0.584; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,538,944: OWN G -0.400 c0 +0.275 b* +1.125 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.00781/+0.05781/+0.07781 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+  control_2911             COUNTED T 3,538,944: on-policy first 8 rows +0.1400, last 8 before T +0.6484; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.700 (max +0.700); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.700
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 0 
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.008, tail_3_pitch +0.522; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,538,944: OWN G -0.900 c0 +0.650 b* +1.250 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.04688/+0.04688/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+  critic_phase_2911        COUNTED T 3,538,944: on-policy first 8 rows +0.1406, last 8 before T +0.6719; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.300 (max +0.300); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.300
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 1 [(2228224, '292', 'fall')]
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.031, tail_3_pitch +0.545; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,538,944: OWN G -0.300 c0 -0.075 b* +1.375 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.00000/+0.05000/+0.07000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+  control_2921             COUNTED T 3,538,944: on-policy first 8 rows +0.1426, last 8 before T +0.7500; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.600 (max +0.600); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.600
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 0 
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch -0.008, tail_3_pitch +0.623; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,538,944: OWN G -0.800 c0 +0.300 b* +1.500 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.03125/+0.03125/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+  critic_phase_2921        COUNTED T 3,538,944: on-policy first 8 rows +0.1410, last 8 before T +0.6875; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.200 (max +0.200); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.200
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 1 [(2228224, '292', 'fall')]
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.024, tail_3_pitch +0.561; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,538,944: OWN G -0.200 c0 -0.425 b* +1.625 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy -0.00781/+0.04219/+0.06219 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+  control_2931             COUNTED T 3,538,944: on-policy first 8 rows +0.1408, last 8 before T +0.6797; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.350 (max +0.350); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.350
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 0 
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch -0.015, tail_3_pitch +0.553; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.01000/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+      pair 3,538,944: OWN G -0.636 c0 -0.114 b* +1.750 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.03906/+0.03906/n/a OWN +0.01000/+0.01000/n/a REF +0.01000/+0.01000/n/a
+  critic_phase_2931        COUNTED T 3,538,944: on-policy first 8 rows +0.1424, last 8 before T +0.7422; statue_settled last 8 rows +0.0500, 8-row trailing at the last row +0.0500 (max +0.0500), first above {'0.10': None}; std14 last +0.1900; tail_3 normaliser mean last +0.000 deg
+      ledger: CMD_L at T +0.100 (max +0.200); firsts {}; M5 ANY flagged [] TAIL flagged [] ANY alarms [] TAIL alarms []; C6 counting failures 0
+      CMD_L per evaluation: 2,228,224 +0.200, 2,359,296 +0.200, 2,490,368 +0.200, 2,621,440 +0.200, 2,752,512 +0.200, 2,883,584 +0.200, 3,014,656 +0.200, 3,145,728 +0.200, 3,276,800 +0.200, 3,407,872 +0.200, 3,538,944 +0.100
+      returns: mean at the first / last evaluation 4000.0 / 4010.0, window 4005.0 over 110 episodes in 11 evaluations; falls 1 [(2228224, '292', 'fall')]
+      mean return per evaluation: 2,228,224 4000.0, 2,359,296 4001.0, 2,490,368 4002.0, 2,621,440 4003.0, 2,752,512 4004.0, 2,883,584 4005.0, 3,014,656 4006.0, 3,145,728 4007.0, 3,276,800 4008.0, 3,407,872 4009.0, 3,538,944 4010.0
+      on-policy command rise over the primary's rows from the parent's rows at S, per actuator: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.004, tail_3_pitch +0.616; largest |.|-rise among the 14 others +0.054 (neck_yaw_act)
+      pair 2,097,152: OWN G -0.636 c0 +0.236 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0
+      pair 2,359,296: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,621,440: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 2,883,584: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,145,728: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,407,872: OWN G -0.600 c0 +0.200 b* +1.400 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01000/+0.06000/+0.08000 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+      pair 3,538,944: OWN G -0.100 c0 -0.775 b* +1.875 G_L -0.800 b*_L +1.800 own14 +0.000 falls 0 | REF G -0.700 | critic dV/dq3 per deg eff/raw/settled: on-policy +0.01562/+0.06563/+0.08563 OWN +0.01000/+0.06000/+0.08000 REF +0.01000/+0.06000/+0.08000; phase swing (V settled - V slots 0, on-policy) +0.2500, own phase - slots 0 +0.1250; phase columns used 0.0125
+REPORT ONLY, THE ON-POLICY TRAJECTORY (the 8-row mean of rollout_mu14_mean ending at each evaluation step; at E the primary's rows), beside the parent's (F2 probe); untested:
+       step    parent   ctrl2901  phase2901   ctrl2911  phase2911   ctrl2921  phase2921   ctrl2931  phase2931  | median control / phase
+  2,228,224   +0.1551    +0.1678    +0.1683    +0.1639    +0.1655    +0.1711    +0.1667    +0.1661    +0.1706  | +0.1669 / +0.1675
+  2,359,296   +0.1686    +0.2205    +0.2218    +0.2116    +0.2154    +0.2281    +0.2179    +0.2167    +0.2268  | +0.2186 / +0.2199
+  2,490,368   +0.1955    +0.2732    +0.2752    +0.2593    +0.2653    +0.2851    +0.2692    +0.2672    +0.2831  | +0.2702 / +0.2722
+  2,621,440   +0.1902    +0.3259    +0.3286    +0.3070    +0.3151    +0.3421    +0.3205    +0.3178    +0.3394  | +0.3219 / +0.3246
+  2,752,512   +0.2414    +0.3786    +0.3820    +0.3547    +0.3650    +0.3991    +0.3718    +0.3684    +0.3957  | +0.3735 / +0.3769
+  2,883,584   +0.2918    +0.4313    +0.4355    +0.4024    +0.4148    +0.4561    +0.4231    +0.4189    +0.4520  | +0.4251 / +0.4293
+  3,014,656   +0.3277    +0.4840    +0.4889    +0.4501    +0.4647    +0.5131    +0.4744    +0.4695    +0.5083  | +0.4768 / +0.4816
+  3,145,728   +0.4317    +0.5368    +0.5423    +0.4978    +0.5145    +0.5701    +0.5256    +0.5201    +0.5645  | +0.5284 / +0.5340
+  3,276,800   +0.6135    +0.5895    +0.5957    +0.5456    +0.5644    +0.6271    +0.5769    +0.5706    +0.6208  | +0.5801 / +0.5863
+  3,407,872   +0.6914    +0.6422    +0.6492    +0.5933    +0.6142    +0.6841    +0.6282    +0.6212    +0.6771  | +0.6317 / +0.6387
+  3,538,944   +0.7054    +0.7031    +0.7109    +0.6484    +0.6719    +0.7500    +0.6875    +0.6797    +0.7422  | +0.6914 / +0.6992
+REPORT ONLY, G AT E ABOVE G AT S (OWN G at the final pair against the start pair's, the same start for all; the parent's G(S) -0.636; BS2's SEC-G, not tested here): control 0 of 4; critic_phase 4 of 4
+REPORT ONLY, ARM MEDIANS OVER THE READ CONTINUATIONS:
+  control                  on-policy first 8 rows +0.1411; statue_settled last 8 rows +0.0500, trailing at last row +0.0500 (max +0.0500); std14 last +0.1900; tail_3 normaliser +0.000 deg; CMD_L at T +0.650 (max +0.650); mean return window 4005.0, falls 0.0
+                           at the end pair (the loop row at T) OWN G -0.850 c0 +0.475 b* +1.375 G_L -0.800 b*_L +1.800 own14 +0.000 REF G -0.700; critic slope on-policy eff +0.04297 raw +0.04297 settled n/a, OWN eff +0.01000, REF eff +0.01000; phase swing n/a; the reader's own rollouts terminated 0.0
+                           per-actuator rise medians: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.000, tail_3_pitch +0.565
+  critic_phase             on-policy first 8 rows +0.1413; statue_settled last 8 rows +0.0500, trailing at last row +0.0500 (max +0.0500); std14 last +0.1900; tail_3 normaliser +0.000 deg; CMD_L at T +0.250 (max +0.250); mean return window 4005.0, falls 1.0
+                           at the end pair (the loop row at T) OWN G -0.250 c0 -0.250 b* +1.500 G_L -0.800 b*_L +1.800 own14 +0.000 REF G -0.700; critic slope on-policy eff +0.00391 raw +0.05391 settled +0.07391, OWN eff +0.01000, REF eff +0.01000; phase swing +0.2500; the reader's own rollouts terminated 0.0
+                           per-actuator rise medians: neck_pitch -0.123, neck_yaw -0.055, head_pitch -0.073, r_hip_pitch -0.043, r_hip_roll -0.047, r_knee -0.026, r_ankle -0.010, l_hip_pitch -0.012, l_hip_roll +0.015, l_knee +0.005, l_ankle +0.021, tail_1_pitch +0.072, tail_1_yaw +0.022, tail_2_pitch +0.027, tail_3_pitch +0.573
+REPORT ONLY, BESIDE BS2 (different seeds, a different harness build: never tested; BS2's finished score.json, read):
+  BS2 line REDUCED; BS2 control median +0.59041 (rise +0.46382); this screen's control median +0.69141 (rise +0.56481)
+    BS2 control_2501               primary +0.67001  CMD_L at E +0.884  b* at E -0.030  critic slope on-policy at E eff/raw +0.06177/+0.06177
+    BS2 critic_blind_tail3_2501    primary +0.14283  CMD_L at E +0.181  b* at E +0.983  critic slope on-policy at E eff/raw +0.00000/+0.03062
+    BS2 control_2511               primary +0.79227  CMD_L at E +0.955  b* at E -0.060  critic slope on-policy at E eff/raw +0.05324/+0.05324
+    BS2 critic_blind_tail3_2511    primary +0.12485  CMD_L at E +0.125  b* at E +1.109  critic slope on-policy at E eff/raw +0.00000/+0.01557
+    BS2 control_2521               primary +0.51081  CMD_L at E +0.597  b* at E +0.404  critic slope on-policy at E eff/raw +0.02260/+0.02260
+    BS2 critic_blind_tail3_2521    primary +0.13810  CMD_L at E +0.146  b* at E +1.301  critic slope on-policy at E eff/raw +0.00000/+0.00331
+    BS2 control_2531               primary +0.41938  CMD_L at E +0.475  b* at E +0.352  critic slope on-policy at E eff/raw +0.04147/+0.04147
+    BS2 critic_blind_tail3_2531    primary +0.06516  CMD_L at E +0.068  b* at E +1.194  critic slope on-policy at E eff/raw +0.00000/+0.03012
+MISSING (STOPPED, LOST or primary unreadable; filled against REDUCED):
+  none
+PROVISIONAL items (the reading is printed and not acted on while any stands):
+  - no /home/user/work/phase_screen/criteria_work/dry_line3/criteria.txt
+  - no /home/user/work/phase_screen/criteria_work/dry_line3/APPROVED
+  - control_2901: ran under criteria.txt None, not the current None
+  - control_2901: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - control_2901: ran under APPROVED None, not the current None
+  - critic_phase_2901: ran under criteria.txt None, not the current None
+  - critic_phase_2901: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - critic_phase_2901: ran under APPROVED None, not the current None
+  - control_2911: ran under criteria.txt None, not the current None
+  - control_2911: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - control_2911: ran under APPROVED None, not the current None
+  - critic_phase_2911: ran under criteria.txt None, not the current None
+  - critic_phase_2911: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - critic_phase_2911: ran under APPROVED None, not the current None
+  - control_2921: ran under criteria.txt None, not the current None
+  - control_2921: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - control_2921: ran under APPROVED None, not the current None
+  - critic_phase_2921: ran under criteria.txt None, not the current None
+  - critic_phase_2921: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - critic_phase_2921: ran under APPROVED None, not the current None
+  - control_2931: ran under criteria.txt None, not the current None
+  - control_2931: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - control_2931: ran under APPROVED None, not the current None
+  - critic_phase_2931: ran under criteria.txt None, not the current None
+  - critic_phase_2931: ran under SCREEN.json None, not the current '2e2440b6f7a69847f8477d6c0241275f973bb1a6d72947895e73799824be5ee8'
+  - critic_phase_2931: ran under APPROVED None, not the current None

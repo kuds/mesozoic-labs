@@ -1,0 +1,131 @@
+vg_tool SPEC (pre-registration of a REPORT-ONLY measurement on the phase screen's outputs)
+Written 2026-10-31 (date -u; times in CMDLOG.txt) by the builder of the V-G / tail-sigma tool, while the phase screen
+PS (/home/user/work/phase_screen) runs, outcome-blind: nothing under <PS>/runs, reads, score, logs, tmp or lost.json
+was opened, listed or hashed to write it.  This text, vg_sigma.py and the tests are pinned by sha256 (SHA256SUMS.txt)
+and the coordinator records those sha256 in the run log BEFORE the screen's reading.  Labels: [measured] read or
+computed from a named file; [inferred] reasoned, basis given.
+Revised 2026-10-31 by the fixer after the independent check (FIXES.txt; still outcome-blind, nothing of PS's runs,
+reads, score, logs, tmp or lost.json opened): --root has no default; two more self-checks (the phase feeding, the
+gamma of G); SCREEN.json against APPROVED; the G caption; E2's BS2 reference; the seeds' historical scan range.  The
+measurement itself (pairs, episodes, seeds, buckets, G, V, statistics, sigma) is unchanged.
+
+STATUS: REPORT ONLY.  This measurement is outside the screen's reading: it is never a line, never a secondary, never a
+PROVISIONAL item, and nothing it prints changes or qualifies the screen's line or any secondary.  It answers PR #655's
+Open Question 1 (the critic's error by episode step; the PR-655 review's buckets) and describes the tail's exploration
+noise.  It is run only after the screen is scored (score.json STATUS final, every queue entry decided).
+
+INPUTS (--root <PS>, required: no default, so a command with neither --pair nor --root refuses, exit 2, before opening
+anything, even <PS>/score/score.json; the tool refuses, exit 2, reading nothing else, unless <PS>/score/score.json
+exists with status "final", its classes equal <PS>/SCREEN.json's queue in order and every entry is COUNTED, STOPPED or
+LOST)
+  - each COUNTED continuation (the score.json classes with cls "COUNTED", T = E = 3,538,944) and only those: its final
+    pair <PS>/runs/<arm>_<seed>/01_stance/models/stage1_final.zip + stage1_final_vecnorm.pkl (bs_common.FINAL_ZIP /
+    FINAL_PKL; read_bs.saved_pairs puts the final pair at T; E is not on the 262,144 save grid, so no periodic pair
+    exists at E); the loaded model's num_timesteps must be E; the screen's read of it, <PS>/reads/<name>/markers.json,
+    must hold one loop row at E naming the same zip and pkl sha256 and the arm's critic form (else, or if the markers
+    file is missing, a PROBLEM, exit 3).
+  - the shared start pair at S = 2,097,152 as the reference: the F2 copies at FMAN sha256 (bs_common.START: zip
+    83b6c88e..., pkl 991d434f...), read once (it is every continuation's start); each COUNTED run's own start copy
+    (runs/<name>/01_stance/models/stage1_2097152_steps.zip) is only hashed and must equal it.
+  - sigma also at each saved pair of each COUNTED run: stage1_<s>_steps.zip for s = 2,359,296, 2,621,440, 2,883,584,
+    3,145,728, 3,407,872 (bs_common.SAVED_STEPS), only the zip's policy.pth log_std is read.
+  STOPPED and LOST continuations are listed, not measured.  The tool records the sha256 of itself, this SPEC, the PS
+  tools it imports (bs_common.py, bs_hooks.py, read_bs.py: compared with <PS>/APPROVED's tool_sha256), score.json,
+  SCREEN.json, APPROVED and every input file, and compares SCREEN.json's sha256 with APPROVED's screen_sha256 (else a
+  PROBLEM).
+
+EPISODES, SEEDS, ACTIONS
+  - N = 32 complete episodes per measured pair: a 4-env DummyVecEnv, the first 8 complete episodes of each env (a
+    longer episode never ends the count early; extra episodes of a faster env are dropped), as the why-probe did with
+    48.  Why 32 [measured basis + inferred]: the why-probe's 48 episodes gave its phase-error contrast D_err a 95% CI
+    half-width of 0.012-0.03 normalised units at every checkpoint (phase_probe/analysis.txt) against bucket errors of
+    0.02-0.12; 32 episodes widen that by about sqrt(48/32) = 1.22, still well below the effects of interest, and the
+    between-continuation spread (4 per arm) dominates the arm comparison anyway.  Cost [measured, val/explore.out:
+    2.15 ms CPU per env step at nice 19 beside the running screen]: about 70-80 s CPU per pair, 9 pairs (8 final + S)
+    about 12 min on one core.
+  - Seeds: base B = 6271 for every measured pair (common random numbers across pairs): envs 6271, 6272, 6273, 6274
+    (create_vec_env seed + rank, then VecEnv.seed(B) for the first reset), torch.manual_seed(6271),
+    numpy.random.seed(6271).  The tool's own validations use base 6281 (6281-6284); the why-probe reproduction uses its
+    own 7700.  NEW: 6271-6274 and 6281-6284 collide with no seed set named in <PS>/criteria.txt (lines 226-235),
+    BS2's criteria.txt, the long_blind criteria drafts, tools and measure scripts, the why-probe (phase_probe,
+    verify_why, termination_probe) or the PS / BS2 validations, and appear as no whole number or range member in any
+    of their 1,181 text files [measured, val/seeds_check.py -> val/seeds_check.out: RESULT NO COLLISION; its sanity
+    rows find every known seed].  The independent check's wider scan (check1/out/seed_scan.out, 46,710 files) found
+    one range containing them: the repo's historical zero-action reset-seed survey "seeds 3042-7041"
+    (docs/STAGE1_SPLIT_PLAN.md line 1209, and its copies), which is no seed set of any screen, probe or run
+    (PS's own evaluation seeds 3901-3931 lie in it too) [measured: that file; the scan's output].
+  - On-policy stochastic actions exactly as in training: the read_bs.onpolicy_states / why-probe build (the code
+    copy's stance config, create_vec_env with 4 envs (DummyVecEnv, Monitor), the pair's VecNormalize with training
+    False (frozen statistics) and norm_reward True, load_sb3_model with the stage's [ppo] kwargs, enable_mirror_kl);
+    per vector step the policy's forward (sampled actions) on the normalised observation, clipped to the action space,
+    as SB3 2.9.0's collect_rollouts.  The loop steps the inner DummyVecEnv and applies the same VecNormalize object's
+    normalize_obs / normalize_reward (its step_wait with training False does exactly this), so that the RAW
+    time-limit terminal observation is kept for the phase feeding.  Checked equal (bitwise) to SB3's own
+    collect_rollouts on the same seeds (unit test), to read_bs.onpolicy_states' states and k (val/equiv_onpolicy.out)
+    and to the why-probe's recorded episodes (val/why_online.out).  No optimizer, no update, no learn(), nothing
+    written to a pair.
+
+DEFINITIONS
+  - k = the env's own _step_count when the observation is made (0 at reset; read from each env before its step), as
+    in bs_common THE PHASE.  Buckets by the k of the state: [0,50), [50,150), [150,200), [200,250), [250,1000].  The
+    states are the buffer's states, k = 0 ... 999; the time-limit terminal observation (k = 1000) is not a state
+    (SB3 does not store it) and only bootstraps G.
+  - G_k = sum_{j=k}^{T-1} gamma^(j-k) r~_j + [time-limit truncation] gamma^(T-k) V(s_T), no bootstrap after a true
+    termination (SB3: rewards[last] += gamma V(terminal_observation) only when TimeLimit.truncated).  gamma = the
+    training gamma (stage [ppo] gamma 0.98, checked equal to the model's and the VecNormalize's).  r~ = the reward
+    as the buffer holds it: VecNormalize.normalize_reward of the env's float32 reward with the pair's own frozen
+    ret_rms (clip(r / sqrt(ret_var + eps), +-clip_reward), float32): the critic's own units.  Summed in float64.
+    G is computed only with gamma = 0.98 (any other gamma refuses, exit 2).  G is not the critic's training target:
+    training regressed V on GAE(0.95) lambda-returns (bs_common ARM_GAE_LAMBDA) under each rollout's running reward
+    statistics; G is the Monte Carlo return under the final pair's frozen ret_rms, as in the why-probe (sigma_r 45.36
+    at S, 43.90 at BS2 control_2501 E [measured, NOTES O4]).  The report prints this as a caption.
+  - V = the arm's own critic in the arm's form, through read_bs's own functions: read_bs.Net (the reader's load of
+    the pair) and, for critic_phase, read_bs.phase_prepare (the start transform at S; at later pairs the frozen slots
+    are required) and read_bs.with_phase (each state's phase phi(k) in slots 60-62, float32 before VecNormalize's
+    normalize_obs, as read_bs.critic_slope feeds it: the "effective" critic of critic form "phase+raw+settled"); the
+    terminal observation gets phi(1000).  control: the stock critic ("plain").  (--pair mode also: "blind", BS2's
+    critic_blind_tail3 effective critic via bs_hooks.critic_blind_class.)  Report only beside it for critic_phase:
+    the same critic with the slots zero ("raw", no phase input), against the same G.
+  - The start pair S is read in both forms (plain and phase with the start transform); its critic's phase columns are
+    zero after the transform, so the two must give equal V on every state (checked; else a PROBLEM).
+
+STATISTICS (all report only; no test, no p-value, no threshold)
+  - per pair and bucket: episodes contributing, states; mean of V - G and of |V - G| over episodes (each episode's
+    bucket mean, equally weighted) with the SE across episodes (sample SD / sqrt(n)); the state-pooled means (the
+    why-probe's convention; equal to the episode means when no episode falls); mean V; mean G.
+  - per arm and bucket: the median over the arm's COUNTED runs of the per-run mean V - G and mean |V - G| (and the
+    arm mean); the control-minus-critic_phase difference of the arm medians; per seed, control minus critic_phase
+    where both are COUNTED.  S's values printed beside (the common start).
+  - Self-checks per pair (PROBLEM -> exit 3): every truncation at k = 1000; k consecutive within an episode; the loop's
+    own forward values equal the plain critic's (max |dV| <= 1e-4, batching noise); num_timesteps; markers match;
+    the phase feeding: in the phase form, when the critic's phase columns are nonzero (value_net.0.weight[:, 60:63]
+    after read_bs.phase_prepare), V with phi(k) must differ from V with the slots zero on some state, and V(terminal)
+    with phi(1000) from V(terminal) with the slots zero when an episode was truncated (an exact equality means the
+    phase was not fed there).
+EXPECTATIONS, stated before any continuation is read [inferred: the why-probe's phase error, phase_probe/NOTES.txt
+  "WHAT WAS MEASURED" 3 (V - G +0.02 to +0.12 in steps 50-200, -0.03 to -0.05 in 200-400 for phase-blind critics);
+  a critic that sees the phase need not alias the step-200 gate]:
+  E1 the critic_phase arm's median V - G is nearer 0 than control's in [150,200) and in [200,250) (|phase| < |control|).
+  E2 (background) control's median V - G is positive in [50,150) and [150,200) and negative in [200,250).
+     [150,200)'s sign rests on the start checkpoint (the why-probe at S: +0.0707, SE 0.0059, val/why_offline.log);
+     BS2's finished control_2501 at E already read slightly negative there: -0.0098 (SE 0.0196; 8 episodes, seed
+     6281) [measured, val/a_control_2501/vg_sigma.txt].  Descriptive only; E2 is not changed.
+  Printed as "consistent" / "not consistent" per bucket; a description, not a test (4 per arm; common seeds).
+
+TAIL EXPLORATION NOISE
+  - sigma = exp(log_std) (float32 log_std of the zip's policy.pth, exp in float64) for tail_3 = action 14
+    (tail_3_pitch_act) and tail_2 = action 13 (tail_2_pitch_act), at S, at each saved pair and at E, per COUNTED run;
+    arm medians per step.  Floor: the policy applies none when it samples (SB3 2.9.0 DiagGaussianDistribution:
+    std = exp(log_std); the code copy's MirrorKLPPO uses sigma_floor = 0.01 (stage [ppo] symmetry_sigma_floor) only
+    inside its mirror-KL loss, sigma = exp(log_std).detach().clamp_min(sigma_floor), mirror_kl_ppo.py lines 21, 201;
+    no clamp of log_std anywhere else in environments/ [measured, grep]).  So sigma is reported as sampled, and beside
+    it max(sigma, 0.01), the mirror-KL loss's floored sigma, with a flag when the floor binds.
+  - Index check [measured, val/explore.out; re-checked at every run]: the env's MuJoCo actuator order (which is the
+    action order: base_env._scale_action maps action i to actuator i's ctrlrange) has actuator 13 = tail_2_pitch_act
+    and 14 = tail_3_pitch_act, nu = 15 = len(log_std); both map to themselves in the mirror map (action perm 13 -> 13,
+    14 -> 14), so the log_std tie does not involve them.  The tool refuses if the names differ.
+
+OUTPUT: <out>/vg_sigma.json and vg_sigma.txt (deterministic: no clock values; the same inputs and code give the same
+bytes), <out>/run_info.json (UTC times, CPU seconds, per-episode cost).  Exit 0 measured; 3 measured with a PROBLEM; 2
+refused or input error.  --pair ZIP PKL --form {plain,phase,blind} [--phase-start] measures one explicit pair
+(validation; no screen root; --root / --plan refused with it; default seed 6281).

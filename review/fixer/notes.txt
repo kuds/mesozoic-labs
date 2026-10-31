@@ -1,0 +1,111 @@
+PS FIXER notes. Folder: /home/user/work/phase_screen/review/fixer (my writes: this folder, plus the files the task names: criteria.txt, SCREEN.json, tools/*, tools/tests/*, review/criteria_reviewed_v1.txt, review/reviewed_sha256.txt, review/FIXES.txt, SHA256SUMS.txt).
+Every command is logged here with date -u times. [measured] = ran/read, file+line cited; [inferred].
+2026-10-31T14:59:43Z START; mkdir review/fixer/{orig/tools/tests,logs,bin,tmp}; wrote bin/logrun.sh and bin/note.sh (logging helpers)
+2026-10-31T14:59:57Z cp -p criteria.txt SCREEN.json SHA256SUMS.txt tools/*.py tools/*.sh tools/tests/*.py -> review/fixer/orig/; cp -p criteria.txt review/criteria_reviewed_v1.txt; sha256sum of reviewed criteria, SCREEN.json and all 13 tools/tests -> review/reviewed_sha256.txt; copies equal; sha256sum -c SHA256SUMS.txt non-OK count printed
+2026-10-31T15:01:18Z READ (verify P-B1): SB3 base_class.py l431 configure_logger(self.verbose, self.tensorboard_log, ...) in _setup_learn; utils.py l265-299; code copy train_base.py l344-370 (use_tensorboard False: no tensorboard_log in alg_kwargs), l1561-1571 learn(reset_num_timesteps=not resuming); review/process/zip_tensorboard_log.out and logs/tb_buffer_stat.txt; run_bs.py l391-440 make_checked_load, l781-790 setup_environment (tmp = <PS>/tmp/<name> or <mode>_<name>), l1006-1016 _train_stage_body(use_tensorboard=False)
+2026-10-31T15:01:29Z find /tmp/tb_buffer -type f -printf path/mtime/size (no file opened) -> logs/tb_buffer_before.txt (77 files); confirms P-B1's files (PS V2 pids 22041-22047 13:45, c_ctrl pid 11844 14:15)
+2026-10-31T15:02:36Z START [verify_i1_i4] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/fixer/work/verify_i1_i4.py
+2026-10-31T15:02:36Z END   [verify_i1_i4] exit 0; stdout 8 lines, stderr 0 lines -> logs/verify_i1_i4.out/.err
+2026-10-31T15:04:28Z START [verify_d2] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/fixer/work/verify_d2.py
+2026-10-31T15:04:34Z END   [verify_d2] exit 0; stdout 3 lines, stderr 0 lines -> logs/verify_d2.out/.err
+2026-10-31T15:08:23Z EDIT tools/run_bs.py (P-B1, P-i3): added redirect_tensorboard() and end_phase_problems(); make_checked_load(tb_dir=...) sets model.tensorboard_log = <TMPDIR>/tb (under <PS>/tmp/) after the V1 branch and before learn(); wrapper_problems requires the redirect; run() passes tb_dir=Path(env['TMPDIR'])/'tb'; at the end critic_phase records phase_state_end and adds end_phase_problems to arm_end; run_meta gains phase_state_end and tensorboard_log
+2026-10-31T15:09:11Z START [pytest_run_1] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh run1 tools/tests/test_run_bs.py
+2026-10-31T15:09:11Z END   [pytest_run_1] exit 4; stdout 2 lines, stderr 2 lines -> logs/pytest_run_1.out/.err
+2026-10-31T15:09:15Z START [pytest_run_1] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh run1 /home/user/work/phase_screen/tools/tests/test_run_bs.py
+2026-10-31T15:09:19Z END   [pytest_run_1] exit 0; stdout 2 lines, stderr 0 lines -> logs/pytest_run_1.out/.err
+2026-10-31T15:09:28Z START [ruff_1] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 /home/user/work/phase_screen/tools/run_bs.py /home/user/work/phase_screen/tools/tests/test_run_bs.py
+2026-10-31T15:09:28Z END   [ruff_1] exit 1; stdout 12 lines, stderr 0 lines -> logs/ruff_1.out/.err
+2026-10-31T15:09:35Z START [ruff_2] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 /home/user/work/phase_screen/tools/run_bs.py /home/user/work/phase_screen/tools/tests/test_run_bs.py
+2026-10-31T15:09:35Z END   [ruff_2] exit 0; stdout 1 lines, stderr 0 lines -> logs/ruff_2.out/.err
+2026-10-31T15:09:35Z START [pytest_run_2] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh run2 /home/user/work/phase_screen/tools/tests/test_run_bs.py
+2026-10-31T15:09:39Z END   [pytest_run_2] exit 0; stdout 2 lines, stderr 0 lines -> logs/pytest_run_2.out/.err
+2026-10-31T15:10:26Z touch logs/val_start.marker; START bin/fixer_validate.sh in background (V1 both arms 9401; V2 4 no-update runs 9401/9411; CHECK; V3 reads; v1_independent/v2_check/v3_check) -> PS/validate/fixer/, logs/val/; load 0.07 0.08 0.30
+2026-10-31T15:12:38Z EDIT tools/score_bs.py: D1 LINE_TEXT[3] '0.1-0.6' -> '0.1-0.3 ... (half as many climbs)'; design I3 SEC_GUARD_MISSING note; D2 slope_end_vs_start (report only) + text section + result key slope_end_vs_start; P-m2 pins_lines/pins_items in provisional_items; VERSION 3.1; docstring. ruff E,F,W,B l120 on score_bs.py: All checks passed (run directly, not via logrun)
+2026-10-31T15:14:25Z START [ruff_3] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 /home/user/work/phase_screen/tools/score_bs.py /home/user/work/phase_screen/tools/tests/test_score_bs.py
+2026-10-31T15:14:25Z END   [ruff_3] exit 1; stdout 12 lines, stderr 0 lines -> logs/ruff_3.out/.err
+2026-10-31T15:14:31Z START [ruff_4] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 /home/user/work/phase_screen/tools/score_bs.py /home/user/work/phase_screen/tools/tests/test_score_bs.py
+2026-10-31T15:14:31Z END   [ruff_4] exit 0; stdout 1 lines, stderr 0 lines -> logs/ruff_4.out/.err
+2026-10-31T15:16:59Z START [edit_criteria_1] python3 -I -B edit_criteria_1.py
+2026-10-31T15:16:59Z END   [edit_criteria_1] exit 0; stdout 1 lines, stderr 0 lines -> logs/edit_criteria_1.out/.err
+2026-10-31T15:17:26Z START [edit_criteria_2] python3 -I -B edit_criteria_2.py
+2026-10-31T15:17:26Z END   [edit_criteria_2] exit 0; stdout 1 lines, stderr 0 lines -> logs/edit_criteria_2.out/.err
+2026-10-31T15:17:35Z EDIT tools/run_waves_bs.sh comments l38-41 (P-i7): 9 continuations / 9 x 50 MiB -> bs_common.MAX_CONTINUATIONS = 8 / 8 x 50 MiB = 2,030,043,136 B (comments only); bash -n ok
+2026-10-31T15:17:49Z REDO run_waves_bs.sh comment fix in place (cp orig back, then 2 one-line comment edits: 9 -> 8 continuations; 9 x 50 MiB -> 8 x 50 MiB = 2,030,043,136 B) so no line number shifts (criteria cites its lines 5-7, 228-232, 290-305, 427-430, 591); mode 755 kept
+2026-10-31T15:17:59Z EDIT criteria.txt PINS comment: run_bs.py import lines 71-72 -> 78-79 (the fixer's docstring paragraph shifted them; verified grep)
+2026-10-31T15:18:05Z START [pytest_score_1] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh score1 -x -q /home/user/work/phase_screen/tools/tests/test_score_bs.py -k not test_criteria_pins_name_the_current_files
+2026-10-31T15:18:07Z END   [pytest_score_1] exit 1; stdout 26 lines, stderr 0 lines -> logs/pytest_score_1.out/.err
+2026-10-31T15:18:12Z START [pytest_score_2] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh score2 -q /home/user/work/phase_screen/tools/tests/test_score_bs.py -k not test_criteria_pins_name_the_current_files
+2026-10-31T15:18:41Z END   [pytest_score_2] exit 0; stdout 3 lines, stderr 0 lines -> logs/pytest_score_2.out/.err
+2026-10-31T15:18:56Z pytest --co test_score_bs.py -> 160 tests collected (run directly, not via logrun); pytest_score_2: 159 passed (all but the PINS test, which needs the PINS refill)
+2026-10-31T15:19:01Z START [m1_outside_find] find /home/user/work -path /home/user/work/phase_screen -prune -o -newer /home/user/work/phase_screen/logs/build_start.marker -print
+2026-10-31T15:19:01Z END   [m1_outside_find] exit 0; stdout 1151 lines, stderr 0 lines -> logs/m1_outside_find.out/.err
+2026-10-31T15:19:08Z START [m1_outside_find_times] find /home/user/work -path /home/user/work/phase_screen -prune -o -newer /home/user/work/phase_screen/logs/build_start.marker -printf %TY-%Tm-%TdT%TH:%TM:%.2TS\t%p\n
+2026-10-31T15:19:08Z END   [m1_outside_find_times] exit 0; stdout 1151 lines, stderr 0 lines -> logs/m1_outside_find_times.out/.err
+2026-10-31T15:19:20Z START [m1_outside_find_tmp_root] find /tmp /root /var/tmp /dev/shm -xdev ( -path /tmp/claude-0 -o -path /root/.claude ) -prune -o -newer /home/user/work/phase_screen/logs/build_start.marker -printf %TY-%Tm-%TdT%TH:%TM:%.2TS\t%s\t%p\n
+2026-10-31T15:19:22Z END   [m1_outside_find_tmp_root] exit 0; stdout 150 lines, stderr 0 lines -> logs/m1_outside_find_tmp_root.out/.err
+2026-10-31T15:25:41Z fixer_validate.sh finished (driver exit 0): V1 both arms 'saved_loaded_only': true; V2 4 runs exit 0 (15:10:40-15:23:10); CHECK x4 exit 0; V3 reads x4 + reference exit 0; v1_independent PASS, v2_check PASS, v3_check PASS (logs/val/)
+2026-10-31T15:25:41Z START [fixer_compare] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/fixer/work/fixer_compare.py
+2026-10-31T15:25:41Z END   [fixer_compare] exit 1; stdout 114 lines, stderr 0 lines -> logs/fixer_compare.out/.err
+2026-10-31T15:26:17Z START [fixer_compare_2] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/fixer/work/fixer_compare.py
+2026-10-31T15:26:17Z END   [fixer_compare_2] exit 0; stdout 116 lines, stderr 0 lines -> logs/fixer_compare_2.out/.err
+2026-10-31T15:26:25Z START [outside_val_window] find / -xdev ( -path /home/user/work/phase_screen -o -path /proc -o -path /sys -o -path /tmp/claude-0 -o -path /root/.claude -o -path /dev ) -prune -o -newer /home/user/work/phase_screen/review/fixer/logs/val_start.marker -printf %TY-%Tm-%TdT%TH:%TM:%.2TS\t%s\t%p\n
+2026-10-31T15:26:27Z END   [outside_val_window] exit 0; stdout 332 lines, stderr 0 lines -> logs/outside_val_window.out/.err
+2026-10-31T15:26:53Z START [refill_pins_1] python3 -I -B refill_pins.py
+2026-10-31T15:26:53Z END   [refill_pins_1] exit 0; stdout 8 lines, stderr 0 lines -> logs/refill_pins_1.out/.err
+2026-10-31T15:27:00Z START [pytest_final_run] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_run /home/user/work/phase_screen/tools/tests/test_run_bs.py
+2026-10-31T15:27:03Z END   [pytest_final_run] exit 0; stdout 2 lines, stderr 0 lines -> logs/pytest_final_run.out/.err
+2026-10-31T15:27:03Z START [pytest_final_read] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_read /home/user/work/phase_screen/tools/tests/test_read_bs.py
+2026-10-31T15:27:07Z END   [pytest_final_read] exit 0; stdout 9 lines, stderr 0 lines -> logs/pytest_final_read.out/.err
+2026-10-31T15:27:07Z START [pytest_final_waves] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_waves /home/user/work/phase_screen/tools/tests/test_waves_bs.py
+2026-10-31T15:27:36Z END   [pytest_final_waves] exit 0; stdout 2 lines, stderr 0 lines -> logs/pytest_final_waves.out/.err
+2026-10-31T15:27:36Z START [pytest_final_score] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_score /home/user/work/phase_screen/tools/tests/test_score_bs.py
+2026-10-31T15:28:05Z END   [pytest_final_score] exit 0; stdout 4 lines, stderr 0 lines -> logs/pytest_final_score.out/.err
+2026-10-31T15:28:13Z START [pytest_final_hooks] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_hooks /home/user/work/phase_screen/tools/tests/test_bs_hooks.py -k not test_critic_phase_gradients_actor_zero_critic_nonzero and not test_critic_phase_install_refusals
+2026-10-31T15:28:22Z END   [pytest_final_hooks] exit 0; stdout 2 lines, stderr 0 lines -> logs/pytest_final_hooks.out/.err
+2026-10-31T15:28:22Z test_bs_hooks.py run with 2 tests deselected (test_critic_phase_gradients_actor_zero_critic_nonzero l564-588 and test_critic_phase_install_refusals l591-629): each calls p.optimizer.step() on a synthetic network, and this task allows no optimizer step except V5's; bs_hooks.py and test_bs_hooks.py are unchanged (sha256 0519c7ba..., 4bfefbcb...), and the builder and the build checker ran all 43 (validate/logs/pytest_final.out)
+2026-10-31T15:28:29Z START [ruff_final] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 /home/user/work/phase_screen/tools/bs_common.py /home/user/work/phase_screen/tools/bs_hooks.py /home/user/work/phase_screen/tools/run_bs.py /home/user/work/phase_screen/tools/read_bs.py /home/user/work/phase_screen/tools/score_bs.py /home/user/work/phase_screen/tools/tests/
+2026-10-31T15:28:29Z END   [ruff_final] exit 0; stdout 1 lines, stderr 0 lines -> logs/ruff_final.out/.err
+2026-10-31T15:28:35Z START [dry_runs] nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/fixer/work/fixer_dry_runs.py
+2026-10-31T15:28:37Z END   [dry_runs] exit 0; stdout 28 lines, stderr 0 lines -> logs/dry_runs.out/.err
+2026-10-31T15:28:48Z START [prelaunch_score] nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/score_bs.py --root /home/user/work/phase_screen --out /home/user/work/phase_screen/review/fixer/dry/prelaunch_score
+2026-10-31T15:28:49Z END   [prelaunch_score] exit 3; stdout 15 lines, stderr 0 lines -> logs/prelaunch_score.out/.err
+2026-10-31T15:28:55Z START [plan] nice -n 10 bash /home/user/work/phase_screen/tools/run_waves_bs.sh --plan
+2026-10-31T15:28:55Z END   [plan] exit 0; stdout 11 lines, stderr 0 lines -> logs/plan.out/.err
+2026-10-31T15:29:04Z START [preflight_all] /home/user/work/phase_screen/review/fixer/bin/preflight_all.sh
+2026-10-31T15:29:07Z END   [preflight_all] exit 0; stdout 67 lines, stderr 0 lines -> logs/preflight_all.out/.err
+2026-10-31T15:29:45Z rm -rf review/fixer/tmp/pt and review/fixer/tmp/tmpdir_* (my own pytest basetemps and TMPDIRs, 62 MB); df -B1 /: 1597640704 B free. Note: /home/user/work/wt_hwnote (another lane, gifs ~45 MB) and /home/user/work/ext/microduck_rl (36 MB, created 15:22) appeared during my work: not mine
+2026-10-31T15:30:04Z START [preflight_all_2] /home/user/work/phase_screen/review/fixer/bin/preflight_all.sh
+2026-10-31T15:30:08Z END   [preflight_all_2] exit 0; stdout 9 lines, stderr 0 lines -> logs/preflight_all_2.out/.err
+2026-10-31T15:30:20Z START [mutant_map] nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/fixer/work/fixer_mutant_map.py /home/user/work/phase_screen/review/fixer/tmp/mm_roots
+2026-10-31T15:30:45Z END   [mutant_map] exit 0; stdout 66 lines, stderr 0 lines -> logs/mutant_map.out/.err
+2026-10-31T15:30:59Z START [edit_criteria_3] python3 -I -B edit_criteria_3.py
+2026-10-31T15:30:59Z END   [edit_criteria_3] exit 0; stdout 1 lines, stderr 0 lines -> logs/edit_criteria_3.out/.err
+2026-10-31T15:31:08Z START [verify_copy] /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/verify_copy.py /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code
+2026-10-31T15:31:08Z END   [verify_copy] exit 0; stdout 8 lines, stderr 0 lines -> logs/verify_copy.out/.err
+2026-10-31T15:31:08Z START [sha256sums_old_check] sha256sum -c SHA256SUMS.txt
+2026-10-31T15:31:08Z END   [sha256sums_old_check] exit 1; stdout 67 lines, stderr 1 lines -> logs/sha256sums_old_check.out/.err
+2026-10-31T15:31:08Z START [refill_pins_check] python3 -I -B refill_pins.py
+2026-10-31T15:31:08Z END   [refill_pins_check] exit 0; stdout 8 lines, stderr 0 lines -> logs/refill_pins_check.out/.err
+2026-10-31T15:31:17Z START [pytest_final_score2] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_score2 /home/user/work/phase_screen/tools/tests/test_score_bs.py
+2026-10-31T15:31:45Z END   [pytest_final_score2] exit 0; stdout 4 lines, stderr 0 lines -> logs/pytest_final_score2.out/.err
+2026-10-31T15:31:45Z rm -rf review/fixer/tmp/pt review/fixer/tmp/tmpdir_final_score2 (my pytest temp)
+2026-10-31T15:32:18Z WROTE logs/outside_ps_record.txt (M1 / P-i6: the full outside-PS list since the build marker, attributed; the validation-window list)
+2026-10-31T15:32:33Z START [edit_criteria_4] python3 -I -B edit_criteria_4.py
+2026-10-31T15:32:33Z END   [edit_criteria_4] exit 0; stdout 1 lines, stderr 0 lines -> logs/edit_criteria_4.out/.err
+2026-10-31T15:32:33Z df -B1 / at 15:33Z: 2,086,477,824 B free (other lanes freed space)
+2026-10-31T15:32:47Z START [pytest_final_score3] /home/user/work/phase_screen/review/fixer/bin/pytest_one.sh final_score3 /home/user/work/phase_screen/tools/tests/test_score_bs.py
+2026-10-31T15:33:15Z END   [pytest_final_score3] exit 0; stdout 4 lines, stderr 0 lines -> logs/pytest_final_score3.out/.err
+2026-10-31T15:33:15Z START [prelaunch_score_2] nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/score_bs.py --root /home/user/work/phase_screen --out /home/user/work/phase_screen/review/fixer/dry/prelaunch_score
+2026-10-31T15:33:15Z END   [prelaunch_score_2] exit 3; stdout 15 lines, stderr 0 lines -> logs/prelaunch_score_2.out/.err
+2026-10-31T15:33:15Z rm -rf my pytest temp (tmp/pt, tmp/tmpdir_final_score3)
+2026-10-31T15:35:54Z WROTE review/FIXES.txt; then path wording in FIXES.txt and logs/outside_ps_record.txt (the session folders named generically)
+2026-10-31T15:36:06Z START [update_sums] python3 -I -B update_sums.py
+2026-10-31T15:36:06Z END   [update_sums] exit 0; stdout 8 lines, stderr 0 lines -> logs/update_sums.out/.err
+2026-10-31T15:36:06Z START [sha256sums_new_check] sha256sum -c SHA256SUMS.txt
+2026-10-31T15:36:06Z END   [sha256sums_new_check] exit 0; stdout 128 lines, stderr 0 lines -> logs/sha256sums_new_check.out/.err
+2026-10-31T15:36:21Z START [outside_fixer_window] find / -xdev ( -path /home/user/work/phase_screen -o -path /proc -o -path /sys -o -path /dev -o -path /tmp/claude-0 -o -path /root/.claude ) -prune -o -newer /home/user/work/phase_screen/review/reviewed_sha256.txt -printf %TY-%Tm-%TdT%TH:%TM:%.2TS\t%p\n
+2026-10-31T15:36:22Z END   [outside_fixer_window] exit 0; stdout 3920 lines, stderr 0 lines -> logs/outside_fixer_window.out/.err
+2026-10-31T15:36:22Z find / -xdev (pruning PS, /proc, /sys, /dev, the session folders) -newer review/reviewed_sha256.txt (14:59:57Z) -> logs/outside_fixer_window.out: only other lanes' /home/user/work/ext, /home/user/work/wt_hwnote (if listed), /home/user/work entry list, session /tmp logs; nothing of mine. df at end -> logs/df_end.txt. END of fixer work.
+2026-10-31T15:36:39Z appended part D to logs/outside_ps_record.txt (the whole fixer window: other lanes' wt_hwnote, ext, repo/.git, /tmp/pytest-of-root/pytest-894 behavior-recipe tests; nothing mine)
+2026-10-31T15:36:45Z START [sha256sums_final_check] sha256sum -c SHA256SUMS.txt
+2026-10-31T15:36:45Z END   [sha256sums_final_check] exit 0; stdout 128 lines, stderr 0 lines -> logs/sha256sums_final_check.out/.err

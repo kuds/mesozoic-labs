@@ -1,0 +1,27 @@
+control_9401: rollouts 31; CHECK passed True; evidence_problems []; phase_meta_problems []
+   obs6 -> critic: min dv_predict_values 0.08304405212402344, max 0.24458646774291992; obs6 -> actor: min dmu_actor 0.1488848477602005
+   phase -> actor: max over rows/paths 6.775338649749756 (155 values); summary max_dmu_phase 6.775338649749756 min_dmu_phase 4.036304473876953
+control_9411: rollouts 31; CHECK passed True; evidence_problems []; phase_meta_problems []
+   obs6 -> critic: min dv_predict_values 0.0697174072265625, max 0.22981500625610352; obs6 -> actor: min dmu_actor 0.1556265950202942
+   phase -> actor: max over rows/paths 6.786435127258301 (155 values); summary max_dmu_phase 6.786435127258301 min_dmu_phase 3.787199020385742
+critic_phase_9401: rollouts 31; CHECK passed True; evidence_problems []; phase_meta_problems []
+   obs6 -> critic: min dv_predict_values 0.08304405212402344, max 0.24458646774291992; obs6 -> actor: min dmu_actor 0.1488848477602005
+   phase -> actor: max over rows/paths 0.0 (155 values); summary max_dmu_phase 0.0 min_dmu_phase 0.0
+   phase -> critic (no update: must be 0): zero_init_max_dv_phase 0.0; phase_n_zero_init 31 phase_n_updated 0; max_policy_phase_adam_max_abs 0.0; phase_state_end {'value_phase_cols_max_abs': 0.0, 'policy_phase_cols_unchanged': True, 'policy_phase_adam_max_abs': 0.0, 'n_updates_since_load': 0, 'adam_steps_since_load': 0.0, 'phase_stats_frozen': True, 'phase_rms_calls': 65537, 'mirror_phase_self_map': True, 'mirror_phase_tensors_ok': None, 'envs_swapped': True}; arm_state_end 'in force'; tensorboard_log {'loaded': '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard', 'set': '/home/user/work/phase_screen/tmp/no_update_critic_phase_9401/tb'}
+   MUTANT actor moves with the phase by 1e-9: caught: ['evidence: critic_phase: the actor moved by 1e-09 with the phase slots']
+   MUTANT critic blind to obs 6 (dv_predict_values 0): caught: ['evidence: critic_phase: the critic did not depend on observation 6 on some rollout']
+   MUTANT actor phase Adam moment 1e-15: caught: ["evidence: critic_phase: the actor's phase columns have Adam moments 1e-15"]
+   MUTANT actor phase columns changed: caught: ['evidence: critic_phase: phase_all_policy_phase_cols_unchanged is False']
+   MUTANT critic never uses the phase after updates (responses 0): caught: ["evidence: critic_phase: after updates the critic does not respond to the phase on every rollout and path (columns 0.0, responses {'dv_phase_predict_values': 0.0, 'dv_phase_forward': 0.0, 'dv_phase_evaluate_actions': 0.0, 'dv_phase_mirrored': 0.0})"]
+   end_phase_problems(real) []; (cols changed) ["the actor's phase columns (policy_net.0.weight[:, 60:63]) changed by the end"]; (adam 1e-15) ["the actor's phase-column Adam moments at the end: max |.| 1e-15, not 0"]
+critic_phase_9411: rollouts 31; CHECK passed True; evidence_problems []; phase_meta_problems []
+   obs6 -> critic: min dv_predict_values 0.0697174072265625, max 0.22981500625610352; obs6 -> actor: min dmu_actor 0.1556265950202942
+   phase -> actor: max over rows/paths 0.0 (155 values); summary max_dmu_phase 0.0 min_dmu_phase 0.0
+   phase -> critic (no update: must be 0): zero_init_max_dv_phase 0.0; phase_n_zero_init 31 phase_n_updated 0; max_policy_phase_adam_max_abs 0.0; phase_state_end {'value_phase_cols_max_abs': 0.0, 'policy_phase_cols_unchanged': True, 'policy_phase_adam_max_abs': 0.0, 'n_updates_since_load': 0, 'adam_steps_since_load': 0.0, 'phase_stats_frozen': True, 'phase_rms_calls': 65537, 'mirror_phase_self_map': True, 'mirror_phase_tensors_ok': None, 'envs_swapped': True}; arm_state_end 'in force'; tensorboard_log {'loaded': '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard', 'set': '/home/user/work/phase_screen/tmp/no_update_critic_phase_9411/tb'}
+   MUTANT actor moves with the phase by 1e-9: caught: ['evidence: critic_phase: the actor moved by 1e-09 with the phase slots']
+   MUTANT critic blind to obs 6 (dv_predict_values 0): caught: ['evidence: critic_phase: the critic did not depend on observation 6 on some rollout']
+   MUTANT actor phase Adam moment 1e-15: caught: ["evidence: critic_phase: the actor's phase columns have Adam moments 1e-15"]
+   MUTANT actor phase columns changed: caught: ['evidence: critic_phase: phase_all_policy_phase_cols_unchanged is False']
+   MUTANT critic never uses the phase after updates (responses 0): caught: ["evidence: critic_phase: after updates the critic does not respond to the phase on every rollout and path (columns 0.0, responses {'dv_phase_predict_values': 0.0, 'dv_phase_forward': 0.0, 'dv_phase_evaluate_actions': 0.0, 'dv_phase_mirrored': 0.0})"]
+   end_phase_problems(real) []; (cols changed) ["the actor's phase columns (policy_net.0.weight[:, 60:63]) changed by the end"]; (adam 1e-15) ["the actor's phase-column Adam moments at the end: max |.| 1e-15, not 0"]
+FAILS 0

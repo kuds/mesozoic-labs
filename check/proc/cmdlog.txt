@@ -1,0 +1,74 @@
+2026-10-31T20:21:05Z START mkdir proc/tmp proc/mpl
+2026-10-31T20:21:12Z find PS -printf atime/mtime/ctime/size/mode snapshot (excluding check/) -> stat_snapshot_start.tsv
+2026-10-31T20:21:19Z view top-level & non-review entries of snapshot
+2026-10-31T20:21:29Z cat APPROVED, SCREEN.json; ls tools, logs, score; stat key files
+2026-10-31T20:21:38Z write+run pins_check.py (sha256 of pinned files vs APPROVED; modes)
+2026-10-31T20:21:42Z stat/wc run_log; grep APPROVED sha and launch entries
+2026-10-31T20:21:46Z sed -n 825,858p run_log (read only)
+2026-10-31T20:22:00Z write+run runlog_pin_check.py (APPROVED exact bytes line vs launch line; VG sha lines vs ALL_DECIDED entry)
+2026-10-31T20:22:06Z ls vg_tool (full-iso), cat vg_tool/SHA256SUMS.txt, sha256sum -c inside vg_tool via python
+2026-10-31T20:22:10Z grep -n section headings in criteria.txt
+2026-10-31T20:22:16Z sed -n 520,595p criteria.txt
+2026-10-31T20:22:28Z cat -n tools/run_waves_bs.sh lines 1-260
+2026-10-31T20:22:31Z cat -n tools/run_waves_bs.sh lines 260-620
+2026-10-31T20:22:42Z cat -n tools/run_waves_bs.sh 620-end; cat logs/run_waves_bs.log, crash_ledger.tsv, decided.tsv, run_waves_bs.exit, runner_stderr.log, ALL_DECIDED
+2026-10-31T20:23:00Z grep identical-mtime clusters in stat_snapshot_start.tsv; ls atimes_at_exit
+2026-10-31T20:23:37Z cat atimes_at_exit/critic_phase_2921.attempt3.tsv and control_2901.attempt1.tsv
+2026-10-31T20:24:15Z grep -n crash/restart/relaunch/own in criteria.txt
+2026-10-31T20:24:19Z sed -n 218,280p and 705,778p criteria.txt
+2026-10-31T20:24:28Z findmnt for /home/user/work and /tmp; uptime; cat /proc/uptime
+2026-10-31T20:24:59Z grep crashed entries from stat_snapshot_start.tsv; stat current atimes of crashed dirs
+2026-10-31T20:26:18Z head/wc atimes_at_ALL_DECIDED.tsv; list transcripts dir (names, mtimes)
+2026-10-31T20:26:24Z find workflow subagent dirs and files modified after 2026-10-31 15:50 (metadata only)
+2026-10-31T20:26:44Z write+run tx_extract.py on coordinator transcript (read only) -> out/tx_calls_window.jsonl
+2026-10-31T20:26:53Z print window calls (inputs) from out/tx_calls_window.jsonl
+2026-10-31T20:27:23Z print results of selected window calls
+2026-10-31T20:27:37Z tx_extract for 15:52-15:56:58 and 20:18:55-20:26 windows
+2026-10-31T20:27:52Z NOTE: previous command's large stdout was persisted by the harness to /root/.claude/projects/.../tool-results/b5nvsz70p.txt (harness behaviour, not a redirect of mine); from now on outputs go to out/ and are viewed in parts. dump prelaunch/post calls to out/*.txt
+2026-10-31T20:27:55Z view out/tx_prelaunch.txt lines 330-425
+2026-10-31T20:28:00Z view full launch call #26 input from out/tx_calls_prelaunch.jsonl
+2026-10-31T20:28:05Z view out/tx_post.txt (cut)
+2026-10-31T20:28:11Z view full scorer call input (post #1) and grep all score_bs invocations in transcript calls
+2026-10-31T20:28:21Z search coordinator transcript user/human text for null-device rule (read only)
+2026-10-31T20:28:41Z write+run sub_extract.py over wf_848c7e6d-0a1 agent transcripts (read only) -> out/sub_*.txt
+2026-10-31T20:28:47Z list unique PS path tokens in sub-agent hits
+2026-10-31T20:29:01Z grep sub-agent hit commands for bare PS root and outcome path words
+2026-10-31T20:29:05Z view out/sub_classify.out part 1
+2026-10-31T20:29:15Z view out/sub_classify.out part 2 (fixer, builder)
+2026-10-31T20:29:26Z full text of builder 16:36:20 call; grep null-device redirects in the 3 sub-agent transcripts' tool inputs
+2026-10-31T20:29:35Z full builder 16:36:20 command tail
+2026-10-31T20:29:45Z result of checker 17:03:32 outside check and builder 16:27/16:28 tb_buffer calls
+2026-10-31T20:30:34Z write+run atime_audit.py over logs/atimes_at_exit/*.tsv, logs/atimes_at_ALL_DECIDED.tsv, decided.tsv, run_waves_bs.log and my stat snapshot (no outcome file opened)
+2026-10-31T20:30:45Z fix ns comparison in atime_audit.py section 5; rerun; view section 1 details
+2026-10-31T20:31:00Z list crashed-folder files with atime > mtime from ALL_DECIDED snapshot (types)
+2026-10-31T20:31:15Z grep run_bs.py for run_meta pin fields and status values
+2026-10-31T20:31:18Z sed run_bs.py 900-960 and 1100-1185 (meta fields, modules_root, status values)
+2026-10-31T20:31:29Z cat logs/*.check.log (allowed runner records)
+2026-10-31T20:31:52Z write+run meta_audit.py: O_NOATIME reads of runs/*/run_meta.json (8 counted: pins, status, argv, code, modules; 8 crashed: pins + allowed fields status/heartbeat/last_step only) and runs/<counted>/check.json pass/fail
+2026-10-31T20:32:18Z O_NOATIME read of runs/<counted>/check.json: keys and pass/fail fields only
+2026-10-31T20:32:27Z O_NOATIME read check.json passed/utc/stop_reason/T/tool_sha256/sources(keys) fields
+2026-10-31T20:32:32Z grep bs_common.py and verify_copy.py for tree digest computation
+2026-10-31T20:32:42Z run tools/verify_copy.py (M1 check_copy at pin) on the code copy, nice 10, cwd /tmp-like own tmp; find code copy files newer than 15:50Z; count files; writable bits
+2026-10-31T20:32:51Z list top-level of code copy (names) and grep tree_digest exclusions in r10m_common
+2026-10-31T20:32:57Z grep read_bs.py/score_bs.py/bs_common.py for modules_outside_code / bootstrap / sys.path / repo path
+2026-10-31T20:33:05Z look for .pth / editable installs in the venv pointing at the repo checkout
+2026-10-31T20:33:16Z repo read-only: git rev-parse HEAD, git log -3, reflog entries in window, find repo files (excl .git) newer than 15:56:58Z; gh pr view 657 files (network read)
+2026-10-31T20:33:21Z gh api GET pulls/657 and pulls/657/files (network read only)
+2026-10-31T20:33:28Z grep coordinator calls (window and post) for merge/push tool use; list post-window call names
+2026-10-31T20:33:43Z score.json/score.txt sha256 vs run log; score.json status/provisional/tool sha/utc keys; prelaunch_score status; birth times of score dir/files
+2026-10-31T20:33:52Z birth times of reads/* and tmp/read_* (stat only)
+2026-10-31T20:34:25Z grep vg_tool tests and vg_sigma.py for phase_screen paths / score.json opening (what the coordinator's 17:43 test run touched)
+2026-10-31T20:34:51Z proctable.log: start headers and run_bs.py NI column; stat birth of counted run folders; lost.json/HALTED existence (stat only)
+2026-10-31T20:35:15Z from stat snapshot: PS entries with mtime or ctime in 15:56:58..20:19:27 outside runs/ reads/ tmp/ score/ (who wrote into PS during the screen)
+2026-10-31T20:35:28Z stat birth/mtime/ctime of APPROVED, criteria.txt, SCREEN.json and the six tools
+2026-10-31T20:35:35Z list coordinator task outputs modified 15:50..20:19 (metadata only)
+2026-10-31T20:35:47Z count entries under /tmp/tb_buffer newer than 15:56Z (names not printed; nothing opened)
+2026-10-31T20:36:13Z verify my O_NOATIME reads left atimes unchanged (crashed run_meta.json, counted run_meta.json/check.json) vs stat_snapshot_start.tsv
+2026-10-31T20:36:31Z O_NOATIME: compare run_meta stack/environment/code fields across the 8 counted runs
+2026-10-31T20:36:44Z min/max mtime of runs/<name>/** in each I1 exit snapshot vs attempt start; checkpoint step list
+2026-10-31T20:36:53Z end snapshot (find -printf, excluding check/) and diff of mtime/ctime/size/mode vs start snapshot
+2026-10-31T20:36:59Z count atime-only changes between my start and end snapshots (others' post-reading activity; info)
+2026-10-31T20:37:31Z date for NOTES; ls own folder
+2026-10-31T20:39:10Z verify cited line numbers (criteria 706-709, run_bs 1174-1181); grep NOTES for null-device literal
+2026-10-31T20:39:18Z write SHA256SUMS.txt over NOTES, cmdlog, snapshots, scripts/, out/ (tmp/ and mpl/ empty scratch excluded); verify with sha256sum -c
+2026-10-31T20:39:18Z END (SHA256SUMS.txt written after this line; cmdlog.txt is hashed as of this line)

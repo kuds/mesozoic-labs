@@ -1,0 +1,362 @@
+PS FIXER -- FIXES (2026-10-31, the fixer of the phase screen's independent review; for the RE-REVIEW, P2)
+====================================================================================================================
+Inputs: 32 findings (build check M1, I1-I5; design review D1-D4, I1-I6; process review P-B1, P-m1, P-m2, P-i1-P-i8).
+Each was verified against its sources first; then fixed where confirmed and a fix was due.
+Labels: [measured] = ran or read (file and line or log named); [inferred] = reasoned, basis named.
+Every command, with date -u times: <PS>/review/fixer/notes.txt. Logs: <PS>/review/fixer/logs/.
+
+BEFORE ANY EDIT (as the brief asks; RR-8)
+- Copies of every file I changed or might change: <PS>/review/fixer/orig/ (criteria.txt, SCREEN.json, SHA256SUMS.txt,
+  every tools/*.py and *.sh, every tools/tests/*.py).
+- <PS>/review/criteria_reviewed_v1.txt = the reviewed criteria.txt (sha256 2dea6b20...a629).
+- <PS>/review/reviewed_sha256.txt = the sha256 of the reviewed criteria.txt, SCREEN.json and all 15 tools and tests.
+  They match the builder's and the adapter's sums (sha256sum -c SHA256SUMS.txt: 0 failures at 14:59:57Z).
+
+FILES CHANGED (reviewed sha256 -> fixed sha256)
+  criteria.txt                  2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629
+                             -> 9875039fad039f76dd63497b5952d5ef5c014fc1f4765ed6b11120526249ebc5
+  tools/run_bs.py               8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5
+                             -> 9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c
+  tools/score_bs.py             fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040
+                             -> e63cf15a32338c2884ca08c7f72b74e5eab41e515cba09cf705503b9192591b0
+  tools/run_waves_bs.sh         a00e7316392a95a8937ac2dfc0afb81679de0aa6817fec99663e7753478baa4a
+                             -> 3ef2746e797e908e87c359e1f3ffe6b483078e6878e0b3be08db20f0fee7f9bb   (2 comment lines)
+  tools/tests/test_run_bs.py    1f0b2e66527b5ebfb7de26b56577863dd8923be4862f375816daf2d0c6f34cd6
+                             -> 335f9b8c5e3e0d4ab9b8f80616b97d4f233fb116a061b95496e3fa17c4fe9c0f
+  tools/tests/test_score_bs.py  14df616eedeefc8eeb0c5f5337cef27d972219ef95082925a8e639f3a04e21c2
+                             -> a1903520715d8ee10ac2f242f4a1bf48f4ced6e210fd5b1a5b8bee06ea8db0b6
+UNCHANGED: SCREEN.json 7d6d368a...0392, bs_common.py cd0f5571...108f, bs_hooks.py 0519c7ba...8539, read_bs.py
+  cb1edaf9...a698, test_bs_hooks.py, test_read_bs.py, test_waves_bs.py, check_inputs.py, verify_copy.py.
+NOT TOUCHED: PS/APPROVED (absent), BS, BS2, LB, S1, S2, the builder's NOTES.txt and logs/, every lane's folder.
+PINS in criteria.txt re-filled from the files as fixed (review/fixer/work/refill_pins.py; logs/refill_pins_1.out).
+
+====================================================================================================================
+FINDINGS, ONE BY ONE
+====================================================================================================================
+P-B1 (blocking, review:process) -- CONFIRMED-FIXED
+  Verified [measured]: the start zip's data holds tensorboard_log = /tmp/tb_buffer/..._s42_01_stance_tensorboard
+  (review/process/zip_tensorboard_log.out; also asserted by the new unit test on the pinned F2 zip). In the code copy,
+  train_base.py lines 344-370 leave tensorboard_log out of alg_kwargs when use_tensorboard is False; load_sb3_model
+  keeps the saved value; SB3's _setup_learn (base_class.py line 431) calls configure_logger(self.verbose,
+  self.tensorboard_log, ...) (utils.py lines 265-299), so learn() wrote the events file there. /tmp/tb_buffer holds the
+  4 PS V2 files (13:45:40-53, pids 22041-22047) and the build checker's (14:15:27, pid 11844)
+  (logs/tb_buffer_before.txt).
+  Fix (tools/run_bs.py):
+  - redirect_tensorboard(model, tb_dir): sets model.tensorboard_log to the run's own TMPDIR/tb
+    (<PS>/tmp/<run>/tb, or tmp/<mode>_<run>/tb for validation runs). It refuses a folder outside <PS>/tmp/ and
+    returns {"loaded", "set"}. The logger itself is unchanged (verbose 0, the tensorboard format; PPO_0).
+  - make_checked_load(..., tb_dir=...) calls it after the load checks and the arm hook, before learn(). It is not
+    called in V1's save-loaded-only mode, which never calls learn(), so V1's saved pair stays as before.
+  - run() passes tb_dir = Path(env["TMPDIR"]) / "tb".
+  - run_meta records "tensorboard_log".
+  - wrapper_problems refuses learn() (exit 2) unless the model's tensorboard_log is the folder the wrapper set.
+  - VERSION is now run_bs 2.1, and the docstring has a fixer paragraph.
+  Tests (test_run_bs.py, 21 -> 24):
+  - test_redirect_tensorboard_into_the_run_tmp: moves the folder; refuses 4 bad folders and leaves the model as it was.
+  - test_start_zip_carries_the_outside_tensorboard_path: the cause, read from the pinned start zip.
+  - test_no_update_class_swap gains the wrapper's new requirement and 2 refusal cases.
+  Criteria:
+  - WHERE AND HOW, Outputs: the events file is now listed under tmp/<run>/tb, with one paragraph on the cause and the
+    fix.
+  - OUTCOME-BLINDNESS lists the events file among a continuation's files. I1's exit snapshot, P4's re-arm and the
+    ALL_DECIDED snapshot already cover tmp/<name>/ (run_waves_bs.sh walks runs, logs and tmp).
+  Re-validation [measured, logs/val/driver.log, logs/fixer_compare_2.out]:
+  - V1 both arms and V2 (4 no-update runs: control and critic_phase at 9401 and 9411, to 2,359,296), CHECK and V3
+    were re-run into <PS>/validate/fixer.
+  - The builder's v1_independent.py, v2_check.py and v3_check.py: PASS, PASS, PASS (logs/val/*.out).
+  - fixer_compare.py, 112 checks, all ok. Against the builder's own runs:
+    - V1's saved zips are equal: the members other than data, and data without the volatile class reprs.
+      data.tensorboard_log is unchanged in V1. The pkls are equal byte for byte.
+    - Every V2 run matches on: arm_evidence.jsonl (31 rollouts, clock dropped); digest_load, digest_start and
+      digest_end; the arm_evidence summary; eval_episodes.csv (time columns dropped); policy_probe.npz (wall-time
+      field dropped); and the loop markers at 2,097,152 and 2,359,296 (cpu_seconds dropped).
+    - CHECK passed on all 4.
+    - The saved 2,359,296 zip differs only in data.tensorboard_log (ep_info_buffer compared on its episodes' r and l).
+    - run_meta tensorboard_log reads loaded /tmp/tb_buffer/... -> set <PS>/tmp/no_update_<run>/tb.
+    - Each run has exactly one events file there, 235,953 B, the same size as the builder's /tmp/tb_buffer files.
+  - Outside PS: no file was written under /tmp/tb_buffer after the validation marker (15:10:31Z). find / -xdev
+    over that window (pruning <PS>, /proc, /sys, /dev, the session's own folders) found only another lane's
+    clone /home/user/work/ext/microduck_rl (15:22) and the session's own /tmp logs (logs/outside_val_window.out).
+  - PINS and SHA256SUMS are re-filled.
+  [inferred] With the fix, a continuation's events file (BS2's were about 1.53 MB) now sits in <PS>/tmp/<name>/tb/,
+  well inside RUN_BYTES_EST (50 MiB).
+  Left for the coordinator: /tmp/tb_buffer still holds BS2's 8 continuation files (outcome-bearing for BS2, unread
+  since written per review/process/logs/tb_buffer_stat.txt) and the 5 PS validation files. They are not this screen's
+  continuations. Deleting them is outside <PS> and needs the maintainer's word.
+
+P-m1 (minor, review:process) -- CONFIRMED-NOT-FIXED (a coordinator action, not a file fix)
+  [measured] The free disk moved during this session, because other lanes' folders came and went:
+  - 14:58:30Z: 1.8 GB.
+  - 15:10:31Z: 1,886,670,848 B.
+  - 15:30Z: 1,597,640,704 B. At that point run_bs.py --preflight-only also listed "disk: ... < the floor
+    1610612736" (logs/preflight_all_2.out).
+  - 15:33Z: 2,086,477,824 B.
+  The launch floor is 2,030,043,136 B; the 2.6 GiB rule needs 2,791,728,742 B.
+  This fixer added 112.6 MB under <PS>/validate/fixer (the re-validation evidence; removable after the re-review)
+  and 3.2 MB under review/fixer. Its pytest temp folders were deleted.
+  The criteria's disk sentence now gives these measurements, and says the shortfall is measured again and freed at
+  step 4(d). The candidates the process review named (/tmp/pytest-of-root 234,756,833 B, not PS's; /tmp/tb_buffer
+  72,549,206 B; the old scratch) need the maintainer's word: they are outside PS.
+
+P-m2 (minor, review:process) -- CONFIRMED-FIXED
+  Verified [measured]: score_bs.provisional_items checked only that criteria.txt names the scorer's own sha256.
+  review/process/logs/pin_check.out case M6 passed preflight with a stale bs_hooks.py PINS line.
+  Fix (tools/score_bs.py): pins_lines() and pins_items() are called from provisional_items.
+  - SCREEN.json, the five harness tools and score_bs.py must each have exactly one PINS line. It must equal the file's
+    current sha256 and, when APPROVED exists, APPROVED.tool_sha256.
+  - Any other 64-hex PINS line (tools/tests/test_score_bs.py) must equal its file's current sha256.
+  - A text without a PINS section is an item.
+  Each failure is a PROVISIONAL item, so step 4(a)'s "NO PROVISIONAL item" now covers the check.
+  Criteria: the PROVISIONAL list in WHEN THE READING IS MADE names this check; HOW THE COORDINATOR PINS steps 2 and 4(a)
+  say so.
+  Tests:
+  - _approve writes a stub with every PINS line.
+  - New tests: test_pins_lines_hold_when_every_line_is_current, test_pins_lines_stale_or_missing_are_provisional (4
+    cases; the first is review case M6), and test_pins_line_against_approved_and_no_section.
+  - test_criteria_pins_name_the_current_files now also runs the scorer's own check on the real criteria.txt.
+  - Kill roots pinned, pinstale_tool, pinstale_extra and pinappr, with kill check "pins". Three new mutants are all
+    caught.
+  The real root's prelaunch score has exactly one PROVISIONAL item, "no <PS>/APPROVED" (logs/prelaunch_score_2.out).
+
+P-i1, P-i2, P-i4 (info, review:process) -- CONFIRMED-NOT-FIXED (no change needed)
+  [measured]
+  - P-i1: review/process/logs/check_mutants.out reads "16 of 16 mutations caught".
+  - P-i2: pin_check.out cases M0-M7 and runner_cases.out cases A-L are as reported. M6 is now also caught by the
+    scorer (P-m2).
+  - P-i4: validate/logs/timing.out lines 25-27: 2.76 / 3.07 / 3.44 h. The fix moves one small file write from /tmp
+    into <PS>/tmp, on the same filesystem [inferred: no timing change].
+
+P-i3 (info, review:process) -- CONFIRMED-FIXED
+  Verified [measured]: bs_hooks.arm_state_problems (lines 541-575) checks classes, slots, mirror, envs and lambda,
+  not the actor's phase columns or their Adam moments. The last per-rollout evidence precedes update 175.
+  Fix (tools/run_bs.py; bs_hooks.py unchanged):
+  - At the run's end, critic_phase records phase_state_end = bs_hooks.phase_state(model, train_env, phase_ref).
+  - end_phase_problems() adds a problem unless policy_phase_cols_unchanged is True and policy_phase_adam_max_abs is
+    exactly 0.0.
+  - Any problem joins arm_end, which makes the run's status "failed" (exit 5) and its arm_state_end not "in force".
+    CHECK (read_bs.py lines 393-394) fails on that.
+  - run_meta records "phase_state_end".
+  Unit test: test_end_phase_problems.
+  Re-validation [measured]: on V2 critic_phase 9401 and 9411, phase_state_end shows the columns unchanged and Adam 0.0;
+  arm_state_end is "in force"; control has no phase_state_end.
+  Criteria: THE MANIPULATION CHECK's run_meta item names the check.
+
+P-i5 (info, review:process) -- CONFIRMED-NOT-FIXED (a record for the coordinator; nothing in a pinned file)
+  [measured] check_build/c_arm.py lines 3-5 describe "The ONE optimizer pass is a throwaway: one full
+  MirrorKLPPO.train() ... nothing is saved". The coordinator records in RUNLOG whether the checker's brief allowed
+  it. This fixer made no optimizer step: V5 was not re-run, and the two hook tests that call optimizer.step() on a
+  synthetic network were deselected (CHECKS RE-RUN below).
+
+P-i6 (info, review:process) -- CONFIRMED-FIXED (in the fixer's record; the builder's NOTES.txt is outside my write set)
+  [measured] review/fixer/logs/outside_ps_record.txt corrects two attributions:
+  - The 14:15:27 /tmp/tb_buffer file is the build checker's no-update c_ctrl run (pid 11844), not training.
+  - PS's own V2 wrote 4 events files under /tmp/tb_buffer (13:45:40-53), so the builder's "nothing outside PS" and
+    its O10 did not hold.
+
+P-i7 (info, review:process) -- CONFIRMED-FIXED
+  - run_waves_bs.sh line 38 now reads "at most 8 continuations" (was 9).
+  - Line 41 now reads "8 x 50 MiB = 2,030,043,136 B".
+  - These are comments only, and the edits were made in place, so the criteria's citations of the runner's lines (5-7,
+    228-232, 290-305, 427-430, 591) still hold [measured: diff shows lines 38 and 41 only].
+  - bash -n: ok. test_waves_bs.py: 20 passed.
+  - HOW THE COORDINATOR PINS step 2 now says that APPROVED.tool_sha256 holds exactly the six score_bs.PINNED_TOOLS. It
+    also says tools/tests/test_score_bs.py is pinned by its PINS line (checked by the scorer since P-m2) and the
+    re-reviewed list, not by APPROVED.
+
+P-i8 (info, review:process) -- CONFIRMED-NOT-FIXED (a self-report)
+  [measured] review/process/NOTES.txt, entry at 14:40:02Z. Nothing to change.
+
+M1 (minor, build-check) -- CONFIRMED-FIXED (in the fixer's record; the builder's NOTES.txt O10 and
+  logs/outside_ps_newer_than_marker.txt are not in the fixer's write set and are left as written)
+  Verified [measured]: I re-ran the find over /home/user/work, pruning PS, newer than the build marker, unfiltered.
+  It found 1,151 paths (logs/m1_outside_find.out and logs/m1_outside_find_times.out), in these trees:
+  - repo/.git: 135 paths, 13:06-14:30. The records-critic-blind branch at 13:40:13, its push at 13:57:42, the fetch
+    of main at 14:30:30, and the worktrees.
+  - wt_records: 792 paths, 13:13-13:52.
+  - records_pr: 176 paths, 13:01-13:56.
+  - pr655_review: 47 paths, 12:57-13:19.
+  - /home/user/work itself.
+  Each tree is listed and attributed in review/fixer/logs/outside_ps_record.txt, part A, to the docs/records-PR
+  workflow, the coordinator's git work and the PR-655 review lane (RUNLOG lines 809-814).
+  No entry under /home/user/work comes from the phase-screen build [inferred: no git command and no write there in
+  logs/build_cmds.log]. Outside /home/user/work the build did write: its V2's 4 files under /tmp/tb_buffer (part B;
+  P-B1).
+
+I1 (info, build-check) -- CONFIRMED-FIXED (by narrowing the claim; the code is left as validated)
+  Verified [measured, review/fixer/logs/verify_i1_i4.out]:
+  - The env path equals float32(phi) for every k from 0 to 1000.
+  - The float64 path differs at 17 k (9, 18, 36, 44, 72, 81, 90, 91, 97, 119, 142, 144, 157, 161, 169, 182, 194), by
+    at most 1e-7 relative. Every settled k is exact.
+  Criteria C6 now says exactly that, and why no measured quantity depends on it: the probe's bank is all settled, and
+  V1's check runs at zero columns.
+  I chose the narrowing over the cast so that bs_hooks.py (the arm and CHECK) keeps its validated sha256. The cast
+  would change no measured value.
+
+I2, I3, I4, I5 (info, build-check) -- CONFIRMED-NOT-FIXED (no change needed)
+  [measured]
+  - I2: check_build/logs/c_arm_9421b.out has F_rms_other_dims_equal_control_twin ok.
+  - I3: check_build/logs/c_ctrl_compare.out matches on 170 rows x 192 columns and on 271 probe rows. This fixer's
+    re-run of control at 9401 and 9411 equals the builder's too.
+  - I4: the disk is P-m1. O1 (the action and filter history) is already in KNOWN LIMITS ("The phase features give
+    the critic the step-count gate ... not the unobserved action and filter history").
+  - I5: a self-report (check_build/notes_check.txt, 14:12:09Z).
+
+D1 (minor, review:design) -- CONFIRMED-FIXED
+  Verified [computed]:
+  - criteria_work/power_ps.out F, f 0.50: 0.305 / 0.261 / 0.198 / 0.111 for q 1 / 0.9 / 0.75 / 0.5.
+  - 0.58-0.60 needs f >= 0.75.
+  Changes:
+  - Line 3 in criteria.txt and score_bs.LINE_TEXT[3] now say: "about 0.1-0.3 if the phase input makes climbs rarer
+    rather than smaller (half as many climbs)".
+  - KNOWN LIMITS' power item now reads "at f = 0.5 (half as many climbs) 0.20-0.31 for q = 0.75-1 and 0.11 at
+    q = 0.5".
+  Checks:
+  - test_line_texts_are_the_criteria_text: passes.
+  - The old line3_power_text mutant still applies and is caught. A new mutant, line3_rarer_text_old, is caught by
+    "texts".
+  - The dry runs were re-run (CHECKS RE-RUN below).
+
+D2 (minor, review:design) -- CONFIRMED-FIXED
+  Verified [computed, review/fixer/logs/verify_d2.out, 20,000 draws]: a phase slope that stays at +0.02143 against
+  BS2-like controls (mean 0.0448, SD 0.0170) reads SEC-MECH SUPPORTED with P 0.479 (phase SD 0.017) and 0.711
+  (SD 0.005). The design review had 0.486 and 0.706.
+  Changes:
+  - KNOWN LIMITS, line 2's "can say": now "that the phase arm's critic paid less for the tail than control's at E,
+    consistent with the phase account (not separable from a tail that climbed less, below); whether it stopped paying
+    for the tail is read only from the report-only slope at E against S".
+  - The SEC-MECH item in KNOWN LIMITS gains the P 0.48 / 0.71 figure.
+  - The SEC-MECH paragraph says what it compares.
+  - New REPORT ONLY item, THE SLOPE AT E AGAINST S.
+  Scorer (report only; the reading, the secondaries and the PROVISIONAL list do not depend on it):
+  - slope_end_vs_start(m) per continuation, both arms: S, E, E - S, E <= S and E <= 0, from the markers' loop rows at
+    S and E (effective, ONPOLICY).
+  - A text section, "REPORT ONLY, THE CRITIC'S ON-POLICY TAIL SLOPE AT E AGAINST S", with per-arm counts.
+  - The result key slope_end_vs_start.
+  Tests:
+  - test_slope_end_vs_start_report_only.
+  - Kill checks: main checks the counts and a value; slope_tie checks ties and absence.
+  - Mutants slope_e_minus_s_reversed, slope_reads_raw, slope_le_s_strict and slope_le_0_strict: all caught.
+  The five harness tools are unchanged by D2, and so are V1-V3.
+
+D3 (minor, review:design) -- CONFIRMED-FIXED (option (b): stated in KNOWN LIMITS)
+  Verified [measured]:
+  - #655 Open Question 1 is at lines 966-971 (section 9 starts at 953).
+  - pr655_review/xref/XREF.txt section 3.4 recommends the per-bucket V - G as a manipulation check.
+  - criteria.txt had no V - G item.
+  - The reader's on-policy collection records k but not rewards (read_bs.py lines 922-995).
+  I chose (b) over (a): (a) needs a new rollout-and-reward measurement tool, which would itself need building,
+  validating and reviewing before the pin, for a read that decides nothing.
+  The new KNOWN LIMITS item:
+  - says the read was considered and left out, and why;
+  - names what stands in for it (SEC-MECH, the slope at E against S, the swing) and how each is weaker;
+  - notes that each COUNTED final pair is kept, so per-arm V - G by #655's buckets (gamma 0.98, SB3's truncation
+    bootstrap, the phase arm fed its own phase) can be measured afterwards by a separately written, reviewed and
+    pinned read-only tool, as a report that never changes this screen's reading.
+  [inferred] If the maintainer prefers (a), it can be pre-registered in the same way, before ALL_DECIDED.
+
+D4 (minor, review:design) -- CONFIRMED-FIXED
+  Verified [measured]:
+  - validate/logs/v2_check.out has no 1000, terminal or truncation line.
+  - check_build/logs/c_arm_9421b.out has F_time_limit_terminal_obs_settled ok (8), and its F_terminals rows carry
+    [1.0, 1.0, 1.0].
+  - test_bs_hooks.py line 474 (docstring) and lines 504-506 (code) are as stated.
+  VALIDATIONS: V2's clause no longer claims the k = 1000 observation. A sentence after V5 cites the unit test and the
+  build checker's rollout, and says V2's records hold no terminal observation. VALIDATIONS also names the fixer's
+  re-validation.
+
+I1, I2, I5 (info, review:design) -- CONFIRMED-NOT-FIXED (no change needed)
+  [measured] review/design/logs/compare_600.out: 0 differences in 600 scenarios. bs_recompute.out gives
+  135930855/2^30. I5 is inferred and stands.
+  After the fixer's changes:
+  - The scorer's own 160 tests pass, including all 55 original mutants and the 10 new ones.
+  - The dry runs are identical to the adapter's (CHECKS RE-RUN below).
+
+I3 (info, review:design) -- CONFIRMED-FIXED
+  Verified [inferred from the fill, checked on the scorer]: with any MISSING value the guard's filled p is at least
+  36/70. With a MISSING phase value it is 70/70; with a MISSING control value it is 36/70 or more
+  (test_guard_missing_note).
+  Fix:
+  - score_bs.SEC_GUARD_MISSING = "(with any MISSING value the guard cannot warn: read NOT SUPPORTED as not assessed)".
+  - The note is added to SEC-TAIL2's notes whenever any of its values is MISSING. It is never added to an efficacy
+    secondary.
+  - The criteria's SEC-TAIL2 paragraph quotes it verbatim, which test_line_texts_are_the_criteria_text checks.
+  Tests:
+  - test_guard_missing_note.
+  - test_secondary_fill_works_against_its_direction now expects the note.
+  - The kill check lost_ok requires the note.
+  - Mutants guard_missing_note_lost and guard_missing_note_always are both caught.
+
+I4 (info, review:design) -- CONFIRMED-FIXED
+  Verified [measured, review/fixer/logs/verify_i1_i4.out]:
+  - The mean of 0.98^(200-k) over k 50-199 is 0.3109; 0.98^200 = 0.0176.
+  - The WHY gap of 0.17-0.23 implies a phase-zero-to-settled swing of 0.242-0.328.
+  REPORT ONLY now gives "of the order of 0.2-0.35", with the reason, the off-distribution caveat and the label
+  [inferred].
+
+I6 (info, review:design) -- CONFIRMED-NOT-FIXED (a self-report)
+  [measured] review/design/notes.txt, INCIDENT at 14:36:29Z. Nothing to change.
+
+====================================================================================================================
+CHECKS RE-RUN (all after the last code change; logs under review/fixer/logs/)
+====================================================================================================================
+- Unit tests, all with basetemp and TMPDIR inside review/fixer/tmp (since deleted), -p no:cacheprovider, -I -B:
+  - test_run_bs.py: 24 passed (21 before, 3 new).
+  - test_read_bs.py: 18 passed.
+  - test_waves_bs.py: 20 passed.
+  - test_score_bs.py: 160 passed (142 before; 8 new tests and 10 new mutants), on the final criteria.txt
+    (pytest_final_score3).
+  - test_bs_hooks.py: 41 passed, 2 deselected. The deselected tests are test_critic_phase_gradients_actor_zero_critic_
+    nonzero and test_critic_phase_install_refusals: each calls optimizer.step() on a synthetic network, and this task
+    allows no optimizer step except V5's. bs_hooks.py and test_bs_hooks.py are unchanged; the builder and the build
+    checker ran all 43 (validate/logs/pytest_final.out, check_build).
+  - In all, 263 passed and 2 deselected.
+- Lint: ruff E,F,W,B at line length 120 on the five harness .py tools, score_bs.py and every test: "All checks passed!"
+  bash -n on run_waves_bs.sh: ok.
+- The scorer's mutation tests: 65 of 65 mutants caught, and the original passes every kill check (in the 160 tests).
+  logs/mutant_map.out lists which kill checks catch each one.
+- Dry runs (work/fixer_dry_runs.py, a copy of the adapter's with the output in review/fixer/dry): identical to the
+  adapter's apart from the paths.
+  - line 1: p 1/70, rise 0.065.
+  - line 2: p 1/70; the secondaries at 2/70, 24/70, 1/70 and 3/70.
+  - line 3: p 46/70.
+  - parent: p 70/70, rise +0.57878. SEC-CMD and SEC-TAIL2 70/70; SEC-MARGIN and SEC-MECH MISSING. PROVISIONAL counts
+    are 26 / 26 / 26 / 34.
+  - The new slope counts are control 0 / 0 of 4 and phase 3 / 2 of 4.
+- Prelaunch, on the real root:
+  - The scorer exits 3: incomplete, 0 of 8 decided, one PROVISIONAL item "no <PS>/APPROVED".
+  - run_waves_bs.sh --plan lists the 8 entries in SCREEN.json's order with S 2,097,152 and E 3,538,944, launch floor
+    2,030,043,136.
+  - The 8 preflights exit 2 with "APPROVED: missing", plus the disk floor at that moment (15:30).
+  - The real runner exits 2: "refused: no <BS>/APPROVED".
+  - The PS and PS/logs listings are unchanged.
+- V1 / V2 / V3: re-run because run_bs.py changed (results under P-B1). V3's start-pair reads came from the reader's
+  cache: read_bs.py is unchanged, so the cache is valid by design (P3). The 2,359,296 pairs were read afresh, because
+  their zips' data changed, and equal the builder's.
+- V5: not re-run. bs_hooks.py and the arm's definition are unchanged; run_bs.py's changes touch neither the gradient
+  path nor the masks.
+- The code copy: verify_copy.py gives 331fe8fc..., 1,406 files, equal to the pin (logs/verify_copy.out). The scorer's
+  check_copy measurement reports no item.
+- sha256sum -c of the old SHA256SUMS.txt before the update fails exactly on the 6 changed files
+  (logs/sha256sums_old_check.out). The new SHA256SUMS.txt is all OK (see its end).
+
+RULES (this fixer)
+- I wrote only inside PS: review/fixer/**, the files the task names (criteria.txt, tools/run_bs.py, tools/score_bs.py,
+  tools/run_waves_bs.sh, tools/tests/test_run_bs.py, tools/tests/test_score_bs.py, review/FIXES.txt,
+  review/criteria_reviewed_v1.txt, review/reviewed_sha256.txt, SHA256SUMS.txt), and what the re-validation's own
+  tools write by design (validate/fixer/**, tmp/no_update_*/tb and eval folders, reads/_cache: 4 entries).
+- The harness keeps background-command output and large tool results under the session's own folders
+  (the session's own folders under /tmp and /root); I did not write there myself.
+- No optimizer step, no continuation, no APPROVED. No git, push or network write. The null device was never
+  referenced. No permission check refused anything.
+- No product name of an AI model appears in my prose. The only occurrences of such a word in my files are
+  machine paths the brief itself names: the venv PY and the S1/S2 session folders, as in every earlier lane's
+  scripts and logs.
+
+OPEN FOR THE COORDINATOR AND THE RE-REVIEW (P2)
+1. Re-review the changed files at the sha256 above. The criteria must be re-pinned with its new sha256
+   (9875039f...ebc5) in APPROVED and RUNLOG.
+2. Disk (P-m1): free space before step 4(d). <PS>/validate/fixer (112.6 MB) can go after the re-review.
+3. D3 was fixed by option (b). If the maintainer wants the per-bucket V - G as a pre-registered report, the tool is
+   to be written and pinned before ALL_DECIDED.
+4. /tmp/tb_buffer holds BS2's and PS's earlier events files (outside PS; the maintainer's word is needed for any
+   deletion).

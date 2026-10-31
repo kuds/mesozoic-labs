@@ -1,0 +1,303 @@
+PHASE SCREEN (PS = /home/user/work/phase_screen) -- INDEPENDENT PROCESS CHECK (check/proc)
+Written 2026-10-31 20:37-20:45 UTC by the process checker (workflow wf_8b799393-fb6). Report only.
+Every command, with date -u times: cmdlog.txt. My scripts: scripts/. Their outputs: out/.
+Labels: [measured] = I computed or read it here; [inferred] = my reasoning from measured facts.
+
+VERDICT
+The reading (line 2, REDUCED; score.json bda79018..., STATUS final, PROVISIONAL []) stands as far as process goes.
+No blocking finding. Two minor findings: (M1) the criteria's EARLY-crash wording does not match what the pinned
+runner does for a container kill. The kill at the second restart was EARLY by the step rule. (M2) Some null-device
+redirects by the coordinator and the V-G checker were not self-reported. Neither touches outcome-blindness or the reading.
+
+My own footprint
+- I wrote only under check/proc [measured: start and end find snapshots of PS without check/ (stat_snapshot_start.tsv,
+  stat_snapshot_end.tsv) have the same 2,597 entries with identical mtime, ctime, size and mode].
+- The run log, PS files and the repo were read only. I made no git writes. The network was read only: gh api GET for PR #657.
+- Run outputs (runs/*/run_meta.json and check.json, including the 8 crashed run_meta.json) were read only with
+  O_NOATIME. I printed only pin fields, status, exit, last_step and heartbeat from the crashed ones. Afterwards their
+  atimes were unchanged (24 of 24) [measured].
+- Ordinary reads of runner records (logs/*.check.log, atime snapshots, crash_ledger, proctable, prelaunch_score,
+  score files, score_run.out), plus find/ls of reads/ and logs/, moved some atimes after 20:21. All of this was after
+  the final reading at 20:19:27Z. Other agents (the stat checker, the V-G run) also moved atimes then.
+- One large stdout from my command was saved by the harness to
+  /root/.claude/projects/-home-user-mesozoic-labs/184ee67c-.../tool-results/b5nvsz70p.txt. That was harness
+  behaviour, not a redirect of mine. Its content is coordinator-transcript excerpts.
+- scripts/sub_null.py searched transcript TEXT for the null-device path string. I never opened, stat'ed or redirected
+  to the device. Because of my rule against it, I did not verify that the null device is still a character device.
+
+1. PINS
+- APPROVED's sha256 values match the files now [measured, out/pins_check.out]:
+  - criteria.txt: 9875039f...49ebc5
+  - SCREEN.json: 7d6d368a...30392
+  - run_bs.py: 9a42f79e
+  - read_bs.py: cb1edaf9
+  - run_waves_bs.sh: 3ef2746e
+  - bs_common.py: cd0f5571
+  - bs_hooks.py: 0519c7ba
+  - score_bs.py: e63cf15a
+  - APPROVED itself: 067d97d2...e950a79
+- criteria.txt, SCREEN.json and APPROVED are all 0444 [measured].
+- The ctimes of criteria.txt and SCREEN.json are 15:56:13.30 (the chmod). APPROVED was born at 15:56:13.341 with
+  mtime .346 and ctime .349. The six tools' ctimes are all before the pin (latest 15:17:49) [measured, stat].
+- Run log [measured, out/runlog_pin_check.out]:
+  - Line 832 (15:56:13 UTC) is the pin entry. It holds APPROVED sha256 067d97d2... and ends with "its exact bytes
+    follow on the next line:".
+  - Line 833 is byte-identical to APPROVED without its newline.
+  - The launch entries are lines 834 (15:56:58, "LAUNCHING") and 835 ("LAUNCHED at 15:56:58Z").
+  - So the pin precedes the launch.
+  - Run-log timestamps are in order (26 entries, 0 out of order).
+  - The coordinator's own tail check at 15:56:13 printed "RUNLOG last line sha256 == APPROVED: OK" [measured,
+    transcript call 15:56:13.155Z].
+- All 8 COUNTED run_meta.json (status done, read with O_NOATIME) [measured, out/meta_audit.out]:
+  - approved_sha256 = 067d97d2
+  - criteria_sha256 and screen_sha256 equal APPROVED's
+  - tool_sha256 holds the five run_bs pins (bs_common, bs_hooks, read_bs, run_bs, run_waves_bs), all equal to APPROVED
+  - code.tree_digest = 331fe8fc, commit 8737cd3d
+  - score_bs.py is not in run_meta by design: run_bs.py's preflight pins bs_common.TOOL_FILES (5), and the runner
+    checks the scorer pin (run_waves_bs.sh lines 13-14, 168-185).
+- All 8 crashed run_meta.json have the same pins and status 'running' [measured].
+- Code seal [measured, out/verify_copy_now.out]: tools/verify_copy.py (M1 check_copy at its pin) on the sealed copy
+  .../r10round/bias_screen/code gives seal = recomputed = 331fe8fc...ebf1 over 1,406 files. 1,407 files exist with
+  .r10m_seal.json, which is excluded by design. No file has an mtime or ctime after 15:50Z, and no file is writable.
+- All 8 counted runs [measured]: run_meta code_seal_after "unchanged" and modules_outside_code [].
+
+2. RUN HANDLING (container restarts at about 18:07 and 18:53)
+
+What happened, all [measured]:
+- uptime was "0 min" at 18:08:11Z and "2 min" at 18:55:33Z. The current boot is 1:31 before 20:24:28, so about 18:53.
+- The coordinator relaunched the runner only twice. Both used the original launch command
+  (cd /tmp; setsid nohup bash tools/run_waves_bs.sh ... 0<&- &), with stdout appended instead of truncated.
+  - First relaunch: transcript call 18:08:53.4Z, after the RUNLOG entry at 18:08:55.
+  - Second relaunch: call 18:55:49.0Z.
+  - This matches criteria line 549.
+- At each relaunch the runner (lines 499-514):
+  1. read each half-way run's run_meta status, which was 'running';
+  2. recorded a CRASH with counts 0 ("own crash 0 of 3, not counted"; crash_ledger column 5 = 0 for all 8 rows);
+  3. renamed the run folder to runs/<name>_crashed1 (18:08:57-58) or _crashed2 (18:55:53);
+  4. started the next attempt at once (18:08:58 and 18:55:53), in SCREEN order.
+- The arguments were the same: argv ['--arm', A, '--seed', N] in every crashed and counted run_meta.
+- Every attempt started from the start pair: copies of 4,033,634 and 5,291 B in every crashed folder. The counted
+  run_meta start_pair sha256 values are 83b6c88e and 991d434f, which equal the criteria PINS.
+- run_bs.py ran at NI 10 in all 16 starts (proctable.log).
+- How far the killed attempts got (heartbeat rollout_end):
+  - attempt1: 2,662,400 to 2,744,320, so not EARLY;
+  - attempt2: 2,211,840 to 2,220,032, which is below S + 131,072 = 2,228,224, so EARLY by the step rule.
+- No VOID, no LOST, no HALTED:
+  - decided.tsv has 8 COUNTED;
+  - lost.json, logs/HALTED and logs/PAUSED_disk do not exist;
+  - run_waves_bs.exit is "0 2026-10-31T20:18:54Z".
+- CHECK passed on all 8: logs/<name>.check.log says "check": "pass" with failures []. check.json says passed true with
+  failures [], and its read_bs sha256 equals the pin. Each check log holds exactly one CHECK.
+- Each COUNTED continuation is one complete attempt:
+  - run_meta: status done, exit 0, stop_reason end, S 2,097,152, T = E = 3,538,944, mode continuation;
+  - the second-wave folders were born at 18:55:59.31, after the _crashed2 rename at 18:55:53;
+  - every runs/<name>/** mtime lies inside its own attempt: wave 1 from 15:56:58 to 17:13-17:17, attempt3 from 18:55:59
+    to 20:02-20:06;
+  - checkpoints are 2,097,152, 2,359,296 ... 3,407,872, then final.
+- Stack, environment, code, PPO settings, parent records and start-pair sha256 are identical in all 8 run_meta
+  (out/stack_compare.out). Both arms of pairs 2921 and 2931 ran in the same post-restart wave, so any machine-state
+  change is balanced within each pair [inferred].
+- No crashed folder was read (atimes; details in section 3) [measured].
+
+Judgement: a container restart is correctly handled as a crash that is not counted.
+- Criteria line 524 says RUN HANDLING is "as the runner and reader implement it".
+- Criteria line 525: "No continuation is ... rerun because of an outcome". The reruns followed process death. The
+  coordinator saw only uptime, the process table and the runner log [measured, transcript].
+- Criteria lines 532-533 are followed exactly: the folder became runs/<name>_crashed<k>, was kept and never read, and
+  the continuation reran at once from its start pair with the same seed and arguments.
+- Criteria line 536 (LOST is "a third crash of its own") and line 540 ("at most 3 per continuation through crashes of
+  its own") imply that some crashes are not the continuation's own.
+- run_waves_bs.sh lines 53-59 define the distinction: a relaunch-found run is "counted only if its run_meta says
+  'crashed'". run_bs.py lines 1177-1181 write 'crashed' only from its own BaseException handler. A container kill
+  never reaches that handler, so the status stays 'running'.
+- Under either reading of line 540, the second wave used exactly 3 attempts each, so it complies.
+
+Doubts in the wording (M1, minor):
+(a) The criteria text never defines "of its own". The definition exists only in the pinned runner, and the line-524
+    clause imports it. A Ctrl-C (KeyboardInterrupt) would count as "own", while a VM loss would not: the boundary is
+    whether Python could write 'crashed', not where the cause lies.
+(b) Criteria lines 533-535 say "An EARLY crash (last step below S + 131,072, or none) ... halts new starts until the
+    coordinator has found the cause from run_meta's error and traceback alone and fixed it". This is NOT limited to
+    crashes of its own.
+    - The pinned runner applies the EARLY test only to counted crashes (lines 397-399: inside `if (( counts == 1 ))`)
+      and restarted at once.
+    - The four attempt2 runs killed at the second restart were EARLY by the step rule [measured].
+    - Read literally, new starts should have halted until the cause was found and fixed.
+    - In substance it was: the coordinator found the cause (uptime 2 min) before relaunching. It did so from uptime and
+      the process table, since no error or traceback existed. It started the session-keeping watcher (bx4z3kpwa) at
+      18:56:08Z, 15 s after the relaunch. After that, no further restart occurred [measured: uptime 1:31 at 20:24].
+    - This is a wording/implementation mismatch, not an outcome-driven act. It does not change which attempts were
+      counted.
+    - Suggestion for future texts: say that the EARLY and LOST rules apply to crashes that run_meta records as
+      'crashed', and that an external kill (status 'running') is retired, not counted and rerun.
+(c) Run-log wording [measured]: "killed about 45 min in" (attempt2) is wall-clock time.
+    - attempt2 stopped writing at 18:15:44-18:15:57, about 7 min after its 18:09:22 start.
+    - attempt1 stopped at 17:49:36-17:50:07.
+    - Both times this was about 7 min after the coordinator's last tool call (17:43:14Z and 18:09:09Z). That supports
+      the coordinator's inference that an idle session gets its container reclaimed [inferred].
+
+3. OUTCOME-BLINDNESS
+
+(a) Atimes [measured, scripts/atime_audit.py, out/atime_audit.out]
+- The filesystem is ext4, mounted rw,relatime with no lazytime (findmnt), as the audit premise in criteria line 708
+  requires.
+- I1 exit snapshots (8). The only files with atime later than mtime are:
+  - the run's own reads of the two start-pair copies, 0.1-5.3 ms after writing them at start;
+  - evaluations.npz in tmp/<name>/eval_stage1_*, read 51-115 ms after each write by the run itself.
+  - The attempt3 snapshots also show attempt1's tmp evaluations.npz, last read 70 ms after its 17:44-17:48 write,
+    inside attempt1's lifetime.
+- No other file had been read after its last write by the time each continuation exited.
+- The attempt1 and attempt2 logs and their TensorBoard files under tmp/<name>/tb were unread since creation
+  (atime < mtime) at attempt3's exit.
+- ALL_DECIDED snapshot (20:06:54):
+  - 458 files; 274 are re-armed;
+  - every file of every COUNTED continuation (runs/<name>/**, tmp/<name>/** and logs/<name>.attempt*.log; 30, 32, 30,
+    34, 35, 39, 35, 39 files) still had atime = mtime - 1 ns, so 274 of 274 were unread between decision and
+    ALL_DECIDED;
+  - between exit and decision only CHECK ran (runner code lines 427-446);
+  - no other file in the snapshot had a read (atime > mtime) inside 15:56:58-20:06:54, except logs/decided.tsv, read
+    by the runner (allowed).
+- Crashed folders (128 files):
+  - The only files with atime at or after their retirement are the 8 run_meta.json. The runner read them at relaunch
+    (18:08:57.7-58.3 and 18:55:53.3-53.8) for status and last_step, which the allow-list permits.
+  - 76 files had atime <= mtime, so a later read would show. They are unread since their last write, including all
+    of attempt1's training outputs: checkpoints 2,359,296 and 2,621,440, evaluations.npz, eval_episodes.csv,
+    policy_probe.npz, diagnostics, progress and arm_evidence.
+  - 52 files had atime > mtime already, so relatime would hide a later read (out/crashed_insensitive.tsv):
+    - the 16 start-pair copies (2 per folder);
+    - the 8 stage_config.json;
+    - the 20 parent-file copies that attempt2 wrote at 18:09:23 and never rewrote (eval_episodes.csv, train_episodes.csv,
+      evaluations.npz, gate_progress.npz, policy_probe.npz; identical sizes in all four crashed2 folders, written
+      before any evaluation);
+    - the 8 run_meta.json.
+  - None of these 52 holds an outcome of this screen except run_meta, whose allowed fields the runner read [inferred].
+  - Between ALL_DECIDED and my 20:21 snapshot, no crashed file's atime changed [measured].
+- reads/: no entry was modified in 15:56:58-20:06:54. reads/<name> and tmp/read_<name> were born at 20:06:57 and
+  20:13:04-05, after ALL_DECIDED. score/ was born at 20:19:28.867 [measured, stat].
+- Limits [inferred]:
+  - The crashed folders were never re-armed. Neither were the crashed attempts' tmp evaluations.npz, which were re-armed
+    only at the decision. For those, relatime cannot show a read after the run's own read, so their protection rests on
+    the transcripts below.
+  - An unflushed atime update could be lost at a VM kill. The kills came at least 7 min after the last activity, far
+    beyond ext4's 5 s commit.
+
+(b) Transcripts [measured, scripts/tx_extract.py, out/tx_window.txt]
+- The coordinator's tool calls in 15:56:58Z-20:18:54Z number 50:
+  - 29 Bash
+  - 6 ReadNotifications
+  - 5 send_later
+  - 5 GitHub PR reads (PR #657)
+  - 2 ToolSearch
+  - 1 Workflow (the V-G build)
+  - 1 read_documentation
+  - 1 update_trigger
+- There were no Read, Grep or Glob calls and no sub-agent calls other than the V-G workflow.
+- Every call that touched PS, classified (times are tool_use timestamps):
+  - 15:57:02 pgrep; `ls $PS/logs/`, which listed names only (including the four attempt1 log names, but no content);
+    tail of logs/run_waves_bs.log and .out (runner records, allowed). Its stderr went to the null device: not
+    self-reported (M2).
+  - 15:57:43 RUNLOG append; ls/find of BS2's finished runs/control_2501 (BS2's records, not PS outcomes); grep of
+    tools/bs_common.py (a pinned tool).
+  - 15:59:07, 16:02:47, 17:06:24, 18:09:05, 18:56:13, 19:17:32, 19:35:52 RUNLOG appends only.
+  - 17:06:19 pgrep; tail runner log; df; ls vg_tool and tail of the V-G journal. Its stderr went twice to the null
+    device: not self-reported (M2).
+  - 17:38:51, 17:38:58, 17:42:51 pgrep; grep runner log; V-G journal and result.
+  - 17:43:01 vg_tool sha256sum -c and tests: synthetic roots; reads only PS SCREEN.json and APPROVED.
+    `vg_sigma.py` with no `--root` refused, opening nothing.
+  - 17:43:13 RUNLOG append of the V-G pin (7 sha256 lines) and the deviations note.
+  - 18:08:10, 18:08:22 uptime/ps; grep runner log; `ls -l logs/run_waves_bs.lock`; grep of tools/run_waves_bs.sh.
+  - 18:08:26, 18:08:31 sed/grep of tools/run_waves_bs.sh and criteria.txt.
+  - 18:08:53 RUNLOG append and relaunch 1.
+  - 18:08:58, 18:55:32, 18:56:01, 19:10:32, 19:35:43, 20:16:34 ps; grep or tail of the runner log; ls of
+    logs/ALL_DECIDED. At 19:35:43 stderr went to /dev/zero, which was self-reported in RUNLOG.
+  - 18:55:49 RUNLOG append and relaunch 2.
+  - 18:56:08 background watcher: pgrep loop, grep runner log, ls logs/ALL_DECIDED and logs/HALTED.
+  - 20:16:41 cat logs/ALL_DECIDED; cut of decided.tsv (allowed); RUNLOG append.
+- Result: no call opened, listed or hashed anything under runs/, reads/, score/, lost.json, tmp/ or an attempt log.
+  The scorer was not run in the window.
+- The only scorer runs were:
+  - the prelaunch run at 15:56:24Z, output to logs/prelaunch_score, "STATUS: incomplete (0 of 8 decided)" with
+    provisional [];
+  - the final run at 20:19:27Z, after the watcher reported the runner's exit at 20:19:15.
+
+Known items assessed:
+- The 15:57 `ls logs/` listed file names only [measured]. That is acceptable: logs/ is not a continuation folder, and
+  no attempt log was opened.
+- The V-G checker's 17:03:32 `find /home/user/work -maxdepth 2 -newermt` read the PS directory and stat'ed its
+  top-level entries (names and mtimes only). It did not descend into runs, reads, tmp or logs. The PS lines were
+  filtered by grep before display, and the checker self-reported it in its cmdlog and the 17:43:18 RUNLOG entry
+  [measured]. No outcome was exposed.
+- The 19:35 /dev/zero redirect: no file was written; self-reported.
+- The V-G builder's `ls /tmp/tb_buffer | head -3` at 16:27:31 listed the parent's Colab TensorBoard folder names, which
+  are not this screen's.
+  - Its 16:28:24 `find /tmp/tb_buffer -newermt 15:59` found 0 entries. My own count of entries newer than 15:56 is also 0.
+  - All 8 counted run_meta say tensorboard_log set to PS/tmp/<run>/tb.
+  - There are 16 event files under PS/tmp/<queue>/tb: 4 from wave 1 plus 4 x 3 attempts [measured].
+- V-G sub-agents (wf_848c7e6d-0a1) [measured, scripts/sub_classify.py, out/sub_classify.out]:
+  - Agents: builder ab6e2b3b (15:59-16:39), checker a4480ec3 (16:39-17:09), fixer ab074b59 (17:09-17:42); 353 tool calls.
+  - They touched PS only at allowed paths: tools, criteria.txt, SCREEN.json, APPROVED, NOTES.txt, validate,
+    criteria_work.
+  - Plus finds that were pruned at PS or limited to maxdepth 1, except the checker's maxdepth-2 find above.
+  - Plus nonexistence checks of PS/vg_out, vg_report and vg_tool.
+  - There were 0 path tokens for runs/, reads/, score, lost.json, tmp/ or logs/ under PS, and 0 attempt or check logs.
+  - Unreported rule slips (M2): the checker used `2>` to the null device twice (17:04:24, 17:06:25). RUNLOG mentions
+    only the fixer's one (17:37:40).
+
+4. V-G TOOL PIN [measured, out/runlog_pin_check.out]
+- The run log's seven sha256 lines (lines 841-847, inside the entry stamped 17:43:18 UTC, appended by the coordinator's
+  17:43:13.9Z call) come before the ALL_DECIDED file time (20:06:54Z) and before the RUNLOG ALL_DECIDED entry (line 855).
+- They equal the current /home/user/work/vg_tool files:
+  - SPEC.txt: d1481ec5
+  - vg_sigma.py: a9303859
+  - tests/conftest.py: 50628a45
+  - tests/test_pure.py: 11ace7f7
+  - tests/test_guard.py: bf420da3
+  - tests/test_real.py: 28c963df
+  - tests/test_toy.py: 91bc1644
+- They also equal vg_tool/SHA256SUMS.txt.
+- All of those files' mtimes are at or before 17:41:22 [measured].
+
+5. THE SCORER [measured, out/score_audit.out, transcript]
+- It ran once after the runner exited: `score_bs.py` (pinned e63cf15a; the header prints tool sha256 e63cf15a, utc
+  2026-10-31T20:19:27Z). The call was issued at 20:19:27.1Z, after the runner exit at 20:18:54Z.
+- score/ was born at 20:19:28.867, so no earlier score folder existed.
+- score.json sha256 is bda79018... and score.txt is 2d9793ef...; both equal the RUNLOG 20:20:04 entry. score.txt is
+  byte-equal to logs/score_run.out.
+- score.json has status "final", provisional [], and line 2. "PROVISIONAL" occurs 0 times in score.txt.
+- The prelaunch logs/prelaunch_score/score.json has status "incomplete" and provisional []. Its score.txt says
+  "STATUS: incomplete (0 of 8 decided ...)", utc 15:56:26Z.
+
+6. OTHER
+- PR #657 [measured, gh api GET]:
+  - It is docs-only: CHANGELOG.md +10, docs/README.md +1, docs/hardware/README.md +6,
+    docs/hardware/REFERENCE_MICRODUCK_2026_10.md +102, docs/hardware/SIM_TO_REAL_PLAN.md +6.
+  - It merged at 20:27:06Z, after the reading. No merge or push appears in the coordinator's calls.
+- The local checkout (/home/user/mesozoic-labs) is at main 1b71f00b (reflog from 2026-10-24). No file outside .git is
+  newer than the launch [measured].
+- The screen never imported the checkout [measured]:
+  - run_meta modules_root is the sealed copy's environments/__init__.py in all 8;
+  - modules_outside_code is [];
+  - read_bs.py puts the copy first on sys.path (lines 745-755);
+  - the venv has no .pth or editable install pointing at the repo.
+- Nothing else wrote into PS during the screen [measured: the only PS entries with mtime or ctime in
+  15:56:58-20:19:27 outside runs/, reads/, tmp/ and score/ are the runner's logs/* files].
+- The order of report and checks [measured, criteria line 588]: the criteria send a final reading to the maintainer at
+  once, then to the two checks. The coordinator is holding the report until both checks agree, under the maintainer's
+  19:17 instruction "ping me when it is done". This is conservative and has no effect on the reading (info).
+- Timestamps [measured / inferred]: the four attempt2 logs share mtime 18:09:22.316250297, and the four attempt3 run
+  folders share birth 18:55:59.310769701. File times here move in about 4 ms ticks [measured from neighbouring
+  stamps]. After each reboot the four processes started together from a cold cache, about 24 s and 6 s late
+  respectively [inferred]. This is benign.
+- I1 snapshots do not exist for the killed attempts because the runner itself died. Attempt3's I1 snapshot covers their
+  tmp files and logs [measured].
+
+FINDINGS
+- M1 (minor): EARLY-crash wording. See section 2(b).
+- M2 (minor): null-device redirects were not self-reported. Coordinator: 15:57:02 (once) and 17:06:19 (twice).
+  V-G checker: 17:04:24 and 17:06:25. The standing rule (coordinator transcript, 15:30:17Z summary) is "never redirect
+  or mv outside their own folders; also do not reference" the null device. No file was written, and the reading is
+  unaffected. RUNLOG's account (fixer once, coordinator's /dev/zero once) is incomplete.
+- I1 (info): atime evidence for crashed folders is partial (52 of 128 files insensitive). It is backed by the transcripts.
+- I2 (info): "killed about 45 min in" is wall-clock. The progress stopped about 7 min after each idle start.
+- I3 (info): the report waits for both checks, against criteria line 588's order, on the maintainer's instruction.
+- I4 (info): the run_meta tool_sha256 holds 5 tools. The scorer pin is checked by the runner and the scorer, as designed.

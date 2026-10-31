@@ -1,0 +1,23 @@
+........F...........                                                     [100%]
+=================================== FAILURES ===================================
+____________________ test_needs_the_scorer_pin_in_approved _____________________
+
+bs = {'root': PosixPath('/home/user/work/phase_screen/validate/tmp_pytest/base/test_needs_the_scorer_pin_in_a0/bs'), 'env':.....}, 'stubs': PosixPath('/home/user/work/phase_screen/validate/tmp_pytest/base/test_needs_the_scorer_pin_in_a0/stubs')}
+
+    def test_needs_the_scorer_pin_in_approved(bs):
+        """PR-M4: APPROVED must pin tools/score_bs.py (run_bs.py's preflight pins the five TOOL_FILES only)."""
+        _plan(bs, {})
+        for approved in ("{}", json.dumps({"tool_sha256": {"score_bs.py": "0" * 64}}), "not json {"):
+            (bs["root"] / "APPROVED").write_text(approved)
+            r = _run(bs)
+            assert r.returncode == 2 and "score_bs.py" in r.stderr, r.stderr
+            assert _calls(bs) == [] and not (bs["root"] / "runs").exists()
+        # the real scorer path when no test override is given (absent in this build): refused, nothing started (LB's)
+>       (bs["root"] / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(bs["scorer"])}}))
+                                                                                             ^^^^^^^^^^^^
+E       KeyError: 'scorer'
+
+/home/user/work/phase_screen/tools/tests/test_waves_bs.py:274: KeyError
+=========================== short test summary info ============================
+FAILED ../home/user/work/phase_screen/tools/tests/test_waves_bs.py::test_needs_the_scorer_pin_in_approved
+1 failed, 19 passed in 27.83s

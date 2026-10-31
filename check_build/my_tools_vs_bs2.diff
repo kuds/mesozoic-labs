@@ -1,0 +1,2748 @@
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_common.py /home/user/work/phase_screen/tools/bs_common.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_common.py	2026-10-30 10:42:44.574239214 +0000
++++ /home/user/work/phase_screen/tools/bs_common.py	2026-10-31 13:12:23.925479466 +0000
+@@ -1,8 +1,10 @@
+-"""Bias screen 2 (BS2): pins and constants.  No logic beyond lookups and checks.
++"""Phase screen (PS): pins and constants.  No logic beyond lookups and checks.
+ 
+-Importable without torch, numpy or the code copy.  BS2 is the bias screen (BS, S2/r10round/bias_screen, finished
+-and verified; its bs_common.py sha256 3b3727e2...) re-run from s42's 2,097,152 checkpoint: only the root, the start
+-pair, the window, the validation seeds and the code-copy path (BS's own copy, reused read only) differ from BS's file.
++Importable without torch, numpy or the code copy.  PS is BS2 (S2/r10round/bias_screen2, finished and verified; its
++bs_common.py sha256 6c4c36ea...) re-run from the same s42 2,097,152 pair over the same window with ONE new arm,
++critic_phase (the critic also sees the episode phase; the actor never does): only the root, the arms, the phase
++definition, the validation seeds and the continuation cap differ from BS2's file.  (The BS2 arms critic_blind_tail3,
++gae_lambda_1 and frozen_obs_norm are not arms of this screen: bs_hooks.py keeps their hook code, unreachable here.)
+ Every value cites its source:
+   ECS    = ecs_common.py (the pins it shares with this screen: the code copy, M1/M5, the stack, the s42 records);
+   FMAN   = S1/foot/stance6/fetch/manifest.csv (F2 COPY rows, copy 1) [measured 2026-10-30 03:53 UTC by BS's
+@@ -13,9 +15,18 @@
+   TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; LENGTH = BS's 1,441,792, so E = 3,538,944; validation seeds
+            9201-9241; the maintainer's approval of 2026-10-30 10:23 UTC, "Go with option a");
+   AUTH   = the maintainer's overnight authorisation, S2/r10round/FOLLOW_UPS.txt, last entry (2026-10-30 00:5x UTC).
+-The intervention and the queue are NOT here: they are <BS2>/SCREEN.json, written when the criteria are reviewed, and
+-pinned by sha256 in <BS2>/APPROVED (screen_sha256) with the criteria and these tools.  (In this file and the other BS2
+-tools "<BS>" means the screen's own root, BS2.)
++  TASK3  = PS's build task of 2026-10-31 (the maintainer's choice of 2026-10-30 18:27 UTC, "Test the phase fix first
++           (Recommended)", resumed 2026-10-31: BS2's design from 2,097,152 to 3,538,944 with the arm critic_phase,
++           4 critic_phase + 4 new controls, validation seeds 9401-9441, the root /home/user/work/phase_screen).
++  CODE_  = the code copy (BS/code, commit 8737cd3d): environments/shared/base_env.py step() l1335 (_step_count += 1
++           BEFORE _get_obs l1349 and the reward l1352) and reset() l1642 / l1668 (_step_count = 0 before _get_obs);
++           environments/tyrannosaurus_rex/base_env.py _get_obs l974-1029 (63 values, the last three the command
++           v_x, v_y, yaw_rate, zero in stance) and the four gated stance terms l1278 (width, paid only for
++           _step_count > stance_width_settle_steps), l1315 (lateral lean), l1339 (stagger), l1421 (CoP band);
++           configs/tyrannosaurus_rex/anatomical/stance.toml l212 stance_width_settle_steps = 200.
++The intervention and the queue are NOT here: they are <PS>/SCREEN.json, written when the criteria are reviewed, and
++pinned by sha256 in <PS>/APPROVED (screen_sha256) with the criteria and these tools.  (In this file and the other PS
++tools "<BS>" means the screen's own root, PS.)
+ """
+ from __future__ import annotations
+ 
+@@ -29,10 +40,11 @@
+ # ------------------------------------------------------------------------------------------------------------- paths
+ S1 = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+ S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+-BS = S2 + "/r10round/bias_screen2"              # every file the screen writes is under it (TASK2)
++BS = "/home/user/work/phase_screen"            # PS: every file the screen writes is under it (TASK3)
+ BS1 = S2 + "/r10round/bias_screen"              # the finished first screen: read only (its code copy is reused)
++BS2_DIR = S2 + "/r10round/bias_screen2"         # the finished second screen: read only (the harness PS derives from)
+ CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+-                                                # edited; BS2 reads it only: no tool writes under it, see run_bs.py)
++                                                # edited; PS reads it only: no tool writes under it, see run_bs.py)
+ TOOLS = BS + "/tools"
+ RUNS = BS + "/runs"                             # <BS>/runs/<arm>_<seed>/
+ VALIDATE = BS + "/validate"                     # the no-optimizer-step modes write only here
+@@ -65,7 +77,7 @@
+          "stable_baselines3": "2.9.0", "mujoco": "3.10.0"}           # ECS STACK
+ DISK_FLOOR_BYTES = 1_610_612_736                # 1.5 GiB (TASK "1.5 GB"; the binary reading, the stricter one)
+ RUN_BYTES_EST = 50 * 1024**2                    # one continuation's folder (an ECS one is 36 MB with 8 zips) [measured]
+-MAX_CONTINUATIONS = 9                           # AUTH (b): <= 9 continuations
++MAX_CONTINUATIONS = 8                           # TASK3: 4 critic_phase + 4 controls (AUTH (b) allowed <= 9)
+ LAUNCH_DISK_BYTES = DISK_FLOOR_BYTES + MAX_CONTINUATIONS * RUN_BYTES_EST   # a fresh queue starts only above this
+ TOOL_FILES = ("run_bs.py", "read_bs.py", "run_waves_bs.sh", "bs_common.py", "bs_hooks.py")   # pinned in APPROVED
+ 
+@@ -76,8 +88,8 @@
+ ROLLOUT = N_ENVS * N_STEPS                      # 8,192 steps per rollout / update
+ EVAL_FREQ = 131_072                             # stage eval_freq (ECS)
+ SAVE_FREQ = 262_144                             # stage checkpoint_freq (ECS)
+-S = 2_097_152                                   # TASK2: s42's 2,097,152 checkpoint (the early-bias probe's driver)
+-LENGTH = 1_441_792                              # TASK2 = BS's: 11 evaluations of 131,072; 176 rollouts, 175 updates
++S = 2_097_152                                   # TASK2 = TASK3: s42's 2,097,152 checkpoint (BS2's S)
++LENGTH = 1_441_792                              # TASK2 = TASK3 = BS's: 11 evaluations of 131,072; 176 rollouts
+ E = S + LENGTH                                  # 3,538,944 (on the evaluation grid; NOT on the 262,144 save grid)
+ MAX_LENGTH = 1_500_000                          # AUTH (b): <= 1.5M steps each
+ N_EVALS = LENGTH // EVAL_FREQ                   # 11
+@@ -96,34 +108,65 @@
+ ACT_TAIL3 = 14                                  # action index of tail_3_pitch_act (ew_common A_T3)
+ BANK_STATUE_SETTLED = (0, 5)                    # the probe bank's two statue_settled rows (seeds 3042, 3043)
+ 
++# ------------------------------------------------------------------------------------------------------------- phase
++# THE PHASE (critic_phase only; TASK3 2(a)).  k = the env's own per-episode step counter _step_count AT THE MOMENT THE
++# OBSERVATION IS MADE (0 at reset; step() increments it before _get_obs, CODE_), so an observation with counter k is
++# the state from which the (k+1)-th action is taken, and that action's reward is computed with _step_count = k + 1.
++# The four gated stance terms pay iff _step_count > SETTLE_STEPS at the reward (CODE_ l1278, l1315, l1339, l1421),
++# i.e. iff the observation's k >= SETTLE_STEPS: k = 200 is the first observation whose own reward is gated.  The
++# critic gets three features, in the observation's three command slots (always zero in stance; CODE_):
++#   ramp     = min(k, 200) / 200                        a linear clock over the reset transient and the pre-settle
++#                                                       window (the pop, steps 0-50; the quiet settle, 50-200)
++#   settled  = 1.0 if k >= 200 else 0.0                exactly the reward gate of the observation's own reward
++#   discount = GAMMA ** max(0, 200 - k)                 the discount of the first gated reward seen from k: the
++#                                                       gated stream enters V(k) with this weight (the why-probe's
++#                                                       primary phase control R(k), phase_probe PREREG.txt l56)
++# All three equal 1.0 from k = 200 on (the value has no other phase after the settle: the 1,000-step time limit is
++# bootstrapped by SB3).  The actor never sees them (bs_hooks: its input slots are set to 0.0, the value they always
++# had); they are not normalised by running statistics (their VecNormalize slots are reseeded to mean 0 / var 1 and
++# frozen there, main's command_frame.reseed_command_slice rule, so the critic receives f / sqrt(1 + 1e-8) = f in
++# float32).
++PHASE_SLOTS = (60, 61, 62)                      # the command slots v_x, v_y, yaw_rate (CODE_ _get_obs l1025)
++PHASE_FEATURES = ("ramp", "settled", "discount")
++SETTLE_STEPS = 200                              # stance.toml stance_width_settle_steps (FMAN stage_config: 200)
++PHASE_GAMMA = 0.98                              # the stage's [ppo] gamma (stage_config.json hyperparameters)
++OBS_DIM = 63
++
++
++def phase_features(k: int) -> tuple[float, float, float]:
++    """(ramp, settled, discount) of an observation made at episode step counter k >= 0 (pure; see THE PHASE)."""
++    if isinstance(k, bool) or not isinstance(k, int) or k < 0:
++        raise ValueError(f"step counter {k!r} is not a non-negative integer")
++    return (min(k, SETTLE_STEPS) / SETTLE_STEPS, 1.0 if k >= SETTLE_STEPS else 0.0,
++            PHASE_GAMMA ** max(0, SETTLE_STEPS - k))
++
++
+ # ------------------------------------------------------------------------------------------------------------- arms
+ CONTROL = "control"
+-INTERVENTIONS = ("critic_blind_tail3", "gae_lambda_1", "frozen_obs_norm")
++INTERVENTIONS = ("critic_phase",)
+ ARMS = (CONTROL, *INTERVENTIONS)
+-# In-memory [ppo] edits of the stage config before the load (only gae_lambda_1 has one; the other two are hooks on
+-# the loaded objects, bs_hooks.py, and leave the stage config and its hyperparameters digest unchanged).
+-ARM_PPO_EDIT = {"control": {}, "critic_blind_tail3": {}, "gae_lambda_1": {"gae_lambda": 1.0}, "frozen_obs_norm": {}}
+-ARM_GAE_LAMBDA = {"control": 0.95, "critic_blind_tail3": 0.95, "gae_lambda_1": 1.0, "frozen_obs_norm": 0.95}
++# In-memory [ppo] edits of the stage config before the load: none in PS (critic_phase is a hook on the loaded objects,
++# bs_hooks.py, and leaves the stage config and its hyperparameters digest unchanged).
++ARM_PPO_EDIT = {"control": {}, "critic_phase": {}}
++ARM_GAE_LAMBDA = {"control": 0.95, "critic_phase": 0.95}
+ ENT_COEF_AFTER_LOAD = 0.005                     # the config's ent_coef, every arm (ECS arm A)
+ HYPERPARAMETERS_SHA256_RUN = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"  # ECS (copy1)
+ # What each arm changes, recorded verbatim in run_meta ("arm_change").
+ ARM_CHANGE = {
+     "control": "nothing: the run's own same-stage resume, every setting as recorded",
+-    "critic_blind_tail3": ("the value path only: the policy's mlp_extractor gets a forward_critic that replaces the "
+-                           "NORMALISED observation index 6 (tail_3 pitch angle) by 0.0 before the value MLP; "
+-                           "ActorCriticPolicy.forward, evaluate_actions and predict_values (and MirrorKLPPO's "
+-                           "mirrored-critic loss, which calls predict_values) all reach the value MLP through it; the "
+-                           "actor's inputs, every parameter, its shape and the optimizer are unchanged (a class swap "
+-                           "on the mlp_extractor instance, so the state_dict and the saved zip are stock)"),
+-    "gae_lambda_1": ("[ppo] gae_lambda 0.95 -> 1.0 in memory before the load (SB3's load applies it and builds the "
+-                     "rollout buffer with it): advantages are the bootstrapped Monte Carlo returns minus V; the "
+-                     "value target becomes the same Monte Carlo return; hyperparameters_sha256 changes"),
+-    "frozen_obs_norm": ("the training VecNormalize's observation statistics are frozen at the start pair's: its "
+-                        "obs_rms.update becomes a counted no-op (a class swap on the SymmetricRunningMeanStd "
+-                        "instance, pickling as the stock RunningMeanStd); VecNormalize.training stays True, so the "
+-                        "return statistics (ret_rms) keep updating and rewards are normalised exactly as the run "
+-                        "does; the evaluation env receives the frozen statistics by the run's own sync"),
+-}
++    "critic_phase": ("the critic alone also sees the episode phase: each TRAINING env's observation carries "
++                     "(ramp, settled, discount) of its own step counter in the three command slots 60-62 (always "
++                     "zero in stance; a class swap on each env instance's _get_obs); the policy's mlp_extractor gets a "
++                     "forward_actor that sets the NORMALISED slots 60-62 to 0.0 (the value the actor always saw) "
++                     "before the policy MLP, so the actor never sees the phase and its first-layer phase columns get "
++                     "no gradient; the critic's first-layer columns 60-62 (value_net.0.weight[:, 60:63]) are set to "
++                     "zero at the load (their Adam moments are already exactly zero), so the critic at the load is "
++                     "the start pair's on every input and learns the phase from there; the training VecNormalize's "
++                     "slots 60-62 are reseeded to mean 0 / var 1 and kept there after every update (a class swap on "
++                     "the SymmetricRunningMeanStd instance, pickling as the stock RunningMeanStd); MirrorKLPPO's "
++                     "observation mirror map maps slots 60-62 to themselves with sign +1; the policy probe feeds "
++                     "each bank state's phase to the critic (all ten bank states are settled, k >= 200); the "
++                     "evaluation env, the probe's bank env and every other setting are the run's own")}
+ 
+ # ------------------------------------------------------------------------------------------------------------- start
+ PARENT_RECORDS = ("eval_episodes.csv", "evaluations.npz", "gate_progress.npz", "train_episodes.csv",
+@@ -147,8 +190,9 @@
+ 
+ # ------------------------------------------------------------------------------------------------------------- seeds
+ # Validation runs (V1, V2, timing) use only these seeds and write only under <BS>/validate/; SCREEN.json may not use
+-# them, so a validation folder and a continuation can never share a name.  BS2's own (TASK2; BS used 9101-9141).
+-VALIDATION_SEEDS = (9201, 9211, 9221, 9231, 9241)
++# them, so a validation folder and a continuation can never share a name.  PS's own (TASK3; BS2 used 9201-9241, BS
++# 9101-9141).
++VALIDATION_SEEDS = (9401, 9411, 9421, 9431, 9441)
+ WAVE_SLOTS = 4                                  # TASK item 3
+ WAVE_NICE = 10
+ MAX_CRASHES = 3                                 # ECS: a third crash of its own writes it to lost.json
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_hooks.py /home/user/work/phase_screen/tools/bs_hooks.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/bs_hooks.py	2026-10-30 04:21:01.243725649 +0000
++++ /home/user/work/phase_screen/tools/bs_hooks.py	2026-10-31 13:32:00.068172996 +0000
+@@ -1,4 +1,4 @@
+-"""Bias screen (BS): the ARM HOOK and its evidence.
++"""Bias screen (BS), phase screen (PS): the ARM HOOK and its evidence.
+ 
+     install_arm(arm, model, train_env)   applies an arm to a loaded model and its training VecNormalize, in place,
+                                          after the run's own load (train_base._create_or_load_model, which also made
+@@ -26,6 +26,25 @@
+                        subclass whose update() is a counted no-op; it still pickles (and deep-copies) as the stock
+                        RunningMeanStd with the frozen mean / var / count.  VecNormalize.training stays True, so
+                        ret_rms keeps updating and the rewards are normalised as the run normalises them.
++  critic_phase (PS)    the critic alone also sees the episode phase (ramp, settled, discount of the env's own step
++                       counter k: bs_common THE PHASE) in the observation's three command slots 60-62, which are
++                       always zero in stance.  Five pieces, each a class swap on an instance or an in-place edit
++                       verified here: (1) every TRAINING env instance's _get_obs writes the phase into slots 60-62
++                       (the eval env and the probe's bank env are not touched); (2) the policy's mlp_extractor gets a
++                       forward_actor that sets the normalised slots 60-62 to 0.0 before the policy MLP (the value the
++                       actor always saw: the slots' statistics had mean 0), so every actor path (get_distribution,
++                       forward, evaluate_actions, MirrorKLPPO's mirrored KL) is the start pair's actor and the actor's
++                       first-layer phase columns get exactly zero gradient; (3) value_net.0.weight[:, 60:63] := 0 (their
++                       Adam moments are checked to be exactly zero already: the slots never carried a value), so the
++                       critic at the load is the start pair's on every input, then learns the phase (main's
++                       widen_checkpoint.py precedent: zero columns for a new input, moments zero); (4) the training
++                       VecNormalize's slots 60-62 are reseeded to mean 0 / var 1 (main's command_frame
++                       .reseed_command_slice rule: a slot that was constant zero has var ~2.4e-11 and would normalise
++                       a phase of 1 to 1e4, clipped at 10) and kept there after every update (the other 60 dims and the
++                       count update as in control; it pickles and deep-copies as the stock RunningMeanStd); (5)
++                       MirrorKLPPO's observation mirror map gets sign +1 on slots 60-62 (a phase is its own mirror
++                       image; the command map flips v_y and yaw_rate).  install_probe_phase makes the policy probe feed
++                       each bank state's own phase (kept step + 1; all ten are settled) to the critic.
+ Importing this module needs neither torch nor the code copy (they are imported inside the functions).
+ """
+ from __future__ import annotations
+@@ -35,12 +54,31 @@
+ from typing import Any
+ 
+ OBS_TAIL3 = 6                                   # bs_common.OBS_TAIL3
+-ARMS = ("control", "critic_blind_tail3", "gae_lambda_1", "frozen_obs_norm")
+-GAE_LAMBDA = {"control": 0.95, "critic_blind_tail3": 0.95, "gae_lambda_1": 1.0, "frozen_obs_norm": 0.95}
++ARMS = ("control", "critic_blind_tail3", "gae_lambda_1", "frozen_obs_norm", "critic_phase")   # PS uses control and
++GAE_LAMBDA = {"control": 0.95, "critic_blind_tail3": 0.95, "gae_lambda_1": 1.0,              # critic_phase only
++              "frozen_obs_norm": 0.95, "critic_phase": 0.95}                                # (bs_common.ARMS)
+ EVIDENCE_ROWS = 256                             # buffer rows the value-dependence check uses (the first 256)
+ PERTURB = (("plus1", "add", 1.0), ("minus_self", "neg", None), ("set3", "set", 3.0))
+ ADV_REL_TOL = 1e-4                              # |buffer advantage - recomputation| <= tol x max(1, max |recomputed|)
+ VALUE_REL_TOL = 1e-5                            # buffer values against the critic on the same rows (batching noise)
++# critic_phase (bs_common.OBS_DIM, PHASE_SLOTS, PHASE_FEATURES, SETTLE_STEPS, PHASE_GAMMA; repeated: no import)
++OBS_DIM = 63
++PHASE_SLOTS = (60, 61, 62)
++PHASE_LO, PHASE_HI = 60, 63
++PHASE_FEATURES = ("ramp", "settled", "discount")
++SETTLE_STEPS = 200
++PHASE_GAMMA = 0.98
++PHASE_RESEED = (0.0, 1.0)                       # the frozen slots' (mean, var): main's reseed_command_slice rule
++PHASE_PERTURB = (("zero", "set", 0.0), ("settled", "set", 1.0), ("plus1", "add", 1.0), ("set3", "set", 3.0),
++                 ("flip", "flip", None))        # normalised units, on slots 60-62 together
++PHASE_ACTOR_KEYS = ("dmu_phase_mode", "dmu_phase_forward_actions", "dmu_phase_log_prob", "dmu_phase_entropy",
++                    "dmu_phase_mirrored")
++PHASE_CRITIC_KEYS = ("dv_phase_predict_values", "dv_phase_forward", "dv_phase_evaluate_actions", "dv_phase_mirrored")
++PHASE_STRUCT_KEYS = ("phase_rows", "phase_buffer_max_err", "phase_k_start_consistent", "phase_k_end_consistent",
++                     "phase_k_min", "phase_k_max", "phase_rows_presettle", "phase_stats_frozen", "phase_rms_calls",
++                     "mirror_phase_self_map", "mirror_phase_tensors_ok", "envs_swapped", "value_phase_cols_max_abs",
++                     "policy_phase_cols_unchanged", "policy_phase_adam_max_abs", "n_updates_since_load",
++                     "adam_steps_since_load")
+ 
+ 
+ class HookError(Exception):
+@@ -95,6 +133,238 @@
+     return dict(c) if isinstance(c, dict) else None
+ 
+ 
++# ------------------------------------------------------------------------------------------------ critic_phase
++def phase_tuple(k: int) -> tuple[float, float, float]:
++    """(ramp, settled, discount) at episode step counter k: bs_common.phase_features, the same float arithmetic."""
++    if isinstance(k, bool) or int(k) != k or int(k) < 0:
++        raise ValueError(f"step counter {k!r} is not a non-negative integer")
++    k = int(k)
++    return (min(k, SETTLE_STEPS) / SETTLE_STEPS, 1.0 if k >= SETTLE_STEPS else 0.0,
++            PHASE_GAMMA ** max(0, SETTLE_STEPS - k))
++
++
++def phase_matrix(ks: Any) -> Any:
++    """(n, 3) float64: phase_tuple of each counter in ks (element for element the same floats)."""
++    import numpy as np
++
++    flat = np.asarray(ks).reshape(-1)
++    return np.array([phase_tuple(int(k)) for k in flat], dtype=np.float64).reshape(len(flat), 3)
++
++
++def phase_env_class(base: type) -> type:
++    """A subclass of a training env's class whose _get_obs writes the phase of the env's own step counter into the
++    command slots 60-62 (the counter as the reward gates read it: 0 at reset, incremented before _get_obs)."""
++    key = ("phase_env", base)
++    if key not in _CLASS_CACHE:
++
++        def _get_obs(self: Any) -> Any:
++            import numpy as np
++
++            obs = base._get_obs(self)
++            if np.shape(obs) != (OBS_DIM,):
++                raise HookError(f"critic_phase: an observation of shape {np.shape(obs)}, not ({OBS_DIM},)")
++            command = getattr(self, "_command", None)
++            if command is not None and np.any(np.asarray(command) != 0.0):
++                raise HookError("critic_phase: a live command in the observation's command slots")
++            obs[PHASE_LO:PHASE_HI] = phase_tuple(int(getattr(self, "_step_count", 0)))
++            return obs
++
++        _CLASS_CACHE[key] = type(f"PhaseObs{base.__name__}", (base,),
++                                 {"_get_obs": _get_obs, "ps_phase_env": True, "bs_base": base,
++                                  "__module__": base.__module__})
++    return _CLASS_CACHE[key]
++
++
++def critic_phase_class(base: type) -> type:
++    """A subclass of the policy's MlpExtractor class whose forward_actor sees the normalised slots 60-62 as 0.0."""
++    key = ("critic_phase", base)
++    if key not in _CLASS_CACHE:
++
++        def forward_actor(self: Any, features: Any) -> Any:
++            masked = features.clone()            # never write into the caller's tensor (the critic reads it too)
++            masked[..., PHASE_LO:PHASE_HI] = 0.0
++            return base.forward_actor(self, masked)
++
++        _CLASS_CACHE[key] = type(f"CriticPhase{base.__name__}", (base,),
++                                 {"forward_actor": forward_actor, "ps_phase_slots": PHASE_SLOTS, "bs_base": base,
++                                  "__module__": base.__module__})
++    return _CLASS_CACHE[key]
++
++
++def phase_rms_class(base: type) -> type:
++    """A subclass of the observation RunningMeanStd class whose update() is the base's followed by putting slots
++    60-62 back to PHASE_RESEED (mean 0, var 1); counted; pickles and deep-copies as the stock RunningMeanStd."""
++    key = ("phase_rms", base)
++    if key not in _CLASS_CACHE:
++        from stable_baselines3.common.running_mean_std import RunningMeanStd
++
++        counter = {"calls": 0, "rows": 0}
++
++        def update(self: Any, arr: Any) -> None:
++            import numpy as np
++
++            base.update(self, arr)
++            counter["calls"] += 1
++            counter["rows"] += int(np.shape(arr)[0]) if np.ndim(arr) else 0
++            reseed_phase_slots(self)
++
++        def __reduce__(self: Any) -> Any:  # noqa: N807 - the pickle protocol's name
++            state = {"mean": self.mean.copy(), "var": self.var.copy(), "count": float(self.count)}
++            return (RunningMeanStd, (1e-4, tuple(self.mean.shape)), state)
++
++        _CLASS_CACHE[key] = type(f"PhaseSlots{base.__name__}", (base,),
++                                 {"update": update, "__reduce__": __reduce__, "ps_counter": counter,
++                                  "bs_base": base, "__module__": base.__module__})
++    return _CLASS_CACHE[key]
++
++
++def reseed_phase_slots(rms: Any) -> None:
++    """mean[60:63] = 0, var[60:63] = 1 on new arrays (never written into an array another object may hold)."""
++    import numpy as np
++
++    mean = np.array(rms.mean, dtype=np.float64, copy=True)
++    var = np.array(rms.var, dtype=np.float64, copy=True)
++    mean[PHASE_LO:PHASE_HI], var[PHASE_LO:PHASE_HI] = PHASE_RESEED
++    rms.mean, rms.var = mean, var
++
++
++def phase_slots_frozen(rms: Any) -> bool:
++    import numpy as np
++
++    return bool(np.all(np.asarray(rms.mean)[PHASE_LO:PHASE_HI] == PHASE_RESEED[0])
++                and np.all(np.asarray(rms.var)[PHASE_LO:PHASE_HI] == PHASE_RESEED[1]))
++
++
++def phase_counter(rms: Any) -> dict | None:
++    c = getattr(type(rms), "ps_counter", None)
++    return dict(c) if isinstance(c, dict) else None
++
++
++def phase_mirror_map(mirror_map: Any) -> Any:
++    """The run's mirror map with slots 60-62 mapped to themselves with sign +1 (a phase is its own mirror image)."""
++    import dataclasses
++    from types import SimpleNamespace
++
++    import numpy as np
++
++    obs = mirror_map.obs
++    perm = np.array(obs.perm, dtype=np.int64, copy=True)
++    sign = np.array(obs.sign, dtype=np.float64, copy=True)
++    if perm.shape != (OBS_DIM,) or any(int(perm[i]) != i for i in PHASE_SLOTS):
++        raise HookError(f"the observation mirror map moves a command slot (perm {perm[PHASE_LO:PHASE_HI].tolist()})")
++    sign[PHASE_LO:PHASE_HI] = 1.0
++    if dataclasses.is_dataclass(obs) and dataclasses.is_dataclass(mirror_map):
++        names = list(obs.names) if obs.names else [""] * OBS_DIM
++        rules = list(obs.rules) if obs.rules else [""] * OBS_DIM
++        for i, f in zip(PHASE_SLOTS, PHASE_FEATURES, strict=True):
++            names[i] = f"critic_phase.{f}"
++            rules[i] = "critic_phase (PS): a function of the episode step counter, its own mirror image: sign +1"
++        new_obs = type(obs)(perm=perm, sign=sign, names=tuple(names), rules=tuple(rules))
++        return dataclasses.replace(mirror_map, obs=new_obs)
++    return SimpleNamespace(**{**vars(mirror_map), "obs": SimpleNamespace(perm=perm, sign=sign, dim=OBS_DIM)})
++
++
++def mirror_phase_self_map(omap: Any) -> bool:
++    import numpy as np
++
++    if omap is None:
++        return False
++    perm, sign = np.asarray(omap.perm), np.asarray(omap.sign)
++    return bool(all(int(perm[i]) == i for i in PHASE_SLOTS) and np.all(sign[PHASE_LO:PHASE_HI] == 1.0))
++
++
++def train_envs(train_env: Any) -> list:
++    """The training VecNormalize's env instances (unwrapped): DummyVecEnv.envs (HookError if there are none)."""
++    envs = getattr(getattr(train_env, "venv", None), "envs", None)
++    if not isinstance(envs, list) or not envs:
++        raise HookError("the training VecNormalize does not wrap a DummyVecEnv with env instances")
++    return [getattr(e, "unwrapped", e) for e in envs]
++
++
++def env_step_counts(train_env: Any) -> list[int]:
++    """Each training env's episode step counter now (read only)."""
++    return [int(e._step_count) for e in train_envs(train_env)]
++
++
++def _adam_state(policy: Any, param: Any) -> dict:
++    st = getattr(policy, "optimizer", None)
++    st = st.state.get(param) if st is not None else None
++    return st if isinstance(st, dict) else {}
++
++
++def _adam_phase_max_abs(policy: Any, param: Any) -> float:
++    st = _adam_state(policy, param)
++    vals = [float(st[k][:, PHASE_LO:PHASE_HI].abs().max()) for k in ("exp_avg", "exp_avg_sq", "max_exp_avg_sq")
++            if k in st and hasattr(st[k], "abs")]
++    return max(vals) if vals else 0.0
++
++
++def _adam_steps(policy: Any) -> float:
++    opt = getattr(policy, "optimizer", None)
++    steps = [float(v["step"]) for v in (opt.state.values() if opt is not None else []) if "step" in v]
++    return max(steps) if steps else 0.0
++
++
++def phase_reference(model: Any) -> dict:
++    """What critic_phase's evidence compares with (taken right after install_arm): the actor's phase columns, the
++    update and Adam step counts at the load (not JSON: kept by the caller in memory)."""
++    w = model.policy.mlp_extractor.policy_net[0].weight
++    return {"policy_phase_cols": w[:, PHASE_LO:PHASE_HI].detach().clone(),
++            "n_updates": int(getattr(model, "_n_updates", 0)), "adam_steps": _adam_steps(model.policy)}
++
++
++def phase_probe_class(base: type) -> type:
++    """A subclass of the policy probe callback whose per-update row feeds each bank state's own phase (k = kept step
++    + 1: the observation kept after step index s carries _step_count s + 1) into the bank's command slots for the
++    duration of the row (the bank the file records, and compares with a prior session's, is left as built)."""
++    key = ("phase_probe", base)
++    if key not in _CLASS_CACHE:
++
++        def _row(self: Any) -> Any:
++            import numpy as np
++
++            bank = self.bank
++            fed = np.array(bank.raw_obs, dtype=np.float64, copy=True)
++            fed[:, PHASE_LO:PHASE_HI] = phase_matrix(np.asarray(bank.steps, dtype=np.int64) + 1)
++            self.bank = bank._replace(raw_obs=fed)
++            try:
++                return base._row(self)
++            finally:
++                self.bank = bank
++
++        _CLASS_CACHE[key] = type(f"PhaseFed{base.__name__}", (base,),
++                                 {"_row": _row, "ps_phase_fed": True, "bs_base": base, "__module__": base.__module__})
++    return _CLASS_CACHE[key]
++
++
++def probe_phase(arm: str, callbacks: list) -> dict:
++    """At training start (after the probe built its bank): critic_phase swaps the one PolicyProbeCallback to
++    phase_probe_class; every other arm only checks the probe is the stock one.  Returns the record (which phase the
++    probe feeds, per bank row).  HookError when the probe is not as expected."""
++    import numpy as np
++
++    probes = [c for c in callbacks if any(k.__name__ == "PolicyProbeCallback" for k in type(c).__mro__)]
++    if len(probes) != 1:
++        raise HookError(f"{len(probes)} policy probe callbacks, expected 1")
++    probe = probes[0]
++    bank = getattr(probe, "bank", None)
++    if bank is None:
++        raise HookError("the policy probe built no state bank")
++    if getattr(type(probe), "ps_phase_fed", False):
++        raise HookError("the policy probe already feeds a phase")
++    k = (np.asarray(bank.steps, dtype=np.int64) + 1).tolist()
++    rec = {"arm": arm, "class_before": type(probe).__name__, "labels": list(bank.labels),
++           "kept_steps": np.asarray(bank.steps).tolist(), "k": k, "installed": False, "phase_fed": None}
++    if arm == "critic_phase":
++        probe.__class__ = phase_probe_class(type(probe))
++        rec.update(installed=True, phase_fed=phase_matrix(k).tolist(),
++                   settled=[bool(x >= SETTLE_STEPS) for x in k],
++                   rule="each bank row's critic input carries phase(kept step + 1) in slots 60-62; the actor's are "
++                        "masked; the file's bank_raw_obs stays as built")
++    rec["class"] = type(probe).__name__
++    return rec
++
++
+ # ------------------------------------------------------------------------------------------------ digests
+ def _hash(arrays: list) -> str:
+     import numpy as np
+@@ -168,22 +438,135 @@
+         rec["obs_rms_digest_at_freeze"] = rms_digest(rms)
+         rms.__class__ = frozen_rms_class(type(rms))
+         rec["vecnormalize_training"] = bool(train_env.training)
++    if arm == "critic_phase":
++        rec.update(_install_critic_phase(model, train_env))
+     rec.update(mlp_extractor_class=type(policy.mlp_extractor).__name__, obs_rms_class=type(train_env.obs_rms).__name__)
+     return rec
+ 
+ 
++def _install_critic_phase(model: Any, train_env: Any) -> dict:
++    """critic_phase's five pieces (module docstring), each checked before and after; HookError on any deviation
++    (nothing has trained: the caller refuses before learn())."""
++    import numpy as np
++    import torch
++    from stable_baselines3.common.torch_layers import FlattenExtractor, MlpExtractor
++
++    policy = model.policy
++    ext = policy.mlp_extractor
++    extractors = [policy.features_extractor] if policy.share_features_extractor else [
++        policy.pi_features_extractor, policy.vf_features_extractor]
++    if any(type(x) is not FlattenExtractor for x in extractors):
++        raise HookError("the features extractor is not SB3's FlattenExtractor: features 60-62 might not be slots 60-62")
++    obs_dim = int(model.observation_space.shape[0])
++    w_pi, w_vf = ext.policy_net[0].weight, ext.value_net[0].weight
++    if obs_dim != OBS_DIM or w_pi.shape[1] != OBS_DIM or w_vf.shape[1] != OBS_DIM:
++        raise HookError(f"observation width {obs_dim}, first layers {w_pi.shape[1]} / {w_vf.shape[1]}, not {OBS_DIM}")
++    state = getattr(model, "_mirror", None)
++    omap = _mirror_obs_map(model)
++    if state is None or omap is None:
++        raise HookError("critic_phase needs the run's MirrorKLPPO mirror state (the mirrored critic sees the phase)")
++    adam_vf, adam_pi = _adam_phase_max_abs(policy, w_vf), _adam_phase_max_abs(policy, w_pi)
++    if adam_vf != 0.0 or adam_pi != 0.0:
++        raise HookError(f"the first layers' Adam moments on slots 60-62 are not zero (critic {adam_vf}, actor "
++                        f"{adam_pi}): the slots carried a value during training")
++    rms = train_env.obs_rms
++    if not (getattr(train_env, "training", False) and getattr(train_env, "norm_obs", False)):
++        raise HookError("the training VecNormalize does not train / normalise observations")
++    if isinstance(rms, dict) or any(getattr(type(rms), a, None) is not None for a in ("bs_counter", "ps_counter")):
++        raise HookError(f"obs_rms {type(rms).__name__} cannot take the phase slots")
++    if not np.all(np.asarray(rms.mean)[PHASE_LO:PHASE_HI] == 0.0):
++        raise HookError(f"the slots' running mean is {np.asarray(rms.mean)[PHASE_LO:PHASE_HI].tolist()}, not 0: "
++                        "they carried a value")
++    envs = train_envs(train_env)
++    for e in envs:
++        if getattr(type(e), "ps_phase_env", False):
++            raise HookError("a training env already carries the phase")
++        if getattr(e, "direction_controller", None) is not None or np.any(np.asarray(getattr(e, "_command", 0)) != 0):
++            raise HookError("a training env has a live command: its command slots are not free")
++    if type(ext) is not MlpExtractor:
++        raise HookError(f"the policy's mlp_extractor is {type(ext).__name__}, not MlpExtractor")
++    new_map = phase_mirror_map(state.mirror_map)      # built (and checked) before anything is changed
++    rec: dict[str, Any] = {
++        "phase_slots": list(PHASE_SLOTS), "phase_features": list(PHASE_FEATURES), "settle_steps": SETTLE_STEPS,
++        "phase_gamma": PHASE_GAMMA, "obs_rms_slots_before": {"mean": np.asarray(rms.mean)[PHASE_LO:PHASE_HI].tolist(),
++                                                             "var": np.asarray(rms.var)[PHASE_LO:PHASE_HI].tolist()},
++        "value_phase_cols_max_abs_before": float(w_vf[:, PHASE_LO:PHASE_HI].detach().abs().max()),
++        "policy_phase_cols_max_abs": float(w_pi[:, PHASE_LO:PHASE_HI].detach().abs().max()),
++        "adam_phase_moments_max_abs_before": {"critic": adam_vf, "actor": adam_pi},
++        "mirror_obs_sign_slots_before": np.asarray(omap.sign)[PHASE_LO:PHASE_HI].tolist(),
++        "n_train_envs": len(envs), "train_env_class_before": type(envs[0]).__name__}
++    before = {k: v.detach().clone() for k, v in policy.state_dict().items()}
++    opt_before = _hash([(f"{i}.{n}", np.asarray(v[n].detach().cpu() if hasattr(v[n], "detach") else v[n]))
++                        for i, v in sorted(policy.optimizer.state_dict().get("state", {}).items()) for n in sorted(v)])
++    # (3) the critic's phase columns := 0 (the widen precedent's zero columns)
++    with torch.no_grad():
++        w_vf[:, PHASE_LO:PHASE_HI] = 0.0
++    # (4) the slots' statistics: reseeded and frozen (the count and the other dims update as in control)
++    reseed_phase_slots(rms)
++    rms.__class__ = phase_rms_class(type(rms))
++    # (2) the actor's mask
++    ext.__class__ = critic_phase_class(MlpExtractor)
++    # (1) the training envs' observations carry the phase
++    for e in envs:
++        e.__class__ = phase_env_class(type(e))
++    # (5) the mirror map: slots 60-62 map to themselves with sign +1; MirrorKLPPO rebuilds its tensors from it
++    state.mirror_map = new_map
++    if getattr(state, "tensors", None):
++        state.tensors = {}
++    # the transform, verified: every tensor equal except value_net.0.weight[:, 60:63], now exactly zero
++    after = policy.state_dict()
++    name = "mlp_extractor.value_net.0.weight"
++    if list(before) != list(after):
++        raise HookError("the critic_phase hook changed the policy's state_dict keys")
++    for k in before:
++        a, b = before[k], after[k]
++        if k == name:
++            keep = torch.ones(a.shape[1], dtype=torch.bool)
++            keep[PHASE_LO:PHASE_HI] = False
++            if not (a[:, keep].equal(b[:, keep]) and torch.all(b[:, PHASE_LO:PHASE_HI] == 0.0)):
++                raise HookError("the critic's first layer changed outside slots 60-62 or is not zero on them")
++        elif not a.equal(b):
++            raise HookError(f"the critic_phase hook changed {k}")
++    opt_after = _hash([(f"{i}.{n}", np.asarray(v[n].detach().cpu() if hasattr(v[n], "detach") else v[n]))
++                       for i, v in sorted(policy.optimizer.state_dict().get("state", {}).items()) for n in sorted(v)])
++    if opt_after != opt_before:
++        raise HookError("the critic_phase hook changed the optimizer state")
++    rec.update(transform_verified=True, obs_rms_slots_after={"mean": list(PHASE_RESEED[:1]) * 3,
++                                                             "var": list(PHASE_RESEED[1:]) * 3},
++               train_env_class=type(envs[0]).__name__, mirror_obs_sign_slots_after=[1.0, 1.0, 1.0],
++               mirror_map_sha256_source=getattr(state.mirror_map, "sha256", None))
++    return rec
++
++
+ def arm_state_problems(arm: str, model: Any, train_env: Any) -> list[str]:
+     """The arm's hook in force and no other arm's: [] or the reasons (cheap; class identities and gae_lambda)."""
+     from stable_baselines3.common.torch_layers import MlpExtractor
+ 
+     p = []
+     ext = type(model.policy.mlp_extractor)
+-    blind = ext is critic_blind_class(MlpExtractor)
+-    if (arm == "critic_blind_tail3") != blind or (not blind and ext is not MlpExtractor):
++    want = {"critic_blind_tail3": critic_blind_class(MlpExtractor),
++            "critic_phase": critic_phase_class(MlpExtractor)}.get(arm, MlpExtractor)
++    if ext is not want:
+         p.append(f"mlp_extractor class {ext.__name__} is not the {arm} one")
+     frozen = getattr(type(train_env.obs_rms), "bs_counter", None) is not None
+     if (arm == "frozen_obs_norm") != frozen:
+         p.append(f"obs_rms class {type(train_env.obs_rms).__name__} is not the {arm} one")
++    phased = getattr(type(train_env.obs_rms), "ps_counter", None) is not None
++    if (arm == "critic_phase") != phased:
++        p.append(f"obs_rms class {type(train_env.obs_rms).__name__} is not the {arm} one (phase slots)")
++    if arm == "critic_phase" and not phase_slots_frozen(train_env.obs_rms):
++        p.append("the phase slots' statistics are not mean 0 / var 1")
++    if arm == "critic_phase" and not mirror_phase_self_map(_mirror_obs_map(model)):
++        p.append("the mirror map does not map slots 60-62 to themselves with sign +1")
++    try:
++        swapped = [bool(getattr(type(e), "ps_phase_env", False)) for e in train_envs(train_env)]
++    except HookError:
++        swapped = None
++    if arm == "critic_phase" and swapped is None:
++        p.append("no training env instances to check for the phase")
++    if swapped is not None and any(swapped) != (arm == "critic_phase") or (swapped and arm == "critic_phase"
++                                                                          and not all(swapped)):
++        p.append(f"training envs carrying the phase {swapped} do not fit arm {arm}")
+     for what, lam in (("model", model.gae_lambda), ("rollout buffer", model.rollout_buffer.gae_lambda)):
+         if float(lam) != GAE_LAMBDA[arm]:
+             p.append(f"{what} gae_lambda {lam} != {GAE_LAMBDA[arm]}")
+@@ -299,8 +682,126 @@
+     return out
+ 
+ 
++def _phase_perturbed(obs: Any, kind: str, value: float | None) -> Any:
++    out = obs.clone()
++    if kind == "add":
++        out[:, PHASE_LO:PHASE_HI] = out[:, PHASE_LO:PHASE_HI] + value
++    elif kind == "flip":
++        out[:, PHASE_LO:PHASE_HI] = 1.0 - out[:, PHASE_LO:PHASE_HI]
++    else:
++        out[:, PHASE_LO:PHASE_HI] = value
++    return out
++
++
++def phase_dependence(policy: Any, obs: Any, actions: Any, mirror_obs_map: Any = None) -> dict:
++    """Max |change| of the actor (the mean, the deterministic actions, the log-probability of the given actions, the
++    entropy, the mirrored observations' mean) and of the critic (predict_values, forward, evaluate_actions, the
++    mirrored observations' predict_values) when the normalised slots 60-62 are perturbed PHASE_PERTURB's five ways.
++    no_grad, deterministic; the policy's action_dist is put back as found."""
++    stored = dict(vars(policy.action_dist))
++    try:
++        return _phase_dependence(policy, obs, actions, mirror_obs_map)
++    finally:
++        vars(policy.action_dist).clear()
++        vars(policy.action_dist).update(stored)
++
++
++def _phase_dependence(policy: Any, obs: Any, actions: Any, omap: Any) -> dict:
++    import torch
++
++    def mx(a: Any, b: Any) -> float:
++        return float((a.flatten() - b.flatten()).abs().max())
++
++    out = {k: 0.0 for k in (*PHASE_ACTOR_KEYS, *PHASE_CRITIC_KEYS)}
++    with torch.no_grad():
++        mu0 = policy.get_distribution(obs).mode()
++        a0, vf0, lpf0 = policy.forward(obs, deterministic=True)
++        ve0, lp0, ent0 = policy.evaluate_actions(obs, actions)
++        pv0 = policy.predict_values(obs)
++        om = None
++        if omap is not None:
++            om = obs[:, torch.as_tensor(omap.perm)] * torch.as_tensor(omap.sign, dtype=obs.dtype)
++            mm0, mv0 = policy.get_distribution(om).mode(), policy.predict_values(om)
++        for _, kind, val in PHASE_PERTURB:
++            x = _phase_perturbed(obs, kind, val)
++            a, vf, lpf = policy.forward(x, deterministic=True)
++            ve, lp, ent = policy.evaluate_actions(x, actions)
++            got = {"dmu_phase_mode": mx(policy.get_distribution(x).mode(), mu0),
++                   "dmu_phase_forward_actions": max(mx(a, a0), mx(lpf, lpf0)), "dmu_phase_log_prob": mx(lp, lp0),
++                   "dmu_phase_entropy": mx(ent, ent0) if ent is not None else 0.0,
++                   "dv_phase_predict_values": mx(policy.predict_values(x), pv0), "dv_phase_forward": mx(vf, vf0),
++                   "dv_phase_evaluate_actions": mx(ve, ve0)}
++            if om is not None:
++                xm = _phase_perturbed(om, kind, val)
++                got.update(dmu_phase_mirrored=mx(policy.get_distribution(xm).mode(), mm0),
++                           dv_phase_mirrored=mx(policy.predict_values(xm), mv0))
++            for k, v in got.items():
++                out[k] = max(out[k], v)
++    if om is None:
++        out.update(dmu_phase_mirrored=None, dv_phase_mirrored=None)
++    return out
++
++
++def phase_buffer_check(buf: Any, train_env: Any, k0: list, dones: Any, k_now: list) -> dict:
++    """critic_phase: every buffer row's normalised slots 60-62 against VecNormalize's own formula applied to the phase
++    of the row's step counter, reconstructed from the envs' counters at the rollout's start (k0) and the buffer's
++    episode starts; the reconstruction must also reach the envs' counters now (k_now, after the last step)."""
++    import numpy as np
++
++    starts = np.asarray(buf.episode_starts) > 0
++    n, n_env = starts.shape
++    k = np.zeros((n, n_env), dtype=np.int64)
++    k0 = np.asarray(k0, dtype=np.int64)
++    k[0] = k0
++    for t in range(1, n):
++        k[t] = np.where(starts[t], 0, k[t - 1] + 1)
++    end = np.where(np.asarray(dones, dtype=bool), 0, k[n - 1] + 1)
++    rms = train_env.obs_rms
++    raw = phase_matrix(k.reshape(-1)).astype(np.float32).reshape(n, n_env, 3)
++    mean, var = np.asarray(rms.mean)[PHASE_LO:PHASE_HI], np.asarray(rms.var)[PHASE_LO:PHASE_HI]
++    expect = np.clip((raw - mean) / np.sqrt(var + float(train_env.epsilon)), -float(train_env.clip_obs),
++                     float(train_env.clip_obs)).astype(np.float32)
++    got = np.asarray(buf.observations)[..., PHASE_LO:PHASE_HI]
++    return {"phase_rows": int(n * n_env),
++            "phase_buffer_max_err": float(np.max(np.abs(got.astype(np.float64) - expect.astype(np.float64)))),
++            "phase_k_start_consistent": bool(np.array_equal(starts[0], k0 == 0)),
++            "phase_k_end_consistent": bool(np.array_equal(end, np.asarray(k_now, dtype=np.int64))),
++            "phase_k_min": int(k.min()), "phase_k_max": int(k.max()),
++            "phase_rows_presettle": int((k < SETTLE_STEPS).sum())}
++
++
++def phase_state(model: Any, train_env: Any, ref: dict) -> dict:
++    """critic_phase's per-rollout state: the weights' phase columns, the statistics' slots, the mirror map, the envs."""
++    import torch
++
++    policy = model.policy
++    w_pi = policy.mlp_extractor.policy_net[0].weight
++    w_vf = policy.mlp_extractor.value_net[0].weight
++    st = getattr(model, "_mirror", None)
++    tensors = getattr(st, "tensors", None) or {}
++    tens_ok = None
++    if tensors:
++        tens_ok = bool(torch.all(tensors["obs_sign"][PHASE_LO:PHASE_HI] == 1.0)
++                       and torch.equal(tensors["obs_perm"][PHASE_LO:PHASE_HI], torch.arange(PHASE_LO, PHASE_HI)))
++    try:
++        envs_ok = all(getattr(type(e), "ps_phase_env", False) for e in train_envs(train_env))
++    except HookError:
++        envs_ok = False
++    pc = phase_counter(train_env.obs_rms)
++    return {"value_phase_cols_max_abs": float(w_vf[:, PHASE_LO:PHASE_HI].detach().abs().max()),
++            "policy_phase_cols_unchanged": bool(torch.equal(w_pi[:, PHASE_LO:PHASE_HI].detach(),
++                                                            ref["policy_phase_cols"])),
++            "policy_phase_adam_max_abs": _adam_phase_max_abs(policy, w_pi),
++            "n_updates_since_load": int(getattr(model, "_n_updates", 0)) - int(ref["n_updates"]),
++            "adam_steps_since_load": _adam_steps(policy) - float(ref["adam_steps"]),
++            "phase_stats_frozen": phase_slots_frozen(train_env.obs_rms),
++            "phase_rms_calls": pc["calls"] if pc else None,
++            "mirror_phase_self_map": mirror_phase_self_map(_mirror_obs_map(model)),
++            "mirror_phase_tensors_ok": tens_ok, "envs_swapped": envs_ok}
++
++
+ def rollout_evidence(arm: str, model: Any, train_env: Any, locals_: dict, *, start_obs_digest: str | None,
+-                     rows: int = EVIDENCE_ROWS) -> dict:
++                     rows: int = EVIDENCE_ROWS, phase_ctx: dict | None = None) -> dict:
+     """What the arm did on the rollout that just ended (see the module docstring).  Read only."""
+     import numpy as np
+     import torch
+@@ -335,12 +836,24 @@
+         "digest_rewards": _hash([("rewards", buf.rewards)]),
+         "digest_values": _hash([("values", buf.values), ("last_values", np.asarray(last_values))]),
+         "digest_advantages": _hash([("advantages", buf.advantages), ("returns", buf.returns)]),
++        # PS: the env side without the phase slots (critic_phase's observations carry the phase there; with train()
++        # a no-op and the same seed this digest is control's), and the statistics without them
++        "digest_env_side_no_phase": _hash([("obs", np.asarray(buf.observations)[..., :PHASE_LO]),
++                                           ("actions", buf.actions), ("episode_starts", buf.episode_starts)]),
+     }
+     n_obs = buf.observations.shape[-1]
+     obs = torch.as_tensor(np.asarray(buf.observations).reshape(-1, n_obs)[:rows], dtype=torch.float32)
+     acts = torch.as_tensor(np.asarray(buf.actions).reshape(-1, buf.actions.shape[-1])[:rows], dtype=torch.float32)
+     vals = np.asarray(buf.values, dtype=np.float64).reshape(-1)[:rows]
+     ev.update(value_dependence(policy, obs, acts, _mirror_obs_map(model)))
++    ev.update(phase_dependence(policy, obs, acts, _mirror_obs_map(model)))    # PS: every arm (control: the actor
++    if arm == "critic_phase":                                                # responds to the slots; critic_phase:
++        if not phase_ctx or "k0" not in phase_ctx or "ref" not in phase_ctx:  # exactly not)
++            raise HookError("critic_phase evidence needs the rollout's start counters and the load reference")
++        ev.update(phase_buffer_check(buf, train_env, phase_ctx["k0"], dones, env_step_counts(train_env)))
++        ev.update(phase_state(model, train_env, phase_ctx["ref"]))
++    else:
++        ev.update({k: None for k in PHASE_STRUCT_KEYS})
+     with torch.no_grad():                        # value paths only: action_dist is not touched
+         v_eff = policy.predict_values(obs).flatten().double().numpy()
+         v_raw = raw_values(policy, obs).flatten().double().numpy()
+@@ -348,6 +861,9 @@
+     ev.update(buffer_values_vs_critic=float(np.max(np.abs(vals - v_eff))),
+               buffer_values_vs_raw_value_mlp=float(np.max(np.abs(vals - v_raw))), value_scale=vscale)
+     rms = train_env.obs_rms
++    ev.update(obs_rms_digest_no_phase=_hash([("mean", np.asarray(rms.mean)[:PHASE_LO]),
++                                             ("var", np.asarray(rms.var)[:PHASE_LO]),
++                                             ("count", np.float64(rms.count))]))
+     ev.update(obs_rms_digest=rms_digest(rms), obs_rms_equal_start=(rms_digest(rms) == start_obs_digest),
+               obs_rms_count=float(rms.count), ret_rms_count=float(train_env.ret_rms.count),
+               ret_rms_var=float(np.asarray(train_env.ret_rms.var).reshape(-1)[0]),
+@@ -385,6 +901,47 @@
+     out["frozen_update_calls_first_last"] = [fz[0]["calls"], fz[-1]["calls"]] if fz else None
+     out["state_problems"] = sorted({p for e in evidence for p in e.get("state_problems") or []})
+     out["steps_first_last"] = [evidence[0]["num_timesteps"], evidence[-1]["num_timesteps"]]
++    out.update(_phase_summary(evidence))
++    return out
++
++
++def _phase_summary(evidence: list[dict]) -> dict:
++    """PS: the phase evidence's summary (pure).  Actor: the max over its five paths; critic: per path.  critic_phase
++    rows split by n_updates_since_load: 0 (the zero-initialised columns: no response allowed) and >= 1 (after at
++    least one optimizer step: a response required)."""
++    out: dict[str, Any] = {}
++    acts = [max(e[k] for k in PHASE_ACTOR_KEYS if isinstance(e.get(k), (int, float))) for e in evidence
++            if any(isinstance(e.get(k), (int, float)) for k in PHASE_ACTOR_KEYS)]
++    out["max_dmu_phase"] = max(acts) if acts else None
++    out["min_dmu_phase"] = min(acts) if acts else None
++    for k in PHASE_CRITIC_KEYS:
++        vals = [e[k] for e in evidence if isinstance(e.get(k), (int, float))]
++        out[f"max_{k}"] = max(vals) if vals else None
++        out[f"min_{k}"] = min(vals) if vals else None
++    pe = [e for e in evidence if e.get("phase_buffer_max_err") is not None]
++    out["phase_rows_recorded"] = len(pe)
++    if not pe:
++        return out
++    out["max_phase_buffer_max_err"] = max(e["phase_buffer_max_err"] for e in pe)
++    out["phase_all_k_consistent"] = all(e["phase_k_start_consistent"] and e["phase_k_end_consistent"] for e in pe)
++    for key in ("phase_stats_frozen", "mirror_phase_self_map", "policy_phase_cols_unchanged", "envs_swapped"):
++        out[f"phase_all_{key}"] = all(e.get(key) is True for e in pe)
++    out["phase_all_mirror_tensors_ok"] = all(e.get("mirror_phase_tensors_ok") in (None, True) for e in pe)
++    out["max_policy_phase_adam_max_abs"] = max(e["policy_phase_adam_max_abs"] for e in pe)
++    flags = [e["n_updates_since_load"] >= 1 for e in pe]
++    out["phase_rows_ordered"] = flags == sorted(flags)
++    zero, upd = [e for e in pe if e["n_updates_since_load"] == 0], [e for e in pe if e["n_updates_since_load"] >= 1]
++    out["phase_n_zero_init"], out["phase_n_updated"] = len(zero), len(upd)
++    out["phase_n_negative_updates"] = sum(1 for e in pe if e["n_updates_since_load"] < 0)
++    out["zero_init_max_value_phase_cols"] = max((e["value_phase_cols_max_abs"] for e in zero), default=None)
++    out["zero_init_max_dv_phase"] = max((e[k] for e in zero for k in PHASE_CRITIC_KEYS
++                                         if isinstance(e.get(k), (int, float))), default=None)
++    out["updated_min_value_phase_cols"] = min((e["value_phase_cols_max_abs"] for e in upd), default=None)
++    out["updated_min_dv_phase"] = {k: min((e[k] for e in upd if isinstance(e.get(k), (int, float))), default=None)
++                                   for k in PHASE_CRITIC_KEYS}
++    out["updated_min_adam_steps_since_load"] = min((e["adam_steps_since_load"] for e in upd), default=None)
++    out["phase_rows_presettle_total"] = sum(e["phase_rows_presettle"] for e in pe)
++    out["phase_k_max"] = max(e["phase_k_max"] for e in pe)
+     return out
+ 
+ 
+@@ -429,6 +986,7 @@
+     else:
+         if not (s.get("min_dv_predict_values") is not None and s["min_dv_predict_values"] > 0.0):
+             p.append(f"evidence: {arm}: the critic did not depend on observation 6 on some rollout")
++    p += _phase_problems(arm, s, n)
+     if arm == "frozen_obs_norm":
+         if not s.get("obs_rms_equal_start_all"):
+             p.append("evidence: frozen_obs_norm: the observation statistics moved from the start pair's")
+@@ -444,3 +1002,46 @@
+         if n > 1 and not s.get("obs_rms_distinct_digests", 0) >= n:
+             p.append(f"evidence: {arm}: the observation statistics did not move every rollout")
+     return p
++
++
++def _phase_problems(arm: str, s: dict, n: int) -> list[str]:
++    """PS: critic_phase's phase evidence; every other arm: no phase evidence and an actor that responds to the
++    command slots (it is not masked)."""
++    p: list[str] = []
++    if arm != "critic_phase":
++        if s.get("phase_rows_recorded") != 0:
++            p.append(f"evidence: {arm}: phase evidence recorded on {s.get('phase_rows_recorded')} rollouts")
++        if not (isinstance(s.get("min_dmu_phase"), (int, float)) and s["min_dmu_phase"] > 0.0):
++            p.append(f"evidence: {arm}: the actor did not respond to slots 60-62 on some rollout (masked?)")
++        return p
++    if s.get("phase_rows_recorded") != n:
++        p.append(f"evidence: critic_phase: phase evidence on {s.get('phase_rows_recorded')} of {n} rollouts")
++        return p
++    if s.get("max_dmu_phase") != 0.0:
++        p.append(f"evidence: critic_phase: the actor moved by {s.get('max_dmu_phase')} with the phase slots")
++    if s.get("max_phase_buffer_max_err") != 0.0:
++        p.append(f"evidence: critic_phase: buffer slots differ from the env counters' phase by "
++                 f"{s.get('max_phase_buffer_max_err')}")
++    for key in ("phase_all_k_consistent", "phase_all_phase_stats_frozen", "phase_all_mirror_phase_self_map",
++                "phase_all_policy_phase_cols_unchanged", "phase_all_envs_swapped", "phase_all_mirror_tensors_ok",
++                "phase_rows_ordered"):
++        if s.get(key) is not True:
++            p.append(f"evidence: critic_phase: {key} is {s.get(key)!r}")
++    if s.get("max_policy_phase_adam_max_abs") != 0.0:
++        p.append(f"evidence: critic_phase: the actor's phase columns have Adam moments "
++                 f"{s.get('max_policy_phase_adam_max_abs')}")
++    if s.get("phase_n_negative_updates") != 0 or not (s.get("phase_n_zero_init") or 0) >= 1:
++        p.append(f"evidence: critic_phase: {s.get('phase_n_zero_init')} rollouts before the first update (>= 1: the "
++                 f"first rollout precedes every train())")
++    if s.get("phase_n_zero_init"):
++        if s.get("zero_init_max_value_phase_cols") != 0.0 or s.get("zero_init_max_dv_phase") != 0.0:
++            p.append(f"evidence: critic_phase: before any update the critic's phase columns "
++                     f"({s.get('zero_init_max_value_phase_cols')}) or its response "
++                     f"({s.get('zero_init_max_dv_phase')}) are not exactly zero")
++    if s.get("phase_n_updated"):
++        mins = s.get("updated_min_dv_phase") or {}
++        if not ((s.get("updated_min_value_phase_cols") or 0.0) > 0.0
++                and all(isinstance(mins.get(k), (int, float)) and mins[k] > 0.0 for k in PHASE_CRITIC_KEYS)):
++            p.append(f"evidence: critic_phase: after updates the critic does not respond to the phase on every "
++                     f"rollout and path (columns {s.get('updated_min_value_phase_cols')}, responses {mins})")
++    return p
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/read_bs.py /home/user/work/phase_screen/tools/read_bs.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/read_bs.py	2026-10-30 10:38:08.257524562 +0000
++++ /home/user/work/phase_screen/tools/read_bs.py	2026-10-31 13:31:52.714439430 +0000
+@@ -1,5 +1,13 @@
+-"""Bias screen 2 (BS2): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts and
+-stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS's read_bs.py (sha256 04036e53...)
++"""Phase screen (PS): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts and
++stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  PS = BS2's read_bs.py (sha256
++06f4173d...) with PS's root, arms and validation seeds (bs_common.py) and the critic_phase reading: at every pair of a
++critic_phase run the actor's mask is installed and the critic is fed the phase of each state's own step counter (REF:
++the bank's kept step + 1 = 200, settled; OWN: the snapshot's counter, 500-1000, settled; ONPOLICY: each state's counter
++recorded in the collection), with the slots-zero reading ("raw") and the all-settled reading beside it; at the start
++copy (S) the arm's load transform is applied first (the critic's phase columns zeroed, the statistics' slots reseeded:
++bs_hooks), every later pair must carry the frozen slots (mean 0 / var 1).  CHECK also reads critic_phase's run_meta
++(the hook's verified transform, the probe's phase record, the split of the phase evidence before / after the first
++update).  BS2 = BS's read_bs.py (sha256 04036e53...)
+ with the window from BS2's bs_common.py, the parent's F2 pairs in [S, E] derived (2,097,152 and 3,145,728), their
+ reproduction targets, and the loop cache keyed on this file's own sha256 (and its two modules') as well (BS's process
+ lens P3: an entry can never outlive the reader that wrote it).
+@@ -49,7 +57,9 @@
+                under the pair's statistics frozen, the model loaded with the stage's [ppo] kwargs and enable_mirror_kl,
+                one collect_rollouts of 2,048 steps per env, seeds 9301 and 9302), and also on OWN and REF; for a
+                critic_blind_tail3 run both the EFFECTIVE critic (the arm's hook installed: exactly 0 by construction)
+-               and the raw value MLP are reported.
++               and the raw value MLP are reported; for a critic_phase run (PS) the EFFECTIVE critic is fed each
++               state's phase, "raw" is the critic with the phase slots zero and "settled" feeds every state the
++               settled phase (1, 1, 1); the record "phase" says what was fed.
+ Every simulation runs from the sealed code copy bs_common.CODE (BS's, read only), OMP/MKL 1 thread; checkpoints are
+ opened read only.  A pair's loop markers are cached under <BS>/reads/_cache/ by (this file's sha256, the sha256 of
+ bs_common.py and bs_hooks.py, zip sha256, pkl sha256, critic form, read form): cache_key(); an entry whose recorded
+@@ -74,7 +84,7 @@
+ from pathlib import Path  # noqa: E402
+ 
+ TOOLS = Path(__file__).resolve().parent
+-VERSION = "read_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from read_bs 1.0)"
++VERSION = "read_bs 2.0 (2026-10-31; phase screen from s42 2,097,152; derived from read_bs 1.1 of bias screen 2)"
+ 
+ 
+ def _load(name):
+@@ -146,10 +156,16 @@
+                              .encode()).hexdigest()
+ 
+ 
+-def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, reader=READER_SHA256, deps=DEPS_SHA256):
++def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, phase=False, start=False, reader=READER_SHA256,
++              deps=DEPS_SHA256):
+     """The loop cache's file stem: the reader's own sha256 and its modules' digest first (an entry never outlives the
+-    reader that wrote it: BS's process lens P3), then the pair and the read's form (pure)."""
+-    return (f"r{reader[:16]}_d{deps[:8]}_{zip_sha256[:16]}_{pkl_sha256[:16]}_{'blind' if blind else 'plain'}_"
++    reader that wrote it: BS's process lens P3), then the pair and the read's form (pure).  PS: the form 'phase' (a
++    critic_phase run's reading), with '_S' when the pair is read as the start copy (the arm's load transform
++    applied)."""
++    if blind and phase:
++        raise ValueError("a read is blind or phase, not both")
++    form = "blind" if blind else ("phase" + ("_S" if start else "") if phase else "plain")
++    return (f"r{reader[:16]}_d{deps[:8]}_{zip_sha256[:16]}_{pkl_sha256[:16]}_{form}_"
+             f"{'on' if onpolicy else 'off'}{'_own' if own else ''}")
+ 
+ 
+@@ -367,11 +383,13 @@
+         fails.append(f"ent_coef after load {get('ent_coef_after_load')!r} != {C.ENT_COEF_AFTER_LOAD}")
+     aa = get("arm_applied") or {}
+     want_cls = {"critic_blind_tail3": ("CriticBlindTail3MlpExtractor", "SymmetricRunningMeanStd"),
+-                "frozen_obs_norm": ("MlpExtractor", "FrozenObsSymmetricRunningMeanStd")}.get(
++                "frozen_obs_norm": ("MlpExtractor", "FrozenObsSymmetricRunningMeanStd"),
++                "critic_phase": ("CriticPhaseMlpExtractor", "PhaseSlotsSymmetricRunningMeanStd")}.get(
+         arm, ("MlpExtractor", "SymmetricRunningMeanStd"))
+     if aa.get("arm") != arm or (aa.get("mlp_extractor_class"), aa.get("obs_rms_class")) != want_cls:
+         fails.append(f"arm_applied {aa.get('arm')!r} {aa.get('mlp_extractor_class')!r} {aa.get('obs_rms_class')!r} "
+                      f"!= {arm} {want_cls}")
++    fails += phase_meta_problems(meta, arm, kind)
+     if get("arm_state_end") != "in force":
+         fails.append(f"the arm's hook at the end: {get('arm_state_end')!r}")
+     if bool(get("obs_rms_end_equal_start")) != (arm == "frozen_obs_norm"):
+@@ -421,6 +439,42 @@
+     return fails, dict(arm=arm, seed=seed, S=C.S, E=C.E, T=T, end=end, stop_reason=stop)
+ 
+ 
++def phase_meta_problems(meta, arm, kind):
++    """PS: critic_phase's run_meta records (the verified load transform, the phase definition, the probe feeding the
++    bank's phase, the evidence's split: one rollout before the first update in a continuation, all of them in a
++    no-update run); any other arm: none of them (pure)."""
++    fails = []
++    aa, pp, pd = meta.get("arm_applied") or {}, meta.get("probe_phase") or {}, meta.get("phase_definition")
++    ev = meta.get("arm_evidence") or {}
++    want_def = {"slots": list(C.PHASE_SLOTS), "features": list(C.PHASE_FEATURES), "settle_steps": C.SETTLE_STEPS,
++                "gamma": C.PHASE_GAMMA}
++    d0, dl = meta.get("digest_start") or {}, meta.get("digest_load") or {}
++    if arm != "critic_phase":
++        if pd is not None or pp.get("installed") is not False or aa.get("transform_verified") is not None:
++            fails.append(f"{arm}: phase records present (definition {pd is not None}, probe {pp.get('installed')!r}, "
++                         f"transform {aa.get('transform_verified')!r})")
++        if not dl or {k: dl.get(k) for k in ("params", "adam", "vecnormalize")} != {
++                k: d0.get(k) for k in ("params", "adam", "vecnormalize")}:
++            fails.append(f"{arm}: the hook changed the loaded state (digest_load != digest_start)")
++        return fails
++    if not isinstance(pd, dict) or {k: pd.get(k) for k in want_def} != want_def:
++        fails.append(f"critic_phase: phase_definition {pd!r} != {want_def}")
++    if aa.get("transform_verified") is not True or aa.get("phase_slots") != list(C.PHASE_SLOTS):
++        fails.append("critic_phase: the load transform was not verified")
++    if not dl or dl.get("adam") != d0.get("adam") or dl.get("params") == d0.get("params"):
++        fails.append("critic_phase: digest_load / digest_start do not show the transform (Adam equal, params changed)")
++    if pp.get("installed") is not True or pp.get("class") != "PhaseFedPolicyProbeCallback" or not pp.get("k") or \
++            any(k < C.SETTLE_STEPS for k in pp.get("k")) or pp.get("phase_fed") != [[1.0, 1.0, 1.0]] * len(pp["k"]):
++        fails.append(f"critic_phase: the policy probe does not feed the settled bank's phase ({pp})")
++    n = ev.get("n")
++    z, u = ev.get("phase_n_zero_init"), ev.get("phase_n_updated")
++    if kind == "continuation" and (z != 1 or u != (n - 1 if isinstance(n, int) else None)):
++        fails.append(f"critic_phase: {z} rollouts before the first update and {u} after (1 and {n} - 1 expected)")
++    if kind != "continuation" and (z != n or u != 0):
++        fails.append(f"critic_phase: a no-update run with {z} zero-init and {u} updated rollouts (all zero-init)")
++    return fails
++
++
+ def check_run(run_dir, root=None):
+     """CHECK.  Writes <run>/check.json.  (exit code, record)."""
+     root = Path(root or C.BS).resolve()
+@@ -737,6 +791,15 @@
+         self.std = np.sqrt(self.var + self.eps)
+         self.clip = float(self.norm.clip_obs)
+ 
++    def refresh_stats(self):
++        """PS: re-read the normaliser's statistics (after critic_phase's start transform reseeded slots 60-62)."""
++        import numpy as np
++
++        rms = self.norm.obs_rms
++        self.mean = np.asarray(rms.mean, dtype=np.float64)
++        self.var = np.asarray(rms.var, dtype=np.float64)
++        self.std = np.sqrt(self.var + self.eps)
++
+     def z(self, X):
+         import numpy as np
+ 
+@@ -800,12 +863,22 @@
+     return out
+ 
+ 
+-def critic_slope(policy, norm, X):
+-    """(c) eb_realized.sens(): mean (SD) over in-clip states of dV/dz6 x 1/sqrt(var6 + eps) x pi/180, per degree."""
++def with_phase(X, K):
++    """PS: X with the phase of each state's step counter K in slots 60-62 (float64 copy)."""
++    import numpy as np
++
++    Y = np.array(X, dtype=np.float64, copy=True)
++    Y[:, list(C.PHASE_SLOTS)] = H.phase_matrix(K)
++    return Y
++
++
++def critic_slope(policy, norm, X, K=None):
++    """(c) eb_realized.sens(): mean (SD) over in-clip states of dV/dz6 x 1/sqrt(var6 + eps) x pi/180, per degree.
++    PS: with K (the states' step counters) the critic is fed their phase in slots 60-62."""
+     import numpy as np
+     import torch
+ 
+-    x = np.asarray(X, dtype=np.float32)
++    x = np.asarray(X if K is None else with_phase(X, K), dtype=np.float32)
+     z = torch.as_tensor(np.asarray(norm.normalize_obs(x), dtype=np.float32), dtype=torch.float32).requires_grad_(True)
+     v = policy.predict_values(z).sum()
+     gv = torch.autograd.grad(v, z)[0][:, C.OBS_TAIL3].numpy()
+@@ -824,7 +897,7 @@
+     """ew_measure.rollouts: deterministic 1,000-step episodes; snapshots after steps 500..1000; own14 window means."""
+     import numpy as np
+ 
+-    eps, X = [], []
++    eps, X, K = [], [], []
+     for seed in seeds:
+         obs, _ = env.reset(seed=seed)
+         own14 = []
+@@ -836,13 +909,14 @@
+             obs, _r, term, trunc, _ = env.step(a)
+             if k in SNAP_STEPS:
+                 X.append(np.array(obs, dtype=np.float64, copy=True))
++                K.append(int(env.unwrapped._step_count))          # PS: the snapshot's own counter (= k)
+             if term or trunc:
+                 break
+         w = own14[500:1000]
+         eps.append({"seed": seed, "steps": k, "terminated": bool(term),
+                     "own14_win": float(np.mean(w)) if len(own14) > 500 else None,
+                     "frac99_win": float(np.mean(np.abs(np.asarray(w)) >= 0.99)) if len(own14) > 500 else None})
+-    return eps, np.array(X, dtype=np.float64)
++    return eps, np.array(X, dtype=np.float64), np.array(K, dtype=np.int64)
+ 
+ 
+ def onpolicy_states(zip_path, pkl_path, seed):
+@@ -898,13 +972,17 @@
+         def __init__(self):
+             super().__init__(0)
+             self.raw = []
++            self.k = []
+ 
+         def _on_rollout_start(self):
+             self.prev = vn.get_original_obs().copy()
++            self.prev_k = [int(e.unwrapped._step_count) for e in vn.venv.envs]   # PS: read only
+ 
+         def _on_step(self):
+             self.raw.append(self.prev.copy())
++            self.k.append(list(self.prev_k))
+             self.prev = vn.get_original_obs().copy()
++            self.prev_k = [int(e.unwrapped._step_count) for e in vn.venv.envs]
+             return True
+ 
+     rec = Rec()
+@@ -912,26 +990,58 @@
+     if not model.collect_rollouts(model.env, cb, model.rollout_buffer, n_rollout_steps=model.n_steps):
+         raise InputError("the on-policy collection stopped early")
+     raw = np.concatenate(rec.raw, 0)
++    ks = np.asarray(rec.k, dtype=np.int64).reshape(-1)
+     vn.close()
+-    return raw
++    return raw, ks
+ 
+ 
+-def loop_markers_one(zip_path, pkl_path, *, blind, onpolicy, own, env, factory, bank_ss):
+-    """M-LOOP at one pair.  blind: the critic_blind_tail3 hook is installed for the EFFECTIVE critic (both reported)."""
++def phase_prepare(net, *, start):
++    """PS, a critic_phase pair: at the start copy the arm's load transform (bs_hooks: the critic's phase columns := 0,
++    the statistics' slots := mean 0 / var 1); at any later pair the slots must already be mean 0 / var 1 (written by
++    the arm); then the actor's mask.  Returns the record."""
++    import torch
++    from stable_baselines3.common.torch_layers import MlpExtractor
++
++    w_vf = net.policy.mlp_extractor.value_net[0].weight
++    lo, hi = C.PHASE_SLOTS[0], C.PHASE_SLOTS[-1] + 1
++    rec = {"start_transform": bool(start), "value_phase_cols_max_abs_read": float(w_vf[:, lo:hi].abs().max())}
++    if type(net.policy.mlp_extractor) is not MlpExtractor:
++        raise InputError(f"the loaded mlp_extractor is {type(net.policy.mlp_extractor).__name__}")
++    if start:
++        with torch.no_grad():
++            w_vf[:, lo:hi] = 0.0
++        H.reseed_phase_slots(net.norm.obs_rms)
++        net.refresh_stats()
++    elif not H.phase_slots_frozen(net.norm.obs_rms):
++        raise InputError("a critic_phase pair after S whose statistics' slots 60-62 are not mean 0 / var 1")
++    net.policy.mlp_extractor.__class__ = H.critic_phase_class(MlpExtractor)
++    rec["value_phase_cols_max_abs_used"] = float(w_vf[:, lo:hi].abs().max())
++    return rec
++
++
++def loop_markers_one(zip_path, pkl_path, *, blind, onpolicy, own, env, factory, bank_ss, phase=False, start=False,
++                     bank_k=None):
++    """M-LOOP at one pair.  blind: the critic_blind_tail3 hook is installed for the EFFECTIVE critic (both reported).
++    phase (PS): critic_phase's reading (phase_prepare; the critic fed each state's phase; "raw" with the slots zero;
++    "settled" with every state's phase (1, 1, 1)); start: the pair is the start copy (S)."""
+     import numpy as np
+     from stable_baselines3.common.torch_layers import MlpExtractor
+ 
+     t0 = time.process_time()
+     net = Net(zip_path, pkl_path, factory)
++    phase_rec = phase_prepare(net, start=start) if phase else None
+     out = {"zip": str(zip_path), "zip_sha256": C.sha256_file(zip_path), "pkl": str(pkl_path),
+            "pkl_sha256": C.sha256_file(pkl_path), "num_timesteps": int(net.model.num_timesteps),
+            "t3_norm_mean_deg": math.degrees(net.mean[C.OBS_TAIL3]),
+-           "t3_norm_sd_deg": math.degrees(net.std[C.OBS_TAIL3]), "critic_form": "blind+raw" if blind else "plain"}
++           "t3_norm_sd_deg": math.degrees(net.std[C.OBS_TAIL3]),
++           "critic_form": "blind+raw" if blind else ("phase+raw+settled" if phase else "plain")}
+     out["REF"] = tail_sweeps(net, bank_ss)
+     sets = {"REF": bank_ss}
++    ks = {"REF": np.asarray(bank_k if bank_k is not None else [C.SETTLE_STEPS] * len(bank_ss), dtype=np.int64)}
+     if own:
+-        eps, X = own_rollouts(net, env)
++        eps, X, K_own = own_rollouts(net, env)
+         sets["OWN"] = X
++        ks["OWN"] = K_own
+         w = [e["own14_win"] for e in eps if e["own14_win"] is not None]
+         out["OWN"] = tail_sweeps(net, X)
+         out["OWN"].update(own14_median=float(np.median(w)) if w else None, episodes=eps,
+@@ -940,11 +1050,26 @@
+         if out["OWN"].get("L") and w:
+             out["OWN"]["b_star_L"] = (1.0 - out["OWN"]["L"]["G"]) * (1.0 - float(np.median(w)))
+     if onpolicy:
+-        sets["ONPOLICY"] = np.concatenate([onpolicy_states(zip_path, pkl_path, s) for s in ONPOLICY_SEEDS], 0)
++        got = [onpolicy_states(zip_path, pkl_path, s) for s in ONPOLICY_SEEDS]
++        sets["ONPOLICY"] = np.concatenate([g[0] for g in got], 0)
++        ks["ONPOLICY"] = np.concatenate([g[1] for g in got], 0)
+     crit = {}
+     for name, X in sets.items():
+         crit[name] = {"raw": critic_slope(net.policy, net.norm, X)}
+-    if blind:
++    if phase:
++        for name, X in sets.items():
++            crit[name]["effective"] = critic_slope(net.policy, net.norm, X, K=ks[name])
++            crit[name]["settled"] = critic_slope(net.policy, net.norm, X, K=np.full(len(X), C.SETTLE_STEPS))
++        mu_plain, mu_fed = net.mu(bank_ss), net.mu(with_phase(bank_ss, ks["REF"]))
++        phase_rec.update(
++            actor_phase_invariance_max_abs=float(np.max(np.abs(mu_fed - mu_plain))),
++            fed={n: {"k_min": int(k.min()), "k_max": int(k.max()), "n": int(len(k)),
++                     "n_presettle": int((k < C.SETTLE_STEPS).sum())} for n, k in ks.items()},
++            rule={"effective": "each state's own phase: REF kept step + 1, OWN the snapshot's counter, ONPOLICY the "
++                               "counter recorded in the collection", "raw": "slots 60-62 zero (no phase input)",
++                  "settled": "every state at k = 200: (1, 1, 1)"})
++        out["phase"] = phase_rec
++    elif blind:
+         net.policy.mlp_extractor.__class__ = H.critic_blind_class(MlpExtractor)
+         for name, X in sets.items():
+             crit[name]["effective"] = critic_slope(net.policy, net.norm, X)
+@@ -971,8 +1096,9 @@
+     return out
+ 
+ 
+-def loop_markers(pairs, *, blind, onpolicy, own, tag):
+-    """M-LOOP over pairs, with the cache under <BS>/reads/_cache/."""
++def loop_markers(pairs, *, blind, onpolicy, own, tag, phase=False):
++    """M-LOOP over pairs, with the cache under <BS>/reads/_cache/.  phase (PS): critic_phase's reading; the pair at
++    steps S is the start copy (the arm's load transform applied)."""
+     import numpy as np
+ 
+     from environments.shared.config import load_stage_config
+@@ -989,11 +1115,13 @@
+         raise InputError("action 14 is not tail_3_pitch_act")
+     with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
+         bank_ss = np.asarray(z["bank_raw_obs"], dtype=np.float64)[list(C.BANK_STATUE_SETTLED)]
++        bank_k = np.asarray(z["bank_steps"], dtype=np.int64)[list(C.BANK_STATUE_SETTLED)] + 1     # PS: k = 200
+     cache = require_under(Path(C.READS) / "_cache", C.BS)
+     cache.mkdir(parents=True, exist_ok=True)
+     rows = []
+     for steps, z, p in pairs:
+-        key = cache_key(C.sha256_file(z), C.sha256_file(p), blind=blind, onpolicy=onpolicy, own=own)
++        key = cache_key(C.sha256_file(z), C.sha256_file(p), blind=blind, onpolicy=onpolicy, own=own, phase=phase,
++                        start=phase and steps == C.S)
+         cpath = cache / f"{key}.json"
+         if cpath.is_file():
+             row = json.loads(cpath.read_text())
+@@ -1003,7 +1131,7 @@
+             row["cache"] = str(cpath)
+         else:
+             row = loop_markers_one(z, p, blind=blind, onpolicy=onpolicy, own=own, env=env, factory=factory,
+-                                   bank_ss=bank_ss)
++                                   bank_ss=bank_ss, phase=phase, start=phase and steps == C.S, bank_k=bank_k)
+             row.update(reader_sha256=READER_SHA256, deps_sha256=DEPS_SHA256, reader_version=VERSION)
+             atomic_write_text(cpath, json.dumps(row) + "\n")
+         row["steps"] = steps
+@@ -1086,8 +1214,9 @@
+     markers["probe"] = probe_markers(run / PROBE_REL, S, T, run.name)
+     markers["ledger"] = ledger_markers(run / LEDGER_REL, S, T, out)
+     setup_simulation(f"read_{run.name}")
++    markers["probe_phase"] = meta.get("probe_phase")
+     markers["loop"] = loop_markers(saved_pairs(run, T), blind=(arm == "critic_blind_tail3"), onpolicy=onpolicy,
+-                                   own=own, tag=run.name)
++                                   own=own, tag=run.name, phase=(arm == "critic_phase"))
+     atomic_write_text(out / "markers.json", json.dumps(markers, indent=1, default=str) + "\n")
+     atomic_write_text(out / "markers.txt", render(markers))
+     return markers
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_bs.py /home/user/work/phase_screen/tools/run_bs.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_bs.py	2026-10-30 10:42:44.574880964 +0000
++++ /home/user/work/phase_screen/tools/run_bs.py	2026-10-31 13:32:09.645884307 +0000
+@@ -1,14 +1,21 @@
+-"""BS2: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
++"""PS: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
+ 
+     PY -I -B run_bs.py --arm ARM --seed N [--preflight-only]                          (a continuation: S -> E)
+     PY -I -B run_bs.py --arm ARM --seed N --save-loaded-only [--out DIR]              (V1; no learn())
+     PY -I -B run_bs.py --arm ARM --seed N --no-update --until STEPS [--out DIR]       (V2 / timing; train() a no-op)
+ 
+-ARM: control | critic_blind_tail3 | gae_lambda_1 | frozen_obs_norm (bs_common.ARMS; what each changes:
+-bs_common.ARM_CHANGE, applied by bs_hooks.install_arm / arm_config here).  S = 2,097,152, E = S + 1,441,792 =
+-3,538,944 (11 evaluations of 131,072; 176 rollouts, 175 updates).  BS2 = BS's run_bs.py (sha256 0a5a9851...) with the
+-window, the start pair and the validation seeds taken from BS2's bs_common.py, the code copy BS's own (read only), and
+-GIT_CEILING_DIRECTORIES also naming the code copy's parent folder (so the code's `git rev-parse` stops there, as in BS).
++ARM: control | critic_phase (bs_common.ARMS; what each changes: bs_common.ARM_CHANGE, applied by
++bs_hooks.install_arm here).  S = 2,097,152, E = S + 1,441,792 = 3,538,944 (11 evaluations of 131,072; 176 rollouts,
++175 updates).  PS = BS2's run_bs.py (sha256 acd5b499...) with: the root, arms and validation seeds of PS's
++bs_common.py; critic_phase's load-time transform (the critic's phase columns zeroed, the statistics' phase slots
++reseeded; every other tensor and the optimizer state verified unchanged) recorded as digest_load (the pair as loaded)
++and digest_start (the arm's starting state; equal for control); the policy probe hook at training start
++(bs_hooks.probe_phase: critic_phase feeds the bank's phase, control only checks the probe is stock); the envs' step
++counters at each rollout's start for critic_phase's evidence; V1's bank check and pair comparison for critic_phase
++(the actor and, at the load, the critic bitwise the start pair's at every phase value).  BS2 = BS's run_bs.py (sha256
++0a5a9851...) with the window, the start pair and the validation seeds of BS2's bs_common.py, the code copy BS's own
++(read only), and GIT_CEILING_DIRECTORIES also naming the code copy's parent folder (so the code's `git rev-parse`
++stops there, as in BS).
+ 
+ Derived from the entropy continuation screen's run_ecs.py (S2/r10round/ecs/tools/run_ecs.py, sha256 f136b7e3...): the
+ same resume path and records (the run branch's own same-stage resume, train_base._train_stage_body, every keyword
+@@ -64,7 +71,7 @@
+ C = _load("bs_common")
+ H = _load("bs_hooks")
+ 
+-VERSION = "run_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from run_bs 1.0 and run_ecs 1.0)"
++VERSION = "run_bs 2.0 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2)"
+ LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
+ RUN_KEYS_EXPECTED_TO_DIFFER = frozenset({"seed", "timesteps", "label", "duration_seconds", "hyperparameters_sha256",
+                                          *LINEAGE_KEYS})
+@@ -286,14 +293,75 @@
+     return int(torch.get_num_threads()), int(torch.get_num_interop_threads())
+ 
+ 
++def _bank_outputs(policy: Any, rms: Any, epsilon: float, clip: float, raw: Any) -> tuple[Any, Any]:
++    """(deterministic actions, values) of a policy on raw observations under (rms, epsilon, clip): the probe's own
++    formula (VecNormalize's, in numpy, then a float32 tensor); the policy's action_dist put back as found."""
++    import numpy as np
++    import torch
++
++    normed = np.clip((raw - rms.mean) / np.sqrt(rms.var + float(epsilon)), -float(clip), float(clip))
++    stored = dict(vars(policy.action_dist))
++    try:
++        with torch.no_grad():
++            t = torch.as_tensor(normed, dtype=torch.float32)
++            return (policy.get_distribution(t).mode().double().numpy(),
++                    policy.predict_values(t).flatten().double().numpy())
++    finally:
++        vars(policy.action_dist).clear()
++        vars(policy.action_dist).update(stored)
++
++
++PHASE_V1_K = (0, 1, 50, 100, 150, 199, 200, 201, 600, 1000)     # the step counters V1 feeds (settled from 200)
++
++
++def bank_outputs_as_loaded(policy: Any, train_env: Any) -> tuple[Any, Any]:
++    """V1: the policy AS LOADED (before the hook) on the parent probe's bank as recorded (slots 60-62 zero) under the
++    loaded statistics: (actions, values)."""
++    import numpy as np
++
++    with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
++        raw = np.asarray(z["bank_raw_obs"], dtype=np.float64)
++    return _bank_outputs(policy, train_env.obs_rms, float(train_env.epsilon), float(train_env.clip_obs), raw)
++
++
++def phase_bank_check(policy: Any, train_env: Any, act0: Any, val0: Any) -> dict:
++    """V1 for critic_phase: the hooked policy on the parent probe's bank, the phase of each counter in PHASE_V1_K
++    (and each row's own, k = kept step + 1) fed into slots 60-62 and normalised with the hooked statistics, against
++    (act0, val0), the policy AS LOADED on the bank as recorded under the loaded statistics (bank_outputs_as_loaded,
++    taken before the hook): the actions and the values must be equal BITWISE at every counter (the actor's mask; the
++    critic's zero columns)."""
++    import numpy as np
++
++    with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
++        raw = np.asarray(z["bank_raw_obs"], dtype=np.float64)
++        steps = np.asarray(z["bank_steps"], dtype=np.int64)
++    eps, clip = float(train_env.epsilon), float(train_env.clip_obs)
++    out: dict[str, Any] = {"k_fed": list(PHASE_V1_K), "k_own": (steps + 1).tolist(), "per_k": {}}
++    worst_a = worst_v = 0.0
++    for label, ks in [(str(k), np.full(len(raw), k)) for k in PHASE_V1_K] + [("own", steps + 1)]:
++        fed = raw.copy()
++        fed[:, list(C.PHASE_SLOTS)] = H.phase_matrix(ks)
++        act, val = _bank_outputs(policy, train_env.obs_rms, eps, clip, fed)
++        da, dv = float(np.max(np.abs(act - act0))), float(np.max(np.abs(val - val0)))
++        out["per_k"][label] = {"max_abs_diff_actions": da, "max_abs_diff_values": dv}
++        worst_a, worst_v = max(worst_a, da), max(worst_v, dv)
++    out.update(max_abs_diff_actions=worst_a, max_abs_diff_values=worst_v,
++               bitwise_actor=worst_a == 0.0, bitwise_critic=worst_v == 0.0)
++    return out
++
++
+ def bank_check(policy: Any, train_env: Any) -> dict:
+     """V1: the loaded (arm-applied) policy on the parent probe's bank under the loaded statistics, against the probe's
+-    row at S (bank_action_now, bank_value_now): the probe's own formula (VecNormalize's, in numpy, float32 tensor)."""
++    row at S (bank_action_now, bank_value_now): the probe's own formula (VecNormalize's, in numpy, float32 tensor).
++    critic_phase: the bank's own phase (every row settled) fed, as the probe feeds it."""
+     import numpy as np
+     import torch
+ 
+     with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
+         raw = np.asarray(z["bank_raw_obs"], dtype=np.float64)
++        if getattr(type(policy.mlp_extractor), "ps_phase_slots", None):
++            raw = raw.copy()
++            raw[:, list(C.PHASE_SLOTS)] = H.phase_matrix(np.asarray(z["bank_steps"], dtype=np.int64) + 1)
+         labels = [str(x) for x in z["bank_labels"]]
+         row = int(np.flatnonzero(np.asarray(z["update_timesteps"]) == C.S)[0])
+         act_p = np.asarray(z["bank_action_now"][row], dtype=np.float64)
+@@ -336,21 +404,32 @@
+         got = getattr(model, "ent_coef", None)
+         holder["ent_coef_after_load"] = float(got) if isinstance(got, (int, float)) else repr(got)
+         holder["gae_lambda_after_load"] = float(getattr(model, "gae_lambda", float("nan")))
+-        holder["digest_start"] = state_digest(model, train_env)
++        holder["digest_load"] = state_digest(model, train_env)
+         if problems:
+             raise Refused("load check: " + " | ".join(problems))
++        if mode == "save_loaded_only":             # V1: the policy's bank outputs as loaded, before the hook
++            holder["bank_load"] = bank_outputs_as_loaded(model.policy, train_env)
+         try:
+             holder["arm_applied"] = H.install_arm(arm, model, train_env)
+         except H.HookError as exc:
+             raise Refused(f"arm hook: {exc}") from exc
+         state = H.arm_state_problems(arm, model, train_env)
+         digest_hooked = state_digest(model, train_env)
+-        if state or {k: digest_hooked[k] for k in ("params", "adam", "vecnormalize")} != {
+-                k: holder["digest_start"][k] for k in ("params", "adam", "vecnormalize")}:
++        # control: nothing may change.  critic_phase: the optimizer state may not change; the parameters and the
++        # statistics change exactly as install_arm verified (transform_verified: the critic's phase columns zeroed,
++        # the slots reseeded; every other tensor equal).
++        same = ("params", "adam", "vecnormalize") if arm != "critic_phase" else ("adam",)
++        if state or {k: digest_hooked[k] for k in same} != {k: holder["digest_load"][k] for k in same} or (
++                arm == "critic_phase" and holder["arm_applied"].get("transform_verified") is not True):
+             raise Refused(f"arm hook: state {state}; digests after the hook {digest_hooked} != at the load")
++        holder["digest_start"] = digest_hooked
+         holder["start_obs_digest"] = H.rms_digest(train_env.obs_rms)
++        if arm == "critic_phase":
++            holder["phase_ref"] = H.phase_reference(model)
+         if mode == "save_loaded_only":
+             holder["v1_bank"] = bank_check(model.policy, train_env)
++            if arm == "critic_phase":
++                holder["v1_phase_bank"] = phase_bank_check(model.policy, train_env, *holder["bank_load"])
+             holder["saved"] = save_loaded(model)
+             raise _LoadedOnly()
+         if mode == "no_update":
+@@ -376,10 +455,13 @@
+ 
+ def make_stop_at_end_class(base_callback: type) -> type:
+     """StopAtEnd (run_ecs's): _on_step returns False when num_timesteps == target; at each rollout's end (after GAE,
+-    before that rollout's update) it calls evidence(locals) then heartbeat(n), neither of which changes training."""
++    before that rollout's update) it calls evidence(locals) then heartbeat(n), neither of which changes training.
++    PS: at training start (after every earlier callback's, so the probe's bank exists) training_start(siblings); at
++    each rollout's start rollout_start() (critic_phase: the envs' step counters, read only)."""
+ 
+     class StopAtEnd(base_callback):  # type: ignore[misc, valid-type]
+-        def __init__(self, target: int, heartbeat: Any = None, evidence: Any = None) -> None:
++        def __init__(self, target: int, heartbeat: Any = None, evidence: Any = None, training_start: Any = None,
++                     rollout_start: Any = None) -> None:
+             super().__init__(0)
+             self.target = int(target)
+             self.flag = False
+@@ -389,9 +471,17 @@
+             self.calls = 0
+             self.heartbeat = heartbeat
+             self.evidence = evidence
++            self.training_start = training_start
++            self.rollout_start = rollout_start
+ 
+         def _on_training_start(self) -> None:
+             self.siblings = list(flatten_callbacks(self.locals.get("callback")))
++            if self.training_start is not None:
++                self.training_start(self.siblings)
++
++        def _on_rollout_start(self) -> None:
++            if self.rollout_start is not None:
++                self.rollout_start()
+ 
+         def _on_rollout_end(self) -> None:
+             if self.evidence is not None:
+@@ -491,6 +581,54 @@
+     return {"params": _hash_arrays(params_arrays(pol)), "adam": _hash_arrays(adam_arrays(opt))}
+ 
+ 
++def phase_pair_compare(start_zip: Any, saved_zip: Any, start_pkl: Any, saved_pkl: Any) -> dict:
++    """V1 for critic_phase, tensor by tensor (torch.load weights_only; pickle for the pkls): the saved pair equals the
++    start pair except value_net.0.weight[:, 60:63], zero in the saved one (nonzero in the start one), and the
++    observation statistics' slots 60-62, mean 0 / var 1 in the saved pkl (mean 0 / var ~2.4e-11 in the start one);
++    every Adam moment and the step equal; ret_rms and the counts equal."""
++    import io
++    import zipfile
++
++    import numpy as np
++    import torch
++
++    def load(path: Any) -> tuple[dict, dict]:
++        with zipfile.ZipFile(path) as z:
++            return (torch.load(io.BytesIO(z.read("policy.pth")), map_location="cpu", weights_only=True),
++                    torch.load(io.BytesIO(z.read("policy.optimizer.pth")), map_location="cpu", weights_only=True))
++
++    (p0, o0), (p1, o1) = load(start_zip), load(saved_zip)
++    lo, hi = C.PHASE_SLOTS[0], C.PHASE_SLOTS[-1] + 1
++    name = "mlp_extractor.value_net.0.weight"
++    out: dict[str, Any] = {"keys_equal": list(p0) == list(p1)}
++    out["other_tensors_equal"] = out["keys_equal"] and all(p0[k].equal(p1[k]) for k in p0 if k != name)
++    keep = torch.ones(p0[name].shape[1], dtype=torch.bool)
++    keep[lo:hi] = False
++    out["value_net0_other_cols_equal"] = bool(p0[name][:, keep].equal(p1[name][:, keep]))
++    out["value_net0_phase_cols_saved_max_abs"] = float(p1[name][:, lo:hi].abs().max())
++    out["value_net0_phase_cols_start_max_abs"] = float(p0[name][:, lo:hi].abs().max())
++    out["policy_net0_phase_cols_equal"] = bool(p0["mlp_extractor.policy_net.0.weight"][:, lo:hi].equal(
++        p1["mlp_extractor.policy_net.0.weight"][:, lo:hi]))
++    out["adam_equal"] = _hash_arrays(adam_arrays(o0)) == _hash_arrays(adam_arrays(o1)) and \
++        o0["param_groups"] == o1["param_groups"]
++    s0, s1 = pkl_stats(start_pkl), pkl_stats(saved_pkl)
++    keep_np = np.ones(len(s0.obs_rms.mean), dtype=bool)
++    keep_np[lo:hi] = False
++    out["obs_rms_other_dims_equal"] = bool(np.array_equal(s0.obs_rms.mean[keep_np], s1.obs_rms.mean[keep_np])
++                                           and np.array_equal(s0.obs_rms.var[keep_np], s1.obs_rms.var[keep_np])
++                                           and s0.obs_rms.count == s1.obs_rms.count)
++    out["obs_rms_slots_start"] = {"mean": s0.obs_rms.mean[lo:hi].tolist(), "var": s0.obs_rms.var[lo:hi].tolist()}
++    out["obs_rms_slots_saved"] = {"mean": s1.obs_rms.mean[lo:hi].tolist(), "var": s1.obs_rms.var[lo:hi].tolist()}
++    out["ret_rms_equal"] = bool(np.array_equal(s0.ret_rms.mean, s1.ret_rms.mean) and np.array_equal(
++        s0.ret_rms.var, s1.ret_rms.var) and s0.ret_rms.count == s1.ret_rms.count)
++    out["ok"] = bool(out["other_tensors_equal"] and out["value_net0_other_cols_equal"]
++                     and out["value_net0_phase_cols_saved_max_abs"] == 0.0
++                     and out["value_net0_phase_cols_start_max_abs"] > 0.0 and out["policy_net0_phase_cols_equal"]
++                     and out["adam_equal"] and out["obs_rms_other_dims_equal"] and out["ret_rms_equal"]
++                     and out["obs_rms_slots_saved"] == {"mean": [0.0] * 3, "var": [1.0] * 3})
++    return out
++
++
+ def pkl_stats(pkl_path: str | os.PathLike[str]) -> Any:
+     import pickle
+ 
+@@ -735,7 +873,11 @@
+         "screen_sha256": sha256_file(files["SCREEN.json"]) if files["SCREEN.json"].is_file() else None,
+         "tool_sha256": {n: sha256_file(TOOLS / n) for n in C.TOOL_FILES if (TOOLS / n).is_file()},
+         "arm_change": C.ARM_CHANGE[arm], "arm_ppo": dict(C.ARM_PPO_EDIT[arm]) or "unchanged", "ppo_applied": None,
+-        "arm_applied": None, "arm_evidence": None,
++        "arm_applied": None, "arm_evidence": None, "probe_phase": None,
++        "phase_definition": ({"slots": list(C.PHASE_SLOTS), "features": list(C.PHASE_FEATURES),
++                              "settle_steps": C.SETTLE_STEPS, "gamma": C.PHASE_GAMMA,
++                              "k": "the env's _step_count when the observation is made (0 at reset)"}
++                             if arm == "critic_phase" else None),
+     }
+     _write_meta(meta_path, meta, "x")
+     holder: dict[str, Any] = {"evidence": []}
+@@ -832,8 +974,9 @@
+         evidence_path = run_dir / C.EVIDENCE
+ 
+         def evidence(locals_: dict) -> None:
++            ctx = {"k0": holder.get("k0"), "ref": holder.get("phase_ref")} if arm == "critic_phase" else None
+             ev = H.rollout_evidence(arm, holder["model"], holder["train_env"], locals_,
+-                                    start_obs_digest=holder["start_obs_digest"])
++                                    start_obs_digest=holder["start_obs_digest"], phase_ctx=ctx)
+             ev["clock"] = {"utc": utc_now(), "cpu_seconds": round(time.process_time(), 2)}   # timing only
+             holder["evidence"].append(ev)
+             with open(evidence_path, "a") as fh:
+@@ -845,11 +988,19 @@
+                                  "cpu_seconds": round(time.process_time(), 1)}
+             _write_meta(meta_path, meta, "w")
+ 
++        def training_start(siblings: list) -> None:
++            holder["probe_phase"] = H.probe_phase(arm, siblings)
++            meta["probe_phase"] = holder["probe_phase"]
++
++        def rollout_start() -> None:
++            holder["k0"] = H.env_step_counts(holder["train_env"])
++
+         def stage_callback(*, eval_env: Any, eval_callback: Any) -> Any:
+             wp = wrapper_problems(holder, mode=mode, update_classes=(MirrorKLPPO, sb3["PPO"]))
+             if wp:
+                 raise Refused(" | ".join(wp))
+-            holder["stop"] = stop_cls(target, heartbeat=heartbeat, evidence=evidence)
++            holder["stop"] = stop_cls(target, heartbeat=heartbeat, evidence=evidence, training_start=training_start,
++                                      rollout_start=rollout_start if arm == "critic_phase" else None)
+             return holder["stop"]
+ 
+         TB._create_or_load_model = checked_load
+@@ -884,7 +1035,9 @@
+             "arm_evidence": H.summarize(holder["evidence"]), "arm_state_end": arm_end or "in force",
+             "obs_rms_end_equal_start": digest_end["obs_rms"] == holder["digest_start"]["obs_rms"],
+             "torch_threads": holder.get("torch_threads"), "torch_interop_threads": holder.get("torch_interop_threads"),
+-            "digest_start": holder.get("digest_start"), "digest_end": digest_end,
++            "digest_load": holder.get("digest_load"), "digest_start": holder.get("digest_start"),
++            "digest_end": digest_end,
++            "probe_phase": holder.get("probe_phase"),
+             "final_path": str(trained.final_path), "learn_seconds": round(trained.learn_seconds, 1),
+             "checkpoints": sorted(p.name for p in (stage_dir / "models").iterdir()),
+         })
+@@ -913,22 +1066,43 @@
+         vn_start = _hash_arrays(vecnorm_arrays(pkl_stats(stage_dir / "models" / C.periodic_names(S)[1])))
+         vn_saved = _hash_arrays(vecnorm_arrays(pkl_stats(saved_pkl)))
+         saved_rms_cls = {r: type(getattr(pkl_stats(saved_pkl), r)).__name__ for r in ("obs_rms", "ret_rms")}
+-        loaded = holder.get("digest_start") or {}
++        loaded = holder.get("digest_load") or {}
++        hooked = holder.get("digest_start") or {}
+         v1 = {"start_zip": start_zip, "saved_zip": saved, "loaded": {k: loaded.get(k) for k in ("params", "adam")},
++              "hooked": {k: hooked.get(k) for k in ("params", "adam")},
+               "start_pkl_vecnormalize": vn_start, "saved_pkl_vecnormalize": vn_saved,
+-              "loaded_vecnormalize": loaded.get("vecnormalize"), "saved": holder.get("saved"),
++              "loaded_vecnormalize": loaded.get("vecnormalize"), "hooked_vecnormalize": hooked.get("vecnormalize"),
++              "saved": holder.get("saved"),
+               "saved_pkl_rms_classes": saved_rms_cls, "num_timesteps_loaded": loaded.get("num_timesteps"),
+               "saved_sha256": {p.name: sha256_file(p) for p in (saved_zip, saved_pkl)},
+               "start_zip_sha256": st["zip_sha256"], "bank": holder.get("v1_bank")}
+-        v1["params_equal"] = start_zip["params"] == saved["params"] == loaded.get("params")
+-        v1["adam_equal"] = start_zip["adam"] == saved["adam"] == loaded.get("adam")
+-        v1["vecnormalize_equal"] = vn_start == vn_saved == loaded.get("vecnormalize")
++        # the start pair as loaded = the start zip / pkl; the saved pair = the arm's starting state (hooked); for
++        # control the hook changes nothing (BS2's three equalities), for critic_phase exactly the phase transform
++        v1["load_equal_start"] = (start_zip["params"] == loaded.get("params")
++                                  and start_zip["adam"] == loaded.get("adam")
++                                  and vn_start == loaded.get("vecnormalize"))
++        v1["saved_equal_hooked"] = (saved["params"] == hooked.get("params") and saved["adam"] == hooked.get("adam")
++                                    and vn_saved == hooked.get("vecnormalize"))
++        if arm == "critic_phase":
++            v1["phase_pair"] = phase_pair_compare(stage_dir / "models" / C.periodic_names(S)[0], saved_zip,
++                                                  stage_dir / "models" / C.periodic_names(S)[1], saved_pkl)
++            v1["phase_bank"] = holder.get("v1_phase_bank")
++            pb = v1["phase_bank"] or {}
++            v1["params_equal"] = v1["load_equal_start"] and v1["saved_equal_hooked"] and v1["phase_pair"]["ok"]
++            v1["adam_equal"] = start_zip["adam"] == saved["adam"] == loaded.get("adam") == hooked.get("adam")
++            v1["vecnormalize_equal"] = v1["load_equal_start"] and v1["saved_equal_hooked"]
++            v1["phase_bitwise"] = pb.get("bitwise_actor") is True and pb.get("bitwise_critic") is True
++        else:
++            v1["params_equal"] = start_zip["params"] == saved["params"] == loaded.get("params") == hooked.get("params")
++            v1["adam_equal"] = start_zip["adam"] == saved["adam"] == loaded.get("adam") == hooked.get("adam")
++            v1["vecnormalize_equal"] = vn_start == vn_saved == loaded.get("vecnormalize") == hooked.get("vecnormalize")
++            v1["phase_bitwise"] = True
+         v1["num_timesteps_S"] = loaded.get("num_timesteps") == S
+         v1["saved_pkl_stock_classes"] = saved_rms_cls == {"obs_rms": "RunningMeanStd", "ret_rms": "RunningMeanStd"}
+         bank = holder.get("v1_bank") or {}
+         v1["bank_tail3_equal"] = bank.get("max_abs_diff_tail3_statue_settled", 1.0) <= 1e-6
+         ok = all(v1[k] for k in ("params_equal", "adam_equal", "vecnormalize_equal", "num_timesteps_S",
+-                                 "saved_pkl_stock_classes", "bank_tail3_equal"))
++                                 "saved_pkl_stock_classes", "bank_tail3_equal", "phase_bitwise"))
+         rc = C.EXIT_OK if ok else C.EXIT_POST_CHECK
+         meta.update({"status": "done" if ok else "failed", "exit": rc, "T": S, "stop_reason": None,
+                      "v1": v1, "ent_coef_after_load": holder.get("ent_coef_after_load"),
+@@ -936,6 +1110,7 @@
+                      "arm_applied": holder.get("arm_applied"),
+                      "torch_threads": holder.get("torch_threads"),
+                      "torch_interop_threads": holder.get("torch_interop_threads"),
++                     "digest_load": holder.get("digest_load"),
+                      "digest_start": holder.get("digest_start"), "utc_end": utc_now(),
+                      "wall_seconds": round(time.monotonic() - t0, 1),
+                      "code_seal_after": seal_problems() or "unchanged"})
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_waves_bs.sh /home/user/work/phase_screen/tools/run_waves_bs.sh
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/run_waves_bs.sh	2026-10-30 12:12:36.252858178 +0000
++++ /home/user/work/phase_screen/tools/run_waves_bs.sh	2026-10-31 13:24:54.959923892 +0000
+@@ -1,6 +1,14 @@
+ #!/usr/bin/env bash
++# PS: BS2's run_waves_bs.sh (S2/r10round/bias_screen2/tools/run_waves_bs.sh, sha256 6e0484f6...) with the root changed
++# (BS_REAL = /home/user/work/phase_screen) and LB's two process fixes ported (S2/r10round/long_blind/tools, its
++# hunks #58-#61, #63, #67); "<BS>" below = PS:
++#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
++#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv (and lists no snapshot file); logs/ALL_DECIDED keeps its first time.
++#   I1     right after each attempt exits, before CHECK, the re-arm and any rename, logs/atimes_at_exit/<name>.attempt<k>
++#          .tsv records path, atime, mtime and ctime (lstat only) of runs/<name>/**, tmp/<name>/** and the attempt logs.
++# The queue mechanics, slots, nice, floors and the outcome-blind reads are BS2's, unchanged.
+ # BS2: BS's run_waves_bs.sh (sha256 13fb6182...) with the root changed (BS_REAL = S2/r10round/bias_screen2); the
+-# queue mechanics, slots, nice, floors, crash rules and the outcome-blind reads are BS's, unchanged.  "<BS>" below = BS2.
++# queue mechanics, slots, nice, floors, crash rules and the outcome-blind reads are BS's, unchanged.
+ # BS2 review fixes (the fixer, 2026-10-30; <BS2>/review/FIXES.txt), additions only:
+ #   PR-M4  the runner refuses (exit 2, nothing started) unless APPROVED's tool_sha256["score_bs.py"] equals the current
+ #          tools/score_bs.py (run_bs.py's preflight pins the five bs_common.TOOL_FILES only);
+@@ -58,7 +66,7 @@
+ export PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 LC_ALL=C
+ 
+ S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+-BS_REAL=$S2/r10round/bias_screen2
++BS_REAL=/home/user/work/phase_screen
+ PY=$S2/venv/bin/python
+ TOOLS=$BS_REAL/tools
+ 
+@@ -76,6 +84,7 @@
+ SLOTS_OVERRIDE=""
+ FLOOR_OVERRIDE=""
+ LAUNCH_OVERRIDE=""
++SCORER_OVERRIDE=""        # PS (LB's BS_SCORER): the scorer file the APPROVED pin is checked against, test mode only
+ # Test hook (tests/test_waves_bs.py): honoured only with BS_WAVES_TEST=1 and a root that is not <BS>.
+ if [[ "${BS_WAVES_TEST:-}" == 1 ]]; then
+   [[ -n "${BS_ROOT:-}" ]] || die "BS_WAVES_TEST needs BS_ROOT"
+@@ -92,6 +101,7 @@
+   SLOTS_OVERRIDE=${BS_SLOTS:-}
+   FLOOR_OVERRIDE=${BS_DISK_FLOOR_BYTES:-}
+   LAUNCH_OVERRIDE=${BS_LAUNCH_DISK_BYTES:-}
++  SCORER_OVERRIDE=${BS_SCORER:-}
+ fi
+ RUNS=$BS/runs
+ LOGS=$BS/logs
+@@ -157,7 +167,7 @@
+ [[ -n "$QUEUE_OVERRIDE" || -f "$BS/SCREEN.json" ]] || die "no <BS>/SCREEN.json"
+ # PR-M4: APPROVED must pin the scorer as well (the criteria's PROVISIONAL rule needs tool_sha256["score_bs.py"], and
+ # APPROVED is never edited after the first start); run_bs.py's preflight checks the other pins for each continuation.
+-SCORER_PIN=$("$PY" -I -B - "$BS/APPROVED" "$TOOLS/score_bs.py" <<'PYEOF'
++SCORER_PIN=$("$PY" -I -B - "$BS/APPROVED" "${SCORER_OVERRIDE:-$TOOLS/score_bs.py}" <<'PYEOF'
+ import hashlib, json, sys
+ try:
+     d = json.load(open(sys.argv[1]))
+@@ -209,6 +219,37 @@
+ print(max(v) if v else 'none')" "$1/run_meta.json" 9>&-
+ }
+ 
++current_attempt() {  # LB / PS: the number of the newest logs/<name>.attempt<k>.log (0 when none)
++  local k=0
++  while [[ -e "$LOGS/$1.attempt$((k + 1)).log" ]]; do k=$((k + 1)); done
++  echo "$k"
++}
++
++exit_snapshot() {  # LB / PS, process I1: lstat (no file opened) of an attempt's files right after it exits
++  local k
++  k=$(current_attempt "$1")
++  mkdir -p "$LOGS/atimes_at_exit"
++  "$PY" -I -B - "$RUNS/$1" "$BS/tmp/$1" "$LOGS" "$1" "$LOGS/atimes_at_exit/$1.attempt$k.tsv" 9>&- <<'PYEOF'
++import glob, os, stat, sys
++run, tmp, logs, name, out = sys.argv[1:6]
++paths = [os.path.join(d, f) for top in (run, tmp) for d, _dirs, files in os.walk(top) for f in files]
++paths += glob.glob(os.path.join(glob.escape(logs), glob.escape(name) + ".attempt*.log"))
++rows = []
++for p in sorted(paths):
++    try:
++        st = os.lstat(p)
++    except OSError:
++        continue
++    if stat.S_ISREG(st.st_mode):
++        rows.append(f"{p}\t{st.st_atime_ns}\t{st.st_mtime_ns}\t{st.st_ctime_ns}\t{int(st.st_atime_ns > st.st_mtime_ns)}")
++with open(out + ".tmp", "w") as fh:
++    fh.write("path\tatime_ns\tmtime_ns\tctime_ns\tatime_after_mtime\n")
++    fh.writelines(r + "\n" for r in rows)
++os.replace(out + ".tmp", out)
++print(f"{len(rows)} files")
++PYEOF
++}
++
+ decided() { awk -F'\t' -v n="$1" '$2 == n {d = $3} END {print d}' "$DECIDED"; }
+ 
+ decide() {
+@@ -247,7 +288,13 @@
+ }
+ 
+ atime_snapshot() {  # PR-M2 / P4: logs/atimes_at_ALL_DECIDED.tsv (lstat only: taking it moves no atime)
+-  "$PY" -I -B - "$BS" "$LOGS/atimes_at_ALL_DECIDED.tsv" 9>&- <<'PYEOF'
++  # RR-1 (LB / PS): a relaunch after ALL_DECIDED keeps the first snapshot; this one goes to .relaunch<k>.tsv
++  local out=$LOGS/atimes_at_ALL_DECIDED.tsv k=1
++  if [[ -e "$out" ]]; then
++    while [[ -e "$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv" ]]; do k=$((k + 1)); done
++    out=$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv
++  fi
++  "$PY" -I -B - "$BS" "$out" 9>&- <<'PYEOF'
+ import os, sys
+ root, out = sys.argv[1:3]
+ rows, unread = [], 0
+@@ -255,7 +302,7 @@
+     for d, _dirs, files in os.walk(os.path.join(root, sub)):
+         for f in files:
+             p = os.path.join(d, f)
+-            if p in (out, out + ".tmp"):
++            if p in (out, out + ".tmp") or os.path.basename(p).startswith("atimes_at_ALL_DECIDED"):
+                 continue
+             try:
+                 st = os.lstat(p)
+@@ -268,7 +315,7 @@
+     fh.write("path\tatime_ns\tmtime_ns\tctime_ns\trearmed_unread\n")
+     fh.writelines(r + "\n" for r in sorted(rows))
+ os.replace(out + ".tmp", out)
+-print(f"{len(rows)} files, {unread} still re-armed (atime = mtime - 1 ns)")
++print(f"{os.path.basename(out)}: {len(rows)} files, {unread} still re-armed (atime = mtime - 1 ns)")
+ PYEOF
+ }
+ 
+@@ -376,7 +423,12 @@
+ }
+ 
+ after_exit() {  # after_exit <name> <rc>
+-  local name=$1 rc=$2 run=$RUNS/$1 crc reason new arm_ seed_
++  local name=$1 rc=$2 run=$RUNS/$1 crc reason new arm_ seed_ snap
++  if snap=$(exit_snapshot "$name"); then   # I1 (LB / PS): before CHECK, the re-arm and any rename
++    note "$name: atimes at exit (I1, lstat): logs/atimes_at_exit/$name.attempt$(current_attempt "$name").tsv, $snap"
++  else
++    note "$name: the atime snapshot at exit failed (I1)"
++  fi
+   if (( rc == 0 || rc == POST_CHECK )); then
+     set +e
+     "${CHECK_CMD[@]}" "$run" >> "$LOGS/$name.check.log" 2>&1 9>&-
+@@ -536,7 +588,11 @@
+ else
+   note "the atime snapshot at ALL_DECIDED failed (P4: re-reads of CHECK's inputs cannot be excluded)"
+ fi
+-date -u +%Y-%m-%dT%H:%M:%SZ > "$LOGS/ALL_DECIDED"
++if [[ -e "$LOGS/ALL_DECIDED" ]]; then   # RR-1 (LB / PS): a relaunch keeps the first ALL_DECIDED
++  note "ALL_DECIDED kept as first written ($(head -n 1 "$LOGS/ALL_DECIDED")); relaunch at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
++else
++  date -u +%Y-%m-%dT%H:%M:%SZ > "$LOGS/ALL_DECIDED"
++fi
+ note "all ${#NAMES[@]} decided, none VOID: the full reads (read_bs.py, the markers), $SLOTS at a time"
+ 
+ READ_OK=()
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_bs_hooks.py /home/user/work/phase_screen/tools/tests/test_bs_hooks.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_bs_hooks.py	2026-10-30 04:15:20.459513303 +0000
++++ /home/user/work/phase_screen/tools/tests/test_bs_hooks.py	2026-10-31 13:50:52.802306119 +0000
+@@ -6,6 +6,12 @@
+ and the code copy's SymmetricRunningMeanStd: no-op update, pickling and deep-copying as the stock class, kept by
+ MirrorKLPPO's install), install_arm's refusals, the independent GAE / Monte Carlo recomputation against SB3's
+ RolloutBuffer, rollout_evidence and evidence_problems for every arm (and mutants that must fail).
++PS: critic_phase's pieces (the phase features against bs_common, the env's _get_obs on the real T. rex env in lockstep
++with a plain one incl. the terminal observation, the actor's mask and its zero gradient, the critic's zero columns,
++the frozen statistics' slots incl. pickling and MirrorKLPPO's install, the mirror map on the real map file, the probe
++feeding the bank's phase, install_arm's refusals), its per-rollout evidence and its mutants, and the real start pair's
++actor and critic bitwise unchanged at every phase value after the transform.  BS2's arms stay in bs_hooks (unreachable
++in PS) and keep their tests: the shared machinery is the same.
+ """
+ from __future__ import annotations
+ 
+@@ -261,7 +267,9 @@
+ 
+ # ------------------------------------------------------------------------------------------------ evidence
+ def _evidence(arm, n=3, mutate=None):
+-    lam = C.ARM_GAE_LAMBDA[arm]
++    if arm == "critic_phase":
++        return _phase_evidence(n, mutate)
++    lam = H.GAE_LAMBDA[arm]
+     p = small_policy(3)
+     env = fake_env(_symmetric_rms())
+     m = fake_model(p, lam=lam)
+@@ -289,12 +297,12 @@
+     return out
+ 
+ 
+-@pytest.mark.parametrize("arm", C.ARMS)
++@pytest.mark.parametrize("arm", H.ARMS)
+ def test_evidence_passes_for_each_arm(arm):
+     ev = _evidence(arm)
+     s = H.summarize(ev)
+     assert H.evidence_problems(arm, s, n_expected=3) == []
+-    for other in C.ARMS:
++    for other in H.ARMS:
+         if other != arm and not {arm, other} <= {"control", "gae_lambda_1"} | {arm}:
+             assert H.evidence_problems(other, s, n_expected=3) != [], (arm, other)
+     assert H.evidence_problems(arm, s, n_expected=4) != []
+@@ -346,3 +354,421 @@
+         mu1, v1 = p.get_distribution(x).mode(), p.predict_values(x)
+         v2 = p.predict_values(perturbed(x, "add"))
+     assert torch.equal(mu0, mu1) and torch.equal(v1, v2) and not torch.equal(v0, v1)
++
++
++# ------------------------------------------------------------------------------------------------ critic_phase (PS)
++SL = slice(H.PHASE_LO, H.PHASE_HI)
++
++
++class FakeEnv:
++    """A training env stand-in: a step counter, a zero command, an observation with zero command slots."""
++
++    def __init__(self, k=0):
++        self._step_count = k
++        self._command = np.zeros(3, dtype=np.float32)
++        self.direction_controller = None
++
++    def _get_obs(self):
++        return np.ones(OBS, dtype=np.float32)
++
++
++def _slot_free_rms(symmetric=True):
++    """Statistics whose slots 60-62 carried only zeros (mean exactly 0), like the start pkl's."""
++    data = np.random.default_rng(5).normal(size=(50, OBS))
++    data[:, SL] = 0.0
++    if symmetric:
++        from environments.shared.mirror_kl_ppo import SymmetricRunningMeanStd
++
++        r = SymmetricRunningMeanStd(SimpleNamespace(perm=np.arange(OBS), sign=np.ones(OBS), dim=OBS), shape=(OBS,))
++    else:
++        r = RunningMeanStd(shape=(OBS,))
++    r.update(data)
++    return r
++
++
++def _phase_setup(seed=3, n_env=4):
++    p = small_policy(seed)
++    with torch.no_grad():                               # nonzero first-layer slot columns, like the start pair's
++        p.mlp_extractor.value_net[0].weight[:, SL] = 0.3
++        p.mlp_extractor.policy_net[0].weight[:, SL] = -0.2
++    env = fake_env(_slot_free_rms())
++    env.epsilon, env.clip_obs = 1e-8, 10.0
++    env.venv = SimpleNamespace(envs=[FakeEnv() for _ in range(n_env)])
++    m = fake_model(p, lam=0.95)
++    m._n_updates = 100
++    return p, env, m
++
++
++def _phase_buffer(p, env, k0, seed):
++    """A 64-step buffer whose slots carry the phase of counters that start at k0 and reset at episode starts, as
++    VecNormalize writes them (slots mean 0 / var 1); the envs' counters set to where the rollout leaves them."""
++    rng = np.random.default_rng(seed)
++    buf = RolloutBuffer(64, OBS_SPACE, ACT_SPACE, device="cpu", gamma=0.98, gae_lambda=0.95, n_envs=4)
++    k = np.asarray(k0, dtype=np.int64).copy()
++    starts = (k == 0).astype(np.float32)
++    for t in range(64):
++        if t:
++            k = np.where(starts > 0, 0, k + 1)
++        obs = rng.normal(size=(4, OBS)).astype(np.float32)
++        raw = H.phase_matrix(k).astype(np.float32)
++        obs[:, SL] = np.clip((raw - 0.0) / np.sqrt(1.0 + env.epsilon), -10, 10).astype(np.float32)
++        with torch.no_grad():
++            v = p.predict_values(torch.as_tensor(obs)).flatten()
++        buf.add(obs, rng.normal(size=(4, ACT)).astype(np.float32), rng.normal(size=4).astype(np.float32), starts, v,
++                torch.zeros(4))
++        starts = (rng.random(4) < 0.03).astype(np.float32)
++    dones = starts > 0                                 # the last step's dones are the next start flags
++    for e, ke in zip(env.venv.envs, np.where(dones, 0, k + 1), strict=True):
++        e._step_count = int(ke)
++    with torch.no_grad():
++        last = p.predict_values(torch.as_tensor(rng.normal(size=(4, OBS)).astype(np.float32))).flatten()
++    buf.compute_returns_and_advantage(last_values=last, dones=dones)
++    return buf, last.numpy(), dones
++
++
++def _phase_evidence(n=3, mutate=None):
++    p, env, m = _phase_setup()
++    H.install_arm("critic_phase", m, env)
++    ref = H.phase_reference(m)
++    start = H.rms_digest(env.obs_rms)
++    out = []
++    k0 = [0, 0, 150, 990]
++    for e, k in zip(env.venv.envs, k0, strict=True):
++        e._step_count = k
++    for j in range(n):
++        if j >= 1:                                        # an "update": the critic's phase columns move
++            m._n_updates += 7
++            if mutate != "no_learning":
++                with torch.no_grad():
++                    p.mlp_extractor.value_net[0].weight[:, SL] += 0.01 * (j + 1)
++        if mutate == "nonzero_init" and j == 0:
++            with torch.no_grad():
++                p.mlp_extractor.value_net[0].weight[0, H.PHASE_LO] = 1e-3
++        if mutate == "unmask" and j == 1:
++            p.mlp_extractor.__class__ = MlpExtractor
++        k_start = H.env_step_counts(env)
++        buf, last, dones = _phase_buffer(p, env, k_start, seed=40 + j)
++        if mutate == "slot_error" and j == 2:
++            buf.observations[5, 1, H.PHASE_LO + 2] += 1e-3
++        if mutate == "counter" and j == 1:
++            env.venv.envs[0]._step_count += 1
++        if mutate == "unfreeze" and j == 1:               # the slots' statistics update again (the base class)
++            env.obs_rms.__class__ = type(env.obs_rms).bs_base
++        if mutate == "mirror" and j == 2:
++            m._mirror.mirror_map.obs.sign[H.PHASE_LO + 1] = -1.0
++        if mutate == "actor_cols" and j == 2:
++            with torch.no_grad():
++                p.mlp_extractor.policy_net[0].weight[0, H.PHASE_LO] += 1e-3
++        m.rollout_buffer = buf
++        m.num_timesteps = C.S + C.ROLLOUT * (j + 1)
++        env.obs_rms.update(np.random.default_rng(20 + j).normal(size=(9, OBS)))
++        env.ret_rms.update(np.random.default_rng(30 + j).normal(size=9))
++        out.append(H.rollout_evidence("critic_phase", m, env, {"values": torch.as_tensor(last), "dones": dones},
++                                      start_obs_digest=start, phase_ctx={"k0": k_start, "ref": ref}))
++    return out
++
++
++def test_phase_features_and_env_obs_on_the_real_env():
++    """The phase in the observation is the env's own counter's (0 at reset, k after k steps; incremented before
++    _get_obs, as the reward gates read it), on a real T. rex env class-swapped, in lockstep with a plain twin: every
++    other value equal; the terminal observation at the 1,000-step limit carries k = 1000 (settled); VecNormalize's
++    formula with the frozen slots gives back the float32 phase exactly at every k."""
++    from environments.shared.config import load_stage_config
++    from environments.shared.model_id import ModelId
++    from environments.shared.species_registry import env_class
++
++    mid = ModelId("tyrannosaurus_rex", "anatomical")
++    ctor = dict(load_stage_config(mid, "stance")["env_kwargs"])
++    a, b = env_class(mid)(**ctor), env_class(mid)(**ctor)
++    a.__class__ = H.phase_env_class(type(a))
++    oa, _ = a.reset(seed=11)
++    ob, _ = b.reset(seed=11)
++    assert np.array_equal(oa[:60], ob[:60]) and np.all(ob[SL] == 0.0) and tuple(oa[SL]) == tuple(
++        np.float32(x) for x in H.phase_tuple(0))
++    zero = np.zeros(a.action_space.shape, dtype=np.float32)
++    seen = {}
++
++    def lockstep(n):
++        for _ in range(n):
++            oa, ra, ta, tra, _ = a.step(zero)
++            ob, rb, tb, trb, _ = b.step(zero)
++            k = a._step_count
++            assert k == b._step_count and np.array_equal(oa[:60], ob[:60]) and ra == rb and (ta, tra) == (tb, trb)
++            assert oa[SL].tolist() == [float(np.float32(x)) for x in H.phase_tuple(k)] and np.all(ob[SL] == 0.0)
++            seen[k] = (oa[SL].tolist(), ta, tra)
++            if ta or tra:
++                return
++    lockstep(210)                                       # across the gate: k = 199 / 200 / 201
++    assert seen[199][0] == [float(np.float32(0.995)), 0.0, float(np.float32(0.98))]
++    assert seen[200][0] == [1.0, 1.0, 1.0] and seen[201][0] == [1.0, 1.0, 1.0] and 1 in seen
++    a._step_count = b._step_count = 998                 # the time limit: the terminal observation at k = 1000
++    lockstep(2)
++    assert seen[1000] == ([1.0, 1.0, 1.0], False, True)
++    a.close()
++    b.close()
++    raw = H.phase_matrix(np.arange(0, 1001)).astype(np.float32)
++    normed = np.clip((raw - 0.0) / np.sqrt(1.0 + 1e-8), -10.0, 10.0).astype(np.float32)
++    assert np.array_equal(normed, raw)
++
++
++def test_phase_env_refuses_a_live_command():
++    e = FakeEnv()
++    e.__class__ = H.phase_env_class(FakeEnv)
++    assert e._get_obs()[SL].tolist() == list(H.phase_tuple(0))[:2] + [float(np.float32(H.phase_tuple(0)[2]))]
++    e._command = np.array([0.1, 0.0, 0.0], dtype=np.float32)
++    with pytest.raises(H.HookError):
++        e._get_obs()
++
++
++def test_critic_phase_install_transform_mask_and_zero_init():
++    p, env, m = _phase_setup()
++    x = torch.randn(64, OBS)
++    with torch.no_grad():
++        x0 = x.clone()
++        x0[:, SL] = 0.0
++        mu_load, v_load = p.get_distribution(x0).mode().clone(), p.predict_values(x0).clone()
++    sd = {k: v.clone() for k, v in p.state_dict().items()}
++    rms_before = (env.obs_rms.mean.copy(), env.obs_rms.var.copy(), float(env.obs_rms.count))
++    rec = H.install_arm("critic_phase", m, env)
++    assert rec["transform_verified"] is True and rec["mlp_extractor_class"] == "CriticPhaseMlpExtractor"
++    assert rec["obs_rms_class"] == "PhaseSlotsSymmetricRunningMeanStd" and rec["n_train_envs"] == 4
++    assert rec["value_phase_cols_max_abs_before"] == pytest.approx(0.3)
++    after = p.state_dict()
++    for k in sd:
++        if k == "mlp_extractor.value_net.0.weight":
++            assert torch.all(after[k][:, SL] == 0) and torch.equal(after[k][:, :60], sd[k][:, :60])
++        else:
++            assert torch.equal(after[k], sd[k]), k
++    assert np.all(env.obs_rms.mean[SL] == 0.0) and np.all(env.obs_rms.var[SL] == 1.0)
++    assert np.array_equal(env.obs_rms.mean[:60], rms_before[0][:60]) and env.obs_rms.count == rms_before[2]
++    assert np.all(rms_before[1][SL] != 1.0)            # the reseed changed them
++    assert all(type(e).__name__ == "PhaseObsFakeEnv" for e in env.venv.envs)
++    assert H.mirror_phase_self_map(m._mirror.mirror_map.obs) and H.arm_state_problems("critic_phase", m, env) == []
++    assert H.arm_state_problems("control", m, env) != []
++    acts = torch.randn(64, ACT)
++    with torch.no_grad():
++        for fill in (0.0, 1.0, 0.5, -3.0, 7.0):
++            y = x.clone()
++            y[:, SL] = fill
++            # the actor: bitwise the loaded actor (slots zero) whatever the slots hold; the critic at the load too
++            assert torch.equal(p.get_distribution(y).mode(), mu_load)
++            assert torch.equal(p.forward(y, deterministic=True)[0], mu_load)
++            assert torch.equal(p.evaluate_actions(y, acts)[1], p.evaluate_actions(x0, acts)[1])
++            assert torch.equal(p.predict_values(y), v_load)
++    # the caller's tensor is never written
++    xc = x.clone()
++    p.get_distribution(x)
++    assert torch.equal(x, xc)
++
++
++def test_critic_phase_gradients_actor_zero_critic_nonzero():
++    """One backward pass of a value + policy loss: the actor's first-layer phase columns get exactly zero gradient,
++    the critic's (zero-initialised) get a nonzero one; autograd on the input: d mu / d slots = 0 exactly."""
++    p, env, m = _phase_setup(4)
++    H.install_arm("critic_phase", m, env)
++    x = torch.randn(32, OBS)
++    x[:, SL] = torch.rand(32, 3)
++    acts = torch.randn(32, ACT)
++    values, logp, _ = p.evaluate_actions(x, acts)
++    loss = ((values.flatten() - 1.0) ** 2).mean() - logp.mean()
++    p.optimizer.zero_grad()
++    loss.backward()
++    g_pi = p.mlp_extractor.policy_net[0].weight.grad
++    g_vf = p.mlp_extractor.value_net[0].weight.grad
++    assert torch.all(g_pi[:, SL] == 0) and torch.any(g_pi[:, :60] != 0)
++    assert torch.any(g_vf[:, SL] != 0)
++    z = x.clone().requires_grad_(True)
++    gz = torch.autograd.grad(p.get_distribution(z).mode().sum(), z)[0]
++    assert torch.all(gz[:, SL] == 0) and torch.any(gz[:, :60] != 0)
++    p.optimizer.step()
++    assert torch.equal(p.mlp_extractor.policy_net[0].weight[:, SL], torch.full_like(g_pi[:, SL], -0.2))
++    assert float(p.mlp_extractor.value_net[0].weight[:, SL].detach().abs().max()) > 0.0
++    assert H._adam_phase_max_abs(p, p.mlp_extractor.policy_net[0].weight) == 0.0
++    assert H._adam_phase_max_abs(p, p.mlp_extractor.value_net[0].weight) > 0.0
++
++
++def test_critic_phase_install_refusals():
++    p, env, m = _phase_setup()
++    env.obs_rms.mean = env.obs_rms.mean.copy()
++    env.obs_rms.mean[H.PHASE_LO] = 1e-3                  # the slots carried a value
++    with pytest.raises(H.HookError):
++        H.install_arm("critic_phase", m, env)
++    p, env, m = _phase_setup()
++    env.venv.envs[2]._command = np.array([0.0, 0.2, 0.0], dtype=np.float32)
++    with pytest.raises(H.HookError):
++        H.install_arm("critic_phase", m, env)
++    p, env, m = _phase_setup()
++    env.venv = SimpleNamespace(envs=[])
++    with pytest.raises(H.HookError):
++        H.install_arm("critic_phase", m, env)
++    p, env, m = _phase_setup()
++    perm = np.arange(OBS)
++    perm[60], perm[59] = 59, 60
++    m._mirror.mirror_map.obs.perm = perm
++    with pytest.raises(H.HookError):
++        H.install_arm("critic_phase", m, env)
++    p, env, m = _phase_setup()
++    del m._mirror
++    with pytest.raises(H.HookError):
++        H.install_arm("critic_phase", m, env)
++    p, env, m = _phase_setup()
++    x = torch.randn(8, OBS)
++    loss = p.predict_values(x).sum() + p.get_distribution(x).mode().sum()
++    p.optimizer.zero_grad()
++    loss.backward()
++    p.optimizer.step()                                  # nonzero Adam moments on the slot columns (x had values)
++    with pytest.raises(H.HookError):
++        H.install_arm("critic_phase", m, env)
++    p, env, m = _phase_setup()
++    H.install_arm("critic_phase", m, env)
++    with pytest.raises(H.HookError):                     # twice
++        H.install_arm("critic_phase", m, env)
++
++
++def test_phase_rms_keeps_slots_other_dims_as_control_and_pickles_stock():
++    from environments.shared.mirror_kl_ppo import install_symmetric_obs_rms
++
++    a, b = _slot_free_rms(), _slot_free_rms()            # b: control's statistics, the same updates
++    H.reseed_phase_slots(a)
++    a.__class__ = H.phase_rms_class(type(a))
++    c0 = H.phase_counter(a)["calls"]
++    for j in range(4):
++        data = np.random.default_rng(60 + j).normal(size=(13, OBS))
++        b.update(np.where(np.arange(OBS) >= 60, 0.0, data))
++        data[:, SL] = H.phase_matrix(np.arange(13) * 37)            # the phase in the slots
++        a.update(data)
++    assert H.phase_counter(a)["calls"] == c0 + 4 and H.phase_slots_frozen(a)
++    assert np.array_equal(a.mean[:60], b.mean[:60]) and np.array_equal(a.var[:60], b.var[:60]) and a.count == b.count
++    for clone in (pickle.loads(pickle.dumps(a)), copy.deepcopy(a)):
++        assert type(clone) is RunningMeanStd and H.phase_slots_frozen(clone) and np.array_equal(clone.mean, a.mean)
++    vn = SimpleNamespace(obs_rms=a, norm_obs=True)
++    install_symmetric_obs_rms(vn, SimpleNamespace(obs=SimpleNamespace(perm=np.arange(OBS), sign=np.ones(OBS),
++                                                                      dim=OBS)))
++    assert vn.obs_rms is a                              # MirrorKLPPO.learn()'s _mirror_install keeps it
++
++
++def test_phase_mirror_map_on_the_real_map():
++    from environments.shared.model_id import ModelId
++    from environments.shared.plant_contract import current_plant_identity
++    from environments.shared.symmetry import MirrorMap, SignedPermutation
++
++    mid = ModelId("tyrannosaurus_rex", "anatomical")
++    mm = MirrorMap.load(mid, current_plant_identity(mid), verify=False)
++    assert mm.obs.sign[61] == -1.0 and mm.obs.sign[62] == -1.0 and mm.obs.sign[60] == 1.0
++    new = H.phase_mirror_map(mm)
++    assert isinstance(new.obs, SignedPermutation) and new.action is mm.action and new.sha256 == mm.sha256
++    assert np.array_equal(new.obs.perm, mm.obs.perm) and np.all(new.obs.sign[SL] == 1.0)
++    assert np.array_equal(new.obs.sign[:60], mm.obs.sign[:60]) and new.obs.names[60] == "critic_phase.ramp"
++    assert mm.obs.sign[61] == -1.0                      # the run's map object is not written
++    x = np.random.default_rng(1).normal(size=(5, OBS)).astype(np.float32)
++    x[:, SL] = [0.3, 1.0, 0.7]
++    assert np.array_equal(new.obs.apply(x)[:, SL], x[:, SL])
++
++
++class PolicyProbeCallback:                              # a stand-in with the real class's name and bank shape
++    def __init__(self, bank):
++        self.bank = bank
++        self.seen = []
++
++    def _row(self):
++        self.seen.append(np.array(self.bank.raw_obs, copy=True))
++        return {"row": len(self.seen)}
++
++
++def _bank():
++    from typing import NamedTuple
++
++    class Bank(NamedTuple):
++        labels: tuple
++        steps: np.ndarray
++        raw_obs: np.ndarray
++
++    return Bank(labels=("statue_settled", "statue", "ankle_minus_0.05_at400"), steps=np.array([199, 599, 400]),
++                raw_obs=np.zeros((3, OBS)))
++
++
++def test_probe_phase_feeds_the_bank_phase_and_restores_the_bank():
++    probe = PolicyProbeCallback(_bank())
++    rec = H.probe_phase("critic_phase", [SimpleNamespace(), probe])
++    assert rec["installed"] and rec["k"] == [200, 600, 401] and rec["phase_fed"] == [[1.0, 1.0, 1.0]] * 3
++    assert rec["class"] == "PhaseFedPolicyProbeCallback" and all(rec["settled"])
++    bank = probe.bank
++    assert probe._row() == {"row": 1} and probe.bank is bank and np.all(bank.raw_obs == 0.0)
++    assert np.all(probe.seen[0][:, SL] == 1.0) and np.all(probe.seen[0][:, :60] == 0.0)
++    with pytest.raises(H.HookError):
++        H.probe_phase("critic_phase", [probe])          # already feeding
++    plain = PolicyProbeCallback(_bank())
++    rec = H.probe_phase("control", [plain])
++    assert rec["installed"] is False and type(plain) is PolicyProbeCallback and rec["phase_fed"] is None
++    with pytest.raises(H.HookError):
++        H.probe_phase("control", [plain, PolicyProbeCallback(_bank())])
++    with pytest.raises(H.HookError):
++        H.probe_phase("control", [])
++    with pytest.raises(H.HookError):
++        H.probe_phase("critic_phase", [PolicyProbeCallback(None)])
++
++
++def test_phase_evidence_zero_init_then_response():
++    ev = _phase_evidence(3)
++    s = H.summarize(ev)
++    assert H.evidence_problems("critic_phase", s, n_expected=3) == [], H.evidence_problems("critic_phase", s)
++    assert s["phase_n_zero_init"] == 1 and s["phase_n_updated"] == 2 and s["max_dmu_phase"] == 0.0
++    assert s["zero_init_max_dv_phase"] == 0.0 and s["zero_init_max_value_phase_cols"] == 0.0
++    assert all(v > 0 for v in s["updated_min_dv_phase"].values()) and s["max_phase_buffer_max_err"] == 0.0
++    assert ev[0]["n_updates_since_load"] == 0 and ev[2]["n_updates_since_load"] == 14
++    assert ev[0]["phase_k_start_consistent"] and ev[0]["phase_rows_presettle"] > 0
++    assert ev[0]["dv_predict_values"] > 0                # the critic still sees observation 6
++    assert H.evidence_problems("control", s, n_expected=3) != []
++
++
++@pytest.mark.parametrize("mutate", ["unmask", "nonzero_init", "no_learning", "slot_error", "counter", "unfreeze",
++                                    "mirror", "actor_cols"])
++def test_phase_evidence_mutants_fail(mutate):
++    s = H.summarize(_phase_evidence(3, mutate=mutate))
++    assert H.evidence_problems("critic_phase", s, n_expected=3) != [], mutate
++
++
++def test_phase_evidence_needs_its_context():
++    p, env, m = _phase_setup()
++    H.install_arm("critic_phase", m, env)
++    buf, last, dones = _phase_buffer(p, env, [0, 0, 0, 0], seed=1)
++    m.rollout_buffer = buf
++    with pytest.raises(H.HookError):
++        H.rollout_evidence("critic_phase", m, env, {"values": torch.as_tensor(last), "dones": dones},
++                           start_obs_digest=None, phase_ctx=None)
++
++
++def test_start_pair_actor_and_critic_bitwise_after_the_phase_transform():
++    """The real start pair (read only): after the critic's phase columns are zeroed and the slots reseeded, the bank's
++    actions and values with ANY phase fed equal the loaded pair's on the bank as recorded, bitwise."""
++    from environments.shared.config import load_stage_config
++    from environments.shared.model_id import ModelId
++    from environments.shared.policy_loading import load_sb3_checkpoint
++    from environments.shared.species_registry import env_class
++
++    mid = ModelId("tyrannosaurus_rex", "anatomical")
++    ctor = dict(load_stage_config(mid, "stance")["env_kwargs"])
++    model, norm, _ = load_sb3_checkpoint(C.f2_file(C.START["zip_rel"]), C.f2_file(C.START["pkl_rel"]),
++                                         lambda: env_class(mid)(**ctor))
++    with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
++        bank = np.asarray(z["bank_raw_obs"], dtype=np.float64)
++    p = model.policy
++    rms = norm.obs_rms
++
++    def outs(raw, r):
++        t = torch.as_tensor(np.clip((raw - r.mean) / np.sqrt(r.var + norm.epsilon), -10, 10), dtype=torch.float32)
++        with torch.no_grad():
++            return p.get_distribution(t).mode().clone(), p.predict_values(t).clone()
++
++    mu0, v0 = outs(bank, rms)
++    assert float(p.mlp_extractor.value_net[0].weight[:, SL].detach().abs().max()) > 0.1
++    with torch.no_grad():
++        p.mlp_extractor.value_net[0].weight[:, SL] = 0.0
++    r2 = copy.deepcopy(rms)
++    H.reseed_phase_slots(r2)
++    p.mlp_extractor.__class__ = H.critic_phase_class(MlpExtractor)
++    for k in (0, 50, 199, 200, 600, 1000):
++        fed = bank.copy()
++        fed[:, SL] = H.phase_matrix([k] * len(bank))
++        mu1, v1 = outs(fed, r2)
++        assert torch.equal(mu0, mu1) and torch.equal(v0, v1), k
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_read_bs.py /home/user/work/phase_screen/tools/tests/test_read_bs.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_read_bs.py	2026-10-30 10:40:17.464944517 +0000
++++ /home/user/work/phase_screen/tools/tests/test_read_bs.py	2026-10-31 13:38:52.719904935 +0000
+@@ -23,7 +23,7 @@
+ _spec.loader.exec_module(RB)
+ C, H = RB.C, RB.H
+ S, R8 = C.S, C.ROLLOUT
+-VS = C.VALIDATION_SEEDS[0]                             # BS2: 9201 (BS's tests used 9101)
++VS = C.VALIDATION_SEEDS[0]                             # PS: 9401 (BS2's tests used 9201, BS's 9101)
+ N_PARENT = C.E // R8 + 8                               # a synthetic parent probe that runs past E (BS's used 399 rows)
+ 
+ 
+@@ -88,10 +88,24 @@
+ def _good_meta(arm, kind="validation", T=S + 2 * R8):
+     lam = C.ARM_GAE_LAMBDA[arm]
+     cls = {"critic_blind_tail3": ("CriticBlindTail3MlpExtractor", "SymmetricRunningMeanStd"),
+-           "frozen_obs_norm": ("MlpExtractor", "FrozenObsSymmetricRunningMeanStd")}.get(
++           "frozen_obs_norm": ("MlpExtractor", "FrozenObsSymmetricRunningMeanStd"),
++           "critic_phase": ("CriticPhaseMlpExtractor", "PhaseSlotsSymmetricRunningMeanStd")}.get(
+         arm, ("MlpExtractor", "SymmetricRunningMeanStd"))
+-    d0 = {"params": "p0", "adam": "a0", "n_updates": 10}
++    d0 = {"params": "p0", "adam": "a0", "vecnormalize": "v0", "n_updates": 10}
+     d1 = dict(d0) if kind == "validation" else {"params": "p1", "adam": "a1", "n_updates": 30}
++    phase = arm == "critic_phase"
++    dl = {**d0, "params": "pL", "vecnormalize": "vL"} if phase else dict(d0)
++    n = C.expected_update_rows(C.S, T)
++    aa = {"arm": arm, "mlp_extractor_class": cls[0], "obs_rms_class": cls[1]}
++    if phase:
++        aa.update(transform_verified=True, phase_slots=list(C.PHASE_SLOTS))
++    k = [200, 600, 600, 600, 401, 200, 600, 600, 600, 401]
++    probe = ({"installed": True, "class": "PhaseFedPolicyProbeCallback", "k": k, "phase_fed": [[1.0, 1.0, 1.0]] * 10}
++             if phase else {"installed": False, "class": "PolicyProbeCallback", "k": k, "phase_fed": None})
++    ev = {"n": n, "phase_n_zero_init": (n if kind == "validation" else 1) if phase else None,
++          "phase_n_updated": (0 if kind == "validation" else n - 1) if phase else None}
++    pdef = ({"slots": list(C.PHASE_SLOTS), "features": list(C.PHASE_FEATURES), "settle_steps": C.SETTLE_STEPS,
++             "gamma": C.PHASE_GAMMA, "k": "x"} if phase else None)
+     return {"schema": C.RUN_SCHEMA, "name": C.run_name(arm, VS), "arm": arm, "seed": VS, "S": C.S, "E": C.E,
+             "mode": "no_update" if kind == "validation" else "continuation", "status": "done", "exit": 0,
+             "code": {"tree_digest": C.TREE_DIGEST, "commit": C.COMMIT}, "code_seal_after": "unchanged",
+@@ -100,7 +114,8 @@
+             "parent_records": {k: C.START["records"][k] for k in C.PARENT_RECORDS},
+             "arm_ppo": dict(C.ARM_PPO_EDIT[arm]) or "unchanged", "arm_change": C.ARM_CHANGE[arm],
+             "ppo_applied": {"gae_lambda": lam}, "gae_lambda_after_load": lam, "ent_coef_after_load": 0.005,
+-            "arm_applied": {"arm": arm, "mlp_extractor_class": cls[0], "obs_rms_class": cls[1]},
++            "arm_applied": aa, "probe_phase": probe, "phase_definition": pdef, "arm_evidence": ev,
++            "digest_load": dl,
+             "arm_state_end": "in force", "obs_rms_end_equal_start": arm == "frozen_obs_norm",
+             "recipe_v5": {"problems": []}, "torch_threads": 1, "T": T, "target": T, "stop_reason": "end",
+             "stop_at_end": {"flag": True}, "collapse": {"found": 1, "patience": 10, "tripped": False},
+@@ -126,9 +141,46 @@
+     m = _good_meta(arm)
+     m.update(S=1_048_576, E=2_490_368)                    # BS's window is not BS2's
+     assert any("S, E" in f for f in RB.check_meta(m, "validation", C.run_name(arm, VS))[0])
++    for seed in (9101, 9201):                            # BS's and BS2's validation seeds are not PS's
++        m = _good_meta(arm)
++        m.update(seed=seed, name=C.run_name(arm, seed))
++        assert any("validation seed" in f for f in RB.check_meta(m, "validation", C.run_name(arm, seed))[0])
++
++
++@pytest.mark.parametrize("arm", C.ARMS)
++def test_check_meta_phase_records(arm):
++    """PS: critic_phase's run_meta must show the verified transform, the phase definition, the probe feeding the
++    settled bank's phase and the evidence split (no-update: every rollout before an update; continuation: exactly
++    the first); control must show none of them and an unchanged loaded state."""
++    name = C.run_name(arm, VS)
++    assert RB.check_meta(_good_meta(arm), "validation", name)[0] == []
++    mutants = []
++    if arm == "critic_phase":
++        mutants += [("arm_applied", "transform_verified", False), ("arm_applied", "phase_slots", [57, 58, 59]),
++                    ("probe_phase", "installed", False), ("probe_phase", "class", "PolicyProbeCallback"),
++                    ("probe_phase", "k", [199] + [600] * 9), ("phase_definition", "settle_steps", 201),
++                    ("phase_definition", "gamma", 0.99), ("arm_evidence", "phase_n_zero_init", 0),
++                    ("arm_evidence", "phase_n_updated", 1), ("digest_load", "adam", "aX"),
++                    ("digest_load", "params", "p0")]
++    else:
++        mutants += [("probe_phase", "installed", True), ("arm_applied", "transform_verified", True),
++                    ("digest_load", "params", "pX"), ("digest_load", "vecnormalize", "vX")]
++    for top, key, val in mutants:
++        m = _good_meta(arm)
++        m[top] = dict(m[top] or {}, **{key: val})
++        assert RB.check_meta(m, "validation", name)[0] != [], (top, key, val)
+     m = _good_meta(arm)
+-    m.update(seed=9101, name=C.run_name(arm, 9101))      # BS's validation seed is not BS2's
+-    assert any("validation seed" in f for f in RB.check_meta(m, "validation", C.run_name(arm, 9101))[0])
++    m["phase_definition"] = None if arm == "critic_phase" else {"slots": [60, 61, 62]}
++    assert RB.check_meta(m, "validation", name)[0] != []
++
++
++def test_phase_meta_continuation_split():
++    m = _good_meta("critic_phase", kind="continuation", T=C.E)
++    assert m["arm_evidence"] == {"n": 175, "phase_n_zero_init": 1, "phase_n_updated": 174}
++    assert RB.phase_meta_problems(m, "critic_phase", "continuation") == []
++    assert RB.phase_meta_problems(m, "critic_phase", "validation") != []
++    m["arm_evidence"] = {"n": 175, "phase_n_zero_init": 175, "phase_n_updated": 0}
++    assert RB.phase_meta_problems(m, "critic_phase", "continuation") != []
+ 
+ 
+ def test_check_meta_continuation_needs_screen_and_updates(tmp_path, monkeypatch):
+@@ -146,6 +198,23 @@
+         RB.check_meta(m, "continuation", "control_2101_crashed1")
+ 
+ 
++def _phase_keys(arm, k):
++    """PS: the phase evidence of rollout k (k = 0 before any update)."""
++    phase = arm == "critic_phase"
++    out = {key: (0.0 if phase else 0.2) for key in H.PHASE_ACTOR_KEYS}
++    out.update({key: (0.0 if phase and k == 0 else 0.004) for key in H.PHASE_CRITIC_KEYS})
++    if not phase:
++        out.update({key: None for key in H.PHASE_STRUCT_KEYS})
++        return out
++    out.update(phase_rows=8192, phase_buffer_max_err=0.0, phase_k_start_consistent=True, phase_k_end_consistent=True,
++               phase_k_min=0, phase_k_max=999, phase_rows_presettle=1600, phase_stats_frozen=True,
++               phase_rms_calls=2049 * (k + 1), mirror_phase_self_map=True, mirror_phase_tensors_ok=None if k == 0
++               else True, envs_swapped=True, value_phase_cols_max_abs=0.0 if k == 0 else 0.002 * k,
++               policy_phase_cols_unchanged=True, policy_phase_adam_max_abs=0.0, n_updates_since_load=7 * k,
++               adam_steps_since_load=float(400 * k))
++    return out
++
++
+ def _ev_lines(arm, n):
+     base = {"buffer_gae_lambda": C.ARM_GAE_LAMBDA[arm], "model_gae_lambda": C.ARM_GAE_LAMBDA[arm], "adv_scale": 1.0,
+             "value_scale": 5.0, "mc_vs_gae_lambda1_recursion": 1e-14, "returns_minus_adv_minus_values": 1e-7,
+@@ -163,6 +232,7 @@
+         frozen = arm == "frozen_obs_norm"
+         e.update(obs_rms_digest="d0" if frozen else f"d{k + 1}", obs_rms_equal_start=frozen,
+                  frozen_update={"calls": 2 * (k + 1), "rows": 8 * (k + 1)} if frozen else None)
++        e.update(_phase_keys(arm, k))
+         out.append(e)
+     return out
+ 
+@@ -245,16 +315,16 @@
+ 
+ 
+ def test_decided_and_outcome_blind(tmp_path):
+-    q = [["control", 2101], ["gae_lambda_1", 2101]]
+-    (tmp_path / "SCREEN.json").write_text(json.dumps({"schema": C.SCREEN_SCHEMA, "intervention": "gae_lambda_1",
++    q = [["control", 2101], ["critic_phase", 2101]]
++    (tmp_path / "SCREEN.json").write_text(json.dumps({"schema": C.SCREEN_SCHEMA, "intervention": "critic_phase",
+                                                       "queue": q}))
+     ok, und = RB.decided(tmp_path)
+-    assert not ok and und == ["control_2101", "gae_lambda_1_2101"]
++    assert not ok and und == ["control_2101", "critic_phase_2101"]
+     for name in ("control_2101",):
+         (tmp_path / "runs" / name).mkdir(parents=True)
+         (tmp_path / "runs" / name / C.CHECK_JSON).write_text(json.dumps({"passed": True, "mode": "continuation"}))
+-    assert RB.decided(tmp_path) == (False, ["gae_lambda_1_2101"])
+-    (tmp_path / "lost.json").write_text(json.dumps({"schema": C.LOST_SCHEMA, "lost": {"gae_lambda_1_2101": {}}}))
++    assert RB.decided(tmp_path) == (False, ["critic_phase_2101"])
++    (tmp_path / "lost.json").write_text(json.dumps({"schema": C.LOST_SCHEMA, "lost": {"critic_phase_2101": {}}}))
+     assert RB.decided(tmp_path) == (True, [])
+     assert RB.decided(tmp_path / "nowhere")[0] is False
+ 
+@@ -279,6 +349,13 @@
+     assert RB.cache_key(z, p, blind=True, onpolicy=True, own=True) != k
+     assert RB.cache_key(z, p, blind=False, onpolicy=False, own=True) != k
+     assert RB.cache_key(z, p, blind=False, onpolicy=True, own=False) != k
++    # PS: critic_phase's reading has its own form, and the start copy (the load transform applied) another
++    kp = RB.cache_key(z, p, blind=False, onpolicy=True, own=True, phase=True)
++    ks = RB.cache_key(z, p, blind=False, onpolicy=True, own=True, phase=True, start=True)
++    assert kp.endswith("_phase_on_own") and ks.endswith("_phase_S_on_own") and len({k, kp, ks}) == 3
++    assert RB.cache_key(z, p, blind=False, onpolicy=True, own=True, start=True) == k     # start: phase reads only
++    with pytest.raises(ValueError):
++        RB.cache_key(z, p, blind=True, onpolicy=True, own=True, phase=True)
+     good = {"reader_sha256": RB.READER_SHA256, "deps_sha256": RB.DEPS_SHA256}
+     assert RB.cache_entry_problem(good) is None
+     assert RB.cache_entry_problem({**good, "reader_sha256": "0" * 64}) is not None
+@@ -295,3 +372,49 @@
+         # the verifier's b*_P = 1 - G - c0 (printed to 3 decimals) agrees with the early-warning values
+         assert abs((1.0 - w["ew_own"]["G"] - w["ew_own"]["c0"]) - w["vew_b_star_P"]) <= 5e-4
+         assert w["wm_b_star_P"] == w["vew_b_star_P"]
++
++
++# ------------------------------------------------------------------------------------------------ PS additions
++def test_with_phase_feeds_each_state_its_own_counter():
++    X = np.random.default_rng(0).normal(size=(5, 63))
++    K = np.array([0, 100, 199, 200, 1000])
++    Y = RB.with_phase(X, K)
++    assert np.array_equal(Y[:, :60], X[:, :60]) and not np.shares_memory(X, Y)
++    assert [tuple(r) for r in Y[:, 60:63]] == [C.phase_features(int(k)) for k in K]
++
++
++def _fake_net(value_cols=0.3, slot_var=2.4e-11):
++    import torch
++    from stable_baselines3.common.policies import ActorCriticPolicy
++    from stable_baselines3.common.running_mean_std import RunningMeanStd
++
++    import gymnasium as gym
++
++    torch.manual_seed(0)
++    pol = ActorCriticPolicy(gym.spaces.Box(-10, 10, (63,), np.float32), gym.spaces.Box(-1, 1, (15,), np.float32),
++                            lambda _: 1e-3, net_arch=[8, 8])
++    with torch.no_grad():
++        pol.mlp_extractor.value_net[0].weight[:, 60:63] = value_cols
++    rms = RunningMeanStd(shape=(63,))
++    rms.var = np.ones(63)
++    rms.var[60:63] = slot_var
++    rms.mean = np.zeros(63)
++    net = SimpleNamespace(policy=pol, norm=SimpleNamespace(obs_rms=rms), refreshed=[])
++    net.refresh_stats = lambda: net.refreshed.append(True)
++    return net
++
++
++def test_phase_prepare_start_and_later_pairs():
++    """PS: at the start copy the arm's load transform (the critic's phase columns zeroed, the slots reseeded, the
++    normaliser re-read) and the actor's mask; a later pair must already carry the frozen slots, else refused."""
++    net = _fake_net()
++    rec = RB.phase_prepare(net, start=True)
++    assert rec["start_transform"] and rec["value_phase_cols_max_abs_read"] == pytest.approx(0.3)
++    assert rec["value_phase_cols_max_abs_used"] == 0.0 and net.refreshed == [True]
++    assert H.phase_slots_frozen(net.norm.obs_rms)
++    assert type(net.policy.mlp_extractor).__name__ == "CriticPhaseMlpExtractor"
++    net = _fake_net(value_cols=0.05, slot_var=1.0)
++    rec = RB.phase_prepare(net, start=False)
++    assert rec["value_phase_cols_max_abs_used"] == pytest.approx(0.05) and net.refreshed == []
++    with pytest.raises(RB.InputError):
++        RB.phase_prepare(_fake_net(), start=False)        # a later pair without the frozen slots
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_run_bs.py /home/user/work/phase_screen/tools/tests/test_run_bs.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_run_bs.py	2026-10-30 10:39:51.849126712 +0000
++++ /home/user/work/phase_screen/tools/tests/test_run_bs.py	2026-10-31 13:23:00.846300806 +0000
+@@ -27,7 +27,7 @@
+ 
+ R = _load("run_bs")
+ C = R.C
+-V0, V4 = C.VALIDATION_SEEDS[0], C.VALIDATION_SEEDS[-1]     # BS2: 9201, 9241 (BS's tests used 9101 / 9141)
++V0, V4 = C.VALIDATION_SEEDS[0], C.VALIDATION_SEEDS[-1]     # PS: 9401, 9441 (BS2's tests used 9201 / 9241)
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ bs_common
+@@ -41,9 +41,10 @@
+     assert C.SAVED_STEPS == (2_359_296, 2_621_440, 2_883_584, 3_145_728, 3_407_872)
+     assert C.E % C.SAVE_FREQ != 0                       # no periodic pair at E: the final pair is the end pair
+     assert C.VALIDATE_UNTIL == C.S + 262_144 == 2_359_296
+-    assert C.WAVE_SLOTS == 4 and C.WAVE_NICE == 10 and C.MAX_CONTINUATIONS == 9
+-    assert C.DISK_FLOOR_BYTES == 1_610_612_736 and C.LAUNCH_DISK_BYTES == 1_610_612_736 + 9 * 50 * 1024**2
+-    assert C.BS.endswith("/r10round/bias_screen2") and C.CODE == C.BS1 + "/code" and C.BS1 != C.BS
++    assert C.WAVE_SLOTS == 4 and C.WAVE_NICE == 10 and C.MAX_CONTINUATIONS == 8
++    assert C.DISK_FLOOR_BYTES == 1_610_612_736 and C.LAUNCH_DISK_BYTES == 1_610_612_736 + 8 * 50 * 1024**2
++    assert C.BS == "/home/user/work/phase_screen" and C.CODE == C.BS1 + "/code" and C.BS1 != C.BS
++    assert C.BS1.endswith("/r10round/bias_screen") and C.BS2_DIR.endswith("/r10round/bias_screen2")
+ 
+ 
+ def test_start_pair_pins():
+@@ -56,9 +57,29 @@
+     assert set(st["records"]) == {*C.PARENT_RECORDS, "stage_config.json"}
+ 
+ 
+-def test_validation_seeds_are_bs2s():
+-    assert C.VALIDATION_SEEDS == (9201, 9211, 9221, 9231, 9241)
+-    assert all(s not in C.VALIDATION_SEEDS for s in (2101, 2111, 2121, 2131))
++def test_validation_seeds_are_pss():
++    assert C.VALIDATION_SEEDS == (9401, 9411, 9421, 9431, 9441)
++    assert all(s not in C.VALIDATION_SEEDS for s in (2101, 2111, 2121, 2131, 9201, 9241, 9101, 9301))
++
++
++def test_phase_definition():
++    """PS: the phase features of a step counter k (bs_common THE PHASE), the off-by-one at the gate, the slots."""
++    assert C.PHASE_SLOTS == (60, 61, 62) and C.OBS_DIM == 63 and C.SETTLE_STEPS == 200 and C.PHASE_GAMMA == 0.98
++    assert C.PHASE_FEATURES == ("ramp", "settled", "discount")
++    assert C.phase_features(0) == (0.0, 0.0, 0.98 ** 200)
++    assert C.phase_features(100) == (0.5, 0.0, 0.98 ** 100)
++    assert C.phase_features(199) == (0.995, 0.0, 0.98)          # its own reward: _step_count 200, not > 200: unpaid
++    assert C.phase_features(200) == (1.0, 1.0, 1.0)             # its own reward: _step_count 201 > 200: the first paid
++    assert all(C.phase_features(k) == (1.0, 1.0, 1.0) for k in (201, 599, 600, 999, 1000, 5000))
++    ramps = [C.phase_features(k)[0] for k in range(0, 201)]
++    discs = [C.phase_features(k)[2] for k in range(0, 201)]
++    assert ramps == sorted(ramps) and discs == sorted(discs) and len(set(ramps)) == 201
++    for bad in (-1, 1.5, True, "3"):
++        with pytest.raises(ValueError):
++            C.phase_features(bad)
++    assert all(R.H.phase_tuple(k) == C.phase_features(k) for k in range(0, 1201))
++    assert (R.H.PHASE_SLOTS, R.H.SETTLE_STEPS, R.H.PHASE_GAMMA, R.H.OBS_DIM, R.H.PHASE_FEATURES) == (
++        C.PHASE_SLOTS, C.SETTLE_STEPS, C.PHASE_GAMMA, C.OBS_DIM, C.PHASE_FEATURES)
+ 
+ 
+ def test_run_names():
+@@ -66,11 +87,12 @@
+         n = C.run_name(arm, 2101)
+         assert C.parse_run_name(n) == {"arm": arm, "seed": 2101, "suffix": None, "k": None}
+         assert C.parse_run_name(n + "_crashed2") == {"arm": arm, "seed": 2101, "suffix": "crashed", "k": 2}
+-    assert C.parse_run_name("gae_lambda_1_2301")["arm"] == "gae_lambda_1"
++    assert C.parse_run_name("critic_phase_2301")["arm"] == "critic_phase"
+     assert C.parse_run_name("s42_A_1101") is None and C.parse_run_name("critic_2101") is None
++    assert C.parse_run_name("critic_blind_tail3_2101") is None and C.parse_run_name("gae_lambda_1_2101") is None
+ 
+ 
+-def _screen(inter="critic_blind_tail3", queue=None):
++def _screen(inter="critic_phase", queue=None):
+     q = queue if queue is not None else [["control", 2101], [inter, 2101], ["control", 2111], [inter, 2111]]
+     return {"schema": C.SCREEN_SCHEMA, "intervention": inter, "queue": q}
+ 
+@@ -78,17 +100,19 @@
+ def test_screen_valid_and_invalid():
+     for inter in C.INTERVENTIONS:
+         assert C.screen_problems(_screen(inter)) == []
+-    assert C.queue_of(_screen())[1] == ("critic_blind_tail3", 2101)
+-    nine = [["control", 2000 + i] for i in range(5)] + [["frozen_obs_norm", 3000 + i] for i in range(4)]
+-    assert C.screen_problems(_screen("frozen_obs_norm", nine)) == []
++    assert C.queue_of(_screen())[1] == ("critic_phase", 2101)
++    eight = [["control", 2000 + i] for i in range(4)] + [["critic_phase", 3000 + i] for i in range(4)]
++    assert C.screen_problems(_screen("critic_phase", eight)) == []
+     bad = {
+-        "ten": _screen("frozen_obs_norm", nine + [["control", 2999]]),
++        "nine": _screen("critic_phase", eight + [["control", 2999]]),
+         "unknown intervention": _screen("ent_coef_0"),
+-        "two interventions": _screen(queue=[["control", 1], ["critic_blind_tail3", 2], ["gae_lambda_1", 3]]),
++        "a BS2 arm": _screen("critic_blind_tail3"),
++        "two interventions": _screen(queue=[["control", 1], ["critic_phase", 2], ["gae_lambda_1", 3]]),
+         "control only": _screen(queue=[["control", 1], ["control", 2]]),
+-        "validation seed": _screen(queue=[["control", V0], ["critic_blind_tail3", 2]]),
+-        "repeat": _screen(queue=[["control", 5], ["control", 5], ["critic_blind_tail3", 2]]),
+-        "bool seed": _screen(queue=[["control", True], ["critic_blind_tail3", 2]]),
++        "validation seed": _screen(queue=[["control", V0], ["critic_phase", 2]]),
++        "BS2 validation seed is fine but PS's is not": _screen(queue=[["control", 9201], ["critic_phase", V4]]),
++        "repeat": _screen(queue=[["control", 5], ["control", 5], ["critic_phase", 2]]),
++        "bool seed": _screen(queue=[["control", True], ["critic_phase", 2]]),
+         "schema": {**_screen(), "schema": "x"},
+         "empty": _screen(queue=[]),
+     }
+@@ -99,10 +123,11 @@
+ 
+ def test_arm_tables_complete():
+     assert set(C.ARM_PPO_EDIT) == set(C.ARMS) == set(C.ARM_GAE_LAMBDA) == set(C.ARM_CHANGE)
+-    assert C.ARMS[0] == "control" and C.INTERVENTIONS == C.ARMS[1:]
+-    assert C.ARM_PPO_EDIT["gae_lambda_1"] == {"gae_lambda": 1.0}
+-    assert all(not C.ARM_PPO_EDIT[a] for a in C.ARMS if a != "gae_lambda_1")
+-    assert R.H.GAE_LAMBDA == C.ARM_GAE_LAMBDA and R.H.ARMS == C.ARMS and R.H.OBS_TAIL3 == C.OBS_TAIL3
++    assert C.ARMS == ("control", "critic_phase") and C.INTERVENTIONS == C.ARMS[1:]
++    assert all(not C.ARM_PPO_EDIT[a] for a in C.ARMS) and set(C.ARM_GAE_LAMBDA.values()) == {0.95}
++    # bs_hooks keeps BS2's three arms (unreachable in PS: preflight, SCREEN and CHECK use bs_common.ARMS)
++    assert set(C.ARMS) <= set(R.H.ARMS) and all(R.H.GAE_LAMBDA[a] == C.ARM_GAE_LAMBDA[a] for a in C.ARMS)
++    assert R.H.OBS_TAIL3 == C.OBS_TAIL3
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ arm_config, V5
+@@ -137,7 +162,7 @@
+ @pytest.mark.parametrize("arm", C.ARMS)
+ def test_recipe_problems(arm):
+     parent = _parent_sc()
+-    hp = "sha256:" + "1" * 64 if arm == "gae_lambda_1" else C.HYPERPARAMETERS_SHA256_RUN
++    hp = C.HYPERPARAMETERS_SHA256_RUN                  # PS: no arm edits [ppo]
+     kw = dict(arm=arm, seed=V0, label=f"BS {arm} {V0}", load_path="/x/z.zip", zip_sha256=C.START["zip_sha256"],
+               hp_sha256_expected=hp)
+     assert R.recipe_problems(_written(parent, arm, hp_digest=hp), parent, **kw) == []
+@@ -145,12 +170,12 @@
+     w["hyperparameters"]["clip_range"] = 0.3
+     assert R.recipe_problems(w, parent, **kw) != []
+     w = _written(parent, arm, hp_digest=hp)
+-    w["hyperparameters"]["gae_lambda"] = 1.0 if arm != "gae_lambda_1" else 0.95
++    w["hyperparameters"]["gae_lambda"] = 1.0
+     assert R.recipe_problems(w, parent, **kw) != []
+     w = _written(parent, arm, hp_digest=hp)
+     w["reward_weights"] = {}
+     assert R.recipe_problems(w, parent, **kw) != []
+-    bad_hp = C.HYPERPARAMETERS_SHA256_RUN if arm == "gae_lambda_1" else "sha256:" + "2" * 64
++    bad_hp = "sha256:" + "2" * 64
+     assert R.recipe_problems(_written(parent, arm, hp_digest=bad_hp), parent, **{**kw, "hp_sha256_expected": bad_hp})
+ 
+ 
+@@ -175,7 +200,7 @@
+     m, env = _fake_loaded(arm)
+     assert R.loaded_problems(m, mirror_cls=_Mirror, arm=arm, train_env=env, threads=1) == []
+     assert R.loaded_problems(m, mirror_cls=_Mirror, arm=arm, train_env=env, threads=2)
+-    wrong = 0.95 if arm == "gae_lambda_1" else 1.0
++    wrong = 1.0
+     for over in ({"gae_lambda": wrong}, {"rollout_buffer": SimpleNamespace(gae_lambda=wrong)}, {"num_timesteps": 0},
+                  {"ent_coef": 0.0}, {"device": "cuda"}):
+         m, env = _fake_loaded(arm, **over)
+@@ -217,6 +242,25 @@
+         cb._on_step()
+ 
+ 
++def test_stop_at_end_training_and_rollout_start_hooks():
++    """PS: training_start gets the flattened siblings (after the earlier callbacks' starts); rollout_start runs at each
++    rollout's start; neither is called when not given (control's rollout_start)."""
++    calls = []
++    cls = R.make_stop_at_end_class(_BaseCB)
++    inner = SimpleNamespace(callbacks=[SimpleNamespace(name="probe"), SimpleNamespace(name="eval")])
++    cb = cls(C.E, training_start=lambda sib: calls.append(("ts", [x.name for x in sib])),
++             rollout_start=lambda: calls.append(("rs",)))
++    cb.locals = {"callback": SimpleNamespace(callbacks=[inner, SimpleNamespace(name="stop")])}
++    cb._on_training_start()
++    cb._on_rollout_start()
++    assert calls == [("ts", ["probe", "eval", "stop"]), ("rs",)]
++    plain = cls(C.E)
++    plain.locals = {"callback": None}
++    plain._on_training_start()
++    plain._on_rollout_start()
++    assert plain.siblings == []
++
++
+ def test_no_update_class_swap():
+     class M:
+         def train(self):
+@@ -252,8 +296,14 @@
+     assert any("not under" in x for x in p)
+     assert any("--no-update needs --until" in x for x in R.preflight(_ns(no_update=True, seed=V4)))
+     p = R.preflight(_ns(no_update=True, seed=9101, until=C.S + C.ROLLOUT, out=str(Path(C.VALIDATE) / "nm")))
+-    assert any("validation seed" in x for x in p)          # BS's validation seeds are not BS2's
++    assert any("validation seed" in x for x in p)          # BS's validation seeds are not PS's
++    p = R.preflight(_ns(no_update=True, seed=9201, until=C.S + C.ROLLOUT, out=str(Path(C.VALIDATE) / "nm")))
++    assert any("validation seed" in x for x in p)          # nor BS2's
+     assert any("arm" in x for x in R.preflight(_ns(arm="B", save_loaded_only=True)))
++    for bs2_arm in ("critic_blind_tail3", "gae_lambda_1", "frozen_obs_norm"):   # BS2's arms are not PS's
++        assert any("arm" in x for x in R.preflight(_ns(arm=bs2_arm, save_loaded_only=True, seed=V4)))
++    assert R.preflight(_ns(arm="critic_phase", save_loaded_only=True, seed=V4,
++                           out=str(Path(C.VALIDATE) / "never_made"))) == []
+ 
+ 
+ def test_preflight_continuation_refused_without_approval(tmp_path, monkeypatch):
+@@ -274,10 +324,10 @@
+                 "code_tree_digest": C.TREE_DIGEST, "tool_sha256": {n: sha(TOOLS / n) for n in C.TOOL_FILES}}
+     (tmp_path / "APPROVED").write_text(json.dumps(approved))
+     assert R.approval_problems() == []
+-    assert R.screen_entry_problems("critic_blind_tail3", 2111) == []
+-    assert R.screen_entry_problems("critic_blind_tail3", 2121) != []
+-    assert R.screen_entry_problems("gae_lambda_1", 2101) != []
+-    (tmp_path / "SCREEN.json").write_text(json.dumps(_screen(queue=[["control", 2101], ["gae_lambda_1", 2101]])))
++    assert R.screen_entry_problems("critic_phase", 2111) == []
++    assert R.screen_entry_problems("critic_phase", 2121) != []
++    assert R.screen_entry_problems("critic_blind_tail3", 2101) != []
++    (tmp_path / "SCREEN.json").write_text(json.dumps(_screen(queue=[["control", 2101], ["critic_phase", 2131]])))
+     assert any("screen_sha256" in x for x in R.approval_problems())
+     approved["tool_sha256"]["run_bs.py"] = "0" * 64
+     (tmp_path / "APPROVED").write_text(json.dumps(approved))
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_waves_bs.py /home/user/work/phase_screen/tools/tests/test_waves_bs.py
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_waves_bs.py	2026-10-30 12:17:08.566151388 +0000
++++ /home/user/work/phase_screen/tools/tests/test_waves_bs.py	2026-10-31 13:29:06.027756528 +0000
+@@ -5,6 +5,9 @@
+ BS2 review fixes: the refusal without APPROVED's score_bs.py pin (PR-M4); the atime re-arm of a decided continuation's
+ files and the snapshot logs/atimes_at_ALL_DECIDED.tsv before the full reads, which shows a read made after the
+ decision (PR-M2, lesson P4); the REFUSED note naming --preflight-only, not the attempt log (PR-M3).
++PS (LB's tests, ported): RR-1 (a relaunch after ALL_DECIDED keeps the first snapshot and ALL_DECIDED) and I1 (the
++atimes at each attempt's exit, before CHECK and the re-arm); the scorer the APPROVED pin names is a stub here
++(BS_SCORER; the real one is the criteria lane's); the queue's intervention is critic_phase; the real root is PS.
+ 
+ The runner runs in its test mode (BS_WAVES_TEST=1 with a temporary BS_ROOT, never the real <BS>); every command it
+ starts is a stub written here.  Nothing trains, nothing simulates.
+@@ -96,8 +99,8 @@
+ sys.exit(0)
+ '''
+ 
+-QUEUE = [("control", 2101), ("critic_blind_tail3", 2101), ("control", 2111), ("critic_blind_tail3", 2111),
+-         ("control", 2121), ("critic_blind_tail3", 2121)]
++QUEUE = [("control", 2101), ("critic_phase", 2101), ("control", 2111), ("critic_phase", 2111),
++         ("control", 2121), ("critic_phase", 2121)]
+ 
+ 
+ def _names(n):
+@@ -119,9 +122,11 @@
+ def bs(tmp_path):
+     root = tmp_path / "bs"
+     root.mkdir()
+-    (root / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(TOOLS / "score_bs.py")}}))
++    scorer = tmp_path / "stub_score_bs.py"                 # the criteria lane's scorer is not in this build (LB's)
++    scorer.write_text("# stub scorer\n")
++    (root / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(scorer)}}))
+     (root / "criteria.txt").write_text("text\n")
+-    (root / "SCREEN.json").write_text(json.dumps({"schema": C.SCREEN_SCHEMA, "intervention": "critic_blind_tail3",
++    (root / "SCREEN.json").write_text(json.dumps({"schema": C.SCREEN_SCHEMA, "intervention": "critic_phase",
+                                                   "queue": [list(q) for q in QUEUE[:4]]}))
+     stubs = tmp_path / "stubs"
+     stubs.mkdir()
+@@ -132,8 +137,9 @@
+     env = {**os.environ, "BS_WAVES_TEST": "1", "BS_ROOT": str(root),
+            "BS_RUN_CMD": f"{py} -I -B {stubs / 'stub_run_bs.py'}", "BS_CHECK_CMD": f"{tool} check",
+            "BS_READ_CMD": f"{tool} read", "BS_ORPHAN_PATTERN": f"{stubs / 'stub_run_bs.py'} --arm",
+-           "BS_POLL_SECONDS": "0.2", "BS_LAUNCH_DISK_BYTES": "0", "BS_STUB_S": str(C.S)}   # BS2: S from bs_common
+-    return {"root": root, "env": env, "stubs": stubs}
++           "BS_POLL_SECONDS": "0.2", "BS_LAUNCH_DISK_BYTES": "0", "BS_STUB_S": str(C.S),   # BS2: S from bs_common
++           "BS_SCORER": str(scorer)}
++    return {"root": root, "env": env, "stubs": stubs, "scorer": scorer}
+ 
+ 
+ def _plan(bs, plan):
+@@ -264,6 +270,12 @@
+         r = _run(bs)
+         assert r.returncode == 2 and "score_bs.py" in r.stderr, r.stderr
+         assert _calls(bs) == [] and not (bs["root"] / "runs").exists()
++    # the real scorer path when no test override is given (absent in this build): refused, nothing started (LB's)
++    (bs["root"] / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(bs["scorer"])}}))
++    env = {k: v for k, v in bs["env"].items() if k != "BS_SCORER"}
++    r = subprocess.run(["bash", str(RUNNER)], env=env, capture_output=True, text=True, timeout=60, cwd="/tmp")
++    if not (TOOLS / "score_bs.py").exists():
++        assert r.returncode == 2 and "score_bs.py" in r.stderr and _calls(bs) == []
+ 
+ 
+ def test_atimes_rearmed_at_the_decision_and_recorded_before_the_reads(bs):
+@@ -353,13 +365,16 @@
+ 
+ def test_screen_refusals(bs):
+     root = bs["root"]
+-    bad = {"schema": C.SCREEN_SCHEMA, "intervention": "critic_blind_tail3",
+-           "queue": [["control", 3000 + i] for i in range(5)] + [["critic_blind_tail3", 4000 + i] for i in range(5)]}
++    bad = {"schema": C.SCREEN_SCHEMA, "intervention": "critic_phase",
++           "queue": [["control", 3000 + i] for i in range(5)] + [["critic_phase", 4000 + i] for i in range(4)]}
+     (root / "SCREEN.json").write_text(json.dumps(bad))
+     r = _run(bs)
+     assert r.returncode == 2 and "SCREEN" in r.stderr and _calls(bs) == []
+     (root / "SCREEN.json").write_text(json.dumps({**bad, "queue": [["control", 1], ["gae_lambda_1", 2]]}))
+     assert _run(bs).returncode == 2
++    (root / "SCREEN.json").write_text(json.dumps({"schema": C.SCREEN_SCHEMA, "intervention": "critic_blind_tail3",
++                                                  "queue": [["control", 1], ["critic_blind_tail3", 2]]}))
++    assert _run(bs).returncode == 2                     # a BS2 arm is not a PS intervention
+     (root / "SCREEN.json").unlink()
+     r = _run(bs)
+     assert r.returncode == 2 and "SCREEN" in r.stderr
+@@ -390,6 +405,42 @@
+     assert r.returncode == 2 and "may not use the real" in r.stderr
+ 
+ 
+-def test_real_root_is_bs2():
++def test_real_root_is_ps():
+     text = RUNNER.read_text()
+-    assert "BS_REAL=$S2/r10round/bias_screen2\n" in text and C.BS.endswith("/r10round/bias_screen2")
++    assert "BS_REAL=/home/user/work/phase_screen\n" in text and C.BS == "/home/user/work/phase_screen"
++
++
++def test_rr1_a_relaunch_after_all_decided_keeps_the_first_snapshot(bs):
++    """RR-1 (LB's test): the second run of the runner (everything decided) writes its snapshot to .relaunch1.tsv; the
++    first snapshot and ALL_DECIDED are unchanged."""
++    _plan(bs, {})
++    assert _run(bs).returncode == 0
++    logs = bs["root"] / "logs"
++    first_tsv, first_marker = (logs / "atimes_at_ALL_DECIDED.tsv").read_bytes(), (logs / "ALL_DECIDED").read_bytes()
++    time.sleep(1.1)
++    r = _run(bs)
++    assert r.returncode == 0, r.stdout + r.stderr
++    assert (logs / "atimes_at_ALL_DECIDED.tsv").read_bytes() == first_tsv
++    assert (logs / "ALL_DECIDED").read_bytes() == first_marker
++    assert (logs / "atimes_at_ALL_DECIDED.relaunch1.tsv").exists()
++    assert "atimes_at_ALL_DECIDED" not in (logs / "atimes_at_ALL_DECIDED.relaunch1.tsv").read_text()
++    assert "ALL_DECIDED kept" in (logs / "run_waves_bs.log").read_text()
++
++
++def test_i1_atimes_are_taken_at_exit_before_check(bs):
++    """I1 (LB's test): logs/atimes_at_exit/<name>.attempt<k>.tsv lists the attempt's files right after it exits
++    (lstat), before CHECK wrote check.json and before the re-arm; a crash's snapshot is taken before the rename."""
++    first, second = _names(2)
++    _plan(bs, {first: ["crash"]})
++    r = _run(bs)
++    assert r.returncode == 0, r.stdout + r.stderr
++    snap = bs["root"] / "logs" / "atimes_at_exit"
++    a1 = (snap / f"{first}.attempt1.tsv").read_text().splitlines()
++    assert a1[0].split("\t") == ["path", "atime_ns", "mtime_ns", "ctime_ns", "atime_after_mtime"]
++    assert any(f"/runs/{first}/run_meta.json" in ln for ln in a1) and not any("check.json" in ln for ln in a1)
++    assert any(ln.split("\t")[0].endswith(f"logs/{first}.attempt1.log") for ln in a1[1:])
++    a2 = (snap / f"{first}.attempt2.tsv").read_text()
++    assert f"/runs/{first}/run_meta.json" in a2 and "check.json" not in a2
++    s2 = (snap / f"{second}.attempt1.tsv").read_text().splitlines()
++    rows = {ln.split("\t")[0].rsplit("/", 1)[-1]: ln.split("\t") for ln in s2[1:]}
++    assert int(rows["run_meta.json"][1]) != int(rows["run_meta.json"][2]) - 1     # not yet re-armed at exit

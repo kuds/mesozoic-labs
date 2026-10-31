@@ -1,0 +1,208 @@
+--- review/fixer/orig/tools/score_bs.py	2026-10-31 14:14:40.984532911 +0000
++++ tools/score_bs.py	2026-10-31 15:12:29.211944803 +0000
+@@ -19,8 +19,9 @@
+ must equal check.json's and the markers'; SEC-TAIL2's rollout_mu_mean[:, 13] and the report-only per-actuator rises,
+ which the pinned reader does not export), with the parent's F2 probe (report only: the per-actuator values at S) and
+ BS2's finished score.json (report only: BESIDE BS2).  For PROVISIONAL: <root>/APPROVED, <root>/criteria.txt,
+-<root>/SCREEN.json, the five PS tools and this file (in this file's folder) against APPROVED, M5's pins, and the code
+-copy bs_common.CODE measured by M1's own r10m_common.check_copy (loaded only at its pin).
++<root>/SCREEN.json, the five PS tools and this file (in this file's folder) against APPROVED, criteria.txt's PINS lines
++against the files and APPROVED (fixer P-m2), M5's pins, and the code copy bs_common.CODE measured by M1's own
++r10m_common.check_copy (loaded only at its pin).
+ What it writes: <out>/score.json and <out>/score.txt (default <root>/score; refused outside <root>).
+ 
+ Classes: LOST (named in lost.json); COUNTED (check.json passed, stop reason "end" at E); STOPPED (check.json passed,
+@@ -49,7 +50,9 @@
+ dV/dq3 per degree on the reader's on-policy states at the final pair, E; phase LOWER); "(survives Bonferroni over the 3
+ efficacy secondaries)" when a SUPPORTED one has filled p <= 0.05 / 3 (only 1/70 can).  GUARD: SEC-TAIL2 (the on-policy
+ tail_2 command, rollout_mu_mean[:, 13] over the primary's 8 rows; phase HIGHER), alone in its family; a SUPPORTED one
+-carries "(guard: the habit may be moving to tail_2; a warning, not support for the phase input)".  Each: the same exact
++carries "(guard: the habit may be moving to tail_2; a warning, not support for the phase input)"; with any MISSING value
++it carries "(with any MISSING value the guard cannot warn: read NOT SUPPORTED as not assessed)" (fixer, design I3: the
++fill makes its p >= 36/70).  Each: the same exact
+ test on its own values with the hypothesis arm's sum as the statistic, its own fill (a MISSING value counts as the
+ infinity that works against the secondary's direction), SUPPORTED when the filled p <= 0.05 (unadjusted) and, under line
+ 1, "(the control arm did not climb on the primary)".  A secondary is MISSING for a LOST, STOPPED or UNREADABLE
+@@ -62,6 +65,8 @@
+ "phase+raw+settled", a phase record on every loop row, the effective / raw / settled slopes, the probe phase-fed);
+ anything else is an input error (criteria THE MANIPULATION CHECK, last item).
+ Each arm's sample SD of the primaries read is printed beside its mean and median (report only: it places the power).
++Report only (fixer, design D2): per continuation the effective critic's on-policy tail slope at E minus at S, and the
++counts per arm with slope(E) <= slope(S) and slope(E) <= 0 (slope_end_vs_start).
+ 
+ Exit codes (as score_ecs.py): 0 final; 3 provisional or incomplete; 2 input error.
+ """
+@@ -85,7 +90,8 @@
+ from pathlib import Path  # noqa: E402
+ 
+ TOOLS = Path(__file__).resolve().parent
+-VERSION = "score_bs 3.0 (2026-10-31; phase screen criteria v1 as installed; derived from score_bs 2.1 of bias screen 2)"
++VERSION = ("score_bs 3.1 (2026-10-31; phase screen criteria v1 as installed and fixed; derived from score_bs 2.1 of "
++           "bias screen 2)")
+ 
+ 
+ def _load(name):
+@@ -156,9 +162,9 @@
+         "one-sided permutation test, p <= 0.05)"),
+     3: ("NO REDUCTION DETECTED IN THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E FROM GIVING THE CRITIC "
+         "THE EPISODE PHASE (not excluded: a reduction of about half the rise or smaller (power about 0.3-1.0 at half "
+-        "the control rise, by the between-continuation spread; about 0.5-0.85 at BS2's control spread; about 0.1-0.6 "
+-        "if the phase input makes climbs rarer rather than smaller), a critic that had not yet moved its weight from "
+-        "the tail angle to the phase, the phase after E, the rail)"),
++        "the control rise, by the between-continuation spread; about 0.5-0.85 at BS2's control spread; about 0.1-0.3 "
++        "if the phase input makes climbs rarer rather than smaller (half as many climbs)), a critic that had not yet "
++        "moved its weight from the tail angle to the phase, the phase after E, the rail)"),
+ }
+ ADDITION_AS_COUNTED = "(the as-counted p, report only, is <= 0.05; the filled p decides)"
+ ADDITION_NOT_INFORMATIVE = ("(the filled p is <= 0.05, but the control arm did not climb: no reading about the "
+@@ -172,6 +178,7 @@
+ SEC_BONFERRONI = "(survives Bonferroni over the 3 efficacy secondaries)"
+ SEC_GUARD = "(guard: the habit may be moving to tail_2; a warning, not support for the phase input)"
+ SEC_UNDER_LINE1 = "(the control arm did not climb on the primary)"
++SEC_GUARD_MISSING = "(with any MISSING value the guard cannot warn: read NOT SUPPORTED as not assessed)"
+ EFFICACY, GUARD = "efficacy", "guard"
+ SECONDARIES = (
+     {"key": "SEC-CMD", "family": EFFICACY, "higher": CONTROL,
+@@ -638,6 +645,26 @@
+     return ge > gs
+ 
+ 
++# the start pair's effective on-policy critic slope per degree (every continuation starts there; V3:
++# validate/logs/v3_check.out, <BS2>/score/score.txt line 87): printed beside each continuation's own S row
++SLOPE_ONPOLICY_AT_S = 0.02142920531332493
++SLOPE_KEY = ("critic_slope_obs6", "ONPOLICY", "effective", "dV_dq3_per_deg")
++
++
++def slope_end_vs_start(m):
++    """Fixer, design D2 (report only, never tested): the effective critic's mean dV/dq3 per degree on the reader's
++    on-policy states at the loop row at E minus at the loop row at S (the start pair), and whether slope(E) <= slope(S)
++    and slope(E) <= 0 -- what SEC-MECH (phase against control at E) cannot show: whether the phase arm's critic stopped
++    paying for the tail, rather than paying less than control's.  None if either row or value is absent."""
++    rs, re_ = loop_rows_at(m, C.S), loop_rows_at(m, C.E)
++    if len(rs) != 1 or len(re_) != 1:
++        return None
++    s, e = _get(rs[0], *SLOPE_KEY), _get(re_[0], *SLOPE_KEY)
++    if not (_finite(s) and _finite(e)):
++        return None
++    return {"S": s, "E": e, "E_minus_S": e - s, "E_le_S": e <= s, "E_le_0": e <= 0.0}
++
++
+ def parent_actuator_means():
+     """The parent's per-actuator on-policy means over its rows 248-255 (BASELINE_STEPS; report only): (list of 15
+     Fractions, None) or (None, cause).  The F2 probe at FMAN's sha256 (b_14 = B_S)."""
+@@ -701,6 +728,7 @@
+     means = probe_rec["means"] if probe_rec else None
+     return {"early8_rollout_mu14": early, "last8_rollout_mu14_before_T": last_mu,
+             "trajectory": trajectory(probe, c["T"]), "g_end_above_start": g_end_above_start(m),
++            "slope_end_vs_start": slope_end_vs_start(m),
+             "statue_settled_last8_mean": ss_last, "statue_settled_trailing8_at_last_row": tr[-1] if tr else None,
+             "statue_settled_trailing8_max": probe.get("trailing8_max"),
+             "statue_settled_first_above": probe.get("trailing8_first_above"),
+@@ -753,6 +781,53 @@
+     return v if isinstance(v, str) and HEX64.fullmatch(v) else None
+ 
+ 
++PINS_LINE = re.compile(r"^[ \t]+([\w.-]+(?:/[\w.-]+)*)[ \t]+([0-9a-f]{64})[ \t]*$", re.M)
++
++
++def pins_lines(text):
++    """{path: [64-hex, ...]} from criteria.txt's PINS section (from the line starting "PINS" to the line starting
++    "HOW THE COORDINATOR PINS"): every line that is a path and a bare 64-hex sha256; None without the section."""
++    parts = text.split("\nPINS", 1)
++    if len(parts) != 2:
++        return None
++    out = {}
++    for m in PINS_LINE.finditer(parts[1].split("\nHOW THE COORDINATOR PINS", 1)[0]):
++        out.setdefault(m.group(1), []).append(m.group(2))
++    return out
++
++
++def pins_items(text, root, screen_sha, tool_now, approved_pins):
++    """Fixer P-m2 (criteria WHEN THE READING IS MADE): criteria.txt's PINS lines must hold.  SCREEN.json, the five
++    harness tools and this scorer each need exactly one line, equal to the file's current sha256 and, when APPROVED
++    exists, to APPROVED's tool_sha256; any other 64-hex PINS line (tools/tests/test_score_bs.py) must equal its file's
++    current sha256.  [] or the items."""
++    lines = pins_lines(text)
++    if lines is None:
++        return ["criteria.txt has no PINS section"]
++    items = []
++    required = {f"tools/{t}": tool_now[t] for t in PINNED_TOOLS}
++    required["SCREEN.json"] = screen_sha
++    for rel, now in required.items():
++        got = lines.get(rel, [])
++        if len(got) != 1:
++            items.append(f"criteria.txt PINS: {len(got)} lines name {rel}, not 1")
++        elif got[0] != now:
++            items.append(f"criteria.txt PINS: {rel} {got[0]} != the file's current sha256 {now}")
++        elif approved_pins is not None and rel.startswith("tools/") and got[0] != approved_pins.get(rel[6:]):
++            items.append(f"criteria.txt PINS: {rel} {got[0]} != APPROVED's {approved_pins.get(rel[6:])!r}")
++    for rel, got in sorted(lines.items()):
++        if rel in required:
++            continue
++        path = TOOLS.parent / rel if rel.startswith("tools/") else Path(root) / rel
++        try:
++            now = C.sha256_file(path)
++        except OSError:
++            now = None
++        if got != [now]:
++            items.append(f"criteria.txt PINS: {rel} {got} != the file's current sha256 {now}")
++    return items
++
++
+ def _load_pinned_m1_common():
+     common = C.M1_COMMON
+     try:
+@@ -832,6 +907,8 @@
+         text = (root / "criteria.txt").read_text(encoding="utf-8", errors="replace")
+         if own not in text:
+             items.append(f"criteria.txt does not name this scorer's sha256 {own} (its PINS section)")
++        items.extend(pins_items(text, root, sha["SCREEN.json"], tool_now,
++                                pins if sha["APPROVED"] is not None else None))
+     items.extend(f"M5 pin: {x}" for x in C.check_pins())
+     read_pin = pins.get("read_bs.py") or tool_now["read_bs.py"]
+     for c in classes:
+@@ -953,6 +1030,8 @@
+         notes.append(SEC_BONFERRONI)
+     if supported and spec["family"] == GUARD:
+         notes.append(SEC_GUARD)
++    if spec["family"] == GUARD and (missing[CONTROL] or missing[INTERVENTION]):   # fixer, design I3: the fill makes
++        notes.append(SEC_GUARD_MISSING)                                           # p >= 36/70 with any MISSING value
+     if line == 1:
+         notes.append(SEC_UNDER_LINE1)
+     return dict(key=spec["key"], family=spec["family"], title=spec["title"], marker=spec["marker"], higher=higher,
+@@ -1196,6 +1275,26 @@
+     L.append("REPORT ONLY, G AT E ABOVE G AT S (OWN G at the final pair against the start pair's, the same start for "
+              f"all; the parent's G(S) {PARENT_G_S:+.3f}; BS2's SEC-G, not tested here): "
+              + "; ".join(f"{arm} {gcount[arm]['above']} of {gcount[arm]['of']}" for arm in ARM_ORDER))
++    L.append("REPORT ONLY, THE CRITIC'S ON-POLICY TAIL SLOPE AT E AGAINST S (the effective critic's dV/dq3 per degree "
++             "on the reader's on-policy states, the final pair minus the start pair; the start pair is the same for "
++             f"every continuation, {SLOPE_ONPOLICY_AT_S:+.5f} per degree in V3; never tested): SEC-MECH compares the "
++             "arms at E; this shows whether a critic stopped paying for the tail (E <= S, E <= 0)")
++    scount = {}
++    for arm in ARM_ORDER:
++        recs = []
++        for c in classes:
++            if c["arm"] != arm:
++                continue
++            r = reports[c["name"]]["slope_end_vs_start"] if c["name"] in reports else None
++            L.append(f"  {c['name']:<24} " + (f"S {r['S']:+.5f}  E {r['E']:+.5f}  E - S {r['E_minus_S']:+.5f}  "
++                                               f"E <= S {r['E_le_S']}  E <= 0 {r['E_le_0']}" if r is not None
++                                               else "n/a (no loop row or no finite slope at S or at E)"))
++            if r is not None:
++                recs.append(r)
++        scount[arm] = {"E_le_S": sum(1 for r in recs if r["E_le_S"]), "E_le_0": sum(1 for r in recs if r["E_le_0"]),
++                       "of": len(recs)}
++    L.append("  counts: " + "; ".join(f"{arm} E <= S {scount[arm]['E_le_S']} of {scount[arm]['of']}, E <= 0 "
++                                       f"{scount[arm]['E_le_0']} of {scount[arm]['of']}" for arm in ARM_ORDER))
+     L.append("REPORT ONLY, ARM MEDIANS OVER THE READ CONTINUATIONS:")
+     act_medians = {}
+     for arm in ARM_ORDER:
+@@ -1283,7 +1382,7 @@
+                       "arm_medians": {a: _f(v) for a, v in s["medians"].items()}} for s in secs],
+         parent_trajectory={str(t): v for t, v in PARENT_TRAJECTORY.items()},
+         trajectory_arm_medians={str(t): {a: _f(v) for a, v in m.items()} for t, m in traj_medians.items()},
+-        g_end_above_start=gcount, actuator_rise_arm_medians=act_medians,
++        g_end_above_start=gcount, slope_end_vs_start=scount, actuator_rise_arm_medians=act_medians,
+         parent_actuator_means=[_f(x) for x in parent_means] if parent_means else None,
+         parent_actuator_cause=parent_cause, probe_files={n: ({"file": r["file"], "sha256": r["sha256"]} if r else None)
+                                                          for n, r in probe_recs.items()},

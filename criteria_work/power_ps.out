@@ -1,0 +1,63 @@
+A. EXACT FACTS (as BS2; enumeration over the C(8,4) = 70 relabelings)
+  attainable p <= 0.05: 1/70 = 0.0143, 2/70 = 0.0286, 3/70 = 0.0429; 4/70 = 0.0571 is not
+  size under exchangeable continuous values: 3/70 = 0.0429; the fill (BS2 power_bs2.out A, same rule): one MISSING -> filled p >= 36/70, one per arm >= 51/70, two controls >= 56/70
+  multiplicity: 3 efficacy secondaries (SEC-CMD, SEC-MARGIN, SEC-MECH) at 3/70 each: P(any SUPPORTED | global null, exchangeable) <= 9/70 = 0.1286 (Bonferroni bound); Bonferroni level 0.05/3 = 0.0167 >= 1/70 = 0.0143, so only p = 1/70 survives
+  with the guard secondary SEC-TAIL2 too (4 at 3/70): <= 12/70 = 0.1714; 0.05/4 = 0.0125 < 1/70: no p could survive a Bonferroni over 4, which is why the guard is kept out of the efficacy family
+
+B. THE GATE WITH BS2's OBSERVED CONTROL ARM (BS2 score.json: rises +0.54342, +0.66568, +0.38422, +0.29278; mean 0.4715, SD 0.1658)
+  normal model, BS2's mean and SD (m 0.4715, SD 0.1658): P(informative) = 0.9984
+  normal model, BS2's mean, SD 0.25 (m 0.4715, SD 0.2500): P(informative) = 0.9766
+  normal model, half BS2's mean, BS2's SD (m 0.2358, SD 0.1658): P(informative) = 0.6553
+  normal model, the parent's rise, BS2's SD (m 0.5788, SD 0.1658): P(informative) = 1.0000
+  exact: resampling BS2's four control rises (4^4 draws): P(not informative) = 0 (every rise >= 0.29)
+  exact: resampling HALF of BS2's control rises (0.272, 0.333, 0.192, 0.146): P(not informative) = 5/16 = 0.3125
+
+C. THE THREE LINES AT THE GATE 0.20, normal model: control rise ~ N(m, sc^2), critic_phase ~ N((1 - f) m, sp^2)
+   cell = P(1 NOT INFORMATIVE) / P(2 REDUCED) / P(3 NO REDUCTION DETECTED)
+  m BS2 control mean 0.472, control SD 0.100, phase SD equal: f0.00 0.000/0.043/0.957  f0.25 0.000/0.390/0.610  f0.50 0.000/0.870/0.130  f0.75 0.000/0.993/0.007  f1.00 0.000/1.000/0.000
+  m BS2 control mean 0.472, control SD 0.100, phase SD 0.036: f0.00 0.000/0.054/0.946  f0.25 0.000/0.590/0.410  f0.50 0.000/0.966/0.034  f0.75 0.000/0.999/0.001  f1.00 0.000/1.000/0.000
+  m BS2 control mean 0.472, control SD 0.166, phase SD equal: f0.00 0.002/0.044/0.954  f0.25 0.002/0.201/0.798  f0.50 0.002/0.509/0.490  f0.75 0.001/0.807/0.191  f1.00 0.001/0.955/0.044
+  m BS2 control mean 0.472, control SD 0.166, phase SD 0.036: f0.00 0.001/0.061/0.938  f0.25 0.001/0.341/0.657  f0.50 0.001/0.733/0.265  f0.75 0.001/0.941/0.058  f1.00 0.001/0.991/0.007
+  m BS2 control mean 0.472, control SD 0.250, phase SD equal: f0.00 0.023/0.043/0.934  f0.25 0.023/0.127/0.850  f0.50 0.023/0.291/0.686  f0.75 0.024/0.506/0.470  f1.00 0.024/0.712/0.265
+  m BS2 control mean 0.472, control SD 0.250, phase SD 0.036: f0.00 0.024/0.063/0.913  f0.25 0.024/0.219/0.757  f0.50 0.024/0.477/0.499  f0.75 0.023/0.729/0.248  f1.00 0.023/0.883/0.094
+  m parent R 0.579, control SD 0.100, phase SD equal: f0.00 0.000/0.044/0.956  f0.25 0.000/0.520/0.480  f0.50 0.000/0.960/0.040  f0.75 0.000/1.000/0.000  f1.00 0.000/1.000/0.000
+  m parent R 0.579, control SD 0.100, phase SD 0.036: f0.00 0.000/0.055/0.945  f0.25 0.000/0.731/0.269  f0.50 0.000/0.993/0.007  f0.75 0.000/1.000/0.000  f1.00 0.000/1.000/0.000
+  m parent R 0.579, control SD 0.166, phase SD equal: f0.00 0.000/0.044/0.956  f0.25 0.000/0.260/0.740  f0.50 0.000/0.657/0.343  f0.75 0.000/0.923/0.077  f1.00 0.000/0.992/0.008
+  m parent R 0.579, control SD 0.166, phase SD 0.036: f0.00 0.000/0.061/0.939  f0.25 0.000/0.432/0.568  f0.50 0.000/0.857/0.143  f0.75 0.000/0.984/0.015  f1.00 0.000/0.999/0.001
+  m parent R 0.579, control SD 0.250, phase SD equal: f0.00 0.003/0.042/0.955  f0.25 0.003/0.157/0.840  f0.50 0.003/0.384/0.613  f0.75 0.003/0.654/0.343  f1.00 0.003/0.860/0.137
+  m parent R 0.579, control SD 0.250, phase SD 0.036: f0.00 0.003/0.062/0.935  f0.25 0.003/0.274/0.722  f0.50 0.003/0.603/0.394  f0.75 0.003/0.854/0.143  f1.00 0.003/0.961/0.036
+
+D. EXACT ENUMERATION ON BS2's OWN ARMS (each continuation's rise drawn uniformly from 4 values; 65,536 draws)
+  D1 phase arm like BS2's blinded arm: P1 0.0000  P2 REDUCED 1.0000  P3 0.0000   (exact 0, 1, 0)
+  D2 phase arm = 0.25 x BS2's control rises (f 0.75): P1 0.0000  P2 REDUCED 1.0000  P3 0.0000   (exact 0, 1, 0)
+  D3 phase arm = 0.50 x BS2's control rises (f 0.50): P1 0.0000  P2 REDUCED 0.8260  P3 0.1740   (exact 0, 54135/65536, 11401/65536)
+  D4 phase arm = 0.75 x BS2's control rises (f 0.25): P1 0.0000  P2 REDUCED 0.2510  P3 0.7490   (exact 0, 257/1024, 767/1024)
+  D5 no effect: both arms from BS2's control rises: P1 0.0000  P2 REDUCED 0.0203  P3 0.9797   (exact 0, 665/32768, 32103/32768)
+
+E. NO LOCATION EFFECT, UNEQUAL SPREAD (BS2 S-3): equal means, control SD 0.166, phase SD 0.036 (BS2's blind)
+  m 0.472: P(p <= 0.05) 0.0602; P(REDUCED) at the gate 0.0602; given informative 0.0603
+  m 0.579: P(p <= 0.05) 0.0610; P(REDUCED) at the gate 0.0610; given informative 0.0610
+  m 0.290: P(p <= 0.05) 0.0606; P(REDUCED) at the gate 0.0606; given informative 0.0722
+  check, equal SDs: P(p <= 0.05) 0.0422 (exact 3/70 = 0.0429)
+
+F. TWO-STATE MODEL: each continuation climbs (rise ~ N(BS2 control mean, BS2 control SD^2)) with probability q, else stays (rise ~ N(0, 0.04^2), BS2's blinded rises -0.061..+0.016); critic_phase climbs with q (1 - f)
+  q 1.0 : f0.00 0.001/0.043/0.956  f0.50 0.001/0.305/0.693  f0.75 0.001/0.598/0.400  f1.00 0.001/0.991/0.008
+  q 0.9 : f0.00 0.037/0.043/0.920  f0.50 0.035/0.261/0.704  f0.75 0.036/0.494/0.470  f1.00 0.037/0.823/0.140
+  q 0.75: f0.00 0.166/0.042/0.791  f0.50 0.166/0.198/0.635  f0.75 0.166/0.356/0.478  f1.00 0.166/0.583/0.251
+  q 0.5 : f0.00 0.503/0.039/0.459  f0.50 0.504/0.111/0.385  f0.75 0.504/0.170/0.326  f1.00 0.503/0.252/0.245
+
+G. THE SECONDARIES
+  SEC-MECH input: BS2's control on-policy critic slopes at E (0.06177, 0.05324, 0.0226, 0.04147) (mean 0.0448, SD 0.0170 per deg); BS2's blinded arm's RAW (unused) value-MLP slopes (0.03062, 0.01557, 0.00331, 0.03012) (mean 0.0199)
+    phase arm slope ~ N(0, SD_c): P(SUPPORTED) = 0.927
+    phase arm slope ~ N(0, 0.010): P(SUPPORTED) = 0.978
+    phase arm slope ~ N(mean_c/2, SD_c): P(SUPPORTED) = 0.460
+    phase arm slope ~ N(0.0204, 0.0140) (like BS2's blind raw MLP): P(SUPPORTED) = 0.613
+    exact, control from BS2's slopes, phase arm 0 in all four: P(SUPPORTED) = 1.0000
+    exact, control from BS2's slopes, phase arm from BS2's blind raw slopes: P(SUPPORTED) = 0.6294
+  SEC-CMD with BS2's own values (control higher): exact p = 1/70 (BS2 read 1/70)
+  SEC-MARGIN with BS2's own values (blind higher): exact p = 1/70 (BS2 read 1/70)
+  SEC-TAIL2 with BS2's own tail_2 rises (POST HOC; blind HIGHER): exact p = 2/35
+    exact resampling, 'phase' arm from BS2's blind tail_2 rises, control from BS2's control: P(SUPPORTED) = 0.4377
+    a single migrating continuation (+0.12) among control-like values (0.0236, -0.0073, -0.032, 0.12): exact p vs BS2's controls = 19/70
+
+END

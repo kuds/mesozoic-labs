@@ -1,0 +1,28 @@
+1. reference read (parent, F2 pairs):
+  [ok] 2097152: ew G/c0/own14/REF G max |diff| 0.0, eb slope rel 0.0, 3-dp verifier values 0.00047
+  [ok] 3145728: ew G/c0/own14/REF G max |diff| 0.0, eb slope rel 0.0, 3-dp verifier values 0.00046
+seed 9401: control pairs [2097152, 2359296], critic_phase pairs [2097152, 2359296]
+  [ok] 2. control at S reproduces the parent's 2,097,152 values exactly: {'G': -0.6363920116424561, 'c0': 0.23771291971206665, 'own14': 0.14250202003121376, 'REF_G': -0.6194893866330384, 'slope': 0.02142920531332493}
+  [ok] 2. control at S = the reference read's 2,097,152 row on every actor reading and slope
+  [ok] 3. critic_phase at S: the actor's readings (G, c0, own14, G_H, G_L, b*_P, b*_L, REF G, REF c0) = control's
+  [ok] 3. critic_phase at S: the tail slope with the phase fed / slots zero / all settled = the parent's on every set: {'ONPOLICY': {'effective': 0.02142920531332493, 'raw': 0.02142920531332493, 'settled': 0.02142920531332493}, 'OWN': {'effective': 0.03040175698697567, 'raw': 0.03040175698697567, 'settled': 0.03040175698697567}, 'REF': {'effective': 0.05960225686430931, 'raw': 0.05960225686430931, 'settled': 0.05960225686430931}}
+  [ok] 3. critic_phase at S: the start transform applied (columns read 0.24422062933444977 -> used 0.0), the actor invariant to the fed phase (0.0), fed {'REF': {'k_min': 200, 'k_max': 200, 'n': 2, 'n_presettle': 0}, 'OWN': {'k_min': 500, 'k_max': 1000, 'n': 60, 'n_presettle': 0}, 'ONPOLICY': {'k_min': 0, 'k_max': 999, 'n': 16384, 'n_presettle': 3584}}
+  [ok] 4. both arms read at their end pair 2359296
+  [ok] 4. at 2359296: critic_phase's readings = control's exactly (G -0.5897683503627777, c0 0.23489482700824738, on-policy slope eff 0.02465338632464409 / control 0.02465338632464409)
+  [ok] 4. critic_phase's end pair read without the start transform (its saved columns already zero)
+  [ok] 5. M-PROBE identical between the arms (bank tail_3 commands, trailing means, the critic's bank values)
+  [ok] 5. the markers name the probe's phase record (critic_phase fed, control stock)
+   critic_phase 9401 at S: OWN G -0.6363920116424561, c0 0.23771291971206665, own14 0.14250202003121376, REF G -0.6194893866330384; on-policy slope (phase fed) 0.02142920531332493 per deg; OWN 0.03040175698697567; REF 0.05960225686430931
+seed 9411: control pairs [2097152, 2359296], critic_phase pairs [2097152, 2359296]
+  [ok] 2. control at S reproduces the parent's 2,097,152 values exactly: {'G': -0.6363920116424561, 'c0': 0.23771291971206665, 'own14': 0.14250202003121376, 'REF_G': -0.6194893866330384, 'slope': 0.02142920531332493}
+  [ok] 2. control at S = the reference read's 2,097,152 row on every actor reading and slope
+  [ok] 3. critic_phase at S: the actor's readings (G, c0, own14, G_H, G_L, b*_P, b*_L, REF G, REF c0) = control's
+  [ok] 3. critic_phase at S: the tail slope with the phase fed / slots zero / all settled = the parent's on every set: {'ONPOLICY': {'effective': 0.02142920531332493, 'raw': 0.02142920531332493, 'settled': 0.02142920531332493}, 'OWN': {'effective': 0.03040175698697567, 'raw': 0.03040175698697567, 'settled': 0.03040175698697567}, 'REF': {'effective': 0.05960225686430931, 'raw': 0.05960225686430931, 'settled': 0.05960225686430931}}
+  [ok] 3. critic_phase at S: the start transform applied (columns read 0.24422062933444977 -> used 0.0), the actor invariant to the fed phase (0.0), fed {'REF': {'k_min': 200, 'k_max': 200, 'n': 2, 'n_presettle': 0}, 'OWN': {'k_min': 500, 'k_max': 1000, 'n': 60, 'n_presettle': 0}, 'ONPOLICY': {'k_min': 0, 'k_max': 999, 'n': 16384, 'n_presettle': 3584}}
+  [ok] 4. both arms read at their end pair 2359296
+  [ok] 4. at 2359296: critic_phase's readings = control's exactly (G -0.59223765707016, c0 0.23584717512130737, on-policy slope eff 0.024593103677034378 / control 0.024593103677034378)
+  [ok] 4. critic_phase's end pair read without the start transform (its saved columns already zero)
+  [ok] 5. M-PROBE identical between the arms (bank tail_3 commands, trailing means, the critic's bank values)
+  [ok] 5. the markers name the probe's phase record (critic_phase fed, control stock)
+   critic_phase 9411 at S: OWN G -0.6363920116424561, c0 0.23771291971206665, own14 0.14250202003121376, REF G -0.6194893866330384; on-policy slope (phase fed) 0.02142920531332493 per deg; OWN 0.03040175698697567; REF 0.05960225686430931
+V3 CHECK: PASS

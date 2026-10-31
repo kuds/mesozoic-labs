@@ -1,0 +1,436 @@
+{
+ "schema": "bs-run/1",
+ "version": "run_bs 2.1 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2; fixer: learn()'s TensorBoard folder under <BS>/tmp/<run>/tb, the end-of-run actor phase check)",
+ "name": "critic_phase_9401",
+ "mode": "save_loaded_only",
+ "status": "done",
+ "exit": 0,
+ "utc_start": "2026-10-31T15:10:31Z",
+ "argv": [
+  "/home/user/work/phase_screen/tools/run_bs.py",
+  "--arm",
+  "critic_phase",
+  "--seed",
+  "9401",
+  "--save-loaded-only",
+  "--out",
+  "/home/user/work/phase_screen/validate/fixer/v1"
+ ],
+ "arm": "critic_phase",
+ "seed": 9401,
+ "S": 2097152,
+ "E": 3538944,
+ "target": 2097152,
+ "T": 2097152,
+ "stop_reason": null,
+ "run_id_parent": "stance6_r10LTSB_s42",
+ "code": {
+  "dir": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code",
+  "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+  "files": 1406
+ },
+ "stack": {
+  "python": "3.13.17",
+  "torch": "2.13.0+cpu",
+  "numpy": "2.5.4",
+  "gymnasium": "1.4.0",
+  "stable_baselines3": "2.9.0",
+  "mujoco": "3.10.0"
+ },
+ "environment": {
+  "OMP_NUM_THREADS": "1",
+  "MKL_NUM_THREADS": "1",
+  "OPENBLAS_NUM_THREADS": "1",
+  "TMPDIR": "/home/user/work/phase_screen/tmp/save_loaded_only_critic_phase_9401",
+  "MPLCONFIGDIR": "/home/user/work/phase_screen/tmp/save_loaded_only_critic_phase_9401/mpl",
+  "GITHUB_SHA": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "GIT_CEILING_DIRECTORIES": "/home/user/work/phase_screen:/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen"
+ },
+ "criteria_sha256": "2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629",
+ "approved_sha256": null,
+ "screen_sha256": "7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392",
+ "tool_sha256": {
+  "run_bs.py": "9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c",
+  "read_bs.py": "cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698",
+  "run_waves_bs.sh": "a00e7316392a95a8937ac2dfc0afb81679de0aa6817fec99663e7753478baa4a",
+  "bs_common.py": "cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f",
+  "bs_hooks.py": "0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539"
+ },
+ "arm_change": "the critic alone also sees the episode phase: each TRAINING env's observation carries (ramp, settled, discount) of its own step counter in the three command slots 60-62 (always zero in stance; a class swap on each env instance's _get_obs); the policy's mlp_extractor gets a forward_actor that sets the NORMALISED slots 60-62 to 0.0 (the value the actor always saw) before the policy MLP, so the actor never sees the phase and its first-layer phase columns get no gradient; the critic's first-layer columns 60-62 (value_net.0.weight[:, 60:63]) are set to zero at the load (their Adam moments are already exactly zero), so the critic at the load is the start pair's on every input and learns the phase from there; the training VecNormalize's slots 60-62 are reseeded to mean 0 / var 1 and kept there after every update (a class swap on the SymmetricRunningMeanStd instance, pickling as the stock RunningMeanStd); MirrorKLPPO's observation mirror map maps slots 60-62 to themselves with sign +1; the policy probe feeds each bank state's phase to the critic (all ten bank states are settled, k >= 200); the evaluation env, the probe's bank env and every other setting are the run's own",
+ "arm_ppo": "unchanged",
+ "ppo_applied": {
+  "gae_lambda": 0.95,
+  "gamma": 0.98,
+  "ent_coef": 0.005,
+  "ent_coef_end": 0.0,
+  "ent_coef_decay_timesteps": 7000000
+ },
+ "arm_applied": {
+  "arm": "critic_phase",
+  "policy_class": "ActorCriticPolicy",
+  "mlp_extractor_class_before": "MlpExtractor",
+  "obs_rms_class_before": "SymmetricRunningMeanStd",
+  "gae_lambda": 0.95,
+  "rollout_buffer_gae_lambda": 0.95,
+  "phase_slots": [
+   60,
+   61,
+   62
+  ],
+  "phase_features": [
+   "ramp",
+   "settled",
+   "discount"
+  ],
+  "settle_steps": 200,
+  "phase_gamma": 0.98,
+  "obs_rms_slots_before": {
+   "mean": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var": [
+    2.3841812434940362e-11,
+    2.3841812434940362e-11,
+    2.3841812434940362e-11
+   ]
+  },
+  "value_phase_cols_max_abs_before": 0.24422062933444977,
+  "policy_phase_cols_max_abs": 0.2103266566991806,
+  "adam_phase_moments_max_abs_before": {
+   "critic": 0.0,
+   "actor": 0.0
+  },
+  "mirror_obs_sign_slots_before": [
+   1.0,
+   -1.0,
+   -1.0
+  ],
+  "n_train_envs": 4,
+  "train_env_class_before": "TyrannosaurusRexAnatomicalEnv",
+  "transform_verified": true,
+  "obs_rms_slots_after": {
+   "mean": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  "train_env_class": "PhaseObsTyrannosaurusRexAnatomicalEnv",
+  "mirror_obs_sign_slots_after": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "mirror_map_sha256_source": "76272aa04bdf542f876e5f82fc38a437d02eda94744c826974bed7dc77e11b91",
+  "mlp_extractor_class": "CriticPhaseMlpExtractor",
+  "obs_rms_class": "PhaseSlotsSymmetricRunningMeanStd"
+ },
+ "arm_evidence": null,
+ "probe_phase": null,
+ "phase_definition": {
+  "slots": [
+   60,
+   61,
+   62
+  ],
+  "features": [
+   "ramp",
+   "settled",
+   "discount"
+  ],
+  "settle_steps": 200,
+  "gamma": 0.98,
+  "k": "the env's _step_count when the observation is made (0 at reset)"
+ },
+ "copies": {
+  "stage1_2097152_steps.zip": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_2097152_steps.zip.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/models/stage1_2097152_steps.zip",
+   "sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+  },
+  "stage1_vecnormalize_2097152_steps.pkl": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_2097152_steps.pkl.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/models/stage1_vecnormalize_2097152_steps.pkl",
+   "sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+  },
+  "eval_episodes.csv": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/eval_episodes.csv",
+   "sha256": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+  },
+  "evaluations.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/evaluations.npz.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/evaluations.npz",
+   "sha256": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9"
+  },
+  "gate_progress.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/gate_progress.npz.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/gate_progress.npz",
+   "sha256": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e"
+  },
+  "train_episodes.csv": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/train_episodes.csv.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/train_episodes.csv",
+   "sha256": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d"
+  },
+  "policy_probe.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1",
+   "path": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/policy_probe.npz",
+   "sha256": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+  }
+ },
+ "start_pair": {
+  "zip": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/models/stage1_2097152_steps.zip",
+  "zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "pkl": "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/01_stance/models/stage1_vecnormalize_2097152_steps.pkl",
+  "pkl_sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+ },
+ "parent_records": {
+  "eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+  "evaluations.npz": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+  "gate_progress.npz": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+  "train_episodes.csv": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+  "policy_probe.npz": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+ },
+ "modules_root": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/__init__.py",
+ "recipe_v5": {
+  "problems": [],
+  "recomputed_hyperparameters_sha256": {
+   "control": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "critic_phase": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+  },
+  "stage_config_sha256": "38b49cc991aeb31bf6acb0d08126c1c943baff8c045bbf07a37c10439b188dae"
+ },
+ "v1": {
+  "start_zip": {
+   "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "saved_zip": {
+   "params": "sha256:c459b45137e3faa3fd69c5e13bb37cc793f5e436980ac00f9804fa09c478b3c5",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "loaded": {
+   "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "hooked": {
+   "params": "sha256:c459b45137e3faa3fd69c5e13bb37cc793f5e436980ac00f9804fa09c478b3c5",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "start_pkl_vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "saved_pkl_vecnormalize": "sha256:73181877ac9575af94f8707a59e77d3b28774d26798c01158f0173df0fb8b2fe",
+  "loaded_vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "hooked_vecnormalize": "sha256:73181877ac9575af94f8707a59e77d3b28774d26798c01158f0173df0fb8b2fe",
+  "saved": [
+   "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/saved/stage1_2097152_steps.zip",
+   "/home/user/work/phase_screen/validate/fixer/v1/critic_phase_9401/saved/stage1_vecnormalize_2097152_steps.pkl"
+  ],
+  "saved_pkl_rms_classes": {
+   "obs_rms": "RunningMeanStd",
+   "ret_rms": "RunningMeanStd"
+  },
+  "num_timesteps_loaded": 2097152,
+  "saved_sha256": {
+   "stage1_2097152_steps.zip": "526d2a932a95fadc0c29059015916439686eccf496acd57ed5079d50c0734862",
+   "stage1_vecnormalize_2097152_steps.pkl": "845e8e21864195b7c33645db388cf53c1ba4a172ff78583190b11368e750b08d"
+  },
+  "start_zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "bank": {
+   "probe_row": 255,
+   "labels_statue_settled": [
+    "statue_settled",
+    "statue_settled"
+   ],
+   "tail3_statue_settled": [
+    0.0975351482629776,
+    0.17029765248298645
+   ],
+   "tail3_statue_settled_probe": [
+    0.0975351482629776,
+    0.17029765248298645
+   ],
+   "max_abs_diff_tail3_statue_settled": 0.0,
+   "max_abs_diff_all_actions_bank": 8.940696716308594e-08,
+   "max_abs_diff_value_bank": 4.76837158203125e-07,
+   "value_bank": [
+    4.695233345031738,
+    4.749807834625244,
+    4.285161972045898,
+    4.322246551513672,
+    -0.29109030961990356,
+    4.52781343460083,
+    4.690803050994873,
+    4.445267677307129,
+    4.486408710479736,
+    2.720397710800171
+   ],
+   "value_bank_probe": [
+    4.695233345031738,
+    4.749807834625244,
+    4.285161972045898,
+    4.322246551513672,
+    -0.291090190410614,
+    4.52781343460083,
+    4.690802574157715,
+    4.445267200469971,
+    4.486408233642578,
+    2.720397710800171
+   ]
+  },
+  "load_equal_start": true,
+  "saved_equal_hooked": true,
+  "phase_pair": {
+   "keys_equal": true,
+   "other_tensors_equal": true,
+   "value_net0_other_cols_equal": true,
+   "value_net0_phase_cols_saved_max_abs": 0.0,
+   "value_net0_phase_cols_start_max_abs": 0.24422062933444977,
+   "policy_net0_phase_cols_equal": true,
+   "adam_equal": true,
+   "obs_rms_other_dims_equal": true,
+   "obs_rms_slots_start": {
+    "mean": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var": [
+     2.3841812434940362e-11,
+     2.3841812434940362e-11,
+     2.3841812434940362e-11
+    ]
+   },
+   "obs_rms_slots_saved": {
+    "mean": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "ret_rms_equal": true,
+   "ok": true
+  },
+  "phase_bank": {
+   "k_fed": [
+    0,
+    1,
+    50,
+    100,
+    150,
+    199,
+    200,
+    201,
+    600,
+    1000
+   ],
+   "k_own": [
+    200,
+    600,
+    600,
+    600,
+    401,
+    200,
+    600,
+    600,
+    600,
+    401
+   ],
+   "per_k": {
+    "0": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "1": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "50": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "100": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "150": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "199": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "200": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "201": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "600": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "1000": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    },
+    "own": {
+     "max_abs_diff_actions": 0.0,
+     "max_abs_diff_values": 0.0
+    }
+   },
+   "max_abs_diff_actions": 0.0,
+   "max_abs_diff_values": 0.0,
+   "bitwise_actor": true,
+   "bitwise_critic": true
+  },
+  "params_equal": true,
+  "adam_equal": true,
+  "vecnormalize_equal": true,
+  "phase_bitwise": true,
+  "num_timesteps_S": true,
+  "saved_pkl_stock_classes": true,
+  "bank_tail3_equal": true
+ },
+ "ent_coef_after_load": 0.005,
+ "gae_lambda_after_load": 0.95,
+ "torch_threads": 1,
+ "torch_interop_threads": 4,
+ "digest_load": {
+  "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "obs_rms": "sha256:ab9568d8ad8ac6647f5c76bd64f2361c16425cf0032dcf0a173a894d0f5174da",
+  "all": "sha256:e227dad47af4d241fcace428033777c32499331f054453a5cced8443fbcccd07",
+  "n_updates": 2471,
+  "num_timesteps": 2097152
+ },
+ "digest_start": {
+  "params": "sha256:c459b45137e3faa3fd69c5e13bb37cc793f5e436980ac00f9804fa09c478b3c5",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:73181877ac9575af94f8707a59e77d3b28774d26798c01158f0173df0fb8b2fe",
+  "obs_rms": "sha256:bc2e6c446a497cd2fd877b1a1d0b85c23d2c957de39f79c6b564c225e6119ad5",
+  "all": "sha256:778b5b49971587167e5c78c08688560f6bb252642c0001a435ea3ac89b57d6f6",
+  "n_updates": 2471,
+  "num_timesteps": 2097152
+ },
+ "utc_end": "2026-10-31T15:10:39Z",
+ "wall_seconds": 7.9,
+ "code_seal_after": "unchanged"
+}

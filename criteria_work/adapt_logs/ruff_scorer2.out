@@ -1,0 +1,12 @@
+E501 Line too long (127 > 120)
+    --> /home/user/work/phase_screen/tools/score_bs.py:1119:121
+     |
+1117 |         L.append(f"  {c['name']:<24} {mp['mlp_extractor_class']} / {mp['obs_rms_class']}, hook {mp['arm_state_end']}; "
+1118 |                  f"{mp['n']} rollouts; value change with obs 6 perturbed, min {mp['min_dv_predict_values']} (the "
+1119 |                  f"critic sees the tail angle); actor dmu min {mp['min_dmu_actor']}; lambda {mp['buffer_gae_lambda']}; |adv - "
+     |                                                                                                                         ^^^^^^^
+1120 |                  f"GAE(0.95)| max {mp['max_adv_err_vs_gae095']}; {s}")
+1121 |     L.append("REPORT ONLY, PER CONTINUATION (never tested):")
+     |
+
+Found 1 error.

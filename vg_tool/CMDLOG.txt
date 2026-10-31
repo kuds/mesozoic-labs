@@ -1,0 +1,84 @@
+2026-10-31T15:59:06Z mkdir vg_tool folders
+2026-10-31T16:07:22Z START nice -n 19 PY -I -B val/seeds_check.py > val/seeds_check.out
+2026-10-31T16:07:37Z END seeds_check exit 0
+2026-10-31T16:07:47Z START nice -n 19 PY -I -B val/seeds_check.py (with sanity) > val/seeds_check.out
+2026-10-31T16:07:57Z END seeds_check exit 0
+2026-10-31T16:08:34Z START nice -n 19 PY -I -B val/explore.py > val/explore.out
+2026-10-31T16:08:41Z END explore exit 0
+2026-10-31T16:16:06Z wrote vg_sigma.py (Write + Edit tools; python3 str.replace in my folder)
+2026-10-31T16:16:19Z venv ruff check --no-cache --select E,F,W,B --line-length 120 vg_sigma.py
+2026-10-31T16:16:38Z START smoke: nice -n 19 PY -I -B vg_sigma.py --pair F2 S pair --form phase --phase-start --episodes 4 --out val/smoke_S
+2026-10-31T16:16:53Z END smoke exit 0
+2026-10-31T16:20:10Z START nice -n 19 PY -I -B -m pytest -p no:cacheprovider --basetemp tmp/pytest tests (first pass)
+2026-10-31T16:20:19Z END pytest exit 1
+2026-10-31T16:21:00Z START nice -n 19 pytest tests (pass 2, after guard-test watch fix and episode_rows count check)
+2026-10-31T16:21:12Z END pytest exit 0
+2026-10-31T16:21:19Z ruff E,F,W,B line 120 on vg_sigma.py tests/*.py val/*.py
+2026-10-31T16:22:14Z START nice -n 19 pytest tests (pass 3: no_simulation fixture, conftest VG_SIGMA_DIR)
+2026-10-31T16:22:23Z END pytest exit 0
+2026-10-31T16:22:23Z START nice -n 19 PY -I -B val/mutants.py > val/mutants.out
+2026-10-31T16:23:14Z END mutants exit 0
+2026-10-31T16:23:30Z START (a1) nice -n 19 PY -I -B vg_sigma.py --pair BS2 control_2501 final --form plain --episodes 8 --expect-steps 3538944 --out val/a_control_2501
+2026-10-31T16:23:54Z END (a1) exit 0
+2026-10-31T16:24:02Z START (a2) nice -n 19 PY -I -B vg_sigma.py --pair BS2 critic_blind_tail3_2501 final --form blind --episodes 8 --expect-steps 3538944 --out val/a_blind_2501
+2026-10-31T16:24:26Z END (a2) exit 0
+2026-10-31T16:24:39Z START (b1) nice -n 19 vg_sigma.py --pair F2 S pair --form phase --phase-start --episodes 4 --out val/b1_S
+2026-10-31T16:24:53Z END (b1) exit 0
+2026-10-31T16:25:02Z START (b2 phase) nice -n 19 vg_sigma.py --pair PS validate/v2/critic_phase_9401 final (2359296) --form phase --episodes 4 --out val/b2_phase
+2026-10-31T16:25:16Z END (b2 phase) exit 0
+2026-10-31T16:25:16Z START (b2 plain) nice -n 19 vg_sigma.py --pair PS validate/v2/critic_phase_9401 final (2359296) --form plain --episodes 4 --out val/b2_plain
+2026-10-31T16:25:30Z END (b2 plain) exit 0
+2026-10-31T16:25:30Z START (b2 phase_rerun) nice -n 19 vg_sigma.py --pair PS validate/v2/critic_phase_9401 final (2359296) --form phase --episodes 4 --out val/b2_phase_rerun
+2026-10-31T16:25:43Z END (b2 phase_rerun) exit 0
+2026-10-31T16:25:52Z (b2) compare phase vs plain buckets -> val/b2_compare.out
+2026-10-31T16:26:31Z START (c1) nice -n 19 PY -I -B val/why_offline.py > val/why_offline.out
+2026-10-31T16:26:34Z END (c1) exit 0
+2026-10-31T16:26:56Z START (c2) nice -n 19 PY -I -B val/why_online.py > val/why_online.out
+2026-10-31T16:27:14Z END (c2) exit 0
+2026-10-31T16:27:34Z START nice -n 19 PY -I -B val/equiv_onpolicy.py > val/equiv_onpolicy.out
+2026-10-31T16:28:16Z END equiv_onpolicy exit 0
+2026-10-31T16:28:24Z check: find /tmp/tb_buffer -newermt 2026-10-31T15:59:00Z (names/mtimes only; nothing opened) -> val/tb_buffer_newer.out
+2026-10-31T16:28:56Z START nice -n 19 PY -I -B val/dryroot.py > val/dryroot.out (synthetic root in vg_tool; symlinks to BS2 control_2501 and PS validate critic_phase_9401)
+2026-10-31T16:29:30Z END dryroot exit 0
+2026-10-31T16:30:08Z SPEC.txt: markers wording aligned with the code (missing markers = PROBLEM); equivalence evidence named. vg_sigma.py: final pairs checked present before any simulation
+2026-10-31T16:30:25Z code frozen; first-round validation outputs removed (their logs kept in val/prelim/); re-running every validation on the final code
+2026-10-31T16:30:38Z code frozen (ruff clean); first-round validation outputs removed (their logs moved to val/prelim/); re-running every validation on the final code
+2026-10-31T16:31:02Z START bash val/run_validations.sh (final code: vg_sigma.py 62cf6901..., SPEC f2b37b14...)
+2026-10-31T16:31:02Z START [pytest] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B -m pytest -p no:cacheprovider --basetemp /home/user/work/vg_tool/tmp/pytest -q /home/user/work/vg_tool/tests
+2026-10-31T16:31:11Z END [pytest] exit 0
+2026-10-31T16:31:11Z START [mutants] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/val/mutants.py
+2026-10-31T16:32:05Z END [mutants] exit 0
+2026-10-31T16:32:05Z START [a_control_2501] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2501/01_stance/models/stage1_final.zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2501/01_stance/models/stage1_final_vecnorm.pkl --form plain --episodes 8 --label BS2 control_2501 E --expect-steps 3538944 --out /home/user/work/vg_tool/val/a_control_2501
+2026-10-31T16:32:30Z END [a_control_2501] exit 0
+2026-10-31T16:32:30Z START [a_blind_2501] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/critic_blind_tail3_2501/01_stance/models/stage1_final.zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/critic_blind_tail3_2501/01_stance/models/stage1_final_vecnorm.pkl --form blind --episodes 8 --label BS2 critic_blind_tail3_2501 E --expect-steps 3538944 --out /home/user/work/vg_tool/val/a_blind_2501
+2026-10-31T16:32:53Z END [a_blind_2501] exit 0
+2026-10-31T16:32:53Z START [b1_S] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_2097152_steps.zip.copy1 /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_2097152_steps.pkl.copy1 --form phase --phase-start --episodes 4 --label S (F2 start pair) --expect-steps 2097152 --out /home/user/work/vg_tool/val/b1_S
+2026-10-31T16:33:07Z END [b1_S] exit 0
+2026-10-31T16:33:07Z START [b2_phase] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final.zip /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final_vecnorm.pkl --form phase --episodes 4 --label PS validate v2 critic_phase_9401 final --expect-steps 2359296 --out /home/user/work/vg_tool/val/b2_phase
+2026-10-31T16:33:20Z END [b2_phase] exit 0
+2026-10-31T16:33:20Z START [b2_plain] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final.zip /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final_vecnorm.pkl --form plain --episodes 4 --label PS validate v2 critic_phase_9401 final --expect-steps 2359296 --out /home/user/work/vg_tool/val/b2_plain
+2026-10-31T16:33:34Z END [b2_plain] exit 0
+2026-10-31T16:33:34Z START [b2_phase_rerun] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final.zip /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final_vecnorm.pkl --form phase --episodes 4 --label PS validate v2 critic_phase_9401 final --expect-steps 2359296 --out /home/user/work/vg_tool/val/b2_phase_rerun
+2026-10-31T16:33:50Z END [b2_phase_rerun] exit 0
+2026-10-31T16:33:50Z START [why_offline] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/val/why_offline.py
+2026-10-31T16:33:50Z END [why_offline] exit 0
+2026-10-31T16:33:50Z START [why_online] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/val/why_online.py
+2026-10-31T16:34:09Z END [why_online] exit 0
+2026-10-31T16:34:09Z START [equiv_onpolicy] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/val/equiv_onpolicy.py
+2026-10-31T16:34:54Z END [equiv_onpolicy] exit 0
+2026-10-31T16:34:54Z START [dryroot] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/val/dryroot.py
+2026-10-31T16:35:26Z END [dryroot] exit 0
+2026-10-31T16:35:26Z START [refuse_missing_pair] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /home/user/work/vg_tool/val/none.zip /home/user/work/vg_tool/val/none.pkl --form plain --out /home/user/work/vg_tool/val/r1
+2026-10-31T16:35:26Z END [refuse_missing_pair] exit 2
+2026-10-31T16:35:26Z START [refuse_phase_start_plain] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final.zip /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final_vecnorm.pkl --form plain --phase-start --out /home/user/work/vg_tool/val/r2
+2026-10-31T16:35:27Z END [refuse_phase_start_plain] exit 2
+2026-10-31T16:35:27Z START [refuse_out_in_ps] nice -n 19 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/vg_tool/vg_sigma.py --pair /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final.zip /home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models/stage1_final_vecnorm.pkl --form plain --out /home/user/work/phase_screen/vg_out
+2026-10-31T16:35:27Z END [refuse_out_in_ps] exit 2
+2026-10-31T16:35:27Z [compare] b2 json: phase vs rerun (cmp) and phase vs plain buckets
+2026-10-31T16:35:30Z run_validations.sh done
+2026-10-31T16:36:02Z timing summary -> val/timing_summary.out
+2026-10-31T16:36:20Z outside-folder write check (find -newermt 2026-10-31 15:59:00, names only) -> val/outside_check.out
+2026-10-31T16:37:07Z SHA256SUMS.txt written (SPEC, vg_sigma.py, 4 test files); sha256sum -c OK
+2026-10-31T16:37:26Z rm -rf val/dryroot/root (the synthetic root's symlinks; rebuilt by val/dryroot.py); df -B1 / -> 4,975,054,848 B available
+2026-10-31T16:38:54Z pytest --collect-only (counts per file); tmp cleaned
+2026-10-31T16:39:09Z NOTES.txt written; final df -B1 /

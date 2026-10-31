@@ -1,0 +1,51 @@
+BASE synthetic continuation (rollout 1 zero-init, 2..31 updated): evidence_problems []; phase_meta_problems []
+CAUGHT  A1 actor's mean moved by 1e-9 with the phase slots on ONE rollout (17)
+         evidence: ['evidence: critic_phase: the actor moved by 1e-09 with the phase slots']
+         run_meta: []
+CAUGHT  A2 actor's mirrored mean moved by 1e-12 on the LAST rollout
+         evidence: ['evidence: critic_phase: the actor moved by 1e-12 with the phase slots']
+         run_meta: []
+CAUGHT  A3 actor's log-prob through evaluate_actions moved on rollout 2
+         evidence: ['evidence: critic_phase: the actor moved by 3e-07 with the phase slots']
+         run_meta: []
+CAUGHT  A4 actor's first-layer phase columns changed after an update (rollout 9)
+         evidence: ['evidence: critic_phase: phase_all_policy_phase_cols_unchanged is False']
+         run_meta: []
+CAUGHT  A5 actor's phase columns got Adam moments (a gradient reached them) on rollout 30
+         evidence: ["evidence: critic_phase: the actor's phase columns have Adam moments 1e-15"]
+         run_meta: []
+CAUGHT  B1 critic never learned: every rollout zero-init (as if train() never ran on it)
+         evidence: []
+         run_meta: ['critic_phase: 31 rollouts before the first update and 0 after (1 and 31 - 1 expected)']
+CAUGHT  B2 updates ran but the critic's phase columns stayed 0 and it never responded (input cut)
+         evidence: ["evidence: critic_phase: after updates the critic does not respond to the phase on every rollout and path (columns 0.0, responses {'dv_phase_predict_values': 0.0, 'dv_phase_forward': 0.0, 'dv_phase_evaluate_actions': 0.0, 'dv_phase_mirrored': 0.0})"]
+         run_meta: []
+CAUGHT  B3 after updates the critic did not respond on ONE rollout's predict_values path (rollout 50%)
+         evidence: ["evidence: critic_phase: after updates the critic does not respond to the phase on every rollout and path (columns 0.0001, responses {'dv_phase_predict_values': 0.0, 'dv_phase_forward': 0.001, 'dv_phase_evaluate_actions': 0.001, 'dv_phase_mirrored': 0.001})"]
+         run_meta: []
+CAUGHT  B4 after updates the mirrored critic did not respond on one rollout
+         evidence: ["evidence: critic_phase: after updates the critic does not respond to the phase on every rollout and path (columns 0.0001, responses {'dv_phase_predict_values': 0.001, 'dv_phase_forward': 0.001, 'dv_phase_evaluate_actions': 0.001, 'dv_phase_mirrored': 0.0})"]
+         run_meta: []
+CAUGHT  B5 critic responded on rollout 1 (not zero-initialised at the load)
+         evidence: ["evidence: critic_phase: before any update the critic's phase columns (0.0) or its response (1e-06) are not exactly zero"]
+         run_meta: []
+CAUGHT  B6 a zero-init rollout after an updated one (order)
+         evidence: ['evidence: critic_phase: phase_rows_ordered is False', "evidence: critic_phase: before any update the critic's phase columns (0.0005) or its response (0.005) are not exactly zero"]
+         run_meta: ['critic_phase: 2 rollouts before the first update and 29 after (1 and 31 - 1 expected)']
+CAUGHT  C1 the buffer's phase slots off by 1 ulp on one rollout
+         evidence: ["evidence: critic_phase: buffer slots differ from the env counters' phase by 5.96e-08"]
+         run_meta: []
+CAUGHT  C2 the slot statistics unfrozen on one rollout
+         evidence: ['evidence: critic_phase: phase_all_phase_stats_frozen is False']
+         run_meta: []
+CAUGHT  C3 one training env not carrying the phase class on one rollout
+         evidence: ['evidence: critic_phase: phase_all_envs_swapped is False']
+         run_meta: []
+CAUGHT  C4 critic blind to observation 6 on one rollout (C4)
+         evidence: ['evidence: critic_phase: the critic did not depend on observation 6 on some rollout']
+         run_meta: []
+CAUGHT  C5 one rollout's evidence line missing (30 of 31)
+         evidence: ['evidence: 30 rollouts recorded, expected 31']
+         run_meta: []
+
+16 of 16 mutations caught

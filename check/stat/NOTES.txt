@@ -1,0 +1,181 @@
+PS (phase screen) -- INDEPENDENT STATISTICS CHECK of the finished reading
+Written 2026-10-31 (date -u; every command with its time in cmdlog.txt in this folder) by the statistics checker.
+Scope: re-derive the reading from the raw records with own code (nothing imported from <PS>/tools; score_bs.py,
+read_bs.py and bs_hooks.py were read as text only, to learn file formats and the evidence summary's aggregation), and
+compare every number of score.json / score.txt's reading, primary, gate, test, paired differences, secondaries and
+MANIPULATION section. Report only; nothing outside this folder was written (audit at the end).
+Labels: [measured] = read or computed by my own scripts from the named file; [inferred] = reasoned, basis named.
+<PS> = /home/user/work/phase_screen. F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance.
+Python: S2/venv/bin/python -I -B (3.13.17, numpy 2.5.4, scipy 1.18.1), nice 10, TMPDIR / MPLCONFIGDIR in this folder.
+
+VERDICT: AGREE. The reading stands as scored: line 2, REDUCED, filled p 1/70, STATUS final, 0 PROVISIONAL items.
+  931 comparisons with score.json / score.txt / run_meta, 0 differences beyond float round-off (none at all at the
+  precision the score stores or prints) [measured: out/stat_check.out 513, out/manip_check.out 336, out/txt_check.out 82].
+
+1. THE PRIMARY, B_S, THE GATE, THE TEST (bin/stat_check.py -> out/stat_check.out, out/stat_check.json)
+- Pins [measured, out/pins_check.out]: criteria.txt 9875039f..., SCREEN.json 7d6d368a..., the six tools equal
+  APPROVED (sha256 067d97d2...); the 8 PINS lines of criteria.txt equal their files; every run_meta names the same
+  criteria / SCREEN / APPROVED / tool sha256 and code digest 331fe8fc...; check.json and markers.json were made by the
+  pinned read_bs.py (cb1edaf9...); score.txt names the pinned scorer (e63cf15a...).
+- B_S [measured]: F2 policy_probe.npz.copy1 (sha256 4e0e7220..., = the pin), rows 248-255 (0-based; update_timesteps
+  2,039,808 ... 2,097,152, the parent's 256 rows on the S + 8,192 k grid), rollout_mu_mean[:, 14] float32 widened
+  exactly: B_S = 135930855/1073741824 = 0.1265954738482833, exactly the criteria's value and score.json's baseline_S.
+- Classification [measured]: all 8 COUNTED: check.json passed, failures [], mode continuation, T = E = 3,538,944,
+  stop_reason "end"; run_meta status done, exit 0, num_timesteps_end E; check.json's 4 sources (run_meta.json,
+  arm_evidence.jsonl, policy_probe.npz, parent probe) unchanged now; no lost.json; logs/decided.tsv 8 COUNTED.
+- Each run's policy_probe.npz [measured]: 431 rows = 256 seeded (bitwise equal to the parent's 256) + 175 window rows
+  exactly at S + 8,192 k, k = 1..175, none >= E; its sha256 equals check.json's source and the markers' probe.sha256.
+  The primary's 8 steps 3,473,408 ... 3,530,752 (= window rows 168-175, file rows 423-430) each appear exactly once,
+  finite; the exact rational means of column 14 equal the markers' rollout_mu14_mean bitwise and score.json's
+  primary_exact for all 8:
+    control_2901 +0.49357 (66246325/2^27)    critic_phase_2901 +0.06767 (72662231/2^30)
+    control_2911 +0.58592 (78641179/2^27)    critic_phase_2911 +0.04724 (101437937/2^31)
+    control_2921 +0.66068 (5542209/2^23)     critic_phase_2921 +0.04290 (184255611/2^32)
+    control_2931 +0.64649 (21692579/2^25)    critic_phase_2931 +0.06832 (73360427/2^30)
+  rises from B_S: control +0.36698, +0.45933, +0.53409, +0.51989; phase -0.05892, -0.07936, -0.08370, -0.05827.
+- Gate [measured]: control median by the STAT-2 rule (x(2) + x(3)) / 2 = 165411495/2^28 = +0.616206; rise
+  525715125/2^30 = +0.489610 >= 1/5 (exact): informative. (The parent's own rise, report only, +0.57878.)
+- Arms [measured]: control mean +0.596667, median +0.616206, sample SD (n-1) 0.075991; critic_phase mean +0.056533,
+  median +0.057454, SD 0.013359; difference of means +0.540134.
+- Test [measured, own enumeration of all C(8,4) = 70 relabellings, statistic computed explicitly as the difference of
+  arm means in exact rationals, ties counted against, fill as (infinite part, finite part)]: filled p = 1/70
+  (0.0143) <= 0.05; as-counted p 1/70; the observed split is the unique maximum (next statistic +0.327509; 70
+  distinct statistics); complete separation (lowest control +0.49357 > highest phase +0.06832).
+- Line [measured]: informative and filled p <= 1/20 -> line 2, REDUCED, no addition. score.json's line_text equals
+  criteria.txt lines 396-398 verbatim (whitespace-normalised), and score.txt prints it.
+- Paired differences (report only) [measured]: 2901 +0.42590, 2911 +0.53869, 2921 +0.61778, 2931 +0.57817; exact
+  one-sided sign-flip p 1/16 (0.0625; cannot reach 0.05 with 4 pairs).
+- Fill rule sanity on the observed values with my code [measured, out/extra.out]: one MISSING (either arm) 36/70,
+  one per arm 51/70, two controls 56/70: the criteria's bounds hold.
+
+2. THE SECONDARIES (exactly as defined: data source, direction, fill, test, Bonferroni / guard notes)
+  Test: the same own exact 70-split test on each secondary's 8 values, its own direction and fill; SUPPORTED iff
+  filled p <= 0.05; efficacy note iff p <= 0.05/3 (only 1/70); guard note on a SUPPORTED SEC-TAIL2.
+- SEC-CMD (efficacy; control higher) [measured]: CMD_L at E re-derived from the raw ledger runs/<name>/01_stance/
+  eval_episodes.csv (sha256 = the markers' ledger.sha256; 11 evaluations x 10 rows in (S, E]; at E episodes 0-9, all
+  tail_3_pitch_act_command_mean finite): exact rational mean of the CSV text vs the markers' cmd_l: |d| <= 1.1e-16 on
+  all 8 (float round-off; the markers' value is Python's compensated sum / 10; a naive left-to-right float sum differs
+  from it by 1 ulp for critic_phase_2901). Values: control +0.62867, +0.70450, +0.76530, +0.87234; phase +0.08299,
+  +0.04194, +0.04898, +0.08667. p 1/70 (also from the raw-ledger exact values) -> SUPPORTED, survives Bonferroni.
+  Means +0.74270 / +0.06515, medians +0.73490 / +0.06598.
+- SEC-MARGIN (efficacy; phase higher) [measured from the markers' loop row at E]: exactly one loop row with steps =
+  num_timesteps = E per run (7 rows: S and the 6 saved pairs); its zip / pkl are runs/<name>/01_stance/models/
+  stage1_final.zip / stage1_final_vecnorm.pkl at their current sha256; OWN.P.b_star equals 1 - G - c0 in float on all
+  8 (exact-rational residual <= 2.2e-16); the reader's cache entry for that pair (reads/_cache, the pinned reader's
+  key) holds the same G, c0, b*, slope. Values: control +0.26458, +0.17921, +0.10886, +0.04902; phase +1.93376,
+  +2.35922, +2.07765, +2.04275. p 1/70 -> SUPPORTED, survives Bonferroni. Means +0.15042 / +2.10335.
+- SEC-MECH (efficacy; control higher) [measured from the markers]: critic_slope_obs6.ONPOLICY.effective.dV_dq3_per_deg
+  at E; n 16,384 on-policy states (2 seeds x 8,192), 0 clipped; control: effective == raw (critic_form "plain" on all
+  7 rows, no phase record); phase: critic_form "phase+raw+settled" on all 7 rows, phase fed to all 16,384 states with
+  k 0..999 (3,584 pre-settle), effective != raw. Values: control +0.05750, +0.05278, +0.04973, +0.03830; phase
+  -0.00010, -0.00400, +0.00838, +0.00071. p 1/70 -> SUPPORTED, survives Bonferroni. Means +0.04957 / +0.00125.
+  Report only: the slope at S is +0.02143 on every run (the start pair); phase E <= S 4 of 4, E <= 0 2 of 4; control
+  0 of 4 / 0 of 4; the phase swing at E (V settled - V raw, on-policy) +0.350, +0.364, +0.366, +0.356 (the phase
+  was learned) [measured].
+- SEC-TAIL2 (guard; phase higher) [measured]: column 13 read from each run's own policy_probe.npz (the CHECK-passed
+  file, sha256 = check.json = markers; its column 14 at the 8 rows equals the markers' exactly). Values: control
+  +0.02188, +0.01172, +0.00461, -0.01513; phase +0.03887, +0.02411, +0.01386, +0.02957. p 2/70 (0.0286) -> SUPPORTED,
+  with the guard note "(guard: the habit may be moving to tail_2; a warning, not support for the phase input)"; no
+  Bonferroni note (guard family); no MISSING note. The one other split at or above the observed swaps
+  critic_phase_2921 (+0.01386) with control_2901 (+0.02188).
+- Bonferroni notes [measured]: 9/70 and 12/70 family bounds printed as in the criteria; only p = 1/70 carries the
+  survives-Bonferroni note; score.json notes lists equal mine for all four.
+
+3. COMPARISON WITH score.json / score.txt [measured]
+- score.json: status final, provisional [], line 2 / REDUCED / text, additions [], p_filled and p_as_counted
+  ('1/70', count 1 of 70), alpha 1/20, informative, control_median, control_rise, rise_min 1/5, primary_steps,
+  arm means / medians / SDs, n_missing 0, missing lists, the 4 paired records and the sign-flip p, the 8 class
+  records (class, T, primary exact and float), the 8 probe sha256; for each secondary: higher arm, family, verdict,
+  supported, notes, p filled / as counted, the 8 values (exact and float), causes (none), n_read, arm means and
+  medians; report only: early 8 rows, last 8 before T, CMD_L last and per evaluation (raw CSV, |d| <= 1e-15), slope at
+  S and E and the E <= S / E <= 0 flags and counts, G(E) > G(S) flags and counts (control 4 of 4, phase 0 of 4), the
+  on-policy trajectory per run, its arm medians and the parent's: 513 comparisons, 0 differences. Exact equality
+  except arm means / rise / paired differences / SDs (float of my exact value equal or within 1e-16) and SEC-CMD's raw-
+  ledger means (<= 1.1e-16).
+- score.txt: every number in the reading, primary, informativeness, test, paired and the four secondaries blocks, the
+  report-only slope table and counts, the G count, and the MISSING "none" line, at the printed precision: 82 checks,
+  0 differences.
+- Correction of my own first pass (no finding against the score): my first script took the report-only trajectory
+  as the 8 rows ending one rollout BEFORE each evaluation step and differed from the score on 110 report-only values
+  (all of them trajectory; out/stat_check_v1_traj_ending_before.out, bin/stat_check_v1_traj_ending_before.py.txt).
+  The score defines it as the 8 rows ending AT each evaluation step (at E, which has no row, the primary's rows) in
+  score.txt's header and score_bs.trajectory's docstring; the criteria say only "the on-policy 8-row trajectory".
+  With the score's stated definition all 110 agree. Report only; no line or secondary depends on it.
+
+4. THE SPREAD CAVEAT (as BS2's report gave it; bin/spread.py -> out/spread.out; REPORT ONLY, the pre-registered p
+   decides and the line stands)
+- Arm SDs (n-1) [measured]: control 0.0760, critic_phase 0.0134; ratio 5.69 (BS2's was 4.6: 0.166 / 0.036).
+- Under a normal model with equal means and this SD ratio, P(complete separation: all 4 control above all 4 phase)
+  = 0.036 [measured: quadrature 0.03631, independent grid trapezoid 0.03631, Monte Carlo 4e6 0.03632; at ratio 1 it is
+  1/70 = 0.0143 exactly], i.e. about 2.5 times the 1/70 a complete separation has under exchangeability; 0.025-0.040
+  for ratios 3-7; it reaches 0.05 only at ratio 14.5. The ratio is loosely determined by 4 + 4: a 90% F(3, 3) interval
+  for the true SD ratio is 1.9 to 17.3, where P(separation) is 0.018 to 0.052 [measured]. P(filled p <= 3/70 =
+  REDUCED) under equal means at ratio 5.69: 0.063 (Monte Carlo 4e5; criteria THE TEST: about 0.06) [measured].
+- Post hoc Welch t (report only) [measured]: t 14.00, Welch-Satterthwaite df 3.19, one-sided p 0.00029 (scipy's
+  ttest_ind(equal_var=False, alternative="greater") gives the same). Lowest control minus highest phase: 0.425 =
+  31.8 phase SDs (5.6 control SDs).
+- Wording for the report [inferred]: "The arms' spreads differ (SD 0.076 against 0.013). If the phase input had only
+  narrowed the spread, with no shift in the mean, a complete separation like this would occur about 3.6% of the time
+  at this spread ratio (2.5-4% for ratios 3-7; normal model), rather than 1.4%. The pre-registered p decides the line,
+  and it stands. Post hoc: Welch t 14.0 (df 3.2), one-sided p 0.0003."
+
+5. THE MANIPULATION AND REPORT-ONLY SECTIONS vs run_meta / check.json (bin/manip_check.py -> out/manip_check.out)
+- check.json [measured]: all 8 passed, failures [], items empty, probe detail 175 rows expected / in window, 0 at or
+  after T, 256 seeded rows, 0 ent_coef / learning_rate mismatches, 0 obs_rms rows equal to the start; sources
+  unchanged since CHECK.
+- arm_evidence.jsonl re-aggregated with my own code from the 175 per-rollout lines (num_timesteps exactly S + 8,192 k,
+  k = 1..175) [measured]: on every rollout of every run lambda 0.95 in model and buffer, |adv - GAE(0.95)| <= 3.9e-6
+  and different from lambda-1 (gae095_vs_mc 0.034-0.746 over the 1,400 rollouts), returns = adv + values
+  (2.4e-7 on every rollout) [out/evidence_ranges.out], the critic's output
+  changes with obs 6 (C4; min 0.0375-0.104), observation statistics move every rollout, no state problems.
+  control x 4: no phase rows on any rollout; the actor responds to the command slots on every rollout (min 3.01-3.87);
+  classes MlpExtractor / SymmetricRunningMeanStd; digest_load = digest_start; probe not phase-fed; "in force".
+  critic_phase x 4: C1 the actor's five paths change by exactly 0.0 under the phase perturbations on all 175 rollouts,
+  actor phase columns unchanged and their Adam moments 0.0 (also phase_state_end after the last update); C2 rollout 1
+  (0 updates since load): critic phase columns 0.0 and response 0.0 on all four paths; C3 rollouts 2-175 (174): columns
+  nonzero (min 0.0021-0.0057) and response > 0 on all four paths (min 0.098-0.250); C5 buffer slots vs recount max
+  error 0.0, counters consistent at start and end, 8,192 phase rows per rollout, k max 999, pre-settle rows 287,200-
+  287,440; C6 slots frozen; C7 mirror self-map, mirror tensors built (rollouts 2-175), envs swapped; classes
+  CriticPhaseMlpExtractor / PhaseSlotsSymmetricRunningMeanStd; transform verified (params changed at the load, Adam
+  digest not); probe phase-fed with settled k (200 / 401 / 600); "in force".
+- My aggregates equal run_meta's arm_evidence summary and score.json's manipulation records field by field, and each
+  score.txt MANIPULATION line carries them (336 comparisons, 0 differences): CHECK passed, 175 rollouts, the arm
+  signatures as stated.
+- Pairing (report only) [measured]: rollout 1 of each seed has identical env-side (phase slots excluded), reward,
+  value and advantage digests in both arms (C2: the phase critic is the parent's at load); rollout 2 differs.
+
+INFORMATION FOR THE REPORT (none changes the line or a secondary)
+- I-1 [measured; interpretation inferred, post hoc STAT-3]: the guard SEC-TAIL2 reads SUPPORTED (2/70), against the
+  criteria's predicted NOT SUPPORTED. Against the parent's tail_2 at S (+0.02331, rows 248-255), the four controls'
+  tail_2 FELL (-0.00143, -0.01159, -0.01870, -0.03845) while the phase arm's moved -0.00945 to +0.01556 (median
+  +0.00353) [out/extra.out, out/tail_rises.out]; BS2's blinded run 2511 rose +0.120 (criteria). The pre-registered
+  warning stands as printed; the report should give these sizes so the warning is not read as a tail_2 climb in the
+  phase arm (most of the arm difference is the controls' fall, which goes with their tail_3 climb [inferred]: the
+  controls' tail_1_pitch also fell, -0.085 to -0.200, while the phase arm's rose +0.042 to +0.056, out/tail_rises.out,
+  as score.txt's per-actuator rises print).
+- I-2 [measured]: SEC-MECH is SUPPORTED with phase slopes -0.0040 to +0.0084 per degree at E (all 4 at or below S's
+  +0.0214, 2 of 4 at or below 0) and positive phase swings (+0.35 to +0.37); the criteria's KNOWN LIMITS (confounding
+  with the primary) apply unchanged.
+- I-3 [measured]: score.json's utc is 20:19:27Z; the files' mtime 20:19:28.87Z; the runner exited 0 at 20:18:54Z
+  (logs/run_waves_bs.exit); ALL_DECIDED 20:06:54Z.
+- I-4 (disclosure of my own reads) [measured]: at about 20:22Z a `wc -l` with the glob runs/*/01_stance/
+  eval_episodes.csv also matched the 8 runs/*_crashed<k>/01_stance/eval_episodes.csv (line counts only, printed to my
+  terminal; after ALL_DECIDED and after the score). Those folders are "kept and never read" for the reading; nothing
+  of them entered any computation here. Their atimes may show this read.
+
+OWN-WRITE AUDIT [measured]: `find <PS> -newer check/stat/mpl` outside check/stat and check/proc (the other checker's
+folder) lists only <PS>/check itself (its mtime moved when check/proc was made). No redirect outside this folder; no
+reference to the null device; no git or network writes; no training.
+
+FILES (this folder)
+  NOTES.txt (this), SHA256SUMS.txt, cmdlog.txt (every command with date -u)
+  bin/stat_check.py      primary, B_S, gate, test, line, paired, secondaries, report-only cross-checks; vs score.json
+  bin/spread.py          spread caveat: SDs, P(complete separation), P(REDUCED) under spread only, Welch t
+  bin/manip_check.py     MANIPULATION vs arm_evidence.jsonl / run_meta / check.json / score
+  bin/txt_check.py       score.txt numbers at the printed precision
+  bin/extra.py           fill bounds, the guard against the parent's tail_2, split ranks
+  bin/pins_check.py      APPROVED / PINS / run_meta / reader / scorer pins
+  bin/explore_*.py       format exploration (key trees) only
+  bin/stat_check_v1_traj_ending_before.py.txt   my first pass (report-only trajectory defined one row early)
+  out/*.out, out/*.json  the outputs named above; out/*tree*.txt, out/explore_npz.txt format dumps
+END

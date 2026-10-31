@@ -1,0 +1,217 @@
+schema: 'bs-run/1'
+version: "run_bs 2.1 (2026-10-31; phase screen from s42 2,097,152; derived from run_bs 1.1 of bias screen 2; 
+name: 'control_2901'
+mode: 'continuation'
+status: 'done'
+exit: 0
+utc_start: '2026-10-31T15:56:58Z'
+argv: list[5]
+arm: 'control'
+seed: 2901
+S: 2097152
+E: 3538944
+target: 3538944
+T: 3538944
+stop_reason: 'end'
+run_id_parent: 'stance6_r10LTSB_s42'
+code: dict[4]
+  dir: '/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bia
+  commit: '8737cd3d86431de1bdd0fcdb49a0d956a45e084d'
+  tree_digest: '331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1'
+  files: 1406
+stack: dict[6]
+  python: '3.13.17'
+  torch: '2.13.0+cpu'
+  numpy: '2.5.4'
+  gymnasium: '1.4.0'
+  stable_baselines3: '2.9.0'
+  mujoco: '3.10.0'
+environment: dict[7]
+  OMP_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  TMPDIR: '/home/user/work/phase_screen/tmp/control_2901'
+  MPLCONFIGDIR: '/home/user/work/phase_screen/tmp/control_2901/mpl'
+  GITHUB_SHA: '8737cd3d86431de1bdd0fcdb49a0d956a45e084d'
+  GIT_CEILING_DIRECTORIES: '/home/user/work/phase_screen:/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa
+criteria_sha256: '9875039fad039f76dd63497b5952d5ef5c014fc1f4765ed6b11120526249ebc5'
+approved_sha256: '067d97d2099077d0d6085d5651973ebb44e31e8430fcb2905cd98ffc8e950a79'
+screen_sha256: '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392'
+tool_sha256: dict[5]
+  run_bs.py: '9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c'
+  read_bs.py: 'cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698'
+  run_waves_bs.sh: '3ef2746e797e908e87c359e1f3ffe6b483078e6878e0b3be08db20f0fee7f9bb'
+  bs_common.py: 'cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f'
+  bs_hooks.py: '0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539'
+arm_change: "nothing: the run's own same-stage resume, every setting as recorded"
+arm_ppo: 'unchanged'
+ppo_applied: dict[5]
+  gae_lambda: 0.95
+  gamma: 0.98
+  ent_coef: 0.005
+  ent_coef_end: 0.0
+  ent_coef_decay_timesteps: 7000000
+arm_applied: dict[8]
+  arm: 'control'
+  policy_class: 'ActorCriticPolicy'
+  mlp_extractor_class_before: 'MlpExtractor'
+  obs_rms_class_before: 'SymmetricRunningMeanStd'
+  gae_lambda: 0.95
+  rollout_buffer_gae_lambda: 0.95
+  mlp_extractor_class: 'MlpExtractor'
+  obs_rms_class: 'SymmetricRunningMeanStd'
+arm_evidence: dict[39]
+  n: 175
+  max_adv_err_vs_gae095: 3.6899141487639273e-06
+  max_adv_err_vs_mc: 0.6461254029798211
+  max_mc_vs_gae_lambda1_recursion: 8.382183835919932e-15
+  max_returns_minus_adv_minus_values: 2.384185791015625e-07
+  max_dv_predict_values: 0.5740799903869629
+  max_dv_forward: 0.5740799903869629
+  max_dv_evaluate_actions: 0.5740799903869629
+  max_dv_mirrored: 0.5634469985961914
+  max_buffer_values_vs_critic: 1.430511474609375e-06
+  min_adv_err_vs_gae095: 2.873788464578808e-06
+  min_adv_err_vs_mc: 0.09261933632070551
+  min_gae095_vs_mc: 0.09261823455380735
+  min_dmu_actor: 0.12080080807209015
+  min_dv_predict_values: 0.060251712799072266
+  min_buffer_values_vs_raw_value_mlp: 9.5367431640625e-07
+  max_adv_scale: 1.036744925977283
+  max_value_scale: 5.016597270965576
+  buffer_gae_lambda: list[1]
+  model_gae_lambda: list[1]
+  obs_rms_equal_start_all: False
+  obs_rms_equal_start_any: False
+  obs_rms_distinct_digests: 175
+  ret_rms_count_first_last: list[2]
+  obs_rms_count_first_last: list[2]
+  frozen_update_calls_first_last: None
+  state_problems: list[0]
+  steps_first_last: list[2]
+  max_dmu_phase: 12.045906066894531
+  min_dmu_phase: 3.4361724853515625
+  max_dv_phase_predict_values: 0.6866717338562012
+  min_dv_phase_predict_values: 0.5066070556640625
+  max_dv_phase_forward: 0.6866717338562012
+  min_dv_phase_forward: 0.5066070556640625
+  max_dv_phase_evaluate_actions: 0.6866717338562012
+  min_dv_phase_evaluate_actions: 0.5066070556640625
+  max_dv_phase_mirrored: 0.7035646438598633
+  min_dv_phase_mirrored: 0.47877025604248047
+  phase_rows_recorded: 0
+probe_phase: dict[8]
+  arm: 'control'
+  class_before: 'PolicyProbeCallback'
+  labels: list[10]
+  kept_steps: list[10]
+  k: list[10]
+  installed: False
+  phase_fed: None
+  class: 'PolicyProbeCallback'
+phase_definition: None
+copies: dict[7]
+  stage1_2097152_steps.zip: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/models/stage1_2097152_steps.zip'
+    sha256: '83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61'
+  stage1_vecnormalize_2097152_steps.pkl: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/models/stage1_vecnormalize_2097152_steps.p
+    sha256: '991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90'
+  eval_episodes.csv: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/eval_episodes.csv'
+    sha256: 'd1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e'
+  evaluations.npz: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/evaluations.npz'
+    sha256: '3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9'
+  gate_progress.npz: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/gate_progress.npz'
+    sha256: '4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e'
+  train_episodes.csv: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/train_episodes.csv'
+    sha256: '14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d'
+  policy_probe.npz: dict[3]
+    from: '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+    path: '/home/user/work/phase_screen/runs/control_2901/01_stance/policy_probe.npz'
+    sha256: '4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11'
+start_pair: dict[4]
+  zip: '/home/user/work/phase_screen/runs/control_2901/01_stance/models/stage1_2097152_steps.zip'
+  zip_sha256: '83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61'
+  pkl: '/home/user/work/phase_screen/runs/control_2901/01_stance/models/stage1_vecnormalize_2097152_steps.p
+  pkl_sha256: '991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90'
+parent_records: dict[5]
+  eval_episodes.csv: 'd1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e'
+  evaluations.npz: '3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9'
+  gate_progress.npz: '4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e'
+  train_episodes.csv: '14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d'
+  policy_probe.npz: '4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11'
+modules_root: '/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bia
+recipe_v5: dict[3]
+  problems: list[0]
+  recomputed_hyperparameters_sha256: dict[2]
+    control: 'sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c'
+    critic_phase: 'sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c'
+  stage_config_sha256: '241cbb287452bfcad2aac49cd6e7fc100ce31bc485faacb014f2cf79879777bf'
+heartbeat: dict[3]
+  rollout_end: 3530752
+  utc: '2026-10-31T17:16:04Z'
+  cpu_seconds: 4432.0
+num_timesteps_end: 3538944
+stop_at_end: dict[5]
+  target: 3538944
+  flag: True
+  step: 3538944
+  calls: 360448
+  last_step: 3538944
+collapse: dict[4]
+  found: 1
+  consecutive_drops: 0
+  patience: 10
+  tripped: False
+ent_coef_after_load: 0.005
+gae_lambda_after_load: 0.95
+arm_state_end: 'in force'
+obs_rms_end_equal_start: False
+torch_threads: 1
+torch_interop_threads: 4
+digest_load: dict[7]
+  params: 'sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7'
+  adam: 'sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c'
+  vecnormalize: 'sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd'
+  obs_rms: 'sha256:ab9568d8ad8ac6647f5c76bd64f2361c16425cf0032dcf0a173a894d0f5174da'
+  all: 'sha256:e227dad47af4d241fcace428033777c32499331f054453a5cced8443fbcccd07'
+  n_updates: 2471
+  num_timesteps: 2097152
+digest_start: dict[7]
+  params: 'sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7'
+  adam: 'sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c'
+  vecnormalize: 'sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd'
+  obs_rms: 'sha256:ab9568d8ad8ac6647f5c76bd64f2361c16425cf0032dcf0a173a894d0f5174da'
+  all: 'sha256:e227dad47af4d241fcace428033777c32499331f054453a5cced8443fbcccd07'
+  n_updates: 2471
+  num_timesteps: 2097152
+digest_end: dict[7]
+  params: 'sha256:7f4451d7d5fb11a5136cc8c05f8322d99c69719259ee2ea0d4d90b5df7324ea9'
+  adam: 'sha256:4e525e1f9b66c30a12a75d586966aead9e5c48a18e38503891351630272bc32e'
+  vecnormalize: 'sha256:0a415539a64dd8c6cc3ebd9e3a0851c85f18d111a37090448ddb281a988f9399'
+  obs_rms: 'sha256:8cbc0cae04087efb20e1c840c56783563473fe1e14b34d99d6590eadf93eb859'
+  all: 'sha256:81006c0fdd3599bfb913e96f2e9b99ed85a2427c89576431dc488eca050dfc94'
+  n_updates: 3792
+  num_timesteps: 3538944
+phase_state_end: None
+tensorboard_log: dict[2]
+  loaded: '/tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r
+  set: '/home/user/work/phase_screen/tmp/control_2901/tb'
+final_path: '/home/user/work/phase_screen/runs/control_2901/01_stance/models/stage1_final'
+learn_seconds: 4790.9
+checkpoints: list[14]
+modules_outside_code: list[0]
+code_seal_after: 'unchanged'
+utc_end: '2026-10-31T17:17:00Z'
+wall_seconds: 4801.3
+cpu_seconds: 4486.8

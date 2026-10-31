@@ -1,0 +1,27 @@
+(a) fill bounds on the observed primaries (control MISSING -> -inf, phase MISSING -> +inf):
+  none missing: p 1 / 70 = 0.0143
+  control_2901 MISSING: p 36 / 70 = 0.5143
+  control_2931 MISSING (the highest phase-side gap): p 36 / 70 = 0.5143
+  critic_phase_2921 MISSING: p 36 / 70 = 0.5143
+  one MISSING in each arm: p 51 / 70 = 0.7286
+  two controls MISSING: p 56 / 70 = 0.8000
+
+(b) the guard SEC-TAIL2 (tail_2 command, on-policy, the primary's 8 rows):
+  the parent's tail_2 at S (rows 248-255): +0.02331
+  control_2901       +0.02188  rise from the parent's S value -0.00143
+  control_2911       +0.01172  rise from the parent's S value -0.01159
+  control_2921       +0.00461  rise from the parent's S value -0.01870
+  control_2931       -0.01513  rise from the parent's S value -0.03845
+  critic_phase_2901  +0.03887  rise from the parent's S value +0.01556
+  critic_phase_2911  +0.02411  rise from the parent's S value +0.00080
+  critic_phase_2921  +0.01386  rise from the parent's S value -0.00945
+  critic_phase_2931  +0.02957  rise from the parent's S value +0.00626
+  p 1/35 (2/70); splits at or above the observed (as the 'phase' arm): [['critic_phase_2901', 'critic_phase_2911', 'critic_phase_2921', 'critic_phase_2931'], ['critic_phase_2901', 'critic_phase_2911', 'critic_phase_2931', 'control_2901']]
+  lowest phase +0.01386; highest control +0.02188
+
+(c) the observed split's rank among the 70 for each tested quantity (count of splits >= observed):
+  primary: 1/70; complete separation True
+  SEC-CMD: 1/70; complete separation True
+  SEC-MARGIN: 1/70; complete separation True
+  SEC-MECH: 1/70; complete separation True
+  SEC-TAIL2: 2/70; complete separation False

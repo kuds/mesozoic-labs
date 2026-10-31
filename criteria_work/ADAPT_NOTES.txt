@@ -1,0 +1,205 @@
+ADAPT_NOTES.txt -- scorer adapter lane (PS/tools/score_bs.py, its tests, PS/criteria.txt, PS/SCREEN.json, dry runs)
+Started: Sat Oct 31 13:57 UTC 2026
+Rules: write only inside PS in the parts named (tools/score_bs.py + tests, criteria.txt, SCREEN.json, criteria_work/ADAPT_NOTES.txt, criteria_work/dry_* roots, SHA256SUMS.txt lines for changed files). No training, no APPROVED.
+Every claim labelled [measured] (file:line) or [inferred]. Commands logged with date -u.
+
+== COMMAND LOG ==
+2026-10-31T13:57:13Z created ADAPT_NOTES.txt; df -h / -> 1.8G avail
+2026-10-31T14:00:56Z READ (no writes): criteria_v1.txt (636 lines), PS tools bs_common.py / read_bs.py / bs_hooks.py / run_waves_bs.sh, BS2 tools/score_bs.py (1052 lines) and tests/test_score_bs.py (1159 lines), V2 markers + run_meta (validate/v2/*), V3 parent markers (validate/v3/parent_s42/markers.json), F2 probe npz keys, MJCF actuator block.
+  FACTS [measured]:
+  - scorer file name the runner pins: tools/score_bs.py (run_waves_bs.sh lines 13-14, 168-185); bs_common.TOOL_FILES (line 82) lists the five harness tools, not the scorer.
+  - critic_form strings: read_bs.py line 1037: "blind+raw" / "phase+raw+settled" / "plain"; critic_phase loop rows carry "phase" (line 1071) and critic_slope_obs6.<set>.{raw,effective,settled} (lines 1058-1062); control: {raw,effective} with effective = raw (line 1079).
+  - probe markers export rollout_mu14_mean only (read_bs.py line 621); NO tail_2 / all-15 column (the draft's SEC-TAIL2 'the reader must export it' is not met by the built reader).
+  - check.json sources["policy_probe.npz"] = [run/01_stance/policy_probe.npz, sha256] (read_bs.py lines 504-507); markers probe file/sha256 are the same file (line 1215).
+  - evidence rows: n_expected = expected_update_rows(S, T) = 175 at E (read_bs.py lines 318-322, bs_common lines 252-256); bs_hooks _phase_problems (lines 1007-1055): zero-init rollouts (n_updates_since_load 0) need value phase cols == 0.0 and every critic path response == 0.0; updated rollouts need cols > 0 and all four critic responses > 0; phase_meta_problems (read_bs.py 442-476): continuation 1 zero-init + n-1 updated.
+  - perturbations as built: bs_hooks PHASE_PERTURB (lines 70-71): zero, settled (1.0), plus1, set3, flip, normalised slots 60-62 together, first EVIDENCE_ROWS = 256 rows (line 60); actor keys mode, forward actions+log-prob, evaluate_actions log-prob, entropy, mirrored mean (PHASE_ACTOR_KEYS lines 72-73).
+  - C5 as built: phase_buffer_check (bs_hooks 745-770): every buffer row's normalised slots vs VecNormalize's formula on the recount from the envs' counters at rollout start + episode_starts, error exactly 0.0, start and end consistent; the terminal observation at the time limit (k = 1000) is covered by a unit test on the real env (NOTES.txt line 119-120, 434), NOT per rollout.
+  - LAUNCH_DISK_BYTES = 1,610,612,736 + 8 x 52,428,800 = 2,030,043,136 (bs_common lines 78-81).
+  - RR-1 and I1 are ported (run_waves_bs.sh lines 5-7, 228-232, 290-305, 427-430, 591).
+  - F2 reference pairs: 2,097,152 and 3,145,728 only (read_bs.py lines 124-126; V3 parent markers loop steps [2097152, 3145728]): no loop row at E in the parent's markers.
+  - actuator order (MJCF code copy environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml <actuator> line 421): 0 neck_pitch ... 13 tail_2_pitch_act, 14 tail_3_pitch_act.
+2026-10-31T14:07:36Z WROTE tools/score_bs.py (score_bs 3.0, derived from BS2's score_bs 2.1): PS arm/seeds/line texts, 4 secondaries (efficacy SEC-CMD/SEC-MARGIN/SEC-MECH + guard SEC-TAIL2), SEC-TAIL2 and per-actuator rises read from the run's policy_probe.npz (sha256 bound to check.json and markers; col 14 must equal markers' rollout_mu14_mean), critic-form checks, phase swing / BESIDE BS2 report only.
+2026-10-31T14:14:57Z WROTE tools/tests/test_score_bs.py; ruff E,F,W,B line 120 on score_bs.py + test -> All checks passed!
+2026-10-31T14:20:15Z WROTE criteria_work/adapt_install.py (the install script: edits A1-A26 on the draft, PINS from the files)
+2026-10-31T14:24:01Z removed criteria_work/adapt_tmp (101 MB: the adapter's own pytest basetemps, kill roots of the mutant map and TMPDIR; scratch, inside PS)
+
+== COMMAND LOG (continued; every command's output is in criteria_work/adapt_logs/) ==
+2026-10-31T14:04Z ruff E,F,W,B line 120 on tools/score_bs.py -> 3 E501 -> reflowed -> clean (adapt_logs/ruff_scorer{1,2,3}.out)
+2026-10-31T14:1xZ fixed a NaN-unsafe comparison in the control critic-form check (dict equality of two NaN slopes is
+                  False): compared as canonical JSON (_canon) [measured: test_secondary_missing_causes with a NaN slope]
+2026-10-31T14:15:03Z pytest (first try) refused: --basetemp parent folder missing (nothing written outside PS)
+2026-10-31T14:15:12Z pytest -k "not mutant and not kill" -> 85 passed, 1 skipped (PINS test: criteria not yet installed)
+2026-10-31T14:15:24Z pytest -k "mutant or kill" -> 56 passed (55 mutants caught + the original passes) (adapt_logs/pytest2.out)
+2026-10-31T14:15:56Z adapt_mutant_map.py -> which kill checks catch each mutant (adapt_logs/mutant_map.out): none survives
+2026-10-31T14:20:33Z code copy re-measured read only with M1's check_copy at its pin (score_bs.code_seal_items -> []):
+                  tree digest 331fe8fc...6437ebf1, 1,406 files, commit 8737cd3d (adapt_logs/code_seal.out) [measured]
+2026-10-31T14:20:56Z adapt_dry_runs.py -> dry_line1, dry_line2, dry_line3, dry_parent built and scored (adapt_logs/dry_runs.out)
+2026-10-31T14:21:23Z adapt_install.py -> criteria.txt + SCREEN.json; 7 lines > 120 columns -> edits rewrapped (14:21:58Z);
+                  2 cited line ranges corrected (bs_hooks 948-1047; SB3 on_policy_algorithm 236-245) (14:22:23Z)
+2026-10-31T14:22:32Z pytest full file -> 142 passed (PINS test active)
+2026-10-31T14:23:11Z run_waves_bs.sh --plan -> exit 0, the 8 entries in SCREEN.json's order, S 2097152, E 3538944, launch
+                  floor 2030043136 (adapt_logs/plan.out) [measured]
+2026-10-31T14:23:17Z run_bs.py --preflight-only for all 8 entries, sequential, nice 10 -> exit 2 each, problems exactly
+                  ["APPROVED: missing"] each (adapt_logs/preflight_all.out) [measured]
+2026-10-31T14:23:30Z run_waves_bs.sh (no --plan) -> exit 2 "refused: no <BS>/APPROVED"; <PS>/logs listing unchanged; no
+                  <PS>/runs, no <PS>/APPROVED (adapt_logs/runner_real.*, logs_listing_{before,after}.txt) [measured]
+2026-10-31T14:23:37Z score_bs.py --root <PS> --out criteria_work/dry_prelaunch_score -> exit 3, STATUS incomplete (0 of 8
+                  decided), one PROVISIONAL item "no <PS>/APPROVED" (expected before the pin) (adapt_logs/prelaunch_score.out)
+2026-10-31T14:24:0xZ removed criteria_work/adapt_tmp (my own pytest basetemps, 101 MB) to keep disk; then the test file's
+                  docstring now says to keep --basetemp and TMPDIR inside <PS> (its sha256 changed: PINS re-filled by
+                  re-running adapt_install.py at 14:24:14Z; criteria.txt sha256 2dea6b20...)
+2026-10-31T14:24:21Z pytest full file -> 142 passed in 23.4 s (adapt_logs/pytest_final.out); adapt_tmp removed again
+2026-10-31T14:26:26Z outside-PS check: find / -xdev -type f -newer criteria_work/adapt_logs/start_marker_1357Z (a marker
+                  touched to 13:57:00 UTC, my start), PS pruned -> 39 files (adapt_logs/outside_ps_newer.txt): the session
+                  harness's own files (/root/.claude/**, /root/.cache/claude-cli-nodejs/**, /tmp/claude-0/.../tasks/*,
+                  /tmp/claude-code*.log, /tmp/claude-0/cache-break-state-*.json, /tmp/env-manager.log,
+                  /tmp/environment-manager.out), S1's run_log.txt (13:59:14, the coordinator's), /home/user/work/repo/.git
+                  config + origin/claude/records-critic-blind ref (13:57:42, a fetch by another process), and
+                  /tmp/tb_buffer/..._stance6_r10LTSB_s42_01_stance_tensorboard/PPO_0/events... (14:15:27). None was
+                  written by this lane [inferred: no command of mine writes outside PS: pytest --basetemp, TMPDIR and the
+                  dry-run roots are under PS, python -B, ruff --no-cache; the events file needs a training process with
+                  tensorboard, which no command of mine starts; /tmp/pytest-of-root was last modified 2026-10-30 01:41].
+
+== EDITS (the draft WORK/criteria_v1.txt sha256 d45c6df7... -> <PS>/criteria.txt; old and new text of each:
+   adapt_logs/install.out; the whole diff: adapt_logs/criteria_v1_vs_installed.diff) ==
+A1   title: the installed version, not the draft.
+A2   STATUS: the install, the draft's sha256, where the edits are listed, and that none changes the question, the
+     contract, the primary, B_S, the gate, the test, a line's text or a secondary's definition.
+A3   THE PHASE: the built names (bs_common.PHASE_SLOTS, PHASE_FEATURES, SETTLE_STEPS, PHASE_GAMMA, phase_features) --
+     the draft left them to the adapter [measured bs_common.py lines 129-141].
+A4/A4b the feature paragraph re-checked against the built file: ramp, settled, discount exactly as drafted [measured
+     bs_common.py lines 136-141], so the paragraph stands and the draft's conditional instruction is resolved.
+A5   ARM_CHANGE cited by line (bs_common.py lines 155-169) instead of "read at 13:2x UTC".
+A6   C2 as CHECK checks it: on the rollout before the first update the critic's phase columns exactly 0 and its output
+     on the four value paths unchanged (exactly 0.0) under the five perturbations [measured bs_hooks.py _phase_problems
+     lines 1036-1040 (summary lines 934-937): zero_init_max_value_phase_cols == 0.0 and zero_init_max_dv_phase == 0.0];
+     the draft said "the
+     buffer values change by exactly 0.0", which the harness does not compute in that form. V1's record named.
+A7   C3: rollouts 2-175, not 2-176 (one evidence line per update row, 175 at E: read_bs.evidence_check lines 321-324,
+     bs_common.expected_update_rows; BS2's criteria line 147 also says 175); the built test: phase columns nonzero and a
+     response > 0 on each of the four value paths [measured bs_hooks.py _phase_problems lines 1041-1046].
+A8   C5 as built: the per-rollout recount covers the buffer rows (exact after VecNormalize's formula, max error 0.0) and
+     the envs' counters at the rollout's start and end [measured bs_hooks.py phase_buffer_check lines 745-770]; the
+     k = 1000 time-limit terminal observation is NOT in the buffer, so CHECK cannot see it per rollout: it is covered by
+     the builder's unit test on the real env [measured tests/test_bs_hooks.py lines 474, 504-506] and SB3 bootstraps
+     predict_values on it after VecNormalize normalises it [measured SB3 on_policy_algorithm.py 236-245, vec_normalize.py
+     203-204]. The draft's "[CHECK, every rollout]" for the terminal observation was not what the harness does.
+A9   THE MANIPULATION CHECK as built: 175 rollouts; FIVE perturbations of the normalised slots (all 0, all 1, +1, all 3,
+     1 - x: bs_hooks PHASE_PERTURB lines 70-71), not the draft's three (all 0; all 1; ramp 0.5); the actor's five paths
+     (PHASE_ACTOR_KEYS); C6/C7 structural checks and run_meta's phase records (read_bs.phase_meta_problems 442-476); the
+     control arm's checks as built (no phase evidence and records, digest_load = digest_start, the actor responds to
+     the slots). The draft's control clause "no phase feature in the buffer or the observation space" is not checked by
+     CHECK as such; it is stated as shown by V2 instead.
+A10  the V2 pairing as measured: equal outside the phase slots (31/31 at 9401 and 9411; whole-observation digest 0/31,
+     as it must be), rewards, values and advantages equal [measured validate/logs/v2_check.out lines 26-28, 58-60]; the
+     draft said "observations ... equals ... bitwise", which cannot hold for the slots that carry the phase.
+A11  the critic form the scorer refuses, spelled out as built [measured read_bs.py lines 1037, 1058-1079, 1217].
+A12  THE QUEUE: installed from SCREEN_v1.json, the queue unchanged.
+A13  WHERE AND HOW: the scorer named (tools/score_bs.py) and its read of the probe file once all are decided.
+A14  disk: 1.8 GB free at 13:57 UTC added [measured df -h /].
+A14b the runner's launch floor as built: 2,030,043,136 bytes = 1.5 GiB + 8 x 50 MiB [measured bs_common.py lines 78-81];
+     the draft quoted BS2's 2,082,471,936 (9 continuations).
+A15  SEC-TAIL2's SOURCE as built (the value's definition unchanged): the pinned reader exports only column 14
+     [measured read_bs.py line 621, probe_markers]; the scorer reads column 13 from the run's own policy_probe.npz,
+     bound to check.json's and the markers' sha256 and to the markers' column 14 (exact), opened only after all are
+     decided and read. HARNESS NOTE H1 below: the alternative is a reader export (a change to a pinned, validated tool).
+A15b SEC-TAIL2 MISSING (and PROVISIONAL) when its file is missing or changed since the read (BS2's D7 rule).
+A16  SEC-MECH's on-policy counter and the control's stock critic cited in the built reader (read_bs.py 922-995,
+     1059-1062, 1079); the definition unchanged.
+A17  the report-only PHASE SWING as the reader exports it: settled V_mean (1, 1, 1) minus raw V_mean (slots 0); the reader
+     does not feed phi(0) = (0, 0, 0.0176), which differs from slots 0 only in the discount slot; V_mean is the mean over
+     all the set's states [measured read_bs.py critic_slope lines 875-893, loop_markers_one 1058-1062]. HARNESS NOTE H2.
+A18  the per-actuator rises' sources (the run's probe file as SEC-TAIL2; the parent's F2 probe at FMAN's sha256).
+A19/A24 RR-1 is ported [measured run_waves_bs.sh lines 5-6, 290-305, 591]: the draft's "if ported ... otherwise copy it
+     aside" resolved.
+A20  I1 is ported [measured run_waves_bs.sh lines 7, 228-232, 427-430]: "if ported" resolved.
+A21  outcome-blindness: the scorer opens no probe file either while incomplete [measured score_bs.score: the probe file is
+     read only in the complete branch; test_incomplete_opens_no_markers_run_meta_or_probe_and_prints_no_outcome].
+A22  PROVISIONAL list: the probe file item (A15b).
+A23  VALIDATIONS: the adapter's dry runs named.
+A25  END line.
+A26  PINS filled from the files as they stand; the code copy re-measured (14:20:33 UTC).
+NOT CHANGED (checked, consistent with the harness): the question, the predicted outcome, the window and its counts (S
+2,097,152, E 3,538,944, 176 rollouts, 175 update rows, 11 evaluations, SAVED_STEPS 2,359,296 ... 3,407,872, final pair at
+E) [measured bs_common.py lines 91-99 and tests test_constants_match_the_harness_and_screen], the primary, B_S, the gate,
+the test, the fill, the three line texts and both additions (verbatim, test_line_texts_are_the_criteria_text), the four
+secondaries' values, directions, fills and families, the report-only list, run handling, outcome-blindness, the queue.
+
+== THE SCORER (tools/score_bs.py, score_bs 3.0, sha256 fa692f68...; its tests tools/tests/test_score_bs.py) ==
+Derived from BS2's score_bs 2.1 [measured: BS2 tools/score_bs.py]: perm_test, sign_flip_test, the fill, classify,
+gather, decide, median_rule, ledger_report, provisional_items and code_seal_items are BS2's (names INF_BLIND ->
+INF_PHASE, pairs "blind" -> "phase"); new: the arm and seeds; the four secondaries in two families (N_EFFICACY 3; the
+guard's note); SEC-MECH (critic_slope_obs6.ONPOLICY.effective at E); SEC-TAIL2 from the probe file (probe_file_read,
+_npz_rows_mean); check_critic_form; the report-only phase swing, per-actuator rises (ACTUATORS in the code copy's MJCF
+order, test_actuator_names_are_the_code_copy_mjcf_order), BESIDE BS2 (BS2's finished score.json, read only); BS2's SEC-G
+is report only (OWN G per pair and the count G(E) > G(S)).
+Tests: 142 passed [measured adapt_logs/pytest_final.out]: 86 unit tests (every line, the boundary 3/70 vs 4/70, ties on
+the recorded doubles, the gate inclusive at exactly B_S + 1/5, the median rule for 4/3/2/1/0 controls, the fill bounds
+36/51/56 of 70, LOST / STOPPED / UNREADABLE / all-missing / no-control, every secondary's direction, exact p, fill, MISSING
+causes, families and notes, never the line, the probe file changed / missing / not the markers' / wrong shape, outcome-
+blind incomplete and unread, CHECK failed = undecided, 16 markers mutations refused, 11 PROVISIONAL causes, final when every
+pin holds, report-only readings, B_S and the parent's trajectory and b_13 recomputed from the F2 probe, the actuator
+names from the MJCF, the criteria text and PINS, the dry run on the parent's markers) + 55 mutants, each caught (and the
+original passes every kill check) [measured adapt_logs/mutant_map.out: the kill checks that catch each mutant].
+
+== DRY RUNS (criteria_work/dry_*, scored by the real CLI; adapt_logs/dry_runs.out) [measured] ==
+dry_line1: line 1 NOT INFORMATIVE, filled p 1/70, control rise 0.065, the addition "(the filled p is <= 0.05, but the
+  control arm did not climb: no reading about the critic's phase input)"; all four secondaries carry the line-1 note.
+dry_line2: line 2 REDUCED, p 1/70; SEC-CMD SUPPORTED 2/70; SEC-MARGIN NOT SUPPORTED 24/70; SEC-MECH SUPPORTED 1/70 (survives
+  Bonferroni over the 3 efficacy secondaries); SEC-TAIL2 SUPPORTED 3/70 with the guard's warning.
+dry_line3: line 3 NO REDUCTION DETECTED, p 46/70, control rise 0.565, informative.
+dry_parent (the parent's own markers, PS V3's validate/v3/parent_s42/markers.json, as all 8 entries, both arms): line 3,
+  p 70/70, control rise +0.5787834012880921 (= +0.57878, informative); SEC-CMD and SEC-TAIL2 NOT SUPPORTED 70/70 (8 equal
+  values; SEC-TAIL2 = the parent's tail_2 at E +0.0334); SEC-MARGIN and SEC-MECH MISSING in all 8 ("0 M-LOOP rows at E"),
+  70/70, and 8 PROVISIONAL items (one per entry): exactly the criteria's VALIDATIONS expectation. The per-actuator rises
+  equal the designer's other_actuators_bs2.out parent rises (neck_pitch -0.062, head_pitch -0.056, tail_1_pitch -0.092,
+  tail_2_pitch +0.010, tail_3_pitch +0.579) [measured dry_parent/score/score.txt].
+dry_prelaunch_score: the real <PS> root: incomplete, 0 of 8 decided, one item "no <PS>/APPROVED".
+Each synthetic root reports 26 PROVISIONAL items (no criteria.txt / APPROVED in the root, each run_meta's pins None): by
+design, the synthetic roots are not pinned.
+
+== HARNESS NOTES (reported, not changed: other tools are not this lane's) ==
+H1 [measured read_bs.py line 621] the reader exports rollout_mu_mean[:, 14] only; the designer's open item asked the reader
+   to export column 13 (or all 15) for SEC-TAIL2. Resolved in the scorer (A15). If the reviewers prefer a reader export,
+   read_bs.py changes, so V3 and the PINS must be redone.
+H2 [measured read_bs.py 1058-1062] the reader feeds "raw" (slots 0) and "settled" (1, 1, 1) but not phi(0) = (0, 0,
+   0.0176); the report-only swing is therefore settled minus slots-0 (A17). Report only; no line or secondary depends on it.
+H3 [measured bs_hooks.py 745-770, tests/test_bs_hooks.py 474, 504-506] the k = 1000 terminal observation's phase is a unit
+   test, not a per-rollout CHECK item (A8).
+H4 [measured bs_common.py line 82] TOOL_FILES does not include score_bs.py; APPROVED must pin it separately (run_waves_bs.sh
+   lines 168-185 refuses otherwise; the scorer's PINNED_TOOLS adds it). As in BS2; not a defect.
+H5 [measured tools/tests/test_bs_hooks.py line 3, test_read_bs.py line 4] the builder's test docstrings run pytest without
+   --basetemp, which writes /tmp/pytest-of-root (outside PS) if followed; this lane ran only its own test file, with
+   --basetemp and TMPDIR inside PS. The builder's hook tests also include a real Adam step on a throwaway (its NOTES); this
+   lane did not run them.
+H6 [measured df -h /] 1.8 GB free: below LAUNCH_DISK_BYTES 2,030,043,136 and the criteria's 2.6 GiB rule.
+
+== FOR THE REVIEWERS (line texts are the designer's; this lane does not change them) ==
+R1 line 3's power clause [computed criteria_work/power_ps.out C, D, F]: "about 0.5-0.85 at BS2's control spread" - the
+   normal model at control SD 0.166 and half the rise gives 0.509 / 0.733 (BS2's mean; phase SD equal / 0.036) and 0.657 /
+   0.857 (the parent's rise), D3 exact 0.826: the top is 0.857, not 0.85. "about 0.1-0.6 if the phase input makes climbs
+   rarer" - at f = 0.5 the two-state model gives 0.111-0.305 (q 0.5-1.0); 0.6 is reached only at f = 0.75 (q = 1: 0.598).
+   [inferred] both clauses are approximate; the reviewers decide whether the wording stands.
+2026-10-31T14:28:01Z notes sections written
+
+== FINAL STATE (2026-10-31T14:28:33Z) ==
+<PS>/criteria.txt   2dea6b205c26a83475742d5a654f4365cdc4c873997a9902187fb15216a2a629 (693 lines; mode 0644: the coordinator sets 0444 at the pin)
+<PS>/SCREEN.json    7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392 (queue = SCREEN_v1.json's; _note updated)
+tools/score_bs.py   fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040
+tools/tests/test_score_bs.py 14df616eedeefc8eeb0c5f5337cef27d972219ef95082925a8e639f3a04e21c2
+PINS in criteria.txt name these and the five harness tools at the builder's sha256 (unchanged by this lane).
+APPROVED: never created by this lane (absent) [measured ls]. No optimizer step, no simulation, no continuation, no git,
+no network write by this lane. Nothing written outside PS by this lane [inferred, see the outside-PS check above].
+Disk: df -h / -> 1.8G available (1,897,455,616 B at the final df) [measured adapt_logs/df_final.out]; this lane's files
+under PS: about 3.3 MB (dry roots 3.0 MB, adapt_logs 0.13 MB, tools 0.15 MB, criteria + SCREEN 0.07 MB).
+Next (SHA256SUMS): the lines for every file this lane wrote are appended to <PS>/SHA256SUMS.txt by the next command; this
+notes file is hashed last and not edited after.
+2026-10-31T14:28:53Z PR #655 spot-check (read only; the user asked to look at PR 655's findings): the criteria's #655 citations
+  hold [measured /home/user/work/wt_pr655/docs/investigations/TREX_STANCE_POP_POSE_SATURATION_2026_10.md, 1,054 lines]:
+  line 183 / 229 "the body is quiet by steps 155-190" (the reset settle); lines 804-807 "The stance_width switch at step
+  200 ... a stronger and guaranteed aliasing source ... +0.099 per step ... AUC 0.71 for steps 150-200 vs 200-250 ...
+  approaches 0.099/(1 - gamma) = 5 value units"; line 808 "Unobserved action and filter history" (the second hidden
+  variable, not addressed by this arm: criteria KNOWN LIMITS); line 864 the widening precedent (widen_checkpoint.py: zero
+  columns on policy_net.0 and value_net.0, Adam moments and the VecNormalize sidecar padded); line 873 the constraints on
+  any phase context. Nothing in #655 changes this lane's scorer or edits [inferred].
+  (This entry was appended after the SHA256SUMS block; the ADAPT_NOTES.txt line there is updated to match.)

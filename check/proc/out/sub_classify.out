@@ -1,0 +1,143 @@
+### a4480ec3 2026-10-31T16:41:20.197Z Bash ['FIND-WORK']
+   echo "$(date -u +%FT%TZ) read vg_sigma.py fully; listing PS allowed files (tools, validate, criteria_work)" >> /home/user/work/vg_tool/check1/cmdlog.txt; ls -la /home/user/work/phase_screen/tools /home/user/work/phase_screen/criteria_work 2>&1 | head -50; find /home/user/work/phase_screen/validate -maxdepth 3 | head -80
+### a4480ec3 2026-10-31T16:41:31.245Z Bash ['FIND-WORK']
+   cd /home/user/work/phase_screen/validate; for f in v1/critic_phase_9401/run_meta.json v1/control_9401/run_meta.json v2/critic_phase_9411/run_meta.json; do echo == $f; grep -E '"(mode|status|target|T|stop_reason)"' $f; done; ls -la v1/critic_phase_9401/01_stance/models v1/critic_phase_9401/saved 2>&1 | head; find fixer -maxdepth 4 | head -40; head -40 logs/v5_one_step.out
+### a4480ec3 2026-10-31T16:49:42.713Z Bash ['FIND-WORK']
+   cd /home/user/work/vg_tool/check1 && PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; export TMPDIR=/home/user/work/vg_tool/check1/tmp MPLCONFIGDIR=/home/user/work/vg_tool/check1/mpl PYTHONDONTWRITEBYTECODE=1; echo "$(date -u +%FT%TZ) START baseline pytest of builder tests (original vg_sigma) basetemp check1/tmp/pt/base" >> cmdlog.txt; nice -n 19 $PY -I -B -m pytest -p no:cacheprovider -q --basetemp tmp/pt/base /home/user/work/vg_tool/tests > out/pytest_baseline.out 2>&1; echo "exit $?"; echo "$(date -u +%FT%TZ) END baseline pytest" >> cmdlog.txt; tail -3 out/pytest_baseline.out; find /home/user/work/vg_tool -name __pycache__ -o -name .pytest_cache | head
+### a4480ec3 2026-10-31T16:50:03.334Z Bash ['FIND-WORK']
+   cd /home/user/work/vg_tool/check1 && mkdir -p tmp/pt && PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; export TMPDIR=/home/user/work/vg_tool/check1/tmp MPLCONFIGDIR=/home/user/work/vg_tool/check1/mpl PYTHONDONTWRITEBYTECODE=1; echo "$(date -u +%FT%TZ) START baseline pytest rerun (tmp/pt created)" >> cmdlog.txt; nice -n 19 $PY -I -B -m pytest -p no:cacheprovider -q --basetemp tmp/pt/base /home/user/work/vg_tool/tests > out/pytest_baseline.out 2>&1; echo "exit $?"; echo "$(date -u +%FT%TZ) END baseline pytest" >> cmdlog.txt; tail -3 out/pytest_baseline.out; ls tmp/pt; find /home/user/work/vg_tool -name __pycache__ -o -name .pytest_cache | head
+### a4480ec3 2026-10-31T17:02:47.924Z Bash ['TB_BUFFER']
+   grep -n "tb_buffer\|tensorboard" /home/user/work/phase_screen/tools/run_bs.py | head -10; grep -rn "tb_buffer" /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/shared/train_base.py | head -5; cat /home/user/work/vg_tool/val/tb_buffer_newer.out | head; echo ---; cat /home/user/work/vg_tool/val/outside_check.out | head -60; echo "$(date -u +%FT%TZ) grep tb_buffer in PS run_bs/train_base; read builder val/tb_buffer_newer.out outside_check.out" >> /home/user/work/vg_tool/check1/cmdlog.txt
+### a4480ec3 2026-10-31T17:03:08.370Z Bash ['PS-ROOT-BARE']
+   cd /home/user/work/vg_tool; grep -n "phase_screen" val/*.py val/*.sh tests/*.py vg_sigma.py | grep -v "^vg_sigma.py:.*PS_ROOT = " | cut -c1-220; echo; grep -n "ROOTS\|roots\s*=\|PS /\|PS}\|/runs\|/reads\|/score\|/logs\|lost.json\|/tmp\b" val/seeds_check.py | head -30; echo "$(date -u +%FT%TZ) grep builder scripts for PS paths" >> check1/cmdlog.txt
+### a4480ec3 2026-10-31T17:03:22.612Z Bash ['PS-ROOT-BARE']
+   cd /home/user/work/vg_tool/check1; head -1 cmdlog.txt; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; echo "$(date -u +%FT%TZ) pinned-file check: sha256 PS tools/criteria/SCREEN vs APPROVED; stat modes of allowed files -> out/pins.out" >> cmdlog.txt; $PY -I -B - > out/pins.out 2>&1 <<'EOF'
+   import hashlib, json, os, stat
+   from pathlib import Path
+   PS = Path("/home/user/work/phase_screen")
+   ap = json.loads((PS / "APPROVED").read_text())
+   sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+   print("APPROVED keys", sorted(ap))
+   for k, f in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json")):
+       print(f, "equal" if ap[k].split(":")[-1] == sha(PS / f) else f"DIFFERS {ap[k]} vs {sha(PS / f)}")
+   for t, want in ap["tool_sha256"].items():
+       got = sha(PS / "tools" / t)
+       print(f"tools/{t}", "equal" if got == want else f"DIFFERS {want} vs {got}")
+   for f in ["criteria.txt", "SCREEN.json", "APPROVED", "NOTES.txt"] + [f"tools/{t}" for t in sorted(os.listdir(PS / "tools")) if (PS / "tools" / t).is_file()]:
+       st = (PS / f).stat()
+       print(f"mode {stat.filemode(st.st_mode)} {oct(st.st_mode & 0o777)} mtime_utc {__import__('datetime').datetime.utcfromtimestamp(st.st_mtime):%Y-%m-%dT%H:%M:%S} {f}")
+   EOF
+   cat out/pins.out
+### a4480ec3 2026-10-31T17:03:32.645Z Bash ['PS-ROOT-BARE', 'FIND-WORK', 'TB_BUFFER']
+   cd /home/user/work/vg_tool/check1; echo "$(date -u +%FT%TZ) outside-write check (find -newermt 2026-10-31T15:59:00Z, names only) -> out/outside_check.out" >> cmdlog.txt; T0='2026-10-31 15:59:00 UTC'; PS=/home/user/work/phase_screen; S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; {
+   echo "== PS allowed paths newer than $T0"; find $PS/criteria.txt $PS/SCREEN.json $PS/APPROVED $PS/NOTES.txt $PS/tools $PS/validate $PS/criteria_work -newermt "$T0" 2>&1;
+   echo "== PS absent refusal targets"; for p in $PS/vg_out $PS/vg_report $PS/vg_tool; do [ -e $p ] && echo "EXISTS $p" || echo "absent $p"; done;
+   echo "== S2 newer (venv pruned)"; find $S2 -path $S2/venv -prune -o -newermt "$T0" -print 2>&1 | head -50;
+   echo "== repo newer (.git pruned)"; find /home/user/mesozoic-labs -path /home/user/mesozoic-labs/.git -prune -o -newermt "$T0" -print 2>&1 | head -20;
+   echo "== /home/user/work maxdepth 2 newer"; find /home/user/work -maxdepth 2 -newermt "$T0" 2>&1 | grep -v "^/home/user/work/phase_screen/\(runs\|reads\|score\|tmp\|logs\|lost.json\)" ;
+   echo "== /tmp maxdepth 1 newer"; find /tmp -maxdepth 1 -newermt "$T0" 2>&1;
+   echo "== /tmp/tb_buffer newer (names)"; find /tmp/tb_buffer -newermt "$T0" 2>&1 | head;
+   echo "== __pycache__ / .pytest_cache under PS/tools, vg_tool"; find $PS/tools /home/user/work/vg_tool -name __pycache__ -o -name .pytest_cache 2>&1;
+   } > out/outside_check.out; cat out/outside_check.out
+### a4480ec3 2026-10-31T17:03:51.541Z Bash ['FIND-WORK']
+   cd /home/user/work/vg_tool/check1; echo "$(date -u +%FT%TZ) NOTE (self-report): the outside check's 'find /home/user/work -maxdepth 2 -newermt' evaluated the mtime of PS top-level entries (incl. runs/reads/score/tmp/logs/lost.json if present) - metadata only, no listing inside, no content; those lines were filtered by grep before display, nothing about them was seen. Not repeated." >> cmdlog.txt; tail -2 cmdlog.txt
+### a4480ec3 2026-10-31T17:08:14.170Z Bash ['FIND-WORK']
+   echo "$(date -u +%FT%TZ) find /root (maxdepth 3, .claude pruned) and /home/user (maxdepth 2) newer than 16:39:00Z (names only)" >> /home/user/work/vg_tool/check1/cmdlog.txt; find /root -maxdepth 3 -path /root/.claude -prune -o -newermt '2026-10-31 16:39:00 UTC' -print 2>&1 | head -20; echo ---; find /home/user -maxdepth 2 -newermt '2026-10-31 16:39:00 UTC' 2>&1 | head; echo ---; find /tmp -maxdepth 1 -newermt '2026-10-31 16:39:00 UTC' 2>&1
+### a4480ec3 2026-10-31T17:09:42.683Z StructuredOutput ['PS-ROOT-BARE', 'FIND-WORK', 'TB_BUFFER']
+   {"ready": true, "summary": "check1 (independent checker) of /home/user/work/vg_tool. Nothing blocking. The frozen tool (vg_sigma.py 62cf6901..., SPEC f2b37b14...; `sha256sum -c` gives 6 OK) computes V - G by bucket the way training does, and its numbers match my own code to float round-off.\n\n1. Re-implementation [measured]: my own_vg.py does not import vg_sigma. It runs SB3 2.9.0's own collect_rollouts into a RolloutBuffer, takes the buffer's normalised rewards with SB3's own truncation fold, feeds the phase through training's own env class (bs_hooks.phase_env_class) with the actor mask, reads k from each env's _step_count, and uses my own bucket and SE code. Agreement with the tool, seed 6281, same episodes:\n   - BS2 control_2501 final, 8 episodes: max |d| 3.1e-8 (check1/out/cmp_ctrl2501.out).\n   - PS validate v2 critic_phase_9401 final, 4 episodes: max |d| 3.3e-8 (cmp_ph9401.out). This pair's critic phase columns are 0, so it cannot show whether the phase is fed.\n   - A synthetic phase pair whose critic does see the phase (value_net.0.weight[:,60:63] = 0.3 N(0,1); check1/pairs, made by make_perturbed.py), 4 episodes: max |d| 3.3e-8. Effective vs raw differ by up to 0.49 on this pair, so the tool's phase feeding (states and terminal observation with phi(1000)) equals training's (cmp_pert.out).\n   - Against the why-probe's own records (P2.npz, seed 7700, first episode of each env): V bitwise equal, k equal, G within 2.2e-7 (why_cross.out).\n   - The tool's output is det
+### ab074b59 2026-10-31T17:11:45.710Z Bash ['PS-ROOT-BARE']
+   L=/home/user/work/vg_tool/fixer/cmdlog.txt; echo "$(date -u +%FT%TZ) read PS APPROVED keys, sha256 SCREEN.json, ls -la PS tools (allowed paths)" >> $L; cd /home/user/work/phase_screen && /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B -c "
+   import json;d=json.load(open('/home/user/work/phase_screen/APPROVED'));print(sorted(d.keys()));print({k:v for k,v in d.items() if 'sha' in k and not isinstance(v,dict)}); print(d.get('tool_sha256'))"; sha256sum /home/user/work/phase_screen/SCREEN.json; ls -la /home/user/work/phase_screen/criteria.txt /home/user/work/phase_screen/SCREEN.json /home/user/work/phase_screen/APPROVED
+### ab074b59 2026-10-31T17:33:31.145Z Bash ['PS-ROOT-BARE']
+   F=/home/user/work/vg_tool/fixer; sed -e 's|^Usage: cd /tmp \&\& nice -n 19 PY -I -B <vg_tool>/val/dryroot.py > <vg_tool>/val/dryroot.out"""|Fixer copy of val/dryroot.py: the same synthetic root, under fixer/dryroot (never the screen'"'"'s).\nUsage: cd /tmp \&\& nice -n 19 PY -I -B <vg_tool>/fixer/scripts/dryroot.py"""|' -e 's|^VG = Path(__file__).resolve().parents\[1\]|VG = Path(__file__).resolve().parents[2]|' -e 's|^D = VG / "val" / "dryroot"|D = VG / "fixer" / "dryroot"|' /home/user/work/vg_tool/val/dryroot.py > $F/scripts/dryroot.py; diff /home/user/work/vg_tool/val/dryroot.py $F/scripts/dryroot.py
+   cat > $F/scripts/rt_mutant.py <<'EOF'
+   """Runtime check of a self-check the unit tests cannot reach (measure_pair is not unit-tested): run a MUTANT copy of
+   vg_sigma.py (definitions from fixer/scripts/mut_run.py; copy under fixer/tmp/rt_mutants/<name>) as the CLI with the given
+   --pair arguments (--out must be under fixer/).  Prints the mutant's output and exit code.
+   Usage: cd /tmp && nice -n 19 PY -I -B <vg_tool>/fixer/scripts/rt_mutant.py NAME --pair ZIP PKL --form F ... --out DIR"""
+   import subprocess
+   import sys
+   from pathlib import Path
+   
+   HERE = Path(__file__).resolve().parent
+   sys.path.insert(0, str(HERE))
+   import mut_run as M  # noqa: E402
+   
+   name, args = sys.argv[1], sys.argv[2:]
+   out = Path(args[args.index("--out") + 1]).resolve()
+   assert str(out).startswith(str(M.FX) + "/"), out
+   old, new = M.ALL[name]
+   assert M.SRC.count(old) == 1, name
+   d = M.FX / "tmp" / "rt_mutants" / name
+   d.mkdi
+### ab074b59 2026-10-31T17:37:12.926Z Bash ['PS-ROOT-BARE', 'FIND-WORK']
+   F=/home/user/work/vg_tool/fixer; cat > $F/scripts/outside_check.sh <<'EOF'
+   #!/bin/bash
+   # fixer: was anything written outside vg_tool/fixer (and the files the fixer may edit) since the fixer started
+   # (17:09:00Z)?  PS is pruned at depth 1 (its runs, reads, score, lost.json, tmp, logs are never listed or statted);
+   # only PS's allowed paths are searched, explicitly.  Output on stdout.
+   T0="2026-10-31 17:09:00"
+   S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+   PS=/home/user/work/phase_screen
+   echo "== /home/user/work (PS pruned at depth 1; vg_tool/fixer pruned)"
+   find /home/user/work -path $PS -prune -o -path /home/user/work/vg_tool/fixer -prune -o -newermt "$T0" -print
+   echo "== PS allowed paths only"
+   find $PS/tools $PS/validate $PS/criteria_work $PS/criteria.txt $PS/SCREEN.json $PS/APPROVED $PS/NOTES.txt -newermt "$T0" -print
+   echo "== bytecode under PS/tools or vg_tool"
+   find $PS/tools /home/user/work/vg_tool -name __pycache__ -print
+   echo "== S2 scratchpad (incl. venv)"
+   find $S2 -newermt "$T0" -print | head -50
+   echo "== repo /home/user/mesozoic-labs (.git included)"
+   find /home/user/mesozoic-labs -newermt "$T0" -print | head -50
+   echo "== /tmp top level and /root (depth 2)"
+   find /tmp -maxdepth 1 -newermt "$T0" -print
+   find /root -maxdepth 2 -newermt "$T0" -print 2>&1 | head -20
+   EOF
+   echo "$(date -u +%FT%TZ) START outside_check.sh -> fixer/out/outside_check.out" >> $F/cmdlog.txt; bash $F/scripts/outside_check.sh > $F/out/outside_check.out 2>&1; ech
+### ab074b59 2026-10-31T17:37:29.262Z Bash ['PS-ROOT-BARE']
+   F=/home/user/work/vg_tool/fixer; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; echo "$(date -u +%FT%TZ) PS pins: sha256 of tools/*, criteria.txt, SCREEN.json vs APPROVED; ls -la of those (allowed paths) -> fixer/out/pins.out" >> $F/cmdlog.txt; cd /tmp; $PY -I -B -c "
+   import json,hashlib
+   PS='/home/user/work/phase_screen'
+   a=json.load(open(PS+'/APPROVED'))
+   h=lambda p: hashlib.sha256(open(p,'rb').read()).hexdigest()
+   bad=0
+   for t,w in sorted(a['tool_sha256'].items()):
+       g=h(PS+'/tools/'+t); bad+=g!=w; print('tools/'+t, 'OK' if g==w else 'DIFFERS')
+   for f,k in (('criteria.txt','criteria_sha256'),('SCREEN.json','screen_sha256')):
+       g=h(PS+'/'+f); bad+=g!=a[k]; print(f, 'OK' if g==a[k] else 'DIFFERS')
+   print('PS pins vs APPROVED:', 'ALL EQUAL' if not bad else f'{bad} DIFFER')
+   " > $F/out/pins.out 2>&1; ls -la --time-style=+%FT%T /home/user/work/phase_screen/tools/*.py /home/user/work/phase_screen/tools/run_waves_bs.sh /home/user/work/phase_screen/criteria.txt /home/user/work/phase_screen/SCREEN.json /home/user/work/phase_screen/APPROVED >> $F/out/pins.out; cat $F/out/pins.out
+### ab074b59 2026-10-31T17:38:54.725Z Bash ['PS-ROOT-BARE']
+   cd /home/user/work/vg_tool && PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python && $PY -I -B - <<'EOF'
+   from pathlib import Path
+   p = Path("/home/user/work/vg_tool/NOTES.txt")
+   s = p.read_text()
+   rep = [
+   ("""O1 Run it only after the screen's reading: even its guard opens <PS>/score/score.json (outcome-bearing while PS runs).
+      Do not run the CLI without --root before then (the default root is the real PS).  Every validation here used
+      --pair or a synthetic root.""",
+   """O1 Run it only after the screen's reading: even its guard opens <PS>/score/score.json (outcome-bearing while PS runs).
+      Never pass --root /home/user/work/phase_screen before then.  Since 1.1 --root has no default (a command with
+      neither --root nor --pair refuses, exit 2, opening nothing [measured, fixer/val/cli_noroot*.log under a guard that
+      blocks PS's outcome paths]).  Every validation here used --pair or a synthetic root."""),
+   ("""O7 Pinning: the coordinator records SHA256SUMS.txt's six sha256 in the run log before the reading (not done here).""",
+   """O7 Pinning: the coordinator records SHA256SUMS.txt's seven sha256 (1.1, fixer) in the run log before the reading
+      (not done here)."""),
+   ("""Mutation check (val/mutants.py): 10 of 10 mutants killed (status not checked, undecided accepted, root not checked, no
+   bootstrap, bucket edge 199, phase not fed, floor not applied, rewards not normalised, deterministic actions, population
+   SD).""",
+   """Mutation c
+### ab074b59 2026-10-31T17:42:44.296Z StructuredOutput ['PS-ROOT-BARE']
+   {"status": "DONE_WITH_ISSUES", "summary": "The tool is now vg_sigma 1.1. Both minor findings were real and are fixed. Optional items i2, i3, i4 and i7 are applied. i1 and i5 needed nothing. i6 is outside this folder and is left to the coordinator. The measured numbers did not change: on 5 pairs or roots the fixed tool's vg_sigma.json numbers match the frozen tool's exactly (b1_S, b2_phase, a_control_2501, the dry root, and the checker's synthetic phase pair) [measured, fixer/val/*_vs_*.out]. PS stayed outcome-blind: nothing under runs, reads, score, lost.json, tmp or logs was opened, listed, hashed or statted. The PS pins still match APPROVED [measured, fixer/out/pins.out].\n\nm1, the phase path had no test coverage (holds; checked by reading the tests and the checker's mut_tests.out):\n(a) New test test_real::test_phase_form_values_with_nonzero_phase_columns. It uses the start pair with frozen slots and nonzero value_net.0.weight[:,60:63]. _form_values' V and V_term match the critic bitwise on bs_hooks.phase_env_class observations, including the terminal phi(1000)=(1,1,1). Both differ from the slots-zero values.\n(b) New tests/test_toy.py (3 tests): collect, episode_rows and _stats_for on a toy env, with falls at k = 50, 300 and 999, a fall at exactly k = 1000 (not bootstrapped), and time-limit ends (bootstrapped).\n(c) New runtime PROBLEM phase_feed_problems, plus a new record key max_abs_eff_minus_raw_term. It fires when the critic's phase columns are nonzero but feeding t
+### ab6e2b3b 2026-10-31T16:05:04.882Z Bash ['FIND-WORK']
+   find /home/user/work/phase_screen/validate/v1/critic_phase_9401 /home/user/work/phase_screen/validate/v2/critic_phase_9401 /home/user/work/phase_screen/validate/fixer/v2 -maxdepth 4 | head -60
+### ab6e2b3b 2026-10-31T16:27:31.606Z Bash ['TB_BUFFER']
+   cd /tmp && V=/home/user/work/vg_tool; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; export TMPDIR=$V/tmp MPLCONFIGDIR=$V/mpl; echo "$(date -u +%FT%TZ) START nice -n 19 PY -I -B val/equiv_onpolicy.py > val/equiv_onpolicy.out" >> $V/CMDLOG.txt; nice -n 19 $PY -I -B $V/val/equiv_onpolicy.py > $V/val/equiv_onpolicy.out 2>&1; rc=$?; echo "$(date -u +%FT%TZ) END equiv_onpolicy exit $rc" >> $V/CMDLOG.txt; echo rc=$rc; cat $V/val/equiv_onpolicy.out; ls /tmp/tb_buffer 2>&1 | head -3
+### ab6e2b3b 2026-10-31T16:28:24.428Z Bash ['FIND-WORK', 'TB_BUFFER']
+   echo "$(date -u +%FT%TZ) check: find /tmp/tb_buffer -newermt 2026-10-31T15:59:00Z (names/mtimes only; nothing opened) -> val/tb_buffer_newer.out" >> /home/user/work/vg_tool/CMDLOG.txt; find /tmp/tb_buffer -newermt "2026-10-31 15:59:00" -printf '%p %TY-%Tm-%Td %TH:%TM:%TS\n' > /home/user/work/vg_tool/val/tb_buffer_newer.out 2>&1; echo "lines: $(wc -l < /home/user/work/vg_tool/val/tb_buffer_newer.out)"; head -5 /home/user/work/vg_tool/val/tb_buffer_newer.out
+### ab6e2b3b 2026-10-31T16:36:20.088Z Bash ['PS-ROOT-BARE', 'FIND-WORK']
+   V=/home/user/work/vg_tool; PS=/home/user/work/phase_screen; S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; out=$V/val/outside_check.out; echo "$(date -u +%FT%TZ) outside-folder write check (find -newermt 2026-10-31 15:59:00, names only) -> val/outside_check.out" >> $V/CMDLOG.txt; { echo "== PS allowed paths newer than 15:59:00 UTC (tools, validate, criteria_work, criteria.txt, SCREEN.json, APPROVED, NOTES.txt):"; find $PS/tools $PS/validate $PS/criteria_work $PS/criteria.txt $PS/SCREEN.json $PS/APPROVED $PS/NOTES.txt -newermt "2026-10-31 15:59:00" -print; echo "== PS tools sha256 vs APPROVED tool_sha256:"; cd $PS/tools && sha256sum bs_common.py bs_hooks.py read_bs.py run_bs.py run_waves_bs.sh score_bs.py; echo "== S2 (venv excluded) newer:"; find $S2 -path $S2/venv -prune -o -newermt "2026-10-31 15:59:00" -print | head -50; echo "== /home/user/mesozoic-labs newer (excluding .git internals):"; find /home/user/mesozoic-labs -path /home/user/mesozoic-labs/.git -prune -o -newermt "2026-10-31 15:59:00" -print | head; echo "== /home/user/work top level newer (maxdepth 1):"; find /home/user/work -maxdepth 1 -newermt "2026-10-31 15:59:00" -print; echo "== __pycache__ under PS/tools or vg_tool:"; find $PS/tools $V -name __pycache__ -print; echo "== /tmp maxdepth 1 newer (excluding claude-0):"; find /tmp -maxdepth 1 -newermt "2026-10-31 15:59:00" ! -name claude-0 -print; } > $out 2>&1; cat $out; python3 -c "import json;print(json.load(open('$
+### ab6e2b3b 2026-10-31T16:36:33.434Z Bash ['FIND-WORK']
+   S1=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad; { echo "== S1 newer than 15:59:00 UTC (names only):"; find $S1 -newermt "2026-10-31 15:59:00" -print 2>&1 | head -20; echo "== /tmp/claude-0 maxdepth 2 newer:"; find /tmp/claude-0 -maxdepth 2 -newermt "2026-10-31 15:59:00" -print | head; } >> /home/user/work/vg_tool/val/outside_check.out 2>&1; tail -12 /home/user/work/vg_tool/val/outside_check.out
+### ab6e2b3b 2026-10-31T16:39:36.325Z StructuredOutput ['PS-ROOT-BARE', 'TB_BUFFER']
+   {"status": "DONE", "summary": "I built the report-only V - G and tail-sigma tool, pre-registered it and validated it. It is in /home/user/work/vg_tool: SPEC.txt, vg_sigma.py, tests/ (4 files), NOTES.txt, SHA256SUMS.txt, CMDLOG.txt and val/. The phase screen was never touched: nothing under PS runs/, reads/, score/, logs/, tmp/ or lost.json was opened, listed or hashed, and nothing was written outside my folder [measured, val/outside_check.out]. No training was done.\n\nHow it works [measured from the PS tool code]:\n- Each run's final pair is runs/<arm>_<seed>/01_stance/models/stage1_final.zip and stage1_final_vecnorm.pkl at E. The saved pairs are stage1_<s>_steps.zip at s = 2,359,296 ... 3,407,872.\n- The tool imports read_bs.py read only (which loads bs_common.py and bs_hooks.py). It uses read_bs.Net, read_bs.phase_prepare (the start transform, the frozen-slot check and the actor mask) and read_bs.with_phase, so V is read exactly as the screen's reader reads it.\n- Episodes are collected with read_bs.onpolicy_states' setup and SB3's own action path, so actions are sampled as in training.\n- G is the discounted return of the normalised rewards with frozen statistics, gamma 0.98. A time-limit end at k = 1000 is bootstrapped with V of the terminal observation, fed the phase for k = 1000 in critic_phase; a fall is not bootstrapped.\n- Buckets are [0,50), [50,150), [150,200), [200,250), [250,1000], by the step count of the state.\n- Sigma is exp(log_std) for tail_3 (action 14) a

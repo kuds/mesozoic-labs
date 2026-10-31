@@ -1,0 +1,248 @@
+2,3c2,3
+< STATE, CPU, SCRATCH.  CRITERIA v1 -- DRAFT FOR INDEPENDENT REVIEW.  NOT APPROVED.  NOTHING TRAINS UNTIL <PS>/APPROVED
+< EXISTS.
+---
+> STATE, CPU, SCRATCH.  CRITERIA v1 AS INSTALLED BY THE SCORER ADAPTER -- FOR INDEPENDENT REVIEW.  NOT APPROVED.
+> NOTHING TRAINS UNTIL <PS>/APPROVED EXISTS.
+16a17,23
+> INSTALLED 2026-10-31 by the scorer adapter as <PS>/criteria.txt from the draft WORK/criteria_v1.txt (sha256
+> d45c6df7c1e93db7cd5b635321e02f52445c4ac954fc99cfafb8ea6517012c67), with SCREEN_v1.json as <PS>/SCREEN.json (the
+> queue unchanged). Every edit (A1-A26), each reconciling the draft with the harness as built, is listed with its
+> old and new text and its reason in WORK/ADAPT_NOTES.txt (EDITS) and WORK/adapt_logs/install.out; none changes the
+> question, the arms' contract, the primary, B_S, the gate, the test, a line's text or a secondary's definition; the
+> built form of the manipulation check (A6-A9), SEC-TAIL2's source (A15) and the report-only phase swing (A17) are
+> stated as built for the reviewers to see. PINS are filled from the files as they stand at the install.
+104c111,112
+< - THE PHASE, k and the features (the arm's definition; the adapter fills the built names):
+---
+> - THE PHASE, k and the features (the arm's definition; the built names: bs_common.PHASE_SLOTS (60, 61, 62),
+>   PHASE_FEATURES ("ramp", "settled", "discount"), SETTLE_STEPS 200, PHASE_GAMMA 0.98, phase_features(k)):
+115,116c123,124
+<   Features (the builder's definition as read from <PS>/tools/bs_common.py lines 111-141 at 13:2x UTC; the adapter
+<     re-checks it against the pinned file): ramp = min(k, 200) / 200 (a clock over the reset transient and the
+---
+>   Features (the builder's definition, <PS>/tools/bs_common.py lines 111-141; re-checked by the scorer adapter
+>     against the file pinned below: unchanged): ramp = min(k, 200) / 200 (a clock over the reset transient and the
+123,124c131,132
+<     (1, 1, 1) the settled one. [If the built feature set changes, the adapter replaces this paragraph with the built
+<     definition and lists the change; the CONTRACT below does not change.]
+---
+>     (1, 1, 1) the settled one. [Re-checked by the adapter: the built feature set is this one, so the paragraph
+>     stands; the CONTRACT below does not change.]
+129c137,138
+<       unchanged and never sees them. As built (bs_common.ARM_CHANGE["critic_phase"], read at 13:2x UTC): the training
+---
+>       unchanged and never sees them. As built (bs_common.ARM_CHANGE["critic_phase"], lines
+>       155-169, re-checked by the adapter): the training
+148,153c157,165
+<         round-off of reordered sums, |dV| <= 1e-6, the precedent's own allclose atol 1e-6), measured by V1; on the
+<         first rollout the buffer values change by exactly 0.0 when the phase is perturbed (zero weights times any
+<         finite phase) [CHECK, rollout 1].
+<       C3 (the critic learns the phase) from the second rollout on, the critic's output changes when the phase
+<         features are perturbed (min over the checked rows > 0) [CHECK, rollouts 2-176]; after one optimizer step
+<         the critic's phase weights have moved (V5, on a discarded copy).
+---
+>         round-off of reordered sums, |dV| <= 1e-6, the precedent's own allclose atol 1e-6), measured by V1 (bitwise:
+>         <PS>/validate/logs/v1_independent.out); on the rollout before the first update (rollout 1 of a
+>         continuation) the critic's phase columns are exactly 0 and its output through predict_values, forward,
+>         evaluate_actions and the mirrored observations changes by exactly 0.0 under the five phase perturbations of
+>         THE MANIPULATION CHECK (zero weights times any finite phase) [CHECK, rollout 1].
+>       C3 (the critic learns the phase) from the second rollout on (every rollout after at least one update), the
+>         critic's phase columns are nonzero and its output changes when the phase features are perturbed, min > 0
+>         on each of the four value paths [CHECK, rollouts 2-175]; after one optimizer step the critic's phase
+>         weights have moved (V5, on a discarded copy).
+157,159c169,175
+<         recounted independently (from the env's _step_count read at each rollout start and the buffer's
+<         episode_starts; to float32), and the bootstrapped time-limit terminal observation carries phi(1000) [CHECK,
+<         every rollout; V2].
+---
+>         recounted independently (from the envs' _step_count read at each rollout start and the buffer's
+>         episode_starts), after VecNormalize's own formula, exactly (max error 0.0), and the recount reaches the
+>         envs' counters at the rollout's end [CHECK, every rollout; V2]; the bootstrapped time-limit terminal
+>         observation carries phi(1000) [unit test on the real env, <PS>/tools/tests/test_bs_hooks.py lines 474 and
+>         504-506; not re-checked per rollout: SB3 does not store it in the buffer, it bootstraps predict_values on
+>         it (SB3 on_policy_algorithm.py lines 236-245) after VecNormalize normalises it (vec_normalize.py lines
+>         203-204)].
+187c203,204
+< - THE QUEUE (<PS>/SCREEN.json, pinned; draft WORK/SCREEN_v1.json): 4 control + 4 critic_phase = 8 continuations, with
+---
+> - THE QUEUE (<PS>/SCREEN.json, pinned; installed from WORK/SCREEN_v1.json, the queue unchanged):
+>   4 control + 4 critic_phase = 8 continuations, with
+215,216c232,234
+<   markers once all are decided; its loop cache keyed on read_bs.py's own sha256 and its modules', P3); the scorer
+<   (the adapter's, this text's reading). Launch: the builder's NOTES, HOW TO LAUNCH, after HOW THE COORDINATOR PINS.
+---
+>   markers once all are decided; its loop cache keyed on read_bs.py's own sha256 and its modules', P3); score_bs.py (the
+>   scorer, the adapter's: this text's reading; once all are decided it also reads each COUNTED run's
+>   policy_probe.npz for SEC-TAIL2). Launch: the builder's NOTES, HOW TO LAUNCH, after HOW THE COORDINATOR PINS.
+220c238,239
+< - Disk: free space on / was 2.0 GB at 12:57 UTC today [measured, df -h /, WORK/CMDLOG.txt]: BELOW the launch rule.
+---
+> - Disk: free space on / was 2.0 GB at 12:57 UTC today [measured, df -h /, WORK/CMDLOG.txt] and 1.8 GB at 13:57 UTC
+>   [measured, df -h /, WORK/ADAPT_NOTES.txt]: BELOW the launch rule.
+222,223c241,243
+<   the reads, above the agents' working floor) and the runner's own launch floor (BS2: 2,082,471,936 bytes; as built,
+<   bs_common.LAUNCH_DISK_BYTES) is met; space is freed first (deletions in the old scratch need the maintainer's word,
+---
+>   the reads, above the agents' working floor) and the runner's own launch floor (as built, bs_common.LAUNCH_DISK_BYTES =
+>   2,030,043,136 bytes: the 1.5 GiB floor + 8 x 50 MiB, lines 78-81; BS2's was 2,082,471,936 with 9) is met;
+>   space is freed first (deletions in the old scratch need the maintainer's word,
+229,238c249,268
+< - CHECK (read_bs.py --check, run by the runner as each continuation exits) passes only if, on every one of the 176
+<   rollouts (arm_evidence.jsonl: one line per rollout end, its summary equal to run_meta's), the evidence finds the
+<   arm's signature and no other's:
+<     critic_phase: C1 (the actor's mean and log-probabilities change by exactly 0.0 when the phase features are set
+<       three ways (all 0; all 1; the row's own features with the ramp replaced by 0.5) on the buffer's first 256
+<       rows, through forward, evaluate_actions, get_distribution and the mirrored observations); C2 on rollout 1
+<       (the buffer values equal the critic's with the phase features zeroed, change exactly 0.0); C3 on rollouts
+<       2-176 (the critic's output changes with the phase perturbation, min > 0); C4 (the critic's output changes
+<       with the normalised observation 6, min > 0); C5 (the buffer's phase features equal the independent recount on
+<       every row; every bootstrapped truncation used phi(1000));
+---
+> - CHECK (read_bs.py --check, run by the runner as each continuation exits) passes only if, on every one of the 175
+>   rollouts that end before an update (arm_evidence.jsonl: one line per rollout end at S + 8,192 k, k = 1 ... 175, its
+>   summary equal to run_meta's; the 176th rollout, ending at E, has no update after it, as in BS2), bs_hooks.
+>   evidence_problems finds the arm's signature and no other's (as built: bs_hooks.py lines 948-1047 with
+>   PHASE_PERTURB lines 70-71; read_bs.py phase_meta_problems lines 442-476):
+>     critic_phase: C1 (the actor's deterministic mean, its deterministic actions and their log-probabilities through
+>       forward, the log-probabilities of the buffer's actions and the entropy through evaluate_actions, and the
+>       mirrored observations' mean change by exactly 0.0 when the normalised phase slots 60-62 are set five ways
+>       (all 0; all 1; +1; all 3; 1 - x) on the buffer's first 256 rows; the actor's phase columns unchanged and
+>       their Adam moments exactly 0); C2 on the rollout before the first update (the critic's phase columns exactly
+>       0 and its output through predict_values, forward, evaluate_actions and the mirrored observations changes by
+>       exactly 0.0 under the same five perturbations); C3 on rollouts 2-175 (the critic's phase columns nonzero and
+>       its output changes under the perturbations, min > 0 on each of the four paths); C4 (the critic's output
+>       changes with the normalised observation 6, min > 0); C5 (the buffer's phase slots equal VecNormalize's
+>       formula on the independent recount on every row, max error exactly 0.0; the recount consistent with the
+>       envs' counters at the rollout's start and end); C6 (the statistics' slots frozen at mean 0 / var 1 on every
+>       rollout); C7 in part (MirrorKLPPO's map sends the slots to themselves with sign +1, and its tensors once
+>       built; every training env carries the phase class); and on run_meta: the load transform verified (the
+>       parameters changed at the load, the Adam state not), the phase definition, the probe feeding the settled
+>       bank's phase (k >= 200), exactly 1 rollout before the first update and 174 after;
+240c270,272
+<       feature in the buffer or the observation space;
+---
+>       evidence on any rollout and no phase record in run_meta (the loaded state is the start pair's: digest_load =
+>       digest_start); the actor responds to the command slots on every rollout (min > 0: no mask); that its slots
+>       carry the zero command is shown by V2 (its environment side equals the phase arm's outside the slots);
+250,252c282,286
+<   classes before and after); and its environment side (observations, actions, rewards, episode starts) equals the
+<   phase arm's on the first rollout bitwise, with the buffer values equal to the precision C2 states (the phase arm's
+<   critic is the parent's at load).
+---
+>   classes before and after); and its environment side (observations outside the phase slots 60-62, which carry the
+>   phase in the phase arm; actions; rewards; episode starts) equals the phase arm's bitwise on every rollout of V2
+>   (31 of 31 at seeds 9401 and 9411; the whole-observation digest differs on 31 of 31, as it must), with the buffer
+>   values and advantages equal bitwise (the phase arm's critic is the parent's at load, C2) [measured, <PS>/validate/
+>   logs/v2_check.out lines 26-28 and 58-60].
+254c288,291
+<   not the arm's, or whose loop row at E records a num_timesteps other than E.
+---
+>   not the arm's (as built: control: critic_form "plain" on every loop row, the effective critic = the raw one, no
+>   phase record, the probe not phase-fed (probe_phase.installed false); critic_phase: "phase+raw+settled" on every
+>   loop row, a phase record on each, the raw / effective / settled slopes on every state set, the probe phase-fed;
+>   read_bs.py lines 1037, 1058-1079, 1217), or whose loop row at E records a num_timesteps other than E.
+373c410,412
+<     reset), for control the stock critic. DIRECTION: phase LOWER (control HIGHER). FILL: a MISSING control value counts
+---
+>     reset: the counter read_bs.onpolicy_states records, lines 922-995, fed at lines 1059-1062), for control the
+>     stock critic (effective = raw, line 1079).
+>     DIRECTION: phase LOWER (control HIGHER). FILL: a MISSING control value counts
+384,387c423,432
+<     arithmetic mean of rollout_mu_mean[:, 13] (tail_2_pitch_act) over the primary's 8 probe rows (3,473,408 ...
+<     3,530,752), from the markers (probe.rollout_mu_mean, all 15 columns, or a probe.rollout_mu13_mean column: the
+<     reader must export it; the adapter names the key). DIRECTION: phase HIGHER. FILL: a MISSING phase value counts as
+<     -infinity, a MISSING control value as +infinity. MISSING when the primary is (the same rows). Why: in BS2 the
+---
+>     arithmetic mean of rollout_mu_mean[:, 13] (tail_2_pitch_act, the code copy's MJCF actuator order) over the
+>     primary's 8 probe rows (3,473,408 ... 3,530,752), exact rationals of the float32 values. SOURCE (as built: the
+>     pinned reader exports only column 14, read_bs.py line 621): the scorer reads column 13 from the run's own
+>     policy_probe.npz, the file the markers were read from and CHECK passed: its sha256 must equal check.json's
+>     sources and the markers' probe.sha256, and its column 14 at the 8 rows must equal the markers'
+>     rollout_mu14_mean exactly (an input error otherwise); the file is opened only once every entry is decided and
+>     read (OUTCOME-BLINDNESS). DIRECTION: phase HIGHER. FILL: a MISSING phase value counts as
+>     -infinity, a MISSING control value as +infinity. MISSING when the primary is (the same rows), or
+>     when the run's probe file is missing or changed since the read (a file defect: also a PROVISIONAL item, BS2's
+>     D7 rule). Why: in BS2 the
+413c458,462
+<       V(z, phi(1000)) - V(z, phi(0)), in normalised value units; 0 at S by construction (C2);
+---
+>       V(z, phi(1000)) - V(z, slots 0), in normalised value units: as built, the reader's "settled" V_mean (every
+>       state fed (1, 1, 1) = phi(k >= 200) = phi(1000)) minus its "raw" V_mean (the slots zero: no phase input,
+>       which differs from phi(0) = (0, 0, 0.0176) only in the discount slot; the reader does not feed phi(0)), each
+>       the mean over all the set's states (read_bs.py lines 875-893, 1058-1062); beside it the own-phase swing
+>       V(z, phi(k)) - V(z, slots 0); 0 at S by construction (C2);
+417c466,467
+<       248-255, j = 0 ... 14) per continuation and arm medians; the largest |.|-rise among the 14 actuators other than
+---
+>       248-255, j = 0 ... 14; the run's probe file as SEC-TAIL2, the parent's F2 probe at FMAN's sha256) per
+>       continuation and arm medians; the largest |.|-rise among the 14 actuators other than
+452,453c502,503
+<   the first logs/atimes_at_ALL_DECIDED.tsv (as LB's runner does, if ported; otherwise the coordinator copies it aside
+<   before any relaunch, as for BS2: RUNLOG line 789).
+---
+>   the first logs/atimes_at_ALL_DECIDED.tsv (ported from LB: run_waves_bs.sh lines 5-6, 290-305 and 591; a later
+>   snapshot goes to logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv).
+465,466c515,516
+<   the scorer, while any entry is undecided or unread, prints only which are decided and opens no markers and no
+<   run_meta.
+---
+>   the scorer, while any entry is undecided or unread, prints only which are decided and opens no markers, no
+>   run_meta and no probe file.
+472c522
+<   lines 248-252), if ported. The process verification compares them.
+---
+>   lines 248-252): ported (run_waves_bs.sh lines 7, 228-232 and 427-430). The process verification compares them.
+485c535,536
+<   lack the loop row at E. Cleared only by measuring again with the pinned files, never by a ruling.
+---
+>   lack the loop row at E; a COUNTED continuation whose probe file is missing or changed since the read (SEC-TAIL2).
+>   Cleared only by measuring again with the pinned files, never by a ruling.
+505a557,558
+>   [Done by the adapter: WORK/dry_parent and WORK/dry_line1, dry_line2, dry_line3, each with score/score.txt and
+>   score.json; WORK/ADAPT_NOTES.txt DRY RUNS.]
+579,580c632,633
+< PINS (to be filled by the scorer adapter from the files as installed; RE-FILLED by the fixer from the files as fixed;
+< re-reviewed (P2); any change to a pinned file changes its line)
+---
+> PINS (filled by the scorer adapter 2026-10-31 from the files as installed; RE-FILLED by the fixer from the files as
+> fixed; re-reviewed (P2); any change to a pinned file changes its line)
+582,591c635,646
+<     SCREEN.json                          (to be filled)
+<     tools/<scorer>                       (to be filled)
+<     tools/tests/<scorer tests>           (to be filled)
+<     tools/bs_common.py                   (to be filled)
+<     tools/bs_hooks.py                    (to be filled)
+<     tools/run_bs.py                      (to be filled)
+<     tools/run_waves_bs.sh                (to be filled)
+<     tools/read_bs.py                     (to be filled)
+<     (and any new tool module the builder adds, e.g. a phase module: every file the runner, CHECK, the reader or the
+<     scorer imports from <PS>/tools)
+---
+>     SCREEN.json                          7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392
+>     tools/score_bs.py                    fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040
+>     tools/tests/test_score_bs.py         552a780396994e62c4eb920654b11585eb4eb0cb408621e3cfcb56c00c59b2d5
+>     tools/bs_common.py                   cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f
+>     tools/bs_hooks.py                    0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539
+>     tools/run_bs.py                      8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5
+>     tools/run_waves_bs.sh                a00e7316392a95a8937ac2dfc0afb81679de0aa6817fec99663e7753478baa4a
+>     tools/read_bs.py                     cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698
+>     (every file the runner, CHECK, the reader or the scorer imports from <PS>/tools: run_bs.py and read_bs.py
+>     import bs_common.py and bs_hooks.py only (run_bs.py lines 71-72, read_bs.py lines 98-99), the scorer
+>     bs_common.py and read_bs.py; tools/check_inputs.py and tools/verify_copy.py are the builder's one-off checks,
+>     imported by none: not pinned, as in BS2; the other test files are in <PS>/SHA256SUMS.txt.)
+593c648,649
+<     digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1 [to be re-measured]
+---
+>     digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1 [re-measured 2026-10-31 14:20:33 UTC by the
+>     scorer adapter with M1's check_copy at its pin: 1,406 files, commit 8737cd3d; WORK/adapt_logs/code_seal.out]
+631c687,688
+<   logs/atimes_at_ALL_DECIDED.tsv must survive (the runner keeps it if LB's fix is ported; otherwise copy it aside).
+---
+>   logs/atimes_at_ALL_DECIDED.tsv must survive (the runner keeps it: LB's fix is ported, run_waves_bs.sh lines
+>   290-305).
+635c692,693
+< END (criteria v1 draft; the designer's notes and every command: WORK/DESIGN_NOTES.txt, WORK/CMDLOG.txt).
+---
+> END (criteria v1 as installed by the scorer adapter; the designer's notes and every command: WORK/DESIGN_NOTES.txt,
+> WORK/CMDLOG.txt; the adapter's: WORK/ADAPT_NOTES.txt).

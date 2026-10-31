@@ -1,0 +1,498 @@
+{
+ "seed": 9421,
+ "start_slots": {
+  "mean": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "var": [
+   2.3841812434940362e-11,
+   2.3841812434940362e-11,
+   2.3841812434940362e-11
+  ],
+  "eps": 1e-08,
+  "clip": 10.0
+ },
+ "rms_class_before_hook": "SymmetricRunningMeanStd",
+ "checks": {
+  "A_loaded_policy_equals_zip": {
+   "ok": true,
+   "detail": null
+  },
+  "A_loaded_optimizer_equals_zip": {
+   "ok": true,
+   "detail": null
+  },
+  "A_twin_is_symmetric": {
+   "ok": false,
+   "detail": "RunningMeanStd"
+  },
+  "B_actor_tensors_bitwise_zip": {
+   "ok": true,
+   "detail": [
+    "log_std",
+    "mlp_extractor.policy_net.0.weight",
+    "mlp_extractor.policy_net.0.bias",
+    "mlp_extractor.policy_net.2.weight",
+    "mlp_extractor.policy_net.2.bias",
+    "action_net.weight",
+    "action_net.bias"
+   ]
+  },
+  "B_critic_other_tensors_bitwise_zip": {
+   "ok": true,
+   "detail": [
+    "mlp_extractor.value_net.0.bias",
+    "mlp_extractor.value_net.2.weight",
+    "mlp_extractor.value_net.2.bias",
+    "value_net.weight",
+    "value_net.bias"
+   ]
+  },
+  "B_value_net0_other_cols_bitwise": {
+   "ok": true,
+   "detail": null
+  },
+  "B_value_net0_phase_cols_zero": {
+   "ok": true,
+   "detail": 0.24422062933444977
+  },
+  "B_optimizer_bitwise_zip": {
+   "ok": true,
+   "detail": null
+  },
+  "B_rms_other_dims_bitwise": {
+   "ok": true,
+   "detail": null
+  },
+  "B_rms_slots_0_1": {
+   "ok": true,
+   "detail": "PhaseSlotsSymmetricRunningMeanStd"
+  },
+  "B_rms_is_symmetric_subclass": {
+   "ok": true,
+   "detail": null
+  },
+  "B_adam_slot_moments_zero": {
+   "ok": true,
+   "detail": null
+  },
+  "C_z1_slots_equal_phase_float32": {
+   "ok": false,
+   "detail": null
+  },
+  "C_z0_slots_zero": {
+   "ok": true,
+   "detail": null
+  },
+  "C_other_dims_identical": {
+   "ok": true,
+   "detail": null
+  },
+  "C_actor_bitwise_vs_unhooked_start": {
+   "ok": true,
+   "detail": {
+    "mode": 0.0,
+    "fwd_actions": 0.0,
+    "fwd_logp": 0.0,
+    "eval_logp": 0.0,
+    "entropy": 0.0,
+    "log_std": 0.0
+   }
+  },
+  "C_critic_bitwise_vs_unhooked_start": {
+   "ok": true,
+   "detail": {
+    "fwd_value": 0.0,
+    "eval_value": 0.0,
+    "predict_values": 0.0
+   }
+  },
+  "C_actor_invariant_to_garbage_slots": {
+   "ok": true,
+   "detail": null
+  },
+  "C_critic_invariant_at_zero_init": {
+   "ok": true,
+   "detail": null
+  },
+  "C_input_tensor_not_mutated": {
+   "ok": false,
+   "detail": null
+  },
+  "D_mirror_tensors_slots_self_plus1": {
+   "ok": true,
+   "detail": null
+  },
+  "D_mirror_other_dims_unchanged": {
+   "ok": true,
+   "detail": {
+    "old_slot_sign": [
+     1.0,
+     -1.0,
+     -1.0
+    ]
+   }
+  },
+  "D_mirrored_slots_keep_phase": {
+   "ok": true,
+   "detail": null
+  },
+  "D_mirrored_actor_bitwise_vs_unhooked": {
+   "ok": true,
+   "detail": 0.0
+  },
+  "D_mirrored_critic_bitwise_vs_unhooked": {
+   "ok": true,
+   "detail": 0.0
+  },
+  "E_eval_rms_stock_class": {
+   "ok": true,
+   "detail": "RunningMeanStd"
+  },
+  "E_eval_rms_slots_0_1": {
+   "ok": true,
+   "detail": null
+  },
+  "E_eval_env_not_swapped": {
+   "ok": true,
+   "detail": null
+  },
+  "E_eval_actions_bitwise_vs_unhooked_start": {
+   "ok": true,
+   "detail": {
+    "max_abs": 0.0,
+    "raw_slots_seen": [
+     0.0
+    ]
+   }
+  },
+  "F_buffer_slots_equal_phase_of_info_step_counter": {
+   "ok": true,
+   "detail": {
+    "max_err": 0.0,
+    "k_min": 0,
+    "k_max": 999,
+    "rows_presettle": 1792
+   }
+  },
+  "F_k0_iff_episode_start": {
+   "ok": true,
+   "detail": null
+  },
+  "F_counter_after_step_is_k_plus_1": {
+   "ok": true,
+   "detail": null
+  },
+  "F_gated_terms_zero_before_settle": {
+   "ok": true,
+   "detail": {
+    "transitions_presettle": 1792
+   }
+  },
+  "F_some_gated_term_pays_from_k200": {
+   "ok": true,
+   "detail": 8
+  },
+  "F_k199_unsettled": {
+   "ok": true,
+   "detail": null
+  },
+  "F_time_limit_terminal_obs_settled": {
+   "ok": true,
+   "detail": 8
+  },
+  "F_rms_slots_still_0_1": {
+   "ok": true,
+   "detail": "PhaseSlotsSymmetricRunningMeanStd"
+  },
+  "F_rms_other_dims_equal_control_twin": {
+   "ok": false,
+   "detail": {
+    "count": 4210704.0001,
+    "twin": 4202508.0001,
+    "max_mean_diff": 0.004895963455339825
+   }
+  },
+  "F_rms_symmetry_residual_zero": {
+   "ok": true,
+   "detail": [
+    0.0,
+    0.0
+   ]
+  },
+  "F_rms_pickles_stock_with_slots": {
+   "ok": true,
+   "detail": null
+  },
+  "F_buffer_actor_bitwise_vs_unhooked": {
+   "ok": true,
+   "detail": null
+  },
+  "F_buffer_critic_bitwise_vs_unhooked": {
+   "ok": true,
+   "detail": null
+  },
+  "F_buffer_actor_invariant_garbage_0": {
+   "ok": true,
+   "detail": null
+  },
+  "F_buffer_actor_invariant_garbage_1": {
+   "ok": true,
+   "detail": null
+  },
+  "F_buffer_actor_invariant_garbage_2": {
+   "ok": true,
+   "detail": null
+  },
+  "G_probe_k_is_kept_plus_1": {
+   "ok": true,
+   "detail": [
+    200,
+    600,
+    600,
+    600,
+    401,
+    200,
+    600,
+    600,
+    600,
+    401
+   ]
+  },
+  "G_probe_bank_restored": {
+   "ok": true,
+   "detail": null
+  },
+  "G_probe_value_now_equals_phase_fed_critic": {
+   "ok": true,
+   "detail": 0.0
+  },
+  "G_probe_value_frozen_equals_phase_fed_critic": {
+   "ok": true,
+   "detail": null
+  },
+  "H_some_optimizer_steps": {
+   "ok": true,
+   "detail": null
+  },
+  "H_actor_phase_cols_bitwise_unchanged": {
+   "ok": true,
+   "detail": null
+  },
+  "H_actor_other_params_moved": {
+   "ok": true,
+   "detail": null
+  },
+  "H_actor_phase_adam_moments_zero": {
+   "ok": true,
+   "detail": null
+  },
+  "H_critic_phase_cols_moved": {
+   "ok": true,
+   "detail": null
+  },
+  "H_critic_phase_adam_moments_nonzero": {
+   "ok": true,
+   "detail": null
+  },
+  "H_mirror_tensors_rebuilt_self_plus1": {
+   "ok": true,
+   "detail": null
+  },
+  "H_rms_slots_still_0_1": {
+   "ok": true,
+   "detail": null
+  },
+  "H_actor_invariant_after_update_buffer": {
+   "ok": true,
+   "detail": null
+  },
+  "H_actor_invariant_after_update_fresh": {
+   "ok": true,
+   "detail": null
+  },
+  "H_critic_responds_after_update": {
+   "ok": true,
+   "detail": null
+  },
+  "G2_probe_after_update_value_equals_phase_fed": {
+   "ok": true,
+   "detail": null
+  }
+ },
+ "optimizer": {
+  "class": "Adam",
+  "param_groups": [
+   {
+    "lr": 2.65184e-05,
+    "betas": [
+     0.9,
+     0.999
+    ],
+    "eps": 1e-05,
+    "weight_decay": 0,
+    "amsgrad": false,
+    "maximize": false,
+    "foreach": null,
+    "capturable": false,
+    "differentiable": false,
+    "fused": null,
+    "decoupled_weight_decay": false
+   }
+  ]
+ },
+ "arm_applied": {
+  "transform_verified": true,
+  "mlp_extractor_class": "CriticPhaseMlpExtractor",
+  "obs_rms_class": "PhaseSlotsSymmetricRunningMeanStd",
+  "train_env_class": "PhaseObsTyrannosaurusRexAnatomicalEnv",
+  "value_phase_cols_max_abs_before": 0.24422062933444977,
+  "adam_phase_moments_max_abs_before": {
+   "critic": 0.0,
+   "actor": 0.0
+  },
+  "mirror_obs_sign_slots_before": [
+   1.0,
+   -1.0,
+   -1.0
+  ]
+ },
+ "C_unhooked_actor_response_to_slots": 0.3580428659915924,
+ "rms_count_after_reset": 4194320.0001,
+ "F_gated_terms_present": {
+  "reward_stance_width": true,
+  "reward_lateral_lean": true,
+  "reward_stance_stagger": true,
+  "reward_stance_cop_band": true
+ },
+ "F_gated_terms_at_k200_nonzero_frac": {
+  "reward_stance_width": 1.0,
+  "reward_lateral_lean": 1.0,
+  "reward_stance_stagger": 1.0,
+  "reward_stance_cop_band": 0.5
+ },
+ "F_gated_terms_after_settle_nonzero_frac": {
+  "reward_stance_width": 0.999375,
+  "reward_lateral_lean": 0.999375,
+  "reward_stance_stagger": 1.0,
+  "reward_stance_cop_band": 0.48375
+ },
+ "F_terminals": [
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  [
+   1000,
+   true,
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ]
+ ],
+ "F_buffer_values_vs_unhooked_critic_max_abs": 1.430511474609375e-06,
+ "G_bank_steps": [
+  199,
+  599,
+  599,
+  599,
+  400,
+  199,
+  599,
+  599,
+  599,
+  400
+ ],
+ "G_zero_init_probe_vs_unhooked_start_bank": {
+  "value_max_abs": 0.0071759819984436035,
+  "action_max_abs": 0.0005289912223815918,
+  "value_vs_parent_row_S": 4.76837158203125e-07,
+  "action_vs_parent_row_S": 8.940696716308594e-08
+ },
+ "H_adam_steps": [
+  157349.0,
+  157653.0
+ ],
+ "H_critic_phase_cols_max_abs": 0.002865116111934185,
+ "H_critic_phase_cols_per_feature_max_abs": [
+  0.0005898026283830404,
+  0.002865116111934185,
+  0.0012505687773227692
+ ],
+ "H_critic_response": {
+  "garbage_vs_phase_buffer": 0.3991250991821289,
+  "settled_vs_own_phase_buffer": 0.038109779357910156,
+  "presettle_rows": 1792
+ },
+ "G2_probe_after_update_phase_vs_zero_slots_max_abs": 0.05918455123901367,
+ "fails": [
+  "A_twin_is_symmetric",
+  "C_z1_slots_equal_phase_float32",
+  "C_input_tensor_not_mutated",
+  "F_rms_other_dims_equal_control_twin"
+ ],
+ "RESULT": "FAIL"
+}

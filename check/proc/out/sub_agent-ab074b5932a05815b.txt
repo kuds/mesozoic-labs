@@ -1,0 +1,681 @@
+=== 2026-10-31T17:10:18.047Z Bash
+cd /home/user/work/phase_screen/tools && ls -la; grep -n "def phase_prepare" -A60 read_bs.py
+--- RESULT (first 1500)
+total 356
+drwxr-xr-x  3 root root  4096 Oct 31 15:08 .
+drwxr-xr-x 11 root root  4096 Oct 31 15:56 ..
+-rw-r--r--  1 root root 22278 Oct 31 13:12 bs_common.py
+-rw-r--r--  1 root root 62749 Oct 31 13:32 bs_hooks.py
+-rw-r--r--  1 root root  1758 Oct 30 10:38 check_inputs.py
+-rw-r--r--  1 root root 69480 Oct 31 13:31 read_bs.py
+-rw-r--r--  1 root root 66199 Oct 31 15:09 run_bs.py
+-rwxr-xr-x  1 root root 28387 Oct 31 15:17 run_waves_bs.sh
+-rw-r--r--  1 root root 83889 Oct 31 15:12 score_bs.py
+drwxr-xr-x  2 root root  4096 Oct 31 14:13 tests
+-rw-r--r--  1 root root  1124 Oct 30 03:51 verify_copy.py
+998:def phase_prepare(net, *, start):
+999-    """PS, a critic_phase pair: at the start copy the arm's load transform (bs_hooks: the critic's phase columns := 0,
+1000-    the statistics' slots := mean 0 / var 1); at any later pair the slots must already be mean 0 / var 1 (written by
+1001-    the arm); then the actor's mask.  Returns the record."""
+1002-    import torch
+1003-    from stable_baselines3.common.torch_layers import MlpExtractor
+1004-
+1005-    w_vf = net.policy.mlp_extractor.value_net[0].weight
+1006-    lo, hi = C.PHASE_SLOTS[0], C.PHASE_SLOTS[-1] + 1
+1007-    rec = {"start_transform": bool(start), "value_phase_cols_max_abs_read": float(w_vf[:, lo:hi].abs().max())}
+1008-    if type(net.policy.mlp_extractor) is not MlpExtractor:
+1009-        raise InputError(f"the loaded mlp_extractor is {type(net.policy.mlp_extractor).__name__}")
+1010-    if start:
+1011-        with torch.no_gra
+=== 2026-10-31T17:10:22.644Z Bash
+cd /home/user/work/phase_screen/tools && grep -n "def phase_matrix\|def phase_env_class\|def critic_phase_class\|def phase_slots_frozen\|def reseed_phase_slots\|def mc_return" bs_hooks.py; grep -n "def with_phase" -A15 read_bs.py; grep -n "def critic_slope" -A30 read_bs.py
+--- RESULT (first 1500)
+146:def phase_matrix(ks: Any) -> Any:
+154:def phase_env_class(base: type) -> type:
+178:def critic_phase_class(base: type) -> type:
+221:def reseed_phase_slots(rms: Any) -> None:
+231:def phase_slots_frozen(rms: Any) -> bool:
+606:def mc_return(rewards: Any, episode_starts: Any, last_values: Any, dones: Any, gamma: float) -> Any:
+866:def with_phase(X, K):
+867-    """PS: X with the phase of each state's step counter K in slots 60-62 (float64 copy)."""
+868-    import numpy as np
+869-
+870-    Y = np.array(X, dtype=np.float64, copy=True)
+871-    Y[:, list(C.PHASE_SLOTS)] = H.phase_matrix(K)
+872-    return Y
+873-
+874-
+875-def critic_slope(policy, norm, X, K=None):
+876-    """(c) eb_realized.sens(): mean (SD) over in-clip states of dV/dz6 x 1/sqrt(var6 + eps) x pi/180, per degree.
+877-    PS: with K (the states' step counters) the critic is fed their phase in slots 60-62."""
+878-    import numpy as np
+879-    import torch
+880-
+881-    x = np.asarray(X if K is None else with_phase(X, K), dtype=np.float32)
+875:def critic_slope(policy, norm, X, K=None):
+876-    """(c) eb_realized.sens(): mean (SD) over in-clip states of dV/dz6 x 1/sqrt(var6 + eps) x pi/180, per degree.
+877-    PS: with K (the states' step counters) the critic is fed their phase in slots 60-62."""
+878-    import numpy as np
+879-    import torch
+880-
+881-    x = np.asarray(X if K is None else with_phase(X, K), dtype=np.float32)
+882-    z = torch.as_tensor(np.asarray(norm.normalize_obs(x), dtype=np.float32), dtype=torch.floa
+=== 2026-10-31T17:10:25.480Z Bash
+cd /home/user/work/phase_screen/tools && sed -n 140,240p bs_hooks.py
+--- RESULT (first 1500)
+        raise ValueError(f"step counter {k!r} is not a non-negative integer")
+    k = int(k)
+    return (min(k, SETTLE_STEPS) / SETTLE_STEPS, 1.0 if k >= SETTLE_STEPS else 0.0,
+            PHASE_GAMMA ** max(0, SETTLE_STEPS - k))
+
+
+def phase_matrix(ks: Any) -> Any:
+    """(n, 3) float64: phase_tuple of each counter in ks (element for element the same floats)."""
+    import numpy as np
+
+    flat = np.asarray(ks).reshape(-1)
+    return np.array([phase_tuple(int(k)) for k in flat], dtype=np.float64).reshape(len(flat), 3)
+
+
+def phase_env_class(base: type) -> type:
+    """A subclass of a training env's class whose _get_obs writes the phase of the env's own step counter into the
+    command slots 60-62 (the counter as the reward gates read it: 0 at reset, incremented before _get_obs)."""
+    key = ("phase_env", base)
+    if key not in _CLASS_CACHE:
+
+        def _get_obs(self: Any) -> Any:
+            import numpy as np
+
+            obs = base._get_obs(self)
+            if np.shape(obs) != (OBS_DIM,):
+                raise HookError(f"critic_phase: an observation of shape {np.shape(obs)}, not ({OBS_DIM},)")
+            command = getattr(self, "_command", None)
+            if command is not None and np.any(np.asarray(command) != 0.0):
+                raise HookError("critic_phase: a live command in the observation's command slots")
+            obs[PHASE_LO:PHASE_HI] = phase_tuple(int(getattr(self, "_step_count", 0)))
+            return obs
+
+        _CLASS_CACHE[key] = type(f"PhaseObs
+=== 2026-10-31T17:11:45.710Z Bash
+L=/home/user/work/vg_tool/fixer/cmdlog.txt; echo "$(date -u +%FT%TZ) read PS APPROVED keys, sha256 SCREEN.json, ls -la PS tools (allowed paths)" >> $L; cd /home/user/work/phase_screen && /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B -c "
+import json;d=json.load(open('/home/user/work/phase_screen/APPROVED'));print(sorted(d.keys()));print({k:v for k,v in d.items() if 'sha' in k and not isinstance(v,dict)}); print(d.get('tool_sha256'))"; sha256sum /home/user/work/phase_screen/SCREEN.json; ls -la /home/user/work/phase_screen/criteria.txt /home/user/work/phase_screen/SCREEN.json /home/user/work/phase_screen/APPROVED
+--- RESULT (first 1500)
+['approved_by', 'code_tree_digest', 'criteria_sha256', 'screen_sha256', 'tool_sha256', 'utc']
+{'criteria_sha256': '9875039fad039f76dd63497b5952d5ef5c014fc1f4765ed6b11120526249ebc5', 'screen_sha256': '7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392'}
+{'run_bs.py': '9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c', 'read_bs.py': 'cb1edaf942adb43beef6c4fb375e76119979965114f5fd8ab47f81bd5eb3a698', 'run_waves_bs.sh': '3ef2746e797e908e87c359e1f3ffe6b483078e6878e0b3be08db20f0fee7f9bb', 'bs_common.py': 'cd0f55714291c42a6142b2eb4cabd6a42cc46637d02e9f7647dca7c7a887108f', 'bs_hooks.py': '0519c7ba82a9659b7cb52b4ddf9d5db504c25b91ded120f194951e815bc18539', 'score_bs.py': 'e63cf15a32338c2884ca08c7f72b74e5eab41e515cba09cf705503b9192591b0'}
+7d6d368a15b04e3f451e1c8ffda7d9c16d278c188ed0aadbf1cf007185c30392  /home/user/work/phase_screen/SCREEN.json
+-r--r--r-- 1 root root  1574 Oct 31 15:56 /home/user/work/phase_screen/APPROVED
+-r--r--r-- 1 root root   968 Oct 31 14:24 /home/user/work/phase_screen/SCREEN.json
+-r--r--r-- 1 root root 78367 Oct 31 15:32 /home/user/work/phase_screen/criteria.txt
+=== 2026-10-31T17:11:51.425Z Bash
+L=/home/user/work/vg_tool/fixer/cmdlog.txt; echo "$(date -u +%FT%TZ) read repo docs/STAGE1_SPLIT_PLAN.md:1205-1212, vg_tool/val/a_control_2501/vg_sigma.txt, grep gae in PS tools" >> $L; sed -n 1205,1212p /home/user/mesozoic-labs/docs/STAGE1_SPLIT_PLAN.md | cut -c1-300; grep -n "150,200" /home/user/work/vg_tool/val/a_control_2501/vg_sigma.txt; grep -n "GAE_LAMBDA\|gae_lambda" /home/user/work/phase_screen/tools/bs_common.py | head
+--- RESULT (first 1500)
+seed 3077: pelvis_height 0.66230 after one zero-action step, terminated=True
+scan of seeds 3042-5041: 16/2000 = 0.800% already-terminal
+```
+
+A wider independent scan of seeds 3042–7041 found **43/4000 = 1.075%** (exact two-sided 95%
+interval 0.779%–1.445%), all for the same height-floor reason. `[artifact-derived]`
+
+This interacts badly with everything in §2.3.1: a ~1% floor of unwinnable episodes makes any
+5:settings: {"buckets": ["[0,50)", "[50,150)", "[150,200)", "[200,250)", "[250,1000]"], "episodes_per_env": 2, "gamma": 0.98, "horizon": 1000, "n_envs": 4, "n_episodes": 8, "pre_registered_root_settings": false, "se": "sample SD of the per-episode bucket means / sqrt(n episodes)", "seed_base": 6281, "sigma_floor": 0.01, "tail_actions": {"tail_2": 13, "tail_3": 14}}
+11:    [150,200)       8     400  -0.0098 (0.0196)  0.0582 (0.0063)  -0.0098  4.846  4.856
+7:gae_lambda_1 and frozen_obs_norm are not arms of this screen: bs_hooks.py keeps their hook code, unreachable here.)
+14:           floor 1.5 GB; arms control / critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm, none chosen here);
+151:ARM_GAE_LAMBDA = {"control": 0.95, "critic_phase": 0.95}
+=== 2026-10-31T17:13:32.356Z Bash
+cd /home/user/work/phase_screen/tools && grep -n "^CODE\|^BS2_DIR\|^COMMIT\|def f2_file" -A2 bs_common.py | head -20; grep -n "class Net" -A40 read_bs.py | grep -n "def \|refresh" 
+--- RESULT (first 1500)
+45:BS2_DIR = S2 + "/r10round/bias_screen2"         # the finished second screen: read only (the harness PS derives from)
+46:CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+47-                                                # edited; PS reads it only: no tool writes under it, see run_bs.py)
+48-TOOLS = BS + "/tools"
+--
+68:COMMIT = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"        # ECS / the seal
+69-TREE_DIGEST = "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"   # ECS / the seal (TASK item 1)
+70-TREE_FILES = 1406
+--
+238:def f2_file(rel: str) -> str:
+239-    """The F2 copy of a run-relative path: <copies>/<rel>.copy1 (read only)."""
+240-    return f"{f2_copies()}/{rel}.copy1"
+4:780-    def __init__(self, zip_path, pkl_path, factory):
+18:794-    def refresh_stats(self):
+27:803-    def z(self, X):
+32:808-    def act(self, obs):
+35:811-    def mu(self, X):
+=== 2026-10-31T17:13:37.815Z Bash
+L=/home/user/work/vg_tool/fixer/cmdlog.txt; echo "$(date -u +%FT%TZ) read code copy base_env _get_obs / step (read only)" >> $L; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; cd /tmp && $PY -I -B -c "
+import sys; sys.path.insert(0,'/home/user/work/phase_screen/tools'); import bs_common as C; print(C.CODE)"; sed -n 780,803p /home/user/work/phase_screen/tools/read_bs.py
+--- RESULT (first 1500)
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code
+    def __init__(self, zip_path, pkl_path, factory):
+        import numpy as np
+
+        from environments.shared.policy_loading import load_sb3_checkpoint
+
+        self.model, self.norm, _ = load_sb3_checkpoint(str(zip_path), str(pkl_path), factory)
+        self.policy = self.model.policy
+        rms = self.norm.obs_rms
+        self.mean = np.asarray(rms.mean, dtype=np.float64)
+        self.var = np.asarray(rms.var, dtype=np.float64)
+        self.eps = float(self.norm.epsilon)
+        self.std = np.sqrt(self.var + self.eps)
+        self.clip = float(self.norm.clip_obs)
+
+    def refresh_stats(self):
+        """PS: re-read the normaliser's statistics (after critic_phase's start transform reseeded slots 60-62)."""
+        import numpy as np
+
+        rms = self.norm.obs_rms
+        self.mean = np.asarray(rms.mean, dtype=np.float64)
+        self.var = np.asarray(rms.var, dtype=np.float64)
+        self.std = np.sqrt(self.var + self.eps)
+
+    def z(self, X):
+=== 2026-10-31T17:16:37.498Z Bash
+cat >> /home/user/work/vg_tool/tests/test_guard.py <<'EOF'
+
+
+# ------------------------------------------------------------------------------------------------ fixer additions
+def test_root_is_required_no_default(tmp_path, monkeypatch, capsys):
+    """No --root and no --pair refuses before anything is opened: guard / run_root / run_pair are stubbed to fail, so
+    this test can never open <PS>/score (outcome-bearing while the screen runs), whatever the code does."""
+    def boom(*a, **k):
+        raise AssertionError("reached the guard / a mode without an explicit --root or --pair")
+    for name in ("guard", "run_root", "run_pair"):
+        monkeypatch.setattr(T, name, boom)
+    out = tmp_path / "o"
+    for extra in ([], ["--plan"]):
+        assert T.main(["--out", str(out), *extra]) == T.EXIT_REFUSED
+        assert "--root is required" in capsys.readouterr().out
+    root = make_root(tmp_path)
+    for extra in (["--root", str(root)], ["--plan"]):                       # root-mode options with --pair
+        assert T.main(["--pair", "a.zip", "a.pkl", "--form", "plain", "--out", str(out), *extra]) == T.EXIT_REFUSED
+    assert not out.exists()
+
+
+def _tiny_zip(path, seed):
+    import zipfile
+
+    import torch
+
+    g = torch.Generator().manual_seed(seed)
+    buf = io.BytesIO()
+    torch.save({"log_std": -1.7 + 0.1 * torch.randn(15, generator=g)}, buf)
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("policy.pth", buf.getvalue())
+
+
+def make_full_root(base, classes, approved_screen_sha=None):
+    """A synthetic root with every input run_root reads: tiny final / saved / start-copy zips (policy.pth log_std
+    only), a pkl stand-in, markers with the loop row at E in the arm's critic form; APPROVED copied from <PS> (read
+    only), its screen_sha256 replaced when approved_screen_sha is given."""
+    import hashlib
+
+    root = Path(base) / "root"
+    (root / "score").mkdir(parents=True)
+    shutil.copyfile(PS_SCREEN, root / "SCREEN.json")
+    appr = json.loads(Path("/home/user/work/phase_screen/APPROVED").read_text())
+    if approved_screen_sha is not None:
+        appr["screen_sha256"] = approved_screen_sha
+    (root / "APPROVED").write_text(json.dumps(appr))
+    for i, (arm, seed) in enumerate(QUEUE):
+        name = f"{arm}_{seed}"
+        m = root / "runs" / name / T.C.STAGE_DIR / "models"
+        m.mkdir(parents=True)
+        _tiny_zip(m / T.C.FINAL_ZIP, 100 + i)
+        (m / T.C.FINAL_PKL).write_bytes(b"pkl " + name.encode())
+        _tiny_zip(m / T.C.periodic_names(T.C.S)[0], 1)
+        for j, s in enumerate(T.C.SAVED_STEPS):
+            _tiny_zip(m / T.C.periodic_names(s)[0], 1000 * i + j)
+        sha = {p: hashlib.sha256((m / p).read_bytes()).hexdigest() for p in (T.C.FINAL_ZIP, T.C.FINAL_PKL)}
+        (root / "reads" / name).mkdir(parents=True)
+        (root / "reads" / name / "markers.json").write_text(json.dumps({"loop": [
+            {"steps": T.C.E, "zip_sha256": sha[T.C.FINAL_ZIP], "pkl_sha256": sha[T.C.FINAL_PKL],
+             "critic_form": {"control": "plain", "critic_phase": "phase+raw+settled"}[arm]}]}))
+    (root / "score" / "score.json").write_text(json.dumps({"version": "synthetic", "root": str(root.resolve()),
+                                                           "status": "final", "classes": classes}))
+    return root
+
+
+def _stub_simulation(monkeypatch):
+    """setup_sim and measure_pair stubbed (no CPU): the stub records each pair's requested forms and settings."""
+    calls = []
+
+    def fake_measure(zip_path, pkl_path, *, forms, seed, n_episodes, label, expect_steps=None, phase_start=False,
+                     max_vec_steps=None):
+        import hashlib
+
+        calls.append({"label": label, "forms": tuple(forms), "seed": seed, "n": n_episodes, "expect": expect_steps,
+                      "phase_start": phase_start})
+        rows = [{"bucket": b, "lo": 0, "hi": 0, "n_episodes": 1, "n_states": 1, "mean_err": 0.01, "se_err": None,
+                 "mean_abs_err": 0.01, "se_abs_err": None, "pooled_err": 0.01, "pooled_abs_err": 0.01, "mean_V": 0.0,
+                 "mean_G": 0.0} for b in T.BUCKET_NAMES]
+        rec = {"label": label, "zip": str(zip_path), "pkl": str(pkl_path),
+               "zip_sha256": hashlib.sha256(Path(zip_path).read_bytes()).hexdigest(),
+               "pkl_sha256": hashlib.sha256(Path(pkl_path).read_bytes()).hexdigest(), "num_timesteps": expect_steps,
+               "env_seeds": [seed + r for r in range(4)], "units": {"sigma_r": 1.0, "gamma": T.GAMMA},
+               "episodes": {"n": n_episodes, "truncated": n_episodes, "terminated": 0},
+               "forms": {f: {"buckets": rows} for f in forms}, "sigma": T.sigma_record(T.read_log_std(zip_path))}
+        return rec, [], {"label": label}
+
+    monkeypatch.setattr(T, "setup_sim", lambda tmp: "stub")
+    monkeypatch.setattr(T, "measure_pair", fake_measure)
+    return calls
+
+
+def test_root_mode_wiring_forms_per_arm(tmp_path, monkeypatch):
+    """run_root end to end with the simulation stubbed: S once in both forms with the start transform, then each
+    COUNTED run in queue order in its arm's critic form (control plain, critic_phase phase; literal here, not
+    ARM_FORM), never phase_start, at E, the pre-registered seed 6271 and 32 episodes; STOPPED / LOST not measured."""
+    calls = _stub_simulation(monkeypatch)
+    stopped, lost = f"{QUEUE[3][0]}_{QUEUE[3][1]}", f"{QUEUE[4][0]}_{QUEUE[4][1]}"
+    root = make_full_root(tmp_path, _classes({stopped: "STOPPED", lost: "LOST"}, {stopped: T.C.E - 131072}))
+    out = tmp_path / "out"
+    code = T.main(["--root", str(root), "--out", str(out)])
+    res = json.loads((out / "vg_sigma.json").read_text())
+    counted = [f"{a}_{s}" for a, s in QUEUE if f"{a}_{s}" not in (stopped, lost)]
+    want_forms = {"control": ("plain",), "critic_phase": ("phase",)}
+    assert calls[0]["expect"] == T.C.S and calls[0]["forms"] == ("plain", "phase") and calls[0]["phase_start"] is True
+    assert [c["label"] for c in calls[1:]] == counted
+    for c in calls[1:]:
+        arm = c["label"].rsplit("_", 1)[0]
+        assert c["forms"] == want_forms[arm] and c["phase_start"] is False and c["expect"] == T.C.E, c
+    assert all(c["seed"] == 6271 == T.PROD_SEED and c["n"] == 32 == T.N_EPISODES for c in calls)
+    assert sorted({r["run"] for r in res["sigma_table"]}) == sorted(counted)
+    assert all(p.get("markers_match") is not False for p in res["pairs"][1:])
+    assert not any("SCREEN.json" in p for p in res["problems"])
+    assert code == (T.EXIT_PROBLEM if res["problems"] else T.EXIT_OK)
+
+
+def test_root_mode_flags_screen_sha_against_approved(tmp_path, monkeypatch):
+    _stub_simulation(monkeypatch)
+    root = make_full_root(tmp_path, _classes(), approved_screen_sha="0" * 64)
+    out = tmp_path / "out"
+    assert T.main(["--root", str(root), "--out", str(out)]) == T.EXIT_PROBLEM
+    res = json.loads((out / "vg_sigma.json").read_text())
+    assert any(p.startswith("SCREEN.json: sha256") for p in res["problems"])
+EOF
+echo "$(date -u +%FT%TZ) appended fixer tests to tests/test_guard.py; wrote tests/test_toy.py; edited test_real.py" >> /home/user/work/vg_tool/fixer/cmdlog.txt
+--- RESULT (first 1500)
+(Bash completed with no output)
+=== 2026-10-31T17:33:02.058Z Bash
+mkdir -p /home/user/work/vg_tool/fixer/scripts && cat > /home/user/work/vg_tool/fixer/scripts/compare_json.py <<'EOF'
+"""Compare two vg_sigma.json files' measured numbers (per pair and form: the bucket rows, the raw bucket rows, sigma,
+episodes, units) EXACTLY; print what differs.  The tool's own sha256 / version / records may differ (new keys).
+Usage: PY -I -B compare_json.py OLD.json NEW.json"""
+import json
+import sys
+
+
+def numbers(path):
+    d = json.load(open(path))
+    out = {}
+    for p in d["pairs"]:
+        lab = p.get("run", p["label"])
+        out[(lab, "episodes")] = p["episodes"]
+        out[(lab, "units")] = p["units"]
+        out[(lab, "sigma")] = p["sigma"]
+        out[(lab, "num_timesteps")] = p["num_timesteps"]
+        for f, fr in p["forms"].items():
+            out[(lab, f, "buckets")] = fr["buckets"]
+            if "raw_buckets" in fr:
+                out[(lab, f, "raw_buckets")] = fr["raw_buckets"]
+            for k in ("loop_values_vs_raw_max_abs", "max_abs_minus_plain", "max_abs_minus_plain_term"):
+                if k in fr:
+                    out[(lab, f, k)] = fr[k]
+    return out, d
+
+
+def main():
+    a, da = numbers(sys.argv[1])
+    b, db = numbers(sys.argv[2])
+    diff = [k for k in sorted(set(a) | set(b), key=str) if a.get(k) != b.get(k)]
+    print(f"old {sys.argv[1]}\n  version {da['version']!r} tool {da['tool']['sha256'][:16]}")
+    print(f"new {sys.argv[2]}\n  version {db['version']!r} tool {db['tool']['sha256'][:16]}")
+    print(f"compared {len(set(a) | set(b))} items (buckets, raw buckets, sigma, episodes, units, checks)")
+    for k in diff:
+        print(f"  DIFFERS {k}: old {json.dumps(a.get(k))[:200]} new {json.dumps(b.get(k))[:200]}")
+    print("RESULT", "IDENTICAL measured numbers" if not diff else f"{len(diff)} DIFFER")
+    print("old problems:", da["problems"])
+    print("new problems:", db["problems"])
+    return 0 if not diff else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF
+cat > /home/user/work/vg_tool/fixer/scripts/run_fixer_validations.sh <<'EOF'
+#!/bin/bash
+# fixer: the validations the fixes touch, on the FIXED code; one process at a time, nice 19; outputs only under
+# vg_tool/fixer.  Each command's start / end / exit goes to fixer/cmdlog.txt with date -u.
+set -u
+V=/home/user/work/vg_tool
+F=$V/fixer
+PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python
+B2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs
+F2=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models
+PV=/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models
+PP=$V/check1/pairs
+export TMPDIR=$F/tmp MPLCONFIGDIR=$F/mpl PYTHONDONTWRITEBYTECODE=1
+cd /tmp || exit 1
+mkdir -p $F/val $F/tmp
+
+run() {  # run <name> <command...>: stdout+stderr to fixer/val/<name>.log
+    local name=$1; shift
+    echo "$(date -u +%FT%TZ) START [$name] nice -n 19 $*" >> $F/cmdlog.txt
+    nice -n 19 "$@" > "$F/val/$name.log" 2>&1
+    local rc=$?
+    echo "$(date -u +%FT%TZ) END [$name] exit $rc" >> $F/cmdlog.txt
+    echo "$name exit $rc"
+}
+cmpj() {  # cmpj <name> <old json> <new json>
+    $PY -I -B $F/scripts/compare_json.py "$2" "$3" > $F/val/$1.out 2>&1
+    echo "$(date -u +%FT%TZ) compare [$1] exit $?" >> $F/cmdlog.txt
+}
+
+# 1 the checker's synthetic critic_phase pair whose critic SEES the phase (nonzero columns): fixed tool, as the checker
+#   ran the frozen tool (4 episodes, seed 6281); the measured numbers must be identical, PROBLEMS none, the new
+#   phase-feed records > 0
+run pert_phase $PY -I -B $V/vg_sigma.py --pair $PP/phase_pert.zip $PP/phase_pert_vecnorm.pkl --form phase \
+    --episodes 4 --out $F/val/pert_phase
+cmpj pert_phase_vs_check1 $V/check1/out/tool_pert_phase/vg_sigma.json $F/val/pert_phase/vg_sigma.json
+# 2 the start pair S with the start transform (both forms must agree; columns 0 after the transform: no new problem)
+run b1_S $PY -I -B $V/vg_sigma.py --pair $F2/stage1_2097152_steps.zip.copy1 \
+    $F2/stage1_vecnormalize_2097152_steps.pkl.copy1 --form phase --phase-start --episodes 4 \
+    --label "S (F2 start pair)" --expect-steps 2097152 --out $F/val/b1_S
+cmpj b1_S_vs_builder $V/val/b1_S/vg_sigma.json $F/val/b1_S/vg_sigma.json
+# 3 PS validate critic_phase_9401 final pair (phase columns exactly 0: no new problem)
+run b2_phase $PY -I -B $V/vg_sigma.py --pair $PV/stage1_final.zip $PV/stage1_final_vecnorm.pkl --form phase \
+    --episodes 4 --label "PS validate v2 critic_phase_9401 final" --expect-steps 2359296 --out $F/val/b2_phase
+cmpj b2_phase_vs_builder $V/val/b2_phase/vg_sigma.json $F/val/b2_phase/vg_sigma.json
+# 4 BS2 control_2501 at E (plain form)
+run a_control_2501 $PY -I -B $V/vg_sigma.py --pair $B2/control_2501/01_stance/models/stage1_final.zip \
+    $B2/control_2501/01_stance/models/stage1_final_vecnorm.pkl --form plain --episodes 8 \
+    --label "BS2 control_2501 E" --expect-steps 3538944 --out $F/val/a_control_2501
+cmpj a_control_2501_vs_builder $V/val/a_control_2501/vg_sigma.json $F/val/a_control_2501/vg_sigma.json
+# 5 run_root end to end on a synthetic root (fixer/dryroot; BS2 control_2501 and PS validate critic_phase_9401 as
+#   stand-ins), 4 episodes, seed 6281
+run dryroot $PY -I -B $F/scripts/dryroot.py
+cmpj dryroot_vs_builder $V/val/dryroot/out/vg_sigma.json $F/dryroot/out/vg_sigma.json
+# 6 runtime-only self-checks on mutants (the unit tests do not run measure_pair): on the perturbed pair
+for m in phase_skipped_states phase_skipped_terminal gamma_099_in_G; do
+    run rt_$m $PY -I -B $F/scripts/rt_mutant.py $m --pair $PP/phase_pert.zip $PP/phase_pert_vecnorm.pkl --form phase \
+        --episodes 4 --out $F/val/rt_$m
+done
+# 7 CLI refusals under a guard that blocks and records any open / stat / listing of PS's outcome paths
+run cli_noroot $PY -I -B $F/scripts/cli_guarded.py --out $F/val/cli_noroot
+run cli_noroot_plan $PY -I -B $F/scripts/cli_guarded.py --out $F/val/cli_noroot_plan --plan
+run cli_pair_with_root $PY -I -B $F/scripts/cli_guarded.py --pair $PV/stage1_final.zip $PV/stage1_final_vecnorm.pkl \
+    --form plain --root $F/val/none_root --out $F/val/cli_pair_with_root
+rm -rf $F/tmp/rt_mutants $F/tmp/torchinductor_root
+echo "$(date -u +%FT%TZ) run_fixer_validations.sh done" >> $F/cmdlog.txt
+EOF
+echo "$(date -u +%FT%TZ) wrote fixer/scripts/compare_json.py, run_fixer_validations.sh" >> /home/user/work/vg_tool/fixer/cmdlog.txt
+--- RESULT (first 1500)
+(Bash completed with no output)
+=== 2026-10-31T17:33:31.145Z Bash
+F=/home/user/work/vg_tool/fixer; sed -e 's|^Usage: cd /tmp \&\& nice -n 19 PY -I -B <vg_tool>/val/dryroot.py > <vg_tool>/val/dryroot.out"""|Fixer copy of val/dryroot.py: the same synthetic root, under fixer/dryroot (never the screen'"'"'s).\nUsage: cd /tmp \&\& nice -n 19 PY -I -B <vg_tool>/fixer/scripts/dryroot.py"""|' -e 's|^VG = Path(__file__).resolve().parents\[1\]|VG = Path(__file__).resolve().parents[2]|' -e 's|^D = VG / "val" / "dryroot"|D = VG / "fixer" / "dryroot"|' /home/user/work/vg_tool/val/dryroot.py > $F/scripts/dryroot.py; diff /home/user/work/vg_tool/val/dryroot.py $F/scripts/dryroot.py
+cat > $F/scripts/rt_mutant.py <<'EOF'
+"""Runtime check of a self-check the unit tests cannot reach (measure_pair is not unit-tested): run a MUTANT copy of
+vg_sigma.py (definitions from fixer/scripts/mut_run.py; copy under fixer/tmp/rt_mutants/<name>) as the CLI with the given
+--pair arguments (--out must be under fixer/).  Prints the mutant's output and exit code.
+Usage: cd /tmp && nice -n 19 PY -I -B <vg_tool>/fixer/scripts/rt_mutant.py NAME --pair ZIP PKL --form F ... --out DIR"""
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import mut_run as M  # noqa: E402
+
+name, args = sys.argv[1], sys.argv[2:]
+out = Path(args[args.index("--out") + 1]).resolve()
+assert str(out).startswith(str(M.FX) + "/"), out
+old, new = M.ALL[name]
+assert M.SRC.count(old) == 1, name
+d = M.FX / "tmp" / "rt_mutants" / name
+d.mkdir(parents=True, exist_ok=True)
+(d / "vg_sigma.py").write_text(M.SRC.replace(old, new))
+r = subprocess.run([sys.executable, "-I", "-B", str(d / "vg_sigma.py"), *args], capture_output=True, text=True,
+                   cwd="/tmp")
+print(r.stdout)
+print("STDERR (last lines):", "\n".join(r.stderr.splitlines()[-3:]))
+print(f"MUTANT {name}: exit {r.returncode}")
+sys.exit(0)
+EOF
+cat > $F/scripts/cli_guarded.py <<'EOF'
+"""Run vg_sigma.py's CLI (the real file, as __main__) under a guard that BLOCKS (raises) and records any open, stat,
+lstat, listdir or scandir of the phase screen's outcome paths (<PS>/runs, reads, score, lost.json, tmp, logs), so a
+refusal demonstration can never read them even if the code were wrong.  Expect exit 2 and no hits.
+Usage: cd /tmp && nice -n 19 PY -I -B <vg_tool>/fixer/scripts/cli_guarded.py <vg_sigma CLI args>"""
+import os
+import runpy
+import sys
+from pathlib import Path
+
+VG = Path(__file__).resolve().parents[2]
+PS = "/home/user/work/phase_screen"
+FORBID = [f"{PS}/{x}" for x in ("runs", "reads", "score", "lost.json", "tmp", "logs")]
+HITS = []
+
+
+def _bad(p):
+    if isinstance(p, int):
+        return False
+    try:
+        s = os.path.abspath(os.fsdecode(p))
+    except TypeError:
+        return False
+    return any(s == f or s.startswith(f + "/") for f in FORBID)
+
+
+def hook(event, args):
+    if event in ("open", "os.listdir", "os.scandir") and args and _bad(args[0]):
+        HITS.append((event, os.fsdecode(args[0])))
+        raise RuntimeError(f"cli_guarded: blocked {event} {args[0]!r}")
+
+
+sys.addaudithook(hook)
+for _name in ("stat", "lstat"):
+    def _wrap(p, *a, _o=getattr(os, _name), _n=_name, **k):
+        if _bad(p):
+            HITS.append(("os." + _n, os.fsdecode(p)))
+            raise RuntimeError(f"cli_guarded: blocked os.{_n} {p!r}")
+        return _o(p, *a, **k)
+    setattr(os, _name, _wrap)
+
+sys.argv = [str(VG / "vg_sigma.py"), *sys.argv[1:]]
+code = None
+try:
+    runpy.run_path(str(VG / "vg_sigma.py"), run_name="__main__")
+except SystemExit as exc:
+    code = exc.code
+out = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else None
+print(f"cli_guarded: exit {code}; blocked accesses {HITS or 'none'}; --out exists {out.exists() if out else None}")
+sys.exit(0 if code == 2 and not HITS and not (out and out.exists()) else 1)
+EOF
+echo "$(date -u +%FT%TZ) wrote fixer/scripts/dryroot.py (copy of val/dryroot.py, D=fixer/dryroot), rt_mutant.py, cli_guarded.py" >> $F/cmdlog.txt
+--- RESULT (first 1500)
+9c9,10
+< Usage: cd /tmp && nice -n 19 PY -I -B <vg_tool>/val/dryroot.py > <vg_tool>/val/dryroot.out"""
+---
+> Fixer copy of val/dryroot.py: the same synthetic root, under fixer/dryroot (never the screen's).
+> Usage: cd /tmp && nice -n 19 PY -I -B <vg_tool>/fixer/scripts/dryroot.py"""
+15c16
+< VG = Path(__file__).resolve().parents[1]
+---
+> VG = Path(__file__).resolve().parents[2]
+21c22
+< D = VG / "val" / "dryroot"
+---
+> D = VG / "fixer" / "dryroot"
+=== 2026-10-31T17:36:35.917Z Bash
+F=/home/user/work/vg_tool/fixer; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; PV=/home/user/work/phase_screen/validate/v2/critic_phase_9401/01_stance/models; export TMPDIR=$F/tmp MPLCONFIGDIR=$F/mpl PYTHONDONTWRITEBYTECODE=1; cd /tmp; echo "$(date -u +%FT%TZ) START [b2_phase_rerun] nice 19 vg_sigma --pair PS validate 9401 phase 4 eps -> fixer/val/b2_phase_rerun (determinism)" >> $F/cmdlog.txt; nice -n 19 $PY -I -B /home/user/work/vg_tool/vg_sigma.py --pair $PV/stage1_final.zip $PV/stage1_final_vecnorm.pkl --form phase --episodes 4 --label "PS validate v2 critic_phase_9401 final" --expect-steps 2359296 --out $F/val/b2_phase_rerun > $F/val/b2_phase_rerun.log 2>&1; echo "$(date -u +%FT%TZ) END [b2_phase_rerun] exit $?" >> $F/cmdlog.txt; (cmp $F/val/b2_phase/vg_sigma.json $F/val/b2_phase_rerun/vg_sigma.json && cmp $F/val/b2_phase/vg_sigma.txt $F/val/b2_phase_rerun/vg_sigma.txt && echo "b2_phase rerun: vg_sigma.json and vg_sigma.txt cmp-identical (deterministic)") | tee $F/val/b2_determinism.out
+--- RESULT (first 1500)
+b2_phase rerun: vg_sigma.json and vg_sigma.txt cmp-identical (deterministic)
+=== 2026-10-31T17:37:12.926Z Bash
+F=/home/user/work/vg_tool/fixer; cat > $F/scripts/outside_check.sh <<'EOF'
+#!/bin/bash
+# fixer: was anything written outside vg_tool/fixer (and the files the fixer may edit) since the fixer started
+# (17:09:00Z)?  PS is pruned at depth 1 (its runs, reads, score, lost.json, tmp, logs are never listed or statted);
+# only PS's allowed paths are searched, explicitly.  Output on stdout.
+T0="2026-10-31 17:09:00"
+S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+PS=/home/user/work/phase_screen
+echo "== /home/user/work (PS pruned at depth 1; vg_tool/fixer pruned)"
+find /home/user/work -path $PS -prune -o -path /home/user/work/vg_tool/fixer -prune -o -newermt "$T0" -print
+echo "== PS allowed paths only"
+find $PS/tools $PS/validate $PS/criteria_work $PS/criteria.txt $PS/SCREEN.json $PS/APPROVED $PS/NOTES.txt -newermt "$T0" -print
+echo "== bytecode under PS/tools or vg_tool"
+find $PS/tools /home/user/work/vg_tool -name __pycache__ -print
+echo "== S2 scratchpad (incl. venv)"
+find $S2 -newermt "$T0" -print | head -50
+echo "== repo /home/user/mesozoic-labs (.git included)"
+find /home/user/mesozoic-labs -newermt "$T0" -print | head -50
+echo "== /tmp top level and /root (depth 2)"
+find /tmp -maxdepth 1 -newermt "$T0" -print
+find /root -maxdepth 2 -newermt "$T0" -print 2>&1 | head -20
+EOF
+echo "$(date -u +%FT%TZ) START outside_check.sh -> fixer/out/outside_check.out" >> $F/cmdlog.txt; bash $F/scripts/outside_check.sh > $F/out/outside_check.out 2>&1; echo "$(date -u +%FT%TZ) END outside_check exit $?" >> $F/cmdlog.txt; cat $F/out/outside_check.out
+--- RESULT (first 1500)
+== /home/user/work (PS pruned at depth 1; vg_tool/fixer pruned)
+/home/user/work/vg_tool
+/home/user/work/vg_tool/vg_sigma.py
+/home/user/work/vg_tool/tests
+/home/user/work/vg_tool/tests/test_toy.py
+/home/user/work/vg_tool/tests/test_pure.py
+/home/user/work/vg_tool/tests/test_guard.py
+/home/user/work/vg_tool/tests/test_real.py
+/home/user/work/vg_tool/SPEC.txt
+== PS allowed paths only
+== bytecode under PS/tools or vg_tool
+== S2 scratchpad (incl. venv)
+== repo /home/user/mesozoic-labs (.git included)
+== /tmp top level and /root (depth 2)
+/tmp
+/tmp/claude-code-3448827388.diag.log
+/tmp/claude-code.log
+/tmp/claude-0
+=== 2026-10-31T17:37:29.262Z Bash
+F=/home/user/work/vg_tool/fixer; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; echo "$(date -u +%FT%TZ) PS pins: sha256 of tools/*, criteria.txt, SCREEN.json vs APPROVED; ls -la of those (allowed paths) -> fixer/out/pins.out" >> $F/cmdlog.txt; cd /tmp; $PY -I -B -c "
+import json,hashlib
+PS='/home/user/work/phase_screen'
+a=json.load(open(PS+'/APPROVED'))
+h=lambda p: hashlib.sha256(open(p,'rb').read()).hexdigest()
+bad=0
+for t,w in sorted(a['tool_sha256'].items()):
+    g=h(PS+'/tools/'+t); bad+=g!=w; print('tools/'+t, 'OK' if g==w else 'DIFFERS')
+for f,k in (('criteria.txt','criteria_sha256'),('SCREEN.json','screen_sha256')):
+    g=h(PS+'/'+f); bad+=g!=a[k]; print(f, 'OK' if g==a[k] else 'DIFFERS')
+print('PS pins vs APPROVED:', 'ALL EQUAL' if not bad else f'{bad} DIFFER')
+" > $F/out/pins.out 2>&1; ls -la --time-style=+%FT%T /home/user/work/phase_screen/tools/*.py /home/user/work/phase_screen/tools/run_waves_bs.sh /home/user/work/phase_screen/criteria.txt /home/user/work/phase_screen/SCREEN.json /home/user/work/phase_screen/APPROVED >> $F/out/pins.out; cat $F/out/pins.out
+--- RESULT (first 1500)
+tools/bs_common.py OK
+tools/bs_hooks.py OK
+tools/read_bs.py OK
+tools/run_bs.py OK
+tools/run_waves_bs.sh OK
+tools/score_bs.py OK
+criteria.txt OK
+SCREEN.json OK
+PS pins vs APPROVED: ALL EQUAL
+-r--r--r-- 1 root root  1574 2026-10-31T15:56:13 /home/user/work/phase_screen/APPROVED
+-r--r--r-- 1 root root   968 2026-10-31T14:24:14 /home/user/work/phase_screen/SCREEN.json
+-r--r--r-- 1 root root 78367 2026-10-31T15:32:33 /home/user/work/phase_screen/criteria.txt
+-rw-r--r-- 1 root root 22278 2026-10-31T13:12:23 /home/user/work/phase_screen/tools/bs_common.py
+-rw-r--r-- 1 root root 62749 2026-10-31T13:32:00 /home/user/work/phase_screen/tools/bs_hooks.py
+-rw-r--r-- 1 root root  1758 2026-10-30T10:38:27 /home/user/work/phase_screen/tools/check_inputs.py
+-rw-r--r-- 1 root root 69480 2026-10-31T13:31:52 /home/user/work/phase_screen/tools/read_bs.py
+-rw-r--r-- 1 root root 66199 2026-10-31T15:09:35 /home/user/work/phase_screen/tools/run_bs.py
+-rwxr-xr-x 1 root root 28387 2026-10-31T15:17:49 /home/user/work/phase_screen/tools/run_waves_bs.sh
+-rw-r--r-- 1 root root 83889 2026-10-31T15:12:29 /home/user/work/phase_screen/tools/score_bs.py
+-rw-r--r-- 1 root root  1124 2026-10-30T03:51:38 /home/user/work/phase_screen/tools/verify_copy.py
+=== 2026-10-31T17:38:54.725Z Bash
+cd /home/user/work/vg_tool && PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python && $PY -I -B - <<'EOF'
+from pathlib import Path
+p = Path("/home/user/work/vg_tool/NOTES.txt")
+s = p.read_text()
+rep = [
+("""O1 Run it only after the screen's reading: even its guard opens <PS>/score/score.json (outcome-bearing while PS runs).
+   Do not run the CLI without --root before then (the default root is the real PS).  Every validation here used
+   --pair or a synthetic root.""",
+"""O1 Run it only after the screen's reading: even its guard opens <PS>/score/score.json (outcome-bearing while PS runs).
+   Never pass --root /home/user/work/phase_screen before then.  Since 1.1 --root has no default (a command with
+   neither --root nor --pair refuses, exit 2, opening nothing [measured, fixer/val/cli_noroot*.log under a guard that
+   blocks PS's outcome paths]).  Every validation here used --pair or a synthetic root."""),
+("""O7 Pinning: the coordinator records SHA256SUMS.txt's six sha256 in the run log before the reading (not done here).""",
+"""O7 Pinning: the coordinator records SHA256SUMS.txt's seven sha256 (1.1, fixer) in the run log before the reading
+   (not done here)."""),
+("""Mutation check (val/mutants.py): 10 of 10 mutants killed (status not checked, undecided accepted, root not checked, no
+bootstrap, bucket edge 199, phase not fed, floor not applied, rewards not normalised, deterministic actions, population
+SD).""",
+"""Mutation check (val/mutants.py): 10 of 10 mutants killed (status not checked, undecided accepted, root not checked, no
+bootstrap, bucket edge 199, phase not fed, floor not applied, rewards not normalised, deterministic actions, population
+SD).
+FIXER (1.1) [measured, fixer/out/pytest_final.out, fixer/out/mutants.out, fixer/out/ruff_final.out]: 55 passed
+(test_pure 31, test_guard 14, test_real 7, test_toy 3); ruff clean.  35 mutants (the builder's 10, the checker's 18,
+the fixer's 6 and an identity control): every one killed by the unit tests except the identity control (passes, as it
+must) and the two runtime-only self-checks the unit tests cannot reach (measure_pair is not unit-tested):
+gamma_099_in_G (refused at runtime: fixer/val/rt_gamma_099_in_G.log, exit 2) and the phase-feed call removed (the
+check's effect shown at runtime: fixer/val/rt_phase_skipped_states.log and rt_phase_skipped_terminal.log, exit 3 with
+the PROBLEM).  The checker's survivors (bootstrap_terminations, control_form_phase, phase_skipped_states,
+phase_skipped_terminal, terminal_phase_k999) are now killed by test_toy, test_root_mode_wiring_forms_per_arm and
+test_phase_form_values_with_nonzero_phase_columns."""),
+("""SPEC.txt (pre-registration), vg_sigma.py (the tool), tests/ (conftest, test_pure, test_guard, test_real),
+SHA256SUMS.txt, NOTES.txt, CMDLOG.txt;""",
+"""SPEC.txt (pre-registration), vg_sigma.py (the tool), tests/ (conftest, test_pure, test_guard, test_real, test_toy),
+SHA256SUMS.txt, NOTES.txt, CMDLOG.txt, FIXES.txt (the fixer's record), fixer/ (its scripts, outputs, cmdlog.txt and
+orig/ copies of every file before its edits), check1/ (the independent checker's folder);"""),
+("""D8 Self-checks become PROBLEMS (exit 3), never silent: num_timesteps, k sequence, truncation at k 1000, Monitor length,""",
+"""D8 Self-checks become PROBLEMS (exit 3), never silent (1.1 adds: the phase feeding with nonzero critic phase columns,
+   SCREEN.json against APPROVED; G with another gamma refuses): num_timesteps, k sequence, truncation at k 1000, Monitor length,"""),
+]
+for old, new in rep:
+    assert s.count(old) == 1, old[:60]
+    s = s.replace(old, new)
+p.write_text(s)
+EOF
+awk 'length > 120 {print FILENAME": "FNR": "length}' NOTES.txt SPEC.txt; echo "$(date -u +%FT%TZ) NOTES.txt edited (fixer revision, pins, O1, O7, tests/mutants, D8, FILES)" >> fixer/cmdlog.txt
+--- RESULT (first 1500)
+NOTES.txt: 103: 128
+NOTES.txt: 209: 158
+=== 2026-10-31T17:39:47.924Z Bash
+echo "$(date -u +%FT%TZ) read PS tools/score_bs.py 1395-1420 (allowed) for m2 evidence" >> /home/user/work/vg_tool/fixer/cmdlog.txt; sed -n 1398,1420p /home/user/work/phase_screen/tools/score_bs.py; grep -n "2>/dev\|null" /home/user/work/vg_tool/fixer/cmdlog.txt | head; grep -n "RULE DEVIATION" /home/user/work/vg_tool/fixer/cmdlog.txt
+--- RESULT (first 1500)
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--root", default=C.BS, help="the screen's folder (default <PS>; another root for tests and the "
+                                                  "dry run)")
+    ap.add_argument("--out", default=None, help="default <root>/score")
+    a = ap.parse_args(argv)
+    root = Path(a.root).resolve()
+    out = Path(a.out).resolve() if a.out else root / "score"
+    try:
+        R.require_under(out, root)
+        result, lines, code = score(root)
+    except (InputError, R.InputError) as exc:
+        print(f"{VERSION}\nINPUT ERROR: {exc}")
+        return EXIT_INPUT
+    text = "\n".join(lines)
+    print(text)
+    out.mkdir(parents=True, exist_ok=True)
+    R.atomic_write_text(out / "score.json", json.dumps(result, indent=1, default=_jsonable) + "\n")
+    R.atomic_write_text(out / "score.txt", text + "\n")
+    return code
+
+
+60:2026-10-31T17:38:13Z RULE DEVIATION (self-report): the previous command's last pipeline (pytest --co test listing) redirected stderr to the null device ('2>' + the null device path). Read-only listing, nothing written; not repeated.
+60:2026-10-31T17:38:13Z RULE DEVIATION (self-report): the previous command's last pipeline (pytest --co test listing) redirected stderr to the null device ('2>' + the null device path). Read-only listing, nothing written; not repeated.
+=== 2026-10-31T17:40:48.352Z Write
+{"file_path": "/home/user/work/vg_tool/FIXES.txt", "content": "vg_tool FIXES -- the fixer's record after the independent check (check1/), 2026-10-31 (date -u; every command with its\ntime in fixer/cmdlog.txt).  Labels: [measured] read or computed from a named file; [inferred] reasoned, basis given.\nScope: SPEC.txt, vg_sigma.py, tests/**, NOTES.txt, SHA256SUMS.txt edited (orig/ copies of each, before any edit:\nfixer/orig/; unified diffs: fixer/out/diffs.txt); everything else written only under fixer/.  The phase screen PS stayed\noutcome-blind: nothing under PS/runs, reads, score, lost.json, tmp or logs was opened, listed, hashed or statted; only\nPS's criteria.txt, SCREEN.json, APPROVED, tools/** and validate/** were read.  No training, no optimizer step, no git\nor network writes.  Every simulation ran at nice 19, one process at a time.\n\nRESULT: vg_sigma 1.1.  Both minor findings hold and are fixed; the optional info items i2, i3, i4, i7 are applied; i1\nand i5 need nothing; i6 is outside this folder (for the coordinator).  The measured numbers are UNCHANGED: the fixed\ntool reproduces the frozen tool's vg_sigma.json numbers exactly on 5 pairs / roots [measured, fixer/val/*_vs_*.out].\nNew pins (SHA256SUMS.txt, sha256sum -c: 7 OK; the builder's 6 sha256 are superseded):\n  SPEC.txt            4d483bae687bad2a519501235169d28171b44d0a312bc60f3678b7635c227a0e\n  vg_sigma.py         a9303859c8de3652dd90f5b70e40c3066cbd4e01fbc300c76166b3d5c9a80981\n  tests/conftest.py   50628a451950036806f6b5ac3671fd7e36456528061ed6c9b33718d7d7e83c57   (unchanged)\n  tests/test_pure.py  11ace7f7a76b9b1188684fb0e53cd1c7d443f700c319476e7f5eeb6c1f542268\n  tests/test_guard.py bf420da32e37493dfebebc6249f9b2215cb383ac2ef14001b95cd31ff7061c26\n  tests/test_real.py  28c963df717a5de63bb189759d3d101de6690e51097b290570a62f18f4a7e42f\n  tests/test_toy.py   91bc16449587c6b6242da0206648116986308c511a4ad65993cc891428056e4d   (new)\n\n==================================================================================================================\nFINDINGS\n==================================================================================================================\nm1 (minor) HOLDS.  Verified [measured by reading the builder's tests + the checker's check1/out/mut_tests.out]: no unit\n   test fed nonzero critic phase columns through _form_values (test_start_pair_forms_agree_bitwise uses the start pair,\n   whose columns are 0 after the transform; the nonzero-column test called critic_values directly); collect() was\n   tested over 40 vector steps with no episode end; the gamma at measure_pair's _stats_for call and run_root's\n   arm -> form wiring had no test.  The PS validate pair critic_phase_9401 has phase columns exactly 0.0 [measured,\n   fixer/val/b2_phase/vg_sigma.txt checks: value_phase_cols_max_abs_read 0.0], so it cannot show the phase path.\n   Fixes (minimal):\n   (a) tests/test_real.py::test_phase_form_values_with_nonzero_phase_columns: the start pair with the arm's frozen slots\n       (H.reseed_phase_slots, as after S) and value_net.0.weight[:, 60:63] = 0.3 N(0,1) (generator 5); _form_values(net,\n       \"phase\", X, K, TX, TK) with start=False.  V equals the critic on bs_hooks.phase_env_class observations (phi(k))\n       bitwise; V_term equals the critic on the training env's terminal observation (phase_env_class with the counter\n       at 1000: slots (1, 1, 1)) bitwise; V_raw / V_raw_term equal the slots-zero critic; effective and raw differ\n       (> 1e-3 on every terminal row); the runtime check (c) passes on it and flags a record with either difference 0.\n       (The terminal observations come from two lockstep envs whose counter is set to 1000 for one _get_obs and put\n       back; T. rex _get_obs reads no _step_count and writes no state [measured, code copy base_env.py 974-1030].)\n   (b) tests/test_toy.py (new, 3 tests; adapted from check1/toy_collect.py): collect() + episode_rows + _stats_for on\n       a Monitor/DummyVecEnv/VecNormalize toy with falls at k = 300, 50, 999 and at exactly k = 1000 (terminated and\n       truncated: not bootstrapped) and time-limit ends (bootstrapped with V(terminal)); flags, k = 0..L-1, k_term 1000,\n       term_X, Monitor length; G against a direct computation (atol 1e-9) and the bucket stats against bucket_stats of\n       the direct G.\n   (c) vg_sigma.phase_feed_problems + its call in measure_pair (phase form) + a new record key\n       max_abs_eff_minus_raw_term: when value_phase_cols_max_abs_used > 0, max_abs_eff_minus_raw == 0 (states) or, with\n       a truncated episode, max_abs_eff_minus_raw_term == 0 (terminal) is a PROBLEM (exit 3).  A missing record is a\n       PROBLEM too.  Columns exactly 0 (S after the transform, PS validate) trigger nothing.\n   (d) _stats_for refuses (exit 2) any gamma other than GAMMA = 0.98 (measure_pair had already refused a stage / model /\n       VecNormalize gamma other than 0.98; this guards the call itself).\n   (e) tests/test_guard.py::test_root_mode_wiring_forms_per_arm: a synthetic full root (tiny zips with policy.pth\n       log_std, pkl stand-ins, markers rows at E, APPROVED copied), setup_sim and measure_pair stubbed; asserts S once\n       with (\"plain\", \"phase\") and phase_start, then each COUNTED run in queue order with the LITERAL form per arm\n       (control (\"plain\",), critic_phase (\"phase\",); not read from ARM_FORM), never phase_start, at E, seed 6271,\n       32 episodes; STOPPED / LOST not measured; markers never mismatched.\n   Effect [measured, fixer/out/mutants.out]: the checker's survivors bootstrap_terminations, terminal_phase_k999\n   (test_toy), control_form_phase (wiring test), phase_skipped_states, phase_skipped_terminal (test (a)) are now killed.\n   gamma_099_in_G still passes the unit tests (measure_pair is not unit-tested: it needs the real env); at runtime it\n   now REFUSES: \"G with gamma 0.99, not the training gamma 0.98\", exit 2, nothing written [measured,\n   fixer/val/rt_gamma_099_in_G.log].  The check (c) at runtime on the checker's synthetic pair (check1/pairs/phase_pert,\n   columns max 1.03): unmutated PROBLEMS none, max_abs_eff_minus_raw 0.492, _term 0.436 [measured,\n   fixer/val/pert_phase/vg_sigma.json]; phase_skipped_states -> exit 3 with \"V with the phase equals V with the slots\n   zero on every state\"; phase_skipped_terminal -> exit 3 with \"V(terminal) with phi(1000) equals V(terminal) with the\n   slots zero\" [measured, fixer/val/rt_phase_skipped_*.log].\n\nm2 (minor) HOLDS.  Verified [measured, fixer/orig/vg_sigma.py main(): ap.add_argument(\"--root\", default=str(PS_ROOT));\n   PS tools/score_bs.py main() writes <root>/score/score.json whatever the status (lines 1398-1417)].  Fix: --root has\n   no default; without --pair and without --root the CLI refuses (exit 2, \"--root is required without --pair (no\n   default; nothing opened)\") before the guard, so nothing is opened; --root / --plan together with --pair also\n   refuse.  Test tests/test_guard.py::test_root_is_required_no_default (guard, run_root and run_pair stubbed to fail,\n   so the test itself can never open PS/score whatever the code does).  CLI demonstration [measured,\n   fixer/val/cli_noroot.log, cli_noroot_plan.log, cli_pair_with_root.log]: the real CLI under fixer/scripts/\n   cli_guarded.py (an audit hook + os.stat/lstat wrappers that BLOCK and record any open / stat / listing of PS/runs,\n   reads, score, lost.json, tmp, logs): exit 2 each, blocked accesses none, --out not created.  Not chosen: a\n   confirmation flag with an explicit --root PS (more surface; no default already makes a mistyped validation command\n   refuse) [inferred].\n\ni1 (info) no change needed.  Confirmed again [measured]: the fixed tool's measured numbers equal the frozen tool's\n   exactly on the checker's phase_pert pair (fixer/val/pert_phase_vs_check1.out, --by-index: the checker used --label\n   pert) and on the builder's b1_S, b2_phase, a_control_2501 and dry root (fixer/val/*_vs_builder.out: IDENTICAL).\ni2 (info) applied (optional): run_root compares SCREEN.json's sha256 with APPROVED's screen_sha256 (a PROBLEM if they\n   differ).  Put in run_root, where APPROVED is already read for the tool sha256, not in the guard (which still opens\n   only score.json and SCREEN.json).  Test test_root_mode_flags_screen_sha_against_approved; the dry root raises no\n   such problem [measured].  PS's SCREEN.json sha256 equals APPROVED's today [measured, fixer/out/pins.out].\ni3 (info) applied (optional): one SPEC sentence (EPISODES, SEEDS).  Verified [measured]: docs/STAGE1_SPLIT_PLAN.md\n   about line 1208, \"A wider independent scan of seeds 3042-7041 found 43/4000 = 1.075% ...\" (a zero-action reset\n   survey).  The checker's 46,710-file scan was not repeated.\ni4 (info) applied (optional): SPEC E2 now cites BS2 control_2501 at E, [150,200) -0.0098 (SE 0.0196) beside the\n   why-probe's +0.0707 (SE 0.0059) at S [measured, val/a_control_2501/vg_sigma.txt line 11, val/why_offline.log\n   line 14; reproduced exactly by fixer/val/a_control_2501].  E2 itself is unchanged.\ni5 (info) the checker's self-report; nothing to fix in the tool.  My outside-write check prunes PS at depth 1 and\n   searches only PS's allowed paths, named explicitly (fixer/scripts/outside_check.sh).\ni6 (info) verified [measured, fixer/out/pins.out]: PS tools/*.py are 0644 and run_waves_bs.sh 0755 (criteria.txt,\n   SCREEN.json, APPROVED 0444); every sha256 equals APPROVED's.  Not changed: this fixer never writes in PS.  For the\n   coordinator (open item).\ni7 (info) applied: vg_sigma.txt's header now carries the caption \"G: the Monte Carlo return-to-go (gamma 0.98; ...)\n   under the pair's FROZEN ret_rms; the critic itself was trained on GAE(0.95) lambda-returns under each rollout's\n   running reward statistics\" (GAE lambda read from bs_common.ARM_GAE_LAMBDA [measured: 0.95 for both arms]), and SPEC\n   DEFINITIONS says the same.\n\n==================================================================================================================\nWHAT CHANGED IN THE OUTPUTS\n==================================================================================================================\nVersion string \"vg_sigma 1.1\"; the tool / SPEC sha256 recorded; vg_sigma.txt: one caption line (i7); vg_sigma.json:\nthe phase form's record gains max_abs_eff_minus_raw_term; problems may now include the phase-feed and SCREEN.json\nlines.  No measured number changed (above).  Outputs stay deterministic: a rerun of b2_phase gives cmp-identical\nvg_sigma.json and vg_sigma.txt [measured, fixer/val/b2_determinism.out].\n\n==================================================================================================================\nCHECKS RE-RUN (fixer/out, fixer/val; nice 19; one heavy process at a time)\n==================================================================================================================\nUnit tests [measured, fixer/out/pytest_final.out]: 55 passed (test_pure 31, test_guard 14, test_real 7, test_toy 3;\n  was 47), 9.1 s.  ruff E,F,W,B line 120 on vg_sigma.py, tests/*.py, fixer/scripts/*.py: All checks passed\n  [fixer/out/ruff_final.out].\nMutation check [measured, fixer/out/mutants.out, fixer/scripts/mut_run.py]: 35 mutants (builder 10, checker 18, fixer\n  6, identity control 1) against the fixed tests: 32 killed; identity control passes (as it must); gamma_099_in_G and\n  phase_feed_call_removed survive the unit tests BY DESIGN (runtime-only, measure_pair) and are shown at runtime\n  above.  actions_deterministic is killed by test_collect_equals_sb3_collect_rollouts; its 3 extra \"errors\" are the\n  toy fixture rejecting the mutant's deterministic=True keyword (a consequence of the mutant) [measured,\n  fixer/out/mut_actions_deterministic_errors.out], so the runner's strict error flag listed it; it is a valid kill.\n  (A first mutation run was invalid: pytest's --basetemp parent did not exist, so every run had 15 setup errors; it\n  is kept as fixer/out/mutants_invalid_run1.out and was not used.)\nValidations [measured, fixer/val/, run by fixer/scripts/run_fixer_validations.sh]:\n  pert_phase      check1's synthetic phase pair (nonzero columns), 4 ep, seed 6281: exit 0, PROBLEMS none; numbers\n                  identical to the checker's frozen-tool run; phase-feed records 0.492 / 0.436.\n  b1_S            F2 start pair, --phase-start, 4 ep: exit 0; plain == phase bitwise (0.0); used columns 0.0 (no\n                  phase-feed problem); identical to val/b1_S.\n  b2_phase        PS validate critic_phase_9401 final, 4 ep: exit 0; columns 0.0; identical to val/b2_phase; rerun\n                  cmp-identical.\n  a_control_2501  BS2 control_2501 E, plain, 8 ep: exit 0; identical to val/a_control_2501.\n  dryroot         run_root end to end on a synthetic root under fixer/dryroot (BS2 control_2501, PS validate 9401 as\n                  stand-ins), 4 ep, seed 6281: exit 3 with exactly the builder's 6 expected PROBLEMS (paths aside), no\n                  SCREEN.json problem; numbers identical to val/dryroot.\n  rt_* (runtime mutants) and cli_* (refusals): above.\n  Cost [measured, fixer/out/timing_summary.out]: 2.1-2.9 s CPU per 1,000-step episode including loads (wall/CPU\n  1.01-1.03 beside the 4 running continuations); 9.6 min CPU of simulation in all for the fixer.\n\n==================================================================================================================\nOUTSIDE-WRITE CHECK AND RULES\n==================================================================================================================\n[measured, fixer/out/outside_check.out] since 17:09:00Z: under /home/user/work (PS pruned at depth 1, fixer pruned)\nonly vg_tool/vg_sigma.py, SPEC.txt, tests/* (the permitted edits; NOTES.txt, SHA256SUMS.txt and this file came\nlater); PS's allowed paths: nothing; no __pycache__ under PS/tools or vg_tool; the S2 scratchpad (venv included) and the\nrepo: nothing; /tmp top level: the Claude harness's own logs and /tmp/claude-0 (its session tasks dir, cache state,\nbash-edit diffs) [inferred: harness files, not written by any command of mine]; /root: nothing.  PS pins: every\nsha256 equals APPROVED [measured, fixer/out/pins.out].\nRULE DEVIATION (self-report): at about 17:38Z one read-only command (a pytest --co listing of the test names, after the\nfinal test run) redirected its stderr to the null device; nothing was written; it was not repeated (fixer/cmdlog.txt\n17:38:13Z).  A later grep of my own cmdlog used a search pattern containing \"2>/dev\"; that is text, no device access.\n\n==================================================================================================================\nOPEN ITEMS\n==================================================================================================================\nOF1 Pinning: the coordinator records the seven sha256 above in the run log BEFORE the screen's reading (the builder's\n    six are superseded).\nOF2 i6: PS tools are 0644 / 0755, not 0444; chmod 0444 only if that is the intended pin state (bytes equal APPROVED).\nOF3 Two self-checks are runtime-only (the gamma at measure_pair's _stats_for call; the phase-feed call): the unit\n    tests cannot reach measure_pair without the real env; shown on mutants at runtime (fixer/val/rt_*.log).\nOF4 [inferred] The phase-feed check could misfire if a critic_phase run's trained columns were nonzero but so small\n    that no state's V changes in float32 (then it is exit 3 with the numbers still written; the message says so).\n    Implausible after 1.44M steps of training (the perturbed pair's effect is 0.49 at columns 1.03), but a reader of\n    a PROBLEM should look at value_phase_cols_max_abs_used first.\nOF5 NOTES O2-O10 are unchanged (PROVISIONAL refuses; V - G at E and S only; G under the frozen ret_rms; falls counted;\n    the torch UserWarning; descriptive arm comparison).\n"}
+--- RESULT (first 1500)
+File created successfully at: /home/user/work/vg_tool/FIXES.txt (file state is current in your context — no need to Read it back)
+=== 2026-10-31T17:42:06.512Z Edit
+{"replace_all": false, "file_path": "/home/user/work/vg_tool/FIXES.txt", "old_string": "[measured, fixer/out/outside_check.out] since 17:09:00Z: under /home/user/work (PS pruned at depth 1, fixer pruned)\nonly vg_tool/vg_sigma.py, SPEC.txt, tests/* (the permitted edits; NOTES.txt, SHA256SUMS.txt and this file came\nlater); PS's allowed paths: nothing; no __pycache__ under PS/tools or vg_tool; the S2 scratchpad (venv included) and the\nrepo: nothing; /tmp top level: the Claude harness's own logs and /tmp/claude-0 (its session tasks dir, cache state,\nbash-edit diffs) [inferred: harness files, not written by any command of mine]; /root: nothing.", "new_string": "[measured, fixer/out/outside_check.out and, at the end, outside_check_final.out] since 17:09:00Z: under\n/home/user/work (PS pruned at depth 1, fixer pruned) only vg_tool/vg_sigma.py, SPEC.txt, NOTES.txt, SHA256SUMS.txt,\nFIXES.txt and tests/* (the permitted edits); PS's allowed paths: nothing; no __pycache__ under PS/tools or vg_tool; the\nS2 scratchpad (venv included) and the repo: nothing; /tmp top level: the Claude harness's own logs\n(claude-code*.log, env-manager.log, environment-manager.out) and /tmp/claude-0 (its session tasks dir, cache state,\nbash-edit diffs) [inferred: harness files, not written by any command of mine]; /root: nothing."}
+--- RESULT (first 1500)
+The file /home/user/work/vg_tool/FIXES.txt has been updated successfully.
+=== 2026-10-31T17:42:44.296Z StructuredOutput
+{"status": "DONE_WITH_ISSUES", "summary": "The tool is now vg_sigma 1.1. Both minor findings were real and are fixed. Optional items i2, i3, i4 and i7 are applied. i1 and i5 needed nothing. i6 is outside this folder and is left to the coordinator. The measured numbers did not change: on 5 pairs or roots the fixed tool's vg_sigma.json numbers match the frozen tool's exactly (b1_S, b2_phase, a_control_2501, the dry root, and the checker's synthetic phase pair) [measured, fixer/val/*_vs_*.out]. PS stayed outcome-blind: nothing under runs, reads, score, lost.json, tmp or logs was opened, listed, hashed or statted. The PS pins still match APPROVED [measured, fixer/out/pins.out].\n\nm1, the phase path had no test coverage (holds; checked by reading the tests and the checker's mut_tests.out):\n(a) New test test_real::test_phase_form_values_with_nonzero_phase_columns. It uses the start pair with frozen slots and nonzero value_net.0.weight[:,60:63]. _form_values' V and V_term match the critic bitwise on bs_hooks.phase_env_class observations, including the terminal phi(1000)=(1,1,1). Both differ from the slots-zero values.\n(b) New tests/test_toy.py (3 tests): collect, episode_rows and _stats_for on a toy env, with falls at k = 50, 300 and 999, a fall at exactly k = 1000 (not bootstrapped), and time-limit ends (bootstrapped).\n(c) New runtime PROBLEM phase_feed_problems, plus a new record key max_abs_eff_minus_raw_term. It fires when the critic's phase columns are nonzero but feeding the phase changes no state value, or no terminal value.\n(d) _stats_for now refuses any gamma other than 0.98.\n(e) New stubbed run_root wiring test: the critic form per arm is written literally in the test, S runs both forms with the start transform, and seed 6271 with 32 episodes is checked.\n\nm2, --root defaulted to the real PS (holds; score_bs.py also writes score.json whatever the status, lines 1398-1417):\n- --root has no default. A command with neither --root nor --pair refuses (exit 2) before anything is opened. --root or --plan together with --pair also refuses.\n- New test: guard, run_root and run_pair are stubbed to fail, so the test itself can never open PS/score.\n- Run on the real CLI under a guard that blocks access to PS's outcome paths: exit 2 each time, nothing blocked, no output folder created.\n\nOptional items applied:\n- i2: run_root flags a PROBLEM if SCREEN.json's sha256 differs from APPROVED's screen_sha256 (with a test).\n- i3: SPEC sentence on the historical seed scan 3042-7041 (docs/STAGE1_SPLIT_PLAN.md line 1209).\n- i4: SPEC E2 now cites BS2 control_2501 at E, [150,200) -0.0098 (SE 0.0196), beside the why-probe's +0.0707 at S. E2 itself is unchanged.\n- i7: a G caption (Monte Carlo return under frozen ret_rms vs the GAE(0.95) training target) in vg_sigma.txt and in SPEC.\n\nChecks re-run (nice 19, one process at a time):\n- Unit tests: 55 passed (was 47). ruff is clean.\n- Mutation check, 35 mutants: 32 killed, including all 5 survivors the checker's run found among the 4 named in m1 plus control_form_phase and terminal_phase_k999. The identity control passes, as it must. Two mutants still pass the unit tests because measure_pair is not unit-tested; both checks fire at runtime instead (gamma_099_in_G -> exit 2 REFUSED; phase_skipped_states and phase_skipped_terminal -> exit 3 with the new PROBLEM).\n- Validations: as listed under key_numbers. A rerun of b2_phase gives byte-identical vg_sigma.json and vg_sigma.txt.\n\nRule deviation, self-reported: at 17:38Z one read-only command (a pytest --co listing of test names) sent its stderr to the null device. Nothing was written and it was not repeated (fixer/cmdlog.txt 17:38:13Z).\n\nFiles:\n- /home/user/work/vg_tool/FIXES.txt\n- /home/user/work/vg_tool/SHA256SUMS.txt\n- /home/user/work/vg_tool/NOTES.txt (FIXER REVISION section)\n- /home/user/work/vg_tool/fixer/ (cmdlog.txt, orig/, out/, val/, scripts/, dryroot/)", "key_numbers": "Tests: 55 passed in 9.1 s (test_pure 31, test_guard 14, test_real 7, test_toy 3; was 47). ruff E,F,W,B line 120: clean [measured].\nMutation check: 35 mutants (builder 10 + checker 18 + fixer 6 + identity control). 32 killed; the identity control passes; gamma_099_in_G and phase_feed_call_removed pass the unit tests (runtime-only checks) [fixer/out/mutants.out]. The checker's survivors are now killed: bootstrap_terminations, terminal_phase_k999, control_form_phase, phase_skipped_states, phase_skipped_terminal.\nRuntime checks on the checker's phase pair (phase columns max 1.03): unmutated, PROBLEMS none, eff-minus-raw 0.492 on states and 0.436 on terminals; phase_skipped_states -> exit 3; phase_skipped_terminal -> exit 3; gamma_099_in_G -> exit 2.\nValidations:\n- Exit 0 with identical measured numbers: pert_phase (4 episodes), b1_S (4; plain == phase, max |dV| 0.0), b2_phase (4; phase columns 0.0), a_control_2501 (8).\n- dryroot: exit 3 with the builder's same 6 expected PROBLEMS and identical numbers.\n- CLI with no --root, no --root plus --plan, and --pair plus --root: exit 2 each, nothing blocked.\nCost: 2.1-2.9 s CPU per 1,000-step episode including loads; wall/CPU 1.01-1.03; 116.5 s CPU of tool simulation in total.\nWhat changed: version 1.1; --root has no default; new phase-feed PROBLEM and gamma refusal; SCREEN.json checked against APPROVED; one caption line in vg_sigma.txt; record key max_abs_eff_minus_raw_term added; no measured number changed.\nNote: the fixer/val and fixer/dryroot outputs record SPEC sha256 4d483bae. The only later SPEC edit is the doc line reference (\"about line 1208\" -> \"line 1209\").", "sha256": "SPEC.txt d1481ec596b1dff6172c5442b8b90fe77e390eccdcaf0199cf73bdecc5688b33\nvg_sigma.py a9303859c8de3652dd90f5b70e40c3066cbd4e01fbc300c76166b3d5c9a80981\ntests/conftest.py 50628a451950036806f6b5ac3671fd7e36456528061ed6c9b33718d7d7e83c57 (unchanged)\ntests/test_pure.py 11ace7f7a76b9b1188684fb0e53cd1c7d443f700c319476e7f5eeb6c1f542268\ntests/test_guard.py bf420da32e37493dfebebc6249f9b2215cb383ac2ef14001b95cd31ff7061c26\ntests/test_real.py 28c963df717a5de63bb189759d3d101de6690e51097b290570a62f18f4a7e42f\ntests/test_toy.py 91bc16449587c6b6242da0206648116986308c511a4ad65993cc891428056e4d (new)\n(SHA256SUMS.txt: sha256sum -c, 7 OK; the builder's 6 sha256 are superseded)", "open_items": ["Coordinator: record the seven new sha256 in SHA256SUMS.txt in the run log before the screen's reading. The builder's six (62cf6901 / f2b37b14 ...) are superseded.", "i6: PS tools/*.py are mode 0644 and run_waves_bs.sh 0755, not 0444. Their bytes equal APPROVED. chmod 0444 only if that is the intended pin state; the fixer never writes in PS.", "Two self-checks only run at runtime: the gamma at measure_pair's _stats_for call, and the phase-feed call. Unit tests cannot reach measure_pair without the real env, so both were shown on mutants at runtime (fixer/val/rt_*.log).", "[inferred] The phase-feed PROBLEM could fire falsely if a critic_phase run's trained phase columns were nonzero but too small to change any float32 V. This is implausible after training, but a reader should check value_phase_cols_max_abs_used first.", "Self-reported rule deviation: one read-only command at 17:38Z sent its stderr to the null device. Nothing was written and it was not repeated.", "Still run the tool only after <PS>/score/score.json is final (NOTES O1). Never pass --root /home/user/work/phase_screen before then. NOTES O2-O10 are unchanged."]}
+--- RESULT (first 1500)
+Structured output provided successfully

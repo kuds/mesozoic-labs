@@ -1,0 +1,41 @@
+2026-10-31T20:21:00Z mkdir check/stat, tmp, mpl
+2026-10-31T20:21:06Z sha256sum pins; wc criteria
+2026-10-31T20:21:15Z cat score/score.txt (head)
+2026-10-31T20:21:18Z cat score/score.txt (tail from line 140)
+2026-10-31T20:21:21Z find runs/control_2901 runs/critic_phase_2901 reads/control_2901 -maxdepth 4
+2026-10-31T20:21:26Z ls F2, sha256 parent probe
+2026-10-31T20:21:34Z explore_npz.py parent probe + control_2901 probe -> out/explore_npz.txt
+2026-10-31T20:21:39Z grep read_bs.py for probe/ledger/b_star/critic_slope formats
+2026-10-31T20:21:46Z head eval_episodes.csv columns (control_2901)
+2026-10-31T20:21:59Z NOTE: previous wc -l glob runs/*/01_stance/eval_episodes.csv also matched the _crashed<k> folders' eval_episodes.csv (line counts only; after ALL_DECIDED and the score)
+2026-10-31T20:21:59Z grep cmd_l in read_bs.py and score_bs.py
+2026-10-31T20:22:11Z explore_markers.py reads/critic_phase_2901/markers.json -> out/markers_tree_phase2901.txt
+2026-10-31T20:22:23Z explore_markers.py score/score.json depth 3 -> out/score_tree.txt
+2026-10-31T20:22:32Z grep score_bs.py structure
+2026-10-31T20:23:05Z ls BS2; grep -n separation/Welch in RUNLOG and BS2
+2026-10-31T20:23:12Z ls BS2/check; grep separation in BS2 check stat notes
+2026-10-31T20:23:32Z python versions of numpy/scipy
+2026-10-31T20:23:39Z explore check.json and run_meta.json for critic_phase_2901 -> out/tree_check_meta_phase2901.txt
+2026-10-31T20:23:48Z explore_jsonl.py arm_evidence.jsonl phase2901 control2901 -> out/tree_evidence.txt
+2026-10-31T20:23:53Z explore control_2901 run_meta arm_evidence keys -> out/tree_meta_control2901.txt
+2026-10-31T20:24:38Z python one-liner: print check.json sources and run_meta phase_state_end/arm_state_end for critic_phase_2901
+2026-10-31T20:26:45Z one-liner: score.json report_only trajectory format; one cache file's top-level keys
+2026-10-31T20:26:52Z nice -n 10 python -I -B bin/stat_check.py out/stat_check.json > out/stat_check.out
+2026-10-31T20:27:14Z kept v1 as bin/stat_check_v1_traj_ending_before.py.txt (report-only trajectory defined as the 8 rows before each evaluation step: 110 report-only DIFFs, all trajectory); patched bin/stat_check.py to the score's stated definition (8 rows ending AT each evaluation step, at E the primary's rows)
+2026-10-31T20:27:14Z nice -n 10 python -I -B bin/stat_check.py out/stat_check.json > out/stat_check.out (v2)
+2026-10-31T20:28:03Z nice -n 10 python -I -B bin/spread.py out/stat_check.json out/spread.json > out/spread.out
+2026-10-31T20:28:31Z one-liner: control_2901 run_meta arm_applied/probe_phase/digests/arm_state_end; score manipulation keys
+2026-10-31T20:28:38Z grep evidence summary definitions (dmu_phase, updated_min_dv_phase, presettle) in bs_hooks.py/run_bs.py
+2026-10-31T20:29:29Z nice -n 10 python -I -B bin/manip_check.py out/manip_check.json > out/manip_check.out
+2026-10-31T20:29:57Z nice -n 10 python -I -B bin/txt_check.py out/stat_check.json > out/txt_check.out
+2026-10-31T20:30:05Z fixed p-label map in bin/txt_check.py (2/70 reduces to 1/35); rerun > out/txt_check.out
+2026-10-31T20:30:42Z nice -n 10 python -I -B bin/extra.py out/stat_check.json > out/extra.out
+2026-10-31T20:30:54Z cat logs/run_waves_bs.exit logs/decided.tsv logs/ALL_DECIDED; ls -la --time-style=full-iso score/; tail -5 RUNLOG
+2026-10-31T20:31:10Z nice -n 10 python -I -B bin/pins_check.py > out/pins_check.out
+2026-10-31T20:31:23Z find PS -newer check/stat/mpl outside check/stat (own-write audit); ls check/stat/tmp check/stat/mpl
+2026-10-31T20:31:26Z same find excluding check/proc (the other checker's folder)
+2026-10-31T20:32:59Z one-liner: ranges over all 8 runs' arm_evidence.jsonl of gae095_vs_mc, adv_err, returns residual, dv obs6 -> out/evidence_ranges.out
+2026-10-31T20:33:06Z corrected NOTES.txt gae095_vs_mc range (0.034-0.746) from out/evidence_ranges.out
+2026-10-31T20:33:17Z one-liner: tail_1_pitch (col 11) and tail_2 (col 13) rises over the primary rows vs parent rows 248-255 from raw npz -> out/tail_rises.out
+2026-10-31T20:33:30Z NOTES.txt I-1 values set to 5 decimals with sources (out/extra.out, out/tail_rises.out)
+2026-10-31T20:33:36Z sha256sum of every file in this folder (except SHA256SUMS.txt) > SHA256SUMS.txt; then sha256sum -c (last command logged before the sums so cmdlog.txt is final)

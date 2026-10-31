@@ -1,0 +1,117 @@
+RE-REVIEW notes (rereviewer of the FIXED version). Writes only under PS/review/rereview.
+Started 2026-10-31T15:38:10Z
+[2026-10-31T15:38:13Z -> 2026-10-31T15:38:13Z] rc=0 log=logs/ls_layout.out
+  CMD: cd /home/user/work/phase_screen && find review/fixer/orig -type f | sort && ls -la tools tools/tests && cat review/reviewed_sha256.txt && cat SCREEN.json
+  TAIL:  "queue": [["control", 2901], ["critic_phase", 2901], ["control", 2911], ["critic_phase", 2911],|           ["control", 2921], ["critic_phase", 2921], ["control", 2931], ["critic_phase", 2931]]|}|
+[2026-10-31T15:38:18Z -> 2026-10-31T15:38:18Z] rc=0 log=logs/hashes_now.out
+  CMD: cd /home/user/work/phase_screen && sha256sum criteria.txt SCREEN.json tools/*.py tools/run_waves_bs.sh tools/tests/*.py review/FIXES.txt review/criteria_reviewed_v1.txt SHA256SUMS.txt && echo ORIG && cd review/fixer/orig && sha256sum criteria.txt SCREEN.json SHA256SUMS.txt tools/*.py tools/run_waves_bs.sh tools/tests/*.py && echo CHECK_ORIG_vs_REVIEWED && cd /home/user/work/phase_screen/review/fixer/orig && sed -n '2,$p' ../../reviewed_sha256.txt | sha256sum -c
+  TAIL: tools/tests/test_run_bs.py: OK|tools/tests/test_score_bs.py: OK|tools/tests/test_waves_bs.py: OK|
+[2026-10-31T15:38:22Z -> 2026-10-31T15:38:22Z] rc=0 log=logs/diff_criteria.out
+  CMD: cd /home/user/work/phase_screen && diff review/criteria_reviewed_v1.txt criteria.txt; diff review/fixer/orig/criteria.txt review/criteria_reviewed_v1.txt && echo ORIG_EQ_REVIEWED
+  TAIL: > WORK/DESIGN_NOTES.txt, WORK/CMDLOG.txt; the adapter's: WORK/ADAPT_NOTES.txt; the fixer's: <PS>/review/FIXES.txt and|> <PS>/review/fixer/notes.txt).|ORIG_EQ_REVIEWED|
+[2026-10-31T15:38:27Z -> 2026-10-31T15:38:27Z] rc=1 log=logs/diff_run_bs.out
+  CMD: cd /home/user/work/phase_screen && diff -u review/fixer/orig/tools/run_bs.py tools/run_bs.py
+  TAIL:              "final_path": str(trained.final_path), "learn_seconds": round(trained.learn_seconds, 1),|             "checkpoints": sorted(p.name for p in (stage_dir / "models").iterdir()),|         })|
+[2026-10-31T15:39:21Z -> 2026-10-31T15:39:21Z] rc=0 log=logs/tb_state.out
+  CMD: cd /home/user/work/phase_screen && ls -la tmp; find tmp -path '*tb*' -type f -printf '%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n' | sort; echo ---TB_BUFFER; find /tmp/tb_buffer -type f -printf '%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n' | sort | tail -20
+  TAIL: 2026-10-31T13:45:51.1162698440 235953 /tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard/PPO_0/events.out.tfevents.1793453588.vm.22043.0|2026-10-31T13:45:53.5475367920 235953 /tmp/tb_buffer/_content_drive_MyDrive_mesozoic-labs_logs_tyrannosaurus_rex_anatomical_ppo_stance6_r10LTSB_s42_01_stance_tensorboard/PPO_0/events
+[2026-10-31T15:41:49Z] ps_listing_before_tests.txt taken; marker_tests created
+[2026-10-31T15:41:55Z -> 2026-10-31T15:41:58Z] rc=0 log=logs/pytest_run.out
+  CMD: /home/user/work/phase_screen/review/rereview/work/pytest_one.sh run /home/user/work/phase_screen/tools/tests/test_run_bs.py
+  TAIL: ........................                                                 [100%]|24 passed in 3.36s|
+[2026-10-31T15:41:58Z -> 2026-10-31T15:42:02Z] rc=0 log=logs/pytest_read.out
+  CMD: /home/user/work/phase_screen/review/rereview/work/pytest_one.sh read /home/user/work/phase_screen/tools/tests/test_read_bs.py
+  TAIL: |-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html|18 passed, 1 warning in 2.37s|
+[2026-10-31T15:42:07Z -> 2026-10-31T15:42:36Z] rc=0 log=logs/pytest_waves.out
+  CMD: /home/user/work/phase_screen/review/rereview/work/pytest_one.sh waves /home/user/work/phase_screen/tools/tests/test_waves_bs.py
+  TAIL: ....................                                                     [100%]|20 passed in 28.36s|
+[2026-10-31T15:42:36Z -> 2026-10-31T15:42:44Z] rc=0 log=logs/pytest_hooks.out
+  CMD: /home/user/work/phase_screen/review/rereview/work/pytest_one.sh hooks /home/user/work/phase_screen/tools/tests/test_bs_hooks.py -k 'not test_critic_phase_gradients_actor_zero_critic_nonzero and not test_critic_phase_install_refusals'
+  TAIL: .........................................                                [100%]|41 passed, 2 deselected in 6.82s|
+[2026-10-31T15:42:47Z -> 2026-10-31T15:43:14Z] rc=0 log=logs/pytest_score.out
+  CMD: /home/user/work/phase_screen/review/rereview/work/pytest_one.sh score /home/user/work/phase_screen/tools/tests/test_score_bs.py
+  TAIL: ........................................................................ [ 90%]|................                                                         [100%]|160 passed in 26.41s|
+[2026-10-31T15:43:19Z -> 2026-10-31T15:43:19Z] rc=0 log=logs/ruff.out
+  CMD: cd /home/user/work/phase_screen/tools && /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/ruff check --no-cache --select E,F,W,B --line-length 120 bs_common.py bs_hooks.py run_bs.py read_bs.py score_bs.py tests/*.py; echo rc=$?; bash -n run_waves_bs.sh && echo bash_n_ok
+  TAIL: All checks passed!|rc=0|bash_n_ok|
+[2026-10-31T15:43:28Z -> 2026-10-31T15:43:29Z] rc=0 log=logs/dry_runs.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_dry nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_dry_runs.py
+  TAIL: dry_line2: slope_end_vs_start {'control': {'E_le_S': 0, 'E_le_0': 0, 'of': 4}, 'critic_phase': {'E_le_S': 3, 'E_le_0': 2, 'of': 4}}|dry_line3: slope_end_vs_start {'control': {'E_le_S': 0, 'E_le_0': 0, 'of': 4}, 'critic_phase': {'E_le_S': 3, 'E_le_0': 2, 'of': 4}}|dry_parent: slope_end_vs_start {'control': {'E_le_S': 0, 'E_le_0': 0, 'of': 0}, 'critic_phase': {'E_le_S': 0, 'E_le_0': 0, 'of': 0}}|
+[2026-10-31T15:43:32Z -> 2026-10-31T15:43:33Z] rc=0 log=logs/dry_vs_fixer.out
+  CMD: diff <(sed 's#review/rereview/dry#X#g' /home/user/work/phase_screen/review/rereview/logs/dry_runs.out) <(sed 's#review/fixer/dry#X#g' /home/user/work/phase_screen/review/fixer/logs/dry_runs.out) && echo IDENTICAL_TO_FIXER; diff <(sed 's#review/rereview/dry#X#g' /home/user/work/phase_screen/review/rereview/dry/dry_line2/score/score.txt) <(sed 's#review/fixer/dry#X#g' /home/user/work/phase_screen/review/fixer/dry/dry_line2/score/score.txt) | grep -v utc | head -20
+  TAIL: IDENTICAL_TO_FIXER|2c2|---|
+[2026-10-31T15:45:17Z -> 2026-10-31T15:45:17Z] rc=1 log=logs/my_scorer.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_synth nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_my_scorer.py
+  TAIL:     raise InputError(f"{name}: a control loop row {row.get('steps')}'s effective critic on the "|                     f"{states} states is not the stock (raw) critic")|score_bs.InputError: control_2901: a control loop row 2097152's effective critic on the ONPOLICY states is not the stock (raw) critic|
+[2026-10-31T15:45:28Z] edited rr_my_scorer.py (control raw = effective when setting S slope); removed my own synth/ for a clean rebuild
+[2026-10-31T15:45:28Z -> 2026-10-31T15:45:29Z] rc=0 log=logs/my_scorer_2.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_synth nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_my_scorer.py
+  TAIL:    LINE_TEXT[3] in text: True|   DIFFERENCES: 0|TOTAL DIFFERENCES: 0|
+[2026-10-31T15:45:38Z] edited rr_my_scorer.py (additions check); removed my own synth/ for a clean rebuild
+[2026-10-31T15:45:38Z -> 2026-10-31T15:45:39Z] rc=0 log=logs/my_scorer_3.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_synth nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_my_scorer.py
+  TAIL:    LINE_TEXT[3] in text: True|   DIFFERENCES: 0|TOTAL DIFFERENCES: 0|
+[2026-10-31T15:45:46Z -> 2026-10-31T15:45:46Z] rc=0 log=logs/pins_check.out
+  CMD: cd /home/user/work/phase_screen && awk '/^PINS/{f=1} /^HOW THE COORDINATOR PINS/{f=0} f' criteria.txt | grep -E '^[[:space:]]+[A-Za-z0-9_./-]+[[:space:]]+[0-9a-f]{64}[[:space:]]*$' | awk '{print $2"  "$1}' > /home/user/work/phase_screen/review/rereview/work/pins_as_sums.txt; cat /home/user/work/phase_screen/review/rereview/work/pins_as_sums.txt; sha256sum -c /home/user/work/phase_screen/review/rereview/work/pins_as_sums.txt; echo SHA256SUMS:; sha256sum -c SHA256SUMS.txt 2>&1 | grep -v ': OK$'; sha256sum -c SHA256SUMS.txt 2>&1 | grep -c ': OK$'; grep -c . SHA256SUMS.txt; grep -n 'criteria.txt\|score_bs.py\|run_bs.py\|run_waves' SHA256SUMS.txt
+  TAIL: 97:fa692f68b36b14b1d73f34df87d73a18661ce78b99d889abc2867486bb538040  review/fixer/orig/tools/score_bs.py|100:1f0b2e66527b5ebfb7de26b56577863dd8923be4862f375816daf2d0c6f34cd6  review/fixer/orig/tools/tests/test_run_bs.py|101:14df616eedeefc8eeb0c5f5337cef27d972219ef95082925a8e639f3a04e21c2  review/fixer/orig/tools/tests/test_score_bs.py|
+[2026-10-31T15:46:10Z -> 2026-10-31T15:46:11Z] rc=0 log=logs/pins_scorer.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_synth nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_pins.py
+  TAIL:    all items: ["tools/run_bs.py: sha256 9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c != APPROVED's 8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5", "criteria.txt PINS: tools/run_bs.py 9a42f79eb1abc30aba696e8868055d6c871c1695288445918d3807e852b4057c != APPROVED's '8f5f2af7f976fbaa1388cf0f6173ef3421844b919b00220c561a8e46b80b66e5'"]|approved_stale_score_bs: 2 ite
+[2026-10-31T15:46:54Z -> 2026-10-31T15:46:54Z] rc=0 log=logs/arm_evidence.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_synth nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_arm_evidence.py
+  TAIL:    MUTANT critic never uses the phase after updates (responses 0): caught: ["evidence: critic_phase: after updates the critic does not respond to the phase on every rollout and path (columns 0.0, responses {'dv_phase_predict_values': 0.0, 'dv_phase_forward': 0.0, 'dv_phase_evaluate_actions': 0.0, 'dv_phase_mirrored': 0.0})"]|   end_phase_problems(real) []; (cols changed) ["the actor's phase column
+[2026-10-31T15:48:13Z -> 2026-10-31T15:48:13Z] rc=0 log=logs/ps_listing_diff.out
+  CMD: diff /home/user/work/phase_screen/review/rereview/logs/ps_listing_before_tests.txt /home/user/work/phase_screen/review/rereview/logs/ps_listing_after_tests.txt; echo diff_rc=$?
+  TAIL: diff_rc=0|
+[2026-10-31T15:48:18Z -> 2026-10-31T15:48:21Z] rc=0 log=logs/outside_ps_find.out
+  CMD: find / -xdev \( -path /proc -o -path /sys -o -path /dev -o -path /home/user/work/phase_screen \) -prune -o -newer /home/user/work/phase_screen/review/rereview/work/marker_start -print 2> /home/user/work/phase_screen/review/rereview/logs/outside_ps_find.err | grep -v '^/tmp/claude-0/-home-user-mesozoic-labs/[^/]*/tasks\|^/root/.claude' | head -100; echo; echo count_all: $(find / -xdev \( -path /proc -o -path /sys -o -path /dev -o -path /home/user/work/phase_screen \) -prune -o -newer /home/user/work/phase_screen/review/rereview/work/marker_start -print 2>> /home/user/work/phase_screen/review/rereview/logs/outside_ps_find.err | wc -l)
+  TAIL: /tmp/claude-0/bash-edit-diff/11851991775256022282-9543953992008861987-bae15c26a5d6c750||count_all: 14|
+[2026-10-31T15:48:27Z] outside-PS find (newer than 15:38:00Z) -> logs/outside_ps_find_full.txt
+[2026-10-31T15:49:02Z -> 2026-10-31T15:49:02Z] rc=0 log=logs/v2_slope_drift.out
+  CMD: cd /home/user/work/phase_screen/validate/fixer/v2 && python3 -c "
+import json
+for n in ('control_9401','control_9411','critic_phase_9401','critic_phase_9411'):
+    m=json.load(open(n+'/read/markers.json'))
+    d={r['steps']: r['critic_slope_obs6']['ONPOLICY']['effective']['dV_dq3_per_deg'] for r in m['loop']}
+    s,e=d[2097152],d[2359296]
+    print(n, 'S %+.5f'%s, 'at 2,359,296 %+.5f'%e, 'diff %+.5f'%(e-s), 'no update (train() a no-op)')
+"
+  TAIL: control_9411 S +0.02143 at 2,359,296 +0.02459 diff +0.00316 no update (train() a no-op)|critic_phase_9401 S +0.02143 at 2,359,296 +0.02465 diff +0.00322 no update (train() a no-op)|critic_phase_9411 S +0.02143 at 2,359,296 +0.02459 diff +0.00316 no update (train() a no-op)|
+[2026-10-31T15:49:16Z] removed my own pytest basetemp and TMPDIR folders (rereview/tmp/pt, rereview/tmp/tmpdir_*)
+[2026-10-31T15:49:40Z -> 2026-10-31T15:49:40Z] rc=0 log=logs/prelaunch_real.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_pre nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/review/rereview/work/rr_prelaunch.py
+  TAIL: exit 3 status incomplete decided None|provisional ['no /home/user/work/phase_screen/APPROVED']|
+[2026-10-31T15:49:55Z -> 2026-10-31T15:49:56Z] rc=0 log=logs/preflight_one.out
+  CMD: cd /home/user/work/phase_screen/review/rereview/tmp && TMPDIR=/home/user/work/phase_screen/review/rereview/tmp/tmpdir_pre nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/phase_screen/tools/run_bs.py --arm critic_phase --seed 2931 --preflight-only; echo rc=$?
+  TAIL:  ]|}|rc=2|
+
+[2026-10-31T15:50:49Z] SUMMARY (re-review P2)
+Files re-reviewed (sha256): criteria.txt 9875039fad039f76dd63497b5952d5ef5c014fc1f4765ed6b11120526249ebc5;
+ SCREEN.json 7d6d368a...0392 (unchanged); tools/run_bs.py 9a42f79e...057c; tools/score_bs.py e63cf15a...91b0;
+ tools/run_waves_bs.sh 3ef2746e...f9bb; tools/tests/test_run_bs.py 335f9b8c...9c0f; tools/tests/test_score_bs.py
+ a1903520...b0b6; unchanged and equal to the reviewed: bs_common cd0f5571, bs_hooks 0519c7ba, read_bs cb1edaf9,
+ test_bs_hooks, test_read_bs, test_waves_bs, check_inputs, verify_copy [measured, logs/hashes_now.out; orig/ equals
+ review/reviewed_sha256.txt 15/15 OK].
+Diffs: logs/diff_criteria.out, diff_run_bs.out, diff_score_bs.out, diff_test_run_bs.out, diff_test_score_bs.out;
+ run_waves_bs.sh: comment lines 38 and 41 only (624 lines before and after; cited lines 5-7, 228-232, 290-305,
+ 427-430, 591 hold).
+Tests [measured]: run 24, read 18, waves 20, hooks 41 (+2 deselected: they take optimizer.step), score 160 (65
+ mutants) = 263 passed; ruff E,F,W,B clean; bash -n ok.
+Dry runs [measured, logs/dry_runs.out]: identical to the fixer's (logs/dry_vs_fixer.out).
+Own scorer check [measured, logs/my_scorer_3.out]: 2 synthetic roots (A: one phase LOST, line 3, filled 36/70,
+ as-counted 1/35 with the addition, guard MISSING note; B: all 8, cross-arm tie, slope ties, line 3 at 5/70):
+ 0 differences on line, p filled / as counted, additions, control rise, 4 secondaries (p, verdict, guard note),
+ slope E - S per run and counts.
+PINS [measured, logs/pins_check.out, pins_scorer.out]: 8 lines, each equal to its file; score_bs.pins_items on the
+ real text: []; with a fake APPROVED in my copy root: current -> 0 items, stale run_bs / score_bs pins -> caught.
+ SHA256SUMS.txt: 128 OK, 0 failed.
+Arm evidence [measured, logs/arm_evidence.out]: fixer V2 records pass evidence_problems and phase_meta_problems; actor
+ phase response 0.0 on all 155 values per critic_phase run; critic obs-6 response min 0.083 / 0.070; 5 in-memory
+ mutants each caught; end_phase_problems: real [] and 2 mutants caught.
+Real root, read only [measured]: score exit 3 incomplete, one PROVISIONAL item (no APPROVED); preflight
+ critic_phase 2931 exit 2 "APPROVED: missing"; PS listing unchanged (logs/ps_listing_*).
+Outside PS since 15:38:00Z [measured, logs/outside_ps_find_full.txt]: only the session harness's own files (task
+ list JSON from my task tracking, /tmp/claude-code logs, caches); nothing under /tmp/tb_buffer.
+/dev/vda        252G   37G  2.0G  95% /
+/dev/vda       270553174016 39154216960 2128953344  95% /
+5.0M

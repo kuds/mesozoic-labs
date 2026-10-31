@@ -1,0 +1,12 @@
+E501 Line too long (121 > 120)
+   --> /home/user/work/phase_screen/tools/run_bs.py:423:121
+    |
+421 |         p.append("the actor's phase columns (policy_net.0.weight[:, 60:63]) changed by the end")
+422 |     if state.get("policy_phase_adam_max_abs") != 0.0:
+423 |         p.append(f"the actor's phase-column Adam moments at the end: max |.| {state.get('policy_phase_adam_max_abs')!r},"
+    |                                                                                                                         ^
+424 |                  " not 0")
+425 |     return p
+    |
+
+Found 1 error.
