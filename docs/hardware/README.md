@@ -40,6 +40,12 @@ be a physics revision of that embodiment, not a new one.
    platform (a juvenile _Psittacosaurus_ on Pupper V3, ~$4.7k program cap),
    plus the custom ~$10k _Dibothrosuchus_-inspired speed tier, proximal-actuator
    packaging, and species tradeoffs.
+4. **[REFERENCE_MICRODUCK_2026_10.md](REFERENCE_MICRODUCK_2026_10.md)** —
+   a dated reference (2026-10-31, read, not run): one small open biped's
+   training stack (Microduck) read against the T. rex tail habit. It separates
+   the training-setup lessons that apply to the anatomical models now from the
+   sim-to-real practices (sensor noise and delay, actuator models, domain
+   randomization) for when hardware training starts.
 
 ## Conventions for this track
 

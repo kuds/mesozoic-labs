@@ -80,6 +80,7 @@ becomes credible near a $10k parts cap, with 2 m/s as repeatable acceptance and
 | [hardware/SIM_TO_REAL_PLAN.md](hardware/SIM_TO_REAL_PLAN.md) | 2026-07-19 | Sim-to-real feasibility & phased plan — the six sim↔hardware gaps |
 | [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) | 2026-07-19 | Parts/cost & buildability for *walking* Compsognathus (~$950) + Velociraptor (~$8.7k) |
 | [hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md](hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-24 | *Running* robots: raptor scaling, a sourced sub-$5k Psittacosaurus/Pupper V3 starter, and a custom ~$10k Dibothrosuchus-inspired speed tier |
+| [hardware/REFERENCE_MICRODUCK_2026_10.md](hardware/REFERENCE_MICRODUCK_2026_10.md) | 2026-10-31 | Dated reference, read not run: Microduck's training stack against the T. rex tail habit, split into training-setup lessons for the anatomical models now and sim-to-real practices for later |
 
 ## Investigations & run analyses
 
