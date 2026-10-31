@@ -1,0 +1,89 @@
+PRE-REGISTRATION, STAGE 2: r9 HELD-OUT TEST (com_revisit, role warning_r9)
+Written 2026-10-30, about 02:56 UTC, after PREREG.txt (sha256 673932f4040161bf0d776f96317cee9aadc36faa85a81f3b1f49a263f416ee44)
+and BEFORE reading any r9 series (no r9 bank_action_now value, no r9 ledger row value other than the column header
+and the timesteps column).  Everything in PREREG.txt stands unless changed below; each change is a DEVIATION with its
+reason.
+
+------------------------------------------------------------------------------------------------------------------
+1. WHAT STEPS (b)-(d) FOUND [measured]
+------------------------------------------------------------------------------------------------------------------
+(b) r10 reproduction (wr9_apply.py r10 -> wr9_r10_repro.txt, wr9_r10_repro2.txt after the schema edit; identical
+    tallies): every r10 firing step quoted in PREREG.txt is reproduced (P1 2,244,608 / 3,670,016 / none; P2
+    2,883,584 / 6,422,528 / 9,830,400; S1 2,400,256 / none / none; S4 3,407,872 / 7,471,104 / none; S5 3,358,720 /
+    7,618,560 / none; S3 1,482,752 / 3,670,016 / none).
+(c) r9 metadata (wr9_meta.txt), 5 runs:
+    - probes: 1,465 rows each, 8,192 steps apart, 8,192..12,001,280; bank sha1 084cf5c2b7 in all 5; labels and row
+      order identical to r10's (statue_settled at rows 0 and 5; seeds 3042/3043, step 199 as in r10).
+    - probes have NO rollout_mu_* keys (older schema).
+    - ledgers: 91 evaluations x 10 episodes, every 131,072 steps, 131,072..11,927,552 (same span as r10).
+    - ledgers have NO saturated_actuator, saturated_actuator_fraction or tail_3_pitch_act_command_mean column (63
+      columns; r10 has 194; no r9-only column).  Over-bar episodes are recorded only as screen_v2_reasons listing
+      max_actuator_saturation_fraction (bar 0.10 in the r9 config, configs/tyrannosaurus_rex/anatomical/stance.toml
+      line 692 of the r9 tree), actuator unnamed.
+    - Check on r10 (wr9_reasoncheck.txt): "reason lists max_actuator_saturation_fraction" equals
+      saturated_actuator_fraction > 0.10 for all 2,730 r10 episodes (0 disagreements; 249 / 24 / 119 over-bar
+      episodes in s42 / s60 / s80; actuators tail_3 / tail_3 / neck_pitch).
+(d) Procedure X (wr9_procx.py -> wr9_procx.txt; 37 r10 checkpoints; y10 reproduces the r10 probe to <= 4.5e-8 at
+    the 34 numbered checkpoints, finals 0.002-0.007 as in early_warning section 0):
+    - The r9 statue_settled raw states differ from r10's in 53 of 63 channels (max |diff| 6.46).  The tail_3 angle
+      input is -5.29 / -5.34 deg in r9 against +0.03 / -0.19 deg in r10.
+    - Fit y9 = -0.0436 + 2.541 * y10: Pearson r 0.625, residual SD 0.382; y9 - y10 ranges -1.06 to +0.62.
+    - TRANSFER POOR (criterion r >= 0.90 and SD <= 0.03 fails).  thr9 = -0.0436 + 2.541 * 0.150 = 0.3376 (fixed
+      here; a + b * 0.186 = 0.4290).
+    - Reading [inferred]: the r10 offset signal was the command on a LEVEL tail (obs[6] ~ 0).  On the r9 bank the
+      tail input sits 5.3 deg nose-down, so the same networks' output there mixes the offset with the loop gain
+      (strongly restoring early, positive later) and the other 52 changed channels.  Through r10 networks the r9-bank
+      value is +0.36 to +0.73 for r10 s60 at 1-3M (r10 bank: +0.01 to +0.11) and -1.13 to -1.18 at 7-9M (r10 bank:
+      -0.08 to -0.15).  So the absolute numbers 0.150 / 0.186 do not carry over, and no linear map carries them.
+
+------------------------------------------------------------------------------------------------------------------
+2. DISCLOSURE: r9 OUTCOME INFORMATION SEEN WHILE LOOKING FOR AN ACTUATOR NAME (before any signal value)
+------------------------------------------------------------------------------------------------------------------
+- r10round/draft/verify/rail_check2.json (keys and value types only): all five r9 runs have a first over-bar
+  episode (first_sat not None); s42 and s80 have a first flag and an alarm; s52, s60, s70 have neither.
+- posture_timing/NOTES.txt line 175 and r9_timeline.txt line 162 (seen by grep): r9 s80 first over-bar 4,325,376,
+  first flagged 4,325,376, ALARM 4,456,448, 294 over-bar episodes.  early_warning NOTES: r9 s42 first over-bar
+  3,145,728.
+- Actuator names: results/saturation/satwatch5_{4194304,5242880,6291456}.json name tail_3_pitch_act for r9 s42
+  (frac99 0.34 / 0.17 / 0.56, mean command 0.92 / 0.92 / 0.90).  tailscreen/README.md: r9 s80 at 4,194,304 was
+  "clean, the run took the habit later ('onset')", and its 3 CONTROL continuations from there reached tail_3 RAIL.
+  No record names the actuator for s52, s60 or s70.
+
+------------------------------------------------------------------------------------------------------------------
+3. DEVIATIONS (forced by the r9 schema; fixed now, before the r9 series)
+------------------------------------------------------------------------------------------------------------------
+D1  P2 (CMD_L >= 0.30) and S4 (CMD_L > 0.723): UNTESTABLE on r9 (no command column).  The ledger baseline T3
+    therefore gets no held-out test here.
+D2  S5 (rollout_mu): UNTESTABLE on r9 (no rollout_mu_* key).
+D3  O1 (first TAIL over-bar), O3 (TAIL alarm), O4 (PARK; RAIL): not computable from r9 ledgers.  Replaced by:
+    O1u = first evaluation with >= 1 over-bar episode, actuator unnamed (screen_v2_reasons rule above);
+    O2u flag = first evaluation with >= 5 of 10 over-bar episodes; O2u ALARM = second of two consecutive flags.
+    These are the r10 ANY definitions (identical over-bar rule, checked on r10).
+D4  PRIMARY r9 verdict outcome = O2u ALARM (it has r9 negatives; O1u has none, since all five runs have one).
+    Attribution [record, not ledger]: the two O2u-positive runs (s42, s80) are the records' tail-habit runs; the
+    three O2u-negative runs' over-bar episodes are unattributed.
+D5  S2 threshold thr9 = 0.3376, flagged TRANSFER POOR (section 1(d)).
+D6  r10 BASELINE ON THESE OUTCOMES (wr9_apply.py r10 --unnamed -> wr9_r10_unnamed.txt), so the r9 result can be
+    read against what the same rules did on r10 when only unnamed outcomes are available:
+    - P1, S2(0.150), S3, S5 against O2u ALARM: warned 1/2 (s42), missed r10 s80 (its alarm was neck), false alarm
+      in r10 s60 (tail over-bar but never 5/10): PARTIAL.  S1: warned 1/2, 0/1 false alarms: PARTIAL.
+    - Against O1u: P1 warned s42 and s60, missed r10 s80 (neck).
+    - So even in-sample, with unnamed outcomes T1 cannot score HOLDS: the outcome then also counts neck episodes,
+      and the r10 tail run s60 never alarmed.  The r9 test is therefore of a signal tuned for tail onsets against
+      an outcome that is ANY-actuator; this is stated before the result is seen.
+
+------------------------------------------------------------------------------------------------------------------
+4. WHAT IS APPLIED TO r9 (exactly; wr9_apply.py r9 --thr9 0.3376)
+------------------------------------------------------------------------------------------------------------------
+- Rules: P1 (trail8 bank_ss > 0.150), S1 (> 0.186), S2 (> 0.3376), S3 (trail8 - B > 0.13, B = mean raw bank_ss at
+  update_timesteps <= 1,048,576).  Definitions as PREREG.txt section 1.
+- Outcomes per run: O1u, O2u flag, O2u ALARM.  Counting as PREREG.txt section 5 (true warning f < o, lead o - f,
+  early >= 524,288; late = miss; false alarm = fires, outcome never occurs within 11,927,552; probe rows after the
+  last evaluation ignored).
+- Verdict per rule on O2u ALARM: HOLDS / PARTIAL / FAILS as PREREG.txt section 5.
+- Secondary reading for O1u (sensitivity only): firing before O1u in s42 and s80 (record-attributed tail runs).
+  For s52, s60, s70, a firing before their O1u is reported as AMBIGUOUS (a true warning if their over-bar episodes
+  were tail, as in r10 s60; a false alarm if they were neck, as in r10 s80), and a firing with no O2u ALARM is
+  counted as an O2u false alarm as the rule says.
+- Exploratory, not a test (labelled so): each r9 run's bank_ss and trail8 at the 1,048,576-step marks, its maximum
+  and when, and the sign of its trend around each run's O1u.

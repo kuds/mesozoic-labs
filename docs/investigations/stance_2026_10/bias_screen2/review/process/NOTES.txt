@@ -1,0 +1,75 @@
+# BS2 review, HARNESS AND PROCESS lens. Notes and command log.
+2026-10-30T11:36:58Z mkdir /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process (logs, work); touch start.marker
+2026-10-30T11:37:34Z read bs_common.py, run_bs.py, read_bs.py (Read tool, full)
+2026-10-30T11:40:04Z read score_bs.py 1-820, run_waves_bs.sh, criteria.txt (Read tool); RUNLOG lines 770-786 (P1-P4 defined at line 780)
+2026-10-30T11:40:59Z found: BS/tmp/<name>/eval_stage1_*/evaluations.npz (3,962 B each, mtime at run end) = the code's EvalCallback log dir in TMPDIR (train_base.py lines 799-815: local_eval_dir = mkdtemp in TMPDIR, rewritten every eval, published to the stage dir); /proc/mounts: / ext4 relatime; free 2,857,607,168 B at 11:41Z; BS run folders 30-38 MB
+2026-10-30T11:42:41Z sha256sum -c SHA256SUMS + PINS vs files -> logs/hashes.out
+2026-10-30T11:42:49Z run_waves_bs.sh --plan on real BS2 -> logs/plan_real.out
+2026-10-30T11:42:59Z preflight-only x3 on real BS2 -> logs/preflight_real.out
+2026-10-30T11:43:47Z cp -p BS2 criteria.txt, SCREEN.json and the 6 pinned tools -> /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/review/process/work/copyroot (copy root for the fake-APPROVED pin checks); sha256 -> work/copyroot_sha256.txt
+2026-10-30T11:44:38Z pin_check.py on the copy root (fake APPROVED; 12 cases) -> logs/pin_check.out, work/pin_check.json
+2026-10-30T11:45:36Z runner_cases.sh (real run_waves_bs.sh in test mode on the copy root; stub = preflight only) -> logs/runner_cases.out
+2026-10-30T11:45:54Z read validate/v2final/critic_blind_tail3_9201/check.json (fields CHECK writes)
+2026-10-30T11:46:15Z grep M-LOOP/REPRO in BS/reads/parent_s42/markers.txt and BS2/validate/v3final/parent_s42/markers.txt
+2026-10-30T11:46:59Z read keys of validate/v2final/control_9201/run_meta.json (pins recorded)
+2026-10-30T11:47:37Z pytest BS2/tools/tests -> logs/pytest.out; find BS2 newer than marker outside review/process
+2026-10-30T11:47:54Z read BS/reads/*/markers.json (finished screen): evaluation at T present? final loop row?
+2026-10-30T11:49:15Z atime demo (relatime; re-arm by os.utime) on a scratch file in work/ -> logs/atime_demo.out
+2026-10-30T11:50:51Z blind_gate.py (read_bs.full_read outcome-blind gate on a synthetic copy root) -> logs/blind_gate.out
+2026-10-30T11:52:13Z read F2 evaluations.npz.copy1 timesteps (count <= S) and early_stopping.py 177-240, checkpoints.py 340-400 (resume seeding)
+
+==================================================================================================================
+FINDINGS (written at the end of the review; labels: [measured] = ran or read, file/line cited; [inferred])
+==================================================================================================================
+VERDICT: ready (no blocking finding in the harness-and-process lens). 4 minor, 6 info.
+
+CHECKED AND HOLDING [measured]
+- Hashes: BS2/SHA256SUMS.txt 19/19 OK; every PINS line of criteria.txt equals its file; bs_hooks.py = BS's (logs/hashes.out).
+- Plan on the real BS2 (no APPROVED): run_waves_bs.sh --plan exit 0, 8 entries in SCREEN order, S 2097152 E 3538944,
+  4 slots nice 10, floors 1,610,612,736 / 2,082,471,936; BS2 listing unchanged (logs/plan_real.out).
+- Preflight on the real BS2: control 2501 and critic_blind_tail3 2531 refused with exactly ["APPROVED: missing"];
+  control 2502 also "not in the queue" (logs/preflight_real.out).
+- Copy root + FAKE APPROVED (work/pin_check.py, logs/pin_check.out): unchanged copy -> preflight [] for all 8 entries,
+  scorer provisional []; one changed byte in criteria.txt, SCREEN.json (_note; queue), run_bs.py, read_bs.py,
+  run_waves_bs.sh, bs_common.py, bs_hooks.py -> preflight refuses with the named pin and the scorer lists it
+  PROVISIONAL; score_bs.py byte -> preflight PASSES (not in TOOL_FILES), scorer PROVISIONAL (2 items); APPROVED
+  code_tree_digest changed -> both catch; APPROVED without score_bs.py -> preflight passes, scorer PROVISIONAL.
+- The real runner in test mode on the copy root (work/runner_cases.sh, logs/runner_cases.out): no APPROVED -> exit 2
+  "no <BS>/APPROVED", nothing created; fake APPROVED + one criteria byte -> the attempt's preflight refuses (exit 2),
+  runner REFUSED, HALTED, no new start, no run folder; relaunch refused while HALTED.
+- Reader outcome-blind gate (work/blind_gate.py, logs/blind_gate.out): 1 of 8 decided -> InputError outcome-blind
+  before the probe is opened; 8 of 8 -> past the gate.
+- Unit tests: 176 passed (logs/pytest.out); nothing in BS2 outside review/ changed since my start marker.
+- CHECK writes no outcome value (validate/v2final/critic_blind_tail3_9201/check.json); run_meta records criteria /
+  SCREEN / APPROVED / five tool sha256, start pair and records sha256 (validate/v2final/control_9201/run_meta.json).
+- P3: 7 cache entries, all keyed and recorded with the current read_bs.py sha256 06f4173d... (reads/_cache).
+- BS (same harness, same length, E off the save grid): every continuation had the evaluation at T (10 episodes) and
+  a final loop row with num_timesteps == T (BS/reads/*/markers.json) -> SEC-CMD / SEC-G / SEC-MARGIN inputs exist.
+- Collapse stop [inferred from code + measured F2 evaluations.npz: 16 evaluations <= S]: detection needs >= 20
+  evaluations (stance.toml l1040) and 10 consecutive observations, one per new evaluation (l1041;
+  early_stopping.py l177-193); 16 seeded + 11 in the window = 27 -> at most 8 observations: it cannot fire in (S, E].
+
+MINOR
+ m1 tmp/<name> holds a live continuation's evaluations.npz (outcome-bearing; EvalCallback's log dir in TMPDIR,
+    train_base.py l799-815, SB3 callbacks.py l424-425/476-490) but is not in the criteria's continuation-file list,
+    and criteria l119-121 tell the coordinator to free space in "tmp/" on a disk pause while runs continue: deleting
+    it crashes the running continuations at their next evaluation [inferred]. BS/tmp/<name>/eval_stage1_*/
+    evaluations.npz (3,962 B each) [measured].
+ m2 P4 not applied anywhere (criteria, runner, NOTES); relatime confirmed (/proc/mounts); a re-read after CHECK is
+    invisible, and re-arming atime (os.utime atime = mtime - 1 ns) makes the next read visible (logs/atime_demo.out).
+ m3 A preflight refusal leaves no run_meta; its cause is only in logs/<name>.attempt<k>.log, which the runner names
+    (logs/runner_cases.out) but criteria l343-349 forbid opening.
+ m4 Nothing before launch checks that APPROVED pins score_bs.py (run_bs preflight ignores it: pin_check M3f/M5); an
+    omission found only at scoring makes every continuation PROVISIONAL for good (APPROVED is never edited).
+INFO
+ i1 Dry checks as asked: --plan lists 8 and launches nothing (it does not check APPROVED by design); the run path refuses.
+ i2 criteria l265, l281-282 cite <BS>/reads/parent_s42/markers.txt for the parent's 3,145,728 values; that file holds
+    1,048,576 and 2,097,152 only (lines 17-18); the values are in <BS2>/validate/v3final/parent_s42/markers.txt l18.
+    "<BS>" means BS in criteria.txt but BS2 in the tools (bs_common.py l17-18): the build checker's M1 misread it.
+ i3 Disk: 2,857,607,168 B free (2.66 GiB) at 11:41Z; ~40 MB per continuation (BS 30-39 MB; BS2's seeded records
+    larger) -> ~2.36 GiB after 8 + reads: above every runner floor, ~0.16 GiB above the agents' 2.2 GB floor.
+ i4 STOPPED cannot occur (see above): criteria l313-314's "possible, if at all, only at 3,407,872" is not right.
+ i5 run_meta records the code digest as the pinned constant and the seal only after the run (code_seal_after).
+ i6 P1/P2 are procedures in the text only; nothing mechanical ties APPROVED to RUNLOG.
+2026-10-30T11:52:52Z findings summary appended; df: 2828238848 B free
+2026-10-30T11:53:00Z rm -rf work/pytest (my pytest basetemp/TMPDIR, inside my folder)

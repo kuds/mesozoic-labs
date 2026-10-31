@@ -1,0 +1,23 @@
+s42: evals 91 eps/eval [10] last 11927552; over-bar eps 249; flagged evals 26; first over-bar 3670016; first flag 3801088; first alarm 3932160
+     statue_settled cols [0, 5]; B -0.0530; fires P1 2244608, S1 2400256, S2 None, S3 1482752
+s60: evals 91 eps/eval [10] last 11927552; over-bar eps 24; flagged evals 0; first over-bar 8126464; first flag None; first alarm None
+     statue_settled cols [0, 5]; B +0.0211; fires P1 3670016, S1 None, S2 None, S3 3670016
+s80: evals 91 eps/eval [10] last 11927552; over-bar eps 119; flagged evals 12; first over-bar 3801088; first flag 4849664; first alarm 5505024
+     statue_settled cols [0, 5]; B +0.0129; fires P1 None, S1 None, S2 None, S3 None
+
+Verdicts on the ANY alarm (positives = runs with an alarm):
+  P1: warned 1/2 ['s42 lead 1687552']; late/miss ['s80 f=None']; false alarms 1/1 ['s60']; true neg [] -> PARTIAL
+  S1: warned 1/2 ['s42 lead 1531904']; late/miss ['s80 f=None']; false alarms 0/1 []; true neg ['s60'] -> PARTIAL
+  S2: warned 0/2 []; late/miss ['s42 f=None', 's80 f=None']; false alarms 0/1 []; true neg ['s60'] -> FAILS
+  S3: warned 1/2 ['s42 lead 2449408']; late/miss ['s80 f=None']; false alarms 1/1 ['s60']; true neg [] -> PARTIAL
+
+Against the first over-bar episode (O1u): lead = first over-bar - firing
+  P1: s42 1425408, s60 4456448, s80 None
+  S1: s42 1269760, s60 None, s80 None
+  S2: s42 None, s60 None, s80 None
+  S3: s42 2187264, s60 4456448, s80 None
+
+Exploratory: trail8 maxima (pre-alarm for positives; whole run to the last eval for negatives; matched windows)
+  s42: pre-alarm max 0.2673; run max 0.2673; max to 2.10/3.15/4.19M (positives cut before alarm) 0.134 / 0.267 / 0.267
+  s60: pre-alarm max None; run max 0.1763; max to 2.10/3.15/4.19M (positives cut before alarm) 0.061 / 0.127 / 0.176
+  s80: pre-alarm max 0.1041; run max 0.1041; max to 2.10/3.15/4.19M (positives cut before alarm) 0.080 / 0.104 / 0.104

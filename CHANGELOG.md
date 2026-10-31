@@ -8,9 +8,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The early-bias probe, the early-warning tests and two critic-blind screens
+  added to the record of the T. rex tail saturation habit: from seed 42's
+  mid-rise state, hiding the tail angle from the critic reduced the tail
+  command (line 2, reduced)** (decisions D-D56 to D-D58;
+  `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md` §9, with its
+  ledger rows L168 to L187, and the appended §29 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
+  status note at its top; `docs/NEXT_STEPS.md` §3, `docs/KNOWN_ISSUES.md`
+  (Update 24 of the T-Rex stance entry and a dated update to the
+  action-saturation entry), `docs/README.md`; evidence in
+  `critic_blind_results/`, `overnight_probes/`, `bias_screen/` and
+  `bias_screen2/` of `docs/investigations/stance_2026_10/`: the run log's lines
+  760 to 801 and the overnight report, the probes' notes, tables and scripts
+  with their verifiers', and each screen's approved criteria, approval, tools,
+  reviews, run records, reading and two independent checks). Records only. A
+  no-training probe found that only the policy-gradient term moves the tail
+  command's mean, that just after seed 42's onset a push carried by the tail's
+  own exploration noise is already there, and that from mid-rise on the
+  critic's bootstrapped value is its source; no loop-only early warning
+  separates the runs that rail from those that park late, and the one warning
+  signal testable on the r9 runs fails there. Two scratch CPU screens of 8
+  continuations each then set the tail angle to 0 at the critic's input only:
+  from 1,048,576 steps the first read line 1, "NOT INFORMATIVE" (the control
+  median rose +0.09184 against the pre-registered 0.10); from 2,097,152 the
+  second read line 2, "REDUCED" (every control above every blinded
+  continuation, p 1/70, though a spread-only effect would give such a
+  separation about 3% of the time; the control median rising +0.46382 against a
+  0.20 gate), each reading agreed by two independent checks. The note's §9 also
+  corrects two early loop gains that its §2, §4.7, §4.11 and §7 give, which
+  came from a sweep reaching the normaliser's clip. A long critic-blind study
+  to 12M steps was chosen next, pending as of 16:32 UTC, where the run-log copy
+  ends; what followed goes to the next records change. No T. rex stance is
+  certified, and nothing trains on `main`.
+- **Decisions D-D56 to D-D58 recorded: an early-bias probe and its follow-ups,
+  two critic-blind screens (the first not informative, the second reduced) and
+  next a long critic-blind study to 12M steps** (the maintainer's decisions of
+  2026-10-30 00:24 UTC to 16:23 UTC in the stance run log;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6). Records only. D-D56: a no-training probe of what first pushes the T.
+  rex tail command up, then, overnight and without asking again, its
+  no-training follow-ups (an early-warning curve of the tail loop among them)
+  and one scratch CPU training screen from seed 42's r10 checkpoint at
+  1,048,576 steps, control against one intervention on the driver the probe
+  names, pinned before launch; the verified probe found the critic's
+  bootstrapped value the push's source from mid-rise on, the session chose to
+  hide the `tail_3` angle from the critic (`critic_blind_tail3`, at its input
+  only), and the screen read line 1, "NOT INFORMATIVE" (its control arm did
+  not rise enough). D-D57: the screen re-run from the 2,097,152 checkpoint,
+  its criteria reviewed and the fixed version re-reviewed, launched with its
+  0.20 gate; it read line 2, "REDUCED": every control continuation ended above
+  every blinded one (p 1/70, the smallest attainable with 4 per arm, though a
+  spread-only effect would give such a separation about 3% of the time),
+  agreed by two independent checks. D-D58: a long critic-blind study, seed 42
+  continued from 2,097,152 steps to 12M, its criteria reviewed and pinned
+  before any training (pending as of 16:32 UTC that day); the second screen's
+  text outputs on a never-merged orphan branch; and this records change.
+  Screen runs certify nothing, nothing trains on `main`, and no gate, reward,
+  plant or criterion changes.
 - **One record of everything tried on the T. rex tail saturation habit, with
   the entropy continuation screen judged, final: line 3, no difference
-  detected** (decision D-D52's amendment and D-D53 to D-D55;
+  detected** (#654; decision D-D52's amendment and D-D53 to D-D55;
   `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md`, with its
   ledger, and the appended §28 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
@@ -47,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the entropy continuation screen read its line 3, no difference detected;
   next, the centre-of-mass follow-ups with a tail clamp test, a normaliser
   probe, three posture tests and one record of everything tried on the T. rex
-  tail saturation habit** (the maintainer's decisions and requests of
+  tail saturation habit** (#654; the maintainer's decisions and requests of
   2026-10-28 21:05 UTC to 2026-10-29 23:21 UTC in the stance run log;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6). Records only. D-D52 is amended with the screen's design, as the

@@ -1,0 +1,200 @@
+BS CRITERIA FIXES -- the fixer of workflow [id removed], 2026-10-30 05:43-06:00 UTC (date -u).
+<BS> = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen
+PY = S2/venv/bin/python (-I -B; OMP_NUM_THREADS=1, nice 10).  S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+NO TRAINING, no optimizer step.  run_bs.py ran only through main(... "--preflight-only") against a temporary root with
+run_bs.run replaced by a function that raises (nothing could start); run_waves_bs.sh was not run.  <BS>/APPROVED was NOT
+written.  Every write is under <BS> (my scripts and outputs in <BS>/review/fixer).  Nothing pushed or merged.
+The five tools (run_bs.py, read_bs.py, run_waves_bs.sh, bs_common.py, bs_hooks.py) and <BS>/code were NOT edited, so V1
+was not re-run (the rule re-runs it only after an edit to them).
+
+Start state: sha256sum -c review/reviewed_sha256.txt -> 9 OK (the files were as the reviewer saw them); sha256sum -c
+SHA256SUMS.txt -> 22 OK; no <BS>/APPROVED, no <BS>/runs.  Copies of the files before my edits: review/fixer/orig/.
+
+==================================================================================================================
+FINDINGS (each checked against the files; verdict, evidence, change)
+==================================================================================================================
+R1 should-fix (gate and test share the control values) -- FIXED.
+   Verified with my own simulation, written independently of review/rv_sim.py (another seed; 60,000 draws per cell;
+   the test as the observed split's position among the 70 sums), review/fixer/fx_sim.py -> fx_sim.out:
+     P(REDUCED | gate passed) under no effect: true rise 0.10: 0.079-0.084; 0.12: 0.052-0.064; 0.15: 0.043-0.051;
+     0.20: 0.043-0.044; 0.231: 0.042-0.043; P(REDUCED) overall 0.040-0.043 in every cell (<= 3/70 within MC error).
+   The reviewer's figures reproduce.  Change: criteria.txt KNOWN LIMITS, a new item with the reviewer's text (values
+   as computed; "A REDUCED read with a control rise below about 0.15 is less secure than its p says").  No tool change.
+
+R2 should-fix (line-3 text overstates what a null rules out) -- FIXED.
+   Verified: score_bs.LINE_TEXT[3] said "not tested: a reduction smaller than about half the rise"; criteria.txt
+   l178-180 and l291-292 the same.  WORK/power_bs.out: P(REDUCED) at 0.10 is 0.32-0.91 (SD 0.10-0.04).  fx_sim.out:
+   at exactly half the parent's rise (0.1156) 0.38-0.96 independent, 0.29-0.64 with a pair effect of SD 0.06; at 0.10,
+   SD 0.06: 0.62 -> 0.38 with the pair effect (= rv_sim (3b)).
+   Changes:
+   - score_bs.py LINE_TEXT[3] and criteria.txt THE READING line 3, word for word: "(not excluded: a reduction of
+     about half the rise or smaller (power about 0.3-0.9 at half the rise, by the between-continuation spread; lower if
+     paired seeds correlate), other inputs that carry the angle, the phase after E, the rail)"; the text adds "A null is
+     not evidence that the critic plays no part (KNOWN LIMITS, power)".
+   - KNOWN LIMITS Power: the figures assume independent continuations; positive pair correlation lowers them (0.62 ->
+     0.38); "A null therefore does not exclude a reduction of about half the rise ... nor any smaller one".
+   - THE TEST, pairing paragraph: pair correlation makes the unpaired test conservative AND lowers its power (size
+     0.044 -> 0.017, power 0.62 -> 0.38 at SD 0.06 / pair SD 0.06) [computed].
+   - Optional parts, both taken: (a) the scorer prints each arm's sample SD of the primaries read beside mean and
+     median, report only (score.json arm_sd_report_only); criteria "Every line prints" names it. (b) the line-3
+     addition is now "(the as-counted p, report only, is <= 0.05; the filled p decides)" (score_bs.ADDITION_AS_COUNTED)
+     instead of "(REDUCED holds only without the n missing continuation(s))".
+   - PINS line, SHA256SUMS.txt and tests refreshed (below).
+
+R3 nit (PREDICTED OUTCOME misquotes RUNLOG 04:21) -- FIXED.
+   Verified: RUNLOG l771 (04:21 UTC): "s42 already has an upward policy-gradient pull on tail_3 carried by its own
+   exploration noise ...; s80 has none then (gets it ~0.8M later)".  criteria.txt said "no critic-bootstrap pull".
+   Change: "although s80 had no upward policy-gradient pull on tail_3 at 1,310,720 (RUNLOG 04:21; it gets one about
+   0.8M later); the critic-bootstrap source is supported only from 2,097,152, ...".
+   (Also corrected in passing: the maintainer's 00:45 UTC entry is RUNLOG l764, not l765; STATUS now cites "RUNLOG
+   00:45 UTC, l764, and from l765".)
+
+R4 nit (outcome-blindness as a deny-list) -- FIXED.
+   Verified: validate/v2final/control_9101/01_stance holds progress.json, evaluations.npz, train_episodes.csv,
+   diagnostics.npz, gate_progress.npz (not named in v1's list); run_meta.json has "collapse": {"consecutive_drops", ...}.
+   validate/v2final/critic_blind_tail3_9101/check.json: items run_meta / evidence / probe (failure lists) and
+   probe_detail (row counts and mismatch counts only): no outcome value.
+   Change: OUTCOME-BLINDNESS is now an allow-list: until all are decided, nobody (person or agent; the pinned tools' own
+   work excepted) opens any file of a continuation (runs/<name>, its _crashed/_void/_refused folders, reads/<name>,
+   the attempt logs) except run_meta's status, exit, stop_reason, heartbeat, last_step, error and traceback (the last
+   two only for a crash's or refusal's cause), check.json's pass/fail, failures, identity and source fields, and
+   logs/<name>.check.log; examples of the outcome-bearing files named; the runner's own records and lost.json may be
+   read.  check.json's failures are kept on the list because RUN HANDLING finds a VOID's cause "from the CHECK record
+   alone".
+
+R5 nit (APPROVED must never change after the first start) -- FIXED.
+   Verified: run_bs.py l731 writes approved_sha256 into run_meta at each start; score_bs.provisional_items compares it
+   with the current APPROVED (l510-513 in v1).
+   Change (HOW THE COORDINATOR PINS): "APPROVED is written once, before the first start, and never edited; its full
+   text and sha256 go into RUNLOG. Every run_meta records APPROVED's sha256 at its start, so a later change to APPROVED
+   (a re-pin, only with the maintainer's word) leaves every continuation started before it PROVISIONAL for good
+   (cleared only by running it again)."
+
+R6 nit (PROVISIONAL branch "markers.json made by another read_bs.py" untested) -- FIXED.
+   Verified: the v1 scorer and v1 tests (review/fixer/orig) on a throw-away copy with that branch disabled ("if
+   False:") -> 43 passed (review/fixer/r6_v1_mutant.out; copy removed).  Change: test_provisional_items gains the case
+   "markers_tool" (one markers.json tool_sha256 rewritten -> the PROVISIONAL item).  The same mutant on v1.1 (M01,
+   review/fixer/fx_mutants.out): KILLED.
+
+R7 nit (a loop-marker failure would make a run LOST) -- FIXED (both remedies).
+   Verified: read_bs.full_read computes probe_markers, ledger_markers and loop_markers before the single markers.json
+   write (l1038-1043); v1's LOST rule covers "the full read refused for a cause in the continuation's own files", which
+   a broken checkpoint in M-LOOP would be.
+   Changes: RUN HANDLING: a full-read failure confined to the report-only loop markers, with the probe and ledger
+   readable, is NOT LOST; it is handled as a tool defect (no line until the maintainer decides the reader's change; a
+   reader change is a pinned-file change, after which the reading stays PROVISIONAL).  KNOWN LIMITS states the risk:
+   unlikely [measured: the ECS, S2/r10round/ecs, logs/decided.tsv 24 of 24 COUNTED, crash_ledger.tsv empty, 24 of 24
+   full reads exit 0 in logs/run_waves_ecs.log; another reader], not excluded.  No tool change.
+
+R8 nit (worst-case training attempts not stated) -- FIXED, with the optional rule taken.
+   Verified: run_waves_bs.sh record_crash (own crashes counted; an EARLY crash, last step < S + 131,072, not counted and
+   halts; a half-way folder at relaunch without status "crashed" not counted), bs_common.MAX_CRASHES = 3,
+   retire_void; a VOID halts the runner and refuses the relaunch (exit 4).
+   Change: RUN HANDLING, new item TRAINING ATTEMPTS: AUTH's "at most 9 continuations" counts the continuations read;
+   each continuation trains at most 3 times through its own crashes (the third makes it LOST); reruns after an EARLY
+   crash, an uncounted half-way restart or a VOID replace attempts that are never read; the screen reads at most 8
+   continuations, each from one completed attempt.  And: every VOID rerun needs the maintainer's word first (RUNLOG),
+   whether or not the fix changes a pinned file (the VOID item now refers to it).
+
+R9 nit (REDUCED could come from a worse critic overall) -- FIXED.
+   Verified: v1 KNOWN LIMITS l275-277 covered only the start-up refit; the scorer already prints returns, falls and
+   CMD_L (report only).  Change: KNOWN LIMITS: "Blinding changes the value function, and so the advantages, for every
+   actuator ... Read a REDUCED with the report-only returns and falls (and CMD_L): if the blind arm also has lower
+   returns or more falls, the reduction may come from a worse critic overall, not from the tail angle."
+
+NOT VALID: none.  All nine findings held against the files.
+
+Beyond the review (found by my own mutation run): a mutant deciding informativeness on the MEAN of the control
+primaries instead of the median survived all tests (every control set in the tests had mean = median; the writer
+reports an "M10 median -> mean" killed, so that was a different edit; its script is not kept).  Added
+test_informativeness_uses_the_median_not_the_mean
+(rises 0.05/0.06/0.07/0.40: median 0.065 not informative though the mean is 0.145; 0.00/0.11/0.12/0.13: median 0.115
+informative though the mean is 0.09).  Mutant M16: KILLED.  Also added test_line_texts_are_the_criteria_text (the
+scorer's three line texts and the line-3 addition appear verbatim, whitespace collapsed, in <BS>/criteria.txt), so the
+text and the scorer cannot drift apart.
+
+==================================================================================================================
+CHECKS (commands and results)
+==================================================================================================================
+1. cd /tmp && PY -I -B -m pytest -q -p no:cacheprovider --basetemp=<BS>/review/fixer/pytest_score
+   <BS>/tools/tests/test_score_bs.py -> 47 passed (43 + markers_tool + SD + median + line texts), none skipped (the
+   B_S test and the line-text test ran).
+2. Whole suite: pytest <BS>/tools/tests (basetemp under review/fixer) -> 119 passed (20.4 s).  bash -n
+   run_waves_bs.sh ok.  ruff (venv-lint, --no-cache --line-length 120 --select E,F,W,B) <BS>/tools -> All checks
+   passed.  criteria.txt: no line over 120 characters.
+3. Mutants: PY -I -B review/fixer/fx_mutants.py <BS> -> 20 of 20 killed (review/fixer/fx_mutants.out): R6 markers tool
+   unchecked; addition dropped; addition old wording; line-3 old wording; SD never computed; SD not printed; ties
+   strict; fill reversed; alpha 0.1; rise strict; decide on as-counted; line order; primary rows shifted; STOPPED
+   counted; blind slope unchecked; median -> mean (after the new test); incomplete reads markers; baseline wrong;
+   probe sha link dropped; own-sha pin unchecked.  Copies under review/fixer/mutants, removed.
+4. Dry run: PY -I -B tools/score_bs.py --root WORK/dryrun_root --out WORK/dryrun_root/score_fixer
+   (> review/fixer/dryrun_score_fixer.out) -> exit 3 (PROVISIONAL: synthetic root); line 3 NO REDUCTION DETECTED;
+   p filled 70/70, as counted 70/70; control median +0.19956, rise +0.23113 (informative); diff against the writer's
+   WORK/dryrun_score.out: only the line-3 text and the two arm lines' new "SD 0.00000 (report only)".
+5. The reviewer's end-to-end scenarios and outcome-blindness audit on the new scorer: review/fixer/fx_endtoend.py
+   (a copy of review/rv_endtoend.py with its scratch folder moved to review/fixer/e2e_tmp, removed after) -> lines
+   2 / 3 / 3 / 3 / 1 with p 3/70, 5/70, 36/70, 36/70, 2/70 as before; the two missing-continuation cases now carry
+   the new addition; audit with one entry undecided: only APPROVED, SCREEN.json, criteria.txt and the 8 check.json
+   opened; "END-TO-END AND AUDIT AGREE WITH THE CRITERIA" (review/fixer/fx_endtoend.out).
+6. The real root: PY -I -B tools/score_bs.py --out <BS>/review/fixer/score_real_root -> exit 3, "STATUS: incomplete
+   (0 of 8 decided ...)"; the only PROVISIONAL item "no <BS>/APPROVED" (so criteria.txt names score_bs.py's sha256,
+   and the code seal was measured and passes); no <BS>/runs or <BS>/score created.
+7. Preflight against the APPROVED form (the task's last check): PY -I -B review/fixer/fx_preflight.py <BS>
+   (review/fixer/fx_preflight.out): a temporary root review/fixer/preflight_root with byte copies of criteria.txt and
+   SCREEN.json and an APPROVED of exactly the form in criteria.txt HOW THE COORDINATOR PINS (criteria_sha256,
+   screen_sha256, code_tree_digest, tool_sha256 with the five tools AND score_bs.py, approved_by, utc);
+   run_bs.bs_root pointed at it in memory, run_bs.run replaced by a raising stub; the UNMODIFIED run_bs.main(["--arm",
+   A, "--seed", N, "--preflight-only"]) for all 8 SCREEN.json entries -> exit 0, "preflight": "pass", problems [] on
+   every one (the real start pair and records at FMAN sha256, the real code seal, stack, M5 pins and disk all
+   checked).  approval_problems() -> [].  Negative controls refused: a wrong bs_hooks.py pin; a criteria_sha256 not the
+   file's.  score_bs.provisional_items on the same root: only "code copy <tmp>/code missing" (the temporary root has
+   no code copy); score_bs.code_seal_items(<BS>/code) -> [].  Temporary root removed; <BS>/APPROVED never written.
+8. sha256sum -c SHA256SUMS.txt -> 22 OK (two lines refreshed: score_bs.py, test_score_bs.py; review/fixer/
+   SHA256SUMS.diff).  sha256sum -c validate/logs/final_tools_sha256_at_launch.txt -> the five tools OK (unchanged).
+   PY -I -B tools/verify_copy.py <BS>/code -> equal_to_pinned true, exit 0.  No __pycache__ in <BS>/tools or <BS>/code.
+9. df -B1 /: 2,643,804,160 bytes free at 05:56 UTC (the runner's launch floor 2,082,471,936).
+
+==================================================================================================================
+FILES CHANGED (old -> new sha256; diffs in review/fixer/)
+==================================================================================================================
+criteria.txt                  7302a26d73d9a39c52506fa84c17472de683d324660e053d67a904315bbda76d
+                           -> 9c490cc6965084456f9ccdd28f92ab6a0047b42f768550787448944e7f59913d   (v2; criteria_v1_to_v2.diff)
+tools/score_bs.py             c284d02b35e34d537ab898b385b23d066a8c5dfaa663aeeda9efaa6e35357119
+                           -> 869898c59439fd7e61aa409b6ed48b1afa48da3b6feec02e26b2c4bf9ff0542b   (1.1; score_bs_1.0_to_1.1.diff)
+tools/tests/test_score_bs.py  65bd5a87876d319282af8249f4ab6ce6bd5023a99b040496bdec62ead0353464
+                           -> 776b72411fa4a1d6f677d27fd5d7007627351a06a9dea39247863eca8755e342   (test_score_bs.diff)
+SHA256SUMS.txt                (two lines) -> 66c2e9f70dc56fbb80455c4e853f1b615416c0424ddba2e6ce6d6c8e4eb8d3db
+SCREEN.json                   unchanged a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf
+criteria.txt PINS now names score_bs.py 869898c5... and test_score_bs.py 776b7241...; SCREEN.json and the five tools'
+lines unchanged.  criteria.txt's other changes: v2 header and STATUS; R1-R9 as above; VALIDATIONS gains an "After the
+review" item; PINS header "when v2 was finished"; END line.
+
+==================================================================================================================
+WHAT THE COORDINATOR PINS IN <BS>/APPROVED (written once, before the first start; never edited)
+==================================================================================================================
+  {"criteria_sha256": "9c490cc6965084456f9ccdd28f92ab6a0047b42f768550787448944e7f59913d",
+   "screen_sha256":   "a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf",
+   "code_tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+   "tool_sha256": {"run_bs.py":       "0a5a98515da81f61a0b9f0b4b278f2eb7ab3df4ebdfef850200b684ca55731ff",
+                   "read_bs.py":      "04036e5361348391f13689182a1b759d616e069bd64f9a20bc0bfcc995c83d02",
+                   "run_waves_bs.sh": "13fb61829ce3d5ba878a804b765a5ddf3927531af9ff8dcbceb9da0b122a027a",
+                   "bs_common.py":    "3b3727e29b66f5b31f14d50af5a682448e46fc5e160069fb463abc03ecebf024",
+                   "bs_hooks.py":     "1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc",
+                   "score_bs.py":     "869898c59439fd7e61aa409b6ed48b1afa48da3b6feec02e26b2c4bf9ff0542b"},
+   "approved_by": ..., "utc": ...}
+  Re-measure each with sha256sum just before writing (the values above are those at 05:56 UTC).  Not pinned in
+  APPROVED but named by criteria.txt PINS: tools/tests/test_score_bs.py 776b7241...; the F2 probe 4e0e7220...; M5 /
+  M1-common pins (bs_common.PIN_SHA256).  Then: RUNLOG gets APPROVED's full text and sha256 and criteria.txt's
+  sha256; run_bs.py --preflight-only for one entry on the real <BS> (expected exit 0, as measured in check 7);
+  run_waves_bs.sh --plan; launch per SCAF HOW TO LAUNCH step 5.
+
+==================================================================================================================
+OPEN ITEMS
+==================================================================================================================
+O1 Nothing in criteria.txt, score_bs.py, test_score_bs.py or SCREEN.json may change after APPROVED is written; any
+   change to criteria.txt or score_bs.py changes its sha256 (and score_bs.py's sha256 must then be refreshed in
+   criteria.txt PINS, SHA256SUMS.txt and APPROVED together).
+O2 The reviewer's "collapse accepted at T = E" mutant (harmless: run_bs names that stop "end" and CHECK refuses it) was
+   not given a test; not a finding to fix.
+O3 review/fixer/orig/ keeps the v1 files (criteria.txt, score_bs.py, test_score_bs.py, SCREEN.json, SHA256SUMS.txt);
+   WORK/dryrun_root/score_fixer and review/fixer/score_real_root are scorer outputs from checks 4 and 6.

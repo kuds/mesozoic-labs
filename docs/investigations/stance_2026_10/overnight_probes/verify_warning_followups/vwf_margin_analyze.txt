@@ -1,0 +1,51 @@
+1. Own re-derivation of M_bias from warning_margin/episodes.jsonl (raw rows; own threshold code)
+  s80  10485760: n seeds 20; M_bias 0.5156; M_obs inf; obs12 parked 0/20; episodes 195; terminated 0
+  s80  11534336: n seeds 20; M_bias 0.3281; M_obs inf; obs12 parked 0/20; episodes 195; terminated 0
+  s80  12001280: n seeds 20; M_bias 0.2969; M_obs inf; obs12 parked 0/20; episodes 195; terminated 0
+  s60   6291456: n seeds 20; M_bias 0.7031; M_obs inf; obs12 parked 0/20; episodes 195; terminated 0
+  s60   7340032: n seeds 20; M_bias 0.2031; M_obs 4.0312; obs12 parked 15/20; episodes 300; terminated 0
+  s42   2097152: n seeds 20; M_bias 1.0938; M_obs inf; obs12 parked 0/20; episodes 195; terminated 0
+  s42   3145728: n seeds 20; M_bias 0.2812; M_obs inf; obs12 parked 0/20; episodes 195; terminated 0
+
+2. b*_P exact (ew_series.csv: 1 - G_own - c0_own) and the rank fragility
+  s80  10485760: G +0.02846 c0 +0.46604 b*_P 0.50550; M 0.5156
+  s80  11534336: G +0.19890 c0 +0.49961 b*_P 0.30149; M 0.3281
+  s80  12001280: G +0.27256 c0 +0.48613 b*_P 0.24131; M 0.2969
+  s60   6291456: G -0.07144 c0 +0.28750 b*_P 0.78394; M 0.7031
+  s60   7340032: G +0.31263 c0 +0.48970 b*_P 0.19767; M 0.2031
+  s42   2097152: G -0.63639 c0 +0.23771 b*_P 1.39868; M 1.0938
+  s42   3145728: G +0.34893 c0 +0.41142 b*_P 0.23965; M 0.2812
+  Spearman(M, b*_P) = +1.000
+  bootstrap over seeds: P(rho = 1.000) 0.366; rho 2.5/50/97.5% [0.893, 0.991, 1.0]
+  bstar_S: point rho +0.964; bootstrap P(rho=1) 0.253; median +0.964
+  bstar_L: point rho +0.964; bootstrap P(rho=1) 0.253; median +0.964
+
+3. Paired (same seeds) bootstrap of differences in M (s80 vs pre-FOB)
+  M('s80', 12001280) - M('s42', 3145728) = +0.0156, paired 95% [-0.0312, +0.0312]
+  M('s80', 11534336) - M('s42', 3145728) = +0.0469, paired 95% [+0.0000, +0.0781]
+  M('s80', 12001280) - M('s60', 7340032) = +0.0938, paired 95% [+0.0469, +0.1406]
+  M('s80', 11534336) - M('s80', 12001280) = +0.0312, paired 95% [+0.0156, +0.0469]
+  M('s80', 10485760) - M('s80', 11534336) = +0.1875, paired 95% [+0.1719, +0.2188]
+  Q1 ('s80', 11534336): M 0.3281 vs cut 0.3312 (margin +0.0031); bootstrap P(AS CLOSE) 0.664
+  Q1 ('s80', 12001280): M 0.2969 vs cut 0.3312 (margin +0.0344); bootstrap P(AS CLOSE) 0.986
+
+4. Own re-run vs original, same seeds (3042-3061): per-seed T_s and every shared episode
+  shared episodes 360; identical railed count and parked flag 360; max |window command diff| 0.00e+00
+  s80  11534336 [held-out seeds 4001-4020]: n 20; M 0.3750 boot95 [0.3281, 0.3906]; median T 0.3594; obs12 parked 0/0; terminated 0
+  s80  12001280 [same seeds 3042-3061]: n 20; M 0.2969 boot95 [0.2500, 0.3281]; median T 0.2891; obs12 parked 0/20; terminated 0; per-seed T_s identical to original 20/20
+  s80  12001280 [held-out seeds 4001-4020]: n 20; M 0.3438 boot95 [0.2969, 0.3750]; median T 0.3281; obs12 parked 0/0; terminated 0
+  s60   7340032 [held-out seeds 4001-4020]: n 20; M 0.1875 boot95 [0.1875, 0.2031]; median T 0.1875; obs12 parked 0/0; terminated 0
+  s42   3145728 [same seeds 3042-3061]: n 20; M 0.2812 boot95 [0.2656, 0.3281]; median T 0.2812; obs12 parked 0/20; terminated 0; per-seed T_s identical to original 20/20
+  s42   3145728 [held-out seeds 4001-4020]: n 20; M 0.3281 boot95 [0.2656, 0.3594]; median T 0.3203; obs12 parked 0/0; terminated 0
+
+5. Held-out seeds: pre-registered verdicts recomputed (Q1 rule; C1 tolerance; ranking among the available rows)
+  Q1 held-out ('s80', 11534336): M 0.3750 vs max pre-FOB 0.3281 + 0.05 -> AS CLOSE
+  Q1 held-out ('s80', 12001280): M 0.3438 vs max pre-FOB 0.3281 + 0.05 -> AS CLOSE
+  C1 held-out ('s80', 11534336): M 0.3750 b*_P 0.3015 err +0.0735 match False
+  C1 held-out ('s80', 12001280): M 0.3438 b*_P 0.2413 err +0.1024 match False
+  C1 held-out ('s60', 7340032): M 0.1875 b*_P 0.1977 err -0.0102 match True
+  C1 held-out ('s42', 3145728): M 0.3281 b*_P 0.2397 err +0.0885 match False
+  held-out ranking: M order [('s60', 7340032), ('s42', 3145728), ('s80', 12001280), ('s80', 11534336)]; b*_P order [('s60', 7340032), ('s42', 3145728), ('s80', 12001280), ('s80', 11534336)]
+  held-out paired M('s80', 12001280) - M('s42', 3145728) = +0.0156, 95% [-0.0312, +0.0312]
+  held-out paired M('s80', 12001280) - M('s60', 7340032) = +0.1562, 95% [+0.0938, +0.1875]
+  held-out paired M('s80', 11534336) - M('s80', 12001280) = +0.0312, 95% [+0.0156, +0.0469]

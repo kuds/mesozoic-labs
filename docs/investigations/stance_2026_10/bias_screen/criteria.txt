@@ -1,0 +1,380 @@
+T. REX r10 BIAS SCREEN (BS): CRITIC BLIND TO THE TAIL_3 ANGLE AGAINST CONTROL, FROM STANCE6 s42's 1,048,576 STATE, CPU,
+SCRATCH.  CRITERIA v2 -- REVIEWED AND FIXED, FOR PINNING.  NOT APPROVED.  NOTHING TRAINS UNTIL <BS>/APPROVED EXISTS.
+
+STATUS: v2. v1 written 2026-10-30 05:00-05:45 UTC (date -u) by the criteria writer of workflow wf_4d69bd40-35d; then
+an independent review (<BS>/review/NOTES.txt: nothing blocking, 2 should-fix, 7 nits) and the fixer's changes for
+every finding, from 05:45 UTC (<BS>/review/FIXES.txt); under the maintainer's overnight authorisation (FOLLOW_UPS
+last entry, 2026-10-30 00:5x UTC, item (b); RUNLOG 00:45 UTC, l764, and from l765) and the coordinator's choice of the
+intervention (RUNLOG 2026-10-30 04:22 UTC). Nothing was trained to write it; no optimizer step was made; run_bs.py and
+run_waves_bs.sh ran only in their no-op check modes (--preflight-only: refused on the real <BS>, which has no
+APPROVED, and passing against a temporary root under <BS>/review/fixer; --plan), which start and train nothing. Once
+reviewed it is pinned byte for byte by its sha256 in <BS>/APPROVED (and RUNLOG), and it is not edited after the first
+optimizer step. Every number is labelled: [measured] = read or computed from the named file; [inferred] = reasoned,
+basis named; [computed] = computed by the named script.
+
+SHORT NAMES
+  S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  <BS> = S2/r10round/bias_screen (every file the screen writes is under it)    RUNLOG = S1/foot/stance4/live/run_log.txt
+  AUTH = S2/r10round/FOLLOW_UPS.txt, last entry          SCAF = <BS>/NOTES.txt (the scaffold build: V1, V2, V3)
+  F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies (read only)      FMAN = S1/foot/stance6/fetch/manifest.csv
+  EB = S2/com_revisit/notes/early_bias (eb_summary.txt, eb_realized.txt)  VEB = S2/com_revisit/notes/verify_early_bias
+       (vb_aggregate.txt, vb_realized.txt). Neither folder has a NOTES.txt; RUNLOG 03:45 and 04:21 UTC summarise them.
+  ECSC = S2/r10round/ecs/criteria.txt (the entropy screen's approved criteria: the form followed here)
+  PARENT = <BS>/reads/parent_s42/markers.{json,txt} (read_bs.py --reference: the parent over the same window)
+  WORK = <BS>/scratch/criteria_work (this text's own computations: power_bs.py/.out, ecs_spread.py/.out, the dry run)
+  Steps = training steps. S = 1,048,576. E = 2,490,368. T = a continuation's end step: E, or its stop step if STOPPED.
+  "blind" = the arm critic_blind_tail3.
+
+THE QUESTION
+- The early-bias probe, as verified (VEB; RUNLOG 04:21 UTC): at 1,310,720 s42 already has an upward policy-gradient
+  pull on tail_3 carried by its own exploration noise, with the critic's slope on the tail angle positive; from
+  2,097,152 a critic-bootstrap source is supported on the on-policy rows (GAE-MC +0.0037, t 3.7), unresolved at the
+  onset and not supported on the statue_settled state.
+- QUESTION: from s42's 1,048,576 state (before the rise), does removing the tail_3 angle from the critic's input
+  (the normalised observation 6 set to 0 before the value network only; the actor untouched) lower the on-policy
+  tail_3 command the policy reaches over the last 8 updates before E, relative to control? One-sided: lower.
+- PREDICTED OUTCOME, stated before anything runs [inferred]: NO REDUCTION DETECTED is the likelier line. The early
+  rise came in s42 and s80 alike over 1,048,576-2,097,152 (on-policy mu14 -0.006 -> +0.151 and -0.015 -> +0.150, EB
+  eb_realized.txt) although s80 had no upward policy-gradient pull on tail_3 at 1,310,720 (RUNLOG 04:21; it gets one
+  about 0.8M later); the critic-bootstrap source is supported only from 2,097,152, the window's last 0.39M steps.
+
+WHAT IS TRAINED
+- Start: the r10 stance6 s42 checkpoint pair at S = 1,048,576 (F2 .copy1 files at FMAN sha256 [measured, SCAF step 2]):
+  zip 0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80, pkl
+  52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb; with the parent's five records (eval_episodes.csv,
+  evaluations.npz, gate_progress.npz, train_episodes.csv, policy_probe.npz) and stage_config.json, byte-copied and
+  checked against FMAN before use. The tail_3 normaliser at S: mean -0.061 deg, SD 0.381 deg [measured, SCAF step 3].
+- Window: (S, E], E = S + 1,441,792 = 2,490,368 (at most 1.5M steps, AUTH): 176 rollouts of 8,192 steps, 175 updates,
+  11 evaluations of 10 deterministic episodes at 1,179,648 ... 2,490,368, checkpoint pairs at 1,310,720, 1,572,864,
+  1,835,008, 2,097,152, 2,359,296 and the final pair (stage1_final) at E [measured, bs_common.py].
+- ARMS (bs_common.ARM_CHANGE, recorded verbatim in each run_meta.json):
+    control: nothing; the run's own same-stage resume, every setting as recorded.
+    critic_blind_tail3: the value path only. The policy's mlp_extractor gets a forward_critic that sets the NORMALISED
+      observation index 6 (qpos tail_3 pitch angle) to 0.0 before the value MLP (bs_hooks.critic_blind_class). Every
+      value path of SB3 2.9.0 goes through it (forward, evaluate_actions, predict_values; MirrorKLPPO's mirrored-critic
+      loss and collect_rollouts' bootstraps call predict_values). The actor reads the unchanged features; no parameter,
+      shape, optimizer state or saved-file format changes. The observation mirror map keeps index 6 in place with sign
+      +1, so the mirrored critic is blind to the same input [measured, SCAF V1, V2].
+- HELD EQUAL in both arms (the run's stage_config.json.copy1, hyperparameters_sha256 054ab483...): physics r10, reward,
+  task, gate, policy interface; MirrorKLPPO (kappa 0.3, mirror critic on, sigma floor 0.01); net_arch [512, 256],
+  log_std_init -1.5; learning rate 3e-5 -> 1e-5 on the cumulative step (_total_timesteps 12,000,000: 2.825e-5 at S,
+  2.585e-5 at E [computed]); ent_coef 0.005 -> 0 by 7,000,000 (0.00425 at S, 0.00322 at E [computed]); n_steps 2048 x 4
+  envs, batch 128, 10 epochs, gamma 0.98, gae_lambda 0.95, clip 0.2, target_kl 0.03; VecNormalize updating (both obs
+  and return statistics, as the run); the evaluation and checkpoint cadence; the collapse stop (patience 10); StopAtEnd
+  at E; the code copy <BS>/code (commit 8737cd3d, tree digest 331fe8fc..., 1,406 files, never edited); the stack
+  (Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, SB3 2.9.0, MuJoCo 3.10.0); CPU, torch / OMP / MKL
+  threads 1, DummyVecEnv, nice 10; the same harness (run_bs.py) and the same seeds per pair (below).
+- Named departures from the parent run, the same in both arms (as ECSC's): CPU, not the L4's CUDA; a fresh env reset
+  at S; the parent's update on the rollout ending at S is not made (the first update is at S + 8,192); new random
+  streams, so control is a fresh draw, not a replay; a freshly seeded evaluation env; the in-run K3 panel off.
+- THE QUEUE (<BS>/SCREEN.json, pinned): 4 control + 4 critic_blind_tail3 = 8 continuations (at most 9, AUTH), with
+  paired seeds 2101, 2111, 2121, 2131, each seed once in each arm, in this launch order:
+    control 2101, blind 2101, control 2111, blind 2111, control 2121, blind 2121, control 2131, blind 2131.
+  Interleaved so an interruption leaves both arms equally advanced; with 4 slots the first four start together and the
+  rest as slots free. Each seed goes to the model and training env 0 (seed), envs 1-3 (seed + rank) and the
+  evaluation env (seed + 1000): 2101-2104 + 3101, ..., 2131-2134 + 3131 [computed, bs_common.derived_seeds]; none is a
+  validation seed (9101-9141), M1's 3042-3061, or the reader's 5001-5010 and 9301-9305. A pair shares its env seeds,
+  so the two arms see the same first rollout and differ from the first update on (SCAF V2: env side identical with
+  no update).
+  Why 4 + 4 and not 9: 4 + 4 fills two waves of 4 slots (about 2.5 h); a ninth continuation would add a third wave
+  (+about 75 min) and an unpaired seed for a smaller p floor (1/126 at 5 + 4 against 1/70); at alpha 0.05 both need
+  near-complete separation. The ninth slot of AUTH is left unused; it is not a reserve (SCREEN.json is pinned).
+
+WHERE AND HOW
+- This container's CPU (4 cores). No Drive, no GitHub, no push by the screen. 0 L4-hours.
+- Harness: <BS>/tools/run_bs.py (one continuation; preflight refuses without APPROVED pinning this text, SCREEN.json,
+  the code digest and the five tools); runner <BS>/tools/run_waves_bs.sh (SCREEN.json's queue, 4 at a time at nice 10,
+  outcome-blind); reader <BS>/tools/read_bs.py (--check, then the markers once all are decided); scorer
+  <BS>/tools/score_bs.py (this text's reading). Launch: SCAF HOW TO LAUNCH, steps 3-5.
+- Outputs: <BS>/runs/<arm>_<seed>/, <BS>/reads/<arm>_<seed>/markers.{json,txt}, <BS>/lost.json, <BS>/logs/,
+  <BS>/score/score.{json,txt}.
+- Disk: a fresh queue starts only with at least 2,082,471,936 bytes free (1.5 GiB + 9 x 50 MiB, the runner's launch
+  floor); before each start at least 1,610,612,736 bytes (1.5 GiB): below it the runner pauses (logs/PAUSED_disk), the
+  running ones go on, and it resumes by itself. 2,663,821,312 bytes were free at 05:19 UTC [measured, df -B1 /]. If it
+  pauses, the coordinator frees space inside <BS> only (validate/v1final and v2final, 140 MB, after copying their
+  run_meta.json / check.json / read/ into a records folder; tmp/), never a continuation's file, and reads nothing of
+  any outcome while doing so.
+
+THE MANIPULATION CHECK (per rollout; it decides VOID, never the reading)
+- CHECK (read_bs.py --check, run by the runner as each continuation exits) passes only if, on every one of the 175
+  rollouts (arm_evidence.jsonl: one line per rollout end at S + 8,192 k, its summary equal to run_meta's), bs_hooks.
+  evidence_problems finds the arm's signature and no other's:
+    critic_blind_tail3: the critic's output through predict_values, forward, evaluate_actions and the mirrored
+      observations changes by exactly 0.0 when the normalised observation 6 is perturbed three ways (+1, sign flip,
+      set to 3) on the buffer's first 256 rows; the buffer's values equal the run's (blinded) critic and differ from
+      the unblinded value MLP by more than 1e-5 x the value scale on every rollout (the blinded critic made them);
+    control: the critic's output changes with observation 6 on every rollout (min > 0); classes stock;
+    both: the actor's mean changes with observation 6 (the actor is not blinded); gae_lambda 0.95 in model and buffer;
+      the advantages equal an independent GAE(0.95) recomputation (relative 1e-4) and differ from the lambda-1 one;
+      buffer returns = advantages + values; the observation statistics move every rollout.
+  And on run_meta / the probe: the hook class (CriticBlindTail3MlpExtractor / MlpExtractor) at the load and "in force"
+  at the end; 175 probe rows exactly at S + 8,192 k with ent_coef and learning_rate equal (float32) to the parent's F2
+  probe at the same step; parameters changed and n_updates grew; the code seal unchanged; start pair and records at
+  FMAN sha256; stop reason "end" at E or "collapse" at T < E.
+- That the control arm is untouched was shown before launch (SCAF V2, same seed, train() a no-op): control vs blind
+  identical on the env side on 31/31 rollouts, ledger and probe actions identical, only the values (and SB3's
+  time-limit bootstrap in the rewards) differ.
+- The scorer prints each COUNTED continuation's evidence summary (run_meta arm_evidence) and refuses (input error)
+  markers whose critic form is not the arm's or whose blind-arm effective critic slope on observation 6 is not 0.0.
+
+THE PRIMARY OUTCOME (one; chosen before any continuation runs)
+- PRIMARY = the on-policy tail_3 command over the last 8 updates before E: the arithmetic mean, over the 8 policy-probe
+  rows with update_timesteps 2,424,832, 2,433,024, 2,441,216, 2,449,408, 2,457,600, 2,465,792, 2,473,984 and
+  2,482,176 (the window's last 8 rows; rows 168-175 of 175), of rollout_mu_mean[:, 14]: per row, the mean over that
+  rollout's 8,192 buffer states (2,048 steps x 4 envs, their own normalised observations) of the actor's deterministic
+  mean for action 14 (tail_3_pitch_act; the raw, unclipped Gaussian mean, policy.get_distribution(obs).mode()), taken
+  at the rollout's end before its update, i.e. by the networks after updates 167 ... 174 (policy_probe.py
+  _rollout_means / rollout_action_shares).
+- From the records: read_bs.py's markers.json, probe.steps and probe.rollout_mu14_mean (the float32 column widened to
+  float64); score_bs.py takes the 8 values at those steps and averages them in exact rational arithmetic. Each of the
+  8 steps must appear exactly once with a finite value, else the primary is UNREADABLE (RUN HANDLING).
+- Why this and not the statue_settled 8-row trailing mean at E: the records carry it (every probe row has it: the
+  parent's 175 rows over the window are all finite [measured, PARENT]); it is where the verified probe found the
+  critic-bootstrap source supported (on-policy rows, from 2,097,152), while on the statue_settled state it was not
+  supported (VEB; RUNLOG 04:21); and it averages 65,536 visited states instead of two bank states. The statue_settled
+  reading is printed beside it, report only.
+- The parent's own values, for reference (not an outcome of this screen) [measured, PARENT; the F2 probe]:
+  B_S = -0.03157372563146055, the mean of the parent's rollout_mu_mean[:, 14] over its 8 rows with update_timesteps
+  991,232 ... 1,048,576 (rows 120-127, the 8 rows ending at S; F2 policy_probe.npz.copy1 sha256 4e0e7220...): the
+  primary's form at S, the same for every continuation (one start). The parent's primary at E: +0.19956 (a rise of
+  +0.23113 from B_S); its own first 8 window rows -0.0332. Its statue_settled tail_3 mean -0.093 (S + 8,192) -> +0.215
+  (E - 8,192), 8-row trailing line 0.15 first crossed at 2,244,608; ledger CMD_L -0.025 (1,179,648) -> +0.255
+  (2,490,368), no flag, no over-bar episode.
+
+THE TEST (pre-registered)
+- An exact unpaired permutation test, one-sided (the blind arm lower), alpha 0.05. Statistic: the difference of arm
+  means, control minus blind (with 4 per arm, equivalently the control arm's sum). p = the share of the C(8, 4) = 70
+  ways to choose 4 of the 8 primaries as "control" whose statistic is at least the observed one (the observed split
+  included; a tie counts against the reading). Exact rational arithmetic on the recorded values: two sums tie only if
+  equal as exact rationals of the recorded doubles (score_bs.perm_test).
+- Minimum attainable p = 1/70 = 0.0143 (the observed split strictly above all others, e.g. complete separation).
+  Attainable p <= 0.05: 1/70, 2/70, 3/70 (0.0429); 4/70 = 0.0571 is not. Size under exchangeable continuous values:
+  3/70 = 0.0429 [computed, WORK power_bs.out].
+- Beside it, report only (never a line): the four paired differences control - blind (same seed), their exact
+  one-sided sign-flip p (16 sign vectors; minimum 1/16 = 0.0625, so it can never reach 0.05), and the as-counted p.
+- Pairing and the unpaired test: if the shared env seeds correlate a pair positively, splitting each pair across the
+  arms makes the unpaired test conservative and also lowers its power; with no correlation it is exact. [computed,
+  normal model, review/rv_sim.out (3), (3b) and review/fixer/fx_sim.out: with a pair effect of SD 0.06 and each
+  continuation's own SD 0.06, the size under no effect falls from 0.044 to 0.017, and P(REDUCED) at a reduction of
+  0.10 falls from 0.62 to 0.38.]
+- THE FILL (missing never helps the hypothesis): a MISSING control primary counts as -infinity and a MISSING blind
+  primary as +infinity (compared infinite part first). This is the supremum of p over every value the missing ones
+  could have had (p cannot fall as a blind value rises or a control value falls), so a fill never makes REDUCED
+  easier than the complete data would. With 4 per arm any single MISSING continuation gives p >= 36/70 = 0.514, so
+  REDUCED cannot be read once one is missing; the as-counted p is then printed (report only).
+
+THE INFORMATIVENESS CONDITION (on the control arm)
+- The control arm must reproduce the early rise: the median of the control primaries that were read (COUNTED and
+  readable), minus B_S, must be at least 0.10 (inclusive, exact). 0.10 is 43% of the parent's +0.231 rise over the
+  same window; a control median below it means the continuations did not rise enough for a reduction to be measured
+  against [inferred]. No control primary read: not informative.
+- [computed, WORK power_bs.out, normal model] P(not informative) is 0.000-0.007 if the control arm's true mean rise is
+  the parent's 0.231 with between-continuation SD 0.04-0.10, 0.000-0.031 at a true rise of 0.20, 0.010-0.186 at 0.15
+  and 0.50 at 0.10.
+
+THE READING (the first line that applies)
+  1. NOT INFORMATIVE: "NOT INFORMATIVE: THE CONTROL ARM DID NOT REPRODUCE THE EARLY RISE OF THE ON-POLICY TAIL_3 COMMAND
+     (its median primary rose by less than 0.10 from the value at S, or no control primary was read); no reading about
+     the critic is made". If the filled p is <= 0.05 it adds "(the filled p is <= 0.05, but the control arm did not
+     rise: no reading about the critic)".
+  2. REDUCED (filled p <= 0.05): "REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY
+     TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 1,048,576 STATE (exact one-sided permutation test,
+     p <= 0.05)".
+  3. NO REDUCTION DETECTED: "NO REDUCTION DETECTED IN THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E FROM
+     BLINDING THE CRITIC TO THE TAIL_3 ANGLE (not excluded: a reduction of about half the rise or smaller (power about
+     0.3-0.9 at half the rise, by the between-continuation spread; lower if paired seeds correlate), other inputs
+     that carry the angle, the phase after E, the rail)". When the as-counted p is <= 0.05 and the filled one is not,
+     it adds "(the as-counted p, report only, is <= 0.05; the filled p decides)". A null is not evidence that the
+     critic plays no part (KNOWN LIMITS, power).
+- Every line prints: the 8 primaries (or MISSING and its cause, with the fill), each arm's n, mean, median and SD
+  (the sample SD of the primaries read, report only: it places the power in KNOWN LIMITS), the difference of means,
+  the control rise from B_S, the filled p (decides) and the as-counted p, the paired differences and their sign-flip
+  p, the manipulation summary per continuation, the report-only readings, the MISSING list and any PROVISIONAL item.
+- REPORT ONLY, never tested, no line depends on them (score_bs.report_only):
+    the statue_settled offset: the probe's statue_settled tail_3 command over the last 8 rows, its 8-row trailing mean
+      at the last row and maximum, and its first crossings of 0.10 / 0.14 / 0.15 / 0.16;
+    the ledger: CMD_L per evaluation (at T and the maximum), M5's ANY / TAIL flags and alarms, C6 counting failures,
+      the first tail over-bar evaluation and the first CMD_L >= 0.30 / 0.60 / 0.90;
+    at each saved pair (S, the periodic pairs, the final pair at E): G, c0, the margin b* = 1 - G - c0, G_L, b*_L,
+      own14, REF G (the early-warning sweep and its verifier's additions, read_bs M-LOOP);
+    the critic's slope on observation 6 (per degree of tail angle) on the on-policy, OWN and REF states, effective and
+      raw (for the blind arm the effective slope is 0 by construction and the raw one is the blinded MLP's own
+      weights, which act on nothing);
+    returns (ledger mean return per evaluation and over the window) and falls (ledger episodes not at full horizon;
+      the reader's own rollouts terminated), std of action 14, the tail_3 normaliser, the on-policy mean over the
+      window's first 8 rows.
+  Arm medians of these are printed too. None is a test.
+
+RUN HANDLING (as the runner and reader implement it; no Colab rule carries over)
+- Fails stay fails. No continuation is stopped, changed, extended or rerun because of an outcome.
+- COUNTED: CHECK passed, stop reason "end" at E. Its primary is read from its markers.
+- STOPPED: CHECK passed, stop reason "collapse" (the run's own collapse stop, patience 10) at T < E; possible only at
+  the window's 10th evaluation, 2,359,296 [inferred, ECSC RUN HANDLING]. It has no rows before E: MISSING, filled.
+- UNREADABLE: a COUNTED continuation whose 8 primary rows are not each present once with a finite value: MISSING,
+  filled, cause printed.
+- CRASH: the process died (an exception, out of memory, killed) or a container restart left it half-way. The folder
+  becomes runs/<name>_crashed<k>, kept and never read; the continuation reruns at once from its start pair with the
+  same seed and arguments, and the rerun is the continuation. An EARLY crash (last step run_meta records below
+  S + 131,072, or none) is not counted toward LOST and halts new starts until the coordinator has found the cause from
+  run_meta's error and traceback alone and fixed it.
+- LOST: a third crash of its own (the runner writes <BS>/lost.json), or the full read refused for a cause in the
+  continuation's own files (its probe or ledger unreadable; the coordinator writes it to lost.json with the cause and
+  records it in RUNLOG). MISSING, filled. A full-read failure caused by read_bs.py itself is a tool defect: no line is
+  read until it is fixed (the maintainer's word and a re-pin if a pinned file changes) and every continuation is read
+  again. read_bs.py writes markers.json only after the report-only loop markers (M-LOOP: simulations from the saved
+  checkpoint pairs); a full-read failure confined to them, with the continuation's probe and ledger readable, is NOT
+  LOST (the primary needs only the probe): it is handled as a tool defect (above), so no line is read until the
+  maintainer has decided the reader's change; a reader change is a pinned-file change, after which the reading stays
+  PROVISIONAL (WHEN THE READING IS MADE).
+- TRAINING ATTEMPTS (the authorisation's "at most 9 continuations" counts the continuations read, not the processes
+  started): each continuation trains at most 3 times through crashes of its own (the third makes it LOST); a rerun
+  after an EARLY crash, after a container restart that left it half-way without the status "crashed" (not counted),
+  or after a VOID replaces an attempt that is never read. Whatever the attempts, the screen reads at most 8
+  continuations, each from one completed attempt. Every VOID rerun needs the maintainer's word first (RUNLOG), whether
+  or not the fix changes a pinned file.
+- VOID: CHECK fails (the manipulation check included), or exit 5 with CHECK failing. The folder becomes
+  runs/<name>_void<k>, kept and never read; the runner starts nothing new and halts (logs/HALTED). The cause is found
+  from the CHECK record alone and fixed; then, with the maintainer's word (TRAINING ATTEMPTS), the voided continuation
+  reruns from its start pair under its seed (and, if the fix changes a pinned file, every continuation run before the
+  fix). A fix that changes a pinned file or this text needs the maintainer's word and a re-pin first. Unfixed, the
+  screen reads VOID: no line, and any rerun is a new pre-registration.
+- REFUSED by preflight (exit 2, before any optimizer step): fixed and restarted under the same name; a pinned-file
+  change needs the maintainer's word and a re-pin; unfixed, VOID.
+- The runner is restarted only by the coordinator (after a container restart or a fixed halt); it re-reads its
+  ledgers (logs/decided.tsv, crash_ledger.tsv, lost.json). Wall time depends on other processes on the 4 CPUs; with
+  one torch thread per process and fixed seeds, contention changes the wall clock only [inferred].
+
+OUTCOME-BLINDNESS
+- An allow-list. Until every queue entry is decided (COUNTED, STOPPED or LOST) and none is VOID, nobody (no person and
+  no agent; the pinned tools' own work, run_bs.py and CHECK, excepted) opens any file of a continuation (runs/<name>
+  and every runs/<name>_crashed<k> / _void<k> / _refused<k>, reads/<name>, logs/<name>.attempt<k>.log) except:
+  run_meta.json's fields status, exit, stop_reason, heartbeat, last_step, error and traceback (the last two only to
+  find a crash's or a refusal's cause); check.json's pass / fail with its failures list and its identity and source
+  fields (CHECK's record, which carries no outcome value), and logs/<name>.check.log (the same pass / fail and
+  failures). Everything else is outcome-bearing or may be (for example
+  01_stance/progress.json, evaluations.npz, train_episodes.csv, eval_episodes.csv, diagnostics.npz,
+  gate_progress.npz, policy_probe.npz, the checkpoints, arm_evidence.jsonl, run_meta's other fields such as collapse,
+  the attempt logs, which print evaluation returns) and is not opened. The runner's own records (logs/run_waves_bs.log,
+  decided.tsv, crash_ledger.tsv, PAUSED_disk, HALTED, proctable.log, run_waves_bs.exit) and <BS>/lost.json may be read.
+  The runner reads only exit codes, run_meta's status / exit / stop_reason / heartbeat / last_step and CHECK's exit
+  code; the coordinator's watcher reads only logs/run_waves_bs.log. read_bs.py refuses a continuation's markers until
+  all are decided; score_bs.py, while any entry is undecided or unread, prints only which are decided and opens no
+  markers and no run_meta.
+
+WHEN THE READING IS MADE
+- Once all 8 are decided and none is VOID, the runner writes logs/ALL_DECIDED and runs read_bs.py's full read of each
+  COUNTED or STOPPED one (4 at a time); then the coordinator runs
+      cd /tmp && S2/venv/bin/python -I -B <BS>/tools/score_bs.py
+  which writes <BS>/score/score.json and score.txt (exit 0 final, 3 provisional or incomplete, 2 input error).
+- PROVISIONAL (printed, not acted on) while any of: <BS>/APPROVED missing or not pinning, exactly, this text's sha256,
+  SCREEN.json's, the code tree digest and the five tools' and score_bs.py's sha256 (tool_sha256 key "score_bs.py");
+  a pinned file's current sha256 differing; this text not naming score_bs.py's sha256 (PINS); a continuation's
+  run_meta naming another criteria.txt / SCREEN.json / APPROVED / tool sha256, or changed since CHECK; a check.json or
+  markers.json made by another read_bs.py; a ledger changed since the read; M5 off its pins; the code copy failing
+  M1's check_copy. Cleared only by measuring again with the pinned files, never by a ruling.
+- A reading neither incomplete nor provisional is final and goes to the maintainer at once. Report only: nothing is
+  merged; the only thing pushed is a durable text copy (this text, score.txt, the notes) (AUTH).
+
+VALIDATIONS (done before launch; none made an optimizer step)
+- SCAF: V1 (each arm reproduces the start pair; independent tensor check), V2 (each arm in force on every rollout; the
+  control changes nothing, same-seed pairing), V3 (the reader on V2's outputs; it reproduces the early-warning and
+  early-bias numbers on the parent), 72 unit tests.
+- This text (NOTES_criteria.txt): tools/tests/test_score_bs.py, 43 tests (synthetic marker sets for each reading line,
+  the boundary 3/70 against 4/70, exact ties, the fill, STOPPED / LOST / unreadable, outcome-blindness, the input
+  errors, PROVISIONAL and final, report-only robustness, B_S recomputed from the F2 probe); 14 of 14 scorer mutants
+  killed; the whole <BS>/tools/tests suite 115 passed (two scaffold tests that assumed "no SCREEN.json exists in this
+  build" now use an empty temporary root; their assertions are unchanged); ruff clean; the dry run (the parent's
+  markers as every continuation in both arms) reads NO REDUCTION DETECTED with p = 70/70 = 1 (every relabeling ties)
+  and the control rise +0.23113 (informative); the unmodified run_bs.approval_problems accepts an APPROVED that carries
+  the extra score_bs.py key and still refuses a wrong five-tool pin; run_waves_bs.sh --plan lists the 8 entries in
+  SCREEN.json's order; run_bs.py --preflight-only (blind 2101) is refused for "APPROVED: missing" alone.
+- After the review (review/FIXES.txt): test_score_bs.py 47 tests (added: markers.json made by another read_bs.py, R6;
+  each arm's SD and its two-value minimum; the median, not the mean, decides informativeness; the scorer's line texts
+  and the line-3 addition appear verbatim in this text); 20 of 20 scorer mutants killed (review/fixer/fx_mutants.out);
+  the whole <BS>/tools/tests suite 119 passed; ruff clean; the dry run reads as before (line 3, 70/70, control rise
+  +0.23113), with only the line-3 text and the SD column changed; the reviewer's end-to-end scenarios and the
+  outcome-blindness audit agree (review/fixer/fx_endtoend.out); run_bs.py's preflight, unmodified, passes for every
+  queue entry against an APPROVED of the form in HOW THE COORDINATOR PINS (a temporary root under
+  review/fixer, nothing started; review/fixer/fx_preflight.out). The five tools and the code copy are unchanged.
+
+COMPUTE [inferred, SCAF step 13]
+- One continuation about 4,500 CPU-s (75 min; 63-75 min if an update costs 3-5.9 s); 8 at 4 at a time = 2 waves = about
+  2.5 h on a free machine, 3.1-4.4 h with 1-3 other busy processes; then the full reads, about 15 min; the scorer
+  under 1 min. About 36-50 MB per continuation on disk. 0 L4-hours.
+
+WHAT THE READING CANNOT SHOW (KNOWN LIMITS)
+- Only observation 6 (the tail_3 angle) is blinded. The critic still sees qvel tail_3 (observation 27), the other tail
+  angles (3-5) and velocities (24-26), and the pitch-carrying channels, from which it may partly recover the angle; a
+  null does not clear the critic as a driver through those inputs. z6 = 0 is the running mean of the angle (the
+  normaliser keeps updating), not a fixed angle.
+- The blinded critic starts from the trained critic's weights: at S its values differ from the trained critic's (up to
+  0.0205 on the bank, at least 0.005 per rollout [measured, SCAF V1, V2]), so its first updates also refit a changed
+  value function; a REDUCED cannot separate "no angle in the critic" from that transient.
+- Blinding changes the value function, and so the advantages, for every actuator, not only tail_3 [inferred]. Read a
+  REDUCED with the report-only returns and falls (and CMD_L): if the blind arm also has lower returns or more falls,
+  the reduction may come from a worse critic overall, not from the tail angle.
+- One start (s42 at 1,048,576), one plant, CPU, this harness. A REDUCED is a causal effect at this state, not a rate
+  from scratch, not a GPU result and not a fix.
+- 1,441,792 steps reach 2,490,368, before the parent's first over-bar episode, a tail one, at 3,670,016 (ECSC WHAT IS
+  TRAINED; RUNLOG 02:42 UTC) and far from the rail: the outcome is the early rise of the on-policy command (the
+  parent's +0.231), not the rail or a flag. The parent's window had no CMD_L >= 0.30.
+- The verified probe supports the critic-bootstrap source only from 2,097,152 and leaves it unresolved at the onset;
+  the primary (2.42-2.48M) lies in the supported phase, but the screen does not say when in the window the arms
+  diverge (the report-only rows show it, untested).
+- The on-policy primary mixes the policy's change with the change in the states it visits (the loop gain G is negative
+  in this phase: -0.73 at S, -0.64 at 2,097,152 in the parent [measured, PARENT]); the statue_settled command, report
+  only, isolates the policy at one fixed state.
+- Power [computed, WORK power_bs.out; normal model, between-continuation SD sigma assumed 0.04-0.10, the range of the
+  ECS's same-start continuations' last-8-row on-policy means, WORK ecs_spread.out, another phase]: P(REDUCED) at a
+  true reduction of 0.231 (the blind arm not rising at all) 0.86-1.00; 0.20: 0.77-1.00; 0.15: 0.55-1.00; 0.10 (about
+  half the rise): 0.32-0.91; 0.05: 0.13-0.42. These assume independent continuations; a positive correlation within
+  a seed pair lowers them (at SD 0.06 with a pair effect of SD 0.06: 0.62 -> 0.38 at 0.10 [computed, review/rv_sim.out
+  (3b); review/fixer/fx_sim.out]). A null therefore does not exclude a reduction of about half the rise (power about
+  0.3-0.9 there, by the spread; the scorer prints each arm's SD, report only, to place it) nor any smaller one.
+- The informativeness gate and the test read the same control values. Under no effect, P(REDUCED) is at most 3/70
+  over the whole screen; given that the gate passed, it is about 0.08 if the control arm's true rise is 0.10, about
+  0.05-0.06 at 0.12 and at most about 0.053 at 0.15 or more [computed, normal model, review/rv_sim.out (2);
+  review/fixer/fx_sim.out]. A REDUCED read with a control rise below about 0.15 is less secure than its p says.
+- With 4 per arm one MISSING continuation makes REDUCED unreadable (THE FILL).
+- The full read writes markers.json only after the report-only loop simulations; a failure confined to them is not
+  LOST but holds the reading until the maintainer decides a reader change (RUN HANDLING), and that reading then stays
+  PROVISIONAL. Unlikely, not excluded [measured: the ECS (S2/r10round/ecs, another reader, read_ecs.py): logs/
+  decided.tsv 24 of 24 COUNTED, crash_ledger.tsv empty, 24 of 24 full reads exit 0 in logs/run_waves_ecs.log].
+- Only the critic's view of observation 6 is varied; gae_lambda_1 and frozen_obs_norm (built, not chosen; RUNLOG 04:22)
+  are untested here.
+
+PINS (filled from the files as they stand when v2 was finished; any change to a pinned file changes its line)
+  This text's sha256 cannot be held in the text itself: it goes into <BS>/APPROVED (criteria_sha256) and RUNLOG.
+  Paths under <BS>. [measured: sha256sum, the times in NOTES_criteria.txt and review/FIXES.txt]
+  The screen and its scorer:
+    SCREEN.json                          a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf
+    tools/score_bs.py                    869898c59439fd7e61aa409b6ed48b1afa48da3b6feec02e26b2c4bf9ff0542b
+    tools/tests/test_score_bs.py         776b72411fa4a1d6f677d27fd5d7007627351a06a9dea39247863eca8755e342
+  The scaffold's five tools (unchanged since SCAF's 04:27 UTC freeze; SHA256SUMS.txt):
+    tools/bs_common.py                   3b3727e29b66f5b31f14d50af5a682448e46fc5e160069fb463abc03ecebf024
+    tools/bs_hooks.py                    1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc
+    tools/run_bs.py                      0a5a98515da81f61a0b9f0b4b278f2eb7ab3df4ebdfef850200b684ca55731ff
+    tools/run_waves_bs.sh                13fb61829ce3d5ba878a804b765a5ddf3927531af9ff8dcbceb9da0b122a027a
+    tools/read_bs.py                     04036e5361348391f13689182a1b759d616e069bd64f9a20bc0bfcc995c83d02
+  The code copy <BS>/code: commit 8737cd3d86431de1bdd0fcdb49a0d956a45e084d, 1,406 files, tree digest
+    331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1
+  B_S's source: F2 01_stance/policy_probe.npz.copy1
+    4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11
+  M5 (unchanged, bs_common.PIN_SHA256): S2/r10round/lean/build/laneB/tools/ledger_r10round.py
+    0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511, r10round_common.py
+    ea2c5ea6984b8dc00c1c066a4441a59526c515ceb111da17eaf1688a009226c5; M1's r10m_common.py (the seal check)
+    97431323a84a45026671d681dbd0dc5fe3914aa4068ab20a49e428620b26f5bf
+  HOW THE COORDINATOR PINS (after the review): sha256sum <BS>/criteria.txt <BS>/SCREEN.json <BS>/tools/{run_bs.py,
+  read_bs.py,run_waves_bs.sh,bs_common.py,bs_hooks.py,score_bs.py}; check the scorer's and SCREEN.json's against the
+  lines above; write <BS>/APPROVED (JSON) =
+    {"criteria_sha256": <criteria.txt>, "screen_sha256": <SCREEN.json>, "code_tree_digest": "331fe8fc...(full)",
+     "tool_sha256": {"run_bs.py": ..., "read_bs.py": ..., "run_waves_bs.sh": ..., "bs_common.py": ...,
+                     "bs_hooks.py": ..., "score_bs.py": ...}, "approved_by": ..., "utc": ...}
+  run_bs.py checks the five tools (and ignores the extra key); score_bs.py checks all six and that this text names its
+  own sha256. Then SCAF HOW TO LAUNCH steps 4-5, and the sha256 of criteria.txt and APPROVED into RUNLOG.
+  APPROVED is written once, before the first start, and never edited; its full text and sha256 go into RUNLOG. Every
+  run_meta records APPROVED's sha256 at its start, so a later change to APPROVED (a re-pin, only with the maintainer's
+  word) leaves every continuation started before it PROVISIONAL for good (cleared only by running it again).
+END (criteria v2; the writer's notes and every command: <BS>/NOTES_criteria.txt; the review: <BS>/review/NOTES.txt;
+the fixes: <BS>/review/FIXES.txt).

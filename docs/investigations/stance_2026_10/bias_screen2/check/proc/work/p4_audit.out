@@ -1,0 +1,222 @@
+snapshot rows 278 flag=1: 236
+rows whose flag != (atime == mtime - 1): []
+control_2501: 29 files in snapshot, 29 rearmed_unread=1, not: []
+critic_blind_tail3_2501: 29 files in snapshot, 29 rearmed_unread=1, not: []
+control_2511: 31 files in snapshot, 31 rearmed_unread=1, not: []
+critic_blind_tail3_2511: 31 files in snapshot, 31 rearmed_unread=1, not: []
+control_2521: 29 files in snapshot, 29 rearmed_unread=1, not: []
+critic_blind_tail3_2521: 29 files in snapshot, 29 rearmed_unread=1, not: []
+control_2531: 29 files in snapshot, 29 rearmed_unread=1, not: []
+critic_blind_tail3_2531: 29 files in snapshot, 29 rearmed_unread=1, not: []
+
+rows with rearmed_unread=0 (not owned by a queue continuation):
+  logs/build_cmds.log	atime>max(m,c)
+  logs/build_start.marker	atime>max(m,c)
+  logs/check_inputs.out	atime>max(m,c)
+  logs/control_2501.check.log	atime<=max(m,c)
+  logs/control_2511.check.log	atime<=max(m,c)
+  logs/control_2521.check.log	atime<=max(m,c)
+  logs/control_2531.check.log	atime<=max(m,c)
+  logs/crash_ledger.tsv	atime<=max(m,c)
+  logs/critic_blind_tail3_2501.check.log	atime<=max(m,c)
+  logs/critic_blind_tail3_2511.check.log	atime<=max(m,c)
+  logs/critic_blind_tail3_2521.check.log	atime<=max(m,c)
+  logs/critic_blind_tail3_2531.check.log	atime<=max(m,c)
+  logs/decided.tsv	atime>max(m,c)
+  logs/hunks_explained.txt	atime>max(m,c)
+  logs/outside_bs2_newer_than_marker.txt	atime>max(m,c)
+  logs/prelaunch_plan.out	atime>max(m,c)
+  logs/prelaunch_preflight_control_2501.out	atime>max(m,c)
+  logs/prelaunch_preflight_control_2511.out	atime<=max(m,c)
+  logs/prelaunch_preflight_control_2521.out	atime<=max(m,c)
+  logs/prelaunch_preflight_control_2531.out	atime<=max(m,c)
+  logs/prelaunch_preflight_critic_blind_tail3_2501.out	atime<=max(m,c)
+  logs/prelaunch_preflight_critic_blind_tail3_2511.out	atime<=max(m,c)
+  logs/prelaunch_preflight_critic_blind_tail3_2521.out	atime<=max(m,c)
+  logs/prelaunch_preflight_critic_blind_tail3_2531.out	atime<=max(m,c)
+  logs/prelaunch_queue.txt	atime>max(m,c)
+  logs/prelaunch_score.stdout	atime>max(m,c)
+  logs/prelaunch_score/score.json	atime<=max(m,c)
+  logs/prelaunch_score/score.txt	atime>max(m,c)
+  logs/proctable.log	atime<=max(m,c)
+  logs/run_waves_bs.lock	atime<=max(m,c)
+  logs/run_waves_bs.log	atime<=max(m,c)
+  logs/run_waves_bs.out	atime<=max(m,c)
+  logs/runner_stderr.log	atime<=max(m,c)
+  logs/tools_sha256_as_copied.txt	atime>max(m,c)
+  logs/tools_unchanged_since_launch.out	atime>max(m,c)
+  logs/tools_vs_bs.diff	atime>max(m,c)
+  logs/verify_copy_end.out	atime>max(m,c)
+  logs/verify_copy_start.out	atime>max(m,c)
+  tmp/no_update_control_9201/eval_stage1_c4ok2lrt/evaluations.npz	atime>max(m,c)
+  tmp/no_update_critic_blind_tail3_9201/eval_stage1_qheamyjj/evaluations.npz	atime>max(m,c)
+  tmp/no_update_frozen_obs_norm_9201/eval_stage1_4bll5_a6/evaluations.npz	atime>max(m,c)
+  tmp/no_update_gae_lambda_1_9201/eval_stage1_lps6_18s/evaluations.npz	atime>max(m,c)
+
+rows under runs/ not in a queue folder: []
+
+snapshot files whose mtime changed since the snapshot: ['logs/run_waves_bs.log', 'logs/run_waves_bs.out', 'logs/runner_stderr.log']
+snapshot files missing now: []
+files under runs/ tmp/ now that are not in the snapshot: 0
+
+per continuation, files whose atime moved after the snapshot (first read after re-arm), from my scan:
+  control_2501: 19 read after ALL_DECIDED; 10 still unread at my scan
+      1793375008.5068872880  runs/control_2501/check.json
+      1793375008.5308872900  runs/control_2501/01_stance/policy_probe.npz
+      1793375008.5308872900  runs/control_2501/arm_evidence.jsonl
+      1793375008.5308872900  runs/control_2501/run_meta.json
+      1793375008.6468872970  runs/control_2501/01_stance/eval_episodes.csv
+      1793375010.3148873960  runs/control_2501/01_stance/models/stage1_2097152_steps.zip
+      1793375010.3188873960  runs/control_2501/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375010.3228873960  runs/control_2501/01_stance/models/stage1_2359296_steps.zip
+      1793375010.3268873970  runs/control_2501/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375073.5188911530  runs/control_2501/01_stance/models/stage1_2621440_steps.zip
+      1793375073.5228911530  runs/control_2501/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375135.4163348720  runs/control_2501/01_stance/models/stage1_2883584_steps.zip
+      1793375135.4163348720  runs/control_2501/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375196.8262706290  runs/control_2501/01_stance/models/stage1_3145728_steps.zip
+      1793375196.8268984830  runs/control_2501/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375257.6301259840  runs/control_2501/01_stance/models/stage1_3407872_steps.zip
+      1793375257.6309020970  runs/control_2501/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375317.1079937350  runs/control_2501/01_stance/models/stage1_final.zip
+      1793375317.1079937350  runs/control_2501/01_stance/models/stage1_final_vecnorm.pkl
+  critic_blind_tail3_2501: 19 read after ALL_DECIDED; 10 still unread at my scan
+      1793375008.5068872880  runs/critic_blind_tail3_2501/check.json
+      1793375008.5308872900  runs/critic_blind_tail3_2501/01_stance/policy_probe.npz
+      1793375008.5308872900  runs/critic_blind_tail3_2501/run_meta.json
+      1793375008.5348872900  runs/critic_blind_tail3_2501/arm_evidence.jsonl
+      1793375008.6668872980  runs/critic_blind_tail3_2501/01_stance/eval_episodes.csv
+      1793375010.3548873980  runs/critic_blind_tail3_2501/01_stance/models/stage1_2097152_steps.zip
+      1793375010.3588873990  runs/critic_blind_tail3_2501/01_stance/models/stage1_2359296_steps.zip
+      1793375010.3588873990  runs/critic_blind_tail3_2501/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375010.3628873990  runs/critic_blind_tail3_2501/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375074.3154266930  runs/critic_blind_tail3_2501/01_stance/models/stage1_2621440_steps.zip
+      1793375074.3188912010  runs/critic_blind_tail3_2501/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375137.7226677130  runs/critic_blind_tail3_2501/01_stance/models/stage1_2883584_steps.zip
+      1793375137.7228949690  runs/critic_blind_tail3_2501/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375200.2435035380  runs/critic_blind_tail3_2501/01_stance/models/stage1_3145728_steps.zip
+      1793375200.2435035380  runs/critic_blind_tail3_2501/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375262.8922862840  runs/critic_blind_tail3_2501/01_stance/models/stage1_3407872_steps.zip
+      1793375262.8922862840  runs/critic_blind_tail3_2501/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375324.3879873260  runs/critic_blind_tail3_2501/01_stance/models/stage1_final.zip
+      1793375324.3879873260  runs/critic_blind_tail3_2501/01_stance/models/stage1_final_vecnorm.pkl
+  control_2511: 19 read after ALL_DECIDED; 12 still unread at my scan
+      1793375008.5068872880  runs/control_2511/check.json
+      1793375008.5148872890  runs/control_2511/01_stance/policy_probe.npz
+      1793375008.5148872890  runs/control_2511/arm_evidence.jsonl
+      1793375008.5148872890  runs/control_2511/run_meta.json
+      1793375008.6188872950  runs/control_2511/01_stance/eval_episodes.csv
+      1793375010.4348874030  runs/control_2511/01_stance/models/stage1_2097152_steps.zip
+      1793375010.4388874030  runs/control_2511/01_stance/models/stage1_2359296_steps.zip
+      1793375010.4388874030  runs/control_2511/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375010.4428874040  runs/control_2511/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375076.7838177490  runs/control_2511/01_stance/models/stage1_2621440_steps.zip
+      1793375076.7838177490  runs/control_2511/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375141.4066527330  runs/control_2511/01_stance/models/stage1_2883584_steps.zip
+      1793375141.4068951880  runs/control_2511/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375204.7240941790  runs/control_2511/01_stance/models/stage1_3145728_steps.zip
+      1793375204.7240941790  runs/control_2511/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375268.5615108870  runs/control_2511/01_stance/models/stage1_3407872_steps.zip
+      1793375268.5629027470  runs/control_2511/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375331.8772374040  runs/control_2511/01_stance/models/stage1_final.zip
+      1793375331.8789065110  runs/control_2511/01_stance/models/stage1_final_vecnorm.pkl
+  critic_blind_tail3_2511: 19 read after ALL_DECIDED; 12 still unread at my scan
+      1793375008.5068872880  runs/critic_blind_tail3_2511/01_stance/policy_probe.npz
+      1793375008.5068872880  runs/critic_blind_tail3_2511/arm_evidence.jsonl
+      1793375008.5068872880  runs/critic_blind_tail3_2511/check.json
+      1793375008.5068872880  runs/critic_blind_tail3_2511/run_meta.json
+      1793375008.6068872940  runs/critic_blind_tail3_2511/01_stance/eval_episodes.csv
+      1793375010.3868874000  runs/critic_blind_tail3_2511/01_stance/models/stage1_2097152_steps.zip
+      1793375010.3908874000  runs/critic_blind_tail3_2511/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375010.3948874010  runs/critic_blind_tail3_2511/01_stance/models/stage1_2359296_steps.zip
+      1793375010.3948874010  runs/critic_blind_tail3_2511/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375073.0591379170  runs/critic_blind_tail3_2511/01_stance/models/stage1_2621440_steps.zip
+      1793375073.0591379170  runs/critic_blind_tail3_2511/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375139.3910079140  runs/critic_blind_tail3_2511/01_stance/models/stage1_2883584_steps.zip
+      1793375139.3910079140  runs/critic_blind_tail3_2511/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375201.5925475090  runs/critic_blind_tail3_2511/01_stance/models/stage1_3145728_steps.zip
+      1793375201.5925475090  runs/critic_blind_tail3_2511/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375266.2475572610  runs/critic_blind_tail3_2511/01_stance/models/stage1_3407872_steps.zip
+      1793375266.2475572610  runs/critic_blind_tail3_2511/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375328.8389781040  runs/critic_blind_tail3_2511/01_stance/models/stage1_final.zip
+      1793375328.8389781040  runs/critic_blind_tail3_2511/01_stance/models/stage1_final_vecnorm.pkl
+  control_2521: 19 read after ALL_DECIDED; 10 still unread at my scan
+      1793375008.5068872880  runs/control_2521/check.json
+      1793375378.6789092930  runs/control_2521/01_stance/policy_probe.npz
+      1793375378.6789092930  runs/control_2521/arm_evidence.jsonl
+      1793375378.6789092930  runs/control_2521/run_meta.json
+      1793375378.8069093000  runs/control_2521/01_stance/eval_episodes.csv
+      1793375380.6989094130  runs/control_2521/01_stance/models/stage1_2097152_steps.zip
+      1793375380.7029094130  runs/control_2521/01_stance/models/stage1_2359296_steps.zip
+      1793375380.7029094130  runs/control_2521/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375380.7069094130  runs/control_2521/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375445.9963027510  runs/control_2521/01_stance/models/stage1_2621440_steps.zip
+      1793375445.9963027510  runs/control_2521/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375507.5197122050  runs/control_2521/01_stance/models/stage1_2883584_steps.zip
+      1793375507.5197122050  runs/control_2521/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375570.6357489970  runs/control_2521/01_stance/models/stage1_3145728_steps.zip
+      1793375570.6357489970  runs/control_2521/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375637.1505499090  runs/control_2521/01_stance/models/stage1_3407872_steps.zip
+      1793375637.1509246570  runs/control_2521/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375704.0585894130  runs/control_2521/01_stance/models/stage1_final.zip
+      1793375704.0589286340  runs/control_2521/01_stance/models/stage1_final_vecnorm.pkl
+  critic_blind_tail3_2521: 19 read after ALL_DECIDED; 10 still unread at my scan
+      1793375008.5068872880  runs/critic_blind_tail3_2521/check.json
+      1793375388.6869098870  runs/critic_blind_tail3_2521/run_meta.json
+      1793375388.6909098880  runs/critic_blind_tail3_2521/01_stance/policy_probe.npz
+      1793375388.6909098880  runs/critic_blind_tail3_2521/arm_evidence.jsonl
+      1793375388.8149098950  runs/critic_blind_tail3_2521/01_stance/eval_episodes.csv
+      1793375390.4909099950  runs/critic_blind_tail3_2521/01_stance/models/stage1_2097152_steps.zip
+      1793375390.4949099950  runs/critic_blind_tail3_2521/01_stance/models/stage1_2359296_steps.zip
+      1793375390.4949099950  runs/critic_blind_tail3_2521/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375390.4989099950  runs/critic_blind_tail3_2521/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375453.2885662690  runs/critic_blind_tail3_2521/01_stance/models/stage1_2621440_steps.zip
+      1793375453.2885662690  runs/critic_blind_tail3_2521/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375514.2485645860  runs/critic_blind_tail3_2521/01_stance/models/stage1_2883584_steps.zip
+      1793375514.2509173510  runs/critic_blind_tail3_2521/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375578.3299451680  runs/critic_blind_tail3_2521/01_stance/models/stage1_3145728_steps.zip
+      1793375578.3309211600  runs/critic_blind_tail3_2521/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375643.9766216090  runs/critic_blind_tail3_2521/01_stance/models/stage1_3407872_steps.zip
+      1793375643.9789250630  runs/critic_blind_tail3_2521/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375708.6987358570  runs/critic_blind_tail3_2521/01_stance/models/stage1_final.zip
+      1793375708.6989289100  runs/critic_blind_tail3_2521/01_stance/models/stage1_final_vecnorm.pkl
+  control_2531: 19 read after ALL_DECIDED; 10 still unread at my scan
+      1793375008.5068872880  runs/control_2531/check.json
+      1793375398.6909104820  runs/control_2531/01_stance/policy_probe.npz
+      1793375398.6909104820  runs/control_2531/arm_evidence.jsonl
+      1793375398.6909104820  runs/control_2531/run_meta.json
+      1793375398.7869104880  runs/control_2531/01_stance/eval_episodes.csv
+      1793375400.6189105970  runs/control_2531/01_stance/models/stage1_2097152_steps.zip
+      1793375400.6229105970  runs/control_2531/01_stance/models/stage1_2359296_steps.zip
+      1793375400.6229105970  runs/control_2531/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375400.6269105970  runs/control_2531/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375462.7768355500  runs/control_2531/01_stance/models/stage1_2621440_steps.zip
+      1793375462.7789142920  runs/control_2531/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375524.2228785700  runs/control_2531/01_stance/models/stage1_2883584_steps.zip
+      1793375524.2229179440  runs/control_2531/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375590.6155644940  runs/control_2531/01_stance/models/stage1_3145728_steps.zip
+      1793375590.6155644940  runs/control_2531/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375659.3580059940  runs/control_2531/01_stance/models/stage1_3407872_steps.zip
+      1793375659.3589259770  runs/control_2531/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375721.9295750020  runs/control_2531/01_stance/models/stage1_final.zip
+      1793375721.9309296970  runs/control_2531/01_stance/models/stage1_final_vecnorm.pkl
+  critic_blind_tail3_2531: 19 read after ALL_DECIDED; 10 still unread at my scan
+      1793375008.5068872880  runs/critic_blind_tail3_2531/check.json
+      1793375398.6949104820  runs/critic_blind_tail3_2531/01_stance/policy_probe.npz
+      1793375398.6949104820  runs/critic_blind_tail3_2531/run_meta.json
+      1793375398.6989104830  runs/critic_blind_tail3_2531/arm_evidence.jsonl
+      1793375398.8123684260  runs/critic_blind_tail3_2531/01_stance/eval_episodes.csv
+      1793375400.5669105940  runs/critic_blind_tail3_2531/01_stance/models/stage1_2097152_steps.zip
+      1793375400.5709105940  runs/critic_blind_tail3_2531/01_stance/models/stage1_2359296_steps.zip
+      1793375400.5709105940  runs/critic_blind_tail3_2531/01_stance/models/stage1_vecnormalize_2097152_steps.pkl
+      1793375400.5749105940  runs/critic_blind_tail3_2531/01_stance/models/stage1_vecnormalize_2359296_steps.pkl
+      1793375465.8055192130  runs/critic_blind_tail3_2531/01_stance/models/stage1_2621440_steps.zip
+      1793375465.8069144720  runs/critic_blind_tail3_2531/01_stance/models/stage1_vecnormalize_2621440_steps.pkl
+      1793375529.3170884260  runs/critic_blind_tail3_2531/01_stance/models/stage1_2883584_steps.zip
+      1793375529.3189182470  runs/critic_blind_tail3_2531/01_stance/models/stage1_vecnormalize_2883584_steps.pkl
+      1793375594.2891849650  runs/critic_blind_tail3_2531/01_stance/models/stage1_3145728_steps.zip
+      1793375594.2909221090  runs/critic_blind_tail3_2531/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+      1793375664.5389116090  runs/critic_blind_tail3_2531/01_stance/models/stage1_3407872_steps.zip
+      1793375664.5389262850  runs/critic_blind_tail3_2531/01_stance/models/stage1_vecnormalize_3407872_steps.pkl
+      1793375727.0444908260  runs/critic_blind_tail3_2531/01_stance/models/stage1_final.zip
+      1793375727.0444908260  runs/critic_blind_tail3_2531/01_stance/models/stage1_final_vecnorm.pkl

@@ -1,0 +1,26 @@
+gate 0.15                                DETECTED DISAGREE (1, 'gate', [('line', 3, 1), ('informative', True, False), ('SEC-G notes', [], ['(the control arm did not climb on the primary)']), ('SEC-CMD notes', [
+gate 0.25                                DETECTED DISAGREE (8, 'gate', [('line', 1, 2), ('additions', ['(the filled p is <= 0.05, but the control arm did not climb: no reading about the critic)'], []), ('inform
+gate strict >                            SURVIVED
+median -> upper middle                   DETECTED DISAGREE (4, 'sep', [('control_rise', 0.5209432478779856, 0.5188212961593135), ('control_median', 0.6475387217262689, 0.6454167700075968)])
+median -> mean                           DETECTED DISAGREE (0, 'cont', [('control_rise', 0.3631917950721312, 0.3603823142804284), ('control_median', 0.48978726892041446, 0.4869777881287117)])
+alpha strict <                           SURVIVED
+alpha 4/70 allowed                       DETECTED DISAGREE (6, 'sep', [('SEC-MARGIN verdict', 'SUPPORTED (p <= 0.05, unadjusted)', 'NOT SUPPORTED')])
+ties strict                              DETECTED DISAGREE (0, 'cont', [('additions', ['(the as-counted p, report only, is <= 0.05; the filled p decides)'], []), ('p_filled', (51, 70), (52, 70)), ('p_as_counted
+decide on as-counted p                   DETECTED DISAGREE (44, 'sep', [('line', 2, 3), ('additions', [], ['(the as-counted p, report only, is <= 0.05; the filled p decides)'])])
+primary fill reversed                    DETECTED DISAGREE (0, 'cont', [('line', 2, 3), ('p_filled', (2, 70), (52, 70))])
+secondary fill reversed                  DETECTED DISAGREE (0, 'cont', [('SEC-G p_filled', (2, 70), (52, 70)), ('SEC-G verdict', 'SUPPORTED (p <= 0.05, unadjusted)', 'NOT SUPPORTED'), ('SEC-CMD p_filled', (1, 7
+SEC-CMD direction flipped                DETECTED DISAGREE (0, 'cont', [('SEC-CMD p_filled', (70, 70), (51, 70)), ('SEC-CMD p_as_counted', (20, 20), (1, 20))])
+SEC-G direction flipped                  DETECTED DISAGREE (0, 'cont', [('SEC-G p_filled', (69, 70), (52, 70)), ('SEC-G p_as_counted', (19, 20), (2, 20))])
+SEC-MARGIN reads G                       DETECTED DISAGREE (1, 'gate', [('SEC-MARGIN p_filled', (59, 70), (48, 70)), ('SEC-MARGIN p_as_counted', (24, 35), (13, 35))])
+SEC-G/MARGIN reads the last loop row     DETECTED DISAGREE (8, 'gate', [('SEC-G p_filled', (25, 70), (53, 70)), ('SEC-G p_as_counted', (25, 70), (18, 35)), ('SEC-G n_read', {'control': 4, 'critic_blind_tail3': 
+secondary read for UNREADABLE            DETECTED DISAGREE (1, 'gate', [('SEC-G p_filled', (41, 70), (59, 70)), ('SEC-G p_as_counted', (41, 70), (24, 35)), ('SEC-G n_read', {'control': 4, 'critic_blind_tail3': 
+Bonferroni at alpha                      DETECTED DISAGREE (31, 'cont2', [('SEC-MARGIN notes', ['(survives Bonferroni over the 3 secondaries)'], [])])
+Bonferroni at 2/70                       DETECTED DISAGREE (31, 'cont2', [('SEC-MARGIN notes', ['(survives Bonferroni over the 3 secondaries)'], [])])
+note under line 1 dropped                DETECTED DISAGREE (1, 'gate', [('SEC-G notes', [], ['(the control arm did not climb on the primary)']), ('SEC-CMD notes', [], ['(the control arm did not climb on the pri
+line-1 addition on as-counted            DETECTED DISAGREE (59, 'sep', [('additions', ['(the filled p is <= 0.05, but the control arm did not climb: no reading about the critic)'], [])])
+line-3 addition dropped                  DETECTED DISAGREE (44, 'sep', [('additions', [], ['(the as-counted p, report only, is <= 0.05; the filled p decides)'])])
+primary rows shifted by one              DETECTED DISAGREE (0, 'cont', [('p_filled', (56, 70), (52, 70)), ('p_as_counted', (6, 20), (2, 20)), ('control_rise', 0.36077594044362954, 0.3603823142804284), ('control
+B_S = parent first 8 window rows         DETECTED DISAGREE (0, 'cont', [('control_rise', 0.3618478285826821, 0.3603823142804284)])
+STOPPED counted                          SURVIVED
+SEC-CMD reads cmd_l_max                  DETECTED DISAGREE (0, 'cont', [('SEC-CMD p_filled', (70, 70), (51, 70)), ('SEC-CMD p_as_counted', (20, 20), (1, 20))])
+detected 22 of 25

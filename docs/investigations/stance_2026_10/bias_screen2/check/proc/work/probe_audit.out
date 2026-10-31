@@ -1,0 +1,21 @@
+B_S rows [248, 249, 250, 251, 252, 253, 254, 255] B_S 0.1265954738482833 True
+control_2501: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.67001
+critic_blind_tail3_2501: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.14283
+control_2511: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.79227
+critic_blind_tail3_2511: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.12485
+control_2521: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.51081
+critic_blind_tail3_2521: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.13810
+control_2531: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.41938
+critic_blind_tail3_2531: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.06516
+ppo_applied / stage_config / hyperparameters / stack / threads equal across 8: False
+  argv control_2501 ['--arm', 'control', '--seed', '2501']
+  argv critic_blind_tail3_2501 ['--arm', 'critic_blind_tail3', '--seed', '2501']
+  argv control_2511 ['--arm', 'control', '--seed', '2511']
+  argv critic_blind_tail3_2511 ['--arm', 'critic_blind_tail3', '--seed', '2511']
+  argv control_2521 ['--arm', 'control', '--seed', '2521']
+  argv critic_blind_tail3_2521 ['--arm', 'critic_blind_tail3', '--seed', '2521']
+  argv control_2531 ['--arm', 'control', '--seed', '2531']
+  argv critic_blind_tail3_2531 ['--arm', 'critic_blind_tail3', '--seed', '2531']
+control median 0.5904141645878553 rise 0.46381869073957205 >= 0.20: True
+exact one-sided permutation p = 1 / 70
+sign-flip p = 1 / 16

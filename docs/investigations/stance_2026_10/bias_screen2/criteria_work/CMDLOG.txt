@@ -1,0 +1,36 @@
+CMDLOG for BS2 criteria v1 design (designer). All times date -u.
+2026-10-30T10:29:08Z mkdir -p BS2/criteria_work -> ok (BS2 did not exist before; df /tmp avail 2.9G)
+2026-10-30T10:32:10Z PY -I -B criteria_work/parent_window.py > parent_window.out -> exit (see file)
+2026-10-30T10:33:39Z read ew_r10.jsonl s42 rows (inline PY -c) -> printed
+2026-10-30T10:35:20Z grep run log for candidate seed blocks 22xx/25xx/26xx -> see above
+2026-10-30T10:37:55Z grep S2/r10round + com_revisit/notes (.py/.json/.txt/.sh) for 250x-253x/350x-353x seeds -> listed
+2026-10-30T10:39:40Z find+grep (tools, criteria, lean/build, com_revisit/notes; files < 2M) for 250x-253x/350x-353x -> no match; find_err.txt 0 lines
+2026-10-30T10:40:08Z PY -I -B criteria_work/parent_extras.py > parent_extras.out -> exit 0
+2026-10-30T10:41:17Z start PY -I -B power_bs2.py > power_bs2.out (nice 10, OMP 1)
+2026-10-30T10:41:36Z power_bs2.py -> exit 0
+2026-10-30T10:43:54Z read BS reads/control_2101/markers.json key structure (finished screen; keys only) -> ok
+2026-10-30T10:44:40Z read (only) builder's BS2/tools/bs_common.py constants (S, E, SAVED_STEPS, VALIDATION_SEEDS 9201-9241, CODE = BS/code, disk floor) and read_bs.py cache_key (P3) -> noted in DESIGN_NOTES; nothing written there
+2026-10-30T10:48:14Z wrote criteria_v1.txt; line-length and model-name checks (awk/grep) -> see output
+2026-10-30T10:48:41Z validated SCREEN_v1.json with BS2 (builder, read only) and BS bs_common.screen_problems (PY -I -B) -> see output
+2026-10-30T10:48:58Z PY -I -B bs_secondaries_posthoc.py > .out (BS score.json report_only; context only) -> see file
+2026-10-30T10:51:14Z RESULTS ADDENDUM for the entries above that said "see output/file":
+  10:29-10:45 read-only cat/sed/grep/ls of <BS> (criteria, SCREEN, APPROVED, review, check, score, scratch/criteria_work,
+     reads/parent_s42, logs), RUNLOG 760-786, MORNING_REPORT.md, EB/VEB/EW/WM notes, ECS tools/runs, F2 listing, FMAN rows;
+     not individually timed (DESIGN_NOTES section 1 lists them); no write.
+  10:32:10 parent_window.py: exit 0; probe and ledger sha256 equal FMAN; B_S 0.1265954738482833 (135930855/1073741824);
+     parent primary at E 0.7053788751363754 (47337175/67108864); rise 0.5787834012880921; BS's B_S and rise reproduced.
+  10:33:39 ew_r10.jsonl s42: OWN G -0.636 / +0.349 / +0.539 and c0 +0.238 / +0.411 / +0.522 at 2,097,152 / 3,145,728 /
+     3,670,016.
+  10:35:20 grep RUNLOG: one hit, l293 "score_interim_2202" (a clock time, not a seed); no 25xx or 26xx hit.
+  10:37:55 recursive grep: killed by its 120 s timeout with no output (large files); replaced by the 10:39:40 search.
+  ECS seeds (ecs_common.py l139-144, EVAL_SEED_OFFSET 1000 at l73): 1101-1151, 1201-1251, 1301-1351, 1401-1451; run_meta
+     of s42_B_1201 records seed 1201.
+  10:48:14 checks: one line of 121 characters (l18) shortened to 120; the name grep matched only the S1/S2 folder paths.
+  10:48:41 screen_problems(SCREEN_v1.json) = [] with both bs_common.py files; no __pycache__ in <BS2>/tools (count 0).
+  10:48:58 bs_secondaries_posthoc.py: exit 0; on BS's values G blind-higher p 2/70, CMD_L blind-lower p 9/70, b* blind-higher
+     p 65/70 (context only).
+2026-10-30T10:51:14Z wrote DESIGN_NOTES.txt
+2026-10-30T10:51:25Z sed: shortened DESIGN_NOTES l5, l46 to <= 120 chars -> ok
+2026-10-30T10:51:46Z sha256sum of the drafts -> SHA256SUMS_drafts.txt (criteria_v1.txt 76730791d35e3bc5..., SCREEN_v1.json 37a7cfc840ab2ccf...)
+2026-10-30T10:51:46Z df -h /tmp: 2.7G free; <BS2>/tools __pycache__ count 0; nothing written outside criteria_work. END of designer log.
+2026-10-30T10:51:56Z sed: STATUS/header times set to 10:29-10:53; SHA256SUMS_drafts.txt regenerated (criteria_v1.txt 8e49dbf96e4a3106..., DESIGN_NOTES.txt 52f69ae989068950...)

@@ -1,0 +1,29 @@
+APPROVED (temporary root) = {
+ "criteria_sha256": "9c490cc6965084456f9ccdd28f92ab6a0047b42f768550787448944e7f59913d",
+ "screen_sha256": "a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf",
+ "code_tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+ "tool_sha256": {
+  "run_bs.py": "0a5a98515da81f61a0b9f0b4b278f2eb7ab3df4ebdfef850200b684ca55731ff",
+  "read_bs.py": "04036e5361348391f13689182a1b759d616e069bd64f9a20bc0bfcc995c83d02",
+  "run_waves_bs.sh": "13fb61829ce3d5ba878a804b765a5ddf3927531af9ff8dcbceb9da0b122a027a",
+  "bs_common.py": "3b3727e29b66f5b31f14d50af5a682448e46fc5e160069fb463abc03ecebf024",
+  "bs_hooks.py": "1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc",
+  "score_bs.py": "869898c59439fd7e61aa409b6ed48b1afa48da3b6feec02e26b2c4bf9ff0542b"
+ },
+ "approved_by": "fixer stand-in (temporary root; not an approval)",
+ "utc": "stand-in"
+}
+preflight-only control 2101: exit 0; pass; problems []
+preflight-only critic_blind_tail3 2101: exit 0; pass; problems []
+preflight-only control 2111: exit 0; pass; problems []
+preflight-only critic_blind_tail3 2111: exit 0; pass; problems []
+preflight-only control 2121: exit 0; pass; problems []
+preflight-only critic_blind_tail3 2121: exit 0; pass; problems []
+preflight-only control 2131: exit 0; pass; problems []
+preflight-only critic_blind_tail3 2131: exit 0; pass; problems []
+approval_problems() with the form above: []
+negative control, wrong bs_hooks.py pin: ["APPROVED: tool_sha256['bs_hooks.py'] '0000000000000000000000000000000000000000000000000000000000000000' != the file's '1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc'"]
+negative control, criteria_sha256 not the file's: ["APPROVED: criteria_sha256 '1111111111111111111111111111111111111111111111111111111111111111' != sha256(criteria.txt)"]
+score_bs PROVISIONAL items on the temporary root: ['code copy /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/review/fixer/preflight_root/code missing: not measured']
+score_bs code seal on the real <BS>/code: []
+RESULT: PASS (nothing started; the temporary root removed; <BS>/APPROVED not written)

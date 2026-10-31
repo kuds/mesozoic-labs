@@ -1,0 +1,30 @@
+APPROVED sha256 184f9ab91f284149f15ac192b4a5f318fa01485fbaf0068df64bb03ba5029ad2
+criteria pin ok True ; SCREEN pin ok True
+  tool run_bs.py        pin ok True
+  tool read_bs.py       pin ok True
+  tool run_waves_bs.sh  pin ok True
+  tool bs_common.py     pin ok True
+  tool bs_hooks.py      pin ok True
+  tool score_bs.py      pin ok True
+  control_2501             run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  critic_blind_tail3_2501  run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  control_2511             run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  critic_blind_tail3_2511  run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  control_2521             run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  critic_blind_tail3_2521  run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  control_2531             run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+  critic_blind_tail3_2531  run_meta criteria True approved True screen True tools False; markers reader True; check reader True; ledger unchanged since read True; probe unchanged True
+                           G == 5.16 x OWN slope and OWN seeds 5001-5010 at all 7 loop rows: True []
+P4 snapshot columns ['path', 'atime_ns', 'mtime_ns', 'ctime_ns', 'rearmed_unread'] rows 278
+  rearmed_unread 0: 42 rows in all; queue runs/ files listed 220; of them 0 other than run_meta.json/check.json: 0 []
+  queue tmp/ files listed 8, with 0: 0 []; attempt logs listed 8, with 0: 0 []
+  control_2521: evaluation 2,359,296 episodes (episode, env, length, cause): [('0', '0', '303', 'tail_contact')]
+  critic_blind_tail3_2521: evaluation 2,359,296 episodes (episode, env, length, cause): [('0', '0', '249', 'tail_contact')]
+spread-only, equal means: P(complete separation) reaches 0.05 at an SD ratio of 14.48

@@ -1,0 +1,120 @@
+--- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/tools/tests/test_run_bs.py	2026-10-30 05:23:14.580812477 +0000
++++ /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/tools/tests/test_run_bs.py	2026-10-30 10:39:51.849126712 +0000
+@@ -27,19 +27,38 @@
+ 
+ R = _load("run_bs")
+ C = R.C
++V0, V4 = C.VALIDATION_SEEDS[0], C.VALIDATION_SEEDS[-1]     # BS2: 9201, 9241 (BS's tests used 9101 / 9141)
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ bs_common
+ def test_window_and_grid():
+-    assert (C.S, C.E, C.LENGTH) == (1_048_576, 2_490_368, 1_441_792)
++    assert (C.S, C.E, C.LENGTH) == (2_097_152, 3_538_944, 1_441_792)
+     assert C.E - C.S <= C.MAX_LENGTH == 1_500_000
+     assert C.N_EVALS == 11 and C.LENGTH % C.EVAL_FREQ == 0 and C.LENGTH % C.ROLLOUT == 0
+-    assert C.expected_update_rows(C.S, C.E) == 175
+-    assert C.SAVED_STEPS == (1_310_720, 1_572_864, 1_835_008, 2_097_152, 2_359_296)
++    assert C.S % C.EVAL_FREQ == 0 and C.E % C.EVAL_FREQ == 0 and C.E // C.EVAL_FREQ == 27   # E on the 131,072 grid
++    assert C.S % C.SAVE_FREQ == 0 and C.S % C.ROLLOUT == 0
++    assert C.LENGTH // C.ROLLOUT == 176 and C.expected_update_rows(C.S, C.E) == 175
++    assert C.SAVED_STEPS == (2_359_296, 2_621_440, 2_883_584, 3_145_728, 3_407_872)
+     assert C.E % C.SAVE_FREQ != 0                       # no periodic pair at E: the final pair is the end pair
+-    assert C.VALIDATE_UNTIL == C.S + 262_144
++    assert C.VALIDATE_UNTIL == C.S + 262_144 == 2_359_296
+     assert C.WAVE_SLOTS == 4 and C.WAVE_NICE == 10 and C.MAX_CONTINUATIONS == 9
+-    assert C.DISK_FLOOR_BYTES >= 1_500_000_000
++    assert C.DISK_FLOOR_BYTES == 1_610_612_736 and C.LAUNCH_DISK_BYTES == 1_610_612_736 + 9 * 50 * 1024**2
++    assert C.BS.endswith("/r10round/bias_screen2") and C.CODE == C.BS1 + "/code" and C.BS1 != C.BS
++
++
++def test_start_pair_pins():
++    st = C.START
++    assert st["S"] == C.S and st["probe_row_at_S"] == C.S // C.ROLLOUT - 1 == 255
++    assert st["zip_rel"] == "01_stance/models/" + C.periodic_names(C.S)[0]
++    assert st["pkl_rel"] == "01_stance/models/" + C.periodic_names(C.S)[1]
++    assert st["zip_sha256"] == "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
++    assert st["pkl_sha256"] == "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
++    assert set(st["records"]) == {*C.PARENT_RECORDS, "stage_config.json"}
++
++
++def test_validation_seeds_are_bs2s():
++    assert C.VALIDATION_SEEDS == (9201, 9211, 9221, 9231, 9241)
++    assert all(s not in C.VALIDATION_SEEDS for s in (2101, 2111, 2121, 2131))
+ 
+ 
+ def test_run_names():
+@@ -67,7 +86,7 @@
+         "unknown intervention": _screen("ent_coef_0"),
+         "two interventions": _screen(queue=[["control", 1], ["critic_blind_tail3", 2], ["gae_lambda_1", 3]]),
+         "control only": _screen(queue=[["control", 1], ["control", 2]]),
+-        "validation seed": _screen(queue=[["control", 9101], ["critic_blind_tail3", 2]]),
++        "validation seed": _screen(queue=[["control", V0], ["critic_blind_tail3", 2]]),
+         "repeat": _screen(queue=[["control", 5], ["control", 5], ["critic_blind_tail3", 2]]),
+         "bool seed": _screen(queue=[["control", True], ["critic_blind_tail3", 2]]),
+         "schema": {**_screen(), "schema": "x"},
+@@ -104,7 +123,7 @@
+     return json.loads(Path(C.f2_record("stage_config.json")).read_text())
+ 
+ 
+-def _written(parent, arm, seed=9101, hp_digest=None):
++def _written(parent, arm, seed=V0, hp_digest=None):
+     w = copy.deepcopy(parent)
+     w["hyperparameters"].update(C.ARM_PPO_EDIT[arm])
+     w["run"].update(seed=seed, timesteps=C.TOTAL_TIMESTEPS - C.S, label=f"BS {arm} {seed}", duration_seconds=0.0,
+@@ -119,7 +138,7 @@
+ def test_recipe_problems(arm):
+     parent = _parent_sc()
+     hp = "sha256:" + "1" * 64 if arm == "gae_lambda_1" else C.HYPERPARAMETERS_SHA256_RUN
+-    kw = dict(arm=arm, seed=9101, label=f"BS {arm} 9101", load_path="/x/z.zip", zip_sha256=C.START["zip_sha256"],
++    kw = dict(arm=arm, seed=V0, label=f"BS {arm} {V0}", load_path="/x/z.zip", zip_sha256=C.START["zip_sha256"],
+               hp_sha256_expected=hp)
+     assert R.recipe_problems(_written(parent, arm, hp_digest=hp), parent, **kw) == []
+     w = _written(parent, arm, hp_digest=hp)
+@@ -217,21 +236,23 @@
+ 
+ # ------------------------------------------------------------------------------------------------ preflight
+ def _ns(**kw):
+-    base = dict(arm="control", seed=9101, save_loaded_only=False, no_update=False, until=None, out=None,
++    base = dict(arm="control", seed=V0, save_loaded_only=False, no_update=False, until=None, out=None,
+                 preflight_only=True)
+     base.update(kw)
+     return SimpleNamespace(**base)
+ 
+ 
+ def test_preflight_validation_modes():
+-    assert R.preflight(_ns(save_loaded_only=True, seed=9141, out=str(Path(C.VALIDATE) / "never_made"))) == []
+-    p = R.preflight(_ns(no_update=True, seed=9141, until=C.S + 100, out=str(Path(C.VALIDATE) / "never_made")))
++    assert R.preflight(_ns(save_loaded_only=True, seed=V4, out=str(Path(C.VALIDATE) / "never_made"))) == []
++    p = R.preflight(_ns(no_update=True, seed=V4, until=C.S + 100, out=str(Path(C.VALIDATE) / "never_made")))
+     assert any("--until" in x for x in p)
+     p = R.preflight(_ns(no_update=True, seed=2101, until=C.S + C.ROLLOUT, out=str(Path(C.VALIDATE) / "nm")))
+     assert any("validation seed" in x for x in p)
+-    p = R.preflight(_ns(no_update=True, seed=9141, until=C.S + C.ROLLOUT, out="/tmp/elsewhere"))
++    p = R.preflight(_ns(no_update=True, seed=V4, until=C.S + C.ROLLOUT, out="/tmp/elsewhere"))
+     assert any("not under" in x for x in p)
+-    assert any("--no-update needs --until" in x for x in R.preflight(_ns(no_update=True, seed=9141)))
++    assert any("--no-update needs --until" in x for x in R.preflight(_ns(no_update=True, seed=V4)))
++    p = R.preflight(_ns(no_update=True, seed=9101, until=C.S + C.ROLLOUT, out=str(Path(C.VALIDATE) / "nm")))
++    assert any("validation seed" in x for x in p)          # BS's validation seeds are not BS2's
+     assert any("arm" in x for x in R.preflight(_ns(arm="B", save_loaded_only=True)))
+ 
+ 
+@@ -266,3 +287,17 @@
+ def test_inputs_and_seal_pass():
+     assert R.input_problems() == []
+     assert R.seal_problems() == []
++
++
++def test_environment_keeps_git_inside_the_copy_s_parent(monkeypatch, tmp_path):
++    # setup_environment only sets variables (the folder it makes is under the given root)
++    monkeypatch.setattr(R, "bs_root", lambda: tmp_path)
++    saved = dict(R.os.environ)
++    try:
++        env = R.setup_environment("x")
++    finally:
++        R.os.environ.clear()
++        R.os.environ.update(saved)
++    ceil = env["GIT_CEILING_DIRECTORIES"].split(R.os.pathsep)
++    assert ceil == [str(tmp_path), R.os.path.dirname(R.os.path.realpath(C.CODE))]
++    assert env["TMPDIR"] == str(tmp_path / "tmp" / "x")

@@ -1,0 +1,61 @@
+sha256 policy_probe.npz.copy1: 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 FMAN 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 equal True
+sha256 eval_episodes.csv.copy1: d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e FMAN d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e equal True
+probe rows 1465, update_timesteps 8192 .. 12001280; unique True; all on the 8,192 grid True; contiguous True
+rollout_mu_mean dtype float32; bank_labels ['statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400', 'statue_settled', 'statue', 'ankle_plus_0.03', 'ankle_minus_0.03', 'ankle_minus_0.05_at400']
+
+BS reproduction: B_S(1,048,576) -0.03157372563146055 (BS criteria -0.03157372563146055); parent primary at 2,490,368 0.19955920986831188 (BS 0.19955920986831188); rise 0.23113293549977243
+
+BS2 B_S: rows 248..255 (update_timesteps 2,039,808 .. 2,097,152)
+  B_S exact 135930855/1073741824 = 0.1265954738482833
+  per-row values: [0.12619, 0.12248, 0.12138, 0.128, 0.12074, 0.11345, 0.14987, 0.13065]
+BS2 parent primary at E: rows 423..430 (update_timesteps 3,473,408 .. 3,530,752)
+  primary exact 47337175/67108864 = 0.7053788751363754
+  per-row values: [0.76466, 0.66342, 0.66748, 0.68324, 0.72632, 0.77197, 0.69073, 0.67521]
+  RISE (parent primary at E - B_S) = 0.5787834012880921
+  first 8 window rows (2,105,344 .. 2,162,688) mean 0.12512995954602957
+  window: (E - S) = 1,441,792 steps = 176 rollouts, 175 updates; window rows 2,105,344 .. 3,530,752; E on the 131,072 grid: True (E / 131,072 = 27)
+  all 175 parent window rows finite: True
+
+Trajectory: the parent's 8-row mean of rollout_mu_mean[:, 14] ending at each evaluation step (rise from B_S)
+  2,097,152 (rows ending 2,097,152): +0.12660  rise +0.00000
+  2,228,224 (rows ending 2,228,224): +0.15514  rise +0.02855
+  2,359,296 (rows ending 2,359,296): +0.16859  rise +0.04199
+  2,490,368 (rows ending 2,490,368): +0.19547  rise +0.06888
+  2,621,440 (rows ending 2,621,440): +0.19019  rise +0.06359
+  2,752,512 (rows ending 2,752,512): +0.24138  rise +0.11478
+  2,883,584 (rows ending 2,883,584): +0.29176  rise +0.16517
+  3,014,656 (rows ending 3,014,656): +0.32772  rise +0.20113
+  3,145,728 (rows ending 3,145,728): +0.43174  rise +0.30514
+  3,276,800 (rows ending 3,276,800): +0.61352  rise +0.48692
+  3,407,872 (rows ending 3,407,872): +0.69135  rise +0.56476
+  3,538,944 (rows ending 3,530,752): +0.70538  rise +0.57878
+
+Beyond E (for context only; not the window): 8-row means ending at
+  3,661,824: +0.74998  rise +0.62339
+  4,186,112: +0.83393  rise +0.70734
+row SD at S: 0.01077 (SE of the 8-row mean if rows were independent 0.00381)
+row SD at E: 0.04342 (SE of the 8-row mean if rows were independent 0.01535)
+
+statue_settled bank rows [0, 5]
+  statue_settled tail_3 command, 8 rows ending at S: +0.1340
+  statue_settled tail_3 command, last 8 rows before E: +0.1145
+
+Parent ledger CMD_L (mean over the evaluation's episodes of tail_3_pitch_act_command_mean; read_bs ledger_direct), over-bar episodes (saturated_actuator_fraction > 0.10): any / tail / tail_3
+  1,966,080  n 10  CMD_L +0.1260  max +0.1507  over 0 tail 0 t3 0  mean return nan
+  2,097,152  n 10  CMD_L +0.1251  max +0.1627  over 0 tail 0 t3 0  mean return nan <- S
+  2,228,224  n 10  CMD_L +0.1626  max +0.2089  over 0 tail 0 t3 0  mean return nan
+  2,359,296  n 10  CMD_L +0.2024  max +0.2888  over 0 tail 0 t3 0  mean return nan
+  2,490,368  n 10  CMD_L +0.2545  max +0.3674  over 0 tail 0 t3 0  mean return nan
+  2,621,440  n 10  CMD_L +0.1974  max +0.3147  over 0 tail 0 t3 0  mean return nan
+  2,752,512  n 10  CMD_L +0.2482  max +0.4023  over 0 tail 0 t3 0  mean return nan
+  2,883,584  n 10  CMD_L +0.3282  max +0.4181  over 0 tail 0 t3 0  mean return nan
+  3,014,656  n 10  CMD_L +0.3944  max +0.4883  over 0 tail 0 t3 0  mean return nan
+  3,145,728  n 10  CMD_L +0.5597  max +0.6443  over 0 tail 0 t3 0  mean return nan
+  3,276,800  n 10  CMD_L +0.5961  max +0.7604  over 0 tail 0 t3 0  mean return nan
+  3,407,872  n 10  CMD_L +0.8216  max +0.9111  over 0 tail 0 t3 0  mean return nan
+  3,538,944  n 10  CMD_L +0.8296  max +0.9497  over 0 tail 0 t3 0  mean return nan <- E
+  3,670,016  n 10  CMD_L +0.9316  max +0.9973  over 4 tail 4 t3 4  mean return nan  (beyond E)
+  3,801,088  n 10  CMD_L +0.9853  max +0.9995  over 10 tail 10 t3 10  mean return nan  (beyond E)
+  3,932,160  n 10  CMD_L +0.9932  max +1.0000  over 10 tail 10 t3 10  mean return nan  (beyond E)
+  4,063,232  n 10  CMD_L +0.9682  max +1.0000  over 8 tail 8 t3 8  mean return nan  (beyond E)
+ledger columns include episode_return: False

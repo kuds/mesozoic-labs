@@ -1,6 +1,7 @@
 # T. rex tail saturation habit: everything tried
 
-**Date:** 2026-10-29 (the work of 2026-07-09 to 2026-10-29)
+**Date:** 2026-10-29 (the work of 2026-07-09 to 2026-10-29); updated
+2026-10-30 (§9: the work of 2026-10-29 23:47 UTC to 2026-10-30 16:32 UTC)
 
 **Status:** dated record, in the repository from the records pull request of
 decision D-D55 (3) (branch `claude/records-tail-habit`; its number is in its
@@ -43,6 +44,24 @@ and the program's lessons.
   ledger id or verdict changed.
   [stance_2026_10/tail_record/README.md](stance_2026_10/tail_record/README.md)
   lists each edit.
+- **Update of 2026-10-30.** §9, appended by the records pull request of
+  decision D-D58 (3) (branch `claude/records-critic-blind`; its number is in
+  its CHANGELOG entry and in the consolidation plan's status table), adds the
+  work that followed this note's own change, which came into `main` as #654:
+  the early-bias probe, the early-warning curve and its follow-ups, and two
+  critic-blind screens, of which the first was not informative and the
+  second, from s42's mid-rise state, read line 2, REDUCED (p 1/70, with
+  §9.5's spread caveat). Its evidence is in
+  [stance_2026_10/critic_blind_results/](stance_2026_10/critic_blind_results/README.md)
+  (the run log's lines 760 to 801 and the overnight report),
+  [stance_2026_10/overnight_probes/](stance_2026_10/overnight_probes/README.md),
+  [stance_2026_10/bias_screen/](stance_2026_10/bias_screen/README.md) and
+  [stance_2026_10/bias_screen2/](stance_2026_10/bias_screen2/README.md), and
+  its ledger rows are L168 to L187. The long critic-blind study the
+  maintainer chose next was pending as of 16:32 UTC, where the run-log copy
+  ends (§9.7). §9.3 corrects two loop gains that §2, §4.7, §4.11 and §7 give;
+  §1–§8 are otherwise unchanged. §9 has not been through the completeness
+  critic or the fact checks described below.
 
 **How it was checked.** A completeness critic and a number-by-number fact
 check read the first draft; a fixer verified each of their findings against
@@ -72,14 +91,14 @@ and fixed what it found in place
 
 Every entry here is one row of the ledger,
 [stance_2026_10/tail_record/ledger.csv](stance_2026_10/tail_record/ledger.csv):
-167 rows,
-with ids L001 to L167, cited in brackets. Rows L001-L153 merge the 219
-entries of three source sweeps and two writer entries; rows L154-L156 were
-added by the fixer from the completeness critic's findings, and rows
+187 rows, with ids L001 to L187, cited in brackets. Rows L001-L153 merge the
+219 entries of three source sweeps and two writer entries; rows L154-L156
+were added by the fixer from the completeness critic's findings, rows
 L157-L167 by the update from the notes of the probe, the posture tests and
-their verifiers (§8.5). Each row names the sweep entries it merges, every
-source it rests on, where in this record it appears and, where its sources
-disagree, both readings (§8.3).
+their verifiers (§8.5), and rows L168-L187 by the update of 2026-10-30
+(§9.9). Each row names the sweep entries it merges (from L168, the update's
+own entries), every source it rests on, where in this record it appears and,
+where its sources disagree, both readings (§8.3).
 
 ## How to read this record
 
@@ -1968,3 +1987,339 @@ where the content can be found instead, the row says so.
   (the ledger ids each section cites, against where_in_record); the pre-check
   copies are session scratch, not kept
   (`scratchpad2/tail_record/update_check/`).
+
+## 9. Update 2026-10-30: the early-bias probe, the early-warning tests and the two critic-blind screens
+
+*Appended 2026-10-30. §1–§8 are as the change that added this note left
+them, but for the date line and the status block at the top; their figures
+stand as written there, and §9.3 gives the one correction this update makes
+to them.* This section adds the work of 2026-10-29 23:47 UTC to 2026-10-30
+16:32 UTC, decisions D-D56 to D-D58
+([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2): a
+no-training probe of what first pushes the tail command up, an early-warning
+curve with two follow-ups, and two scratch CPU training screens that hid the
+`tail_3` angle from the critic, from s42's r10 checkpoints at 1,048,576 and
+2,097,152 steps. Its sources are the run log's lines 760 to 801, copied as
+[stance_2026_10/critic_blind_results/run_log.txt](stance_2026_10/critic_blind_results/run_log.txt)
+(copy line = N - 759; "RUNLOG lN" as in the rest of this record), the
+overnight report beside it, and the folders named below, which the records
+change of D-D58 (3) keeps. Each row of §9.1 is a ledger row, L168 to L186,
+and L187 holds §9.8's lessons. Labels are as in the rest of this record.
+This record itself was merged into `main` as #654 at 13:36:32 UTC on
+2026-10-30 (RUNLOG l790). Nothing here is certified, and nothing trains on
+`main`.
+
+| Short name | File |
+|---|---|
+| EB, VEB | [stance_2026_10/overnight_probes/early_bias/](stance_2026_10/overnight_probes/README.md) (the early-bias probe) and `verify_early_bias/` (its adversarial verifier) |
+| EW, VEW | [stance_2026_10/overnight_probes/early_warning/](stance_2026_10/overnight_probes/early_warning/NOTES.txt) (the early-warning curve) and `verify_early_warning/` (its verifier) |
+| WR9, WM, VWF | [stance_2026_10/overnight_probes/](stance_2026_10/overnight_probes/README.md) `warning_r9/` (the r9 held-out warning test), [`warning_margin/`](stance_2026_10/overnight_probes/warning_margin/NOTES.txt) (the margin-to-rail test) and `verify_warning_followups/` (their verifier) |
+| BS | [stance_2026_10/bias_screen/](stance_2026_10/bias_screen/README.md) (the first critic-blind screen) |
+| BS2 | [stance_2026_10/bias_screen2/](stance_2026_10/bias_screen2/README.md) (the second), with its report [REPORT.md](stance_2026_10/bias_screen2/REPORT.md) |
+| MR | [stance_2026_10/critic_blind_results/MORNING_REPORT.md](stance_2026_10/critic_blind_results/MORNING_REPORT.md) (the overnight report) |
+
+### 9.1 In date order
+
+| When [ledger] | What, and why | Design | Result | Verdict | Full record |
+|---|---|---|---|---|---|
+| 2026-10-30, 00:24 UTC [L168] | What first pushes the tail command up? | The maintainer: "Early-bias probe (Recommended)", no training (D-D56 (1)): one PPO update rebuilt at the r10 checkpoints, each loss term's first-order push on the deterministic `tail_3` mean split by reward term and state region and checked against the actual change; then an adversarial verifier | Launched at 00:24 UTC | adopted | RUNLOG l763 |
+| 2026-10-30, 00:45 UTC [L169] | The night's work, without asking again | The maintainer, going to bed: "Probes + one small screen (Recommended)" (D-D56 (2)): after the probe is verified, (a) the no-training follow-ups, the early-warning curve among them, and (b) one scratch CPU training screen of at most 9 continuations of at most 1.5M steps from s42's 1,048,576 checkpoint, control against one intervention on the driver the probe names, criteria reviewed and sha-pinned before launch, outcome-blind, report only, nothing merged or pushed but a durable text copy; and the analysis | [measured] The curve started at 00:46 UTC; the screen is BS; the analysis is MR | adopted | RUNLOG l764-l765 |
+| 2026-10-30, 00:30-03:45 UTC [L170] | The early-bias probe | EB: at the local F2 checkpoints, 1,048,576 apart (s42 and s80 at 1.05M, 2.10M and 3.15M, s42 at 3.67M, s60 from 5.24M to 8.39M), one PPO update rebuilt, no optimizer step | [measured, unverified] Only the policy-gradient term moves the tail mean (entropy and value exactly 0). At 1.05M the expected update is null, yet the weights raised `tail_3` about +0.15 over 1.05-2.10M in s42 and s80; from 2.10M a pull carried by `tail_3`'s own noise appears, driven by the critic's bootstrapped value, and grows 10x in s42 by 3.15M | superseded (L171) | EB `eb_summary.txt`, `eb_aggregate.txt`; RUNLOG l770 |
+| 2026-10-30, ~03:30-04:21 UTC [L171] | Verify the probe | VEB: its own code and seeds, and the 1,310,720 checkpoints of s42 and s80, fetched read-only from Drive | [measured, verified with corrections] At 1.31M, 0.1M after s42's onset at 1.204M, s42 already has an upward push on `tail_3` carried by its own exploration noise (+0.00115 ± 0.00032 per epoch, t 3.6; the critic's slope on the tail angle positive); s80 has none then. The critic-bootstrap source is supported from 2.10M (GAE minus MC +0.00372, t 3.7; +0.02386, t 7.9 at 3.15M), unresolved at the onset (+0.00048 ± 0.00045) | adopted | VEB `vb_aggregate.txt` l27-150; RUNLOG l771 |
+| 2026-10-30, 04:21-16:21 UTC [L172] | H-CRITIC: the critic's bootstrapped value drives the tail's climb | Tested by hiding the `tail_3` angle from the critic in training (BS, BS2) | [inferred] Supported from s42's mid-rise state (BS2); the onset unresolved; why the critic values a raised tail open (§9.6) | supported | §9.2, §9.5 |
+| 2026-10-30, 00:46-02:42 UTC [L173] | Can the habit be seen coming? | EW: G, c0, the fixed point and the posture slope at the 37 saved checkpoints of r10 s42, s60 and s80 and at the 24 ECS continuations' checkpoints, against the ledgers' events; VEW checks it | [measured, verified with corrections] G turns positive one checkpoint before the first tail over-bar episode in s42 and s60, but late s80 reaches the same loop state with none; no loop-only rule separates them with any margin | n/a | EW `NOTES.txt` l14-72; RUNLOG l768-l769 |
+| 2026-10-30, ~02:15-02:42 UTC [L174] | Were the record's early loop gains measured in range? | EW §5 and VEW's clip check of the legacy 0-6° sweep | [measured] No: at s42's 1.05M and 2.10M that sweep reaches the normaliser's clip beyond 3.74° and 4.28°; unclipped, G is -0.725 and -0.636, against the -0.250 and -0.386 that §4.7, §4.11 and §7 quote, §2 the first (§9.3) | adopted | EW `NOTES.txt` l234-245; VEW `vew_clip.txt` |
+| 2026-10-30, 02:42-04:40 UTC [L175] | Does the earliest signal warn across runs? | WR9: the curve's signals applied out of sample to the five r9 stance5 runs, rules hashed before any r9 data was read; VWF re-derives it | [measured, verified] Only the probe bank's `tail_3` offset was testable on r9; it fired in all 5 runs by 2.06M, the cleanest negative (s70) included: the test fails | ruled out | WR9 `wr9_r9.txt`; VWF `vwf_r9.txt`; RUNLOG l773 |
+| 2026-10-30, 02:50-04:40 UTC [L176] | How close to the rail is each run? | WM, pre-registered: the smallest constant nudge to the `tail_3` command's bias at which at least 11 of 20 seeds park it at the rail, at 7 checkpoints; VWF re-measures it | [measured, verified] s42 1.094 (2.10M) and 0.281 (3.15M); s60 0.703 (6.29M) and 0.203 (7.34M); s80 0.516, 0.328 and 0.297 (10.5M, 11.5M, 12.0M): late s80 as close as s42 one checkpoint before its first over-bar episode, approaching 4-12x more slowly | n/a | WM `NOTES.txt` l9-84; RUNLOG l773 |
+| 2026-10-30, 04:22 UTC [L177] | Which intervention for the screen? | The session's choice under the 00:45 UTC authorisation | `critic_blind_tail3`: the normalised `tail_3` angle (observation 6) set to 0 before the value network only, the actor untouched. Not chosen: `gae_lambda_1` (changes every actuator's advantages), `frozen_obs_norm` (the normaliser was shown to oppose the loop) | adopted | RUNLOG l772 |
+| 2026-10-30, 03:45-06:00 UTC [L178] | BS: design and pin | 4 control and 4 `critic_blind_tail3` continuations from s42 1,048,576 to 2,490,368 (175 updates), seeds 2101-2131; primary the on-policy `tail_3` command over the last 8 updates; exact one-sided permutation test, minimum p 1/70; informative only if the control median rises by at least 0.10 | [measured] Criteria v2 (`9c490cc6…`) after a review of v1 (9 findings, 0 blocking); APPROVED (`7bf25afd…`) at 06:00:05 UTC; launched 06:00:19 UTC. The fixed version was not re-reviewed | adopted | BS `criteria.txt`, `APPROVED`; RUNLOG l774-l776 |
+| 2026-10-30, 06:00-09:17 UTC [L179] | BS: the reading | `score_bs` 1.1 on the 8 continuations, all COUNTED; two independent checks | [measured] Line 1, NOT INFORMATIVE: control median +0.06027, a rise of +0.09184 against 0.10; report only, arm means +0.09306 / +0.01319, p 13/70; both checks agree | n/a | BS `score/score.txt` l5-24; RUNLOG l778-l780 |
+| 2026-10-30, 09:03-09:17 UTC [L180] | What BS showed | Its report-only readings and the statistic lens's wording check | [measured] From the same 1.05M networks the rise comes in some seeds and not in others: only control_2131 rose like the parent on the primary and the logged tail command (STAT-1); all 8 far from the rail at 2.49M | n/a | BS `score/score.txt`, `check/stat/`; MR §3 |
+| 2026-10-30, 10:23 UTC [L181] | What next? | The maintainer: "Go with option a" (MR §6 A; D-D57 (1)): the screen re-run from s42's 2,097,152 checkpoint, 4+4 continuations to about 3.6M, its criteria reviewed, the fixed version re-reviewed, and pinned before launch | Build and criteria launched at 10:29 UTC | adopted | RUNLOG l784, l786 |
+| 2026-10-30, 10:29-12:49 UTC [L182] | BS2: design, build and review | 2,097,152 to 3,538,944 (175 updates), seeds 2501-2531; B_S 0.1265954738482833; gate a control median rise of at least 0.20; three secondaries that never change the line | [measured] Build check 0 blocking; 101 scorer tests, 32/32 mutants caught; reviews 0 blocking, 32 findings; fixer 31 confirmed (25 fixed); the fixed version re-reviewed READY TO PIN | adopted | BS2 `NOTES.txt`, `criteria_work/`, `review/`; RUNLOG l787 |
+| 2026-10-30, 12:53 UTC [L183] | Launch BS2? | The maintainer: "Launch with 0.20 (Recommended)" (D-D57 (2)) | [measured] Criteria `291ff457…`; APPROVED `184f9ab9…` at 12:53:50 UTC; launched 12:54:36 UTC | adopted | BS2 `APPROVED`; RUNLOG l788-l789 |
+| 2026-10-30, 12:54-15:57 UTC [L184] | BS2: the reading | `score_bs` 2.1 on the 8 continuations, all COUNTED | [measured] Line 2, REDUCED: control +0.67001, +0.79227, +0.51081, +0.41938 against blind +0.14283, +0.12485, +0.13810, +0.06516; control median rise +0.46382; p 1/70; SEC-CMD and SEC-MARGIN SUPPORTED, SEC-G NOT SUPPORTED | supported | BS2 `score/score.txt` l1-75; RUNLOG l794 |
+| 2026-10-30, 15:58-16:26 UTC [L185] | Check the reading | Two independent lenses, statistic and process | [measured] Both agree, 0 blocking; the report's wording corrected (S-2 to S-7); durable copy pushed at 16:26 UTC | adopted | BS2 `check/`, `REPORT.md`; RUNLOG l796-l797, l800 |
+| 2026-10-30, 16:23 UTC [L186] | What next? | The maintainer: "Long blind run to 12M (Recommended)", "Push it (Recommended)", "Yes, now (Recommended)" (D-D58) | [measured] The long study's build and criteria launched at 16:32 UTC; its pin and launch wait for the maintainer | adopted | RUNLOG l798, l800-l801 |
+
+### 9.2 What first pushes the tail command up (the early-bias probe, verified with corrections)
+
+[measured, VEB `vb_aggregate.txt` l27-150 and RUNLOG l771, unless said; L170, L171]
+
+- **Only the policy-gradient term moves the tail command's mean.** The
+  entropy and value terms change it by exactly 0; the mirror term is small
+  and changes sign (MR §1).
+- **Just after s42's onset there is already a push, and it is s42's own.**
+  At 1,310,720 steps, about 0.1M after s42's tail began to rise (1.204M),
+  s42 has an upward policy-gradient pull on `tail_3` carried by `tail_3`'s
+  own exploration noise: +0.00115 ± 0.00032 per epoch (t 3.6), with the
+  r9-style bias pull at -0.040 and the critic's slope on the tail angle
+  positive. s80 has none then (+0.00011 ± 0.00025, t 0.4) and gets the same
+  kind of push about 0.8M later. The first probe (EB), on checkpoints 1.05M
+  apart, missed it; the verifier fetched the 1,310,720 checkpoints read-only
+  from Drive.
+- **From 2.10M the critic is the source.** On the policy's own states the
+  GAE pull exceeds the critic-free Monte Carlo pull (GAE minus MC +0.00372 ±
+  0.00099, t 3.7, at 2.10M; +0.02386 ± 0.00301, t 7.9, at 3.15M), while the
+  collected rewards push down: the critic's bootstrapped value pays for a
+  higher tail. The push grows tenfold in s42 by 3.15M and is gone in s80
+  (EB).
+- **Not settled.** At the onset the source is unresolved (GAE minus MC
+  +0.00048 ± 0.00045 at 1.31M), and it is not seen on the statue_settled
+  state. Why the critic comes to value a raised tail is not known; the
+  reading that the tail angle stands in for "how far into the episode" is a
+  hypothesis the verifier did not settle, and the probe's own critic-error
+  slope was omitted (MR §1; RUNLOG l771).
+
+### 9.3 Can the habit be seen coming? (the early-warning curve and its follow-ups, verified)
+
+[measured; L173-L176]
+
+- **The loop flips just before the rail, but s80 drifts there too.** The
+  tail loop's gain G (0-1° sweep) is strongly negative early (-0.73 s42,
+  -1.38 s60, -1.38 s80 at 1,048,576) and turns positive one saved checkpoint
+  before the first tail over-bar episode: s42 +0.35 at 3,145,728 (its first
+  over-bar episode at 3,670,016), s60 +0.31 at 7,340,032 (8,126,464). s80
+  crosses 0 at 8,388,608 (+0.07) and reaches the same loop state late (G
+  +0.27, c0 +0.49, command 0.64 at 12M; its ledger at the PARK line at
+  11.80M) with no tail over-bar episode, so no loop-only rule separates the
+  runs with any margin (the best, G > 0.311, by 0.002 and 0.04) (EW
+  `NOTES.txt` l14-72; VEW).
+- **What training already records is as early or earlier**: the policy
+  probe's `tail_3` offset on its bank's fixed states, and the ledger's tail
+  command (CMD_L ≥ 0.3: 0.79M ahead in s42, 1.70M in s60) (EW).
+- **The probe offset fails out of sample** (the ledger's tail command
+  could not be tested: the r9 ledgers have no such column). On the five r9
+  runs, with the rules hashed first, the probe bank's `tail_3` offset
+  fired in all 5 by 2.06M, the cleanest negative (s70) included; the
+  verifier calls it evidence against that signal as a cross-run warning
+  (WR9 `wr9_r9.txt`; VWF; RUNLOG l773).
+- **How close to the rail (WM, pre-registered).** The smallest constant
+  nudge to the `tail_3` command's bias that parks it at the rail: s42 1.094
+  (2.10M) and 0.281 (3.15M); s60 0.703 (6.29M) and 0.203 (7.34M); s80 0.516,
+  0.328 and 0.297 (10.5M, 11.5M, 12.0M). Late s80 is as close as s42 one
+  checkpoint before its first over-bar episode, but approaches 4-12x more
+  slowly (s42 lost 0.81 of margin per 1.05M steps before it, s60 0.50; s80
+  0.19, then 0.07). The gain-aware margin 1 - G - c0 ranks all seven
+  checkpoints (Spearman +1.000); 1 - the command at the railed angle fits
+  the scale best (mean absolute error 0.065) but swaps one pair (Spearman
+  0.964); none rails on its own (G_cl ≤ 0.43) (WM `NOTES.txt` l9-84; VWF).
+- **A correction to §1–§8 [L174].** §4.7, §4.11 and §7 item 1 give VPOST's
+  G for r10 s42 as -0.250 at 1,048,576 and -0.386 at 2,097,152, and §2 the
+  first. Those come from the 0-6° observation sweep, which at those
+  checkpoints reaches the normaliser's clip beyond 3.74° and 4.28°. On the
+  unclipped 0-1° sweep they are -0.725 and -0.636 (EW `NOTES.txt` l234-245;
+  VEW `vew_clip.txt`). The signs hold, so §2's and §4.11's reading stands (a
+  negative loop at 1,048,576); the magnitudes are larger. The figures above
+  §9 are left as written.
+
+### 9.4 The first critic-blind screen (BS): not informative
+
+[measured, BS `score/score.txt` and `check/`, RUNLOG l772-l783; L177-L180]
+
+- **Design** (the session's choice under the overnight authorisation, pinned
+  before launch): 8 CPU continuations of s42 from 1,048,576, before its tail
+  rose, to 2,490,368 (175 updates): 4 control and 4 `critic_blind_tail3`
+  (the normalised `tail_3` angle set to 0 at the critic's input only; the
+  actor still sees it), paired seeds 2101 to 2131. The primary is the
+  policy's own `tail_3` command over the last 8 updates; an exact one-sided
+  permutation test (smallest p 1/70) reads it only if the control median
+  rises by at least 0.10 from the start (B_S -0.03157). The first draft of
+  the criteria and scorer was reviewed independently (9 findings, none
+  blocking) and fixed; the fixed version was not re-reviewed. APPROVED at
+  06:00:05 UTC, 14 s before the launch.
+- **Reading, final: line 1, "NOT INFORMATIVE"** (09:03 UTC). The control
+  median rose +0.09184 (+0.06027 at the end), short of 0.10, so no reading
+  about the critic is made. Primary, control against blind (seeds 2101,
+  2111, 2121, 2131): -0.03102 / +0.02868, +0.02567 / -0.02845, +0.09486 /
+  +0.03689, +0.28273 / +0.01563. Report only, and not evidence: arm means
+  +0.09306 and +0.01319, p 13/70, sign-flip 4/16. All 8 COUNTED; the
+  manipulation held on all 175 rollouts of every continuation. Both
+  independent checks agree with no blocking finding; with the upper middle
+  value in place of the pinned midpoint rule the gate would pass, but the
+  line would read 3, not REDUCED, since p is 13/70 either way.
+- **What it showed** (report only): from the same 1.05M networks the early
+  rise is a matter of chance under fresh rollout seeds. Only control_2131
+  rose like the parent on the primary (+0.314 against +0.231) and the logged
+  tail command (0.32 against 0.255); control_2121 rose partway on the
+  primary (+0.126) and tracked the parent on the statue_settled offset
+  (+0.208 against +0.217), which control_2131 did not (+0.121) (the
+  statistic lens's correction, STAT-1). All 8 were still far from the rail
+  at 2.49M. The blinded runs' offsets c0 stayed at most 0.09, yet one
+  blinded run's loop gain turned positive (+0.32); the end-G pattern (less
+  negative than at the start in 4 of 4 blinded runs, 1 of 4 controls) was
+  spotted after the fact and is untested (STAT-3).
+- **Its text outputs** are on the orphan branch
+  `claude/handoff-bias-screen` at `cfed2c70` (633 files, about 20 MB), pushed
+  at 09:17 UTC under the authorisation and never to be merged (RUNLOG l782).
+
+### 9.5 The second critic-blind screen (BS2): reduced
+
+[measured, BS2 `score/score.txt`, `check/` and `REPORT.md`, RUNLOG
+l784-l797; L181-L185]
+
+- **Design** (the maintainer's option A, launched with its 0.20 gate): 8 CPU
+  continuations of s42 from 2,097,152, mid-rise, where the probe verified the
+  critic as the push's source, to 3,538,944 (175 updates): 4 control and 4
+  `critic_blind_tail3`, paired seeds 2501 to 2531. The same primary and test;
+  the gate a control median rise of at least 0.20 from B_S +0.12660, about a
+  third of s42's own rise over the window (+0.57878); three secondaries that
+  never change the line. The criteria and tools were built, checked,
+  reviewed by a design and a process lens, fixed, and the fixed version
+  re-reviewed READY TO PIN; APPROVED at 12:53:50 UTC.
+- **Reading, final: line 2, "REDUCED: BLINDING THE CRITIC TO THE TAIL_3
+  ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8
+  UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation
+  test, p <= 0.05)"** (15:57 UTC). Primary, control against blind (seeds
+  2501, 2511, 2521, 2531): +0.67001 / +0.14283, +0.79227 / +0.12485, +0.51081
+  / +0.13810, +0.41938 / +0.06516. The control median rose +0.46382 (to
+  +0.59041), past the 0.20 gate. Every control ended above every blinded
+  run; p 1/70, the smallest attainable with 4 per arm.
+- **Secondaries** (pre-registered; they never change the line): the
+  ledger's tail command at the end SUPPORTED (p 1/70; control +0.884,
+  +0.955, +0.597, +0.475, blind +0.181, +0.125, +0.146, +0.068); the margin
+  to the rail at the end SUPPORTED (p 1/70; control -0.030, -0.060, +0.404,
+  +0.352, blind +0.983, +1.109, +1.301, +1.194); both survive Bonferroni.
+  The end loop gain, BS's after-the-fact pattern tested out of sample, NOT
+  SUPPORTED (70/70: the blinded runs' gain was lower than the controls');
+  controls that climb work against it, so it does not refute BS's pattern at
+  1.05-2.49M (S-6).
+- **Report only, with the checkers' wording** (S-2 to S-7, which
+  `REPORT.md` applies): two of the four controls reached the bar and no
+  blinded run did (control_2501 1 of 10 evaluation episodes over the bar at
+  3,407,872, 0 at the end; control_2511 2 of 10 there and 8 of 10 at the
+  end, a tail-flagged evaluation, all on `tail_3`; s42 itself first went
+  over at 3,670,016, 4 of 10). The control median stayed within 0.03 of
+  s42's own command through 3,145,728 and ended 0.115 below it (+0.590
+  against +0.705), a median rise of 80% of s42's. The blinded runs' offsets
+  c0 were 0.10-0.25 at the end (0.08-0.25 at every saved checkpoint) and
+  their margin to the rail 0.98-1.30 (at least 0.95 throughout). The
+  blinded runs' window return was higher in all 4 pairs (+6 to +34). The
+  arms' spreads differ (SD 0.166 against 0.036): if blinding had only
+  narrowed the spread, with no shift in the mean, a separation like this
+  would occur about 3% of the time at this spread ratio (2.5-4% for ratios 3
+  to 7; normal model), not 1.4%; the pre-registered p decides, and the line
+  stands (post hoc Welch t 5.67, one-sided p 0.004).
+- **Both independent checks agree** (104 comparisons with `score.json`, 0
+  differences; the pins, APPROVED's timing 46 s before the first start, the
+  critic exactly blind on every blinded rollout, outcome-blindness, as far
+  as the access-time records can show (they cannot see a read before each
+  decision, I1), and the limits all hold).
+- **What it means** [measured, BS2 `REPORT.md` l60-73]: from s42's 2.10M
+  state, removing the critic's view of the `tail_3` angle stopped the climb
+  of the policy's tail command toward the rail; with the view, all four
+  controls climbed. [inferred there] This fits the verified probe (§9.2): the
+  critic's bootstrapped value pays for a raised tail, the policy gradient
+  follows it, and the loop of §4.7 closes. It is the most direct causal
+  evidence so far for the critic as the driver of the climb [L172].
+- **Not shown** (BS2 `REPORT.md`): that it works from other runs or states
+  (only s42 at 2.10M was tested); that a full training run with the critic
+  blinded from the start avoids the habit and keeps a good stance; what the
+  onset at about 1.2M does; whether the critic would in time recover the
+  angle from its other inputs; whether the habit moves to another joint (s80's
+  habit was on the neck).
+- **Its text outputs** are on the orphan branch
+  `claude/handoff-bias-screen2` at `2d241410` (3,220 files, about 47 MB),
+  pushed at 16:26 UTC at the maintainer's word and never to be merged
+  (RUNLOG l800).
+
+### 9.6 What is answered, and what stays open (§7 updated)
+
+**Answered or narrowed since §7** (each within the scope tested)
+
+- §7 open question 1, why the loop forms in training: the policy-gradient
+  term alone moves the tail mean, and from mid-rise the push comes through
+  the critic's bootstrapped value [L171]; in s42 from 2,097,152, hiding the
+  `tail_3` angle from the critic stopped the climb [L184, L185]. H-CRITIC is
+  supported from mid-rise [L172].
+- §7's "what changed at about 1.2M": at 1.31M s42 already had a push carried
+  by its own exploration noise [L171]; whether the critic drives it is
+  unresolved.
+- §2's "a learned positive-feedback loop": it stands, and early warning from
+  the loop alone does not separate the runs that rail from those that park
+  late [L173, L176].
+- From the 1,048,576 state the early rise is a matter of chance under fresh
+  rollout seeds [L180].
+
+**Still open**
+
+- Why the critic values a raised tail (the tail angle as an episode-phase
+  proxy is a hypothesis) [L171, L172].
+- What drives the very first push at the onset (about 1.2M) [L171]; BS could
+  not test it [L179].
+- Whether the BS2 effect lasts to 12M, whether the stance gate still passes
+  with the critic blinded, and whether the habit moves to another joint
+  (s80's habit was on the neck): the questions of the long study, §9.7
+  [L186].
+- Whether the effect holds in other runs and states, and in a run blinded
+  from the start; whether the critic would recover the angle from its other
+  inputs [L185].
+- An early warning that works across runs: none of the signals tested does
+  [L173, L175, L176].
+- §7's questions 2 to 17 stand as written, but that item 1's G values at
+  1,048,576 and 2,097,152 are the clipped ones (§9.3) [L174], and the
+  candidate next steps listed there are now behind the long study, which
+  the maintainer chose (§9.7).
+
+### 9.7 Next: the long critic-blind study (LB), chosen and pending
+
+At 16:23 UTC the maintainer chose "Long blind run to 12M (Recommended)" (D-D58
+(1); RUNLOG l798) [L186]: continue s42 from 2,097,152 steps to the full 12M, 4
+runs, mostly `critic_blind_tail3` with a normal control, about 10 h on the
+session's CPUs after a reviewed pre-registration of about 2 h, to ask whether
+the effect lasts, whether the stance gate still passes, and whether the habit
+moves to another joint. Its build and criteria were started at 16:32 UTC (a
+harness that resumes from the latest saved pair, the round's pinned
+measurements of the tail class, the alarms per actuator and the six-heading
+gate, a draft of four questions with a default of 3 blinded and 1 control on
+new seeds, then a build check, two reviews, a fixer and a re-review); as of
+then, where this update's run-log copy ends, its pin and launch waited for the
+maintainer and its result was pending (RUNLOG l801); what followed goes to the
+next records change. It would train scratch continuations only; nothing trains
+on `main`, and no gate, reward, plant or criterion changes.
+
+### 9.8 Lessons
+
+[inferred, L187] The record's §6 lessons stand; the update adds these
+(§6.2's numbering continued):
+
+20. A screen needs a control arm that reliably shows the effect. From 1.05M
+    the rise came by chance under fresh seeds, BS's gate was not met, and it
+    could say nothing; from the mid-rise start, where the probe had verified
+    the critic's push, the controls rose and the test read.
+21. A pre-registered informativeness gate kept an uninformative screen from
+    being read as a null.
+22. With 4 per arm the smallest p is 1/70; a reading at that bound needs the
+    spread caveat beside it (BS2's S-3).
+23. Re-review the fixed criteria, not only the first draft (BS's process
+    check P2; done for BS2).
+24. A sweep can reach the normaliser's clip; give a loop gain with its sweep
+    range (§9.3).
+25. An agent run as root can damage what every process shares: at about
+    01:05 UTC one replaced the system's `/dev/null` with a regular file for
+    1-2 minutes (repaired at 01:06 UTC; the probes' outputs unaffected; EW
+    `NOTES.txt` l269-285, MR §5). Each agent writes only inside its own
+    folder.
+26. A durable text copy of each screen, made after its reading and never
+    merged, keeps what the repository cannot hold.
+
+### 9.9 This update's sources and files
+
+- **The run log's lines 760 to 801** (2026-10-29 23:47 UTC to 2026-10-30
+  16:32 UTC):
+  [stance_2026_10/critic_blind_results/run_log.txt](stance_2026_10/critic_blind_results/run_log.txt),
+  copy line = N - 759, with its session tool ids removed; it continues
+  `ecs_results/run_log.txt` with no line in both, so every line of the run
+  log up to 801 is in a repository copy.
+- **The evidence**, under [stance_2026_10/](stance_2026_10/README.md):
+  `critic_blind_results/` (the run log and MR), `overnight_probes/` (EB,
+  VEB, EW, VEW, WR9, WM, VWF), `bias_screen/` (BS) and `bias_screen2/`
+  (BS2), each with a README that says what it keeps and where the rest is
+  (the durable branches `claude/handoff-bias-screen` and
+  `claude/handoff-bias-screen2`, and the session's scratch).
+- **The ledger**: rows L168 to L187 were added by this update (merged_from
+  N01 to N20), each citing its evidence by its repository path and the run
+  log by its copy's lines; `build_ledger.py` rebuilds none of them.
+- **The decisions**: D-D56 to D-D58 in
+  [../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2, and the
+  stance record's §29 points here.

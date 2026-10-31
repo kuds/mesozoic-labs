@@ -1,0 +1,344 @@
+BIAS SCREEN 2 (BS2) HARNESS -- NOTES (summary first, then every command and its result).  Written by the BS2 harness
+builder, 2026-10-30 (date -u).  Folder: S2/r10round/bias_screen2.
+NO TRAINING in this build: no optimizer step anywhere, no continuation launched, BS2/APPROVED never created or touched.
+Short names: S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad;
+S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad; BS = S2/r10round/bias_screen
+(the finished screen, read only); BS2 = S2/r10round/bias_screen2; PY = S2/venv/bin/python (always -I -B); FMAN =
+S1/foot/stance6/fetch/manifest.csv; F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/.
+Labels: [measured] = I ran or read it (file / line cited); [inferred] = reasoned, basis given.
+
+==================================================================================================================
+SUMMARY (11:05Z)
+==================================================================================================================
+- BUILT: BS2/tools = BS's tools (not score_bs.py / test_score_bs.py: the criteria lane's) re-pointed at s42's 2,097,152
+  checkpoint.  bs_hooks.py (THE ARM HOOK), verify_copy.py and tests/test_bs_hooks.py are byte-identical to BS's; the
+  arms, the hook, the queue mechanics, the floors and the outcome-blind runner are unchanged (run_waves_bs.sh differs
+  only in its root).  38 diff hunks, each explained below (logs/tools_vs_bs.diff).  [measured]
+- THE CODE COPY: BS/code reused read only (bs_common.CODE = BS/code), digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce
+  914e4e011d5c6437ebf1, 1,406 files, verified with BS/tools/verify_copy.py before (10:31:48Z) and after every run
+  (11:01Z); 0 files of it newer than the build marker, 0 __pycache__, 0 writable files; every tool write is under BS2
+  (run_bs: run_root under BS2/validate or BS2/runs, BS2/tmp; read_bs: require_under(BS2); runner: under $BS).
+- WINDOW [measured, validate/logs/parent_schedule.out]: S = 2,097,152; LENGTH = 1,441,792 (BS's); E = 3,538,944 =
+  27 x 131,072 (on the evaluation grid; not on the 262,144 save grid: E mod 262,144 = 131,072, so the end pair is
+  stage1_final at E).  11 evaluations (2,228,224 ... 3,538,944), 176 rollouts, 175 update rows (2,105,344 ...
+  3,530,752), periodic pairs 2,359,296 / 2,621,440 / 2,883,584 / 3,145,728 / 3,407,872, VALIDATE_UNTIL 2,359,296.
+- START PAIR [measured, logs/check_inputs.out]: stage1_2097152_steps.zip.copy1 83b6c88edb933005adcb2089bdac67654f4e77809ca
+  5506f4e47364995ef1b61 (FMAN line 241) and stage1_vecnormalize_2097152_steps.pkl.copy1 991d434f385187e87301755ddf9a12fe2b3
+  adb65cf186e7e32b175b3574bed90 (FMAN line 243); the five parent records + stage_config.json = the F2 files BS pinned,
+  all 8 equal to FMAN (lines 71, 103, 106, 82, 80, 68) and to the bs_common pins (BS2/tools/check_inputs.py exit 0).
+- THE PARENT'S SCHEDULE OVER THE WINDOW [measured, parent_schedule.out; code read]: probe ent_coef equals 0.005 +
+  min(1, t / 7,000,000)(0 - 0.005) (EntCoefDecayCallback, absolute steps, stance.toml ent_coef_decay_timesteps
+  7,000,000) and learning_rate equals 1e-5 + (1 - t / 12,000,000)(3e-5 - 1e-5) (SB3 progress over _total_timesteps
+  12,000,000) on all 175 window rows exactly (float32; 0.0 max error; also over the whole 1,465-row run);
+  window ent_coef 0.0034962 -> 0.0024780, lr 2.6491e-05 -> 2.4115e-05.  The harness gives the body total = 12M - S =
+  9,902,848 and SB3 adds num_timesteps (target 12,000,000 = the start zip's _total_timesteps), and ent_coef after the
+  load is the config's 0.005 (the zip holds the decayed 0.0035020; the callback recomputes from absolute steps), so
+  the schedule is a function of num_timesteps alone and reproduces the parent's [inferred from code + measured V1
+  ent_coef_after_load 0.005 in every arm + measured V2 CHECK: ent_coef and learning_rate equal to the parent's F2
+  probe on 31/31 rows in every arm].  The VecNormalize statistics: the start pkl's obs_rms mean / var (float32) and
+  count (4,194,312.0001) equal the parent probe's row 255 (S); ret_rms count 2,097,152.0001; stock RunningMeanStd;
+  V1: the loaded training env's statistics equal the pkl's exactly in every arm.  n_updates in the 2,097,152 zip:
+  2,471 (= epochs: target_kl 0.03 stops some epochs early; 255 trains x 10 = 2,550 without early stops; Adam step
+  157,349); the start zip has _total_timesteps 12,000,000, gae_lambda 0.95, n_epochs 10, batch 128, n_steps 2,048.
+  Parent coverage: probe rows 8,192 ... 12,001,280 every 8,192 (1,465 rows, unique; row 255 at S; 256 rows <= S; all
+  175 window rows present; 1,034 rows >= E); ledger eval_episodes.csv 10 episodes at S and at each of the 11 window
+  evaluations (64 evaluations after E: the reference read truncates to <= E, as in BS); evaluations.npz all 11
+  window evaluations; train_episodes / gate_progress run to 12.0M / 11,927,552.
+- B_S CANDIDATE [measured, parent_schedule.out "B_S"]: mean of the parent F2 probe's rollout_mu_mean[:, 14] over the 8
+  rows ending at S (update_timesteps 2,039,808 ... 2,097,152, probe rows 248-255; exact Fraction mean of the float32
+  values) = 0.1265954738482833.  The same code at 1,048,576 gives -0.03157372563146055 = BS's pinned B_S exactly.
+  THE LAST 8 UPDATE ROWS BEFORE E: 3,473,408 / 3,481,600 / 3,489,792 / 3,497,984 / 3,506,176 / 3,514,368 /
+  3,522,560 / 3,530,752 (probe rows 423-430).  (Report only: the parent's own mean there 0.7053788751363754.)
+  No threshold chosen (the criteria lane's).  The criteria lane's draft (criteria_work/criteria_v1.txt line 147) has
+  the same B_S, found independently.
+- P3 FIXED: read_bs.py's loop cache key now starts with read_bs.py's own sha256 (and a digest of bs_common.py +
+  bs_hooks.py), each entry records them, and an entry whose recorded digests differ is refused (InputError), never
+  used.  [measured: BS2/reads/_cache's 7 entries all named r06f4173d90a5a022_ddbe26c81_..., recording reader_sha256
+  06f4173d... = sha256(read_bs.py); unit test test_loop_cache_key_carries_the_reader_sha256]
+- TESTS [measured]: 78 passed (test_bs_hooks 23, test_read_bs 17, test_run_bs 23, test_waves_bs 15; BS had 72 in these
+  four files + 6 new), 19 s (validate/logs/pytest_final.out); ruff E,F,W,B line 120 on tools and validate scripts:
+  clean; bash -n run_waves_bs.sh ok.
+- V1 PASS [measured]: every arm reproduces the 2,097,152 pair: parameter / Adam / VecNormalize digests of the start
+  zip = the loaded model = the saved zip (params a1780f451b6823d9..., Adam 84d110d9a8136efc..., VecNormalize
+  585c4d7de6fe92de..., in every arm), num_timesteps S, n_updates 2,471, saved pkl stock RunningMeanStd; the bank's
+  deterministic tail_3 on the two statue_settled rows +0.09753515 / +0.17029765 = the parent probe's row 255 exactly
+  (max |diff| 0.0; all 15 actions on all 10 bank rows 8.9e-8); bank values 4.8e-7 from the probe's, 0.0196 under
+  critic_blind_tail3 (the blinded critic); recipe V5 [] (gae_lambda_1 hyperparameters digest a9a3e2d5..., others the
+  run's 054ab483...).  INDEPENDENT tensor check (validate/v1_independent.py, torch.load weights_only): 13 policy
+  tensors, 39 Adam entries and param_groups equal, pkl arrays and settings equal, classes stock, data num_timesteps
+  2,097,152, _n_updates 2,471, _total_timesteps 12,000,000, gae_lambda the arm's, ent_coef 0.005 -> V1 INDEPENDENT: PASS.
+- V2 PASS [measured, validate/logs/v2_summary.out, v2_compare.out]: four no-update runs, seed 9201, S -> 2,359,296,
+  4 at once: each exit 0, stop "end", train() reached 31 times; parameter and Adam digests and n_updates (2,471)
+  unchanged start -> end: no optimizer step.  Row by row over the 31 rollouts: control and gae_lambda_1 and
+  frozen_obs_norm critics depend on obs 6 on 31/31 (min dV 0.071), critic_blind_tail3's four value paths are exactly
+  0.0 on 31/31 and its buffer values differ from the raw value MLP on 31/31 (min 0.0246); the actor sees obs 6 on
+  31/31 in every arm (min dmu 0.166); advantages = GAE(0.95) on 31/31 (<= 3.8e-6) except gae_lambda_1 = MC - V on
+  31/31 (<= 9.1e-6); frozen_obs_norm's observation statistics equal the start's 31/31 (no-op update reached 2,049 ->
+  63,489 times; ret_rms count moving as in the others), the others' move every rollout.  PAIRING (same seed):
+  critic_blind vs control env side identical 31/31, values differ 31/31, ledger identical (180 rows x 193 columns),
+  bank actions identical, bank values differ; gae_lambda_1 vs control env side / rewards / values identical, advantages
+  differ 31/31, ledger and probe identical; frozen_obs_norm env side differs 31/31.  CHECK (read_bs.py --check) passed
+  on all four: 31 probe rows, ent_coef / learning_rate = the parent's on 31/31, 256 seeded rows <= S.
+- V3 PASS [measured]: the reader's full read of each V2 run (exit 0; markers in validate/v2final/<arm>_9201/read/):
+  M5 no flag, C6 counting failures 0; M-LOOP at the start copy equals the parent's 2,097,152 values; critic_blind's
+  EFFECTIVE critic slope 0.00000 (on-policy, OWN), RAW = control's; frozen_obs_norm's end pair = its start pair in every
+  loop value.  THE REPRODUCTION at the parent's F2 pairs (validate/v3final/parent_s42/markers.txt):
+    2,097,152: OWN G -0.6363920116424561, c0 +0.23771291971206665, own14 +0.14250202003121376, REF G -0.6194893866330384
+      = early_warning/ew_r10.jsonl line 3 (own.primary.G, own.primary.c0, own14_win_median,
+      ref_statue_settled.primary.G) bit for bit (max |diff| 0.0); critic slope on the on-policy states
+      +0.02142920531332493 per deg = early_bias/eb_realized.json line 88 (relative difference 0.0); G_H -0.6252 /
+      G_L -0.6484 / b*_P +1.3987 / b*_L +1.4135 against verify_early_warning/vew_analyze.txt lines 64 and 160 (-0.625,
+      -0.648, +1.399, +1.413) and warning_margin/NOTES.txt line 20 (b*_P 1.399): max |diff| 4.7e-4 (3-decimal print).
+    3,145,728: G +0.3489333643913269, c0 +0.4114188253879547, own14 +0.6013715491890907, REF G +0.32630227160453795 =
+      ew_r10.jsonl line 1 bit for bit; critic slope +0.05854005739092827 = eb_realized.json line 140 (rel. 0.0);
+      G_H / G_L / b*_P / b*_L vs vew lines 62, 158 and wm line 21: max |diff| 4.6e-4.
+- TIMING [measured / inferred, validate/logs/timing.out]: BS2 no-update at 4 at once: 19.26 CPU-s per rollout, +32.4 per
+  evaluation, setup 19 CPU-s (wall 716-721 s per V2 run).  The update's cost, [measured] in BS's 8 real continuations
+  (4 at once) minus BS's no-update runs: 8.85 CPU-s per rollout (BS's own estimate, 5.9, was low: its open item O3 now
+  measured).  ONE BS2 CONTINUATION about 5,300 CPU-s = 89 min; 8 continuations at 4 at a time = 2 waves = about 3.0 h
+  on a free machine (3.7 / 4.5 / 5.2 h with 1 / 2 / 3 other busy processes), then about 15 min of full reads
+  [inferred; BS's measured: 2.82 h for 8 at 84.2 min each, reads 13.0 min].
+- PREFLIGHT [measured]: run_bs.py --preflight-only for a continuation (control 2101) refuses: "APPROVED: missing",
+  "SCREEN: ... SCREEN.json missing"; the real runner (run_waves_bs.sh, and --plan) refuses (exit 2, nothing created)
+  with "SCREEN-PROBLEMS ... SCREEN.json missing"; in a test-mode root under validate/ it refuses "no <BS>/APPROVED"
+  with a valid SCREEN.json and refuses SCREEN-PROBLEMS with APPROVED but no SCREEN.json; unit tests
+  test_needs_approved_and_criteria / test_screen_refusals / test_preflight_continuation_refused_without_approval pass.
+- NOTHING OUTSIDE BS2 CHANGED [measured, logs/outside_bs2_newer_than_marker.txt]: find S2 S1 (pruning BS2) -newer
+  logs/build_start.marker (10:29:07.053766108Z): empty.  Elsewhere only the session harness's own logs and state
+  (one MCP log under /root/.cache, the environment-manager and session logs at the top of /tmp, the session state
+  folder); the repository: none.  BS: nothing newer.
+- WRITES INSIDE BS2 OUTSIDE MY NAMED PARTS (by the tools' own unchanged design; reported, not hidden): BS2/tmp/ (run_bs's
+  and read_bs's TMPDIR / MPLCONFIGDIR per run, 196 K; plus my parent_schedule TMPDIR, empty) and BS2/reads/_cache/
+  (read_bs's loop cache, 7 entries, 64 K, all from this reader).  BS2/reads/parent_s42 was NOT created: the reference
+  read went to validate/v3final/parent_s42 (--out).  See O2.
+- DISK: 2.7 G free on / at 11:03Z (floor 2.2 G kept throughout); BS2 129 M (validate 129 M: v1final 72 M, v2final 57 M).
+- HASHES (SHA256SUMS.txt; sha256sum -c: 13 OK): bs_common.py 6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66,
+  bs_hooks.py 1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc (= BS's), run_bs.py acd5b499e70b6eb76ca6ac
+  4218cf01b86f2beac6f1dd33f701b31d1e68a6471f, run_waves_bs.sh 0f687d7755a416713d5ee6bd28d37df55d63beb20d5e8251c4b7079832526
+  a07, read_bs.py 06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60 (the five for a future APPROVED
+  tool_sha256; unchanged since the 10:44:07Z freeze under which V1-V3 ran: validate/logs/final_tools_sha256_at_launch.txt,
+  sha256sum -c OK at 11:01Z).
+
+==================================================================================================================
+OPEN ITEMS
+==================================================================================================================
+O1  The criteria lane owns BS2/criteria.txt, SCREEN.json, score_bs.py, tests/test_score_bs.py; none exists in BS2 yet,
+    so every continuation is refused (checked).  Their draft queue (criteria_work/SCREEN_v1.json, seeds 2501-2531) does
+    not use BS2's validation seeds 9201-9241 (screen_problems would refuse it if it did).
+O2  The criteria draft cites <BS2>/reads/parent_s42/markers.txt (criteria_work/criteria_v1.txt lines 35, 258, 273,
+    366, 390).  This build wrote the same reference read to validate/v3final/parent_s42/ (my named part); the
+    coordinator decides whether to run `PY -I -B BS2/tools/read_bs.py --reference` with the default --out (seconds:
+    both pairs are in the loop cache under this reader's sha256) or to point the criteria at validate/v3final/.
+O3  score_bs.py is not in bs_common.TOOL_FILES (as in BS): BS pinned it as an extra APPROVED tool_sha256 key; the same
+    form works here (approval_problems checks the five TOOL_FILES; extra keys are allowed).
+O4  CHECK's continuation-only branches (parameters changed, n_updates grew, SCREEN membership, 175 probe rows, the
+    evidence over 175 rollouts) are exercised by unit tests only here; BS's 8 real continuations exercised the
+    identical code (process lens: no problems).  The probe's seeded rows (256 <= S) are recorded in check.json's
+    probe_detail but not checked by CHECK (as in BS; BS's process lens checked 128 by hand).
+O5  The update's cost is BS's measured 8.85 CPU-s per rollout; it depends on how many epochs target_kl (0.03) allows
+    (BS's continuations: 1,571-1,628 epochs over 175 trains); the first wave's heartbeats will measure BS2's.
+O6  Process findings of BS's verification: P3 fixed here; P1 (APPROVED text in RUNLOG), P2 (re-review of fixed criteria)
+    and P4 (relatime; use an atime snapshot) are for the coordinator / criteria lane, not the harness.
+O7  BS/code is shared read only with the finished BS (chmod a-w there; root bypasses mode bits, so the protection is the
+    tools' design plus the seal checked before and after every run).  Do not remove BS/code while BS2 may run.
+O8  Parent facts for the criteria writer (report only, not outcomes of this screen; validate/v3final/parent_s42):
+    probe statue_settled tail_3 8-row trailing mean first > 0.15 at 2,244,608; ledger CMD_L 0.163 (2,228,224) -> 0.83
+    (3,538,944), CMD_L >= 0.30 first at 2,883,584, >= 0.60 at 3,407,872, no over-bar episode and no M5 flag in the window.
+
+==================================================================================================================
+LOG (commands and results, in order; date -u)
+==================================================================================================================
+[10:28:56Z] date -u; ls S2/r10round, BS; df -h /tmp -> BS2 absent; 2.9 G free.
+[10:29:07Z] 1. mkdir -p BS2/logs && touch BS2/logs/build_start.marker (mtime 2026-10-30 10:29:07.053766108 +0000).
+[10:29-10:31Z] Read (read only): BS/NOTES.txt (whole: steps 1-15 incl. V1-V3, design, open items), BS/tools/{bs_common,
+  bs_hooks,run_bs,read_bs,check_inputs,verify_copy}.py, run_waves_bs.sh, tests/{test_bs_hooks,test_read_bs,
+  test_run_bs,test_waves_bs}.py (score_bs / test_score_bs not needed: the criteria lane's), BS/SHA256SUMS.txt,
+  APPROVED, SCREEN.json, SCREEN.template.json, BS/check/proc/{pc_meta,pc_evidence,pc_atime}.{py,out}, the run log
+  S1/foot/stance4/live/run_log.txt line 780 (BIAS SCREEN VERIFIED; P1-P4), BS/validate/{final_driver.sh,
+  v3_final.sh,v1_independent.py,v2_compare.py,timing.py} and their logs.
+[10:31Z] cp -p BS/tools/{bs_common,bs_hooks,check_inputs,read_bs,run_bs,verify_copy}.py BS/tools/run_waves_bs.sh and
+  BS/tools/tests/{test_bs_hooks,test_read_bs,test_run_bs,test_waves_bs}.py -> BS2/tools(/tests).  sha256 of the copies
+  (logs/tools_sha256_as_copied.txt) = BS/SHA256SUMS.txt's values (cd BS && sha256sum -c --ignore-missing: 22 OK;
+  diff of the lists: line order only).
+[10:31:48Z] cd /tmp && PY -I -B BS/tools/verify_copy.py BS/code -> exit 0: seal 331fe8fc..., recomputed 331fe8fc...,
+  1,406 files, equal_to_pinned true (logs/verify_copy_start.out).  find BS/code -perm /222: 0; __pycache__: 0.
+  M1's r10m_common.check_copy / tree_digest read: they only read (no write).
+[10:32-10:35Z] Read: FMAN rows of s42 (lines 68-247), com_revisit/notes/early_warning/ew_r10.jsonl lines 1-3 (s42
+  3,145,728 / 1,048,576 / 2,097,152), early_bias/eb_realized.json (lines 54-143), verify_early_warning/vew_analyze.txt
+  (A, C, G sections), warning_margin/NOTES.txt (lines 1-30, 150-180), verify_early_bias/vb_realized.txt, the code
+  copy's train_base (_prepare_alg_kwargs l370-395, _maybe_ent_coef_decay_callback l1059-1077, resume target
+  l1420-1440, learn l1561), curriculum/schedules.py EntCoefDecayCallback l147-215 and LinearSchedule l75, stance.toml
+  [ppo] l435-507 (learning_rate 3e-5 -> 1e-5, ent_coef 0.005 -> 0.0 over 7,000,000, target_kl 0.03, n_epochs 10,
+  batch 128), mirror_kl_ppo.py l395-405 and SB3 ppo.py l267-280 (n_updates counts epochs; KL early stop),
+  config.get_git_commit (git rev-parse, read only, GITHUB_SHA fallback).
+[10:35-10:38Z] 2. Edits (python str.replace, each asserted unique): bs_common.py, run_bs.py, read_bs.py,
+  run_waves_bs.sh; check_inputs.py rewritten from bs_common.  grep of every 1,048,576 / 2,490,368 / 1,310,720 /
+  2,359,296 / 128 / 175 / 127 literal and their derivatives (7-digit numbers, 9101-9141) over tools and tests: the
+  remaining ones are deliberate (F2_EVERY 1,048,576 = the fetch cadence; 9101 as BS's seed in two refusal tests; 175 /
+  176 still correct for the unchanged LENGTH; 131,072 the evaluation grid).
+[10:38:30Z] cd /tmp && PY -I -B BS2/tools/check_inputs.py -> exit 0; 8/8 equal FMAN (lines 241, 243, 71, 103, 106, 82,
+  80, 68) and the bs_common pins (logs/check_inputs.out).
+[10:38:37Z] 3. TMPDIR=BS2/tmp/parent_schedule PY -I -B BS2/validate/parent_schedule.py BS2/tools -> exit 0
+  (validate/logs/parent_schedule.out); re-run 10:57:33Z after its lint reflow: identical (cmp; parent_schedule_2.out).
+[10:40:58Z] 4. cd /tmp && TMPDIR=BS2/validate/tmp_pytest PY -I -B -m pytest -q -p no:cacheprovider
+  --basetemp=BS2/validate/tmp_pytest/base BS2/tools/tests -> 78 passed, 74 s (validate/logs/pytest_1.out).
+[10:42:20Z] S2/venv-lint/bin/ruff check --no-cache --line-length 120 --select E,F,W,B BS2/tools
+  validate/parent_schedule.py -> 12 findings (E501 x11 docstring / line length, B007 x1), fixed (reflow only) -> clean.
+  validate/logs/pytest_counts.out: 23 / 17 / 23 / 15.
+[10:43:57Z] run_bs.py --preflight-only (validate/logs/preflight_1.out): V1 control 9201 pass; V2 control 9201 --until
+  2359296 pass; continuation control 2101 exit 2 ("APPROVED: missing", "SCREEN: .../bias_screen2/SCREEN.json missing");
+  V1 seed 9101 exit 2 (not a BS2 validation seed).
+[10:44:07Z] tools frozen: sha256 -> validate/logs/final_tools_sha256_at_launch.txt; df 2.9 G; load 0.18 (idle).
+[10:44:12Z] bash validate/final_driver.sh (background; validate/logs/final_driver.log): V1 four arms one at a time
+  (run_bs.py --arm A --seed 9201 --save-loaded-only --out BS2/validate/v1final), 10:44:12-10:44:47Z, each exit 0,
+  7.3-7.8 s; V2 four arms at once (--no-update --until 2359296 --out BS2/validate/v2final, nice 10) 10:44:47Z ->
+  exits 0 at 10:56:48-10:56:50Z; CHECK (read_bs.py --check) on each, exit 0, 10:56:51-10:56:57Z.
+[10:45:49Z] PY -I -B validate/v1_independent.py validate/v1final 9201 -> exit 0, V1 INDEPENDENT: PASS
+  (validate/logs/v1_independent.out); run_meta v1 blocks summarised in validate/logs/v1_runmeta_summary.out.
+[10:47:32Z] 5. Real runner, real root (no APPROVED, no SCREEN.json; checked first): bash BS2/tools/run_waves_bs.sh -> exit 2
+  "refused: SCREEN-PROBLEMS ... SCREEN.json missing"; --plan -> exit 2, same; BS2 listing before = after (no runs/, no
+  lock) (validate/logs/runner_refusal.out).
+[10:47:47Z] Test-mode root BS2/validate/runner_test_root (BS_WAVES_TEST=1, commands `false`): SCREEN.json valid +
+  criteria.txt, no APPROVED -> exit 2 "no <BS>/APPROVED"; --plan -> exit 0, S 2097152, E 3538944, orphan pattern on
+  BS2/tools; APPROVED placeholder + no SCREEN.json -> exit 2 SCREEN-PROBLEMS (validate/logs/runner_refusal_testmode.out).
+  The test root's placeholder APPROVED and criteria.txt were removed right after (10:47:55Z).
+[10:48-10:50Z] read (no write): the overnight report's option A (MORNING_REPORT.md l117-128), M5's writes
+  (ledger_r10round.py: only its --json path).
+[10:49:43Z] ruff on validate/*.py: 9 style findings (E501, one B905 inherited from BS's v2_compare.py, one B023 false
+  alarm) fixed -> clean.
+[10:57:10Z] bash validate/v3_final.sh (background; validate/logs/v3_final.log): reads of control and critic_blind and
+  the parent reference read (--reference --out BS2/validate/v3final/parent_s42), 3 at once, exits 0 at 10:59:17Z;
+  gae_lambda_1 and frozen_obs_norm reads exits 0 at 11:00:22Z; v2_compare exit 0 (V2 PAIRING: PASS); v2_summary exit 0
+  (V2 SUMMARY: PASS; identical to the pre-read run at 10:57Z, validate/logs/v2_summary_preread.out).
+[10:57:22Z] PY -I -B validate/timing.py validate/v2final -> exit 0 (validate/logs/timing.out).
+[11:01:02Z] cd BS2 && sha256sum -c validate/logs/final_tools_sha256_at_launch.txt -> all OK (logs/
+  tools_unchanged_since_launch.out); PY -I -B BS/tools/verify_copy.py BS/code -> exit 0, 331fe8fc..., 1,406 files
+  (logs/verify_copy_end.out); BS/code newer than the marker 0; __pycache__ 0.
+[11:01:10Z] pytest (final, tools frozen) -> 78 passed, 19 s (validate/logs/pytest_final.out); ruff on BS2/tools and
+  validate/*.py -> clean (validate/logs/ruff_final.out; a first pass also linted pytest's generated stub files under
+  the basetemp, which are not tools); rm -rf BS2/validate/tmp_pytest (pytest's basetemp, 4.1 M).
+[11:01:45Z] find S2 S1 -path BS2 -prune -o -newer marker -print -> nothing; /root (pruning the harness's settings
+  folder): the harness's MCP log only; the repository: nothing; /tmp: the harness's own logs
+  (logs/outside_bs2_newer_than_marker.txt).
+[11:03Z] 6. SHA256SUMS.txt (the 11 tool and test files, the start pair by absolute path); sha256sum -c: 13 OK.
+  logs/tools_vs_bs.diff (cd S2/r10round && diff -ru -x score_bs.py -x test_score_bs.py bias_screen/tools
+  bias_screen2/tools; 38 hunks, 666 lines); logs/hunks_explained.txt (the same explanation as below).
+  df -h /tmp: 2.7 G free.  BS2 129 M.
+No command referenced /dev/null; no mv / cp / rm / chmod / redirection onto a path outside BS2 (cp -p read BS's tools
+and wrote BS2/tools; every rm was inside BS2).  No permission check refused any action.
+
+==================================================================================================================
+THE DIFF OF BS2/tools AGAINST BS/tools, HUNK BY HUNK (logs/tools_vs_bs.diff)
+==================================================================================================================
+Files with NO hunk (byte-identical to BS's, cmp): bs_hooks.py (THE ARM HOOK, unchanged), verify_copy.py,
+tests/test_bs_hooks.py.  Not copied (the criteria lane's): score_bs.py, tests/test_score_bs.py.
+bs_common.py
+  #1  (-1,15 +1,21)   docstring: names BS2, cites BS's file (sha256 3b3727e2...), the FMAN re-measurement (lines 241 /
+                      243) and TASK2 (S 2,097,152, LENGTH = BS's, E 3,538,944, seeds 9201-9241, the 10:23 approval).
+  #2  (-23,8 +29,10)  BS = S2/r10round/bias_screen2 (was bias_screen); new BS1 = the finished screen (read only); CODE =
+                      BS1/code (BS's copy reused read only, digest 331fe8fc..., instead of a new cp).  Every other path
+                      (TOOLS, RUNS, VALIDATE, READS, LOGS, TMP, APPROVED, CRITERIA, SCREEN, LOST_JSON) follows BS.
+  #3  (-68,16 +76,16) S = 2_097_152 (was 1_048_576); LENGTH unchanged 1_441_792; E = S + LENGTH -> 3,538,944 (comment);
+                      SAVED_STEPS comment 2,359,296 ... 3,407,872 (expression unchanged); VALIDATE_UNTIL comment
+                      2,359,296 (expression unchanged: S + 2 x 131,072).
+  #4  (-122,11 +130,11) START: zip_rel / pkl_rel -> stage1_2097152_steps.zip / stage1_vecnormalize_2097152_steps.pkl;
+                      zip_sha256 83b6c88e..., pkl_sha256 991d434f... (FMAN lines 241, 243); comment: the records are the
+                      same F2 files BS pinned (FMAN lines 71, 103, 106, 82, 80, 68; values unchanged).
+  #5  (-134,13 +142,13) probe_row_at_S 255 (was 127; measured; a record only, no tool reads it); VALIDATION_SEEDS
+                      (9201, 9211, 9221, 9231, 9241) (was 9101-9141).
+check_inputs.py
+  #6  (-1,23 +1,37)   rewritten: paths and pins from bs_common.START (BS's listed the 1,048,576 pair literally); each
+                      file compared with FMAN's F2 COPY copy-1 row AND with the bs_common pin; FMAN line printed.
+read_bs.py
+  #7  (-1,5 +1,8)     docstring head: BS2, cites BS's reader (sha256 04036e53...), the derived reference pairs and P3.
+  #8  (-13,8 +16,9)   docstring of --reference: the parent's F2 pairs in [S, E] are 2,097,152 and 3,145,728 (were
+                      1,048,576 and 2,097,152); reproduction sources now include vew_analyze.txt and warning_margin.
+  #9  (-46,8 +50,10)  docstring: the code copy is bs_common.CODE; the cache key includes the reader's own sha256 and its
+                      modules' digest; a mismatching entry is refused.
+  #10 (-68,7 +74,7)   VERSION "read_bs 1.1 (... bias screen 2 ...)".
+  #11 (-105,12 +111,27) F2_EVERY = 1,048,576 (the F2 fetch cadence) and REFERENCE_PAIRS derived inside [S, E] (replaces
+                      the literal (1048576, 2097152) of #15); REPRO replaced: targets at 2,097,152 and 3,145,728, every
+                      source and line cited (ew_r10.jsonl lines 3 / 1 at full precision instead of BS's 3-decimal values;
+                      eb_realized.json lines 88 / 91, 140 / 143; vew_analyze.txt lines 64 / 62, 160 / 158; warning_margin
+                      /NOTES.txt lines 20 / 21).
+  #12 (-118,6 +139,30) THE P3 FIX: READER_SHA256 = sha256(read_bs.py); DEPS_SHA256 = sha256(sha256(bs_common.py) +
+                      sha256(bs_hooks.py)); cache_key() puts "r<reader[:16]>_d<deps[:8]>_" before BS's key fields;
+                      cache_entry_problem() refuses an entry whose recorded digests differ.
+  #13 (-948,15 +993,18) loop_markers uses cache_key(); on a hit it refuses (InputError) an entry not written by this
+                      reader; on a miss it records reader_sha256, deps_sha256 and VERSION in the entry.  So a cache entry
+                      can never outlive the reader (or the two modules) that wrote it.
+  #14 (-1046,7 +1094,7) reference_read docstring (REFERENCE_PAIRS).
+  #15 (-1066,7 +1114,7) the reference read's pairs: REFERENCE_PAIRS instead of the literal (1048576, 2097152).
+  #16 (-1078,11 +1126,20) the reproduction check also compares G_H, G_L, b*_P, b*_L (vew) and b*_P (wm), reported as
+                      max_abs_diff_printed_3dp (3-decimal sources: <= 5e-4 expected); max_abs_diff_ew now over a
+                      snapshot of the pairs (adding keys cannot break the comprehension).  Report only.
+run_bs.py
+  #17 (-1,12 +1,14)   docstring: BS2, S 2,097,152 / E 3,538,944, what differs from BS's run_bs.py (sha256 0a5a9851...).
+  #18 (-62,7 +64,7)   VERSION "run_bs 1.1 (... bias screen 2 ...)" (recorded in run_meta).
+  #19 (-642,7 +644,8) setup_environment: GIT_CEILING_DIRECTORIES = "<BS2>:<BS>" (the screen root and the code copy's
+                      parent).  In BS the copy's parent WAS the screen root, so the code's read-only `git rev-parse HEAD`
+                      stopped there; naming BS keeps that now that the copy lives under BS.  (No .git on the path;
+                      GITHUB_SHA supplies the commit, as in BS.)  Unit test #33.
+run_waves_bs.sh
+  #20 (-1,4 +1,6)     header comment: BS2 = BS's runner with only the root changed.
+  #21 (-45,7 +47,7)   BS_REAL=$S2/r10round/bias_screen2 (was bias_screen).  Nothing else: queue mechanics, slots 4,
+                      nice 10, floors (1.5 GiB; launch 1.5 GiB + 9 x 50 MiB = 2,082,471,936 bytes), crash rules,
+                      outcome-blind reads unchanged.
+tests/test_read_bs.py
+  #22 (-23,6 +23,8)   VS = BS2's first validation seed (9201); N_PARENT = E // 8,192 + 8 (a synthetic parent probe that
+                      runs past E; BS's literal 399 rows ended before BS2's E).
+  #23 (-34,7 +36,7)   the synthetic parent probe (in _probe_cols) uses N_PARENT.
+  #24 (-49,7 +51,7)   same in _parent_cols.
+  #25 (-90,7 +92,7)   _good_meta: seed VS instead of 9101.
+  #26 (-107,20 +109,26) check_meta tests use VS; two new mutants that must fail CHECK: BS's window (S, E = 1,048,576,
+                      2,490,368) and BS's validation seed 9101.
+  #27 (-255,3 +263,35) new tests: test_loop_cache_key_carries_the_reader_sha256 (P3: the key starts with the reader's
+                      sha256; every form field changes it; another reader / module digest changes it; an entry written by
+                      another reader, or a BS-era entry without digests, is refused) and
+                      test_reference_pairs_and_reproduction_targets (REFERENCE_PAIRS = (2,097,152, 3,145,728) inside
+                      [S, E] = REPRO's keys; the verifier's b*_P agrees with 1 - G - c0 of ew_r10 within 5e-4).
+tests/test_run_bs.py
+  #28 (-27,19 +27,38) V0 / V4 = BS2's first / last validation seed; test_window_and_grid asserts S 2,097,152, E 3,538,944,
+                      LENGTH 1,441,792, S and E on the 131,072 grid (E = 27 x 131,072), 176 rollouts / 175 update rows,
+                      SAVED_STEPS (2,359,296 ... 3,407,872), VALIDATE_UNTIL 2,359,296, the floors and the BS2 / BS1 /
+                      CODE paths; new test_start_pair_pins (names, sha256, probe_row_at_S 255) and
+                      test_validation_seeds_are_bs2s.
+  #29 (-67,7 +86,7)   the "validation seed" SCREEN refusal uses V0.
+  #30 (-104,7 +123,7) _written default seed V0.
+  #31 (-119,7 +138,7) test_recipe_problems seed / label V0.
+  #32 (-217,21 +236,23) _ns default seed V0; preflight tests use V4; new assertion: BS's seed 9101 refused as a
+                      validation seed.
+  #33 (-266,3 +287,17) new test_environment_keeps_git_inside_the_copy_s_parent (GIT_CEILING_DIRECTORIES = [root, the code
+                      copy's parent]; TMPDIR under the root; os.environ restored).
+tests/test_waves_bs.py
+  #34 (-31,7 +31,7)   the stub run reads S from the environment (BS_STUB_S) instead of the literal 1048576.
+  #35 (-108,7 +108,7) the fixture sets BS_STUB_S = str(C.S).
+  #36 (-144,7 +144,7) --plan must print "S 2097152, E 3538944" (was "S 1048576, E 2490368").
+  #37 (-230,7 +230,7) the half-way relaunch case's last_step = C.S + 3 x EVAL_FREQ (was 1048576 + 3 x 131072).
+  #38 (-305,3 +305,8) new test_real_root_is_bs2 (the runner's BS_REAL is bias_screen2, as bs_common.BS).
+
+==================================================================================================================
+HOW TO LAUNCH (for the coordinator, after the criteria are reviewed; none of this was done here)
+==================================================================================================================
+  1. BS2/criteria.txt and BS2/SCREEN.json (the criteria lane's); score_bs.py if pinned as an extra APPROVED key.
+  2. BS2/APPROVED (JSON): criteria_sha256, screen_sha256, code_tree_digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e
+     4e011d5c6437ebf1, tool_sha256 {run_bs.py, read_bs.py, run_waves_bs.sh, bs_common.py, bs_hooks.py} = SHA256SUMS.txt.
+  3. Check: PY -I -B BS2/tools/run_bs.py --arm control --seed <a SCREEN seed> --preflight-only (exit 0) and
+     bash BS2/tools/run_waves_bs.sh --plan.
+  4. Launch detached from /tmp, output to BS2/logs/run_waves_bs.out; watch only BS2/logs/run_waves_bs.log.
+  5. If BS2/reads/parent_s42 is wanted (O2): PY -I -B BS2/tools/read_bs.py --reference (default --out).
+
+==================================================================================================================
+FILES (BS2)
+==================================================================================================================
+tools/bs_common.py, bs_hooks.py, run_bs.py, run_waves_bs.sh, read_bs.py        the harness (five pinned in APPROVED)
+tools/check_inputs.py, verify_copy.py; tools/tests/test_{bs_hooks,read_bs,run_bs,waves_bs}.py (78 tests)
+validate/parent_schedule.py   step 3 (the parent's schedule, coverage, B_S, the last 8 rows, the start zip / pkl)
+validate/final_driver.sh, v3_final.sh, v1_independent.py, v2_compare.py, v2_summary.py, timing.py   V1-V3 and timing
+validate/v1final/<arm>_9201/, v2final/<arm>_9201/ (read/ inside), v3final/parent_s42/, runner_test_root/ (outputs only)
+validate/logs/   every run's log and every check's output (named above)
+logs/            build_start.marker, build_cmds.log, check_inputs.out, verify_copy_{start,end}.out,
+                 tools_sha256_as_copied.txt, tools_unchanged_since_launch.out, tools_vs_bs.diff, hunks_explained.txt,
+                 outside_bs2_newer_than_marker.txt
+NOTES.txt, SHA256SUMS.txt
+(tool-made, by design: tmp/ (TMPDIRs), reads/_cache/ (the loop cache); the criteria lane's: criteria_work/)

@@ -1,0 +1,165 @@
+BS2 SCORER ADAPTER NOTES (score_bs.py, test_score_bs.py, criteria.txt, SCREEN.json install, dry run)
+Started 2026-10-30 11:08:13 UTC. Labels: [measured] = ran or read (file:line cited); [inferred] = reasoned.
+Paths: S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad ; BS2 = $S2/r10round/bias_screen2 ; BS = $S2/r10round/bias_screen (read only).
+Rules: write only BS2/tools/score_bs.py, BS2/tools/tests/test_score_bs.py, BS2/criteria.txt, BS2/SCREEN.json,
+BS2/criteria_work/ADAPT_NOTES.txt, BS2/criteria_work/dryrun_root/, BS2/SHA256SUMS.txt (my lines). No training.
+
+COMMAND LOG
+11:08:13Z ls BS2, BS2/tools, criteria_work; df -h /tmp -> 2.7G avail [measured]
+11:10:36Z read criteria_v1.txt, SCREEN_v1.json, DESIGN_NOTES.txt, BS2/NOTES.txt, BS/tools/score_bs.py, BS/tools/tests/test_score_bs.py, BS2/tools/bs_common.py, read_bs.py (header, check, probe/ledger/loop markers, full/reference read) [read only]
+11:10:36Z python: BS/reads/control_2101/markers.json key shape -> loop steps [1048576,...,2359296,2490368] (final pair at T=2,490,368 off the 262,144 grid: steps==T) ; per_evaluation keys are JSON strings; written first to criteria_work/.bs_markers_shape.tmp (outside my named parts by mistake), removed at once; scratch now goes to criteria_work/dryrun_root/_scratch/ [measured]
+11:2xZ read_bs.py saved_pairs() (lines ~960-971): the final pair stage1_final.zip / stage1_final_vecnorm.pkl gets steps = T (not
+  num_timesteps), so a COUNTED continuation's markers carry a loop row with steps == E [measured, code read]; BS's real
+  markers (BS/reads/control_2101, critic_blind_tail3_2131) carry it at T = 2,490,368 with num_timesteps == T and
+  b_star == 1 - G - c0 exactly [measured, python on BS/reads/*/markers.json]; a cached S row can name another path (the
+  reference read's .copy1) -> the scorer checks num_timesteps, not the file name. Designer's O2: resolved.
+11:2xZ read_bs.py ledger_direct (lines ~621-659): per_evaluation keyed by int step -> JSON string keys ("3538944") in
+  markers.json; cmd_l = mean of tail_3_pitch_act_command_mean over the evaluation's episodes [measured, code read].
+11:2xZ BS/reads/parent_s42/markers.txt lines 18/20 carry the 2,097,152 loop values (BS's reference pairs were 1,048,576
+  and 2,097,152); BS2/validate/v3final/parent_s42/markers.txt lines 17-20 carry 2,097,152 and 3,145,728 with REPRO
+  (max_abs_diff_ew 0.0) [measured, grep]. The draft's <BS>/reads/parent_s42 cites are correct for 2,097,152.
+11:2xZ python (F2 probe, numpy allow_pickle False): B_S = 135930855/1073741824 = 0.1265954738482833 (rows 248-255);
+  Fraction(0.1265954738482833) equals it exactly; np.mean also 0.1265954738482833. Parent 8-row means ending at each
+  evaluation step (at E: rows ending 3,530,752): 2228224 166582307/1073741824 0.15514186304062605; 2359296
+  1414239/8388608 0.16859042644500732; 2490368 52471955/268435456 0.19547326490283012; 2621440 102105653/536870912
+  0.19018659926950932; 2752512 129589799/536870912 0.24137981049716473; 2883584 156639387/536870912
+  0.29176359437406063; 3014656 21992963/67108864 0.32772068679332733; 3145728 115894171/268435456 0.4317394308745861;
+  3276800 41172429/67108864 0.6135170012712479; 3407872 46395895/67108864 0.6913527101278305; 3538944
+  47337175/67108864 0.7053788751363754 [measured] = parent_window.out (5 decimals) [measured].
+11:17:21Z wrote BS2/tools/score_bs.py (from BS's 1.1; BS2 constants, secondaries, trajectory, G count, code copy at C.CODE); ruff E,F,W,B l120
+11:25:11Z wrote BS2/tools/tests/test_score_bs.py; ruff clean; first pytest run (basetemp under criteria_work/dryrun_root/_scratch/pytest)
+11:27:10Z pytest test_score_bs.py (TMPDIR and --basetemp under criteria_work/dryrun_root/_scratch): first run 15 failed
+  (test-side: _approve before SCREEN.json existed; a threshold case expected line 3 with p 1/70; SEC-MARGIN values 1.0-1.7 are not
+  dyadic, so exact-rational sums broke the decimal ties: 22/70 not 24/70 -> dyadic values used; a Bonferroni case had 4/70 not 3/70)
+  -> fixed in the tests only -> 97 passed, 1 skipped (PINS test: criteria.txt not installed yet) [measured].
+11:27:10Z kill matrix (criteria_work/dryrun_root/_scratch/killmatrix/kill_matrix.out): the original passes all 11 kill
+  checks; each of the 30 mutants is caught by >= 1 check [measured].
+11:29:50Z PY -I -B criteria_work/dryrun_root/_scratch/install_criteria.py BS2 -> first pass wrote SCREEN.json then refused
+  (line 15 of the criteria 121 chars) -> A1 rewrapped -> second pass exit 0: SCREEN.json 255d0ba4..., criteria.txt
+  979504a8... (PINS as of 11:29; superseded by the final install below if any pinned file changes). Both screen_problems
+  (BS2's and BS's bs_common) return [] for the installed SCREEN.json, 8 entries [measured].
+11:31:13Z PY -I -B criteria_work/dryrun_root/_build/make_dryrun.py BS2 -> built dryrun_root/parent_as_all and synthetic_E (7.4 M
+  each: SCREEN.json and criteria.txt copied from BS2, synthetic run_meta / check.json, the parent's truncated ledger
+  copied from validate/v3final/parent_s42, markers = the parent's reference markers relabelled; no APPROVED anywhere).
+11:31Z cd /tmp && PY -I -B BS2/tools/score_bs.py --root dryrun_root/parent_as_all -> exit 3 (PROVISIONAL: no APPROVED, by
+  design); line 3 NO REDUCTION DETECTED, p filled 70/70 and as counted 70/70, control median rise +0.57878 informative
+  (exact 47337175/67108864 - 135930855/1073741824); SEC-G and SEC-MARGIN MISSING in all 8 ("0 M-LOOP rows at E"),
+  p 70/70 NOT SUPPORTED; SEC-CMD 8 x +0.82963, p 70/70 NOT SUPPORTED; trajectory = PARENT_TRAJECTORY at all 11 steps;
+  no code-copy, M5 or scorer-pin item [measured, dryrun_root/parent_as_all/score/score.txt] = the criteria's expected
+  dry run (VALIDATIONS).
+11:32Z score_bs.py --root dryrun_root/synthetic_E -> exit 3; line 3, p 70/70 (the primaries are the parent's); SEC-G
+  1/70 SUPPORTED (survives Bonferroni) while the line is 3; SEC-MARGIN 70/70 NOT SUPPORTED; SEC-CMD 70/70; G(E) > G(S)
+  control 2 of 4, blind 4 of 4 [measured, dryrun_root/synthetic_E/score/score.txt] = make_dryrun.py's stated expectation.
+11:32:25Z install_criteria.py re-run after the end-pair change to score_bs.py (the PINS test caught the stale pin, as
+  designed): criteria.txt c6535c88..., score_bs.py 695d8a59..., test_score_bs.py 9a4039ad... (superseded below if changed).
+  pytest: 98 passed (incl. the PINS and criteria-text tests against the installed criteria.txt) [measured].
+11:32:55-58Z (machine idle, load 0.13; nothing else running) for each of the 8 SCREEN entries:
+  cd /tmp && OMP_NUM_THREADS=1 nice -n 10 PY -I -B BS2/tools/run_bs.py --arm A --seed N --preflight-only
+  -> exit 2 each, "preflight": "refused", problems exactly ["APPROVED: missing"] (so the SCREEN entry, the inputs, the
+  seal, the stack, the pins and the disk all pass; only APPROVED is absent) [measured, dryrun_root/_scratch/preflight/].
+  bash BS2/tools/run_waves_bs.sh --plan -> exit 0, lists 8 entries in the queue order (control 2501, blind 2501, ...,
+  blind 2531), S 2097152, E 3538944, slots 4, nice 10, launch floor 2,082,471,936 [measured, waves_plan.out]. The
+  runner without --plan was NOT run (it would only refuse "no <BS>/APPROVED", run_waves_bs.sh line ~144; not needed and
+  not a launch attempt I wanted to make). ls -la BS2 before = after (no runs/, no lock, no APPROVED) [measured].
+11:33:38Z make_dryrun.py re-run (the roots carry the final criteria.txt) and both roots re-scored with the final scorer:
+  parent_as_all: PROVISIONAL (only "no APPROVED" + 8 x "ran under APPROVED None"), line 3, p 70/70 (as counted 70/70),
+  rise 0.5787834012880921, informative; SEC-G / SEC-MARGIN MISSING x 8 (p 70/70), SEC-CMD 70/70, all NOT SUPPORTED.
+  synthetic_E: line 3, p 70/70; SEC-G 1/70 SUPPORTED + Bonferroni note; SEC-CMD and SEC-MARGIN 70/70 NOT SUPPORTED;
+  G(E) > G(S) control 2 of 4, blind 4 of 4; end-pair medians read from the loop row at T [measured].
+11:34Z kill matrix re-run on score_bs.py 695d8a59...: original passes all 11 checks, 30 of 30 mutants caught
+  (dryrun_root/_scratch/killmatrix/kill_matrix.out). Full BS2 suite: cd /tmp && TMPDIR=<my scratch> PY -I -B -m pytest
+  -q -p no:cacheprovider BS2/tools/tests -> 176 passed, 26.6 s (78 builder + 98 scorer). No __pycache__ under BS2.
+  find S2 S1 (pruning BS2) -newermt 11:07:30 -> nothing [measured]. Removed my pytest basetemp (synthetic roots) and a
+  4 K torchinductor_root that torch made in my TMPDIR during the builder's tests (both under dryrun_root/_scratch).
+11:34:53Z BS2/SHA256SUMS.txt: the builder's 13 lines kept (copy before my change: dryrun_root/_scratch/
+  SHA256SUMS.before_adapter.txt) + 6 lines (tools/score_bs.py, tools/tests/test_score_bs.py, criteria.txt, SCREEN.json,
+  criteria_work/dryrun_root/_build/make_dryrun.py, criteria_work/dryrun_root/_scratch/install_criteria.py);
+  sha256sum -c: 19 OK [measured].
+
+==================================================================================================================
+SUMMARY (11:35Z)
+==================================================================================================================
+FILES (mine)  [measured, sha256sum]
+  tools/score_bs.py              695d8a59c12d208aa3d091308480742b497494b65b9788663a093ef16f5a9b92  (score_bs 2.0, 1,042 l.)
+  tools/tests/test_score_bs.py   9a4039ad43962be2f7e94bfa6d371af5850ad4643d1c9bb8a38341ad5a7325d6  (98 tests, 1,130 l.)
+  criteria.txt                   c6535c884e0003ed247db87b5b3c555a5c34ddc98085503fe2e6d8e44d7291c9  (486 l., <= 120 chars)
+  SCREEN.json                    255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0  (8 entries)
+  drafts unchanged: criteria_work/criteria_v1.txt 8e49dbf9..., SCREEN_v1.json 37a7cfc8... (= SHA256SUMS_drafts.txt).
+
+THE SCORER (from BS's score_bs 1.1, sha256 869898c5...), what changed [measured: the file]:
+  constants: SEEDS 2501-2531; PRIMARY_STEPS 3,473,408 ... 3,530,752 (C.E - 8,192 k); EARLY_STEPS 2,105,344 ...
+  2,162,688; BASELINE_S 0.1265954738482833 (= 135930855/2^30 exactly; test recomputes it from the F2 probe rows 248-255);
+  RISE_MIN 1/5; ALPHA 1/20; EVAL_STEPS (11); PARENT_TRAJECTORY (11 exact dyadic values, test recomputes them);
+  LINE_TEXT 1-3 and both additions = criteria.txt verbatim (test); median_rule() = statistics.median on Fractions.
+  perm_test(higher, other): BS's test with the hypothesis arm as an argument (the primary passes control first).
+  NEW: secondary_value() / secondary_test() for SEC-G (OWN.P.G at the loop row with steps == E; blind HIGHER),
+  SEC-CMD (ledger.direct.per_evaluation["3538944"].cmd_l; control HIGHER = blind LOWER), SEC-MARGIN (OWN.P.b_star at
+  the row at E; blind HIGHER); fill against the direction; SUPPORTED at filled p <= 1/20; Bonferroni note at p <= 1/60
+  (only 1/70); "(the control arm did not climb on the primary)" under line 1; MISSING causes for LOST, STOPPED,
+  UNREADABLE, no row at E, evaluation at E absent, not finite. decide() takes only classes and primaries: the
+  secondaries cannot reach the line (test + mutant).
+  NEW check_markers rule: a loop row at E whose num_timesteps != E is an input error (written into the text, A4).
+  NEW report only: trajectory per continuation and arm medians beside the parent's; G(E) > G(S) count per arm (strict);
+  CMD_L and mean return per evaluation; critic slopes OWN / REF eff and raw; more arm medians (end pair = row at T).
+  CHANGED: the code copy is measured at bs_common.CODE (<BS>/code), not <root>/code (BS2 reuses BS's copy).
+  UNCHANGED from BS: classes, the fill for the primary, outcome-blindness (incomplete: no markers, no run_meta
+  opened), PROVISIONAL items, ledger_report, exit codes, the out-folder rule.
+
+THE TESTS (98 in test_score_bs.py; 7 s) [measured]: synthetic roots for each line (2, the 3/70 vs 4/70 boundary, 3,
+  1 first with its addition), the gate inclusive at exactly B_S + 1/5 and below (0.15, 0.10), median not mean (both
+  ways), the median rule for 4 / 3 / 2 / 1 / 0 controls read, exact ties of recorded doubles, the fill bounds 36 / 51 /
+  56 of 70 and the supremum, blind LOST, control STOPPED (secondaries MISSING too), primary UNREADABLE, all of one arm
+  missing, no control read, the secondaries' exact p / direction / fill / causes / Bonferroni-only-at-1/70 / note under
+  line 1 / never the line, outcome-blind (garbage markers and run_meta never opened while incomplete or unread), input
+  errors (queue, BS's seeds, markers mismatches incl. the row at E, lost outside the queue, check mismatch incl. BS's
+  E, --out outside root), PROVISIONAL (10 causes incl. check.json by another reader and the code copy) and final, the
+  real code-copy measurement at bs_common.CODE (= []), report-only (returns per evaluation, trajectory, G count, end
+  pair), the line texts and secondary wording verbatim in criteria.txt, PINS = the current files, the dry run on the
+  parent's own markers, and 30 mutants each caught by the 11 kill checks (the original passes all).
+
+EDITS TO THE DRAFT (applied to the installed copy by install_criteria.py; the draft file itself unchanged)
+  A1  STATUS: the installation record (source sha256, the edit list, PINS filled, re-fill after the fix: P2).
+  A2  normaliser at S: "the builder's reading of the pkl prevails" -> the builder measured the start pkl's statistics
+      equal to probe row 255 (validate/logs/parent_schedule.out) [harness confirmed the draft].
+  A3  window: "bs_common.py as read 10:4x UTC ... to be re-checked" -> re-checked (S, E, SAVED_STEPS, FINAL_ZIP /
+      FINAL_PKL; sha256 in PINS); read_bs.saved_pairs gives the final pair's loop row steps = T (designer's O2 closed).
+  A4  the scorer's input errors: + "or whose loop row at E records a num_timesteps other than E" (the scorer checks it:
+      the row the secondaries read must be the model at E; BS's real final rows have num_timesteps == T).
+  A5  SEC-CMD: + the JSON key "3538944" (read_bs writes per_evaluation with int keys; JSON makes them strings).
+  A6  report only: G(E) > G(S) is strict and both from the continuation's own loop rows at E and S.
+  A7  report only: the trajectory at E uses the primary's 8 rows (no row at E); the parent's from the F2 probe
+      (score_bs.PARENT_TRAJECTORY, tested).
+  A8  PROVISIONAL: the code copy is <BS>/code = bs_common.CODE (not under <BS2>).
+  A9  VALIDATIONS: V3's record is <BS2>/validate/v3final/parent_s42/markers.txt (REPRO 2097152 and 3145728, max
+      |diff| 0.0); the draft's <BS>/reads/parent_s42 cites are BS's (the first screen's) reference read, which does
+      carry the 2,097,152 values (lines 18/20) -> kept, and the BS2 record added (the builder's O2: no rerun needed).
+  A10 VALIDATIONS: the scorer's tests cited; the dry run names its markers file and the blind entries' relabelling
+      (the scorer refuses a "plain" loop row for the blind arm); the synthetic dry run with rows at E mentioned.
+  A11 COMPUTE: + the builder's estimate (89 min each, 3.0 h for 2 waves on a free machine; timing.out).
+  A12 PINS filled (SCREEN.json, score_bs.py, test_score_bs.py, the five builder tools as frozen; bs_hooks = BS's).
+  SCREEN.json: only "_note" changed ("DRAFT v1, installed ... by a later agent" -> "installed by the scorer adapter from
+  criteria_work/SCREEN_v1.json, the queue unchanged"); intervention and queue byte-identical in content.
+  No edit changes the question, arms, primary, B_S, gate, test, a line's text or a secondary.
+
+OPEN ITEMS / HARNESS OBSERVATIONS (none blocks; none required a harness edit)
+  O1 PINS are as of 11:32 UTC. Any fix to a pinned file (the five builder tools, score_bs.py, its test, SCREEN.json)
+     must re-fill PINS (re-run dryrun_root/_scratch/install_criteria.py BS2, or edit the PINS lines) before the
+     re-review (P2): test_criteria_pins_name_the_current_files fails on a stale pin by design, including if the build
+     checker changes a builder tool.
+  O2 A4 is a scorer rule the draft did not state; the reviewer should confirm it (alternative: treat such a row as
+     MISSING). With BS's real reads the final row's num_timesteps == T, so it is not expected to fire.
+  O3 A COUNTED continuation whose markers lack the loop row at E reads MISSING on SEC-G / SEC-MARGIN (as the text says:
+     "marker absent"), not a held reading; the reviewer may prefer to treat it as a tool defect like a failed loop read.
+  O4 The gate's inclusive edge is moot on real data: medians of recorded doubles minus B_S are dyadic and can never
+     equal 1/5 exactly (tested); inclusivity is implemented and tested at the decide() level with exact Fractions.
+  O5 score_bs.py is not in bs_common.TOOL_FILES; APPROVED must pin it as the extra key tool_sha256["score_bs.py"] (as
+     BS; the scorer's PROVISIONAL check requires it).
+  O6 The designer's O8 (whether a collapse stop is possible inside 11 evaluations given collapse_min_evals 20) was not
+     re-examined here; the text keeps "possible, if at all, only at ... 3,407,872 [inferred, as BS]".
+  O7 The dry-run roots (dryrun_root/parent_as_all, synthetic_E; 7.4 M each) hold synthetic run_meta / check.json /
+     markers marked "_dry_run"; they are not under BS2/runs or BS2/reads and no file named APPROVED exists in them.
+  O8 Disk 2.7 G free at 11:34Z (df -h /tmp); BS2 criteria_work/dryrun_root 15 M (deletable).
+No training, no optimizer step, no continuation, no validation run (only run_bs.py --preflight-only x 8 and the
+runner's --plan, both of which create nothing); BS2/APPROVED not created; nothing pushed; no file outside BS2 written;
+no command referenced the null device; no permission check refused anything.
+11:36:05Z product-name scan of criteria.txt, SCREEN.json, my tools and notes (the S1/S2 folder names excepted): none [measured]; sha256sum -c SHA256SUMS.txt 19 OK. END.

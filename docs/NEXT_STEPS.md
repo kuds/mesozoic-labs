@@ -650,6 +650,26 @@ round's pre-registration as a report-only reading, with no gate change (D-D54
 so the next T-Rex session above is still a fresh stance on physics r10. The
 decisions' full text is in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
 §6.2 and their record in §28 of the same record.*
+*2026-10-30: decisions D-D56 to D-D58. Overnight, report-only probes with no
+training found the critic's bootstrapped value the source of the push that
+raises the T-Rex tail command from mid-rise on, and two scratch CPU screens
+hid the tail angle from the critic: from seed 42's checkpoint at 1.05M steps
+the first read not informative (its controls did not rise enough), and from
+its checkpoint at 2.1M the second read line 2, reduced (every control
+continuation ended above every blinded one, p 1/70, though a spread-only
+effect would give such a separation about 3% of the time). At 16:23 UTC the
+maintainer chose as the next step (D-D58) a long critic-blind study, seed 42
+continued from 2.1M steps to 12M, mostly blinded with a normal control, its
+criteria reviewed and pinned before any training; it was pending as of 16:32
+UTC, where the run-log copy in
+`investigations/stance_2026_10/critic_blind_results/` ends, and what followed
+goes to the next records change. These are scratch continuations and certify
+nothing, so the next T-Rex session above is still a fresh stance on physics
+r10. The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2, and their record
+is §9 of
+[investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+and §29 of the stance record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

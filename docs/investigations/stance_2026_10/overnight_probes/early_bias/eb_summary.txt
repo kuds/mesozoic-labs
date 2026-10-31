@@ -1,0 +1,167 @@
+Per-epoch first-order change of the deterministic tail_3 mean (Adam-preconditioned, the checkpoint's own exp_avg_sq), mean ± SE over n rollouts
+
+s42 1,048,576  n=64
+   rollout_mean    full +0.00013±0.00040 (t+0.3) | policy +0.00002±0.00039 (t+0.1) | mirror +0.00011±0.00003 (t+3.1) | plain(clip) full -0.803e-6±1.027e-6 | in-flight momentum (1 step) -1.50e-05
+   bank_mean       full -0.00031±0.00035 (t-0.9) | policy -0.00011±0.00035 (t-0.3) | mirror -0.00020±0.00004 (t-4.9) | plain(clip) full -1.361e-6±0.734e-6 | in-flight momentum (1 step) +8.30e-05
+   statue_settled  full -0.00030±0.00046 (t-0.6) | policy -0.00009±0.00046 (t-0.2) | mirror -0.00020±0.00006 (t-3.2) | plain(clip) full -1.711e-6±1.006e-6 | in-flight momentum (1 step) +7.42e-05
+   policy term by noise carrier (rollout_mean): tail3 -0.00032±0.00034 (t-1.0) legs +0.00034±0.00013 (t+2.6) tail12 -0.00001±0.00003 (t-0.2) neck/head +0.00001±0.00002 (t+0.7)
+   [rollout_mean] GAE-sb: critic bootstrap +0.00095±0.00133 (t+0.7); reward terms' sum -0.00093; MC-b sum +0.00018±0.00081 (t+0.2)
+      |t|>=2: stance_cop_band +0.00030 (t+2.1), speed +0.00001 (t+2.6), energy +0.00001 (t+12.2)
+   [bank_mean] GAE-sb: critic bootstrap +0.00021±0.00135 (t+0.2); reward terms' sum -0.00033; MC-b sum -0.00078±0.00092 (t-0.8)
+      |t|>=2: action_jerk +0.00004 (t+2.4), smoothness +0.00003 (t+2.1), energy +0.00000 (t+8.8)
+   [statue_settled] GAE-sb: critic bootstrap +0.00098±0.00184 (t+0.5); reward terms' sum -0.00116; MC-b sum -0.00069±0.00114 (t-0.6)
+      |t|>=2: speed +0.00002 (t+2.6), energy +0.00001 (t+12.7)
+   r9-style dL_pg/d bias14 per mini-batch +0.0115±0.0084 (t+1.4), 27/64 rollouts negative, RMS 0.444
+   per update (W32): k_eff 2.00; bank mean predicted -0.00063±0.00070 vs actual weights +0.00080; statue_settled -0.00060±0.00093 vs +0.00283; rollout rows +0.00026±0.00080 vs training-row +0.00124; x epochs: bank -0.00293; 150-output r +0.14
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00133, bank +0.00128, statue_settled +0.00181; critic dV/dq3 -0.00781/deg; G -0.741
+
+s42 2,097,152  n=64
+   rollout_mean    full +0.00180±0.00042 (t+4.3) | policy +0.00209±0.00042 (t+5.0) | mirror -0.00029±0.00003 (t-8.8) | plain(clip) full +2.629e-6±0.533e-6 | in-flight momentum (1 step) -9.13e-05
+   bank_mean       full +0.00131±0.00034 (t+3.8) | policy +0.00140±0.00035 (t+4.1) | mirror -0.00010±0.00003 (t-3.2) | plain(clip) full +2.083e-6±0.511e-6 | in-flight momentum (1 step) -1.30e-04
+   statue_settled  full +0.00077±0.00033 (t+2.4) | policy +0.00066±0.00033 (t+2.0) | mirror +0.00011±0.00004 (t+2.7) | plain(clip) full +1.294e-6±0.412e-6 | in-flight momentum (1 step) -2.59e-05
+   policy term by noise carrier (rollout_mean): tail3 +0.00190±0.00040 (t+4.7) legs +0.00025±0.00010 (t+2.5) tail12 +0.00004±0.00003 (t+1.2) neck/head -0.00010±0.00010 (t-1.0)
+   [rollout_mean] GAE-sb: critic bootstrap +0.00212±0.00210 (t+1.0); reward terms' sum -0.00027; MC-b sum -0.00092±0.00116 (t-0.8)
+      |t|>=2: tail_home_pose -0.00053 (t-4.0), nosedive +0.00013 (t+8.0), energy -0.00004 (t-36.3), posture +0.00001 (t+7.9)
+   [bank_mean] GAE-sb: critic bootstrap +0.00053±0.00126 (t+0.4); reward terms' sum +0.00076; MC-b sum +0.00078±0.00091 (t+0.9)
+      |t|>=2: tail_home_pose -0.00019 (t-2.3), nosedive +0.00004 (t+4.0), energy -0.00002 (t-15.4), tail -0.00000 (t-2.1), posture +0.00000 (t+2.5)
+   [statue_settled] GAE-sb: critic bootstrap +0.00193±0.00121 (t+1.6); reward terms' sum -0.00146; MC-b sum +0.00045±0.00087 (t+0.5)
+      |t|>=2: tail_home_pose -0.00015 (t-2.2), action_jerk +0.00004 (t+4.1), smoothness +0.00003 (t+3.4), nosedive +0.00003 (t+2.7), energy -0.00001 (t-5.8), drift -0.00000 (t-2.8)
+   r9-style dL_pg/d bias14 per mini-batch -0.0414±0.0073 (t-5.7), 46/64 rollouts negative, RMS 0.490
+   per update (W32): k_eff 2.30; bank mean predicted +0.00300±0.00079 vs actual weights +0.00179; statue_settled +0.00178±0.00075 vs +0.00191; rollout rows +0.00413±0.00097 vs training-row +0.00137; x epochs: bank +0.01007; 150-output r +0.10
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00253, bank +0.00170, statue_settled +0.00121; critic dV/dq3 +0.02143/deg; G -0.606
+
+s42 3,145,728  n=64
+   rollout_mean    full +0.02223±0.00108 (t+20.5) | policy +0.02171±0.00107 (t+20.3) | mirror +0.00052±0.00017 (t+3.0) | plain(clip) full +15.462e-6±0.733e-6 | in-flight momentum (1 step) -1.99e-06
+   bank_mean       full +0.00233±0.00059 (t+4.0) | policy +0.00281±0.00056 (t+5.0) | mirror -0.00048±0.00012 (t-4.1) | plain(clip) full +6.283e-6±0.455e-6 | in-flight momentum (1 step) -6.00e-05
+   statue_settled  full -0.00098±0.00066 (t-1.5) | policy -0.00112±0.00064 (t-1.8) | mirror +0.00014±0.00011 (t+1.3) | plain(clip) full +4.079e-6±0.392e-6 | in-flight momentum (1 step) +7.63e-05
+   policy term by noise carrier (rollout_mean): tail3 +0.02141±0.00103 (t+20.8) legs +0.00020±0.00016 (t+1.2) tail12 +0.00065±0.00012 (t+5.5) neck/head -0.00055±0.00010 (t-5.5)
+   [rollout_mean] GAE-sb: critic bootstrap +0.03194±0.00714 (t+4.5); reward terms' sum -0.01082; MC-b sum -0.00765±0.00342 (t-2.2)
+      |t|>=2: tail_home_pose -0.00389 (t-9.7), nosedive +0.00106 (t+12.2), action_saturation -0.00062 (t-18.5), energy -0.00051 (t-36.3), posture +0.00005 (t+10.7)
+   [bank_mean] GAE-sb: critic bootstrap +0.00541±0.00260 (t+2.1); reward terms' sum -0.00238; MC-b sum +0.00114±0.00148 (t+0.8)
+      |t|>=2: tail_home_pose -0.00049 (t-2.6), action_saturation -0.00010 (t-11.1), nosedive +0.00010 (t+2.2), energy -0.00006 (t-9.0), posture +0.00001 (t+2.3)
+   [statue_settled] GAE-sb: critic bootstrap +0.00054±0.00307 (t+0.2); reward terms' sum -0.00141; MC-b sum +0.00184±0.00184 (t+1.0)
+      |t|>=2: energy +0.00002 (t+3.5)
+   r9-style dL_pg/d bias14 per mini-batch -0.1555±0.0071 (t-21.9), 64/64 rollouts negative, RMS 0.536
+   per update (W32): k_eff 1.10; bank mean predicted +0.00255±0.00064 vs actual weights +0.00017; statue_settled -0.00108±0.00073 vs -0.00196; rollout rows +0.02440±0.00119 vs training-row +0.00634; x epochs: bank +0.01433; 150-output r +0.38
+   realised over the next local checkpoint (64 updates), weights' share per update on own on-policy states +0.00338, bank +0.00001, statue_settled -0.00139; critic dV/dq3 +0.05854/deg; G +0.259
+
+s42 3,670,016  n=24
+   rollout_mean    full +0.02034±0.00294 (t+6.9) | policy +0.02036±0.00288 (t+7.1) | mirror -0.00002±0.00026 (t-0.1) | plain(clip) full +13.819e-6±1.987e-6 | in-flight momentum (1 step) +7.09e-06
+   bank_mean       full +0.00171±0.00091 (t+1.9) | policy +0.00154±0.00087 (t+1.8) | mirror +0.00017±0.00009 (t+2.0) | plain(clip) full +3.841e-6±0.848e-6 | in-flight momentum (1 step) +8.67e-05
+   statue_settled  full -0.00099±0.00102 (t-1.0) | policy -0.00099±0.00102 (t-1.0) | mirror -0.00000±0.00009 (t-0.0) | plain(clip) full +1.168e-6±0.423e-6 | in-flight momentum (1 step) +5.18e-06
+   policy term by noise carrier (rollout_mean): tail3 +0.02001±0.00282 (t+7.1) legs +0.00035±0.00027 (t+1.3) tail12 +0.00019±0.00024 (t+0.8) neck/head -0.00019±0.00010 (t-1.9)
+   [rollout_mean] GAE-sb: critic bootstrap +0.06619±0.02177 (t+3.0); reward terms' sum -0.04786; MC-b sum -0.02415±0.00909 (t-2.7)
+      |t|>=2: action_saturation -0.01432 (t-18.6), tail_home_pose -0.00469 (t-4.4), energy -0.00122 (t-25.0), action_jerk +0.00114 (t+5.5), smoothness +0.00102 (t+5.8), nosedive +0.00095 (t+3.1), posture +0.00005 (t+3.0)
+   [bank_mean] GAE-sb: critic bootstrap -0.00169±0.00616 (t-0.3); reward terms' sum +0.00306; MC-b sum -0.00320±0.00245 (t-1.3)
+      |t|>=2: action_saturation -0.00118 (t-5.6), energy -0.00009 (t-4.1), drift -0.00000 (t-2.4)
+   [statue_settled] GAE-sb: critic bootstrap -0.00579±0.00882 (t-0.7); reward terms' sum +0.00498; MC-b sum -0.00131±0.00358 (t-0.4)
+      |t|>=2: drift -0.00001 (t-2.2)
+   r9-style dL_pg/d bias14 per mini-batch -0.0936±0.0167 (t-5.6), 20/24 rollouts negative, RMS 0.541
+   per update (W32): k_eff 0.86; bank mean predicted +0.00147±0.00078 vs actual weights -0.00028; statue_settled -0.00085±0.00087 vs -0.00217; rollout rows +0.01740±0.00251 vs training-row +0.00247; x epochs: bank +0.00887; 150-output r +0.32
+   realised over the next local checkpoint (64 updates), weights' share per update on own on-policy states +0.00231, bank -0.00005, statue_settled -0.00125; critic dV/dq3 +0.05299/deg; G +0.436
+
+s80 1,048,576  n=64
+   rollout_mean    full +0.00009±0.00027 (t+0.3) | policy +0.00012±0.00027 (t+0.5) | mirror -0.00003±0.00002 (t-1.7) | plain(clip) full +0.217e-6±0.774e-6 | in-flight momentum (1 step) -3.36e-06
+   bank_mean       full +0.00013±0.00027 (t+0.5) | policy +0.00019±0.00027 (t+0.7) | mirror -0.00006±0.00002 (t-2.7) | plain(clip) full +0.056e-6±0.734e-6 | in-flight momentum (1 step) -9.85e-05
+   statue_settled  full +0.00011±0.00040 (t+0.3) | policy +0.00031±0.00040 (t+0.8) | mirror -0.00020±0.00003 (t-6.1) | plain(clip) full +0.035e-6±1.012e-6 | in-flight momentum (1 step) -1.41e-04
+   policy term by noise carrier (rollout_mean): tail3 +0.00010±0.00027 (t+0.4) legs -0.00000±0.00003 (t-0.1) tail12 +0.00014±0.00002 (t+5.9) neck/head -0.00012±0.00002 (t-5.5)
+   [rollout_mean] GAE-sb: critic bootstrap +0.00266±0.00114 (t+2.3); reward terms' sum -0.00246; MC-b sum +0.00008±0.00067 (t+0.1)
+      |t|>=2: leg_home_pose -0.00059 (t-2.2), foot_flatness -0.00013 (t-2.9), nosedive -0.00002 (t-3.3), energy +0.00000 (t+7.2)
+   [bank_mean] GAE-sb: critic bootstrap +0.00205±0.00115 (t+1.8); reward terms' sum -0.00197; MC-b sum -0.00057±0.00066 (t-0.9)
+      |t|>=2: stance_stagger -0.00001 (t-2.1), energy +0.00000 (t+8.6), posture -0.00000 (t-3.0)
+   [statue_settled] GAE-sb: critic bootstrap +0.00418±0.00179 (t+2.3); reward terms' sum -0.00388; MC-b sum -0.00082±0.00092 (t-0.9)
+      |t|>=2: leg_home_pose -0.00094 (t-2.2), foot_flatness -0.00016 (t-2.1), nosedive -0.00002 (t-2.0), posture -0.00000 (t-2.8), energy +0.00000 (t+4.3)
+   r9-style dL_pg/d bias14 per mini-batch -0.0023±0.0076 (t-0.3), 35/64 rollouts negative, RMS 0.424
+   per update (W32): k_eff 1.93; bank mean predicted +0.00025±0.00053 vs actual weights +0.00102; statue_settled +0.00022±0.00077 vs -0.00000; rollout rows +0.00018±0.00052 vs training-row +0.00022; x epochs: bank +0.00123; 150-output r +0.28
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00125, bank +0.00095, statue_settled +0.00071; critic dV/dq3 +0.00435/deg; G -1.363
+
+s80 2,097,152  n=64
+   rollout_mean    full +0.00175±0.00035 (t+5.0) | policy +0.00171±0.00035 (t+4.9) | mirror +0.00004±0.00004 (t+1.0) | plain(clip) full +3.070e-6±0.441e-6 | in-flight momentum (1 step) +1.76e-05
+   bank_mean       full +0.00056±0.00030 (t+1.9) | policy +0.00064±0.00030 (t+2.1) | mirror -0.00007±0.00005 (t-1.4) | plain(clip) full +1.608e-6±0.340e-6 | in-flight momentum (1 step) -1.26e-04
+   statue_settled  full +0.00079±0.00042 (t+1.9) | policy +0.00111±0.00041 (t+2.7) | mirror -0.00032±0.00008 (t-4.2) | plain(clip) full +1.910e-6±0.414e-6 | in-flight momentum (1 step) -1.57e-04
+   policy term by noise carrier (rollout_mean): tail3 +0.00213±0.00032 (t+6.6) legs -0.00028±0.00012 (t-2.3) tail12 +0.00006±0.00003 (t+2.1) neck/head -0.00021±0.00004 (t-5.7)
+   [rollout_mean] GAE-sb: critic bootstrap +0.00264±0.00164 (t+1.6); reward terms' sum -0.00098; MC-b sum +0.00024±0.00100 (t+0.2)
+      |t|>=2: stance_stagger -0.00001 (t-2.6), energy -0.00000 (t-5.0), posture +0.00000 (t+2.6), action_saturation +0.00000 (t+2.5)
+   [bank_mean] GAE-sb: critic bootstrap +0.00077±0.00115 (t+0.7); reward terms' sum -0.00003; MC-b sum +0.00130±0.00085 (t+1.5)
+      |t|>=2: floor_impact -0.00003 (t-2.1), action_saturation -0.00000 (t-2.0), fall_penalty -0.00000 (t-2.1)
+   [statue_settled] GAE-sb: critic bootstrap +0.00288±0.00163 (t+1.8); reward terms' sum -0.00183; MC-b sum +0.00010±0.00117 (t+0.1)
+      |t|>=2: nosedive +0.00002 (t+2.3), posture +0.00000 (t+4.1)
+   r9-style dL_pg/d bias14 per mini-batch -0.0544±0.0076 (t-7.1), 52/64 rollouts negative, RMS 0.460
+   per update (W32): k_eff 2.64; bank mean predicted +0.00149±0.00078 vs actual weights -0.00017; statue_settled +0.00207±0.00110 vs -0.00067; rollout rows +0.00460±0.00092 vs training-row +0.00026; x epochs: bank +0.00450; 150-output r +0.38
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00046, bank +0.00005, statue_settled +0.00006; critic dV/dq3 +0.02962/deg; G -1.969
+
+s80 3,145,728  n=24
+   rollout_mean    full -0.00025±0.00127 (t-0.2) | policy -0.00029±0.00127 (t-0.2) | mirror +0.00004±0.00010 (t+0.4) | plain(clip) full -0.052e-6±1.260e-6 | in-flight momentum (1 step) +3.75e-05
+   bank_mean       full +0.00027±0.00041 (t+0.7) | policy +0.00019±0.00041 (t+0.5) | mirror +0.00008±0.00003 (t+2.4) | plain(clip) full -0.042e-6±0.290e-6 | in-flight momentum (1 step) -5.17e-05
+   statue_settled  full +0.00004±0.00045 (t+0.1) | policy -0.00019±0.00046 (t-0.4) | mirror +0.00023±0.00004 (t+6.2) | plain(clip) full -0.001e-6±0.419e-6 | in-flight momentum (1 step) -4.68e-05
+   policy term by noise carrier (rollout_mean): tail3 -0.00030±0.00115 (t-0.3) legs +0.00002±0.00021 (t+0.1) tail12 -0.00057±0.00020 (t-2.9) neck/head +0.00054±0.00014 (t+3.9)
+   [rollout_mean] GAE-sb: critic bootstrap +0.01487±0.00579 (t+2.6); reward terms' sum -0.01439; MC-b sum -0.00099±0.00351 (t-0.3)
+      |t|>=2: leg_home_pose -0.00348 (t-2.8), alive -0.00327 (t-2.3), height -0.00200 (t-2.4), bilateral_support -0.00191 (t-2.2), head_clearance -0.00117 (t-2.4), tail_home_pose -0.00105 (t-3.0), foot_flatness -0.00066 (t-3.2), heading -0.00033 (t-2.4)
+   [bank_mean] GAE-sb: critic bootstrap -0.00456±0.00208 (t-2.2); reward terms' sum +0.00431; MC-b sum -0.00068±0.00113 (t-0.6)
+      |t|>=2: alive +0.00121 (t+2.4), leg_home_pose +0.00117 (t+2.4), height +0.00073 (t+2.4), bilateral_support +0.00072 (t+2.4), head_clearance +0.00043 (t+2.4), tail_home_pose +0.00033 (t+2.7), heading +0.00013 (t+2.5), action_jerk -0.00004 (t-2.5)
+   [statue_settled] GAE-sb: critic bootstrap -0.00103±0.00209 (t-0.5); reward terms' sum +0.00091; MC-b sum -0.00052±0.00127 (t-0.4)
+      |t|>=2: 
+   r9-style dL_pg/d bias14 per mini-batch -0.0020±0.0119 (t-0.2), 15/24 rollouts negative, RMS 0.490
+   per update (W32): k_eff 1.63; bank mean predicted +0.00044±0.00066 vs actual weights -0.00051; statue_settled +0.00006±0.00073 vs -0.00041; rollout rows -0.00041±0.00206 vs training-row +0.00066; x epochs: bank +0.00162; 150-output r +0.62
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states -0.00057, bank -0.00022, statue_settled -0.00034; critic dV/dq3 -0.00550/deg; G -1.134
+
+s60 5,242,880  n=64
+   rollout_mean    full -0.00185±0.00046 (t-4.0) | policy -0.00154±0.00045 (t-3.4) | mirror -0.00031±0.00005 (t-6.5) | plain(clip) full -0.595e-6±0.325e-6 | in-flight momentum (1 step) -6.89e-06
+   bank_mean       full +0.00122±0.00038 (t+3.2) | policy +0.00124±0.00038 (t+3.3) | mirror -0.00002±0.00005 (t-0.4) | plain(clip) full +0.672e-6±0.228e-6 | in-flight momentum (1 step) -8.47e-05
+   statue_settled  full +0.00092±0.00050 (t+1.8) | policy +0.00084±0.00050 (t+1.7) | mirror +0.00008±0.00007 (t+1.1) | plain(clip) full -0.163e-6±0.238e-6 | in-flight momentum (1 step) -4.07e-05
+   policy term by noise carrier (rollout_mean): tail3 -0.00041±0.00043 (t-1.0) legs -0.00074±0.00014 (t-5.3) tail12 -0.00011±0.00008 (t-1.4) neck/head -0.00027±0.00005 (t-5.5)
+   [rollout_mean] GAE-sb: critic bootstrap +0.00033±0.00244 (t+0.1); reward terms' sum -0.00191; MC-b sum -0.00275±0.00133 (t-2.1)
+      |t|>=2: tail_home_pose -0.00044 (t-2.6), nosedive -0.00014 (t-5.8), energy -0.00005 (t-9.7), posture -0.00001 (t-4.6)
+   [bank_mean] GAE-sb: critic bootstrap -0.00136±0.00192 (t-0.7); reward terms' sum +0.00281; MC-b sum +0.00139±0.00112 (t+1.2)
+      |t|>=2: fall_penalty -0.00000 (t-2.1)
+   [statue_settled] GAE-sb: critic bootstrap +0.00026±0.00243 (t+0.1); reward terms' sum +0.00061; MC-b sum +0.00105±0.00136 (t+0.8)
+      |t|>=2: energy +0.00001 (t+2.1)
+   r9-style dL_pg/d bias14 per mini-batch +0.0042±0.0081 (t+0.5), 28/64 rollouts negative, RMS 0.554
+   per update (W32): k_eff 1.24; bank mean predicted +0.00151±0.00047 vs actual weights +0.00195; statue_settled +0.00114±0.00063 vs -0.00024; rollout rows -0.00230±0.00058 vs training-row +0.00007; x epochs: bank +0.00864; 150-output r +0.39
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00082, bank +0.00071, statue_settled -0.00007; critic dV/dq3 -0.00143/deg; G -0.499
+
+s60 6,291,456  n=64
+   rollout_mean    full +0.00545±0.00052 (t+10.5) | policy +0.00525±0.00052 (t+10.1) | mirror +0.00020±0.00008 (t+2.4) | plain(clip) full +2.952e-6±0.282e-6 | in-flight momentum (1 step) -2.24e-04
+   bank_mean       full -0.00075±0.00030 (t-2.5) | policy -0.00060±0.00029 (t-2.1) | mirror -0.00015±0.00005 (t-2.9) | plain(clip) full +0.526e-6±0.141e-6 | in-flight momentum (1 step) +1.36e-05
+   statue_settled  full -0.00083±0.00041 (t-2.0) | policy -0.00043±0.00040 (t-1.1) | mirror -0.00040±0.00006 (t-6.3) | plain(clip) full +0.426e-6±0.189e-6 | in-flight momentum (1 step) +2.78e-05
+   policy term by noise carrier (rollout_mean): tail3 +0.00499±0.00044 (t+11.4) legs +0.00012±0.00020 (t+0.6) tail12 +0.00032±0.00016 (t+2.0) neck/head -0.00018±0.00013 (t-1.4)
+   [rollout_mean] GAE-sb: critic bootstrap +0.00765±0.00453 (t+1.7); reward terms' sum -0.00244; MC-b sum -0.00398±0.00195 (t-2.0)
+      |t|>=2: tail_home_pose -0.00121 (t-4.8), energy -0.00014 (t-19.7), stance_cop_band +0.00011 (t+4.3)
+   [bank_mean] GAE-sb: critic bootstrap -0.00214±0.00171 (t-1.2); reward terms' sum +0.00138; MC-b sum +0.00075±0.00099 (t+0.8)
+      |t|>=2: tail_home_pose +0.00032 (t+3.2), energy +0.00003 (t+9.3), stance_cop_band -0.00003 (t-3.2)
+   [statue_settled] GAE-sb: critic bootstrap -0.00003±0.00262 (t-0.0); reward terms' sum -0.00021; MC-b sum +0.00145±0.00129 (t+1.1)
+      |t|>=2: energy +0.00003 (t+5.8)
+   r9-style dL_pg/d bias14 per mini-batch -0.0728±0.0088 (t-8.3), 56/64 rollouts negative, RMS 0.587
+   per update (W32): k_eff 2.15; bank mean predicted -0.00162±0.00064 vs actual weights -0.00058; statue_settled -0.00179±0.00089 vs +0.00003; rollout rows +0.01172±0.00112 vs training-row +0.00430; x epochs: bank -0.00486; 150-output r +0.41
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00144, bank -0.00047, statue_settled -0.00092; critic dV/dq3 +0.03623/deg; G -0.116
+
+s60 7,340,032  n=24
+   rollout_mean    full +0.00422±0.00160 (t+2.6) | policy +0.00691±0.00157 (t+4.4) | mirror -0.00269±0.00043 (t-6.3) | plain(clip) full +2.234e-6±0.991e-6 | in-flight momentum (1 step) +4.18e-05
+   bank_mean       full -0.00042±0.00089 (t-0.5) | policy -0.00149±0.00085 (t-1.8) | mirror +0.00107±0.00019 (t+5.6) | plain(clip) full +0.225e-6±0.287e-6 | in-flight momentum (1 step) +1.78e-04
+   statue_settled  full -0.00216±0.00071 (t-3.1) | policy -0.00271±0.00071 (t-3.8) | mirror +0.00055±0.00021 (t+2.7) | plain(clip) full -0.272e-6±0.277e-6 | in-flight momentum (1 step) +7.11e-05
+   policy term by noise carrier (rollout_mean): tail3 +0.00615±0.00168 (t+3.7) legs -0.00025±0.00048 (t-0.5) tail12 +0.00016±0.00023 (t+0.7) neck/head +0.00085±0.00022 (t+3.8)
+   [rollout_mean] GAE-sb: critic bootstrap +0.02645±0.01708 (t+1.5); reward terms' sum -0.02238; MC-b sum -0.01785±0.00660 (t-2.7)
+      |t|>=2: tail_home_pose -0.00307 (t-3.5), action_saturation -0.00130 (t-11.6), energy -0.00060 (t-17.0), stance_cop_band +0.00042 (t+3.2), tail -0.00003 (t-2.0)
+   [bank_mean] GAE-sb: critic bootstrap -0.01341±0.00679 (t-2.0); reward terms' sum +0.01277; MC-b sum +0.00552±0.00288 (t+1.9)
+      |t|>=2: tail_home_pose +0.00129 (t+3.5), action_saturation +0.00045 (t+8.5), foot_flatness +0.00045 (t+2.2), energy +0.00019 (t+13.6), stance_cop_band -0.00017 (t-3.1), action_jerk -0.00007 (t-2.2), smoothness -0.00006 (t-2.4), floor_impact -0.00003 (t-2.1)
+   [statue_settled] GAE-sb: critic bootstrap -0.01216±0.00739 (t-1.6); reward terms' sum +0.01023; MC-b sum +0.00455±0.00251 (t+1.8)
+      |t|>=2: tail_home_pose +0.00113 (t+2.9), action_saturation +0.00033 (t+9.0), energy +0.00016 (t+12.4), stance_cop_band -0.00012 (t-3.3), drift -0.00001 (t-2.4)
+   r9-style dL_pg/d bias14 per mini-batch -0.0672±0.0192 (t-3.5), 19/24 rollouts negative, RMS 0.627
+   per update (W32): k_eff 0.84; bank mean predicted -0.00035±0.00075 vs actual weights -0.00055; statue_settled -0.00182±0.00059 vs -0.00157; rollout rows +0.00355±0.00135 vs training-row +0.00232; x epochs: bank -0.00269; 150-output r -0.08
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00121, bank +0.00048, statue_settled -0.00013; critic dV/dq3 +0.02484/deg; G +0.226
+
+s60 8,388,608  n=24
+   rollout_mean    full +0.00337±0.00200 (t+1.7) | policy +0.00493±0.00196 (t+2.5) | mirror -0.00156±0.00027 (t-5.9) | plain(clip) full +1.248e-6±1.093e-6 | in-flight momentum (1 step) -1.88e-04
+   bank_mean       full -0.00013±0.00091 (t-0.1) | policy -0.00077±0.00087 (t-0.9) | mirror +0.00064±0.00015 (t+4.3) | plain(clip) full +0.185e-6±0.231e-6 | in-flight momentum (1 step) +8.83e-05
+   statue_settled  full -0.00081±0.00120 (t-0.7) | policy -0.00134±0.00115 (t-1.2) | mirror +0.00053±0.00020 (t+2.7) | plain(clip) full -0.120e-6±0.310e-6 | in-flight momentum (1 step) +2.14e-04
+   policy term by noise carrier (rollout_mean): tail3 +0.00304±0.00191 (t+1.6) legs +0.00037±0.00030 (t+1.2) tail12 +0.00064±0.00028 (t+2.3) neck/head +0.00088±0.00033 (t+2.6)
+   [rollout_mean] GAE-sb: critic bootstrap +0.02876±0.01591 (t+1.8); reward terms' sum -0.02610; MC-b sum -0.02306±0.00707 (t-3.3)
+      |t|>=2: action_saturation -0.00591 (t-19.1), tail_home_pose -0.00225 (t-2.8), energy -0.00064 (t-16.2), action_jerk +0.00037 (t+4.3), smoothness +0.00034 (t+4.7), stance_cop_band +0.00009 (t+2.1), tail -0.00004 (t-2.8)
+   [bank_mean] GAE-sb: critic bootstrap -0.01186±0.00584 (t-2.0); reward terms' sum +0.01152; MC-b sum +0.00444±0.00208 (t+2.1)
+      |t|>=2: action_saturation +0.00163 (t+9.3), tail_home_pose +0.00100 (t+3.5), energy +0.00016 (t+9.6), action_jerk -0.00011 (t-4.8), smoothness -0.00010 (t-5.2), stance_cop_band -0.00003 (t-2.9), drift -0.00001 (t-2.7)
+   [statue_settled] GAE-sb: critic bootstrap -0.01801±0.01071 (t-1.7); reward terms' sum +0.01753; MC-b sum +0.01263±0.00385 (t+3.3)
+      |t|>=2: action_saturation +0.00314 (t+14.2), tail_home_pose +0.00144 (t+2.8), energy +0.00031 (t+10.4), action_jerk -0.00021 (t-4.6), smoothness -0.00019 (t-4.9), stance_cop_band -0.00005 (t-2.2), drift -0.00001 (t-2.6)
+   r9-style dL_pg/d bias14 per mini-batch -0.0380±0.0223 (t-1.7), 16/24 rollouts negative, RMS 0.667
+   per update (W32): k_eff 0.91; bank mean predicted -0.00012±0.00082 vs actual weights -0.00061; statue_settled -0.00073±0.00109 vs -0.00105; rollout rows +0.00305±0.00182 vs training-row +0.00025; x epochs: bank -0.00090; 150-output r +0.11
+   realised over the next local checkpoint (128 updates), weights' share per update on own on-policy states +0.00043, bank -0.00022, statue_settled -0.00002; critic dV/dq3 +0.03497/deg; G +0.274
+
