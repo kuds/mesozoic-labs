@@ -541,17 +541,21 @@ kind of change; their sources are in the session's work folder,
 as `work/`. `pr655_review/`'s copies are byte-identical to their sources.
 `phase_screen/`'s copies are byte-identical to their sources, absolute paths
 included, but for **redact** (5 workflow run ids, 3 distinct, 6 sub-agent
-ids, 3 distinct, and 3 background-job or tool-result ids, 2 distinct, in six
-of the process check's and the designer's notes, logs and sums) and
-**gzip** (`tools/run_bs.py`, as in `bias_screen/` and `bias_screen2/`).
-`APPROVED` keeps the one workflow run id it holds: its sha256 is the run
-log's pin, so **redact** is not applied to it. Kept as their sources have
-them, so to leave out of a manual pre-commit run: in `pr655_review/`, 4 JSON
-files without a final newline; in `phase_screen/`, 4 JSON files without a
-final newline, 1 file ending in a blank line and 22 files with lines ending
-in spaces (each folder's README names them). No other copy holds a session
-tool id, and none holds a model identifier, an email address or a commit
-trailer.
+ids, 3 distinct, 26 short forms of those sub-agent ids, their first eight
+characters, and 3 background-job or tool-result ids, 2 distinct, in seven
+of the process check's and the designer's notes, logs and sums; and the
+assistant's name, by `[name removed]`, once in the V − G tool's
+`FIXES.txt` and in three tool names in the process check's
+`tx_extract.out`) and **gzip** (`tools/run_bs.py`, as in `bias_screen/` and
+`bias_screen2/`). `APPROVED` keeps the one workflow run id it holds: its
+sha256 is the run log's pin, so **redact** is not applied to it. Kept as
+their sources have them, so to leave out of a manual pre-commit run: in
+`pr655_review/`, 4 JSON files without a final newline; in `phase_screen/`,
+4 JSON files without a final newline, 1 file ending in a blank line and 22
+files with lines ending in spaces (each folder's README names them). No
+other copy holds a session tool id or the assistant's name in its text
+(paths and branch names that hold it are kept, as before), and none holds a
+model identifier, an email address or a commit trailer.
 
 *Added 2026-10-31, latest (`tail_record/ledger.csv`):* **appended** again,
 nothing else: rows L188 to L207, the record's update of 2026-10-31. The
@@ -579,7 +583,9 @@ trailer.
 *Added 2026-10-30, later:* nor `bias_screen/README.md`, likewise.
 *Added 2026-10-30, later still:* nor `bias_screen2/README.md`, likewise.
 *Added 2026-10-31:* nor `phase_critic_results/README.md`, likewise.
-*Added 2026-10-31, later:* nor `why_probe/README.md`, `pr655_review/README.md` and `phase_screen/README.md`, likewise.
+*Added 2026-10-31, later:* nor `why_probe/README.md`, likewise.
+*Added 2026-10-31, later:* nor `pr655_review/README.md`, likewise.
+*Added 2026-10-31, later:* nor `phase_screen/README.md`, likewise.
 
 ## Contents
 
@@ -1732,14 +1738,15 @@ value; the termination risk is excluded. Exploratory and report only. Its
 of #655 with this record (24 files, about 0.4 MB).** Every script #655 cites
 reproduces its committed output; the trained r10 policies #655 cites ran
 the run branch's stance configuration, on which the step-200 incentive is
-about three times `main`'s. Report only; one comment was posted on #655.
+about 3.5 times `main`'s on the statue (3.1 to 3.3 times on trained
+policies). Report only; one comment was posted on #655.
 Its [README](pr655_review/README.md) indexes it.
 
 ### Added on 2026-10-31, later (decisions D-D60 and D-D62: the critic-phase screen)
 
 **`phase_screen/`: the critic-phase screen, from its build and criteria to
 its reading, final, the reading's two independent checks, the report and
-the separate V − G and tail σ tool with its output (474 files, about 5.6
+the separate V − G and tail σ tool with its output (472 files, about 4.6
 MB).** Eight CPU continuations of seed 42 from its checkpoint at 2,097,152
 steps to 3,538,944, four of them with the episode phase given to the critic
 alone: the approved criteria and the approval, the six pinned tools with
@@ -1901,10 +1908,10 @@ copies.
 | The critic-phase screen's approved text and pinned tools (2026-10-31, later) | `sha256sum phase_screen/criteria.txt phase_screen/SCREEN.json phase_screen/APPROVED`; in a copy of `phase_screen/`: `gunzip tools/run_bs.py.gz`, then each tool's sha256 against `APPROVED`'s `tool_sha256` | `9875039f…` and `7d6d368a…`, `APPROVED`'s `criteria_sha256` and `screen_sha256`, and `067d97d2…`, the run log's; 6 of 6 equal |
 | The critic-phase screen's reading (2026-10-31, later) | `sed -n 5,7p phase_screen/score/score.txt` and `sed -n 22,24p` of it | `STATUS: final`; line 2, "REDUCED: GIVING THE CRITIC THE EPISODE PHASE (the tail_3 angle still in its input; the actor unchanged) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"; the control median +0.61621, rise +0.48961 -> informative; p (filled, decides) 1/70 |
 | The copies against the screen's durable copy (2026-10-31, later; needs the durable branch) | `git show dd4f0d32:SHA256SUMS` of `claude/handoff-phase-screen` against the source sha256 SOURCES.txt gives each `phase_screen/` row (each `run_logs/` as `logs/`) | equal for all 474 |
-| The files themselves (2026-10-31, later, with `phase_screen/`) | `sha256sum -c SHA256SUMS` | all 2584 files OK |
+| The files themselves (2026-10-31, later, with `phase_screen/`) | `sha256sum -c SHA256SUMS` | all 2582 files OK |
 | The record's ledger (2026-10-31, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `207 L001 L207` |
 | The ledger's rows before the update (2026-10-31, latest) | `head -188 tail_record/ledger.csv \| sha256sum` | `2ac9eac9…`, the ledger's sha256 before the update |
-| The files themselves (2026-10-31, latest, with the ledger's rows L188 to L207) | `sha256sum -c SHA256SUMS` | all 2584 files OK |
+| The files themselves (2026-10-31, latest, with the ledger's rows L188 to L207) | `sha256sum -c SHA256SUMS` | all 2582 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

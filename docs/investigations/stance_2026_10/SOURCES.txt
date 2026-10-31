@@ -429,10 +429,12 @@
 # review/fixer/run_logs/, review/process/run_logs/ and review/rereview/run_logs/, whose sources are the logs/ folders at
 # those places.  Every copy is byte-identical to its source, absolute paths included, but for these.  redact: in
 # check/proc/NOTES.txt, check/proc/cmdlog.txt, check/proc/SHA256SUMS.txt, check/proc/out/sub_summary.out,
-# criteria_work/CMDLOG.txt and criteria_work/DESIGN_NOTES.txt, 5 workflow run ids (3 distinct; a bare one becomes
-# 'workflow [id removed]'), 6 sub-agent ids (3 distinct, in the names of transcript files not copied) and 3
-# background-job or tool-result ids of the session's task runner (2 distinct), each by '[id
-# removed]'.  phase_screen/APPROVED keeps the one workflow run id it holds: it is byte-identical because its sha256 is
+# check/proc/out/sub_classify.out, criteria_work/CMDLOG.txt and criteria_work/DESIGN_NOTES.txt, 5 workflow run ids (3
+# distinct; a bare one becomes 'workflow [id removed]'), 6 sub-agent ids (3 distinct, in the names of transcript files
+# not copied), 26 short forms of the same 3 sub-agent ids (their first eight characters: 3 in check/proc/NOTES.txt and
+# 23 in check/proc/out/sub_classify.out) and 3 background-job or tool-result ids of the session's task runner (2
+# distinct), each by '[id removed]'; and the assistant's name by '[name removed]', once in vg_tool/FIXES.txt and once
+# in each of 3 tool names in check/proc/out/tx_extract.out.  phase_screen/APPROVED keeps the one workflow run id it holds: it is byte-identical because its sha256 is
 # the run log's pin (067d97d2...), so redact is not applied to it.  gzip: phase_screen/tools/run_bs.py is copied as
 # tools/run_bs.py.gz (it reads policy_loading's _ensure_sb3, and test_policy_loading.py parses every Python file under
 # docs/); gunzip restores it byte for byte, with the sha256 APPROVED and SHA256SUMS.txt pin.  Every source's sha256 below
@@ -443,9 +445,11 @@
 # (review/fixer/orig/) and the design review's 22 mutated copies of the scorer (review/design/work/mutants/); the
 # validation and synthetic roots (check_build/ctrl_root/, runner_root/, criteria_work/dry_*, review/fixer/dry/,
 # review/rereview/dry/, synth/, pins_root/); the process check's extracts of the session's own transcripts
-# (check/proc/out/tx_*.txt, tx_calls_*.jsonl and three sub_agent-*.txt); 105 empty files; the runner's process-table
-# snapshots (logs/proctable.log); and 20 files that list the container's files outside the screen's folder, with their
-# searches' error logs.  phase_screen/README.md has no source.
+# (check/proc/out/tx_*.txt, tx_calls_*.jsonl and three sub_agent-*.txt); the process check's raw stat scans of the
+# screen's folder (check/proc/stat_snapshot_start.tsv and stat_snapshot_end.tsv, 477,233 bytes each; their sha256 are
+# in check/proc/SHA256SUMS.txt), as for bias_screen2/'s raw access-time scan; 105 empty files; the runner's
+# process-table snapshots (logs/proctable.log); and 20 files that list the container's files outside the screen's
+# folder, with their searches' error logs.  phase_screen/README.md has no source.
 # Added 2026-10-31, latest (tail_record/ledger.csv): appended as on 2026-10-30, nothing else: rows L188 to L207, the
 # record's update of 2026-10-31 (its section 10), each field quoted, as Python's csv module writes them with QUOTE_ALL,
 # and LF line ends; the file's first 188 lines are the file as it stood after the update of 2026-10-30 (sha256 of those
@@ -1596,9 +1600,9 @@ phase_screen/check/proc/out/pins_check.out work/phase_screen/check/proc/out/pins
 phase_screen/check/proc/out/runlog_pin_check.out work/phase_screen/check/proc/out/runlog_pin_check.out 12c3b898f3e428cdc872c6562269c0d059721a4463c759798fe9667fe0347ac7 none
 phase_screen/check/proc/out/score_audit.out work/phase_screen/check/proc/out/score_audit.out 0219cf326d21771782531904f86cb8550a6090bfc36374242402304fcc922da6 none
 phase_screen/check/proc/out/stack_compare.out work/phase_screen/check/proc/out/stack_compare.out 50bece73b964fab860abd98c262ff6aef6d8fb9a5de51111f5bafe3421795a3c none
-phase_screen/check/proc/out/sub_classify.out work/phase_screen/check/proc/out/sub_classify.out 1aaf07f72e937076ee5487e6b3990f4a8cb696995c09560781300dc143454b05 none
+phase_screen/check/proc/out/sub_classify.out work/phase_screen/check/proc/out/sub_classify.out 1aaf07f72e937076ee5487e6b3990f4a8cb696995c09560781300dc143454b05 redact
 phase_screen/check/proc/out/sub_summary.out work/phase_screen/check/proc/out/sub_summary.out ae981396c08eaea82ba89bb70d0d423c723926e4b06bb27abea3337b8e2d53d7 redact
-phase_screen/check/proc/out/tx_extract.out work/phase_screen/check/proc/out/tx_extract.out 99a9fd234a8587d10409691efffc0f2519b213aebf740756f686b4cd43ba6534 none
+phase_screen/check/proc/out/tx_extract.out work/phase_screen/check/proc/out/tx_extract.out 99a9fd234a8587d10409691efffc0f2519b213aebf740756f686b4cd43ba6534 redact
 phase_screen/check/proc/out/tx_rules.out work/phase_screen/check/proc/out/tx_rules.out 5d1fe805b547896e42badc4d6ffa24cdb0bcf0a62c7830ade517af1a650c0344 none
 phase_screen/check/proc/out/verify_copy_now.out work/phase_screen/check/proc/out/verify_copy_now.out 5140fe59b936d3d5e3d750317f5b98581cbec71c260469c33958e869d31923c0 none
 phase_screen/check/proc/scripts/atime_audit.py work/phase_screen/check/proc/scripts/atime_audit.py bdbe3b52382907224b50086cb26d0f8942b0422104eda7b7b8ea0f7061af9df4 none
@@ -1611,8 +1615,6 @@ phase_screen/check/proc/scripts/sub_null.py work/phase_screen/check/proc/scripts
 phase_screen/check/proc/scripts/tx_dump.py work/phase_screen/check/proc/scripts/tx_dump.py 70e24632c0395517db9dc7b85de034374a4e908c2f18fd7bd88447c016acfe57 none
 phase_screen/check/proc/scripts/tx_extract.py work/phase_screen/check/proc/scripts/tx_extract.py b640ca123bffed7d477e03d11fa6ba4f499f42e09a4beaf888e0c7bfe1db2d76 none
 phase_screen/check/proc/scripts/tx_rules.py work/phase_screen/check/proc/scripts/tx_rules.py 6c4f06c861d50ba19f9e66efb912e68a9b5621cdd5d75c9bbe59a9eb67b17771 none
-phase_screen/check/proc/stat_snapshot_end.tsv work/phase_screen/check/proc/stat_snapshot_end.tsv 4be8c6b01ee352f75c95d0d873da989bd179c95d84de6975a5a50ed51eb2df44 none
-phase_screen/check/proc/stat_snapshot_start.tsv work/phase_screen/check/proc/stat_snapshot_start.tsv e7dac98afe00f8c6aadae18359942d547daef7686c63d1bc66fb1064996de7a7 none
 phase_screen/check/stat/NOTES.txt work/phase_screen/check/stat/NOTES.txt 1ff38ad4b7f87e0961698c58d8085b6a26a66eebc6bfdeff13833aabd51511ba none
 phase_screen/check/stat/SHA256SUMS.txt work/phase_screen/check/stat/SHA256SUMS.txt 97beb6e05d1a4f474d8c1f8a4cdd50cda00134a341d66e623d2156d2eb4473ea none
 phase_screen/check/stat/bin/explore_jsonl.py work/phase_screen/check/stat/bin/explore_jsonl.py c4229eb2f35f2703d6e8f2efab70fc7a6222563742bcfb9ac2d04228657eb1d3 none
@@ -2044,7 +2046,7 @@ phase_screen/vg_run/out/vg_sigma.json work/vg_run/out/vg_sigma.json 392b2a98f42b
 phase_screen/vg_run/out/vg_sigma.txt work/vg_run/out/vg_sigma.txt cb5fed352948f93985353ee59bdb3fe145f211cf4ea44f179e3e549adc62fd9f none
 phase_screen/vg_run/run.out work/vg_run/run.out 10b7e3545905383b21199f5df692448baafb901cf864c8d695f3bd1fa241330b none
 phase_screen/vg_tool/CMDLOG.txt work/vg_tool/CMDLOG.txt 4146feaea5d562f731e3472a525e381e158703d0e95f76a7d8912397809957ff none
-phase_screen/vg_tool/FIXES.txt work/vg_tool/FIXES.txt 852a20ff8d89ec6f6c379bf89314eaa7182223defd03840692d633837ee83219 none
+phase_screen/vg_tool/FIXES.txt work/vg_tool/FIXES.txt 852a20ff8d89ec6f6c379bf89314eaa7182223defd03840692d633837ee83219 redact
 phase_screen/vg_tool/NOTES.txt work/vg_tool/NOTES.txt c8713adf914e6c69da1c1c08465481309546d6db1230b3a19ce3bebbadec324a none
 phase_screen/vg_tool/SHA256SUMS.txt work/vg_tool/SHA256SUMS.txt 8bdb45d2dca5a75dcc6023a19e71372c3a130060cdecec44800c89f678c1948b none
 phase_screen/vg_tool/SPEC.txt work/vg_tool/SPEC.txt d1481ec596b1dff6172c5442b8b90fe77e390eccdcaf0199cf73bdecc5688b33 none

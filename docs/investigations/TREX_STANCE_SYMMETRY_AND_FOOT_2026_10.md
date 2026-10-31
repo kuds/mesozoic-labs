@@ -5574,7 +5574,7 @@ merged.
 - **§14, this repository:** §10 of the note and the folders
   `phase_critic_results/`, `why_probe/`, `pr655_review/` and
   `phase_screen/` of [stance_2026_10/](stance_2026_10/README.md), with their
-  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 2584 files).
+  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 2582 files).
 - **§14, branches:** `claude/handoff-day-2026-10-30` at `b25eeaf5` (the
   end-of-day safety copy) and `claude/handoff-phase-screen` at `dd4f0d32`
   (the screen's durable copy), never merged.

@@ -88,8 +88,9 @@ never merged.
 - **`review/`**: the design review (`design/`, 0 blocking, D1 to D4 minor),
   the process review (`process/`, one blocking finding, P-B1: the training
   library's TensorBoard events went to a folder outside the screen's), the
-  fixer's record (`FIXES.txt`, with `fixer/`: 32 findings, P-B1 fixed and
-  re-validated) and the re-review of the fixed version (`rereview/`: READY
+  fixer's record (`FIXES.txt`, with `fixer/`: of 32 findings, 15 fixed,
+  among them P-B1, re-validated, and 17 needing no change or left to the
+  coordinator) and the re-review of the fixed version (`rereview/`: READY
   TO PIN, 0 blocking), with `reviewed_sha256.txt`.
 - **`runs/<name>/`**: each COUNTED continuation's `run_meta.json` and
   `check.json` (the reader's CHECK: passed); **`runs/<name>_crashed1/`** and
@@ -125,20 +126,25 @@ never merged.
 
 Every copy is byte-identical to its source, absolute session paths
 included, but for two existing kinds of change. **redact**: in
-`check/proc/NOTES.txt`, `cmdlog.txt`, `SHA256SUMS.txt` and
-`out/sub_summary.out`, and in `criteria_work/CMDLOG.txt` and
-`DESIGN_NOTES.txt`, 5 workflow run ids (3 distinct), 6 sub-agent ids (3
-distinct, in the names of three transcript files not kept) and 3
-background-job or tool-result ids of the session's task runner (2
-distinct), each by
-`[id removed]` (a bare workflow id by `workflow [id removed]`); `APPROVED`
-keeps the one workflow run id it holds, since its sha256 is the run log's
-pin. **gzip**: `tools/run_bs.py` is copied as `tools/run_bs.py.gz` (it reads
+`check/proc/NOTES.txt`, `cmdlog.txt`, `SHA256SUMS.txt`,
+`out/sub_summary.out` and `out/sub_classify.out`, and in
+`criteria_work/CMDLOG.txt` and `DESIGN_NOTES.txt`, 5 workflow run ids (3
+distinct), 6 sub-agent ids (3 distinct, in the names of three transcript
+files not kept), 26 short forms of the same three sub-agent ids (their
+first eight characters: 3 in `check/proc/NOTES.txt`, 23 in
+`out/sub_classify.out`) and 3 background-job or tool-result ids of the
+session's task runner (2 distinct), each by `[id removed]` (a bare
+workflow id by `workflow [id removed]`); and the assistant's name by
+`[name removed]`, once in `vg_tool/FIXES.txt` and once in each of three
+tool names in `check/proc/out/tx_extract.out`. `APPROVED` keeps the one
+workflow run id it holds, since its sha256 is the run log's pin. **gzip**:
+`tools/run_bs.py` is copied as `tools/run_bs.py.gz` (it reads
 `policy_loading._ensure_sb3`, and `test_policy_loading.py` parses every
 Python file under `docs/`); gunzip restores it byte for byte, with the
 sha256 APPROVED and `SHA256SUMS.txt` pin. No other copy held a session tool
-id, and none holds a model identifier, an email address or a commit
-trailer.
+id or the assistant's name in its text (paths and branch names that hold it
+are kept, as in the earlier folders), and none holds a model identifier, an
+email address or a commit trailer.
 
 Not kept (all of it also on the durable branch, but the code copy, the
 checkpoints and other npz, zip and pkl files, the training episodes, the
@@ -159,7 +165,12 @@ re-review built (`check_build/ctrl_root/`, `runner_root/`,
 transcripts (`check/proc/out/tx_*.txt`, `tx_calls_*.jsonl` and three
 `sub_agent-*.txt`, which hold the session's internal tool, task and agent
 ids; `tx_extract.out`, `tx_rules.out`, `sub_classify.out` and
-`sub_summary.out` hold what the check found in them); 105 empty files
+`sub_summary.out` hold what the check found in them); the process check's
+raw stat scans of the screen's folder at its start and end
+(`check/proc/stat_snapshot_start.tsv` and `stat_snapshot_end.tsv`, 477,233
+bytes each, their sha256 in `check/proc/SHA256SUMS.txt`; its notes give
+what they showed), as `../bias_screen2/` leaves out its raw access-time
+scan; 105 empty files
 (91 empty error logs, empty outputs of commands that printed nothing, and
 empty marker files); the runner's process-table snapshots
 (`logs/proctable.log`), which list the container's own processes; and 20

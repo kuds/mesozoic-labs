@@ -38,8 +38,10 @@ included; none held a session tool id.
   and with `keyframe`, 4 cases at 5 seeds each.
 - **`xref/`** (XR): the cross-reference lens. `XREF.txt` sets #655 against
   this record, the second critic-blind screen and the why-probe: where they
-  agree, where they differ (the step-200 aliasing about 3x larger on the run
-  branch than on `main`, #655's open question 1 measured, its AUC of 0.71
+  agree, where they differ (the step-200 aliasing 3.1 to 3.3 times
+  `main`'s on trained run-branch policies, and about 3.5 times on the run
+  branch's statue by `repro/rb_probe.json`; #655's open question 1
+  measured; its AUC of 0.71
   being the noise-free value), and what #655 adds for a screen with a
   critic-only phase input; `NOTES.txt` its method; `scripts/` its two
   read-only reductions of the why-probe's existing rollouts and `out/` their
