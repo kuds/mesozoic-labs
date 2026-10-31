@@ -553,6 +553,12 @@ in spaces (each folder's README names them). No other copy holds a session
 tool id, and none holds a model identifier, an email address or a commit
 trailer.
 
+*Added 2026-10-31, latest (`tail_record/ledger.csv`):* **appended** again,
+nothing else: rows L188 to L207, the record's update of 2026-10-31. The
+file's first 188 lines are the file as it stood after the update of
+2026-10-30. No copy holds a model identifier, an email address or a commit
+trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -1747,6 +1753,14 @@ checks (`check/stat/`, `check/proc/`: both agree) and the report
 ledgers are on the never-merged orphan branch `claude/handoff-phase-screen`.
 Its [README](phase_screen/README.md) indexes it.
 
+### Added on 2026-10-31, latest (decisions D-D59 to D-D65: the tail-habit record's update)
+
+**`tail_record/ledger.csv`: rows L188 to L207 appended, the ledger rows of
+§10 of [TREX_TAIL_SATURATION_HABIT_2026_10.md](../TREX_TAIL_SATURATION_HABIT_2026_10.md),
+the record's update of 2026-10-31 (207 rows, L001 to L207).** The
+[README](tail_record/README.md) of `tail_record/` says how they were
+written.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1888,6 +1902,9 @@ copies.
 | The critic-phase screen's reading (2026-10-31, later) | `sed -n 5,7p phase_screen/score/score.txt` and `sed -n 22,24p` of it | `STATUS: final`; line 2, "REDUCED: GIVING THE CRITIC THE EPISODE PHASE (the tail_3 angle still in its input; the actor unchanged) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"; the control median +0.61621, rise +0.48961 -> informative; p (filled, decides) 1/70 |
 | The copies against the screen's durable copy (2026-10-31, later; needs the durable branch) | `git show dd4f0d32:SHA256SUMS` of `claude/handoff-phase-screen` against the source sha256 SOURCES.txt gives each `phase_screen/` row (each `run_logs/` as `logs/`) | equal for all 474 |
 | The files themselves (2026-10-31, later, with `phase_screen/`) | `sha256sum -c SHA256SUMS` | all 2584 files OK |
+| The record's ledger (2026-10-31, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `207 L001 L207` |
+| The ledger's rows before the update (2026-10-31, latest) | `head -188 tail_record/ledger.csv \| sha256sum` | `2ac9eac9…`, the ledger's sha256 before the update |
+| The files themselves (2026-10-31, latest, with the ledger's rows L188 to L207) | `sha256sum -c SHA256SUMS` | all 2584 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

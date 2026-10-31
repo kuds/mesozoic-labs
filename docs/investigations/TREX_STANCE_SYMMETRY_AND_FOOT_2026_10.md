@@ -197,6 +197,25 @@ and the evidence in
 and the folders `overnight_probes/`, `bias_screen/` and `bias_screen2/`
 beside it. The statuses above are unchanged.*
 
+*Status 2026-10-31 (appended): §30, appended that day, records in short the
+no-training why-probe, the review of #655 and the critic-phase screen, with
+decisions D-D59 to D-D65. The why-probe found the critic's credit for a
+raised tail a proxy for a hidden episode phase: four stance terms are paid
+only after step 200, the policy's own tail creep makes the tail angle a
+clock, and a phase-blind critic pays for it; a termination risk was
+excluded. From seed 42's mid-rise checkpoint at 2,097,152 steps, giving the
+critic alone the episode phase (the actor unchanged, the tail angle still
+seen) read line 2, "REDUCED": every control continuation ended above every
+phase continuation, p 1/70, though a spread-only effect would give such a
+separation about 3.6% of the time. The long CPU studies were set aside for
+a fresh run on Colab, whose pre-registration and results come in a later
+records change. No T. rex stance is certified. The detail is in §10 of
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
+and the evidence in
+[stance_2026_10/phase_critic_results/](stance_2026_10/phase_critic_results/README.md)
+and the folders `why_probe/`, `pr655_review/` and `phase_screen/` beside it.
+The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -5452,3 +5471,115 @@ maintainer's word), never to be merged.
   (`scratchpad2/r10round/bias_screen/`, `scratchpad2/r10round/bias_screen2/`,
   `scratchpad2/com_revisit/notes/`); the ledgers of the screens are also on
   the durable branches.
+
+## 30. Status 2026-10-31 (appended): the why-probe, the #655 cross-check and the critic-phase screen: line 2, reduced; decisions D-D59 to D-D65
+
+*Appended 2026-10-31; §1–§29 above are unchanged, so §29.3's open questions
+are the state when §29's copied log ends (16:32 UTC on 2026-10-30).* This section is a pointer, as §28 and §29
+are. The work of 2026-10-30 16:33 UTC to 2026-10-31 21:00:15 UTC on the T.
+rex tail saturation habit is recorded in §10 of
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
+with its ledger rows L188 to L207; this section gives the outcome in short
+and says what it changes here. The evidence is the session's run log, lines
+802 to 871, copied as `phase_critic_results/run_log.txt` of
+[stance_2026_10/](stance_2026_10/README.md), and the folders `why_probe/`
+(the probe's two lenses and its verifier), `pr655_review/` (the review of
+#655) and `phase_screen/` (the screen, with its V − G tool) there. Labels as
+in §27: measured, as each source records it; inferred, where said. Pull
+requests are named by what they carry.
+
+### 30.1 The why-probe (D-D59)
+
+At 16:42 UTC on 2026-10-30 the maintainer asked, with no training, why the
+critic values a raised tail ("Probe it now, no training (Recommended)").
+Two lenses pre-registered their predictions before any data and an
+independent verifier re-derived and adjudicated them (the note's §10.2):
+
+- The phase proxy is favoured strongly. Four stance terms are paid only
+  after step 200 and the observation has no clock, so at matched
+  observation steps 50-200 are worth 0.17 to 0.23 less (in the critic's
+  units) than settled states; after each reset the policy's own tail
+  command creeps up over about 300 steps, so the tail angle is a clock (AUC
+  0.61 to 0.95); the phase-blind critic gives the tail +0.02 to +0.06 per
+  degree, which the realised returns do not pay once the phase is
+  controlled.
+- A tail-floor termination risk is excluded: no tail_contact in the
+  rollouts or in the parent's 2,495 training episodes over 1.05M to 3.54M,
+  and the risk could fund at most about 7% of the slope.
+- The fix it pointed to [inferred there]: blinding is a stopgap; the root
+  cause calls for a critic-only phase input, the actor unchanged.
+
+### 30.2 #655 cross-checked (D-D61)
+
+On 2026-10-31 the session reviewed #655, a report-only pull request on the
+stance pop, the displaced pose and saturation, and posted one comment at the
+maintainer's word (the note's §10.3). Its evidence reproduces byte for
+byte. Its trained-policy facts are the run branch's, where the step-200
+incentive is about 3.5 times `main`'s (+0.345 against +0.099 per step on
+the statue), so its lean incentive and its step-200 magnitude are `main`'s
+only; its open question 1 is measured on the run branch.
+
+### 30.3 The critic-phase screen (D-D60 and D-D62)
+
+At 18:30 UTC on 2026-10-30 the maintainer chose to test the phase fix first
+("Test the phase fix first (Recommended)"), and at 15:54:59 UTC on
+2026-10-31 confirmed it as built ("Confirm as built (Recommended)"). It
+continued `stance6_r10LTSB_s42` on the session's CPUs for 175 updates from
+2,097,152, 4 control and 4 `critic_phase` continuations (the episode phase
+in the critic's input only, the actor unchanged, the tail angle still
+seen), seeds 2901 to 2931, with criteria reviewed, fixed, re-reviewed and
+sha-pinned before launch, an outcome-blind runner and two independent checks
+(the note's §10.4 and §10.5).
+
+- **Reading, final** (20:19:27 UTC): line 2, "REDUCED: GIVING THE CRITIC THE
+  EPISODE PHASE (the tail_3 angle still in its input; the actor unchanged)
+  REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E,
+  FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <=
+  0.05)": control +0.49357, +0.58592, +0.66068 and +0.64649 against phase
+  +0.06767, +0.04724, +0.04290 and +0.06832, the control median rising
+  +0.48961 against the 0.20 gate; p 1/70, the smallest attainable with 4 per
+  arm (the arms' spreads differ, SD 0.076 against 0.013: a spread-only effect
+  would give such a separation about 3.6% of the time; the pre-registered p
+  decides, and the line stands). The critic's own tail slope went to about
+  0 in the phase arm; the guard on `tail_2` read a small warning. Both
+  checks agree, with two minor process findings.
+- **Report only:** a separate pinned tool found the control critic still
+  mistiming the step-200 gate and the phase critic nearly unbiased by
+  episode step. Two container restarts killed the second wave twice; the
+  killed runs were retired unread and rerun from the start pair.
+- **Not shown:** other runs or states, a run with the phase critic from the
+  start, a longer window, `main`'s configuration.
+
+Screen runs certify nothing, and nothing the screen ran is on `main`. Its
+text outputs are on the orphan branch `claude/handoff-phase-screen` at
+`dd4f0d32` (pushed at 20:45:54 UTC at the maintainer's word), never to be
+merged.
+
+### 30.4 What changes in §13–§29
+
+- **§13 and §27.8, certification:** none. No T. rex stance is certified, and
+  the two-seed ask stands on physics r10.
+- **§29.3, the tail habit:** "why the critic values a raised tail" is
+  answered on the run branch, from s42's mid-rise state: a hidden-phase
+  artefact of the step-200 terms that a critic-only phase input removed
+  (the note's §10.6). What drives the very first push at about 1.2M, a run
+  with the phase critic from step 0, other seeds and `main`'s configuration
+  stay open.
+- **Next (D-D63 to D-D65):** the long critic-blind study of §29.3 was never
+  launched; a long phase-critic study on the session's CPUs was started and
+  abandoned the same evening; at 20:54:11 UTC the maintainer chose a fresh
+  run on Colab with a separate critic-only input, three seeds to 12M steps,
+  whose pre-registration and results come in a later records change (the
+  note's §10.7 and its "Pending: the fresh Colab run").
+- **§14, this repository:** §10 of the note and the folders
+  `phase_critic_results/`, `why_probe/`, `pr655_review/` and
+  `phase_screen/` of [stance_2026_10/](stance_2026_10/README.md), with their
+  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 2584 files).
+- **§14, branches:** `claude/handoff-day-2026-10-30` at `b25eeaf5` (the
+  end-of-day safety copy) and `claude/handoff-phase-screen` at `dd4f0d32`
+  (the screen's durable copy), never merged.
+- **§14, session scratch and work folder:** the why-probe's rollouts in the
+  second session's scratch (`scratchpad2/com_revisit/notes/`); the screen's
+  checkpoints, ledgers, training episodes and validations in the session's
+  work folder (`/home/user/work/phase_screen/`), the ledgers also on the
+  durable branch.

@@ -18,9 +18,10 @@ session's scratch, `scratchpad2/tail_record/`.
 
 ## The files
 
-- **`ledger.csv`**: one row per merged entry, L001 to L187 (187 rows and a
-  header; rows L168 to L187 were appended on 2026-10-30, as the last section
-  says), the record's bracketed ids. Columns: id, date, kind, title,
+- **`ledger.csv`**: one row per merged entry, L001 to L207 (207 rows and a
+  header; rows L168 to L187 were appended on 2026-10-30 and rows L188 to
+  L207 on 2026-10-31, as the last two sections say), the record's bracketed
+  ids. Columns: id, date, kind, title,
   verdict, label, what, result, sources, merged_from (the sweep entries it
   merges), where_in_record, sources_disagree. Its source is the draft's
   `draft/ledger.csv` as the update's fact check left it (sha256 in
@@ -118,4 +119,30 @@ of §9 cites equal the rows' `where_in_record` (`update_check/check_cites.py`
 on the note and the ledger), but for the status block, §9's opening and
 §9.9, which name the rows' range, as the status block and §8.5 do for the
 earlier rows. §9 and these rows have not been through the record's
+completeness critic or its fact checks.
+
+## The update of 2026-10-31: rows L188 to L207
+
+The records change of decision D-D65 added §10 to the record (the work of
+2026-10-30 16:33 UTC to 2026-10-31 21:00:15 UTC: the why-probe, the review
+of #655 and the critic-phase screen with its V − G tool, and the choice of a
+fresh run on Colab) and appended rows L188 to L207 to `ledger.csv`: one row
+per entry of §10.1 (L188 to L206) and one for §10.8's lessons (L207). §10
+and these rows were written in the repository from the copies that change
+keeps and the run log's lines 802 to 871
+(`../phase_critic_results/run_log.txt`), as the rows of 2026-10-30 were:
+`build_ledger.py` rebuilds none of them, and their `merged_from` names the
+update's own entries, "N01 (update of 2026-10-31; …)" to "N20 (update of
+2026-10-31)". Their `sources` cite the copies by their paths from
+`docs/investigations/` and the run log by the copy's line with the source's
+"RUNLOG lN". The rows were appended as Python's `csv` module writes them
+(every field quoted, LF line ends), by a script of the change's build notes
+(the writer's folder, not kept) that first checks that the last row is
+L187, so the file's first 188 lines are unchanged (sha256
+`2ac9eac93264f081a2139a119bb0aa8048cd0c8416483454f819a24f9cba8ec0`, the
+whole file before the update). The ids each subsection of §10 cites equal
+the new rows' `where_in_record`, but for §10's opening and §10.9, which name
+the rows' range; §10.6 also cites rows L171, L173, L175, L176 and L179 of
+the update of 2026-10-30, whose `where_in_record` is unchanged, since no
+earlier row changed. §10 and these rows have not been through the record's
 completeness critic or its fact checks.
