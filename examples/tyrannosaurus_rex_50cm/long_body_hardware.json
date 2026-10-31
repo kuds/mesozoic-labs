@@ -1,0 +1,810 @@
+{
+  "schema_version": 1,
+  "catalog": {
+    "jetson": {
+      "part": "NVIDIA Jetson Orin Nano Super 8GB P3766 complete kit",
+      "dimensions_m": [
+        0.103,
+        0.0905,
+        0.03477
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": null,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://dam-cdn.nvd.orangelogic.com/AssetLink/2ug686w80406gxf6q8uv7r3l7265m2n8.pdf",
+      "notes": "December 2024 datasheet includes feet, carrier, module and thermal solution. Installed mass, NVMe, cables and airflow remain unverified.",
+      "shape": "box"
+    },
+    "battery": {
+      "part": "Gens ace G-Tech 3300mAh 6S 60C EC5",
+      "dimensions_m": [
+        0.138,
+        0.042,
+        0.043
+      ],
+      "tolerance_m": [
+        0.005,
+        0.002,
+        0.002
+      ],
+      "mass_kg": 0.506,
+      "mass_tolerance_kg": 0.02,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/",
+      "notes": "120 mm discharge leads and EC5 routing are not contained in the catalog body dimensions.",
+      "shape": "box"
+    },
+    "teensy": {
+      "part": "PJRC Teensy 4.1 PCB",
+      "dimensions_m": [
+        0.06096,
+        0.01778,
+        0.00157
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0006,
+        0.0
+      ],
+      "mass_kg": null,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_pcb",
+      "source_url": "https://www.pjrc.com/teensy/dimensions_teensy41.png",
+      "notes": "15 mm modeled height is a planning allowance for populated board/headers; USB cable bend is unverified.",
+      "shape": "box"
+    },
+    "can": {
+      "part": "CAN transceiver board, selection TBD",
+      "dimensions_m": null,
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": null,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "planning",
+      "source_url": null,
+      "notes": "30 x 20 x 15 mm is an explicit planning reservation, not a verified product.",
+      "shape": "box"
+    },
+    "regulator_12v": {
+      "part": "Pololu D36V50F12",
+      "dimensions_m": [
+        0.0254,
+        0.0254,
+        0.009525
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": 0.007,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://www.pololu.com/product/4095/specs",
+      "notes": "Vendor dimensions and mass exclude optional headers. Wiring, mounting and thermal performance unqualified.",
+      "shape": "box"
+    },
+    "regulator_5v": {
+      "part": "Pololu D36V50F5",
+      "dimensions_m": [
+        0.0254,
+        0.0254,
+        0.009525
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": 0.007,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://www.pololu.com/product/4091/specs",
+      "notes": "Vendor dimensions and mass exclude optional headers. Wiring, mounting and thermal performance unqualified.",
+      "shape": "box"
+    },
+    "u2d2": {
+      "part": "ROBOTIS U2D2",
+      "dimensions_m": [
+        0.048,
+        0.018,
+        0.0149
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": 0.009,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://emanual.robotis.com/docs/en/parts/interface/u2d2/",
+      "notes": "Connected cable envelopes excluded.",
+      "shape": "box"
+    },
+    "camera": {
+      "part": "Luxonis OAK-D Lite fixed focus",
+      "dimensions_m": [
+        0.091,
+        0.028,
+        0.0175
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": 0.061,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://checkout.luxonis.com/products/oak-d-lite-1",
+      "notes": "Catalog camera enclosure; bracket and USB cable remain unverified.",
+      "shape": "box"
+    },
+    "xm430": {
+      "part": "ROBOTIS XM430-W210-T",
+      "dimensions_m": [
+        0.0285,
+        0.0465,
+        0.034
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": 0.082,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://emanual.robotis.com/docs/en/dxl/x/xm430-w210/#specifications",
+      "notes": "Body depth excludes horn, idler and bracket extensions. Catalog CG origin has not been mapped; inertia remains centered surrogate. Drawing output shaft is normal to W x H face, displaced +12.0 mm along catalog H from box center; planned shaft line is mapped, vendor CG frame remains unverified.",
+      "shape": "box",
+      "shaft_axis": 2,
+      "shaft_offset_m": [
+        0,
+        0.012,
+        0
+      ]
+    },
+    "xl330": {
+      "part": "ROBOTIS XL330-M288-T",
+      "dimensions_m": [
+        0.02,
+        0.034,
+        0.026
+      ],
+      "tolerance_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass_kg": 0.018,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "vendor_complete",
+      "source_url": "https://emanual.robotis.com/docs/en/dxl/x/xl330-m288/#specifications",
+      "notes": "26 mm includes 23 mm case plus 3 mm horn. Optional idler requires 29 mm. Mounting configuration remains unqualified. Drawing output shaft is normal to W x H face, displaced +7.5 mm along catalog H from box center; planned shaft line is mapped, vendor CG frame remains unverified.",
+      "shape": "box",
+      "shaft_axis": 2,
+      "shaft_offset_m": [
+        0,
+        0.0075,
+        0
+      ]
+    },
+    "rmd": {
+      "part": "MYACTUATOR RMD-X4-P12.5-10, selected US revision unresolved",
+      "dimensions_m": [
+        0.055,
+        0.055,
+        0.0555
+      ],
+      "tolerance_m": [
+        0.0001,
+        0.0001,
+        0.0005
+      ],
+      "mass_kg": 0.33,
+      "mass_tolerance_kg": 0,
+      "dimension_basis": "related_revision",
+      "source_url": "https://static.wixstatic.com/media/cab28a_2b2f7baa22b54695b5fca3156d882392~mv2.jpg",
+      "notes": "Related global P12.5-10-C/E drawing; US selected listing could not be verified. Model retains 60 mm planning diameter and increases axial length to 56 mm.",
+      "shape": "cylinder",
+      "shaft_axis": 2,
+      "shaft_offset_m": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "assemblies": [
+    {
+      "id": "battery",
+      "component": "battery",
+      "geometry": "battery_envelope",
+      "container": "torso_rear_collision",
+      "body": "torso",
+      "position_m": [
+        -0.17,
+        0,
+        0.072
+      ],
+      "installed_size_m": [
+        0.16,
+        0.09,
+        0.065
+      ],
+      "mass_budget_kg": 0.55,
+      "wall_clearance_m": 0.003,
+      "contents": [
+        {
+          "id": "battery",
+          "catalog": "battery",
+          "geometry": "hardware_battery",
+          "offset_m": [
+            0,
+            0,
+            0
+          ],
+          "size_m": [
+            0.143,
+            0.044,
+            0.045
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        }
+      ],
+      "notes": "Estimated assembly 550 g = nominal battery 506 g plus 44 g restraint allowance; maximum catalog mass 526 g leaves 24 g, so installed mass remains unqualified. Centered assembly inertia is estimated."
+    },
+    {
+      "id": "compute",
+      "component": "compute_tray",
+      "geometry": "compute_tray_envelope",
+      "container": "torso_bridge_collision",
+      "body": "torso",
+      "position_m": [
+        -0.015,
+        0,
+        0.17
+      ],
+      "installed_size_m": [
+        0.12,
+        0.11,
+        0.065
+      ],
+      "mass_budget_kg": 0.3,
+      "wall_clearance_m": 0.003,
+      "contents": [
+        {
+          "id": "jetson",
+          "catalog": "jetson",
+          "geometry": "hardware_jetson",
+          "offset_m": [
+            0,
+            0,
+            -0.0075
+          ],
+          "size_m": [
+            0.103,
+            0.0905,
+            0.03477
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        }
+      ],
+      "notes": "300 g is the total compute/storage/cooling/mount budget, not a measured kit mass. 120 x 110 x 65 mm is planning installation space; NVMe model, routing and airflow not qualified."
+    },
+    {
+      "id": "control",
+      "component": "control_board",
+      "geometry": "control_board_envelope",
+      "container": "torso_front_collision",
+      "body": "torso",
+      "position_m": [
+        0.112,
+        0,
+        0.145
+      ],
+      "installed_size_m": [
+        0.11,
+        0.085,
+        0.025
+      ],
+      "mass_budget_kg": 0.18,
+      "wall_clearance_m": 0.003,
+      "contents": [
+        {
+          "id": "teensy",
+          "catalog": "teensy",
+          "geometry": "hardware_teensy",
+          "offset_m": [
+            -0.012,
+            -0.027,
+            0
+          ],
+          "size_m": [
+            0.06096,
+            0.01838,
+            0.015
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "u2d2_left",
+          "catalog": "u2d2",
+          "geometry": "hardware_u2d2_left",
+          "offset_m": [
+            -0.026,
+            0,
+            0
+          ],
+          "size_m": [
+            0.048,
+            0.018,
+            0.0149
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "u2d2_right",
+          "catalog": "u2d2",
+          "geometry": "hardware_u2d2_right",
+          "offset_m": [
+            0.026,
+            0,
+            0
+          ],
+          "size_m": [
+            0.048,
+            0.018,
+            0.0149
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "can_left",
+          "catalog": "can",
+          "geometry": "hardware_can_left",
+          "offset_m": [
+            -0.02,
+            0.026,
+            0
+          ],
+          "size_m": [
+            0.03,
+            0.02,
+            0.015
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "can_right",
+          "catalog": "can",
+          "geometry": "hardware_can_right",
+          "offset_m": [
+            0.02,
+            0.026,
+            0
+          ],
+          "size_m": [
+            0.03,
+            0.02,
+            0.015
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        }
+      ],
+      "notes": "180 g total interfaces allocation includes known 18 g U2D2 pair. Other boards, IMU/audio and mounting are unweighed; additional 20 g foot sensors remain in the original ledger."
+    },
+    {
+      "id": "power",
+      "component": "power_board",
+      "geometry": "power_board_envelope",
+      "container": "torso_front_collision",
+      "body": "torso",
+      "position_m": [
+        0.112,
+        0,
+        0.1
+      ],
+      "installed_size_m": [
+        0.1,
+        0.085,
+        0.035
+      ],
+      "mass_budget_kg": 0.3,
+      "wall_clearance_m": 0.003,
+      "contents": [
+        {
+          "id": "regulator_1",
+          "catalog": "regulator_12v",
+          "geometry": "hardware_regulator_1",
+          "offset_m": [
+            -0.016,
+            -0.0275,
+            0
+          ],
+          "size_m": [
+            0.0254,
+            0.0254,
+            0.009525
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "regulator_2",
+          "catalog": "regulator_12v",
+          "geometry": "hardware_regulator_2",
+          "offset_m": [
+            0.016,
+            -0.0275,
+            0
+          ],
+          "size_m": [
+            0.0254,
+            0.0254,
+            0.009525
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "regulator_3",
+          "catalog": "regulator_12v",
+          "geometry": "hardware_regulator_3",
+          "offset_m": [
+            -0.016,
+            0,
+            0
+          ],
+          "size_m": [
+            0.0254,
+            0.0254,
+            0.009525
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "regulator_4",
+          "catalog": "regulator_5v",
+          "geometry": "hardware_regulator_4",
+          "offset_m": [
+            0.016,
+            0,
+            0
+          ],
+          "size_m": [
+            0.0254,
+            0.0254,
+            0.009525
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "regulator_5",
+          "catalog": "regulator_5v",
+          "geometry": "hardware_regulator_5",
+          "offset_m": [
+            -0.016,
+            0.0275,
+            0
+          ],
+          "size_m": [
+            0.0254,
+            0.0254,
+            0.009525
+          ],
+          "catalog_axes": [
+            0,
+            1,
+            2
+          ]
+        }
+      ],
+      "notes": "300 g torso power allocation includes five 7 g regulators, leaving 265 g estimated for distribution, wiring and mounts. Original leg wiring adds 50 g separately."
+    }
+  ],
+  "mounted_hardware": [
+    {
+      "component": "left_hip_yaw_motor",
+      "geometry": "left_hip_yaw_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        1,
+        2
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "left_hip_yaw"
+    },
+    {
+      "component": "left_hip_roll_motor",
+      "geometry": "left_hip_roll_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        2,
+        0,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "left_hip_roll"
+    },
+    {
+      "component": "left_hip_pitch_motor",
+      "geometry": "left_hip_pitch_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "left_hip_pitch"
+    },
+    {
+      "component": "left_knee_motor",
+      "geometry": "left_knee_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "left_knee"
+    },
+    {
+      "component": "left_ankle_pitch_motor",
+      "geometry": "left_ankle_pitch_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "left_ankle_pitch"
+    },
+    {
+      "component": "left_ankle_roll_motor",
+      "geometry": "left_ankle_roll_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        2,
+        0,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "left_ankle_roll"
+    },
+    {
+      "component": "right_hip_yaw_motor",
+      "geometry": "right_hip_yaw_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        1,
+        2
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "right_hip_yaw"
+    },
+    {
+      "component": "right_hip_roll_motor",
+      "geometry": "right_hip_roll_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        2,
+        0,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "right_hip_roll"
+    },
+    {
+      "component": "right_hip_pitch_motor",
+      "geometry": "right_hip_pitch_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "right_hip_pitch"
+    },
+    {
+      "component": "right_knee_motor",
+      "geometry": "right_knee_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "right_knee"
+    },
+    {
+      "component": "right_ankle_pitch_motor",
+      "geometry": "right_ankle_pitch_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "right_ankle_pitch"
+    },
+    {
+      "component": "right_ankle_roll_motor",
+      "geometry": "right_ankle_roll_case_collision",
+      "catalog": "rmd",
+      "catalog_axes": [
+        2,
+        0,
+        1
+      ],
+      "notes": "Catalog dimensions mapped into the owning body XYZ axes; related-revision package only. Connectors, caps and brackets are not qualified.",
+      "joint": "right_ankle_roll"
+    },
+    {
+      "component": "snout_camera",
+      "geometry": "camera_package_envelope",
+      "catalog": "camera",
+      "catalog_axes": [
+        2,
+        0,
+        1
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified."
+    },
+    {
+      "component": "head_yaw_motor",
+      "geometry": "hardware_head_yaw_motor",
+      "catalog": "xm430",
+      "catalog_axes": [
+        0,
+        1,
+        2
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified.",
+      "joint": "head_yaw"
+    },
+    {
+      "component": "head_nod_motor",
+      "geometry": "hardware_head_nod_motor",
+      "catalog": "xm430",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified.",
+      "joint": "head_nod"
+    },
+    {
+      "component": "left_shoulder_motor",
+      "geometry": "hardware_left_shoulder_motor",
+      "catalog": "xl330",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified.",
+      "joint": "left_shoulder_pitch"
+    },
+    {
+      "component": "right_shoulder_motor",
+      "geometry": "hardware_right_shoulder_motor",
+      "catalog": "xl330",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified.",
+      "joint": "right_shoulder_pitch"
+    },
+    {
+      "component": "jaw_motor",
+      "geometry": "hardware_jaw_motor",
+      "catalog": "xl330",
+      "catalog_axes": [
+        0,
+        2,
+        1
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified. Motor center is offset 37.5 mm along the existing jaw Y axis to clear the nod body; shaft and bracket remain unqualified.",
+      "joint": "jaw_pitch"
+    },
+    {
+      "component": "tail_motor",
+      "geometry": "hardware_tail_motor",
+      "catalog": "xl330",
+      "catalog_axes": [
+        0,
+        1,
+        2
+      ],
+      "notes": "Catalog body envelope at the estimated component center. Horn/idler selection, brackets, cables and supplier CG frame unqualified.",
+      "joint": "tail_yaw"
+    }
+  ],
+  "expected_quantities": {
+    "jetson": 1,
+    "battery": 1,
+    "teensy": 1,
+    "can": 2,
+    "regulator_12v": 3,
+    "regulator_5v": 2,
+    "u2d2": 2,
+    "camera": 1,
+    "xm430": 2,
+    "xl330": 4,
+    "rmd": 12
+  },
+  "uncertainties": [
+    "No assembly has been weighed; catalog masses consume existing aggregate budgets and are not added a second time.",
+    "Centered box inertias and aggregate assembly centers are placement estimates, not measured hardware centers of gravity.",
+    "Compute installed mass, NVMe model, CAN selection, populated Teensy height, IMU/audio placement, cable bends, headers, fasteners, battery restraint and cooling remain unqualified.",
+    "RMD evidence is a related global revision, not confirmed selected US SKU; nominal voltage does not establish 6S full-charge compatibility.",
+    "Servo catalog body envelopes do not qualify mounted horn/idler/bracket clearances or CAD coordinate frames.",
+    "Containers are convex outer shell planning boundaries with a 3 mm reduced-axis allowance, not manufactured wall offsets or structural CAD.",
+    "Packing samples home, the 729-pose expression grid and independent leg sweeps only; continuous paths, combined leg/expression motions, service extraction and deformation are unverified.",
+    "Servo shaft directions and face offsets use supplier drawings; axial horn/idler spacing, brackets, fasteners and vendor CG/inertia frames remain unqualified."
+  ]
+}

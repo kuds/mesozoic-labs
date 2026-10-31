@@ -1,0 +1,2040 @@
+{
+  "schema_version": 1,
+  "status": "Exploratory dynamic stepping evidence; walking is not validated.",
+  "interpretation": [
+    "The base completes its 20-second 0.20-Nm trial but falls in the longer trial; every 30-second case terminates on a nonfoot floor contact.",
+    "The final optional tail can extend this narrowly tuned controller run when wagging, but the run still ends in a fall and includes hip-roll soft-limit overshoot and simplified-link self-contact.",
+    "All lower-cap 0.10/0.15-Nm cases fail before producing a qualifying support alternation. The controller is not robust to actuator-cap or mass-distribution changes.",
+    "RMS torque, peak speed, saturation and actual joint-limit violations must be assessed together. None establishes continuous physical motor duty, current draw or hardware feasibility.",
+    "This manual diagnostic is not a passing walking gate in CI. Static balance/build checks are separate."
+  ],
+  "protocol": {
+    "mujoco_version": "3.10.0",
+    "numpy_version": "2.5.1",
+    "python_version": "3.12.14",
+    "machine": "arm64",
+    "scope": "Manual ideal-actuator stepping diagnostic, not walking certification or physical motor/thermal validation. Flat floor and nominal mass. Starts home; no external support/forces or root resets during a run. Torque-speed curves, transmission compliance, power supply limits and disturbances are not modeled.",
+    "feedback_scope": "Exact MuJoCo torso orientation and noiseless body gyro are privileged feedback. Hardware would need a matching IMU orientation estimate and independently validated noise, latency and control behavior. This is not a deployable hardware controller. Contact and clearance measurements only score results.",
+    "controller_parameters": {
+      "period_s": 0.3611035514154559,
+      "hip_roll_rad": 0.14115136271266485,
+      "hip_stride_rad": 0.03911254725273986,
+      "knee_flex_rad": 0.4058584529699947,
+      "roll_phase_rad": 2.656837692232398,
+      "knee_bias_rad": 0.0
+    },
+    "feedback_gains": {
+      "roll": 0.5,
+      "pitch": 0.25,
+      "gyro": 0.03
+    },
+    "selection_search_seed": 635,
+    "replay_randomness": "None: fixed parameters and home state, no random sampling.",
+    "control_rate_Hz": 50,
+    "physics_timestep_s": 0.002,
+    "support_event_definition": "After 2s: stance normal force>half bodyweight, swing normal force<.05N, minimum swing sole height>2mm, torso tilt<.52rad, no nonfoot floor contact, sustained>=40ms. Counts side changes between qualifying segments. Positive forward displacement does not by itself constitute stepping.",
+    "stop_conditions": "Nonfoot floor force>.1N, torso tilt>1.05rad, root height<.065m, numerical warning/nonfinite state, or requested duration. Internal contacts are reported but do not stop the run.",
+    "measurement_scope": "Torques, speeds and clearance peaks cover the full run, including a fall. Contact and geometry data are from the last physics solve; integrated joint positions can be one timestep later. Actuator force and speed arrays follow actuator_names. Saturation means >=95% of the run's torque cap. Self-contact geometry is simplified and cannot validate detailed CAD interference."
+  },
+  "replay_controller_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074",
+  "baseline_provenance_note": "The 20-second baseline was rerun after the final torque-limit and world-weld guards; every measured result exactly matches the original 20-second trial. Longer baseline and optional-tail trials retain their original execution-time controller hashes on each trial. The final replay script adds loading/provenance and safety guards without changing selected targets, feedback or scoring thresholds. Longer trials were not rerun after those non-policy edits.",
+  "models": [
+    {
+      "name": "fixed_tail_base",
+      "mass_kg": 0.8000000000000002,
+      "source_model_file": "model.xml",
+      "source_sha256": {
+        "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+        "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
+        "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
+      },
+      "source_path_base": "Input model directory; hashes include its XML assets.",
+      "actuator_names": [
+        "left_hip_yaw_servo",
+        "left_hip_roll_servo",
+        "left_hip_pitch_servo",
+        "left_knee_servo",
+        "left_ankle_servo",
+        "right_hip_yaw_servo",
+        "right_hip_roll_servo",
+        "right_hip_pitch_servo",
+        "right_knee_servo",
+        "right_ankle_servo",
+        "head_pitch_servo",
+        "head_yaw_servo",
+        "jaw_servo",
+        "left_shoulder_pitch_servo"
+      ],
+      "target_ranges_rad": {
+        "left_hip_yaw_servo": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_roll_servo": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_pitch_servo": [
+          -0.45,
+          0.45
+        ],
+        "left_knee_servo": [
+          -0.35,
+          0.7
+        ],
+        "left_ankle_servo": [
+          -0.45,
+          0.45
+        ],
+        "right_hip_yaw_servo": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_roll_servo": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_pitch_servo": [
+          -0.45,
+          0.45
+        ],
+        "right_knee_servo": [
+          -0.35,
+          0.7
+        ],
+        "right_ankle_servo": [
+          -0.45,
+          0.45
+        ],
+        "head_pitch_servo": [
+          -0.25,
+          0.1
+        ],
+        "head_yaw_servo": [
+          -0.65,
+          0.65
+        ],
+        "jaw_servo": [
+          0.0,
+          0.32
+        ],
+        "left_shoulder_pitch_servo": [
+          -0.65,
+          0.2
+        ]
+      },
+      "joint_ranges_rad": {
+        "left_shoulder_pitch": [
+          -0.65,
+          0.2
+        ],
+        "right_shoulder_pitch": [
+          -0.65,
+          0.2
+        ],
+        "left_hip_yaw": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_roll": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_pitch": [
+          -0.45,
+          0.45
+        ],
+        "left_knee": [
+          -0.35,
+          0.7
+        ],
+        "left_ankle": [
+          -0.45,
+          0.45
+        ],
+        "right_hip_yaw": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_roll": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_pitch": [
+          -0.45,
+          0.45
+        ],
+        "right_knee": [
+          -0.35,
+          0.7
+        ],
+        "right_ankle": [
+          -0.45,
+          0.45
+        ],
+        "head_yaw": [
+          -0.65,
+          0.65
+        ],
+        "head_pitch": [
+          -0.25,
+          0.1
+        ],
+        "jaw": [
+          0.0,
+          0.32
+        ]
+      },
+      "nominal_torque_ranges_Nm": {
+        "left_hip_yaw_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_hip_roll_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_hip_pitch_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_knee_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_ankle_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_yaw_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_roll_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_pitch_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_knee_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_ankle_servo": [
+          -0.3,
+          0.3
+        ],
+        "head_pitch_servo": [
+          -0.1,
+          0.1
+        ],
+        "head_yaw_servo": [
+          -0.08,
+          0.08
+        ],
+        "jaw_servo": [
+          -0.025,
+          0.025
+        ],
+        "left_shoulder_pitch_servo": [
+          -0.025,
+          0.025
+        ]
+      },
+      "generator_source_sha256": {},
+      "trials": [
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 20.0,
+          "duration": 19.999999999999794,
+          "dx": 0.25475025374114424,
+          "dy": -0.02195005440374163,
+          "max_tilt_deg": 14.52235178897076,
+          "minimum_height": 0.10635685665473021,
+          "nonfoot_floor": false,
+          "max_clearance_m": [
+            0.01855918580274498,
+            0.013828783485645915
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            5.095999999999661,
+            5.305999999999638
+          ],
+          "alternations": 91,
+          "peak_torque_Nm": [
+            0.15174350736754516,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.15114511721179416,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.1,
+            0.07122949818062435,
+            0.014556063840692246,
+            0.006245111215339302
+          ],
+          "rms_torque_Nm": [
+            0.03474459476392228,
+            0.12716267269002388,
+            0.09286221988973847,
+            0.14064469337334404,
+            0.1339875387515845,
+            0.03597954690271752,
+            0.12650275675900371,
+            0.09367723644404238,
+            0.1409774246425117,
+            0.13587437756460752,
+            0.017733868245044537,
+            0.012537200322819884,
+            0.0032614941702506367,
+            0.0017406101608544561
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.3264,
+            0.1128,
+            0.4063,
+            0.3288,
+            0.0,
+            0.318,
+            0.1142,
+            0.4147,
+            0.3498,
+            0.0017,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.2,
+          "stop_reason": "duration_reached",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "none",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": false,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.5419065259546609,
+            3.6328557064871654,
+            5.233708997877599,
+            7.7313571825241985,
+            6.859909245337843,
+            0.5833984814158875,
+            3.952906361861233,
+            5.083928627249309,
+            8.154228446522145,
+            6.935364664783218,
+            1.374753037371667,
+            0.5597536908418117,
+            0.15960264332914953,
+            0.17077970433457126
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 105,
+            "shortest_s": 0.04000000000000002,
+            "longest_s": 0.1560000000000001,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.5499999999999408,
+          "dx": -0.03286213769129316,
+          "dy": 0.0042880525454607726,
+          "max_tilt_deg": 43.99287118888264,
+          "minimum_height": 0.09596868466196778,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            5.485157494217359e-05,
+            6.679727723752499e-05
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.0
+          ],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.07638126620877725,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.08324479594178653,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.044786158298234645,
+            0.039502469560259906,
+            0.00736978243863476,
+            0.003269670639203508
+          ],
+          "rms_torque_Nm": [
+            0.019925708575672246,
+            0.05548398471559989,
+            0.05277408158167544,
+            0.07702461906284644,
+            0.06667071994778932,
+            0.02091027664300809,
+            0.05378086555864496,
+            0.05043087004220075,
+            0.07500482470887739,
+            0.06597389262564989,
+            0.015249747456011117,
+            0.004814886960796916,
+            0.00297211893592357,
+            0.0016902182150208126
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.2188235294117647,
+            0.19294117647058823,
+            0.41490196078431374,
+            0.31450980392156863,
+            0.0,
+            0.2023529411764706,
+            0.16862745098039217,
+            0.3898039215686275,
+            0.2917647058823529,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.1,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "none",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.19933778960120246,
+            2.4702606673290033,
+            2.6557493750341217,
+            4.761786708423471,
+            3.362742641461166,
+            0.32148487310565116,
+            2.475287886643536,
+            2.6592028872659093,
+            5.748208483219679,
+            3.054147412287151,
+            0.4242676922436411,
+            0.31120049432478375,
+            0.06057265247469441,
+            0.06832103021714966
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 0,
+            "shortest_s": null,
+            "longest_s": null,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.755999999999918,
+          "dx": -0.053283978378028916,
+          "dy": -0.0034951677360648163,
+          "max_tilt_deg": 45.16514545462344,
+          "minimum_height": 0.09890536033759346,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.0016355840294030588,
+            0.0022905933353018285
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.002
+          ],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.07900988639085152,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.12674156546281015,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.06370729702646395,
+            0.03876948439633672,
+            0.009333253369306063,
+            0.0038625941343595634
+          ],
+          "rms_torque_Nm": [
+            0.02232446576125124,
+            0.07476752622317559,
+            0.06841061196477027,
+            0.1023818413309438,
+            0.08349002133616977,
+            0.02434259752205666,
+            0.0771523149284911,
+            0.07365239313200216,
+            0.10267377997235638,
+            0.0885604431371665,
+            0.01651853799042996,
+            0.007323210759760702,
+            0.0031251126303976882,
+            0.0016928522425396233
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.16981132075471697,
+            0.12191582002902758,
+            0.35268505079825835,
+            0.15602322206095792,
+            0.0,
+            0.19230769230769232,
+            0.14150943396226415,
+            0.3454281567489115,
+            0.21988388969521044,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.15,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "none",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.33706199940592046,
+            3.687837708099289,
+            4.175337833891098,
+            6.234860891111625,
+            5.236869149577581,
+            0.35530795244807034,
+            3.0177730818221353,
+            4.106205593754001,
+            5.941881314907471,
+            4.881899144164291,
+            0.8428488940675903,
+            0.3165390196734996,
+            0.0886033849247025,
+            0.08556944576709005
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 0,
+            "shortest_s": null,
+            "longest_s": null,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 21.30399999999907,
+          "dx": 0.2209296113349802,
+          "dy": -0.009603523095518629,
+          "max_tilt_deg": 44.564748550145964,
+          "minimum_height": 0.09693467063761048,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.01855918580274498,
+            0.013828783485645915
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            5.421999999999625,
+            5.569999999999609
+          ],
+          "alternations": 96,
+          "peak_torque_Nm": [
+            0.15174350736754516,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.15114511721179416,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.1,
+            0.07122949818062435,
+            0.014556063840692246,
+            0.006245111215339302
+          ],
+          "rms_torque_Nm": [
+            0.03456139063254866,
+            0.12660388113776536,
+            0.0937201733474325,
+            0.14106484089562937,
+            0.13459556198976796,
+            0.03588679054660573,
+            0.12673605974957222,
+            0.09437728559727104,
+            0.1419977435029184,
+            0.1356592560115552,
+            0.0177343419208138,
+            0.01260021480208907,
+            0.003260069578655214,
+            0.0017456555722901513
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.3222868944799099,
+            0.11556515208411566,
+            0.410533233195644,
+            0.3345850544498686,
+            0.0,
+            0.3181562147953436,
+            0.11772437101013894,
+            0.42161096507698087,
+            0.3450995118287645,
+            0.0015959444235824258,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.2,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "none",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.5419065259546609,
+            4.028082070891159,
+            5.233708997877599,
+            7.809392296760247,
+            6.859909245337843,
+            0.5833984814158875,
+            3.952906361861233,
+            5.083928627249309,
+            8.154228446522145,
+            6.935364664783218,
+            1.374753037371667,
+            0.5597536908418117,
+            0.15960264332914953,
+            0.17077970433457126
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 111,
+            "shortest_s": 0.04000000000000002,
+            "longest_s": 0.1560000000000001,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 5.077999999999663,
+          "dx": 0.005970170196870008,
+          "dy": -0.02837465091122486,
+          "max_tilt_deg": 44.246531786064224,
+          "minimum_height": 0.09712386342364757,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.014534555662395776,
+            0.016014442350898633
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.9540000000000007,
+            0.8840000000000007
+          ],
+          "alternations": 14,
+          "peak_torque_Nm": [
+            0.13147245827002302,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.20288324364994587,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.1,
+            0.08,
+            0.018302003232982204,
+            0.00780432218734106
+          ],
+          "rms_torque_Nm": [
+            0.034232382629141724,
+            0.12008846807262791,
+            0.11868821484583113,
+            0.15787927065498766,
+            0.17615222300874897,
+            0.03402711557005802,
+            0.11976004862883201,
+            0.11476694851232794,
+            0.15683818340017416,
+            0.16700068390744613,
+            0.02258212263660476,
+            0.014647585188606302,
+            0.0035426946878457976,
+            0.001796705126472406
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.0771957463568334,
+            0.08231587239070501,
+            0.18077983458054353,
+            0.260338716029933,
+            0.0,
+            0.07050019692792438,
+            0.08034659314690823,
+            0.17487199684915322,
+            0.21543914927136668,
+            0.014178810555336747,
+            0.006301693580149665,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.3,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "none",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.6216357628772101,
+            3.953616533000549,
+            6.295079657225744,
+            9.360805064106273,
+            8.744487280444947,
+            0.7762490952279248,
+            3.652652169806396,
+            5.484143665554853,
+            9.351944484030346,
+            8.936709773666719,
+            1.7718636965386974,
+            1.4929814343715586,
+            0.19873575613752603,
+            0.23488268933668335
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 21,
+            "shortest_s": 0.04000000000000002,
+            "longest_s": 0.10800000000000008,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+        }
+      ]
+    },
+    {
+      "name": "optional_tail",
+      "mass_kg": 0.8250000000000001,
+      "source_model_file": "model.xml",
+      "source_sha256": {
+        "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+        "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
+        "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
+      },
+      "source_path_base": "Input model directory; hashes include its XML assets.",
+      "actuator_names": [
+        "left_hip_yaw_servo",
+        "left_hip_roll_servo",
+        "left_hip_pitch_servo",
+        "left_knee_servo",
+        "left_ankle_servo",
+        "right_hip_yaw_servo",
+        "right_hip_roll_servo",
+        "right_hip_pitch_servo",
+        "right_knee_servo",
+        "right_ankle_servo",
+        "head_pitch_servo",
+        "head_yaw_servo",
+        "jaw_servo",
+        "left_shoulder_pitch_servo",
+        "tail_yaw_servo"
+      ],
+      "target_ranges_rad": {
+        "left_hip_yaw_servo": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_roll_servo": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_pitch_servo": [
+          -0.45,
+          0.45
+        ],
+        "left_knee_servo": [
+          -0.35,
+          0.7
+        ],
+        "left_ankle_servo": [
+          -0.45,
+          0.45
+        ],
+        "right_hip_yaw_servo": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_roll_servo": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_pitch_servo": [
+          -0.45,
+          0.45
+        ],
+        "right_knee_servo": [
+          -0.35,
+          0.7
+        ],
+        "right_ankle_servo": [
+          -0.45,
+          0.45
+        ],
+        "head_pitch_servo": [
+          -0.25,
+          0.1
+        ],
+        "head_yaw_servo": [
+          -0.65,
+          0.65
+        ],
+        "jaw_servo": [
+          0.0,
+          0.32
+        ],
+        "left_shoulder_pitch_servo": [
+          -0.65,
+          0.2
+        ],
+        "tail_yaw_servo": [
+          -0.436332312999,
+          0.436332312999
+        ]
+      },
+      "joint_ranges_rad": {
+        "tail_yaw": [
+          -0.436332312999,
+          0.436332312999
+        ],
+        "left_shoulder_pitch": [
+          -0.65,
+          0.2
+        ],
+        "right_shoulder_pitch": [
+          -0.65,
+          0.2
+        ],
+        "left_hip_yaw": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_roll": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_pitch": [
+          -0.45,
+          0.45
+        ],
+        "left_knee": [
+          -0.35,
+          0.7
+        ],
+        "left_ankle": [
+          -0.45,
+          0.45
+        ],
+        "right_hip_yaw": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_roll": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_pitch": [
+          -0.45,
+          0.45
+        ],
+        "right_knee": [
+          -0.35,
+          0.7
+        ],
+        "right_ankle": [
+          -0.45,
+          0.45
+        ],
+        "head_yaw": [
+          -0.65,
+          0.65
+        ],
+        "head_pitch": [
+          -0.25,
+          0.1
+        ],
+        "jaw": [
+          0.0,
+          0.32
+        ]
+      },
+      "nominal_torque_ranges_Nm": {
+        "left_hip_yaw_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_hip_roll_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_hip_pitch_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_knee_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_ankle_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_yaw_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_roll_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_pitch_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_knee_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_ankle_servo": [
+          -0.3,
+          0.3
+        ],
+        "head_pitch_servo": [
+          -0.1,
+          0.1
+        ],
+        "head_yaw_servo": [
+          -0.08,
+          0.08
+        ],
+        "jaw_servo": [
+          -0.025,
+          0.025
+        ],
+        "left_shoulder_pitch_servo": [
+          -0.025,
+          0.025
+        ],
+        "tail_yaw_servo": [
+          -0.02,
+          0.02
+        ]
+      },
+      "generator_source_sha256": {
+        "tail_option.py": "8b1b05703c5655edd14a75fd26b2c0b888adfe759c330aeaee4fc94455c1b873"
+      },
+      "trials": [
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.409999999999956,
+          "dx": -0.023643250788974886,
+          "dy": 0.004056659019938416,
+          "max_tilt_deg": 37.93593391279243,
+          "minimum_height": 0.09841312669202945,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.0,
+            0.0
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.16591321655297464
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.0
+          ],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.08399942915295372,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.0503881813447537,
+            0.03146606961953284,
+            0.006730948211102074,
+            0.003239385420572456,
+            0.007535206801551887
+          ],
+          "rms_torque_Nm": [
+            0.021434084547536675,
+            0.05939780041476433,
+            0.052417748620508624,
+            0.0791026628673372,
+            0.06583784805501794,
+            0.018588341809304614,
+            0.05793894760599522,
+            0.054420292750539896,
+            0.07904980174755023,
+            0.0688572419949915,
+            0.015503626598921166,
+            0.005022909295239055,
+            0.003010790312140768,
+            0.0016738623644234696,
+            0.001470463844117928
+          ],
+          "saturation_fraction": [
+            0.004149377593360996,
+            0.27385892116182575,
+            0.16680497925311202,
+            0.45062240663900416,
+            0.27385892116182575,
+            0.0,
+            0.24896265560165975,
+            0.1966804979253112,
+            0.445643153526971,
+            0.3510373443983402,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.1,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.3977870411171601,
+            2.819727651127624,
+            2.737747885703834,
+            5.239817493857347,
+            3.3395670692469155,
+            0.2541454921719339,
+            2.55405354260258,
+            2.553977825563337,
+            5.019745967693613,
+            3.1925277582037395,
+            0.27278949192391444,
+            0.25744187713227706,
+            0.04943186726570691,
+            0.06560813323969814,
+            0.9283021877378901
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 0,
+            "shortest_s": null,
+            "longest_s": null,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.673999999999927,
+          "dx": -0.055584241376834105,
+          "dy": -0.004536006229507919,
+          "max_tilt_deg": 39.605745375663695,
+          "minimum_height": 0.10267960517461681,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.0010043340861311534,
+            0.0023394251756675647
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.02800000000000001
+          ],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.09830316622923227,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.09287274415361621,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.05803131015517895,
+            0.03774816233661841,
+            0.008550029120580895,
+            0.003939275723041886,
+            0.015227858233498454
+          ],
+          "rms_torque_Nm": [
+            0.02095053390144808,
+            0.07968891250575626,
+            0.06491189762829222,
+            0.10585582246745479,
+            0.09061819698141371,
+            0.02356996940369902,
+            0.08304918306333035,
+            0.07081997272475493,
+            0.10559339834698514,
+            0.08722330477030539,
+            0.01638129541982788,
+            0.00726210698248831,
+            0.003110834971637293,
+            0.0016692812732994505,
+            0.002494556593042352
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.2131637995512341,
+            0.07928197456993269,
+            0.3881824981301421,
+            0.1974569932685116,
+            0.0,
+            0.24831712789827973,
+            0.10545998504113688,
+            0.3537771129394166,
+            0.193717277486911,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.15,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.33406039945607113,
+            3.527258123229068,
+            3.53084249961437,
+            6.5787253290549295,
+            4.430815776715548,
+            0.31165988720499505,
+            2.9326265277585324,
+            4.566683735107303,
+            6.474399136793321,
+            5.048434396602777,
+            0.6017680682100106,
+            0.2974519724607706,
+            0.07748944204042248,
+            0.09528805911439356,
+            1.8130935147874658
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 0,
+            "shortest_s": null,
+            "longest_s": null,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 8.513999999999513,
+          "dx": 0.015024889302906845,
+          "dy": -0.004978126362030349,
+          "max_tilt_deg": 40.05949295940386,
+          "minimum_height": 0.10439539163477425,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.011812077846552627,
+            0.014204169921486966
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            1.462000000000001,
+            1.6520000000000012
+          ],
+          "alternations": 23,
+          "peak_torque_Nm": [
+            0.16885503646128644,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.15329628569751463,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.0646498356085444,
+            0.0608116457207679,
+            0.010289704050146604,
+            0.0055294858154368845,
+            0.014235005317122436
+          ],
+          "rms_torque_Nm": [
+            0.035715510725819265,
+            0.1237632956013359,
+            0.09314687579322492,
+            0.1428527625265436,
+            0.1306520098873073,
+            0.036270624093493596,
+            0.12228579442811793,
+            0.09278953207263722,
+            0.14207673447961555,
+            0.13335556886837166,
+            0.01699054332544346,
+            0.011628791106978316,
+            0.0031673711543491003,
+            0.0017347090296433317,
+            0.004005348274142626
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.3152454780361757,
+            0.11392999765092789,
+            0.43387361992013157,
+            0.30162085976039466,
+            0.0,
+            0.29950669485553205,
+            0.10688278130138595,
+            0.41320178529480855,
+            0.3293399107352596,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.2,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {
+            "left_hip_pitch_link_collision / left_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 5.34294532292018e-05,
+              "peak_normal_force_N": 4.384940594104466
+            }
+          },
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {
+            "left_hip_roll": 0.007126094932862148
+          },
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.5465836334219798,
+            4.029375049760253,
+            5.8747451890293645,
+            7.574463016451918,
+            6.746085208597983,
+            0.5098718076134887,
+            3.6634707544328493,
+            5.204502779000983,
+            7.373076157320355,
+            7.123149993864983,
+            0.63069835683705,
+            0.4042778187139081,
+            0.09495974818785582,
+            0.14572724950304616,
+            1.928129422205536
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 29,
+            "shortest_s": 0.04000000000000002,
+            "longest_s": 0.1540000000000001,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 6.519999999999504,
+          "dx": 0.018974430907571102,
+          "dy": 0.022466980730867288,
+          "max_tilt_deg": 39.83945150903134,
+          "minimum_height": 0.10373568832902844,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.017512790420479367,
+            0.014945782128618083
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            1.1620000000000008,
+            1.2020000000000008
+          ],
+          "alternations": 18,
+          "peak_torque_Nm": [
+            0.16899495202919254,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.16167415396985008,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.09492231453865192,
+            0.08,
+            0.015772369305121763,
+            0.007482187432108743,
+            0.018675231153446065
+          ],
+          "rms_torque_Nm": [
+            0.039458075071673135,
+            0.13313983321136058,
+            0.12220569500361647,
+            0.1706710363726662,
+            0.18330542304479672,
+            0.03981777287662254,
+            0.13383148245602555,
+            0.12806510347123556,
+            0.17593046267255766,
+            0.17896183072495958,
+            0.019434023359075236,
+            0.013987421403694132,
+            0.003398003126390368,
+            0.0018320200904288718,
+            0.004460052274411357
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.11503067484662577,
+            0.08466257668711656,
+            0.22576687116564417,
+            0.27975460122699386,
+            0.0,
+            0.1116564417177914,
+            0.09938650306748466,
+            0.2343558282208589,
+            0.24662576687116564,
+            0.0,
+            0.0006134969325153375,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.3,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.7206221181370592,
+            4.064189108606925,
+            6.256381640315375,
+            9.874415072911644,
+            9.394004519834272,
+            0.7005429854832208,
+            5.157792611184941,
+            6.444835889251887,
+            10.47101499867272,
+            9.009642351745576,
+            0.6412963308197306,
+            0.7871834110530712,
+            0.15300067639779744,
+            0.21178935669740595,
+            2.093105410352431
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 23,
+            "shortest_s": 0.04200000000000002,
+            "longest_s": 0.11600000000000009,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.4319999999999538,
+          "dx": -0.019324523526328994,
+          "dy": 0.0014805340186629938,
+          "max_tilt_deg": 37.439896140804976,
+          "minimum_height": 0.09584057632692049,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            1.928340447806924e-05,
+            0.0
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.28499409905707285
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.0
+          ],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.06189873778637169,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.07681519116409785,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.04066757420825178,
+            0.03146749499812723,
+            0.006754336898197574,
+            0.0032396696646428583,
+            0.007372713401678319
+          ],
+          "rms_torque_Nm": [
+            0.019885222309406533,
+            0.05689853152387848,
+            0.05387882516709966,
+            0.07980593671444805,
+            0.06785315346672974,
+            0.019677323770990515,
+            0.05538428622528004,
+            0.053429341757462216,
+            0.07911506127375431,
+            0.06989726025875562,
+            0.015243279096381974,
+            0.005024185726358609,
+            0.002961965180585341,
+            0.0016841287017087348,
+            0.0015948432738621782
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.23273026315789475,
+            0.18421052631578946,
+            0.45394736842105265,
+            0.2993421052631579,
+            0.0,
+            0.22286184210526316,
+            0.18338815789473684,
+            0.4440789473684211,
+            0.36348684210526316,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.1,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "wag",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.23578372293875285,
+            2.460579891599064,
+            2.533089690169898,
+            4.508070347779605,
+            3.835372320951978,
+            0.2988052831075614,
+            2.5008217589681956,
+            2.6214232737438867,
+            5.533365123388573,
+            3.5029671800181523,
+            0.262044688216558,
+            0.2574567985490979,
+            0.046570054140852295,
+            0.06561961312002847,
+            1.4105405526709853
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 0,
+            "shortest_s": null,
+            "longest_s": null,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 3.037999999999887,
+          "dx": -0.04323956314557972,
+          "dy": 0.0007049927962738841,
+          "max_tilt_deg": 39.628664764413344,
+          "minimum_height": 0.10273433286374282,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.001723794426221577,
+            0.001815034218518345
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.0
+          ],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.11564047059773222,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.09782624186427191,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.058059259147774406,
+            0.03761871572925048,
+            0.008546447694246489,
+            0.0039387085711455536,
+            0.009838429941481364
+          ],
+          "rms_torque_Nm": [
+            0.024151520452403284,
+            0.08990588701180395,
+            0.07245346808102492,
+            0.10940658692684137,
+            0.09065849205933751,
+            0.02192588552845691,
+            0.08775431152847003,
+            0.072246491025078,
+            0.11091239641545046,
+            0.09386368453001316,
+            0.016080819638100836,
+            0.007216337906860885,
+            0.0031325771548070787,
+            0.001695595497333261,
+            0.0025719167258002537
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.2857142857142857,
+            0.12310730743910467,
+            0.4298880842659645,
+            0.2073732718894009,
+            0.0,
+            0.2666227781435155,
+            0.10994075049374588,
+            0.41540487162606976,
+            0.22778143515470706,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.15,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "wag",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.4311608403394928,
+            3.610844030294064,
+            4.030671373757948,
+            5.458099120303492,
+            4.974216210970023,
+            0.2948150588841078,
+            3.3920576682683414,
+            4.099732695655152,
+            6.283911086351478,
+            5.002620748711376,
+            0.6621116587409226,
+            0.3160329285826162,
+            0.07746170506747976,
+            0.0952939105076348,
+            1.659873967307773
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 0,
+            "shortest_s": null,
+            "longest_s": null,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 29.615999999994465,
+          "dx": 0.14640582164977,
+          "dy": -0.08815147414700913,
+          "max_tilt_deg": 39.70390238376893,
+          "minimum_height": 0.10290850625774182,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.01219415311937203,
+            0.01599732490246039
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            6.753999999999478,
+            6.727999999999481
+          ],
+          "alternations": 108,
+          "peak_torque_Nm": [
+            0.16012726758167012,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.15871084348241069,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.1,
+            0.0691636285833142,
+            0.0147300917206029,
+            0.006642534218167942,
+            0.016623607679150422
+          ],
+          "rms_torque_Nm": [
+            0.039849311171994806,
+            0.13333447127758224,
+            0.10141846090183894,
+            0.15084899908243196,
+            0.14147156636275848,
+            0.03780829911240998,
+            0.13475236420123074,
+            0.10063561079419449,
+            0.15245311641084622,
+            0.14227056560147833,
+            0.01712025454683498,
+            0.012505199007525253,
+            0.0031815822826364096,
+            0.001756419810999009,
+            0.004622376727625638
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.36534305780659104,
+            0.13675040518638573,
+            0.4929767693138844,
+            0.3841166936790924,
+            0.0,
+            0.38384656942193407,
+            0.1315505132360886,
+            0.5128309022150189,
+            0.3843868179362507,
+            0.0004051863857374392,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.2,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {
+            "left_hip_pitch_link_collision / left_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 7.013424746826064e-05,
+              "peak_normal_force_N": 4.4651247548940995
+            },
+            "right_hip_pitch_link_collision / right_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 3.8147975742071e-05,
+              "peak_normal_force_N": 7.101554197924421
+            }
+          },
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "wag",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {
+            "left_hip_roll": 0.009262129644043882,
+            "right_hip_roll": 0.00517783536976657
+          },
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.5330124659150222,
+            4.177179273044585,
+            6.239656901007296,
+            7.994212610908675,
+            7.0450217723245645,
+            0.5570945727830452,
+            4.15482210395928,
+            5.612728289239034,
+            7.8879804060166885,
+            7.071009011228615,
+            1.3613261244466746,
+            0.5254731305793283,
+            0.16123606515402797,
+            0.1880811523254725,
+            2.414668485540368
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 133,
+            "shortest_s": 0.04000000000000002,
+            "longest_s": 0.1500000000000001,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.6419999999999306,
+          "dx": -0.03577042102467549,
+          "dy": 0.013581171940539111,
+          "max_tilt_deg": 41.28659132807992,
+          "minimum_height": 0.1031305870668627,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.003750214456170662,
+            0.008429353878839543
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.08000000000000006,
+            0.06600000000000004
+          ],
+          "alternations": 1,
+          "peak_torque_Nm": [
+            0.1498241628123851,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.14514418606066493,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.0847887946254786,
+            0.059792444428173594,
+            0.012104972333791094,
+            0.005034687350196633,
+            0.013551877309480995
+          ],
+          "rms_torque_Nm": [
+            0.027215656927082707,
+            0.09614074840686636,
+            0.10597767102489156,
+            0.15029923052607738,
+            0.13483705934290188,
+            0.03021973794231973,
+            0.10493220440313879,
+            0.10363244902078,
+            0.14853061025746372,
+            0.1472547653510175,
+            0.01829684970026234,
+            0.010588520238024387,
+            0.0033192179161675205,
+            0.0017840709726181288,
+            0.0029407334046986345
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.04314912944738834,
+            0.06510219530658592,
+            0.17865253595760788,
+            0.1286903860711582,
+            0.0,
+            0.07494322482967448,
+            0.05980317940953823,
+            0.17259651778955337,
+            0.17032551097653292,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.3,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "wag",
+          "target_clipped_control_updates": 2,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.5778380814900438,
+            3.7001099504352197,
+            5.7817474520088465,
+            9.320037658544607,
+            8.730173645557597,
+            0.48579724687949705,
+            3.545414837288824,
+            5.693067818914121,
+            9.649934011362127,
+            8.233259669995805,
+            0.43983744524731466,
+            0.442421778254309,
+            0.11125888407699527,
+            0.12791611246107118,
+            1.9923527060096495
+          ],
+          "support_segment_summary": {
+            "qualifying_segments": 2,
+            "shortest_s": 0.04800000000000003,
+            "longest_s": 0.06000000000000004,
+            "full_segments": "Regenerate with the walking_pilot CLI commands below."
+          },
+          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+        }
+      ]
+    }
+  ],
+  "reproduction_working_directory": "Repository root",
+  "reproduction_commands": [
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --duration 20 --caps 0.20 --output artifacts/walking/mini-trex-base20.json",
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-trex-base30.json",
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --tail --tail-mode center --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-trex-tail-center30.json",
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --tail --tail-mode wag --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-trex-tail-wag30.json"
+  ]
+}

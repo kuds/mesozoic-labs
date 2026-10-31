@@ -77,6 +77,7 @@ becomes credible near a $10k parts cap, with 2 m/s as repeatable acceptance and
 
 | Document | Date | One-liner |
 |---|---|---|
+| [hardware/ROBOT_WALKING_VALIDATION.md](hardware/ROBOT_WALKING_VALIDATION.md) | 2026-10-25 | Proposed cross-species limb/load feasibility and gait-validation workflow |
 | [hardware/SIM_TO_REAL_PLAN.md](hardware/SIM_TO_REAL_PLAN.md) | 2026-07-19 | Sim-to-real feasibility & phased plan — the six sim↔hardware gaps |
 | [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) | 2026-07-19 | Parts/cost & buildability for *walking* Compsognathus (~$950) + Velociraptor (~$8.7k) |
 | [hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md](hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-24 | *Running* robots: raptor scaling, a sourced sub-$5k Psittacosaurus/Pupper V3 starter, and a custom ~$10k Dibothrosuchus-inspired speed tier |
@@ -129,6 +130,8 @@ a note names, to run what such a note describes.
 ## Code & repo reviews
 
 Archived point-in-time reviews in [`reviews/`](reviews/) —
+[ROBOT_DESIGN_REVIEW_2026_10.md](reviews/ROBOT_DESIGN_REVIEW_2026_10.md)
+(2026-10-25, standalone mini/medium T-Rex balance, CI conventions and walking limitations),
 [VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md)
 (2026-07-27, anatomy and mechanics audit of the raptor plant against published
 *Velociraptor* measurements; execution was deferred until the T-Rex clears

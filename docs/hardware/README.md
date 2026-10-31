@@ -28,6 +28,55 @@ be a physics revision of that embodiment, not a new one.
 
 ## Reading order
 
+The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 26.8 cm,
+800 g assigned-mass forward-knee MJCF study with a lighter head, linked moving
+arms, service-panel views, component ledger and preliminary $2,000 allocation. Its
+[standalone example](../../examples/mini_tyrannosaurus_rex/README.md) can be viewed and
+smoke-checked without registering a new plant. It has not demonstrated walking
+or continuous hardware motor duty.
+
+The [T-Rex size trade study](TREX_SIZE_TRADE_STUDY.md) compares the miniature,
+50 cm and 80 cm concepts, with sourced actuator options, reproducible load/mass
+screens, first-project budgets and demonstration/marketing tradeoffs. It
+recommends a 50 cm packaging and actuator bench study before buying a complete
+motor set. The larger concepts have not undergone CAD or gait validation.
+
+The [detailed 50 cm parts and compute plan](studies/trex_50cm/PARTS_AND_COMPUTE.md)
+updates that size study with a Jetson/MCU architecture, stronger leg motors,
+camera/power choices, a sourced line-item BOM and a cartoon character brief.
+Its fuller 7.62 kg mass budget and approximately $14,000 first-project funding
+plan supersede the earlier 50 cm shared allowances; hardware remains unqualified.
+
+The [medium MuJoCo concept](../../examples/tyrannosaurus_rex_50cm/README.md)
+now defaults to the selected soft-wedge silhouette C: an 18-axis, 58.4 cm model
+with 7.957 kg assigned mass, snout cameras, moving arms/jaw/tail, compiled-model
+renders and CI regressions. Short free-base stance and gesture checks pass;
+walking, real part fit and hardware operation remain unvalidated.
+The original 51.5 cm, 7.617 kg reference remains separate; the selected model
+adds 340 g of explicit mechanical allowances without consuming its reserve.
+
+The [one-metre T-Rex concept](../../examples/tyrannosaurus_rex_100cm/README.md)
+now uses a long-body design: 1.000 m tall, 2.104 m long, 33.210 kg assigned
+mass, twelve leg drives and six expression drives. Its
+[hardware and sensor plan](../../examples/tyrannosaurus_rex_100cm/hardware.md)
+and [line-item budget](../../examples/tyrannosaurus_rex_100cm/bom.csv) allocate
+about $11,500 for robot hardware and $17,300 for a first prototype including
+development extras and contingency, before taxes, freight and engineering labor.
+The snout carries the depth camera; the eyes are cosmetic. Basic simulated
+stance, gestures, sampled expression loads, camera rays and parts/budget checks
+pass. Supplier-CAD fit, power-tray selection, thermal duty and walking remain
+unqualified; the current crouch needs substantial knee torque before stepping.
+
+The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
+how concurrent mini, medium and large robots of one species should be identified,
+tested and documented, with a staged mini-to-50 cm timeline at 15–20 hours/week.
+It is an architecture proposal; the runtime has not implemented variant selection.
+
+The [walking-validation proposal](ROBOT_WALKING_VALIDATION.md) specifies how to
+test limb reach, load transfer, actuator-constrained balance and actual gait
+across species. The [design review](../reviews/ROBOT_DESIGN_REVIEW_2026_10.md)
+records the repaired mini stance drift, stronger CI guards and remaining limits.
+
 1. **[SIM_TO_REAL_PLAN.md](SIM_TO_REAL_PLAN.md)** — start here. The six
    sim↔hardware gaps (privileged observations, actuation, control loop, domain
    randomization, deployment stack, project maturity) and the phased plan to

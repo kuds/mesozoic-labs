@@ -1,0 +1,47 @@
+{
+  "status": "arithmetic_and_similarity_screen_only_not_hardware_validation",
+  "reference": "Historical revision-10 20-second diagnostic slice; not the current silhouette-C plant or a qualified gait.",
+  "source_sha256": {
+    "docs/hardware/studies/trex_50cm/parts_budget.json": "a1c11f6af0e7059ffa50e4dfb1d0c84af2b068260124f1817b15960f60b6b43a",
+    "docs/hardware/studies/trex_50cm/calculate_parts.py": "eed6cafc443177b0c759fd02d4a8c1e75ec315c4933bc7205f8db06fbd6d3067",
+    "examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json": "88d662d0e36ff59866d89525ebb1d2d14019182464b82828a9b72e713742eb8b"
+  },
+  "category_totals_usd": {
+    "actuators": "5518.74",
+    "compute_vision_audio": "916.00",
+    "control_sensors": "264.84",
+    "power": "676.94",
+    "mechanical": "1200.00",
+    "spares_and_development": "1817.07"
+  },
+  "scope_totals_usd": {
+    "installed": "8576.52",
+    "development": "1817.07"
+  },
+  "project_subtotal_usd": "10393.59",
+  "contingency_usd": "2598.40",
+  "project_with_contingency_usd": "12991.99",
+  "tax_freight_import_planning_reserve_usd": "900.00",
+  "funding_plan_usd": "13891.99",
+  "mass_with_reserve_kg": 7.617,
+  "allocated_mass_without_reserve_kg": 7.017,
+  "rmd_similarity_knee_rms_nm": 2.6013203573207635,
+  "ak45_same_nonmotor_ledger_mass_kg": 6.801,
+  "ak45_similarity_knee_rms_nm": 2.322644052794869,
+  "ak45_installed_motor_cost_saving_usd": "2917.20",
+  "battery_nominal_wh": 73.25999999999999,
+  "battery_usable_scenario_wh": 58.608,
+  "runtime_scenario_minutes": {
+    "120": 29.303999999999995,
+    "160": 21.977999999999998,
+    "200": 17.582399999999996
+  },
+  "can_bus_occupancy_scenario_fraction": 0.48,
+  "head_static_gravity_moment_nm": 0.13734,
+  "limitations": [
+    "The baseline stepping trial eventually falls; it is not a validated hardware gait.",
+    "Similarity assumes proportional mass distribution and slower cadence, which the actual replacement parts do not preserve.",
+    "New ankle-roll loads, unconstrained peak requirements, impacts and low-speed heating are not established.",
+    "Noncatalog costs and most masses are planning allowances; power/runtime are scenarios."
+  ]
+}
