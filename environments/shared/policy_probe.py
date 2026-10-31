@@ -659,6 +659,10 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
         values: dict[str, np.ndarray] = {}
         actions: dict[str, np.ndarray] = {}
         rollout: tuple[np.ndarray, np.ndarray] | None = None
+        # A critic that also reads the episode phase ([ppo] critic_phase, environments/shared/critic_phase_ppo.py)
+        # is given each bank state's own phase: the observation kept after step index s carries _step_count s + 1.
+        # The actor reads the bank's observation alone, as it always does; the file's bank is left as built.
+        critic_phase = getattr(policy, "critic_phase", None)
         # get_distribution() stores the distribution it builds on the policy's action_dist; the one the
         # rollout left there is put back, so the probe leaves the policy object as it found it.
         stored = dict(vars(policy.action_dist))
@@ -671,7 +675,13 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
                         actions[name] = np.full((len(bank.labels), nu), np.nan)
                         continue
                     tensor = torch.as_tensor(observations, dtype=torch.float32, device=policy.device)
-                    values[name] = policy.predict_values(tensor).flatten().cpu().numpy()
+                    critic_tensor = tensor
+                    if critic_phase is not None:
+                        phase = critic_phase.matrix(np.asarray(bank.steps, dtype=np.int64) + 1)
+                        critic_tensor = torch.cat(
+                            [tensor, torch.as_tensor(phase, dtype=torch.float32, device=policy.device)], dim=1
+                        )
+                    values[name] = policy.predict_values(critic_tensor).flatten().cpu().numpy()
                     actions[name] = policy.get_distribution(tensor).mode().cpu().numpy().reshape(len(bank.labels), -1)
                 try:
                     rollout = self._rollout_means(policy, nu)
