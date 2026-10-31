@@ -8,8 +8,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The why-probe, a cross-check of #655 and the critic-phase screen added to
+  the record of the T. rex tail saturation habit: from seed 42's mid-rise
+  state, giving the critic alone the episode phase stopped the tail
+  command's climb (line 2, reduced)** (decisions D-D59 to D-D65;
+  `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md` §10, with its
+  ledger rows L188 to L207, and the appended §30 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
+  status note at its top; `docs/NEXT_STEPS.md` §3, `docs/KNOWN_ISSUES.md`
+  (Update 25 of the T-Rex stance entry and a dated update to the
+  action-saturation entry), `docs/README.md`; evidence in
+  `phase_critic_results/`, `why_probe/`, `pr655_review/` and `phase_screen/`
+  of `docs/investigations/stance_2026_10/`: the run log's lines 802 to 871,
+  the probe's two pre-registered lenses with their verifier, the review's
+  reproduction and cross-check, and the screen's approved criteria,
+  approval, tools, reviews, run records, reading, two independent checks,
+  report and separate V − G tool). Records only. A no-training probe found
+  that on the never-merged run branch the critic's payment for a raised tail
+  is a proxy for a hidden episode phase: four stance terms are paid only
+  after step 200, the observation has no clock, and the policy's own tail
+  creep after each reset makes the tail angle one; a tail-floor termination
+  risk was excluded. The review of #655 found its evidence reproducing and
+  its trained-policy facts the run branch's, where the step-200 incentive is
+  about 3.5 times `main`'s. A scratch CPU screen of 8 continuations from
+  2,097,152 steps then gave the critic alone the episode phase, the actor
+  unchanged and the tail angle still seen: line 2, "REDUCED" (every control
+  above every phase continuation, p 1/70, though a spread-only effect would
+  give such a separation about 3.6% of the time; the control median rising
+  +0.48961 against a 0.20 gate; the critic's tail slope to about zero), its
+  reading agreed by two independent checks; a separate report-only tool
+  found the phase critic nearly unbiased by episode step. A fresh run on
+  Colab, three seeds to 12M steps with a separate critic-only input, was
+  chosen next; the note's §10 ends with a placeholder for its
+  pre-registration and results, which go to the next records change. No T.
+  rex stance is certified, and nothing trains on `main`.
+- **Decisions D-D59 to D-D65 recorded: a no-training why-probe, the phase fix
+  tested first, a review of #655, the critic-phase screen (line 2, reduced),
+  and a fresh 3-seed run on Colab with a separate critic input** (the
+  maintainer's decisions of 2026-10-30 16:42 UTC to 2026-10-31 21:00:15 UTC in
+  the stance run log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6). Records only. D-D59: why the critic
+  values a raised tail, probed with no training in two pre-registered lenses
+  and an independent verifier (a hidden-phase proxy, favoured strongly; a
+  termination risk excluded). D-D60: the phase fix tested first, the long
+  critic-blind study held and never launched, and an end-of-day safety copy
+  on an orphan branch. D-D61: a review of #655 and one comment on it. D-D62:
+  the critic-phase screen confirmed as built, a separate V − G tool built
+  during the runs and disk freed; it read line 2, "REDUCED", agreed by two
+  independent checks. D-D63: the screen's durable copy on an orphan branch
+  and a long phase-critic study, abandoned the same evening. D-D64: a fresh
+  run on Colab with a critic-only input, the actor's inputs unchanged, three
+  seeds to 12M, its pre-registration and results pending. D-D65: this
+  records change, drafted that night and finished after the Colab results.
+  Screen runs certify nothing, nothing trains on `main`, and no gate, reward,
+  plant or criterion changes.
 - **A dated hardware reference note: Microduck's training stack read against
-  the T. rex tail saturation habit** (`docs/hardware/REFERENCE_MICRODUCK_2026_10.md`,
+  the T. rex tail saturation habit** (#657;
+  `docs/hardware/REFERENCE_MICRODUCK_2026_10.md`,
   linked from `docs/hardware/README.md`, `docs/hardware/SIM_TO_REAL_PLAN.md`
   §3.4 and `docs/README.md`). Report only: read at commit `bae39f59` of
   `pollen-robotics/microduck_rl`, nothing run. It keeps apart the
@@ -21,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The early-bias probe, the early-warning tests and two critic-blind screens
   added to the record of the T. rex tail saturation habit: from seed 42's
   mid-rise state, hiding the tail angle from the critic reduced the tail
-  command (line 2, reduced)** (decisions D-D56 to D-D58;
+  command (line 2, reduced)** (#656; decisions D-D56 to D-D58;
   `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md` §9, with its
   ledger rows L168 to L187, and the appended §29 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
@@ -53,8 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   certified, and nothing trains on `main`.
 - **Decisions D-D56 to D-D58 recorded: an early-bias probe and its follow-ups,
   two critic-blind screens (the first not informative, the second reduced) and
-  next a long critic-blind study to 12M steps** (the maintainer's decisions of
-  2026-10-30 00:24 UTC to 16:23 UTC in the stance run log;
+  next a long critic-blind study to 12M steps** (#656; the maintainer's
+  decisions of 2026-10-30 00:24 UTC to 16:23 UTC in the stance run log;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6). Records only. D-D56: a no-training probe of what first pushes the T.
   rex tail command up, then, overnight and without asking again, its

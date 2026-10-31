@@ -670,6 +670,24 @@ r10. The decisions' full text is in
 is §9 of
 [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
 and §29 of the stance record.*
+*2026-10-31: decisions D-D59 to D-D65. A report-only probe with no
+training found the T-Rex critic's payment for a raised tail a proxy for a
+hidden episode phase (four stance terms paid only after step 200, the
+policy's own tail creep a clock), and a scratch CPU screen from seed 42's
+checkpoint at 2.1M steps gave the critic alone the episode phase: line 2,
+reduced (every control continuation ended above every phase continuation,
+p 1/70, though a spread-only effect would give such a separation about 3.6%
+of the time). At 20:54 UTC the maintainer chose as the next step (D-D64) a
+fresh run on Colab with a separate critic-only input, the actor's inputs
+unchanged, three seeds trained from step 0 to 12M on a never-merged run
+branch, its pre-registration and results to come in a later records change;
+the long CPU studies were set aside. These are scratch runs and certify
+nothing, so the next T-Rex session above is still a fresh stance on physics
+r10. The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2, and their record
+is §10 of
+[investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+and §30 of the stance record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

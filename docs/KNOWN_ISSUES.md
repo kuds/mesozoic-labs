@@ -418,6 +418,30 @@ robustness, **LOW** = cosmetic / QoL.
   [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
   and §29 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 25 (2026-10-31):** report-only work on why the critic pays for a
+  raised tail (decisions D-D59 to D-D65,
+  [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). A verified
+  no-training probe found it a proxy for a hidden episode phase on the
+  never-merged run branch's reward: four stance terms are paid only after
+  step 200 and the observation has no clock, the policy's own tail creep
+  after each reset makes the tail angle a clock, and a phase-blind critic
+  credits the tail with that value; a tail-floor termination risk was
+  excluded. A scratch CPU screen from seed 42's checkpoint at 2.1M steps
+  then gave the critic alone the episode phase (the actor unchanged, the
+  tail angle still seen): line 2, reduced: every control continuation ended
+  above every phase continuation (p 1/70, though a spread-only effect would
+  give such a separation about 3.6% of the time), the critic's tail slope
+  went to about zero and the phase arm's tail command fell below its start
+  (measured on one start over 1.44M steps; the hidden phase as the cause is
+  inferred). A review of #655 found its trained-policy facts are the run
+  branch's, where the step-200 incentive is about 3.5 times `main`'s. Next,
+  as the maintainer chose on 2026-10-31 (D-D64): a fresh run on Colab with a
+  separate critic-only input, three seeds to 12M steps, its
+  pre-registration and results to come in a later records change. As
+  screens they certify nothing. The two-seed ask stands. Record: §10 of
+  [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+  and §30 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -1066,6 +1090,16 @@ robustness, **LOW** = cosmetic / QoL.
   (pending as of 16:32 UTC that day); see §9 of
   [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
   (the T-Rex stance entry's Update 24 has the latest).
+
+  **Update 2026-10-31:** on the T-Rex the critic's payment for the raised
+  tail is a hidden-time artefact: reward terms switched on at step 200, with
+  no clock in the observation, let the slowly creeping tail angle stand in
+  for the episode phase. In a scratch CPU screen from seed 42's checkpoint at
+  2.1M steps, giving the critic alone the episode phase stopped the climb of
+  the saturating tail command while every control climbed. A fresh run on
+  Colab with a separate critic-only input was chosen next; see §10 of
+  [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+  (the T-Rex stance entry's Update 25 has the latest).
 
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular
