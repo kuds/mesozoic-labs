@@ -1,0 +1,107 @@
+--- orig/laneA/r10m_common.py
++++ pc/r10m_common.py
+@@ -1,4 +1,9 @@
+-"""Shared pins and helpers of the r10 round's measuring tools (lane A: M1-M4).  Importable without torch, numpy or the
++"""PC STUDY ADAPTATION (2026-10-31, ST/tools/make_pc_tools.py): <PCR>, RUN_IDs, the branch, the CRITERIA pin and
++the measuring copy's commit binding (approved_branch_head: HEAD from <PCR>/APPROVED, a commit of WT descending from
++the base 8737cd3d with the M1/M3 pinned files unchanged), HP_SHA256 the switch-ON pin; --header-parent now names
++the base 8737cd3d (STANCE6's commit: validation inputs, VP1).  Every measurement rule is the round's, unchanged.
++
++Shared pins and helpers of the r10 round's measuring tools (lane A: M1-M4).  Importable without torch, numpy or the
+ repository; it never imports `environments`.
+ 
+ Criteria: S2/r10round/lean/v5/criteria_r10round_lean_v5.txt (sha256 16f28878..., "the text"), which cites THIS12
+@@ -28,25 +33,26 @@
+ from datetime import datetime, timezone
+ from pathlib import Path
+ 
+-COMMON_VERSION = "r10m_common 1.1 (2026-10-26; v5: the branch HEAD from the approval record)"
++COMMON_VERSION = "r10m_common 1.1, PC adaptation pc-1 (2026-10-31; HEAD from <PCR>/APPROVED, base 8737cd3d)"
+ 
+ S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+ SP = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+-BR = S2 + "/r10round/runbranch/clone"                        # the text's BR (read only)
+-ROUND = SP + "/foot/stance6"                                  # the text's <ROUND> (D16)
++BR = "/home/user/work/pc_branch"                                     # WT (read only; PC)
++ROUND = "/home/user/work/pc_study/round"                         # <PCR> (PC)
+ PANELS = ROUND + "/panels"                                    # outputs: <ROUND>/panels/<RUN_ID>/<label>/
+ PY = S2 + "/venv/bin/python"
+-CRITERIA = S2 + "/r10round/lean/v5/criteria_r10round_lean_v5.txt"
+-CRITERIA_SHA256 = "16f288782d77e7e35c1b9f807094556050f793b729eaf26c040ce1583bb89794"
++CRITERIA = "/home/user/work/pc_study/criteria.txt"          # the PC text (PC)
++CRITERIA_SHA256 = None    # PC: read from <PCR>/APPROVED, never held in a tool
+ THIS12 = S2 + "/r10round/v12/criteria_r10round_v12.txt"
+ THIS12_SHA256 = "0ab5edeba04b319a4233a4700ebf9abf7d7d7127c30afc7565a7fa3bc34369ac"
+ 
+ # ---------------------------------------------------------------------------------------------------- the branch
+-BRANCH = "claude/screen-trex-r10-armltsb"
++BRANCH = "claude/screen-trex-r10-phasecritic"                # PC
+ BASE_MAIN = "06b1a8e1fb940eec0d7a8e3af420c5b384ac0e8b"        # the text, WHAT IS TRAINED (Code)
+ #: The header's parent, D19 cf9402bc (RUNLOG line 646), pinned by the text (VALIDATIONS, PINS).  The branch HEAD the
+ #: runs train (the header commit) is never held here: approved_branch_head() reads it from the approval record.
+-HEADER_PARENT = "cf9402bc57dab92c716c7e0ee4bc96f72f237efb"
++HEADER_PARENT = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"   # PC: the BASE, STANCE6's commit 8737cd3d
++BASE_COMMIT = HEADER_PARENT                                    # PC
+ STOML_REL = "configs/tyrannosaurus_rex/anatomical/stance.toml"   # the text's STOML (Short names)
+ APPROVED = ROUND + "/APPROVED"                                # <ROUND>/APPROVED, the approval record (JSON)
+ SEAL_NAME = ".r10m_seal.json"
+@@ -57,12 +63,13 @@
+ R10_POLICY_INTERFACE_SHA256 = "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+ POLICY_INTERFACE_REVISION = 15
+ TASK_SHA256 = "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"   # V0 (b) "1e5964b6..."
+-HP_SHA256 = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"     # V0 (b) "054ab483..."
++HP_SHA256 = "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954"     # PC: switch ON (PINS)
++HP_SHA256_ROUND = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"   # STANCE6 (switch OFF)
+ COLLAPSE_REFERENCE = 4470.4                                    # D20 (a)
+ 
+ # ---------------------------------------------------------------------------------------------------- runs and checkpoints
+ SEEDS = (60, 42, 80)                                           # D2
+-RUN_IDS = {60: "stance6_r10LTSB_s60", 42: "stance6_r10LTSB_s42", 80: "stance6_r10LTSB_s80"}   # D16
++RUN_IDS = {60: "stance7_r10LTSBpc_s60", 42: "stance7_r10LTSBpc_s42", 80: "stance7_r10LTSBpc_s80"}   # PC
+ FINAL_TIMESTEPS = 12001280
+ CHECKPOINT_CADENCE = 262144                                    # D3 (a)
+ GRID_1M = 1048576
+@@ -331,6 +338,43 @@
+ 
+ 
+ def approved_branch_head(approved: str | None = None, repo: str | None = None) -> dict:
++    """PC: the branch HEAD the runs train, read from the approval record (default <PCR>/APPROVED, JSON key
++    "branch_head") and checked in *repo* (WT unless given; read only): a 40-hex commit; BASE_COMMIT (8737cd3d,
++    STANCE6's commit) is an ancestor of it; the M1 and M3 pinned files are unchanged between BASE_COMMIT and it (the
++    criteria: HEAD must leave them unchanged; check_pins then checks their sha256 in the copy).  Refused (Refusal,
++    exit 2) otherwise.  Returns the head, the record's path and sha256, the commits BASE..HEAD and the files changed.
++    The round's header-commit rule is kept below as approved_branch_head_round (not called)."""
++    repo = repo or BR
++    path = Path(approved or APPROVED)
++    try:
++        raw = path.read_bytes()
++        rec = json.loads(raw.decode("utf-8"))
++    except (OSError, ValueError) as exc:
++        raise Refusal(f"no readable approval record at {path} ({type(exc).__name__}: {exc}): the branch HEAD is read "
++                      "only from it (PC criteria MEASUREMENT); nothing measured") from exc
++    head = rec.get("branch_head") if isinstance(rec, dict) else None
++    if not isinstance(head, str) or len(head) != 40 or any(c not in "0123456789abcdef" for c in head):
++        raise Refusal(f"{path}: branch_head {head!r} is not a 40-hex commit")
++    try:
++        kind = _git(repo, "cat-file", "-t", head).strip()
++        anc = subprocess.run(["git", "--no-optional-locks", "-C", repo, "merge-base", "--is-ancestor", BASE_COMMIT,
++                              head], capture_output=True, text=True).returncode
++        commits = _git(repo, "rev-list", "--reverse", f"{BASE_COMMIT}..{head}").split()
++        changed = _git(repo, "diff", "--name-only", "--no-renames", BASE_COMMIT, head).split()
++    except (subprocess.CalledProcessError, OSError) as exc:
++        raise Refusal(f"{path}: branch_head {head} cannot be read in {repo} ({exc})") from exc
++    if kind != "commit":
++        raise Refusal(f"{path}: branch_head {head} is a {kind}, not a commit")
++    if anc != 0:
++        raise Refusal(f"branch_head {head} does not descend from the base {BASE_COMMIT} (STANCE6's commit)")
++    touched = sorted(p for p in (*M1_PINS, *M3_PINS) if p in changed)
++    if touched:
++        raise Refusal(f"branch_head {head} changes the pinned measuring files {touched} against {BASE_COMMIT}")
++    return {"head": head, "base": BASE_COMMIT, "approved": os.path.realpath(path), "approved_sha256": sha256_bytes(raw),
++            "repo": os.path.realpath(repo), "commits_since_base": commits, "files_changed_since_base": changed}
++
++
++def approved_branch_head_round(approved: str | None = None, repo: str | None = None) -> dict:
+     """The branch HEAD the runs train, read from the approval record (default <ROUND>/APPROVED, JSON key
+     "branch_head") and checked in *repo* (read only): a 40-hex commit; exactly one parent, HEADER_PARENT (cf9402bc);
+     the two trees differ in exactly one entry, STOML_REL, modified with its mode unchanged; every line the diff adds

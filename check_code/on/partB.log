@@ -1,0 +1,39 @@
+PASS B0 deploy load: policy class and spaces  [CriticPhaseActorCriticPolicy]
+PASS B0 checkpoint record  [{'schema': 'mesozoic.critic-phase/v1', 'features': ['ramp', 'settled', 'discount'], 'settle_steps': 200, 'gamma': 0.98, 'width': 3, 'step_counter': "the env's _step_count when the observation was made (0 at reset)", 'input': "the critic's only: appended after the normalized observation, never normalized"}]
+PASS B1 critic learned the phase: phase columns nonzero after 2 updates  [0.00021568353986367583]
+PASS B1 loaded params = the trained model's final params bitwise
+PASS B2 actor on 63-wide obs = actor on 66-wide obs (bitwise)
+PASS B2 phase=zeros: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=zeros: critic value changes
+PASS B2 phase=ones: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=ones: critic value changes
+PASS B2 phase=uniform: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=uniform: critic value changes
+PASS B2 phase=+1e6: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=+1e6: critic value changes
+PASS B2 phase=-1e6: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=-1e6: critic value changes
+PASS B2 phase=nan: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=nan: critic value changes
+PASS B2 phase=inf: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=inf: critic value changes
+PASS B2 phase=shuffled: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged
+PASS B2 phase=shuffled: critic value changes
+PASS B3 d(log_prob+entropy)/d(phase) exactly 0; d/d(obs) nonzero
+PASS B3 d(value)/d(phase) nonzero (critic reads it)
+PASS B4 mirror map: phase columns 63,64,65 map to themselves with sign +1; obs part = the T. rex map  [[60 61 62 63 64 65]]
+PASS B4 mirrored phase = phase
+PASS B5 mirror KL loss and asymmetry identical whatever the phase; d(KL)/d(phase) = 0  [(0.006548527628183365, 0.006861316505819559, np.False_)]
+PASS B5 mirrored critic loss reads the phase (changes with it)  [(1.2573708295822144, 1.257078766822815)]
+PASS C0 run sidecar is exactly VecNormalize with 63-wide obs_rms
+PASS C1 deterministic evaluation episode: phase model = stock clone = phase-randomised twin; K3 forward_actor twin equal  [steps 1000, mismatches 0, raw return 4479.80]
+PASS C2 K3 panel twin (type(policy)(**_get_constructor_parameters())) loads and matches
+PASS C3 predict_values on a 63-wide obs refused  [CriticPhaseError]
+PASS D1 probe row 0: bank values = critic(obs, phi(kept step + 1)) (max abs diff)  [4.6193599700927734e-07]
+PASS D1 probe row 0: bank actions = actor(obs) (max abs diff)  [6.984919309616089e-09]
+   row 0: off-by-one alternative (phi(kept step)) max diff from recorded: 4.6193599700927734e-07
+PASS D1 probe row 1: bank values = critic(obs, phi(kept step + 1)) (max abs diff)  [1.7881393432617188e-07]
+PASS D1 probe row 1: bank actions = actor(obs) (max abs diff)  [4.190951585769653e-09]
+   row 1: off-by-one alternative (phi(kept step)) max diff from recorded: 8.352287113666534e-05
+bank steps [199, 599, 599, 599, 400, 199, 599, 599, 599, 400]
+TOTAL 35 FAILED 0

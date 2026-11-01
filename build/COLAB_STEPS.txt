@@ -1,0 +1,102 @@
+SUPERSEDED 2026-11-01 (fixer, review I7): this is the code builder's draft; the installed procedure is
+ST/COLAB_STEPS.txt. Give the maintainer only that file. Its HEAD below (da7e0b92) is also superseded: the
+tools were last measured on e4d222bbde28800d7ee0851380123ff4ac9642a8.
+T. rex r10 PHASE-CRITIC RUN: ARM LTSB + [ppo] critic_phase, THREE SEEDS FROM SCRATCH, 12M, THREE COLAB L4s
+COLAB STEPS -- DRAFT by the code builder, 2026-10-31 (date -u); the designer's steps lane reconciles it
+==========================================================================================================
+Nothing here is decided: the run names, the launch check's pins, the RUN HANDLING rules (relaunch, resume, fetch)
+and the reading are the designer's.  This draft records only what the code needs, checked against the branch's
+notebooks/sb3_training.ipynb (cell numbers are the notebook's 0-based cell indices, as the stance6 round's
+colab_steps_r10round.txt numbers them; no cell was added or removed, so they are the round's numbers).
+
+THE CODE
+  Branch claude/screen-trex-r10-phasecritic, HEAD da7e0b9225b72827c2dc14b94c8094b6e57eb97a (local; 5 commits on 8737cd3d, the stance6 round's
+  run branch HEAD).  The builder does not push: the maintainer pushes the branch before the first launch so that
+  REPO_REF can install it, and records the HEAD.
+
+WHAT DIFFERS FROM A stance6 RUN OF THE SAME SEED (and nothing else)
+  - Cell 3: REPO_REF names this branch.
+  - Cell 6: CRITIC_PHASE = True (a new setting, the 18th; its default is False), and the run's own RUN_ID / RUN_LABEL.
+  Every other setting is the stance6 round's value for the same seed, so stance6_r10LTSB_s42 / _s60 / _s80 are the
+  same-configuration comparators: the same env, reward, observation, actor, PPO, MirrorKLPPO, VecNormalize, seeds,
+  cadences and K3 panel; at step 0 the same weights (a fresh phase-critic model is the stock model of its seed plus
+  three zero critic columns [measured: test_a_fresh_model_is_the_stock_model_of_its_seed_plus_zero_phase_columns;
+  equiv/: the real stance stage at seed 42 gives the identical first rollout, observations, actions and values]).
+
+THE RUNS (names are placeholders for the designer)
+   Run    SEED   RUN_ID (placeholder)          RUN_LABEL (placeholder)    K3_PANEL_SIGMA_KEY (as stance6)
+   s60    60     <stance7_r10LTSBphase_s60>    <r10 LTSB phase s60>       source_vectors.60
+   s42    42     <stance7_r10LTSBphase_s42>    <r10 LTSB phase s42>       source_vectors.42
+   s80    80     <stance7_r10LTSBphase_s80>    <r10 LTSB phase s80>       control_sigma.80
+
+FOR EACH RUN (each in its own fresh runtime)
+ 1. Open the notebook from the branch's own link:
+       https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r10-phasecritic/notebooks/sb3_training.ipynb
+ 2. Runtime > Change runtime type: L4 GPU (as stance6).
+ 3. Cell 3 ("# Install dependencies"):   REPO_REF = "claude/screen-trex-r10-phasecritic"
+ 4. Cell 6 ("# ===== SPECIES SELECTION ====="), all 18 settings exactly so:
+       SPECIES             = "tyrannosaurus_rex"
+       EMBODIMENT          = "anatomical"
+       ALGORITHM           = "ppo"
+       N_ENVS              = 4
+       SEED                = 60                         (s42: 42; s80: 80)
+       VERBOSE             = 0
+       QUICK_TEST          = False
+       USE_GOOGLE_DRIVE    = True
+       AUTO_DISCONNECT     = True
+       BEHAVIOR            = "stance"                   (type it; the default is "hunt")
+       TRUNK_FROM          = ""                         (empty, not "auto")
+       RETRAIN_FROM        = ""
+       RUN_LABEL           = <the run's label>
+       RUN_ID              = <the run's id>             <- the Drive folder name
+       K3_PANEL            = True
+       K3_PANEL_SIGMA_FILE = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+       K3_PANEL_SIGMA_KEY  = "source_vectors.60"        (s42: "source_vectors.42"; s80: "control_sigma.80")
+       CRITIC_PHASE        = True                       (NEW; the default is False -- the one switch of this run)
+ 5. Cell 18 ("RESUME AN INTERRUPTED STAGE"): RESUME_STAGE stays None.
+ 6. Runtime > Run all; allow Drive access.
+ 7. Rows to see in the output (what the code prints; the designer's launch check decides):
+    - cell 3:  "Repository ref: claude/screen-trex-r10-phasecritic; commit: da7e0b9225b72827c2dc14b94c8094b6e57eb97a"
+    - cell 6:  "Behavior recipe: stance", "In-run K3 panel: on" and "Critic phase: on"           (new row)
+    - cell 9:  "Critic phase on: [ppo] critic_phase = true on ['stance']"                         (new row)
+               and "Behavior 'stance' -> deliverable 'stance'; chain: stance"
+    - cell 13: the zero-action baseline as stance6's (about 4470.4; the env is unchanged)
+    - cell 15: "Timesteps: 12,000,000", then an evaluation every 131,072 steps
+    CRITIC_PHASE left False shows "Critic phase: off" and no cell-9 row: that run is a stance6 replicate, not this run.
+
+THE LAUNCH CHECK'S FACTS FOR THE DESIGNER (configuration only; the round's tools pin the stance6 values)
+  - 01_stance/stage_config.json: "hyperparameters" carries "critic_phase": true and run.hyperparameters_sha256 is
+      sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954
+    [measured: config.hyperparameters_sha256 of the branch's stance config with critic_phase true; the same call
+    without it gives the round's pin sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c].
+    So the round's complete_r10round.py launch-check, unchanged, reports fault (3) on these runs: re-pin it.
+  - task_fingerprint.task_sha256 and the plant identity are the round's (the option is not an env keyword).
+    [measured on the smoke run's task_fingerprint.json against equiv/base: see NOTES.txt]
+  - provenance repository_commit / stage_config git_commit = da7e0b9225b72827c2dc14b94c8094b6e57eb97a.
+  - The checkpoint zips carry "mesozoic_critic_phase" = {"schema": "mesozoic.critic-phase/v1", "settle_steps": 200,
+    "gamma": 0.98, ...} and policy_kwargs critic_phase_settle_steps 200 / critic_phase_gamma 0.98; the sidecars are
+    stock VecNormalize pickles with the 63-value observation.
+
+IF A RUNTIME DISCONNECTS (only if the designer's RUN HANDLING allows a resume; stance6's did not)
+  Fresh runtime, the same link, Cell 3 the same REPO_REF, Cell 6 the same 18 settings -- CRITIC_PHASE = True
+  included -- and the interrupted run's RUN_ID; Cell 18: RESUME_STAGE = "stance"; Run all.  The notebook's own
+  resume path (newest intact periodic pair, train_stage(..., task_load_mode="resume_same_stage")) continues the run
+  with the phase, its statistics and the actor's mask [measured: smoke session 2; test_save_load_and_resume_keep_
+  the_phase_and_continue_identically].  With CRITIC_PHASE left False the trainer refuses before any step:
+  "CriticPhaseError: refusing to load ...: the checkpoint's critic reads the episode phase ... and the stage
+  declares no [ppo] critic_phase" -- set it and run again.
+
+DURATION
+  [inferred] as stance6 (about 14.4-15.4 h on an L4): the option adds a (4, 3) phase per step and three inputs to
+  the critic's first layer [measured on CPU: the real stance trainer, 1,024 steps and 2 updates, 16.9 s on vs
+  17.2 s off, equiv/*.log].
+
+FOR THE MEASURING TOOLS (the designer's and the fetch lanes)
+  - Load these checkpoints with the branch's code (HEAD or later): the zip names the policy class
+    environments.shared.critic_phase_ppo.CriticPhaseActorCriticPolicy and the buffer class by import path; an
+    older measuring copy (8737cd3d) cannot unpickle them.  policy_loading.load_sb3_checkpoint with the env's own
+    63-value env factory works and acts exactly as in training [measured: test_the_checkpoint_loads_on_the_deploy_path...].
+  - The actor's tensors (mlp_extractor.policy_net.*, action_net.*, log_std) have the stock shapes; the critic's
+    first layer mlp_extractor.value_net.0.weight is (512, 66).  A tool that reads only the actor (K3, the judge's
+    forward pass) is unchanged; one that asks the critic for a value (a V - G tool) must append
+    CriticPhaseSpec(200, 0.98).matrix(k) to the normalized observation, k the env's _step_count at it.

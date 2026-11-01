@@ -1,0 +1,31 @@
+2026-11-01T00:56:56Z start rereview; mkdir rereview; ls ST
+2026-11-01T00:57:30Z diff orig vs current for tools/pc/pc_common.py score_pc.py manip_check.py make_pins_pc.py
+2026-11-01T01:01:05Z wrote tools/step1.sh; launching in background
+2026-11-01T01:01:09Z step1 start WT HEAD e4d222bbde28800d7ee0851380123ff4ac9642a8
+2026-11-01T01:01:10Z archive e4d222bb -> trees/head exit 0
+2026-11-01T01:01:15Z sha256sum -c ST/tools/SHA256SUMS.txt -> sha256sums_check.txt
+2026-11-01T01:01:29Z pytest test_score_pc.py (ST/tools/tests) from rereview/tools, basetemp rereview/tmp/score
+2026-11-01T01:01:35Z critic-phase unit tests on trees/head exit 0
+2026-11-01T01:01:39Z pytest test_score_pc.py done
+2026-11-01T01:01:52Z equiv_run head OFF exit 0
+2026-11-01T01:02:08Z equiv_run head ON exit 0
+2026-11-01T01:02:09Z archive 8737cd3d -> trees/base exit 0
+2026-11-01T01:02:25Z equiv_run base OFF exit 0
+2026-11-01T01:02:27Z compare base vs head OFF exit 0
+2026-11-01T01:02:28Z compare head OFF vs ON exit 1
+2026-11-01T01:02:28Z step1 done
+2026-11-01T01:02:55Z a5 update0 check (head OFF vs ON first rollout) -> equiv/a5_update0_check.txt
+2026-11-01T01:03:19Z wrote tools/step2.sh; launching in background
+2026-11-01T01:03:27Z removed trees/base (8737cd3d archive) after the equivalence run
+2026-11-01T01:03:49Z onetest_indep.py -> onetest_indep.out
+2026-11-01T01:03:56Z smoke_pc.py train (switch ON, 2 PPO updates) on trees/head exit 0
+2026-11-01T01:04:04Z pytest test_manip_pc.py (copy trees/head, smoke rereview/smoke_train) exit 0
+2026-11-01T01:04:08Z standin_s6.py --out rereview/standin_s6 exit 0
+2026-11-01T01:04:08Z step2 done
+2026-11-01T01:04:10Z PINS (criteria) and pins_pc.json tool_sha256 vs files -> pins_check.txt
+2026-11-01T01:04:50Z lint on trees/head: mypy no-SB3 view (python-executable fixer nosb3), ruff check/format --no-cache, notebook_cells.py
+2026-11-01T01:05:34Z lint done; removed tmp/mypycache
+2026-11-01T01:09:17Z SELF-REPORTED SLIP: my first 'git status --porcelain --ignored' in WT (00:57, without --no-optional-locks) took git's optional index lock: it created and removed a transient index.lock in /home/user/mesozoic-labs/.git/worktrees/pc_branch/ (that directory's mtime is 00:57:02; the index file itself is unchanged, mtime 00:23:37 = the fixer's commit). Every later git call used --no-optional-locks. Side-effect check: /tmp/eval_stage1_* count unchanged at 834; nothing new in S1, S2 scratchpad or PS.
+2026-11-01T01:09:25Z cleanup: removed trees (e4d222bb archive), smoke_train, equiv run dirs, tmp; sha256 in deleted_outputs_sha256.txt
+2026-11-01T01:09:40Z pin_list.txt (sha256 of every file to pin, WT HEAD)
+2026-11-01T01:10:19Z final: WT HEAD e4d222bb, status 0 entries; rereview folder size recorded

@@ -1,0 +1,32 @@
+--- amend/fix/rereviewed/tools/mutate_pc.py	2026-11-01 01:37:15.344338743 +0000
++++ tools/mutate_pc.py	2026-11-01 02:28:12.416382574 +0000
+@@ -4,6 +4,8 @@
+ PC AMENDMENT (2026-11-01): M2, M14, M16, M28 and M31 re-pointed to the amended text of the same rule; M32-M44 the
+ amendment's rules (the one test against the concurrent switch-off runs, MISSING ranks, the switch-off arm's pins, C4 (p)
+ and C8, outcome blindness, the line read from the phase runs only).
++FIXER of the amendment (re-review M1): M45-M49 are the re-review's surviving mutants X1, X2, X3, X5 and X10
++(ST/amend/rereview/tools/extra_mutants.py, the same exact strings), each now pinned by a test.
+ 
+     PY -I -B mutate_pc.py --work DIR --log FILE
+ """
+@@ -130,6 +132,20 @@
+     ("M44 the switch-off arm's token not read in RUNLOG", "r10round_common.py",
+      'RUN_TOKEN_RE = re.compile(r"stance7_r10LTSB(?:pc|off)_s\\d+\\w*")',
+      'RUN_TOKEN_RE = re.compile(r"stance7_r10LTSBpc_s\\d+\\w*")'),
++    # FIXER (re-review M1): the re-review's X1, X2, X3, X5, X10
++    ("M45 (X1) a switch-off run's SNAPSHOT counted as an opening", "score_pc.py",
++     'if n["kind"] in OPENING_KINDS and C.arm_of(n["run"]) == "pc"),',
++     'if n["kind"] in OPENING_KINDS and C.arm_of(n["run"]) in ("pc", "off")),'),
++    ("M46 (X2) a switch-off launch in the opening's minute counted blind", "score_pc.py",
++     'lo["time"] < first["time"])', 'lo["time"] <= first["time"])'),
++    ("M47 (X3) the stock-critic why not read", "complete_r10round.py",
++     ' and chk.get("why") == STOCK_CRITIC_WHY)', ')'),
++    ("M48 (X5) the launch-check CLI ignores an unfilled switch pin", "complete_r10round.py",
++     '("hyperparameters_sha256", "task_sha256", "plant_identity", "critic_phase_switch")',
++     '("hyperparameters_sha256", "task_sha256", "plant_identity")'),
++    ("M49 (X10) the not-blind rule reads the first run's LAUNCH, not the seed's run", "score_pc.py",
++     '        lo = CP.launch_note(notes, do["run"]) if do and do["run"] else None',
++     '        lo = CP.launch_note(notes, do["first"]) if do and do["run"] else None'),
+ ]
+ 
+ 

@@ -1,0 +1,51 @@
+Give the T. rex stance critic the episode phase behind [ppo] critic_phase (screen, never merged)
+
+A training option, off by default: with [ppo] critic_phase = true the
+PPO critic, and never the actor, also reads the episode phase of the
+env's own step counter k (_step_count when the observation was made,
+0 at reset): ramp min(k, S) / S, settled 1[k >= S] and discount
+gamma ** max(0, S - k), S the env's stance_width_settle_steps (200 on
+the T. rex stance) and gamma the stage's PPO discount (0.98), the
+phase screen's definition (phase_tuple), the same float arithmetic.
+No off-by-one: step() increments _step_count before it builds the
+observation and the reward, so the observation with k is followed by
+the reward of step k + 1, which the stance gates pay iff k + 1 > S.
+
+A side input of the critic, not part of the observation: the policy
+interface stays the env's 63 values (the model's observation_space,
+the VecNormalize sidecar, every evaluation, probe, K3 panel, judge
+and deploy load), and the three command slots stay free for the
+walking stages.  environments/shared/critic_phase_ppo.py:
+- CriticPhaseVecNormalize (the TRAINING env only) normalises as stock
+  and appends the phase as three raw columns on reset, step and every
+  terminal_observation (the counter of the episode's last step, so a
+  time-limit truncation bootstraps on phase(1000)); never normalised
+  (bounded in [0, 1]; running statistics would see `settled` constant
+  0 first and blow it up to the clip); save() writes the stock
+  VecNormalize pickle;
+- CriticPhaseRolloutBuffer: PPO's buffer, 3 columns wider;
+- CriticPhaseActorCriticPolicy: MlpPolicy whose actor's first layer
+  reads the 63 observation columns alone (forward_actor slices them,
+  so rollout, evaluate_actions, get_distribution, MirrorKLPPO's
+  mirrored KL term, predict, the probe and the K3 panel are exactly
+  independent of the phase) and whose critic's first layer reads 66.
+  A fresh model is the stock MlpPolicy of its seed, bitwise, plus
+  three zero critic columns (widened after SB3's initialisation, no
+  random draw); predict() takes the env's own 63-value observation.
+train_base reads the switch (popped like the symmetry keys, so
+stage_config.json and hyperparameters_sha256 record it), builds the
+training env and the model with it, records mesozoic_critic_phase on
+the checkpoint, and refuses any load whose critic reads another
+phase, or none, than the stage declares, both ways.  MirrorKLPPO maps
+the phase columns to themselves (+1); the policy probe gives each bank
+state its own phase (kept step + 1); the diagnostics' obs statistics
+read the observation's columns only.
+
+Off (every committed stage), the trainer is 8737cd3d's: the notebook
+entry (train_base.train) on the real stance stage, 2 updates, seed 42,
+matches 8737cd3d in every rollout-buffer array, parameter, Adam
+tensor, VecNormalize statistic and saved file (wall clocks and memory
+addresses masked).
+
+Co-Authored-By: [name removed] <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A

@@ -1,0 +1,651 @@
+{
+ "completeness": {
+  "run_id": "stance7_r10LTSBpc_s42",
+  "fetch_dir": "/home/user/work/pc_study/tools/dry/f2dry/round/fetch/F2/stance7_r10LTSBpc_s42",
+  "C1": {
+   "name": "C1 one launch, no launch-check stop, no other action",
+   "ok": true,
+   "value": {
+    "launches": [
+     1
+    ],
+    "launch_check_stops": [],
+    "actions": [],
+    "lines": {
+     "1": "LAUNCH",
+     "2": "FOUND-GONE",
+     "3": "F2-START"
+    }
+   },
+   "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+  },
+  "C2": {
+   "name": "C2 artifact_manifest.json",
+   "ok": true,
+   "value": {
+    "copies": "copies 1 and 2 agree (sha256 d11abe165211)",
+    "sha256": "d11abe16521106cd0cdc1038904ef8b16221a7106c4e61890aaa271d9a72c8d5",
+    "schema_problems": [],
+    "run_id": "stance7_r10LTSBpc_s42",
+    "status": "failed",
+    "entries": 20
+   },
+   "note": null
+  },
+  "C3": {
+   "name": "C3 every file the reading uses equals its manifest entry",
+   "ok": false,
+   "value": {
+    "provenance.json": "OK",
+    "01_stance/stage_config.json": "OK",
+    "01_stance/progress.json": "OK",
+    "01_stance/eval_episodes.csv": "OK",
+    "01_stance/gate_verdict.json": "OK",
+    "01_stance/models/stage1_final.zip": "OK",
+    "01_stance/models/stage1_final_vecnorm.pkl": "OK"
+   },
+   "note": "no multiple of 262,144 at or before E: R1 does not exist (v5 R-m1)"
+  },
+  "C4": {
+   "name": "C4 one session from step 0 in the round's configuration",
+   "ok": true,
+   "value": [
+    {
+     "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+     "ok": true,
+     "value": {
+      "sessions": 1,
+      "started_at": "2026-11-01T00:38:41.470197+00:00",
+      "resumed_at": false
+     },
+     "note": null
+    },
+    {
+     "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+     "ok": true,
+     "value": {
+      "minutes_from_launch": 0.7,
+      "launch": "2026-11-01T00:38:00+00:00"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+     "ok": true,
+     "value": {
+      "repository_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+      "repository_dirty": false,
+      "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 no load key at any depth",
+     "ok": true,
+     "value": [],
+     "note": null
+    },
+    {
+     "name": "C4 run.seed",
+     "ok": true,
+     "value": {
+      "got": 42,
+      "want": 42
+     },
+     "note": null
+    },
+    {
+     "name": "C4 run.n_envs 4",
+     "ok": true,
+     "value": 4,
+     "note": null
+    },
+    {
+     "name": "C4 run.hyperparameters_sha256 = pin",
+     "ok": true,
+     "value": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954",
+     "note": null
+    },
+    {
+     "name": "C4 task_fingerprint.task_sha256 = pin",
+     "ok": true,
+     "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "note": null
+    },
+    {
+     "name": "C4 plant_identity block = pin",
+     "ok": true,
+     "value": "(block)",
+     "note": null
+    },
+    {
+     "name": "C4 stage_config_view_sha256 = pin",
+     "ok": true,
+     "value": "sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab",
+     "note": null
+    },
+    {
+     "name": "C4 (p) stage_config.json records the critic-phase switch ON",
+     "ok": true,
+     "value": {
+      "path": "hyperparameters.critic_phase",
+      "got": true,
+      "want": true
+     },
+     "note": null
+    },
+    {
+     "name": "C4 git_commit = branch HEAD",
+     "ok": true,
+     "value": {
+      "git_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+      "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 k3_panel.csv absent from the manifest if V7 failed on HEAD",
+     "ok": true,
+     "value": {
+      "v7_failed_on_head": false,
+      "k3_panel_csv_listed": false
+     },
+     "note": null
+    }
+   ],
+   "note": "read on manifest-verified copies"
+  },
+  "C4_on_manifest_files": true,
+  "C5": {
+   "name": "C5 the end",
+   "ok": true,
+   "value": {
+    "progress_status": "ended",
+    "E": 1024,
+    "final_zip_num_timesteps": 1024,
+    "zip_problem": null,
+    "judged_at": "2026-11-01T00:38:41+00:00",
+    "written_at": "2026-11-01T00:38:20Z",
+    "judged_minus_written_min": 0.3,
+    "ending": "STOPPED"
+   },
+   "note": null
+  },
+  "C6": {
+   "name": "C6 ledger whole to E, every ANY and TAIL input measured",
+   "ok": false,
+   "value": {
+    "grid_evaluations": 0,
+    "failures": [
+     "row 2 timesteps '512' is not on the grid",
+     "row 3 timesteps '512' is not on the grid",
+     "row 4 timesteps '1024' is not on the grid",
+     "row 5 timesteps '1024' is not on the grid"
+    ],
+    "n_failures": 4
+   },
+   "note": null
+  },
+  "C6_on_manifest_files": true,
+  "C7": {
+   "name": "C7 traces (and the final certificate)",
+   "ok": null,
+   "value": {
+    "labels": [
+     "final"
+    ],
+    "missing": [
+     "no M1 output at /home/user/work/pc_study/tools/dry/f2dry/panels/stance7_r10LTSBpc_s42/final/m1"
+    ]
+   },
+   "note": "PENDING: a measurement absent (run M1/M3; never a failure)"
+  },
+  "measured_on_another_file": [],
+  "C8": {
+   "name": "C8 the manipulation check (R2 and every J pair): phase in force, actor independent, obs 6 read",
+   "ok": true,
+   "value": {
+    "labels": [
+     "final"
+    ],
+    "results": {
+     "final": {
+      "verdict": "IN FORCE",
+      "checks": {
+       "(i) phase in force": {
+        "holds": true,
+        "phase_weights_nonzero": 1024,
+        "phase_weights_shape": [
+         512,
+         3
+        ],
+        "phase_weights_max_abs": 0.0008263878407888114,
+        "max_abs_dV_by_perturbation": {
+         "all 0": 0.022136300802230835,
+         "all 1": 0.018065422773361206,
+         "+1": 0.02213326096534729,
+         "all 3": 0.05933332443237305,
+         "1 - x": 0.022136300802230835
+        }
+       },
+       "(ii) actor independent": {
+        "holds": true,
+        "max_abs_dmu_by_perturbation": {
+         "all 0": 0.0,
+         "all 1": 0.0,
+         "+1": 0.0,
+         "all 3": 0.0,
+         "1 - x": 0.0
+        },
+        "mean_63_equals_mean_with_phase": true,
+        "actor_first_layer_inputs": 63
+       },
+       "(iii) critic input from observation 6": {
+        "holds": true,
+        "obs6_weights_nonzero": 512,
+        "obs6_weights_max_abs": 0.16148775815963745,
+        "report_only_max_abs_dV_obs6_plus1": 0.044870540499687195
+       }
+      }
+     }
+    },
+    "missing": []
+   },
+   "note": null
+  },
+  "c8_other_file": [],
+  "E": 1024,
+  "finished": false,
+  "stopped": true,
+  "r1": null,
+  "js": [],
+  "resolution": {},
+  "certificate": null,
+  "entries": {
+   "01_stance/diagnostics.npz": [
+    27702,
+    "47c839c0822239a13ee8b72bb58f1db4dc499377b3969e9ae8329ca3f8208d3d"
+   ],
+   "01_stance/eval_episodes.csv": [
+    17114,
+    "6e2a204e79b4937042955016ae65c04f843f945bfb13290cba27138e5dc23d88"
+   ],
+   "01_stance/evaluations.npz": [
+    850,
+    "98dcfce2bdac600517f64554e58e1b4f10482b183b0227094598b87c4251f045"
+   ],
+   "01_stance/gate_progress.npz": [
+    65820,
+    "98b4a1bee41dd308b3b5b35826c46961b701f9cba1fe6a48fec6470220e36fc6"
+   ],
+   "01_stance/gate_verdict.json": [
+    2010,
+    "959076f95f3d5e6644f3b3dbbbb41d62aad5f07b6d6b4688ec7c667a1671e71d"
+   ],
+   "01_stance/models/stage1_1024_steps.zip": [
+    4042621,
+    "3d886096fbd577d3c1902bc63b0b9c63bccc7dc47e83e92e01171613e43d5f7c"
+   ],
+   "01_stance/models/stage1_512_steps.zip": [
+    1362545,
+    "423956b9b902323db44d6f5abaa1310ceecd4fc10906dfcae8d9cf0ccc2a3fa2"
+   ],
+   "01_stance/models/stage1_final.zip": [
+    4042621,
+    "3d886096fbd577d3c1902bc63b0b9c63bccc7dc47e83e92e01171613e43d5f7c"
+   ],
+   "01_stance/models/stage1_final_vecnorm.pkl": [
+    4769,
+    "85fde059960ff5f87adf7be2c774740a43de6859c776a64b53d2d4da2769479a"
+   ],
+   "01_stance/models/stage1_vecnormalize_1024_steps.pkl": [
+    4769,
+    "85fde059960ff5f87adf7be2c774740a43de6859c776a64b53d2d4da2769479a"
+   ],
+   "01_stance/models/stage1_vecnormalize_512_steps.pkl": [
+    4769,
+    "c3c69e9fba84c6e9085089c18584a75b4f4fe04e667870dfd67b8507faa93216"
+   ],
+   "01_stance/plant_identity.json": [
+    771,
+    "e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9"
+   ],
+   "01_stance/policy_probe.npz": [
+    21048,
+    "2b55acdb6c0baab9d9ce007a45a0d692a2771d2354879c0ba0b92f0f7ad6d772"
+   ],
+   "01_stance/progress.json": [
+    6588,
+    "efbf43fdf802c83acc6fcd790c94205ef56644e8ee6ea2be0d9a5bede3e31119"
+   ],
+   "01_stance/stage_config.json": [
+    10841,
+    "7d397a9dc6f0c1b47708bbe1478af1436b80f5961805026a974e50e52712a156"
+   ],
+   "01_stance/task_fingerprint.json": [
+    3587,
+    "5964a6f375d39ebc4b9eabf854a71ca59936b8710b22f4ebae42df6affcb4b83"
+   ],
+   "01_stance/train_episodes.csv": [
+    939,
+    "3bbf1baed95b72c8a640f704d37c2c0e45eba830d0d4ed3c9b9b1722c7c43993"
+   ],
+   "collected_results.csv": [
+    7368,
+    "1bf6a998ce5a8728fe3e2083bc02ee3d9c8c201d43ed72c6d6680fd0bf6a035c"
+   ],
+   "plant_identity.json": [
+    771,
+    "e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9"
+   ],
+   "provenance.json": [
+    3769,
+    "10d855a683f285525960c86b1c19a68bba24d24939a62095769f0f4085c674b5"
+   ]
+  },
+  "files_read": {
+   "provenance.json": "10d855a683f285525960c86b1c19a68bba24d24939a62095769f0f4085c674b5",
+   "01_stance/stage_config.json": "7d397a9dc6f0c1b47708bbe1478af1436b80f5961805026a974e50e52712a156",
+   "01_stance/progress.json": "efbf43fdf802c83acc6fcd790c94205ef56644e8ee6ea2be0d9a5bede3e31119",
+   "01_stance/eval_episodes.csv": "6e2a204e79b4937042955016ae65c04f843f945bfb13290cba27138e5dc23d88",
+   "01_stance/gate_verdict.json": "959076f95f3d5e6644f3b3dbbbb41d62aad5f07b6d6b4688ec7c667a1671e71d",
+   "01_stance/models/stage1_final.zip": "3d886096fbd577d3c1902bc63b0b9c63bccc7dc47e83e92e01171613e43d5f7c",
+   "01_stance/models/stage1_final_vecnorm.pkl": "85fde059960ff5f87adf7be2c774740a43de6859c776a64b53d2d4da2769479a"
+  },
+  "verdict": "LOST"
+ },
+ "presence": [
+  {
+   "fetch": "/home/user/work/pc_study/tools/dry/f2dry/round/fetch/F2/stance7_r10LTSBpc_s42",
+   "p1": {
+    "name": "C1 one launch, no launch-check stop, no other action",
+    "ok": true,
+    "value": {
+     "launches": [
+      1
+     ],
+     "launch_check_stops": [],
+     "actions": [],
+     "lines": {
+      "1": "LAUNCH",
+      "2": "FOUND-GONE",
+      "3": "F2-START"
+     }
+    },
+    "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+   },
+   "p2": {
+    "name": "p2 C4's session and configuration facts",
+    "ok": true,
+    "value": [
+     {
+      "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+      "ok": true,
+      "value": {
+       "sessions": 1,
+       "started_at": "2026-11-01T00:38:41.470197+00:00",
+       "resumed_at": false
+      },
+      "note": null
+     },
+     {
+      "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+      "ok": true,
+      "value": {
+       "minutes_from_launch": 0.7,
+       "launch": "2026-11-01T00:38:00+00:00"
+      },
+      "note": null
+     },
+     {
+      "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+      "ok": true,
+      "value": {
+       "repository_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+       "repository_dirty": false,
+       "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+      },
+      "note": null
+     },
+     {
+      "name": "C4 no load key at any depth",
+      "ok": true,
+      "value": [],
+      "note": null
+     },
+     {
+      "name": "C4 run.seed",
+      "ok": true,
+      "value": {
+       "got": 42,
+       "want": 42
+      },
+      "note": null
+     },
+     {
+      "name": "C4 run.n_envs 4",
+      "ok": true,
+      "value": 4,
+      "note": null
+     },
+     {
+      "name": "C4 run.hyperparameters_sha256 = pin",
+      "ok": true,
+      "value": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954",
+      "note": null
+     },
+     {
+      "name": "C4 task_fingerprint.task_sha256 = pin",
+      "ok": true,
+      "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+      "note": null
+     },
+     {
+      "name": "C4 plant_identity block = pin",
+      "ok": true,
+      "value": "(block)",
+      "note": null
+     },
+     {
+      "name": "C4 stage_config_view_sha256 = pin",
+      "ok": true,
+      "value": "sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab",
+      "note": null
+     },
+     {
+      "name": "C4 (p) stage_config.json records the critic-phase switch ON",
+      "ok": true,
+      "value": {
+       "path": "hyperparameters.critic_phase",
+       "got": true,
+       "want": true
+      },
+      "note": null
+     },
+     {
+      "name": "C4 git_commit = branch HEAD",
+      "ok": true,
+      "value": {
+       "git_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+       "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+      },
+      "note": null
+     }
+    ],
+    "note": "provenance.json copies 1 and 2 agree (sha256 10d855a683f2); stage_config.json copies 1 and 2 agree (sha256 7d397a9dc6f0)"
+   },
+   "p3": {
+    "name": "p3 TAIL ALARM by M5 (b) on the ledger as it stands",
+    "ok": false,
+    "value": {
+     "tail_alarms": [],
+     "tail_flagged": [],
+     "first": null,
+     "ledger": "copies 1 and 2 agree (sha256 6e2a204e79b4)"
+    },
+    "note": null
+   },
+   "rail": false,
+   "rail_decided": false,
+   "detail": null
+  }
+ ],
+ "d16": {
+  "run_id": "stance7_r10LTSBpc_s42",
+  "launch": "2026-11-01 00:38 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=CPU head=e4d222bbde28800d7ee0851380123ff4ac9642a8 CRITIC_PHASE=True",
+  "triggers": [],
+  "ends": [
+   "2026-11-01 16:30 UTC  STANCE7 FOUND-GONE stance7_r10LTSBpc_s42 note=\"dry\""
+  ],
+  "trigger_checks": [],
+  "notebook_last_error": null,
+  "notebook": "no downloaded notebook at /home/user/work/pc_study/tools/dry/f2dry/round/outputs/stance7_r10LTSBpc_s42.ipynb",
+  "presence": [
+   {
+    "fetch": "/home/user/work/pc_study/tools/dry/f2dry/round/fetch/F2/stance7_r10LTSBpc_s42",
+    "p1": {
+     "name": "C1 one launch, no launch-check stop, no other action",
+     "ok": true,
+     "value": {
+      "launches": [
+       1
+      ],
+      "launch_check_stops": [],
+      "actions": [],
+      "lines": {
+       "1": "LAUNCH",
+       "2": "FOUND-GONE",
+       "3": "F2-START"
+      }
+     },
+     "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+    },
+    "p2": {
+     "name": "p2 C4's session and configuration facts",
+     "ok": true,
+     "value": [
+      {
+       "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+       "ok": true,
+       "value": {
+        "sessions": 1,
+        "started_at": "2026-11-01T00:38:41.470197+00:00",
+        "resumed_at": false
+       },
+       "note": null
+      },
+      {
+       "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+       "ok": true,
+       "value": {
+        "minutes_from_launch": 0.7,
+        "launch": "2026-11-01T00:38:00+00:00"
+       },
+       "note": null
+      },
+      {
+       "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+       "ok": true,
+       "value": {
+        "repository_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+        "repository_dirty": false,
+        "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+       },
+       "note": null
+      },
+      {
+       "name": "C4 no load key at any depth",
+       "ok": true,
+       "value": [],
+       "note": null
+      },
+      {
+       "name": "C4 run.seed",
+       "ok": true,
+       "value": {
+        "got": 42,
+        "want": 42
+       },
+       "note": null
+      },
+      {
+       "name": "C4 run.n_envs 4",
+       "ok": true,
+       "value": 4,
+       "note": null
+      },
+      {
+       "name": "C4 run.hyperparameters_sha256 = pin",
+       "ok": true,
+       "value": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954",
+       "note": null
+      },
+      {
+       "name": "C4 task_fingerprint.task_sha256 = pin",
+       "ok": true,
+       "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+       "note": null
+      },
+      {
+       "name": "C4 plant_identity block = pin",
+       "ok": true,
+       "value": "(block)",
+       "note": null
+      },
+      {
+       "name": "C4 stage_config_view_sha256 = pin",
+       "ok": true,
+       "value": "sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab",
+       "note": null
+      },
+      {
+       "name": "C4 (p) stage_config.json records the critic-phase switch ON",
+       "ok": true,
+       "value": {
+        "path": "hyperparameters.critic_phase",
+        "got": true,
+        "want": true
+       },
+       "note": null
+      },
+      {
+       "name": "C4 git_commit = branch HEAD",
+       "ok": true,
+       "value": {
+        "git_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+        "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+       },
+       "note": null
+      }
+     ],
+     "note": "provenance.json copies 1 and 2 agree (sha256 10d855a683f2); stage_config.json copies 1 and 2 agree (sha256 7d397a9dc6f0)"
+    },
+    "p3": {
+     "name": "p3 TAIL ALARM by M5 (b) on the ledger as it stands",
+     "ok": false,
+     "value": {
+      "tail_alarms": [],
+      "tail_flagged": [],
+      "first": null,
+      "ledger": "copies 1 and 2 agree (sha256 6e2a204e79b4)"
+     },
+     "note": null
+    },
+    "rail": false,
+    "rail_decided": false,
+    "detail": null
+   }
+  ],
+  "shown": {
+   "ledger": "copies 1 and 2 agree (sha256 6e2a204e79b4)",
+   "last_evaluation": null,
+   "any_flagged": [],
+   "tail_flagged": [],
+   "any_alarms": [],
+   "tail_alarms": [],
+   "needs_resolution": [],
+   "last_checkpoint_listed": "no listing of 01_stance/models/ in the last fetch"
+  },
+  "any_alarm_shown": false
+ }
+}

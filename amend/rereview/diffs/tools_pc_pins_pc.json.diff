@@ -1,0 +1,60 @@
+--- amend/orig/tools/pc/pins_pc.json	2026-11-01 00:42:41.649720483 +0000
++++ tools/pc/pins_pc.json	2026-11-01 01:50:04.298492741 +0000
+@@ -1,5 +1,5 @@
+ {
+- "_status": "PC adaptation pc-1, written by ST/tools/make_pins_pc.py on 2026-10-31 (date -u) from the round's pins (S2/r10round/lean/build/laneB/tools/pins_r10round.json, sha256 0d45721b...) and measured values only; the round's facts (main, port, D3, D19, TEL columns, M1/M3/M2/judge sha256, sigma, known25, V0 (h), MODEL, V10) are kept as the round pinned them (the PC text cites them); the switch-ON digests replace the round's hyperparameters_sha256 and stage_config_view_sha256; v7_failed_on_head is VP2's result on HEAD (filled from a VP2 record by --vp2, else at the pin step)",
++ "_status": "PC adaptation pc-1, written by ST/tools/make_pins_pc.py on 2026-10-31 (date -u) from the round's pins (S2/r10round/lean/build/laneB/tools/pins_r10round.json, sha256 0d45721b...) and measured values only; the round's facts (main, port, D3, D19, TEL columns, M1/M3/M2/judge sha256, sigma, known25, V0 (h), MODEL, V10) are kept as the round pinned them (the PC text cites them); the switch-ON digests replace the round's hyperparameters_sha256 and stage_config_view_sha256; v7_failed_on_head is VP2's result on HEAD (filled from a VP2 record by --vp2, else at the pin step) | PC AMENDMENT 2026-11-01 (ST/amend/AMEND_NOTES.txt): off_arm (the switch-off runs' configuration pins) added and tool_sha256 refreshed by ST/amend/tools/amend_pins.py from files; every other key unchanged",
+  "_sources": {
+   "task_sha256/hyperparameters_sha256/stage_config_view_sha256/gate_sha256": "[measured] configs/digest_snapshot.generated.txt lines 382-386 of a git archive of cf9402bc",
+   "plant_identity": "[measured] current_plant_identity(tyrannosaurus_rex anatomical) in a git archive of cf9402bc (equals review/eq/k3on/head_s80_k3every131072/stage/stage_config.json's embedded block)",
+@@ -12,8 +12,9 @@
+   "PC hyperparameters_sha256/task_sha256/stage_config_view_sha256": "[measured] ST/tools/dry/pins_sc.out: stage_config.json written by the HEAD measuring copy's config.save_stage_config as train_base calls it, seed 42, n_envs 4, 12,000,000, with [ppo] critic_phase = true set as notebook cell 9 sets it; the same call with the switch OFF reproduces the round's three pins",
+   "PC critic_phase_switch": "[measured] the same file: hyperparameters.critic_phase = true",
+   "PC critic_phase_spec": "[measured] ST/tools/dry/smoke_train.out: the smoke checkpoint's mesozoic_critic_phase",
+-  "PC tool_sha256": "[measured] sha256 of ST/tools/pc/*.py at the time make_pins_pc.py ran",
+-  "PC v7_failed_on_head": "[measured] VP2 on e4d222bbde28800d7ee0851380123ff4ac9642a8: test_curriculum_k3_panel.py passed True, widened-pair panel equal True (test_curriculum_k3_panel.py 23 of 23 passed in the fixer's shared suite on e4d222bb (ST/review/fixer/suites/shared/pytest.log; ids in vp2d1/k3_test_ids_passed.txt; the file builds plain PPO models and reads no switch, so ON and OFF run the same tests); the K3 panel (run_k3_panel, own + joint, 20 seeds, horizon 1000, control_sigma.80 sha256 df380505...) on STANCE6 s80's final pair and on its zero-phase-column widening: 40 of 40 rows bitwise equal (ST/review/fixer/vp2d1/vp2_part_a.out); the builder's smoke_k3 and the checker's partB K3 twin ran the panel on a phase policy); filled by make_pins_pc.py --vp2"
++  "PC tool_sha256": "[measured] sha256 of ST/tools/pc/*.py as the amendment left them (ST/amend/tools/amend_pins.py)",
++  "PC v7_failed_on_head": "[measured] VP2 on e4d222bbde28800d7ee0851380123ff4ac9642a8: test_curriculum_k3_panel.py passed True, widened-pair panel equal True (test_curriculum_k3_panel.py 23 of 23 passed in the fixer's shared suite on e4d222bb (ST/review/fixer/suites/shared/pytest.log; ids in vp2d1/k3_test_ids_passed.txt; the file builds plain PPO models and reads no switch, so ON and OFF run the same tests); the K3 panel (run_k3_panel, own + joint, 20 seeds, horizon 1000, control_sigma.80 sha256 df380505...) on STANCE6 s80's final pair and on its zero-phase-column widening: 40 of 40 rows bitwise equal (ST/review/fixer/vp2d1/vp2_part_a.out); the builder's smoke_k3 and the checker's partB K3 twin ran the panel on a phase policy); filled by make_pins_pc.py --vp2",
++  "PC AMENDMENT off_arm": "[measured] ST/tools/dry/pins_sc.out \"off\": /home/user/work/pc_study/tools/dry/pins_sc/off/stage_config.json (sha256 cc7780cf4bfefbbbadc4557c630d37ae828edd35c905915c46a93ae9a8ede768), written by the HEAD measuring copy's config.save_stage_config as train_base calls it with the switch OFF (seed 42, n_envs 4, 12,000,000); its three digests equal the round's pins (off_equals_round all True); hyperparameters.critic_phase absent from the file; plant_identity equal to the top-level pin. Filled by ST/amend/tools/amend_pins.py (never by hand)"
+  },
+  "main_commit": "06b1a8e1fb940eec0d7a8e3af420c5b384ac0e8b",
+  "tel_columns": [
+@@ -187,16 +188,16 @@
+   "kscore_r10ltsb.py": "3a2e8ea9a3f62c10b712f41593afb8a7811e142b9e7ce546d70c3fa015722e5d"
+  },
+  "tool_sha256": {
+-  "complete_r10round.py": "2207fb3abcc46c8cf13abaa8aa44eba2d4c3d01887ca9170133af8c940aca643",
++  "complete_r10round.py": "2f68e02f104393bb3afb4ed2d7e0f5cff9bb6dbda249923ee7a3e7a738002e4a",
+   "fetch_r10round.py": "0f74a8c1d690980cfbaa1f017a2313aa97087cb823e5ec70a03a66b17da3ee3d",
+   "k3panel_r10round.py": "89d279d4f53b8894f3c69a7acfc518060365e4f0cf8523ca245d4f2dcaf081b2",
+   "ledger_r10round.py": "0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511",
+   "manip_check.py": "da8b4be6089923b5c5e540760003dd68c2205d0cb880707f22711d9beb6a8e22",
+-  "measure_r10round.py": "2f6668494b6acbf9cfc3a386c5ca2f5e4ef8358ad5fe74ee13cbe886dd8046d8",
+-  "pc_common.py": "9dc5246e714db7127003059bd9815906da2c807b4e7edb3a360774cc8e6b3c0b",
+-  "r10m_common.py": "31c9ac1a0ce29481a6fc7f2b66149c18f95d496445fe80fcaa2c5b2c17714a00",
+-  "r10round_common.py": "54670a67aee51370601ea507015dfebc74b0ea6741a921133f66d7690bd8c7e6",
+-  "score_pc.py": "b95be3de668989e94b1171877ad7fd72239819b37942870dc280ae0d4e1dd727",
++  "measure_r10round.py": "75cb4a9b9028a4c4b2eb22b641627b1eac7bb01be59c90931af9d732511d04e5",
++  "pc_common.py": "10ab4e583f8e020ee6c35bf4d8a9b70df32f12dbeeb50c4a840d6d207429583c",
++  "r10m_common.py": "c070a4e2ac759ab0600f37c18c5df33be42fdcf5042ac275caba5a293f5b1855",
++  "r10round_common.py": "d260363992adcc81f429a359f2e1e68fb82bd9d569170bfaa2a8e8277fcbdc35",
++  "score_pc.py": "3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986",
+   "score_r10round.py": "3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707",
+   "zs_harness_copy.py": "fbb71d22cfa40266188b1b836a454bb150dec589d724fb74d1cab53c1ef51828"
+  },
+@@ -259,5 +260,15 @@
+  "comparators": {
+   "score_json_sha256": "cb380a7e816e519cce267fd4a7c00a7d4528730a388e39b3678b95d235c01474",
+   "fetch_manifest_sha256": "f5777ae32a5428908d59776d83d3e86d70db31b7818b1a9dd77de05a426c205e"
++ },
++ "off_arm": {
++  "arm": "switch-off (stance7_r10LTSBoff_s60/42/80; notebook CRITIC_PHASE False, its default)",
++  "hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
++  "stage_config_view_sha256": "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1",
++  "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
++  "critic_phase_switch": {
++   "path": "hyperparameters.critic_phase",
++   "absent": true
++  }
+  }
+ }

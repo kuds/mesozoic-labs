@@ -1,0 +1,82 @@
+PC REVIEW -- CODE AND PROCESS LENS (independent reviewer), written 2026-10-31/11-01 (date -u) in ST/review/process only.
+WT = /home/user/work/pc_branch at da7e0b9225b72827c2dc14b94c8094b6e57eb97a (5 commits on 8737cd3d), worktree clean.
+Every claim is [measured] (file and line) or [inferred]. Command log: cmdlog.txt.
+
+WHAT I DID
+- Read the 5 commits line by line (critic_phase.py, critic_phase_ppo.py, train_base.py, mirror_kl_ppo.py, policy_probe.py,
+  diagnostics.py, the notebook's cells 6/9, CI list), the SB3 2.9.0 paths they override, every other reader of the critic
+  or of rollout-buffer observations in environments/shared, the stage-end and reporting loaders, and the notebook's
+  chain loop (cell 20, extracted to cell20.txt).
+- Ran the one Colab path nobody had run with the switch ON: the notebook's own cells 3,4,6,8,9,11,15,16 and then cell 20
+  (THE CHAIN LOOP: train_stage -> evaluate_stage_checkpoints -> generate_stage_artifacts incl. the six-heading
+  certificate and the stance probes -> write_training_summary -> save_run_bundle) and cells 24 and 30 (deliverable
+  evaluation, bundle verification), on a git archive of HEAD (tree/), CRITIC_PHASE True, 2 envs, 2 PPO updates
+  (n_steps 64), panels shrunk to 2 episodes, no videos (no GL on this container). tools/chain_smoke.py, smoke/chain_on.log,
+  smoke/artifacts_on.txt (sidecars and zips).
+- Re-ran the 3 suite failures that are not in the round's known25 list with the repo on sys.path (vp0_extra3*.log).
+- Read-only git ls-remote of the two branch names (ls_remote.txt).
+
+RESULTS: see the findings in the structured output; the evidence files are listed beside each.
+
+KEY MEASUREMENTS (beyond the earlier agents' evidence)
+- Ledger header with the switch ON (smoke) == stance6 s42's F2 eval_episodes.csv header, 194 columns, diff empty
+  [measured: hdr_diff.txt, hdr_s6_s42.txt, hdr_smoke_on.txt].
+- Every sidecar the notebook path wrote with the switch ON (best_model, robust_best_model, stage1_final, the two periodic
+  stage1_vecnormalize_<n>_steps.pkl) is a stock stable_baselines3 VecNormalize with a (63,) obs_rms and none of the phase
+  attributes; every zip (best, robust_best, 128, 256, final) records observation shape [63], the phase policy module,
+  the rollout_buffer_class, the mesozoic.critic-phase/v1 record and settle 200 / gamma 0.98 [measured:
+  smoke/artifacts_on.txt].
+- The six-heading certificate ran to completion on the phase checkpoint (stance_heading_report.json written; it is
+  written only on success) [measured: smoke folder listing, chain_on.log "2/2 seeds clean at every heading"].
+- The 3 suite failures outside the round's known25 (test_plant_contract_digest_snapshot.py::
+  test_refusals_come_before_the_run[check-no-golden|check-skip-behaviors|write-skip-behaviors]) fail at 8737cd3d and
+  HEAD only because the harness subprocess cannot import `environments` from this venv; with the repo on PYTHONPATH all
+  3 pass at HEAD [measured: vp0_extra3.log "3 passed"/exit 0; vp0_extra3_noPP.log 3 FAILED; check_code/suites/
+  wt_shared/pytest.log lines 6587-6598 ModuleNotFoundError].
+- Remote refs (read only): claude/screen-trex-r10-armltsb = 8737cd3d; claude/screen-trex-r10-phasecritic absent (name
+  free) [measured: ls_remote.txt]. Local branch tracks origin/claude/screen-trex-r10-armltsb; push.default unset
+  [measured: git config, git branch -vv].
+- CI: python-ci.yml triggers on push to main and on pull_request only [measured: .github/workflows/python-ci.yml lines
+  3-5]; a pushed never-merged branch with no PR runs no CI, so the checker's m1 (no-SB3 mypy) cannot turn anything red.
+- WT clean after all agents (git status --porcelain --ignored: 0 entries); /tmp/x absent [measured, 23:4x UTC].
+- CHAIN-LOOP SMOKE, switch ON (run 2 on a git-backed copy whose tree hash equals da7e0b92's, 7f60b613): cell 20 ran
+  train_stage (2 updates), evaluate_stage_checkpoints, generate_stage_artifacts (stance gate report, six-heading
+  certificate, the filtered / constant / release / impulse probes, training_history pages 01-19, gate_verdict.json),
+  write_training_summary and save_run_bundle: artifact_manifest.json written, 68 files listed incl. every model zip and
+  sidecar, verify_artifact_manifest returned without raising (manifest "status": "failed" = the run's gate status with
+  2-episode panels); then halt() raised "stance failed its curriculum gate", which is the notebook's normal gate-fail
+  stop [measured: smoke/chain_on.log CELL STATUS, smoke/manifest_on.txt, smoke/run2_files.txt,
+  smoke/artifacts_on_run2.txt]. Cells 24 and 30 then refuse as for any failed gate ("not certified in this session";
+  "CSV-only run cannot be promoted"); on Colab "Run all" stops at halt() before them.
+  Run 1 (plain git archive, no .git) reached the same point and failed only at save_run_bundle because provenance had
+  no 40-hex commit -- a property of my harness, not of the switch [measured: smoke/chain_on_run1.log lines 76-88].
+- Check rows printed by the notebook with the switch ON: cell 6 "Critic phase: on", cell 9 "Critic phase on: [ppo]
+  critic_phase = true on ['stance']", cell 8 "... (new run: RUN_ID names no existing run)" [measured: smoke/chain_on.log
+  lines 18, 28, 23]; they match ST/COLAB_STEPS.txt step 7.
+- git push behaviour, local scratch repos only: with an upstream of another name and push.default unset, a bare
+  `git push` is refused ("does not match the name of your current branch"); with push.default=upstream it fast-forwards
+  the OTHER branch [measured: pushtest_bare_push.txt, pushtest_upstream_push.txt].
+- Switch-OFF control with the same harness: identical cell outcomes (20: halt on the 2-episode gate FAIL after the
+  manifest; 24: not certified; 30: failed bundle not promotable) and the same 69 file names except the tensorboard
+  event file's timestamp/pid name [measured: smoke/chain_off.log, smoke/names_on_vs_off.diff,
+  smoke/status_on_vs_off.diff]. The switch changes nothing in the run folder's layout or the notebook's flow.
+
+FINDINGS (blocking / minor / info) -- full text in the structured output
+ none blocking.
+ minor  P1  VP2 (K3 panel with the switch ON; pins v7_failed_on_head UNFILLED) and VP0's eval-row clause are still owed
+            before APPROVED.
+ minor  P2  VP0's "exactly ROUND's known 25" clause is not met literally here (28 ids fail at base and HEAD); the 3 extra
+            are environment-only and pass with the repo on PYTHONPATH.
+ minor  P3  Local branch tracks origin/claude/screen-trex-r10-armltsb (the stance6 comparators' run branch); unset the
+            upstream and push with an explicit refspec, then check both refs.
+ info   I1  The chain loop (cell 20) incl. artifacts, certificate, probes and manifest works with the switch ON, same as OFF.
+ info   I2  Nothing the round's tools or the judge read changes shape; only HEAD-based measuring copies can load the zips.
+ info   I3  The checker's m1 (no-SB3 mypy) cannot fire: no workflow runs on a non-main push without a PR.
+ info   I4  Commit trailers carry the model name (session attribution rule) -- the workflow asked otherwise; maintainer's call.
+ info   I5  REPO_REF is a branch name: freeze the branch from the push to the last launch check.
+ info   I6  No-resume rule: one lost seed makes the one test 20/20; resume with the switch ON works on HEAD.
+ info   I7  Two COLAB_STEPS files exist; only ST/COLAB_STEPS.txt is the installed one.
+ info   I8  Process: earlier slips harmless (WT clean, /tmp/x absent); my own slip (3 trainer temp dirs in /tmp) removed.
+
+DISK: this folder 0.2 MB after cleanup [measured]; peak about 190 MB [inferred: 119 MB measured at 23:52 UTC with the
+HEAD copy and run 1, plus the 50 MB .git measured later; run 1 deleted before run 2 and the OFF run], under the 300 MB cap.

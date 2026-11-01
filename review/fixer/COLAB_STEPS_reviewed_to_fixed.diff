@@ -1,0 +1,78 @@
+--- COLAB_STEPS.txt (reviewed)
++++ COLAB_STEPS.txt (fixed)
+@@ -3,9 +3,14 @@
+ branch's notebook (WT notebooks/sb3_training.ipynb cells 6 and 9 at da7e0b92, as the code builder's
+ ST/build/COLAB_STEPS.txt records them), the tools named by their PC paths; <HEAD> is still filled at the pin step.
+ Every change against COLAB_STEPS_v1.txt: ST/adapt/COLAB_STEPS_v1_to_installed.diff.
++FIXED 2026-11-01 (date -u) by the fixer after the independent review: the push and freeze rule, the resume note,
++the HEAD the tools were measured on; every change in ST/review/FIXES.txt and
++ST/review/fixer/COLAB_STEPS_reviewed_to_fixed.diff. The builder's draft ST/build/COLAB_STEPS.txt is superseded by
++this file: give the maintainer only this one.
+ =================================================================================================================
+ Written 2026-10-31 (date -u) by the PC designer from the stance6 round's pinned steps
+-(S2/r10round/lean/build/laneB/colab_steps_r10round.txt, sha256 f2eb9a24c54e4718a66666f47f95c7c3240d2fc4cd2a1ce647e0cc1a08f61e7d),
++(S2/r10round/lean/build/laneB/colab_steps_r10round.txt, sha256
++f2eb9a24c54e4718a66666f47f95c7c3240d2fc4cd2a1ce647e0cc1a08f61e7d),
+ changed only where the PC criteria (DESIGN/criteria_v1.txt) change them. Fields in <ANGLE BRACKETS> are filled at the
+ pin step from files (never typed): <HEAD> (40 hex), <SWITCH> and <SWITCH_ROW> (the builder's notebook setting and the
+ row it prints). To reconcile with the code builder's own WT/COLAB_STEPS.txt before review (the builder names the cell-6
+@@ -27,8 +32,15 @@
+    [measured: no "stance7" or "r10LTSBpc" in RUNLOG (871 lines) and no "stance7*" folder in the ppo folder's last
+    complete listing (2026-10-27T15:05:40Z, S1/foot/stance6/fetch/folders.json); DESIGN/names_check.out. Cell 8 must
+    print "new run" (step 7): it is the check that counts.]
+-   The branch: claude/screen-trex-r10-phasecritic, HEAD <HEAD> (as <PCR>/APPROVED records it). It is pushed only after
+-   the maintainer's OK so that REPO_REF can install it; it is never merged.
++   The branch: claude/screen-trex-r10-phasecritic, HEAD <HEAD> (as <PCR>/APPROVED records it; the tools and dry runs
++   were last measured on e4d222bbde28800d7ee0851380123ff4ac9642a8). It is pushed only after the maintainer's OK so that
++   REPO_REF can install it;
++   it is never merged. The push (HOW THE COORDINATOR PINS 3 (b)): `git -C /home/user/work/pc_branch branch
++   --unset-upstream` first (the local branch tracks origin/claude/screen-trex-r10-armltsb, the comparators' branch),
++   then `git push origin refs/heads/claude/screen-trex-r10-phasecritic:refs/heads/claude/screen-trex-r10-phasecritic`
++   (real git objects, never API file uploads); ls-remote must then show phasecritic = <HEAD> and armltsb still
++   8737cd3d. FREEZE: after that push nobody pushes to the branch until all three launch checks read no-fault
++   (REPO_REF names the branch, so a moved branch would fault fact (1) and cost a _b relaunch).
+ 
+ BEFORE THE FIRST LAUNCH (each noted in RUNLOG)
+  B1. Compute: read the L4's rate (Runtime > Change runtime type) and the account's balance. Needed: about 3 x 15.5
+@@ -60,7 +72,8 @@
+        RUN_LABEL           = "r10 LTSB phase-critic s60" (s42 / s80 likewise)
+        RUN_ID              = "stance7_r10LTSBpc_s60"     (s42 / s80 likewise)  <- the Drive folder name
+        K3_PANEL            = True                        (False if VP2 failed: the pin records which)
+-       K3_PANEL_SIGMA_FILE = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
++       K3_PANEL_SIGMA_FILE =
++       "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+        K3_PANEL_SIGMA_KEY  = "source_vectors.60"         (s42: "source_vectors.42"; s80: "control_sigma.80")
+        CRITIC_PHASE        = True                        <- THE PHASE CRITIC (the 18th setting). Its default is
+                                                          False: set it.
+@@ -72,7 +85,8 @@
+     - cell 6:  "Behavior recipe: stance", "In-run K3 panel: on" and "Critic phase: on" (the phase critic on;
+                "Critic phase: off" means CRITIC_PHASE was left False: that run is not this round's
+                configuration; record the row in the CHECK line: launch-check fact (8) decides, as L3 says)
+-    - cell 8:  "Run directory: /content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance7_r10LTSBpc_s60
++    - cell 8:  "Run directory:
++      /content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance7_r10LTSBpc_s60
+                (new run: RUN_ID names no existing run)". It must end in the RUN_ID and say "new run": an existing
+                run's id re-enters that run (notebook cell 8 comment at 8737cd3d). If it does not say "new run", stop
+                this run at once by THE ENDING PROCEDURE (d) (a configuration fault).
+@@ -118,7 +132,10 @@
+  - (Only if the maintainer chooses CHOICE RESUME (b) at the pin, a same-stage resume from the latest periodic pair in a
+    new runtime would be written here, with its check rows, after the builder has verified the notebook's resume path on
+    HEAD; not part of v1. The builder's smoke ran the RESUME cell's path once on HEAD with the switch ON [measured,
+-   ST/build/smoke/smoke_resume.log]; the rules for a resumed run (C4, C6) are not written.)
++   ST/build/smoke/smoke_resume.log]; the rules for a resumed run (C4, C6) are not written. Such a resume must set
++   CRITIC_PHASE = True again in cell 6 before the RESUME cell: a resume with the switch off is refused, but only
++   after it has rewritten 01_stance/stage_config.json without the switch, so fact (8) is read only after the
++   corrected resume.)
+ 
+ THE TRIGGER LISTING (at a trigger noted within 2 hours of a launch, before any relaunch decision) -- as stance6
+  A fetch agent lists that run's 01_stance/models/ by folder id (names and sizes, every page); nothing else is fetched;
+@@ -139,7 +156,8 @@
+  RELAUNCH <RUN_ID>_b replaces=<RUN_ID> and the same fields
+  CHECK <RUN_ID>      result=<no-fault|FAULT (n,...)|not-computed (n,...)> runtime=<as seen> behavior="<as printed>"
+                      phase_row="<the cell-6 'Critic phase: ...' row as printed>" new_run=<yes|no>
+- STOP <RUN_ID> fault=<n,...>      TRIGGER-a|b|c|d <RUN_ID> [note="..."]      LISTING <RUN_ID> folder=<id> pages=<n> files="..."
++ STOP <RUN_ID> fault=<n,...>      TRIGGER-a|b|c|d <RUN_ID> [note="..."]      LISTING <RUN_ID> folder=<id> pages=<n>
++ files="..."
+  DELETED <RUN_ID>     FOUND-GONE <RUN_ID>     ACTION <RUN_ID> what=<resume|restart|relaunch|cell>
+  F2-START <RUN_ID>    REFETCH-START <RUN_ID>
+  Any other line naming a RUN_ID is restated in this form before that RUN_ID's F2-START line (as stance6).

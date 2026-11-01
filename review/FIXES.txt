@@ -1,0 +1,173 @@
+PC ROUND -- THE FIXER'S RECORD (ST/review/FIXES.txt)
+Written 2026-11-01 (date -u) by the fixer of workflow wf_9b7ee473-01d. Every command and its time: ST/review/fixer/cmdlog.txt.
+Reviewed state (before any edit): ST/review/reviewed.txt (WT da7e0b9225b72827c2dc14b94c8094b6e57eb97a, clean; the sha256 of
+every ST file the fixer could change; the reviewed bytes in ST/review/fixer/orig/). Labels: [measured] = read or computed
+from the named file; [inferred] = reasoned, basis named. Nothing here launches, pushes, approves or trains; the run is
+still the maintainer's decision (his message asked whether Colab beats the CPU; the RUNLOG answers at lines 867 and 870
+are the record of his choice that the earlier agents cite).
+
+WHAT CHANGED
+- WT: one new commit e4d222bbde28800d7ee0851380123ff4ac9642a8 on da7e0b92 (m1: two typed locals in
+  environments/shared/critic_phase_ppo.py; no behaviour change). Earlier commits untouched; nothing pushed. Its trailer
+  lines follow this session's harness attribution rule (as the builder's five commits do), not the workflow's model-free
+  form: the harness rule names only the user's own instructions as able to override it, and the workflow text is not the
+  user's (i8 / I4 (process): the maintainer may reword before the push; rewording changes HEAD and needs the re-pin).
+- ST/tools/pc: pc_common.py (D3, D4, D5, I1, I3), score_pc.py (D5 printing), manip_check.py (I5); pins_pc.json refilled
+  (HEAD's tool hashes; v7_failed_on_head false from VP2, P1). ST/tools: tests/test_score_pc.py (+8 tests: D3, D4, D5,
+  D6 x4, I1), tests/test_manip_pc.py (+1 test, I5; PC_TEST_COPY / PC_TEST_SMOKE_MODELS overrides), mutate_pc.py (+9
+  mutants M23-M31; pytest run from the mutant's own folder, not /tmp), make_pins_pc.py (--vp2 FILE), SHA256SUMS.txt
+  (every listed hash recomputed; tools/cmdlog.txt's listed hash was already stale in the reviewed file: the adapter
+  appended a line at 23:36:14 after writing SHA256SUMS at 23:36:03; the fixer did not write that file);
+  ST/tools/dry re-run on e4d222bb (the adapter's outputs kept in ST/review/fixer/orig/tools/dry).
+- ST/criteria.txt, ST/COLAB_STEPS.txt (diffs: ST/review/fixer/criteria_reviewed_to_fixed.diff,
+  COLAB_STEPS_reviewed_to_fixed.diff; made by ST/review/fixer/tools/fix_texts.py from the reviewed bytes, PINS refilled
+  from files; lines over 120 characters re-wrapped at spaces, wording otherwise as the diff shows);
+  ST/design/DESIGN_NOTES.txt 2.4 (I2); ST/build/COLAB_STEPS.txt marked superseded (I7). ST/adapt/ADAPT_NOTES.txt
+  unchanged (it records the adapter's work as of da7e0b92).
+
+CHECKS RE-RUN (all on WT e4d222bb or its git archive / sealed measuring copy) [measured]
+- Lint: CI's lint-job mypy view (no SB3/torch) on da7e0b92: the 2 [no-any-return] errors, exit 1; on e4d222bb: no
+  issues in 418 files; full-venv mypy: no issues in 418 files; ruff check and ruff format: pass (ST/review/fixer/lint/).
+- Unit tests: the 36 critic-phase tests pass (fixer/suites/cp_tests).
+- Suites (CI's shared and T. rex suites, -I -B, PYTHONPATH = the repo, nice 10): shared 18 failed, 6383 passed, 1 skipped; T. rex 7 failed, 237 passed; EXACTLY THE KNOWN 25 (failed and not known: []); fixer/suites/compare.txt, failed_ids.txt
+- Equivalence: switch OFF, train_base.train 2 PPO updates s42 on git archives of 8737cd3d and e4d222bb: RESULT
+  IDENTICAL (76 arrays, 7 run files; fixer/equiv/compare_base_vs_head_off.txt); OFF vs ON: 173 differences
+  (compare_head_off_vs_head_on.txt). ROUND's V0 (h) digests (rollbuf.py, switch OFF, no update): seeds 60/42/80 first
+  rollout (fixed-order, sorted-key, initial weights) and s42 rollouts 17 and 33 all equal (fixer/rb/a6_compare.txt).
+  A5, switch ON: first rollouts of seeds 60/42/80 bitwise equal to OFF in every buffer field (fixer/rb/a5_compare.txt).
+  Evaluation rows at 131,072, same actor, ON vs OFF: 10 rows x 194 columns equal (fixer/rb/evalrows_compare.txt).
+- Smoke (ST/tools/smoke_pc.py train on e4d222bb's sealed copy: n_envs 2, n_steps 256, 1,024 steps = 2 PPO updates,
+  switch ON; outputs deleted after recording; their sha256 in fixer/smoke_and_copy_record.txt): bundle, VP3 POS no
+  fault, NEG faults (1), (3), (7), (8) (ST/tools/dry/vp3.out); f2dry: C4 (p) PASS, C4 git_commit = e4d222bb, the K3
+  clause PASS (v7_failed_on_head false), C8 PASS (IN FORCE; (iii) 512 nonzero observation-6 weights; actor |dmu| 0.0
+  under all five perturbations) (ST/tools/dry/f2dry.out); the pins with the switch ON unchanged: c64211e8 / 1e5964b6
+  / 7bee0efc, OFF reproduces ROUND's 054ab483 / 1e5964b6 / 3200f159 (ST/tools/dry/pins_sc.out).
+- Scorer tests: test_score_pc.py 44 passed; test_manip_pc.py 7 passed (on the new smoke pair and the e4d222bb copy)
+  (fixer/tests_out/pytest_score_pc.log, pytest_manip_pc.log); mutation: 31 of 31 killed (fixer/tests_out/mutate_pc.log).
+- Dry runs: stand-in on STANCE6's F2 data: 25 of 25 class keys equal for each run, line 1, THE ONE TEST 14/20, s80's
+  neck L, A, T, D (ST/tools/dry/standin_s6.stdout, comparators_recomputed.out); VP4 widening: NOT IN FORCE failing (i)
+  only, phase-fed V = stock V bitwise on 1000 rows (ST/tools/dry/vp4_widen_s80.out).
+- VP2: test_curriculum_k3_panel.py 23/23 on e4d222bb; K3 panel on STANCE6 s80's final pair and its zero-column
+  widening: 40/40 rows bitwise equal (fixer/vp2d1/vp2_part_a.out). D1: M3's loader on the widened zip saved by HEAD's
+  save path predicts the stock action at 1000 of 1000 steps; it loads HEAD's own phase zip (fixer/vp2d1/d1.out).
+- Ruff on the PC files with the repo's rule set: 1 I001 in manip_check.py, the same as in the reviewed file
+  (ST/tools/dry/ruff.log).
+- Evidence sha256 (for the pin step's "VP0, VP2, VP3 logs"): 
+    658c6f3c1a16c0a77c7bbbc437f3958380f218f82be94ac1f54d0f39bbee5864  suites/compare.txt
+    62e01b73cac3f14452564a54c37491c0ca2ef4e35b3e9150e065d1be9f2e47b8  suites/failed_ids.txt
+    03b81654b2ef4927391eeb6f8146b9dd4b8387c3397dcdb18af2f316fab2610a  suites/shared/pytest.log
+    d2b1b405f8c478039e22a9215d0d81b3b0ae7a7985043007a24c5f5704c5cee5  suites/trex/pytest.log
+    48d27364c5be8da61edef848b438733a0f789c31a0f0b380d9e65ed4ea3d97b7  rb/a5_compare.txt
+    ed8cb6a5702a39c5c6c30534104fa085e207c0845b8e2ea5cfc8f98eb9ce9ead  rb/a6_compare.txt
+    d4b5a7ed266d2ad301954d5467f5d4f76f0654f4a5eb4a5f43b3cbed82034be4  rb/evalrows_compare.txt
+    a0ce1075f4a4a2bb807bdaeddadaa5b8c8774ac29bf4e8fef68081fa2ef90f3c  equiv/compare_base_vs_head_off.txt
+    76359c45d0c2076b297c0cfe86d90a466344f04f0eb6b20365031d2a5cf5d7b3  vp2d1/vp2_part_a.out
+    bf93690afb80790b40bce75da834f82e808253231bf2251e7306f3a29652d1b7  vp2d1/vp2_record.json
+    0003808cdf61c86259771a428b1a871c366d53b2cf61a30ac39bca9322f22dc2  vp2d1/d1.out
+    7db08fa80c4578c7aa6ea11a5ed7369aa636b281298944111aae450ce8dd4482  lint/mypy_nosb3_fixed.txt
+    2535200a93b286365332e9716e62bccf19a0ef335a1d274024994b2c9a8267e0  /home/user/work/pc_study/tools/dry/vp3.out
+
+VERDICTS (CONFIRMED-FIXED / CONFIRMED-NOT-FIXED with the reason / REJECTED with evidence)
+CODE CHECK
+- m1 CONFIRMED-FIXED. [measured] Reproduced on da7e0b92: CI's lint-job view (mypy 2.3.1 with a no-SB3 python, only
+  numpy/gymnasium/cloudpickle/farama/typing_extensions) reports exactly the two [no-any-return] errors at
+  critic_phase_ppo.py:276 and :285, exit 1 (fixer/lint/mypy_nosb3_da7e0b92.txt). Fix: commit e4d222bb types the two
+  locals as proposed. After: no-SB3 view "Success: no issues found in 418 source files" (lint/mypy_nosb3_fixed.txt),
+  full-venv view the same (mypy_full_fixed.txt), ruff check and ruff format pass (ruff_*_fixed.txt), the 36
+  critic-phase tests pass (suites/cp_tests). HEAD changed, so VP3, the stand-in, the pins and every dry run were redone
+  on e4d222bb (I3 (process)); COLAB_STEPS keeps <HEAD> for the pin step and names e4d222bb as the measured HEAD.
+- i1 CONFIRMED-NOT-FIXED (info; nothing to fix). Re-measured on e4d222bb: equiv_run 2 updates s42 OFF vs 8737cd3d
+  RESULT IDENTICAL (76 arrays, 7 files; equiv/compare_base_vs_head_off.txt); ROUND's V0 (h) digests reproduced
+  (rb/a6_compare.txt); hyperparameters_sha256 OFF = 054ab483 (ST/tools/dry/pins_sc.out).
+- i2 CONFIRMED-NOT-FIXED (info). Re-measured: first rollout ON = OFF bitwise for seeds 60/42/80 (rb/a5_compare.txt);
+  the manipulation check on the new smoke pair: actor |dmu| 0.0 under all five perturbations, critic |dV| > 0
+  (ST/tools/dry/f2dry/.../manip_check.json).
+- i3 CONFIRMED-NOT-FIXED (info, by design). ON vs OFF after 2 updates: 173 differences (equiv/compare_head_off_vs_head_on.txt).
+- i4 CONFIRMED-FIXED (text only; no code change, no resume allowed). The resume note (set CRITIC_PHASE = True again;
+  fact (8) read only after the corrected resume rewrote stage_config.json) is now in criteria RUN HANDLING and in
+  COLAB_STEPS "AFTER A DISCONNECT".
+- i5 CONFIRMED-NOT-FIXED (no change needed now): RUN_ID / RUN_LABEL are filled in the installed ST/COLAB_STEPS.txt
+  (only the builder's superseded draft had placeholders); the launch-check pins are c64211e8 (pins_pc.json); the push
+  and HEAD record are the maintainer's pin step; measuring tools load from the HEAD copy (criteria MEASUREMENT).
+- i6 CONFIRMED-NOT-FIXED (info). Re-run on e4d222bb: see CHECKS (suites).
+- i7 CONFIRMED-NOT-FIXED: no CUDA here; nothing to change; the first evaluation at 131,072 on Colab is the first
+  GPU evidence (COLAB_STEPS step 7, cell 15).
+- i8 CONFIRMED-NOT-FIXED: 6 of 6 branch commits since 8737cd3d now carry the model-named trailer (the fixer's too, per
+  the session's harness rule; see WHAT CHANGED). Rewording would rewrite earlier commits, which the fixer may not do;
+  the maintainer may reword before the push (then re-pin).
+- i9 CONFIRMED-NOT-FIXED (none needed). WT `git status --porcelain --ignored`: 0 entries after the fixer's work (every
+  fixer test run set PYTHONDONTWRITEBYTECODE and -B).
+
+DESIGN REVIEW
+- D1 CONFIRMED-FIXED. [measured] criteria 265-267 ran M3 only on s80's own pair; a refused M3 at the final is GATE FAIL
+  and never rerun (complete_r10round.py 572-586; measure_r10round.py 64-66, 135-139). VP1 now also requires M3 on the
+  zero-column widened s80 pair saved by HEAD's save path to give the round's s80 certificate (during the runs, ~33
+  CPU-min), and the loader alone was run now: d1.out (1000 of 1000 predictions equal; HEAD's own phase zip loads).
+- D2 CONFIRMED-FIXED. (a) rollbuf.py on e4d222bb, switch OFF: all of ROUND l.780-793's digests for seeds 60/42/80 and
+  s42 rollouts 17 and 33 reproduced (rb/a6_compare.txt); switch ON for A5: bitwise (rb/a5_compare.txt). (b) eval
+  rows ON = OFF for the same actor, 194 columns (rb/evalrows_compare.txt). (c) VP0 now runs the suites with PYTHONPATH
+  set to the repo, so only the environment-free failures count: see CHECKS (suites).
+- D3 CONFIRMED-FIXED. [measured] pc_common A site had no count (line 204). Now A needs >= 5 over-bar rows naming a in
+  one of the alarm's two evaluations (pc_common.A_SITE_MIN_ROWS; criteria HABIT ELSEWHERE); STANCE6 unchanged (s80
+  neck L, A, T, D; s60/s42 FREE; ST/tools/dry/comparators_recomputed.out, standin 25/25). The T-site asymmetry is
+  stated in KNOWN LIMITS. Tests: test_habit_a_site_needs_five_rows_in_one_evaluation; mutant M27 killed.
+- D4 CONFIRMED-FIXED. Lines 4 and 5 print ", WITH A DRIVEN TAIL (<actuator> MEAN_a <value> IN s<seed>)" for every
+  DRIVEN tail actuator (ROUND's classes unchanged; it moves no line). Test + mutant M29.
+- D5 CONFIRMED-FIXED. (a) line 4 carries ROUND's gate label and "CONSISTENT WITH THE PHASE CRITIC REMOVING THE HABIT,
+  NOT CONFIRMATORY"; the per-run table labels GATE; (b) the weak basis reads "if the phase critic removed the habit
+  ... (ROUND's EVID figures)"; (c) THE ONE TEST prints the 0.154339 equivalence and "2 windows looked at: a strict
+  bound of 2/20"; (d) lines 3-5 print the plug-in no-RAIL chances 0.296 / 0.216 [model]. Tests + mutants M30, M31.
+- D6 CONFIRMED-FIXED. Four tests added (line 2 before line 3; ledger basis before PRESENCE; T at a J-only label; a
+  STOPPED COMPLETE run at +infinity, p 20/20). The four mutants R4, R7, R11, R12 (as M23-M26) are now killed; 31 of 31
+  mutants killed (tests_out/mutate_pc.log).
+- I1 (design) CONFIRMED-FIXED. one_test sums Fractions of the floats (exact); the text says so. Near-tie test (2000
+  random near ties against a Fraction oracle, and one-ulp-below-s80 cases reading k = 1); mutant M28 (fsum) killed.
+- I2 (design) CONFIRMED-FIXED. [measured] [0.01, 0.02, 0.7] -> 6/20, [0.1, 0.12, 0.9] -> 8/20, [0.01, 0.02, 0.5] -> 3/20
+  (scratch/i2_check.txt). DESIGN_NOTES 2.4 and THE ONE TEST now say only 1/20 depends on placement alone
+  (comparators.out itself is a pinned output and is left as written).
+- I3 (design) CONFIRMED-FIXED. The caveat line and KNOWN LIMITS state the partial pairing (A5 shown bitwise for all
+  three seeds), that seed effects make the unpaired test conservative, and that same-seed pairs are printed, report
+  only (the per-run table already prints STANCE6's same seed beside each run).
+- I4 (design) CONFIRMED-NOT-FIXED: the maintainer's choice. [measured] stance6 s42 provenance dependency_versions has
+  no torch; device null; the notebook prints no torch/CUDA. KNOWN LIMITS now says so and names the optional concurrent
+  switch-OFF s42 control (about 15.5 L4-hours, report only) for the maintainer's confirmation; no notebook change.
+- I5 (design) CONFIRMED-FIXED. (iii) is now an interface check (the critic's observation-6 input weights not all zero);
+  the dV response is printed, report only (manip_check.py, criteria). New smoke pair: 512 nonzero weights, dV 0.045
+  (report only). Tests: test_iii_is_an_interface_check_not_a_response_check; the zeroed-column test still fails (iii).
+- I6 (design) CONFIRMED-FIXED. SUBST and line 4 state "g = 3 and hs = 0, stricter than ROUND's G+ >= 2 (l.323)"; Q1
+  states "a RAIL on any tail actuator 11-14 counts, as ROUND".
+
+PROCESS REVIEW
+- P1 CONFIRMED-FIXED. VP2 run on e4d222bb: test_curriculum_k3_panel.py 23/23; the widened-pair panel equals the
+  original's, 40/40 rows bitwise (vp2d1/vp2_part_a.out); v7_failed_on_head = false filled from that record
+  (make_pins_pc.py --vp2); K3_PANEL stays True. VP0's eval-row clause measured as worded (rb/evalrows_compare.txt).
+- P2 CONFIRMED-FIXED. [measured] the reviewer's 28 = 25 + the 3 test_refusals_come_before_the_run ids, which need the
+  package on the subprocess's path. VP0 now runs the suites with PYTHONPATH = the repo: see CHECKS (suites).
+- P3 CONFIRMED-FIXED (procedure; not executed by the fixer). [measured] `git branch -vv`: tracking
+  origin/claude/screen-trex-r10-armltsb, push.default unset. The pin step 3 (b) and COLAB_STEPS now say: unset the
+  upstream, push with the explicit refspec (real git objects, never API uploads), check ls-remote (phasecritic =
+  HEAD, armltsb still 8737cd3d), record both. The fixer did not run --unset-upstream: in a worktree it writes the main
+  checkout's .git/config, which the fixer's rules forbid.
+- I1 (process) CONFIRMED-NOT-FIXED (no fix). Re-supported: the new smoke bundle passes C4 (p) and C8 (ST/tools/dry/f2dry.out).
+- I2 (process) CONFIRMED-NOT-FIXED (no fix). Re-supported: the eval ledger header is the same 194 columns ON and OFF.
+- I3 (process) CONFIRMED-FIXED (m1 applied before APPROVED, and the re-pin it requires was done: VP3, stand-in,
+  pins_pc.json, criteria PINS, f2dry and VP4 re-run on e4d222bb). [measured] python-ci.yml triggers push only on main.
+- I4 (process) CONFIRMED-NOT-FIXED: see i8.
+- I5 (process) CONFIRMED-FIXED: the FREEZE rule (no push to the branch from the push until all three launch checks
+  read no-fault) is in COLAB_STEPS and the pin step 3 (b).
+- I6 (process) CONFIRMED-NOT-FIXED for the rule (CHOICE RESUME stays the maintainer's; no resume in v1); the
+  conditional text it asks for (set CRITIC_PHASE = True again before the RESUME cell) is added (see i4).
+- I7 (process) CONFIRMED-FIXED: ST/build/COLAB_STEPS.txt now opens with a SUPERSEDED line naming ST/COLAB_STEPS.txt.
+- I8 (process) CONFIRMED-NOT-FIXED (none needed). The fixer's own side effects: none outside ST/review/fixer, WT and the
+  ST files named; /tmp eval_stage1_* count unchanged at 834.
+
+THE FIXER'S OWN SLIPS (self-reported; cmdlog.txt lines with "RULE SLIP")
+- 00:19 UTC: a read-only `cat` redirected its stderr to the null device. Nothing written.
+- 00:40 UTC: a stray, meaningless pipeline in one command read the zero device and a nonexistent file, output discarded.
+  Nothing written.
+- vp2_d1_check.py part (b) first raised (my emulated save lacked new_model_kwargs' policy_kwargs: a harness error, not a
+  code fault); d1_loader_check.py redid it with the full emulation and passed. f2dry.py first ran with a relative copy
+  path, so manip_check refused (no seal found from its cwd); rerun with the absolute path passed.
+- Not executed, by rule: `git branch --unset-upstream` (P3) writes the main checkout's .git/config (a worktree shares
+  it), which my rules forbid; it is written into the pin step instead.
+- Every run set TMPDIR inside ST/review/fixer; /tmp holds the same 834 eval_stage1_* folders as before (none new).

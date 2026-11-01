@@ -1,0 +1,177 @@
+[
+ {
+  "check": "B0 deploy load: policy class and spaces",
+  "pass": true,
+  "detail": "CriticPhaseActorCriticPolicy"
+ },
+ {
+  "check": "B0 checkpoint record",
+  "pass": true,
+  "detail": "{'schema': 'mesozoic.critic-phase/v1', 'features': ['ramp', 'settled', 'discount'], 'settle_steps': 200, 'gamma': 0.98, 'width': 3, 'step_counter': \"the env's _step_count when the observation was made (0 at reset)\", 'input': \"the critic's only: appended after the normalized observation, never normalized\"}"
+ },
+ {
+  "check": "B1 critic learned the phase: phase columns nonzero after 2 updates",
+  "pass": true,
+  "detail": "0.00021568353986367583"
+ },
+ {
+  "check": "B1 loaded params = the trained model's final params bitwise",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 actor on 63-wide obs = actor on 66-wide obs (bitwise)",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=zeros: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=zeros: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=ones: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=ones: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=uniform: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=uniform: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=+1e6: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=+1e6: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=-1e6: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=-1e6: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=nan: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=nan: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=inf: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=inf: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=shuffled: get_distribution/evaluate_actions log_prob+entropy/forward/predict actor outputs bitwise unchanged",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B2 phase=shuffled: critic value changes",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B3 d(log_prob+entropy)/d(phase) exactly 0; d/d(obs) nonzero",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B3 d(value)/d(phase) nonzero (critic reads it)",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B4 mirror map: phase columns 63,64,65 map to themselves with sign +1; obs part = the T. rex map",
+  "pass": true,
+  "detail": "[60 61 62 63 64 65]"
+ },
+ {
+  "check": "B4 mirrored phase = phase",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "B5 mirror KL loss and asymmetry identical whatever the phase; d(KL)/d(phase) = 0",
+  "pass": true,
+  "detail": "(0.006548527628183365, 0.006861316505819559, np.False_)"
+ },
+ {
+  "check": "B5 mirrored critic loss reads the phase (changes with it)",
+  "pass": true,
+  "detail": "(1.2573708295822144, 1.257078766822815)"
+ },
+ {
+  "check": "C0 run sidecar is exactly VecNormalize with 63-wide obs_rms",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "C1 deterministic evaluation episode: phase model = stock clone = phase-randomised twin; K3 forward_actor twin equal",
+  "pass": true,
+  "detail": "steps 1000, mismatches 0, raw return 4479.80"
+ },
+ {
+  "check": "C2 K3 panel twin (type(policy)(**_get_constructor_parameters())) loads and matches",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "C3 predict_values on a 63-wide obs refused",
+  "pass": true,
+  "detail": "CriticPhaseError"
+ },
+ {
+  "check": "D1 probe row 0: bank values = critic(obs, phi(kept step + 1)) (max abs diff)",
+  "pass": true,
+  "detail": "4.6193599700927734e-07"
+ },
+ {
+  "check": "D1 probe row 0: bank actions = actor(obs) (max abs diff)",
+  "pass": true,
+  "detail": "6.984919309616089e-09"
+ },
+ {
+  "check": "D1 probe row 1: bank values = critic(obs, phi(kept step + 1)) (max abs diff)",
+  "pass": true,
+  "detail": "1.7881393432617188e-07"
+ },
+ {
+  "check": "D1 probe row 1: bank actions = actor(obs) (max abs diff)",
+  "pass": true,
+  "detail": "4.190951585769653e-09"
+ }
+]

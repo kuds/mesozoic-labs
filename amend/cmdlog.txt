@@ -1,0 +1,37 @@
+2026-11-01T01:24:46Z  AMENDMENT EDITOR start (workflow wf_ab0237b7-d06). Writes only under ST=/home/user/work/pc_study; never WT/S1/S2/main checkout; no training, no push, no network writes.
+2026-11-01T01:24:46Z  cp -p of 17 files to amend/orig/ and sha256sum -> amend/before.txt; orig copies byte-equal [measured]
+2026-11-01T01:25:12Z  PY -I -B amend/tools/names_check_off.py > amend/names_check_off.out (read-only greps of RUNLOG and folders.json)
+2026-11-01T01:27:41Z  PY -I -B amend/tools/amend_pins.py (first fill of off_arm; tool_sha256 refreshed again at the end)
+2026-11-01T01:37:27Z  tests: PY -I -B -m pytest test_score_pc.py -> 60 passed; test_manip_pc.py -> 7 skipped (measuring copy and smoke pair deleted after the fixer's run; manip_check.py unchanged)
+2026-11-01T01:37:27Z  start: nice PY -I -B tools/mutate_pc.py --work amend/dry/mut --log amend/dry/mutate_pc.log (background)
+2026-11-01T01:39:15Z  git --no-optional-locks -C WT rev-parse HEAD -> 1dfe2327f773007fa7fd68460dc0c53740936ff9 (read only); PY -I -B tools/vp3_dryrun.py --out amend/dry/vp3 --head 1dfe2327f773007fa7fd68460dc0c53740936ff9 > amend/dry/vp3.out
+2026-11-01T01:39:25Z  PY -I -B tools/standin_s6.py --as pc --out amend/dry/standin_pc
+2026-11-01T01:39:30Z  PY -I -B tools/standin_s6.py --as off --out amend/dry/standin_off
+2026-11-01T01:43:15Z  df -h / -> 3.6G available (252G size, 91% used)
+2026-11-01T01:43:41Z  criteria.txt restored from amend/orig (re-reviewed bytes) and amend/tools/amend_texts.py criteria re-applied (wrap fixes)
+2026-11-01T01:43:59Z  criteria.txt restored from amend/orig and amend_texts.py criteria re-applied (two more wrap fixes)
+2026-11-01T01:46:24Z  COLAB_STEPS.txt restored from amend/orig and amend/tools/amend_texts.py colab applied
+2026-11-01T01:46:40Z  COLAB_STEPS.txt restored from amend/orig and amend_texts.py colab re-applied (wrap)
+2026-11-01T01:47:11Z  read-only: ST/old_trees.txt vs ST/new_trees.txt tree columns 6 of 6 same; git --no-optional-locks -C WT rev-parse HEAD^{tree} -> d834d833 (= e4d222bb's tree)
+2026-11-01T01:47:11Z  COLAB_STEPS.txt restored from amend/orig and amend_texts.py colab re-applied (HEAD note, wraps)
+2026-11-01T01:47:27Z  COLAB_STEPS.txt restored and amend_texts.py colab re-applied (F2 wrap)
+2026-11-01T01:48:13Z  PY -I -B amend/tools/amend_texts.py design (DESIGN_NOTES section 9 + 4 superseded markers)
+2026-11-01T01:48:32Z  DESIGN_NOTES.txt restored from amend/orig and amend_texts.py design re-applied (wraps)
+2026-11-01T01:49:24Z  names_check_off.py lint fix (regex hoisted; same checks); re-run -> names_check_off.out: RUNLOG now 876 lines (line 876 added 01:41:53 UTC by the coordinator: the maintainer's 'Phase first' waves; it names no off RUN_ID); every other output line identical to the first run
+2026-11-01T01:49:24Z  ruff check --no-cache --config WT/pyproject.toml on every changed .py and amend/tools -> amend/dry/ruff.log: only measure_r10round.py I001 (import order), present in the re-reviewed file too (amend/orig); amend/tools all clean after the fix
+2026-11-01T01:49:43Z  criteria.txt and COLAB_STEPS.txt restored from amend/orig and re-applied (wave-confound sentence in KNOWN LIMITS; the three-session two-wave example in THE ORDER, after RUNLOG line 876)
+2026-11-01T01:50:04Z  PY -I -B amend/tools/amend_pins.py (tool_sha256 refreshed from the final pc/*.py); --check: equal
+2026-11-01T01:50:42Z  PY -I -B amend/tools/refill_pins.py (criteria PINS block refilled from files; --check equal)
+2026-11-01T01:50:54Z  refill_pins.py re-run (off-pins line wrapped); --check equal
+2026-11-01T01:51:31Z  final: PY -I -B -m pytest -v test_score_pc.py and test_manip_pc.py -> amend/dry/pytest_*.log (basetemp under amend/dry, deleted after)
+2026-11-01T01:52:06Z  diff -u amend/orig/<f> <f> -> amend/diffs/<f with / as _>.diff for the 17 files
+2026-11-01T01:52:55Z  criteria.txt restored from amend/orig; amend_texts.py criteria (RUN HANDLING rows for OFF runs, rewrap) + refill_pins.py; --check equal
+2026-11-01T01:53:13Z  criteria.txt restored from amend/orig; amend_texts.py criteria (rewrap) + refill_pins.py; --check equal
+2026-11-01T01:54:58Z  ruff (final) -> amend/dry/ruff.log
+2026-11-01T01:55:25Z  RECORDED AFTER THE FACT (from file mtimes, date -u -r): the tool edits were exact-string replacements made by PY -I -B scripts (heredocs; each old text asserted to occur once) or the Edit tool: tools/pc/r10round_common.py (first 01:26, last 01:31:27), complete_r10round.py 01:27:12, pc_common.py 01:30:10, score_pc.py 01:32:05, measure_r10round.py and r10m_common.py 01:32:34, tests/synth_pc.py 01:33:39, tests/test_score_pc.py 01:35:37, mutate_pc.py 01:37:15, standin_s6.py 01:37:53, vp3_dryrun.py 01:38:35, smoke_pc.py and f2dry.py 01:39:06; no pc/*.py or tests/*.py changed after the mutation run started (01:37:27), so the mutation, VP3, stand-in and final pytest runs read the final tools [measured, mtimes]
+2026-11-01T01:55:25Z  RECORDED AFTER THE FACT: mutate_pc.py finished 2026-11-01T01:44:15Z: KILLED 44 of 44, exit 0 (amend/dry/mutate_pc.log, mutate_pc.stdout); the work copies amend/dry/mut deleted by the tool
+2026-11-01T01:55:25Z  RECORDED AFTER THE FACT: the first application of amend_texts.py criteria (about 01:41-01:42, not logged at the time) was superseded: every later application starts from amend/orig/criteria.txt (sha256 checked by the tool)
+2026-11-01T01:55:37Z  reproducibility: amend_texts.apply on amend/orig + refill_pins.block reproduces criteria.txt, COLAB_STEPS.txt and DESIGN_NOTES.txt byte for byte (in memory, nothing written)
+2026-11-01T01:55:47Z  diffs regenerated (final) -> amend/diffs/
+2026-11-01T01:55:53Z  sha256sum of the 17 changed files and of the amendment's own files -> amend/after.txt
+2026-11-01T01:56:04Z  after.txt rewritten without cmdlog.txt (it is appended to after after.txt is written); final entry

@@ -1,0 +1,14 @@
+--- DESIGN_NOTES.txt (reviewed)
++++ DESIGN_NOTES.txt (fixed)
+@@ -96,7 +96,10 @@
+          [measured, comparators.out "Fisher" lines].
+    2.4 The exact 3-vs-3 permutation test: used once, on one continuous statistic, as THE ONE TEST.
+        - It splits the 6 values 3 + 3 in C(6,3) = 20 ways, so the smallest p is 1/20 = 0.05, reached only by complete
+-         separation [measured, comparators.out: the placements give 1/20, 1/10, 3/10, 7/10 and 1].
++         separation [measured, comparators.out: the placements tried there give 1/20, 1/10, 3/10, 7/10 and 1].
++         Only 1/20 depends on the placement alone (complete separation); for a sum statistic every other p
++         depends on the magnitudes too: with the same placement [0.01, 0.02, 0.7] gives 6/20 and [0.1, 0.12, 0.9]
++         gives 8/20 (fixer 2026-11-01, review I2 [measured, ST/review/fixer/scratch/i2_check.txt]).
+        - Why use it at all. It is the only analysis in this design that can say "lower than every comparator" with an
+          exact error rate under exchangeability. Fixing it now, on one statistic, blocks choosing among the many
+          report-only measures after the data. That forking is the main risk of a 3-vs-3 historical design.

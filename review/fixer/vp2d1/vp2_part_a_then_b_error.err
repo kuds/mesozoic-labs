@@ -1,0 +1,33 @@
+Traceback (most recent call last):
+  File "/home/user/work/pc_study/review/fixer/tools/vp2_d1_check.py", line 69, in <module>
+    pred_w, desc_w = SR._load_policy(str(zp), str(paths[1]), factory, plant_identity=ident)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/work/pc_study/tools/dry/copy_head/environments/shared/reporting/stance_report.py", line 160, in _load_policy
+    model, normalizer, vecnorm_path = load_sb3_checkpoint(
+                                      ~~~~~~~~~~~~~~~~~~~^
+        model_path,
+        ^^^^^^^^^^^
+    ...<5 lines>...
+        allow_legacy_plant=allow_legacy_plant,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/user/work/pc_study/tools/dry/copy_head/environments/shared/policy_loading.py", line 689, in load_sb3_checkpoint
+    model = load_sb3_model(model_path, device="cpu")
+  File "/home/user/work/pc_study/tools/dry/copy_head/environments/shared/policy_loading.py", line 562, in load_sb3_model
+    return alg_cls.load(model_path, env=env, custom_objects=custom, **load_kwargs)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/lib/python3.13/site-packages/stable_baselines3/common/base_class.py", line 740, in load
+    model._setup_model()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/lib/python3.13/site-packages/stable_baselines3/ppo/ppo.py", line 174, in _setup_model
+    super()._setup_model()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/lib/python3.13/site-packages/stable_baselines3/common/on_policy_algorithm.py", line 135, in _setup_model
+    self.policy = self.policy_class(  # type: ignore[assignment]
+                  ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.observation_space, self.action_space, self.lr_schedule, use_sde=self.use_sde, **self.policy_kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+TypeError: CriticPhaseActorCriticPolicy.__init__() missing 2 required keyword-only arguments: 'critic_phase_settle_steps' and 'critic_phase_gamma'

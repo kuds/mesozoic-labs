@@ -1,0 +1,18 @@
+PASS A0 training env class
+PASS A0 observation_space stays 63
+PASS A1 reset obs 66 wide, first 63 = stock VecNormalize bitwise
+PASS A1 reset phase = phi(0)  [[0.         0.         0.01758795]]
+PASS A2 every step: obs[:63], rewards, dones bitwise = stock VecNormalize (1120 steps x 2 envs)  [0]
+PASS A2 every non-final step: phase = phi(info['step'])  [0]
+PASS A3 settled first 1 at k = 200  [200]
+first nonzero step of reward terms paid late: {"reward_bilateral_support": 3, "reward_floor_impact": 4, "reward_speed": 5, "reward_nosedive": 15, "reward_stance_width": 201, "reward_lateral_lean": 201, "reward_stance_stagger": 201}
+reward terms paid from step 1: ['reward_alive', 'reward_drift', 'reward_foot_flatness', 'reward_foot_load_balance', 'reward_head_clearance', 'reward_heading', 'reward_height', 'reward_leg_home_pose', 'reward_neck_posture', 'reward_posture', 'reward_spin', 'reward_tail', 'reward_tail_home_pose', 'reward_total']
+PASS A3 the settle-gated terms (base_env.py 1315/1339/1421 gates) first paid at info step 201, none before  [{'reward_stance_width': 201, 'reward_lateral_lean': 201, 'reward_stance_stagger': 201, 'reward_stance_cop_band': None}]
+PASS A4 truncation at k=1000 with TimeLimit.truncated, terminal phase phi(1000)=(1,1,1), next obs phi(0)  [[(0, 1000, True, [1.0, 1.0, 1.0], [0.0, 0.0, 0.017587946727871895]), (1, 1000, True, [1.0, 1.0, 1.0], [0.0, 0.0, 0.017587946727871895])]]
+PASS A4 terminal observations' phase and obs[:63] (stock-normalized) right  [0]
+PASS A5 obs_rms stays 63 wide; ret_rms scalar
+PASS A5 obs_rms of the phase env = stock env's bitwise
+PASS A6 phase env's sidecar is byte-identical to the stock env's after the same 1120 steps  [(4347, 4347)]
+PASS A6 sidecar unpickles as exactly VecNormalize, no critic attrs
+PASS A7 normalize_obs clips the observation only (63 wide) at clip_obs
+TOTAL 15 FAILED 0

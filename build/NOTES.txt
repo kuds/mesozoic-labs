@@ -1,0 +1,140 @@
+2026-10-31 20:57:18 UTC  build agent start; mkdir ST/build
+2026-10-31 21:12:32 UTC  exported 8737cd3d (git archive) to ST/build/base_tree; wrote tools/run_suite.sh, tools/junit_failed.py
+2026-10-31 21:12:46 UTC  started baseline suites in background: shared then T. rex, base_tree (8737cd3d), nice 10, OMP 1 -> ST/build/suites/base_shared, base_trex
+2026-10-31 21:23:01 UTC  first run of new tests
+2026-10-31 21:24:30 UTC  equiv_run.py base_tree (8737cd3d) -> equiv/base
+2026-10-31 21:24:55 UTC  equiv_run.py WT (uncommitted feature) off -> equiv/wt_off; on -> equiv/wt_on
+2026-10-31 21:29:05 UTC  re-ran equiv_run WT off/on after the zero-column critic widening
+2026-10-31 21:36:10 UTC  commit 1 (feature): 3bde30469c5f8f9b62bb510f6099121d5203dd20
+2026-10-31 21:36:24 UTC  commit 2 (tests + CI list): d783651484c328c2c540c4c2b7e5458db22bb3cc
+2026-10-31 21:36:33 UTC  commit 3 (notebook): f0bb1c6e1f579586597463d695f4362afed3ca33
+2026-10-31 21:37:50 UTC  smoke_notebook.py (WT f0bb1c6e, CRITIC_PHASE True) -> smoke/ (log smoke/smoke.log)
+2026-10-31 21:38:31 UTC  cleanup: removed scratch/mypy_cache, scratch/pt, scratch/pt2 (disk budget)
+2026-10-31 21:39:58 UTC  mut_tree: git archive HEAD (environments, configs, conftest.py, pyproject.toml) for mutation tests
+2026-10-31 21:40:07 UTC  started tools/mutate.py (12 mutations, mut_tree) -> scratch/mutate.log
+2026-10-31 21:41:54 UTC  smoke session 1 OK (exit 1 at session 2: the script's own sidecar name was wrong, stage1_1024_steps_vecnorm.pkl vs SB3's stage1_vecnormalize_1024_steps.pkl; fixed to use newest_intact_periodic_pair as the RESUME cell does); running --resume-only
+2026-10-31 21:43:53 UTC  added test_the_trainer_wires_the_switch_end_to_end; re-running mutation M12 with it (mut_tree test file updated)
+2026-10-31 21:44:24 UTC  commit 4 (end-to-end wiring test): 540f3e97667e545cd38beee0b6d76b2c536c38af
+2026-10-31 21:44:50 UTC  equiv_run on WT HEAD 540f3e97667e545cd38beee0b6d76b2c536c38af (clean tree) off/on
+2026-10-31 21:45:32 UTC  baseline done: shared {passed 6343, failed 21, skipped 2}; T. rex {passed 237, failed 7} (base_tree export of 8737cd3d, not a git checkout). Starting after-suites in WT at HEAD 540f3e97667e545cd38beee0b6d76b2c536c38af
+2026-10-31 21:46:12 UTC  cleanup after recording: removed mut_tree, smoke/run, equiv/{base,wt_off,wt_on} (run dirs and dumps), scratch tmp; kept logs and comparison outputs
+2026-10-31 21:46:31 UTC  BACKFILL (commands run between 21:15 and 21:45 UTC, logged now; results are the recorded outputs):
+  - T. rex env timing/gate check (python -I -B -c, WT): 260 zero-action steps 0.40 s; info['step'] == env._step_count == i+1 every step;
+    reward_stance_width / reward_stance_stagger are 0.0 at info step 199 and 200 and nonzero at 201 [measured].
+  - ruff check / ruff format --check environments/ (venv ruff 0.16.9, --no-cache after the first run; the first run left
+    WT/.ruff_cache, deleted): All checks passed; 422 files already formatted [measured, final tree].
+  - mypy environments/ --ignore-missing-imports --cache-dir ST/build/scratch/mypy_cache (venv mypy, SB3+torch present):
+    first 6 errors in the two new modules, fixed; then "Success: no issues found in 418 source files" [scratch/mypy_wt.txt].
+  - python -B -m environments.shared.plant_contract --check -> "Plant manifest is current"; species_catalog --check ->
+    current; harnesses.digest_snapshot --block-optional-backends --check -> "Digest snapshot is current (649 lines)";
+    symmetry --check -> "Mirror maps are current" [scratch/contract.txt holds the last; all four exit 0].
+  - PS equality (read-only import of PS/tools/bs_hooks.py): phase_tuple(k) == CriticPhaseSpec(200, 0.98).features(k)
+    for k = 0..1100, 0 mismatches; phase_matrix bitwise equal [measured].
+  - hyperparameters_sha256 of the branch's stance config: off sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+    (the round's pin), with critic_phase true sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954 [measured].
+  - new tests, pytest -I -B from WT: 34 then 36 passed (test_critic_phase.py 18, test_critic_phase_ppo.py 18).
+  - quick related tests before committing (notebook cells/pins, retired wording, species names, recovery gate wiring,
+    ci tool pins, mirror_kl_ppo, curriculum_policy_probe, diagnostics): failures only test_ci_tool_pins (my SB3 test file
+    not in the SB3 job: fixed by adding it to python-ci.yml) and two tests in the baseline's own failure list
+    (test_no_stage_config_enables_symmetry, test_the_probe_follows_the_training_ledger_on_the_checkpoint_cadence).
+2026-10-31 21:47:07 UTC  smoke_k3.py (WT HEAD, critic_phase on, K3 panel own-sigma, 1 tiny update) -> smoke_k3/
+2026-10-31 21:47:46 UTC  smoke_k3 result: train() critic_phase on + K3PanelConfig(): MirrorKLPPO/CriticPhaseActorCriticPolicy, 64 steps, 1 update; the K3 panel built its CPU twin (type(policy)(**_get_constructor_parameters())) and rolled the final panel: failure None, session_problem None, own test 20 episodes, 8.7 s [smoke_k3/smoke_k3.log]; outputs deleted
+
+==================================================================================================================
+SUMMARY (code builder, 2026-10-31).  [measured] = cited file/output; [inferred] = reasoning.
+==================================================================================================================
+SWITCH: [ppo] critic_phase = true (absent/false = off; no committed stage sets it, test_no_stage_config_turns_the_
+  critic_phase_on).  Popped from the PPO table like the symmetry keys (train_base._train_stage_body), so stage_config.json
+  records it and hyperparameters_sha256 covers it.  Notebook: CRITIC_PHASE = False in cell 6; cell 9 writes the key into
+  every chain node when True.  CLI: --override ppo.critic_phase=true (cli._cast_value turns "true" into True).
+
+MECHANISM ("critic side input"; environments/shared/critic_phase.py + critic_phase_ppo.py):
+  - phase(k) = (min(k,S)/S, 1[k>=S], gamma**max(0,S-k)), S = the env's own stance_width_settle_steps (read from every
+    env instance, 200), gamma = the stage's PPO gamma (0.98); k = the env's _step_count at the observation (info['step']
+    after step(), 0 after reset).  Bitwise PS's phase_tuple for k = 0..1100 [measured].  Off-by-one checked on the real
+    env: the gated rewards are 0 at info step 199/200 and paid from 201, settled first 1 at k = 200 [measured; test_the_
+    tyrannosaurus_rex_env_s_counter_gates_and_horizon_through_create_vec_env asserts (first_settled, first_paid) == (200, 201)].
+  - CriticPhaseVecNormalize (TRAINING env only): stock normalisation of the 63 values, then 3 raw phase columns appended
+    on reset/step and on every terminal_observation (k = the finished episode's last step => a time-limit truncation
+    bootstraps on phase(1000) = (1,1,1)).  Never normalised (pass-through; justified: bounded [0,1]; running statistics
+    would see `settled` constant 0 until the first episode passes 200 and then normalise 1 to the clip).  observation_space
+    stays 63 (the policy interface); save() writes a stock VecNormalize pickle, byte-identical to the off path's for the
+    same env stream [measured: test_the_sidecar_is_the_stock_vecnormalize_pickle_byte_for_byte].
+  - CriticPhaseRolloutBuffer: PPO's buffer, 66 columns.
+  - CriticPhaseActorCriticPolicy: model observation_space 63; actor first layer (512, 63) reads features[..., :63]
+    (contiguous) on every path; critic first layer (512, 66).  Built exactly as a stock MlpPolicy (same random draws), then
+    the critic's first layer widened with 3 zero columns (no draw): a fresh model is the stock model of its seed plus zero
+    phase columns; on the real stance stage at seed 42 the first rollout's observations, actions, log-probs and values are
+    identical to 8737cd3d's [measured: equiv/first_rollout_on_vs_base.txt].  predict()/obs_to_tensor accept the env's own
+    63-value observation (deploy) and the 66-value training one (bootstrap); a value asked without the phase raises.
+  - MirrorKLPPO: obs perm/sign extended with 63,64,65 / +1 only when the policy has critic_phase_width (0 on stock).
+  - policy probe: bank values on [normalized bank, phase(kept step + 1)]; actions on the bank alone.
+  - diagnostics obs_mean/std/max_abs: the observation's columns only.
+  - train_base: create_vec_env(critic_phase_gamma=...) for the training env only (eval env stock); _create_or_load_model
+    builds the phase model, records mesozoic_critic_phase, and refuses any load (resume or warm start) whose critic reads
+    another phase or none, both ways (critic_phase_mismatch).
+
+OFF-PATH EQUIVALENCE (bitwise vs 8737cd3d):
+  tools/equiv_run.py runs train_base.train exactly as the notebook's train_stage calls it on the real T. rex stance
+  stage (MirrorKLPPO, probe, diagnostics, ledger), n_envs 2, n_steps 256, batch 128, 2 PPO updates (20 epochs), seed 42,
+  once from base_tree (git archive 8737cd3d) and once from WT HEAD 540f3e97 with the switch off;
+  tools/equiv_compare.py: 76 arrays (both rollout buffers' observations, actions, rewards incl. bootstrap, episode
+  starts, values, log-probs, returns, advantages; every parameter and Adam tensor; obs/ret statistics; counters) and 7
+  run files (diagnostics.npz, final zip tensors + data, final vecnorm.pkl bytes, plant_identity.json, policy_probe.npz,
+  task_fingerprint.json, train_episodes.csv) -> RESULT IDENTICAL [measured: equiv/compare_base_vs_wt_off.txt]; masked
+  only: memory addresses in the zip's class reprs, ep_info_buffer wall times, policy_probe bank_build_seconds;
+  stage_config.json differs only in git_commit (export "unknown") and duration_seconds; hyperparameters_sha256 equal.
+  The comparison can fail: WT off vs WT on -> 173 differences [equiv/compare_wt_off_vs_wt_on.txt].
+  In-tree: test_the_switch_off_builds_and_trains_the_stock_model_bitwise, test_the_trainer_wires_the_switch_end_to_end[off].
+
+MUTATIONS: 12 of 12 killed (scratch/mutate.log): actor reading the phase, wrong reset/terminal counters, mirror sign,
+  probe off-by-one, non-zero initial columns, no 66-wide obs_to_tensor, no mismatch refusal, subclass sidecar,
+  normalised phase, settled off-by-one, phase env built with the switch off.
+
+SMOKE through the notebook's own entry (tools/smoke_notebook.py executes the notebook's cells: setup, configuration
+  with CRITIC_PHASE True / tyrannosaurus_rex / stance / seed 42 / N_ENVS 2, resolve, helpers; then train_stage):
+  session 1 train_stage(stance, 1024, evaluate=True): 1 PPO update (n_steps 512), eval at 1024 (10 x 1000-step
+  episodes, 4455.94 +/- 58.68), periodic pair, best/robust/final pairs, evaluate_stage_checkpoints on the final and the
+  selected pair with stock eval envs (mean_reward 4452.24); every zip records mesozoic_critic_phase and observation (63,);
+  every sidecar a stock VecNormalize (63); stage_config hyperparameters.critic_phase true; task_sha256 1e5964b6...
+  (the round's) and plant identity unchanged.  session 2: the RESUME cell's path (newest_intact_periodic_pair, then
+  train_stage(..., load_path, vecnorm_path, task_load_mode="resume_same_stage", evaluate=False)): resumed from
+  stage1_1024_steps, 1 more update, num_timesteps 2048, the policy, spec and record kept [smoke/smoke.log,
+  smoke/smoke_resume.log].  2 PPO updates in all; run outputs deleted after recording.
+  K3 panel (tools/smoke_k3.py): see the line above.
+2026-10-31 21:48:21 UTC  COLAB_STEPS.txt: filled HEAD 540f3e97667e545cd38beee0b6d76b2c536c38af
+2026-10-31 22:00:00 UTC  notes:
+  - mypy was run with SB3 and torch installed (the SB3 job's view): clean.  The lint job runs mypy without them; the new
+    SB3 module follows mirror_kl_ppo.py's pattern (module-level subclasses of SB3 classes, annotated returns), which that
+    job already accepts [inferred, not run without SB3].
+  - Commit trailers: the commits end with "Co-Authored-By: [name removed] <noreply@anthropic.com>" and the
+    Claude-Session line, as this session's harness attribution rule prescribes; the workflow text asked for
+    "Co-Authored-By: Claude <noreply@anthropic.com>" with no model name (the branch's earlier commits use that form).
+    The commits are local and unpushed: the maintainer can reword them before pushing if he wants the branch's form.
+  - Another workflow agent's pytest process (nice 0) shared the CPU during the after-suite (seen in ps at 21:59 UTC).
+2026-10-31 22:18:14 UTC  after-suite at 540f3e97: shared {passed 6373, failed 28, skipped 1}: 7 NEW failures (test_train_base TestCreateOrLoadModel x5, test_resume_continuation TestWarmupMarkerClearedOnResume x2): the off-path load check read model.policy on mock / SimpleNamespace models. Fix: read only the checkpoint record from the instance __dict__ (train_base), the class attribute (mirror_kl_ppo), an isinstance-checked __dict__ entry (policy_probe), isinstance guards (diagnostics). T. rex after {passed 237, failed 7} = base set.
+2026-10-31 22:20:17 UTC  commit 5 (off-path read fix): da7e0b9225b72827c2dc14b94c8094b6e57eb97a; related files re-run: only the 3 baseline failures remain
+2026-10-31 22:20:25 UTC  starting after-suites (round 2) in WT at HEAD da7e0b9225b72827c2dc14b94c8094b6e57eb97a; the 540f3e97 round's comparison kept in suites/compare_shared_540f3e97.txt
+2026-10-31 22:20:35 UTC  equiv round 2: base_tree vs WT HEAD da7e0b9225b72827c2dc14b94c8094b6e57eb97a off and on
+2026-10-31 22:21:40 UTC  equiv round 2 recorded (IDENTICAL; on-vs-off 173 differences; first rollout identical), dumps deleted; mutation round 2 on mut_tree = git archive da7e0b9225b72827c2dc14b94c8094b6e57eb97a
+2026-10-31 22:22:59 UTC  COLAB_STEPS HEAD -> da7e0b9225b72827c2dc14b94c8094b6e57eb97a; mypy (SB3 view) on da7e0b9225b72827c2dc14b94c8094b6e57eb97a: Success: no issues found in 418 source files
+2026-10-31 22:23:04 UTC  mutation round 2 recorded (scratch/mutate_round2.log); mut_tree deleted
+2026-10-31 22:24:39 UTC  contract checks on da7e0b92: see scratch/contract_final.txt (all exit 0 expected)
+2026-10-31 22:52:22 UTC  round-2 suites at da7e0b92: shared {passed 6380, failed 21, skipped 1} vs base {6343, 21, 2}: the same 21 failures, 0 new, 36 new tests passed, base's one extra skip is test_every_species_model_page_is_tracked_by_git (needs a git checkout; base_tree is an archive) which passes in WT. T. rex {237, 7} both, the same 7. Removed base_tree, junit xml files.
+
+2026-10-31 22:52:48 UTC  FINAL STATE
+COMMITS (local branch claude/screen-trex-r10-phasecritic, not pushed; 10 files, +1352 / -5 against 8737cd3d):
+  3bde3046 feature: critic_phase.py, critic_phase_ppo.py, train_base.py, mirror_kl_ppo.py, policy_probe.py, diagnostics.py
+  d7836514 tests: test_critic_phase.py (18), test_critic_phase_ppo.py (16 at that commit), python-ci.yml SB3 step
+  f0bb1c6e notebook: CRITIC_PHASE in cell 6, its application in cell 9
+  540f3e97 tests: test_the_trainer_wires_the_switch_end_to_end [off, on]
+  da7e0b92 fix: off-path load check reads only the checkpoint record (the 7 mock-model failures of the 540f3e97 suite)
+SUITES (CI's two: environments/shared/tests/, environments/tyrannosaurus_rex/tests/; venv python -I -B -m pytest from the tree):
+  before (8737cd3d, git archive): shared 6343 passed / 21 failed / 2 skipped; T. rex 237 / 7 / 0
+  after  (da7e0b92, WT):          shared 6380 passed / 21 failed / 1 skipped; T. rex 237 / 7 / 0
+  -> the same 21 + 7 failures (suites/compare_*.txt), 0 new; the 36 new tests pass.
+ON THE USER'S QUESTION (Colab vs CPU tonight) [inferred]: a fresh 12M-step run per seed is a Colab-scale job -- the
+  stance6 round planned about 14.4-15.4 h per seed on an L4, the three seeds in parallel runtimes; this container's CPU
+  run limit (3 processes) and the phase screen's hours per 1.44M-step continuation make 3 x 12M on CPU a multi-day job.
+  The code for the Colab run is ready behind CRITIC_PHASE (off by default); whether and when to launch is the user's
+  call (the workflow text said the maintainer chose it at 20:55 UTC; this agent saw no such message from the user).

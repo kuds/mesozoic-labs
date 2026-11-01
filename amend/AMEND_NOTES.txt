@@ -1,0 +1,206 @@
+PC AMENDMENT -- SIX RUNS: THE PHASE RUNS AND THREE CONCURRENT SWITCH-OFF RUNS AS THE ONE TEST'S CONTROL
+Written 2026-11-01 (date -u; every command and its time in ST/amend/cmdlog.txt) by the amendment editor of workflow
+wf_ab0237b7-d06 (RUNLOG line 875). Labels: [measured] = read or computed from the named file; [inferred] = reasoned,
+basis named. Nothing was trained, pushed or written outside ST (= /home/user/work/pc_study); WT, S1, S2 and the main
+checkout were only read (WT by git --no-optional-locks rev-parse). A draft for the quick re-review: nothing approved.
+
+0. INPUTS
+ - The re-reviewed study (re-review READY) as it stood at 01:24:46 UTC: every file this amendment changed was copied
+   byte for byte to ST/amend/orig/ first and its sha256 recorded in ST/amend/before.txt (orig copies equal [measured,
+   cmdlog 01:24:46]).
+ - The maintainer's answers, RUNLOG line 874 (01:15:14 UTC) [measured]: NAMES, PUSH (at 1dfe2327), INIT (a), K3 ON,
+   RESUME (a) no resume, ENDS, TEST keep the one test -- all as recommended -- and CONTROL (b) "Add 3 switch-off runs"
+   (6 L4 runs, about 92 L4-hours) with "Make them the test's control (Recommended)": THE ONE TEST compares the phase runs
+   with the concurrent switch-off runs, decided before any data; STANCE6 report only. TOOLS and HDR are not in the two
+   dialogs (recorded as such in DESIGN_NOTES section 9; the text keeps the recommended options).
+ - WT HEAD 1dfe2327f773007fa7fd68460dc0c53740936ff9: the six reworded commits' trees equal the reviewed ones (6 of 6;
+   HEAD^{tree} d834d833 = e4d222bb's) [measured, ST/old_trees.txt, ST/new_trees.txt, git rev-parse].
+ - RUNLOG line 876 (01:41:53 UTC), written by the coordinator while this amendment ran [measured]: the maintainer plans
+   3 runs at a time, "Phase first" (wave 1 the three phase runs, wave 2 the three switch-off runs when wave 1 ends; no
+   phase result opened until every switch-off run has started; the arm confounded with the wave, for KNOWN LIMITS), "to
+   be applied to the amendment after it returns, with an independent check". The amended rules already allow exactly
+   that (THE ORDER's fewer-sessions rule; outcome blindness); two sentences name it (criteria KNOWN LIMITS: the arm
+   confounded with the wave; COLAB_STEPS THE ORDER: the three-session two-wave example). The coordinator's follow-up and
+   independent check still apply.
+
+1. THE QUEUE (task item 1)
+ - Six RUN_IDs: PHASE stance7_r10LTSBpc_s60/_s42/_s80 (CRITIC_PHASE True, labels "r10 LTSB phase-critic s<seed>"), OFF
+   stance7_r10LTSBoff_s60/_s42/_s80 (CRITIC_PHASE False, its default; labels "r10 LTSB switch-off s<seed>"); the same
+   branch, HEAD, notebook link, seeds, K3 settings (sigma key per seed, both arms), schedule and every other setting.
+ - Names check [measured, ST/amend/names_check_off.out; ST/amend/tools/names_check_off.py]: RUNLOG (876 lines): only
+   line 875 (the coordinator's free-form note of this amendment, not a STANCE7 note) contains "LTSBoff"; the labels
+   occur nowhere; the stance6 Drive listing (folders.json, 21 names, last listing 2026-10-27T15:05:40Z complete) holds
+   no equal or prefix-related folder and no "stance7"/"LTSBoff" folder; no prefix relation with the phase RUN_IDs, their
+   _b or the stance6 RUN_IDs (the tools read "<RUN_ID>" and "<RUN_ID>_<x>" as the run's); the token pattern reads all
+   twelve names (six, and their _b) and the arm by prefix is unambiguous.
+ - Replication, report only: with the switch OFF the code equals 8737cd3d bitwise (A6, measured by the fixer on CPU),
+   so the OFF runs replicate stance6's configuration on today's Colab image. The criteria say so (A6, REPORT ONLY's
+   OFF-vs-STANCE6 block) and the scorer prints the block (pc_common.replication).
+
+2. THE ONE TEST (task item 2)
+ - Statistic unchanged (TD: the whole-run mean of |CMD_L|); the comparator is now the 3 OFF runs: the exact one-sided
+   3-vs-3 permutation test over 20 splits, phase LOWER, ties against H1, minimum p 1/20, alpha 0.05; LOWER only on
+   complete separation (every phase TD below every OFF TD). Text "LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact
+   permutation p = 1/20)" or "NOT SEPARATED (p = k/20)".
+ - MISSING against H1: a phase seed without a COMPLETE and FINISHED run enters at +infinity (highest rank); an OFF seed
+   likewise at -infinity (lowest rank), and so does an OFF run that is not blind (section 4). Why a rule for sums with
+   infinities was needed: the reviewed rule had only one side missing (+infinity on fixed finite comparators, so every
+   split holding it "tied" and p was 20/20); with both sides able to miss, +inf and -inf can meet in one split. The
+   amended order is the limit of +M / -M for a large M: a 3-sum is (number of +inf minus number of -inf, exact finite
+   sum), compared lexicographically. Consequence [measured, tests]: any missing run gives k >= 11 (never LOWER); one
+   missing phase run on otherwise separated values reads 11/20 where the reviewed rule read 20/20 -- both NOT
+   SEPARATED, the only reading that decides anything (LOWER) is unchanged. Checked against an independent +M/-M
+   Fraction oracle on 400 random mixes (test_one_test_missing_ranks_against_an_oracle) and refused for wrong-side
+   infinities or NaN.
+ - Honesty line (criteria, scorer note): TD's form was chosen with STANCE6's values in view (2 windows looked at); the
+   six runs' values, the OFF runs' included, are unseen at the pin. The reviewed "strict bound of 2/20" sentence is
+   dropped: it bounded a choice made on the comparators' own values; the test data are now new runs, so the choice is
+   fixed before its data [inferred].
+ - Caveat line rewritten: concurrent control, exchangeability assumed up to seed effects (each phase run and its
+   same-seed OFF run start from the same network, A5 measured: the first rollout bitwise switch ON vs OFF), a positive
+   within-seed dependence making the unpaired test conservative [inferred: a shared start can only add a shared
+   component]; GPU nondeterminism within today's image remains. The paired sign test still cannot go below 1/8.
+ - STANCE6 report only everywhere it was a comparator: THE COMPARATORS section renamed "STANCE6, REPORT ONLY"; the
+   test's stance6_report_only TDs printed beside; Statistic A beside; per seed beside; the line-1 first TAIL ALARM
+   beside the same-seed OFF run's (STANCE6 s42's 3,932,160 kept in the STANCE6 block); the no-RAIL chance at the OFF
+   runs' rail share with STANCE6's and r9's beside; a STANCE6 input that cannot be read is printed and holds nothing
+   open (before: INCOMPLETE and PROVISIONAL) -- it decides nothing, so it cannot hold the reading.
+
+3. THE READING (task item 3)
+ - The line is the PHASE runs' alone, the per-run classes (TAIL, GATE, HABIT ELSEWHERE) exactly as reviewed
+   (pc_common.reading's line logic unchanged; every reviewed mutant on it still killed).
+ - Printed beside every line: "CONCURRENT SWITCH-OFF RUNS (printed beside; they decide no line): TAIL RAIL in r (PRESENCE
+   n), PARKED in p, GATE PASS in g, SATURATING habit elsewhere in hs, DRIVE ONLY in hd, of 3; u not read" (arm_counts);
+   the per-run table puts each phase run beside its same-seed OFF run and STANCE6's same seed; the OFF runs get their own
+   table; the OFF-vs-STANCE6 replication block (report only).
+ - Line texts that named STANCE6 as the comparator now name the OFF runs: the suffix "(descriptive: 3 phase-critic
+   runs beside 3 concurrent switch-off runs; KNOWN LIMITS)"; line 1's first TAIL ALARM beside the same-seed OFF run's;
+   lines 3-5's plug-in chance "(1 - r_off/n_off)^3 at the concurrent switch-off runs' r_off of n_off" with STANCE6's
+   0.296 and r9's 0.216 beside (not formed when no OFF run is read). Line heads 1-5 are unchanged.
+ - KNOWN LIMITS: the historical-control item becomes a report-only note on STANCE6; new item: what the concurrent OFF
+   runs remove (the code commit, the date / image within the start gaps, the notebook path and the K3 setting as
+   differences between the test's arms) and what they do not (GPU nondeterminism within today's image; 3 vs 3 still
+   reaches only p = 1/20; image or hardware changes between staggered starts; with the phase runs first and the OFF runs
+   in a later wave the arm is confounded with the wave; exchangeability up to seed effects); LOST: a missing run of
+   either arm removes the chance of 1/20.
+
+4. RUN HANDLING (task item 4)
+ - Each of the six runs on its own: all or nothing, no resume, its own launch check within 60 min, one _b by
+   REPLACEMENT within 2 h of its own LAUNCH line (score_pc.seed_run per arm: the round's clauses unchanged).
+ - Order: interleaved by seed (PHASE s60, OFF s60, PHASE s42, OFF s42, PHASE s80, OFF s80) when six sessions run at
+   once; with fewer, the three PHASE runs first, then the OFF runs in seed order as sessions free.
+ - Outcome blindness: every OFF run starts before any PHASE run's results are opened. Machine-read openings: the
+   earliest F2-START, REFETCH-START or SNAPSHOT line of a PHASE RUN_ID. New RUNLOG kind SNAPSHOT for any report-only
+   look at a run's results (allowed only after every OFF LAUNCH line); it is read wherever it stands (added to
+   AFTER_F2_KINDS, so a late-written SNAPSHOT is never dropped). Consequence of a violation: that OFF run is NOT BLIND,
+   its classes are printed, and it enters THE ONE TEST as missing (-infinity): against H1, like every missing rule
+   [inferred: a control started after the treatment's results were seen cannot support H1]. Not machine-read (stated
+   as a rule in the criteria and Colab steps): reading a PHASE run's training output beyond the launch check's rows.
+ - Each run's launch time is its LAUNCH (or RELAUNCH) line; the scorer prints each seed's phase-off start gap (minutes),
+   report only (score_pc.blindness).
+
+5. THE SCORER AND TOOLS (task item 5) -- every diff in ST/amend/diffs/
+ - r10round_common.py: ARMS, ARM_PREFIX, ARM_NAMES, RUN_IDS (six -> seed), RUN_ARMS, ARM_LABELS, ARM_CRITIC_PHASE,
+   arm_of(); RUN_TOKEN_RE reads both prefixes; KINDS += SNAPSHOT; AFTER_F2_KINDS += SNAPSHOT; PIN_KEYS += off_arm (an
+   unfilled off_arm is PROVISIONAL); VERSION. RUN_ID_PREFIX kept (the phase arm).
+ - complete_r10round.py (the launch-check/complete port): arm_pin (an OFF run reads pins_pc.json off_arm for the keys it
+   names: hyperparameters_sha256, stage_config_view_sha256, task_sha256, critic_phase_switch; plant_identity is the
+   top-level pin, equal for both arms [measured]); launch-check fact (3) and C4 against the run's arm's pins; fact (8)
+   and C4 (p) per arm (an OFF run: the key path ABSENT; any value, false or null included, fails; the arm's name in the
+   fact); the launch-check CLI's unfilled-pin refusal per arm; C8 per arm: an OFF run's record must be the stock-critic
+   record manip_check.manipulation_checks writes for a critic with no phase input (spec null, NOT IN FORCE, failing
+   ["(i)"], (i)'s why "the critic reads no phase (a stock critic)") [measured on STANCE6 s80's final pair,
+   ST/tools/dry/vp4_widen_s80.out "STOCK"; and the function itself in test_c8_holds_per_arm_and_manip_stock_record_shape].
+   Why C8 for OFF runs at all: without an arm form every OFF run would fail C8 (LOST) and enter the test as missing; the
+   stock-critic form checks at the checkpoint that the run really trained with no phase input. manip_check.py itself
+   is unchanged.
+ - measure_r10round.py (lane A runner): ROUND_RUN_RE accepts both prefixes (an OFF run's M1/M3/C8 records are filed
+   under its RUN_ID), its refusal message, VERSION; r10m_common.py: RUN_IDS_OFF listed beside RUN_IDS (that constant is
+   read by no code [measured, grep]), COMMON_VERSION.
+ - pc_common.py: one_test(phase, off) with the MISSING ranks; arm_counts; reading(per_seed, presence_rails,
+   off_per_seed, off_presence_rails) -- the line from the phase runs only, the OFF block beside; _no_rail_chance;
+   replication(); SUFFIX, CAVEAT, ONE_TEST_NOTE, NO_RAIL_CHANCE, OFF_BESIDE; comparators() unchanged (report only).
+ - score_pc.py: seeds of both arms (seed_run(..., arm)); per_seed (phase) and per_seed_off; presence rails per arm;
+   test_value (missing -> +inf phase, -inf off); blindness() (openings, not blind, gaps); THE ONE TEST phase vs off
+   (not-blind OFF runs missing); STANCE6 report only (comparators_error printed, no INCOMPLETE, no PROVISIONAL);
+   Statistic A with the OFF runs' A of n and Fisher p beside STANCE6's and r9's; render() for six runs.
+ - pins_pc.json (ST/amend/tools/amend_pins.py, from files): off_arm = the switch-OFF stage_config.json of
+   ST/tools/dry/pins_sc.out "off" (written by HEAD's save_stage_config, no training): hyperparameters_sha256
+   054ab483..., stage_config_view_sha256 3200f159..., task_sha256 1e5964b6... (= ROUND's three pins, off_equals_round
+   all True), critic_phase_switch {"path": "hyperparameters.critic_phase", "absent": true} (the path read absent from the
+   file); tool_sha256 refreshed; _status/_sources notes. Every other key unchanged (diffed), v7_failed_on_head false
+   kept (VP2 on e4d222bb, the same tree). make_pins_pc.py was not re-run: its --vp2 path refuses a VP2 record of another
+   HEAD (the record is e4d222bb's, WT HEAD is now 1dfe2327 with the same tree).
+ - Unchanged, by reading [measured, grep]: fetch_r10round.py (reads C.RUN_IDS and C.RUN_TOKEN_RE, so both arms),
+   fetch_agent_brief.txt (RUN_IDS of a fetch, generic), ledger_r10round.py, k3panel_r10round.py, manip_check.py,
+   score_r10round.py (byte-for-byte reuse), zs_harness_copy.py.
+ - Tests (ST/tools/tests): synth_pc.py builds both arms (an OFF run writes no switch key and the off_arm hyperparameters
+   pin; its LAUNCH line CRITIC_PHASE=False and its label; its C8 the stock record; both view pins set); test_score_pc.py:
+   the reviewed tests kept (texts and the MISSING expectation updated), new: missing phase / missing off / the oracle /
+   wrong-side refusals, the reading with OFF runs beside, six-run roots (LOWER at 1/20; not lower with one low OFF TD,
+   k = 4; missing OFF k = 11; missing phase k = 11; OFF C8 reading a phase -> LOST; OFF with the switch key -> C4 (p)
+   FAIL, LOST; an OFF rail beside and the replication block; STANCE6 unreadable holds nothing open; outcome blindness
+   with a phase SNAPSHOT, and a late start with no opening still blind), the OFF launch check (no fault on its own files;
+   the key ON is fault (8); its files under the phase RUN_ID faults (3), (7), (8)), the switch fact's OFF states, C8
+   per arm against manipulation_checks' own stock record, the RUN_ID tables. 60 passed [measured,
+   ST/amend/dry/pytest_score_pc.log]. test_manip_pc.py: 7 skipped (no measuring copy or smoke pair on disk; manip_check.py
+   unchanged) [measured, ST/amend/dry/pytest_manip_pc.log].
+ - Mutation tests (ST/tools/mutate_pc.py): the reviewed 31 kept, five re-pointed where the amended text of the same rule
+   moved (M2, M14, M16, M28, M31), and 13 new (M32-M44: a missing OFF run at 0; the test against STANCE6; the OFF C8
+   reading only the verdict; an OFF run read against the phase pins; the OFF absence not read; blindness not applied; a
+   SNAPSHOT no opening; the line read from the OFF runs; the MISSING ranks dropped; the no-rail chance not at the OFF
+   rate; seed_run ignoring the arm; STANCE6 unreadable holding the reading open; the OFF token not read). KILLED 44 of 44
+   [measured, ST/amend/dry/mutate_pc.log].
+ - Dry runs: VP3 (ST/tools/vp3_dryrun.py, now ten cases, each under its arm's RUN_ID and LAUNCH fields and checked
+   against the expected faults): run 2026-11-01 with WT HEAD 1dfe2327 -- NEG-pc (STANCE6 s42 F0 files) [1, 3, 7, 8],
+   NEG-off [1, 7], SC-on-pc [], SC-on-off [3, 8], SC-off-off [], SC-off-pc [3, 8], all as expected; POS-pc, POS-off and
+   the two crossed bundle cases SKIPPED (the smoke bundles were deleted after recording, and this amendment trains
+   nothing) [measured, ST/amend/dry/vp3.out]. The stand-in (ST/tools/standin_s6.py --as pc|off): STANCE6 as the phase
+   arm: 25 of 25 class keys equal for each run, line 1, p 20/20 (OFF arm not launched: three -infinity); STANCE6 as the
+   OFF arm: read against the off_arm pins with no pin substitution, C4 and C4 (p) "switch OFF (no key)" PASS for all
+   three, 25 of 25 keys equal, the replication block printing equal TDs, line 2 and p 20/20 (phase arm not launched)
+   [measured, ST/amend/dry/standin_pc, standin_off]. Not run here (each needs a 2-update smoke, i.e. training): VP3's
+   POS and crossed cases (smoke_pc.py now takes --switch on|off for train and bundle; the launch check reads
+   configuration files only, so one switch-ON smoke bundled both ways serves VP3) and f2dry.py --arm off (C8 on a
+   switch-OFF smoke; for VP4 before F2). The pin step re-runs VP3 and the stand-in on the approved HEAD, as the PINS say.
+ - ruff check (the repo's rule set, --no-cache) on every changed .py and ST/amend/tools: one finding, measure_r10round.py
+   I001 import order, present in the re-reviewed file too [measured, ST/amend/dry/ruff.log].
+
+6. COLAB_STEPS.txt (task item 6): six runs (the table with CRITIC_PHASE per run), THE ORDER (interleaved; fewer
+   sessions: phase first, then OFF in seed order as sessions free; the three-session two-wave example), OUTCOME
+   BLINDNESS (no reading of phase outputs beyond the check rows, no snapshot, until every OFF LAUNCH line; SNAPSHOT
+   lines after), cell 6 per arm (CRITIC_PHASE True / False, labels, RUN_IDs), the check rows per arm ("Critic phase: off"
+   and no cell-9 row for an OFF run [measured, ST/check_code/nb/nb_off.log]), the launch check against the arm's pins,
+   the _b rule per run within 2 h of its own launch, B1 (about 108 L4-hours with one _b; note the session count), B2
+   (about 390 copies), F0 per launch, F2 after every run of both arms ended, the SNAPSHOT note, M1/M3/C8 for six runs,
+   the timeline relative to the launch hour. The push, the freeze (now: until all six launch checks read no-fault) and
+   the launch-check steps are otherwise unchanged.
+
+7. PINS, DESIGN_NOTES, RECORDS (task item 7)
+ - The criteria's PINS block refilled by ST/amend/tools/refill_pins.py from the files (never by hand): HEAD note
+   (e4d222bb reviewed; 1dfe2327 the same tree), the switch per arm, the ON digests, the OFF digests (= ROUND's), the
+   pins file, every ST/tools/pc file's sha256, COLAB_STEPS.txt's, STANCE6's report-only inputs, what the pin fills
+   (both arms' VP3; VP4 with f2dry --arm pc and off). refill_pins.py --check: equal [measured].
+ - criteria.txt and COLAB_STEPS.txt edited only through ST/amend/tools/amend_texts.py (exact replacements from the
+   re-reviewed bytes, their sha256 checked first; re-applied from ST/amend/orig after every wording fix); DESIGN_NOTES
+   section 9 records the answers with the answer time (01:15:14 UTC, RUNLOG line 874) and what CONTROL (b) changes; four
+   one-line "[Superseded ...]" markers where the reviewed notes said the comparison is historical (sections 0, 2.4, 6,
+   7). Sections 1-8 are otherwise untouched.
+
+8. FOR THE RE-REVIEW (choices made here that the maintainer's words did not fix)
+ a. The MISSING order for sums holding infinities (section 2): +M/-M limit; a missing phase run reads >= 11/20 where the
+    reviewed text read 20/20 (both NOT SEPARATED).
+ b. A not-blind OFF run enters the test as missing (section 4); the openings read are F2-START, REFETCH-START and the
+    new SNAPSHOT line of a phase RUN_ID.
+ c. C8 for an OFF run = the stock-critic record (section 5).
+ d. STANCE6 inputs that cannot be read no longer make the reading INCOMPLETE or PROVISIONAL (section 2).
+ e. The plug-in no-RAIL chance now uses the OFF runs' rail share (STANCE6's and r9's printed beside).
+ f. TOOLS and HDR were not answered in the dialogs (DESIGN_NOTES section 9): the pin step should confirm them.
+ g. ST/tools/SHA256SUMS.txt and ST/tools/adapt_diffs/ are the reviewed records and were not edited (not named by the
+    task): for the 17 changed files they are superseded by ST/amend/after.txt and ST/amend/diffs/.
+ h. The repository's branch names keep their existing prefix (identifiers, unchanged from the reviewed text).
+
+FILES: before ST/amend/before.txt; after ST/amend/after.txt; originals ST/amend/orig/; diffs ST/amend/diffs/; tools
+ST/amend/tools/ (names_check_off.py, amend_pins.py, amend_texts.py, refill_pins.py); outputs ST/amend/dry/ (vp3/,
+vp3.out, standin_pc/, standin_off/, mutate_pc.log, pytest_*.log, ruff.log); ST/amend/names_check_off.out; the command
+log ST/amend/cmdlog.txt.

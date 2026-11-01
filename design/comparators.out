@@ -1,0 +1,87 @@
+score.json /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/score.json sha256 cb380a7e816e519cce267fd4a7c00a7d4528730a388e39b3678b95d235c01474
+
+=== stance6_r10LTSB_s60 (seed 60)
+  file 01_stance/eval_episodes.csv.copy1 sha256 1821fd2e9f65d58c... F2-manifest = artifact-manifest = -> OK
+  evaluations 91 (131072 .. 11927552), 10 rows each and on the grid: True
+  firsts {"first_over_any": 8126464, "FOB_tail": 8126464, "first_t3_over": 8126464, "cmd_l_ge_0.30": 6422528, "cmd_l_ge_0.60": 6946816, "cmd_l_ge_0.90": null}
+  CMD_L max +0.8936 at 8650752; min -0.0020 at 131072; last +0.6256 at 11927552; evaluations with CMD_L >= 0.60: 37 of 91; with |CMD_L| >= 0.60: 37
+  TAIL DRIVE mean |CMD_L| all 91 evaluations 0.3882; from 4194304 (60 evaluations) 0.5777; signed mean all +0.3882
+  over-bar rows by actuator (whole run): {"tail_3_pitch_act": 24}
+    neck_pitch_act     evaluation command mean: largest |.| -0.436 at 11796480; evaluations with |.| >= 0.60: 0; last -0.419
+    head_pitch_act     evaluation command mean: largest |.| -0.330 at 9175040; evaluations with |.| >= 0.60: 0; last -0.183
+    tail_1_pitch_act   evaluation command mean: largest |.| +0.072 at 6815744; evaluations with |.| >= 0.60: 0; last -0.038
+    tail_2_pitch_act   evaluation command mean: largest |.| +0.246 at 9175040; evaluations with |.| >= 0.60: 0; last +0.140
+    tail_3_pitch_act   evaluation command mean: largest |.| +0.894 at 8650752; evaluations with |.| >= 0.60: 37; last +0.626
+  returns: mean over all evaluations 4412.6; last 10 4352.6; last 4398.5; falls (rows < 1000 steps) 1 of 910 (last 10 evaluations 1); screen_v2_clean 864 of 910
+  ROUND CLASSES: TAIL CLASS PARKED ; tail alarms 0 (first None); flagged evaluations 0; trace rail []; parked [{'actuator': 'tail_3_pitch_act', 'windows': [['END', 0.042], ['J', [['8388608', 0.2797], ['10485760', 0.1267]]]]}]; driven []
+    MEAN_a {"tail_1_pitch_act": -0.001, "tail_1_yaw_act": 0.0037, "tail_2_pitch_act": 0.1682, "tail_3_pitch_act": 0.642}
+    ANY ALARMS 0: []
+    gate: "PASS"
+    outcome: "NEGATIVE"
+  file 01_stance/gate_verdict.json.copy1 sha256 0ce3b95f72a95245... F2-manifest = artifact-manifest = -> OK
+  the notebook's own gate (gate_verdict.json, report only): passed True on models/robust_best_model.zip (gate_kind stance_quality_heading/v1, judged_at 2026-10-28T05:39:40+00:00)
+  file 01_stance/policy_probe.npz.copy1 sha256 d8709c56fe26fc51... F2-manifest = artifact-manifest = -> OK
+  on-policy tail_3 command, last 8 probe rows (report only): +0.53585 (rows at update_timesteps 11943936 .. 12001280; probe shape (1465, 15))
+
+=== stance6_r10LTSB_s42 (seed 42)
+  file 01_stance/eval_episodes.csv.copy1 sha256 d1bcb78964691cf1... F2-manifest = artifact-manifest = -> OK
+  evaluations 91 (131072 .. 11927552), 10 rows each and on the grid: True
+  firsts {"first_over_any": 3670016, "FOB_tail": 3670016, "first_t3_over": 3670016, "cmd_l_ge_0.30": 2883584, "cmd_l_ge_0.60": 3407872, "cmd_l_ge_0.90": 3670016}
+  CMD_L max +1.0000 at 4587520; min -0.5616 at 6946816; last +0.9081 at 11927552; evaluations with CMD_L >= 0.60: 57 of 91; with |CMD_L| >= 0.60: 57
+  TAIL DRIVE mean |CMD_L| all 91 evaluations 0.6353; from 4194304 (60 evaluations) 0.8088; signed mean all +0.5863
+  over-bar rows by actuator (whole run): {"tail_3_pitch_act": 249}
+    neck_pitch_act     evaluation command mean: largest |.| -0.488 at 11927552; evaluations with |.| >= 0.60: 0; last -0.488
+    head_pitch_act     evaluation command mean: largest |.| -0.577 at 9306112; evaluations with |.| >= 0.60: 0; last -0.166
+    tail_1_pitch_act   evaluation command mean: largest |.| -0.224 at 4980736; evaluations with |.| >= 0.60: 0; last +0.108
+    tail_2_pitch_act   evaluation command mean: largest |.| +0.131 at 5242880; evaluations with |.| >= 0.60: 0; last +0.006
+    tail_3_pitch_act   evaluation command mean: largest |.| +1.000 at 4587520; evaluations with |.| >= 0.60: 57; last +0.908
+  returns: mean over all evaluations 4377.7; last 10 4358.1; last 4362.5; falls (rows < 1000 steps) 1 of 910 (last 10 evaluations 0); screen_v2_clean 645 of 910
+  ROUND CLASSES: TAIL CLASS RAIL RAIL-LEDGER-PERSISTENT; tail alarms 22 (first 3932160); flagged evaluations 26; trace rail [{'actuator': 'tail_3_pitch_act', 'sign': '+', 'basis': '2+ flags', 'drive_backed': True, 'drive_backed_by_checkpoint': {'10485760': True}}]; parked [{'actuator': 'tail_3_pitch_act', 'windows': [['END', 0.3148], ['J', [['4194304', 0.3894], ['5242880', 0.2842], ['8388608', 0.341], ['10485760', 0.3362], ['final', 0.2934]]]]}]; driven []
+    MEAN_a {"tail_1_pitch_act": 0.0415, "tail_1_yaw_act": 0.0119, "tail_2_pitch_act": 0.0074, "tail_3_pitch_act": 0.9148}
+    ANY ALARMS 22: [(3932160, {'tail_3_pitch_act': 20}), (4063232, {'tail_3_pitch_act': 18}), (4194304, {'tail_3_pitch_act': 17}), (4325376, {'tail_3_pitch_act': 15}), (4456448, {'tail_3_pitch_act': 16}), (4587520, {'tail_3_pitch_act': 20}), (4718592, {'tail_3_pitch_act': 20}), (4849664, {'tail_3_pitch_act': 19}), (4980736, {'tail_3_pitch_act': 19}), (5111808, {'tail_3_pitch_act': 19}), (5505024, {'tail_3_pitch_act': 13}), (8126464, {'tail_3_pitch_act': 12}), (8257536, {'tail_3_pitch_act': 12}), (8388608, {'tail_3_pitch_act': 17}), (9699328, {'tail_3_pitch_act': 20}), (9830400, {'tail_3_pitch_act': 20}), (9961472, {'tail_3_pitch_act': 20}), (10092544, {'tail_3_pitch_act': 20}), (10223616, {'tail_3_pitch_act': 20}), (10354688, {'tail_3_pitch_act': 19}), (10485760, {'tail_3_pitch_act': 19}), (10616832, {'tail_3_pitch_act': 18})]
+    gate: "FAIL"
+    outcome: "NEGATIVE"
+  file 01_stance/gate_verdict.json.copy1 sha256 4aa1a4072e98547e... F2-manifest = artifact-manifest = -> OK
+  the notebook's own gate (gate_verdict.json, report only): passed True on models/robust_best_model.zip (gate_kind stance_quality_heading/v1, judged_at 2026-10-28T05:33:20+00:00)
+  file 01_stance/policy_probe.npz.copy1 sha256 4e0e7220668faf12... F2-manifest = artifact-manifest = -> OK
+  on-policy tail_3 command, last 8 probe rows (report only): +0.81288 (rows at update_timesteps 11943936 .. 12001280; probe shape (1465, 15))
+
+=== stance6_r10LTSB_s80 (seed 80)
+  file 01_stance/eval_episodes.csv.copy1 sha256 b677ce762e739513... F2-manifest = artifact-manifest = -> OK
+  evaluations 91 (131072 .. 11927552), 10 rows each and on the grid: True
+  firsts {"first_over_any": 3801088, "FOB_tail": null, "first_t3_over": null, "cmd_l_ge_0.30": 9830400, "cmd_l_ge_0.60": 11796480, "cmd_l_ge_0.90": null}
+  CMD_L max +0.6158 at 11796480; min -0.0587 at 4849664; last +0.5660 at 11927552; evaluations with CMD_L >= 0.60: 1 of 91; with |CMD_L| >= 0.60: 1
+  TAIL DRIVE mean |CMD_L| all 91 evaluations 0.1543; from 4194304 (60 evaluations) 0.2179; signed mean all +0.1452
+  over-bar rows by actuator (whole run): {"neck_pitch_act": 119}
+    neck_pitch_act     evaluation command mean: largest |.| -0.936 at 5505024; evaluations with |.| >= 0.60: 32; last -0.277
+    head_pitch_act     evaluation command mean: largest |.| -0.796 at 11141120; evaluations with |.| >= 0.60: 20; last -0.687
+    tail_1_pitch_act   evaluation command mean: largest |.| +0.271 at 11796480; evaluations with |.| >= 0.60: 0; last +0.262
+    tail_2_pitch_act   evaluation command mean: largest |.| -0.254 at 9961472; evaluations with |.| >= 0.60: 0; last -0.115
+    tail_3_pitch_act   evaluation command mean: largest |.| +0.616 at 11796480; evaluations with |.| >= 0.60: 1; last +0.566
+  returns: mean over all evaluations 4415.8; last 10 4369.9; last 4382.7; falls (rows < 1000 steps) 1 of 910 (last 10 evaluations 0); screen_v2_clean 778 of 910
+  ROUND CLASSES: TAIL CLASS CLEAR ; tail alarms 0 (first None); flagged evaluations 0; trace rail []; parked []; driven []
+    MEAN_a {"tail_1_pitch_act": 0.1859, "tail_1_yaw_act": 0.0032, "tail_2_pitch_act": -0.1225, "tail_3_pitch_act": 0.5052}
+    ANY ALARMS 6: [(5505024, {'neck_pitch_act': 18}), (5636096, {'neck_pitch_act': 18}), (6029312, {'neck_pitch_act': 15}), (6422528, {'neck_pitch_act': 18}), (6553600, {'neck_pitch_act': 14}), (7077888, {'neck_pitch_act': 14})]
+    gate: "PASS"
+    outcome: "POSITIVE"
+  file 01_stance/gate_verdict.json.copy1 sha256 356dabb48522d6c5... F2-manifest = artifact-manifest = -> OK
+  the notebook's own gate (gate_verdict.json, report only): passed True on models/robust_best_model.zip (gate_kind stance_quality_heading/v1, judged_at 2026-10-28T05:37:03+00:00)
+  file 01_stance/policy_probe.npz.copy1 sha256 0e61919dc9a0a2a5... F2-manifest = artifact-manifest = -> OK
+  on-policy tail_3 command, last 8 probe rows (report only): +0.51715 (rows at update_timesteps 11943936 .. 12001280; probe shape (1465, 15))
+
+=== THE DESIGN'S TABLES
+  TAIL DRIVE (all 91 evaluations): comparators {"60": 0.388227, "42": 0.635343, "80": 0.154339}; the lowest 0.154339 (repr 0.15433899719014801)
+  TAIL DRIVE (from 4194304): comparators {"60": 0.577658, "42": 0.808751, "80": 0.217914}; the lowest 0.217914 (repr 0.21791394469249162)
+  exact 3-vs-3 permutation p (one-sided, PC lower) for PC values placed among the comparators (TAIL DRIVE over all evaluations):
+    all three below the lowest comparator: p = 1/20 = 0.050
+    two below the lowest, one between the lowest and the middle: p = 1/10 = 0.100
+    two below the lowest, one above the highest: p = 3/10 = 0.300
+    one below the lowest, two above the highest: p = 7/10 = 0.700
+    all three above the highest: p = 1 = 1.000
+  the number of 3+3 splits: 20; minimum attainable p 1/20
+  Fisher exact one-sided p (PC fewer) for a binary outcome against the round's counts:
+    tail habit (RAIL or PARKED): round 2 of 3: PC 0 of 3 -> p 1/5 = 0.200; PC 1 of 3 -> p 1/2 = 0.500; PC 2 of 3 -> p 4/5 = 0.800; PC 3 of 3 -> p 1 = 1.000
+    ANY ALARM: round 2 of 3: PC 0 of 3 -> p 1/5 = 0.200; PC 1 of 3 -> p 1/2 = 0.500; PC 2 of 3 -> p 4/5 = 0.800; PC 3 of 3 -> p 1 = 1.000
+    POSITIVE missing (NEGATIVE): round 2 of 3: PC 0 of 3 -> p 1/5 = 0.200; PC 1 of 3 -> p 1/2 = 0.500; PC 2 of 3 -> p 4/5 = 0.800; PC 3 of 3 -> p 1 = 1.000
+    tail RAIL only: round 1 of 3: PC 0 of 3 -> p 0.500; PC 1 of 3 -> p 0.800; PC 2 of 3 -> p 0.950; PC 3 of 3 -> p 1.000
+  pooled with LTSB r9 (2 of 5 ANY ALARM runs) as the round's Statistic A comparator, 0 of 3 PC: p 0.212 (against 4 of 8: r9 2 of 5 + stance6 2 of 3; report only)

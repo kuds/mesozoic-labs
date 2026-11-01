@@ -1,0 +1,49 @@
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=2048, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+MuJoCo version: 3.10.0
+Gymnasium version: 1.4.0
+Repo root: /home/user/work/pc_branch
+Model: Tyrannosaurus Rex (Anatomical)
+Algorithm: PPO
+Quick test mode: False
+Behavior recipe: stance
+In-run K3 panel: off
+Critic phase: on
+Critic phase on: [ppo] critic_phase = true on ['stance']
+Model: Tyrannosaurus Rex (Anatomical)
+Environment: TyrannosaurusRexAnatomicalEnv
+Observation space: (63,)
+Action space: (15,)
+Number of actuators: 15
+
+Behavior 'stance' -> deliverable 'stance'; chain: stance
+
+   #  id           name                           parent       recipe   deliverable  gate
+*  1  stance       Stance                         -            stance   yes          stance_quality_heading/v1
+   2  recovery     Recovery                       stance       recover  yes          recovery_quality/v1
+   3  locomotion   Locomotion                     stance       walk     yes          reward_and_length/v1
+   4  behavior     Bite                           locomotion   hunt     yes          task_success/v1
+  (* = on this behavior's chain)
+Training infrastructure ready. Algorithm: ppo
+DiagnosticsCallback enabled: per-component rewards, obs/action stats,
+VecNormalize tracking, and termination reasons
+will log to TensorBoard.
+============================================================
+Node stance (stage 1): Stance (ppo)
+Description: Learn to stand and balance without falling
+Timesteps: 1,024
+Log dir: /home/user/work/pc_study/build/smoke/run/01_stance
+VecNormalize loaded from: /home/user/work/pc_study/build/smoke/run/01_stance/models/stage1_vecnormalize_1024_steps.pkl
+============================================================
+Eval num_timesteps=2048, episode_reward=4455.13 +/- 59.08
+Episode length: 1000.00 +/- 0.00
+Success rate: N/A (not an active Stage 1 gate)
+
+Final model saved to: /home/user/work/pc_study/build/smoke/run/01_stance/models/stage1_final.zip
+session 2 (resumed from stage1_1024_steps.zip at 1024): num_timesteps 2048 n_updates 10 policy CriticPhaseActorCriticPolicy spec CriticPhaseSpec(settle_steps=200, gamma=0.98)
+session 2 files: ['best_model.zip', 'best_model_vecnorm.pkl', 'robust_best_model.zip', 'robust_best_model_vecnorm.pkl', 'stage1_1024_steps.zip', 'stage1_2048_steps.zip', 'stage1_final.zip', 'stage1_final_vecnorm.pkl', 'stage1_vecnormalize_1024_steps.pkl', 'stage1_vecnormalize_2048_steps.pkl']
+SMOKE OK
+
+real	0m46.838s
+user	0m45.953s
+sys	0m0.439s
+exit 0

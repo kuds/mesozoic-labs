@@ -1,0 +1,38 @@
+2026-10-31T22:53:33Z start: mkdir tools adapt
+2026-10-31T22:57:56Z copied pinned originals to tools/orig (laneB tools, laneA r10m_common/measure/zs_harness/judge, read_bs/measure_lb refs, design comparators.py); ORIG_SHA256.txt
+2026-10-31T23:01:43Z make_pc_tools.py -> pc/ (adapted + byte copies), adapt_diffs/
+2026-10-31T23:01:51Z build-copy of WT HEAD da7e0b9225b72827c2dc14b94c8094b6e57eb97a -> tools/dry/copy_head (adapted measure_r10round.py build-copy --commit)
+2026-10-31T23:02:55Z smoke_pc.py pins (no training) -> dry/pins_sc
+2026-10-31T23:03:06Z smoke_pc.py train (critic_phase on, n_envs 2, n_steps 256, 1024 steps = 2 PPO updates, seed 42, nice 10) -> dry/smoke_train (background)
+2026-10-31T23:03:59Z first smoke (no ledger, no periodic pair: the stage's cadence keys override) deleted; rerun with curriculum eval_freq 512, checkpoint_freq 512, eval_episodes 2 (still 1024 steps, 2 PPO updates)
+2026-10-31T23:04:06Z smoke_pc.py train (2nd) -> dry/smoke_train (background)
+2026-10-31T23:05:10Z smoke_pc.py bundle (no training) -> dry/smoke_bundle/stance7_r10LTSBpc_s42
+2026-10-31T23:05:43Z smoke_pc.py bundle rerun with GITHUB_SHA=sealed commit, repo-root WT read only (GIT_OPTIONAL_LOCKS=0)
+2026-10-31T23:06:18Z make_pins_pc.py -> pc/pins_pc.json
+2026-10-31T23:06:36Z make_pc_tools.py --force (PINS_FILE -> pins_pc.json)
+2026-10-31T23:07:01Z vp3_dryrun.py -> dry/vp3 (launch check POS smoke bundle, NEG stance6 s42 F0 copies)
+2026-10-31T23:08:26Z manip_check.py on smoke final pair (validation input, --approved dry record) -> dry/c8_smoke_final
+2026-10-31T23:08:59Z vp4_widen_check.py on stance6 s80 final (F2 copy, in-memory widening) -> dry/vp4_widen_s80.out
+2026-10-31T23:10:59Z pc_common.comparators recomputed -> dry/comparators_recomputed.out
+2026-10-31T23:13:29Z standin_s6.py -> dry/standin_s6 (PC scorer on stance6 F2 data, read only)
+2026-10-31T23:18:38Z mutate_pc.py (20 mutants) -> dry/mutate_pc.log
+2026-10-31T23:20:03Z pytest test_manip_pc.py (real smoke pair, widened stance6 s80 final)
+2026-10-31T23:20:20Z adapted measure_r10round m1 on the smoke final pair (validation input, dry APPROVED) -> dry/m1_smoke_final (background)
+2026-10-31T23:22:34Z make_pc_tools.py --force (+ fetch_agent_brief.txt)
+2026-10-31T23:25:13Z ruff check (E,F,W) on the new PC files -> dry/ruff.log
+2026-10-31T23:25:14Z pytest test_score_pc.py + test_manip_pc.py -> dry/pytest_*.log
+2026-10-31T23:25:45Z mutate_pc.py (22 mutants) -> dry/mutate_pc.log
+2026-10-31T23:27:32Z test fix (F2_PINS lookup case); pytest rerun; mutate_pc.py rerun
+2026-10-31T23:29:06Z standin_s6.py rerun (final score_pc) -> dry/standin_s6
+2026-10-31T23:29:20Z make_pins_pc.py (final tool_sha256) -> pc/pins_pc.json
+2026-10-31T23:29:20Z vp3_dryrun.py rerun with the final pins -> dry/vp3
+2026-10-31T23:29:55Z f2dry.py (C1-C8 on the switch-ON smoke bundle as an F2 store; manip_check filed for final) -> dry/f2dry
+2026-10-31T23:30:15Z make_pc_tools.py --force (C1-C8 title)
+2026-10-31T23:30:43Z mutate_pc.py final run; standin, vp3, f2dry reruns with the final tools
+2026-10-31T23:32:23Z make_installed_texts.py -> ST/COLAB_STEPS.txt, ST/criteria.txt, adapt/*.diff
+2026-10-31T23:32:51Z VP1-like: adapted measure_r10round m1 (HEAD copy, validation input) on STANCE6 s80 final F2 copies -> dry/vp1_m1_s80_final; compare csv sha256 with the round's panel
+2026-10-31T23:34:01Z cleanup after recording: removed copy_head (rebuildable: measure_r10round build-copy --commit da7e0b92), smoke_train, smoke_bundle (the 2-update smoke and its bundle), f2dry/round, vp3/POS/round, vp3/NEG/round, the per-step CSV.gz of m1_smoke_final and vp1_m1_s80_final (their csv_sha256.txt and summaries kept)
+2026-10-31T23:34:23Z RULE SLIP (self-reported): a read-only recursive grep over ST/tools used the null-device and zero-device path strings (without the leading slash) as its search PATTERN to check that no tool references them; nothing was redirected or written; it found no file. Not repeated.
+2026-10-31T23:35:56Z make_installed_texts.py --force (cell-6 off row: fact (8) decides; no new manual stop rule)
+2026-10-31T23:36:03Z SHA256SUMS.txt written (tools, installed texts, adapt notes, dry logs)
+2026-10-31T23:36:14Z RULE SLIP (self-reported): a stray no-op command copied manip_check.py to /tmp/x and deleted it at once (a write outside the named folders, removed within the same command); nothing else written outside ST/tools, ST/criteria.txt, ST/COLAB_STEPS.txt, ST/adapt

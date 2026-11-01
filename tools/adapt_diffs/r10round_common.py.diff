@@ -1,0 +1,116 @@
+--- orig/laneB/r10round_common.py
++++ pc/r10round_common.py
+@@ -1,4 +1,8 @@
+-"""T. rex r10 round (criteria lean v6): shared constants and readers for the lane B tools.  Report only; never trains.
++"""PC STUDY ADAPTATION (2026-10-31; ST/tools/make_pc_tools.py; constants only plus the PC block at the end of the
++constants: RUN_IDs stance7_r10LTSBpc_s60/42/80, RUNLOG kind STANCE7, <PCR> = /home/user/work/pc_study/round, the
++branch claude/screen-trex-r10-phasecritic, the PC pins file; every rule below is the round's, unchanged).
++
++T. rex r10 round (criteria lean v6): shared constants and readers for the lane B tools.  Report only; never trains.
+ 
+ Imported by path (importlib) by ledger_r10round.py, complete_r10round.py, score_r10round.py, fetch_r10round.py,
+ k3panel_r10round.py and v9_bundle.py.  Standard library only (numpy is imported lazily where an .npz is read).
+@@ -33,33 +37,36 @@
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path, PurePosixPath
+ 
+-VERSION = ("r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; built 2026-10-26; fixer 2026-10-26; "
+-           "v5 tool update 2026-10-26; v6 MEAN_a 2026-10-27)")
++VERSION = ("r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted "
++           "2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8)")
+ 
+ # ------------------------------------------------------------------------------------------------- paths
+ S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+ SP = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+ RUNLOG = SP + "/foot/stance4/live/run_log.txt"
+-ROUND = SP + "/foot/stance6"                      # <ROUND> (D16)
+-BR = S2 + "/r10round/runbranch/clone"             # read only
+-CRITERIA = S2 + "/r10round/lean/v6/criteria_r10round_lean_v6.txt"
++ROUND = "/home/user/work/pc_study/round"                # <PCR> (PC criteria SHORT NAMES)
++BR = "/home/user/work/pc_branch"                     # WT, read only (PC)
++CRITERIA = "/home/user/work/pc_study/criteria.txt"     # the PC text (its sha256 is APPROVED's; PC)
++ROUND_CRITERIA = S2 + "/r10round/final_lean/criteria_r10round_final.txt"   # ROUND (cited by line; PC)
+ THIS12 = S2 + "/r10round/v12/criteria_r10round_v12.txt"
+ EVID = S2 + "/r10round/v12/evidence_r10round_v12.txt"
+ TOOLS = Path(__file__).resolve().parent
+-PINS_FILE = TOOLS / "pins_r10round.json"
++PINS_FILE = TOOLS / "pins_pc.json"                          # PC: the PC pins file
+ 
+ # The three texts' sha256 as the criteria text states them (STATUS / Short names); this text's own is its file's.
+-CRITERIA_SHA256 = "e5bea5d314cb3c6b6c1e2889452ad6dfa8ba1a90aec8dbee758262754bed2162"
++CRITERIA_SHA256 = None    # PC: the PC text's sha256 is read from <PCR>/APPROVED, never held in a tool
++ROUND_CRITERIA_SHA256 = "99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db"   # PC
+ THIS12_SHA256 = "0ab5edeba04b319a4233a4700ebf9abf7d7d7127c30afc7565a7fa3bc34369ac"
+ EVID_SHA256 = "353f4536ef3c0e06a1937714c44a22c7d52819be2e613cbc1ad23b47821f4e20"
+ 
+ # ------------------------------------------------------------------------------------------------- the round
+ SEEDS = (60, 42, 80)                                        # ARMS AND SEEDS (D2), in this order
+-RUN_IDS = {f"stance6_r10LTSB_s{s}": s for s in SEEDS}       # D16
++RUN_ID_PREFIX = "stance7_r10LTSBpc_s"                     # PC (CHOICE NAMES)
++RUN_IDS = {f"{RUN_ID_PREFIX}{s}": s for s in SEEDS}         # PC
+ SIGMA_KEYS = {60: "source_vectors.60", 42: "source_vectors.42", 80: "control_sigma.80"}
+ SIGMA_FILE_COLAB = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+-RUN_LABELS = {60: "r10 LTSB s60", 42: "r10 LTSB s42", 80: "r10 LTSB s80"}
+-REPO_REF = "claude/screen-trex-r10-armltsb"
++RUN_LABELS = {s: f"r10 LTSB phase-critic s{s}" for s in SEEDS}   # PC
++REPO_REF = "claude/screen-trex-r10-phasecritic"           # PC
+ 
+ GRID = 131072                                               # evaluation every 131,072 steps (91, last 11,927,552)
+ N_EVALS = 91
+@@ -95,6 +102,24 @@
+                   "r_knee_act", "r_ankle_act", "l_hip_pitch_act", "l_hip_roll_act", "l_knee_act", "l_ankle_act",
+                   "tail_1_pitch_act", "tail_1_yaw_act", "tail_2_pitch_act", "tail_3_pitch_act")
+ TRACE_SEEDS = tuple(range(3042, 3062))                      # M1: 20 episodes
++# ------------------------------------------------------------------------------------------------- PC (phase critic)
++#: PC: the critic phase as the branch defines it (environments/shared/critic_phase.py; PS criteria.txt lines 134-143):
++#: phi(k) = (min(k, S)/S, 1 if k >= S else 0, gamma ** max(0, S - k)), S 200 (stance_width_settle_steps), gamma 0.98.
++PHASE_SETTLE = 200
++PHASE_GAMMA = 0.98
++ACTOR_OBS_DIM = 63
++PHASE_WIDTH = 3
++#: PC launch-check fact (8) and C4 (p): the switch as stage_config.json writes it (pin critic_phase_switch, a
++#: {"path": ..., "value": ...} object; the builder's train_base records it as hyperparameters.critic_phase = true).
++SWITCH_PATH_DEFAULT = "hyperparameters.critic_phase"
++#: PC C8: THE MANIPULATION CHECK's record (manip_check.py) at <panels>/<RUN_ID>/<label>/c8/manip_check.json.
++MANIP_KIND = "c8"
++MANIP_RECORD = "manip_check.json"
++MANIP_SCHEMA = "pc-manip-check/1"
++MANIP_SEEDS = (3042, 3043)
++MANIP_BANK_LIMIT = 500
++#: PC: launch-check faults that allow REPLACEMENT (ii): ROUND's (1)-(5) and (7), plus (8) (PC RUN HANDLING).
++STOP_FAULTS = (1, 2, 3, 4, 5, 7, 8)
+ CERT_SEEDS = tuple(range(3042, 3082))                       # M3: 40 per heading
+ 
+ # ------------------------------------------------------------------------------------------------- RUNLOG note form
+@@ -111,8 +136,9 @@
+ AFTER_F2_KINDS = ("F2-START", "REFETCH-START")
+ LATE_PREFIX = ("AFTER ITS RUN_ID'S F2-START LINE WITH AN EARLIER TIME (not restated before F2's start note; printed, "
+                "read by no rule): ")
+-NOTE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?) UTC\s+STANCE6\s+(\S+)\s+(\S+)(?:\s+(.*))?$")
+-RUN_TOKEN_RE = re.compile(r"stance6_r10LTSB_s\d+\w*")
++NOTE_KIND = "STANCE7"                                      # PC: the RUNLOG note kind (SUBST)
++NOTE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?) UTC\s+STANCE7\s+(\S+)\s+(\S+)(?:\s+(.*))?$")
++RUN_TOKEN_RE = re.compile(r"stance7_r10LTSBpc_s\d+\w*")
+ 
+ 
+ class InputError(Exception):
+@@ -245,7 +271,8 @@
+             "task_sha256", "hyperparameters_sha256", "stage_config_view_sha256", "gate_sha256", "plant_identity",
+             "collapse_peak_floor_reference", "m1_sha256", "m2_sha256", "m3_sha256", "judge_sha256", "tool_sha256",
+             "sigma_file_sha256", "sigma_vector_sha256", "known25_sha256", "v7_result", "v7_method",
+-            "v0h_digests", "model_sha256", "model_out_sha256", "v10_result", "v7_failed_on_head")
++            "v0h_digests", "model_sha256", "model_out_sha256", "v10_result", "v7_failed_on_head",
++            "critic_phase_switch", "critic_phase_spec")                                   # PC
+ 
+ 
+ def load_pins(path=None) -> dict:
+@@ -930,7 +957,8 @@
+ def tool_hashes() -> dict:
+     """sha256 of every lane B tool file (PROVISIONAL compares them with their pins)."""
+     names = ("r10round_common.py", "ledger_r10round.py", "complete_r10round.py", "score_r10round.py",
+-             "fetch_r10round.py", "k3panel_r10round.py", "v9_bundle.py")
++             "fetch_r10round.py", "k3panel_r10round.py", "score_pc.py", "pc_common.py", "manip_check.py",
++             "r10m_common.py", "measure_r10round.py")                                        # PC
+     return {n: sha256_file(TOOLS / n) for n in names if (TOOLS / n).is_file()}
+ 
+ 

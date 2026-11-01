@@ -1,0 +1,63 @@
+PINS (filled 2026-10-31 (date -u) by ST/tools/make_installed_texts.py from files, never by hand; refilled
+2026-11-01 (date -u) by the fixer's ST/review/fixer/tools/fix_texts.py the same way, and again by the amendment's
+ST/amend/tools/refill_pins.py; the pin step re-reads every value from its file):
+- HEAD: not held in this text (APPROVED's branch_head and the LAUNCH lines' head=; one HEAD for all six runs).
+  The tools, pins and dry runs were measured on WT HEAD e4d222bbde28800d7ee0851380123ff4ac9642a8 (local branch
+  claude/screen-trex-r10-phasecritic, 6 commits on 8737cd3d, unpushed); its commits were reworded afterwards
+  (trailers only): WT HEAD is now 1dfe2327f773007fa7fd68460dc0c53740936ff9, tree d834d833... equal to
+  the reviewed head's (6 of 6 commits' trees equal [measured, ST/old_trees.txt, ST/new_trees.txt]); the
+  amendment's dry runs read it. If the approved HEAD differs from the reviewed one, the pin step re-runs VP3 (both
+  arms, ST/tools/vp3_dryrun.py) and the stand-in (ST/tools/standin_s6.py --as pc and --as off) on it.
+- The switch as stage_config.json writes it: hyperparameters.critic_phase = true for a PHASE run
+  (pins_pc.json critic_phase_switch); for an OFF run the key is absent (pins_pc.json off_arm.critic_phase_switch
+  {"absent": true, "path": "hyperparameters.critic_phase"}); the checkpoint record mesozoic_critic_phase =
+  {"schema": "mesozoic.critic-phase/v1", "settle_steps": 200, "gamma": 0.98, "width": 3} (PHASE runs only).
+- With the switch ON (PHASE runs) [measured, ST/tools/dry/pins_sc.out]: hyperparameters_sha256
+  sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954
+  (differs from ROUND's sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c: the PPO table records
+  critic_phase);
+  task_sha256 sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456 (equal to ROUND's: the option is
+  no env keyword);
+  stage_config_view_sha256 sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab (differs from ROUND's
+  sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1: the same hyperparameters block);
+  plant_identity = ROUND's block
+  (equal: True).
+- With the switch OFF (OFF runs) [measured, the same file, "off"]: hyperparameters_sha256
+  sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c, task_sha256
+  sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456, stage_config_view_sha256
+  sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1: ROUND's three pins (equal:
+  hyperparameters_sha256 True, task_sha256 True, stage_config_view_sha256 True);
+  plant_identity = ROUND's block (equal: True); held in pins_pc.json off_arm.
+- The pins file ST/tools/pc/pins_pc.json a1162072e523396c767bde35dfd4d7b0135547538fdba0f11d46366c30981a7f
+  (v7_failed_on_head false: VP2's result on e4d222bb, the same tree [measured, ST/review/fixer/vp2d1,
+  suites/shared]; the pin step re-checks it; off_arm and tool_sha256 filled by ST/amend/tools/amend_pins.py).
+- The PC tools (ST/tools/pc; the launch-check port is complete_r10round.py, r10round_common.py,
+  ledger_r10round.py, fetch_r10round.py, fetch_agent_brief.txt and pins_pc.json):
+    complete_r10round.py 2f68e02f104393bb3afb4ed2d7e0f5cff9bb6dbda249923ee7a3e7a738002e4a
+    fetch_agent_brief.txt b4f361cf4473f1ec92301f193492d516fb73245466cb5b18fb65df48e069489b
+    fetch_r10round.py 0f74a8c1d690980cfbaa1f017a2313aa97087cb823e5ec70a03a66b17da3ee3d
+    k3panel_r10round.py 89d279d4f53b8894f3c69a7acfc518060365e4f0cf8523ca245d4f2dcaf081b2
+    ledger_r10round.py 0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511
+    manip_check.py da8b4be6089923b5c5e540760003dd68c2205d0cb880707f22711d9beb6a8e22
+    measure_r10round.py 75cb4a9b9028a4c4b2eb22b641627b1eac7bb01be59c90931af9d732511d04e5
+    pc_common.py 10ab4e583f8e020ee6c35bf4d8a9b70df32f12dbeeb50c4a840d6d207429583c
+    pins_pc.json a1162072e523396c767bde35dfd4d7b0135547538fdba0f11d46366c30981a7f
+    r10m_common.py c070a4e2ac759ab0600f37c18c5df33be42fdcf5042ac275caba5a293f5b1855
+    r10round_common.py d260363992adcc81f429a359f2e1e68fb82bd9d569170bfaa2a8e8277fcbdc35
+    score_pc.py 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986
+    score_r10round.py 3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707
+    zs_harness_copy.py fbb71d22cfa40266188b1b836a454bb150dec589d724fb74d1cab53c1ef51828
+- ST/COLAB_STEPS.txt 98abcaa6efd68af38ca257d7ab14c5aa6c75eb8940f68764a2f9c9874e7311e1.
+- STANCE6 (report only): score.json cb380a7e816e519cce267fd4a7c00a7d4528730a388e39b3678b95d235c01474, the stance6 fetch
+  manifest
+  f5777ae32a5428908d59776d83d3e86d70db31b7818b1a9dd77de05a426c205e; DESIGN/comparators.py
+  f2e0bcbf55065641a0bf737c1943be2126addf1ce3780f43a42b30f482f4dc0d,
+  comparators.out 8c924c37871fb956c84e7c0e8b78b914e9b68def1283e9c76ee12d014d7d8b46.
+- This text's sha256: computed at the pin into APPROVED (never inside this text).
+- Still to fill at the pin: HEAD (APPROVED); the VP0, VP2, VP3 logs' sha256 (the fixer's are in
+  ST/review/FIXES.txt; the amendment's VP3 cases in ST/amend/dry/vp3.out, the pin step runs all ten). Before F2
+  (F2_PINS.json, HOW THE COORDINATOR PINS 5): the F2 tools' sha256 as finally reviewed and the VP1, VP4 logs
+  (VP4 with f2dry.py --arm pc and --arm off).
+
+
+criteria.txt sha256 e612d52362b4336b7bbaa437a217e18909b86d4f2f04a0135a9c58c9e21d61ec

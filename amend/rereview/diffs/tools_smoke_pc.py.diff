@@ -1,0 +1,50 @@
+--- amend/orig/tools/smoke_pc.py	2026-10-31 23:25:13.698506394 +0000
++++ tools/smoke_pc.py	2026-11-01 01:39:06.271009229 +0000
+@@ -5,10 +5,16 @@
+ result_bundle.initialize_result_bundle as notebook cell 8 calls it, stage_config.json with the launch run block, the
+ final pair a copy of the last periodic pair, gate_verdict.json, the notebook's save_result_bundle), for the launch
+ check and C1-C8 dry runs.  Nothing here is study training; outputs stay in --out and are deleted after recording.
++PC AMENDMENT (2026-11-01): --switch off (train, bundle) does the same with the switch OFF, as the switch-off arm's
++notebook leaves it (CRITIC_PHASE False: no critic_phase key is set): (B) a stock-critic smoke for the switch-off arm's
++C1-C8 dry run (f2dry.py --arm off), (C) a run folder whose stage_config.json records the switch OFF for VP3's POS-off
++(the launch check reads configuration files only: a bundle of the switch-ON smoke's files with --switch off is
++enough for VP3; f2dry's C8 needs the switch-OFF smoke).  Default --switch on: unchanged.
+ 
+     PY -I -B smoke_pc.py pins  --copy COPY --out DIR
+-    PY -I -B smoke_pc.py train --copy COPY --out DIR
++    PY -I -B smoke_pc.py train --copy COPY --out DIR [--switch on|off]
+     PY -I -B smoke_pc.py bundle --copy COPY --source STAGE_DIR --out RUN_DIR --run-id RUN_ID --seed 42 --label L
++                                [--switch on|off]
+ """
+ from __future__ import annotations
+ 
+@@ -97,7 +103,9 @@
+ 
+     model_id = ModelId("tyrannosaurus_rex", "anatomical")
+     configs = _copy.deepcopy(load_all_stages(model_id))
+-    configs[1]["ppo_kwargs"].update(n_steps=256, batch_size=128, critic_phase=True)
++    configs[1]["ppo_kwargs"].update(n_steps=256, batch_size=128)
++    if a.switch == "on":                                     # PC AMENDMENT: --switch off leaves the key unset (OFF)
++        configs[1]["ppo_kwargs"]["critic_phase"] = True
+     # the stage's own cadence keys override train()'s eval_freq / save_freq (train_base._stage_cadence): a ledger
+     # and periodic pairs at 512 and 1024 steps, 2 episodes per evaluation (fast; the ledger's columns are the point)
+     configs[1]["curriculum_kwargs"].update(eval_freq=512, checkpoint_freq=512, eval_episodes=2)
+@@ -149,7 +157,8 @@
+     stage = target.reference
+     stage_configs = _copy.deepcopy(load_all_stages(model_id))
+     config = stage_configs[stage]
+-    config.setdefault("ppo_kwargs", {})["critic_phase"] = True          # notebook cell 9 with CRITIC_PHASE = True
++    if a.switch == "on":           # notebook cell 9 with CRITIC_PHASE = True; PC AMENDMENT: --switch off sets nothing
++        config.setdefault("ppo_kwargs", {})["critic_phase"] = True
+     seed = a.seed
+     plant = current_plant_identity(model_id)
+     run_dir.parent.mkdir(parents=True, exist_ok=True)
+@@ -220,6 +229,8 @@
+         p = sub.add_parser(k)
+         p.add_argument("--copy", required=True)
+         p.add_argument("--out", required=True)
++        if k in ("train", "bundle"):
++            p.add_argument("--switch", choices=("on", "off"), default="on")          # PC AMENDMENT
+         if k == "bundle":
+             p.add_argument("--source", required=True)
+             p.add_argument("--run-id", required=True)

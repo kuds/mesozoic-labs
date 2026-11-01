@@ -1,0 +1,326 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.17, pytest-9.1.1, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python
+rootdir: /home/user/work/pc_branch
+configfile: pyproject.toml
+plugins: cov-7.1.0
+collecting ... collected 244 items
+
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestForceBoundsConfiguration::test_position_actuators_have_enabled_force_and_control_limits PASSED [  0%]
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestForceBoundsConfiguration::test_home_keyframe_controls_are_finite_and_in_range PASSED [  0%]
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestForceBoundsConfiguration::test_integrator_is_implicitfast PASSED [  1%]
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestForceBoundsConfiguration::test_all_position_actuators_have_forcerange PASSED [  1%]
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestForceBoundsConfiguration::test_forcerange_matches_documented_kp_ratio PASSED [  2%]
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestHomeControlSaturation::test_no_saturation_during_home_control_settle PASSED [  2%]
+environments/tyrannosaurus_rex/tests/test_anatomical_actuator_bounds.py::TestDynamicSaturation::test_gait_excitation_stays_unclipped PASSED [  2%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestHeadFloorTermination::test_head_geom_ids_cached PASSED [  3%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestHeadFloorTermination::test_head_floor_contact_terminates PASSED [  3%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestHeadFloorTermination::test_head_contact_reason_is_reported PASSED [  4%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestTyrannosaurusRexSpecific::test_bite_not_triggered_initially PASSED [  4%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestTyrannosaurusRexSpecific::test_height_reward_non_negative PASSED [  4%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestTyrannosaurusRexSpecific::test_nosedive_penalty_non_positive PASSED [  5%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestNominalPoseActionScaling::test_reset_and_action_origin_use_same_named_home_keyframe PASSED [  5%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestNominalPoseActionScaling::test_zero_action_maps_exactly_to_home_controls PASSED [  6%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestNominalPoseActionScaling::test_action_endpoints_retain_full_control_range PASSED [  6%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestNominalPoseActionScaling::test_piecewise_mapping_interpolates_on_each_side_of_home PASSED [  6%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestNominalPoseActionScaling::test_zero_residual_keeps_energy_and_smoothness_penalties_zero PASSED [  7%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactSensors::test_every_load_bearing_foot_body_carries_a_touch_sensor PASSED [  7%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactSensors::test_sensors_account_for_all_floor_force_at_settled_stance PASSED [  8%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactSensors::test_sensors_read_zero_airborne PASSED [  8%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactSensors::test_observation_foot_contact_dims_are_live PASSED [  9%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactSensors::test_adjacent_digits_do_not_self_contact_at_home PASSED [  9%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactForceSummationOrder::test_tyrannosaurus_rex_four_sensor_feet_add_the_pad_to_the_digit_sum PASSED [  9%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootContactForceSummationOrder::test_brachiosaurus_altithorax_two_sensor_legs_add_pad_and_meta_in_group_order PASSED [ 10%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestHeightTargetTracksStance::test_reward_is_saturated_at_the_settled_stance PASSED [ 10%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestHeightTargetTracksStance::test_reward_still_has_gradient_below_the_settled_stance PASSED [ 11%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSettledPoseTargetsTrackTheStatue::test_settled_targets_are_the_statues_post_settle_pose PASSED [ 11%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestEveryHeadingIsPhysicallyIdentical::test_the_model_declares_the_elliptic_cone PASSED [ 11%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestEveryHeadingIsPhysicallyIdentical::test_a_45_degree_whole_scene_turn_reproduces_the_joints PASSED [ 12%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestStage1ResetStaysInsideTheHealthyEnvelope::test_stage1_reset_never_spawns_out_of_bounds PASSED [ 12%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestStage1ResetStaysInsideTheHealthyEnvelope::test_seed_3077_is_no_longer_terminal_on_the_first_step PASSED [ 13%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSubstepContactAggregation::test_info_carries_the_min_across_substeps_and_catches_hidden_unloading PASSED [ 13%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSubstepContactAggregation::test_statue_duty_is_unchanged_by_aggregation PASSED [ 13%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSubstepContactAggregation::test_aggregate_is_invalidated_by_reset PASSED [ 14%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSubstepHeightTermination::test_min_heights_track_the_probe_and_the_declaration_order PASSED [ 14%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSubstepHeightTermination::test_between_sample_dip_terminates_while_boundary_reads_healthy PASSED [ 15%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSubstepHeightTermination::test_reset_invalidates_the_height_aggregate PASSED [ 15%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootSensorGroupLockstep::test_sb3_groups_match_mjx_registration[brachiosaurus_altithorax-anatomical] PASSED [ 15%]
+environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestFootSensorGroupLockstep::test_sb3_groups_match_mjx_registration[dibothrosuchus_elaphros-anatomical] PASSED [ 16%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_options_default_to_off FAILED [ 16%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_off_the_options_change_no_reward_and_no_info_key FAILED [ 17%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_off_the_options_move_no_task_fingerprint_and_no_recorded_config FAILED [ 17%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_invalid_option_values_fail_fast[kwargs0-lateral_lean_weight] PASSED [ 18%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_invalid_option_values_fail_fast[kwargs1-lateral_lean_weight] PASSED [ 18%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_invalid_option_values_fail_fast[kwargs2-lateral_lean_tolerance_m] PASSED [ 18%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_invalid_option_values_fail_fast[kwargs3-leg_home_pose_reference] PASSED [ 19%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_lean_term_is_a_gated_gaussian_of_the_lateral_offset FAILED [ 19%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_lean_term_needs_both_feet_loaded PASSED [ 20%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_lateral_offset_flips_under_the_mirror FAILED [ 20%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_settled_leg_target_is_mirror_symmetric PASSED [ 20%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_settled_reference_centres_leg_home_pose_on_the_settled_pose FAILED [ 21%]
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_settled_leg_pose_is_the_statues PASSED [ 21%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_total_reward_is_sum_of_components PASSED [ 22%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_posture_reward_negative_or_zero PASSED [ 22%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_gait_reward_non_negative PASSED [ 22%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_smoothness_zero_on_first_step PASSED [ 23%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_smoothness_penalty_for_action_change PASSED [ 23%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_nosedive_penalty_non_positive PASSED [ 24%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_backward_vel_penalty_non_positive PASSED [ 24%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_drift_penalty_non_positive PASSED [ 25%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_heading_alignment_bounded PASSED [ 25%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_bite_success_is_zero_initially PASSED [ 25%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardComponents::test_height_reward_non_negative PASSED [ 26%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_bite_bonus_gives_no_bite_reward PASSED [ 26%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_high_alive_bonus_dominates PASSED [ 27%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_posture_weight_zeroes_posture_reward PASSED [ 27%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_gait_weight_zeroes_gait_reward PASSED [ 27%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_smoothness_weight_zeroes_smoothness_reward PASSED [ 28%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_head_proximity_weight_zeroes_head_proximity_reward PASSED [ 28%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_positive_head_proximity_weight_gives_reward PASSED [ 29%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_height_weight_zeroes_height_reward PASSED [ 29%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_nonzero_height_weight_gives_positive_reward PASSED [ 29%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_new_stance_rewards_default_to_zero PASSED [ 30%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_spin_weight_zeroes_spin_reward PASSED [ 30%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_nonzero_spin_weight_gives_nonpositive_reward PASSED [ 31%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_drift_weight_zeroes_drift_reward PASSED [ 31%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_zero_backward_vel_weight_zeroes_backward_reward PASSED [ 31%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestTyrannosaurusRexRewardWeightEffects::test_actuator_count PASSED [ 32%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestCurriculumStageRewards::test_stage1_balance_no_forward_reward PASSED [ 32%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestCurriculumStageRewards::test_stage3_bite_has_approach_shaping PASSED [ 33%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestCurriculumStageRewards::test_stage2_locomotion_has_heading_and_gait PASSED [ 33%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_bilateral_support_is_bounded_and_uses_weaker_foot PASSED [ 34%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_foot_load_balance_is_normalized[forces0-0.0] PASSED [ 34%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_foot_load_balance_is_normalized[forces1-0.5] PASSED [ 34%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_foot_load_balance_is_normalized[forces2-1.0] PASSED [ 35%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_foot_load_balance_is_normalized[forces3-1.0] PASSED [ 35%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_alive_bonus_can_be_partially_conditioned_on_support PASSED [ 36%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_leg_home_pose_is_soft_and_uses_authored_keyframe PASSED [ 36%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_neck_posture_is_soft_and_uses_authored_keyframe PASSED [ 36%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_settled_neck_reference_targets_the_statue_not_the_keyframe PASSED [ 37%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_foot_flatness_averages_a_gaussian_of_each_pad_tilt PASSED [ 37%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_sole_tilt_reads_the_plantar_pad_frames[roll] PASSED [ 38%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_sole_tilt_reads_the_plantar_pad_frames[pitch] PASSED [ 38%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_stance_width_is_a_gaussian_around_the_home_keyframe_width PASSED [ 38%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_stance_width_is_free_of_heading PASSED [ 39%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_legacy_defaults_leave_the_total_reward_bit_identical PASSED [ 39%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_followup_defaults_leave_the_r8_total_bit_identical PASSED [ 40%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_head_clearance_is_smooth_and_saturates_at_target PASSED [ 40%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_target_centered_height_is_opt_in PASSED [ 40%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs0-height_target_tolerance] PASSED [ 41%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs1-foot_contact_saturation_force] PASSED [ 41%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs2-support_conditioned_alive_fraction] PASSED [ 42%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs3-support_conditioned_alive_fraction] PASSED [ 42%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs4-leg_home_pose_tolerance] PASSED [ 43%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs5-head_clearance_tolerance] PASSED [ 43%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs6-neck_posture_tolerance] PASSED [ 43%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs7-neck_posture_reference] PASSED [ 44%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs8-foot_flatness_tolerance_deg] PASSED [ 44%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs9-stance_width_tolerance_m] PASSED [ 45%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs10-stance_width_reference] PASSED [ 45%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs11-stance_width_settle_steps] PASSED [ 45%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs12-stance_width_settle_steps] PASSED [ 46%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs13-stance_width_settle_steps] PASSED [ 46%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs14-foot_terms_min_support_force] PASSED [ 47%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs15-foot_terms_min_support_force] PASSED [ 47%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs16-floor_impact_weight] PASSED [ 47%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs17-floor_impact_threshold_bw] PASSED [ 48%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs18-floor_impact_threshold_bw] PASSED [ 48%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs19-airborne_substep_weight] PASSED [ 49%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStageOneStanceRewardPrimitives::test_invalid_stance_settings_fail_fast[kwargs20-action_penalty_source] PASSED [ 49%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_settled_width_reference_captures_the_animals_own_width_and_pays_only_after PASSED [ 50%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_a_horizon_shorter_than_the_settle_never_pays_the_settled_width PASSED [ 50%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_keyframe_reference_pays_from_the_first_step PASSED [ 50%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_target_is_defined_before_the_first_reset PASSED [ 51%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_load_gate_drops_an_unloaded_foots_flatness_share_and_the_width_term PASSED [ 51%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_ungated_terms_ignore_the_load PASSED [ 52%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_body_weight_is_the_whole_animal PASSED [ 52%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_floor_impact_prices_the_peak_above_the_threshold_linearly PASSED [ 52%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_floor_impact_peak_is_the_summed_force_not_each_foots_own_peak PASSED [ 53%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_airborne_substeps_count_substeps_with_every_foot_unloaded PASSED [ 53%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_new_terms_enter_the_total_only_when_weighted PASSED [ 54%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_substep_block_matches_the_min_aggregate_and_is_step_tagged PASSED [ 54%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_raw_source_prices_the_pre_filter_command PASSED [ 54%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_an_out_of_range_raw_command_is_priced_as_its_clip PASSED [ 55%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_raw_equals_filtered_without_the_filter PASSED [ 55%]
+environments/tyrannosaurus_rex/tests/test_anatomical_rewards.py::TestStanceFollowupTerms::test_a_stale_policy_command_is_never_priced PASSED [ 56%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_option_defaults_to_off_and_is_an_opt_in_task_option PASSED [ 56%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_off_it_changes_no_reward_no_info_key_and_no_trajectory PASSED [ 56%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_off_the_env_never_loads_the_band_reader PASSED [ 57%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_off_it_moves_no_task_fingerprint_and_no_recorded_config PASSED [ 57%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs0-stance_cop_band_weight] PASSED [ 58%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs1-stance_cop_band_weight] PASSED [ 58%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs2-stance_cop_band_weight] PASSED [ 59%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs3-stance_cop_band_lower] PASSED [ 59%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs4-stance_cop_band_lower] PASSED [ 59%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs5-stance_cop_band_pad_lower] PASSED [ 60%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs6-stance_cop_band_tolerance] PASSED [ 60%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs7-stance_cop_band_tolerance] PASSED [ 61%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs8-stance_cop_band_min_load_share] PASSED [ 61%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs9-stance_cop_band_min_load_share] PASSED [ 61%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs10-stance_cop_band_min_load_share] PASSED [ 62%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs11-stance_cop_band_full_price_load_share] PASSED [ 62%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs12-stance_cop_band_full_price_load_share] PASSED [ 63%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_invalid_values_fail_fast[kwargs13-stance_cop_band_full_price_load_share] PASSED [ 63%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_reading_is_the_recorders_bit_for_bit PASSED [ 63%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_states PASSED [ 64%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command PASSED [ 64%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_it_changes_no_dynamics_and_adds_exactly_its_term PASSED [ 65%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_byte_for_byte[defaults] PASSED [ 65%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_byte_for_byte[a wide load ramp] PASSED [ 65%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[share 0.25, the ramp's foot] PASSED [ 66%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[share 0.35, its top] PASSED [ 66%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[share 0.30, out of the band] PASSED [ 67%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[out of the band at the heel and the toe] PASSED [ 67%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[pads out of their band] PASSED [ 68%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[an unloaded foot] PASSED [ 68%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[a foot off its pad] PASSED [ 68%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_computes_the_pure_functions_values_on_constructed_readings[airborne] PASSED [ 69%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time PASSED [ 69%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_shared_reduction_is_pinned_by_a_golden_band_on_rollout PASSED [ 70%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_shared_reduction_is_pinned_on_contacts_that_straddle_its_thresholds PASSED [ 70%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_fused_reader_is_the_shared_reduction_on_contacts_that_straddle_its_thresholds[elliptic] PASSED [ 70%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_fused_reader_is_the_shared_reduction_on_contacts_that_straddle_its_thresholds[pyramidal] PASSED [ 71%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_fused_reader_is_the_shared_reduction_on_contacts_that_straddle_its_thresholds[per-contact decode] PASSED [ 71%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_guard_1_a_lifted_foot_pays_the_maximum PASSED [ 72%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_guard_1_a_lightly_loaded_foot_pays_by_the_load_ramp PASSED [ 72%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_guard_2_a_foot_off_its_pad_pays_the_maximum PASSED [ 72%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_guard_2_the_pad_band_prices_load_moved_onto_the_digits PASSED [ 73%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move[defaults] PASSED [ 73%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move[the right foot on the load ramp] PASSED [ 74%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop0-pad_cop0-guard0] PASSED [ 74%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop1-pad_cop1-guard1] PASSED [ 75%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop2-pad_cop2-guard2] PASSED [ 75%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop3-pad_cop3-guard3] PASSED [ 75%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop4-pad_cop4-guard4] PASSED [ 76%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop5-pad_cop5-guard5] PASSED [ 76%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_pure_function_is_the_design_formula[foot_cop6-pad_cop6-guard6] PASSED [ 77%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share[0.2-0.0] PASSED [ 77%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share[0.25-0.0] PASSED [ 77%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share[0.3-0.5] PASSED [ 78%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share[0.35-1.0] PASSED [ 78%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share[0.4-1.0] PASSED [ 79%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share[unloaded] PASSED [ 79%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share[off its pad] PASSED [ 79%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share[a NaN share] PASSED [ 80%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share[an infinite share] PASSED [ 80%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_load_guard_is_exact_at_both_ends_of_a_narrow_ramp PASSED [ 81%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_band_excess PASSED [ 81%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py::test_the_slopes_match_the_design_table PASSED [ 81%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_option_defaults_to_off_and_is_an_opt_in_task_option PASSED [ 82%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_off_it_changes_no_reward_no_info_key_and_no_trajectory PASSED [ 82%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_off_it_moves_no_task_fingerprint_and_no_recorded_config PASSED [ 83%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_invalid_values_fail_fast[kwargs0-stance_stagger_weight] PASSED [ 83%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_invalid_values_fail_fast[kwargs1-stance_stagger_weight] PASSED [ 84%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_invalid_values_fail_fast[kwargs2-stance_stagger_weight] PASSED [ 84%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_invalid_values_fail_fast[kwargs3-stance_stagger_tolerance_m] PASSED [ 84%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_invalid_values_fail_fast[kwargs4-stance_stagger_tolerance_m] PASSED [ 85%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_invalid_values_fail_fast[kwargs5-stance_stagger_tolerance_m] PASSED [ 85%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_on_it_matches_the_formula_on_a_constructed_state PASSED [ 86%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_on_it_changes_no_dynamics_and_adds_exactly_its_term FAILED [ 86%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_stagger_is_the_heading_frame_lead_and_flips_under_the_mirror PASSED [ 86%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[0.0] PASSED [ 87%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[0.01] PASSED [ 87%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[-0.02] PASSED [ 88%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[0.032] PASSED [ 88%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[0.044] PASSED [ 88%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[-0.058] PASSED [ 89%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_pure_function_is_the_spec_formula[0.3] PASSED [ 89%]
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_the_slopes_match_the_spec_table PASSED [ 90%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestHomePoseCOM::test_foot_contacts_exist PASSED [ 90%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestHomePoseCOM::test_com_inside_support_polygon PASSED [ 90%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestHomePoseCOM::test_com_not_too_far_back PASSED [ 91%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestHomePoseCOM::test_com_distance_from_support PASSED [ 91%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestHomePoseCOM::test_plantar_contacts_are_shallow PASSED [ 92%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_survives_100_neutral_action_steps PASSED [ 92%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_root_height_stable_under_neutral_action PASSED [ 93%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_tilt_deviation_stays_small_under_neutral_action PASSED [ 93%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_neutral_controls_match_complete_home PASSED [ 93%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_survives_full_noise_free_episode PASSED [ 94%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_survives_representative_jax_joint_noise[0] PASSED [ 94%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_survives_representative_jax_joint_noise[27] PASSED [ 95%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_survives_representative_jax_joint_noise[38] PASSED [ 95%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestNeutralActionStability::test_survives_representative_jax_joint_noise[44] PASSED [ 95%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestLateralSwayStiffness::test_hip_roll_servos_out_stiffen_the_lateral_gravity_moment PASSED [ 96%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestActuatorDisabledPassive::test_disabled_actuators_generate_no_force PASSED [ 96%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestActuatorDisabledPassive::test_actuator_disabled_minimum_safe_horizon PASSED [ 97%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestJointLimitsAtHome::test_no_joint_limit_violations PASSED [ 97%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestJointLimitsAtHome::test_knees_flexed_at_home PASSED [ 97%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestJointLimitsAtHome::test_leg_springs_reference_home PASSED [ 98%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestMassDistribution::test_total_mass_reasonable PASSED [ 98%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestMassDistribution::test_leg_mass_fraction PASSED [ 99%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestMassDistribution::test_tail_mass_not_excessive PASSED [ 99%]
+environments/tyrannosaurus_rex/tests/test_anatomical_static_balance.py::TestMassDistribution::test_left_right_symmetry PASSED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_the_options_default_to_off ________________________
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py:65: in test_the_options_default_to_off
+    assert not set(OPTION_KEYS) & set(env_kwargs), entry.id
+E   AssertionError: stance
+E   assert not ({'lateral_lean_tolerance_m', 'lateral_lean_weight', 'leg_home_pose_reference'} & {'action_jerk_weight', 'action_penalty_source', 'action_saturation_threshold', 'action_saturation_weight', 'airborne_substep_weight', 'alive_bonus', ...})
+E    +  where {'lateral_lean_tolerance_m', 'lateral_lean_weight', 'leg_home_pose_reference'} = set(('lateral_lean_weight', 'lateral_lean_tolerance_m', 'leg_home_pose_reference'))
+E    +  and   {'action_jerk_weight', 'action_penalty_source', 'action_saturation_threshold', 'action_saturation_weight', 'airborne_substep_weight', 'alive_bonus', ...} = set({'forward_vel_weight': 0.0, 'backward_vel_penalty_weight': 0.0, 'drift_penalty_weight': 0.3, 'spin_penalty_weight': 0.1, ...})
+____________ test_off_the_options_change_no_reward_and_no_info_key _____________
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py:74: in test_off_the_options_change_no_reward_and_no_info_key
+    assert list(info_a) == list(info_b) and not LEAN_INFO_KEYS & set(info_a)
+E   AssertionError: assert (['forward_vel...d_drift', ...] == ['forward_vel...d_drift', ...]
+E     
+E     At index 58 diff: 'com_lateral_offset_m' != 'foot_stagger_m'
+E     Left contains 3 more items, first extra item: 'reward_total'
+E     
+E     Full diff:
+E       [
+E           'forward_vel',...
+E     
+E     ...Full output truncated (107 lines hidden), use '-vv' to show)
+_____ test_off_the_options_move_no_task_fingerprint_and_no_recorded_config _____
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py:83: in test_off_the_options_move_no_task_fingerprint_and_no_recorded_config
+    assert stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs=explicit_off) == committed, (
+E   AssertionError: stance
+E   assert {'schema': 'm...tage': 1, ...} == {'schema': 'm...tage': 1, ...}
+E     
+E     Omitting 7 identical items, use -vv to show
+E     Differing items:
+E     {'env': {'frame_skip': 5, 'max_episode_steps': 1000, 'forward_vel_weight': 0.0, 'alive_bonus': 1.0, ...}} != {'env': {'frame_skip': 5, 'max_episode_steps': 1000, 'forward_vel_weight': 0.0, 'alive_bonus': 1.0, ...}}
+E     {'task_sha256': 'sha256:90378fe3585b1ddf2445294a78cbc383c5f08f004c1d483792696587be9eefba'} != {'task_sha256': 'sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456'}
+E     
+E     Full diff:...
+E     
+E     ...Full output truncated (109 lines hidden), use '-vv' to show
+_________ test_the_lean_term_is_a_gated_gaussian_of_the_lateral_offset _________
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py:173: in test_the_lean_term_is_a_gated_gaussian_of_the_lateral_offset
+    assert reward == pytest.approx(_total_of_the_other_terms(info) + info["reward_lateral_lean"], abs=1e-12)
+E   assert np.float64(4.319617377515215) == 4.366720222492892 ± 1.0e-12
+E     
+E     comparison failed
+E     Obtained: 4.319617377515215
+E     Expected: 4.366720222492892 ± 1.0e-12
+________________ test_the_lateral_offset_flips_under_the_mirror ________________
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py:205: in test_the_lateral_offset_flips_under_the_mirror
+    env = TyrannosaurusRexAnatomicalEnv(**stance_kwargs, lateral_lean_weight=0.25)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: environments.tyrannosaurus_rex.anatomical.env.TyrannosaurusRexAnatomicalEnv() got multiple values for keyword argument 'lateral_lean_weight'
+_____ test_the_settled_reference_centres_leg_home_pose_on_the_settled_pose _____
+environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py:251: in test_the_settled_reference_centres_leg_home_pose_on_the_settled_pose
+    assert keyframe_info["leg_home_pose_quality"] < 1.0
+E   assert 1.0 < 1.0
+___________ test_on_it_changes_no_dynamics_and_adds_exactly_its_term ___________
+environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py:212: in test_on_it_changes_no_dynamics_and_adds_exactly_its_term
+    assert _bytes(r_on) == _bytes(r_off + i_on["reward_stance_stagger"]) == _bytes(i_on["reward_total"])
+E   AssertionError: assert b'\x8b\x9en\xf9@\xb8\x0f@' == b'\x8c\x9en\xf9@\xb8\x0f@'
+E     
+E     At index 0 diff: b'\x8b' != b'\x8c'
+E     
+E     Full diff:
+E     - (b'\x8c\x9en\xf9@\xb8\x0f@')
+E     ?       ^
+E     + (b'\x8b\x9en\xf9@\xb8\x0f@')
+E     ?       ^
+- generated xml file: /home/user/work/pc_study/check_code/suites/wt_trex/junit.xml -
+=========================== short test summary info ============================
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_options_default_to_off
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_off_the_options_change_no_reward_and_no_info_key
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_off_the_options_move_no_task_fingerprint_and_no_recorded_config
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_lean_term_is_a_gated_gaussian_of_the_lateral_offset
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_lateral_offset_flips_under_the_mirror
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_lean_and_settled_legs.py::test_the_settled_reference_centres_leg_home_pose_on_the_settled_pose
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_stance_stagger.py::test_on_it_changes_no_dynamics_and_adds_exactly_its_term
+======================== 7 failed, 237 passed in 34.50s ========================

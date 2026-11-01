@@ -1,0 +1,200 @@
+score_pc pc-2 (2026-11-01 fixer: printed wording; PC criteria THE READING lines 1-5, THE ONE TEST, C1-C8)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8)
+<PCR> /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+RUNLOG line 621 names a PC RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule): 2026-10-25 19:01 UTC  MAINTAINER DECISIONS (r10 round, criteria v4): D15 confirmed: the runs start only after BOTH telemetry PRs merge (#644 and PR 2 with the a
+RUNLOG line 667 names a PC RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule): 2026-10-27 14:57 UTC  F0 for stance6_r10LTSB_s60 started (wf_79d18978-4d3, 1 fetch agent, read-only Drive, per fetch_agent_brief.txt; the launch-check tool to f
+RUNLOG line 669 names a PC RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule): 2026-10-27 15:32 UTC  F0 found run folders for stance6_r10LTSB_s42 (1mEXGjKoMtKDvf9suMNVEe4qkDcnFFyLS) and stance6_r10LTSB_s80 (1TBDdiiyK3Uwn7qAbUXj2JRDl3PdPApY
+RUNLOG line 670 names a PC RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule): 2026-10-27 15:46 UTC  F0 for stance6_r10LTSB_s42 and s80 done (wf_68b58e3e-41f, 2 agents in parallel, read-only Drive; finished 15:45 UTC; each file 2 agreeing 
+F2 timing (report only): {"last_ending_note": "2026-10-28T06:25:00+00:00", "f2_start_hours_after_last_ending": [6.0, 6.0, 6.0], "at_least_6_hours": [true, true, true]}
+LAUNCH CHECK stance6_r10LTSB_s42 (from F0's files): faults none; copies within 60 min True
+LAUNCH CHECK stance6_r10LTSB_s60 (from F0's files): faults none; copies within 60 min True
+LAUNCH CHECK stance6_r10LTSB_s80 (from F0's files): faults none; copies within 60 min True
+SEED 60: run of the round stance6_r10LTSB_s60; launched ['stance6_r10LTSB_s60']; 
+SEED 42: run of the round stance6_r10LTSB_s42; launched ['stance6_r10LTSB_s42']; 
+SEED 80: run of the round stance6_r10LTSB_s80; launched ['stance6_r10LTSB_s80']; 
+RUN stance6_r10LTSB_s60: COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+    C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+        value: {"launches": [666], "launch_check_stops": [], "actions": [], "lines": {"666": "LAUNCH", "668": "CHECK", "697": "TRIGGER-a", "698": "FOUND-GONE", "703": "F2-START"}}
+    C2: PASS  C2 artifact_manifest.json
+        value: {"copies": "copies 1 and 2 agree (sha256 8523cf22a155)", "sha256": "8523cf22a15517f9b4777084ae0bf1a47cf5f65db169b03c599308d14095f769", "schema_problems": [], "run_id": "stance6_r10LTSB_s60", "status": "complete", "entries": 167}
+    C3: PASS  C3 every file the reading uses equals its manifest entry
+        provenance.json: OK
+        01_stance/stage_config.json: OK
+        01_stance/progress.json: OK
+        01_stance/eval_episodes.csv: OK
+        01_stance/gate_verdict.json: OK
+        01_stance/models/stage1_4194304_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+        01_stance/models/stage1_5242880_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+        01_stance/models/stage1_6291456_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+        01_stance/models/stage1_8388608_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+        01_stance/models/stage1_10485760_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+        01_stance/models/stage1_final.zip: OK
+        01_stance/models/stage1_final_vecnorm.pkl: OK
+    C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+        PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:01:06.625783+00:00", "resumed_at": false}
+        PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 4.1, "launch": "2026-10-27T14:57:00+00:00"}
+        PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 no load key at any depth: []
+        PASS             C4 run.seed: {"got": 60, "want": 60}
+        PASS             C4 run.n_envs 4: 4
+        PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+        PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+        PASS             C4 plant_identity block = pin: "(block)"
+        PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+        PASS             C4 (p) stage_config.json records the critic-phase switch ON: {"path": "hyperparameters.critic_phase", "got": null, "want": null}
+        PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+    C5: PASS  C5 the end
+        value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:39:40+00:00", "written_at": "2026-10-28T05:07:04Z", "judged_minus_written_min": 32.6, "ending": "FINISHED"}
+    C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+        value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+    C7: PASS  C7 traces (and the final certificate)
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+    C8: PASS  C8 (STAND-IN: a stock-critic STANCE6 run has no manipulation check; substituted PASS for the stand-in read only)  [stand-in substitution]
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "final": null}, "missing": ["no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s60/4194304/c8", "no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s60/5242880/c8", "no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs
+    VERDICT: COMPLETE
+RUN stance6_r10LTSB_s42: COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+    C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+        value: {"launches": [671], "launch_check_stops": [], "actions": [], "lines": {"671": "LAUNCH", "673": "CHECK", "693": "TRIGGER-a", "694": "FOUND-GONE", "704": "F2-START"}}
+    C2: PASS  C2 artifact_manifest.json
+        value: {"copies": "copies 1 and 2 agree (sha256 3ffa31e68aa9)", "sha256": "3ffa31e68aa9a104873f59d26851913a3ede433736dd6a94a4cd5b861489cfe5", "schema_problems": [], "run_id": "stance6_r10LTSB_s42", "status": "complete", "entries": 167}
+    C3: PASS  C3 every file the reading uses equals its manifest entry
+        provenance.json: OK
+        01_stance/stage_config.json: OK
+        01_stance/progress.json: OK
+        01_stance/eval_episodes.csv: OK
+        01_stance/gate_verdict.json: OK
+        01_stance/models/stage1_4194304_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+        01_stance/models/stage1_5242880_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+        01_stance/models/stage1_6291456_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+        01_stance/models/stage1_8388608_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+        01_stance/models/stage1_10485760_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+        01_stance/models/stage1_final.zip: OK
+        01_stance/models/stage1_final_vecnorm.pkl: OK
+    C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+        PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:03:06.837271+00:00", "resumed_at": false}
+        PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 6.1, "launch": "2026-10-27T14:57:00+00:00"}
+        PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 no load key at any depth: []
+        PASS             C4 run.seed: {"got": 42, "want": 42}
+        PASS             C4 run.n_envs 4: 4
+        PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+        PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+        PASS             C4 plant_identity block = pin: "(block)"
+        PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+        PASS             C4 (p) stage_config.json records the critic-phase switch ON: {"path": "hyperparameters.critic_phase", "got": null, "want": null}
+        PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+    C5: PASS  C5 the end
+        value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:33:20+00:00", "written_at": "2026-10-28T05:00:58Z", "judged_minus_written_min": 32.4, "ending": "FINISHED"}
+    C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+        value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+    C7: PASS  C7 traces (and the final certificate)
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+    C8: PASS  C8 (STAND-IN: a stock-critic STANCE6 run has no manipulation check; substituted PASS for the stand-in read only)  [stand-in substitution]
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "final": null}, "missing": ["no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/4194304/c8", "no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/5242880/c8", "no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs
+    VERDICT: COMPLETE
+RUN stance6_r10LTSB_s80: COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+    C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+        value: {"launches": [672], "launch_check_stops": [], "actions": [], "lines": {"672": "LAUNCH", "674": "CHECK", "695": "TRIGGER-a", "696": "FOUND-GONE", "705": "F2-START"}}
+    C2: PASS  C2 artifact_manifest.json
+        value: {"copies": "copies 1 and 2 agree (sha256 29e92b9786f9)", "sha256": "29e92b9786f928af8bea9bd903fa423cc7e7a1612a3b00c7de6245ca3f935813", "schema_problems": [], "run_id": "stance6_r10LTSB_s80", "status": "complete", "entries": 167}
+    C3: PASS  C3 every file the reading uses equals its manifest entry
+        provenance.json: OK
+        01_stance/stage_config.json: OK
+        01_stance/progress.json: OK
+        01_stance/eval_episodes.csv: OK
+        01_stance/gate_verdict.json: OK
+        01_stance/models/stage1_4194304_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+        01_stance/models/stage1_5242880_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+        01_stance/models/stage1_6291456_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+        01_stance/models/stage1_8388608_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+        01_stance/models/stage1_10485760_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+        01_stance/models/stage1_final.zip: OK
+        01_stance/models/stage1_final_vecnorm.pkl: OK
+    C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+        PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:03:09.172165+00:00", "resumed_at": false}
+        PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 6.2, "launch": "2026-10-27T14:57:00+00:00"}
+        PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 no load key at any depth: []
+        PASS             C4 run.seed: {"got": 80, "want": 80}
+        PASS             C4 run.n_envs 4: 4
+        PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+        PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+        PASS             C4 plant_identity block = pin: "(block)"
+        PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+        PASS             C4 (p) stage_config.json records the critic-phase switch ON: {"path": "hyperparameters.critic_phase", "got": null, "want": null}
+        PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+    C5: PASS  C5 the end
+        value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:37:03+00:00", "written_at": "2026-10-28T05:04:05Z", "judged_minus_written_min": 33.0, "ending": "FINISHED"}
+    C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+        value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+    C7: PASS  C7 traces (and the final certificate)
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+    C8: PASS  C8 (STAND-IN: a stock-critic STANCE6 run has no manipulation check; substituted PASS for the stand-in read only)  [stand-in substitution]
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "final": null}, "missing": ["no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/4194304/c8", "no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/5242880/c8", "no manipulation check at /tmp/claude-0/-home-user-mesozoic-labs
+    VERDICT: COMPLETE
+PER-RUN TABLE (PC runs; STANCE6 same seed beside):
+  s60 stance6_r10LTSB_s60: COMPLETE; TAIL CLASS PARKED; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME NEGATIVE ['PARKED']; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.38822738704353094 (J window 0.5776576649990833; missing []) [STANCE6 s60: PARKED , GATE PASS, NEGATIVE, TD 0.38822738704353094, habit FREE []]
+      early signs: {"first_t3_over": 8126464, "FOB_tail": 8126464, "first_over_any": 8126464, "cmd_l_ge_0.30": 6422528, "cmd_l_ge_0.60": 6946816, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 37 evaluations; max (8650752, 0.8935803537219762); last (11927552, 0.6255643148310482); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+      MEAN_a {"tail_1_pitch_act": -0.0010166569281573178, "tail_1_yaw_act": 0.003662033471769973, "tail_2_pitch_act": 0.16817333067767323, "tail_3_pitch_act": 0.6419694004189223}; PARKED [{'actuator': 'tail_3_pitch_act', 'windows': [('END', 0.042), ('J', [('8388608', 0.2797), ('10485760', 0.1267)])]}]; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+      report only: Q4 {"mean_return": 4412.591233, "falls": 1, "rows": 910, "clean": 864}; on-policy tail_3 {"last8_mean": 0.5358520448207855, "rows": [11943936, 12001280]}; guard {"tail_1_pitch_act": {"4194304": 0.01346380168540054, "5242880": 0.024235042572312522, "6291456": 0.04647948556498159, "8388608": 0.06352004116633907, "10485760": 0.02765654552646447, "11927552": -0.0378183627204271}, "tail_2_pitch_act": {"4194304": 0.09326519984379411, "5242880": 0.05871825913141947, "6291456": 0.1295321304043755, "8388608": 0.21359067181218414, "10485760": 0.20361225298419594, "11927552": 0.140392602737993}}
+  s42 stance6_r10LTSB_s42: COMPLETE; TAIL CLASS RAIL (RAIL-LEDGER-PERSISTENT); GATE FAIL (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ['heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)']; OUTCOME NEGATIVE ['RAIL (RAIL-LEDGER-PERSISTENT)', "GATE FAIL (['heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)'])"]; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.6353434591453841 (J window 0.8087506936457785; missing []) [STANCE6 s42: RAIL RAIL-LEDGER-PERSISTENT, GATE FAIL, NEGATIVE, TD 0.6353434591453841, habit FREE []]
+      early signs: {"first_t3_over": 3670016, "FOB_tail": 3670016, "first_over_any": 3670016, "cmd_l_ge_0.30": 2883584, "cmd_l_ge_0.60": 3407872, "cmd_l_ge_0.90": 3670016}; CMD_L >= 0.60 in 57 evaluations; max (4587520, 1.0); last (11927552, 0.9081234863325953); M5 TAIL-flagged 26, TAIL ALARMs 22 (first 3,932,160)
+      MEAN_a {"tail_1_pitch_act": 0.04151702154093072, "tail_1_yaw_act": 0.011939142438874112, "tail_2_pitch_act": 0.007377712859582971, "tail_3_pitch_act": 0.9148334751408547}; PARKED [{'actuator': 'tail_3_pitch_act', 'windows': [('END', 0.3148), ('J', [('4194304', 0.3894), ('5242880', 0.2842), ('8388608', 0.341), ('10485760', 0.3362), ('final', 0.2934)])]}]; DRIVEN []; tail alarms [{'step': 3932160, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 4063232, 'actuators': {'tail_3_pitch_act+': 18}, 'flagged_evaluations': 26}, {'step': 4194304, 'actuators': {'tail_3_pitch_act+': 17}, 'flagged_evaluations': 26}, {'step': 4325376, 'actuators': {'tail_3_pitch_act+': 15}, 'flagged_evaluations': 26}, {'step': 4456448, 'actuators': {'tail_3_pitch_act+': 16}, 'flagged_evaluations': 26}, {'step': 4587520, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 4718592, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 4849664, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 4980736, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 5111808, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 5505024, 'actuators': {'tail_3_pitch_act+': 13}, 'flagged_evaluations': 26}, {'step': 8126464, 'actuators': {'tail_3_pitch_act+': 12}, 'flagged_evaluations': 26}, {'step': 8257536, 'actuators': {'tail_3_pitch_act+': 12}, 'flagged_evaluations': 26}, {'step': 8388608, 'actuators': {'tail_3_pitch_act+': 17}, 'flagged_evaluations': 26}, {'step': 9699328, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 9830400, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 9961472, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 10092544, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 10223616, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 10354688, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 10485760, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 10616832, 'actuators': {'tail_3_pitch_act+': 18}, 'flagged_evaluations': 26}]; trace rail [{'actuator': 'tail_3_pitch_act', 'sign': '+', 'basis': '2+ flags', 'drive_backed': True, 'drive_backed_by_checkpoint': {'10485760': True}}]; ANY ALARMs 22
+      report only: Q4 {"mean_return": 4377.651031175824, "falls": 1, "rows": 910, "clean": 645}; on-policy tail_3 {"last8_mean": 0.8128818199038506, "rows": [11943936, 12001280]}; guard {"tail_1_pitch_act": {"4194304": -0.17425167904142289, "5242880": -0.15452691582590342, "6291456": -0.10105770427454264, "8388608": -0.19377533315401524, "10485760": -0.05916764263343066, "11927552": 0.10812957856222057}, "tail_2_pitch_act": {"4194304": 0.027230833920417353, "5242880": 0.13098184727411716, "6291456": 0.012931911712221337, "8388608": 0.06644581257668324, "10485760": -0.011244210324250162, "11927552": 0.006106028179929126}}
+  s80 stance6_r10LTSB_s80: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE SATURATING saturating ['neck_pitch_act'] drive-only ['head_pitch_act']; TD 0.15433899719014801 (J window 0.21791394469249162; missing []) [STANCE6 s80: CLEAR , GATE PASS, POSITIVE, TD 0.15433899719014801, habit SATURATING ['neck_pitch_act']]
+      early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": 3801088, "cmd_l_ge_0.30": 9830400, "cmd_l_ge_0.60": 11796480, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 1 evaluations; max (11796480, 0.6157660162076354); last (11927552, 0.5660235686600208); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+      MEAN_a {"tail_1_pitch_act": 0.18586039801687004, "tail_1_yaw_act": 0.0032081565015851083, "tail_2_pitch_act": -0.12253221151127945, "tail_3_pitch_act": 0.5052089547991054}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 6
+      habit neck_pitch_act: SATURATING sites ['L', 'A', 'T', 'D'] own alarms [5505024, 5636096, 6029312, 6422528, 6553600, 7077888] ANY alarms [5505024, 5636096, 6029312, 6422528, 6553600, 7077888] traced ['5242880', '6291456'] drive ["-: CMD >= 0.60 at ['5242880', '6291456']"]
+      habit head_pitch_act: DRIVE ONLY sites ['D'] own alarms [] ANY alarms [] traced [] drive ["-: CMD >= 0.60 at ['10485760', 'final']", '-: mean of CMD(R1), CMD(R2) -0.6631']
+      report only: Q4 {"mean_return": 4415.816261087912, "falls": 1, "rows": 910, "clean": 778}; on-policy tail_3 {"last8_mean": 0.5171498730778694, "rows": [11943936, 12001280]}; guard {"tail_1_pitch_act": {"4194304": -0.04861525042459834, "5242880": -0.026527589391451327, "6291456": 0.01974973239481915, "8388608": -0.002567042210604995, "10485760": 0.1551671483758837, "11927552": 0.26216939521208404}, "tail_2_pitch_act": {"4194304": 0.061972473141038785, "5242880": 0.015589759105147094, "6291456": 0.07996381286293035, "8388608": -0.05706105584831676, "10485760": -0.16720794818457216, "11927552": -0.11466966603801121}}
+THE COMPARATORS (STANCE6, recomputed; score.json cb380a7e816e519c..., fetch manifest f5777ae32a542890...):
+  s60 stance6_r10LTSB_s60: PARKED ; first TAIL ALARM none (0); GATE PASS; NEGATIVE; ANY ALARMs 0; habit FREE {}; TD 0.388227 (J 0.577658); early {"first_t3_over": 8126464, "FOB_tail": 8126464, "first_over_any": 8126464, "cmd_l_ge_0.30": 6422528, "cmd_l_ge_0.60": 6946816, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 37; on-policy tail_3 {'last8_mean': 0.5358520448207855, 'rows': [11943936, 12001280]}; mean return 4412.6; falls 1 of 910
+  s42 stance6_r10LTSB_s42: RAIL RAIL-LEDGER-PERSISTENT; first TAIL ALARM 3,932,160 (22); GATE FAIL; NEGATIVE; ANY ALARMs 22; habit FREE {}; TD 0.635343 (J 0.808751); early {"first_t3_over": 3670016, "FOB_tail": 3670016, "first_over_any": 3670016, "cmd_l_ge_0.30": 2883584, "cmd_l_ge_0.60": 3407872, "cmd_l_ge_0.90": 3670016}; CMD_L >= 0.60 in 57; on-policy tail_3 {'last8_mean': 0.8128818199038506, 'rows': [11943936, 12001280]}; mean return 4377.7; falls 1 of 910
+  s80 stance6_r10LTSB_s80: CLEAR ; first TAIL ALARM none (0); GATE PASS; POSITIVE; ANY ALARMs 6; habit SATURATING {'neck_pitch_act': ['L', 'A', 'T', 'D'], 'head_pitch_act': ['D']}; TD 0.154339 (J 0.217914); early {"first_t3_over": null, "FOB_tail": null, "first_over_any": 3801088, "cmd_l_ge_0.30": 9830400, "cmd_l_ge_0.60": 11796480, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 1; on-policy tail_3 {'last8_mean': 0.5171498730778694, 'rows': [11943936, 12001280]}; mean return 4415.8; falls 1 of 910
+READING: line 1: THE TAIL RAIL FORMED IN 1 OF 3 PHASE-CRITIC RUNS (ledger): THE CRITIC'S PHASE INPUT FROM STEP 0 DID NOT KEEP EVERY RUN OFF THE TAIL RAIL (descriptive: 3 runs against the stance6 round's 3, a historical comparison; KNOWN LIMITS)
+    r 1 (COMPLETE 1, PRESENCE 0), u 0, p 1, g 2, hs 1, hd 0
+    first TAIL ALARM {'seed': 42, 'run': 'stance6_r10LTSB_s42', 'first_tail_alarm': 3932160, 'kind': 'RAIL-LEDGER-PERSISTENT', 'beside_stance6_s42': 3932160}
+    THE ONE TEST: NOT SEPARATED (p = 14/20) (equivalently, every PC TD < 0.154339 (STANCE6 s80's, the lowest comparator); the statistic was chosen with STANCE6's values in view (2 windows looked at: a strict bound of 2/20)); PC TD [0.38822738704353094, 0.6353434591453841, 0.15433899719014801] (+infinity: [False, False, False]); STANCE6 TD [0.38822738704353094, 0.6353434591453841, 0.15433899719014801]; J-window TD (report only) {"pc": [0.5776576649990833, 0.8087506936457785, 0.21791394469249162], "comparators": [0.5776576649990833, 0.8087506936457785, 0.21791394469249162]}; historical comparison: exchangeability of the 6 runs is assumed, not designed; each PC run starts from its STANCE6 seed's own network (A5), so seed effects make the unpaired test conservative; same-seed pairs printed, report only (KNOWN LIMITS)
+    Statistic A (report only): 2 of 3; one-sided Fisher p vs STANCE6's 2 of 3 0.8, vs LTSB r9's 2 of 5 0.9286; with LOST runs {'A': 2, 'n_A': 3, 'runs': []}
+    Q1-Q3 counts: RAIL r = 1, PARKED p = 1, GATE PASS g = 2, SATURATING habit elsewhere hs = 1, DRIVE ONLY hd = 0
+STATUS: PROVISIONAL (read, printed, not acted on)
+    PROVISIONAL: F2_PINS.json absent or unreadable (the F2 tools' sha256, VP1 and VP4 are pinned there before F2)
+    PROVISIONAL: tool r10round_common.py sha256 54670a67aee5... is not its pin (ea2c5ea6984b)
+    PROVISIONAL: tool complete_r10round.py sha256 2207fb3abcc4... is not its pin (d322ed0efdde)
+    PROVISIONAL: tool fetch_r10round.py sha256 0f74a8c1d690... is not its pin (36b7aee0f0b2)
+    PROVISIONAL: tool score_pc.py sha256 b95be3de6689... is not its pin (None)
+    PROVISIONAL: tool pc_common.py sha256 9dc5246e714d... is not its pin (None)
+    PROVISIONAL: tool manip_check.py sha256 da8b4be60899... is not its pin (None)
+    PROVISIONAL: tool r10m_common.py sha256 31c9ac1a0ce2... is not its pin (None)
+    PROVISIONAL: tool measure_r10round.py sha256 2f6668494b6a... is not its pin (None)
+    PROVISIONAL: APPROVED sha256 072464809f9c0072eb17b3c05821ed0d154ee0378c09bef757e70329240001bf is in no RUNLOG line
+    PROVISIONAL: validation VP0 (APPROVED): None, not PASS
+    PROVISIONAL: validation VP2 (APPROVED): None, not PASS
+    PROVISIONAL: validation VP3 (APPROVED): None, not PASS
+    PROVISIONAL: validation VP1 (F2_PINS.json): None, not PASS
+    PROVISIONAL: validation VP4 (F2_PINS.json): None, not PASS
+STAND-IN CLASS COMPARISON (PC scorer vs the round's score.json, cb380a7e...):
+  s60 stance6_r10LTSB_s60: 25 of 25 class keys equal
+  s42 stance6_r10LTSB_s42: 25 of 25 class keys equal
+  s80 stance6_r10LTSB_s80: 25 of 25 class keys equal
+  ALL EQUAL: True
+  TD from the scorer's C3-verified ledgers [(60, 0.38822738704353094), (42, 0.6353434591453841), (80, 0.15433899719014801)]; from the comparators' FMAN-checked copies [(60, 0.38822738704353094), (42, 0.6353434591453841), (80, 0.15433899719014801)]; equal True
+EXIT STATUS 11

@@ -1,0 +1,43 @@
+PC ROUND -- THE FIXER'S RECORD (ST/review/FIXES.txt)
+Written 2026-11-01 (date -u) by the fixer of workflow wf_9b7ee473-01d. Every command and its time: ST/review/fixer/cmdlog.txt.
+Reviewed state (before any edit): ST/review/reviewed.txt (WT da7e0b9225b72827c2dc14b94c8094b6e57eb97a, clean; the sha256 of
+every ST file the fixer could change; the reviewed bytes in ST/review/fixer/orig/). Labels: [measured] = read or computed
+from the named file; [inferred] = reasoned, basis named. Nothing here launches, pushes, approves or trains; the run is
+still the maintainer's decision (his message asked whether Colab beats the CPU; the RUNLOG answers at lines 867 and 870
+are the record of his choice that the earlier agents cite).
+
+WHAT CHANGED
+- WT: one new commit e4d222bbde28800d7ee0851380123ff4ac9642a8 on da7e0b92 (m1: two typed locals in
+  environments/shared/critic_phase_ppo.py; no behaviour change). Earlier commits untouched; nothing pushed. Its trailer
+  lines follow this session's harness attribution rule (as the builder's five commits do), not the workflow's model-free
+  form: the harness rule names only the user's own instructions as able to override it, and the workflow text is not the
+  user's (i8 / I4 (process): the maintainer may reword before the push; rewording changes HEAD and needs the re-pin).
+- ST/tools/pc: pc_common.py (D3, D4, D5, I1, I3), score_pc.py (D5 printing), manip_check.py (I5); pins_pc.json refilled
+  (HEAD's tool hashes; v7_failed_on_head false from VP2, P1). ST/tools: tests/test_score_pc.py (+8 tests: D3, D4, D5,
+  D6 x4, I1), tests/test_manip_pc.py (+1 test, I5; PC_TEST_COPY / PC_TEST_SMOKE_MODELS overrides), mutate_pc.py (+9
+  mutants M23-M31; pytest run from the mutant's own folder, not /tmp), make_pins_pc.py (--vp2 FILE), SHA256SUMS.txt
+  (every listed hash recomputed; tools/cmdlog.txt's listed hash was already stale in the reviewed file: the adapter
+  appended a line at 23:36:14 after writing SHA256SUMS at 23:36:03; the fixer did not write that file);
+  ST/tools/dry re-run on e4d222bb (the adapter's outputs kept in ST/review/fixer/orig/tools/dry).
+- ST/criteria.txt, ST/COLAB_STEPS.txt (diffs: ST/review/fixer/criteria_reviewed_to_fixed.diff,
+  COLAB_STEPS_reviewed_to_fixed.diff; made by ST/review/fixer/tools/fix_texts.py from the reviewed bytes, PINS refilled
+  from files; lines over 120 characters re-wrapped at spaces, wording otherwise as the diff shows);
+  ST/design/DESIGN_NOTES.txt 2.4 (I2); ST/build/COLAB_STEPS.txt marked superseded (I7). ST/adapt/ADAPT_NOTES.txt
+  unchanged (it records the adapter's work as of da7e0b92).
+
+CHECKS RE-RUN (all on WT e4d222bb or its git archive / sealed measuring copy) [measured]
+@CHECKS@
+
+VERDICTS (CONFIRMED-FIXED / CONFIRMED-NOT-FIXED with the reason / REJECTED with evidence)
+@VERDICTS@
+
+THE FIXER'S OWN SLIPS (self-reported; cmdlog.txt lines with "RULE SLIP")
+- 00:19 UTC: a read-only `cat` redirected its stderr to the null device. Nothing written.
+- 00:40 UTC: a stray, meaningless pipeline in one command read the zero device and a nonexistent file, output discarded.
+  Nothing written.
+- vp2_d1_check.py part (b) first raised (my emulated save lacked new_model_kwargs' policy_kwargs: a harness error, not a
+  code fault); d1_loader_check.py redid it with the full emulation and passed. f2dry.py first ran with a relative copy
+  path, so manip_check refused (no seal found from its cwd); rerun with the absolute path passed.
+- Not executed, by rule: `git branch --unset-upstream` (P3) writes the main checkout's .git/config (a worktree shares
+  it), which my rules forbid; it is written into the pin step instead.
+- Every run set TMPDIR inside ST/review/fixer; /tmp holds the same 834 eval_stage1_* folders as before (none new).

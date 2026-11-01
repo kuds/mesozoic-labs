@@ -1,0 +1,105 @@
+{
+ "run_id": "stance7_r10LTSBpc_s42",
+ "launch": "2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=L4 head=e4d222bbde28800d7ee0851380123ff4ac9642a8 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=True RUN_LABEL=\"r10 LTSB phase-critic s42\"",
+ "facts": {
+  "1": {
+   "name": "(1) commits = branch HEAD, not dirty",
+   "ok": true,
+   "value": {
+    "repository_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+    "git_commit": "e4d222bbde28800d7ee0851380123ff4ac9642a8",
+    "repository_dirty": false,
+    "head": "e4d222bbde28800d7ee0851380123ff4ac9642a8"
+   },
+   "note": null
+  },
+  "2": {
+   "name": "(2) run.seed",
+   "ok": true,
+   "value": {
+    "run_seed": 42,
+    "want": 42
+   },
+   "note": null
+  },
+  "3": {
+   "name": "(3) hyperparameters, task, plant = pins",
+   "ok": true,
+   "value": {
+    "got": {
+     "hyperparameters_sha256": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954",
+     "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "plant_identity": "(block)"
+    },
+    "equal": {
+     "hyperparameters_sha256": true,
+     "task_sha256": true,
+     "plant_identity": true
+    }
+   },
+   "note": null
+  },
+  "4": {
+   "name": "(4) zero-action reward_mean not within 50 of 3766.6",
+   "ok": null,
+   "value": null,
+   "note": "not computed: zero_action_baseline.json absent from this fetch (no copy)"
+  },
+  "5": {
+   "name": "(5) ledger carries screen_v2_reasons and #640's columns",
+   "ok": true,
+   "value": {
+    "missing": [],
+    "rows": 4
+   },
+   "note": null
+  },
+  "6": {
+   "name": "(6) one provenance sessions entry",
+   "ok": true,
+   "value": 1,
+   "note": null
+  },
+  "7": {
+   "name": "(7) provenance run_id = RUN_ID",
+   "ok": true,
+   "value": "stance7_r10LTSBpc_s42",
+   "note": null
+  },
+  "8": {
+   "name": "(8) critic-phase switch ON in stage_config.json",
+   "ok": true,
+   "value": {
+    "path": "hyperparameters.critic_phase",
+    "got": true,
+    "want": true
+   },
+   "note": null
+  }
+ },
+ "faults": [],
+ "f0_copies_within_60_min": true,
+ "p_k3_launch_settings": {
+  "source": "the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)",
+  "settings": {
+   "K3_PANEL_ok": true,
+   "sigma_file_ok": true,
+   "sigma_key_ok": true
+  }
+ },
+ "recorded_only": {
+  "runtime": "L4",
+  "BEHAVIOR": "stance",
+  "K3_PANEL": "True",
+  "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json",
+  "K3_PANEL_SIGMA_KEY": "source_vectors.42",
+  "P-K3 as RUNLOG records it": {
+   "K3_PANEL_ok": true,
+   "sigma_file_ok": true,
+   "sigma_key_ok": true
+  },
+  "zero_action reward_mean": null,
+  "TEL columns missing from F0's ledger header": [],
+  "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"
+ }
+}

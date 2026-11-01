@@ -1,0 +1,260 @@
+
+######## CELL 3 ########
+Running locally; using this checkout. REPO_REF selects only the Colab checkout.
+######## CELL 3 done in 0.0 s
+
+######## CELL 4 ########
+MuJoCo version: 3.10.0
+Gymnasium version: 1.4.0
+Repo root: /home/user/work/pc_study/review/process/tree
+######## CELL 4 done in 0.6 s
+
+######## CELL 6 ########
+Model: Tyrannosaurus Rex (Anatomical)
+Algorithm: PPO
+Quick test mode: False
+Behavior recipe: stance
+In-run K3 panel: off
+Critic phase: on
+######## CELL 6 done in 1.3 s
+
+######## CELL 8 ########
+Logs will be saved to: /home/user/work/pc_study/review/process/tree/logs
+Run directory: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on (new run: RUN_ID names no existing run)
+Provenance:    /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/provenance.json
+######## CELL 8 done in 1.3 s
+
+######## CELL 9 ########
+Critic phase on: [ppo] critic_phase = true on ['stance']
+Model: Tyrannosaurus Rex (Anatomical)
+Environment: TyrannosaurusRexAnatomicalEnv
+Observation space: (63,)
+Action space: (15,)
+Number of actuators: 15
+
+Behavior 'stance' -> deliverable 'stance'; chain: stance
+
+   #  id           name                           parent       recipe   deliverable  gate
+*  1  stance       Stance                         -            stance   yes          stance_quality_heading/v1
+   2  recovery     Recovery                       stance       recover  yes          recovery_quality/v1
+   3  locomotion   Locomotion                     stance       walk     yes          reward_and_length/v1
+   4  behavior     Bite                           locomotion   hunt     yes          task_success/v1
+  (* = on this behavior's chain)
+Trunk record:  wrote TRUNK_FROM = "" to /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/trunk_run.json.
+######## CELL 9 done in 0.0 s
+
+######## CELL 11 ########
+SB3 archive load preflight: loading a throwaway model saved by this runtime (saved by Python 3.13; this runtime is Python 3.13; bytecode members: none) ... a kernel death HERE means this image cannot load SB3 archives
+SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.
+######## CELL 11 done in 1.0 s
+
+######## CELL 15 ########
+Training infrastructure ready. Algorithm: ppo
+DiagnosticsCallback enabled: per-component rewards, obs/action stats,
+VecNormalize tracking, and termination reasons
+will log to TensorBoard.
+######## CELL 15 done in 0.0 s
+
+######## CELL 16 ########
+Visualization functions ready (shared library).
+######## CELL 16 done in 0.0 s
+stage config ppo critic_phase: True
+
+######## CELL 20 ########
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=256, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+Stance gate report for stage 1 rolls 2 episodes, not the stage's min_eval_episodes 40. The bound's power is specified at the latter; this panel does not certify what the gate claims.
+Stage 1 curriculum gate: FAIL — stage 1 n_seeds 2 < min_eval_episodes 40 (the grouped bound's power is specified at this many seed groups); stage 1 clean_seed_lcb 0.2236 < 0.8000 (2/2 seeds clean at every heading of -90, -45, +0, +45, +90, +180); stage 1 heading -90: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size); stage 1 heading -90: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean); stage 1 heading -45: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size); stage 1 heading -45: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean); stage 1 heading +0: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size); stage 1 heading +0: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean); stage 1 heading +45: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size); stage 1 heading +45: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean); stage 1 heading +90: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size); stage 1 heading +90: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean); stage 1 heading +180: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size); stage 1 heading +180: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)
+Traceback (most recent call last):
+  File "/home/user/work/pc_study/review/process/tools/chain_smoke.py", line 85, in <module>
+    run(i)
+    ~~~^^^
+  File "/home/user/work/pc_study/review/process/tools/chain_smoke.py", line 59, in run
+    exec(compile(src if src is not None else cells[i], f"<cell {i}>", "exec"), g)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<cell 20>", line 309, in <module>
+  File "<cell 15>", line 220, in save_run_bundle
+  File "/home/user/work/pc_study/review/process/tree/environments/shared/reporting/bundles.py", line 802, in save_result_bundle
+    validate_result_bundle(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        run_path,
+        ^^^^^^^^^
+    ...<2 lines>...
+        prospective_manifest=manifest,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/user/work/pc_study/review/process/tree/environments/shared/result_bundle/audit.py", line 681, in validate_result_bundle
+    raise ResultBundleError(f"result bundle is {report['status']}: {details}")
+environments.shared.result_bundle.errors.ResultBundleError: result bundle is canonical-conflict: provenance.repository_commit in /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/provenance.json must be a 40-character lowercase Git SHA; CSV-only run cannot be promoted without a canonical summary
+Behavior 'stance' -> stance; chain: stance
+
+############################################################
+# Node stance (stage 1): Stance — gate stance_quality_heading/v1
+############################################################
+Not reusing 'stance' from /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on has no stage directory for 'stance' (looked for 01_stance, stage1, stance)
+============================================================
+Node stance (stage 1): Stance (ppo)
+Description: Learn to stand and balance without falling
+Timesteps: 256
+Log dir: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance
+============================================================
+Eval num_timesteps=128, episode_reward=4471.20 +/- 0.00
+Episode length: 1000.00 +/- 0.00
+New best mean reward!
+Success rate: N/A (not an active Stage 1 gate)
+Eval num_timesteps=256, episode_reward=4481.03 +/- 0.00
+Episode length: 1000.00 +/- 0.00
+New best mean reward!
+Success rate: N/A (not an active Stage 1 gate)
+
+Final model saved to: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance/models/stage1_final.zip
+Final-model episode evidence saved to: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance/evaluation_final.csv
+Eval (final model): mean_reward=4441.03 +/- 53.01
+Eval: mean_length=1000.0 +/- 0.0 steps (10.00s sim time)
+Eval: mean_forward_vel=-0.00 +/- 0.00 m/s
+Eval: mean_distance_traveled=0.15 m
+Eval: success_rate=0%
+Best model eval:  mean_reward=4481.03 +/- 0.0 (at 256 steps)
+Selected checkpoint: robust_best_model
+Loaded best model for next-stage: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance/models/robust_best_model.zip
+Using matched VecNormalize for selected checkpoint: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance/models/robust_best_model_vecnorm.pkl
+Evaluating best model (30 episodes)...
+Selected-model episode evidence saved to: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance/evaluation_selected.csv
+Best model eval:  mean_reward=4442.93 +/- 52.28
+Best model eval:  mean_length=1000.0 +/- 0.0
+Best model eval:  mean_fwd_vel=-0.0 +/- 0.0 m/s
+Best model eval:  mean_distance=0.15 m
+Best model eval:  success_rate=0%
+No videos found in /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance
+
+Training summary saved to: /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/training_summary.txt
+Mesozoic Labs Training Summary
+==================================================
+
+Model:          Tyrannosaurus Rex (Anatomical)
+Algorithm:      ppo
+Date:           2026-10-31 23:55:50
+Seed:           42
+Quick test:     False
+Parallel envs:  2
+Run directory:  /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on
+
+Stage 1: Stance
+  Description:    Learn to stand and balance without falling
+  Timesteps:      256
+  Duration:       15s
+  Final eval:     4441.03 +/- 53.01
+  Avg ep length:  1000.0 +/- 0.0 steps (10.00s sim time)
+  Avg fwd vel:    -0.00 +/- 0.00 m/s
+  Best eval:      4481.03 +/- 0.0  (at 256 steps)
+  Best model:     /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/01_stance/models/robust_best_model.zip
+
+--------------------------------------------------
+Total training time: 15s
+
+
+######## CELL 24 ########
+Traceback (most recent call last):
+  File "/home/user/work/pc_study/review/process/tools/chain_smoke.py", line 85, in <module>
+    run(i)
+    ~~~^^^
+  File "/home/user/work/pc_study/review/process/tools/chain_smoke.py", line 59, in run
+    exec(compile(src if src is not None else cells[i], f"<cell {i}>", "exec"), g)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<cell 24>", line 6, in <module>
+RuntimeError: 'stance' (behavior 'stance') is not certified in this session; run the chain loop (section 6) to the end first
+
+######## CELL 30 ########
+Traceback (most recent call last):
+  File "<cell 30>", line 10, in <module>
+  File "/home/user/work/pc_study/review/process/tree/environments/shared/result_bundle/audit.py", line 681, in validate_result_bundle
+    raise ResultBundleError(f"result bundle is {report['status']}: {details}")
+environments.shared.result_bundle.errors.ResultBundleError: result bundle is canonical-conflict: provenance.repository_commit in /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/provenance.json must be a 40-character lowercase Git SHA; canonical bundle is missing artifact_manifest.json; CSV-only run cannot be promoted without a canonical summary
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/user/work/pc_study/review/process/tools/chain_smoke.py", line 85, in <module>
+    run(i)
+    ~~~^^^
+  File "/home/user/work/pc_study/review/process/tools/chain_smoke.py", line 59, in run
+    exec(compile(src if src is not None else cells[i], f"<cell {i}>", "exec"), g)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<cell 30>", line 12, in <module>
+  File "/home/user/work/pc_study/review/process/tree/environments/shared/result_bundle/audit.py", line 681, in validate_result_bundle
+    raise ResultBundleError(f"result bundle is {report['status']}: {details}")
+environments.shared.result_bundle.errors.ResultBundleError: result bundle is canonical-conflict: provenance.repository_commit in /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/provenance.json must be a 40-character lowercase Git SHA; canonical bundle is missing artifact_manifest.json; CSV-only run cannot be promoted without a canonical summary
+CELL STATUS {"20": "ResultBundleError: result bundle is canonical-conflict: provenance.repository_commit in /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/provenance.json must be a 40-character lowercase Git SHA; CSV-only run cannot be promoted without a canonical summary", "24": "RuntimeError: 'stance' (behavior 'stance') is not certified in this session; run the chain loop (section 6) to the end first", "30": "ResultBundleError: result bundle is canonical-conflict: provenance.repository_commit in /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on/provenance.json must be a 40-character lowercase Git SHA; canonical bundle is missing artifact_manifest.json; CSV-only run cannot be promoted without a canonical summary"}
+RUN_DIR /home/user/work/pc_study/review/process/tree/logs/tyrannosaurus_rex/anatomical/ppo/pcr_chain_on
+FILE 01_stance/diagnostics.npz 25690
+FILE 01_stance/eval_episodes.csv 10713
+FILE 01_stance/evaluation_final.csv 7039
+FILE 01_stance/evaluation_selected.csv 7128
+FILE 01_stance/evaluations.npz 818
+FILE 01_stance/figures/behavioral_metrics.png 402868
+FILE 01_stance/figures/foot_contacts.png 87951
+FILE 01_stance/figures/gate_progress.png 254883
+FILE 01_stance/figures/locomotion_health.png 343725
+FILE 01_stance/figures/stance_diagnostics.png 286676
+FILE 01_stance/figures/training_curves.png 205977
+FILE 01_stance/figures/training_history/01_outcomes.png 46657
+FILE 01_stance/figures/training_history/02_saturation.png 99694
+FILE 01_stance/figures/training_history/03_foot_cop.png 46677
+FILE 01_stance/figures/training_history/04_pad_cop.png 57886
+FILE 01_stance/figures/training_history/05_digits_margins.png 33284
+FILE 01_stance/figures/training_history/06_balance.png 59151
+FILE 01_stance/figures/training_history/07_sole_roll.png 50603
+FILE 01_stance/figures/training_history/08_floor_forces.png 35915
+FILE 01_stance/figures/training_history/09_asymmetry.png 57937
+FILE 01_stance/figures/training_history/10_policy_std.png 56525
+FILE 01_stance/figures/training_history/11_head_posture.png 61176
+FILE 01_stance/figures/training_history/12_hip_roll.png 34008
+FILE 01_stance/figures/training_history/13_commands.png 82530
+FILE 01_stance/figures/training_history/14_tail_body.png 66106
+FILE 01_stance/figures/training_history/15_energy.png 82951
+FILE 01_stance/figures/training_history/16_drift_slip.png 73485
+FILE 01_stance/figures/training_history/17_exploration_k3.png 47278
+FILE 01_stance/figures/training_history/18_obs_normalization.png 80082
+FILE 01_stance/figures/training_history/19_body_dynamics.png 103765
+FILE 01_stance/figures/training_history/training_history.html 1608549
+FILE 01_stance/figures/training_history/training_history.json 54925
+FILE 01_stance/gate_progress.npz 65820
+FILE 01_stance/gate_verdict.json 7349
+FILE 01_stance/handoff_in_training.json 255
+FILE 01_stance/models/best_model.zip 4042564
+FILE 01_stance/models/best_model_vecnorm.pkl 4769
+FILE 01_stance/models/robust_best_model.zip 4042564
+FILE 01_stance/models/robust_best_model_vecnorm.pkl 4769
+FILE 01_stance/models/stage1_128_steps.zip 1362553
+FILE 01_stance/models/stage1_256_steps.zip 4042564
+FILE 01_stance/models/stage1_final.zip 4042564
+FILE 01_stance/models/stage1_final_vecnorm.pkl 4769
+FILE 01_stance/models/stage1_vecnormalize_128_steps.pkl 4769
+FILE 01_stance/models/stage1_vecnormalize_256_steps.pkl 4769
+FILE 01_stance/plant_identity.json 771
+FILE 01_stance/policy_probe.npz 21048
+FILE 01_stance/progress.json 5931
+FILE 01_stance/stage_config.json 10784
+FILE 01_stance/stage_summary.txt 2548
+FILE 01_stance/stance_gate_probe_constant.json 71349
+FILE 01_stance/stance_gate_probe_constant.txt 1512
+FILE 01_stance/stance_gate_probe_filtered.json 14203
+FILE 01_stance/stance_gate_probe_filtered.txt 857
+FILE 01_stance/stance_gate_probe_impulse.json 92266
+FILE 01_stance/stance_gate_probe_impulse.txt 1806
+FILE 01_stance/stance_gate_probe_release.json 234081
+FILE 01_stance/stance_gate_probe_release.txt 4312
+FILE 01_stance/stance_heading_panel_selected.csv 39641
+FILE 01_stance/stance_heading_report.json 184309
+FILE 01_stance/stance_heading_report.txt 6362
+FILE 01_stance/task_fingerprint.json 3587
+FILE 01_stance/tensorboard/PPO_1/events.out.tfevents.1793490243.vm.24309.0 36848
+FILE collected_results.csv 7353
+FILE plant_identity.json 771
+FILE provenance.json 3684
+FILE training_summary.txt 889
+FILE trunk_run.json 60
+artifact_manifest.json present: False
+stage_config critic_phase: True
+gate_verdict.json {'checkpoint': 'models/robust_best_model.zip', 'checkpoint_sha256': 'sha256:61e536a7fcad7d03565a3de08e0fe76d4e7fbdbdcf3a8b28a6cf4bb748452cce', 'embodiment': 'anatomical', 'failures': ["stage 1 n_seeds 2 < min_eval_episodes 40 (the grouped bound's power is specified at this many seed groups)", 'stage 1 clean_seed_lcb 0.2236 < 0.8000 (2/2 seeds clean at every heading of -90, -45, +0, +45, +90, +180)', "stage 1 heading -90: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)", 'stage 1 heading -90: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)', "stage 1 heading -45: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)", 'stage 1 heading -45: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)', "stage 1 heading +0: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)", 'stage 1 heading +0: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)', "stage 1 heading +45: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)", 'stage 1 heading +45: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)', "stage 1 heading +90: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)", 'stage 1 heading +90: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)', "stage 1 heading +180: n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)", 'stage 1 heading +180: clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)'], 'gate': {'gate_kind': 'stance_quality_heading/v1', 'gate_schema_version': 1, 'thresholds': {'max_actuator_saturation_fraction': 0.1, 'max_episode_yaw_change_deg': 25.0, 'max_foot_contact_fraction': 0.02, 'max_hop_or_fall_episodes': 1, 'max_nonfoot_load_fraction': 0.02, 'max_phantom_support_fraction': 0.05, 'max_settle_airborne_substeps': 0, 'max_settle_peak_floor_force_bw': 1.5, 'max_settle_stance_width_change_m': 0.08, 'max_settle_touchdowns': 2, 'max_sole_cop_fore_aft': 0.8, 'max_sole_corner_lift_m': 0.004, 'max_sole_tilt_deg': 2.0, 'max_touchdown_rate': 0.25, 'max_window_displacement_m': 0.1, 'min_all_feet_support': 0.98, 'min_avg_reward': 2260.0, 'min_avg_reward_statue_ratio': 0.6, 'min_clean_stance_lcb': 0.8, 'min_eval_episodes': 40, 'min_foot_load_share': 0.4, 'min_foot_load_share_windowed': 0.35, 'min_full_horizon_fraction': 0.95, 'min_sole_contacts': 1.5, 'required_consecutive': 3, 'settle_steps': 200}}, 'gate_kind': 'stance_quality_heading/v1', 'gate_schema_version': 1, 'gate_sha256': 'sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf'}
+exit 0

@@ -1,0 +1,14 @@
+resume: state after load (pre0) == trained final state, keys compared: 61 differing: ['obs_rms/mean', 'obs_rms/var', 'obs_rms/count', 'num_timesteps']
+  includes Adam state keys: 0 obs_rms/ret_rms: ['obs_rms/mean', 'obs_rms/var', 'obs_rms/count', 'ret_rms/mean', 'ret_rms/var', 'ret_rms/count']
+two resumes from the same checkpoint bitwise identical: True 132
+resumed buffer width: (128, 2, 66)
+  stage_config .hyperparameters.critic_phase = True
+  stage_config .run.hyperparameters_sha256 = sha256:b77a6628feb9d4b6b66f2e7dcdbfcc6e2c99df06969bdcae7c5e0ee7d550b3d5
+  stage_config .run.hyperparameters_sha256 = sha256:29b4ecd27688a8681af7908150e060cf26087346f375447caed0efd217ad7984
+  stage_config .run.hyperparameters_sha256 = sha256:b77a6628feb9d4b6b66f2e7dcdbfcc6e2c99df06969bdcae7c5e0ee7d550b3d5
+  stage_config .task_fingerprint.task_sha256 = sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+  stage_config .task_fingerprint.task_sha256 = sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+wt_on_s42 -> res_on_a: compared 61 (opt keys 39, param keys 13); differing ['obs_rms/mean', 'obs_rms/var', 'obs_rms/count', 'num_timesteps']
+   num_timesteps final 512 resumed pre0 0 | obs_rms count 1028.0001 -> 1032.0001
+base_off_s42 -> base_res_off: compared 61 (opt keys 39, param keys 13); differing ['obs_rms/mean', 'obs_rms/var', 'obs_rms/count', 'num_timesteps']
+   num_timesteps final 512 resumed pre0 0 | obs_rms count 1028.0001 -> 1032.0001

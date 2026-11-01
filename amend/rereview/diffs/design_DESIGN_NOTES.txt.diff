@@ -1,0 +1,91 @@
+--- amend/orig/design/DESIGN_NOTES.txt	2026-11-01 00:55:06.352921354 +0000
++++ design/DESIGN_NOTES.txt	2026-11-01 01:48:32.244107874 +0000
+@@ -18,8 +18,9 @@
+      same-config comparators for free: the stance6 runs on the same seeds, notebook and evaluation cadence.
+    - The costs are real. About 46 L4-hours, about 62 with one relaunch (ROUND l.677-683). The code change must be right
+      the first time, so it needs the builder's tests and the independent review before the push. The comparison is
+-     historical, 3 against 3, not concurrent (section 2). Agents can only read Drive, and F2 cannot start before about
+-     22:30 UTC on 2026-11-01.
++     historical, 3 against 3, not concurrent (section 2). [Superseded by the maintainer's CONTROL (b) answer, section
++     9: three concurrent switch-off runs are added and are THE ONE TEST's control; STANCE6 is report only.] Agents can
++     only read Drive, and F2 cannot start before about 22:30 UTC on 2026-11-01.
+    - The CPU stays free tonight for the work F2 needs. That means porting and validating the measurement tools (section
+      4), which is better done while the runs train than after.
+ 
+@@ -109,7 +110,9 @@
+        - What it never does. It does not decide a class, a per-run verdict or the line.
+        - Missing runs. A run that is not COMPLETE and FINISHED enters at +infinity: missing never helps.
+        - Exchangeability is assumed, not designed. The runs are not concurrent (2.1), and the caveat is printed with
+-         the result.
++         the result. [Superseded, section 9: the test now compares the PHASE runs with three concurrent switch-off
++         runs (same HEAD, notebook, seeds, schedule); a missing PHASE run enters at +infinity, a missing OFF run at
++         -infinity; STANCE6's values are printed beside, report only.]
+        - The alternative is no test, with everything descriptive. That was rejected because without a pre-registered
+          statistic the many readouts invite after-the-fact selection. The maintainer may still choose it (CHOICE TEST).
+    2.5 Why TD, and the honest record of its choice.
+@@ -234,7 +237,8 @@
+      on binary files.
+ 
+ 6. WHAT IS NOT DONE, ON PURPOSE
+-   - No concurrent control runs (CHOICE CONTROL).
++   - No concurrent control runs (CHOICE CONTROL). [Superseded, section 9: the maintainer chose (b); the six-run
++     design is in the amended criteria and ST/amend/AMEND_NOTES.txt.]
+      - What they would add: a switch-OFF run beside each PC run would remove the date and GPU confounds of 2.1 (c) and
+        (d).
+      - What they would cost: 3 more L4 runs (about 46 L4-hours).
+@@ -245,7 +249,8 @@
+ 
+ 7. KNOWN LIMITS: THE BASIS FOR EACH LINE OF THE CRITERIA'S LIST
+    - No rate, and Fisher 0.20: comparators.out.
+-   - Historical control: 2.1.
++   - Historical control: 2.1 (now report only; what concurrency removes and does not: section 9 and the criteria's
++     KNOWN LIMITS).
+    - TD chosen with the comparators in view: 2.5.
+    - Seeds chosen knowing their outcomes: ROUND l.74-77. The STANCE6 seeds were chosen with their r9 outcomes known,
+      and now their r10 outcomes are known too.
+@@ -269,6 +274,45 @@
+    together, and HEAD stays the reviewed tree.
+ 
+ 9. THE CHOICES THE MAINTAINER CONFIRMS (with the answer time to the second; recommended first)
++   ANSWERED 2026-11-01 01:15:14 UTC (RUNLOG line 874: "MAINTAINER (AskUserQuestion, two dialogs answered just before
++   this line)"; recorded here by the amendment editor, RUNLOG line 875) [measured, RUNLOG lines 874-875]:
++     NAMES    confirmed: RUN_IDs stance7_r10LTSBpc_s60/_s42/_s80, tag STANCE7 ("Confirm all (Recommended)"). The
++              CONTROL (b) answer adds the switch-off runs stance7_r10LTSBoff_s60/_s42/_s80, labels "r10 LTSB switch-off
++              s<seed>" (the names the coordinator's line 875 gives; no collision [measured,
++              ST/amend/names_check_off.out]).
++     PUSH     confirmed: push claude/screen-trex-r10-phasecritic at 1dfe2327 (the reworded HEAD; trees equal to
++              e4d222bb's [measured, ST/old_trees.txt, ST/new_trees.txt]) and a durable copy of the pre-registration.
++     CONTROL  (b): "Add 3 switch-off runs" (6 L4 runs, about 92 L4-hours), with "Make them the test's control
++              (Recommended)": THE ONE TEST compares the phase runs with the concurrent switch-off runs, decided before
++              any data; STANCE6 report only; a criteria and scorer edit plus a quick re-review before pinning.
++     TEST     (a) keep the one test (Recommended), now against the concurrent switch-off runs.
++     INIT     (a) zero-appended critic phase weights ("Confirm all").
++     K3       (a) the in-run K3 panel ON ("Confirm all"; VP2 passed on e4d222bb, the same tree).
++     RESUME   (a) the round's rule, no resume ("Disconnects: Round's rule, no resume (Recommended)").
++     ENDS     run ends noted from Drive ("Confirm all").
++     TOOLS, HDR not in the two dialogs (RUNLOG line 874 names neither): the text keeps the recommended options (the
++              F0 and launch-check port pinned before launch, the F2 tools before F2; no header commit); the pin step
++              asks the maintainer to confirm them with the pin, or records that they stand as reviewed.
++     SWITCH   as the builder made it (cell 6 CRITIC_PHASE; rows "Critic phase: on" / "Critic phase: off"; cell 9 "Critic
++              phase on: ..." for a phase run only [measured, ST/check_code/nb/nb_on.log, nb_off.log]).
++   What CONTROL (b) changes, in short (every change and why: ST/amend/AMEND_NOTES.txt):
++     - six runs: the phase arm (CRITIC_PHASE True) and the switch-off arm (CRITIC_PHASE False, its default), same HEAD,
++       notebook, seeds, schedule and settings; interleaved by seed; with fewer sessions the switch-off runs may start
++       later, but each before any phase run's results are opened (outcome blindness; a late one enters the test as
++       missing); start gaps printed, report only; each run handled on its own (all or nothing, one _b within 2 h of its
++       own launch).
++     - THE ONE TEST: phase vs concurrent switch-off, phase LOWER, TD unchanged, minimum p 1/20, alpha 0.05; a missing
++       phase run at +infinity (highest rank), a missing switch-off run at -infinity (lowest). TD's form was chosen
++       with STANCE6's values in view; the six runs' values are unseen at the pin.
++     - THE READING: the phase runs' lines and per-run classes as reviewed; the switch-off runs' classes printed beside;
++       the line texts that named STANCE6 now name the concurrent switch-off runs; STANCE6 report only (beside, and in
++       an OFF-vs-STANCE6 replication block: with the switch OFF the code equals 8737cd3d bitwise, A6, so the
++       switch-off runs replicate stance6 on today's Colab image).
++     - What concurrency removes: the code-commit, date / Colab-image (within the start gaps), notebook and K3
++       differences between the test's arms. What it does not: 3 vs 3 still reaches only p = 1/20; GPU nondeterminism
++       within today's image; image changes between staggered starts; seed effects (a shared start, A5) assumed to make
++       the unpaired test conservative.
++   The options as offered (kept for the record):
+    NAMES   RUN_IDs stance7_r10LTSBpc_s60 / _s42 / _s80, labels "r10 LTSB phase-critic s<seed>", RUNLOG KIND STANCE7.
+    PUSH    OK to push claude/screen-trex-r10-phasecritic at HEAD (needed for REPO_REF; never merged).
+    CONTROL (a) STANCE6 as historical comparators only (recommended; 3 L4 runs) | (b) add 3 concurrent switch-OFF runs.

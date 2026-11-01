@@ -1,0 +1,14 @@
+Type the two SB3 pass-through locals so CI's lint-job mypy passes (screen, never merged)
+
+CI's lint job runs mypy without SB3 or torch installed, so SB3's base
+classes are Any there and both pass-throughs in
+CriticPhaseActorCriticPolicy (_get_constructor_parameters and
+obs_to_tensor) returned Any from functions declared to return
+dict[str, Any] and tuple[Any, bool] [no-any-return]: 2 errors, exit 1,
+where 8737cd3d had none.  Each value is now bound to a typed local
+before it is returned.  No behaviour changes: the same objects are
+returned.  Both mypy views (without SB3, 418 files; full venv, 418
+files), ruff check, ruff format and the 36 critic-phase tests pass.
+
+Co-Authored-By: [name removed] <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A

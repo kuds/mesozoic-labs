@@ -1,0 +1,345 @@
+PC (PHASE-CRITIC COLAB ROUND) -- DESIGN NOTES v1 (the reasoning behind DESIGN/criteria_v1.txt and COLAB_STEPS_v1.txt)
+Written 2026-10-31 (date -u; times in DESIGN/cmdlog.txt) by the PC designer. Drafts only: nothing here is approved,
+pinned or launched. [measured] = read or computed from the named file; [inferred] = reasoned, basis named.
+S1, S2, ROUND, STANCE6, PS, WT, HEAD, <PCR>: as criteria_v1.txt SHORT NAMES.
+
+0. THE QUESTION ASKED: A 3-SEED COLAB RUN INSTEAD OF THE CPU TONIGHT?
+   The maintainer's question was whether a 3-seed Google Colab run makes more sense than the CPU tonight. RUNLOG line
+   867 records his choice ("Switch to Colab run", 20:54:11 UTC) and line 870 "keep the plan". The designer's view, for
+   the record [inferred]:
+   - For the question that matters next, Colab is the better use of the night. PS answered "does the phase stop the
+     climb from one state (s42 at 2.10M) over 1.44M steps". The open questions are whether the phase critic, from step
+     0, keeps the tail off the rail through 12M, passes the gate, and leaves no habit elsewhere. Only full runs from
+     scratch answer them. Three L4s in parallel do that in about 15 h of wall time, measured on stance6 [measured,
+     S2/r10round/f2/score.txt C4/C5: launch 14:57 UTC, "ended" 05:01-05:07 UTC]. The CPU long study it replaces
+     continued one parent state on 4 cores for about 10 h, and only from s42's 2.10M state. Today two idle-time
+     container restarts killed CPU work twice [measured, RUNLOG lines 849-852].
+   - Colab trains through the shipped notebook path, so the code change is tested where it would be used. It also gets
+     same-config comparators for free: the stance6 runs on the same seeds, notebook and evaluation cadence.
+   - The costs are real. About 46 L4-hours, about 62 with one relaunch (ROUND l.677-683). The code change must be right
+     the first time, so it needs the builder's tests and the independent review before the push. The comparison is
+     historical, 3 against 3, not concurrent (section 2). [Superseded by the maintainer's CONTROL (b) answer, section
+     9: three concurrent switch-off runs are added and are THE ONE TEST's control; STANCE6 is report only.] Agents can
+     only read Drive, and F2 cannot start before about 22:30 UTC on 2026-11-01.
+   - The CPU stays free tonight for the work F2 needs. That means porting and validating the measurement tools (section
+     4), which is better done while the runs train than after.
+
+1. THE QUESTIONS AND WHY THESE BARS
+   Q1-Q3 are the questions LB's draft asked of its blind continuations (S2/r10round/long_blind/criteria_work/
+   criteria_v1.txt lines 69-72). Here they are asked of full runs, and every bar is ROUND's own definition:
+   - TAIL CLASS: RAIL, PARKED and CLEAR, ROUND l.269-279.
+   - GATE CLASS: the M3 certificate on stage1_final, l.280-283.
+   - RUN OUTCOME: l.284-286.
+   The PC runs and the STANCE6 runs are therefore classified by the same rules, applied by the same pinned functions
+   (score_r10round.classes_of, ledger_r10round.py). Nothing is tuned to the new runs.
+   - Q1's "develop the tail habit" = TAIL CLASS RAIL or PARKED. ROUND counts both as NEGATIVE: "a parked tail or a
+     late-resolved rail is not success", l.284-285.
+   - The ledger early signs are printed, never a class. They are the quantities the task lists: first_t3_over,
+     FOB_tail, the CMD_L thresholds and the M5 TAIL flags. They use BS2's reader definitions (read_bs.py lines
+     621-660, sha256 06f4173d..., BS2's pinned reader). They let the reading say how early a habit started, beside
+     STANCE6's.
+   - Q2 is GATE CLASS. The notebook's own gate_verdict.json is printed beside it. For all three STANCE6 runs that
+     verdict was "passed" on robust_best_model [measured, comparators.out "the notebook's own gate" lines], while
+     ROUND's GATE CLASS failed s42 on stage1_final. ROUND's decision point is
+     the final checkpoint, so the verdict stays GATE CLASS.
+   - Q3 uses LB's O6 rule (L, A, T, D per actuator) because ROUND has no per-actuator habit rule beyond the ANY ALARM.
+     The measurement builder applied O6 to STANCE6 with the pinned tools [measured, reread_round.out lines 21, 47, 72]:
+     - s42: tail_3 only;
+     - s60: tail_3 only;
+     - s80: neck_pitch L, T, D and head_pitch D.
+     LB's text was an unreviewed draft (its build stopped at RUNLOG line 805), so this review must review O6 itself.
+   - Q4 is report only, as ROUND reports it.
+   Prediction [inferred]: no RAIL is likelier than a RAIL. PS's phase arm ended below its start: median +0.057
+   against B_S +0.127. Its critic's tail slope went to about 0 and its V - G to about 0 by step bucket [measured, PS
+   REPORT.md]. Three things cannot be excluded:
+   - a PARK through a slower drift (STANCE6 s80's tail_3 reached CMD_L +0.62 at 11,796,480 without a rail) [measured,
+     comparators.out];
+   - a habit elsewhere (STANCE6 s80's neck; PS's guard on tail_2 and tail_1);
+   - effects the screen could not see from scratch, such as different early learning or a different posture.
+
+2. THE COMPARATORS, AND WHAT A 3-AGAINST-3 DESIGN CAN AND CANNOT SAY
+   2.1 What differs. STANCE6 and PC share the notebook, the seeds, the evaluation and checkpoint cadence, the
+       stage config and every PPO setting. They differ in five ways:
+       (a) the switch: the intervention.
+       (b) HEAD's other bytes: the builder's commits. A6 requires the switch OFF to reproduce ROUND's V0 (h) rollout
+           digests (ROUND l.780-793), so the code commit alone changes no training data on CPU.
+       (c) GPU nondeterminism. A seed fixes the start, not the run. With A5 (a) the start is literally STANCE6's start:
+           the same initial actor and critic functions and, on CPU, the same first rollout.
+       (d) The date. The Colab image may have moved since 2026-10-27. The notebook pins mujoco, gymnasium and SB3
+           (cell 3 at 8737cd3d). torch and numpy come from the image. STANCE6 recorded numpy 2.1.3; torch is not
+           recorded [measured, F2 provenance.json.copy1 dependency_versions].
+       (e) The K3 panel, only if CHOICE K3 turns it off. It was proven inert on CPU and inferred inert on GPU (ROUND
+           l.674).
+   2.2 STANCE6's measured outcomes [measured, DESIGN/comparators.out, which checks every ledger and probe copy against
+       both the F2 fetch manifest and the run's artifact_manifest.json; classes from S2/r10round/f2/score.json]:
+       s60: PARKED.
+         - tail_3 MEAN_a +0.642; first tail_3 over-bar 8,126,464; CMD_L >= 0.60 in 37 of 91 evaluations, from
+           6,946,816.
+         - No alarm. GATE PASS. NEGATIVE.
+         - TD 0.388227. Mean return 4412.6.
+       s42: RAIL-LEDGER-PERSISTENT.
+         - First over-bar 3,670,016. 22 TAIL ALARMs from 3,932,160. CMD_L >= 0.60 in 57 of 91.
+         - GATE FAIL. NEGATIVE.
+         - TD 0.635343. Mean return 4377.7.
+       s80: CLEAR.
+         - No tail over-bar. CMD_L >= 0.60 once, at 11,796,480 (+0.616).
+         - 6 ANY ALARMs on neck_pitch_act (119 over-bar rows). GATE PASS. POSITIVE.
+         - TD 0.154339. Mean return 4415.8.
+       Each run has 1 fall in 910 evaluation rows. Under the PC reading's lines STANCE6 reads line 1 (r = 1).
+   2.3 Per-run verdicts and report-only lines. With 3 runs per side, a verdict can only be per run, against a bar
+       fixed before the runs:
+       - TAIL CLASS, GATE CLASS, RUN OUTCOME and HABIT ELSEWHERE are such verdicts, and THE READING is built from
+         their counts.
+       - Comparisons between the arms are report only. That covers Statistic A, same-seed pairs, timing of first
+         alarms, MEAN_a, returns and the critic readouts.
+       - Binary outcomes cannot reach 0.05 against 3. With STANCE6 at 2 of 3 runs with a habit (RAIL or PARKED), 0 of
+         3 PC runs gives one-sided Fisher p 0.20, and 1 of 3 gives 0.50. For RAIL alone (1 of 3) the best is 0.50
+         [measured, comparators.out "Fisher" lines].
+   2.4 The exact 3-vs-3 permutation test: used once, on one continuous statistic, as THE ONE TEST.
+       - It splits the 6 values 3 + 3 in C(6,3) = 20 ways, so the smallest p is 1/20 = 0.05, reached only by complete
+         separation [measured, comparators.out: the placements tried there give 1/20, 1/10, 3/10, 7/10 and 1].
+         Only 1/20 depends on the placement alone (complete separation); for a sum statistic every other p
+         depends on the magnitudes too: with the same placement [0.01, 0.02, 0.7] gives 6/20 and [0.1, 0.12, 0.9]
+         gives 8/20 (fixer 2026-11-01, review I2 [measured, ST/review/fixer/scratch/i2_check.txt]).
+       - Why use it at all. It is the only analysis in this design that can say "lower than every comparator" with an
+         exact error rate under exchangeability. Fixing it now, on one statistic, blocks choosing among the many
+         report-only measures after the data. That forking is the main risk of a 3-vs-3 historical design.
+       - How. One-sided (PC lower), on the TD sum, with ties counted against H1, alpha 0.05.
+       - What it means. The comparators' TDs are already known, so "p = 1/20" is the same as "every PC run's TD below
+         0.154339". The text states the equivalence so nobody reads more into the p than a fixed bar.
+       - What it never does. It does not decide a class, a per-run verdict or the line.
+       - Missing runs. A run that is not COMPLETE and FINISHED enters at +infinity: missing never helps.
+       - Exchangeability is assumed, not designed. The runs are not concurrent (2.1), and the caveat is printed with
+         the result. [Superseded, section 9: the test now compares the PHASE runs with three concurrent switch-off
+         runs (same HEAD, notebook, seeds, schedule); a missing PHASE run enters at +infinity, a missing OFF run at
+         -infinity; STANCE6's values are printed beside, report only.]
+       - The alternative is no test, with everything descriptive. That was rejected because without a pre-registered
+         statistic the many readouts invite after-the-fact selection. The maintainer may still choose it (CHOICE TEST).
+   2.5 Why TD, and the honest record of its choice.
+       - TD is the mean over all evaluations of |CMD_L|. CMD_L is the 10-episode mean of the ledger's
+         tail_3_pitch_act_command_mean, as BS2's SEC-CMD and read_bs.ledger_direct define it.
+       - It is read only from eval_episodes.csv, a C3 file checked against the manifest. It needs no simulation and no
+         new measuring code, so it is computed identically for STANCE6 (now, by comparators.py) and for PC (later, by
+         the same code). The critic interface cannot touch it, because evaluation is actor-only, and VP0 asks the
+         builder to show the evaluation callback writes the same rows with the switch ON and OFF.
+       - It covers the whole run, so the time spent in a habit and its height both count. The absolute value counts a
+         drive to the minus side too: s42's command swung to -0.56 between its spells [measured, comparators.out
+         "min -0.5616 at 6946816"].
+       - Before choosing, the designer computed two windows: all 91 evaluations, and from 4,194,304 (J's first). The
+         comparators were in view. All 91 was chosen because it tunes nothing (no window is picked). The J window is
+         printed beside it, report only (0.577658 / 0.808751 / 0.217914).
+       - MEAN_a (M1 at R1/R2) was not chosen. It reads two checkpoints only and needs the adapted measuring copy, so it
+         carries more adaptation risk.
+       - The on-policy probe command was not chosen. policy_probe.npz is a readout file, not a C3 file.
+
+3. WHAT THE CODE MUST GUARANTEE (A1-A7), AND WHY EACH IS A VALIDATION
+   A1-A4 carry PS's verified contract (PS criteria.txt C1-C7, lines 154-204) over to a separate input. PS's version
+   lived in the command slots. Here the phase must not touch the actor's 63 values at all. That is the maintainer's
+   interface choice: valid for walking stages, whose commands use those slots.
+   A5 (recommended (a)) makes the PC runs start where STANCE6 started. Initialising the policy exactly as 8737cd3d
+   does (the same random draws), then appending zero phase columns to the critic's first layer, leaves the step-0
+   networks as STANCE6's own functions. By main's widening precedent the actor is bitwise the same and the critic
+   the same up to float32 round-off of the longer sum (|dV| <= 1e-6). So on CPU the first rollout's actor
+   observations, actions, rewards and log-probabilities equal STANCE6's bitwise, compared field by field with
+   rollbuf.py. The pinned whole-buffer digests include the values, so they match only if the build keeps V bitwise.
+   Divergence then begins at the first update, which is the intervention.
+   The alternative (b) is default initialisation of a wider critic. It would change every initial weight, and with
+   it the actor's start, removing the one place the historical comparison can be exact.
+   A6 shows the switch OFF is 8737cd3d. The comparators' configuration therefore exists on HEAD, and the only
+   difference left is the switch.
+   A7 keeps the deployed interface: plant_identity = ROUND's, observation_dim 63. The three config digests that do
+   change must be pinned from a real stage_config.json, as ROUND's V0 (e) did, so that the launch check and C4 can
+   compare them.
+   VP0's list of tests is the builder's. The designer fixes only what they must show.
+
+4. THE MEASUREMENTS: REUSE, ADAPT, BUILD
+   4.1 Reused unchanged:
+       - M5 (ledger_r10round.py) and the class function (score_r10round.classes_of), as measure_lb.py reused them
+         (S2/r10round/long_blind/measure/tools/measure_lb.py lines 16-44).
+       - The M1 and M3 scripts inside the measuring copy. Their sha256 must equal ROUND's pins at HEAD, so the
+         builder must not edit them.
+   4.2 Need nothing for the phase: everything actor-only.
+       - M1 traces, M2 posture, M3 certificate, M4 judge, the ledger, the K3 panel's rollouts.
+       - G, c0 and b* (actor sweeps).
+       - The on-policy probe command (rollout_mu_mean).
+       Each still has to LOAD a phase-critic checkpoint. VP1 shows the loader at HEAD rolls the actor exactly: M1 on a
+       zero-column widening of a STANCE6 pair equals ROUND's M1 of that pair. VP2 shows the same for the K3 panel.
+   4.3 Need the phase fed: only critic readings, all report only.
+       - The critic's slope on the tail angle. BS2/PS read_bs M-LOOP takes V at swept tail angles. It must pass phi(k)
+         through the new input, with k from the state's own episode step: OWN snapshots at 500-1000 and the
+         probe's settled bank at k = 200 / 401 / 600 (PS criteria.txt lines 199-204).
+       - V - G by step bucket (PS's V-G tool form, RUNLOG line 861).
+       - The manipulation check, which is not report only: it decides C8 (a completeness fact added to ROUND's C1-C7).
+       In PS these readers fed the phase through the command slots. They need a new feed for the separate input, and
+       each needs one test: on a zero-column checkpoint, V with the phase fed equals the plain critic's V bitwise.
+   4.4 Adapted lane A/B tools. The changes are constants plus the listed additions, each diff against the pinned
+       original reviewed.
+       Lane A (r10m_common.py, measure_r10round.py):
+         - approved_branch_head accepts HEAD from <PCR>/APPROVED in place of "exactly one parent cf9402bc and a
+           stance.toml comment diff" (r10m_common.py lines 333-375, which would refuse any PC commit);
+         - RUN_IDS;
+         - PANELS;
+         - the CRITERIA pin.
+       Lane B (r10round_common.py):
+         - ROUND (line 43);
+         - RUN_IDS (line 58);
+         - NOTE_RE's "STANCE6" (line 114);
+         - RUN_TOKEN_RE (line 115).
+       Elsewhere:
+         - the pins file;
+         - complete_r10round.py: launch-check fact (8), C4 (p) and C8;
+         - fetch_r10round.py and fetch_agent_brief.txt: paths and RUN_IDs;
+         - the scorer: THE READING, THE ONE TEST and the comparator table, recomputed from STANCE6's pinned files.
+   4.5 What the scorer reads:
+       - RUNLOG's STANCE7 lines;
+       - <PCR>/fetch/manifest.csv and the F2 copies (artifact_manifest.json, provenance.json, stage_config.json,
+         progress.json, eval_episodes.csv, gate_verdict.json, the C3 pairs);
+       - the M1 and M3 outputs under <PCR>/panels from the adapted runner on the HEAD measuring copy;
+       - the manipulation-check outputs;
+       - the comparators: STANCE6's score.json (cb380a7e...), FMAN (f5777ae3...) and STANCE6's ledgers (sha256 in
+         comparators.out), recomputed by the pinned comparators code. A transcribed value is never read.
+   4.6 When. The F0 fetch and the launch check must run within an hour of launch, so their port is pinned before
+       launch. Everything else is built and validated while the runs train, and pinned in RUNLOG before F2-START.
+       Two rules hold this together:
+       - The tool builders read no PC run file.
+       - F2 waits for the tools (CHOICE TOOLS).
+       The maintainer approved this pattern for PS's V-G tool ("Build it during the runs (Recommended)", RUNLOG line
+       819). It keeps tonight's launch to the code, the criteria and the launch check.
+   4.7 Cost [measured, S2/r10round/long_blind/measure/validate/classify_parents.out]: M1 takes about 68 s per label,
+       and M3 about 32-33 min per final, at nice 10. Per run that is 6 J labels plus any RESOLUTION, plus one M3. For
+       the three runs it comes to about 2 h at 2 slots. Disk: about 4 GB is free, and measure_r10round.py refuses
+       below 3 GiB free (r10m_common), so F2's pairs (about 0.19 GB of checkpoints per run, ROUND l.84-85) and the
+       panels fit only if other scratch is cleared first. The coordinator checks df before F2.
+
+5. THE COLAB STEPS: WHAT CHANGED FROM STANCE6, AND RESUMING
+   - Changed from STANCE6:
+     - REPO_REF and the notebook link;
+     - RUN_IDs and labels;
+     - the switch, with its check row;
+     - the "new run" line in cell 8, now a stop (an existing RUN_ID re-enters that run in place: notebook cell 8
+       comment);
+     - launch-check fact (8);
+     - the RUNLOG KIND STANCE7;
+     - F2 waiting for the tools.
+     Everything else is the pinned steps.
+   - Resume: no. The criteria keep ROUND's all-or-nothing rule (ROUND l.356-434). STANCE6 ran in one session each.
+     A resumed run differs from the comparators in a discontinuity: new env RNG streams and a lost partial segment.
+     It also needs C4 and C6 rules that have not been verified on the notebook's same-stage resume path. The concern
+     is evaluation rows repeated after the reloaded pair; C6 requires exactly 10 rows per evaluation.
+   - A disconnect is handled the stance6 way:
+     - within 2 h of launch and before any periodic zip, it is relaunched once as _b;
+     - later, the seed is LOST, and its ledger can still read line 1 through PRESENCE.
+     The cost is about 9.5% of rounds INCOMPLETE at REALISTIC loss rates [model, ROUND TABLE M]. STANCE6 lost none
+     of 3. Allowing a resume (CHOICE RESUME (b)) would trade comparability for completeness. It needs the builder to
+     verify the resume path on HEAD before launch, which tonight's schedule does not leave time for.
+   - The fetch plan is ROUND's FETCHES with the exact-copy transfer method (RUNLOG line 709, extract_response.py sha256
+     98e8041e...). That method replaced the brief's hand transcription after a safety filter cut base64 transcripts
+     on binary files.
+
+6. WHAT IS NOT DONE, ON PURPOSE
+   - No concurrent control runs (CHOICE CONTROL). [Superseded, section 9: the maintainer chose (b); the six-run
+     design is in the amended criteria and ST/amend/AMEND_NOTES.txt.]
+     - What they would add: a switch-OFF run beside each PC run would remove the date and GPU confounds of 2.1 (c) and
+       (d).
+     - What they would cost: 3 more L4 runs (about 46 L4-hours).
+     - Why not now: the maintainer's plan is 3 runs (RUNLOG line 870). The comparators are the same code path with the
+       switch OFF (A6), and the habit appeared in 2 of 3 of them [measured].
+   - No sham-input arm, as in PS (KNOWN LIMITS).
+   - No change to the gate, the reward, the task or the evaluation.
+
+7. KNOWN LIMITS: THE BASIS FOR EACH LINE OF THE CRITERIA'S LIST
+   - No rate, and Fisher 0.20: comparators.out.
+   - Historical control: 2.1 (now report only; what concurrency removes and does not: section 9 and the criteria's
+     KNOWN LIMITS).
+   - TD chosen with the comparators in view: 2.5.
+   - Seeds chosen knowing their outcomes: ROUND l.74-77. The STANCE6 seeds were chosen with their r9 outcomes known,
+     and now their r10 outcomes are known too.
+   - s80's neck habit: 2.2.
+   - One state screened: PS REPORT.md "Not shown".
+   - No sham: PS KNOWN LIMITS.
+   - Stage-specific phase: PS's definition uses stance_width_settle_steps and gamma.
+   - Main's config gates only stance_width: RUNLOG line 809 and #655.
+   - Rail between evaluations, and the final-only gate: ROUND l.669-673.
+   - LOST: ROUND l.630-644 and TABLE M.
+   - The measuring copy differs from the comparators': VP1.
+
+8. HOW THE COORDINATOR PINS
+   The steps are in criteria_v1.txt. They follow PS's practice (PS criteria.txt HOW THE COORDINATOR PINS; RUNLOG lines
+   832-834):
+   - APPROVED is written once, as compact one-line JSON with mode 0444;
+   - its sha256 goes on one RUNLOG line and its exact bytes on the next;
+   - pre-launch checks run before the maintainer launches.
+   There is no header commit (CHOICE HDR). The stance6 header commit put the criteria's sha256 in a stance.toml
+   comment and needed V0 (i) and the lane A binding to accept it. Here APPROVED and RUNLOG pin HEAD and the text
+   together, and HEAD stays the reviewed tree.
+
+9. THE CHOICES THE MAINTAINER CONFIRMS (with the answer time to the second; recommended first)
+   ANSWERED 2026-11-01 01:15:14 UTC (RUNLOG line 874: "MAINTAINER (AskUserQuestion, two dialogs answered just before
+   this line)"; recorded here by the amendment editor, RUNLOG line 875) [measured, RUNLOG lines 874-875]:
+     NAMES    confirmed: RUN_IDs stance7_r10LTSBpc_s60/_s42/_s80, tag STANCE7 ("Confirm all (Recommended)"). The
+              CONTROL (b) answer adds the switch-off runs stance7_r10LTSBoff_s60/_s42/_s80, labels "r10 LTSB switch-off
+              s<seed>" (the names the coordinator's line 875 gives; no collision [measured,
+              ST/amend/names_check_off.out]).
+     PUSH     confirmed: push claude/screen-trex-r10-phasecritic at 1dfe2327 (the reworded HEAD; trees equal to
+              e4d222bb's [measured, ST/old_trees.txt, ST/new_trees.txt]) and a durable copy of the pre-registration.
+     CONTROL  (b): "Add 3 switch-off runs" (6 L4 runs, about 92 L4-hours), with "Make them the test's control
+              (Recommended)": THE ONE TEST compares the phase runs with the concurrent switch-off runs, decided before
+              any data; STANCE6 report only; a criteria and scorer edit plus a quick re-review before pinning.
+     TEST     (a) keep the one test (Recommended), now against the concurrent switch-off runs.
+     INIT     (a) zero-appended critic phase weights ("Confirm all").
+     K3       (a) the in-run K3 panel ON ("Confirm all"; VP2 passed on e4d222bb, the same tree).
+     RESUME   (a) the round's rule, no resume ("Disconnects: Round's rule, no resume (Recommended)").
+     ENDS     run ends noted from Drive ("Confirm all").
+     TOOLS, HDR not in the two dialogs (RUNLOG line 874 names neither): the text keeps the recommended options (the
+              F0 and launch-check port pinned before launch, the F2 tools before F2; no header commit); the pin step
+              asks the maintainer to confirm them with the pin, or records that they stand as reviewed.
+     SWITCH   as the builder made it (cell 6 CRITIC_PHASE; rows "Critic phase: on" / "Critic phase: off"; cell 9 "Critic
+              phase on: ..." for a phase run only [measured, ST/check_code/nb/nb_on.log, nb_off.log]).
+     WAVES    answered 2026-11-01 01:41:53 UTC, after the amendment had started (RUNLOG line 876 [measured]): "I plan to
+              run 3 runs at a time"; "Phase first": wave 1 the three phase runs, wave 2 the three switch-off runs when
+              wave 1 ends; no phase result opened until every switch-off run has started; the arm confounded with the
+              wave (for KNOWN LIMITS). THE ORDER's fewer-sessions rule is this plan; the fixer's blind-period rule (the
+              amendment's re-review B1: until every switch-off LAUNCH line a phase run's liveness, end and stall rest
+              on metadata only) makes "no phase result opened" followable (ST/amend/FIXES.txt).
+   What CONTROL (b) changes, in short (every change and why: ST/amend/AMEND_NOTES.txt):
+     - six runs: the phase arm (CRITIC_PHASE True) and the switch-off arm (CRITIC_PHASE False, its default), same HEAD,
+       notebook, seeds, schedule and settings; interleaved by seed; with fewer sessions the switch-off runs may start
+       later, but each before any phase run's results are opened (outcome blindness; a late one enters the test as
+       missing); start gaps printed, report only; each run handled on its own (all or nothing, one _b within 2 h of its
+       own launch).
+     - THE ONE TEST: phase vs concurrent switch-off, phase LOWER, TD unchanged, minimum p 1/20, alpha 0.05; a missing
+       phase run at +infinity (highest rank), a missing switch-off run at -infinity (lowest). TD's form was chosen
+       with STANCE6's values in view; the six runs' values are unseen at the pin.
+     - THE READING: the phase runs' lines and per-run classes as reviewed; the switch-off runs' classes printed beside;
+       the line texts that named STANCE6 now name the concurrent switch-off runs; STANCE6 report only (beside, and in
+       an OFF-vs-STANCE6 replication block: with the switch OFF the code equals 8737cd3d bitwise, A6, so the
+       switch-off runs replicate stance6 on today's Colab image).
+     - What concurrency removes: the code-commit, date / Colab-image (within the start gaps), notebook and K3
+       differences between the test's arms. What it does not: 3 vs 3 still reaches only p = 1/20; GPU nondeterminism
+       within today's image; image changes between staggered starts; under the maintainer's "Phase first" waves
+       (RUNLOG line 876) the arm is confounded with the wave, about one run's length apart (the start time, and the
+       image if it changes between the waves), so the test also assumes no wave effect (criteria KNOWN LIMITS); seed
+       effects (a shared start, A5) assumed to make the unpaired test conservative.
+   The options as offered (kept for the record):
+   NAMES   RUN_IDs stance7_r10LTSBpc_s60 / _s42 / _s80, labels "r10 LTSB phase-critic s<seed>", RUNLOG KIND STANCE7.
+   PUSH    OK to push claude/screen-trex-r10-phasecritic at HEAD (needed for REPO_REF; never merged).
+   CONTROL (a) STANCE6 as historical comparators only (recommended; 3 L4 runs) | (b) add 3 concurrent switch-OFF runs.
+   TEST    (a) THE ONE TEST: the exact 3-vs-3 permutation test on TD, which reads LOWER only at 1/20, i.e. every PC TD
+           below 0.154339 (recommended) | (b) no test, everything descriptive.
+   INIT    (a) zero-appended critic phase weights, so step 0 is STANCE6's own start (recommended) | (b) default init.
+   K3      (a) the in-run K3 panel ON as STANCE6, if VP2 passes before launch, else OFF (recommended) | (b) OFF.
+   RESUME  (a) no resume, ROUND's all-or-nothing with the one _b relaunch (recommended) | (b) allow one same-stage resume
+           (needs the resume path verified on HEAD first; delays the launch).
+   ENDS    run ends may be noted from Drive while the maintainer sleeps, as for stance6 (RUNLOG line 690).
+   TOOLS   (a) the F0 and launch-check port pinned before launch, and the F2 tools built during the runs and pinned
+           before F2 (recommended) | (b) everything pinned before launch (launch later than tonight).
+   HDR     no header commit; APPROVED + RUNLOG pin HEAD and the text (recommended) | the stance6 header-commit form.
+   SWITCH  the notebook setting's name, value and printed row as the builder makes them (filled at the pin).
+
+10. SOURCES (read only; sha256 at reading)
+   ROUND criteria_r10round_final.txt 99a44469...; STANCE6 score.json cb380a7e...; FMAN f5777ae3...; the round's
+   colab_steps_r10round.txt f2eb9a24... and fetch_agent_brief.txt 24ac49d6...; PS criteria.txt 9875039f..., REPORT.md
+   85f43e8c...; BS2 REPORT.md 5f935d5b..., read_bs.py 06f4173d...; LB criteria_v1.txt (draft) 0c61ffcb...;
+   reread_round.out cacffec5...; extract_response.py 98e8041e...; RUNLOG lines 681-871 (read 2026-10-31 20:58-21:20
+   UTC). DESIGN's own: comparators.py / comparators.out, names_check.sh / names_check.out, cmdlog.txt (sha256 in
+   DESIGN/SHA256SUMS.txt).

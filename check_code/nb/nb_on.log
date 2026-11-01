@@ -1,0 +1,108 @@
+
+######## CELL 3 ########
+Running locally; using this checkout. REPO_REF selects only the Colab checkout.
+
+######## CELL 4 ########
+MuJoCo version: 3.10.0
+Gymnasium version: 1.4.0
+Repo root: /home/user/work/pc_study/check_code/head_tree
+
+######## CELL 6 ########
+Model: Tyrannosaurus Rex (Anatomical)
+Algorithm: PPO
+Quick test mode: False
+Behavior recipe: stance
+In-run K3 panel: off
+Critic phase: on
+
+######## CELL 8 ########
+Logs will be saved to: /home/user/work/pc_study/check_code/head_tree/logs
+Run directory: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on (new run: RUN_ID names no existing run)
+Provenance:    /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/provenance.json
+
+######## CELL 9 ########
+Critic phase on: [ppo] critic_phase = true on ['stance']
+Model: Tyrannosaurus Rex (Anatomical)
+Environment: TyrannosaurusRexAnatomicalEnv
+Observation space: (63,)
+Action space: (15,)
+Number of actuators: 15
+
+Behavior 'stance' -> deliverable 'stance'; chain: stance
+
+   #  id           name                           parent       recipe   deliverable  gate
+*  1  stance       Stance                         -            stance   yes          stance_quality_heading/v1
+   2  recovery     Recovery                       stance       recover  yes          recovery_quality/v1
+   3  locomotion   Locomotion                     stance       walk     yes          reward_and_length/v1
+   4  behavior     Bite                           locomotion   hunt     yes          task_success/v1
+  (* = on this behavior's chain)
+Trunk record:  wrote TRUNK_FROM = "" to /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/trunk_run.json.
+
+######## CELL 11 ########
+SB3 archive load preflight: loading a throwaway model saved by this runtime (saved by Python 3.13; this runtime is Python 3.13; bytecode members: none) ... a kernel death HERE means this image cannot load SB3 archives
+SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.
+
+######## CELL 13 ########
+zero-action baseline — stage 1, 40 episodes, seed 3042
+
+model                                         reward  mean-std  standing  full-hz     gate  verdict
+---------------------------------------------------------------------------------------------------
+Tyrannosaurus Rex (Anatomical)                4470.4    4439.5    4470.4    100%     2260  OK — the statue passes the stance gate
+
+A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have
+learned to balance at all, and 'standing' to have learned more than 'do not fall'.
+A stance-gated stage is the exception: the statue is its quality ceiling and must PASS the stance gate.
+
+Saved: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/zero_action_baselines/20261031_231702.json
+Copied to run: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/zero_action_baseline.json
+
+######## CELL 15 ########
+Training infrastructure ready. Algorithm: ppo
+DiagnosticsCallback enabled: per-component rewards, obs/action stats,
+VecNormalize tracking, and termination reasons
+will log to TensorBoard.
+
+######## CELL 16 ########
+Visualization functions ready (shared library).
+
+######## CELL 18 ########
+CHECK switch path: STAGE_CONFIGS == TOMLs + ppo_kwargs.critic_phase=True on the chain only: True
+CHAIN ['stance'] RUN_DIR /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on TRUNK_DIR None
+
+######## SESSION 1: train_stage(stance, 128) ########
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=128, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+============================================================
+Node stance (stage 1): Stance (ppo)
+Description: Learn to stand and balance without falling
+Timesteps: 128
+Log dir: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance
+============================================================
+
+Final model saved to: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/models/stage1_final.zip
+session1 classes: MirrorKLPPO CriticPhaseActorCriticPolicy CriticPhaseRolloutBuffer CriticPhaseVecNormalize num_timesteps 128
+session1 models: ['stage1_128_steps.zip', 'stage1_final.zip', 'stage1_final_vecnorm.pkl', 'stage1_vecnormalize_128_steps.pkl']
+session1 stage_config critic_phase: True hyperparameters_sha256: sha256:a676a979de3124a8eb2a3678d43ba12d983399e93b37019e8c3423cbb631acf8
+
+######## SESSION 2: RESUME cell with RESUME_STAGE = 'stance' ########
+
+######## CELL 18 ########
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=256, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+Resume: no prior evaluation record at /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/evaluations.npz — best-model trackers and eval history start fresh. If this resume continues an interrupted run, point the run at the interrupted stage directory so its evaluations.npz seeds this session.
+Resuming 'stance' (stage 1) from /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/models
+Newest intact periodic checkpoint: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/models/stage1_128_steps.zip
+Matched VecNormalize:              /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/models/stage1_vecnormalize_128_steps.pkl
+Checkpoint steps: 128 of 256 — remaining budget: 128
+============================================================
+Node stance (stage 1): Stance (ppo)
+Description: Learn to stand and balance without falling
+Timesteps: 128
+Log dir: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance
+VecNormalize loaded from: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/models/stage1_vecnormalize_128_steps.pkl
+============================================================
+
+Final model saved to: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_on/01_stance/models/stage1_final.zip
+resume classes: MirrorKLPPO CriticPhaseActorCriticPolicy CriticPhaseRolloutBuffer CriticPhaseVecNormalize num_timesteps 256 buffer width (128, 66)
+final zip mesozoic_critic_phase: {'schema': 'mesozoic.critic-phase/v1', 'features': ['ramp', 'settled', 'discount'], 'settle_steps': 200, 'gamma': 0.98, 'width': 3, 'step_counter': "the env's _step_count when the observation was made (0 at reset)", 'input': "the critic's only: appended after the normalized observation, never normalized"}
+final zip observation_space shape: [63]
+final sidecar: stable_baselines3.common.vec_env.vec_normalize.VecNormalize (63,)
+models after resume: ['stage1_128_steps.zip', 'stage1_256_steps.zip', 'stage1_final.zip', 'stage1_final_vecnorm.pkl', 'stage1_vecnormalize_128_steps.pkl', 'stage1_vecnormalize_256_steps.pkl']

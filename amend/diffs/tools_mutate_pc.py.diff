@@ -1,0 +1,93 @@
+--- amend/orig/tools/mutate_pc.py	2026-11-01 00:36:43.417565040 +0000
++++ tools/mutate_pc.py	2026-11-01 01:37:15.344338743 +0000
+@@ -1,6 +1,9 @@
+ """PC mutation tests: each mutant changes one PC rule in a copy of ST/tools/{pc,tests} (exact string, must occur once);
+ the PC test suite (tests/test_score_pc.py) must fail on every mutant.  Copies under --work (deleted after); the log
+ to --log.  Report only.
++PC AMENDMENT (2026-11-01): M2, M14, M16, M28 and M31 re-pointed to the amended text of the same rule; M32-M44 the
++amendment's rules (the one test against the concurrent switch-off runs, MISSING ranks, the switch-off arm's pins, C4 (p)
++and C8, outcome blindness, the line read from the phase runs only).
+ 
+     PY -I -B mutate_pc.py --work DIR --log FILE
+ """
+@@ -18,7 +21,8 @@
+ 
+ MUTANTS = [
+     ("M1 ties count for H1", "pc_common.py", "        k += tot <= obs\n", "        k += tot < obs\n"),
+-    ("M2 LOWER read at 2/20", "pc_common.py", 'if k == 1 else f"NOT SEPARATED', 'if k <= 2 else f"NOT SEPARATED'),
++    ("M2 LOWER read at 2/20", "pc_common.py", '(exact permutation p = 1/20)" if k == 1\n',
++     '(exact permutation p = 1/20)" if k <= 2\n'),
+     ("M3 line 4 ignores hs", "pc_common.py", "    elif g == 3 and hs == 0:\n", "    elif g == 3:\n"),
+     ("M4 line 2 needs u > 1", "pc_common.py", "    elif u >= 1:\n        line, head = 2", "    elif u > 1:\n        line, head = 2"),
+     ("M5 own alarm needs 6 episodes", "pc_common.py", "flagged = sorted(s for s, k in ev.items() if k >= 5)",
+@@ -43,12 +47,12 @@
+     ("M13 switch read loosely", "complete_r10round.py",
+      '        ok = isinstance(got, bool) and got is want["value"]\n', '        ok = bool(got) == want["value"]\n'),
+     ("M14 C4 (p) dropped", "complete_r10round.py",
+-     '        out.append(critic_phase_fact("C4 (p) stage_config.json records the critic-phase switch ON", sc, pins))   # PC\n',
++     '        out.append(critic_phase_fact(switch_names(run_id)[1], sc, pins, run_id))   # PC (AMENDMENT: per arm)\n',
+      ""),
+     ("M15 fact (8) not a stop fault", "r10round_common.py", "STOP_FAULTS = (1, 2, 3, 4, 5, 7, 8)", "STOP_FAULTS = (1, 2, 3, 4, 5, 7)"),
+     ("M16 a missing run enters the test at its TD", "score_pc.py",
+-     '                                    and x["td"]["td"] is not None) else math.inf) for x in per_seed]',
+-     '                                    and x["td"]["td"] is not None) else 0.0) for x in per_seed]'),
++     '        phase_td = [test_value(x, math.inf) for x in per_arm["pc"]]',
++     '        phase_td = [test_value(x, 0.0) for x in per_arm["pc"]]'),
+     ("M17 C8 seeds not checked", "complete_r10round.py",
+      "        if list(rec.get(\"seeds\") or []) != list(C.MANIP_SEEDS) or rec.get(\"bank_limit\") != C.MANIP_BANK_LIMIT:\n",
+      "        if False:\n"),
+@@ -81,15 +85,51 @@
+      '                     and max(ev.get(x["step"] - C.GRID, 0), ev.get(x["step"], 0)) >= A_SITE_MIN_ROWS]',
+      ']'),
+     ("M28 (I1) sums by math.fsum again", "pc_common.py",
+-     "        return sum(Fraction(v) for v in xs) if all(math.isfinite(v) for v in xs) else math.inf",
+-     "        return math.fsum(xs) if all(math.isfinite(v) for v in xs) else math.inf"),
++     "        return (n_inf, sum((Fraction(v) for v in xs if math.isfinite(v)), Fraction(0)))",
++     "        return (n_inf, math.fsum(v for v in xs if math.isfinite(v)))"),
+     ("M29 (D4) a DRIVEN tail not printed", "pc_common.py",
+      '    return f", WITH A DRIVEN TAIL ({\'; \'.join(driven)})" if driven else ""', '    return ""'),
+     ("M30 (D5) line 4 without the gate label", "pc_common.py",
+      '       "(GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification), NO SATURATING HABIT ON "',
+      '       "NO SATURATING HABIT ON "'),
+     ("M31 (D5) the no-rail chance printed on lines 1-2", "pc_common.py",
+-     "no_rail_chance=NO_RAIL_CHANCE if line in (3, 4, 5) else None", "no_rail_chance=NO_RAIL_CHANCE"),
++     "no_rail_chance=_no_rail_chance(off) if line in (3, 4, 5) else None", "no_rail_chance=_no_rail_chance(off)"),
++    # ---- PC AMENDMENT (2026-11-01): six runs, the one test against the concurrent switch-off runs
++    ("M32 a missing switch-off run enters at 0, not the lowest rank", "score_pc.py",
++     '        off_td = [(-math.inf if x["run"] in nb else test_value(x, -math.inf)) for x in per_arm["off"]]',
++     '        off_td = [(-math.inf if x["run"] in nb else test_value(x, 0.0)) for x in per_arm["off"]]'),
++    ("M33 the one test compares with STANCE6, not the switch-off runs", "score_pc.py",
++     '        rd["one_test"] = P.one_test(phase_td, off_td)',
++     '        rd["one_test"] = P.one_test(phase_td, [comparators["runs"][s]["td"]["td"] for s in C.SEEDS])'),
++    ("M34 the switch-off C8 reads only the verdict", "complete_r10round.py",
++     '        return ("spec" in rec and rec["spec"] is None and rec.get("verdict") == "NOT IN FORCE"',
++     '        return (rec.get("verdict") == "NOT IN FORCE"'),
++    ("M35 a switch-off run read against the phase pins", "complete_r10round.py",
++     '    if C.arm_of(run_id) == "off":\n        blk = C.pin(pins, "off_arm")', '    if False:\n        blk = C.pin(pins, "off_arm")'),
++    ("M36 the switch-off pin's absence not read", "complete_r10round.py",
++     '    if isinstance(want, dict) and "path" in want and want.get("absent") is True:', '    if False:'),
++    ("M37 outcome blindness not applied", "score_pc.py",
++     '        blind = None if lo is None else (first is None or lo["time"] < first["time"])',
++     '        blind = None if lo is None else True'),
++    ("M38 a SNAPSHOT is no opening", "score_pc.py", 'OPENING_KINDS = ("F2-START", "REFETCH-START", "SNAPSHOT")',
++     'OPENING_KINDS = ("F2-START", "REFETCH-START")'),
++    ("M39 the line read from the switch-off runs", "score_pc.py",
++     '        rd = P.reading(per_arm["pc"], presence_rails["pc"], per_arm["off"], presence_rails["off"])',
++     '        rd = P.reading(per_arm["off"], presence_rails["off"], per_arm["off"], presence_rails["off"])'),
++    ("M40 missing ranks dropped from the sums", "pc_common.py",
++     '        n_inf = sum(1 for v in xs if v == math.inf) - sum(1 for v in xs if v == -math.inf)',
++     '        n_inf = 0'),
++    ("M41 the no-rail chance not at the switch-off rate", "pc_common.py",
++     "no_rail_chance=_no_rail_chance(off) if line in (3, 4, 5) else None",
++     "no_rail_chance=_no_rail_chance(None) if line in (3, 4, 5) else None"),
++    ("M42 seed_run ignores the arm", "score_pc.py", '    first = f"{C.ARM_PREFIX[arm]}{seed}"',
++     '    first = f"{C.RUN_ID_PREFIX}{seed}"'),
++    ("M43 STANCE6 unreadable holds the reading open", "score_pc.py",
++     '    out["comparators_error"] = comp_err\n',
++     '    out["comparators_error"] = comp_err\n    if comparators is None:\n        out["incomplete"].append("comparators")\n'),
++    ("M44 the switch-off arm's token not read in RUNLOG", "r10round_common.py",
++     'RUN_TOKEN_RE = re.compile(r"stance7_r10LTSB(?:pc|off)_s\\d+\\w*")',
++     'RUN_TOKEN_RE = re.compile(r"stance7_r10LTSBpc_s\\d+\\w*")'),
+ ]
+ 
+ 

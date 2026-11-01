@@ -1,0 +1,33 @@
+OK   pc_common.one_test equals my oracle on 3000 random mixes (ties by rounding, +inf phase, -inf off); k = 1 exactly on complete separation; any missing run k >= 11
+OK   over all 63 missing patterns x 200 draws the smallest k is 11 (one missing run, either arm); never LOWER
+OK   near tie 0.1+0.2+0.3 vs 0.6: tool 11 oracle 11 (float sum 0.1+0.2+0.3 = 0.6000000000000001)
+OK   all six tied: k = 20 (ties against H1)
+OK   a phase TD equal to the lowest off TD: k = 2, not LOWER (strictly below is needed)
+OK   refused ([0.1, 0.2, -inf], [0.3, 0.4, 0.5])
+OK   refused ([0.1, 0.2, 0.3], [0.3, 0.4, inf])
+OK   refused ([0.1, nan, 0.3], [0.3, 0.4, 0.5])
+OK   sep: scorer k 1 (LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact permutation p = 1/20)), my oracle 1 on the nominal values and 1 on the scorer's TDs; missing phase [False, False, False] off [False, False, False]; not blind []; line 4; status 0
+OK   sep: render prints the test, the blindness block and the replication block
+OK   overlap: scorer k 3 (NOT SEPARATED (p = 3/20)), my oracle 3 on the nominal values and 3 on the scorer's TDs; missing phase [False, False, False] off [False, False, False]; not blind []; line 4; status 0
+OK   overlap: render prints the test, the blindness block and the replication block
+OK   boundary_tie: scorer k 2 (NOT SEPARATED (p = 2/20)), my oracle 2 on the nominal values and 2 on the scorer's TDs; missing phase [False, False, False] off [False, False, False]; not blind []; line 4; status 0
+OK   boundary_tie: render prints the test, the blindness block and the replication block
+OK   phase_higher: scorer k 20 (NOT SEPARATED (p = 20/20)), my oracle 20 on the nominal values and 20 on the scorer's TDs; missing phase [False, False, False] off [False, False, False]; not blind []; line 4; status 0
+OK   phase_higher: render prints the test, the blindness block and the replication block
+OK   off_c8_reads_phase: scorer k 11 (NOT SEPARATED (p = 11/20)), my oracle 11 on the nominal values and 11 on the scorer's TDs; missing phase [False, False, False] off [False, False, True]; not blind []; line 4; status 0
+OK   off_c8_reads_phase: render prints the test, the blindness block and the replication block
+OK   phase_c8_stock: scorer k 11 (NOT SEPARATED (p = 11/20)), my oracle 11 on the nominal values and 11 on the scorer's TDs; missing phase [False, True, False] off [False, False, False]; not blind []; line 2; status 0
+OK   phase_c8_stock: render prints the test, the blindness block and the replication block
+OK   both_never_launched: scorer k 15 (NOT SEPARATED (p = 15/20)), my oracle 15 on the nominal values and 15 on the scorer's TDs; missing phase [False, True, False] off [False, False, True]; not blind []; line 2; status 0
+OK   both_never_launched: render prints the test, the blindness block and the replication block
+OK   off_after_phase_snapshot: scorer k 11 (NOT SEPARATED (p = 11/20)), my oracle 11 on the nominal values and 11 on the scorer's TDs; missing phase [False, False, False] off [False, False, True]; not blind ['stance7_r10LTSBoff_s80']; line 4; status 0
+OK   off_after_phase_snapshot: render prints the test, the blindness block and the replication block
+OK   an off run's SNAPSHOT is not an opening; the first opening is the phase SNAPSHOT
+OK   late_off_blind: scorer k 1 (LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact permutation p = 1/20)), my oracle 1 on the nominal values and 1 on the scorer's TDs; missing phase [False, False, False] off [False, False, False]; not blind []; line 4; status 0
+OK   late_off_blind: render prints the test, the blindness block and the replication block
+OK   late_written_snapshot: scorer k 11 (NOT SEPARATED (p = 11/20)), my oracle 11 on the nominal values and 11 on the scorer's TDs; missing phase [False, False, False] off [False, False, True]; not blind ['stance7_r10LTSBoff_s80']; line 4; status 0
+OK   late_written_snapshot: render prints the test, the blindness block and the replication block
+OK   off_b_after_opening: scorer k 11 (NOT SEPARATED (p = 11/20)), my oracle 11 on the nominal values and 11 on the scorer's TDs; missing phase [False, False, False] off [False, True, False]; not blind ['stance7_r10LTSBoff_s42_b']; line 4; status 0
+OK   off_b_after_opening: render prints the test, the blindness block and the replication block
+OK   off s42: fault (8) on the first run (key present), the _b is the seed's run (stance7_r10LTSBoff_s42_b); its RELAUNCH after the phase SNAPSHOT is not blind: ['stance7_r10LTSBoff_s42_b']
+FAIL count 0

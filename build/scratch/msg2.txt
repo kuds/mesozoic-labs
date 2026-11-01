@@ -1,0 +1,42 @@
+Test the critic's episode phase: features, actor blindness, resume, switch off (screen, never merged)
+
+test_critic_phase.py (numpy only, the test matrix): the features at
+k = 0, 1, 199, 200 and 1000 (S 200, gamma 0.98, written out), that
+`settled` says the next reward is gated in (k + 1 > S) and `discount`
+weighs the first gated reward, the spec's and the switch's
+refusals, the record's round trip, and that no committed stage turns
+the option on.
+
+test_critic_phase_ppo.py (the SB3 job; added to its step):
+- the training env appends each env's own phase (0 after the VecEnv's
+  reset, phase(horizon) on a truncated episode's terminal
+  observation), normalises bitwise as the stock VecNormalize, keeps
+  the phase in [0, 1] where running statistics would blow up, and
+  saves a sidecar byte for byte the stock one's; the real T. rex
+  stance env through create_vec_env: k == _step_count, `settled`
+  turns 1 at k = 200, the first gated reward is step 201, and the
+  horizon's truncation carries phase(1000) = (1, 1, 1);
+- a time-limit truncation bootstraps on the terminal observation's
+  phase (recorded predict_values inputs and the buffer's rewards);
+- the actor is exactly blind to the phase (own, zero, 1e6, noise and
+  NaN phases) on every path: get_distribution, forward,
+  evaluate_actions, predict (66 and 63 inputs), the K3 panel's
+  forward pass and MirrorKLPPO's mirrored KL term; its gradient never
+  reaches the phase columns, the critic's does;
+- a fresh model is the stock model of its seed plus zero phase
+  columns (same first rollout); one throwaway update teaches the
+  critic the phase and never the actor;
+- MirrorKLPPO maps the phase columns to themselves, the statistics
+  stay the env's width and symmetric;
+- the policy probe gives each bank state its own phase;
+- the checkpoint loads on the deploy path (load_sb3_checkpoint with
+  the env's own 63-value observation) and acts as in training;
+- save, load and resume through train_base keep the policy, the
+  spec, the buffer, Adam and the statistics, and two resumes from one
+  pair continue bitwise alike; every load whose critic reads another
+  phase, or none, is refused, both ways and in both load modes;
+- with the switch off, train_base builds SB3's MlpPolicy and
+  RolloutBuffer and trains bitwise as a directly built PPO.
+
+Co-Authored-By: [name removed] <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A

@@ -1,0 +1,40 @@
+
+######## CELL 3 ########
+Running locally; using this checkout. REPO_REF selects only the Colab checkout.
+
+######## CELL 4 ########
+MuJoCo version: 3.10.0
+Gymnasium version: 1.4.0
+Repo root: /home/user/work/pc_study/check_code/head_tree
+
+######## CELL 6 ########
+Model: Tyrannosaurus Rex (Anatomical)
+Algorithm: PPO
+Quick test mode: False
+Behavior recipe: stance
+In-run K3 panel: off
+Critic phase: off
+
+######## CELL 8 ########
+Logs will be saved to: /home/user/work/pc_study/check_code/head_tree/logs
+Run directory: /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_off (new run: RUN_ID names no existing run)
+Provenance:    /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_off/provenance.json
+
+######## CELL 9 ########
+Model: Tyrannosaurus Rex (Anatomical)
+Environment: TyrannosaurusRexAnatomicalEnv
+Observation space: (63,)
+Action space: (15,)
+Number of actuators: 15
+
+Behavior 'stance' -> deliverable 'stance'; chain: stance
+
+   #  id           name                           parent       recipe   deliverable  gate
+*  1  stance       Stance                         -            stance   yes          stance_quality_heading/v1
+   2  recovery     Recovery                       stance       recover  yes          recovery_quality/v1
+   3  locomotion   Locomotion                     stance       walk     yes          reward_and_length/v1
+   4  behavior     Bite                           locomotion   hunt     yes          task_success/v1
+  (* = on this behavior's chain)
+Trunk record:  wrote TRUNK_FROM = "" to /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_off/trunk_run.json.
+CHECK default path: STAGE_CONFIGS == load_all_stages(MODEL_ID): True
+CHAIN ['stance'] RUN_DIR /home/user/work/pc_study/check_code/head_tree/logs/tyrannosaurus_rex/anatomical/ppo/pccheck_off TRUNK_DIR None

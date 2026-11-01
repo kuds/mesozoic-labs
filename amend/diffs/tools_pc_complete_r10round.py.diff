@@ -1,0 +1,175 @@
+--- amend/orig/tools/pc/complete_r10round.py	2026-10-31 23:30:15.809028763 +0000
++++ tools/pc/complete_r10round.py	2026-11-01 01:27:12.340243079 +0000
+@@ -4,6 +4,11 @@
+ (manip_check.py's record at <panels>/<label>/c8/ for R2 and every J pair, bound to the C3-verified pair like C7;
+ absent = PENDING, never a failure; NOT IN FORCE = FAIL: the run is not of the study's configuration, LOST).
+ COMPLETE = C1-C8.
++PC AMENDMENT (2026-11-01, ST/amend/AMEND_NOTES.txt): six runs in two arms (r10round_common.arm_of).  A switch-off
++run (stance7_r10LTSBoff_s*) is checked against its own arm's pins (pins_pc.json off_arm: ROUND's hyperparameters and
++stage_config view digests, the switch key absent): fact (8) and C4 (p) read the switch OFF (no
++hyperparameters.critic_phase key), C8 reads the stock-critic record (the critic reads no phase); every other fact is
++the phase arm's, unchanged.
+ 
+ T. rex r10 round: the completeness tool (criteria lean v5: launch check, C1-C7, PRESENCE p1-p3, D-16).  Report only.
+ 
+@@ -104,13 +109,51 @@
+ 
+ 
+ # ------------------------------------------------------------------------------------------------- PC: the switch
+-def critic_phase_fact(name, sc, pins) -> dict:
++def arm_pin(pins, key, run_id=None):
++    """PC AMENDMENT: the pin of key for run_id's arm.  A switch-off run reads pins["off_arm"][key] when the off_arm
++    block names the key (its configuration pins: ROUND's hyperparameters_sha256 and stage_config_view_sha256, the
++    switch absent); every other key, and every key of a phase run (or of no RUN_ID), is the top-level pin.  An off run
++    whose off_arm block is unfilled has no pin (None: the fact is not established)."""
++    if C.arm_of(run_id) == "off":
++        blk = C.pin(pins, "off_arm")
++        if not isinstance(blk, dict):
++            return None
++        if key in blk:
++            return C.pin(blk, key)
++    return C.pin(pins, key)
++
++
++def switch_names(run_id=None) -> tuple:
++    """PC AMENDMENT: the names of launch-check fact (8) and of C4 (p) for the run's arm."""
++    if C.arm_of(run_id) == "off":
++        return ("(8) critic-phase switch OFF (no key) in stage_config.json",
++                "C4 (p) stage_config.json records the critic-phase switch OFF (no key)")
++    return ("(8) critic-phase switch ON in stage_config.json",
++            "C4 (p) stage_config.json records the critic-phase switch ON")
++
++
++def _path_state(obj, dotted: str):
++    """(present, value) of obj at a dotted path (present False when a part is missing; a null value is present)."""
++    for part in dotted.split("."):
++        if not isinstance(obj, dict) or part not in obj:
++            return False, None
++        obj = obj[part]
++    return True, obj
++
++
++def critic_phase_fact(name, sc, pins, run_id=None) -> dict:
+     """PC launch-check fact (8) and C4 (p): stage_config.json records the critic-phase switch as the pin
+-    critic_phase_switch states it ({"path": dotted path, "value": the value as the file writes it}; a boolean pin is
+-    met only by the JSON boolean itself).  ok None when the pin is unfilled or the file is not read."""
+-    want = C.pin(pins, "critic_phase_switch")
++    critic_phase_switch states it for the run's arm (arm_pin): {"path": dotted path, "value": the value as the file
++    writes it} (a boolean pin is met only by the JSON boolean itself), the phase arm's; or {"path": dotted path,
++    "absent": true}, the switch-off arm's (PC AMENDMENT: with the switch OFF the code writes no key, so the path must be
++    absent; a key holding any value, false or null included, fails).  ok None when the pin is unfilled or the file is
++    not read."""
++    want = arm_pin(pins, "critic_phase_switch", run_id)
+     if sc is None:
+         return fact(name, None, None, "not computed: stage_config.json not read")
++    if isinstance(want, dict) and "path" in want and want.get("absent") is True:
++        present, got = _path_state(sc, want["path"])
++        return fact(name, not present, dict(path=want["path"], present=present, got=got, want="absent"))
+     if not isinstance(want, dict) or "path" not in want or "value" not in want:
+         return fact(name, None, None, "pin critic_phase_switch unfilled")
+     got = C.dig(sc, want["path"])
+@@ -155,8 +198,9 @@
+     if sc is None:
+         F[3] = fact("(3) hyperparameters, task, plant = pins", None, None, f"not computed: stage_config.json {sh}")
+     else:
+-        want = dict(hyperparameters_sha256=C.pin(pins, "hyperparameters_sha256"), task_sha256=C.pin(pins, "task_sha256"),
+-                    plant_identity=C.pin(pins, "plant_identity"))
++        want = dict(hyperparameters_sha256=arm_pin(pins, "hyperparameters_sha256", run_id),      # PC AMENDMENT: per arm
++                    task_sha256=arm_pin(pins, "task_sha256", run_id),
++                    plant_identity=arm_pin(pins, "plant_identity", run_id))
+         got = dict(hyperparameters_sha256=C.dig(sc, "run.hyperparameters_sha256"),
+                    task_sha256=C.dig(sc, "task_fingerprint.task_sha256"), plant_identity=sc.get("plant_identity"))
+         if any(v is None for v in want.values()):
+@@ -203,12 +247,12 @@
+         F[6] = fact("(6) one provenance sessions entry", isinstance(ss, list) and len(ss) == 1,
+                     len(ss) if isinstance(ss, list) else ss)
+         F[7] = fact("(7) provenance run_id = RUN_ID", prov.get("run_id") == run_id, prov.get("run_id"))
+-    # (8) PC: the critic-phase switch ON in 01_stance/stage_config.json (a FAULT like (1)-(5) and (7))
++    # (8) PC: the critic-phase switch as the run's arm sets it in 01_stance/stage_config.json (a FAULT like (1)-(5)
++    # and (7)): ON for a phase run, OFF (no key) for a switch-off run (PC AMENDMENT)
+     if sc is None:
+-        F[8] = fact("(8) critic-phase switch ON in stage_config.json", None, None,
+-                    f"not computed: stage_config.json {sh}")
++        F[8] = fact(switch_names(run_id)[0], None, None, f"not computed: stage_config.json {sh}")
+     else:
+-        F[8] = critic_phase_fact("(8) critic-phase switch ON in stage_config.json", sc, pins)
++        F[8] = critic_phase_fact(switch_names(run_id)[0], sc, pins, run_id)
+     faults = sorted(k for k, f in F.items() if f["ok"] is False)
+     # when F0's copies were made against the launch (a fault first seen after 60 minutes stops nothing)
+     times = [C.parse_utc(r.get("utc")) for r in store.manifest_rows() if r.get("status") == "COPY"]
+@@ -327,19 +371,19 @@
+         out.append(fact("C4 run.n_envs 4", C.dig(sc, "run.n_envs") == 4, C.dig(sc, "run.n_envs")))
+         for key, path in (("hyperparameters_sha256", "run.hyperparameters_sha256"),
+                           ("task_sha256", "task_fingerprint.task_sha256")):
+-            want = C.pin(pins, key)
++            want = arm_pin(pins, key, run_id)                                       # PC AMENDMENT: per arm
+             got = C.dig(sc, path)
+             out.append(fact(f"C4 {path} = pin", None if want is None else got == want, got,
+                             None if want is not None else "pin unfilled"))
+-        want = C.pin(pins, "plant_identity")
++        want = arm_pin(pins, "plant_identity", run_id)
+         got = sc.get("plant_identity")
+         out.append(fact("C4 plant_identity block = pin", None if want is None else got == want,
+                         "(block)" if got is not None else None, None if want is not None else "pin unfilled"))
+         vw = C.view_sha256(sc)
+-        want = C.pin(pins, "stage_config_view_sha256")
++        want = arm_pin(pins, "stage_config_view_sha256", run_id)                 # PC AMENDMENT: per arm
+         out.append(fact("C4 stage_config_view_sha256 = pin", None if want is None else vw == want, vw,
+                         None if want is not None else "pin unfilled"))
+-        out.append(critic_phase_fact("C4 (p) stage_config.json records the critic-phase switch ON", sc, pins))   # PC
++        out.append(critic_phase_fact(switch_names(run_id)[1], sc, pins, run_id))   # PC (AMENDMENT: per arm)
+         out.append(fact("C4 git_commit = branch HEAD", False if head is None else sc.get("git_commit") == head,
+                         dict(git_commit=sc.get("git_commit"), head=head),
+                         None if head else "not established: RUNLOG's LAUNCH line records no head="))
+@@ -611,13 +655,17 @@
+         c8_res[lab] = None if rec is None else dict(verdict=rec.get("verdict"), checks=rec.get("checks"))
+         if rec is None:
+             c8_missing.append(why)
+-        elif rec.get("verdict") != "IN FORCE":
++        elif not c8_holds(rec, run_id):                                                     # PC AMENDMENT: per arm
+             c8_failed.append(f"C8 {lab}: {rec.get('verdict')} {json.dumps(rec.get('checks'), default=str)[:300]}")
+-    c8_name = "C8 the manipulation check (R2 and every J pair): phase in force, actor independent, obs 6 read"
++    off = C.arm_of(run_id) == "off"
++    c8_name = ("C8 the manipulation check (R2 and every J pair): a stock critic, no phase input (switch-off arm)" if off
++               else "C8 the manipulation check (R2 and every J pair): phase in force, actor independent, obs 6 read")
+     if E is None:
+         out["C8"] = fact(c8_name, None, None, "E unknown")
+     elif c8_failed:
+         out["C8"] = fact(c8_name, False, dict(labels=c8_labels, failed=c8_failed, missing=c8_missing),
++                         ("FAILS: the critic reads a phase (the record is not the stock critic's): not of the study's "
++                          "configuration (LOST, printed with D-16)") if off else
+                          "FAILS: the phase is not in force or the actor reads it: not of the study's configuration "
+                          "(LOST, printed with D-16)")
+     else:
+@@ -643,6 +691,21 @@
+     return out
+ 
+ 
++#: PC AMENDMENT: manip_check.manipulation_checks' record for a stock critic (no phase input): spec null, verdict
++#: NOT IN FORCE, failing (i) only, (i) not holding with this why [measured: ST/tools/dry/vp4_widen_s80.out "STOCK"].
++STOCK_CRITIC_WHY = "the critic reads no phase (a stock critic)"
++
++
++def c8_holds(rec: dict, run_id) -> bool:
++    """PC AMENDMENT: whether a manipulation-check record (bound to the label's pair) meets C8 for the run's arm: a
++    phase run's reads "IN FORCE"; a switch-off run's is the stock-critic record (its critic reads no phase)."""
++    if C.arm_of(run_id) == "off":
++        chk = (rec.get("checks") or {}).get("(i) phase in force") or {}
++        return ("spec" in rec and rec["spec"] is None and rec.get("verdict") == "NOT IN FORCE"
++                and rec.get("failing") == ["(i)"] and chk.get("holds") is False and chk.get("why") == STOCK_CRITIC_WHY)
++    return rec.get("verdict") == "IN FORCE"
++
++
+ def binding_problems(b: dict, label, files: dict, E, run_id) -> list[str]:
+     """Fixer (R-B4): why a runner's record is not a measurement of this label's C3-verified pair ([] when it is)."""
+     zp, pp = C.pair_paths("final" if label == "final" else int(label))
+@@ -851,7 +914,8 @@
+         return 2
+     dd = default_dirs(a.round, a.run)
+     if a.mode == "launch-check":
+-        unfilled = [k for k in ("hyperparameters_sha256", "task_sha256", "plant_identity") if C.pin(pins, k) is None]
++        unfilled = [k for k in ("hyperparameters_sha256", "task_sha256", "plant_identity", "critic_phase_switch")
++                    if arm_pin(pins, k, a.run) is None]                      # PC AMENDMENT: the run's arm's pins
+         if unfilled:
+             print(f"INPUT ERROR: pins unfilled: {unfilled} (pass --pins with the approved pins file; fixer R-m3)")
+             return 2

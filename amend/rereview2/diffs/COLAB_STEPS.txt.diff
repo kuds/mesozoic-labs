@@ -1,0 +1,102 @@
+--- amend/fix/rereviewed/COLAB_STEPS.txt	2026-11-01 01:49:43.619820639 +0000
++++ COLAB_STEPS.txt	2026-11-01 02:31:54.168055273 +0000
+@@ -12,6 +12,9 @@
+ "Add 3 switch-off runs", "Make them the test's control"): six runs (the three phase runs and three concurrent
+ switch-off runs), the order, fewer sessions, outcome blindness, the per-run _b rule, the SNAPSHOT line. Every change:
+ ST/amend/AMEND_NOTES.txt and ST/amend/diffs/COLAB_STEPS.txt.diff.
++FIXED 2026-11-01 (date -u) by the amendment's fixer after its re-review (ST/amend/FIXES.txt): THE BLIND PERIOD (until
++every OFF run's LAUNCH line, a PHASE run's liveness, end and stall from metadata only; re-review B1), the maintainer's
++"Phase first" waves (RUNLOG line 876), one SNAPSHOT line per RUN_ID. Every change: ST/amend/fix/diffs/.
+ =================================================================================================================
+ Written 2026-10-31 (date -u) by the PC designer from the stance6 round's pinned steps
+ (S2/r10round/lean/build/laneB/colab_steps_r10round.txt, sha256
+@@ -71,15 +74,21 @@
+    s42, OFF s42, PHASE s80, OFF s80), each with steps 1-8, each its own LAUNCH line.
+  - Fewer than six: start the three PHASE runs first (s60, s42, s80), then the OFF runs in seed order (s60, s42, s80)
+    in the sessions left; every OFF run that does not fit starts later, as soon as a session is free (a finished run
+-   releases its runtime: AUTO_DISCONNECT), in seed order. With three sessions this is two waves: wave 1 the three PHASE
+-   runs, wave 2 the three OFF runs as wave 1's runtimes free (the arm is then confounded with the wave: criteria KNOWN
+-   LIMITS). Nothing about a run's outcome decides when or whether an OFF run starts: every OFF run is started.
++   releases its runtime: AUTO_DISCONNECT), in seed order. With three sessions this is two waves, the maintainer's plan
++   (RUNLOG line 876, 01:41:53 UTC: "Phase first"): wave 1 the three PHASE runs, wave 2 the three OFF runs as wave 1's
++   runtimes free (the arm is then confounded with the wave: criteria KNOWN LIMITS); wave 1 runs wholly in THE BLIND
++   PERIOD. Nothing about a run's outcome decides when or whether an OFF run starts: every OFF run is started.
+  - OUTCOME BLINDNESS: every OFF run starts before any PHASE run's results are opened. Until every OFF run's LAUNCH line
+-   is in RUNLOG: read no PHASE run's training output beyond the check rows of step 7 (liveness checks by Runtime >
+-   Manage sessions only), make no report-only snapshot of any run, and no F2 starts (it cannot: F2 waits for every run's
+-   end). After that, a report-only snapshot at the maintainer's request is noted at once as a SNAPSHOT line (RUNLOG
+-   NOTES). An OFF run whose LAUNCH line is not earlier than the first F2-START, REFETCH-START or SNAPSHOT line of a
+-   PHASE run is not blind: the scorer prints its classes and enters it in THE ONE TEST as missing (the lowest rank).
++   is in RUNLOG (THE BLIND PERIOD): read no PHASE run's training output beyond the check rows of step 7, make no
++   report-only snapshot of any run, and no F2 starts (it cannot: F2 waits for every run's end). In THE BLIND PERIOD a
++   PHASE run's liveness, end and stall rest on metadata only (THE ENDING PROCEDURE, IN THE BLIND PERIOD): Runtime >
++   Manage sessions, and Drive listings' names, sizes and modifiedTime. Its progress.json and other run files (beyond
++   the launch check's F0 copies, which only the launch-check tool reads), its notebook output and its downloaded
++   notebook are not opened. Anything more is an opening: note it at once as a SNAPSHOT line of that PHASE RUN_ID;
++   every OFF run launched after it is not blind. After THE BLIND PERIOD, a report-only snapshot at the maintainer's
++   request is noted at once as SNAPSHOT lines (RUNLOG NOTES: one per RUN_ID looked at). An OFF run whose LAUNCH line
++   is not earlier than the first F2-START, REFETCH-START or SNAPSHOT line of a PHASE run is not blind: the scorer
++   prints its classes and enters it in THE ONE TEST as missing (the lowest rank).
+  - Each run's launch time is its own LAUNCH line (date -u to the minute, at step 6); the scorer prints each seed's
+    PHASE-OFF start gap, report only. The 60-minute launch check and the 2-hour _b window count from each run's own
+    LAUNCH line.
+@@ -135,7 +144,8 @@
+                100%, "OK — the statue passes the stance gate" (about 3766.6 would be LTSB off).
+     - cell 15: "Timesteps: 12,000,000"; then an evaluation every 131,072 steps.
+  8. Leave it running: about 14.1 h to "ended" and about 14.9 h to its manifest (stance6). It disconnects by itself
+-    at the end (AUTO_DISCONNECT True). PASS or FAIL is fine.
++    at the end (AUTO_DISCONNECT True). PASS or FAIL is fine. A PHASE run in THE BLIND PERIOD: once its step-7 rows are
++    recorded, its tab is not read again (it may stay open in the background).
+ 
+ THE LAUNCH CHECK (configuration only; within the first 60 minutes of each launch)
+  L1. F0: a fetch agent (ST/tools/pc/fetch_agent_brief.txt, FETCH F0) copies by folder id provenance.json,
+@@ -151,7 +161,8 @@
+      (STOP and TRIGGER-d lines at one time): LOST, and REPLACEMENT (ii) relaunches it as _b. A fact whose file is not
+      yet on Drive is "not computed": no stop. A fault first seen after 60 minutes stops nothing.
+ 
+-THE ENDING PROCEDURE (liveness or configuration only, never an outcome) -- as the stance6 steps, unchanged
++THE ENDING PROCEDURE (liveness or configuration only, never an outcome) -- as the stance6 steps, plus THE BLIND
++PERIOD rule for a PHASE run (below)
+  (a) The runtime is no longer listed (Runtime > Manage sessions): TRIGGER-a and FOUND-GONE lines at one time; download
+      the notebook with its output if the browser still shows it. A finished run releases itself and is noted so.
+      Overnight (the maintainer asleep), a run's end may be noted from Drive as for stance6 (RUNLOG line 690):
+@@ -161,6 +172,21 @@
+      does not stop); File > Download .ipynb to <PCR>/outputs/<RUN_ID>.ipynb; one new cell
+          from google.colab import drive; drive.flush_and_unmount()
+      waited for at most 30 minutes; delete the runtime; the DELETED line.
++ IN THE BLIND PERIOD (THE ORDER: until every OFF run's LAUNCH line is in RUNLOG), for a PHASE run, metadata only:
++  - (a) from Runtime > Manage sessions, or from Drive (CHOICE ENDS) by names, sizes and modifiedTime only:
++    artifact_manifest.json present, and 30 minutes with neither a progress.json rewrite (progress.json is rewritten
++    after every evaluation, about every 9 minutes, and last at "ended") nor any other write in the run folder. Its
++    progress.json is not opened, so "ended" is not read (a tool may print its status and timesteps fields only if no
++    other field reaches a person or agent; a copy through the Drive connector does not meet this). The TRIGGER-a and
++    FOUND-GONE notes say "established from metadata only (outcome blindness)".
++  - (c) the STALL is 2 hours with no progress.json rewrite (its modifiedTime), not output lines. (b) needs the tab and
++    is not looked for: a run stopped with its runtime still listed is found by (c) [inferred cost: a stop in the run's
++    first 2 hours may then be noted after its REPLACEMENT window, so LOST instead of relaunched].
++  - At any trigger, in the procedure's order: File > Download .ipynb (saved unopened until THE BLIND PERIOD ends),
++    then Edit > Clear all outputs in the tab before the flush cell, reading nothing; after (a), the download likewise,
++    then close the tab.
++  - Anything more (a run file opened, the notebook output or the downloaded notebook read) is an opening: a SNAPSHOT
++    line of that RUN_ID at once (THE ORDER).
+  Suggested liveness check (not a rule): Runtime > Manage sessions every 30 min in a run's first 2 h, every 2 h after.
+ 
+ AFTER A DISCONNECT: THERE IS NO RESUME (the PC criteria keep the stance6 round's all-or-nothing rule; CHOICE RESUME),
+@@ -207,12 +233,16 @@
+  DELETED <RUN_ID>     FOUND-GONE <RUN_ID>     ACTION <RUN_ID> what=<resume|restart|relaunch|cell>
+  F2-START <RUN_ID>    REFETCH-START <RUN_ID>
+  SNAPSHOT <RUN_ID> note="<what was looked at>"   (a report-only look at a run's results, only after every OFF run's
+-                     LAUNCH line; read wherever it stands: outcome blindness)
++                     LAUNCH line, or an opening in THE BLIND PERIOD noted at once; one line per RUN_ID looked at, the
++                     RUN_ID exactly as THE RUNS name it: a SNAPSHOT line naming no RUN_ID is printed and read as no
++                     opening; read wherever it stands: outcome blindness)
+  Any other line naming a RUN_ID is restated in this form before that RUN_ID's F2-START line (as stance6).
+ 
+ WHEN TO FETCH, AND THE FETCH PLAN (Google Drive is read only to every agent; the maintainer's Drive is never written)
+  - F0: within 60 minutes of each of the six launches (the launch check; a staggered OFF run's F0 at its own launch).
+  - TRIGGER: only at a trigger within 2 hours of a launch.
++ - In THE BLIND PERIOD a PHASE run's files are fetched only by F0 (read by the launch-check tool) and listed only for
++   names, sizes and modifiedTime (THE ENDING PROCEDURE; a TRIGGER LISTING is names and sizes).
+  - No interim fetch for the reading. A report-only snapshot at the maintainer's request is allowed only after every
+    OFF run's LAUNCH line and is noted as a SNAPSHOT line (copies outside <PCR>, read by no other rule, acting on
+    nothing), as RUNLOG lines 681 and 689 did for stance6.

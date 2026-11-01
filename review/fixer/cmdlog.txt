@@ -1,0 +1,56 @@
+2026-11-01T00:19:19Z fixer start; mkdir review/fixer/orig
+2026-11-01T00:19:36Z RULE SLIP (self-reported): a read-only command 'cat check_code/lint/fixcheck_proposed.diff 2>[null device] | head' redirected cat's stderr to the null device; nothing was written; no further use
+2026-11-01T00:20:03Z copied reviewed originals to review/fixer/orig; wrote review/reviewed.txt
+2026-11-01T00:20:13Z built review/fixer/nosb3 (bare venv, numpy/gymnasium/cloudpickle/farama/typing_extensions symlinked from S2 venv) for CI's lint-job mypy view
+2026-11-01T00:20:19Z mypy lint-job view (no SB3) on WT da7e0b92 (verify m1)
+2026-11-01T00:21:11Z WT edit: critic_phase_ppo.py typed locals (m1)
+2026-11-01T00:21:20Z mypy nosb3 + full views, ruff check/format on WT edited tree (m1)
+2026-11-01T00:22:59Z critic_phase unit tests on WT edited tree
+2026-11-01T00:23:38Z WT commit (m1): e4d222bbde28800d7ee0851380123ff4ac9642a8
+2026-11-01T00:23:43Z background: shared suite + T. rex suite on WT e4d222bb with PYTHONPATH=WT (P2)
+2026-11-01T00:25:10Z git archive e4d222bb -> review/fixer/trees/head (measuring tree for rollbuf/eval checks)
+2026-11-01T00:25:19Z background: run_rb.sh first (seeds 60/42/80, 1 rollout) and run_rb.sh r33 (s42, 33 rollouts) on trees/head, switch OFF (D2a/A6)
+2026-11-01T00:28:01Z rb_compare.py: first rollouts s60/s42/s80 OFF == ROUND V0(h) (fixed-order, sorted-key, init params); background run_rb_on.sh (A5 switch ON, seeds 60/42/80, 1 rollout, no update)
+2026-11-01T00:29:02Z edit tools/pc/pc_common.py (D3 A>=5 rows, D4 driven clause, D5 wording/note/chance/gate label, I1 Fraction sums, I3 caveat)
+2026-11-01T00:29:12Z edit tools/pc/score_pc.py (D5 render: gate label, ONE TEST note, no-rail chance)
+2026-11-01T00:29:23Z edit tools/pc/manip_check.py (I5: (iii) interface check on value_net[0].weight[:,6]; dV report only)
+2026-11-01T00:29:52Z rb_on_compare.py -> rb/a5_compare.txt
+2026-11-01T00:30:05Z background: rb_on.py s42 x17 rollouts (switch ON, no update) to cross the 131,072 evaluation for the eval-row ON/OFF comparison (D2b/P1)
+2026-11-01T00:31:25Z edit tools/tests/test_score_pc.py (new tests D3, D4, D5, D6 x4, I1) and test_manip_pc.py (I5; PC_TEST_COPY / PC_TEST_SMOKE_MODELS overrides)
+2026-11-01T00:32:46Z wrote tools/vp2_d1_check.py (P1 VP2 widened-pair panel; D1 loader alone on a HEAD-saved widened zip)
+2026-11-01T00:35:24Z rb_compare.py -> rb/a6_compare.txt
+2026-11-01T00:35:42Z evalrow_compare.py -> rb/evalrows_compare.txt
+2026-11-01T00:35:48Z evalrow_compare.py (raw-line filter on the timesteps column) -> rb/evalrows_compare.txt
+2026-11-01T00:35:56Z pytest test_score_pc.py (fixed tools)
+2026-11-01T00:36:43Z edit tools/mutate_pc.py: mutants M23-M31 (review R4, R7, R11, R12; fixer D3, I1, D4, D5); pytest cwd = the mutant's own folder
+2026-11-01T00:36:43Z mutate_pc.py --work review/fixer/mut --log review/fixer/tests_out/mutate_pc.log (background)
+2026-11-01T00:37:23Z copied tools/dry (4.6M) and make_pins_pc.py to review/fixer/orig/tools/ before re-running the dry runs on e4d222bb
+2026-11-01T00:37:38Z background: tools/dry_chain.sh (build-copy e4d222bb, smoke_pc pins/train/bundle into ST/tools/dry)
+2026-11-01T00:38:41Z smoke_pc.py bundle (source dry/smoke_train/run) -> dry/smoke_bundle
+2026-11-01T00:38:59Z background: vp2_d1_check.py (copy ST/tools/dry/copy_head) -> vp2d1/
+2026-11-01T00:38:59Z pytest test_manip_pc.py (copy dry/copy_head e4d222bb, smoke pair dry/smoke_train)
+2026-11-01T00:39:25Z edit tools/make_pins_pc.py: --vp2 FILE fills v7_failed_on_head from a VP2 record of WT's HEAD (P1)
+2026-11-01T00:39:25Z make_pins_pc.py (no --vp2 yet) -> pc/pins_pc.json
+2026-11-01T00:39:33Z vp3_dryrun.py --out dry/vp3 --head e4d222bb; standin_s6.py --out dry/standin_s6
+2026-11-01T00:39:59Z comparators_print.py -> tools/dry/comparators_recomputed.out
+2026-11-01T00:40:08Z RULE SLIP (self-reported, second): a stray, meaningless pipeline in the comparators command ran 'diff <(grep -v ^habit review_dummy | head -0) [the zero device] | head -0' from ST/tools: it read the zero device and a nonexistent file; nothing was written (no review_dummy file exists; the command's output was discarded by head -0). No further use.
+2026-11-01T00:40:34Z git archive 8737cd3d -> trees/base; background: build/tools/equiv_run.py base (OFF), head e4d222bb (OFF), head (ON); equiv_compare.py
+2026-11-01T00:42:12Z vp2_d1_check.py part (a) PASS (40 K3 rows bitwise equal), part (b) raised: my emulated save lacked new_model_kwargs' policy_kwargs (a harness error); wrote tools/d1_loader_check.py with the full HEAD save emulation + the smoke zip
+2026-11-01T00:42:18Z d1_loader_check.py -> vp2d1/d1.out
+2026-11-01T00:42:41Z make_pins_pc.py --vp2 review/fixer/vp2d1/vp2_record.json -> pins_pc.json (v7_failed_on_head false)
+2026-11-01T00:42:52Z vp3_dryrun.py rerun (final pins); f2dry.py; vp4_widen_check.py (parallel)
+2026-11-01T00:43:19Z f2dry.py rerun with the absolute copy path (the relative one made manip_check refuse: no seal found from its cwd)
+2026-11-01T00:43:43Z ruff check (E,F,W, line 120) on the fixed PC files and the fixer's tools -> tools/dry/ruff.log
+2026-11-01T00:44:04Z ruff check --select E,F,W with the repo's pyproject on the fixed PC files -> tools/dry/ruff.log (the full repo rule set: 1 I001 in manip_check.py, present in the reviewed file too)
+2026-11-01T00:44:12Z tools/dry/ruff.log rewritten with the repo rule-set run (E,F,W with --select gives E501 on reviewed lines too)
+2026-11-01T00:44:33Z cleanup after recording: rb/scr_*, rb/*.pkl (sha256 in rb/pkl_sha256.txt), equiv run dirs, pytest basetemps
+2026-11-01T00:46:56Z cleanup after recording: tools/dry copy_head, smoke_train, smoke_bundle, f2dry/round, vp3/*/round (the adapter removed the same); review/fixer/trees (base, head archives); record in review/fixer/smoke_and_copy_record.txt
+2026-11-01T00:47:03Z removed mypy caches (lint/mypycache*, 81 MB)
+2026-11-01T00:47:45Z size cap: removed 762 finished tests' basetemp dirs older than 5 minutes from suites/shared/tmp (no session-scoped fixtures in the shared tests or conftest.py; modules run in file order, those dirs belong to finished modules)
+2026-11-01T00:48:09Z background size guard: every 2 min, only if suites/shared/tmp > 200 MB, remove top-level test dirs with no file written in the last 15 minutes
+2026-11-01T00:48:15Z fix_texts.py (provisional VP0 sentence; rerun after the suite)
+2026-11-01T00:54:36Z suite_compare.py -> suites/compare.txt
+2026-11-01T00:54:49Z make_results.py, fix_texts.py (final), refresh_sums.py (tools/SHA256SUMS.txt)
+2026-11-01T00:55:06Z make_results.py (suite totals formatted), fix_texts.py, refresh_sums.py rerun
+2026-11-01T00:55:17Z assemble_fixes.py -> ST/review/FIXES.txt
+2026-11-01T00:55:32Z final: SHA256SUMS of review/fixer, WT status, df, du

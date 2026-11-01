@@ -1,0 +1,185 @@
+{
+ "schema": "pc-manip-check/1",
+ "tool": "/home/user/work/pc_study/tools/pc/manip_check.py",
+ "tool_sha256": "80556aa9b3ec5393f2c3ab686c855d76147da2c3b723f12e293614157c7e1db6",
+ "version": "manip_check pc-1 (2026-10-31; PC criteria C8 THE MANIPULATION CHECK; phase-fed critic feed)",
+ "utc": "2026-10-31T23:08:33Z",
+ "kind": "C8 MANIPULATION CHECK",
+ "physics_revision": 10,
+ "checkpoint": {
+  "path": "/home/user/work/pc_study/tools/dry/smoke_train/run/models/stage1_final.zip",
+  "sha256": "0635700d9cd6af58bc6fcc1cc10416f987d6dac5b32e00cccdf5ce861dea4591",
+  "readable": true,
+  "plant_identity": {
+   "schema": "mesozoic.plant-identity/v2",
+   "species": "tyrannosaurus_rex",
+   "embodiment": "anatomical",
+   "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+   "physics_revision": 10,
+   "policy_interface_revision": 15,
+   "visual_revision": 4,
+   "source_closure_sha256": "sha256:ccda5ddff3602676409ce79f28373a56e8ac069f37ab4b83808ef02aae8442e0",
+   "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+   "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+   "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4",
+   "nq": 28,
+   "nv": 27,
+   "nu": 15,
+   "observation_dim": 63,
+   "action_dim": 15
+  },
+  "physics_revision": 10,
+  "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+  "seed": 42,
+  "num_timesteps": 1024,
+  "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+  "symmetry": {
+   "schema": "mesozoic.mirror-kl/v1",
+   "method": "mirror_kl",
+   "species": "tyrannosaurus_rex",
+   "embodiment": "anatomical",
+   "mirror_map_sha256": "sha256:76272aa04bdf542f876e5f82fc38a437d02eda94744c826974bed7dc77e11b91",
+   "kappa": 0.3,
+   "sigma_floor": 0.01,
+   "mirror_critic": true
+  },
+  "vecnorm": "/home/user/work/pc_study/tools/dry/smoke_train/run/models/stage1_final_vecnorm.pkl",
+  "vecnorm_sha256": "85fde059960ff5f87adf7be2c774740a43de6859c776a64b53d2d4da2769479a"
+ },
+ "run_records": {
+  "validation_no_run_records": true,
+  "note": "no run records given (a statue or synthetic validation input): commit binding not checked; no scorer may read this output as a run's measurement"
+ },
+ "filed": {},
+ "copy_seal": {
+  "schema": "r10m-measuring-copy/1",
+  "commit": "da7e0b9225b72827c2dc14b94c8094b6e57eb97a",
+  "repo": "/home/user/work/pc_branch",
+  "archive_sha256": "bcc65baa5d1ffd65d617839170cef125a2b39237ccda3247717271915333f529",
+  "tree_digest": "9b6c894f6f7cd610fc4c8bd44e0ff61adea15429a8535951b9913c8f6651e5a6",
+  "files": 1410,
+  "built_utc": "2026-10-31T23:01:52Z",
+  "built_by": "measure_r10round 1.2, PC adaptation pc-1 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8; PC 2026-10-31: RUN_IDs stance7_r10LTSBpc_s*)"
+ },
+ "copy_commit_basis": {
+  "commit": "da7e0b9225b72827c2dc14b94c8094b6e57eb97a",
+  "basis": "approved",
+  "approval": {
+   "head": "da7e0b9225b72827c2dc14b94c8094b6e57eb97a",
+   "base": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+   "approved": "/home/user/work/pc_study/tools/dry/approved_dry/APPROVED",
+   "approved_sha256": "91c81a860720f83eedf8a675c4e31ff67d4e47b7fcd3dc99a35d8f08a130897d",
+   "repo": "/home/user/work/pc_branch",
+   "commits_since_base": [
+    "3bde30469c5f8f9b62bb510f6099121d5203dd20",
+    "d783651484c328c2c540c4c2b7e5458db22bb3cc",
+    "f0bb1c6e1f579586597463d695f4362afed3ca33",
+    "540f3e97667e545cd38beee0b6d76b2c536c38af",
+    "da7e0b9225b72827c2dc14b94c8094b6e57eb97a"
+   ],
+   "files_changed_since_base": [
+    ".github/workflows/python-ci.yml",
+    "environments/shared/critic_phase.py",
+    "environments/shared/critic_phase_ppo.py",
+    "environments/shared/diagnostics.py",
+    "environments/shared/mirror_kl_ppo.py",
+    "environments/shared/policy_probe.py",
+    "environments/shared/tests/test_critic_phase.py",
+    "environments/shared/tests/test_critic_phase_ppo.py",
+    "environments/shared/train_base.py",
+    "notebooks/sb3_training.ipynb"
+   ]
+  }
+ },
+ "copy_tree_digest_after": "9b6c894f6f7cd610fc4c8bd44e0ff61adea15429a8535951b9913c8f6651e5a6",
+ "seeds": [
+  3042,
+  3043
+ ],
+ "bank_limit": 500,
+ "bank_episodes": [
+  {
+   "seed": 3042,
+   "rows": 500,
+   "k_first": 0,
+   "k_last": 499,
+   "ended_before_limit": null
+  },
+  {
+   "seed": 3043,
+   "rows": 500,
+   "k_first": 0,
+   "k_last": 499,
+   "ended_before_limit": null
+  }
+ ],
+ "bank_rows": 1000,
+ "normalization": {
+  "mode": "vecnormalize-frozen",
+  "clip_obs": 10.0,
+  "epsilon": 1e-08
+ },
+ "stack": {
+  "python": "3.13.17",
+  "torch": "2.13.0+cpu",
+  "numpy": "2.5.4",
+  "gymnasium": "1.4.0",
+  "stable_baselines3": "2.9.0",
+  "mujoco": "3.10.0"
+ },
+ "spec": {
+  "schema": "mesozoic.critic-phase/v1",
+  "features": [
+   "ramp",
+   "settled",
+   "discount"
+  ],
+  "settle_steps": 200,
+  "gamma": 0.98,
+  "width": 3,
+  "step_counter": "the env's _step_count when the observation was made (0 at reset)",
+  "input": "the critic's only: appended after the normalized observation, never normalized"
+ },
+ "n_rows": 1000,
+ "checks": {
+  "(i) phase in force": {
+   "holds": true,
+   "phase_weights_nonzero": 1536,
+   "phase_weights_shape": [
+    512,
+    3
+   ],
+   "phase_weights_max_abs": 0.0012569905957207084,
+   "max_abs_dV_by_perturbation": {
+    "all 0": 0.03076990693807602,
+    "all 1": 0.016495972871780396,
+    "+1": 0.021158158779144287,
+    "all 3": 0.055051565170288086,
+    "1 - x": 0.040706194937229156
+   }
+  },
+  "(ii) actor independent": {
+   "holds": true,
+   "max_abs_dmu_by_perturbation": {
+    "all 0": 0.0,
+    "all 1": 0.0,
+    "+1": 0.0,
+    "all 3": 0.0,
+    "1 - x": 0.0
+   },
+   "mean_63_equals_mean_with_phase": true,
+   "actor_first_layer_inputs": 63
+  },
+  "(iii) critic reads observation 6": {
+   "holds": true,
+   "max_abs_dV_obs6_plus1": 0.04156947135925293
+  }
+ },
+ "verdict": "IN FORCE",
+ "failing": [],
+ "v_effective_summary": {
+  "mean": 0.30127599951846057,
+  "min": -1.2401660680770874,
+  "max": 0.7822311520576477
+ }
+}

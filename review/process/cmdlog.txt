@@ -1,0 +1,22 @@
+2026-10-31T23:37:04Z start review; mkdir
+2026-10-31T23:39:37Z read pyproject pins; venv versions
+2026-10-31T23:41:04Z extracted notebook cell 20 to cell20.txt
+2026-10-31T23:43:34Z git archive da7e0b92 (HEAD) extracted to /home/user/work/pc_study/review/process/tree for a chain-loop smoke
+2026-10-31T23:43:57Z start chain_smoke.py on (nice 10, PYTHONDONTWRITEBYTECODE=1, MPLBACKEND=Agg) -> smoke/chain_on.log
+2026-10-31T23:46:08Z git ls-remote origin (read only) phasecritic + armltsb refs -> ls_remote.txt
+2026-10-31T23:46:56Z pytest test_refusals_come_before_the_run on tree copy with PYTHONPATH=tree (env check of 3 non-known25 failures) -> vp0_extra3.log
+2026-10-31T23:49:03Z check_artifacts.py on the smoke run folder -> smoke/artifacts_on.txt
+2026-10-31T23:50:17Z note: read-only commands between 23:37 and now (not individually logged above): git log/diff/status/branch/config in WT; grep/sed reads of WT sources (critic_phase*.py, train_base.py, mirror_kl_ppo.py, policy_probe.py, diagnostics.py, policy_loading.py, curriculum/checkpoints.py, reporting/stage_artifacts.py, k3_panel.py, base_env.py, config.py, stance.toml, python-ci.yml, notebook cells 3/6/9/15/18/20); ST/COLAB_STEPS.txt, ST/criteria.txt, ST/build, ST/check_code, ST/tools/pc (pins_pc.json, manip_check.py, adapt_diffs); S2 known25.txt, S2 colab_steps_r10round.txt, S2 criteria_r10round_final.txt; RUNLOG lines 600-872 (grep). No writes outside ST/review/process.
+2026-10-31T23:51:29Z compared eval_episodes.csv header: stance6 s42 F2 copy vs smoke (phase on) -> hdr_diff.txt
+2026-10-31T23:52:08Z local-only scratch repos in pushtest/ (bare remote + clone): bare git push with upstream of another name, and with push.default=upstream
+2026-10-31T23:55:51Z chain_smoke on finished
+2026-10-31T23:56:27Z run 1 outputs deleted after recording (smoke/run1_files.txt, smoke/artifacts_on.txt; log kept as smoke/chain_on_run1.log); git init+commit of tree/ (my folder) so provenance carries a 40-hex commit; rerun chain_smoke.py on
+2026-10-31T23:56:38Z start chain_smoke.py on (run 2, git-backed tree 21a32e5f with da7e0b92's tree 7f60b613) -> smoke/chain_on.log
+2026-11-01T00:05:46Z chain_smoke run 2 finished
+2026-11-01T00:06:09Z start chain_smoke.py off (same harness, switch OFF, control for cells 20/30 behaviour) -> smoke/chain_off.log
+2026-11-01T00:06:16Z verify_artifact_manifest on run 2 folder + manifest entry listing -> smoke/manifest_on.txt
+2026-11-01T00:15:19Z chain_smoke off finished
+2026-11-01T00:15:30Z compared ON (run 2) vs OFF control: file names and cell statuses -> smoke/names_on_vs_off.diff, smoke/status_on_vs_off.diff
+2026-11-01T00:15:36Z cleanup: removed tree/ (HEAD copy, its .git and both smoke run folders) and pt/ (pytest basetemp) after recording evidence
+2026-11-01T00:16:42Z RULE SLIP (self-reported): the trainer's evaluation callback wrote 3 temp dirs /tmp/eval_stage1_{prqld9f1,xkn4v6_7,94kiba5g} (one evaluations.npz each) during my 3 smoke runs (created 23:44:13, 23:56:55, 00:06:27 = my run starts); removed; listing in tmp_side_effect_removed.txt. 834 older such dirs from earlier sessions left untouched.
+2026-11-01T00:17:16Z NOTES.txt findings written

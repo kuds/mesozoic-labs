@@ -1,0 +1,92 @@
+--- design/COLAB_STEPS_v1.txt
++++ COLAB_STEPS.txt
+@@ -1,4 +1,8 @@
+-T. rex r10 PHASE-CRITIC ROUND (PC): THREE SEEDS FROM SCRATCH, 12M STEPS, THREE COLAB L4s -- COLAB STEPS v1 (DRAFT)
++T. rex r10 PHASE-CRITIC ROUND (PC): THREE SEEDS FROM SCRATCH, 12M STEPS, THREE COLAB L4s -- COLAB STEPS v1 (DRAFT),
++INSTALLED by the measurement adapter 2026-10-31 (date -u): <SWITCH>, <ON value> and <SWITCH_ROW> filled from the
++branch's notebook (WT notebooks/sb3_training.ipynb cells 6 and 9 at da7e0b92, as the code builder's
++ST/build/COLAB_STEPS.txt records them), the tools named by their PC paths; <HEAD> is still filled at the pin step.
++Every change against COLAB_STEPS_v1.txt: ST/adapt/COLAB_STEPS_v1_to_installed.diff.
+ =================================================================================================================
+ Written 2026-10-31 (date -u) by the PC designer from the stance6 round's pinned steps
+ (S2/r10round/lean/build/laneB/colab_steps_r10round.txt, sha256 f2eb9a24c54e4718a66666f47f95c7c3240d2fc4cd2a1ce647e0cc1a08f61e7d),
+@@ -58,18 +62,22 @@
+        K3_PANEL            = True                        (False if VP2 failed: the pin records which)
+        K3_PANEL_SIGMA_FILE = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+        K3_PANEL_SIGMA_KEY  = "source_vectors.60"         (s42: "source_vectors.42"; s80: "control_sigma.80")
+-       <SWITCH>            = <ON value>                  <- THE PHASE CRITIC. Its default is OFF: set it.
+-    Read SEED, RUN_ID, RUN_LABEL and K3_PANEL_SIGMA_KEY side by side (one seed), and <SWITCH> once more.
++       CRITIC_PHASE        = True                        <- THE PHASE CRITIC (the 18th setting). Its default is
++                                                         False: set it.
++    Read SEED, RUN_ID, RUN_LABEL and K3_PANEL_SIGMA_KEY side by side (one seed), and CRITIC_PHASE once more.
+  5. Cell 18 ("RESUME AN INTERRUPTED STAGE"): RESUME_STAGE stays None. Touch nothing else.
+  6. Runtime > Run all; allow Drive access. Note the UTC time at once (date -u to the minute) and write the LAUNCH line.
+  7. Check rows (recorded in the CHECK line; the launch check decides):
+     - cell 3:  "Repository ref: claude/screen-trex-r10-phasecritic; commit: <HEAD>"
+-    - cell 6:  "Behavior recipe: stance", "In-run K3 panel: on" and <SWITCH_ROW> (the phase critic on)
++    - cell 6:  "Behavior recipe: stance", "In-run K3 panel: on" and "Critic phase: on" (the phase critic on;
++               "Critic phase: off" means CRITIC_PHASE was left False: that run is not this round's
++               configuration; record the row in the CHECK line: launch-check fact (8) decides, as L3 says)
+     - cell 8:  "Run directory: /content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance7_r10LTSBpc_s60
+                (new run: RUN_ID names no existing run)". It must end in the RUN_ID and say "new run": an existing
+                run's id re-enters that run (notebook cell 8 comment at 8737cd3d). If it does not say "new run", stop
+                this run at once by THE ENDING PROCEDURE (d) (a configuration fault).
+-    - cell 9:  "Behavior 'stance' -> deliverable 'stance'; chain: stance"
++    - cell 9:  "Critic phase on: [ppo] critic_phase = true on ['stance']" and
++               "Behavior 'stance' -> deliverable 'stance'; chain: stance"
+     - cell 13: the zero-action baseline "Tyrannosaurus Rex (Anatomical)": reward and standing about 4470.4, full-hz
+                100%, "OK — the statue passes the stance gate" (about 3766.6 would be LTSB off).
+     - cell 15: "Timesteps: 12,000,000"; then an evaluation every 131,072 steps.
+@@ -77,10 +85,11 @@
+     at the end (AUTO_DISCONNECT True). PASS or FAIL is fine.
+ 
+ THE LAUNCH CHECK (configuration only; within the first 60 minutes of each launch)
+- L1. F0: a fetch agent (the ported fetch brief, FETCH F0) copies by folder id provenance.json,
++ L1. F0: a fetch agent (ST/tools/pc/fetch_agent_brief.txt, FETCH F0) copies by folder id provenance.json,
+      zero_action_baseline.json, 01_stance/stage_config.json and, once listed, 01_stance/eval_episodes.csv and
+      01_stance/progress.json, two agreeing copies each. Nothing about counts or flags is shown.
+- L2. The ported launch-check computes the stance6 round's facts (1)-(7) against the PC pins (HEAD; seed; the
++ L2. The ported launch-check (PY -I -B ST/tools/pc/complete_r10round.py launch-check --run <RUN_ID> --round <PCR>;
++     pins ST/tools/pc/pins_pc.json) computes the stance6 round's facts (1)-(7) against the PC pins (HEAD; seed; the
+      hyperparameters, task and plant pins; baseline not within 50 of 3766.6; #640's ledger columns; one sessions entry;
+      run_id = RUN_ID) and (8) the phase switch ON in 01_stance/stage_config.json.
+  L3. Its result is the CHECK line. A fault in (1)-(5), (7) or (8): stop the run at once by THE ENDING PROCEDURE (d)
+@@ -108,7 +117,8 @@
+    it. Its ledger can still read line 1 (PRESENCE); the reading prints it under D-16.
+  - (Only if the maintainer chooses CHOICE RESUME (b) at the pin, a same-stage resume from the latest periodic pair in a
+    new runtime would be written here, with its check rows, after the builder has verified the notebook's resume path on
+-   HEAD; not part of v1.)
++   HEAD; not part of v1. The builder's smoke ran the RESUME cell's path once on HEAD with the switch ON [measured,
++   ST/build/smoke/smoke_resume.log]; the rules for a resumed run (C4, C6) are not written.)
+ 
+ THE TRIGGER LISTING (at a trigger noted within 2 hours of a launch, before any relaunch decision) -- as stance6
+  A fetch agent lists that run's 01_stance/models/ by folder id (names and sizes, every page); nothing else is fetched;
+@@ -125,10 +135,10 @@
+  LAUNCH <RUN_ID>     seed=<n> runtime=<L4|...> head=<40-hex HEAD> REPO_REF=claude/screen-trex-r10-phasecritic
+                      RESUME_STAGE=None and every cell-6 setting as set: SPECIES= EMBODIMENT= ALGORITHM= N_ENVS= SEED=
+                      VERBOSE= QUICK_TEST= USE_GOOGLE_DRIVE= AUTO_DISCONNECT= BEHAVIOR= TRUNK_FROM="" RETRAIN_FROM=""
+-                     RUN_LABEL="..." RUN_ID= K3_PANEL= K3_PANEL_SIGMA_FILE= K3_PANEL_SIGMA_KEY= <SWITCH>=
++                     RUN_LABEL="..." RUN_ID= K3_PANEL= K3_PANEL_SIGMA_FILE= K3_PANEL_SIGMA_KEY= CRITIC_PHASE=
+  RELAUNCH <RUN_ID>_b replaces=<RUN_ID> and the same fields
+  CHECK <RUN_ID>      result=<no-fault|FAULT (n,...)|not-computed (n,...)> runtime=<as seen> behavior="<as printed>"
+-                     phase_row="<SWITCH_ROW as printed>" new_run=<yes|no>
++                     phase_row="<the cell-6 'Critic phase: ...' row as printed>" new_run=<yes|no>
+  STOP <RUN_ID> fault=<n,...>      TRIGGER-a|b|c|d <RUN_ID> [note="..."]      LISTING <RUN_ID> folder=<id> pages=<n> files="..."
+  DELETED <RUN_ID>     FOUND-GONE <RUN_ID>     ACTION <RUN_ID> what=<resume|restart|relaunch|cell>
+  F2-START <RUN_ID>    REFETCH-START <RUN_ID>
+@@ -150,9 +160,13 @@
+    5,242,880, 6,291,456, 8,388,608, 10,485,760, final; every RESOLUTION pair); (6) the report-only pairs (the 11 of the
+    1,048,576 grid; at most 8 onset pairs). Transfers by the exact-copy method the maintainer decided at RUNLOG line 709
+    (S2/r10round/f2/xfer/extract_response.py: an inline response copied byte for byte from the session's own record,
+-   then checked by the fetch tool; nothing typed by hand); at most 10 transfers per file.
++   then checked by the fetch tool; nothing typed by hand); at most 10 transfers per file. Before F2-START the
++   coordinator writes <PCR>/F2_PINS.json once (the F2 tools' sha256, VP1 and VP4) and puts its sha256 in RUNLOG.
+  - The re-fetch: 6 hours after F2's last manifest row, only for a run the scorer names (stance6 rule).
+- - Then, on this container (nice 10, at most 2 measurement processes): the manipulation check, M1 at J/R1/RESOLUTION,
++ - Then, on this container (nice 10, at most 2 measurement processes): the manipulation check (PY -I -B
++   ST/tools/pc/manip_check.py --copy <HEAD measuring copy> --zip/--pkl the C3-verified pair --stage-config the run's
++   --run-id <RUN_ID> --label <step|final>, at every J label and final; about 7 s each [measured on CPU, smoke]),
++   M1 at J/R1/RESOLUTION,
+    M3 at each final (about 2 CPU-hours for the three), the completeness tool, the scorer; the reading to the maintainer
+    at once.
+ 

@@ -1,0 +1,178 @@
+T. rex r10 PHASE-CRITIC ROUND (PC): THREE SEEDS FROM SCRATCH, 12M STEPS, THREE COLAB L4s -- COLAB STEPS v1 (DRAFT),
+INSTALLED by the measurement adapter 2026-10-31 (date -u): <SWITCH>, <ON value> and <SWITCH_ROW> filled from the
+branch's notebook (WT notebooks/sb3_training.ipynb cells 6 and 9 at da7e0b92, as the code builder's
+ST/build/COLAB_STEPS.txt records them), the tools named by their PC paths; <HEAD> is still filled at the pin step.
+Every change against COLAB_STEPS_v1.txt: ST/adapt/COLAB_STEPS_v1_to_installed.diff.
+=================================================================================================================
+Written 2026-10-31 (date -u) by the PC designer from the stance6 round's pinned steps
+(S2/r10round/lean/build/laneB/colab_steps_r10round.txt, sha256 f2eb9a24c54e4718a66666f47f95c7c3240d2fc4cd2a1ce647e0cc1a08f61e7d),
+changed only where the PC criteria (DESIGN/criteria_v1.txt) change them. Fields in <ANGLE BRACKETS> are filled at the
+pin step from files (never typed): <HEAD> (40 hex), <SWITCH> and <SWITCH_ROW> (the builder's notebook setting and the
+row it prints). To reconcile with the code builder's own WT/COLAB_STEPS.txt before review (the builder names the cell-6
+setting; these steps name everything else).
+S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+RUNLOG = S1/foot/stance4/live/run_log.txt.   <PCR> = /home/user/work/pc_study/round.
+
+Three runs, one Colab L4 runtime each, started together. Nothing here is decided by what a run prints during training:
+no run is stopped, changed, restarted, extended or rerun because of a readout, an alarm, a fetch, the in-run panel or
+anything the notebook prints beyond the configuration the launch check reads. Fails stay fails. Nobody moves, edits or
+deletes a file in a run folder; no fetch writes to Drive.
+
+THE RUNS
+   Run    SEED   RUN_ID                   RUN_LABEL                    K3_PANEL_SIGMA_KEY
+   s60    60     stance7_r10LTSBpc_s60    r10 LTSB phase-critic s60    source_vectors.60
+   s42    42     stance7_r10LTSBpc_s42    r10 LTSB phase-critic s42    source_vectors.42
+   s80    80     stance7_r10LTSBpc_s80    r10 LTSB phase-critic s80    control_sigma.80
+   A relaunch (only as REPLACEMENT allows): the same RUN_ID with "_b" appended, every other setting the same. No "_c".
+   [measured: no "stance7" or "r10LTSBpc" in RUNLOG (871 lines) and no "stance7*" folder in the ppo folder's last
+   complete listing (2026-10-27T15:05:40Z, S1/foot/stance6/fetch/folders.json); DESIGN/names_check.out. Cell 8 must
+   print "new run" (step 7): it is the check that counts.]
+   The branch: claude/screen-trex-r10-phasecritic, HEAD <HEAD> (as <PCR>/APPROVED records it). It is pushed only after
+   the maintainer's OK so that REPO_REF can install it; it is never merged.
+
+BEFORE THE FIRST LAUNCH (each noted in RUNLOG)
+ B1. Compute: read the L4's rate (Runtime > Change runtime type) and the account's balance. Needed: about 3 x 15.5
+     L4-hours for the runs plus about 15.5 for one possible _b (about 62 L4-hours x the rate) [inferred from the
+     stance6 runs: launched 14:57 UTC, progress "ended" 05:01-05:07 UTC (about 14.1 h), manifests 05:48-05:54 UTC
+     (about 14.9 h) [measured, S2/r10round/f2/score.txt C4/C5 values; RUNLOG lines 693-698]].
+ B2. Fetch budget: about 195 file copies through the Drive connector for F0, F2 and the readouts (as stance6) [model,
+     ROUND TABLE M].
+ B3. <PCR>/APPROVED's sha256 and its bytes are in RUNLOG (HOW THE COORDINATOR PINS); the LAUNCH lines record its HEAD.
+
+FOR EACH RUN (all three at once, each in its own runtime)
+ 1. Open the notebook from the branch's own link (one fresh opening per run; no Drive copy of the notebook):
+       https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r10-phasecritic/notebooks/sb3_training.ipynb
+ 2. Runtime > Change runtime type: L4 GPU (another type is recorded, never a stop).
+ 3. Cell 3 ("# Install dependencies"): REPO_REF = "claude/screen-trex-r10-phasecritic"
+ 4. Cell 6 ("# ===== SPECIES SELECTION ====="): every setting exactly so (the stance6 round's 17, plus the switch):
+       SPECIES             = "tyrannosaurus_rex"
+       EMBODIMENT          = "anatomical"
+       ALGORITHM           = "ppo"
+       N_ENVS              = 4
+       SEED                = 60                          (s42: 42; s80: 80)
+       VERBOSE             = 0
+       QUICK_TEST          = False
+       USE_GOOGLE_DRIVE    = True
+       AUTO_DISCONNECT     = True
+       BEHAVIOR            = "stance"                    (type it; the default is "hunt")
+       TRUNK_FROM          = ""                          (empty, not "auto"; the default is "auto")
+       RETRAIN_FROM        = ""
+       RUN_LABEL           = "r10 LTSB phase-critic s60" (s42 / s80 likewise)
+       RUN_ID              = "stance7_r10LTSBpc_s60"     (s42 / s80 likewise)  <- the Drive folder name
+       K3_PANEL            = True                        (False if VP2 failed: the pin records which)
+       K3_PANEL_SIGMA_FILE = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+       K3_PANEL_SIGMA_KEY  = "source_vectors.60"         (s42: "source_vectors.42"; s80: "control_sigma.80")
+       CRITIC_PHASE        = True                        <- THE PHASE CRITIC (the 18th setting). Its default is
+                                                         False: set it.
+    Read SEED, RUN_ID, RUN_LABEL and K3_PANEL_SIGMA_KEY side by side (one seed), and CRITIC_PHASE once more.
+ 5. Cell 18 ("RESUME AN INTERRUPTED STAGE"): RESUME_STAGE stays None. Touch nothing else.
+ 6. Runtime > Run all; allow Drive access. Note the UTC time at once (date -u to the minute) and write the LAUNCH line.
+ 7. Check rows (recorded in the CHECK line; the launch check decides):
+    - cell 3:  "Repository ref: claude/screen-trex-r10-phasecritic; commit: <HEAD>"
+    - cell 6:  "Behavior recipe: stance", "In-run K3 panel: on" and "Critic phase: on" (the phase critic on;
+               "Critic phase: off" means CRITIC_PHASE was left False: that run is not this round's
+               configuration; record the row in the CHECK line: launch-check fact (8) decides, as L3 says)
+    - cell 8:  "Run directory: /content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance7_r10LTSBpc_s60
+               (new run: RUN_ID names no existing run)". It must end in the RUN_ID and say "new run": an existing
+               run's id re-enters that run (notebook cell 8 comment at 8737cd3d). If it does not say "new run", stop
+               this run at once by THE ENDING PROCEDURE (d) (a configuration fault).
+    - cell 9:  "Critic phase on: [ppo] critic_phase = true on ['stance']" and
+               "Behavior 'stance' -> deliverable 'stance'; chain: stance"
+    - cell 13: the zero-action baseline "Tyrannosaurus Rex (Anatomical)": reward and standing about 4470.4, full-hz
+               100%, "OK — the statue passes the stance gate" (about 3766.6 would be LTSB off).
+    - cell 15: "Timesteps: 12,000,000"; then an evaluation every 131,072 steps.
+ 8. Leave it running: about 14.1 h to "ended" and about 14.9 h to its manifest (stance6). It disconnects by itself
+    at the end (AUTO_DISCONNECT True). PASS or FAIL is fine.
+
+THE LAUNCH CHECK (configuration only; within the first 60 minutes of each launch)
+ L1. F0: a fetch agent (ST/tools/pc/fetch_agent_brief.txt, FETCH F0) copies by folder id provenance.json,
+     zero_action_baseline.json, 01_stance/stage_config.json and, once listed, 01_stance/eval_episodes.csv and
+     01_stance/progress.json, two agreeing copies each. Nothing about counts or flags is shown.
+ L2. The ported launch-check (PY -I -B ST/tools/pc/complete_r10round.py launch-check --run <RUN_ID> --round <PCR>;
+     pins ST/tools/pc/pins_pc.json) computes the stance6 round's facts (1)-(7) against the PC pins (HEAD; seed; the
+     hyperparameters, task and plant pins; baseline not within 50 of 3766.6; #640's ledger columns; one sessions entry;
+     run_id = RUN_ID) and (8) the phase switch ON in 01_stance/stage_config.json.
+ L3. Its result is the CHECK line. A fault in (1)-(5), (7) or (8): stop the run at once by THE ENDING PROCEDURE (d)
+     (STOP and TRIGGER-d lines at one time): LOST, and REPLACEMENT (ii) relaunches it as _b. A fact whose file is not
+     yet on Drive is "not computed": no stop. A fault first seen after 60 minutes stops nothing.
+
+THE ENDING PROCEDURE (liveness or configuration only, never an outcome) -- as the stance6 steps, unchanged
+ (a) The runtime is no longer listed (Runtime > Manage sessions): TRIGGER-a and FOUND-GONE lines at one time; download
+     the notebook with its output if the browser still shows it. A finished run releases itself and is noted so.
+     Overnight (the maintainer asleep), a run's end may be noted from Drive as for stance6 (RUNLOG line 690):
+     artifact_manifest.json present, progress.json "ended", and 30 minutes with no new write in its folder.
+ (b) no cell running, (c) a STALL (2 hours with neither a progress.json rewrite nor a new output line), or (d) a
+     launch-check stop: the TRIGGER line (or STOP + TRIGGER-d); Runtime > Interrupt execution (Restart session if it
+     does not stop); File > Download .ipynb to <PCR>/outputs/<RUN_ID>.ipynb; one new cell
+         from google.colab import drive; drive.flush_and_unmount()
+     waited for at most 30 minutes; delete the runtime; the DELETED line.
+ Suggested liveness check (not a rule): Runtime > Manage sessions every 30 min in a run's first 2 h, every 2 h after.
+
+AFTER A DISCONNECT: THERE IS NO RESUME (the PC criteria keep the stance6 round's all-or-nothing rule; CHOICE RESUME)
+ - Within 2 hours of the launch and with no 01_stance/models/stage1_<steps>_steps.zip in the run's TRIGGER LISTING
+   (the first periodic zip comes at 262,144 steps, about 20 minutes in [inferred: 12,001,280 steps in about 14.1 h]),
+   or after a launch-check fault: relaunch it once as <RUN_ID>_b within 1 hour of the trigger note and after the
+   DELETED / FOUND-GONE line (REPLACEMENT below).
+ - Otherwise the seed is LOST: do not run cell 18 (RESUME_STAGE), do not reuse the RUN_ID, do not start a new run for
+   it. Its ledger can still read line 1 (PRESENCE); the reading prints it under D-16.
+ - (Only if the maintainer chooses CHOICE RESUME (b) at the pin, a same-stage resume from the latest periodic pair in a
+   new runtime would be written here, with its check rows, after the builder has verified the notebook's resume path on
+   HEAD; not part of v1. The builder's smoke ran the RESUME cell's path once on HEAD with the switch ON [measured,
+   ST/build/smoke/smoke_resume.log]; the rules for a resumed run (C4, C6) are not written.)
+
+THE TRIGGER LISTING (at a trigger noted within 2 hours of a launch, before any relaunch decision) -- as stance6
+ A fetch agent lists that run's 01_stance/models/ by folder id (names and sizes, every page); nothing else is fetched;
+ the ported fetch tool prints the LISTING line for RUNLOG (folder=absent:<key> files="" when a folder is absent).
+
+REPLACEMENT (ONE RELAUNCH PER SEED) -- as stance6
+ Only when: the trigger note is within 2 hours of the LAUNCH line; the _b starts within 1 hour after that note and after
+ the first runtime's DELETED (or FOUND-GONE) line; and either (i) the first run ended by itself (TRIGGER-a or -b) and
+ its TRIGGER LISTING holds no periodic zip, or (ii) the launch check stopped it for a fault (1)-(5), (7) or (8). Steps
+ 1-8 with RUN_ID "<RUN_ID>_b", every other setting the same; write its RELAUNCH line. The _b is then the seed's run.
+
+RUNLOG NOTES (the tools read only these lines; one per event, its date -u time to the minute; two spaces after "UTC")
+     <YYYY-MM-DD HH:MM UTC>  STANCE7 <KIND> <RUN_ID> key=value key="value with spaces" ...
+ LAUNCH <RUN_ID>     seed=<n> runtime=<L4|...> head=<40-hex HEAD> REPO_REF=claude/screen-trex-r10-phasecritic
+                     RESUME_STAGE=None and every cell-6 setting as set: SPECIES= EMBODIMENT= ALGORITHM= N_ENVS= SEED=
+                     VERBOSE= QUICK_TEST= USE_GOOGLE_DRIVE= AUTO_DISCONNECT= BEHAVIOR= TRUNK_FROM="" RETRAIN_FROM=""
+                     RUN_LABEL="..." RUN_ID= K3_PANEL= K3_PANEL_SIGMA_FILE= K3_PANEL_SIGMA_KEY= CRITIC_PHASE=
+ RELAUNCH <RUN_ID>_b replaces=<RUN_ID> and the same fields
+ CHECK <RUN_ID>      result=<no-fault|FAULT (n,...)|not-computed (n,...)> runtime=<as seen> behavior="<as printed>"
+                     phase_row="<the cell-6 'Critic phase: ...' row as printed>" new_run=<yes|no>
+ STOP <RUN_ID> fault=<n,...>      TRIGGER-a|b|c|d <RUN_ID> [note="..."]      LISTING <RUN_ID> folder=<id> pages=<n> files="..."
+ DELETED <RUN_ID>     FOUND-GONE <RUN_ID>     ACTION <RUN_ID> what=<resume|restart|relaunch|cell>
+ F2-START <RUN_ID>    REFETCH-START <RUN_ID>
+ Any other line naming a RUN_ID is restated in this form before that RUN_ID's F2-START line (as stance6).
+
+WHEN TO FETCH, AND THE FETCH PLAN (Google Drive is read only to every agent; the maintainer's Drive is never written)
+ - F0: within 60 minutes of each launch (the launch check).
+ - TRIGGER: only at a trigger within 2 hours of a launch.
+ - No interim fetch for the reading. A report-only snapshot at the maintainer's request is allowed (copies outside
+   <PCR>, read by no rule, acting on nothing), as RUNLOG lines 681 and 689 did for stance6.
+ - F2: once every launched RUN_ID (each first run and each _b) has ENDED, starting at least 6 hours after RUNLOG's last
+   ending note, and only after the F2 tools' sha256 are in RUNLOG (if they are not, F2 waits; the delay printed). Its
+   F2-START lines go to RUNLOG before the first file. Per run, the stance6 order: (1) the listings of the run folder,
+   01_stance/, 01_stance/models/, 01_stance/figures/training_history/, 01_stance/replays/; (2) artifact_manifest.json
+   twice; (3) provenance.json, 01_stance/stage_config.json, 01_stance/eval_episodes.csv twice each; (4) the other
+   non-zip C3 files and the readout files (policy_probe.npz, train_episodes.csv, evaluations.npz, gate_progress.npz,
+   plant_identity.json, task_fingerprint.json, k3_panel.csv/json, the certificate files, training_history/,
+   replays/*_stance.csv), each until it equals the manifest; (5) the pairs C3 names (R1 10,485,760; J 4,194,304,
+   5,242,880, 6,291,456, 8,388,608, 10,485,760, final; every RESOLUTION pair); (6) the report-only pairs (the 11 of the
+   1,048,576 grid; at most 8 onset pairs). Transfers by the exact-copy method the maintainer decided at RUNLOG line 709
+   (S2/r10round/f2/xfer/extract_response.py: an inline response copied byte for byte from the session's own record,
+   then checked by the fetch tool; nothing typed by hand); at most 10 transfers per file. Before F2-START the
+   coordinator writes <PCR>/F2_PINS.json once (the F2 tools' sha256, VP1 and VP4) and puts its sha256 in RUNLOG.
+ - The re-fetch: 6 hours after F2's last manifest row, only for a run the scorer names (stance6 rule).
+ - Then, on this container (nice 10, at most 2 measurement processes): the manipulation check (PY -I -B
+   ST/tools/pc/manip_check.py --copy <HEAD measuring copy> --zip/--pkl the C3-verified pair --stage-config the run's
+   --run-id <RUN_ID> --label <step|final>, at every J label and final; about 7 s each [measured on CPU, smoke]),
+   M1 at J/R1/RESOLUTION,
+   M3 at each final (about 2 CPU-hours for the three), the completeness tool, the scorer; the reading to the maintainer
+   at once.
+
+TIMELINE IF LAUNCHED 01:00-02:00 UTC 2026-11-01 [inferred]
+   launch + F0 + launch check            01:00-03:00
+   progress "ended" / manifests          about 15:05-16:10 / 15:55-17:00   (AUTO_DISCONNECT releases each runtime)
+   ending notes (from Drive, +30 min)    about 16:30-17:30
+   F2 (>= 6 h after the last end note)   about 22:30-23:30, about 1.5 h of transfers (stance6: 12:25-13:55 UTC)
+   measurements + scorer + checks        about 3-4 h after F2's last file

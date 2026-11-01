@@ -1,0 +1,36 @@
+2026-10-31T22:53:33Z start; git log/diff stat on WT
+2026-10-31T22:55:30Z git archive 8737cd3d (environments configs notebooks root files .github) -> base/
+2026-10-31T22:55:36Z re-extract full git archive 8737cd3d -> base/ (faithful tree for suites)
+2026-10-31T22:55:51Z launch suite.sh WT wt_shared environments/shared/tests/ (bg)
+2026-10-31T22:55:55Z suite.sh WT wt_trex; then base base_trex
+2026-10-31T22:59:29Z wrote tools/equiv_capture.py
+2026-10-31T22:59:34Z equiv run base off s60 (n_envs3 n_steps64 batch48 epochs3 total384)
+2026-10-31T22:59:56Z equiv run wt_off_s60 (/home/user/work/pc_branch off) s60
+2026-10-31T23:00:10Z equiv run wt_on_s60 (/home/user/work/pc_branch on) s60
+2026-10-31T23:00:48Z compare base_off_s60 vs wt_off_s60; base_off vs wt_on
+2026-10-31T23:01:06Z equiv run base_off_s42 (/home/user/work/pc_study/check_code/base off) s42 n_envs2 n_steps128 batch64 epochs2 total512
+2026-10-31T23:01:21Z equiv run wt_off_s42 (/home/user/work/pc_branch off) s42 n_envs2 n_steps128 batch64 epochs2 total512
+2026-10-31T23:01:36Z equiv run wt_on_s42 (/home/user/work/pc_branch on) s42 n_envs2 n_steps128 batch64 epochs2 total512
+2026-10-31T23:05:39Z wrote tools/on_checks.py; run part A
+2026-10-31T23:05:51Z fix check() detail str; rerun part A
+2026-10-31T23:06:30Z restrict A3 to the gated keys; rerun A, then B
+2026-10-31T23:07:09Z equiv_capture: optional resume arg; run resume x2 (on from wt_on_s42 final), resume off from on (expect refusal), resume on from base_off final (expect refusal)
+2026-10-31T23:08:15Z base resume off from base_off_s42 final (stock resume behaviour reference)
+2026-10-31T23:09:16Z ruff check/format --no-cache on WT environments/
+2026-10-31T23:09:28Z build nosb3 venv (system python3 -m venv --without-pip) with symlinked numpy/gymnasium/deps; mypy lint-job view
+2026-10-31T23:09:34Z mypy (lint-job view: no SB3/torch) on WT environments/ (bg)
+2026-10-31T23:10:23Z notebook_cells.py parse check (CI lint step) on WT; git archive HEAD subset -> head_tree
+2026-10-31T23:10:57Z mypy full-venv view on WT (bg); fixcheck copy for the 2 no-any-return errors
+2026-10-31T23:13:01Z mypy nosb3 view on base tree (bg) to see whether lint view passed before
+2026-10-31T23:13:29Z digest check vs stance6 stage_config copies
+2026-10-31T23:14:27Z nb_run.py off (default path)
+2026-10-31T23:14:38Z nb_run.py on smoke (cells 3-18 + 1 update + RESUME cell 1 update)
+2026-10-31T23:17:45Z cleanup: mypy caches, equiv run dirs + caps (evidence in compare/log txt), notebook smoke logs dir (evidence in nb_on.log)
+2026-10-31T23:17:51Z cleanup: head_tree (notebook smoke done)
+2026-10-31T23:19:04Z on_train_callbacks.py (switch on; eval/ckpt/probe/ledger/K3 at 128-step cadence; 2 updates)
+2026-10-31T23:19:53Z cleanup on/cb/run (evidence in on/cb/log.txt)
+2026-10-31T23:21:03Z on_bootstrap.py (collect_rollouts only, no update)
+2026-10-31T23:26:42Z rerun WT's 21 failing shared tests on base tree (bg); suite.sh now sets PYTHONDONTWRITEBYTECODE=1
+2026-10-31T23:28:53Z remove the 15 git-ignored __pycache__ dirs (123 .pyc, created 22:56-23:23 by subprocess tests in my WT suite runs; WT had no ignored files at 22:54)
+2026-10-31T23:28:59Z cleanup: base tree, nosb3 env, suite junit xml kept; final disk check
+2026-10-31T23:29:04Z done; returning findings

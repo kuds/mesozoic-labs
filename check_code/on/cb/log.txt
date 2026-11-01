@@ -1,0 +1,16 @@
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=256, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+curriculum cadence keys before: {'eval_freq': 131072, 'eval_episodes': 10, 'checkpoint_freq': 262144, 'min_eval_episodes': 40}
+Eval num_timesteps=128, episode_reward=4482.48 +/- 11.28
+Episode length: 1000.00 +/- 0.00
+New best mean reward!
+Success rate: N/A (not an active Stage 1 gate)
+Eval num_timesteps=256, episode_reward=4370.36 +/- 82.17
+Episode length: 1000.00 +/- 0.00
+Success rate: N/A (not an active Stage 1 gate)
+classes: MirrorKLPPO CriticPhaseActorCriticPolicy CriticPhaseVecNormalize
+files: ['diagnostics.npz', 'eval_episodes.csv', 'evaluations.npz', 'gate_progress.npz', 'k3_panel.csv', 'k3_panel.json', 'models/best_model.zip', 'models/best_model_vecnorm.pkl', 'models/robust_best_model.zip', 'models/robust_best_model_vecnorm.pkl', 'models/stage1_128_steps.zip', 'models/stage1_256_steps.zip', 'models/stage1_final.zip', 'models/stage1_final_vecnorm.pkl', 'models/stage1_vecnormalize_128_steps.pkl', 'models/stage1_vecnormalize_256_steps.pkl', 'plant_identity.json', 'policy_probe.npz', 'progress.json', 'stage_config.json', 'task_fingerprint.json']
+evaluations.npz timesteps: [128, 256] results shape: (2, 2) mean per eval: [4482.48, 4370.36]
+k3_panel.csv: 13 lines; header panel,timesteps,kind,test,episode,seed,length,fall,termination_reason,return,sigma_sha256
+    0,128,grid,own,0,1,206,1,nosedive,242.1149527857058,3cb421204b007703f67e483d4d2bc6c409b6fddd7a72a9ab01623c0e266b287a
+    0,128,grid,own,1,2,257,1,fallen,317.4437922488942,3cb421204b007703f67e483d4d2bc6c409b6fddd7a72a9ab01623c0e266b287a
+    0,128,grid,joint,0,1,1000,0,,3466.8582641041417,929e3f6dcf2ea6cbbf01135fab718f53a6ad8dc15bd62ea5d7927d4808e3cae8

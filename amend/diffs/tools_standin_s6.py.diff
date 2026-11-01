@@ -1,0 +1,85 @@
+--- amend/orig/tools/standin_s6.py	2026-10-31 23:13:23.695687761 +0000
++++ tools/standin_s6.py	2026-11-01 01:37:53.699224695 +0000
+@@ -10,8 +10,14 @@
+     smoke checkpoint, not here).
+ Expected [measured, S2/r10round/f2/score.json]: every class key equal to the round's scorer's; THE READING line 1
+ (the round's s42 ledger rail).  Writes only --out (the report and a JSON).
++PC AMENDMENT (2026-11-01): --as pc (default) reads STANCE6 as the PHASE arm (the switch-off arm not launched: it enters
++THE ONE TEST at -infinity, p 20/20); --as off reads STANCE6 as the concurrent SWITCH-OFF arm (its own arm's pins --
++ROUND's digests, the switch key absent -- with no pin substitution; the phase arm not launched: line 2, p 20/20); the
++replication block then prints STANCE6 beside itself (equal TDs).  Either way the 25 class keys of the arm read must
++equal the round's.  C8 is substituted as above for the arm read (the switch-off form is the stock-critic record, not
++made here).
+ 
+-    PY -I -B standin_s6.py --out DIR
++    PY -I -B standin_s6.py --out DIR [--as pc|off]
+ """
+ from __future__ import annotations
+ 
+@@ -46,14 +52,19 @@
+ def main() -> int:
+     ap = argparse.ArgumentParser()
+     ap.add_argument("--out", required=True)
++    ap.add_argument("--as", dest="arm", choices=("pc", "off"), default="pc")
+     a = ap.parse_args()
+     out_dir = Path(a.out).resolve()
+     out_dir.mkdir(parents=True, exist_ok=False)
+     C = load("r10round_common")
+-    # ---- stand-in constants (STANCE6's names)
+-    C.RUN_ID_PREFIX = "stance6_r10LTSB_s"
++    # ---- stand-in constants (STANCE6's names for the arm read; the other arm keeps its own, never launched)
++    C.ARM_PREFIX[a.arm] = "stance6_r10LTSB_s"
++    if a.arm == "pc":
++        C.RUN_ID_PREFIX = "stance6_r10LTSB_s"
+     C.RUN_IDS.clear()
+-    C.RUN_IDS.update({f"stance6_r10LTSB_s{s}": s for s in C.SEEDS})
++    C.RUN_IDS.update({f"{C.ARM_PREFIX[arm]}{s}": s for arm in C.ARMS for s in C.SEEDS})
++    C.RUN_ARMS.clear()
++    C.RUN_ARMS.update({f"{C.ARM_PREFIX[arm]}{s}": arm for arm in C.ARMS for s in C.SEEDS})
+     C.NOTE_KIND = "STANCE6"
+     C.NOTE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?) UTC\s+STANCE6\s+(\S+)\s+(\S+)(?:\s+(.*))?$")
+     C.RUN_TOKEN_RE = re.compile(r"stance6_r10LTSB_s\d+\w*")
+@@ -71,11 +82,16 @@
+         return comp
+ 
+     CP.completeness = standin_completeness
+-    pins = json.loads((T / "orig/laneB/pins_r10round.json").read_text())
+     pc_pins = json.loads((T / "pc/pins_pc.json").read_text())
+-    pins["critic_phase_switch"] = {"path": "hyperparameters.critic_phase", "value": None}
+-    pins["critic_phase_spec"] = "stand-in: none"
+-    pins["comparators"] = pc_pins["comparators"]
++    if a.arm == "pc":
++        pins = json.loads((T / "orig/laneB/pins_r10round.json").read_text())
++        pins["critic_phase_switch"] = {"path": "hyperparameters.critic_phase", "value": None}
++        pins["critic_phase_spec"] = "stand-in: none"
++        pins["comparators"] = pc_pins["comparators"]
++        pins["off_arm"] = pc_pins["off_arm"]
++    else:   # the switch-off arm reads its own pins (pins_pc.json off_arm) unchanged: no substitution
++        pins = json.loads(json.dumps(pc_pins))
++        pins["v7_failed_on_head"] = json.loads((T / "orig/laneB/pins_r10round.json").read_text())["v7_failed_on_head"]
+     pins_path = out_dir / "standin_pins.json"
+     pins_path.write_text(json.dumps(pins, indent=1) + "\n")
+     out, status = S.score(round_dir=S1 / "foot/stance6", runlog=S1 / "foot/stance4/live/run_log.txt",
+@@ -84,9 +100,11 @@
+     # the round's own classes, key by key
+     ref = json.loads((S2 / "r10round/f2/score.json").read_text())
+     ref_seed = {d["seed"]: d for d in ref["per_seed"]}
+-    lines = ["STAND-IN CLASS COMPARISON (PC scorer vs the round's score.json, cb380a7e...):"]
++    read = out["per_seed"] if a.arm == "pc" else out["per_seed_off"]
++    lines = [f"STAND-IN CLASS COMPARISON (STANCE6 read as the {a.arm} arm; PC scorer vs the round's score.json, "
++             "cb380a7e...):"]
+     all_equal = True
+-    for x in out["per_seed"]:
++    for x in read:
+         mine = json.loads(json.dumps(S.SR._jsonable(x.get("classes") or {}), default=str))
+         theirs = (ref_seed.get(x["seed"]) or {}).get("classes") or {}
+         diff = [k for k in CLASS_KEYS if mine.get(k) != theirs.get(k)]
+@@ -94,7 +112,7 @@
+         lines.append(f"  s{x['seed']} {x['run']}: {len(CLASS_KEYS) - len(diff)} of {len(CLASS_KEYS)} class keys equal"
+                      + (f"; differ: {diff}" if diff else ""))
+     lines.append(f"  ALL EQUAL: {all_equal}")
+-    td = [(x["seed"], (x.get("td") or {}).get("td")) for x in out["per_seed"]]
++    td = [(x["seed"], (x.get("td") or {}).get("td")) for x in read]
+     comp_td = [(s, out["comparators"]["runs"][s]["td"]["td"]) for s in (60, 42, 80)]
+     lines.append(f"  TD from the scorer's C3-verified ledgers {td}; from the comparators' FMAN-checked copies {comp_td}; "
+                  f"equal {td == comp_td}")

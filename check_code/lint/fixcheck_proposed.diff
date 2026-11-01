@@ -1,0 +1,9 @@
+274c274
+<         data = super()._get_constructor_parameters()
+---
+>         data: dict[str, Any] = super()._get_constructor_parameters()
+285c285,286
+<         return super().obs_to_tensor(observation)
+---
+>         stock: tuple[Any, bool] = super().obs_to_tensor(observation)
+>         return stock

@@ -1,0 +1,40 @@
+--- orig/laneA/measure_r10round.py
++++ pc/measure_r10round.py
+@@ -1,4 +1,8 @@
+-"""The r10 round's M1/M2/M3 runner (lane A).  Report and class inputs only; never trains, never steps an optimizer,
++"""PC STUDY ADAPTATION (2026-10-31, ST/tools/make_pc_tools.py): the RUN_ID pattern (stance7_r10LTSBpc_s60/42/80 or
++its _b) and the messages naming it; <PCR>/panels and the measuring copy's commit come from the adapted r10m_common
++(HEAD from <PCR>/APPROVED; --header-parent = the base 8737cd3d).  The M1/M2/M3 reductions are the round's.
++
++The r10 round's M1/M2/M3 runner (lane A).  Report and class inputs only; never trains, never steps an optimizer,
+ never writes into a run folder or the measuring copy.
+ 
+ Criteria: S2/r10round/lean/v5/criteria_r10round_lean_v5.txt (the text), HOW IT IS MEASURED and CLASSES PER RUN, with
+@@ -92,7 +96,8 @@
+ import time  # noqa: E402
+ from pathlib import Path  # noqa: E402
+ 
+-VERSION = "measure_r10round 1.2 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8)"
++VERSION = ("measure_r10round 1.2, PC adaptation pc-1 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, "
++           "O-6, O-7, O-8; PC 2026-10-31: RUN_IDs stance7_r10LTSBpc_s*)")
+ TOOLS = Path(__file__).resolve().parent
+ 
+ 
+@@ -162,7 +167,7 @@
+     return rec
+ 
+ 
+-ROUND_RUN_RE = re.compile(r"^stance6_r10LTSB_s(60|42|80)(_b)?$")
++ROUND_RUN_RE = re.compile(r"^stance7_r10LTSBpc_s(60|42|80)(_b)?$")                 # PC
+ COPY_SUFFIX_RE = re.compile(r"\.copy\d+$")
+ 
+ 
+@@ -178,7 +183,7 @@
+         return {}
+     m = ROUND_RUN_RE.match(ns.run_id)
+     if not m:
+-        raise Refusal(f"--run-id {ns.run_id!r} is not a RUN_ID of the round (stance6_r10LTSB_s60/42/80 or its _b)")
++        raise Refusal(f"--run-id {ns.run_id!r} is not a RUN_ID of the PC round (stance7_r10LTSBpc_s60/42/80 or its _b)")
+     seed = int(m.group(1))
+     if ns.no_run_records:
+         raise Refusal("--run-id files a run's measurement: --no-run-records (a validation input) is refused with it")

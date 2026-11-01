@@ -1,0 +1,25 @@
+--- orig/laneB/fetch_agent_brief.txt
++++ pc/fetch_agent_brief.txt
+@@ -1,4 +1,5 @@
+-FETCH AGENT BRIEF -- T. rex r10 round (criteria lean v5 FETCHES), read-only Google Drive
++FETCH AGENT BRIEF -- PC (phase-critic Colab round; ST/criteria.txt FETCHES = the r10 round's, with SUBST), read-only
++Google Drive.  PC ADAPTATION (2026-10-31, ST/tools/make_pc_tools.py): ROUND, TOOL and the scorer's name only.
+ =========================================================================================
+ Give this text, with FETCH, RUN_IDS and ROUND filled, to one agent session per fetch. Adapted from the D9 dry run
+ (S2/r10round/lean/dryrun/) and the earlier fetch scripts (r10-fetch-finals, tailround-fetch). The agent makes the
+@@ -6,11 +7,11 @@
+ 
+   FETCH   = F0 (the launch check) | TRIGGER (the trigger listing) | F2 | REFETCH
+   RUN_IDS = the RUN_IDs of this fetch (F2: every launched RUN_ID, replaced first runs included; REFETCH: only those
+-            score_r10round.py names)
+-  ROUND   = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+-  TOOL    = PY -I -B <laneB>/tools/fetch_r10round.py --round ROUND
++            score_pc.py names)
++  ROUND   = /home/user/work/pc_study/round   (<PCR>)
++  TOOL    = PY -I -B /home/user/work/pc_study/tools/pc/fetch_r10round.py --round ROUND
+             (PY = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python,
+-             <laneB> = the pinned tools folder; --round may stand before or after the subcommand, fixer R-B3)
++             the PC tools folder, pinned; --round may stand before or after the subcommand, fixer R-B3)
+ 
+ HARD RULES
+  1. Google Drive is READ-ONLY. Use only search_files, get_file_metadata and download_file_content. Never create,

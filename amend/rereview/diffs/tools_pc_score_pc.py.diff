@@ -1,0 +1,419 @@
+--- amend/orig/tools/pc/score_pc.py	2026-11-01 00:29:12.891018768 +0000
++++ tools/pc/score_pc.py	2026-11-01 01:32:05.533248523 +0000
+@@ -13,6 +13,15 @@
+ RUN_ID prefix; launch-check faults (1)-(5), (7) and (8)); C1-C8 (complete_r10round, PC); THE READING (lines 1-5);
+ THE ONE TEST; PROVISIONAL (the PC APPROVED's keys).
+ Exit codes: 0 final; 10 incomplete (no line read); 11 provisional (read, printed, not acted on); 2 input error.
++
++PC AMENDMENT (2026-11-01, ST/amend/AMEND_NOTES.txt; the maintainer's CONTROL (b), "make them the test's control"): six
++runs.  Each arm's seeds are run-handled alike (seed_run, arm "pc" or "off": the round's all-or-nothing rule and one _b per
++run); THE READING's line is the phase runs' (unchanged); the concurrent switch-off runs' classes are printed beside;
++THE ONE TEST compares the phase TDs with the switch-off TDs (a missing phase run at +infinity, a missing switch-off run at
++-infinity; a switch-off run launched after a phase run's results were opened -- its arm's first F2-START,
++REFETCH-START or SNAPSHOT line of a phase RUN_ID -- counts as missing: outcome blindness); the phase-off start gaps
++are printed (report only); STANCE6 is report only (printed beside and in the OFF-vs-STANCE6 replication block; a
++comparator input that cannot be read is printed and holds nothing open).
+ """
+ import os
+ import sys
+@@ -45,7 +54,9 @@
+ SR = _load("score_r10round")
+ P = _load("pc_common")
+ 
+-VERSION = "score_pc pc-2 (2026-11-01 fixer: printed wording; PC criteria THE READING lines 1-5, THE ONE TEST, C1-C8)"
++VERSION = ("score_pc pc-3 (2026-11-01 amendment: six runs, THE ONE TEST phase vs the concurrent switch-off runs, "
++           "outcome blindness, STANCE6 report only; pc-2 fixer: printed wording; PC criteria THE READING lines 1-5, "
++           "THE ONE TEST, C1-C8)")
+ EXIT_FINAL, EXIT_INCOMPLETE, EXIT_PROVISIONAL, EXIT_INPUT = 0, 10, 11, 2
+ VALIDATIONS = ("VP0", "VP1", "VP2", "VP3", "VP4")
+ #: VP0, VP2, VP3 are before the launch (<PCR>/APPROVED "validations"); VP1, VP4 and the F2 tools' sha256 are pinned
+@@ -57,14 +68,16 @@
+ 
+ 
+ # ---------------------------------------------------------------------------------------------------- LEAN-R (PC)
+-def seed_run(seed, notes, f0_checks, round_dir=None) -> dict:
+-    """score_r10round.seed_run with the PC RUN_ID (C.RUN_ID_PREFIX) and the PC stop faults (1)-(5), (7), (8)
+-    (C.STOP_FAULTS); every other clause the round's, unchanged."""
+-    first = f"{C.RUN_ID_PREFIX}{seed}"
++def seed_run(seed, notes, f0_checks, round_dir=None, arm="pc") -> dict:
++    """score_r10round.seed_run with the PC RUN_ID of the arm (C.ARM_PREFIX: "pc" the phase runs, "off" the concurrent
++    switch-off runs, PC AMENDMENT) and the PC stop faults (1)-(5), (7), (8) (C.STOP_FAULTS); every other clause the
++    round's, unchanged: per run, one _b relaunch within 2 h of that run's own launch."""
++    first = f"{C.ARM_PREFIX[arm]}{seed}"
+     b = first + "_b"
+     tokens = sorted({n["run"] for n in notes if n["run"] == first or n["run"].startswith(first + "_")})
+     launched = [t for t in tokens if CP.launch_note(notes, t)]
+-    d = dict(seed=seed, first=first, launched=launched, run=None, replaced=None, not_of_round=[], why=[], undecided=[])
++    d = dict(arm=arm, seed=seed, first=first, launched=launched, run=None, replaced=None, not_of_round=[], why=[],
++             undecided=[])
+     fl = CP.launch_note(notes, first)
+     if fl is None:
+         d["why"].append("no launch of the first RUN_ID: the seed's run was never launched")
+@@ -183,8 +196,8 @@
+     for v in PRE_F2_VALIDATIONS:
+         if val2.get(v) != "PASS":
+             out.append(f"validation {v} ({F2_PINS_NAME}): {val2.get(v)!r}, not PASS")
+-    if comparators_err:
+-        out.append(f"comparators not read as pinned: {comparators_err}")
++    # PC AMENDMENT: STANCE6 is report only; a comparator input that cannot be read as pinned is printed with the
++    # report-only block (score's comparators_error) and makes nothing PROVISIONAL (comparators_err is not read here)
+     for rid, d in runs_detail.items():
+         comp = d.get("completeness") or {}
+         if comp.get("verdict") != "COMPLETE":
+@@ -252,6 +265,46 @@
+     return out
+ 
+ 
++# ---------------------------------------------------------------------------------------------------- PC AMENDMENT
++OPENING_KINDS = ("F2-START", "REFETCH-START", "SNAPSHOT")
++
++
++def test_value(x, missing):
++    """THE ONE TEST's value of an arm's seed: the run's TD when it is COMPLETE and FINISHED with a TD, else the arm's
++    MISSING value (+infinity for a phase run, -infinity for a switch-off run: missing never helps H1)."""
++    return (x["td"]["td"] if (x.get("verdict") == "COMPLETE" and x.get("finished") and x.get("td")
++                              and x["td"]["td"] is not None) else missing)
++
++
++def blindness(notes, seeds) -> dict:
++    """PC AMENDMENT (RUN HANDLING, outcome blindness): every switch-off run starts before any phase run's results are
++    opened.  The opening is the earliest F2-START, REFETCH-START or SNAPSHOT note of a phase RUN_ID (by its time, then
++    line).  Per seed: the launch line of the switch-off seed's run (LAUNCH, or its _b's RELAUNCH) must be earlier;
++    a later one is NOT BLIND and that run enters THE ONE TEST as missing (-infinity).  Report only: each seed's
++    phase-off start gap (the switch-off run's launch minus the phase run's, minutes) and every launch time."""
++    opens = sorted((n for n in notes if n["kind"] in OPENING_KINDS and C.arm_of(n["run"]) == "pc"),
++                   key=lambda n: (n["time"], n["line"]))
++    first = opens[0] if opens else None
++    by = {(d["arm"], d["seed"]): d for d in seeds}
++    rows, not_blind = {}, []
++    for s in C.SEEDS:
++        dp, do = by.get(("pc", s)), by.get(("off", s))
++        lp = CP.launch_note(notes, dp["run"]) if dp and dp["run"] else None
++        lo = CP.launch_note(notes, do["run"]) if do and do["run"] else None
++        blind = None if lo is None else (first is None or lo["time"] < first["time"])
++        if blind is False:
++            not_blind.append(do["run"])
++        rows[s] = dict(phase_run=dp and dp["run"], phase_launch=lp and lp["time"].isoformat(),
++                       off_run=do and do["run"], off_launch=lo and lo["time"].isoformat(),
++                       gap_minutes_report_only=(round(C.minutes(lp["time"], lo["time"]), 1) if (lp and lo) else None),
++                       blind=blind)
++    launches = sorted(({"run": n["run"], "kind": n["kind"], "time": n["time"].isoformat(), "line": n["line"]}
++                       for n in notes if n["kind"] in ("LAUNCH", "RELAUNCH")), key=lambda x: (x["time"], x["line"]))
++    return dict(first_opening=first and dict(kind=first["kind"], run=first["run"], time=first["time"].isoformat(),
++                                             line=first["line"]),
++                seeds=rows, not_blind=not_blind, launches=launches)
++
++
+ # ---------------------------------------------------------------------------------------------------- main
+ def score(round_dir=C.ROUND, runlog=C.RUNLOG, pins_path=None, approved_path=None, panels_format="{label}/{kind}",
+           comparators=None):
+@@ -271,7 +324,8 @@
+             f0_checks[t] = CP.launch_check(t, C.FetchStore(f0, fm, "F0", t), notes, pins)
+     out["launch_checks"] = {t: dict(faults=v["faults"], within_60=v["f0_copies_within_60_min"])
+                             for t, v in f0_checks.items()}
+-    seeds = [seed_run(s, notes, f0_checks, r) for s in C.SEEDS]
++    # PC AMENDMENT: both arms' seeds, each run handled by the round's rules on its own launch
++    seeds = [seed_run(s, notes, f0_checks, r, arm) for arm in C.ARMS for s in C.SEEDS]
+     out["seeds"] = seeds
+     for d in seeds:
+         out["incomplete"] += d.get("undecided", [])
+@@ -292,7 +346,8 @@
+     if not f2s:
+         out["incomplete"].append("no F2-START note")
+     of_round = {d["run"] for d in seeds if d["run"]}
+-    lost_any, presence_rails = [], []
++    lost_any = {a: [] for a in C.ARMS}
++    presence_rails = {a: [] for a in C.ARMS}
+     stores_of = {}
+     for t in launched:
+         f2 = r / "fetch" / "F2" / t
+@@ -303,7 +358,7 @@
+         stores = [C.FetchStore(f2, fm, "F2", t)]
+         panels = CP.PanelLocator(r / "panels" / t, panels_format)
+         first = CP.completeness(t, stores[0], notes, pins, panels)
+-        det = dict(f2=dict(verdict=first["verdict"], C=_brief(first)))
++        det = dict(arm=C.arm_of(t), f2=dict(verdict=first["verdict"], C=_brief(first)))
+         comp = first
+         refetch_due = (t in of_round and first["C1"]["ok"] is True and
+                        (first["C2"]["ok"] is not True or first["C3"]["ok"] is not True)
+@@ -336,7 +391,8 @@
+         det["presence"] = [CP.presence(t, s, notes, pins) for s in stores] if (is_lost and not outside) else []
+         if is_lost and any(p["rail"] for p in det["presence"]):
+             pr = next(p for p in det["presence"] if p["rail"])
+-            presence_rails.append(dict(run=t, detail=pr["detail"], fetch=pr["fetch"]))
++            presence_rails[C.arm_of(t)].append(dict(run=t, seed=CP.base_seed(t), detail=pr["detail"],
++                                                    fetch=pr["fetch"]))
+         elif is_lost and any(p.get("rail_decided") is None for p in det["presence"]):
+             und = [f"{p['fetch']}: " + ", ".join(f"{k} {CP.status_of(p[k])}" for k in ("p1", "p2", "p3"))
+                    for p in det["presence"] if p.get("rail_decided") is None]
+@@ -345,7 +401,7 @@
+             f0c = f0_checks.get(t)
+             det["d16"] = CP.d16(t, notes, stores, pins, r / "outputs" / f"{t}.ipynb", f0c)
+             if det["d16"]["any_alarm_shown"]:
+-                lost_any.append(t)
++                lost_any[C.arm_of(t)].append(t)
+         det["files_read"] = {f"{s.fetch_name}": comp["files_read"] for s in stores[-1:]}
+         det["recorded"] = {}
+         for s in stores[-1:]:
+@@ -353,20 +409,24 @@
+                 det["recorded"][(s.fetch_name, p, h)] = any(
+                     x.get("path") == p and x.get("status") == "COPY" and x.get("sha256") == h for x in s.manifest_rows())
+         out["runs"][t] = det
+-    per_seed = []
++    per_arm = {a: [] for a in C.ARMS}
+     for d in seeds:
+         t = d["run"]
+         det = out["runs"].get(t) if t else None
+-        x = dict(seed=d["seed"], run=t, verdict=(det or {}).get("verdict", "NEVER LAUNCHED" if t is None else "NOT FETCHED"))
++        x = dict(arm=d["arm"], seed=d["seed"], run=t,
++                 verdict=(det or {}).get("verdict", "NEVER LAUNCHED" if t is None else "NOT FETCHED"))
+         if det and det["verdict"] == "COMPLETE":
+             comp = det["completeness"]
+             x["classes"] = SR.classes_of(comp)
+             x.update(run_extras(stores_of[t], comp))
+             x["finished"] = bool(comp.get("finished"))
+-        per_seed.append(x)
+-    out["per_seed"] = per_seed
+-    out["presence_rails"] = presence_rails
+-    # the comparators (recomputed from their pinned inputs; report beside every line, and THE ONE TEST's values)
++        per_arm[d["arm"]].append(x)
++    out["per_seed"] = per_arm["pc"]
++    out["per_seed_off"] = per_arm["off"]                      # PC AMENDMENT: the concurrent switch-off runs
++    out["presence_rails"] = presence_rails["pc"]
++    out["presence_rails_off"] = presence_rails["off"]
++    out["blindness"] = blindness(notes, seeds)                # PC AMENDMENT: outcome blindness and start gaps
++    # STANCE6 (recomputed from its pinned inputs): REPORT ONLY (PC AMENDMENT): printed beside, never deciding
+     comp_err = None
+     if comparators is None:
+         try:
+@@ -375,29 +435,42 @@
+             comp_err = f"{type(exc).__name__}: {exc}"
+             comparators = None
+     out["comparators"] = comparators
+-    if comparators is None:
+-        out["incomplete"].append(f"the comparators cannot be read: {comp_err}")
++    out["comparators_error"] = comp_err
++    out["replication"] = P.replication(per_arm["off"], comparators)
+     rd = None
+     if not out["incomplete"]:
+-        rd = P.reading(per_seed, presence_rails)
++        rd = P.reading(per_arm["pc"], presence_rails["pc"], per_arm["off"], presence_rails["off"])
+         if rd["line"] == 4:
+-            rd["parent"] = SR.parent_named([dict(x, classes=x.get("classes")) for x in per_seed], r, 4, panels_format)
+-        pc_td = [(x["td"]["td"] if (x.get("verdict") == "COMPLETE" and x.get("finished") and x.get("td")
+-                                    and x["td"]["td"] is not None) else math.inf) for x in per_seed]
+-        comp_td = [comparators["runs"][s]["td"]["td"] for s in C.SEEDS]
+-        rd["one_test"] = P.one_test(pc_td, comp_td)
++            rd["parent"] = SR.parent_named([dict(x, classes=x.get("classes")) for x in per_arm["pc"]], r, 4, panels_format)
++        phase_td = [test_value(x, math.inf) for x in per_arm["pc"]]
++        nb = set(out["blindness"]["not_blind"])
++        off_td = [(-math.inf if x["run"] in nb else test_value(x, -math.inf)) for x in per_arm["off"]]
++        rd["one_test"] = P.one_test(phase_td, off_td)
++        rd["one_test"]["not_blind_entered_as_missing"] = sorted(nb)
+         rd["one_test"]["td_j_report_only"] = dict(
+-            pc=[(x.get("td") or {}).get("td_j") for x in per_seed],
+-            comparators=[comparators["runs"][s]["td"]["td_j"] for s in C.SEEDS])
+-        A = sum(1 for x in per_seed if x.get("classes") and x["classes"]["any_alarm"])
+-        nA = sum(1 for x in per_seed if x.get("classes") and (not x["classes"]["stopped"] or x["classes"]["any_alarm"]))
++            phase=[(x.get("td") or {}).get("td_j") for x in per_arm["pc"]],
++            off=[(x.get("td") or {}).get("td_j") for x in per_arm["off"]])
++        if comparators is not None:
++            rd["one_test"]["stance6_report_only"] = dict(
++                td=[comparators["runs"][s]["td"]["td"] for s in C.SEEDS],
++                td_j=[comparators["runs"][s]["td"]["td_j"] for s in C.SEEDS])
++        A = sum(1 for x in per_arm["pc"] if x.get("classes") and x["classes"]["any_alarm"])
++        nA = sum(1 for x in per_arm["pc"] if x.get("classes") and (not x["classes"]["stopped"] or x["classes"]["any_alarm"]))
++        Ao = sum(1 for x in per_arm["off"] if x.get("classes") and x["classes"]["any_alarm"])
++        nAo = sum(1 for x in per_arm["off"] if x.get("classes")
++                  and (not x["classes"]["stopped"] or x["classes"]["any_alarm"]))
+         rd["statistic_a"] = dict(A=A, n_A=nA, text=f"{A} of {nA}" if nA else "no run counted",
++                                 off=dict(A=Ao, n_A=nAo, text=f"{Ao} of {nAo}" if nAo else "no run counted",
++                                          with_lost=dict(A=Ao + len(lost_any["off"]), n_A=nAo + len(lost_any["off"]),
++                                                         runs=lost_any["off"])),
++                                 fisher_vs_off=round(P.fisher_lower(A, nA, Ao, nAo), 4) if (nA and nAo) else None,
+                                  fisher_vs_stance6_2_of_3=round(P.fisher_lower(A, nA, 2, 3), 4) if nA else None,
+                                  fisher_vs_ltsb_r9_2_of_5=round(P.fisher_lower(A, nA, 2, 5), 4) if nA else None,
+-                                 with_lost=dict(A=A + len(lost_any), n_A=nA + len(lost_any), runs=lost_any),
++                                 with_lost=dict(A=A + len(lost_any["pc"]), n_A=nA + len(lost_any["pc"]),
++                                                runs=lost_any["pc"]),
+                                  note="report only; never tested")
+     out["reading"] = rd
+-    prov = provisional(pins, approved, notes, out["runs"], r, comp_err, runlog)
++    prov = provisional(pins, approved, notes, out["runs"], r, None, runlog)
+     out["provisional"] = prov
+     status = EXIT_INCOMPLETE if out["incomplete"] else (EXIT_PROVISIONAL if prov else EXIT_FINAL)
+     out["status"] = {EXIT_FINAL: "FINAL", EXIT_INCOMPLETE: "INCOMPLETE (no line read)",
+@@ -409,6 +482,50 @@
+     return "none" if s is None else f"{s:,}"
+ 
+ 
++def _beside_s6(cs):
++    """STANCE6's same seed, REPORT ONLY (PC AMENDMENT)."""
++    if not cs:
++        return ""
++    c = cs.get("classes", {})
++    return (f"[STANCE6 s{cs.get('seed', '')} REPORT ONLY: {c.get('cls')} {c.get('kind') or ''}, GATE {c.get('gate')}, "
++            f"{c.get('outcome')}, TD {(cs.get('td') or {}).get('td')}, habit {(cs.get('habit') or {}).get('status')} "
++            f"{(cs.get('habit') or {}).get('saturating')}]")
++
++
++def _run_lines(x, beside="") -> list:
++    """One seed's run of an arm: its class line, early signs, MEAN_a, habit sites and the report-only extras."""
++    c = x.get("classes")
++    tag = f"  {x['arm']} s{x['seed']} {x['run']}"
++    if not c:
++        miss = "+infinity" if x["arm"] == "pc" else "-infinity"
++        return [f"{tag}: {x['verdict']} (no class; THE ONE TEST: missing, {miss}) {beside}"]
++    e = x["early"]
++    L = [f"{tag}: {x['verdict']}; TAIL CLASS {c['cls']}{' (' + c['kind'] + ')' if c['kind'] else ''}"
++         f"; GATE {c['gate']} {P.GATE_LABEL} {c['gate_why'] or ''}; OUTCOME {c['outcome']} {c['reasons']}; HABIT ELSEWHERE "
++         f"{x['habit']['status']} saturating {x['habit']['saturating']} drive-only {x['habit']['drive_only']}; "
++         f"TD {x['td']['td']} (J window {x['td']['td_j']}; missing {x['td']['missing']}) {beside}",
++         f"      early signs: {json.dumps(e['firsts'])}; CMD_L >= 0.60 in {e['n_cmd_l_ge_060']} evaluations; max "
++         f"{e['cmd_l_max']}; last {e['cmd_l_last']}; M5 TAIL-flagged {len(e.get('m5_tail_flagged') or [])}, TAIL "
++         f"ALARMs {len(e.get('m5_tail_alarms') or [])} (first {_fmt_step((e.get('m5_tail_alarms') or [None])[0])})",
++         f"      MEAN_a {json.dumps(c['mean'])}; PARKED {c['parked']}; DRIVEN {c['driven']}; tail alarms "
++         f"{c['tail_alarm_detail']}; trace rail {c['trace_rail']}; ANY ALARMs {len(c['any_alarms'])}"]
++    for n, v in x["habit"]["per_actuator"].items():
++        if v["sites"]:
++            L.append(f"      habit {n}: {v['status']} sites {v['sites']} own alarms {v['own_alarms']} ANY alarms "
++                     f"{v['any_alarms_naming']} traced {v['trace_sites']} drive {v['drive']}")
++    L.append(f"      report only: Q4 {json.dumps(x['q4'])}; on-policy tail_3 {json.dumps(x['probe_tail3'])}; guard "
++             f"{json.dumps(x['guard'])}")
++    return L
++
++
++def _brief_class(x):
++    c = x.get("classes")
++    if not c:
++        return f"{x['run']} {x['verdict']}"
++    return (f"{x['run']}: {c['cls']}{' (' + c['kind'] + ')' if c['kind'] else ''}, GATE {c['gate']}, {c['outcome']}, "
++            f"habit {(x.get('habit') or {}).get('status')}, TD {(x.get('td') or {}).get('td')}")
++
++
+ def render(out) -> str:
+     L = [VERSION, out["tools"], f"<PCR> {out['round']}"]
+     for i, line in out["others"]:
+@@ -420,9 +537,16 @@
+     for t, v in out.get("launch_checks", {}).items():
+         L.append(f"LAUNCH CHECK {t} (from F0's files): faults {v['faults'] or 'none'}; copies within 60 min {v['within_60']}")
+     for d in out["seeds"]:
+-        L.append(f"SEED {d['seed']}: run of the round {d['run']}; launched {d['launched']}; {'; '.join(d['why'])}")
++        L.append(f"SEED {d['seed']} ({d['arm']}): run of the round {d['run']}; launched {d['launched']}; {'; '.join(d['why'])}")
++    bl = out.get("blindness") or {}
++    L.append(f"OUTCOME BLINDNESS (every switch-off run starts before any phase run's results are opened): first opening "
++             f"{json.dumps(bl.get('first_opening'))}; not blind (enter THE ONE TEST as missing) {bl.get('not_blind')}")
++    for s, v in (bl.get("seeds") or {}).items():
++        L.append(f"    s{s}: phase {v['phase_run']} launched {v['phase_launch']}; switch-off {v['off_run']} launched "
++                 f"{v['off_launch']}; phase-off start gap (report only) {v['gap_minutes_report_only']} min; blind "
++                 f"{v['blind']}")
+     for t, det in out["runs"].items():
+-        L.append(f"RUN {t}: {det.get('verdict')}  F2 {json.dumps(det.get('f2', {}).get('C'))}"
++        L.append(f"RUN {t} ({det.get('arm')}): {det.get('verdict')}  F2 {json.dumps(det.get('f2', {}).get('C'))}"
+                  + (f"  re-fetch {json.dumps(det['refetch']['C'])}" if det.get("refetch") else ""))
+         comp = det.get("completeness")
+         if comp:
+@@ -435,39 +559,31 @@
+             dd = det["d16"]
+             L.append(f"    D-16 LOST (report only; not in a class; in the reading only as a PRESENCE RAIL): triggers "
+                      f"{dd['triggers']}; shown {json.dumps(dd['shown'], default=str)[:300]}")
+-    L.append("PER-RUN TABLE (PC runs; STANCE6 same seed beside):")
+     comps = (out.get("comparators") or {}).get("runs") or {}
++    offs = {x["seed"]: x for x in out.get("per_seed_off") or []}
++    L.append("PER-RUN TABLE (the phase runs; the same-seed concurrent switch-off run beside; STANCE6 beside, report only):")
+     for x in out["per_seed"]:
+-        cs = comps.get(x["seed"]) or {}
+-        c = x.get("classes")
+-        beside = (f"[STANCE6 s{x['seed']}: {cs.get('classes', {}).get('cls')} {cs.get('classes', {}).get('kind') or ''}, "
+-                  f"GATE {cs.get('classes', {}).get('gate')}, {cs.get('classes', {}).get('outcome')}, TD "
+-                  f"{(cs.get('td') or {}).get('td')}, habit {(cs.get('habit') or {}).get('status')} "
+-                  f"{(cs.get('habit') or {}).get('saturating')}]") if cs else ""
+-        if not c:
+-            L.append(f"  s{x['seed']} {x['run']}: {x['verdict']} (no class; TD +infinity in THE ONE TEST) {beside}")
+-            continue
+-        e = x["early"]
+-        L.append(f"  s{x['seed']} {x['run']}: {x['verdict']}; TAIL CLASS {c['cls']}{' (' + c['kind'] + ')' if c['kind'] else ''}"
+-                 f"; GATE {c['gate']} {P.GATE_LABEL} {c['gate_why'] or ''}; OUTCOME {c['outcome']} {c['reasons']}; HABIT ELSEWHERE "
+-                 f"{x['habit']['status']} saturating {x['habit']['saturating']} drive-only {x['habit']['drive_only']}; "
+-                 f"TD {x['td']['td']} (J window {x['td']['td_j']}; missing {x['td']['missing']}) {beside}")
+-        L.append(f"      early signs: {json.dumps(e['firsts'])}; CMD_L >= 0.60 in {e['n_cmd_l_ge_060']} evaluations; max "
+-                 f"{e['cmd_l_max']}; last {e['cmd_l_last']}; M5 TAIL-flagged {len(e.get('m5_tail_flagged') or [])}, TAIL "
+-                 f"ALARMs {len(e.get('m5_tail_alarms') or [])} (first {_fmt_step((e.get('m5_tail_alarms') or [None])[0])})")
+-        L.append(f"      MEAN_a {json.dumps(c['mean'])}; PARKED {c['parked']}; DRIVEN {c['driven']}; tail alarms "
+-                 f"{c['tail_alarm_detail']}; trace rail {c['trace_rail']}; ANY ALARMs {len(c['any_alarms'])}")
+-        for n, v in x["habit"]["per_actuator"].items():
+-            if v["sites"]:
+-                L.append(f"      habit {n}: {v['status']} sites {v['sites']} own alarms {v['own_alarms']} ANY alarms "
+-                         f"{v['any_alarms_naming']} traced {v['trace_sites']} drive {v['drive']}")
+-        L.append(f"      report only: Q4 {json.dumps(x['q4'])}; on-policy tail_3 {json.dumps(x['probe_tail3'])}; guard "
+-                 f"{json.dumps(x['guard'])}")
++        cs = dict(comps.get(x["seed"]) or {}, seed=x["seed"]) if comps.get(x["seed"]) else None
++        xo = offs.get(x["seed"])
++        L += _run_lines(x, (f"[switch-off s{x['seed']}: {_brief_class(xo)}] " if xo else "") + _beside_s6(cs))
++    L.append("THE CONCURRENT SWITCH-OFF RUNS (the one test's control; classes printed beside the phase runs', deciding "
++             "no line):")
++    for x in out.get("per_seed_off") or []:
++        L += _run_lines(x)
+     for p in out["presence_rails"]:
+-        L.append(f"PRESENCE RAIL {p['run']} on {p['fetch']}: {json.dumps(p['detail'])}")
++        L.append(f"PRESENCE RAIL (phase) {p['run']} on {p['fetch']}: {json.dumps(p['detail'])}")
++    for p in out.get("presence_rails_off") or []:
++        L.append(f"PRESENCE RAIL (switch-off, beside) {p['run']} on {p['fetch']}: {json.dumps(p['detail'])}")
++    rep = out.get("replication") or {}
++    L.append(f"OFF-vs-STANCE6 REPLICATION ({rep.get('note')}):")
++    for x in rep.get("rows") or []:
++        L.append(f"    s{x['seed']}: switch-off {x['run']} {x.get('off') or x['verdict']}; STANCE6 {x.get('stance6')}")
++    if rep.get("totals"):
++        L.append(f"    totals: {json.dumps(rep['totals'])}")
+     if comps:
+-        L.append("THE COMPARATORS (STANCE6, recomputed; score.json " + out["comparators"]["score_json_sha256"][:16]
+-                 + "..., fetch manifest " + out["comparators"]["fetch_manifest_sha256"][:16] + "...):")
++        L.append("STANCE6 (historical, REPORT ONLY: decides nothing; recomputed; score.json "
++                 + out["comparators"]["score_json_sha256"][:16] + "..., fetch manifest "
++                 + out["comparators"]["fetch_manifest_sha256"][:16] + "...):")
+         for s, cs in comps.items():
+             L.append(f"  s{s} {cs['run']}: {cs['classes']['cls']} {cs['classes']['kind'] or ''}; first TAIL ALARM "
+                      f"{_fmt_step(cs['classes']['first_tail_alarm'])} ({cs['classes']['tail_alarms']}); GATE "
+@@ -476,6 +592,8 @@
+                      f" early {json.dumps(cs['early']['firsts'])}; CMD_L >= 0.60 in {cs['early']['n_cmd_l_ge_060']}; "
+                      f"on-policy tail_3 {cs['probe_tail3']}; mean return {cs['mean_return']:.1f}; falls {cs['falls']} of "
+                      f"{cs['rows']}")
++    else:
++        L.append(f"STANCE6 (REPORT ONLY): not read ({out.get('comparators_error')}); it decides nothing")
+     if out["incomplete"]:
+         L.append("READING: incomplete; no line is read. Open:")
+         for x in out["incomplete"]:
+@@ -483,6 +601,7 @@
+     else:
+         rd = out["reading"]
+         L.append(f"READING: line {rd['line']}: {rd['text']}")
++        L.append(f"    {rd['off_text']}")
+         if rd.get("no_rail_chance"):
+             L.append(f"    {rd['no_rail_chance']}")
+         L.append(f"    r {rd['r']} (COMPLETE {rd['r_complete']}, PRESENCE {rd['presence_rails']}), u {rd['u']}, p {rd['p']}, "
+@@ -494,14 +613,18 @@
+         if rd.get("parent"):
+             L.append(f"    stance3's parent rule (named, never offered): {json.dumps(rd['parent'])}")
+         ot = rd["one_test"]
+-        L.append(f"    THE ONE TEST: {ot['text']} ({ot['note']}); PC TD {ot['pc']} (+infinity: {ot['pc_infinite']}); STANCE6 TD "
+-                 f"{ot['comparators']}; J-window TD (report only) {json.dumps(ot['td_j_report_only'])}; {ot['caveat']}")
++        L.append(f"    THE ONE TEST (phase vs the concurrent switch-off runs): {ot['text']} ({ot['note']}); phase TD "
++                 f"{ot['phase']} (missing, +infinity: {ot['phase_missing']}); switch-off TD {ot['off']} (missing, "
++                 f"-infinity: {ot['off_missing']}; not blind {ot['not_blind_entered_as_missing']}); J-window TD (report "
++                 f"only) {json.dumps(ot['td_j_report_only'])}; STANCE6 (report only) "
++                 f"{json.dumps(ot.get('stance6_report_only'))}; {ot['caveat']}")
+         st = rd["statistic_a"]
+-        L.append(f"    Statistic A (report only): {st['text']}; one-sided Fisher p vs STANCE6's 2 of 3 "
+-                 f"{st['fisher_vs_stance6_2_of_3']}, vs LTSB r9's 2 of 5 {st['fisher_vs_ltsb_r9_2_of_5']}; with LOST "
+-                 f"runs {st['with_lost']}")
+-        L.append("    Q1-Q3 counts: RAIL r = %d, PARKED p = %d, GATE PASS g = %d, SATURATING habit elsewhere hs = %d, DRIVE "
+-                 "ONLY hd = %d" % (rd["r"], rd["p"], rd["g"], rd["hs"], rd["hd"]))
++        L.append(f"    Statistic A (report only): phase {st['text']}; switch-off {st['off']['text']} (one-sided Fisher p "
++                 f"{st['fisher_vs_off']}); beside: STANCE6's 2 of 3 {st['fisher_vs_stance6_2_of_3']}, LTSB r9's 2 of 5 "
++                 f"{st['fisher_vs_ltsb_r9_2_of_5']}; with LOST runs phase {st['with_lost']}, switch-off "
++                 f"{st['off']['with_lost']}")
++        L.append("    Q1-Q3 counts (phase): RAIL r = %d, PARKED p = %d, GATE PASS g = %d, SATURATING habit elsewhere hs = %d, "
++                 "DRIVE ONLY hd = %d" % (rd["r"], rd["p"], rd["g"], rd["hs"], rd["hd"]))
+     L.append(f"STATUS: {out['status']}")
+     for p in out["provisional"]:
+         L.append(f"    PROVISIONAL: {p}")

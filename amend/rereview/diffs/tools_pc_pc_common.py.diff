@@ -1,0 +1,268 @@
+--- amend/orig/tools/pc/pc_common.py	2026-11-01 00:29:02.469778788 +0000
++++ tools/pc/pc_common.py	2026-11-01 01:30:10.168175579 +0000
+@@ -2,6 +2,11 @@
+ signs, TAIL DRIVE, HABIT ELSEWHERE (L/A/T/D), THE ONE TEST, THE READING (lines 1-5) and the comparators (STANCE6's
+ three runs recomputed from their FMAN-checked F2 copies, score.json and the round's own M1 records).  Report only;
+ never trains.  Standard library (numpy lazily for a probe file).  Imported by path by score_pc.py and the tests.
++PC AMENDMENT (2026-11-01, ST/amend/AMEND_NOTES.txt; the maintainer's CONTROL (b), "make them the test's control"):
++THE ONE TEST compares the 3 phase runs with the 3 CONCURRENT SWITCH-OFF runs (phase LOWER; a missing phase run enters
++as +infinity, the highest rank; a missing switch-off run as -infinity, the lowest); THE READING's lines are the phase
++runs' (as reviewed) with the switch-off runs' classes printed beside; STANCE6 (comparators()) is REPORT ONLY: printed
++beside and in the OFF-vs-STANCE6 replication block (replication()), deciding nothing.
+ 
+ Definitions (ST/criteria.txt; [ROUND l.N] = S2/r10round/final_lean/criteria_r10round_final.txt line N):
+   CMD_L(e)  the mean over evaluation e's ledger rows of tail_3_pitch_act_command_mean (finite cells only), BS2
+@@ -28,8 +33,9 @@
+ from fractions import Fraction
+ from pathlib import Path
+ 
+-VERSION = ("pc_common pc-2 (2026-11-01 fixer: A site >= 5 rows, DRIVEN tail in lines 4-5, wording, exact sums; "
+-           "PC criteria: early signs, TD, HABIT ELSEWHERE, THE ONE TEST, THE READING)")
++VERSION = ("pc_common pc-3 (2026-11-01 amendment: THE ONE TEST phase vs the concurrent switch-off runs, MISSING ranks, "
++           "the switch-off classes beside, STANCE6 report only; pc-2 fixer: A site >= 5 rows, DRIVEN tail in lines 4-5, "
++           "wording, exact sums; PC criteria: early signs, TD, HABIT ELSEWHERE, THE ONE TEST, THE READING)")
+ 
+ S1 = Path("/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad")
+ S2 = Path("/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad")
+@@ -38,7 +44,7 @@
+ COMP_PANELS = S1 / "foot/stance6/panels"
+ COMP_SCORE = S2 / "r10round/f2/score.json"
+ COMP_RUNS = {60: "stance6_r10LTSB_s60", 42: "stance6_r10LTSB_s42", 80: "stance6_r10LTSB_s80"}
+-STANCE6_S42_FIRST_TAIL_ALARM = 3932160        # printed beside each line-1 run (PC text THE READING line 1)
++STANCE6_S42_FIRST_TAIL_ALARM = 3932160        # report only (PC AMENDMENT: STANCE6 is printed beside, deciding nothing)
+ 
+ BAR = 0.10
+ CMD_LINES = (0.30, 0.60, 0.90)
+@@ -47,16 +53,21 @@
+ T3 = "tail_3_pitch_act"
+ TAIL_ACTS = ("tail_1_pitch_act", "tail_1_yaw_act", "tail_2_pitch_act", "tail_3_pitch_act")
+ N_SPLITS = math.comb(6, 3)
+-SUFFIX = "(descriptive: 3 runs against the stance6 round's 3, a historical comparison; KNOWN LIMITS)"
++SUFFIX = "(descriptive: 3 phase-critic runs beside 3 concurrent switch-off runs; KNOWN LIMITS)"     # PC AMENDMENT
+ A_SITE_MIN_ROWS = 5                            # fixer D3: A needs a named in >= 5 over-bar rows of one of the two
+-CAVEAT = ("historical comparison: exchangeability of the 6 runs is assumed, not designed; each PC run starts from its "
+-          "STANCE6 seed's own network (A5), so seed effects make the unpaired test conservative; same-seed pairs "
++CAVEAT = ("concurrent control: the 6 runs share HEAD, the notebook, the seeds and the schedule, started within the gaps "
++          "printed; their exchangeability under no effect is assumed up to seed effects: each phase run and its "
++          "same-seed switch-off run start from the same network (A5), a positive within-seed dependence that makes "
++          "the unpaired test conservative [inferred]; GPU nondeterminism within today's image remains; same-seed pairs "
+           "printed, report only (KNOWN LIMITS)")
+-ONE_TEST_NOTE = ("equivalently, every PC TD < {bar:.6f} (STANCE6 s80's, the lowest comparator); the statistic was chosen "
+-                 "with STANCE6's values in view (2 windows looked at: a strict bound of 2/20)")
++ONE_TEST_NOTE = ("p = 1/20 only on complete separation: every phase TD below every switch-off TD; TD's form (the "
++                 "whole-run mean; 2 windows looked at) was chosen with STANCE6's values in view, the six runs' values are "
++                 "unseen at the pin")
+ GATE_LABEL = "(GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification)"
+-NO_RAIL_CHANCE = ("[model, plug-in] if the phase critic changed nothing, no RAIL in 3 runs has chance (2/3)^3 = 0.296 at "
+-                  "STANCE6's 1 of 3 and (3/5)^3 = 0.216 at LTSB r9's 2 of 5")
++NO_RAIL_CHANCE = ("[model, plug-in] if the phase critic changed nothing, no RAIL in 3 runs has chance {off}; report only "
++                  "beside it: (2/3)^3 = 0.296 at STANCE6's 1 of 3 and (3/5)^3 = 0.216 at LTSB r9's 2 of 5")
++OFF_BESIDE = ("CONCURRENT SWITCH-OFF RUNS (printed beside; they decide no line): TAIL RAIL in {r} (PRESENCE {pr}), PARKED "
++              "in {p}, GATE PASS in {g}, SATURATING habit elsewhere in {hs}, DRIVE ONLY in {hd}, of 3; {u} not read")
+ LINE_HEAD = {
+     1: "THE TAIL RAIL FORMED IN {r} OF 3 PHASE-CRITIC RUNS {basis}: THE CRITIC'S PHASE INPUT FROM STEP 0 DID NOT KEEP "
+        "EVERY RUN OFF THE TAIL RAIL",
+@@ -158,20 +169,29 @@
+ 
+ 
+ # ---------------------------------------------------------------------------------------------------- THE ONE TEST
+-def one_test(pc: list, comparators: list) -> dict:
+-    """Exact one-sided unpaired permutation test over the C(6,3) = 20 splits of the six TDs: p = (splits whose 3-sum is
+-    <= the PC sum) / 20, ties counting against H1.  Sums are exact: rational arithmetic on the float values
+-    (fractions.Fraction of each float is exact), compared exactly (fixer I1: math.fsum is correctly rounded, not exact,
+-    and could misorder near ties).  A PC value of +infinity (a run not COMPLETE and FINISHED) enters as given: a sum
+-    holding it is +infinity."""
+-    if len(pc) != 3 or len(comparators) != 3:
+-        raise ValueError("THE ONE TEST needs 3 PC and 3 comparator values")
+-    vals = [float(x) for x in pc] + [float(x) for x in comparators]
++def one_test(phase: list, off: list) -> dict:
++    """THE ONE TEST (PC AMENDMENT: the 3 phase runs against the 3 CONCURRENT SWITCH-OFF runs, decided before any data).
++    Exact one-sided unpaired permutation test over the C(6,3) = 20 splits of the six TDs, H1 phase LOWER: p = (splits
++    whose 3-sum is <= the phase 3-sum) / 20, ties counting against H1; LOWER only at p = 1/20 (complete separation).
++    MISSING rules against H1: a phase run without a TD enters as +infinity (above every value: the highest rank), a
++    switch-off run without one as -infinity (below every value: the lowest rank); +infinity is refused on the off side
++    and -infinity on the phase side.  A 3-sum is the pair (the number of +infinity in it minus the number of -infinity,
++    the exact sum of its finite values), ordered lexicographically: the limit of +M / -M for a large M, so a missing
++    run moves a split by a whole rank and never ties by itself; any missing run gives k >= 11.  Finite sums are exact:
++    rational arithmetic on the float values (fractions.Fraction of each float), compared exactly (fixer I1: math.fsum
++    is correctly rounded, not exact, and could misorder near ties)."""
++    if len(phase) != 3 or len(off) != 3:
++        raise ValueError("THE ONE TEST needs 3 phase and 3 switch-off values")
++    vals = [float(x) for x in phase] + [float(x) for x in off]
+     if any(math.isnan(v) for v in vals):
+         raise ValueError("THE ONE TEST: a NaN value")
++    if any(v == -math.inf for v in vals[:3]) or any(v == math.inf for v in vals[3:]):
++        raise ValueError("THE ONE TEST: a missing phase run enters at +infinity and a missing switch-off run at "
++                         "-infinity, never the other way")
+ 
+     def exact_sum(xs):
+-        return sum(Fraction(v) for v in xs) if all(math.isfinite(v) for v in xs) else math.inf
++        n_inf = sum(1 for v in xs if v == math.inf) - sum(1 for v in xs if v == -math.inf)
++        return (n_inf, sum((Fraction(v) for v in xs if math.isfinite(v)), Fraction(0)))
+ 
+     obs = exact_sum(vals[:3])
+     k = 0
+@@ -179,11 +199,13 @@
+         tot = exact_sum([vals[i] for i in idx])
+         k += tot <= obs
+     p = Fraction(k, N_SPLITS)
+-    text = ("LOWER THAN EVERY STANCE6 RUN (exact permutation p = 1/20)" if k == 1 else f"NOT SEPARATED (p = {k}/20)")
++    text = ("LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact permutation p = 1/20)" if k == 1
++            else f"NOT SEPARATED (p = {k}/20)")
+     return dict(k=k, n_splits=N_SPLITS, p=f"{k}/{N_SPLITS}", p_float=float(p), lower=k == 1, text=text,
+-                note=ONE_TEST_NOTE.format(bar=min(vals[3:])),
+-                pc=[None if not math.isfinite(v) else v for v in vals[:3]], pc_infinite=[not math.isfinite(v) for v in vals[:3]],
+-                comparators=vals[3:], caveat=CAVEAT)
++                note=ONE_TEST_NOTE, phase=[None if not math.isfinite(v) else v for v in vals[:3]],
++                phase_missing=[not math.isfinite(v) for v in vals[:3]],
++                off=[None if not math.isfinite(v) else v for v in vals[3:]],
++                off_missing=[not math.isfinite(v) for v in vals[3:]], caveat=CAVEAT)
+ 
+ 
+ def fisher_lower(a: int, n: int, ref_a: int, ref_n: int) -> float:
+@@ -265,11 +287,61 @@
+ 
+ 
+ # ---------------------------------------------------------------------------------------------------- THE READING
+-def reading(per_seed: list, presence_rails: list) -> dict:
+-    """THE READING (PC text): the first line that applies, with the counts.  per_seed: one dict per seed with
+-    verdict ('COMPLETE' or other) and, when COMPLETE, classes (score_r10round.classes_of) and habit (habit_elsewhere)."""
++def arm_counts(per_seed: list, presence_rails: list) -> dict:
++    """PC AMENDMENT: the counts THE READING forms, for any arm's three runs (the switch-off runs' are printed beside the
++    phase runs' line and decide nothing): r (COMPLETE RAIL plus PRESENCE RAILS), u (not COMPLETE, or UNREAD), p, g, hs,
++    hd, and n_read (runs read to a TAIL CLASS other than UNREAD, plus PRESENCE RAILS)."""
++    r = u = p = g = hs = hd = n = 0
++    for d in per_seed:
++        if d.get("verdict") != "COMPLETE":
++            u += 1
++            continue
++        c = d["classes"]
++        r += c["cls"] == "RAIL"
++        u += c["cls"] == "UNREAD"
++        p += c["cls"] == "PARKED"
++        n += c["cls"] != "UNREAD"
++        if c["cls"] != "UNREAD":
++            g += c["gate"] == "PASS"
++        h = (d.get("habit") or {}).get("status")
++        hs += h == "SATURATING"
++        hd += h == "DRIVE ONLY"
++    return dict(r=r + len(presence_rails), r_complete=r, presence_rails=len(presence_rails), u=u, p=p, g=g, hs=hs,
++                hd=hd, n_read=n + len(presence_rails))
++
++
++def _no_rail_chance(off: dict | None) -> str:
++    """PC AMENDMENT: the plug-in no-RAIL chance at the concurrent switch-off runs' rail share (r of n_read), STANCE6's
++    and LTSB r9's printed beside, report only ([model, plug-in], as ROUND's TABLE E printed such figures)."""
++    if not off or not off.get("n_read"):
++        return NO_RAIL_CHANCE.format(off="not formed (no switch-off run read to a class)")
++    r, n = off["r"], off["n_read"]
++    ch = (1 - Fraction(r, n)) ** 3
++    return NO_RAIL_CHANCE.format(off=f"(1 - {r}/{n})^3 = {float(ch):.3f} at the concurrent switch-off runs' {r} of {n}")
++
++
++def reading(per_seed: list, presence_rails: list, off_per_seed: list | None = None, off_presence_rails=()) -> dict:
++    """THE READING (PC text): the first line that applies, with the counts.  per_seed: one dict per seed of the PHASE
++    runs with verdict ('COMPLETE' or other) and, when COMPLETE, classes (score_r10round.classes_of) and habit
++    (habit_elsewhere); the line is theirs alone.  PC AMENDMENT: off_per_seed / off_presence_rails, the concurrent
++    switch-off runs (same form): their counts and classes are printed beside (OFF_BESIDE), each line-1 run's first TAIL
++    ALARM beside the same-seed switch-off run's, and the plug-in no-RAIL chance uses their rail share; none of it moves
++    the line."""
+     r = u = p = g = hs = hd = 0
+     basis, firsts, driven = [], [], []
++    off = arm_counts(off_per_seed, list(off_presence_rails)) if off_per_seed is not None else None
++    off_first, off_classes = {}, []
++    for d in off_per_seed or []:
++        c = d.get("classes")
++        if d.get("verdict") == "COMPLETE" and c:
++            off_first[d.get("seed")] = (c.get("tail_alarms") or [None])[0]
++            off_classes.append(dict(seed=d.get("seed"), run=d.get("run"), cls=c.get("cls"), kind=c.get("kind"),
++                                    gate=c.get("gate"), outcome=c.get("outcome"),
++                                    habit=(d.get("habit") or {}).get("status")))
++        else:
++            off_classes.append(dict(seed=d.get("seed"), run=d.get("run"), verdict=d.get("verdict")))
++    for pr in off_presence_rails or ():
++        off_first.setdefault(pr.get("seed"), (pr.get("detail") or {}).get("step"))
+     for d in per_seed:
+         if d.get("verdict") != "COMPLETE":
+             u += 1
+@@ -279,7 +351,7 @@
+             r += 1
+             basis.append("ledger" if c["tail_alarms"] else "end")
+             firsts.append(dict(seed=d.get("seed"), run=d.get("run"), first_tail_alarm=(c["tail_alarms"] or [None])[0],
+-                               kind=c["kind"], beside_stance6_s42=STANCE6_S42_FIRST_TAIL_ALARM))
++                               kind=c["kind"], beside_off_same_seed=off_first.get(d.get("seed"), "not read")))
+         elif c["cls"] == "UNREAD":
+             u += 1
+         elif c["cls"] == "PARKED":
+@@ -295,7 +367,7 @@
+     for pr in presence_rails:
+         firsts.append(dict(run=pr.get("run"), presence_rail=True,
+                            first_tail_alarm=(pr.get("detail") or {}).get("step"),
+-                           beside_stance6_s42=STANCE6_S42_FIRST_TAIL_ALARM))
++                           beside_off_same_seed=off_first.get(pr.get("seed"), "not read")))
+     if r_total >= 1:
+         if "ledger" in basis:
+             b = BASIS_LEDGER
+@@ -327,9 +399,15 @@
+             hb = d.get("habit") or {}
+             if hb.get("saturating"):
+                 named.append(f"{d.get('run')}: SATURATING habit on {hb['saturating']}")
++    if off is not None:
++        off_text = OFF_BESIDE.format(r=off["r"], pr=off["presence_rails"], p=off["p"], g=off["g"], hs=off["hs"],
++                                     hd=off["hd"], u=off["u"])
++    else:
++        off_text = "CONCURRENT SWITCH-OFF RUNS: not given"
+     return dict(line=line, text=f"{head} {SUFFIX}", r=r_total, r_complete=r, presence_rails=len(presence_rails), u=u,
+                 p=p, g=g, hs=hs, hd=hd, first_tail_alarms=firsts, named=named, driven_tails=driven,
+-                no_rail_chance=NO_RAIL_CHANCE if line in (3, 4, 5) else None)
++                off=off, off_text=off_text, off_classes=off_classes,
++                no_rail_chance=_no_rail_chance(off) if line in (3, 4, 5) else None)
+ 
+ 
+ def _driven_clause(driven: list) -> str:
+@@ -413,3 +491,45 @@
+             probe_tail3=probe, mean_return=sum(rets) / len(rets) if rets else None,
+             falls=sum(e["falls"] for e in per.values()), rows=sum(e["n"] for e in per.values()))
+     return out
++
++
++# ---------------------------------------------------------------------------------------------------- PC AMENDMENT
++REPLICATION_NOTE = ("REPORT ONLY: with the switch OFF the code equals 8737cd3d bitwise (A6, measured on CPU), so the "
++                    "concurrent switch-off runs replicate STANCE6's configuration on today's Colab image; this block "
++                    "prints each switch-off run beside STANCE6's same seed and decides nothing")
++
++
++def replication(off_per_seed: list, comps: dict | None) -> dict:
++    """PC AMENDMENT, REPORT ONLY: the OFF-vs-STANCE6 replication block.  Per seed: the switch-off run's TAIL CLASS (kind),
++    first TAIL ALARM, GATE, RUN OUTCOME, HABIT ELSEWHERE, TD (and the J window) and CMD_L >= 0.60 count beside
++    STANCE6's same seed (comparators(), recomputed from its pinned files), and the arm totals (RAIL, PARKED, GATE PASS,
++    TD mean).  Seeds do not pair runs (GPU training is not bit-reproducible): nothing here is tested."""
++    rows = []
++    cr = (comps or {}).get("runs") or {}
++    for d in off_per_seed:
++        s = d.get("seed")
++        c = d.get("classes") or {}
++        x = dict(seed=s, run=d.get("run"), verdict=d.get("verdict"))
++        if d.get("verdict") == "COMPLETE" and c:
++            x["off"] = dict(cls=c.get("cls"), kind=c.get("kind"), first_tail_alarm=(c.get("tail_alarms") or [None])[0],
++                            gate=c.get("gate"), outcome=c.get("outcome"), habit=(d.get("habit") or {}).get("status"),
++                            saturating=(d.get("habit") or {}).get("saturating"), td=(d.get("td") or {}).get("td"),
++                            td_j=(d.get("td") or {}).get("td_j"),
++                            n_cmd_l_ge_060=(d.get("early") or {}).get("n_cmd_l_ge_060"))
++        cs = cr.get(s)
++        if cs:
++            x["stance6"] = dict(run=cs["run"], cls=cs["classes"]["cls"], kind=cs["classes"]["kind"],
++                                first_tail_alarm=cs["classes"]["first_tail_alarm"], gate=cs["classes"]["gate"],
++                                outcome=cs["classes"]["outcome"], habit=cs["habit"]["status"],
++                                saturating=cs["habit"]["saturating"], td=cs["td"]["td"], td_j=cs["td"]["td_j"],
++                                n_cmd_l_ge_060=cs["early"]["n_cmd_l_ge_060"])
++        rows.append(x)
++
++    def totals(key):
++        xs = [x[key] for x in rows if key in x]
++        tds = [v["td"] for v in xs if v.get("td") is not None]
++        return dict(read=len(xs), rail=sum(v["cls"] == "RAIL" for v in xs), parked=sum(v["cls"] == "PARKED" for v in xs),
++                    gate_pass=sum(v["gate"] == "PASS" for v in xs), td_mean=(math.fsum(tds) / len(tds)) if tds else None)
++
++    return dict(note=REPLICATION_NOTE, rows=rows, totals=dict(off=totals("off"), stance6=totals("stance6")),
++                stance6_available=bool(cr))

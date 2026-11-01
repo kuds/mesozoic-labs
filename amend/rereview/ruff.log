@@ -1,0 +1,122 @@
+F401 [*] `re` imported but unused
+ --> amend/rereview/tools/names_check.py:4:8
+  |
+2 | (folders.json), every name pair for prefix relations, and the tools' token pattern / arm_of."""
+3 | import json
+4 | import re
+  |        ^^
+5 | import sys
+6 | from pathlib import Path
+  |
+help: Remove unused import: `re`
+  |
+3 | import json
+  - import re
+4 | import sys
+  |
+
+F401 [*] `sys` imported but unused
+ --> amend/rereview/tools/nb_check.py:6:8
+  |
+4 | import re
+5 | import subprocess
+6 | import sys
+  |        ^^^
+7 |
+8 | WT = "/home/user/work/pc_branch"
+  |
+help: Remove unused import: `sys`
+  |
+5 | import subprocess
+  - import sys
+6 |
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> amend/rereview/tools/pins_check.py:46:1
+   |
+44 | on = json.loads((ST / "tools/dry/pins_sc/on/stage_config.json").read_text())
+45 | sys.path.insert(0, str(ST / "tools/pc"))
+46 | import r10round_common as C  # noqa: E402
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+47 | oa = pins["off_arm"]
+48 | checks = {
+   |
+help: Organize imports
+   |
+46 | import r10round_common as C  # noqa: E402
+47 +
+48 | oa = pins["off_arm"]
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tools/pc/measure_r10round.py:87:1
+    |
+ 85 |   sys.dont_write_bytecode = True
+ 86 |
+ 87 | / import argparse  # noqa: E402
+ 88 | | import csv  # noqa: E402
+ 89 | | import re  # noqa: E402
+ 90 | | import gzip  # noqa: E402
+ 91 | | import hashlib  # noqa: E402
+ 92 | | import importlib.util  # noqa: E402
+ 93 | | import json  # noqa: E402
+ 94 | | import math  # noqa: E402
+ 95 | | import shutil  # noqa: E402
+ 96 | | import subprocess  # noqa: E402
+ 97 | | import time  # noqa: E402
+ 98 | | from pathlib import Path  # noqa: E402
+    | |________________________^
+ 99 |
+100 |   VERSION = ("measure_r10round 1.2, PC adaptation pc-1 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, "
+    |
+help: Organize imports
+   |
+88 | import csv  # noqa: E402
+   - import re  # noqa: E402
+89 | import gzip  # noqa: E402
+--------------------------------------------------------------------------------
+93 | import math  # noqa: E402
+94 + import re  # noqa: E402
+95 | import shutil  # noqa: E402
+   |
+
+Found 4 errors.
+[*] 4 fixable with the `--fix` option.
+exit 1
+--- reviewed originals:
+I001 [*] Import block is un-sorted or un-formatted
+  --> amend/orig/tools/pc/measure_r10round.py:86:1
+   |
+84 |   sys.dont_write_bytecode = True
+85 |
+86 | / import argparse  # noqa: E402
+87 | | import csv  # noqa: E402
+88 | | import re  # noqa: E402
+89 | | import gzip  # noqa: E402
+90 | | import hashlib  # noqa: E402
+91 | | import importlib.util  # noqa: E402
+92 | | import json  # noqa: E402
+93 | | import math  # noqa: E402
+94 | | import shutil  # noqa: E402
+95 | | import subprocess  # noqa: E402
+96 | | import time  # noqa: E402
+97 | | from pathlib import Path  # noqa: E402
+   | |________________________^
+98 |
+99 |   VERSION = ("measure_r10round 1.2, PC adaptation pc-1 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, "
+   |
+help: Organize imports
+   |
+87 | import csv  # noqa: E402
+   - import re  # noqa: E402
+88 | import gzip  # noqa: E402
+--------------------------------------------------------------------------------
+92 | import math  # noqa: E402
+93 + import re  # noqa: E402
+94 | import shutil  # noqa: E402
+   |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
+exit 1

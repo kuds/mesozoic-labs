@@ -1,0 +1,27 @@
+- Lint: CI's lint-job mypy view (no SB3/torch) on da7e0b92: the 2 [no-any-return] errors, exit 1; on e4d222bb: no
+  issues in 418 files; full-venv mypy: no issues in 418 files; ruff check and ruff format: pass (ST/review/fixer/lint/).
+- Unit tests: the 36 critic-phase tests pass (fixer/suites/cp_tests).
+- Suites (CI's shared and T. rex suites, -I -B, PYTHONPATH = the repo, nice 10): @SUITES@
+- Equivalence: switch OFF, train_base.train 2 PPO updates s42 on git archives of 8737cd3d and e4d222bb: RESULT
+  IDENTICAL (76 arrays, 7 run files; fixer/equiv/compare_base_vs_head_off.txt); OFF vs ON: 173 differences
+  (compare_head_off_vs_head_on.txt). ROUND's V0 (h) digests (rollbuf.py, switch OFF, no update): seeds 60/42/80 first
+  rollout (fixed-order, sorted-key, initial weights) and s42 rollouts 17 and 33 all equal (fixer/rb/a6_compare.txt).
+  A5, switch ON: first rollouts of seeds 60/42/80 bitwise equal to OFF in every buffer field (fixer/rb/a5_compare.txt).
+  Evaluation rows at 131,072, same actor, ON vs OFF: 10 rows x 194 columns equal (fixer/rb/evalrows_compare.txt).
+- Smoke (ST/tools/smoke_pc.py train on e4d222bb's sealed copy: n_envs 2, n_steps 256, 1,024 steps = 2 PPO updates,
+  switch ON; outputs deleted after recording; their sha256 in fixer/smoke_and_copy_record.txt): bundle, VP3 POS no
+  fault, NEG faults (1), (3), (7), (8) (ST/tools/dry/vp3.out); f2dry: C4 (p) PASS, C4 git_commit = e4d222bb, the K3
+  clause PASS (v7_failed_on_head false), C8 PASS (IN FORCE; (iii) 512 nonzero observation-6 weights; actor |dmu| 0.0
+  under all five perturbations) (ST/tools/dry/f2dry.out); the pins with the switch ON unchanged: c64211e8 / 1e5964b6
+  / 7bee0efc, OFF reproduces ROUND's 054ab483 / 1e5964b6 / 3200f159 (ST/tools/dry/pins_sc.out).
+- Scorer tests: test_score_pc.py 44 passed; test_manip_pc.py 7 passed (on the new smoke pair and the e4d222bb copy)
+  (fixer/tests_out/pytest_score_pc.log, pytest_manip_pc.log); mutation: 31 of 31 killed (fixer/tests_out/mutate_pc.log).
+- Dry runs: stand-in on STANCE6's F2 data: 25 of 25 class keys equal for each run, line 1, THE ONE TEST 14/20, s80's
+  neck L, A, T, D (ST/tools/dry/standin_s6.stdout, comparators_recomputed.out); VP4 widening: NOT IN FORCE failing (i)
+  only, phase-fed V = stock V bitwise on 1000 rows (ST/tools/dry/vp4_widen_s80.out).
+- VP2: test_curriculum_k3_panel.py 23/23 on e4d222bb; K3 panel on STANCE6 s80's final pair and its zero-column
+  widening: 40/40 rows bitwise equal (fixer/vp2d1/vp2_part_a.out). D1: M3's loader on the widened zip saved by HEAD's
+  save path predicts the stock action at 1000 of 1000 steps; it loads HEAD's own phase zip (fixer/vp2d1/d1.out).
+- Ruff on the PC files with the repo's rule set: 1 I001 in manip_check.py, the same as in the reviewed file
+  (ST/tools/dry/ruff.log).
+- Evidence sha256 (for the pin step's "VP0, VP2, VP3 logs"): @EVIDENCE@

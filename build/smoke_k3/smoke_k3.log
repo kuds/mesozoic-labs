@@ -1,0 +1,9 @@
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=64, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+model MirrorKLPPO CriticPhaseActorCriticPolicy 64 1
+k3_panel.json keys ['model', 'panels', 'report_only', 'schema', 'session_problem', 'spec', 'written_utc']
+{"schema": "mesozoic.k3-panel/v1", "written_utc": "2026-10-31T21:47:28Z", "report_only": "a readout of K3's two noise tests during training; no gate, verdict, checkpoint selection or handoff reads it, and the offline judge's K3 stays the K3 of record", "model": {"species": "tyrannosaurus_rex", "embodiment": "anatomical"}, "spec": {"judge": "the stance5 replication judge's noise_matched (judge_stance5r.py), arithmetic unchanged: per episode seed s, rng = numpy.random.default_rng(s) and env.reset(seed=s); the observation normalized as clip((obs - mean) / sqrt(var + epsilon), -clip_obs, clip_obs) in float32; mu the policy's mean action under torch.no_grad, in float64; own: a = clip(mu + exp(log_std) z); joint: a = clip(clip(mu) + sigma_joint z); z = rng.standard_normal(nu), clipped to the action bounds", "criteria_file": "docs/investigations/stance_2026_10/stance5/replication/criteria.txt", "tests": [{"test": "own", "judge_key": "noise_matched_own"}, {"test": "joint", "judge_key": "noise_matched_control_joint"}], "order": "own, then joint (the judge's)", "seeds": [3042, 3043, 3044, 3045, 3046, 3047, 3048, 3049, 3050, 3051, 3052, 3053, 3054, 3055, 3056, 3057, 3058, 3059, 3060, 3061], "episodes_per_test": 20, "horizon": 1000, "fall": "an episode shorter than the horizon", "every": 1048576, "stage": "stance", "forward": "a CPU copy of the live policy, built once per session, its parameters copied from the live policy at each panel; one torch thread during the panel", "observation_s
+
+real	0m21.833s
+user	0m21.261s
+sys	0m0.299s
+exit 0

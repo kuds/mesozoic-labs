@@ -1,0 +1,28 @@
+--- amend/fix/rereviewed/design/DESIGN_NOTES.txt	2026-11-01 01:48:32.244107874 +0000
++++ design/DESIGN_NOTES.txt	2026-11-01 02:31:38.385882126 +0000
+@@ -295,6 +295,12 @@
+               asks the maintainer to confirm them with the pin, or records that they stand as reviewed.
+      SWITCH   as the builder made it (cell 6 CRITIC_PHASE; rows "Critic phase: on" / "Critic phase: off"; cell 9 "Critic
+               phase on: ..." for a phase run only [measured, ST/check_code/nb/nb_on.log, nb_off.log]).
++     WAVES    answered 2026-11-01 01:41:53 UTC, after the amendment had started (RUNLOG line 876 [measured]): "I plan to
++              run 3 runs at a time"; "Phase first": wave 1 the three phase runs, wave 2 the three switch-off runs when
++              wave 1 ends; no phase result opened until every switch-off run has started; the arm confounded with the
++              wave (for KNOWN LIMITS). THE ORDER's fewer-sessions rule is this plan; the fixer's blind-period rule (the
++              amendment's re-review B1: until every switch-off LAUNCH line a phase run's liveness, end and stall rest
++              on metadata only) makes "no phase result opened" followable (ST/amend/FIXES.txt).
+    What CONTROL (b) changes, in short (every change and why: ST/amend/AMEND_NOTES.txt):
+      - six runs: the phase arm (CRITIC_PHASE True) and the switch-off arm (CRITIC_PHASE False, its default), same HEAD,
+        notebook, seeds, schedule and settings; interleaved by seed; with fewer sessions the switch-off runs may start
+@@ -310,8 +316,10 @@
+        switch-off runs replicate stance6 on today's Colab image).
+      - What concurrency removes: the code-commit, date / Colab-image (within the start gaps), notebook and K3
+        differences between the test's arms. What it does not: 3 vs 3 still reaches only p = 1/20; GPU nondeterminism
+-       within today's image; image changes between staggered starts; seed effects (a shared start, A5) assumed to make
+-       the unpaired test conservative.
++       within today's image; image changes between staggered starts; under the maintainer's "Phase first" waves
++       (RUNLOG line 876) the arm is confounded with the wave, about one run's length apart (the start time, and the
++       image if it changes between the waves), so the test also assumes no wave effect (criteria KNOWN LIMITS); seed
++       effects (a shared start, A5) assumed to make the unpaired test conservative.
+    The options as offered (kept for the record):
+    NAMES   RUN_IDs stance7_r10LTSBpc_s60 / _s42 / _s80, labels "r10 LTSB phase-critic s<seed>", RUNLOG KIND STANCE7.
+    PUSH    OK to push claude/screen-trex-r10-phasecritic at HEAD (needed for REPO_REF; never merged).

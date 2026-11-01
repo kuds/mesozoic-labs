@@ -1,0 +1,52 @@
+# second re-review command log (UTC)
+2026-11-01T02:42:33Z mkdir -p ST/amend/rereview2; ls ST ST/amend ST/amend/fix
+2026-11-01T02:42:33Z cat ST/amend/FIXES.txt; ls -la ST/amend/fix/*
+2026-11-01T02:42:40Z sha256sum of 5 changed files + rereviewed copies; cat rereviewed_sha256.txt; sha256sum -c after.txt (in ST)
+2026-11-01T02:42:46Z head after_check.out; python parse after.txt (hash, path) and re-hash each
+2026-11-01T02:42:50Z grep -vn '^[0-9a-f]{64}' amend/after.txt (section headers)
+2026-11-01T02:42:55Z python: re-hash after.txt with base ST for lines 2-18, ST/amend for 21-123
+2026-11-01T02:43:01Z diff -u rereviewed -> current for 5 files into rereview2/diffs; cmp with fix/diffs
+2026-11-01T02:43:07Z sed -n 1,280p COLAB_STEPS.txt (read in full)
+2026-11-01T02:43:20Z cat rereview2/diffs/criteria.txt.diff design_DESIGN_NOTES.txt.diff
+2026-11-01T02:43:25Z wc -l RUNLOG; sed -n 873,880p RUNLOG (read only)
+2026-11-01T02:44:59Z grep -n progress.json|output|ipynb|panel|alarm|tab|SNAPSHOT|blind in criteria.txt
+2026-11-01T02:45:02Z sed -n 280,380p criteria.txt
+2026-11-01T02:45:44Z git --no-optional-locks -C WT status/rev-parse; grep WT for artifact_manifest, training_history, best_model, progress_report write sites (read only)
+2026-11-01T02:45:51Z grep WT train/curriculum for best_model_save_path, StopTraining, early stop, save during training (read only)
+2026-11-01T02:45:54Z sed -n 850,880p and 1005,1030p WT train_base.py; sed -n 1,60p early_stopping.py (read only)
+2026-11-01T02:46:10Z grep -rln training_history WT (py, ipynb); grep progress_report write sites (read only)
+2026-11-01T02:46:14Z sed -n 1,30p and 240,400p WT progress_report.py; grep training_history in stage_artifacts.py (read only)
+2026-11-01T02:46:22Z sed -n 688,700p RUNLOG (read only, cut 600)
+2026-11-01T02:46:34Z grep -n F0/LISTING/content/show in ST/tools/pc/fetch_agent_brief.txt
+2026-11-01T02:46:54Z cat rereview2/diffs/tools_tests_test_score_pc.py.diff tools_mutate_pc.py.diff
+2026-11-01T02:46:58Z grep X1/X2/X3/X5/X10 in amend/rereview/tools/extra_mutants.py; check each mutant 'from' string occurs exactly once in its tool
+2026-11-01T02:47:04Z df -h /; sed -n 1,40p tools/mutate_pc.py; grep -n argparse/add_argument/def main in mutate_pc.py
+2026-11-01T02:47:11Z cd ST/tools; PY -I -B -m pytest -q -p no:cacheprovider tests/test_score_pc.py tests/test_manip_pc.py > rereview2/pytest.log
+2026-11-01T02:47:46Z check pytest basetemp outside ST: ls -la --time-style=full-iso /tmp/pytest-of-root (read only)
+2026-11-01T02:47:51Z grep pytest in amend/fix/cmdlog.txt and amend/rereview/cmdlog.txt
+2026-11-01T02:48:07Z SLIP: the pytest run at 02:47 used pytest's default basetemp and created /tmp/pytest-of-root/pytest-902 (and repointed /tmp/pytest-of-root/pytest-current), outside ST. Now: rm -rf that pytest-902 (my own scratch only) and repoint pytest-current to pytest-901 (the newest before mine). Later pytest runs use --basetemp inside rereview2.
+2026-11-01T02:48:10Z done: pytest-902 removed, pytest-current -> pytest-901
+2026-11-01T02:48:34Z write rereview2/tools/m45_49.py (runs M45-M49 from tools/mutate_pc.MUTANTS; per mutant: its own new test alone, then the full suite -x; work dir in rereview2, deleted after)
+2026-11-01T02:48:34Z PY -I -B rereview2/tools/m45_49.py --work rereview2/m_work --log rereview2/m45_49.log (background)
+2026-11-01T02:48:45Z head and grep write/--check in amend/tools/refill_pins.py and amend_pins.py (read)
+2026-11-01T02:48:52Z cd rereview2; PY -I -B amend/tools/refill_pins.py --check > refill_check.out; amend_pins.py --check > amend_pins_check.out; sha256sum criteria.txt pins_pc.json before/after
+2026-11-01T02:48:58Z sed -n 1,40p amend/fix/tools/fix_texts.py; grep write/check
+2026-11-01T02:49:11Z cd rereview2; fix_texts.py colab --check; design --check; criteria in memory (fix_texts.apply + refill_pins.block) vs criteria.txt > fix_texts_check.out
+2026-11-01T02:50:13Z write rereview2/tools/root_waves.py (synthetic roots: Phase-first waves A blind, B opening between OFF launches, C snapshot after last OFF LAUNCH then OFF _b, D SNAPSHOT naming no RUN_ID)
+2026-11-01T02:50:22Z cd rereview2; PY -I -B tools/root_waves.py --work rereview2/roots --out rereview2/root_waves.json > root_waves.out
+2026-11-01T02:50:34Z inspect root_waves.json; ls rereview2 (roots deleted?)
+2026-11-01T02:52:07Z m45_49.py finished
+2026-11-01T02:52:08Z names scan (AI model/product names) over added diff lines, FIXES, fix/, rereview2; line length > 120 in fixed texts; null-device string scan in ST files changed by the fixer and rereview2
+2026-11-01T02:52:23Z rewrite names_scan.out as counts (hits outside the S1/S2 path and branch-name identifiers); long lines in rereviewed copies
+2026-11-01T02:52:35Z edited cmdlog line 40 wording (identifier mention replaced by a description); M45-M49 run done: 5 of 5 killed by own test and suite (m45_49.log)
+2026-11-01T02:52:46Z rm rereview2/after_check.out (sha256sum -c cannot read the sectioned after.txt; after_parse.out is the check); outside-ST: git status WT and main checkout; find S1 S2 ST(outside rereview2) newer than 02:42:00
+2026-11-01T02:52:57Z cd rereview2; ruff check --no-cache --config WT/pyproject.toml rereview2/tools/*.py tools/tests/test_score_pc.py tools/mutate_pc.py > ruff.log
+2026-11-01T02:53:02Z fixed E741 in own root_waves.py (variable rename only); ruff again
+2026-11-01T02:53:08Z re-run root_waves.py after the rename (same command)
+2026-11-01T02:54:08Z ls S2/sd_pc.txt S2/sd_off.txt (fixer's slip gone?); grep rereview2 for the null-device strings
+2026-11-01T02:54:35Z add variant E to own root_waves.py (OFF s42 without its F2 store: I4, expect INCOMPLETE exit 10); re-run; ruff
+2026-11-01T02:54:48Z root_waves (A-E) re-run; ruff re-run
+2026-11-01T02:54:59Z E crashed in own summary(): out['reading'] is None when INCOMPLETE (no reading formed); rm -rf rereview2/roots; summary() made None-safe; re-run
+2026-11-01T02:55:13Z grep ST (outside amend/) for stale re-reviewed sha prefixes of the 5 fixed files
+2026-11-01T02:56:08Z write rereview2/SHA256SUMS.txt (every own file but cmdlog.txt and SHA256SUMS.txt); df; final state
+2026-11-01T02:56:08Z end: WT 1dfe2327 clean, main checkout clean, nothing written outside ST but the logged pytest slip (removed); cmdlog written last

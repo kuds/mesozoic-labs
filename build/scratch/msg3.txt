@@ -1,0 +1,15 @@
+Add the CRITIC_PHASE switch to the SB3 notebook's configuration cell (screen, never merged)
+
+CRITIC_PHASE = False in section 2's configuration cell, beside the K3
+panel's settings, and a "Critic phase: on/off" row in its printout.
+The resolve cell writes [ppo] critic_phase = true into every node of
+the chain right after CHAIN is resolved, before anything records or
+trains a stage config, so each trained node's stage_config.json and
+hyperparameters_sha256 record it; off, STAGE_CONFIGS is the TOMLs'
+exactly.  A resume (section 5) re-runs both cells, so it must set the
+switch again; the trainer refuses a checkpoint whose critic reads
+another phase, or none.  The CLI's equivalent is
+--override ppo.critic_phase=true.
+
+Co-Authored-By: [name removed] <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A

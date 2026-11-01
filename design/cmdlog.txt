@@ -1,0 +1,19 @@
+2026-10-31T20:57:01Z start designer; mkdir ST/design
+2026-10-31T20:57:34Z read criteria_r10round_final.txt (830 lines), run_log 681-869
+2026-10-31T21:04:49Z run comparators.py -> comparators.out/.err
+2026-10-31T21:07:36Z edit comparators.py (probe row range printed); rerun
+2026-10-31T21:10:31Z comparators.py TD 6 decimals; names_check.sh written and run
+2026-10-31T21:12:54Z criteria_v1.txt written; line refs corrected (PS 124-131, 134-143, 161-172; LB 208-222; ROUND 749-774)
+2026-10-31T21:13:07Z criteria_v1.txt: s42 gate-fail basis made exact
+2026-10-31T21:14:22Z COLAB_STEPS_v1.txt written; durations corrected to stance6 measured (14.1 h ended, 14.9 h manifest)
+2026-10-31T21:16:39Z DESIGN_NOTES.txt written; refs fixed; comparators.py reads gate_verdict.json; rerun
+2026-10-31T21:17:20Z A5 wording refined in criteria_v1.txt and DESIGN_NOTES.txt (values within 1e-6 unless bitwise; rollbuf.py field-by-field)
+2026-10-31T21:17:52Z C4-PHASE split into C4 (p) and C8 (manipulation check after F2 step 5) in criteria and notes
+2026-10-31T21:18:18Z criteria: reflow; manipulation check bank and dV rule made exact
+2026-10-31T21:18:37Z criteria: VP3 path, disk note, O6 limit; df check:
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda        252G   35G  3.8G  91% /
+2026-10-31T21:18:51Z COLAB_STEPS reflow
+2026-10-31T21:19:00Z SELF-REPORT: the previous command's read-only grep used the null-device and /dev/zero path strings as a search PATTERN over DESIGN (a compliance scan); no redirect, nothing written to or read from either device; counts as a reference under the rules. Removed the scratch extract runlog_681_cut.txt (a cut copy of RUNLOG lines 681-869, regenerable; it quoted RUNLOG's own text).
+2026-10-31T21:19:24Z NOTE: read-only inspections between 20:57 and 21:19 UTC, each a single ls / sed / grep / cat / sha256sum / python -I -B -c read (no writes outside DESIGN): S2/r10round listing; final_lean MANIFEST and tools; ROUND (criteria_r10round_final.txt) in full; RUNLOG 640-871; PS REPORT.md and criteria.txt (lines 1-330, section heads); LB criteria_v1.txt (1-100, 186-352) and measure_lb.py header; lane A measure_r10round.py header and r10m_common.py (30-80, 325-380); lane B colab_steps_r10round.txt and fetch_agent_brief.txt in full, r10round_common.py and complete_r10round.py greps; S2/r10round/f2/score.txt and score.json structure, HEADLINE.txt, READOUTS.txt heads; BS2 REPORT.md (1-60), score.txt and read_bs.py (590-700) greps; F2 provenance.json.copy1 and gate_verdict.json.copy1 fields; S1/foot/stance6/fetch listing, manifest.csv head, folders.json; S1/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/stance_heading_report.txt grep; LB measure validate files; rollbuf.py grep; WT git log/status (clean, 8737cd3d) and notebook cells 3/6/8/15/18 at 8737cd3d.
+2026-10-31T21:19:24Z SHA256SUMS.txt written

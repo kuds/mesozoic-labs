@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/home/user/work/pc_study/check_code/tools/equiv_capture.py", line 83, in <module>
+    model = tb.train(
+        cfg, stages, ref, total, n_envs=n_envs, seed=seed, output_dir=f"{out}/run", use_tensorboard=False, verbose=0,
+        report_metrics=False, save_on_interrupt=False, post_eval_episodes=0,
+        **({"load_path": load, "vecnorm_path": load[:-4] + "_vecnorm.pkl", "task_load_mode": "resume_same_stage"} if load else {}),
+    )
+  File "/home/user/work/pc_branch/environments/shared/train_base.py", line 1944, in train
+    trained = _train_stage_body(
+        sb3,
+    ...<28 lines>...
+        k3_panel=k3_panel,
+    )
+  File "/home/user/work/pc_branch/environments/shared/train_base.py", line 1461, in _train_stage_body
+    model = _create_or_load_model(
+        sb3,
+    ...<13 lines>...
+        critic_phase=critic_phase,
+    )
+  File "/home/user/work/pc_branch/environments/shared/train_base.py", line 676, in _create_or_load_model
+    raise CriticPhaseError(f"refusing to load {load_path}: {mismatch}")
+environments.shared.critic_phase.CriticPhaseError: refusing to load /home/user/work/pc_study/check_code/equiv/wt_on_s42/run/models/stage1_final.zip: the checkpoint's critic reads the episode phase ({'schema': 'mesozoic.critic-phase/v1', 'features': ['ramp', 'settled', 'discount'], 'settle_steps': 200, 'gamma': 0.98, 'width': 3, 'step_counter': "the env's _step_count when the observation was made (0 at reset)", 'input': "the critic's only: appended after the normalized observation, never normalized"}) and the stage declares no [ppo] critic_phase

@@ -1,0 +1,33 @@
+code cells: 17 all cells: 33
+===== cell index 3 (code cell #1)
+        print(f"Repository ref: {REPO_REF}; commit: {requested_commit}")
+===== cell index 6 (code cell #3)
+    SEED = 42  # Random seed for reproducibility
+    # ===== Behavior recipe (BEHAVIOR_RECIPES_PLAN §4.7) =====
+    RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
+    RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM or QUIC
+    # ===== Critic phase (screen option, [ppo] critic_phase; off by default) =====
+    # CRITIC_PHASE = True gives PPO's critic, and never the actor, three more inputs: the episode phase of the env's own
+    # gates' settle step; environments/shared/critic_phase.py). The actor, the observation, the VecNormalize sidecar
+    # and every evaluation stay as they are. The resolve cell writes [ppo] critic_phase = true into each node of the
+    CRITIC_PHASE = False
+    print(f"Behavior recipe: {BEHAVIOR}")
+    print(f"In-run K3 panel: {'on' if K3_PANEL else 'off'}")
+    print(f"Critic phase: {'on' if CRITIC_PHASE else 'off'}")
+===== cell index 8 (code cell #4)
+        _run_state = "new run" + (": RUN_ID names no existing run" if RUN_ID else "")
+    print(f"Run directory: {_run_dir} ({_run_state})")
+===== cell index 9 (code cell #5)
+    # CRITIC_PHASE (configuration cell): [ppo] critic_phase = true on every node of the chain, before anything records or
+    if globals().get("CRITIC_PHASE", False):
+            STAGE_CONFIGS[_node.reference].setdefault("ppo_kwargs", {})["critic_phase"] = True
+        print(f"Critic phase on: [ppo] critic_phase = true on {[_node.id for _node in CHAIN]}")
+===== cell index 15 (code cell #8)
+        print(f"Timesteps: {timesteps:,}")
+===== cell index 18 (code cell #10)
+    RESUME_STAGE = None  # None = skip; the node's id ("locomotion", "recovery") or its stageN number (2) to resume
+===== cell index 20 (code cell #11)
+    # (D-A20), so every variant is a new run.
+                    + ". A failed node is never silently retrained: start a new run (a fresh RUN_ID, an id no run uses: "
+===== cell index 30 (code cell #16)
+    print(f"Run directory: {RUN_DIR}")

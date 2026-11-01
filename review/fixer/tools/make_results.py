@@ -1,0 +1,59 @@
+"""Fixer: the measured validation sentences fix_texts.py writes into the criteria (from the result files named)."""
+import json, sys
+from pathlib import Path
+F = Path("/home/user/work/pc_study/review/fixer")
+suite = (F / "suites/compare.txt").read_text() if (F / "suites/compare.txt").is_file() else ""
+import ast, re
+_t = next((ln for ln in suite.splitlines() if ln.startswith("totals:")), None)
+if _t:
+    _d = ast.literal_eval(_t[len("totals: "):])
+    _c = lambda v: re.sub(r"^=+ | in [0-9.]+s.*$", "", v).replace(", 3 warnings", "")
+    totals = f"totals: shared {_c(_d['shared'])}; T. rex {_c(_d['trex'])}"
+else:
+    totals = "totals: (not yet)"
+res = next((ln for ln in suite.splitlines() if ln.startswith("RESULT")), "RESULT (not yet)")
+R = {
+ "A5": "[measured 2026-11-01 on e4d222bb, ST/review/fixer/rb/a5_compare.txt: rollbuf.py through train_base's switch-ON "
+       "construction (no update), seeds 60, 42, 80: the first rollout's 63-value observations, actions, rewards, log_probs, "
+       "episode_starts, values, returns and advantages all bitwise equal to the switch-OFF rollout; the phase columns in "
+       "[0, 1]]",
+ "A6": "[measured 2026-11-01 on e4d222bb, ST/review/fixer/rb/a6_compare.txt: ROUND's rollbuf.py, switch OFF, reproduces "
+       "the three pinned first-rollout digests (fixed-order, sorted-key, initial weights) for seeds 60, 42, 80 and the s42 "
+       "rollout 17 and 33 digests; and the builder's equiv_run.py (train_base.train, 2 PPO updates, s42) on a git archive "
+       "of 8737cd3d and of e4d222bb, switch OFF: 76 arrays and 7 run files identical (ST/review/fixer/equiv/"
+       "compare_base_vs_head_off.txt), while OFF against ON finds 173 differences (compare_head_off_vs_head_on.txt)]",
+ "VP0": "VP0 [measured 2026-11-01 by the fixer on e4d222bb]: A5 and A6 as above; the evaluation rows: the 10 "
+        "eval_episodes.csv rows at 131,072 of the same actor (the seed-42 initial actor, no update) written by the "
+        "evaluation callback with the switch ON and OFF are equal in all 194 columns, header equal (ST/review/fixer/rb/"
+        "evalrows_compare.txt; no column holds a wall clock); suites with PYTHONPATH = the repo: " + totals.replace("totals: ", "") +
+        " -- " + res.replace("RESULT ", "") + " (ST/review/fixer/suites/compare.txt); the 36 critic-phase tests pass; "
+        "both mypy views (CI's lint job without SB3, and the full venv), ruff check and ruff format pass "
+        "(ST/review/fixer/lint/).",
+ "D1": "[measured 2026-11-01, ST/review/fixer/vp2d1/d1.out: STANCE6 s80's final pair widened with zero phase columns and "
+       "saved as a zip the way a HEAD-trained phase model is saved (new_model_kwargs, the mesozoic_critic_phase record, "
+       "BaseAlgorithm.save; widened_s80_final.zip sha256 bbf88662...): M3's loader (stance_report._load_policy) loads it "
+       "and predicts the stock pair's action at every one of 1000 steps; the same loader loads HEAD's own 2-update "
+       "phase zip. M3 itself on the widened pair runs during the runs, VP1.]",
+ "VP2": "[measured 2026-11-01 on e4d222bb: test_curriculum_k3_panel.py 23 of 23 pass (the fixer's shared suite; the file "
+        "builds plain PPO models and reads no switch); the K3 panel (own and joint tests, 20 seeds, horizon 1000, "
+        "control_sigma.80 sha256 df380505...) on STANCE6 s80's final pair and on its zero-phase-column widening: 40 of 40 "
+        "rows bitwise equal (ST/review/fixer/vp2d1/vp2_part_a.out); so v7_failed_on_head = false in pins_pc.json (filled "
+        "by make_pins_pc.py --vp2 from ST/review/fixer/vp2d1/vp2_record.json) and K3_PANEL stays True. The pin step "
+        "re-checks it on the approved HEAD.]",
+ "VP3": "Re-run 2026-11-01 by the fixer on e4d222bb's sealed measuring copy and a new 2-update smoke bundle [measured, "
+        "ST/tools/dry/vp3.out]: POS no fault; NEG faults (1), (3), (7), (8).",
+ "VP4": "Re-run 2026-11-01 by the fixer on e4d222bb [measured]: ST/tools/tests 44 + 7 = 51 tests pass "
+        "(ST/review/fixer/tests_out/pytest_*.log); 31 of 31 mutants killed (the 22 above, the review's R4, R7, R11, R12 "
+        "and five for the fixed rules; tests_out/mutate_pc.log); the stand-in 25 of 25 class keys equal for each run, "
+        "line 1, THE ONE TEST 14/20 (ST/tools/dry/standin_s6); the manipulation check IN FORCE on the new smoke pair "
+        "(ST/tools/dry/f2dry: C4 (p) and C8 PASS) and NOT IN FORCE, failing (i) only, on the widened s80 final "
+        "(ST/tools/dry/vp4_widen_s80.out).",
+ "NECK_SITES": "L, A, T, D (unchanged by the 5-row threshold)",
+ "I2_OLD": "         separation [measured, comparators.out: the placements give 1/20, 1/10, 3/10, 7/10 and 1].\n",
+ "I2_NEW": "         separation [measured, comparators.out: the placements tried there give 1/20, 1/10, 3/10, 7/10 and 1].\n"
+           "         Only 1/20 depends on the placement alone (complete separation); for a sum statistic every other p\n"
+           "         depends on the magnitudes too: with the same placement [0.01, 0.02, 0.7] gives 6/20 and [0.1, 0.12, 0.9]\n"
+           "         gives 8/20 (fixer 2026-11-01, review I2 [measured, ST/review/fixer/scratch/i2_check.txt]).\n",
+}
+(F / "RESULTS.json").write_text(json.dumps(R, indent=1) + "\n")
+print(R["VP0"])

@@ -1,0 +1,90 @@
+--- amend/orig/tools/pc/r10round_common.py	2026-10-31 23:30:15.806472024 +0000
++++ tools/pc/r10round_common.py	2026-11-01 01:31:27.380570857 +0000
+@@ -1,6 +1,11 @@
+ """PC STUDY ADAPTATION (2026-10-31; ST/tools/make_pc_tools.py; constants only plus the PC block at the end of the
+ constants: RUN_IDs stance7_r10LTSBpc_s60/42/80, RUNLOG kind STANCE7, <PCR> = /home/user/work/pc_study/round, the
+ branch claude/screen-trex-r10-phasecritic, the PC pins file; every rule below is the round's, unchanged).
++PC AMENDMENT (2026-11-01, ST/amend/AMEND_NOTES.txt; the maintainer's CONTROL (b)): two arms of three runs each, the
++phase runs stance7_r10LTSBpc_s60/42/80 (CRITIC_PHASE True) and the concurrent switch-off runs
++stance7_r10LTSBoff_s60/42/80 (CRITIC_PHASE False): ARMS, ARM_PREFIX, RUN_ARMS, ARM_LABELS and arm_of(); RUN_IDS holds
++all six (each to its seed); the token pattern reads both prefixes; the note kind SNAPSHOT (a report-only look at a
++run's results, outcome blindness); the pin key off_arm (the switch-off runs' configuration pins).
+ 
+ T. rex r10 round (criteria lean v6): shared constants and readers for the lane B tools.  Report only; never trains.
+ 
+@@ -38,7 +43,8 @@
+ from pathlib import Path, PurePosixPath
+ 
+ VERSION = ("r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted "
+-           "2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8)")
++           "2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment "
++           "pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)")
+ 
+ # ------------------------------------------------------------------------------------------------- paths
+ S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+@@ -61,11 +67,27 @@
+ 
+ # ------------------------------------------------------------------------------------------------- the round
+ SEEDS = (60, 42, 80)                                        # ARMS AND SEEDS (D2), in this order
+-RUN_ID_PREFIX = "stance7_r10LTSBpc_s"                     # PC (CHOICE NAMES)
+-RUN_IDS = {f"{RUN_ID_PREFIX}{s}": s for s in SEEDS}         # PC
++RUN_ID_PREFIX = "stance7_r10LTSBpc_s"                     # PC (CHOICE NAMES): the phase arm
++#: PC AMENDMENT: the two arms (the phase runs and the concurrent switch-off runs), each the three seeds above.
++ARMS = ("pc", "off")
++ARM_PREFIX = {"pc": RUN_ID_PREFIX, "off": "stance7_r10LTSBoff_s"}
++ARM_NAMES = {"pc": "phase-critic", "off": "switch-off"}
++RUN_IDS = {f"{ARM_PREFIX[a]}{s}": s for a in ARMS for s in SEEDS}        # PC AMENDMENT: all six RUN_IDs -> seed
++RUN_ARMS = {f"{ARM_PREFIX[a]}{s}": a for a in ARMS for s in SEEDS}       # PC AMENDMENT: RUN_ID -> arm
+ SIGMA_KEYS = {60: "source_vectors.60", 42: "source_vectors.42", 80: "control_sigma.80"}
+ SIGMA_FILE_COLAB = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+-RUN_LABELS = {s: f"r10 LTSB phase-critic s{s}" for s in SEEDS}   # PC
++RUN_LABELS = {s: f"r10 LTSB phase-critic s{s}" for s in SEEDS}   # PC: the phase arm's labels
++ARM_LABELS = {"pc": RUN_LABELS, "off": {s: f"r10 LTSB switch-off s{s}" for s in SEEDS}}   # PC AMENDMENT
++#: PC AMENDMENT: CRITIC_PHASE as each arm's LAUNCH line records the notebook's cell-6 setting (report only).
++ARM_CRITIC_PHASE = {"pc": "True", "off": "False"}
++
++
++def arm_of(run_id):
++    """PC AMENDMENT: "pc" or "off" for a RUN_ID of the round or a suffixed one (_b, _c), else None."""
++    for rid, a in RUN_ARMS.items():
++        if run_id == rid or str(run_id).startswith(rid + "_"):
++            return a
++    return None
+ REPO_REF = "claude/screen-trex-r10-phasecritic"           # PC
+ 
+ GRID = 131072                                               # evaluation every 131,072 steps (91, last 11,927,552)
+@@ -124,7 +146,8 @@
+ 
+ # ------------------------------------------------------------------------------------------------- RUNLOG note form
+ KINDS = ("LAUNCH", "CHECK", "STOP", "TRIGGER-a", "TRIGGER-b", "TRIGGER-c", "TRIGGER-d", "LISTING", "DELETED",
+-         "FOUND-GONE", "RELAUNCH", "ACTION", "F2-START", "REFETCH-START")
++         "FOUND-GONE", "RELAUNCH", "ACTION", "F2-START", "REFETCH-START",
++         "SNAPSHOT")                                     # PC AMENDMENT: a report-only look at a run's results
+ #: Records (v5): "ACTION <RUN_ID> what=<resume|restart|relaunch|cell>", read by C1 as an action (any ACTION line is one;
+ #: a what= outside these four is printed beside it).
+ ACTION_WHATS = ("resume", "restart", "relaunch", "cell")
+@@ -133,12 +156,12 @@
+ #: time before that line's time (an event of before F2's start, written after it: a late restatement) is printed and
+ #: read by no rule; F2-START and REFETCH-START lines, and a note of an event at or after F2's start (its own time), are
+ #: read as they stand.
+-AFTER_F2_KINDS = ("F2-START", "REFETCH-START")
++AFTER_F2_KINDS = ("F2-START", "REFETCH-START", "SNAPSHOT")   # PC AMENDMENT: a SNAPSHOT is read wherever it stands
+ LATE_PREFIX = ("AFTER ITS RUN_ID'S F2-START LINE WITH AN EARLIER TIME (not restated before F2's start note; printed, "
+                "read by no rule): ")
+ NOTE_KIND = "STANCE7"                                      # PC: the RUNLOG note kind (SUBST)
+ NOTE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?) UTC\s+STANCE7\s+(\S+)\s+(\S+)(?:\s+(.*))?$")
+-RUN_TOKEN_RE = re.compile(r"stance7_r10LTSBpc_s\d+\w*")
++RUN_TOKEN_RE = re.compile(r"stance7_r10LTSB(?:pc|off)_s\d+\w*")          # PC AMENDMENT: both arms
+ 
+ 
+ class InputError(Exception):
+@@ -272,7 +295,8 @@
+             "collapse_peak_floor_reference", "m1_sha256", "m2_sha256", "m3_sha256", "judge_sha256", "tool_sha256",
+             "sigma_file_sha256", "sigma_vector_sha256", "known25_sha256", "v7_result", "v7_method",
+             "v0h_digests", "model_sha256", "model_out_sha256", "v10_result", "v7_failed_on_head",
+-            "critic_phase_switch", "critic_phase_spec")                                   # PC
++            "critic_phase_switch", "critic_phase_spec",                                   # PC
++            "off_arm")                                                     # PC AMENDMENT
+ 
+ 
+ def load_pins(path=None) -> dict:

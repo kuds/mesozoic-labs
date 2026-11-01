@@ -1,0 +1,161 @@
+===== POS-pc (files held: ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBpc_s42 (F0 /home/user/work/pc_study/pin/vp3/POS-pc/round/fetch/F0/stance7_r10LTSBpc_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=True RUN_LABEL="r10 LTSB phase-critic s42"
+  PASS             (1) commits = branch HEAD, not dirty: {"repository_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "git_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  PASS             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": true, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  PASS             (5) ledger carries screen_v2_reasons and #640's columns: {"missing": [], "rows": 4}
+  PASS             (6) one provenance sessions entry: 1
+  PASS             (7) provenance run_id = RUN_ID: "stance7_r10LTSBpc_s42"
+  PASS             (8) critic-phase switch ON in stage_config.json: {"path": "hyperparameters.critic_phase", "got": true, "want": true}
+  FAULTS (computed): none; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": [], "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== POS-off (files held: ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBoff_s42 (F0 /home/user/work/pc_study/pin/vp3/POS-off/round/fetch/F0/stance7_r10LTSBoff_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBoff_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=False RUN_LABEL="r10 LTSB switch-off s42"
+  PASS             (1) commits = branch HEAD, not dirty: {"repository_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "git_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  PASS             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": true, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  PASS             (5) ledger carries screen_v2_reasons and #640's columns: {"missing": [], "rows": 4}
+  PASS             (6) one provenance sessions entry: 1
+  PASS             (7) provenance run_id = RUN_ID: "stance7_r10LTSBoff_s42"
+  PASS             (8) critic-phase switch OFF (no key) in stage_config.json: {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+  FAULTS (computed): none; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": [], "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== X-on-off (files held: ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBoff_s42 (F0 /home/user/work/pc_study/pin/vp3/X-on-off/round/fetch/F0/stance7_r10LTSBoff_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBoff_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=False RUN_LABEL="r10 LTSB switch-off s42"
+  PASS             (1) commits = branch HEAD, not dirty: {"repository_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "git_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  FAIL             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": false, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  PASS             (5) ledger carries screen_v2_reasons and #640's columns: {"missing": [], "rows": 4}
+  PASS             (6) one provenance sessions entry: 1
+  FAIL             (7) provenance run_id = RUN_ID: "stance7_r10LTSBpc_s42"
+  FAIL             (8) critic-phase switch OFF (no key) in stage_config.json: {"path": "hyperparameters.critic_phase", "present": true, "got": true, "want": "absent"}
+  FAULTS (computed): [3, 7, 8]; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": [], "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== X-off-pc (files held: ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBpc_s42 (F0 /home/user/work/pc_study/pin/vp3/X-off-pc/round/fetch/F0/stance7_r10LTSBpc_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=True RUN_LABEL="r10 LTSB phase-critic s42"
+  PASS             (1) commits = branch HEAD, not dirty: {"repository_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "git_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  FAIL             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": false, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  PASS             (5) ledger carries screen_v2_reasons and #640's columns: {"missing": [], "rows": 4}
+  PASS             (6) one provenance sessions entry: 1
+  FAIL             (7) provenance run_id = RUN_ID: "stance7_r10LTSBoff_s42"
+  FAIL             (8) critic-phase switch ON in stage_config.json: {"path": "hyperparameters.critic_phase", "got": null, "want": true}
+  FAULTS (computed): [3, 7, 8]; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": [], "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== NEG-pc (files held: ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', 'zero_action_baseline.json', '01_stance/progress.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBpc_s42 (F0 /home/user/work/pc_study/pin/vp3/NEG-pc/round/fetch/F0/stance7_r10LTSBpc_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=True RUN_LABEL="r10 LTSB phase-critic s42"
+  FAIL             (1) commits = branch HEAD, not dirty: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  FAIL             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": false, "task_sha256": true, "plant_identity": true}}
+  PASS             (4) zero-action reward_mean not within 50 of 3766.6: 4470.36863624995
+  PASS             (5) ledger carries screen_v2_reasons and #640's columns: {"missing": [], "rows": 30}
+  PASS             (6) one provenance sessions entry: 1
+  FAIL             (7) provenance run_id = RUN_ID: "stance6_r10LTSB_s42"
+  FAIL             (8) critic-phase switch ON in stage_config.json: {"path": "hyperparameters.critic_phase", "got": null, "want": true}
+  FAULTS (computed): [1, 3, 7, 8]; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": 4470.36863624995, "TEL columns missing from F0's ledger header": [], "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== NEG-off (files held: ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', 'zero_action_baseline.json', '01_stance/progress.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBoff_s42 (F0 /home/user/work/pc_study/pin/vp3/NEG-off/round/fetch/F0/stance7_r10LTSBoff_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBoff_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=False RUN_LABEL="r10 LTSB switch-off s42"
+  FAIL             (1) commits = branch HEAD, not dirty: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  PASS             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": true, "task_sha256": true, "plant_identity": true}}
+  PASS             (4) zero-action reward_mean not within 50 of 3766.6: 4470.36863624995
+  PASS             (5) ledger carries screen_v2_reasons and #640's columns: {"missing": [], "rows": 30}
+  PASS             (6) one provenance sessions entry: 1
+  FAIL             (7) provenance run_id = RUN_ID: "stance6_r10LTSB_s42"
+  PASS             (8) critic-phase switch OFF (no key) in stage_config.json: {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+  FAULTS (computed): [1, 7]; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": 4470.36863624995, "TEL columns missing from F0's ledger header": [], "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== SC-on-pc (files held: ['01_stance/stage_config.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBpc_s42 (F0 /home/user/work/pc_study/pin/vp3/SC-on-pc/round/fetch/F0/stance7_r10LTSBpc_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=True RUN_LABEL="r10 LTSB phase-critic s42"
+  NOT COMPUTED     (1) commits = branch HEAD, not dirty: null [not computed: provenance.json absent from this fetch (no copy); stage_config.json held]
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  PASS             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": true, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  NOT COMPUTED     (5) ledger carries screen_v2_reasons and #640's columns: null [not computed: eval_episodes.csv absent from this fetch (no copy)]
+  NOT COMPUTED     (6) one provenance sessions entry: null [not computed: provenance.json absent from this fetch (no copy)]
+  NOT COMPUTED     (7) provenance run_id = RUN_ID: null [not computed: provenance.json absent from this fetch (no copy)]
+  PASS             (8) critic-phase switch ON in stage_config.json: {"path": "hyperparameters.critic_phase", "got": true, "want": true}
+  FAULTS (computed): none; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": "not computed: eval_episodes.csv absent from this fetch (no copy)", "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== SC-on-off (files held: ['01_stance/stage_config.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBoff_s42 (F0 /home/user/work/pc_study/pin/vp3/SC-on-off/round/fetch/F0/stance7_r10LTSBoff_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBoff_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=False RUN_LABEL="r10 LTSB switch-off s42"
+  NOT COMPUTED     (1) commits = branch HEAD, not dirty: null [not computed: provenance.json absent from this fetch (no copy); stage_config.json held]
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  FAIL             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": false, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  NOT COMPUTED     (5) ledger carries screen_v2_reasons and #640's columns: null [not computed: eval_episodes.csv absent from this fetch (no copy)]
+  NOT COMPUTED     (6) one provenance sessions entry: null [not computed: provenance.json absent from this fetch (no copy)]
+  NOT COMPUTED     (7) provenance run_id = RUN_ID: null [not computed: provenance.json absent from this fetch (no copy)]
+  FAIL             (8) critic-phase switch OFF (no key) in stage_config.json: {"path": "hyperparameters.critic_phase", "present": true, "got": true, "want": "absent"}
+  FAULTS (computed): [3, 8]; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": "not computed: eval_episodes.csv absent from this fetch (no copy)", "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== SC-off-off (files held: ['01_stance/stage_config.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBoff_s42 (F0 /home/user/work/pc_study/pin/vp3/SC-off-off/round/fetch/F0/stance7_r10LTSBoff_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBoff_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=False RUN_LABEL="r10 LTSB switch-off s42"
+  NOT COMPUTED     (1) commits = branch HEAD, not dirty: null [not computed: provenance.json absent from this fetch (no copy); stage_config.json held]
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  PASS             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": true, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  NOT COMPUTED     (5) ledger carries screen_v2_reasons and #640's columns: null [not computed: eval_episodes.csv absent from this fetch (no copy)]
+  NOT COMPUTED     (6) one provenance sessions entry: null [not computed: provenance.json absent from this fetch (no copy)]
+  NOT COMPUTED     (7) provenance run_id = RUN_ID: null [not computed: provenance.json absent from this fetch (no copy)]
+  PASS             (8) critic-phase switch OFF (no key) in stage_config.json: {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+  FAULTS (computed): none; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": "not computed: eval_episodes.csv absent from this fetch (no copy)", "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+===== SC-off-pc (files held: ['01_stance/stage_config.json']; exit 0)
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+LAUNCH CHECK stance7_r10LTSBpc_s42 (F0 /home/user/work/pc_study/pin/vp3/SC-off-pc/round/fetch/F0/stance7_r10LTSBpc_s42); launch line: 2026-11-01 01:00 UTC  STANCE7 LAUNCH stance7_r10LTSBpc_s42 seed=42 runtime=L4 head=1dfe2327f773007fa7fd68460dc0c53740936ff9 REPO_REF=claude/screen-trex-r10-phasecritic BEHAVIOR=stance K3_PANEL=True K3_PANEL_SIGMA_FILE=/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json K3_PANEL_SIGMA_KEY=source_vectors.42 CRITIC_PHASE=True RUN_LABEL="r10 LTSB phase-critic s42"
+  NOT COMPUTED     (1) commits = branch HEAD, not dirty: null [not computed: provenance.json absent from this fetch (no copy); stage_config.json held]
+  PASS             (2) run.seed: {"run_seed": 42, "want": 42}
+  FAIL             (3) hyperparameters, task, plant = pins: {"got": {"hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "plant_identity": "(block)"}, "equal": {"hyperparameters_sha256": false, "task_sha256": true, "plant_identity": true}}
+  NOT COMPUTED     (4) zero-action reward_mean not within 50 of 3766.6: null [not computed: zero_action_baseline.json absent from this fetch (no copy)]
+  NOT COMPUTED     (5) ledger carries screen_v2_reasons and #640's columns: null [not computed: eval_episodes.csv absent from this fetch (no copy)]
+  NOT COMPUTED     (6) one provenance sessions entry: null [not computed: provenance.json absent from this fetch (no copy)]
+  NOT COMPUTED     (7) provenance run_id = RUN_ID: null [not computed: provenance.json absent from this fetch (no copy)]
+  FAIL             (8) critic-phase switch ON in stage_config.json: {"path": "hyperparameters.critic_phase", "got": null, "want": true}
+  FAULTS (computed): [3, 8]; F0 copies within 60 minutes of the launch: True
+  P-K3's launch settings (from the LAUNCH line (no F0 file holds them; FETCHES F0, v5 O-5)): {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}
+  recorded only: {"runtime": "L4", "BEHAVIOR": "stance", "K3_PANEL": "True", "K3_PANEL_SIGMA_FILE": "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json", "K3_PANEL_SIGMA_KEY": "source_vectors.42", "P-K3 as RUNLOG records it": {"K3_PANEL_ok": true, "sigma_file_ok": true, "sigma_key_ok": true}, "zero_action reward_mean": null, "TEL columns missing from F0's ledger header": "not computed: eval_episodes.csv absent from this fetch (no copy)", "BEHAVIOR as the notebook printed it": "not recorded (no CHECK line with behavior=\"...\")"}
+
+SUMMARY
+POS-pc (stance7_r10LTSBpc_s42; files ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']): faults [], expected []: AS EXPECTED (exit 0)
+POS-off (stance7_r10LTSBoff_s42; files ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']): faults [], expected []: AS EXPECTED (exit 0)
+X-on-off (stance7_r10LTSBoff_s42; files ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']): faults [3, 7, 8], expected [3, 7, 8]: AS EXPECTED (exit 0)
+X-off-pc (stance7_r10LTSBpc_s42; files ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', '01_stance/progress.json']): faults [3, 7, 8], expected [3, 7, 8]: AS EXPECTED (exit 0)
+NEG-pc (stance7_r10LTSBpc_s42; files ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', 'zero_action_baseline.json', '01_stance/progress.json']): faults [1, 3, 7, 8], expected [1, 3, 7, 8]: AS EXPECTED (exit 0)
+NEG-off (stance7_r10LTSBoff_s42; files ['provenance.json', '01_stance/stage_config.json', '01_stance/eval_episodes.csv', 'zero_action_baseline.json', '01_stance/progress.json']): faults [1, 7], expected [1, 7]: AS EXPECTED (exit 0)
+SC-on-pc (stance7_r10LTSBpc_s42; files ['01_stance/stage_config.json']): faults [], expected []: AS EXPECTED (exit 0)
+SC-on-off (stance7_r10LTSBoff_s42; files ['01_stance/stage_config.json']): faults [3, 8], expected [3, 8]: AS EXPECTED (exit 0)
+SC-off-off (stance7_r10LTSBoff_s42; files ['01_stance/stage_config.json']): faults [], expected []: AS EXPECTED (exit 0)
+SC-off-pc (stance7_r10LTSBpc_s42; files ['01_stance/stage_config.json']): faults [3, 8], expected [3, 8]: AS EXPECTED (exit 0)

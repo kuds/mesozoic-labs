@@ -1,0 +1,20 @@
+Read the critic phase from the checkpoint's record and class only (screen, never merged)
+
+The full shared suite on the previous head found 7 new failures, all
+in tests that load mock or SimpleNamespace models through
+train_base._create_or_load_model (test_train_base's
+TestCreateOrLoadModel, test_resume_continuation's
+TestWarmupMarkerClearedOnResume): the switch-off load path read
+model.policy.critic_phase, which a MagicMock answers and a namespace
+without a policy refuses.  The off path now reads nothing of the
+loaded model but the checkpoint's own mesozoic_critic_phase record,
+from the instance's attributes (every phase checkpoint carries it;
+SB3's load restores it there), so a stock load runs exactly as on
+8737cd3d.  Likewise MirrorKLPPO reads critic_phase_width from the
+policy's class, the policy probe takes the spec only when the
+policy's own attributes hold a CriticPhaseSpec, and the diagnostics'
+column cut checks its types.  Phase checkpoints are refused as
+before, both ways.
+
+Co-Authored-By: [name removed] <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A

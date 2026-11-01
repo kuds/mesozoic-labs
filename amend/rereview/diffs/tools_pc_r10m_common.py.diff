@@ -1,0 +1,21 @@
+--- amend/orig/tools/pc/r10m_common.py	2026-10-31 23:30:15.813751029 +0000
++++ tools/pc/r10m_common.py	2026-11-01 01:32:34.143743033 +0000
+@@ -33,7 +33,8 @@
+ from datetime import datetime, timezone
+ from pathlib import Path
+ 
+-COMMON_VERSION = "r10m_common 1.1, PC adaptation pc-1 (2026-10-31; HEAD from <PCR>/APPROVED, base 8737cd3d)"
++COMMON_VERSION = ("r10m_common 1.1, PC adaptation pc-1 (2026-10-31; HEAD from <PCR>/APPROVED, base 8737cd3d; "
++                  "PC amendment 2026-11-01: RUN_IDS_OFF)")
+ 
+ S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+ SP = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+@@ -70,6 +71,8 @@
+ # ---------------------------------------------------------------------------------------------------- runs and checkpoints
+ SEEDS = (60, 42, 80)                                           # D2
+ RUN_IDS = {60: "stance7_r10LTSBpc_s60", 42: "stance7_r10LTSBpc_s42", 80: "stance7_r10LTSBpc_s80"}   # PC
++#: PC AMENDMENT (2026-11-01): the concurrent switch-off runs (measure_r10round.ROUND_RUN_RE binds both arms' RUN_IDs)
++RUN_IDS_OFF = {60: "stance7_r10LTSBoff_s60", 42: "stance7_r10LTSBoff_s42", 80: "stance7_r10LTSBoff_s80"}
+ FINAL_TIMESTEPS = 12001280
+ CHECKPOINT_CADENCE = 262144                                    # D3 (a)
+ GRID_1M = 1048576

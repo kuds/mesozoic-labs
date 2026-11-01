@@ -1,0 +1,158 @@
+PC AMENDMENT -- THE FIXER'S RECORD AFTER THE AMENDMENT'S RE-REVIEW (findings B1, M1, M2, I1-I7)
+Written 2026-11-01 (date -u; every command and its time in ST/amend/fix/cmdlog.txt) by the amendment's fixer.
+Labels: [measured] = read or computed from the named file; [inferred] = reasoned, basis named. Nothing was trained,
+pushed or written to the network; WT, S1, S2 and the main checkout were only read (WT and the main checkout by
+git --no-optional-locks), but for one slip in S2, recorded in section 5. A draft for an independent check: nothing
+approved.
+
+0. INPUTS AND BASELINES
+ - The re-review's findings (ST/amend/rereview/: extra_mutants.log, snapshot_probe.out, cmdlog.txt and the rest).
+ - The maintainer's answers: RUNLOG line 874 (01:15:14 UTC; CONTROL (b), "Make them the test's control") and line 876
+   (01:41:53 UTC; "I plan to run 3 runs at a time", waves "Phase first") [measured, RUNLOG read only, 876 lines].
+ - WT HEAD 1dfe2327f773007fa7fd68460dc0c53740936ff9, worktree clean [measured, git --no-optional-locks].
+ - Baselines: ST/amend/orig/ kept untouched as the reviewed (pre-amendment) baseline; every file changed here is one of
+   its 17, so no newly touched file needed a copy there. The re-reviewed amendment bytes of the five files changed here
+   were copied first to ST/amend/fix/rereviewed/ (sha256 in ST/amend/fix/rereviewed_sha256.txt, equal to
+   ST/amend/after.txt [measured]); the editor's after.txt itself is kept as ST/amend/fix/after_rereviewed.txt.
+
+1. VERDICTS AND FIXES
+ B1 (blocking) CONFIRMED [measured]. COLAB_STEPS (re-reviewed) lines 77-80 forbade reading phase output until every OFF
+    LAUNCH line, while THE ENDING PROCEDURE ("as the stance6 steps, unchanged") told the operator to download the
+    notebook with its output, judged a STALL by "a new output line", and let a run's end be noted from Drive with
+    progress.json "ended" (criteria line 343; RUNLOG line 699: progress.json "read in full for s60" in stance6).
+    progress.json holds the latest evaluation, posture, the policy probe's latest update, the training rollouts and a
+    history [measured, WT environments/shared/curriculum/progress_report.py record(), lines 353-385]. score_pc.blindness
+    reads only F2-START, REFETCH-START and SNAPSHOT lines of a phase RUN_ID as openings [measured, score_pc.py lines
+    269, 279-305]. Under "Phase first" every phase run lives wholly before the first OFF launch.
+    FIXED (ST/amend/fix/tools/fix_texts.py; exact replacements on the re-reviewed bytes):
+    - COLAB_STEPS THE ORDER / OUTCOME BLINDNESS: names THE BLIND PERIOD (until every OFF run's LAUNCH line is in
+      RUNLOG); in it a PHASE run's liveness, end and stall rest on metadata only (Runtime > Manage sessions; Drive
+      listings' names, sizes and modifiedTime); its progress.json and other run files (beyond the launch check's F0
+      copies, read only by the launch-check tool), notebook output and downloaded notebook are not opened; anything
+      more is an opening, noted at once as a SNAPSHOT line, and every OFF run launched after it is not blind.
+    - COLAB_STEPS step 8: once its step-7 rows are recorded, a phase run's tab is not read again.
+    - COLAB_STEPS THE ENDING PROCEDURE: "unchanged" -> "plus THE BLIND PERIOD rule", and the rule itself: (a) from
+      Manage sessions or from Drive by names, sizes and modifiedTime only (artifact_manifest.json present; 30 minutes
+      with neither a progress.json rewrite nor any other write in the run folder); progress.json not opened, "ended" not
+      read (a tool may print its status and timesteps fields only if no other field reaches a person or agent; a copy
+      through the Drive connector does not meet this); the TRIGGER-a / FOUND-GONE notes say "established from metadata
+      only (outcome blindness)"; (c) the STALL is 2 hours with no progress.json rewrite (its modifiedTime), not output
+      lines; (b) is not looked for (it needs the tab); at a trigger, File > Download .ipynb saved unopened, then Edit >
+      Clear all outputs before the flush cell; after (a) the download, then the tab closed; anything more a SNAPSHOT.
+    - COLAB_STEPS WHEN TO FETCH: in THE BLIND PERIOD a phase run's files are fetched only by F0 and listed only for
+      names, sizes and modifiedTime.
+    - criteria STARTS AND OUTCOME BLINDNESS: the same rule as one paragraph (THE BLIND PERIOD), and CHOICE ENDS's
+      sentence points to it ("in the blind period from metadata only").
+    - refill_pins.py re-run: the PINS block's COLAB_STEPS sha256 is the fixed file's (refill_pins.py --check equal).
+    Basis of the metadata end [measured]: progress.json is rewritten "at the start, after each evaluation and at the
+    end" (progress_report.py line 252), an evaluation every 131,072 steps (about 9 minutes at stance6's 12,001,280
+    steps in about 14.1 h [inferred]); artifact_manifest.json was written 47-48 minutes after "ended" in stance6 (RUNLOG
+    lines 693, 695, 697). So "manifest present + 30 minutes with no write" identifies the end without reading the
+    file [inferred].
+ M1 (minor) CONFIRMED [measured]: with the re-reviewed suite the five mutants survive (ST/amend/rereview/
+    extra_mutants.log); the code is right in each case (each new test passes on the unchanged tools).
+    FIXED: five tests in ST/tools/tests/test_score_pc.py (the "FIXER (re-review M1)" block at its end):
+    - test_root_blindness_an_off_snapshot_is_no_opening (X1): an OFF run's SNAPSHOT before a later OFF launch: blind,
+      k = 1;
+    - test_root_blindness_an_off_launch_in_the_opening_minute_is_not_blind (X2): an OFF LAUNCH line written above a
+      phase SNAPSHOT line of the same minute: not blind, missing, k = 11;
+    - test_c8_off_arm_reads_the_stock_critic_why (X3): manipulation_checks' own stock record holds; the same record with
+      another why ("the phase weights are zero", "", null) or none fails C8;
+    - test_launch_check_cli_refuses_an_unfilled_switch_pin_per_arm (X5): the CLI exits 2 with "INPUT ERROR: pins
+      unfilled: ['critic_phase_switch']" for an OFF run with off_arm.critic_phase_switch unfilled and for a phase run
+      with critic_phase_switch unfilled; exits 0 with no fault on the same files with the pins filled, and a phase run
+      is not refused for the OFF arm's unfilled pin;
+    - test_root_blindness_reads_the_off_seeds_relaunch (X10): OFF s80's first run launched at T0 with the switch ON
+      (fault (8)), stopped, its _b relaunched at +50 min (REPLACEMENT (ii)); a phase SNAPSHOT at +48 min makes the _b
+      NOT BLIND (missing, k = 11) although the first LAUNCH preceded it; the SNAPSHOT at +55 min leaves it blind
+      (k = 1).
+      Both s80 RUN_IDs get an F2 store (every launched RUN_ID is fetched; without the first run's store the scorer
+      reads INCOMPLETE "no F2 store", found by the probe ST/amend/fix/probe_offb.py).
+    - ST/tools/mutate_pc.py: M45-M49 = X1, X2, X3, X5, X10 with the re-review's exact strings.
+    No ST/tools/pc file changed, so pins_pc.json's tool_sha256 needs no refresh (amend_pins.py --check: equal) and the
+    PINS tool lines are unchanged; the PINS block was refilled for COLAB_STEPS.txt only.
+ M2 (minor) CONFIRMED [measured, DESIGN_NOTES lines 311-314 (re-reviewed): no wave item; section 9 did not record line
+    876]. FIXED: section 9 gets a WAVES entry (the line-876 answer at 01:41:53 UTC, after the amendment had started;
+    THE ORDER's fewer-sessions rule is that plan; the blind-period rule makes "no phase result opened" followable) and
+    the arm-wave confound in "What it does not". criteria KNOWN LIMITS and COLAB_STEPS THE ORDER now cite RUNLOG line
+    876 by name.
+ I1 (info) CONFIRMED by the re-review's probe (ST/amend/rereview/snapshot_probe.out) and by reading
+    r10round_common.parse_runlog (a note whose RUN_ID is not a round RUN_ID goes to the printed lines). FIXED in text
+    (the first option): COLAB_STEPS RUNLOG NOTES and criteria say one SNAPSHOT line per RUN_ID looked at, the RUN_ID as
+    THE RUNS name it; a SNAPSHOT line naming no RUN_ID is printed and read as no opening. The conservative code option
+    (any STANCE7 SNAPSHOT naming no RUN_ID as an opening of every phase run) was not taken: it would change a pinned
+    tool and its pins for a case the stated form now excludes.
+ I2 (info) NOTED, no change (the maintainer chose "Phase first", RUNLOG line 876). For the coordinator, once, when the
+    waves are confirmed: a balanced three-session split (wave 1 PHASE s60, OFF s60, PHASE s42; wave 2 OFF s42, PHASE
+    s80, OFF s80) would remove the arm-wave confound; THE ORDER as written does not allow it (phase runs first), so
+    taking it would be a text change before the pin [inferred].
+ I3 (info) CONFIRMED; nothing can be done here without training. Still open for the pin step and VP4: VP3's POS-pc,
+    POS-off and the two crossed cases (the re-run here SKIPPED them again: no smoke bundle on disk); f2dry.py --arm pc
+    and --arm off before F2; clear scratch and check df before F2 (df -h /: 3.9 GB free at 02:18 UTC, 3.8 GB at 02:34
+    UTC [measured]; measure_r10round.py refuses below 3 GiB; F2's pairs for six runs about 1.2 GB).
+ I4 (info) CONFIRMED [measured, reading score_pc.score: every launched RUN_ID of both arms feeds out["incomplete"]
+    (lines 328-338 and the per-run loop), and status is INCOMPLETE whenever it is non-empty (line 475)]. FIXED: one
+    sentence in THE READING (formed only once every launched run of both arms is decided; an OFF run's open item holds
+    it INCOMPLETE as a phase run's does).
+ I5 (info) CONFIRMED [measured: ./after.txt.tmp absent; every other entry equal]. FIXED: after.txt rewritten from the
+    files by ST/amend/fix/tools/write_after.py without that line (each kept entry re-hashed and asserted equal).
+ I6 (info) no change. I7 (info) no change (the re-reviewer's own slip, recorded there).
+
+2. FILES CHANGED (re-reviewed sha256 -> fixed sha256; diffs from the re-reviewed bytes in ST/amend/fix/diffs/)
+ criteria.txt                  ed9d2f07762645b7e3a85c70108a6f7086c7b1f1bc9d2dcf959a477eca41478f
+                            -> e612d52362b4336b7bbaa437a217e18909b86d4f2f04a0135a9c58c9e21d61ec
+ COLAB_STEPS.txt               2dc68023aadbcb924e7690f4785424d7bc1f5364a54f78b1bd38607e8bc9494e
+                            -> 98abcaa6efd68af38ca257d7ab14c5aa6c75eb8940f68764a2f9c9874e7311e1
+ design/DESIGN_NOTES.txt       89a9ad4681c8035733bf5a1178c11c9666f3f745c794781afaa158dc3fea0780
+                            -> 69b5acf9cd6bde0cf40c86e1757d14b6bb35e64e1db41798b20547ec62cfc7f1
+ tools/tests/test_score_pc.py  16bc98f5a5846db6edbdbba07a6817b302e4404b70b45fcd7d870b5e5316d354
+                            -> 5e6825c963bf59da9f3541c59899553d3703b95c377213f5dbb4f554036affb9
+ tools/mutate_pc.py            40c92e63194ae429270259730701c098a1ee6cd703255f88479c1c6e94b269cf
+                            -> 6b67bc76ecb40fcc0ec90b9f34d0094484a8830cc1d5fecd406478f5ae37d70f
+ Unchanged (sha256 equal to ST/amend/after.txt): every ST/tools/pc file, pins_pc.json
+ a1162072e523396c767bde35dfd4d7b0135547538fdba0f11d46366c30981a7f, synth_pc.py, standin_s6.py, vp3_dryrun.py,
+ smoke_pc.py, f2dry.py. Records rewritten: ST/amend/after.txt (I5; the fixer's files listed). New: this file and
+ ST/amend/fix/ (cmdlog.txt, tools/fix_texts.py, tools/write_after.py, probe_offb.py, rereviewed/, diffs/, dry/).
+
+3. RE-RUNS [measured; outputs in ST/amend/fix/dry/]
+ - test_score_pc.py: 65 passed (the re-reviewed 60 and the five above), pytest_score_pc.log; test_manip_pc.py: 7
+   skipped (no measuring copy or smoke pair on disk; manip_check.py unchanged), pytest_manip_pc.log.
+ - mutate_pc.py: KILLED 49 of 49, exit 0: the re-reviewed 44 and M45-M49 (X1, X2, X3, X5, X10), each of the five
+   killed by its new test (mutate_pc.log, mutate_pc.stdout; 02:29-02:39 UTC).
+ - VP3 (vp3_dryrun.py --head 1dfe2327...): NEG-pc [1, 3, 7, 8], NEG-off [1, 7], SC-on-pc [], SC-on-off [3, 8],
+   SC-off-off [], SC-off-pc [3, 8], all AS EXPECTED; POS-pc, POS-off and the crossed cases SKIPPED (no bundle); the
+   SUMMARY equals the editor's (vp3.out, vp3/SUMMARY.txt byte-equal).
+ - The stand-in both ways (standin_s6.py --as pc / --as off): ALL EQUAL True, TDs equal to comparators.out. --as pc:
+   stdout, report, score and pins equal to the editor's (paths masked). --as off: equal except that the editor's run
+   printed five PROVISIONAL "tool ... is not its pin" lines: it ran at 01:39:30, before amend_pins.py refreshed
+   tool_sha256 at 01:50:04 (ST/amend/cmdlog.txt); the current pins hold the current tools, so those lines are gone.
+ - amend_pins.py --check: equal (pins_pc.json unchanged). refill_pins.py and --check: equal after the refill.
+ - fix_texts.py reproduction: the three texts equal "re-reviewed bytes + the fixer's edits" (criteria.txt then with
+   refill_pins.block()), checked in memory.
+ - ruff check --no-cache --config WT/pyproject.toml on test_score_pc.py, mutate_pc.py and ST/amend/fix/*.py: clean.
+ - Model or product names: none in any added line or new file (identifiers such as S1/S2 paths and branch names
+   aside, as before).
+
+4. FOR THE INDEPENDENT CHECK (the fixer's choices the findings did not fix)
+ a. TRIGGER (b) "no cell running" is not looked for in a phase run's tab in the blind period: a stop with the runtime
+    still listed is found by the STALL (2 h without a progress.json rewrite), which in the run's first 2 hours can come
+    after its REPLACEMENT window: LOST instead of a _b [inferred]. The alternative (a glance at the tab's run indicator
+    in the first 2 hours) cannot be done without the output on screen. The coordinator may ask the maintainer.
+ b. The end from Drive in the blind period does not read progress.json "ended" (one of CHOICE ENDS's three conditions,
+    RUNLOG line 690); its metadata proxy is no progress.json rewrite for 30 minutes. The scorer never reads the
+    ending note's fields (the note fields it reads are LAUNCH/RELAUNCH head, CHECK behavior and ACTION what; E comes
+    from F2's progress.json status "ended" and timesteps) [measured, reading complete_r10round.py], so no reading
+    changes; the note itself says "metadata only".
+ c. The tab of a running phase run is "not read again (it may stay open in the background)", not "closed": whether
+    closing a running Colab tab ends the session on this account was not checked here [inferred caution]; after (a),
+    with the run ended, the tab is closed.
+ d. "Edit > Clear all outputs" before the flush cell (after the .ipynb download) keeps the output off the screen; it
+    changes nothing on Drive (the notebook is opened from GitHub, not from Drive).
+
+5. SLIP (recorded at once in ST/amend/fix/cmdlog.txt)
+ At 02:32 UTC the stand-in comparison wrote two scratch diff files into S2 (S2/sd_pc.txt, empty; S2/sd_off.txt, the
+ six-line diff restated in section 3), outside ST. Both were deleted at 02:34 UTC (rm -f). A find over S1 and S2 for
+ anything newer than 02:18 UTC then showed only the S2 directory itself (its mtime); WT and the main checkout clean.
+
+6. FINAL SHA256: ST/amend/after.txt (rewritten last but for ST/amend/fix/cmdlog.txt) lists every file; the values of
+ the changed files are in section 2.

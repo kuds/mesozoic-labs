@@ -1,0 +1,90 @@
+--- amend/fix/rereviewed/criteria.txt	2026-11-01 01:53:13.396721028 +0000
++++ criteria.txt	2026-11-01 02:39:36.667342249 +0000
+@@ -18,6 +18,10 @@
+ the phase runs with the OFF runs, decided before any data; STANCE6 is REPORT ONLY wherever it was a comparator. Every
+ change and why: ST/amend/AMEND_NOTES.txt; this text against the re-reviewed bytes (sha256 7d6891fb...) in
+ ST/amend/diffs/criteria.txt.diff. A draft for the quick re-review before the pin: nothing here is approved.
++FIXED 2026-11-01 (date -u) by the amendment's fixer after its re-review (ST/amend/FIXES.txt): the blind period (until
++every OFF run's LAUNCH line, a PHASE run's liveness, end and stall from metadata only; RUN HANDLING), the maintainer's
++"Phase first" waves (RUNLOG line 876), one SNAPSHOT line per RUN_ID, the reading formed once both arms' runs are
++decided; five tests and five mutants for rules the suite did not hold. Every change: ST/amend/fix/diffs/.
+ STATUS: v1 draft, written 2026-10-31 (date -u; every command and time in DESIGN/cmdlog.txt) by the designer of
+ workflow wf_9b7ee473-01d (RUNLOG line 869), after the maintainer's choices of RUNLOG line 867 (20:54:11 UTC: "Switch to
+ Colab run (Recommended)"; interface "Separate critic input (Recommended)": a critic-only observation, the actor's 63
+@@ -246,6 +250,9 @@
+   plus PHASE PRESENCE RAILS (ROUND l.253-268); u = PHASE seeds whose run is not COMPLETE or is UNREAD; p = PARKED;
+   g = GATE PASS; hs = runs with a SATURATING habit elsewhere; hd = DRIVE ONLY. The OFF runs' r, p, g, hs, hd and u are
+   printed beside every line ("CONCURRENT SWITCH-OFF RUNS (printed beside; they decide no line): ...") and move none.
++  The reading is formed only once every launched run of both arms is decided (WHEN THE READING IS MADE, RUN_IDs -> the
++  six): an OFF run's open item (C8 PENDING, PRESENCE undecided, no F2 store, not ENDED) holds it INCOMPLETE as a PHASE
++  run's does.
+   1. r >= 1: "THE TAIL RAIL FORMED IN <r> OF 3 PHASE-CRITIC RUNS (<basis as ROUND l.312-315, the weak basis's
+      figure read "false-rail chance if the phase critic removed the habit 0.003-0.11 per round, up to 0.31 (ROUND's
+      EVID figures) [inferred, EVID]">): THE CRITIC'S PHASE INPUT
+@@ -341,7 +348,8 @@
+ "Critic phase: on" (cell 6) and "Critic phase on: [ppo] critic_phase = true on ['stance']" (cell 9) for a PHASE run,
+ "Critic phase: off" and no cell-9 row for an OFF run (Colab steps), are recorded in the CHECK line. Run ends may be
+ noted from Drive (artifact_manifest.json present, progress.json ended, 30
+-minutes with no write in the run folder) as the maintainer decided for STANCE6 (RUNLOG line 690) (CHOICE ENDS).
++minutes with no write in the run folder) as the maintainer decided for STANCE6 (RUNLOG line 690) (CHOICE ENDS; in the
++blind period from metadata only, below).
+ STARTS AND OUTCOME BLINDNESS (amendment): the six runs start interleaved by seed (PHASE s60, OFF s60, PHASE s42, OFF
+ s42, PHASE s80, OFF s80), all at once when six L4 sessions can run together. If fewer can, the PHASE runs start first
+ and the OFF runs may start later, in seed order, as sessions free (Colab steps), and every OFF run must start before
+@@ -351,9 +359,22 @@
+ reads the first opening as the earliest F2-START, REFETCH-START or SNAPSHOT line of a PHASE RUN_ID: an OFF seed whose
+ run's launch line is not earlier is NOT BLIND, its classes are printed, and it enters THE ONE TEST as missing
+ (-infinity).
++THE BLIND PERIOD (fixer, the amendment's re-review B1; the maintainer's "Phase first" waves, RUNLOG line 876, put every
++PHASE run in it): until every OFF run's LAUNCH line is in RUNLOG, a PHASE run's liveness, end and stall rest on
++metadata only: Runtime > Manage sessions and Drive listings' names, sizes and modifiedTime. Its progress.json is not
++opened (a tool may print its status and timesteps fields only if no other field reaches a person or agent); its end
++from Drive (CHOICE ENDS) reads artifact_manifest.json present and 30 minutes with neither a progress.json rewrite nor
++any other write in the run folder, and its TRIGGER-a / FOUND-GONE notes say they rest on metadata only; a STALL is 2
++hours with no progress.json rewrite (its modifiedTime), not output lines; "no cell running" is not looked for in its
++tab (a stop with the runtime still listed is found by the STALL, which in a run's first 2 hours may come after its
++REPLACEMENT window [inferred]); its notebook is downloaded without its output being viewed (Colab steps). The launch
++check's F0 copies are read by the launch-check tool only. Anything more (a PHASE run file opened, its notebook output
++or downloaded notebook read) is an opening, noted at once as a SNAPSHOT line of that RUN_ID: every OFF run launched
++after it is NOT BLIND. The scorer reads only the RUNLOG lines; what was looked at is the operator's record.
+ Report-only interim snapshots at the maintainer's request (as RUNLOG lines 681 and 689) are allowed only after every
+-OFF run's LAUNCH line, each noted at once as "<date -u> STANCE7 SNAPSHOT <RUN_ID> note=..." (a SNAPSHOT line is read
+-wherever it stands in RUNLOG): copies outside <PCR>, read by no other rule, never acting on a run.
++OFF run's LAUNCH line, each noted at once as "<date -u> STANCE7 SNAPSHOT <RUN_ID> note=..." (one line per RUN_ID
++looked at; a SNAPSHOT line is read wherever it stands in RUNLOG; one naming no round RUN_ID is printed among the other
++lines and read as no opening): copies outside <PCR>, read by no other rule, never acting on a run.
+ 
+ FETCHES: ROUND l.436-485 with SUBST (F0 within 60 minutes of each of the six launches; the trigger listing; F2 one
+ fetch of every launched RUN_ID of both arms starting at least 6 hours after RUNLOG's last ending note; the re-fetch),
+@@ -460,6 +481,12 @@
+   C4 and C4 (p) PASS, 25 of 25 class keys equal, the replication block printing equal TDs, line 2 and p 20/20 with
+   the PHASE arm not launched). test_manip_pc.py's 7 tests skip here (no measuring copy or smoke pair on disk;
+   manip_check.py unchanged). f2dry.py --arm off (C8 on a switch-OFF smoke) runs before F2 with VP4.
++  Fixer re-run 2026-11-01 after the amendment's re-review [measured, ST/amend/fix/dry/]: test_score_pc.py 65 tests
++  pass (the 60 above and five for rules the suite did not hold: an OFF run's SNAPSHOT is no opening; an OFF launch in
++  the opening's minute is not blind; the stock critic's why in C8; the launch-check CLI refusing an unfilled switch pin
++  per arm; the not-blind rule reading an OFF seed's _b RELAUNCH); 49 of 49 mutants killed (the 44 above and M45-M49,
++  the re-review's X1, X2, X3, X5, X10); VP3 and the stand-in both ways re-run with the same results (no ST/tools/pc
++  file changed).
+ 
+ WHAT THE READING CANNOT SHOW (KNOWN LIMITS; DESIGN_NOTES section 7 gives each basis)
+ - Three runs per arm measure no rate; binary outcomes cannot reach 0.05 with 3 against 3 (Fisher 0 of 3 vs 2 of 3:
+@@ -469,7 +496,8 @@
+   not remove: GPU nondeterminism within today's image (a seed fixes the start, not the run); 3 + 3 still reaches only
+   p = 1/20; image or hardware changes between staggered starts (the gaps are printed; the image itself is not measured:
+   provenance.json records no torch, CUDA or GPU, and no notebook cell prints them); with the PHASE runs first and the
+-  OFF runs in a later wave (three sessions at a time), the arm is confounded with the wave, about one run's length
++  OFF runs in a later wave (three sessions at a time: the maintainer's "Phase first", RUNLOG line 876), the arm is
++  confounded with the wave, about one run's length
+   apart (the start time, and the Colab image if it changes between the waves): the test then also assumes no wave
+   effect, and the gaps are printed beside it; exchangeability under no effect
+   is assumed up to seed effects: each PHASE run and its same-seed OFF run start from the same network (A5: the first
+@@ -554,7 +582,7 @@
+     score_pc.py 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986
+     score_r10round.py 3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707
+     zs_harness_copy.py fbb71d22cfa40266188b1b836a454bb150dec589d724fb74d1cab53c1ef51828
+-- ST/COLAB_STEPS.txt 2dc68023aadbcb924e7690f4785424d7bc1f5364a54f78b1bd38607e8bc9494e.
++- ST/COLAB_STEPS.txt 98abcaa6efd68af38ca257d7ab14c5aa6c75eb8940f68764a2f9c9874e7311e1.
+ - STANCE6 (report only): score.json cb380a7e816e519cce267fd4a7c00a7d4528730a388e39b3678b95d235c01474, the stance6 fetch
+   manifest
+   f5777ae32a5428908d59776d83d3e86d70db31b7818b1a9dd77de05a426c205e; DESIGN/comparators.py

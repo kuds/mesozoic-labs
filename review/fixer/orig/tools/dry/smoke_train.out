@@ -1,0 +1,31 @@
+Eval num_timesteps=512, episode_reward=4489.15 +/- 11.10
+Episode length: 1000.00 +/- 0.00
+New best mean reward!
+Success rate: N/A (not an active Stage 1 gate)
+Eval num_timesteps=1024, episode_reward=4383.40 +/- 77.37
+Episode length: 1000.00 +/- 0.00
+Success rate: N/A (not an active Stage 1 gate)
+{
+ "num_timesteps": 1024,
+ "n_updates": 20,
+ "policy": "CriticPhaseActorCriticPolicy",
+ "model": "MirrorKLPPO",
+ "buffer": "CriticPhaseRolloutBuffer",
+ "buffer_obs_shape": [
+  66
+ ],
+ "critic_phase": {
+  "schema": "mesozoic.critic-phase/v1",
+  "features": [
+   "ramp",
+   "settled",
+   "discount"
+  ],
+  "settle_steps": 200,
+  "gamma": 0.98,
+  "width": 3,
+  "step_counter": "the env's _step_count when the observation was made (0 at reset)",
+  "input": "the critic's only: appended after the normalized observation, never normalized"
+ }
+}
+rc=0

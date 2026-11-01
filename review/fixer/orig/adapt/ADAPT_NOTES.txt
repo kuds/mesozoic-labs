@@ -1,0 +1,173 @@
+PC STUDY -- MEASUREMENT AND SCORER ADAPTER: NOTES (2026-10-31, date -u times in ST/tools/cmdlog.txt)
+=====================================================================================================
+ST = /home/user/work/pc_study; S1, S2, ROUND, STANCE6, WT, HEAD, <PCR> as ST/criteria.txt SHORT NAMES.
+[measured] = read or computed from the named file; [inferred] = reasoned, basis named. Nothing here trained a study
+run: the only training was one smoke of WT's switch-ON code (1,024 steps, 2 PPO updates, n_envs 2), deleted after its
+evidence was recorded. Nothing was written in WT, S1, S2, PS or the main checkout; no push, no network write.
+
+1. WHAT IS IN ST/tools
+ orig/                 byte copies of the round's pinned tools, sha256 in orig/ORIG_SHA256.txt; every one equals ROUND's
+                       PINS (ROUND l.755-774): laneB complete d322ed0e, fetch 36b7aee0, k3panel 89d279d4, ledger
+                       0d89bcb8, r10round_common ea2c5ea6, score_r10round 3de2330a, v9_bundle 37eef565, pins 0d45721b,
+                       colab steps f2eb9a24, fetch brief 24ac49d6; laneA judge 76da649c, measure b293a511, r10m_common
+                       97431323, zs_harness fbb71d22 [measured]. Also read-only references: read_bs.py (06f4173d),
+                       measure_lb.py (5fb29b52), the designer's comparators.py, the round's tests/synth.py (07e17a70).
+ pc/                   THE PC TOOL SET (the scorer and the launch-check port import each other by path from here):
+   byte copies         ledger_r10round.py (M5), score_r10round.py (classes_of), k3panel_r10round.py, zs_harness_copy.py
+   adapted             r10round_common.py, complete_r10round.py, fetch_r10round.py, fetch_agent_brief.txt,
+                       r10m_common.py, measure_r10round.py -- written by make_pc_tools.py from orig/ by exact
+                       replacements (each must match once); unified diffs in adapt_diffs/; the longer added blocks in
+                       additions/
+   new                 pc_common.py, score_pc.py, manip_check.py; pins_pc.json (make_pins_pc.py, measured values only)
+ tests/                synth_pc.py (the round's synth.py adapted: PC names, switch ON in the synthetic stage_config,
+                       C8 records, M1 records carrying the per-actuator fields), test_score_pc.py (36), test_manip_pc.py (6)
+ dry/                  every dry-run log kept (section 5); the smoke checkpoints and the measuring copy are deleted
+ scripts               make_pc_tools.py, make_pins_pc.py, make_installed_texts.py, smoke_pc.py, vp3_dryrun.py,
+                       f2dry.py, standin_s6.py, vp4_widen_check.py, mutate_pc.py
+
+2. EVERY ADAPTATION (the diffs: ST/tools/adapt_diffs/*.diff)
+ r10round_common.py    ROUND -> <PCR> /home/user/work/pc_study/round; BR -> WT; CRITERIA -> ST/criteria.txt (its sha256
+                       is APPROVED's, never held in a tool; ROUND's text kept as ROUND_CRITERIA); RUN_IDS
+                       stance7_r10LTSBpc_s60/42/80 (RUN_ID_PREFIX); RUN_LABELS "r10 LTSB phase-critic s<seed>"; REPO_REF
+                       claude/screen-trex-r10-phasecritic; NOTE_RE / RUN_TOKEN_RE: kind STANCE7, the PC token (NOTE_KIND);
+                       PINS_FILE pins_pc.json; PIN_KEYS + critic_phase_switch, critic_phase_spec; tool_hashes lists the
+                       PC files; a PC constants block (phase S 200 / gamma 0.98, ACTOR_OBS_DIM 63, the switch path, the
+                       C8 record name / schema / seeds 3042, 3043 / bank 500, STOP_FAULTS (1)-(5), (7), (8)).
+ complete_r10round.py  + critic_phase_fact (the switch as the pin states it; a boolean pin is met only by the JSON
+                       boolean); + launch-check fact (8) (a FAULT); + C4 (p) inside c4_facts (so PRESENCE's p2 reads it
+                       too); + C8 after C7 (labels: every J up to E and final; each manip_check.json bound to the label's
+                       C3-verified pair by the round's binding_problems; absent / crashed / another file / other seeds:
+                       PENDING; NOT IN FORCE on the run's own pair: FAIL -> LOST); verdict over C1-C8 ("PENDING (C8: a
+                       manipulation check absent)"); PanelLocator.manip; render over C1-C8; the STANCE6 wording.
+ fetch_r10round.py     the printed LISTING lines say STANCE7 (C.NOTE_KIND); the docstring's default round.
+ fetch_agent_brief.txt ROUND = <PCR>; TOOL = ST/tools/pc/fetch_r10round.py; "score_pc.py names". Rules unchanged.
+ r10m_common.py        BR -> WT; ROUND/PANELS/APPROVED -> <PCR>; CRITERIA -> ST/criteria.txt (sha256 None: APPROVED's);
+                       BRANCH; RUN_IDS; HP_SHA256 -> the switch-ON pin c64211e8 (ROUND's kept as HP_SHA256_ROUND);
+                       HEADER_PARENT -> 8737cd3d (BASE_COMMIT: --header-parent now names STANCE6's commit for
+                       validation inputs); approved_branch_head rewritten: HEAD read from <PCR>/APPROVED, a commit of WT,
+                       8737cd3d an ancestor, the M1/M3 pinned files unchanged since 8737cd3d (the round's header rule kept,
+                       uncalled, as approved_branch_head_round).
+ measure_r10round.py   ROUND_RUN_RE stance7_r10LTSBpc_s(60|42|80)(_b)?, its refusal message, VERSION. M1/M2/M3 unchanged.
+ Byte copies (unchanged): ledger_r10round.py 0d89bcb8, score_r10round.py 3de2330a, k3panel_r10round.py 89d279d4,
+ zs_harness_copy.py fbb71d22 [measured, ST/tools/make_pc_tools.out].
+
+3. THE NEW TOOLS (what they implement; ST/criteria.txt sections)
+ pc_common.py   per_evaluation / early_signs (BS2 ledger_direct's definitions: first_t3_over, FOB_tail, first_over_any,
+                CMD_L firsts at 0.30 / 0.60 / 0.90, count >= 0.60, max, last, M5's TAIL-flagged and TAIL ALARMs);
+                tail_drive (TD all evaluations, MISSING listed, the J window); one_test (20 splits, math.fsum sums
+                compared exactly, ties against H1, +infinity entered as given, the exact texts); habit_elsewhere (L, A,
+                T, D per actuator other than tail_3; L/T/D arithmetic = measure_lb.habit_summary's, A added; SATURATING /
+                DRIVE ONLY / FREE; the run's status the strongest); reading (lines 1-5, exact texts, the suffix, line-1
+                bases as ROUND l.312-315, first TAIL ALARMs beside STANCE6 s42's 3,932,160, line-5 items and names);
+                comparators (STANCE6 recomputed: FMAN- and artifact-manifest-checked copies, score.json and FMAN at their
+                pinned sha256, the round's own M1 records for HABIT ELSEWHERE, the probe's on-policy tail_3).
+ score_pc.py    the round's score() flow with: seed_run (PC prefix, faults (1)-(5), (7), (8)); C1-C8; per COMPLETE run:
+                classes_of (unchanged), early signs, TD, HABIT ELSEWHERE, Q4, guard, probe; THE READING; THE ONE TEST
+                (TD = +infinity for a run not COMPLETE and FINISHED, or with no finite CMD cell); Statistic A beside
+                STANCE6's 2 of 3 and LTSB r9's 2 of 5 (report only); the parent rule at line 4 (score_r10round's);
+                PROVISIONAL (pins, tools vs F2_PINS.json else the pins file, criteria.txt vs APPROVED, HEAD vs APPROVED
+                and the LAUNCH lines, VP0/VP2/VP3 in APPROVED, VP1/VP4 in <PCR>/F2_PINS.json, APPROVED's and F2_PINS's
+                sha256 on RUNLOG lines, the M1/M3 records' commit / physics / seeds, files not a COPY in the manifest,
+                the comparators' pins). Exit codes the round's (0 / 10 / 11 / 2).
+ manip_check.py C8 THE MANIPULATION CHECK through measure_r10round's preflight (disk floor, seal, commit, physics 10, run
+                records, RUN_ID / label binding, output outside run folders): bank = first 500 observations of seeds
+                3042 and 3043 (deterministic, the pair's statistics frozen as M1 loads a pair, k = env._step_count,
+                checked); (i) phase weights not all zero and |dV| > 0 under all 0 / all 1 / +1 / all 3 / 1 - x;
+                (ii) the actor's Gaussian mean changes by exactly 0.0 under each and equals the 63-wide mean, actor
+                input width 63; (iii) |dV| > 0 under +1 on observation 6. Record <panels>/<RUN_ID>/<label>/c8/
+                manip_check.json. Also the feed for the report-only critic readers: critic_values(policy, bank, k,
+                mode "effective" phi(k) / "settled" phi(1000)), actor_means, widen_stock_policy (zero columns, in memory).
+
+4. THE PINS (ST/tools/pc/pins_pc.json; ST/criteria.txt PINS) [measured, ST/tools/dry/pins_sc.out]
+ stage_config.json written by HEAD's own config.save_stage_config as train_base calls it (seed 42, n_envs 4, 12,000,000;
+ [ppo] critic_phase = true set as notebook cell 9 sets it), on a sealed git-archive copy of WT da7e0b92:
+   switch      hyperparameters.critic_phase = true
+   ON          hyperparameters_sha256 sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954 (= the
+               builder's figure); task_sha256 sha256:1e5964b6... (= ROUND's); stage_config_view_sha256
+               sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab (new: the PPO table records the key)
+   OFF         the same call reproduces ROUND's three pins exactly (054ab483..., 1e5964b6..., 3200f159...): the method is
+               checked; plant_identity equals ROUND's block in both.
+ The builder's notebook smoke recorded hyperparameters_sha256 db8e5562... [measured, ST/build/smoke/smoke.log line 61]:
+ that smoke changed n_steps, so its digest is not the launch's; the draft's "from the builder's smoke build" is corrected.
+ critic_phase_spec = the smoke checkpoint's mesozoic_critic_phase {schema mesozoic.critic-phase/v1, settle 200, gamma 0.98}.
+ v7_failed_on_head is left "UNFILLED": it is VP2's result on HEAD (the pin step fills it; until then C4's k3 clause
+ is NOT ESTABLISHED and the scorer lists the pin as unfilled -- by design).
+
+5. DRY RUNS [measured; logs in ST/tools/dry]
+ a. STANCE6 stand-in (standin_s6.py; the round's own F2 data read only where it lies; stand-in substitutions printed:
+    STANCE6 names, the round's pins with the switch pin null, C8 substituted PASS for a stock critic): every run
+    COMPLETE; 25 of 25 class keys equal to the round's score.json for s60, s42 and s80; TD from the C3-verified ledgers
+    equal to the comparators' (0.388227 / 0.635343 / 0.154339); THE READING line 1, "THE TAIL RAIL FORMED IN 1 OF 3
+    PHASE-CRITIC RUNS (ledger)", s42's first TAIL ALARM 3,932,160 (dry/standin_s6/standin_report.txt).
+ b. Comparators (comparators_recomputed.out): TD 0.388227 / 0.635343 / 0.154339, J window 0.577658 / 0.808751 / 0.217914,
+    CMD_L >= 0.60 in 37 / 57 / 1 evaluations, on-policy tail_3 +0.53585 / +0.81288 / +0.51715 -- all equal to
+    DESIGN/comparators.out; HABIT ELSEWHERE s60 FREE, s42 FREE, s80 SATURATING neck_pitch_act (L, A, T, D) and DRIVE ONLY
+    head_pitch_act (D) (the round-reread had L, T, D: A is this text's added site).
+ c. The switch-ON smoke (smoke_pc.py train on the HEAD copy): MirrorKLPPO / CriticPhaseActorCriticPolicy /
+    CriticPhaseRolloutBuffer (66 columns), 1,024 steps, 20 epoch-updates = 2 PPO updates (smoke_train.out).
+ d. C8 on the smoke's final pair (c8_smoke_final.out): IN FORCE; 1,536 nonzero phase weights; |dV| 0.031 / 0.016 /
+    0.021 / 0.055 / 0.041 under the five perturbations; actor |dmu| exactly 0.0 under each, 63-wide mean equal; obs-6
+    |dV| 0.042; 1,000 bank rows, 7 s.
+ e. STANCE6 s80's final F2 pair widened in memory with zero phase columns (vp4_widen_s80.out): NOT IN FORCE, failing (i)
+    only (every |dV| exactly 0); actor means bitwise equal to the stock policy's; the phase-fed V ("effective" and
+    "settled") bitwise equal to the stock critic's V (max |dV| 0, 0 of 1,000 rows differ). A stock critic reads NOT IN FORCE.
+ f. VP3 (vp3.out): POS = the smoke bundled by HEAD's own writers (v9_bundle's way; provenance via GITHUB_SHA = the sealed
+    commit, repository state read-only from WT): no fault ((4) not computed: a smoke folder has no baseline file), (8)
+    PASS; NEG = STANCE6 s42's F0 copies under the PC RUN_ID: faults (1), (3), (7), (8).
+ g. C1-C8 on the switch-ON bundle as an F2 store (f2dry.out): C1, C2 PASS; C4 (p) PASS on the real stage_config.json and
+    every C4 fact PASS but the k3 clause (pin unfilled); C5 PASS (STOPPED, E 1,024); C8 PASS on a manip_check record filed
+    --run-id / --label final and bound to the real final pair; C3 FAIL (no R1 at 1,024) and C6 FAIL (2 episodes per
+    evaluation, off the grid) as a smoke must; verdict LOST.
+ h. Lane A on phase checkpoints: M1 through the adapted runner on the smoke's final pair (m1_smoke_final.out: 20
+    episodes, physics 10, 57 s); VP1's first part -- M1 on STANCE6 s80's final F2 pair with the HEAD copy (validation
+    input) gives all 20 per-step CSV sha256 equal to the round's own panel and equal cmd_a / cmd_all_actuators / flags
+    (vp1_m1_s80_final.cmp, .csvdiff empty).
+ i. approved_branch_head (approved_head_checks.out): HEAD da7e0b92 and 8737cd3d accepted; cf9402bc (not descending),
+    non-hex and unknown commits refused.
+ j. Tests: test_score_pc.py 36 passed, test_manip_pc.py 6 passed (pytest_*.log); ruff E/F/W clean (ruff.log);
+    mutation tests 22 of 22 killed (mutate_pc.log: ties, the LOWER bar, line 4's hs, line 2's u, L / T-tie / A / D
+    sites, signed TD, first_t3_over, C8 failure / binding / seeds / absence, the switch's type, C4 (p), fact (8) as a
+    stop fault, +infinity, VP1/VP4 and F2_PINS lookups, line-1 basis).
+
+6. RECONCILIATION: THE DRAFT FIXED WHERE THE CODE IS RIGHT (ST/adapt/criteria_v1_to_installed.diff,
+   COLAB_STEPS_v1_to_installed.diff)
+ - The notebook rows: "Critic phase: on" (cell 6) and "Critic phase on: [ppo] critic_phase = true on ['stance']" (cell
+   9), not "phase critic: on" [measured, WT notebook diff].
+ - The switch: CRITIC_PHASE = True in cell 6 (the 18th setting); stage_config.json records hyperparameters.critic_phase.
+ - A7 / PINS: the digests come from HEAD's save_stage_config with the launch configuration (section 4), not the builder's
+   smoke.
+ - STANCE6 s80's habit sites read L, A, T, D under this text's own rule (the table said L, T, D).
+ - THE ONE TEST: with a run at +infinity the PC sum is infinite and p = 20/20 (every split ties or is below); sums exact.
+ - TD: a run with no finite CMD cell has no TD and enters at +infinity.
+ - C8: how the record is made, bound and read (no record = PENDING; NOT IN FORCE = FAIL).
+ - Line 4's parent naming reads M4's judge record at each POSITIVE final (score_r10round.parent_named): M4 at the finals
+   is F2 work only when line 4 reads; otherwise "not named: an input is absent".
+ - VP3 / VP4 wording and their dry-run results; lane A's binding described as built.
+ - HOW THE COORDINATOR PINS: APPROVED carries validations VP0, VP2, VP3; new step 5: <PCR>/F2_PINS.json (the F2 tools'
+   sha256 and VP1, VP4) written once before F2 with its sha256 on a RUNLOG line -- VP1 and VP4 happen during the runs and
+   cannot be in APPROVED, and the F2 tools may be fixed after review; the scorer reads both records.
+ - COLAB_STEPS: <SWITCH> / <ON value> / <SWITCH_ROW> filled; LAUNCH field CRITIC_PHASE=; the tools' PC paths; F2_PINS
+   before F2; the manipulation check's command; the builder's one smoke of the RESUME path noted (no rule written).
+
+7. CODE PROBLEMS AND OBSERVATIONS (nothing blocking found from the measurement side)
+ - [measured] The round's launch check, unchanged, would fault (3) on every PC run (054ab483 pinned); the PC pins fix it.
+ - [measured] Phase checkpoints load and roll on the HEAD copy through the round's own loaders (M1, C8); an 8737cd3d copy
+   cannot (the zip names critic_phase_ppo classes) [builder's note; not re-tested here].
+ - [observation] Fact (8) duplicates what (3) already implies (the ON digest includes the key); it is kept as the
+   readable check the text asks for.
+ - [observation] The C4 k3 clause stays NOT ESTABLISHED until v7_failed_on_head (VP2) is pinned: no run can be COMPLETE
+   before that pin (UNDECIDED, not LOST).
+ - [inferred] parse_runlog reads the PC kind only; a "STANCE6" line naming a PC RUN_ID would be printed and read by no rule.
+
+8. NOT BUILT / NOT EXERCISED (open)
+ - The report-only critic readers (slope on the tail angle at the 1,048,576 grid and final, V - G by bucket, M-LOOP
+   G / c0 / b*): F2 tools to be built during the runs (CHOICE TOOLS); their phase feed (manip_check.critic_values) is
+   built and tested (zero columns: V equal to the stock critic's bitwise).
+ - VP1's second part (M1 on a zero-column widened pair saved as a zip equals M1 of the original) and VP2 (K3 panel):
+   not run; M2, M4 and the K3 reader on phase checkpoints: not exercised; fetch_r10round.py: adapted, not exercised.
+ - The eval-ledger ON/OFF equality (VP0) is the builder's.
+
+9. PROCESS
+ - Rule slip, self-reported in ST/tools/cmdlog.txt: one read-only recursive grep over ST/tools used the null-device and
+   zero-device path strings (no leading slash) as its search pattern; nothing redirected or written; not repeated.
+ - Disk: about 3.9 GB free at the end; ST/tools 5.9 MB after deleting the 97 MB measuring copy and the smoke outputs.

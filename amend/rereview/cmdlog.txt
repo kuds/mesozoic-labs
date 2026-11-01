@@ -1,0 +1,23 @@
+# re-review command log (ST/amend/rereview), times from date -u
+2026-11-01T01:57:08Z sha256sum -c amend/orig_copies_sha256.txt (orig copies); compare to tools/SHA256SUMS.txt
+2026-11-01T01:57:27Z diff -u amend/orig/<f> <f> for all 17 files; compare with amend/diffs/
+2026-11-01T02:01:02Z python -I -B amend/rereview/tools/pins_check.py > amend/rereview/pins_check.out
+2026-11-01T02:01:27Z cd tools/tests && PY -I -B -m pytest -v -p no:cacheprovider --basetemp amend/rereview/pytest_tmp test_score_pc.py test_manip_pc.py > amend/rereview/pytest.log
+2026-11-01T02:01:58Z nice PY -I -B tools/mutate_pc.py --work amend/rereview/mut --log amend/rereview/mutate_pc.log > amend/rereview/mutate_pc.stdout (background)
+2026-11-01T02:04:01Z PY -I -B amend/rereview/tools/oracle_onetest.py amend/rereview/roots > amend/rereview/oracle_onetest.out
+2026-11-01T02:04:52Z PY -I -B amend/rereview/tools/names_check.py > amend/rereview/names_check.out
+2026-11-01T02:05:03Z names_check.py fixed (folders.json keys _ppo_listing/_ppo_listings) and re-run
+2026-11-01T02:05:17Z PY -I -B amend/rereview/tools/nb_check.py > amend/rereview/nb_check.out (git show HEAD:notebook, read only)
+2026-11-01T02:05:51Z grep -rniE model/product-name pattern over the 17 files, amend/ (excluding rereview) -> amend/rereview/names_scan.out
+2026-11-01T02:06:59Z sha256 check of amend/after.txt entries against the files
+2026-11-01T02:08:59Z nice PY -I -B amend/rereview/tools/extra_mutants.py amend/rereview/xmut amend/rereview/extra_mutants.log (11 own mutants)
+2026-11-01T02:14:42Z read-only: find S1 S2 -newer amend/orig_copies_sha256.txt; git status of WT and main checkout; WT rev-parse
+2026-11-01T02:14:56Z ruff check --no-cache --config WT/pyproject.toml on the changed .py and orig copies -> amend/rereview/ruff.log
+2026-11-01T02:15:10Z own scripts lint-fixed (unused imports; import order in pins_check.py by ruff --fix); ruff on amend/rereview/tools: see output
+2026-11-01T02:15:20Z SLIP: three scratch lists (/tmp/rr_tools_files.txt, /tmp/rr_sums_files.txt at about 01:58; /tmp/rr_ruff_fix.txt at this time) were written outside ST by mistake; deleted now (rm -f), contents were file lists and ruff --fix output only
+2026-11-01T02:15:20Z re-run own scripts after lint fixes: names_check.py, pins_check.py
+2026-11-01T02:15:20Z df -h / -> 3.6G available
+2026-11-01T02:15:34Z rm -rf amend/rereview/pytest_tmp amend/rereview/roots (scratch synthetic roots, about 290 MB; reproducible by the two commands above; disk is tight)
+2026-11-01T02:16:37Z final: sha256sum of the re-review's outputs and scripts -> SHA256SUMS.txt; nothing written outside ST/amend/rereview except the three /tmp scratch lists noted above (deleted)
+2026-11-01T02:17:07Z PY -I -B -c parse_runlog on snapshot_probe_runlog.txt (a SNAPSHOT line naming no RUN_ID)
+2026-11-01T02:17:11Z SHA256SUMS.txt rewritten (adds snapshot_probe files)

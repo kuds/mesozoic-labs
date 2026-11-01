@@ -1,0 +1,57 @@
+[c8] measure_r10round 1.2, PC adaptation pc-1 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8; PC 2026-10-31: RUN_IDs stance7_r10LTSBpc_s*); r10m_common 1.1, PC adaptation pc-1 (2026-10-31; HEAD from <PCR>/APPROVED, base 8737cd3d)
+{
+ "verdict": "IN FORCE",
+ "failing": [],
+ "bank_rows": 1000,
+ "bank_episodes": [
+  {
+   "seed": 3042,
+   "rows": 500,
+   "k_first": 0,
+   "k_last": 499,
+   "ended_before_limit": null
+  },
+  {
+   "seed": 3043,
+   "rows": 500,
+   "k_first": 0,
+   "k_last": 499,
+   "ended_before_limit": null
+  }
+ ],
+ "checks": {
+  "(i) phase in force": {
+   "holds": true,
+   "phase_weights_nonzero": 1536,
+   "phase_weights_shape": [
+    512,
+    3
+   ],
+   "phase_weights_max_abs": 0.0012569905957207084,
+   "max_abs_dV_by_perturbation": {
+    "all 0": 0.03076990693807602,
+    "all 1": 0.016495972871780396,
+    "+1": 0.021158158779144287,
+    "all 3": 0.055051565170288086,
+    "1 - x": 0.040706194937229156
+   }
+  },
+  "(ii) actor independent": {
+   "holds": true,
+   "max_abs_dmu_by_perturbation": {
+    "all 0": 0.0,
+    "all 1": 0.0,
+    "+1": 0.0,
+    "all 3": 0.0,
+    "1 - x": 0.0
+   },
+   "mean_63_equals_mean_with_phase": true,
+   "actor_first_layer_inputs": 63
+  },
+  "(iii) critic reads observation 6": {
+   "holds": true,
+   "max_abs_dV_obs6_plus1": 0.04156947135925293
+  }
+ }
+}
+[manip_check] wrote /home/user/work/pc_study/tools/dry/c8_smoke_final/manip_check.json

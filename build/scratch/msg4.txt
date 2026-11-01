@@ -1,0 +1,16 @@
+Test the trainer's wiring of [ppo] critic_phase both ways, end to end (screen, never merged)
+
+train_base.train, as the notebook's train_stage calls it, on the real
+T. rex stance stage for one tiny update (n_steps 64, one env), with
+the switch off and on.  Off: the training env is SB3's VecNormalize,
+the policy SB3's ActorCriticPolicy, the buffer SB3's RolloutBuffer
+(63 columns), no mesozoic_critic_phase record and no critic_phase in
+stage_config.json.  On: CriticPhaseVecNormalize, the phase policy
+(settle step 200, gamma 0.98), a 66-column buffer and both records.
+Either way the key never reaches the PPO constructor, the archive's
+observation space is the env's 63 values and the sidecar is a stock
+VecNormalize.  It is the test that fails if the trainer built the
+phase env with the switch off (a mutation the other tests let pass).
+
+Co-Authored-By: [name removed] <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A

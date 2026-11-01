@@ -1,0 +1,209 @@
+--- design/criteria_v1.txt
++++ criteria.txt
+@@ -2,6 +2,10 @@
+ THROUGH A SEPARATE CRITIC-ONLY INPUT FROM STEP 0 -- CRITERIA v1, DRAFT FOR INDEPENDENT REVIEW. NOT APPROVED. NOTHING IS
+ LAUNCHED UNTIL <PCR>/APPROVED EXISTS AND ITS BYTES AND SHA256 ARE IN RUNLOG.
+ 
++INSTALLED 2026-10-31 (date -u) by the measurement adapter as ST/criteria.txt: criteria_v1.txt reconciled with the
++code (WT da7e0b92) and the PC tools (ST/tools/pc); every change against criteria_v1.txt is in
++ST/adapt/criteria_v1_to_installed.diff and ST/adapt/ADAPT_NOTES.txt; PINS filled from files. Still a draft for
++the independent review: nothing here is approved.
+ STATUS: v1 draft, written 2026-10-31 (date -u; every command and time in DESIGN/cmdlog.txt) by the designer of
+ workflow wf_9b7ee473-01d (RUNLOG line 869), after the maintainer's choices of RUNLOG line 867 (20:54:11 UTC: "Switch to
+ Colab run (Recommended)"; interface "Separate critic input (Recommended)": a critic-only observation, the actor's 63
+@@ -89,9 +93,13 @@
+        17 and 33.
+     A7 identity: with the switch ON the plant_identity block equals ROUND's pin (ROUND l.742-748: policy interface r15,
+        observation_dim 63, action_dim 15); the stage_config.json written by train_base records the switch ON (key and
+-       value as the builder writes them, pinned in PINS); its hyperparameters_sha256, task_sha256 and
+-       stage_config_view_sha256 are the values the builder's smoke build gives (PINS), each stated as equal to or
+-       differing from ROUND's (and why).
++       value as the builder writes them: hyperparameters.critic_phase = true, pinned in PINS); its
++       hyperparameters_sha256, task_sha256 and stage_config_view_sha256 are the values HEAD's own
++       config.save_stage_config writes for the launch configuration (seed, n_envs 4, 12,000,000; the switch set
++       as notebook cell 9 sets it), as train_base calls it (PINS; the same call with the switch OFF reproduces
++       ROUND's three pins, which checks the method; a 2-update smoke with another n_steps gives another
++       hyperparameters digest and is not the launch's), each stated as equal to or differing from ROUND's (and
++       why).
+ - SEEDS AND RUNS (STANCE6's seeds, D2): seed 60 / 42 / 80; RUN_IDs stance7_r10LTSBpc_s60, _s42, _s80; RUN_LABEL
+   "r10 LTSB phase-critic s60" (s42, s80); the in-run K3 sigma key per seed as ROUND l.78-79 (CHOICE NAMES). Seeds do
+   not pair runs (GPU training is not bit-reproducible; the phase changes training from the first update): per-seed
+@@ -119,7 +127,14 @@
+   the critic's phase weights are not all zero, and for each of A1's five perturbations of the phase the largest |dV|
+   over the bank is > 0. (ii) Actor independence: under the same perturbations the actor's deterministic mean changes
+   by exactly 0.0 on every row. (iii) The critic responds to observation 6 (largest |dV| > 0 under a +1 shift of the
+-  normalised value). Printed per pair with the values read.
++  normalised value). Printed per pair with the values read. Made by ST/tools/pc/manip_check.py through the lane A
++  runner's preflight (seal, commit, physics_revision 10, the run's records, the RUN_ID and label binding): the bank
++  normalised with the pair's statistics frozen exactly as M1 loads a pair (the trace tool's load_trace_policy),
++  k = the env's own _step_count at each observation (checked against the step index), the actor's deterministic
++  mean = its Gaussian mean; the record <PCR>/panels/<RUN_ID>/<label>/c8/manip_check.json is bound to the label's
++  C3-verified pair as C7's records are (checkpoint and vecnorm sha256, num_timesteps, not a validation input,
++  filed under the RUN_ID); a record of another file, or made with other seeds or another bank size, is no record
++  (C8 PENDING); a record reading NOT IN FORCE on the run's own pair fails C8.
+ - CLASSES PER RUN (ROUND l.163-286, unchanged): TAIL CLASS (RAIL with its kinds, UNREAD, PARKED, CLEAR; DRIVEN printed),
+   GATE CLASS, RUN OUTCOME (POSITIVE = CLEAR and GATE PASS). Bars, all from ROUND: BAR = share of window steps at
+   |command| >= 0.99 above 0.10 (l.166); ANY / TAIL ALARM = the second of two consecutive evaluations with at least 5 of
+@@ -137,7 +152,8 @@
+   tail actuator), first_over_any; CMD_L's first evaluation >= 0.30, 0.60, 0.90; the count of evaluations with CMD_L >=
+   0.60; CMD_L max and last; M5's TAIL-flagged evaluations and TAIL ALARMs.
+ - TAIL DRIVE (the one test's statistic): TD = the mean over the run's evaluations of |CMD_L(e)| (91 for a FINISHED
+-  run; a blank or non-finite cell is skipped, an evaluation with none is listed MISSING and skipped). Read only from
++  run; a blank or non-finite cell is skipped, an evaluation with none is listed MISSING and skipped; a run with no
++  finite cell at all has no TD and enters THE ONE TEST at +infinity). Read only from
+   01_stance/eval_episodes.csv as C3 checks it against the manifest; no simulation.
+ 
+ THE COMPARATORS (historical, same configuration but the switch; [measured, DESIGN/comparators.out unless named])
+@@ -149,11 +165,14 @@
+   TD (all evaluations)   0.388227             0.635343                    0.154339
+   GATE CLASS             PASS                 FAIL (hop_or_fall 2 > 1)    PASS
+   RUN OUTCOME            NEGATIVE             NEGATIVE                    POSITIVE
+-  HABIT ELSEWHERE        FREE                 FREE                        SATURATING neck_pitch (L, T, D);
++  HABIT ELSEWHERE        FREE                 FREE                        SATURATING neck_pitch (L, A, T, D);
+                                                                           DRIVE ONLY head_pitch (D)
+   ANY ALARMs             0                    22 (tail_3)                 6 (neck_pitch)
+   [classes: S2/r10round/f2/score.json; habit sites: S2/r10round/long_blind/measure/validate/reread_round.out lines 21,
+-  47, 72 (sha256 cacffec5...), read by the pinned tools.] Under THE READING below STANCE6 reads line 1.
++  47, 72 (sha256 cacffec5...), read by the pinned tools; with this text's A site (an ANY ALARM attributing a) the
++  neck reads L, A, T, D: recomputed by ST/tools/pc/pc_common.comparators from the FMAN-checked copies, score.json
++  and the round's own M1 records [measured, ST/tools/dry/comparators_recomputed.out].] Under THE READING below
++  STANCE6 reads line 1 [measured: the PC scorer on STANCE6's own F2 data, ST/tools/dry/standin_s6].
+   What differs besides the switch: HEAD's other bytes (the builder's commits; A6 shows OFF = 8737cd3d on CPU); GPU
+   nondeterminism; the date (the Colab image; the notebook pins mujoco 3.10.0, gymnasium 1.3.0, SB3 2.9.0; torch and
+   numpy are the image's: STANCE6 recorded numpy 2.1.3, torch not recorded) [measured, F2 provenance.json.copy1
+@@ -169,7 +188,9 @@
+   3. r = 0, u = 0, p >= 1: "NO TAIL RAIL; THE TAIL DRIVE PERSISTS: PARKED IN <p> OF 3 PHASE-CRITIC RUNS".
+   4. r = 0, u = 0, p = 0, g = 3, hs = 0: "NO TAIL RAIL OR PARK IN 3 OF 3 PHASE-CRITIC RUNS, THE STANCE GATE CERTIFICATE
+      PASSED IN 3 OF 3, NO SATURATING HABIT ON ANOTHER ACTUATOR". To the maintainer with the best POSITIVE final named by
+-     stance3's parent rule (ROUND l.321-322, 328-329); no automatic offer.
++     stance3's parent rule (ROUND l.321-322, 328-329; score_r10round.parent_named, which reads M4's judge record at
++     each POSITIVE final: M4 at the finals is F2 work only when line 4 reads; without it the scorer prints "not
++     named: an input is absent"); no automatic offer.
+   5. r = 0, u = 0, p = 0, otherwise: "NO TAIL RAIL OR PARK IN 3 OF 3 PHASE-CRITIC RUNS, WITH: <3 - g> GATE FAIL, <hs>
+      WITH A SATURATING HABIT ON ANOTHER ACTUATOR" (only items not 0), each GATE FAIL's criteria and each habit named.
+   Every line ends "(descriptive: 3 runs against the stance6 round's 3, a historical comparison; KNOWN LIMITS)" and
+@@ -185,7 +206,8 @@
+   "LOWER THAN EVERY STANCE6 RUN (exact permutation p = 1/20)" only on complete separation, which, the comparators being
+   fixed, is the same as every PC run's TD below 0.154339 (STANCE6 s80's; [measured, DESIGN/comparators.out]); otherwise
+   "NOT SEPARATED (p = <k>/20)". A PC run that is not COMPLETE and FINISHED enters with TD = +infinity (above every
+-  comparator): missing never helps H1. Printed with the six TDs, the J-window TD (evaluations from 4,194,304) beside,
++  comparator): missing never helps H1 (the PC 3-sum is then infinite, every split ties or falls below it, and p =
++  20/20). Sums are exact (math.fsum) and compared exactly. Printed with the six TDs, the J-window TD (evaluations from 4,194,304) beside,
+   report only (STANCE6: 0.577658 / 0.808751 / 0.217914), and the caveat line: "historical comparison: exchangeability
+   of the 6 runs is assumed, not designed (KNOWN LIMITS)".
+ 
+@@ -207,8 +229,8 @@
+ 
+ RUN HANDLING, RECORDS, ENDING, REPLACEMENT: ROUND l.356-434 with SUBST (all or nothing; no run is resumed: CHOICE
+ RESUME), and: launch-check fact (8) the phase switch ON in 01_stance/stage_config.json (PINS) is a FAULT like (1)-(5)
+-and (7) (stop, LOST, relaunch _b by REPLACEMENT (ii)); the notebook's own "phase critic: on" row (Colab steps) is
+-recorded in the CHECK line. Run ends may be noted from Drive (artifact_manifest.json present, progress.json ended, 30
++and (7) (stop, LOST, relaunch _b by REPLACEMENT (ii)); the notebook's own rows "Critic phase: on" (cell 6) and "Critic phase on: [ppo]
++critic_phase = true on ['stance']" (cell 9) (Colab steps) are recorded in the CHECK line. Run ends may be noted from Drive (artifact_manifest.json present, progress.json ended, 30
+ minutes with no write in the run folder) as the maintainer decided for STANCE6 (RUNLOG line 690) (CHOICE ENDS).
+ Report-only interim snapshots at the maintainer's request (as RUNLOG lines 681 and 689) are allowed: copies outside
+ <PCR>, read by no rule, never acting on a run.
+@@ -221,9 +243,11 @@
+ - Reused byte for byte (sha256 = ROUND's PINS l.749-774): ledger_r10round.py (M5), r10round_common.m5,
+   score_r10round.classes_of, the M1 and M3 scripts at HEAD (episode_trace_report.py b5923e5c..., episode_trace.py
+   96ced68e..., stance_gate_report.py bbfe8016...: HEAD must leave them unchanged).
+-- Adapted (constants only, each diff against the pinned original listed and reviewed): lane A's runner (r10m_common's
+-  branch binding: the measuring copy's commit = HEAD read from <PCR>/APPROVED instead of "one parent cf9402bc, a
+-  stance.toml comment diff"; RUN_IDs; <PCR>/panels); lane B's r10round_common (ROUND path, RUN_IDs, the STANCE7 note
++- Adapted (constants only, each diff against the pinned original listed and reviewed; ST/tools/adapt_diffs/):
++  lane A's runner (r10m_common's branch binding: the measuring copy's commit = HEAD read from <PCR>/APPROVED, a
++  commit of WT descending from 8737cd3d whose changes leave the M1/M3 pinned files untouched, instead of "one
++  parent cf9402bc, a stance.toml comment diff"; --header-parent names 8737cd3d for validation inputs; RUN_IDs;
++  <PCR>/panels); lane B's r10round_common (ROUND path, RUN_IDs, the STANCE7 note
+   pattern), pins file (PINS), complete (fact (8), C4 (p), C8), fetch tool and brief (paths, RUN_IDs); the scorer (THE
+   READING, THE ONE TEST, the comparators' values recomputed from FMAN-checked files and score.json at their sha256).
+ - New: the manipulation check (above); TD (DESIGN/comparators.py's ledger reading, pinned); the phase-fed critic readers
+@@ -243,13 +267,19 @@
+   M1 on a zero-phase-column widening of that pair equals the same M1 (the loader rolls the phase-critic actor exactly).
+ - VP2, before launch, the K3 panel: test_curriculum_k3_panel.py passes on HEAD with the switch ON, and a panel on the
+   widened pair equals the panel on the original (rows bitwise); if not, every run launches with K3_PANEL False.
+-- VP3, before launch, the launch-check port: on the builder's smoke run files (switch ON) no fault; on STANCE6 s42's F0
+-  files (S1/foot/stance6/fetch/F0/stance6_r10LTSB_s42) at least facts (1) and (8) FAULT (a negative control).
++- VP3, before launch, the launch-check port: on a switch-ON run folder written by HEAD's own writers (a 2-update
++  smoke bundled as v9_bundle.py does) no fault; on STANCE6 s42's F0 files
++  (S1/foot/stance6/fetch/F0/stance6_r10LTSB_s42) at least facts (1) and (8) FAULT (a negative control). Dry run
++  2026-10-31 [measured, ST/tools/dry/vp3/POS.txt, NEG.txt]: POS no fault ((4) not computed: no baseline file in a
++  smoke folder); NEG faults (1), (3), (7), (8). The pin step re-runs it on the pinned files.
+ - VP4, before F2: the adapted measurement and scorer reproduce STANCE6's classes from STANCE6's F2 copies and panels
+   (25 class keys per run, as S2/r10round/long_blind/measure/validate/VALIDATION.txt did for s42); TD reproduces
+   DESIGN/comparators.out; the manipulation check reads IN FORCE on a 2-update smoke checkpoint and NOT IN FORCE on the
+   widened zero-column pair; synthetic records give every line 1-5 and every test outcome (1/20 ... 20/20, a LOST run
+-  at +infinity).
++  at +infinity). Dry runs 2026-10-31 [measured, ST/adapt/ADAPT_NOTES.txt]: 25 of 25 class keys equal for each
++  STANCE6 run and line 1 (ST/tools/dry/standin_s6); TD equal to comparators.out; IN FORCE on the 2-update smoke
++  pair; NOT IN FORCE (failing (i) only) on STANCE6 s80's final widened in memory, its phase-fed V equal to the
++  stock V bitwise; ST/tools/tests (42 tests) and 22 of 22 mutants killed.
+ 
+ WHAT THE READING CANNOT SHOW (KNOWN LIMITS; DESIGN_NOTES section 7 gives each basis)
+ - Three runs measure no rate; binary outcomes cannot reach 0.05 against 3 (Fisher 0 of 3 vs 2 of 3: p 0.20); the one
+@@ -275,20 +305,58 @@
+ classify_parents.out]). Disk: measure_r10round.py refuses below 3 GiB free; about 3.8 GB was free at 21:18 UTC
+ [measured, df -h /, DESIGN/cmdlog.txt], so the coordinator checks df before F2.
+ 
+-PINS (filled by the pin step from files, never by hand): HEAD; the switch key and value as stage_config.json writes it;
+-hyperparameters_sha256, task_sha256, stage_config_view_sha256 with the switch ON (from the builder's smoke build);
+-plant_identity = ROUND's block; this text's sha256; DESIGN/comparators.py and comparators.out sha256; the launch-check
+-port's files and pins file sha256; COLAB_STEPS's sha256; VP0, VP2, VP3 logs' sha256. Before F2: the F2 tools' sha256
+-and VP1, VP4 logs (into RUNLOG).
++PINS (filled 2026-10-31 (date -u) by ST/tools/make_installed_texts.py from files, never by hand; the pin step
++re-reads every value from its file):
++- HEAD: not held in this text (APPROVED's branch_head and the LAUNCH lines' head=). The tools, pins and dry runs
++  were measured on WT HEAD da7e0b9225b72827c2dc14b94c8094b6e57eb97a (local branch claude/screen-trex-r10-phasecritic, 5 commits on 8737cd3d,
++  unpushed); if the approved HEAD differs, the pin step re-runs VP3 and the stand-in on it.
++- The switch as stage_config.json writes it: hyperparameters.critic_phase = true
++  (pins_pc.json critic_phase_switch); the checkpoint record mesozoic_critic_phase = {"schema": "mesozoic.critic-phase/v1", "settle_steps": 200, "gamma": 0.98, "width": 3}.
++- With the switch ON [measured, ST/tools/dry/pins_sc.out]: hyperparameters_sha256 sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954
++  (differs from ROUND's sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c: the PPO table records critic_phase);
++  task_sha256 sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456 (equal to ROUND's: the option is no env keyword);
++  stage_config_view_sha256 sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab (differs from ROUND's
++  sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1: the same hyperparameters block); plant_identity = ROUND's block
++  (equal: True). The switch-OFF file of the same call reproduces ROUND's three
++  pins: {'hyperparameters_sha256': True, 'task_sha256': True, 'stage_config_view_sha256': True}.
++- The pins file ST/tools/pc/pins_pc.json fadf2acb06e867bb5aeeff115f1cbb08c9fd7a06cfc8b761ffb1d1d8accea355 (v7_failed_on_head UNFILLED: VP2's result).
++- The PC tools (ST/tools/pc; the launch-check port is complete_r10round.py, r10round_common.py,
++  ledger_r10round.py, fetch_r10round.py, fetch_agent_brief.txt and pins_pc.json):
++    complete_r10round.py 2207fb3abcc46c8cf13abaa8aa44eba2d4c3d01887ca9170133af8c940aca643
++    fetch_agent_brief.txt b4f361cf4473f1ec92301f193492d516fb73245466cb5b18fb65df48e069489b
++    fetch_r10round.py 0f74a8c1d690980cfbaa1f017a2313aa97087cb823e5ec70a03a66b17da3ee3d
++    k3panel_r10round.py 89d279d4f53b8894f3c69a7acfc518060365e4f0cf8523ca245d4f2dcaf081b2
++    ledger_r10round.py 0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511
++    manip_check.py 80556aa9b3ec5393f2c3ab686c855d76147da2c3b723f12e293614157c7e1db6
++    measure_r10round.py 2f6668494b6acbf9cfc3a386c5ca2f5e4ef8358ad5fe74ee13cbe886dd8046d8
++    pc_common.py 0bce6bfe10e295bda028863138e1ef13c18e7308cf7b84beb96a985821b64e4c
++    pins_pc.json fadf2acb06e867bb5aeeff115f1cbb08c9fd7a06cfc8b761ffb1d1d8accea355
++    r10m_common.py 31c9ac1a0ce29481a6fc7f2b66149c18f95d496445fe80fcaa2c5b2c17714a00
++    r10round_common.py 54670a67aee51370601ea507015dfebc74b0ea6741a921133f66d7690bd8c7e6
++    score_pc.py 929690ca230e19fdaf9b6480d0af2cfaba051256e225905fa87a4d014dc406e5
++    score_r10round.py 3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707
++    zs_harness_copy.py fbb71d22cfa40266188b1b836a454bb150dec589d724fb74d1cab53c1ef51828
++- ST/COLAB_STEPS.txt 4f34eb379a43c50897c8a109604a5c8d75a32d7332513c0f886468ca62039964.
++- The comparators: score.json cb380a7e816e519cce267fd4a7c00a7d4528730a388e39b3678b95d235c01474, the stance6 fetch manifest
++  f5777ae32a5428908d59776d83d3e86d70db31b7818b1a9dd77de05a426c205e; DESIGN/comparators.py f2e0bcbf55065641a0bf737c1943be2126addf1ce3780f43a42b30f482f4dc0d,
++  comparators.out 8c924c37871fb956c84e7c0e8b78b914e9b68def1283e9c76ee12d014d7d8b46.
++- This text's sha256: computed at the pin into APPROVED (never inside this text).
++- Still to fill at the pin: HEAD (APPROVED); v7_failed_on_head (VP2); the VP0, VP2, VP3 logs' sha256. Before F2
++  (F2_PINS.json, HOW THE COORDINATOR PINS 5): the F2 tools' sha256 as finally reviewed and the VP1, VP4 logs.
+ 
+ HOW THE COORDINATOR PINS (after the review, the fixer, the re-review and the maintainer's confirmation of the final
+ choices, quoted with its answer time to the second)
+ 1. The final text goes byte for byte to <PCR>/criteria.txt (chmod 0444); its sha256 is computed, never typed.
+ 2. <PCR>/APPROVED, written once (compact one-line JSON, chmod 0444): criteria_sha256, branch_head (= git -C WT rev-parse
+-   HEAD, worktree clean), the PINS above, approved_by (the maintainer's answer, quoted) and approved_at (to the second).
++   HEAD, worktree clean), the PINS above, validations {"VP0": "PASS", "VP2": "PASS", "VP3": "PASS"} (the scorer
++   reads them), approved_by (the maintainer's answer, quoted) and approved_at (to the second).
+ 3. RUNLOG gets, before any launch, one line with APPROVED's sha256 and the next line with APPROVED's exact bytes; then
+    the pre-launch checks: (a) sha256sum of criteria.txt and every pinned file equals APPROVED; (b) HEAD on origin
+    equals APPROVED's branch_head once the maintainer has OK'd the push (read only: git ls-remote); (c) the launch-check
+    port's VP3 dry runs re-run, exit codes as expected; (d) B1 compute balance and B2 fetch budget noted (Colab steps).
+-4. Only then the maintainer launches (DESIGN/COLAB_STEPS_v1.txt). Nothing in criteria.txt or APPROVED is edited after
++4. Only then the maintainer launches (ST/COLAB_STEPS.txt). Nothing in criteria.txt or APPROVED is edited after
+    the first training step; an error found later is recorded in RUNLOG and the reading prints it as PROVISIONAL.
++5. Before F2 (CHOICE TOOLS): <PCR>/F2_PINS.json, written once (compact JSON, chmod 0444): tool_sha256 (every
++   ST/tools/pc file score_pc.py's tool_hashes lists, as finally reviewed) and validations {"VP1": "PASS", "VP4":
++   "PASS"}; its sha256 on a RUNLOG line before the F2-START lines. The scorer reads VP1, VP4 and the tools' pins
++   there (PROVISIONAL while it is absent, differs, or its sha256 is in no RUNLOG line).

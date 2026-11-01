@@ -1,0 +1,87 @@
+EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=1000000 is at or beyond this stage's timesteps=1024, so no window can ever set the peak and the collapse backstop is disabled for the whole run.
+MuJoCo version: 3.10.0
+Gymnasium version: 1.4.0
+Repo root: /home/user/work/pc_branch
+Model: Tyrannosaurus Rex (Anatomical)
+Algorithm: PPO
+Quick test mode: False
+Behavior recipe: stance
+In-run K3 panel: off
+Critic phase: on
+Critic phase on: [ppo] critic_phase = true on ['stance']
+Model: Tyrannosaurus Rex (Anatomical)
+Environment: TyrannosaurusRexAnatomicalEnv
+Observation space: (63,)
+Action space: (15,)
+Number of actuators: 15
+
+Behavior 'stance' -> deliverable 'stance'; chain: stance
+
+   #  id           name                           parent       recipe   deliverable  gate
+*  1  stance       Stance                         -            stance   yes          stance_quality_heading/v1
+   2  recovery     Recovery                       stance       recover  yes          recovery_quality/v1
+   3  locomotion   Locomotion                     stance       walk     yes          reward_and_length/v1
+   4  behavior     Bite                           locomotion   hunt     yes          task_success/v1
+  (* = on this behavior's chain)
+Training infrastructure ready. Algorithm: ppo
+DiagnosticsCallback enabled: per-component rewards, obs/action stats,
+VecNormalize tracking, and termination reasons
+will log to TensorBoard.
+============================================================
+Node stance (stage 1): Stance (ppo)
+Description: Learn to stand and balance without falling
+Timesteps: 1,024
+Log dir: /home/user/work/pc_study/build/smoke/run/01_stance
+============================================================
+Eval num_timesteps=1024, episode_reward=4455.94 +/- 58.68
+Episode length: 1000.00 +/- 0.00
+New best mean reward!
+Success rate: N/A (not an active Stage 1 gate)
+
+Final model saved to: /home/user/work/pc_study/build/smoke/run/01_stance/models/stage1_final.zip
+Final-model episode evidence saved to: /home/user/work/pc_study/build/smoke/run/01_stance/evaluation_final.csv
+Eval (final model): mean_reward=4452.24 +/- 52.27
+Eval: mean_length=1000.0 +/- 0.0 steps (10.00s sim time)
+Eval: mean_forward_vel=-0.00 +/- 0.00 m/s
+Eval: mean_distance_traveled=0.15 m
+Eval: success_rate=0%
+Best model eval:  mean_reward=4455.94 +/- 58.68 (at 1,024 steps)
+Selected checkpoint: robust_best_model
+Loaded best model for next-stage: /home/user/work/pc_study/build/smoke/run/01_stance/models/robust_best_model.zip
+Using matched VecNormalize for selected checkpoint: /home/user/work/pc_study/build/smoke/run/01_stance/models/robust_best_model_vecnorm.pkl
+Evaluating best model (30 episodes)...
+Selected-model episode evidence saved to: /home/user/work/pc_study/build/smoke/run/01_stance/evaluation_selected.csv
+Best model eval:  mean_reward=4449.77 +/- 54.78
+Best model eval:  mean_length=1000.0 +/- 0.0
+Best model eval:  mean_fwd_vel=-0.0 +/- 0.0 m/s
+Best model eval:  mean_distance=0.15 m
+Best model eval:  success_rate=0%
+session 1: model PPO policy CriticPhaseActorCriticPolicy buffer CriticPhaseRolloutBuffer(66,) num_timesteps 1024 n_updates 0
+session 1 files: ['best_model.zip', 'best_model_vecnorm.pkl', 'robust_best_model.zip', 'robust_best_model_vecnorm.pkl', 'stage1_1024_steps.zip', 'stage1_final.zip', 'stage1_final_vecnorm.pkl', 'stage1_vecnormalize_1024_steps.pkl']
+stage_config hyperparameters.critic_phase: True hyperparameters_sha256: sha256:db8e5562a5a172657868da65a6932744787df09831d16f0191b4bbda447e7e46
+sidecar best_model_vecnorm.pkl: stock VecNormalize, observation (63,), obs_rms (63,)
+sidecar robust_best_model_vecnorm.pkl: stock VecNormalize, observation (63,), obs_rms (63,)
+sidecar stage1_final_vecnorm.pkl: stock VecNormalize, observation (63,), obs_rms (63,)
+archive best_model.zip: mesozoic_critic_phase ok, observation [63]
+archive robust_best_model.zip: mesozoic_critic_phase ok, observation [63]
+archive stage1_1024_steps.zip: mesozoic_critic_phase ok, observation [63]
+archive stage1_final.zip: mesozoic_critic_phase ok, observation [63]
+evaluation (stage_results keys): ['best_eval_length', 'best_eval_reward', 'best_eval_std', 'best_eval_std_length', 'best_eval_timestep', 'best_model_distance', 'best_model_fwd_vel', 'best_model_length', 'best_model_reward', 'best_model_std_fwd_vel', 'best_model_std_length', 'best_model_std_reward']
+  mean_reward: 4452.244240490595
+Traceback (most recent call last):
+  File "/home/user/work/pc_study/build/tools/smoke_notebook.py", line 137, in <module>
+    evaluate=False,
+                 ^^
+  File "/home/user/work/pc_study/build/tools/smoke_notebook.py", line 118, in main
+                if key in results:
+    
+    ...<7 lines>...
+        pair, skipped = newest_intact_periodic_pair(models, stage_label(stage))
+        ^
+  File "cell_helpers", line 122, in train_stage
+FileNotFoundError: VecNormalize sidecar not found: /home/user/work/pc_study/build/smoke/run/01_stance/models/stage1_1024_steps_vecnorm.pkl. Refusing to train the loaded checkpoint under fresh normalization statistics.
+
+real	3m12.816s
+user	3m9.323s
+sys	0m1.008s
+exit 1

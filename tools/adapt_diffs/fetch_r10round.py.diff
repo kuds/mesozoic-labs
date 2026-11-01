@@ -1,0 +1,29 @@
+--- orig/laneB/fetch_r10round.py
++++ pc/fetch_r10round.py
+@@ -14,7 +14,7 @@
+     PY -I -B fetch_r10round.py next     --fetch F --run RUN_ID         # the next actions, in the text's order
+     PY -I -B fetch_r10round.py status   --fetch F --run RUN_ID
+     PY -I -B fetch_r10round.py runlog-listing --run RUN_ID             # the LISTING note line for RUNLOG
+-    (every subcommand takes --round ROUND; default SP/foot/stance6)
++    (every subcommand takes --round ROUND; default <PCR> = /home/user/work/pc_study/round: PC adaptation)
+ 
+ Rules applied (FETCHES): every listing by folder id, followed through its page tokens to the last page; a COPY is
+ one transfer whose decoded bytes have the size Drive's listing gives; a transfer that fails its own decode or that size
+@@ -632,7 +632,7 @@
+         ab = absent_folder(a.round, "TRIGGER", a.run, a.runlog)
+         if ab is not None:
+             key, parent, pid = ab
+-            print(f"<date -u '+%Y-%m-%d %H:%M UTC'> STANCE6 LISTING {a.run} folder=absent:{key} parent={parent} "
++            print(f"<date -u '+%Y-%m-%d %H:%M UTC'> {C.NOTE_KIND} LISTING {a.run} folder=absent:{key} parent={parent} "
+                   f"parent_id={pid} files=\"\"")
+             # v5 R-B2: "the listing goes to RUNLOG and to the fetch manifest": its LISTING row, recorded once
+             fm = fetch_root(a.round) / "manifest.csv"
+@@ -649,7 +649,7 @@
+         print("INPUT ERROR: no complete TRIGGER listing of 01_stance/models/ for this run")
+         return 2
+     files = ";".join(f"{f['name']}:{f['size']}" for f in lst["files"])
+-    print(f"<date -u '+%Y-%m-%d %H:%M UTC'> STANCE6 LISTING {a.run} folder={lst['folder_id']} pages={lst['pages']} "
++    print(f"<date -u '+%Y-%m-%d %H:%M UTC'> {C.NOTE_KIND} LISTING {a.run} folder={lst['folder_id']} pages={lst['pages']} "
+           f"files=\"{files}\"")
+     return 0
+ 

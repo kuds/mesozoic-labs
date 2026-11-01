@@ -1,0 +1,77 @@
+[
+ {
+  "check": "A0 training env class",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "A0 observation_space stays 63",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "A1 reset obs 66 wide, first 63 = stock VecNormalize bitwise",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "A1 reset phase = phi(0)",
+  "pass": true,
+  "detail": "[0.         0.         0.01758795]"
+ },
+ {
+  "check": "A2 every step: obs[:63], rewards, dones bitwise = stock VecNormalize (1120 steps x 2 envs)",
+  "pass": true,
+  "detail": "0"
+ },
+ {
+  "check": "A2 every non-final step: phase = phi(info['step'])",
+  "pass": true,
+  "detail": "0"
+ },
+ {
+  "check": "A3 settled first 1 at k = 200",
+  "pass": true,
+  "detail": "200"
+ },
+ {
+  "check": "A3 the settle-gated terms (base_env.py 1315/1339/1421 gates) first paid at info step 201, none before",
+  "pass": true,
+  "detail": "{'reward_stance_width': 201, 'reward_lateral_lean': 201, 'reward_stance_stagger': 201, 'reward_stance_cop_band': None}"
+ },
+ {
+  "check": "A4 truncation at k=1000 with TimeLimit.truncated, terminal phase phi(1000)=(1,1,1), next obs phi(0)",
+  "pass": true,
+  "detail": "[(0, 1000, True, [1.0, 1.0, 1.0], [0.0, 0.0, 0.017587946727871895]), (1, 1000, True, [1.0, 1.0, 1.0], [0.0, 0.0, 0.017587946727871895])]"
+ },
+ {
+  "check": "A4 terminal observations' phase and obs[:63] (stock-normalized) right",
+  "pass": true,
+  "detail": "0"
+ },
+ {
+  "check": "A5 obs_rms stays 63 wide; ret_rms scalar",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "A5 obs_rms of the phase env = stock env's bitwise",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "A6 phase env's sidecar is byte-identical to the stock env's after the same 1120 steps",
+  "pass": true,
+  "detail": "(4347, 4347)"
+ },
+ {
+  "check": "A6 sidecar unpickles as exactly VecNormalize, no critic attrs",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "A7 normalize_obs clips the observation only (63 wide) at clip_obs",
+  "pass": true,
+  "detail": ""
+ }
+]

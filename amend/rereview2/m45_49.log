@@ -1,0 +1,12 @@
+mutants selected: ['M45', 'M46', 'M47', 'M48', 'M49']
+UNMUTATED M45 own test test_root_blindness_an_off_snapshot_is_no_opening: exit 0 (1 passed in 1.58s)
+UNMUTATED M46 own test test_root_blindness_an_off_launch_in_the_opening_minute_is_not_blind: exit 0 (1 passed in 1.57s)
+UNMUTATED M47 own test test_c8_off_arm_reads_the_stock_critic_why: exit 0 (1 passed in 0.30s)
+UNMUTATED M48 own test test_launch_check_cli_refuses_an_unfilled_switch_pin_per_arm: exit 0 (1 passed in 0.40s)
+UNMUTATED M49 own test test_root_blindness_reads_the_off_seeds_relaunch: exit 0 (1 passed in 2.65s)
+M45 (X1) a switch-off run's SNAPSHOT counted as an opening (score_pc.py): own test KILLS (exit 1; 1 failed in 1.68s); full suite KILLED (exit 1; 1 failed, 60 passed in 30.07s; FAILED tests/test_score_pc.py::test_root_blindness_an_off_snapshot_is_no_opening)
+M46 (X2) a switch-off launch in the opening's minute counted blind (score_pc.py): own test KILLS (exit 1; 1 failed in 1.80s); full suite KILLED (exit 1; 1 failed, 61 passed in 35.00s; FAILED tests/test_score_pc.py::test_root_blindness_an_off_launch_in_the_opening_minute_is_not_blind)
+M47 (X3) the stock-critic why not read (complete_r10round.py): own test KILLS (exit 1; 1 failed in 0.44s); full suite KILLED (exit 1; 1 failed, 62 passed in 38.55s; FAILED tests/test_score_pc.py::test_c8_off_arm_reads_the_stock_critic_why - A...)
+M48 (X5) the launch-check CLI ignores an unfilled switch pin (complete_r10round.py): own test KILLS (exit 1; 1 failed in 0.47s); full suite KILLED (exit 1; 1 failed, 63 passed in 39.95s; FAILED tests/test_score_pc.py::test_launch_check_cli_refuses_an_unfilled_switch_pin_per_arm)
+M49 (X10) the not-blind rule reads the first run's LAUNCH, not the seed's run (score_pc.py): own test KILLS (exit 1; 1 failed in 1.98s); full suite KILLED (exit 1; 1 failed, 64 passed in 39.60s; FAILED tests/test_score_pc.py::test_root_blindness_reads_the_off_seeds_relaunch)
+RESULT: 5 of 5 killed by their own new test and by the suite

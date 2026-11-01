@@ -1,0 +1,92 @@
+CODE CHECK
+- m1 CONFIRMED-FIXED. [measured] Reproduced on da7e0b92: CI's lint-job view (mypy 2.3.1 with a no-SB3 python, only
+  numpy/gymnasium/cloudpickle/farama/typing_extensions) reports exactly the two [no-any-return] errors at
+  critic_phase_ppo.py:276 and :285, exit 1 (fixer/lint/mypy_nosb3_da7e0b92.txt). Fix: commit e4d222bb types the two
+  locals as proposed. After: no-SB3 view "Success: no issues found in 418 source files" (lint/mypy_nosb3_fixed.txt),
+  full-venv view the same (mypy_full_fixed.txt), ruff check and ruff format pass (ruff_*_fixed.txt), the 36
+  critic-phase tests pass (suites/cp_tests). HEAD changed, so VP3, the stand-in, the pins and every dry run were redone
+  on e4d222bb (I3 (process)); COLAB_STEPS keeps <HEAD> for the pin step and names e4d222bb as the measured HEAD.
+- i1 CONFIRMED-NOT-FIXED (info; nothing to fix). Re-measured on e4d222bb: equiv_run 2 updates s42 OFF vs 8737cd3d
+  RESULT IDENTICAL (76 arrays, 7 files; equiv/compare_base_vs_head_off.txt); ROUND's V0 (h) digests reproduced
+  (rb/a6_compare.txt); hyperparameters_sha256 OFF = 054ab483 (ST/tools/dry/pins_sc.out).
+- i2 CONFIRMED-NOT-FIXED (info). Re-measured: first rollout ON = OFF bitwise for seeds 60/42/80 (rb/a5_compare.txt);
+  the manipulation check on the new smoke pair: actor |dmu| 0.0 under all five perturbations, critic |dV| > 0
+  (ST/tools/dry/f2dry/.../manip_check.json).
+- i3 CONFIRMED-NOT-FIXED (info, by design). ON vs OFF after 2 updates: 173 differences (equiv/compare_head_off_vs_head_on.txt).
+- i4 CONFIRMED-FIXED (text only; no code change, no resume allowed). The resume note (set CRITIC_PHASE = True again;
+  fact (8) read only after the corrected resume rewrote stage_config.json) is now in criteria RUN HANDLING and in
+  COLAB_STEPS "AFTER A DISCONNECT".
+- i5 CONFIRMED-NOT-FIXED (no change needed now): RUN_ID / RUN_LABEL are filled in the installed ST/COLAB_STEPS.txt
+  (only the builder's superseded draft had placeholders); the launch-check pins are c64211e8 (pins_pc.json); the push
+  and HEAD record are the maintainer's pin step; measuring tools load from the HEAD copy (criteria MEASUREMENT).
+- i6 CONFIRMED-NOT-FIXED (info). Re-run on e4d222bb: see CHECKS (suites).
+- i7 CONFIRMED-NOT-FIXED: no CUDA here; nothing to change; the first evaluation at 131,072 on Colab is the first
+  GPU evidence (COLAB_STEPS step 7, cell 15).
+- i8 CONFIRMED-NOT-FIXED: 6 of 6 branch commits since 8737cd3d now carry the model-named trailer (the fixer's too, per
+  the session's harness rule; see WHAT CHANGED). Rewording would rewrite earlier commits, which the fixer may not do;
+  the maintainer may reword before the push (then re-pin).
+- i9 CONFIRMED-NOT-FIXED (none needed). WT `git status --porcelain --ignored`: 0 entries after the fixer's work (every
+  fixer test run set PYTHONDONTWRITEBYTECODE and -B).
+
+DESIGN REVIEW
+- D1 CONFIRMED-FIXED. [measured] criteria 265-267 ran M3 only on s80's own pair; a refused M3 at the final is GATE FAIL
+  and never rerun (complete_r10round.py 572-586; measure_r10round.py 64-66, 135-139). VP1 now also requires M3 on the
+  zero-column widened s80 pair saved by HEAD's save path to give the round's s80 certificate (during the runs, ~33
+  CPU-min), and the loader alone was run now: d1.out (1000 of 1000 predictions equal; HEAD's own phase zip loads).
+- D2 CONFIRMED-FIXED. (a) rollbuf.py on e4d222bb, switch OFF: all of ROUND l.780-793's digests for seeds 60/42/80 and
+  s42 rollouts 17 and 33 reproduced (rb/a6_compare.txt); switch ON for A5: bitwise (rb/a5_compare.txt). (b) eval
+  rows ON = OFF for the same actor, 194 columns (rb/evalrows_compare.txt). (c) VP0 now runs the suites with PYTHONPATH
+  set to the repo, so only the environment-free failures count: see CHECKS (suites).
+- D3 CONFIRMED-FIXED. [measured] pc_common A site had no count (line 204). Now A needs >= 5 over-bar rows naming a in
+  one of the alarm's two evaluations (pc_common.A_SITE_MIN_ROWS; criteria HABIT ELSEWHERE); STANCE6 unchanged (s80
+  neck L, A, T, D; s60/s42 FREE; ST/tools/dry/comparators_recomputed.out, standin 25/25). The T-site asymmetry is
+  stated in KNOWN LIMITS. Tests: test_habit_a_site_needs_five_rows_in_one_evaluation; mutant M27 killed.
+- D4 CONFIRMED-FIXED. Lines 4 and 5 print ", WITH A DRIVEN TAIL (<actuator> MEAN_a <value> IN s<seed>)" for every
+  DRIVEN tail actuator (ROUND's classes unchanged; it moves no line). Test + mutant M29.
+- D5 CONFIRMED-FIXED. (a) line 4 carries ROUND's gate label and "CONSISTENT WITH THE PHASE CRITIC REMOVING THE HABIT,
+  NOT CONFIRMATORY"; the per-run table labels GATE; (b) the weak basis reads "if the phase critic removed the habit
+  ... (ROUND's EVID figures)"; (c) THE ONE TEST prints the 0.154339 equivalence and "2 windows looked at: a strict
+  bound of 2/20"; (d) lines 3-5 print the plug-in no-RAIL chances 0.296 / 0.216 [model]. Tests + mutants M30, M31.
+- D6 CONFIRMED-FIXED. Four tests added (line 2 before line 3; ledger basis before PRESENCE; T at a J-only label; a
+  STOPPED COMPLETE run at +infinity, p 20/20). The four mutants R4, R7, R11, R12 (as M23-M26) are now killed; 31 of 31
+  mutants killed (tests_out/mutate_pc.log).
+- I1 (design) CONFIRMED-FIXED. one_test sums Fractions of the floats (exact); the text says so. Near-tie test (2000
+  random near ties against a Fraction oracle, and one-ulp-below-s80 cases reading k = 1); mutant M28 (fsum) killed.
+- I2 (design) CONFIRMED-FIXED. [measured] [0.01, 0.02, 0.7] -> 6/20, [0.1, 0.12, 0.9] -> 8/20, [0.01, 0.02, 0.5] -> 3/20
+  (scratch/i2_check.txt). DESIGN_NOTES 2.4 and THE ONE TEST now say only 1/20 depends on placement alone
+  (comparators.out itself is a pinned output and is left as written).
+- I3 (design) CONFIRMED-FIXED. The caveat line and KNOWN LIMITS state the partial pairing (A5 shown bitwise for all
+  three seeds), that seed effects make the unpaired test conservative, and that same-seed pairs are printed, report
+  only (the per-run table already prints STANCE6's same seed beside each run).
+- I4 (design) CONFIRMED-NOT-FIXED: the maintainer's choice. [measured] stance6 s42 provenance dependency_versions has
+  no torch; device null; the notebook prints no torch/CUDA. KNOWN LIMITS now says so and names the optional concurrent
+  switch-OFF s42 control (about 15.5 L4-hours, report only) for the maintainer's confirmation; no notebook change.
+- I5 (design) CONFIRMED-FIXED. (iii) is now an interface check (the critic's observation-6 input weights not all zero);
+  the dV response is printed, report only (manip_check.py, criteria). New smoke pair: 512 nonzero weights, dV 0.045
+  (report only). Tests: test_iii_is_an_interface_check_not_a_response_check; the zeroed-column test still fails (iii).
+- I6 (design) CONFIRMED-FIXED. SUBST and line 4 state "g = 3 and hs = 0, stricter than ROUND's G+ >= 2 (l.323)"; Q1
+  states "a RAIL on any tail actuator 11-14 counts, as ROUND".
+
+PROCESS REVIEW
+- P1 CONFIRMED-FIXED. VP2 run on e4d222bb: test_curriculum_k3_panel.py 23/23; the widened-pair panel equals the
+  original's, 40/40 rows bitwise (vp2d1/vp2_part_a.out); v7_failed_on_head = false filled from that record
+  (make_pins_pc.py --vp2); K3_PANEL stays True. VP0's eval-row clause measured as worded (rb/evalrows_compare.txt).
+- P2 CONFIRMED-FIXED. [measured] the reviewer's 28 = 25 + the 3 test_refusals_come_before_the_run ids, which need the
+  package on the subprocess's path. VP0 now runs the suites with PYTHONPATH = the repo: see CHECKS (suites).
+- P3 CONFIRMED-FIXED (procedure; not executed by the fixer). [measured] `git branch -vv`: tracking
+  origin/claude/screen-trex-r10-armltsb, push.default unset. The pin step 3 (b) and COLAB_STEPS now say: unset the
+  upstream, push with the explicit refspec (real git objects, never API uploads), check ls-remote (phasecritic =
+  HEAD, armltsb still 8737cd3d), record both. The fixer did not run --unset-upstream: in a worktree it writes the main
+  checkout's .git/config, which the fixer's rules forbid.
+- I1 (process) CONFIRMED-NOT-FIXED (no fix). Re-supported: the new smoke bundle passes C4 (p) and C8 (ST/tools/dry/f2dry.out).
+- I2 (process) CONFIRMED-NOT-FIXED (no fix). Re-supported: the eval ledger header is the same 194 columns ON and OFF.
+- I3 (process) CONFIRMED-FIXED (m1 applied before APPROVED, and the re-pin it requires was done: VP3, stand-in,
+  pins_pc.json, criteria PINS, f2dry and VP4 re-run on e4d222bb). [measured] python-ci.yml triggers push only on main.
+- I4 (process) CONFIRMED-NOT-FIXED: see i8.
+- I5 (process) CONFIRMED-FIXED: the FREEZE rule (no push to the branch from the push until all three launch checks
+  read no-fault) is in COLAB_STEPS and the pin step 3 (b).
+- I6 (process) CONFIRMED-NOT-FIXED for the rule (CHOICE RESUME stays the maintainer's; no resume in v1); the
+  conditional text it asks for (set CRITIC_PHASE = True again before the RESUME cell) is added (see i4).
+- I7 (process) CONFIRMED-FIXED: ST/build/COLAB_STEPS.txt now opens with a SUPERSEDED line naming ST/COLAB_STEPS.txt.
+- I8 (process) CONFIRMED-NOT-FIXED (none needed). The fixer's own side effects: none outside ST/review/fixer, WT and the
+  ST files named; /tmp eval_stage1_* count unchanged at 834.

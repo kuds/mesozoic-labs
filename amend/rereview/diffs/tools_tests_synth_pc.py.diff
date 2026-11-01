@@ -1,0 +1,121 @@
+--- amend/orig/tools/tests/synth_pc.py	2026-10-31 23:27:19.650604192 +0000
++++ tools/tests/synth_pc.py	2026-11-01 01:33:39.941170678 +0000
+@@ -1,6 +1,9 @@
+ """PC ADAPTATION (ST/tools/tests/synth_pc.py, from the round's lane B tests/synth.py, sha256 07e17a70...): the PC
+ tools (ST/tools/pc), RUN_IDs and note kind from the adapted r10round_common, the PC APPROVED keys, the switch ON
+ in the synthetic stage_config.json, M1 records carrying the per-actuator fields HABIT ELSEWHERE reads, and C8 records.
++PC AMENDMENT (2026-11-01): both arms -- a switch-off run (stance7_r10LTSBoff_s*) writes no critic_phase key and its
++arm's hyperparameters pin (pins off_arm), its LAUNCH line CRITIC_PHASE=False and its label, and its C8 records the
++stock-critic form manip_check.py writes for a critic with no phase input.
+ 
+ Synthetic records for V2: a run folder as the notebook's code writes it (only the files the code had written by the
+ run's end or cut), its fetch stores as fetch_r10round.py records them, RUNLOG note lines, and M1/M3 outputs in the
+@@ -184,11 +187,13 @@
+         f["zero_action_baseline.json"] = json.dumps({"schema": "zab", "results": {"tyrannosaurus_rex": {
+             "anatomical": {"reward_mean": self.zab}}}}).encode()
+         f["trunk_run.json"] = b'{"trunk": null}'
++        off = C.arm_of(self.run_id) == "off"                # PC AMENDMENT: a switch-off run writes no switch key
+         sc = {"species": "tyrannosaurus_rex", "embodiment": "anatomical", "stage": 1, "name": "stance",
+               "algorithm": "PPO", "library_version": "x", "git_commit": self.head, "reward_weights": {"w": 1},
+-              "hyperparameters": {"n_steps": 2048, "critic_phase": True}, "curriculum": {"timesteps": 12000000},
++              "hyperparameters": ({"n_steps": 2048} if off else {"n_steps": 2048, "critic_phase": True}),
++              "curriculum": {"timesteps": 12000000},
+               "run": {"seed": self.seed, "n_envs": 4, "timesteps": 12000000,
+-                      "hyperparameters_sha256": self.pins["hyperparameters_sha256"]},
++                      "hyperparameters_sha256": CP.arm_pin(self.pins, "hyperparameters_sha256", self.run_id)},
+               "plant_identity": self.pins["plant_identity"],
+               "task_fingerprint": {"task_sha256": self.pins["task_sha256"]}}
+         sc = json.loads(json.dumps(sc))                     # no aliasing of the pins' blocks
+@@ -343,12 +348,12 @@
+     return f"{t.strftime('%Y-%m-%d %H:%M')} UTC  {C.NOTE_KIND} {kind} {run_id}{(' ' + fs) if fs else ''}"
+ 
+ 
+-def launch_fields(seed, head=HEAD, **over):
++def launch_fields(seed, head=HEAD, arm="pc", **over):
+     f = dict(seed=seed, runtime="L4", head=head, SPECIES="tyrannosaurus_rex", EMBODIMENT="anatomical", ALGORITHM="ppo",
+              N_ENVS=4, SEED=seed, VERBOSE=0, QUICK_TEST="False", USE_GOOGLE_DRIVE="True", AUTO_DISCONNECT="True",
+-             BEHAVIOR="stance", TRUNK_FROM="", RETRAIN_FROM="", RUN_LABEL=C.RUN_LABELS.get(seed, ""),
+-             RUN_ID=f"{C.RUN_ID_PREFIX}{seed}", CRITIC_PHASE="True", K3_PANEL="True", K3_PANEL_SIGMA_FILE=C.SIGMA_FILE_COLAB,
+-             K3_PANEL_SIGMA_KEY=C.SIGMA_KEYS.get(seed, ""))
++             BEHAVIOR="stance", TRUNK_FROM="", RETRAIN_FROM="", RUN_LABEL=C.ARM_LABELS[arm].get(seed, ""),
++             RUN_ID=f"{C.ARM_PREFIX[arm]}{seed}", CRITIC_PHASE=C.ARM_CRITIC_PHASE[arm], K3_PANEL="True",
++             K3_PANEL_SIGMA_FILE=C.SIGMA_FILE_COLAB, K3_PANEL_SIGMA_KEY=C.SIGMA_KEYS.get(seed, ""))
+     f.update(over)
+     return f
+ 
+@@ -535,11 +540,12 @@
+ 
+ 
+ def standard_run(rnd: Round, seed, launch=None, ledger=None, traces=None, cert=True, ended_note=True, f2=True,
+-                 f2_mutate=None, f2_skip=(), refetch=None, extra_notes=(), **runkw):
+-    """Launch notes, the run's files, its F2 store and its panels; returns (Run, drive files)."""
++                 f2_mutate=None, f2_skip=(), refetch=None, extra_notes=(), arm="pc", c8=None, **runkw):
++    """Launch notes, the run's files, its F2 store and its panels; returns (Run, drive files).  PC AMENDMENT: arm "pc"
++    (a phase run) or "off" (a concurrent switch-off run); c8 {label: form} as write_panels takes it."""
+     launch = launch or T0
+-    run = Run(f"{C.RUN_ID_PREFIX}{seed}", launch, rnd.pins, ledger=ledger, **runkw)
+-    rnd.add_note(launch, "LAUNCH", run.run_id, **launch_fields(seed, rnd.pins["branch_head"]))
++    run = Run(f"{C.ARM_PREFIX[arm]}{seed}", launch, rnd.pins, ledger=ledger, **runkw)
++    rnd.add_note(launch, "LAUNCH", run.run_id, **launch_fields(seed, rnd.pins["branch_head"], arm))
+     end_t = launch + timedelta(hours=15)
+     for (kind, minutes, fields) in extra_notes:
+         rnd.add_note(launch + timedelta(minutes=minutes), kind, run.run_id, **fields)
+@@ -553,7 +559,7 @@
+     if refetch is not None:
+         write_store(rnd.root, "REFETCH", run, drive, end_t + timedelta(hours=14), mutate=refetch)
+         rnd.add_note(end_t + timedelta(hours=14), "REFETCH-START", run.run_id)
+-    write_panels(rnd.root, run, traces, cert)
++    write_panels(rnd.root, run, traces, cert, c8=c8)
+     return run, drive
+ 
+ 
+@@ -612,22 +618,35 @@
+     (dirp / "m1_summary.json").write_text(json.dumps(rec))
+ 
+ 
++STOCK = "STOCK"            # PC AMENDMENT: the record manip_check.py writes for a stock critic (no phase input)
++
++
+ def write_c8(dirp: Path, verdict="IN FORCE", seeds=(3042, 3043), bank_limit=500):
++    """A C8 record: verdict "IN FORCE" / "NOT IN FORCE" (a phase critic's record, phase weights zero or the actor
++    reading the phase), or STOCK: the stock-critic record manip_check.manipulation_checks writes for a critic with no
++    phase input (spec null, NOT IN FORCE failing (i) only, its why) -- the switch-off arm's C8 form."""
+     dirp.mkdir(parents=True, exist_ok=True)
+-    (dirp / "manip_check.json").write_text(json.dumps(dict(
+-        schema=C.MANIP_SCHEMA, seeds=list(seeds), bank_limit=bank_limit, verdict=verdict,
+-        checks={"(i) phase in force": dict(holds=verdict == "IN FORCE")}, physics_revision=10)))
++    if verdict == STOCK:
++        rec = dict(schema=C.MANIP_SCHEMA, seeds=list(seeds), bank_limit=bank_limit, spec=None, n_rows=1000,
++                   checks={"(i) phase in force": dict(holds=False, why=CP.STOCK_CRITIC_WHY)}, verdict="NOT IN FORCE",
++                   failing=["(i)"], physics_revision=10)
++    else:
++        rec = dict(schema=C.MANIP_SCHEMA, seeds=list(seeds), bank_limit=bank_limit, verdict=verdict,
++                   spec={"schema": "mesozoic.critic-phase/v1"}, failing=[] if verdict == "IN FORCE" else ["(i)"],
++                   checks={"(i) phase in force": dict(holds=verdict == "IN FORCE")}, physics_revision=10)
++    (dirp / "manip_check.json").write_text(json.dumps(rec))
+ 
+ 
+ def write_panels(round_dir: Path, run, traces=None, cert=True, skip=(), c8=None):
+     """The round's panels plus a C8 record at every J label up to E and at final (c8: {label: verdict or None to
+-    skip}; default IN FORCE)."""
++    skip}; default IN FORCE for a phase run, STOCK for a switch-off run, PC AMENDMENT)."""
+     _round_write_panels(round_dir, run, traces, cert, skip)
+     pd = Path(round_dir) / "panels" / run.run_id
+     E = run.end_step()
+     labels = [str(s) for s in C.J_STEPS if s <= E] + ["final"]
++    default = STOCK if C.arm_of(run.run_id) == "off" else "IN FORCE"
+     for lab in labels:
+-        v = (c8 or {}).get(lab, "IN FORCE")
++        v = (c8 or {}).get(lab, default)
+         if v is not None and f"c8-{lab}" not in skip:
+             write_c8(pd / lab / "c8", verdict=v)
+ 
+@@ -676,6 +695,8 @@
+ def _score_pc(self, bind=True, trigger_store=True, comparators="cached", auto_view=True):
+     if auto_view:   # the view pin is a default synthetic run's own (the round's tests set it with set_view_pin)
+         self.pins["stage_config_view_sha256"] = view_pin_of(Run(f"{C.RUN_ID_PREFIX}60", T0, self.pins))
++        # PC AMENDMENT: and the switch-off arm's view pin, a default synthetic switch-off run's own
++        self.pins["off_arm"]["stage_config_view_sha256"] = view_pin_of(Run(f"{C.ARM_PREFIX['off']}60", T0, self.pins))
+     self.write_meta()
+     if trigger_store:
+         make_trigger_stores(self.root, self.runlog)
