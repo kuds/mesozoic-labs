@@ -271,7 +271,7 @@ class CriticPhaseActorCriticPolicy(ActorCriticPolicy):
         )
 
     def _get_constructor_parameters(self) -> dict[str, Any]:
-        data = super()._get_constructor_parameters()
+        data: dict[str, Any] = super()._get_constructor_parameters()
         data.update(self.critic_phase.policy_kwargs())
         return data
 
@@ -282,7 +282,8 @@ class CriticPhaseActorCriticPolicy(ActorCriticPolicy):
             width = self.mlp_extractor.critic_input_dim
             if array.ndim in (1, 2) and array.shape[-1] == width:
                 return obs_as_tensor(array.reshape((-1, width)), self.device), array.ndim == 2
-        return super().obs_to_tensor(observation)
+        stock: tuple[Any, bool] = super().obs_to_tensor(observation)
+        return stock
 
 
 # ---------------------------------------------------------------------------------------------------- checks
