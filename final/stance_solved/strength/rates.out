@@ -1,0 +1,19 @@
+A. PHASE: 3 of 3 runs met line 4 (no rail/park, gate PASS, no saturating habit elsewhere)
+   one-sided 95% lower bound on the true success rate: 0.05**(1/3) = 0.368
+   two-sided 95% Clopper-Pearson interval: [0.292, 1.000]
+   rule of succession (uniform prior), chance the next seed also succeeds: 0.800
+   Jeffreys prior posterior mean: 0.875
+   chance that 3 more new seeds all succeed if the true rate were 0.80: 0.512; 0.90: 0.729
+B. Plug-in chance of 0 habits in 3 PHASE runs if the phase input changed nothing, at a base rate q:
+   rail only, OFF 1 of 3                                   q = 0.333: (1-q)^3 = 0.296
+   rail or park, OFF 2 of 3                                q = 0.667: (1-q)^3 = 0.037
+   any habit incl. OFF s80 neck, 3 of 3                    q = 1.000: (1-q)^3 = 0.000
+   LTSB r9 rails 2 of 5                                    q = 0.400: (1-q)^3 = 0.216
+   r9 L+T family rails 4 of 10                             q = 0.400: (1-q)^3 = 0.216
+   pooled rails r9 4 of 10 + r10 1 of 3 = 5 of 13          q = 0.385: (1-q)^3 = 0.233
+   pooled rail-or-park 6 of 13 (r9 parks not classified)   q = 0.462: (1-q)^3 = 0.156
+   OFF rail-or-park 2 of 3, 95% CP interval for q: [0.094, 0.992] -> (1-q)^3 from 0.743 to 5.93e-07
+   pooled rails 5 of 13, 95% CP interval for q: [0.139, 0.684] -> (1-q)^3 from 0.639 to 0.031
+C. Fisher one-sided, 3 vs 3, as a check of SCORE line 363
+   0 of 3 vs 2 of 3: C(3,2)/C(6,2) = 0.200; 0 of 3 vs 3 of 3: 1/C(6,3) = 0.050
+D. Smallest exact p, 3 + 3 unpaired permutation: 1/C(6,3) = 0.050 ; paired sign-flip, 3 pairs: 1/2**3 = 0.125

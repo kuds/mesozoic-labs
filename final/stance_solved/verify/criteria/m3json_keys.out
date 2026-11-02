@@ -1,0 +1,229 @@
+checkpoint_plant_validated = True
+control_dt = 0.01
+embodiment = anatomical
+episodes = 40
+failures list 0
+filter_actions_hz = None
+gate_kind = stance_quality_heading/v1
+gate_sha256 = sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf
+handoff dict 3
+  checkpoint = stage1_final.zip.copy1
+  checkpoint_sha256 = sha256:05b1638f18b130aad16dc45607809de1992c4c3b07fea1c32897424dc9ef03fe
+  normalization_sha256 = sha256:4c2a3886f2cc65bc6114aef28aa8c1774f1daf2989fa05c0d3a524764667f07b
+heading_grid_deg list 6
+headings list 6
+    [0] action dict 8
+    [0]   ac_rms = 0.030732974743373515
+    [0]   dc_rms = 0.036132964771874415
+    [0]   dc_rms_deg = 1.2688125543087734
+    [0]   delta_per_step = 1.3269808000592279e-05
+    [0]   effective_freq_hz = 33.58785021000359
+    [0]   jerk_per_step = 4.0175266063560636e-05
+    [0]   max_abs_dc_deg = 3.731822226534117
+    [0]   per_actuator list 15
+    [0] episode_evidence list 40
+    [0] metrics dict 10
+    [0]   bilateral_support_duty = 1.0
+    [0]   clean_fraction = 1.0
+    [0]   clean_lcb = 0.9278424754944773
+    [0]   episode_length_mean = 1000.0
+    [0]   full_horizon_fraction = 1.0
+    [0]   mean_unsupported_duty = 0.0
+    [0]   n_clean = 40
+    [0]   reward_mean = 4487.572280319648
+    [0]   reward_std = 22.888490448751615
+    [0]   single_support_duty = 0.0
+    [0] result dict 13
+    [0]   clean_fraction = 1.0
+    [0]   clean_lcb = 0.9278424754944773
+    [0]   criterion_failures dict 19
+    [0]   failures list 0
+    [0]   full_horizon_fraction = 1.0
+    [0]   hop_or_fall_episodes = 0
+    [0]   mean_reward = 4487.572280319648
+    [0]   n_clean = 40
+    [0]   n_episodes = 40
+    [0]   n_full_horizon = 40
+    [0]   passed = True
+    [0]   skipped_criteria list 0
+    [0]   statue_mean_reward = 4470.368636249951
+    [0] reward_components dict 34
+    [0]   reward_action_jerk = -0.005884425606608182
+    [0]   reward_action_saturation = 0.0
+    [0]   reward_airborne_substeps = 0.0
+    [0]   reward_alive = 998.2514057979304
+    [0]   reward_approach = 0.0
+    [0]   reward_backward = 0.0
+    [0]   reward_bilateral_support = 597.9016869572363
+    [0]   reward_bite = 0.0
+    [0]   reward_drift = -0.13522202442061299
+    [0]   reward_energy = -0.23179724704171378
+    [0]   reward_floor_impact = -0.020837797024682247
+    [0]   reward_foot_flatness = 143.7360461392259
+    [0]   reward_foot_load_balance = -4.2200673510716324
+    [0]   reward_forward = 0.0
+    [0]   reward_gait = 0.0
+    [0]   reward_head_clearance = 349.7333444969353
+    [0]   reward_head_proximity = 0.0
+    [0]   reward_heading = 98.87047968990973
+    [0]   reward_height = 599.791859714944
+    [0]   reward_idle = 0.0
+    [0]   reward_lateral = 0.0
+    [0]   reward_lateral_lean = 198.29873701446576
+    [0]   reward_leg_home_pose = 985.5431001169624
+    [0]   reward_neck_posture = 196.71045342964274
+    [0]   reward_nosedive = -0.22939482727640875
+    [0]   reward_posture = -0.30976300737151574
+    [0]   reward_smoothness = -0.01799191580588499
+    [0]   reward_speed = -0.21636816479742982
+    [0]   reward_spin = -0.13037981987573694
+    [0]   reward_stance_cop_band = 0.0
+    [0]   reward_stance_stagger = -0.21994104867836972
+    [0]   reward_stance_width = 76.39137649632488
+    [0]   reward_tail = -0.2693393297227525
+    [0]   reward_tail_home_pose = 248.3507774245861
+    [0] statue dict 5
+    [0]   episode_evidence list 40
+    [0]   policy = zero action (do-nothing reference)
+    [0]   reference dict 4
+    [0]   reused_policy_panel = False
+    [0]   seed = 3042
+    [0] terminations dict 1
+    [0]   truncated = 40
+    [0] turn dict 3
+    [0]   kind = spawn_yaw/v1
+    [0]   whole_scene = True
+    [0]   yaw_deg = -90.0
+    [0] yaw_deg = -90.0
+hold_constant = None
+horizon = 1000
+impulse = None
+measurement dict 9
+  body_weight_n = 840.9132
+  constants dict 9
+    contact_threshold_n = 0.1
+    debounce_s = 0.02
+    down_substep_fraction = 0.5
+    load_window_s = 1.0
+    measurement_version = floor-truth/v2
+    saturation_abs = 0.99
+    sole_rolled_deg = 2.0
+    spawn_grace_s = 0.1
+    support_geom_down_fraction = 0.5
+  dt = 0.01
+  embodiment = anatomical
+  feet list 2
+      [0] ankle_joint = r_ankle
+      [0] label = r
+      [0] mtp_joints list 4
+      [0] reference_site = r_foot
+      [0] sensors list 4
+      [0] sole_forward = +x
+      [0] sole_geom = r_plantar_geom
+      [0] sole_lateral = +y
+      [0] sole_normal = -z
+      [0] support_geoms list 4
+      [0] support_span_m list 2
+  frame_skip = 5
+  registry dict 6
+    ankle = {s}_ankle
+    foot_site = {s}_foot
+    heel_line = 0.07
+    sole = {s}_plantar_geom
+    support list 4
+    toe_line = 0.21
+  schema = mesozoic.floor-truth-measurement/v3
+  species = tyrannosaurus_rex
+measurement_sha256 = sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567
+normalization dict 3
+  clip_obs = 10.0
+  epsilon = 1e-08
+  mode = vecnormalize-frozen
+passed = True
+plant_identity dict 16
+  action_dim = 15
+  embodiment = anatomical
+  model_path = environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml
+  nq = 28
+  nu = 15
+  nv = 27
+  observation_dim = 63
+  physics_revision = 10
+  physics_sha256 = sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d
+  policy_interface_revision = 15
+  policy_interface_sha256 = sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8
+  schema = mesozoic.plant-identity/v2
+  source_closure_sha256 = sha256:ccda5ddff3602676409ce79f28373a56e8ac069f37ab4b83808ef02aae8442e0
+  species = tyrannosaurus_rex
+  visual_revision = 4
+  visual_sha256 = sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4
+policy = stage1_final.zip.copy1 — VecNormalize stats applied (clip 10)
+policy_deterministic = True
+protocol = whole_scene_yaw/v1
+result dict 12
+  clean_seed_fraction = 1.0
+  clean_seed_lcb = 0.9278424754944773
+  failures list 0
+  grid_deg list 6
+  n_clean_seeds = 40
+  n_seeds = 40
+  passed = True
+  per_heading list 6
+      [0] clean_fraction = 1.0
+      [0] clean_lcb = 0.9278424754944773
+      [0] criterion_failures dict 19
+      [0] failures list 0
+      [0] full_horizon_fraction = 1.0
+      [0] hop_or_fall_episodes = 0
+      [0] mean_reward = 4487.572280319648
+      [0] n_clean = 40
+      [0] n_episodes = 40
+      [0] n_full_horizon = 40
+      [0] passed = True
+      [0] skipped_criteria list 0
+      [0] statue_mean_reward = 4470.368636249951
+      [0] yaw_deg = -90.0
+  pooled_episodes dict 4
+    clean_lcb = 0.9875953619496075
+    n_clean = 240
+    n_episodes = 240
+    note = every (seed, heading) episode counted as independent: NOT the statistic
+  protocol = whole_scene_yaw/v1
+  seed_failures list 0
+  seeds list 40
+schema = mesozoic.stance-heading-report/v2
+scored_gate_kind = stance_quality_heading/v1
+seed = 3042
+seeds list 40
+settle_steps = 200
+spawn_yaw = None
+species = tyrannosaurus_rex
+stage = 1
+task_sha256 = sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+thresholds dict 26
+  max_actuator_saturation_fraction = 0.1
+  max_episode_yaw_change_deg = 25.0
+  max_foot_contact_fraction = 0.02
+  max_hop_or_fall_episodes = 1
+  max_nonfoot_load_fraction = 0.02
+  max_phantom_support_fraction = 0.05
+  max_settle_airborne_substeps = 0
+  max_settle_peak_floor_force_bw = 1.5
+  max_settle_stance_width_change_m = 0.08
+  max_settle_touchdowns = 2
+  max_sole_cop_fore_aft = 0.8
+  max_sole_corner_lift_m = 0.004
+  max_sole_tilt_deg = 2.0
+  max_touchdown_rate = 0.25
+  max_window_displacement_m = 0.1
+  min_all_feet_support = 0.98
+  min_avg_reward = 2260.0
+  min_avg_reward_statue_ratio = 0.6
+  min_clean_stance_lcb = 0.8
+  min_eval_episodes = 40
+  min_foot_load_share = 0.4
+  min_foot_load_share_windowed = 0.35
+  min_full_horizon_fraction = 0.95
+  min_sole_contacts = 1.5
+  required_consecutive = 3
+  settle_steps = 200
