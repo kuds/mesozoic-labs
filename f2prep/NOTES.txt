@@ -1,0 +1,81 @@
+F2 PREPARATION (builder B) -- ST/f2prep, 2026-11-02 13:56-14:31 UTC (date -u). Labels: [measured] = read or computed
+from the named file or command; [inferred] = reasoned, basis named. S1, S2, ST, WT, HEAD, <PCR>, RUNLOG, ROUND as the
+criteria's SHORT NAMES. Every command and time: cmdlog.txt.
+
+SCOPE AND RULES KEPT
+- Read: <PCR>/criteria.txt (FETCHES, VALIDATIONS VP1/VP4, PINS, HOW THE COORDINATOR PINS 5), COLAB_STEPS.txt lines
+  225-280, ST/tools/pc/fetch_agent_brief.txt (F2, rule 7), RUNLOG (read only; sha256 7a713156..., 950 lines, unchanged
+  from 13:56 to 14:30 [measured]).
+- No Drive access; no file of the six PC runs opened; nothing under <PCR>, ST/tools or RUNLOG written; no git write; no
+  network write. Inputs were STANCE6's F2 copies and panels (S1/foot/stance6, read only), the zero-column widened s80
+  zip (ST/review/fixer/vp2d1, read only) and two new 2-update smoke runs. Outside check at the end: nothing written
+  outside ST/f2prep [measured, find -newer the start marker; cmdlog.txt].
+- PY -I -B, nice 10, cwd ST/f2prep/work, TMPDIR and MPLCONFIGDIR inside ST/f2prep (env.sh reads S1/S2 from the pinned
+  tools' constants). At most 2 measuring processes at once.
+- Deviations, each harmless [measured]: (1) f2dry.py (pinned folder, not editable) runs its two child tools with
+  cwd=/tmp; with -I -B no file appeared in /tmp [measured, listing before/after]. (2) the measuring children's
+  environment (r10m_common.child_env) sets MPLCONFIGDIR to S2/caches/mpl; no child imported matplotlib [measured on the
+  same modules] and S2 shows no new file [measured]. (3) one read-only JSON one-liner used the system python3 (SLIP,
+  cmdlog). (4) vp1_m3_compare.py v1 compared the M3 panel CSV by bytes and read the widened pair DIFFERENT only because
+  of its checkpoint_sha256 column (the certified file's own sha256); v2 treats that column as identity, like the
+  report's handoff/checkpoint_sha256; both outputs kept (vp1/vp1_m3_compare.v1.out, vp1/vp1_m3_compare.out).
+
+(1) DISK -- see disk_report.txt (sizes, needs, candidates; nothing deleted outside ST/f2prep).
+  Free on /: 3.68 GiB at 13:56Z, low point 2.27 GiB at 14:17Z (a parallel builder's test roots, since cleaned),
+  2.56 GB at 14:29Z [measured]. Needed when F2 starts so that the 3 GiB floor of measure_r10round.py and
+  manip_check.py still holds after F2's copies (~1.2 GB) and the panels (~0.7-1.4 GB): about 5.3-5.9 GB [inferred].
+  Candidates: tier 1 caches + S2/venv-lint ~0.55 GB; tier 2 clean pushed worktrees/clones ~1.2 GB (git worktree remove:
+  a git write for the coordinator); tier 3 finished studies' raw data (S2/tailround/screen 3.9G, S2/r10round/ecs 2.0G,
+  ...) only with the maintainer's word.
+
+(2) VP1 AND VP4 -- both PASS [measured]
+  Measuring copy: measure_r10round.py build-copy --commit 1dfe2327f773... -> seal archive_sha256 babc6812..., tree_digest
+  9417b765..., 1410 files (= the pin step's); check-copy after all runs OK; deleted after recording (rebuildable).
+  VP1 (criteria line 424):
+   (a) M1 of the HEAD copy on STANCE6 s80's final F2 pair = the round's panel: 20 of 20 per-step CSV sha256 equal, every
+       reduction equal (vp1/vp1_m1_compare.out).
+   (b) M3 of the HEAD copy on that pair = the round's certificate: all 43,194 report leaves equal, panel CSV bytes
+       equal, PASS, 40 clean seeds per heading, clean_seed_lcb 0.92784... (vp1/vp1_m3_compare.out).
+   (c) M1 on the zero-phase-column widened pair (widened_s80_final.zip bbf88662...) = (a): 20 of 20 CSV sha256 equal.
+   (d) M3 on the widened zip = (b) but the three identity leaves (the file's name and sha256) and the CSV's
+       checkpoint_sha256 column; 1360.9 s and 1367.7 s of CPU time per M3 [measured, m3_summary].
+  VP4 (criteria lines 458-484):
+   - stand-in --as pc and --as off: 25 of 25 class keys for each STANCE6 run, ALL EQUAL True; stdout byte-equal to
+     ST/pin's (paths masked) and its sha256 equal to APPROVED's standin_pc.out 081bf518... / standin_off.out 88dd641d...
+   - TD = DESIGN/comparators.out (0.388227, 0.635343, 0.154339; lowest repr 0.15433899719014801) (vp4/vp4_td_check.out).
+   - manipulation check NOT IN FORCE on the widened s80 final, failing (i) only, phase-fed V and actor means bitwise
+     equal (vp4/vp4_widen_s80.out, identical to ST/tools/dry/vp4_widen_s80.out).
+   - f2dry.py --arm pc on a new 2-update switch-ON smoke: C4 (p) PASS, C8 PASS (IN FORCE); --arm off on a switch-OFF
+     smoke: C4 (p) PASS (no key), C8 PASS (stock critic, NOT IN FORCE); C3/C6 FAIL and VERDICT LOST as the tool's own
+     docstring expects of a 1,024-step smoke (vp4/f2dry_pc.out, f2dry_off.out).
+   - test_score_pc.py 65 passed; test_manip_pc.py 7 passed (it skipped in the amendment runs: no copy/smoke on disk);
+     mutate_pc.py KILLED 49 of 49.
+  Smoke runs: smoke_pc.py train ON/OFF, stdout identical to ST/pin's, final vecnorm 85fde059... (= the pin step's);
+  every smoke/bundle/f2dry file's sha256 in vp4/evidence_sha256.txt, then deleted (criteria: outputs deleted after
+  recording). VP1's 40 per-step CSV.gz deleted after vp1/evidence_sha256.txt (csv_sha256.txt kept).
+
+(3) F2_PINS.draft.json (compact JSON, sha256 03f03e4a... at writing; f2pins_draft.out shows every check)
+  tool_sha256: the 11 files r10round_common.tool_hashes() lists, computed now; each equals pins_pc.json's tool_sha256 and
+  APPROVED's pin [measured]; no difference flagged. validations {"VP1": "PASS", "VP4": "PASS"} (set by the builder only
+  because every listed log shows the expected result). Extra keys validation_logs_sha256, measuring_copy and draft:
+  score_pc.py reads only tool_sha256 and validations from F2_PINS.json [measured, score_pc.py lines 173, 195]; the
+  coordinator may drop "draft" before writing <PCR>/F2_PINS.json (its sha256 then changes).
+
+(4) restatements.draft.txt -- 23 other-form lines [measured, the pinned parse_runlog with C.RUN_IDS]:
+  874, 875, 876, 881, 884, 889, 891, 906, 909, 910, 916, 921, 922, 924, 925, 926, 927, 928, 933, 937, 938, 939, 940.
+  Each has a STANCE7 NOTE draft (original time, its words verbatim, the branch name written <PC branch>; line 881,
+  APPROVED's bytes, restated by its pinned fields). None could not be restated. Finding [measured]: a STANCE7 NOTE is no
+  Records KIND, so the drafts parse as 0 notes (no rule's reading changes) and each is itself printed as another
+  other-form line; every event the 23 lines name is already on a KIND line (LAUNCH 885-887, 907, 911, 923; CHECK 893,
+  895, 915, 920, 932); a LAUNCH restatement would make C1 count two launches. Recommended [inferred]: option A (the
+  stance6 precedent, RUNLOG line 706), one note naming no RUN_ID; never a KIND restatement.
+
+BLOCKING F2 AT 16:32 UTC (as of 14:31 UTC)
+- Disk: about 2.6-3.7 GB free; F2's ~1.2 GB would leave the measurements below their 3 GiB floor (exit 5): clear
+  >= 2-3 GB first (disk_report.txt).
+- <PCR>/F2_PINS.json not written yet (the coordinator's; after the independent review of these drafts and the
+  maintainer's approval of the bytes, RUNLOG line 950); its sha256 on a RUNLOG line before the F2-START lines, else F2
+  waits (COLAB_STEPS) and the reading is PROVISIONAL.
+- RUNLOG line 949: the DEVIATION reading (builder A's ST/amend2 tool) is also to be pinned, reviewed and approved before
+  F2; it is outside tool_hashes, so its sha256 needs its own pin.
+- The restatement choice (option A or B) written before the F2-START lines.

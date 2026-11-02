@@ -1,0 +1,131 @@
+SKEPTIC NOTES on ALL_EXPERIMENTS_SUMMARY.md
+Written 2026-11-02 19:55 UTC (date -u). Reviewed file: /home/user/work/pc_study/final/ALL_EXPERIMENTS_SUMMARY.md,
+486 lines, sha256 8709a86a0997681a2dc275779161f8299a3916cdd8b9e3fa409a140441558a6c, mtime 19:46:00 UTC.
+Read only. Nothing outside this folder was written.
+
+Labels: [measured] = read from the named file and line. [inferred] = my reasoning.
+RUNLOG = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt
+ST = /home/user/work/pc_study. PS = /home/user/work/phase_screen. TAILREC = the draft record in /home/user/work/wt_records3.
+
+VERDICT
+The numbers hold. The overall story does not hold everywhere. I checked about 150 numbers, dates and line citations
+against RUNLOG, the score files, the criteria, the PS report and TAILREC. I found no wrong number of substance
+[measured: the checks below]. But two causal sentences say more than the evidence does, and are BLOCKING. There are
+also missing slips, some wrong labels and several missing caveats.
+
+BLOCKING
+B1. The heading of Link 4 (summary line 416) is: "a critic-only phase input removes it (measured in two screens and
+    one round ...)".
+    - Only one screen gave the critic a phase input: PS [measured: RUNLOG l.857]. BS2 hid the tail angle from the
+      critic. It gave the critic no phase [measured: RUNLOG l.772, l.794].
+    - PS showed that the climb was REDUCED over a 1.44M-step window, from one start state [measured: PS REPORT.md
+      lines 9-11, 103]. It did not show that the habit was removed.
+    - The pinned PC reading is "CONSISTENT WITH ... NOT CONFIRMATORY" [measured: ST/f2/score/score_pc.txt line 357].
+    - Fix: retitle Link 4 as "a critic-only phase input reduced the climb in one screen (PS). 0 of 3 from-scratch runs
+      formed the habit (descriptive, not confirmatory)."
+B2. Link 3 ends (line 414): "the critic's clock error is what first tilts the loop upward [inferred]".
+    - The summary's own measured items say the critic's role at the onset is "unresolved" [measured: RUNLOG l.771].
+    - In s42 a tail bias that does not depend on posture rose first, at about 1.20M steps [measured: RUNLOG l.757].
+    - At 1.05M the expected update was zero. Yet the weights raised tail_3 by about +0.15 between 1.05M and 2.10M, in
+      both s42 and s80 [measured: RUNLOG l.770].
+    - BS, the screen from 1.05M, was NOT INFORMATIVE [measured: RUNLOG l.779].
+    - Open item 3 of the summary says the same thing as these lines. So the summary contradicts itself.
+    - Fix: "the critic's clock error is the leading measured source of the upward pull from 2.10M on. What starts
+      the rise at about 1.2M is unresolved."
+
+MINOR
+M1. Slips on RUNLOG are missing. The summary names the 17:44 opening, the s80-before-s42 launch order and the PS
+    container restarts. It does not name these:
+    - l.768: an agent moved a file onto a system device path as root. The device was replaced for 1-2 minutes, during
+      the early-warning work (E17). It was restored, and l.769 found no effect on the probe's logs.
+    - l.854, l.860, l.862, l.878, l.951, l.953: error output was redirected into a system device file, against the
+      session rule. This happened repeatedly, during PS and during PC.
+    - l.873: all six PC branch commits carried a model-name trailer. They were reworded before the push.
+    - l.935: the maintainer was told a wrong end time (15 h had been added twice).
+    - l.708-709: the stance6 F2 transfer method departed from the fetch brief's wording.
+    - l.862 (M1): PS's process check found a gap in the early-crash wording.
+    - l.905: inferred views of three pc_s60 files at 17:50-17:51 UTC, before any OFF launch. AMENDMENT2 names this
+      [measured: ST/amend2/AMENDMENT2.txt lines 147-153, 174].
+    - l.400-405: ten entries carried guessed times. l.237: files were copied into the main checkout.
+    - Fix: add a short "Slips on record" list, with line numbers.
+M2. Link 0 (line 389) says tail_3 "climbs to +1 in some seeds and stays there". It does not always stay.
+    - stance5r s80 recovered by 10.5M [measured: RUNLOG l.493].
+    - stance6 s42 went negative at 6.55-6.95M, then came back [measured: RUNLOG l.689].
+    - stance3 Run 2's rail came and went [measured: TAILREC line 597, L028].
+    - Fix: "often persists; it can come and go".
+M3. Link 0 (line 392) says "No tail contact ends episodes". PS had two evaluation falls caused by tail_contact, one
+    in each arm [measured: PS REPORT.md line 69]. The 0-contact figure covers 1,280 rollouts and 2,495 s42 training
+    episodes between 1.05M and 3.54M [measured: RUNLOG l.804]. Fix: give that scope.
+M4. Three places turn ECS's "no difference detected" into "no difference":
+    - E13 Status: "Entropy is not the driver from these states".
+    - Link 3: "removing entropy changed nothing".
+    - The ruled-out list: "made no difference".
+    ECS read line 3, NO DIFFERENCE DETECTED. Its s42 arm A was already at 6 of 6, so arm B had no room to read higher
+    [measured: RUNLOG l.740]. The early phase was not tested [measured: RUNLOG l.742].
+    Fix: write "no difference was detected", and name the 6-of-6 ceiling.
+M5. Pairing by seed. The summary says each PHASE/OFF pair "differs only by the critic phase input" (lines 370, 421).
+    It also says tail drive was "13-49 times lower than the same seeds without the input" (line 420).
+    - [inferred] A reader may take these as a per-seed measure of what the phase information did. It is not one.
+      Training is deterministic, so any change at all, even an input that carries no information, sends a run down a
+      different path.
+    - There was no sham-input arm [measured: PS REPORT.md line 107; ST/round/criteria.txt lines 86-94].
+    - The evidence is still 3 runs. If the phase input changed nothing, "no rail in 3 runs" would have a 0.296 chance
+      [measured: score_pc.txt line 359].
+    - Fix: add that [inferred] caveat next to both sentences.
+M6. Wrong labels or no label:
+    - Link 4, "blinding is a stopgap": RUNLOG l.804 gives this as "Implication [inferred]", but the summary labels it
+      measured. Open item 8, "only partial", has the same problem.
+    - Link 2, "learns to read the tail angle": this is the adjudicated reading [measured: RUNLOG l.804, "inferred
+      reading"], not a measurement.
+    - Open item 2, "same Colab image": the image's identity was not measured. RUNLOG l.970 says only that the premise
+      of non-reproducible training is contradicted.
+    - E25, "This is a FAIL ... caused by the procedural slip": no label.
+    - Section 0, "Both terms are still in force": no label.
+    - E16, "clock reading was then only a hypothesis": this quotes RUNLOG l.771, so it is measured text, not inferred.
+M7. E25 leaves out these caveats and facts:
+    - The l.905 views (see M1).
+    - TD's form was chosen with STANCE6's values in view [measured: ST/round/criteria.txt lines 305-307; score_pc.txt
+      line 362]. Because OFF equals STANCE6 bitwise, the deviation p = 1/20 compares fresh PHASE values with control
+      values that were known when the statistic was chosen [inferred].
+    - PC's Statistic A, a negative: phase 0 of 3 against switch-off 2 of 3, one-sided Fisher p 0.2, not significant
+      [measured: score_pc.txt line 363].
+    - The manipulation check C8 passed on the PHASE runs: the phase was in force and the actor was independent of it
+      [measured: ST/f2/measure/stance7_r10LTSBpc_s42/complete_post.txt line 68].
+M8. Other caveats are missing:
+    - E21: "B-apparent (an over-learned height preference) unresolved" [measured: RUNLOG l.804].
+    - E7: "untested: ... the discounted, normalised objective" [measured: RUNLOG l.526]. The later explanation lives in
+      exactly that objective.
+    - E16: s80 also rose about +0.15 between 1.05M and 2.10M [measured: RUNLOG l.770].
+M9. Words a non-specialist cannot read. These are used with no one-line gloss: AUC, t (as in "t 3.6"), Fisher p,
+    95% CI, SD, plug-in, MEAN_a, L+T, LTSB, CoP, K1-K4 and K3, mirror-KL, V-G, B_S, and the "R 1 (COMPLETE 1,
+    PRESENCE 0), U 0, P 1, G+ 1" string. There is no short summary at the top. Line 385 says "four links", but the
+    section lists five (Link 0 to Link 4).
+M10. "(0.27 at the start)" in E14 and Link 3 means the ECS start state at 3.15M. At 1.05M and 2.10M the loop gain was
+    negative [measured: RUNLOG l.769; /home/user/work/pr655_review/xref/XREF.txt line 46].
+
+INFO
+I1. Section 4 lists E24 (LP) with PR "none". The records draft covers "the abandoned long study" [measured: RUNLOG
+    l.871].
+I2. S1 and S2 are defined at criteria.txt lines 38-39, not 39-40.
+I3. The ratio for s80 is 12.6, so "13 to 49 times" should be "about 13 to 49 times" [measured: score_pc.txt line 362].
+I4. The two rounds carried the phase differently. PS put it in the actor's three always-zero command inputs [measured:
+    PS REPORT.md lines 15-16; RUNLOG l.833]. PC gave it a separate critic-only input [measured: criteria.txt lines
+    95-104]. The summary does not say so.
+I5. PS's spread caveat is missing: SD ratio 5.7, P(complete separation | equal means) 0.036 [measured: RUNLOG l.862].
+    BS2's version of this caveat is given.
+I6. The 0.296 chance is for RAIL only. For RAIL or PARK at the switch-off runs' 2 of 3, the plug-in chance of 0 of 3
+    is (1/3)^3 = 0.037 [inferred, my arithmetic; a plug-in from 3 runs]. The summary may understate here.
+
+CHECKED AND CORRECT (sample) [measured]
+- E1-E5: RUNLOG l.93-95, 108, 163, 170-172, 228-229, 262-266, 335, 349-352, 366, 438, 455, 460, 490-493.
+- E7-E10: l.508, 526-528, 547-548, 573, 575, 581, 585, 593, 606.
+- E12-E19: l.711, 740, 742, 746, 750, 757, 769-773, 779, 794, 796.
+- E21-E23: l.803-804, 809-811, 849-852, 857, 861-862.
+- E25: score_pc.txt lines 321-343, 357-365; score_pc_dev.txt line 393; criteria.txt lines 63-77, 229, 289-312.
+- Zip checks: zipcrc_off_vs_stance6.out lines 4-5, 46-47, 88-89.
+- TAILREC lines 565, 569, 572-575, 586, 596-597, 603, 1311, 1314-1316. Sections 1-9 are at 4c9d5e9b; section 10 is
+  only in the draft.
+- S6HEAD: HEADLINE.txt lines 1-2 and 6.
+- Counts: 4 of 10 r9 L+T-family runs railed (l.613). The PHASE TDs and OFF TDs, and the per-seed ratios 49.1, 36.7
+  and 12.6.
+- No AI model or product name appears in the summary.

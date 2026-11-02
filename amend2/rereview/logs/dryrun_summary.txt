@@ -1,0 +1,48 @@
+Dry run of the fixed tool on RUNLOG (default --runlog), --round ST/amend2/dry/round_view (empty fetch), --out rereview/dryrun_out; exit 10; stderr 0 bytes.
+Full stdout: 138 lines, sha256 f61c0994328921a6e666b15c4b6b76ef1b5f00768875bf79fbe86b7172fb3deb; identical to fix/dryrun.out after replacing the --out and cwd paths. Kept here: only the tool's own lines (the scorer's printed RUNLOG lines are left out; paths shortened: RUNLOG_PATH = the round's RUNLOG, PY = the study venv python).
+score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)
+PINNED SCORER: /home/user/work/pc_study/tools/pc/score_pc.py sha256 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986; it loads ['complete_r10round', 'ledger_r10round', 'pc_common', 'r10round_common', 'score_pc', 'score_r10round']; all 14 pinned tool files at APPROVED's and pins_pc.json's sha256 (APPROVED ce8865205a218541...)
+RUNLOG RUNLOG_PATH: 952 lines, sha256 c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d; read once, copied byte for byte to /home/user/work/pc_study/amend2/rereview/dryrun_out/runlog_asread.txt
+DEVIATION READING (flagged; not the pinned reading): THE ONE TEST computed as if the three OFF runs were blind; maintainer decision 2026-11-02 13:52 UTC, recorded before F2; the pinned reading above stands
+    maintainer decision line: RUNLOG line 949, 2026-11-02 13:52 UTC; sha256 equals the pinned decision line's; before every F2-START / REFETCH-START line: yes (0 such lines)
+    dropped (content removed, line feed kept; every other line byte-identical): [(902, 'SNAPSHOT', 'stance7_r10LTSBpc_s60', '2026-11-01 17:44 UTC')] at or before the last OFF launch 2026-11-01 18:56 UTC; dropped-line sha256 ['0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12']; expected: the pinned line (default)
+    deviation RUNLOG copy: /home/user/work/pc_study/amend2/rereview/dryrun_out/runlog_deviation.txt sha256 086a1e5f30373d73499e0a39b0660fb883af8b6f0d348b620537422cda87c0d3
+  [deviation] OUTCOME BLINDNESS (every switch-off run starts before any phase run's results are opened): first opening null; not blind (enter THE ONE TEST as missing) []
+  [deviation]     s60: phase stance7_r10LTSBpc_s60 launched 2026-11-01T03:26:00+00:00; switch-off stance7_r10LTSBoff_s60 launched 2026-11-01T18:12:00+00:00; phase-off start gap (report only) 886.0 min; blind True
+  [deviation]     s42: phase stance7_r10LTSBpc_s42 launched 2026-11-01T03:27:00+00:00; switch-off stance7_r10LTSBoff_s42 launched 2026-11-01T18:56:00+00:00; phase-off start gap (report only) 929.0 min; blind True
+  [deviation]     s80: phase stance7_r10LTSBpc_s80 launched 2026-11-01T03:28:00+00:00; switch-off stance7_r10LTSBoff_s80 launched 2026-11-01T18:20:00+00:00; phase-off start gap (report only) 892.0 min; blind True
+  [deviation] STATUS: INCOMPLETE (no line read)
+  [deviation]     THE ONE TEST (deviation): not computed by the scorer in this run (READING incomplete; the open items are listed above)
+DIFFERENCES between the pinned run and the deviation run (every output line that differs; then every JSON value):
+    output line 34/34 [blindness: the first opening and the NOT BLIND runs]:
+    output line 35/35 [blindness: the seed's OFF run blind or not]:
+    output line 36/36 [blindness: the seed's OFF run blind or not]:
+    output line 37/37 [blindness: the seed's OFF run blind or not]:
+    JSON blindness.first_opening [blindness]: pinned "(absent)" | deviation null
+    JSON blindness.first_opening.kind [blindness]: pinned "SNAPSHOT" | deviation "(absent)"
+    JSON blindness.first_opening.line [blindness]: pinned 902 | deviation "(absent)"
+    JSON blindness.first_opening.run [blindness]: pinned "stance7_r10LTSBpc_s60" | deviation "(absent)"
+    JSON blindness.first_opening.time [blindness]: pinned "2026-11-01T17:44:00+00:00" | deviation "(absent)"
+    JSON blindness.not_blind [blindness]: pinned "(absent)" | deviation []
+    JSON blindness.not_blind[0] [blindness]: pinned "stance7_r10LTSBoff_s60" | deviation "(absent)"
+    JSON blindness.not_blind[1] [blindness]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"
+    JSON blindness.not_blind[2] [blindness]: pinned "stance7_r10LTSBoff_s80" | deviation "(absent)"
+    JSON blindness.seeds.42.blind [blindness]: pinned false | deviation true
+    JSON blindness.seeds.60.blind [blindness]: pinned false | deviation true
+    JSON blindness.seeds.80.blind [blindness]: pinned false | deviation true
+    4 output lines and 12 JSON values differ; every one is a blindness line, THE ONE TEST or C1's listing of a dropped line (C1's own, or its PRESENCE p1 / D-16 copies)
+    exit codes: pinned 10, deviation 10; stderr bytes: pinned 0, deviation 0
+CONTAINMENT: /home/user/work/pc_study/amend2/dry/round_view: unchanged (every file's size and mtime as before; enforced: a change refuses)
+CONTAINMENT: /home/user/work/pc_study/tools/pc: unchanged (every file's size and mtime as before; enforced: a change refuses)
+CONTAINMENT: the scorer's cwd and TMPDIR (under --out): left empty, removed
+OUTPUT FILES (all under /home/user/work/pc_study/amend2/rereview/dryrun_out): runlog_asread.txt, runlog_deviation.txt, pinned.out/.err/.json, deviation.out/.err/.json
+Scorer outputs (sha256) and comparison:
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  deviation.err
+4744c97b42b42211fb78ba17975ee8edaf031ab3031919825c993db2e2b8511f  deviation.json
+63b951151fe4527fd3e60ca5d2b0da206db35a853f60747803aed7cf19a78a1d  deviation.out
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  pinned.err
+aaf2aaf84abf38117b1218c51f24f617d85bae57ff7606e4562274ac546e45e5  pinned.json
+9395b83ad98a79dc01904b2773b2a86d23a32464dfaf85548c858023452b3aaa  pinned.out
+c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d  runlog_asread.txt
+086a1e5f30373d73499e0a39b0660fb883af8b6f0d348b620537422cda87c0d3  runlog_deviation.txt
+pinned.out, pinned.json, deviation.out, deviation.json byte-identical to fix/dryrun_out/ and dry/dryrun_out/; runlog_asread.txt and runlog_deviation.txt byte-identical to fix/dryrun_out/ (dry/ read RUNLOG at 950 lines); runlog_asread.txt == RUNLOG; the deviation copy differs from RUNLOG in line 902 alone (a bare line feed); RUNLOG line 902 sha256 0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12 [measured: cmp, diff, sha256sum]

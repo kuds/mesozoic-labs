@@ -1,0 +1,55 @@
+..F
+=================================== FAILURES ===================================
+_________ test_a_snapshot_before_every_off_launch_complete_separation __________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/dry/mutants/M11/pt/test_a_snapshot_before_every_o0')
+
+    def test_a_snapshot_before_every_off_launch_complete_separation(tmp_path):
+        rnd = build(tmp_path)
+        out = tmp_path / "out"
+        rc, text = run_dev(rnd, out)
+        assert rc == SP.EXIT_FINAL, text
+        pinned, dev, _diffs = sections(text)
+        # the pinned reading: the three OFF runs NOT BLIND, missing at -infinity: never LOWER (p = 20/20 here)
+        p_ot = next(x for x in pinned if x.startswith(ONE_TEST))
+        assert "NOT SEPARATED (p = 20/20)" in p_ot and f"not blind {sorted(OFF_IDS)}" in p_ot
+        assert one_test(out, "pinned")["k"] == 20 and one_test(out, "pinned")["off_missing"] == [True] * 3
+        # the deviation reading: as if blind: complete separation reads LOWER at p = 1/20
+        d_ot = next(x for x in dev if x.startswith(ONE_TEST))
+        assert d_ot.startswith(ONE_TEST + LOWER) and "not blind []" in d_ot
+>       ot = one_test(out, "deviation")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test_score_pc_dev.py:169: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test_score_pc_dev.py:112: in one_test
+    return json.loads((Path(out) / f"{name}.json").read_text())["reading"]["one_test"]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/user/work/pc_study/amend2/dry/mutants/M11/pt/test_a_snapshot_before_every_o0/out/deviation.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/user/work/pc_study/amend2/dry/mutants/M11/pt/test_a_snapshot_before_every_o0/out/deviation.json'
+
+/usr/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 2 passed in 3.39s

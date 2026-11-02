@@ -1,0 +1,28 @@
+................F
+=================================== FAILURES ===================================
+_ test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines2-a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)] _
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/fix/mutants/M4/pt/test_f_refuses_a_dropped_set_o0')
+lines = ('2026-11-01 17:44 UTC  STANCE7 SNAPSHOT stance7_r10LTSBpc_s60 note="THE BLIND PERIOD opening (criteria lines 362-373)... how to proceed."', '2026-11-01 18:56 UTC  STANCE7 SNAPSHOT stance7_r10LTSBpc_s42 note="report-only look (synthetic)"')
+why = "a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)"
+
+    @pytest.mark.parametrize("lines,why", [
+        ((PINNED_LINE, snap("17:50")), "two early SNAPSHOT lines"),
+        ((PINNED_LINE.replace("11,796,480", "11,796,481"),), "the pinned line edited by one byte"),
+        ((PINNED_LINE, snap("18:56")), "a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)"),
+        ((PINNED_LINE.replace("17:44", "18:57"),), "the pinned line's time moved after every OFF launch"),
+    ])
+    def test_f_refuses_a_dropped_set_other_than_the_pinned_line(tmp_path, lines, why):
+        rnd = build(tmp_path, lines=lines)
+        rc, text = run_dev(rnd, tmp_path / "out")
+>       assert rc == D.EXIT_REFUSED and "REFUSED: the dropped set" in text, (why, text)
+E       AssertionError: ("a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)", "score_pc_dev 2 (PC AMENDMENT 2, 2....py's own output (/home/user/work/pc_study/amend2/fix/mutants/M4/pt/test_f_refuses_a_dropped_set_o0/out/pinned.out)
+E         ")
+E       assert (3 == 3 and 'REFUSED: the dropped set' in "score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)\nPINN...c.py's own output (/home/user/work/pc_study/amend2/fix/mutants/M4/pt/test_f_refuses_a_dropped_set_o0/out/pinned.out)\n")
+E        +  where 3 = D.EXIT_REFUSED
+
+test_score_pc_dev.py:376: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines2-a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 16 passed in 39.55s

@@ -1,0 +1,25 @@
+...........................F
+=================================== FAILURES ===================================
+_____________________ test_r8_an_off_runs_snapshot_is_kept _____________________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/fix/mutants/R8/pt/test_r8_an_off_runs_snapshot_i0')
+
+    def test_r8_an_off_runs_snapshot_is_kept(tmp_path):
+        off_snap = snap("18:30", run=f"{C.ARM_PREFIX['off']}60")
+        rnd = build(tmp_path, lines=(PINNED_LINE, off_snap))
+        out = tmp_path / "out"
+        rc, text = run_dev(rnd, out)
+>       assert rc == SP.EXIT_FINAL, text
+E       AssertionError: score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)
+E         PINNED SCORER: /home/user/work/pc_study/tools/pc/score_pc.py sha256 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986; it loads ['complete_r10round', 'ledger_r10round', 'pc_common', 'r10round_common', 'score_pc', 'score_r10round']; all 14 pinned tool files at APPROVED's and pins_pc.json's sha256 (APPROVED ce8865205a218541...)
+E         RUNLOG /home/user/work/pc_study/amend2/fix/mutants/R8/pt/test_r8_an_off_runs_snapshot_i0/r/run_log.txt: 30 lines, sha256 6493698907b0e7ba33c9d93ad8f060d124b7d7d3aee6feb3b642fbbfac4cfc1e; read once, copied byte for byte to /home/user/work/pc_study/amend2/fix/mutants/R8/pt/test_r8_an_off_runs_snapshot_i0/out/runlog_asread.txt
+E         REFUSED: the dropped set [(7, 'SNAPSHOT', 'stance7_r10LTSBpc_s60', '2026-11-01 17:44:00+00:00'), (11, 'SNAPSHOT', 'stance7_r10LTSBoff_s60', '2026-11-01 18:30:00+00:00')] (sha256 ['0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12', '20a1e4ab6d3d1b25abb8448222942879b7b16713548ee1a5bbad61139e105096']) is not the expected set ['0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12'] [the pinned line (default)]
+E         
+E       assert 3 == 0
+E        +  where 0 = SP.EXIT_FINAL
+
+test_score_pc_dev.py:541: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r8_an_off_runs_snapshot_is_kept - Assertion...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 27 passed in 63.10s (0:01:03)

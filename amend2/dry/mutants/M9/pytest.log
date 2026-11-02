@@ -1,0 +1,47 @@
+..F
+=================================== FAILURES ===================================
+_________ test_a_snapshot_before_every_off_launch_complete_separation __________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/dry/mutants/M9/pt/test_a_snapshot_before_every_o0')
+
+    def test_a_snapshot_before_every_off_launch_complete_separation(tmp_path):
+        rnd = build(tmp_path)
+        out = tmp_path / "out"
+        rc, text = run_dev(rnd, out)
+        assert rc == SP.EXIT_FINAL, text
+        pinned, dev, _diffs = sections(text)
+        # the pinned reading: the three OFF runs NOT BLIND, missing at -infinity: never LOWER (p = 20/20 here)
+        p_ot = next(x for x in pinned if x.startswith(ONE_TEST))
+        assert "NOT SEPARATED (p = 20/20)" in p_ot and f"not blind {sorted(OFF_IDS)}" in p_ot
+        assert one_test(out, "pinned")["k"] == 20 and one_test(out, "pinned")["off_missing"] == [True] * 3
+        # the deviation reading: as if blind: complete separation reads LOWER at p = 1/20
+        d_ot = next(x for x in dev if x.startswith(ONE_TEST))
+        assert d_ot.startswith(ONE_TEST + LOWER) and "not blind []" in d_ot
+        ot = one_test(out, "deviation")
+        assert ot["k"] == 1 and ot["lower"] is True and ot["off_missing"] == [False] * 3 and ot["p"] == "1/20"
+        assert any(x.startswith("OUTCOME BLINDNESS") and "not blind (enter THE ONE TEST as missing) []" in x for x in dev)
+        assert any(x.startswith("READING: line 4") for x in dev) and any(x == "STATUS: FINAL" for x in dev)
+        assert [x for x in dev if x.startswith("  pc s")] and [x for x in dev if x.startswith("  off s")]
+>       assert_only_blindness_differs(text)
+
+test_score_pc_dev.py:174: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+text = 'score_pc_dev 1 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged)\nPINNED SCORER: /home/use...pshot_before_every_o0/out): runlog_asread.txt, runlog_deviation.txt, pinned.out/.err/.json, deviation.out/.err/.json\n'
+c1_listing = 1
+
+    def assert_only_blindness_differs(text, c1_listing=1):
+        """Every differing output line is a blindness line, THE ONE TEST line or (once F2 is read) C1's printed listing of
+        the run's note lines minus the dropped line: checked here on the lines themselves and on the tool's own kinds."""
+        _p, _d, diffs = sections(text)
+        pin, dev = diff_pairs(diffs)
+>       assert len(pin) == len(dev) == 5 + c1_listing, diffs
+E       AssertionError: ['    output line 4/4 [UNEXPECTED (not a blindness line)]:', '        pinned:    RUNLOG line 9 names a PC RUN_ID and i...7_r10LTSBpc_s60", "time": "2026-11-02T06:00:00+00:00", "line": 17}; not blind (enter THE ONE TEST as missing) []', ...]
+E       assert 12 == (5 + 1)
+E        +  where 12 = len(['RUNLOG line 8 names a PC RUN_ID and is not a STANCE7 note of a round RUN_ID (printed; read by no rule): 2026-11-01 1...ck_stops": [], "actions": [], "lines": {"4": "LAUNCH", "11": "TRIGGER-a", "12": "FOUND-GONE", "17": "F2-START"}}', ...])
+
+test_score_pc_dev.py:120: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 2 passed in 2.78s

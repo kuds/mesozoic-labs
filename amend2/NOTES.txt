@@ -1,0 +1,138 @@
+AMENDMENT 2 BUILD NOTES (builder A, workflow wf_8a4486a0-a57; 2026-11-02 UTC)
+
+Scope: the DEVIATION reading of THE ONE TEST as the maintainer decided at RUNLOG line 949 (2026-11-02 13:52 UTC, "Pin
+both readings"). It computes THE ONE TEST as if the three OFF runs were blind: it sets aside RUNLOG line 902, the only
+recorded opening before the OFF launches; RUNLOG line 905 records further views before them (inferred, not established),
+which it sets aside too (AMENDMENT2.txt section 0 and LIMITS (i)-(iv)).
+Everything written is under ST/amend2/ (ST = /home/user/work/pc_study). PY = the study's venv python, run as "PY -I -B",
+nice 10, from folders inside ST/amend2, TMPDIR inside ST/amend2. Labels: [measured] = read from a file or computed by a
+tool run named here; [inferred] = reasoning.
+
+Revised 2026-11-02 by the fixer after the review (RUNLOG line 951): the corrections are marked [FIX] below; what changed
+and the evidence: FIXES.txt; the reviewed bytes of every changed file: orig/; the new logs: fix/.
+
+WHAT WAS NOT DONE (hard rules)
+- No cloud-folder access of any kind; no file of the six PC runs opened; F2 not started; nothing under ST/round,
+  ST/tools, ST/round/fetch or ST/round/launch_check written or listed beyond the two round files copied for the dry
+  run (APPROVED, criteria.txt) [measured: find -mmin over ST outside amend2 and f2prep shows only the ST folder's own
+  mtime (amend2 created); f2prep is builder B's].
+- No git writes, no network writes; no write outside ST/amend2; the null device is never named.
+- RUNLOG read only (byte copies of it are inside amend2/dry/dryrun_out/).
+
+FILES
+- tools/score_pc_dev.py: the deviation tool (docstring states every step and check).
+- tests/test_score_pc_dev.py: 20 tests; tests/mutate_dev.py: 13 mutants; tests/pytest.ini (no cache provider).
+- dry/pytest.log, dry/mutants.log, dry/mutants/<M>/ (each mutant's copy and its pytest log), dry/ruff.log,
+  dry/round_view/ (APPROVED + criteria.txt byte copies, empty fetch/), dry/dryrun.out (+ .err, empty),
+  dry/dryrun_out/ (the tool's --out of the dry run: RUNLOG as read, the deviation copy, both scorer outputs and JSON),
+  dry/deletion_demo/ (the pinned scorer on RUNLOG with line 902 deleted, for the blank-vs-delete choice).
+- AMENDMENT2.txt, NOTES.txt, SHA256SUMS.txt.
+- [FIX] After the review: tests/test_score_pc_dev.py 35 tests, tests/mutate_dev.py 30 mutants (M1-M13, the reviewer's
+  R1-R8, N1-N9 on the fixes); FIXES.txt; orig/ (the reviewed bytes of every changed file); fix/ (pytest.log, ruff.log,
+  mutants.log and each mutant's pytest log under fix/mutants/<M>/, mutants_run1_aborted.log,
+  reviewed_tool_vs_new_suite.log, review_own_roots_rerun.log, review_probes_rerun.log, c1len.py and c1len.log,
+  dryrun.out/.err, dryrun_out/, DELETED.txt: the scratch deleted after its results were logged). dry/ is the build's
+  evidence on the reviewed bytes, unchanged.
+- [FIX I4] Product names: the files written by hand here (AMENDMENT2.txt, NOTES.txt, FIXES.txt, the tool, the tests
+  and the mutation runner) name no product or model [measured: grep]. Product names do occur in text copied or printed,
+  not authored: the absolute paths the tools and pytest print (the venv and RUNLOG folders lie under a folder whose name
+  is a product name), the byte copies of RUNLOG (dry/dryrun_out/, dry/deletion_demo/, fix/dryrun_out/) and of APPROVED
+  and criteria.txt (dry/round_view/), and the scorer's outputs (pinned/deviation .out and .json), which print RUNLOG
+  lines and fields (the repository branch, the notebook and cloud-folder services, a question tool's name). The
+  build's sentence "no other place names a product" was wrong.
+
+COMMANDS (cwd inside ST/amend2; PY as above)
+  ruff check --no-cache --config <branch>/pyproject.toml tools/score_pc_dev.py tests/test_score_pc_dev.py
+      tests/mutate_dev.py                                                                   -> dry/ruff.log
+  cd tests && PY -I -B -m pytest -v --basetemp=ST/amend2/dry/pytest_tmp test_score_pc_dev.py  -> dry/pytest.log
+  cd tests && PY -I -B mutate_dev.py ST/amend2/dry/mutants                                   -> dry/mutants.log
+  cd dry/cwd && PY -I -B ST/amend2/tools/score_pc_dev.py --out ST/amend2/dry/dryrun_out
+      --round ST/amend2/dry/round_view                                                       -> dry/dryrun.out (exit 10)
+  dry/deletion_demo: PY -I -B ST/tools/pc/score_pc.py --round dry/round_view --runlog <RUNLOG copy, line 902 deleted>
+      --json deleted.json > deleted.out; diff dryrun_out/deviation.out deleted.out -> 16 lines differ, every one a
+      renumbered "RUNLOG line <i>" line [measured: diff_blanked_vs_deleted.txt]
+
+MEASURED FACTS THE DESIGN RESTS ON
+- RUNLOG (950 lines, sha256 7a713156dd57454e16e50dc0f559371f2a876beb0a891bd92a737a5fdd377515, read at 14:13 UTC) holds one
+  STANCE7 SNAPSHOT line, line 902 (2026-11-01 17:44 UTC, stance7_r10LTSBpc_s60), sha256 of its exact bytes (UTF-8, no
+  line feed, 873 bytes) 0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12 (the tool's constant); the OFF
+  LAUNCH lines are 907 (18:12), 911 (18:20), 923 (18:56); CHECK lines 915, 920, 932 no-fault; no RELAUNCH, F2-START or
+  REFETCH-START line; RUNLOG is strict UTF-8, LF only, no other line separator [measured].
+- The decision line is RUNLOG line 949 at 2026-11-02 13:52 UTC (sha256 f7b7278a...; the tool's constant). The computed
+  task text said "about 12:10 UTC"; RUNLOG says 13:52 UTC and the tool prints 13:52 [measured].
+- <PCR>/APPROVED sha256 ce886520... (in RUNLOG line 880); its pins.tools_pc names 14 files of ST/tools/pc (pins_pc.json
+  and fetch_agent_brief.txt included), all at their sha256 today; pins_pc.json tool_sha256 names 12, all equal
+  [measured: the tool's check at each run].
+- score_pc.py loads r10round_common, ledger_r10round, complete_r10round, score_r10round, pc_common (its _load closure;
+  nothing else is imported from the tools folder; numpy from the venv inside two functions) [measured: grep].
+- Writes: score_pc.py line 650 (Path(--json).write_text) is its only write; complete_r10round.py 966,
+  score_r10round.py 851 and ledger_r10round.py 267 write only in their own main(), never called by score_pc.py; no
+  other write, mkdir, rename or unlink call in the six files [measured: grep of write_text/write_bytes/open(...w)/mkdir/
+  shutil/tempfile/np.save/rename/replace/unlink]. Bytecode: score_pc.py sets sys.dont_write_bytecode and the tool runs
+  it with -B.
+- The scorer prints no RUNLOG path and nothing time-dependent: with no dropped line its two outputs and JSON are
+  byte-identical [measured: tests (b), (c)].
+
+WHERE THE BUILD DEPARTS FROM THE COMPUTED DESIGN, AND WHY
+1. Blank, not delete. The design says "drops" the line. The tool removes its content and keeps its line feed. The
+   scorer prints "RUNLOG line <i>" for every non-note line naming a RUN_ID; deletion renumbers 16 such lines on today's
+   RUNLOG (more after F2) and the diff list would no longer show only the deviation [measured: deletion_demo]. Notes
+   parsed from the blanked copy equal RUNLOG's notes minus line 902, line numbers included (the tool checks this).
+2. "At or before", not "earlier than", the last OFF launch. The pinned rule reads an OFF launch in the opening's minute
+   as NOT BLIND (score_pc.blindness: blind iff launch < opening). A same-minute SNAPSHOT left in place would keep the
+   last OFF run NOT BLIND in the "as if blind" reading; with "at or before" it joins the dropped set, which then is not
+   the pinned line alone, so the tool refuses. RUNLOG has no such line, so the result is the same today [measured:
+   test (f) case 3; mutant M4 "strictly earlier" is killed by it].
+3. The expected dropped set is a parameter for tests. The default is exactly the pinned line's sha256 and refuses any
+   other set, an empty one included (the real RUNLOG must still hold line 902). Tests (b), (c), (e) need "no line
+   dropped"; they pass --expect-dropped none and the output then says "NON-DEFAULT ... (synthetic tests only; not the
+   round's deviation reading)". [FIX M1] --expect-dropped is now refused (exit 3) on the round's RUNLOG path, on the
+   pinned round folder and on any RUNLOG holding line 949's exact bytes. Tests (a), (c2), (d), (e2), (f), (g) use the
+   default and the exact bytes of line 902.
+4. The pinned bytes are checked through APPROVED: APPROVED's own sha256 is the tool's constant, APPROVED names every
+   tool file's sha256, and pins_pc.json must be at APPROVED's sha256 too; so refilling pins_pc.json to match a changed
+   tool still refuses [measured: test (f)]. --tools exists for tests (a copy of the pinned folder); its files must still
+   be at APPROVED's sha256.
+5. The tool always runs both readings and prints the pinned one first (the design's "when both are run"): there is no
+   deviation-only mode, so the deviation never appears without the reading of record above it. Exit code = the pinned
+   run's; refusal = 3; scorer input error = 2.
+6. One more line differs after F2 than the design expected: C1's printed value for stance7_r10LTSBpc_s60 lists the
+   run's note lines ("lines": {...}), which in the pinned run include line 902 as "SNAPSHOT". C1's verdict reads only
+   launches, launch-check stops and actions, so C1's status is unchanged [measured: synthetic tests (a), (c2): exactly
+   this listing differs besides the blindness lines]. The tool labels it "C1's listing of the run's note lines without
+   dropped line 902" and counts any other difference as UNEXPECTED. [FIX M3] When that run is LOST, PRESENCE p1 (C1 on
+   the run's notes) prints the same listing once per fetch and the JSON stores it under presence[n].p1 and
+   d16.presence[n].p1; the review's S4 root showed these copies counted UNEXPECTED. The tool now accepts them with the
+   same check (one dropped line's '"<i>": "SNAPSHOT"' entry removed, nothing else changed; in the JSON "SNAPSHOT" in the
+   pinned run and absent in the deviation run) [measured: test M3].
+7. The containment is checked twice: the tool lists every file under --round and --tools (size, mtime) before and after
+   the scorer runs and prints CONTAINMENT lines ([FIX M5] and now refuses, exit 3, no reading printed, if any file there
+   was added, removed or changed during the runs: test M5); test (g) hashes every file under the test folder, ST/tools,
+   ST/amend2/tools and the tool's folder. No read-only round view is needed for real use (the scorer writes nothing
+   there); the dry run used dry/round_view so that no PC run file (F0, launch_check) was opened.
+8. [FIX M2] After both runs the tool refuses (exit 3) when the deviation run's JSON blindness.not_blind is not empty
+   (an opening the deviation does not drop, e.g. a PHASE F2-START before an OFF launch), so the header "as if the three
+   OFF runs were blind" is never printed when it is untrue [measured: test M2].
+
+RESULTS (the build, on the reviewed bytes now in orig/; after the fixes: FIXES.txt and fix/)
+- [FIX] After the fixes (fix/): pytest 35 passed in 70.00 s; ruff All checks passed; 30 mutants, 0 survived; dry run on
+  RUNLOG (952 lines) exit 10, dropped exactly line 902, 4 output lines and 12 JSON values differ, all blindness (the
+  12th: blindness.first_opening absent vs null, which the reviewed comparison could not see), the scorer's four outputs
+  byte-identical to the build's dry run; details and evidence: FIXES.txt.
+- pytest: 20 passed in 48.59 s (dry/pytest.log).
+- mutants: 13 mutants, 13 killed, 0 survived (the unmutated tool passes first): M1 drop every SNAPSHOT line; M2 drop none; M3 drop the lines after the last OFF launch; M4 drop only lines strictly earlier than it; M5 skip the dropped-set sha256 check; M6 accept an empty dropped set; M7 print the pinned run's lines as the deviation lines; M8 skip the pinned tools' sha256 check; M9 delete the line instead of blanking it; M10 the deviation run reads the unfiltered copy; M11 its JSON written into --round; M12 the --out check skipped; M13 the exit code forced to 0 (dry/mutants.log).
+- ruff: All checks passed (ruff 0.16.9, exit 0) (dry/ruff.log).
+- Dry run on RUNLOG with an empty fetch: exit 10; both runs "STATUS: INCOMPLETE (no line read)" with the open items
+  "no F2-START note" and "<RUN_ID>: no F2 store" (six) and PROVISIONAL "F2_PINS.json absent or unreadable", "validation
+  VP1 / VP4 (F2_PINS.json): None, not PASS"; dropped exactly line 902; differences: 4 output lines (OUTCOME BLINDNESS:
+  first opening {"kind": "SNAPSHOT", "run": "stance7_r10LTSBpc_s60", "time": "2026-11-01T17:44:00+00:00", "line": 902}
+  -> null, not blind [off s60, s42, s80] -> []; s60, s42, s80: blind False -> True) and 11 JSON values (blindness.*),
+  all of the expected kinds; THE ONE TEST not computed in either run (READING incomplete); CONTAINMENT unchanged; both
+  stderr empty [measured: dry/dryrun.out].
+
+OPEN FOR THE REVIEWER AND THE MAINTAINER [inferred]
+- The deviation reading is post hoc relative to the opening (AMENDMENT2.txt section 4); both readings are printed.
+- The sha256 constants in score_pc_dev.py (APPROVED, line 902, line 949) are the only places the pinned facts enter;
+  a reviewer can recompute each with sha256sum and a line extract.
+- After F2 the tool should be run once, with --out a new folder, on the round folder itself (default --round) and the
+  live RUNLOG (default --runlog); its first block is the pinned reading. This build ran nothing on the real round.

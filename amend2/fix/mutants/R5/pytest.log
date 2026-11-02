@@ -1,0 +1,30 @@
+...............................F
+=================================== FAILURES ===================================
+_______________ test_r5_the_scorers_load_closure_must_be_pinned ________________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/fix/mutants/R5/pt/test_r5_the_scorers_load_closu0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f71ce483950>
+
+    def test_r5_the_scorers_load_closure_must_be_pinned(tmp_path, monkeypatch):
+        """An APPROVED (a test copy) that pins every tool file but pc_common.py, which score_pc.py loads: refused."""
+        t = _tools_copy(tmp_path)
+        pins = json.loads((t / "pins_pc.json").read_text())
+        pins["tool_sha256"].pop("pc_common.py", None)
+        (t / "pins_pc.json").write_text(json.dumps(pins))
+        ap = json.loads(D.APPROVED_FILE.read_bytes())
+        assert "pc_common.py" in ap["pins"]["tools_pc"]
+        ap["pins"]["tools_pc"].pop("pc_common.py")
+        ap["pins"]["tools_pc"]["pins_pc.json"] = hashlib.sha256((t / "pins_pc.json").read_bytes()).hexdigest()
+        fake = tmp_path / "APPROVED_test_copy"
+        fake.write_text(json.dumps(ap))
+        monkeypatch.setattr(D, "APPROVED_FILE", fake)
+        monkeypatch.setattr(D, "APPROVED_SHA256", hashlib.sha256(fake.read_bytes()).hexdigest())
+>       with pytest.raises(D.Refused, match="score_pc.py loads pc_common.py, which is not a pinned tool file"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE Refused
+
+test_score_pc_dev.py:638: Failed
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r5_the_scorers_load_closure_must_be_pinned
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 31 passed in 64.04s (0:01:04)

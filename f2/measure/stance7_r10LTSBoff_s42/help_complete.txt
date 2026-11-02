@@ -1,0 +1,156 @@
+usage: complete_r10round.py [-h] --run RUN [--round ROUND] [--f0 F0] [--f2 F2]
+                            [--refetch REFETCH] [--panels PANELS]
+                            [--notebook NOTEBOOK] [--runlog RUNLOG]
+                            [--pins PINS] [--json JSON]
+                            {launch-check,run}
+
+PC STUDY ADAPTATION (2026-10-31, ST/tools/make_pc_tools.py): RUN_IDs, RUNLOG kind STANCE7 and <PCR> from the
+adapted r10round_common; launch-check fact (8) the critic-phase switch ON in 01_stance/stage_config.json (a FAULT
+like (1)-(5) and (7)); C4 (p) the same record read with C4's facts (and PRESENCE's p2); C8 THE MANIPULATION CHECK
+(manip_check.py's record at <panels>/<label>/c8/ for R2 and every J pair, bound to the C3-verified pair like C7;
+absent = PENDING, never a failure; NOT IN FORCE = FAIL: the run is not of the study's configuration, LOST).
+COMPLETE = C1-C8.
+PC AMENDMENT (2026-11-01, ST/amend/AMEND_NOTES.txt): six runs in two arms (r10round_common.arm_of).  A switch-off
+run (stance7_r10LTSBoff_s*) is checked against its own arm's pins (pins_pc.json off_arm: ROUND's hyperparameters and
+stage_config view digests, the switch key absent): fact (8) and C4 (p) read the switch OFF (no
+hyperparameters.critic_phase key), C8 reads the stock-critic record (the critic reads no phase); every other fact is
+the phase arm's, unchanged.
+
+T. rex r10 round: the completeness tool (criteria lean v5: launch check, C1-C7, PRESENCE p1-p3, D-16).  Report only.
+
+    PY -I -B complete_r10round.py launch-check --run RUN_ID [--round ROUND] [--f0 DIR] [--runlog P] [--pins P] [--json O]
+    PY -I -B complete_r10round.py run --run RUN_ID [--round ROUND] [--f2 DIR] [--refetch DIR] [--panels DIR]
+                                      [--notebook P] [--runlog P] [--pins P] [--json O]
+
+Every fact is computed from the files a fetch holds (fetch_r10round.py's store: <ROUND>/fetch/<FETCH>/<RUN_ID>/) and
+from RUNLOG's note lines ("<date -u> STANCE6 <KIND> <RUN_ID> <fields>"), never transcribed; each is printed with the
+value read.  A fact whose file the fetch does not hold as the rule requires is "not established" (C-facts) or "not
+computed" (launch check), never assumed.
+
+Launch check (RUN HANDLING), from F0's files (each read only when two copies agree; a third on a mismatch):
+  (1) provenance.json repository_commit and 01_stance/stage_config.json git_commit = the branch HEAD RUNLOG's LAUNCH
+      line records (head=), repository_dirty false; (2) run.seed the RUN_ID's; (3) run.hyperparameters_sha256,
+      task_fingerprint.task_sha256 and the plant_identity block the pins (as the file writes them); (4)
+      zero_action_baseline.json results.tyrannosaurus_rex.anatomical.reward_mean not within 50 of 3766.6; (5) the first
+      ledger rows carry screen_v2_reasons and #640's saturated_actuator columns; (6) one provenance "sessions" entry;
+      (7) provenance run_id the RUN_ID.  A fact whose file F0 does not hold is "not computed" (no stop).
+C1-C7 (CLASSES, COMPLETE RUN) on F2, or on the re-fetch when one is made for a seed's run of the round; PRESENCE
+p1-p3 on each fetch (two agreeing copies of provenance.json, stage_config.json and the ledger); D-16 for a LOST run.
+Exit codes: 0 printed; 2 input error (launch-check: also a pin it compares unfilled, fixer R-m3).
+
+Fixer, 2026-10-26 (review findings):
+  R-i1  launch-check (5) on a ledger with a header and no row is "not computed" (no first rows to read).
+  R-i5  recorded only: the pinned TEL columns missing from F0's ledger header, and BEHAVIOR as the notebook printed it
+        when a CHECK line carries behavior="..." (the LAUNCH line's BEHAVIOR is what was set).
+  R-m3  launch-check refuses (exit 2) when hyperparameters_sha256, task_sha256 or plant_identity is unfilled.
+  R-B4  a label's M1/M3 output (or the measuring tool's refusal record) counts for C7 only when its record measured
+        that label's C3-verified pair (checkpoint and vecnorm sha256), on the checkpoint's own num_timesteps (E for
+        final), not as a validation input, and (when the runner filed it) under this RUN_ID; otherwise that
+        measurement is absent (C7 PENDING), the mismatch printed.
+  R-m4  PRESENCE per fetch is three-valued: rail_decided True / False / None (a p-fact not established: a pin unfilled).
+v5 (criteria lean v5, RUNLOG line 657; tool updater 2026-10-26):
+  R-m1  R1 of a STOPPED run that ended before 10,485,760 is the pair at the last multiple of 262,144 at or before E,
+        and each RESOLUTION checkpoint the grid's (CLASSES): C3 fails when that pair is not in the manifest.
+  F-R1  a refused M1 (m1_refused.json) at a label C7 names fails C7: the run is LOST; a refused M3 at R2
+        (m3_refused.json) is the certificate "refused" (GATE FAIL, its message the failing criterion) and counts as
+        R2's certificate for C7.  A runner preflight refusal writes nothing: the measurement is absent (PENDING) until
+        it is made again with the right inputs.
+  O-2   C1 reads every ACTION line of the RUN_ID ("ACTION <RUN_ID> what=<resume|restart|relaunch|cell>") as an action.
+  O-5   P-K3's launch settings are recorded from the LAUNCH line (no F0 file holds them).
+  O-16  the facts the re-fetch rule reads ("fails C4 or C6 on files matching the manifest") are exposed:
+        C4_on_manifest_files, C6_on_manifest_files.
+  O-18  C4's started_at within 60 minutes before or after RUNLOG's launch time.
+
+positional arguments:
+  {launch-check,run}
+
+options:
+  -h, --help           show this help message and exit
+  --run RUN
+  --round ROUND
+  --f0 F0
+  --f2 F2
+  --refetch REFETCH
+  --panels PANELS
+  --notebook NOTEBOOK
+  --runlog RUNLOG
+  --pins PINS
+  --json JSON
+usage: complete_r10round.py [-h] --run RUN [--round ROUND] [--f0 F0] [--f2 F2]
+                            [--refetch REFETCH] [--panels PANELS]
+                            [--notebook NOTEBOOK] [--runlog RUNLOG]
+                            [--pins PINS] [--json JSON]
+                            {launch-check,run}
+
+PC STUDY ADAPTATION (2026-10-31, ST/tools/make_pc_tools.py): RUN_IDs, RUNLOG kind STANCE7 and <PCR> from the
+adapted r10round_common; launch-check fact (8) the critic-phase switch ON in 01_stance/stage_config.json (a FAULT
+like (1)-(5) and (7)); C4 (p) the same record read with C4's facts (and PRESENCE's p2); C8 THE MANIPULATION CHECK
+(manip_check.py's record at <panels>/<label>/c8/ for R2 and every J pair, bound to the C3-verified pair like C7;
+absent = PENDING, never a failure; NOT IN FORCE = FAIL: the run is not of the study's configuration, LOST).
+COMPLETE = C1-C8.
+PC AMENDMENT (2026-11-01, ST/amend/AMEND_NOTES.txt): six runs in two arms (r10round_common.arm_of).  A switch-off
+run (stance7_r10LTSBoff_s*) is checked against its own arm's pins (pins_pc.json off_arm: ROUND's hyperparameters and
+stage_config view digests, the switch key absent): fact (8) and C4 (p) read the switch OFF (no
+hyperparameters.critic_phase key), C8 reads the stock-critic record (the critic reads no phase); every other fact is
+the phase arm's, unchanged.
+
+T. rex r10 round: the completeness tool (criteria lean v5: launch check, C1-C7, PRESENCE p1-p3, D-16).  Report only.
+
+    PY -I -B complete_r10round.py launch-check --run RUN_ID [--round ROUND] [--f0 DIR] [--runlog P] [--pins P] [--json O]
+    PY -I -B complete_r10round.py run --run RUN_ID [--round ROUND] [--f2 DIR] [--refetch DIR] [--panels DIR]
+                                      [--notebook P] [--runlog P] [--pins P] [--json O]
+
+Every fact is computed from the files a fetch holds (fetch_r10round.py's store: <ROUND>/fetch/<FETCH>/<RUN_ID>/) and
+from RUNLOG's note lines ("<date -u> STANCE6 <KIND> <RUN_ID> <fields>"), never transcribed; each is printed with the
+value read.  A fact whose file the fetch does not hold as the rule requires is "not established" (C-facts) or "not
+computed" (launch check), never assumed.
+
+Launch check (RUN HANDLING), from F0's files (each read only when two copies agree; a third on a mismatch):
+  (1) provenance.json repository_commit and 01_stance/stage_config.json git_commit = the branch HEAD RUNLOG's LAUNCH
+      line records (head=), repository_dirty false; (2) run.seed the RUN_ID's; (3) run.hyperparameters_sha256,
+      task_fingerprint.task_sha256 and the plant_identity block the pins (as the file writes them); (4)
+      zero_action_baseline.json results.tyrannosaurus_rex.anatomical.reward_mean not within 50 of 3766.6; (5) the first
+      ledger rows carry screen_v2_reasons and #640's saturated_actuator columns; (6) one provenance "sessions" entry;
+      (7) provenance run_id the RUN_ID.  A fact whose file F0 does not hold is "not computed" (no stop).
+C1-C7 (CLASSES, COMPLETE RUN) on F2, or on the re-fetch when one is made for a seed's run of the round; PRESENCE
+p1-p3 on each fetch (two agreeing copies of provenance.json, stage_config.json and the ledger); D-16 for a LOST run.
+Exit codes: 0 printed; 2 input error (launch-check: also a pin it compares unfilled, fixer R-m3).
+
+Fixer, 2026-10-26 (review findings):
+  R-i1  launch-check (5) on a ledger with a header and no row is "not computed" (no first rows to read).
+  R-i5  recorded only: the pinned TEL columns missing from F0's ledger header, and BEHAVIOR as the notebook printed it
+        when a CHECK line carries behavior="..." (the LAUNCH line's BEHAVIOR is what was set).
+  R-m3  launch-check refuses (exit 2) when hyperparameters_sha256, task_sha256 or plant_identity is unfilled.
+  R-B4  a label's M1/M3 output (or the measuring tool's refusal record) counts for C7 only when its record measured
+        that label's C3-verified pair (checkpoint and vecnorm sha256), on the checkpoint's own num_timesteps (E for
+        final), not as a validation input, and (when the runner filed it) under this RUN_ID; otherwise that
+        measurement is absent (C7 PENDING), the mismatch printed.
+  R-m4  PRESENCE per fetch is three-valued: rail_decided True / False / None (a p-fact not established: a pin unfilled).
+v5 (criteria lean v5, RUNLOG line 657; tool updater 2026-10-26):
+  R-m1  R1 of a STOPPED run that ended before 10,485,760 is the pair at the last multiple of 262,144 at or before E,
+        and each RESOLUTION checkpoint the grid's (CLASSES): C3 fails when that pair is not in the manifest.
+  F-R1  a refused M1 (m1_refused.json) at a label C7 names fails C7: the run is LOST; a refused M3 at R2
+        (m3_refused.json) is the certificate "refused" (GATE FAIL, its message the failing criterion) and counts as
+        R2's certificate for C7.  A runner preflight refusal writes nothing: the measurement is absent (PENDING) until
+        it is made again with the right inputs.
+  O-2   C1 reads every ACTION line of the RUN_ID ("ACTION <RUN_ID> what=<resume|restart|relaunch|cell>") as an action.
+  O-5   P-K3's launch settings are recorded from the LAUNCH line (no F0 file holds them).
+  O-16  the facts the re-fetch rule reads ("fails C4 or C6 on files matching the manifest") are exposed:
+        C4_on_manifest_files, C6_on_manifest_files.
+  O-18  C4's started_at within 60 minutes before or after RUNLOG's launch time.
+
+positional arguments:
+  {launch-check,run}
+
+options:
+  -h, --help           show this help message and exit
+  --run RUN
+  --round ROUND
+  --f0 F0
+  --f2 F2
+  --refetch REFETCH
+  --panels PANELS
+  --notebook NOTEBOOK
+  --runlog RUNLOG
+  --pins PINS
+  --json JSON

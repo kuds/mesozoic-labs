@@ -1,0 +1,24 @@
+.....F
+=================================== FAILURES ===================================
+____________ test_c_snapshot_only_after_every_off_launch_identical _____________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/fix/mutants/M1/pt/test_c_snapshot_only_after_eve0')
+
+    def test_c_snapshot_only_after_every_off_launch_identical(tmp_path):
+        rnd = build(tmp_path, lines=(snap("19:30"),))
+        out = tmp_path / "out"
+        rc, text = run_dev(rnd, out, "--expect-dropped", "none")
+>       assert rc == SP.EXIT_FINAL, text
+E       AssertionError: score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)
+E         PINNED SCORER: /home/user/work/pc_study/tools/pc/score_pc.py sha256 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986; it loads ['complete_r10round', 'ledger_r10round', 'pc_common', 'r10round_common', 'score_pc', 'score_r10round']; all 14 pinned tool files at APPROVED's and pins_pc.json's sha256 (APPROVED ce8865205a218541...)
+E         RUNLOG /home/user/work/pc_study/amend2/fix/mutants/M1/pt/test_c_snapshot_only_after_eve0/r/run_log.txt: 29 lines, sha256 54cc0ad09a6e54e8c947cb3a70f6ab9d9945feaf562faaeb15239f306b3b01d8; read once, copied byte for byte to /home/user/work/pc_study/amend2/fix/mutants/M1/pt/test_c_snapshot_only_after_eve0/out/runlog_asread.txt
+E         REFUSED: the dropped set [(11, 'SNAPSHOT', 'stance7_r10LTSBpc_s42', '2026-11-01 19:30:00+00:00')] (sha256 ['5aef6ad244181b143bf0e73ce873005acccc687d8b7b61e99373a207f90705cb']) is not the expected set [] [NON-DEFAULT, given by --expect-dropped (synthetic tests only; not the round's deviation reading)]
+E         
+E       assert 3 == 0
+E        +  where 0 = SP.EXIT_FINAL
+
+test_score_pc_dev.py:243: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_c_snapshot_only_after_every_off_launch_identical
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 5 passed in 10.14s

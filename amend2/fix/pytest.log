@@ -1,0 +1,42 @@
+command (cwd ST/amend2/tests): PY -I -B -m pytest -q -rA -p no:cacheprovider -o tmp_path_retention_policy=failed --basetemp=ST/amend2/fix/pytest_tmp/pt test_score_pc_dev.py
+tool sha256 efb37b2099bf77d38c8e585cbc0b86f7eb215e21598a1b93a92633e3b13c62a3; tests sha256 38047c1771f85c095fa021c26ecf360a060bdd2ea41ce8c1a20453f6e243901d
+...................................                                      [100%]
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED test_score_pc_dev.py::test_pinned_line_constant_is_the_lines_sha256
+PASSED test_score_pc_dev.py::test_runlog_line_902_is_the_pinned_line
+PASSED test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation
+PASSED test_score_pc_dev.py::test_a_deviation_copy_blanks_only_the_pinned_line
+PASSED test_score_pc_dev.py::test_b_no_snapshot_outputs_byte_identical
+PASSED test_score_pc_dev.py::test_c_snapshot_only_after_every_off_launch_identical
+PASSED test_score_pc_dev.py::test_c_later_report_only_snapshot_is_kept_and_changes_nothing
+PASSED test_score_pc_dev.py::test_status_passes_through_provisional_in_both
+PASSED test_score_pc_dev.py::test_d_off_never_launched_missing_in_both
+PASSED test_score_pc_dev.py::test_d_off_lost_missing_in_both
+PASSED test_score_pc_dev.py::test_e_partial_separation_no_snapshot_same_p
+PASSED test_score_pc_dev.py::test_e_partial_separation_deviation_p_is_the_pinned_scorers_without_the_snapshot
+PASSED test_score_pc_dev.py::test_f_refuses_changed_scorer_bytes
+PASSED test_score_pc_dev.py::test_f_refuses_changed_imported_tool_even_with_pins_refilled
+PASSED test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines0-two early SNAPSHOT lines]
+PASSED test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines1-the pinned line edited by one byte]
+PASSED test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines2-a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)]
+PASSED test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines3-the pinned line's time moved after every OFF launch]
+PASSED test_score_pc_dev.py::test_f_refuses_an_out_folder_inside_the_round_or_not_empty
+PASSED test_score_pc_dev.py::test_g_the_deviation_run_writes_only_into_its_out_folder
+PASSED test_score_pc_dev.py::test_m1_expect_dropped_refused_on_the_rounds_runlog_and_the_pinned_round
+PASSED test_score_pc_dev.py::test_m1_expect_dropped_refused_on_a_runlog_holding_the_decision_line
+PASSED test_score_pc_dev.py::test_m2_refuses_when_the_deviation_run_still_reads_an_off_run_not_blind
+PASSED test_score_pc_dev.py::test_m3_lost_phase_run_with_refetch_presence_copies_of_c1_listing
+PASSED test_score_pc_dev.py::test_m5_refuses_when_a_file_under_round_or_tools_changes_during_the_runs[round]
+PASSED test_score_pc_dev.py::test_m5_refuses_when_a_file_under_round_or_tools_changes_during_the_runs[tools]
+PASSED test_score_pc_dev.py::test_r1_an_off_relaunch_counts_as_the_last_off_launch
+PASSED test_score_pc_dev.py::test_r8_an_off_runs_snapshot_is_kept
+PASSED test_score_pc_dev.py::test_r3_output_line_kinds
+PASSED test_score_pc_dev.py::test_r2_json_value_kinds
+PASSED test_score_pc_dev.py::test_r2_r3_unexpected_differences_are_flagged_and_counted
+PASSED test_score_pc_dev.py::test_r5_the_scorers_load_closure_must_be_pinned
+PASSED test_score_pc_dev.py::test_r6_the_decision_lines_check
+PASSED test_score_pc_dev.py::test_r7_the_copy_self_check_refuses_a_faulty_copy
+PASSED test_score_pc_dev.py::test_json_differences_tell_an_absent_key_from_null
+35 passed in 70.00s (0:01:10)
+exit 0

@@ -1,0 +1,15 @@
+# date -u: Mon Nov  2 20:07:07 UTC 2026
+# OFF vs STANCE6 byte identity spot check (sha256 prefix / cmp), read only
+s60 eval_episodes off=1821fd2e stance6=1821fd2e phase=d7022a3e
+s60 train_episodes equal
+s60 M3 report equal
+s42 eval_episodes off=d1bcb789 stance6=d1bcb789 phase=92135e33
+s42 train_episodes equal
+s42 M3 report equal
+s80 eval_episodes off=b677ce76 stance6=b677ce76 phase=7f939be3
+s80 train_episodes equal
+s80 M3 report equal
+# final zip 'data' member, OFF s60 vs STANCE6 s60: keys that differ inside policy_class / rollout_buffer_class
+top-level keys differing: ['ep_info_buffer', 'policy_class', 'rollout_buffer_class', 'start_time', 'tensorboard_log'] of 43
+policy_class 13 differing fields; all differ only in a memory address: True
+rollout_buffer_class 7 differing fields; all differ only in a memory address: True

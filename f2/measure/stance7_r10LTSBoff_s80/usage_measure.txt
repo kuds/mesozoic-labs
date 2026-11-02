@@ -1,0 +1,82 @@
+usage: measure_r10round.py [-h] {version,build-copy,check-copy,m1,m2,m3} ...
+
+PC STUDY ADAPTATION (2026-10-31, ST/tools/make_pc_tools.py): the RUN_ID pattern (stance7_r10LTSBpc_s60/42/80 or
+its _b; PC AMENDMENT 2026-11-01: also the concurrent switch-off runs stance7_r10LTSBoff_s60/42/80 or their _b, measured
+the same way) and the messages naming it; <PCR>/panels and the measuring copy's commit come from the adapted r10m_common
+(HEAD from <PCR>/APPROVED; --header-parent = the base 8737cd3d).  The M1/M2/M3 reductions are the round's.
+
+The r10 round's M1/M2/M3 runner (lane A).  Report and class inputs only; never trains, never steps an optimizer,
+never writes into a run folder or the measuring copy.
+
+Criteria: S2/r10round/lean/v5/criteria_r10round_lean_v5.txt (the text), HOW IT IS MEASURED and CLASSES PER RUN, with
+THIS12 lines 173-201 and 297-337 for the definitions it cites.  BUILD LIST 3: "measure_r10round.py (M1/M2/M3,
+physics_revision check, flags, DRIVE-BACKED, hip roll, gzip, disk floor 3 GB free)".
+
+    PY -I -B measure_r10round.py version
+    PY -I -B measure_r10round.py build-copy --dest DIR [--commit SHA | --header-parent | --approved APPROVED]
+    PY -I -B measure_r10round.py check-copy --copy DIR [--header-parent | --approved APPROVED]
+    PY -I -B measure_r10round.py m1 --copy DIR --zip Z --pkl P (--stage-config SC | --no-run-records)                                      (--out DIR | --run-id RUN_ID --label LABEL) [--header-parent | --approved APPROVED]
+    PY -I -B measure_r10round.py m2 --copy DIR (--zip Z --pkl P --statue-json PANEL_JSON | --statue) ...
+    PY -I -B measure_r10round.py m3 --copy DIR (--zip Z --pkl P | --zero-action) ...
+
+The commit the measuring copy must be (v5, VALIDATIONS: no tool holds the header commit): the branch HEAD read from
+the approval record (default <ROUND>/APPROVED, "branch_head") and checked by r10m_common.approved_branch_head (its only
+parent the header's parent cf9402bc, its tree changed only in stance.toml comment lines); or, with --header-parent,
+the header's parent cf9402bc itself, the text's pin (validation inputs before the header commit is made; refused with
+--run-id: a run's measurement is filed only on the approved HEAD's copy).  The basis is recorded in every output.
+
+Every measurement, before anything is rolled: the version is printed; the disk floor (3 GB free, THIS12 line 958);
+the measuring copy's seal (commit = the commit above, tree digest unchanged) and the pinned files' sha256; the
+checkpoint's recorded physics_revision (read from the zip's `data` member, nothing unpickled) must be 10, else
+REFUSED (V5); with --stage-config, the run's stage_config.json git_commit must be the copy's commit (the text: the
+measuring copy is the HEAD the run trained), else REFUSED (a refusal on the run's own records, reported, RUN
+HANDLING); the output must lie outside every run folder and the copy and must not hold a finished measurement (an
+unfinished one, a crash, is moved aside to <out>.crashed<k> and measured again on the same files).  After: the copy's
+seal again.  Every output records the checkpoint's (or, for the statue, the copy's) physics_revision.
+
+M1 TRACE (THIS12 lines 173-180): the copy's episode_trace_report.py exactly as THIS12 line 175 writes it (seeds
+3042-3061, deterministic), then, from episode_trace.json and the 20 per-step CSVs (cross-checked), m1_summary.json:
+  per episode and actuator: window-mean command, raw mean and joint position; shares at |command| >= 0.99 and >= 0.9;
+  |raw| > 1 share; first step at the rail; the window steps at command >= +0.99 and <= -0.99; return; length;
+  BAR: share at |command| >= 0.99 > 0.10.  A tail actuator (11-14) over the BAR is a TAIL FLAG in a full-horizon
+  (1000-step) episode and a FALL FLAG otherwise (report only), with its sign: "the sign of most of its saturated
+  steps" (THIS12 line 308).  An exact tie of the two counts is recorded as sign "=" and (v5, TAIL FLAG: "on an exact
+  tie the flag counts once in each sign") counted once in "+" and once in "-" (counts_in_signs);
+  CMD_a (v5, CLASSES) = "the mean, over those of M1's 20 episodes at X that last beyond step 200, of each one's
+  window-mean command of tail actuator a (the others are printed); with none, CMD_a(X) is not formed and reads as
+  below 0.60 in either sign": the episodes averaged are those with a window (length > 200, window 200..L-1 not
+  empty), their count recorded (cmd_a_episodes), the others listed (episodes_without_window);
+  DRIVE-BACKED at this checkpoint per TAIL FLAG and per sign it counts in: CMD_a >= 0.60 in that sign (a CMD_a not
+  formed reads as below 0.60); a TRACE RAIL is DRIVE-BACKED "when, at any checkpoint holding one of its flags, CMD_a
+  is >= 0.60 in the flag's sign" (v5): the scorer reads this per checkpoint over R1 and R2;
+  TAIL FLAGS per actuator and sign (RESOLVED BY TRACE and TRACE RAIL read them; the scorer forms the classes);
+  hip roll (actuators 4 and 8): joint position present at every step, and its window means;
+  the CSVs' sha256 go to csv_sha256.txt and the CSVs are gzipped (mtime 0, verified, then the CSV removed).
+M2 POSTURE PANEL (THIS12 lines 181-193): zs_harness_copy.py (a byte copy beside this file, sha256 pinned) with
+  --code <copy> --plant r9 ("the code copy's own plant", here r10) --mode det (or statue) --seed 3042 --episodes 40;
+  a policy panel reads the statue panel.json an M2 statue run made on the same sealed copy.  m2_summary.json.
+M3 CERTIFICATE (THIS12 lines 194-201): the copy's stance_gate_report.py (--model/--vecnorm or --zero-action, seeds
+  3042-3081, the stage's 40 episodes, --out-dir); PASS = the certificate's own verdict.  m3_summary.json.
+
+A child tool's own outcome (fixer, RA-1 and RA-5): the trace and certificate tools turn their own errors
+(EpisodeTraceError, StanceGateReportError, the harness's plant check) into SystemExit(message), exit 1 and no
+traceback; stance_gate_report.py also exits 1, after writing its report, whenever the certificate does not pass.
+  - M3 exit 0 or 1 with stance_heading_report.json written and no traceback: the certificate's own verdict, PASS or
+    FAIL, summarised in m3_summary.json (the exit code must agree with the report's "passed").
+  - exit != 0, no output, no traceback, no signal: the tool REFUSED; m<k>_refused.json records its message, the
+    checkpoint, the run records and the copy seal; exit 2; the folder is final (never moved aside, never rerun: RUN
+    HANDLING allows a rerun only for a crash).  Which rule reads a refusal is the scorer's (lane B), not this runner's.
+  - a traceback, a signal, or exit 0 without the tool's output: a CRASH (exit 3; a rerun moves the folder aside).
+With --run-id (a run's panel, RA-4), before anything is rolled: the RUN_ID must be a round RUN_ID (or its _b), the
+checkpoint's recorded seed and the stage config's run.seed the RUN_ID's seed, and the label the checkpoint's own:
+an integer label equal to its recorded num_timesteps with the pair named stage1_<label>_steps.zip /
+stage1_vecnormalize_<label>_steps.pkl, or "final" with stage1_final.zip / stage1_final_vecnorm.pkl (a fetch store's
+".copy<k>" suffix allowed); --no-run-records is refused with --run-id.
+Exit codes: 0 done; 2 refused (by this runner, or the child tool's refusal recorded); 3 the measuring tool crashed
+(its folder is left; a rerun moves it aside); 4 an output consistency check failed; 5 below the disk floor.
+
+positional arguments:
+  {version,build-copy,check-copy,m1,m2,m3}
+
+options:
+  -h, --help            show this help message and exit

@@ -1,0 +1,486 @@
+# T. rex tail habit: every experiment, oldest first
+
+Written 2026-11-02 19:39 UTC (`date -u`) for the full review of the phase-critic Colab round (PC, tag STANCE7).
+It is a summary for the maintainer. It decides nothing. It changes no pinned file.
+
+**How to read the labels.** Every claim carries one label:
+
+- **[measured, source]**: read from the named file and line (or field). Most sources are lines of the run log.
+- **[inferred]**: reasoned, not measured. The basis is named where it is not obvious.
+
+**Fails stay fails.** Every negative, failed or not-informative result is reported as such.
+
+## Short names
+
+| Name | What it is |
+|---|---|
+| RUNLOG | The run log, `S1/foot/stance4/live/run_log.txt` (971 lines, 2026-10-19 to 2026-11-02). `l.N` is its line N. It is the authoritative record. |
+| S1, S2 | The two session scratch folders, as defined in `ST/round/criteria.txt` lines 39-40 (SHORT NAMES). Read only. |
+| ST | `/home/user/work/pc_study` (the PC round's study folder). |
+| PS | `/home/user/work/phase_screen` (the phase screen). |
+| TAILREC | `/home/user/work/wt_records3/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md`, the consolidated tail-habit record. Sections 1-9 are on `main` (via #654 and #656); section 10 is only in the unpushed draft [measured, `git show 4c9d5e9b` of the file: section 9 present, section 10 absent]. Line numbers below are the draft's. |
+| S6REV, S6HEAD | `S2/r10round/f2/REVIEW.txt` and `HEADLINE.txt`, the stance6 round's review. |
+| ECS | `S2/r10round/ecs` (text only now). |
+| Branches | Written without the repository's fixed agent-branch prefix. For example `handoff-ecs` means that prefix followed by `/handoff-ecs`. |
+
+## Words used below (one line each)
+
+- **tail_3**: the tip segment's pitch actuator (action 14). Its command runs from -1 to +1; +1 raises the tail tip.
+- **Rail**: a command held at its +1 limit for most of an episode. The tail tip is held up at its stop.
+- **Park**: a command held high (0.60 or more) but under the saturation bar. Not a rail, not a cure.
+- **Over the bar**: an episode where some actuator's |command| is 0.99 or more on over 10% of window steps.
+- **Ledger**: the training run's own evaluation file (`eval_episodes.csv`): 10 episodes every 131,072 steps.
+- **Flagged evaluation / alarm**: an evaluation with at least 5 of 10 episodes over the bar; two flagged in a row is an alarm. Report only; no run is stopped on it.
+- **J checkpoints**: the judged checkpoints, 4.19M, 5.24M, 6.29M, 8.39M, 10.49M steps and the final.
+- **Gate certificate**: the six-heading stance test on the final checkpoint (40 episodes per heading).
+- **Actor / critic**: the actor picks actions. The critic (value network) predicts future reward from the current state.
+- **Advantage**: how much better an action did than the critic expected. Training moves the actor toward positive-advantage actions.
+- **Policy gradient**: the part of the training loss that does that moving.
+- **GAE**: the advantage formula used here. It mixes real rewards with the critic's predictions ("bootstrapping").
+- **Phase**: how far into the episode the robot is (step k of 1,000). The robot's 63 observations contain no clock.
+- **Continuation**: training resumed from a saved checkpoint for a short window, on this machine's CPU, in a scratch copy.
+- **Screen**: a small pre-registered experiment of continuations.
+- **Pre-registered**: the rules and the possible result lines are fixed and hash-pinned before any data.
+- **Outcome-blind**: no result is opened until every run is decided.
+- **Exact permutation test**: counts every way to split the values between the two arms. With 4 + 4 runs the smallest p is 1/70; with 3 + 3 it is 1/20.
+- **CMD_L**: an evaluation's mean tail_3 command (ledger). **TD** (tail drive): the mean of |CMD_L| over a run's 91 evaluations.
+- **Seeds** are written s42, s60 and so on. Steps are written 4.19M for 4,194,304.
+
+---
+
+## 0. Before the run log (July 2026 to 2026-10-18)
+
+These come from TAILREC, not RUNLOG. They are background.
+
+- **r6/r7 stage 1 (July-August).** Saturated tail joints were common, but "the tail is a bystander": holding all four tail joints at +1 still stood the full horizon [measured, TAILREC line 565 (L005)]. On r7 the saturated trio was "fully exonerated" as a cause of falls [measured, TAILREC line 569 (L010)].
+- **Shaping pack #504 (2026-08-10).** Two reward terms were added: an `action_saturation` ramp (weight 0.5 above |a| 0.9) and `tail_home_pose` (weight 0.25, tolerance 0.05 rad) [measured, TAILREC line 572 (L013)]. On r7 the gate-pass run then had 0 of 15 actuators saturated [measured, TAILREC line 573 (L014)]. The issue was closed on 2026-08-15 [measured, TAILREC line 575 (L016)]. Both terms are still in force.
+- **Raw-command pricing, D-D27 (2026-10-07, r8).** Saturation is priced on the policy's own raw command. A constant command is free under the smoothness and jerk terms, so a rail is charged only by the ramp and `tail_home_pose` [measured, TAILREC line 586 (L022)].
+- **stance3 Run 2 (r9, seed 60, runs of 2026-10-18): the first named tail rail.** tail_3 at +1 in 40 of 40 episodes at 4.19M. Ledger alarm at 2,359,296 (applied afterwards). 44 of 91 evaluations flagged [measured, TAILREC line 596 (L027); RUNLOG l.613]. Its final was clean but parked at +0.841 [measured, TAILREC line 597 (L028); RUNLOG l.613]. It was walking pilot 2's parent; pilot 2 was retired on 2026-10-25 [measured, RUNLOG l.607].
+- Across r9's L+T-family runs, 4 of 10 railed [measured, RUNLOG l.613].
+
+---
+
+## 1. The experiments, oldest first
+
+Each entry gives: the question; the design; the pre-registered result line as read; the key numbers; the status; and where the record lives.
+
+### E1. stance4 round: stagger penalty (2026-10-19 to 2026-10-20)
+
+- **Question.** Does a left-right stagger penalty (weight 0.30, tolerance 0.045 m) on the L+T stance recipe fix the fore-aft foot fault (tests K1-K4)? [measured, RUNLOG l.2-4] The tail was not the question [inferred, RUNLOG l.1-7 name no tail aim].
+- **Design.** 3 runs, seeds 52, 60, 42, from scratch, 12M steps, Colab L4 GPU. Control: stance3 Runs 2 and 3, not retrained [measured, RUNLOG l.1-3, l.15-17].
+- **Result line.** "DECISION (final, not provisional): line 5. Not adopted; next round tests the per-foot CoP band or the v6b ankle spring." [measured, RUNLOG l.172]
+- **Key numbers.**
+  - 0 of 3 runs hold. s42 fails K1-K4 [measured, RUNLOG l.170].
+  - s42 saturation alarm (report only): at least 5 of 10 evaluation episodes flagged at every evaluation from 2,097,152 to 3,538,944, and 10 of 10 at 3,670,016. s52 and s60: none [measured, RUNLOG l.93-95].
+  - s42 judged 0 of 40 clean at 4.19M and 6.29M, and 14 of 40 at the final [measured, RUNLOG l.108-109, l.136, l.163].
+  - Two side studies were about the foot, not the tail: stagger replicate continuations (line 2, partial) and a CoP-band continuation test (line 2, partial) [measured, RUNLOG l.101-107, l.144-148].
+- **Status.** Final [measured, RUNLOG l.172].
+- **Record.** RUNLOG l.1-207. Run branch `screen-trex-r9-armlt-stagger` at c1e146a8 [measured, RUNLOG l.21]. Records PR #633, merged 2026-10-20 22:11 UTC [measured, RUNLOG l.208, l.216].
+
+### E2. Saturation diagnosis of stance4 s42 (2026-10-20 to 2026-10-21)
+
+- **Question.** Which actuator saturates in s42, and is it the command, the joint or the motor? [measured, RUNLOG l.199-201]
+- **Design.** Offline rollouts of s42's checkpoints, report only (maintainer decision 5a: no training change; tell the maintainer at once when an alarm fires) [measured, RUNLOG l.197-201].
+- **Result (no pre-registered line).** "tail_3_pitch_act commanded at +1 (tail tip up; command pinned, joint and motor not: joint 0.216 rad below its stop on 0.26 of its force), same actuator and sign as stance3 Run 2" [measured, RUNLOG l.227-228].
+- **Key numbers.**
+  - Onset between 1.05M and 2.10M; ledger flags from 1,835,008 [measured, RUNLOG l.228-229].
+  - Holding tail_3 at 0 gains +85.9 (at 2.1M) and +73.1 (at the final) reward per 800-step window, deterministic. "Why training keeps it is not measured." [measured, RUNLOG l.229-230]
+  - The ledger then had no per-actuator column, so it could not name the actuator [measured, RUNLOG l.230].
+- **Status.** Final, report only. Candidate fixes listed; none acted on [measured, RUNLOG l.230-231].
+- **Record.** RUNLOG l.199-231. TAILREC row L035 (line 603). Its run-log lines are in the copy carried by #634 [measured, RUNLOG l.412].
+
+### E3. stance5 round: per-foot CoP band (2026-10-21 to 2026-10-22)
+
+- **Question.** Does a per-foot CoP band on top of stance4's recipe (arm LTSB) fix the foot fault? [measured, RUNLOG l.181-187]
+- **Design.** 3 runs, seeds 52, 60, 42, from scratch, 12M steps, Colab L4. Control: stance4's three runs [measured, RUNLOG l.185-187, l.239-245].
+- **Result line.** "DECISION (final, not provisional): line 3. "H == 1: not adopted; not separated from seed luck; replicate on 2 more seeds before any commit."" [measured, RUNLOG l.351-352]
+- **Key numbers.**
+  - s52 holds; s60 fails K3 only; s42 fails K1 and K3 [measured, RUNLOG l.349].
+  - s42 tail alarm at 3,670,016 (first flagged evaluation 3,538,944). Named: tail_3_pitch_act at +1, |command| at least 0.9 on 77% of window steps at 4,194,304 [measured, RUNLOG l.262-266].
+  - s42's final: 19 of 40 clean, 20 saturation-rail episodes [measured, RUNLOG l.335, l.366].
+  - s52 and s60: no saturation flag in 52 evaluations each, up to 6,815,744 [measured, RUNLOG l.303].
+- **Status.** Final [measured, RUNLOG l.351].
+- **Record.** RUNLOG l.181-369. Run branch `screen-trex-r9-armlts-copband` at cf80ecb1 [measured, RUNLOG l.236]. Records PR #634, merged 2026-10-22 19:41 UTC [measured, RUNLOG l.411, l.427].
+
+### E4. Scratch tail experiment P1, and the K3 diagnosis (2026-10-22)
+
+- **Question.** (a) Can a training-loss penalty on the policy's mean beyond ±1 ("P1") keep tail_3 off the rail? (b) Are stance5 s42's joint-noise falls (test K3) the tail habit? [measured, RUNLOG l.378-380]
+- **Design.** P1: coefficient 41 on |mean| > 1. One seed. Two 1M-step CPU continuations (P1 and a control) from stance5 s42 at 4,194,304. Scratch clone, never pushed [measured, RUNLOG l.378-381, l.438-439].
+- **Result (no pre-registered line).**
+  - P1: tail_3's saturated share was lower than the paired control at 8 of 8 checkpoints (means 0.26 against 0.86). It reached 0.000 twice, then relapsed to 0.47 and 0.49 [measured, RUNLOG l.438].
+  - It did NOT keep the deterministic mean within +1 (beyond +1 on 21-46% of window steps at 7 of 9 checkpoints). It only cut training rows beyond +1 (2.5% against 27.5%) [measured, RUNLOG l.438].
+  - The original run without P1 read 0.171 at 5,242,880, below P1's 0.470. "The effect against training alone is not established." [measured, RUNLOG l.438]
+  - K3: s42's falls are NOT the tail habit. Holding tail_3 at 0 leaves 9/9, 5/5, 9/9 and 12/13 of them. Hip-pitch noise is the main cause [measured, RUNLOG l.435].
+- **Status.** Final, report only. P1 not adopted [measured, RUNLOG l.438; TAILREC line 1314].
+- **Record.** RUNLOG l.378-381, l.433-439. S1 `stance5/tailexp/report.md` and `stance5/k3diag/report.md` [measured, RUNLOG l.434]. TAILREC rows L049, L051.
+
+### E5. stance5 replication: seeds 70 and 80 (2026-10-22 to 2026-10-24)
+
+- **Question.** Does the unchanged band recipe hold on two new seeds? Adopt only if both hold [measured, RUNLOG l.370-374].
+- **Design.** 2 runs, seeds 70 and 80, from scratch, 12M steps, Colab L4, branch at cf80ecb1 [measured, RUNLOG l.370-377, l.396-399].
+- **Result line.** "DECISION: line 2, "Exactly one of s70 and s80 HOLDS (H = 2 of 5): not adopted."" Status FINAL [measured, RUNLOG l.490-491].
+- **Key numbers.**
+  - s70 holds; 0 of 91 evaluations saturation-flagged [measured, RUNLOG l.492].
+  - s80 fails K1 only. Clean 40, 4, 14, 26, 39, 38 of 40 at the six J checkpoints. The low ones are all the tail_3 rail (36, 25, 14 episodes) [measured, RUNLOG l.493].
+  - s80 alarm at 4,456,448, named tail_3_pitch_act at +1 (74% of window steps at 4,718,592). It recovered by 10.5M [measured, RUNLOG l.455, l.460, l.493].
+- **Status.** Final [measured, RUNLOG l.490].
+- **Record.** RUNLOG l.370-500. Durable `handoff-stance5r` [measured, RUNLOG l.500]. Records PR #637, merged 2026-10-24 16:43 UTC [measured, RUNLOG l.519, l.523].
+
+### E6. Detection tools (2026-10-23 to 2026-10-24)
+
+- **Question.** Can every evaluation episode name its saturating actuator and sign, and can a run's history be drawn? [measured, RUNLOG l.502, l.507]
+- **Design.** Code changes, report only, proved inert (training unchanged) [measured, RUNLOG l.502, l.520, l.534].
+- **Result.** Merged on 2026-10-24: #636 training-history report, #638 per-step trace tool, #639 stage-end report, #640 saturation telemetry with rollout clip shares [measured, RUNLOG l.513, l.531, l.543, l.546]. The trace tool reproduced P1's start numbers (saturated share 0.338250) [measured, RUNLOG l.521].
+- **Status.** Done, on `main` [measured, RUNLOG l.546].
+- **Record.** RUNLOG l.502-546. PRs #636, #638, #639, #640.
+
+### E7. Tail options study and no-training probes (2026-10-24)
+
+- **Question.** What holds the tail on the rail: the plant, the reward, the action clip, or the policy's own feedback? And what should the tail round test? [measured, RUNLOG l.504, l.509]
+- **Design.** No training. CPU probes on r9 model copies and on the 4,194,304 checkpoints of stance5 s42 and stance5r s80. Two skeptic reviews [measured, RUNLOG l.504, l.508, l.517, l.525].
+- **Result (no pre-registered line).**
+  - The plant does not force the pin. A level distal tail would need a command of +1.073, which is out of range [measured, RUNLOG l.508].
+  - No reward term pays for tail-up [measured, RUNLOG l.508]. Holding tail_3 at 0 gains reward in 40 of 40 paired noisy episodes: s42 +54.6 (95% CI +51.5 to +57.5), s80 +36.2 (+31.8 to +40.5) per window [measured, RUNLOG l.526].
+  - Without the clip, the mean settles at a stable fixed point of a positive feedback loop (in-episode slope about 0.5-0.6); fixed points 0.45-1.07 across s42 episodes [measured, RUNLOG l.527].
+  - The `policy_probe.npz` bank is not an early detector [measured, RUNLOG l.528].
+  - The skeptics rejected a 5-seed from-scratch round of a 0.90 bound: 5 seeds cannot separate from chance (0 of 8 against 2 of 5 still gives p 0.13) [measured, RUNLOG l.508].
+- **Status.** Final (analysis) [measured, RUNLOG l.518, l.525].
+- **Record.** RUNLOG l.504-528. S2 `tailround/` (`brief_v2.md`, `probes/`). TAILREC rows L061-L073.
+
+### E8. tail_3 bound screen, D-D43 (2026-10-24 to 2026-10-25)
+
+- **Question.** Does a training-loss bound on tail_3's mean (upper side only) bring the tail off the rail without parking it? [measured, RUNLOG l.509, l.538]
+- **Design.** 18 CPU continuations of 1M steps (4,194,304 to 5,242,880), on r9. Starts: stance5 s42 and stance5r s80 at 4,194,304. Arms: CONTROL, BOUND90 (b = 0.90) and BOUND60 (b = 0.60), coefficient 2.4. 3 replicates (seeds 101, 202, 303) per arm per start. Approved 2026-10-24 19:06 UTC [measured, RUNLOG l.538, l.547-548, l.565-572].
+- **Result line.** "OUTCOME C, no bound adopted." [measured, RUNLOG l.573]
+- **Key numbers.**
+  - BOUND90 NOT ADOPTED: RAIL in 6 of 6 (command 0.886-0.971) [measured, RUNLOG l.573].
+  - BOUND60 NOT ADOPTED: PARKED in 6 of 6 with 0 tail-up flags (command 0.600-0.632) [measured, RUNLOG l.573].
+  - CONTROL: s42 RAIL, CURED (seed 202, command 0.265), RAIL; s80 RAIL in 3 of 3 [measured, RUNLOG l.573].
+  - Independent re-score: the score stands; 0 blocking findings [measured, RUNLOG l.575].
+  - Under BOUND60, 52-59% of training rows still sat above b: "the outward drive persists" [measured, RUNLOG l.581].
+- **Status.** Final, verified [measured, RUNLOG l.573, l.575].
+- **Record.** RUNLOG l.537-581. Durable `handoff-tailscreen` at 1106cd3 [measured, RUNLOG l.574]. Records PR #641, merged 2026-10-25 03:37 UTC [measured, RUNLOG l.578, l.591].
+
+### E9. Posture options study (2026-10-25)
+
+- **Question.** What did BOUND60 buy, and can r9 hold a better tail posture at all? [measured, RUNLOG l.576, l.579]
+- **Design.** No training; screen traces, anatomy, costs; two skeptics [measured, RUNLOG l.579].
+- **Result.** BOUND60's tail sat 1.2° lower than the walking-pilot parent. Every arm's distal tail sat 22-28° below horizontal, tail_1 on its ventral (lower) stop [measured, RUNLOG l.581]. This led to a plant probe (E10).
+- **Status.** Final (analysis) [measured, RUNLOG l.581].
+- **Record.** RUNLOG l.579-582. S2 `tailround/posture/brief_corrected_summary.md` [measured, RUNLOG l.581].
+
+### E10. r10 tail probe, CPU checks, and physics r10 (2026-10-25)
+
+- **Question.** Can tail springs (a plant change) hold a level tail so that a level tail costs no command? [measured, RUNLOG l.582]
+- **Design.** CPU only, scratch model copies, no training. Candidate SR3: spring rest angles 52.5° / 25.9° / 10.4° on the three tail pitch joints. Zero-shot closed loop of 8 r9 checkpoints; gate panels; the heading-test diagnosis [measured, RUNLOG l.583, l.585, l.589].
+- **Result (no pre-registered line).**
+  - SR3's statue rests with the tail straight; a level tail needs a command of about 0 (r9: 3.50 / 2.16 / 1.15) [measured, RUNLOG l.585].
+  - Zero-shot, there is no sign SR3 cures the rail: saturation-failure episodes went 27 to 80. Old policies' tail inputs sit 5-8 SD outside their normaliser, so zero-shot cannot predict trained behaviour [measured, RUNLOG l.593].
+  - r10 = SR3 was built and merged, with `tail_home_pose` re-centred (D-D44) [measured, RUNLOG l.597, l.606].
+- **Status.** Done. r10 is the plant of record [measured, RUNLOG l.606]. It did NOT prevent the rail (E12) [measured, RUNLOG l.711].
+- **Record.** RUNLOG l.582-606. PRs #642 (heading test) and #643 (physics r10), merged 2026-10-25 14:08 UTC [measured, RUNLOG l.606].
+
+### E11. Telemetry for the r10 round (2026-10-25 to 2026-10-26)
+
+- **What.** #644 (head posture, hip roll, judge-K3 readout) and #645 (118 new ledger columns; an in-run K3 panel), both report only [measured, RUNLOG l.618, l.630].
+- **Status.** Merged 2026-10-25 19:21 UTC and 2026-10-26 02:24 UTC [measured, RUNLOG l.624, l.637].
+
+### E12. stance6: the first r10 round (2026-10-25 to 2026-10-28)
+
+- **Question.** On physics r10, with the LTSB recipe, does the tail rail still form in training? Statistic A compares alarm runs with LTSB r9's 2 of 5 [measured, RUNLOG l.607, l.621].
+- **Design.** 3 runs, seeds 60, 42, 80, from scratch, 12M steps (final 12,001,280), Colab L4. Branch `screen-trex-r10-armltsb` at 8737cd3d. Lean all-or-nothing criteria approved 2026-10-27 05:55 UTC [measured, RUNLOG l.610, l.614, l.621, l.664]. Launched about 14:57 UTC 2026-10-27; ends noted 06:25 UTC 2026-10-28 [measured, RUNLOG l.666, l.693-699].
+- **Result line.** "READING line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger); R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1." STATUS FINAL [measured, RUNLOG l.711].
+- **Key numbers.**
+  - s42: RAIL, tail_3 at +1, first tail alarm 3,932,160, 22 alarms; gate certificate FAIL (hop_or_fall 2 > 1 at all six headings) [measured, RUNLOG l.711].
+  - s60: PARKED, tail_3 MEAN_a +0.642 [measured, RUNLOG l.711].
+  - s80: CLEAR on the tail, but 6 alarms on `neck_pitch_act`; gate PASS; POSITIVE [measured, RUNLOG l.711].
+  - Statistic A: 2 of 3 against 2 of 5, one-sided Fisher p 0.93. Nothing significant. "An existence result, not a rate" [measured, S6HEAD lines 1-2].
+  - Two report-only interim looks: none flagged at 3.01M; at 7.6M s42 alarming, s80 neck alarms, s60's tail_3 rising to +0.76 [measured, RUNLOG l.681, l.689].
+  - Review on entropy: "no direct path to the mean" [inferred, S6HEAD line 6]. Next step proposed: ECS [measured, RUNLOG l.717].
+- **Status.** Final [measured, RUNLOG l.711].
+- **Record.** RUNLOG l.607-728. Durable `handoff-stance6` (commits 6c3f27b9 and e4733d8) [measured, RUNLOG l.712, l.717]. Records PRs #647 (pre-registration, merged 2026-10-27 22:51 UTC) and #652 (results, merged 2026-10-29 00:28 UTC) [measured, RUNLOG l.687, l.728].
+
+### E13. ECS: the entropy continuation screen (2026-10-28 to 2026-10-29)
+
+- **Question.** From mid-rise states, does the remaining entropy bonus drive the crossing onto the rail? [measured, RUNLOG l.719-721]
+- **Design.** 24 CPU continuations of 1,572,864 steps. Starts: stance6 s42 at 3,145,728 and s80 at 4,194,304. Arm A: entropy coefficient as recorded. Arm B: entropy coefficient 0. 6 per arm per start. Outcome-blind [measured, RUNLOG l.721; ECS `criteria.txt` lines 37-54].
+- **Result line.** "line 3, NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES (not tested: a shift of the first flag within the window, a modest effect, the early phase)" [measured, RUNLOG l.740, l.742].
+- **Key numbers.** s42: arm A 6 of 6, arm B 6 of 6. s80: arm A 1 of 6, arm B 1 of 6. P = 17/22 (0.77) both ways. s80's two positives are neck flags, not tail. All 24 counted; two independent checks agree [measured, RUNLOG l.740-741].
+- **Status.** Final, verified [measured, RUNLOG l.740-741]. Entropy is not the driver from these states [inferred, from the line-3 reading; RUNLOG l.742 lists what it did not test].
+- **Record.** RUNLOG l.719-744. Durable `handoff-ecs` at 067b8a10 [measured, RUNLOG l.744]. Records PR #654 [measured, RUNLOG l.766, l.790].
+
+### E14. CoM revisit, static CoM check and tail clamp test (2026-10-29)
+
+- **Question.** Is the raised tail a counterweight? What happens if the rail is removed from railed policies, or imposed on unrailed ones? [measured, RUNLOG l.746-748]
+- **Design.** Simulation only. A static check on the r10 model. Then 12 s42 ECS end policies with tail_3 held at 0, and 12 s80 end policies with tail_3 forced to +1; seeds 3042-3061 [measured, RUNLOG l.746-748].
+- **Result (no pre-registered line; verified).**
+  - tail_3 at its limits moves the whole-body centre of mass by +0.19 / +0.24 mm fore-aft and ±2.03 mm vertically: not a static counterweight [measured, RUNLOG l.746].
+  - s42 held at 0: return +63.6 in 12 of 12; stance otherwise unchanged; head 3.5° lower [measured, RUNLOG l.750].
+  - s80 forced to +1: return -180 in 12 of 12 [measured, RUNLOG l.750].
+  - A positive feedback from the observed tail angle to the tail_3 command: loop gain about 0.63 in the s42 ends (0.27 at the start), fixed point past the +1 limit [measured, RUNLOG l.750].
+- **Status.** Final, report only [measured, RUNLOG l.750].
+- **Record.** RUNLOG l.745-750. S2 `com_revisit/REPORT.txt` [measured, RUNLOG l.750]. Records PR #654.
+
+### E15. Normaliser probe and posture tests (2026-10-29)
+
+- **Question.** Does drift in the observation normaliser build the loop? Does a body posture drive the tail? [measured, RUNLOG l.751, l.754]
+- **Design.** No training; ECS checkpoints and the r9/r10 records; one verifier [measured, RUNLOG l.751-754].
+- **Result (verified with corrections).**
+  - Normaliser drift opposes the gain growth; the network weights carry it [measured, RUNLOG l.757].
+  - In r10 s42 a posture-independent tail bias rose first (about 1.20M); nose-down posture came about 0.17M later [measured, RUNLOG l.757].
+  - The s42 networks map perceived nose-down pitch to a tail offset (-0.157 command per degree nose-up). Perceived +1.1° nose-up cut railed episodes from 0.67 to 0.15. This pathway was absent before the rise. s60 has the opposite pitch sensitivity [measured, RUNLOG l.757].
+- **Status.** Final, report only [measured, RUNLOG l.757].
+- **Record.** RUNLOG l.751-758. TAILREC sections 4.8 and 4.11. Records PR #654 (merged 2026-10-30 13:36 UTC) [measured, RUNLOG l.790].
+
+### E16. Early-bias probe (2026-10-30)
+
+- **Question.** Which part of the training loss first pushes tail_3's mean up? [measured, RUNLOG l.763]
+- **Design.** At stance6 checkpoints, rebuild one PPO update and measure each loss term's push on tail_3's mean. No optimizer step. A verifier fetched the 1,310,720 checkpoints [measured, RUNLOG l.763, l.771].
+- **Result (verified with corrections).**
+  - Only the policy-gradient term moves the mean. Entropy and value terms: exactly 0. Mirror-KL: small [measured, RUNLOG l.770-771].
+  - At 1.31M, just after s42's onset (1.204M), s42 already has an upward pull carried by tail_3's own exploration noise: +0.00115 ± 0.00032 per epoch (t 3.6). s80 has none until about 0.8M later [measured, RUNLOG l.771].
+  - The critic's bootstrap is a source from 2.10M on (GAE minus Monte Carlo +0.0037, t 3.7; +0.024, t 7.9 at 3.15M). At the onset it is unresolved (+0.0005 ± 0.00045) [measured, RUNLOG l.771].
+  - The critic's slope on the tail angle is positive where the pull appears [measured, RUNLOG l.770-771]. The "tail angle as a clock" reading was then only a hypothesis [inferred, RUNLOG l.770-771].
+- **Status.** Final [measured, RUNLOG l.771].
+- **Record.** RUNLOG l.763, l.770-771. Records PR #656.
+
+### E17. Early-warning curve and its follow-ups (2026-10-30)
+
+- **Question.** Can the habit be seen coming? [measured, RUNLOG l.765]
+- **Design.** No training. Loop gain and offset at every saved checkpoint; a pre-registered held-out test on r9; a margin-to-rail test [measured, RUNLOG l.765, l.769, l.773].
+- **Result (verified).**
+  - The loop gain turns positive one checkpoint before the first over-bar episode in s42 and s60. But late s80 reaches the same loop state with no over-bar episode [measured, RUNLOG l.769].
+  - The r9 held-out test FAILS: the only testable signal fired in all 5 r9 runs by 2.06M, including the cleanest negative (s70) [measured, RUNLOG l.773].
+  - Late s80 was as close to the rail as s42 one checkpoint before its first over-bar, but approaching 4-12 times more slowly [measured, RUNLOG l.773].
+- **Status.** Final. No validated warning [measured, RUNLOG l.769, l.773].
+- **Record.** RUNLOG l.765-773. Records PR #656.
+
+### E18. BS: first critic-blind screen (2026-10-30)
+
+- **Question.** Does hiding the tail_3 angle (observation 6) from the critic only stop the early rise? [measured, RUNLOG l.772]
+- **Design.** 8 CPU continuations from stance6 s42, 1,048,576 to 2,490,368 (1.44M steps): 4 control, 4 critic-blind, seeds 2101-2131. Primary: the on-policy tail_3 command over the last 8 updates. Gate: the control median must rise at least 0.10. Exact permutation test. Run under the maintainer's overnight authorisation [measured, RUNLOG l.764, l.775-776].
+- **Result line.** "line 1, NOT INFORMATIVE: the control arm did not reproduce the early rise (control median primary +0.0603, rise +0.0918 from B_S -0.0316, against the pre-registered 0.10); no reading about the critic is made." [measured, RUNLOG l.779]
+- **Key numbers (report only).** Arm means +0.093 (control) and +0.013 (blind); p 13/70. Verified by two checks [measured, RUNLOG l.779-780].
+- **Status.** Final: not informative [measured, RUNLOG l.779-780].
+- **Record.** RUNLOG l.772-782. Durable `handoff-bias-screen` at cfed2c70 [measured, RUNLOG l.782]. Records PR #656, merged 2026-10-31 about 14:30 UTC [measured, RUNLOG l.814].
+
+### E19. BS2: second critic-blind screen (2026-10-30)
+
+- **Question.** The same, from the later state where s42's rise is under way [measured, RUNLOG l.784].
+- **Design.** 8 CPU continuations from stance6 s42, 2,097,152 to 3,538,944, seeds 2501-2531. Gate: control median rise at least 0.20 [measured, RUNLOG l.784, l.787-789].
+- **Result line.** "line 2, REDUCED: 'BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)'" [measured, RUNLOG l.794]
+- **Key numbers.**
+  - Control +0.670, +0.792, +0.511, +0.419; blind +0.143, +0.125, +0.138, +0.065. Control median rise +0.464. p 1/70 [measured, RUNLOG l.794].
+  - Secondary tests: ledger command and margin to rail SUPPORTED (1/70 each); the loop-gain secondary NOT SUPPORTED [measured, RUNLOG l.794].
+  - Two controls had their first tail over-bar episode; no blind run did [measured, RUNLOG l.794].
+  - Caveat: with the arms' spread ratio 4.6, complete separation has about a 0.03 chance under equal means [measured, RUNLOG l.796].
+- **Status.** Final, verified [measured, RUNLOG l.794, l.796].
+- **Record.** RUNLOG l.784-800. Durable `handoff-bias-screen2` at 2d241410 [measured, RUNLOG l.800]. Records PR #656.
+
+### E20. LB: long critic-blind study (2026-10-30)
+
+- **Question.** Does blinding last to 12M, does the gate still pass, does the habit move to another joint? [measured, RUNLOG l.798]
+- **Design.** Planned: 4 CPU continuations from s42 2,097,152 to about 12M (mostly blind plus one control) [measured, RUNLOG l.798].
+- **Result.** None. The build stopped at 18:29 UTC 2026-10-30 when the maintainer chose to test the phase fix first. The harness, measurement tool and criteria draft were kept [measured, RUNLOG l.805-806].
+- **Status.** Never run [measured, RUNLOG l.805-806].
+- **Record.** RUNLOG l.798, l.801, l.805-807. Safety copy `handoff-day-2026-10-30` at b25eeaf5 [measured, RUNLOG l.807].
+
+### E21. Why-probe: why the critic values a raised tail (2026-10-30)
+
+- **Question.** Is the tail angle (A) a stand-in for the episode phase, or (B) a real sign of termination risk? [measured, RUNLOG l.803]
+- **Design.** No policy training. Predictions hashed before data. stance6 s42 at 1.05M and 2.10M; BS2 controls at 3.15M and the end; a blinded run. A verifier and an adjudicator [measured, RUNLOG l.803-804].
+- **Result.** "(A) PHASE PROXY favoured strongly [measured inputs, inferred reading]; (B) genuine termination risk EXCLUDED" [measured, RUNLOG l.804].
+- **Key numbers.** [all measured, RUNLOG l.803-804]
+  - The 63 observations have no clock. Four stance reward terms are paid only after step 200 of each episode. [measured, RUNLOG l.803-804]
+  - Settled states are worth 0.17-0.23 more (normalised return-to-go) at matched posture. [measured, RUNLOG l.803-804]
+  - The policy's own tail command creeps up over about 300 steps after each reset. So the tail angle tells the time (AUC 0.61-0.95). [measured, RUNLOG l.803-804]
+  - The phase-blind critic overvalues steps 50-200 by +0.04 to +0.14. It puts +0.02 to +0.06 per degree on the tail. [measured, RUNLOG l.803-804]
+  - Real returns give the tail -0.013 to -0.002 per degree once phase is controlled. [measured, RUNLOG l.803-804]
+  - Verifier's fitted critic: +0.048 to +0.068 per degree without the phase; -0.006 to +0.004 with it. The training's own advantages push the tail up; Monte Carlo advantages do not detectably. [measured, RUNLOG l.803-804]
+  - Termination: 0 tail contacts in 1,280 training-like rollouts and in 2,495 training episodes. [measured, RUNLOG l.803-804]
+  - Post hoc: s80's neck shows the same clock signature toward its own habit (one checkpoint). [measured, RUNLOG l.804; post hoc, one checkpoint]
+- **Status.** Final, verified [measured, RUNLOG l.804].
+- **Record.** RUNLOG l.803-804. S2 `com_revisit/notes/{phase_probe,termination_probe,verify_why}`. Safety copy `handoff-day-2026-10-30` [measured, RUNLOG l.807]. Records draft (E26 below).
+
+### E22. Cross-check of outside PR #655 (2026-10-31)
+
+- **What.** A review of a report-only outside PR on the stance "pop" at step 200 [measured, RUNLOG l.808].
+- **Result.** Its evidence reproduces byte for byte. On the round's run branch the step-200 value jump is about 3.5 times larger than on `main` (+0.31 to +0.35 per step against +0.099), because the run branch gates four terms at step 200 and `main` gates one [measured, RUNLOG l.809-810].
+- **Status.** Done; review comment posted [measured, RUNLOG l.811].
+
+### E23. PS: the phase screen, with the V-G tool (2026-10-30 to 2026-10-31)
+
+- **Question.** If the critic (only) is told the episode phase, does the tail_3 climb stop, with the tail angle still visible to the critic? [measured, RUNLOG l.805]
+- **Design.** 8 CPU continuations from stance6 s42, 2,097,152 to 3,538,944: 4 control, 4 critic-phase, seeds 2901-2931. The phase: a ramp to step 200, a settled flag, and a discount term. The actor is unchanged. BS2's primary, gate (0.20) and test [measured, RUNLOG l.833; PS `REPORT.md` lines 13-21].
+- **Result line.** "REDUCED: GIVING THE CRITIC THE EPISODE PHASE (the tail_3 angle still in its input; the actor unchanged) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)" [measured, PS `REPORT.md` lines 9-11; RUNLOG l.857].
+- **Key numbers.**
+  - Control +0.494, +0.586, +0.661, +0.646 (median rise +0.490). Phase +0.068, +0.047, +0.043, +0.068. p 1/70 [measured, RUNLOG l.857].
+  - The phase arm ended below its start (+0.057 against +0.127) [measured, PS `REPORT.md` line 35].
+  - The critic's own tail slope at the end: phase -0.004 to +0.008 per degree; control +0.038 to +0.058 [measured, PS `REPORT.md` lines 39-41].
+  - Guard warning: the phase arm's tail_2 command was slightly higher (+0.027 against +0.006 means; p 2/70) [measured, RUNLOG l.857].
+  - V-G tool (report only): the control critic overvalues steps 50-150 (+0.037) and undervalues 200-250 (-0.068); the phase critic stays within 0.011 of zero in every bucket [measured, RUNLOG l.861].
+  - Process: two container restarts killed the second wave twice. Each half-way run was recorded as a crash, not counted, and rerun from the start pair [measured, RUNLOG l.849-852].
+- **Status.** Final, verified by two checks [measured, RUNLOG l.862].
+- **Record.** RUNLOG l.805-864. PS `REPORT.md`. Durable `handoff-phase-screen` at dd4f0d32 [measured, RUNLOG l.864]. Records draft (E26).
+
+### E24. LP: long phase-critic study (2026-10-31)
+
+- **Design.** Planned: the paused LB harness adapted to the phase critic, s42 2.10M to about 12M on CPU [measured, RUNLOG l.863].
+- **Result.** None. The build was killed about 20:50 UTC when the maintainer switched to fresh Colab runs [measured, RUNLOG l.867-868].
+- **Status.** Abandoned [measured, RUNLOG l.868].
+- **Record.** RUNLOG l.863-868.
+
+### E25. PC (STANCE7): the phase-critic Colab round (2026-10-31 to 2026-11-02)
+
+- **Question.** With a critic-only phase input from step 0, does any of 3 fresh runs develop the tail habit by 12M? Does each pass the gate? Does a habit appear on another actuator? [measured, `ST/round/criteria.txt` lines 63-77]
+- **Design.** [measured, `ST/round/criteria.txt` lines 63-125 and 289-312; RUNLOG l.874, l.876]
+  - 6 runs from scratch, 12M steps, Colab L4, seeds 60, 42, 80. [measured, `ST/round/criteria.txt` lines 86-125, 289-312; RUNLOG l.874, l.876]
+  - 3 PHASE runs: the critic gets the phase through its own extra input; the actor's 63 inputs are unchanged; the critic's phase weights start at zero. [measured, `ST/round/criteria.txt` lines 86-125, 289-312; RUNLOG l.874, l.876]
+  - 3 OFF runs: the same code with the switch off. [measured, `ST/round/criteria.txt` lines 86-125, 289-312; RUNLOG l.874, l.876]
+  - Waves: PHASE first, then OFF. Rule: no PHASE result may be opened before every OFF run has started. [measured, `ST/round/criteria.txt` lines 86-125, 289-312; RUNLOG l.874, l.876]
+  - THE ONE TEST: an exact one-sided permutation test of TD, PHASE against OFF. p = 1/20 only if every PHASE TD is below every OFF TD. [measured, `ST/round/criteria.txt` lines 86-125, 289-312; RUNLOG l.874, l.876]
+- **What happened.**
+  - PHASE launched 03:26-03:28 UTC 2026-11-01 [measured, RUNLOG l.885-887].
+  - At 17:44 UTC the maintainer pasted part of the s60 PHASE run's notebook output (evaluation returns and model selection; no tail figure) before any OFF run had started. Under the pinned rules this made all three OFF runs NOT BLIND [measured, RUNLOG l.902].
+  - OFF launched 18:12, 18:20 and 18:56 UTC (s80 before s42, against the steps' seed order) [measured, RUNLOG l.907, l.910-911, l.923].
+  - Before any fetch, the maintainer chose "Pin both readings": the pinned reading stands, and a flagged DEVIATION reading treats the OFF runs as blind. Approved 15:59:28 UTC 2026-11-02 [measured, RUNLOG l.949, l.954].
+  - Fetch (F2) from 16:39 UTC; 410 copies equal to the run manifests; all six runs COMPLETE [measured, RUNLOG l.960-967].
+- **Pinned result line.** "READING: line 4: NO TAIL RAIL OR PARK IN 3 OF 3 PHASE-CRITIC RUNS, THE STANCE GATE CERTIFICATE PASSED IN 3 OF 3 (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification), NO SATURATING HABIT ON ANOTHER ACTUATOR: CONSISTENT WITH THE PHASE CRITIC REMOVING THE HABIT, NOT CONFIRMATORY (descriptive: 3 phase-critic runs beside 3 concurrent switch-off runs; KNOWN LIMITS)". STATUS: FINAL [measured, `ST/f2/score/score_pc.txt` lines 357, 365].
+- **THE ONE TEST, pinned.** "NOT SEPARATED (p = 20/20)". The three OFF runs entered as missing because they were not blind [measured, `score_pc.txt` line 362]. This is a FAIL of the pre-registered test, caused by the procedural slip.
+- **THE ONE TEST, flagged deviation reading.** "LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact permutation p = 1/20)" [measured, `ST/f2/score/score_pc_dev.txt` line 393]. Not the pinned reading: it was decided after the slip and assumes the slip had no effect on the OFF runs [measured, RUNLOG l.969].
+- **Key numbers.**
+
+| Seed | PHASE: tail class, gate, other habit | PHASE TD | OFF: tail class, gate, other habit | OFF TD |
+|---|---|---|---|---|
+| s60 | CLEAR, PASS, none | 0.0079 | PARKED (tail_3 MEAN_a +0.642), PASS, none | 0.388 |
+| s42 | CLEAR, PASS, none | 0.0173 | RAIL (22 tail alarms from 3,932,160), FAIL, none | 0.635 |
+| s80 | CLEAR, PASS, none | 0.0122 | CLEAR, PASS, neck_pitch SATURATING (6 alarms) | 0.154 |
+
+  [measured, `score_pc.txt` lines 321-343, 362]
+  - Per seed, OFF TD is 13 to 49 times PHASE TD (s80 12.6, s42 36.7, s60 49.1) [measured, computed from `score_pc.txt` line 362].
+  - PHASE runs' highest evaluation tail command: 0.021, 0.030, 0.031 (s60, s42, s80). No evaluation reached 0.30 [measured, `score_pc.txt` lines 322, 326, 330].
+  - Report only: PHASE mean returns 4442.7, 4481.0, 4482.3 against OFF 4412.6, 4377.7, 4415.8 [measured, `score_pc.txt` lines 324, 328, 332, 337, 341, 347].
+  - Report only, a NEGATIVE: PHASE s60 had 9 falls in 910 evaluation episodes; every other run had 0 or 1 [measured, same lines].
+  - If the phase input changed nothing, "no rail in 3 runs" would still have a 0.296 chance (plug-in at 1 of 3) [measured, `score_pc.txt` line 359].
+  - The stance3 parent rule named no parent: "not named: an input is absent" (the K1-K4 judge was not run at the finals) [measured, `score_pc.txt` line 361].
+- **MEASURED finding after scoring.** The three OFF runs are bitwise reproductions of stance6's same-seed runs. Their ledgers have the same sha256 (`1821fd2e...`, `d1bcb789...`, `b677ce76...`), and their final policy and optimizer weights match [measured, RUNLOG l.970-971; `ST/f2/check_numbers/out/zipcrc_off_vs_stance6.out` lines 4-5, 46-47, 88-89]. Consequences [inferred, RUNLOG l.970]:
+  - Training is deterministic on this Colab L4 image (the criteria assumed it was not). [inferred, RUNLOG l.970]
+  - The OFF arm adds no sample independent of stance6, and its TDs were printed in the criteria before the runs [measured, `ST/round/criteria.txt` line 229].
+  - The 17:44 opening could not have changed the OFF outcomes, which equal runs trained on 2026-10-27/28. [inferred, RUNLOG l.970]
+  - Each seed's PHASE/OFF pair differs only by the critic's phase input. [inferred, RUNLOG l.970]
+- **Checks.** Numbers check: no wrong number. Process check: no blocking finding [measured, RUNLOG l.970].
+- **Status.** Scored; STATUS FINAL. The full review (this summary among its parts) is in progress [measured, RUNLOG l.971].
+- **Record.** RUNLOG l.867-971. `ST/round/` (criteria, APPROVED), `ST/amend2/AMENDMENT2.txt`, `ST/f2/score/`, `ST/f2/check_numbers/`, `ST/f2/check_process/`. Run branch `screen-trex-r10-phasecritic` at 1dfe2327 [measured, RUNLOG l.879]. Durable `handoff-phase-critic-prereg` at dd0e5ffd [measured, RUNLOG l.883]. No records PR yet.
+
+### E26. The records (for orientation)
+
+- TAILREC, "everything tried", merged as #654 on 2026-10-30 [measured, RUNLOG l.766, l.790].
+- Its update with BS, BS2 and the early probes: #656, merged 2026-10-31 [measured, RUNLOG l.812-814].
+- Draft for the why-probe, #655 cross-check and PS: branch `records-phase-screen` in `/home/user/work/wt_records3`, 6 local commits, NOT pushed, with a placeholder for the Colab run [measured, RUNLOG l.871-872].
+
+---
+
+## 2. What we now know: the causal story
+
+The story has four links. Each is labelled with how strong its evidence is.
+
+### Link 0: the habit itself
+
+- On r9 and r10, with the stance recipe, tail_3's command climbs to +1 in some seeds and stays there [measured, E1-E5, E12]. The same actuator and sign every time on the tail: tail_3, tail tip up [measured, RUNLOG l.228, l.266, l.460, l.711].
+- It is common. 4 of 10 r9 L+T-family runs railed [measured, RUNLOG l.613]. In stance6, 1 of 3 railed and 1 parked [measured, RUNLOG l.711].
+- It costs reward. Holding tail_3 at 0 earns more: +54.6 and +36.2 per window under the policy's own noise, +63.6 in the clamp test [measured, RUNLOG l.526, l.750].
+- It is not forced by the body. The plant does not push the tail up [measured, RUNLOG l.508]. The raised tail moves the centre of mass by at most 0.24 mm fore-aft [measured, RUNLOG l.746]. No tail contact ends episodes [measured, RUNLOG l.804].
+
+### Link 1: four stance reward terms switch on at step 200 (measured)
+
+- Four stance terms (stance width, lateral lean, stagger, CoP band) are paid only after `stance_width_settle_steps` = 200 [measured, RUNLOG l.803, code at 8737cd3d].
+- The robot's 63 observations contain no clock [measured, RUNLOG l.803].
+- So the same pose is worth more after step 200 than before it: 0.17-0.23 more return-to-go at matched posture [measured, RUNLOG l.804]. On the run branch the value jumps +0.31 to +0.35 per step at step 200 [measured, RUNLOG l.810].
+
+### Link 2: the critic uses the creeping tail_3 angle as a clock (measured inputs, inferred reading)
+
+- The policy's tail command creeps up over about 300 steps after every reset. So the tail angle tracks the step count (AUC 0.61-0.95) [measured, RUNLOG l.804].
+- The critic, which has no clock, learns to read the tail angle. Without the phase it puts +0.02 to +0.06 per degree on the tail; real returns put -0.013 to -0.002 per degree on it once phase is known [measured, RUNLOG l.804]. A fitted critic gives +0.048 to +0.068 per degree without the phase and about 0 with it [measured, RUNLOG l.804].
+- The critic's errors have the expected timing: too high before step 200, too low just after it [measured, RUNLOG l.804, l.861].
+- Termination risk does not explain the slope; it could fund at most 7% of it [measured, RUNLOG l.804].
+- That the tail angle works as a clock, rather than as anything else, is the adjudicated reading [inferred, RUNLOG l.804: "measured inputs, inferred reading"].
+
+### Link 3: the policy gradient pays for raising the tail (measured from 2.10M; unresolved at the onset)
+
+- Only the policy-gradient term moves tail_3's mean. The entropy and value terms push it by exactly 0 [measured, RUNLOG l.770-771]. This agrees with ECS: removing entropy changed nothing [measured, RUNLOG l.740].
+- The training's advantages push the tail up. Monte Carlo advantages (real rewards only) do not detectably [measured, RUNLOG l.804]. The critic-bootstrap pull is measured from 2.10M (t 3.7) and 3.15M (t 7.9) [measured, RUNLOG l.771].
+- At the onset (1.31M in s42) an upward pull exists, but whether the critic causes it there is unresolved (+0.0005 ± 0.00045) [measured, RUNLOG l.771].
+- Once raised, the tail stays raised through a positive loop: the policy answers a higher observed tail with a higher command (loop gain about 0.63 at the s42 ends), and the fixed point lies past +1 [measured, RUNLOG l.750, l.527]. Body posture feeds this loop in s42 (nose-down maps to tail-up) [measured, RUNLOG l.757].
+- So the rail is the loop's fixed point, and the critic's clock error is what first tilts the loop upward [inferred, from the measured items above].
+
+### Link 4: a critic-only phase input removes it (measured in two screens and one round; not confirmed by the pre-registered round test)
+
+- Taking the tail angle away from the critic cut the climb: BS2, p 1/70 [measured, RUNLOG l.794]. But blinding is a stopgap: the phase can be read from other joints (AUC 0.84-0.99), and one blinded run's tail_2 rose [measured, RUNLOG l.804].
+- Telling the critic the phase, with the tail angle still visible, cut it too: PS, p 1/70. The critic's own tail slope fell to about 0, and its errors around step 200 nearly vanished [measured, RUNLOG l.857, l.861; PS `REPORT.md` lines 39-41].
+- From scratch on Colab, 0 of 3 PHASE runs railed or parked, and none formed a habit on another joint. Their tail drive was 13-49 times lower than the same seeds without the input [measured, `score_pc.txt` lines 321-343, 357, 362].
+- The OFF runs equal stance6 bit for bit, so each same-seed pair differs only by the phase input [measured that they are equal: RUNLOG l.970-971; inferred that only the input differs: RUNLOG l.970].
+- The s80 neck habit, present with the switch off, was absent with it on [measured, `score_pc.txt` lines 329, 342]. The why-probe had seen a neck clock in s80 [measured, RUNLOG l.804]. That the same mechanism drives the neck habit is a reading [inferred].
+- The limits stand. The pinned test is NOT SEPARATED (p = 20/20) [measured, `score_pc.txt` line 362]. The deviation reading (p = 1/20) is post hoc [measured, RUNLOG l.969]. With 3 seeds, 1/20 is the smallest p possible, and no rail in 3 runs would happen by chance 30% of the time [measured, `score_pc.txt` line 359]. The reading is "consistent with", "not confirmatory" [measured, `score_pc.txt` line 357].
+
+### What was ruled out or did not work along the way
+
+- Not supported as the cause: the plant forcing the pin [measured, RUNLOG l.508]; a static counterweight need [measured, RUNLOG l.746]; a termination risk [measured, RUNLOG l.804]; normaliser drift, which opposes the loop [measured, RUNLOG l.757]; the entropy bonus, which does not push the mean and made no difference from mid-rise states (its role in the early phase was not tested) [measured, RUNLOG l.740, l.742, l.771].
+- Did not fix it: the #504 reward ramp on r9 [measured, TAILREC line 1311]; P1 (not established) [measured, RUNLOG l.438]; BOUND90 (rail kept) and BOUND60 (rail turned into a park) [measured, RUNLOG l.573]; physics r10 (rail in 1 of 3, park in 1 of 3) [measured, RUNLOG l.711].
+- Not a usable warning: the probe bank, and the loop gain across runs [measured, RUNLOG l.528, l.769, l.773].
+
+---
+
+## 3. What is still open
+
+1. **No confirmatory test yet.** The pinned ONE TEST is NOT SEPARATED; only the flagged deviation reads p = 1/20 [measured, `score_pc.txt` line 362; RUNLOG l.969]. A confirmatory round needs new seeds. The OFF arm here is stance6 again [measured, RUNLOG l.970].
+2. **Determinism changes the design options.** Same seed, same code, same Colab image gave identical runs [measured, RUNLOG l.970-971]. A future round could pair by seed exactly and reuse past runs as controls [inferred]. How far this holds (other images, other configs) is unknown.
+3. **The onset's cause.** The critic-bootstrap pull is measured from 2.10M but unresolved at the onset (1.2-1.3M) [measured, RUNLOG l.771]. BS from 1.05M was not informative [measured, RUNLOG l.779]. PC's from-scratch runs never rose at all, which covers the onset only in 3 runs [measured, `score_pc.txt` lines 322, 326, 330].
+4. **The posture pathway.** s42's networks turn nose-down pitch into tail-up; s60 has the opposite sensitivity [measured, RUNLOG l.757]. How this fits the critic-clock story is not tested [inferred].
+5. **PHASE s60's 9 evaluation falls** in 910 episodes (others 0-1) are unexplained [measured, `score_pc.txt` line 324].
+6. **No parent named.** The K1-K4 judge was not run at the PC finals [measured, `score_pc.txt` line 361].
+7. **Beyond stance.** Whether the phase input works in walking stages, where there is no step-200 gate, is untested [inferred].
+8. **The other fix.** Making the reward stationary (removing the step-200 gate) was judged "only partial" by the why-probe and was never tried [measured, RUNLOG l.804].
+9. **`main` versus the run branch.** `main` gates one term at step 200, the run branch four; the step-200 jump is about 3.5 times smaller on `main` [measured, RUNLOG l.809-810]. Whether `main`'s stance recipe shows the habit at the same rate is not measured.
+10. **Merge or not.** The critic-only phase input lives only on `screen-trex-r10-phasecritic` at 1dfe2327, not on `main` [measured, RUNLOG l.879].
+11. **The neck habit.** The s80 neck "clock" was seen at one checkpoint only [measured, RUNLOG l.804].
+12. **Small drift on other tail joints.** In PS the phase arm's tail_2 command was a little higher (p 2/70) [measured, RUNLOG l.857]. In PC no other tail joint parked [measured, `score_pc.txt` lines 323, 327, 331]. Longer runs of a different design were never made (LB never run, LP abandoned) [measured, RUNLOG l.805, l.868].
+13. **No sham-input arm.** PS had no arm with a meaningless extra critic input, so its critic-slope result is not separated from a tail that simply climbed less [measured, PS `REPORT.md` line 107]. PC had none either: its OFF runs add no input at all [measured, `ST/round/criteria.txt` lines 86-94].
+14. **Other runs and states.** PS tested one start state (s42 at 2.10M); PC tested 3 seeds on one recipe [measured, PS `REPORT.md` line 103; `score_pc.txt` line 357]. Whether the input holds on `main`'s configuration (one gated term) is untested [measured, PS `REPORT.md` line 106].
+15. **Bounds on r10.** P1, BOUND90 and BOUND60 were screened on r9 only [measured, TAILREC lines 1314-1316].
+16. **Records.** PC has no records PR yet. The draft `records-phase-screen` is unpushed and holds a placeholder for this round [measured, RUNLOG l.871-872].
+
+---
+
+## 4. Where everything lives
+
+| Experiment | RUNLOG lines | Durable branch (prefix dropped) | PR |
+|---|---|---|---|
+| Before the run log | (TAILREC lines 557-597) | none | #632 (stance3 records) |
+| E1 stance4 | l.1-207 | none (run branch `screen-trex-r9-armlt-stagger`) | #633 |
+| E2 satdiag | l.199-231 | none | #634 (run-log copy) |
+| E3 stance5 | l.181-369 | none (run branch `screen-trex-r9-armlts-copband`) | #634 |
+| E4 P1 and K3 | l.378-439 | none (scratch, never pushed) | #634, #637 |
+| E5 stance5 replication | l.370-500 | `handoff-stance5r` | #637 |
+| E6 detection tools | l.502-546 | none | #636, #638, #639, #640 |
+| E7 options study, probes | l.504-528 | none | #641 |
+| E8 bound screen | l.537-581 | `handoff-tailscreen` | #641 |
+| E9 posture options | l.579-582 | none | #643 |
+| E10 r10 | l.582-606 | none | #642, #643 |
+| E11 r10 telemetry | l.607-637 | none | #644, #645 |
+| E12 stance6 | l.607-728 | `handoff-stance6` (run branch `screen-trex-r10-armltsb`) | #647, #652 |
+| E13 ECS | l.719-744 | `handoff-ecs` | #654 |
+| E14 CoM and clamp | l.745-750 | none | #654 |
+| E15 normaliser, posture | l.751-758 | none | #654 |
+| E16 early-bias probe | l.763-771 | `handoff-bias-screen` (night's notes) | #656 |
+| E17 early warning | l.765-773 | `handoff-bias-screen` | #656 |
+| E18 BS | l.772-782 | `handoff-bias-screen` | #656 |
+| E19 BS2 | l.784-800 | `handoff-bias-screen2` | #656 |
+| E20 LB (never run) | l.798-807 | `handoff-day-2026-10-30` | none (named in #656's run-log copy) |
+| E21 why-probe | l.803-807 | `handoff-day-2026-10-30` | draft, unpushed |
+| E22 #655 cross-check | l.808-811 | none | comment on #655 |
+| E23 PS and V-G | l.805-864 | `handoff-phase-screen` | draft, unpushed |
+| E24 LP (abandoned) | l.863-868 | none | none |
+| E25 PC (STANCE7) | l.867-971 | `handoff-phase-critic-prereg` (run branch `screen-trex-r10-phasecritic`) | none yet |
+
+PR numbers and merge times are from RUNLOG: #632 l.49; #633 l.216; #634 l.427; #636 l.513; #637 l.523; #638 l.531; #639 l.543; #640 l.546; #641 l.591; #642 and #643 l.606; #644 l.624; #645 l.637; #647 l.687; #652 l.728; #654 l.790; #656 l.814.
+

@@ -1,0 +1,16 @@
+M0 unmutated: pytest exit 0 (20 passed in 34.25s)
+M1 drop every SNAPSHOT line (any arm, any time): KILLED (pytest exit 1; test_score_pc_dev.py::test_c_snapshot_only_after_every_off_launch_identical)
+M2 drop none (the deviation run reads RUNLOG as read; the copy's self-check skipped too): KILLED (pytest exit 1; test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation)
+M3 drop the SNAPSHOT lines after the last OFF launch instead: KILLED (pytest exit 1; test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation)
+M4 drop only SNAPSHOT lines strictly earlier than the last OFF launch (a same-minute one kept): KILLED (pytest exit 1; test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines2-a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)])
+M5 skip the sha256 check of the dropped set: KILLED (pytest exit 1; test_score_pc_dev.py::test_b_no_snapshot_outputs_byte_identical)
+M6 accept an empty dropped set under the default expectation: KILLED (pytest exit 1; test_score_pc_dev.py::test_b_no_snapshot_outputs_byte_identical)
+M7 print the pinned run's lines as the deviation lines: KILLED (pytest exit 1; test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation)
+M8 skip the pinned tools' sha256 verification: KILLED (pytest exit 1; test_score_pc_dev.py::test_f_refuses_changed_scorer_bytes)
+M9 delete the dropped line instead of blanking it (renumbers later lines; the copy's self-check skipped): KILLED (pytest exit 1; test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation)
+M10 the deviation run reads the unfiltered copy: KILLED (pytest exit 1; test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation)
+M11 the deviation run's JSON written into --round: KILLED (pytest exit 1; test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation)
+M12 the --out folder check skipped: KILLED (pytest exit 1; test_score_pc_dev.py::test_f_refuses_an_out_folder_inside_the_round_or_not_empty)
+M13 the pinned run's exit code replaced by 0: KILLED (pytest exit 1; test_score_pc_dev.py::test_status_passes_through_provisional_in_both)
+13 mutants, 0 survived
+rc=0

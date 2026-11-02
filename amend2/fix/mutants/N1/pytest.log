@@ -1,0 +1,32 @@
+....................F
+=================================== FAILURES ===================================
+___ test_m1_expect_dropped_refused_on_the_rounds_runlog_and_the_pinned_round ___
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/fix/mutants/N1/pt/test_m1_expect_dropped_refused0')
+
+    def test_m1_expect_dropped_refused_on_the_rounds_runlog_and_the_pinned_round(tmp_path):
+        """The guard runs before the --out check; --out here is a non-empty folder, so a run past the guard is refused by
+        the --out check (another message) and nothing of the real round is read or listed."""
+        rnd = build(tmp_path, lines=())
+        full = tmp_path / "full"
+        full.mkdir()
+        (full / "x").write_text("x")
+        link = tmp_path / "link_to_runlog.txt"
+        link.symlink_to(Path(C.RUNLOG))
+        cwd = tmp_path / "cwd"
+        base = ["--out", full, "--pins", rnd.pins_path]
+        for runlog, rnd_dir, why in ((C.RUNLOG, rnd.root, "--runlog"), (link, rnd.root, "--runlog"),
+                                     (rnd.runlog, D.PINNED_ROUND, "--round")):
+            rc, text = run_tool(cwd, *base, "--runlog", runlog, "--round", rnd_dir, "--expect-dropped", "none")
+>           assert rc == D.EXIT_REFUSED and f"REFUSED: --expect-dropped is for synthetic tests only: {why} " in text, text
+E           AssertionError: score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)
+E             REFUSED: --out /home/user/work/pc_study/amend2/fix/mutants/N1/pt/test_m1_expect_dropped_refused0/full exists and is not an empty folder
+E             
+E           assert (3 == 3 and 'REFUSED: --expect-dropped is for synthetic tests only: --runlog ' in 'score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)\nREFU...e/user/work/pc_study/amend2/fix/mutants/N1/pt/test_m1_expect_dropped_refused0/full exists and is not an empty folder\n')
+E            +  where 3 = D.EXIT_REFUSED
+
+test_score_pc_dev.py:445: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_m1_expect_dropped_refused_on_the_rounds_runlog_and_the_pinned_round
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 20 passed in 45.84s

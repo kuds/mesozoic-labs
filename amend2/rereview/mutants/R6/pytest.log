@@ -1,0 +1,20 @@
+................................F
+=================================== FAILURES ===================================
+_______________________ test_r6_the_decision_lines_check _______________________
+
+    def test_r6_the_decision_lines_check():
+        dec = decision_line()
+        r = D.decision_record(["2026-10-31 18:00 UTC  an unrelated line\n", dec + "\n"])
+        assert r.startswith("RUNLOG line 2, ") and "sha256 equals the pinned decision line's" in r, r
+        assert "before every F2-START / REFETCH-START line: yes (0 such lines)" in r, r
+        bad = dec.replace("13:52 UTC", "13:53 UTC", 1)
+>       assert bad != dec and "sha256 IS NOT the pinned decision line's" in D.decision_record([bad + "\n"])
+E       assert ('2026-11-02 13:53 UTC  STANCE7 NOTE MAINTAINER DECISION (AskUserQuestion, before any F2 file and before any tail-comma...ll passed their launch checks). Both are to be pinned before F2, reviewed, and their bytes approved by the maintainer.' != '2026-11-02 13:52 UTC  STANCE7 NOTE MAINTAINER DECISION (AskUserQuestion, before any F2 file and before any tail-comma...ll passed their launch checks). Both are to be pinned before F2, reviewed, and their bytes approved by the maintainer.' and "sha256 IS NOT the pinned decision line's" in "RUNLOG line 1, 2026-11-02 13:53 UTC; sha256 equals the pinned decision line's; before every F2-START / REFETCH-START line: yes (0 such lines)")
+E        +  where "RUNLOG line 1, 2026-11-02 13:53 UTC; sha256 equals the pinned decision line's; before every F2-START / REFETCH-START line: yes (0 such lines)" = <function decision_record at 0x7f1b9c2f6840>(['2026-11-02 13:53 UTC  STANCE7 NOTE MAINTAINER DECISION (AskUserQuestion, before any F2 file and before any tail-comm...passed their launch checks). Both are to be pinned before F2, reviewed, and their bytes approved by the maintainer.\n'])
+E        +    where <function decision_record at 0x7f1b9c2f6840> = D.decision_record
+
+test_score_pc_dev.py:648: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r6_the_decision_lines_check - assert ('2026...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 32 passed in 62.80s (0:01:02)

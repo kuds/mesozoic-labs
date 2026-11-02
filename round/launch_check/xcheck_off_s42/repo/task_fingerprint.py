@@ -1,0 +1,644 @@
+"""Task/evaluation fingerprint and checkpoint load modes (stage 1b, W2).
+
+Why this exists (STAGE1_SPLIT_PLAN §3.2): the scheduled-push hook lives in
+``step()``, and the plant contract fingerprints observation/action
+implementations — ``step`` appears nowhere in the policy-interface payload.
+A pushed task therefore moves **no** ``policy_interface_revision``: every
+existing checkpoint stays mechanically loadable while being unvalidated
+for the new transition kernel and evaluation distribution.  That silence
+is a provenance gap, not evidence of task equivalence.  This module closes
+it with a second, task-level identity: what the policy was trained to
+*do*, alongside the plant contract's what the policy *talks to*.
+
+The fingerprint hashes the task-defining configuration — the model
+(species and embodiment, schema v3 since decision D-D33), stage,
+backend, the plant's physics/interface hashes, the EFFECTIVE ``[env]``
+config (reward, termination, reset, horizon: the species constructor's
+defaults overlaid with the stage's TOML kwargs — schema v2; v1 hashed only
+the TOML-present kwargs, which left retunable constructor defaults such as
+TyrannosaurusRexAnatomicalEnv ``healthy_z_range`` outside task identity, review F6), and the
+perturbation block with its per-species **derived** force constants plus
+the schedule implementation name (the PRF is part of task identity: change
+the hash function and every recorded schedule means something else).
+
+Two load modes, because "resume must not cross a task boundary silently"
+must coexist with 1b *meaning* to warm-start from a 1a checkpoint across
+exactly that boundary:
+
+* ``resume_same_stage`` — the fingerprints must match exactly; a mismatch
+  is an error naming the differing sections.
+* ``initialize_next_stage`` — a mismatch is expected once and recorded as
+  lineage (parent/child hashes travel with the new checkpoint), never
+  silently.
+
+Fail-closed core with one explicit, dated transition valve: no checkpoint
+minted before 2026-08-15 carries a fingerprint, so callers may pass
+``allow_unfingerprinted=True`` (train paths do, with a comment) to demote
+the missing-fingerprint error to a warning until fingerprinted checkpoints
+are the norm.  The schema-v1 valve (a v1 record resumed when its
+TOML-present kwargs matched) is gone: a v1 record names a species ID that
+decision D-D33 retired, so it could never match a current model.
+
+Manifest v2 (BEHAVIOR_RECIPES_PLAN §4.2) adds a third, edge-level check on
+top of the two modes: :func:`validate_declared_parent` refuses an
+``initialize_next_stage`` load whose recorded ``stage`` is not the node's
+declared ``warm_start_from`` parent, read off the checkpoint archive by
+:func:`read_checkpoint_task_fingerprint` before anything is created.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import inspect
+import json
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Mapping
+
+from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
+from .model_id import ModelId
+from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
+
+if TYPE_CHECKING:
+    from .plant_contract import PlantIdentity
+
+_logger = logging.getLogger(__name__)
+
+#: v1 (04be963..2026-08-23) hashed only the TOML-present ``[env]`` kwargs;
+#: v2 hashes the effective config (constructor defaults + kwargs, F6); v3
+#: (decision D-D33) records the model as two fields, ``species`` (the
+#: binomial ID) and ``embodiment``, and the lineage records the parent's
+#: embodiment beside its species.  Earlier records name retired species IDs
+#: and match no current task.
+TASK_FINGERPRINT_SCHEMA = "mesozoic.task-fingerprint/v3"
+#: Names the schedule PRF + force-derivation implementation; bump when
+#: environments/shared/perturbation.py changes meaning, not merely shape.
+SCHEDULE_IMPLEMENTATION = "push_schedule/v1+lowbias32+capture-point"
+#: Attribute Stable-Baselines3 persists inside the checkpoint ZIP.
+MODEL_TASK_ATTRIBUTE = "mesozoic_task_fingerprint"
+#: Warm-start lineage record, persisted the same way on the CHILD checkpoint.
+MODEL_TASK_LINEAGE_ATTRIBUTE = "mesozoic_task_lineage"
+
+LOAD_MODES = ("resume_same_stage", "initialize_next_stage")
+
+#: The backend string every stage task fingerprint is derived under
+#: (:func:`stage_task_fingerprint`): training, the reuse rule, the recovery
+#: freeze and calibration, and the widen tool all present it.  It enters
+#: every ``task_sha256``, so changing it moves every committed digest and
+#: strands every recorded one.
+FINGERPRINT_BACKEND = "stable-baselines3"
+
+#: Constructor params excluded from the effective env config: they select
+#: presentation, not task.  ``render_mode`` is the only such param across
+#: all five species constructors (``CompsognathusLongipesRobotEnv`` inherits
+#: ``CompsognathusLongipesEnv``'s, and ``CompsognathusLongipesAnatomicalEnv`` repeats it in
+#: full, its stance-quality reward kwargs added, because this helper reads
+#: defaults from the signature and a ``**kwargs`` pass-through would hide
+#: them; every other defaulted param shapes
+#: reward, termination, reset, horizon, or the push schedule, except
+#: trex's and dibothrosuchus's ``foot_contact_weight`` /
+#: ``foot_contact_gate``, which only the retired MJX reward read and which
+#: stay hashed), and it is
+#: the same exclusion ``save_stage_config`` applies when it records the
+#: effective config into ``stage_config.json``.
+NON_TASK_ENV_PARAMS = frozenset({"render_mode"})
+
+_MISSING = object()
+
+
+def inert_opt_in_env_kwargs(env_class: Any, effective: Mapping[str, Any]) -> list[str]:
+    """The kwargs of *env_class*'s opt-in task options that *effective* leaves off (empty for most classes).
+
+    An env class may declare ``OPT_IN_TASK_KWARGS``, entries ``(switch, off
+    value, kwargs)``: options that change no reward, info key, trajectory or
+    reset draw while the switch holds its off value (the T. rex's lateral lean
+    term and settled leg target).  While the EFFECTIVE switch is off, its
+    kwargs are carved out of the fingerprint's env section and of the
+    constructor defaults ``save_stage_config`` records, exactly as the command
+    kwargs are while ``command_mode`` is ``"none"``: adding such an option
+    moves no stage's task_sha256, and turning it on hashes every kwarg it
+    lists, defaults included.  The off value is the declared one, not the
+    signature default, so a changed default that turns an option on moves the
+    fingerprint.  The declaration fails closed: a switch or kwarg that is not a
+    constructor parameter (a typo, a later rename) would read as always off
+    and keep a live option out of the fingerprint, so it raises
+    :class:`TaskFingerprintError` instead.
+    """
+    declared = getattr(env_class, "OPT_IN_TASK_KWARGS", ())
+    if not declared:
+        return []
+    parameters = inspect.signature(env_class).parameters
+    names: list[str] = []
+    for switch, off_value, kwargs in declared:
+        if unknown := [name for name in (switch, *kwargs) if name not in parameters]:
+            raise TaskFingerprintError(
+                f"{getattr(env_class, '__name__', env_class)}.OPT_IN_TASK_KWARGS names {', '.join(unknown)}, "
+                "not a constructor parameter: an undeclared switch would read as always off and keep a live "
+                "option out of the task fingerprint"
+            )
+        if effective.get(switch, off_value) == off_value:
+            names.extend(kwargs)
+    return names
+
+
+class TaskFingerprintError(RuntimeError):
+    """A checkpoint's recorded task does not permit the requested load."""
+
+
+def _canonical(value: Any) -> Any:
+    """JSON-stable form: tuples to lists, a dataclass field by field, dict keys sorted by dumps below."""
+    if isinstance(value, Mapping):
+        return {str(key): _canonical(sub) for key, sub in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical(item) for item in value]
+    if isinstance(value, (str, bool)) or value is None:
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        # repr round-trips exactly; float() collapses numpy scalars first.
+        return float(value)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        # A command_config or a terrain kwarg of the opt-in subclass (PR-9).
+        return _canonical(dataclasses.asdict(value))
+    return str(value)
+
+
+def _effective_env_kwargs(model_id: ModelId, env_kwargs: Mapping[str, Any]) -> dict[str, Any]:
+    """Constructor defaults overlaid with the provided ``[env]`` kwargs.
+
+    The env class comes from the species registry — the class every SB3
+    train path constructs.  Params in :data:`NON_TASK_ENV_PARAMS` are
+    excluded from both sides.  An unresolvable model fails closed: an
+    effective config that silently fell back to the raw kwargs would
+    reopen exactly the identity gap this exists to close (F6).  Two
+    carve-outs drop kwargs that are inert at their effective values: the
+    command kwargs under ``command_mode = "none"``, and an env class's
+    declared opt-in task options while off (:func:`inert_opt_in_env_kwargs`).
+    """
+    from .species_registry import get_species_config
+
+    # Decision D-D2 retired five numeric command kwargs (consolidation PR-9),
+    # and a record written before PR-9 still carries them: one is refused by
+    # name, whatever the mode, rather than hashed into a task nothing matches.
+    if retired := [name for name in RETIRED_COMMAND_ENV_KEYS if name in env_kwargs]:
+        raise TaskFingerprintError(
+            f"[env] {', '.join(retired)}: retired by decision D-D2 (consolidation PR-9), which replaced the "
+            "five numeric command kwargs with command_mode and one command_config; a record written before "
+            "PR-9 carries them, so drop command_frame.RETIRED_COMMAND_ENV_KEYS from its env kwargs first"
+        )
+    try:
+        env_class = get_species_config(model_id).env_class
+    except ValueError as exc:
+        raise TaskFingerprintError(f"cannot resolve the env class for the effective task config: {exc}") from exc
+    effective: dict[str, Any] = {}
+    for name, param in inspect.signature(env_class).parameters.items():
+        if name in NON_TASK_ENV_PARAMS or param.default is inspect.Parameter.empty:
+            continue
+        effective[name] = param.default
+    for name, value in env_kwargs.items():
+        if name in NON_TASK_ENV_PARAMS:
+            continue
+        effective[str(name)] = value
+    # BEHAVIOR_RECIPES_PLAN §4.6 (Phase C, amendment A1; decision D-D2): the
+    # command kwargs (command_mode and command_config) sit on every species
+    # with inert defaults.  While the EFFECTIVE command_mode is "none" they
+    # change no trajectory and no reset draw, so they are carved out for
+    # EVERY species: off-configs keep their pre-Phase-C env encoding and a
+    # stage's task_sha256 moves only through the plant's
+    # policy_interface_sha256.  A live mode keeps both (its configuration IS
+    # the task; _canonical records the dataclass field by field).
+    if effective.get("command_mode", COMMAND_MODE_NONE) == COMMAND_MODE_NONE:
+        for name in COMMAND_ENV_KEYS:
+            effective.pop(name, None)
+    # The same carve-out for a class's declared opt-in task options while off.
+    for name in inert_opt_in_env_kwargs(env_class, effective):
+        effective.pop(name, None)
+    return effective
+
+
+def compute_task_fingerprint(
+    *,
+    model_id: ModelId,
+    stage: "int | str",
+    backend: str,
+    env_kwargs: Mapping[str, Any],
+    plant_identity: Mapping[str, Any] | None,
+    perturbation_manifest: Mapping[str, Any] | None,
+    command_manifest: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the canonical task payload and stamp its sha256.
+
+    ``env_kwargs`` is the stage's TOML-derived ``[env]`` dict — the explicit
+    task specification.  The recorded ``env`` section is the EFFECTIVE
+    config: the species constructor's defaults overlaid with ``env_kwargs``
+    (presentation-only params excluded), so a retuned constructor default
+    moves task identity even though no TOML changed — under the v1
+    TOML-only section, ``resume_same_stage`` crossed exactly that kind of
+    transition-kernel change silently (F6).  ``perturbation_manifest`` is
+    the environment's derived per-species constants
+    (``perturbation_manifest()``), or ``None`` when pushes are off; it is
+    recorded separately from the config keys because the same dimensionless
+    multiple means different newtons on different plants, and the newtons
+    are the task.  ``command_manifest`` is the environment's command-sampler
+    provenance (``command_manifest()``, BEHAVIOR_RECIPES_PLAN §4.6): the
+    payload carries a ``command`` section exactly when the effective
+    ``command_mode`` is live, and a manifest under ``"none"`` or a live mode
+    without one is refused, so every ``command_mode = "none"`` stage keeps its
+    Phase C hash and no live task is hashed without its controller's manifest
+    (its schema, adapter and configuration).
+    """
+    plant = None
+    if plant_identity is not None:
+        plant = {
+            "physics_sha256": plant_identity.get("physics_sha256"),
+            "policy_interface_sha256": plant_identity.get("policy_interface_sha256"),
+        }
+    perturbation = None
+    if perturbation_manifest is not None:
+        perturbation = _canonical(dict(perturbation_manifest))
+        perturbation["schedule_implementation"] = SCHEDULE_IMPLEMENTATION
+    payload: dict[str, Any] = {
+        "schema": TASK_FINGERPRINT_SCHEMA,
+        **model_id.record(),
+        "stage": stage if isinstance(stage, str) else int(stage),
+        "backend": backend,
+        "plant": plant,
+        "env": _canonical(_effective_env_kwargs(model_id, env_kwargs)),
+        "perturbation": perturbation,
+    }
+    # The carve-out leaves command_mode in the env section exactly when it is live.
+    if (command_manifest is not None) != ("command_mode" in payload["env"]):
+        raise TaskFingerprintError(
+            "a live [env] command_mode is hashed with its controller's command_manifest, and only a live one: "
+            "pass command_manifest exactly when command_mode is not 'none'"
+        )
+    if command_manifest is not None:
+        payload["command"] = _canonical(dict(command_manifest))
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    ).hexdigest()
+    payload["task_sha256"] = f"sha256:{digest}"
+    return payload
+
+
+def write_task_fingerprint(path: str | Path, fingerprint: Mapping[str, Any]) -> Path:
+    """Atomically write the task-fingerprint sidecar (like plant identity).
+
+    Through ``file_io``, whose dot-named temp file the result-bundle manifest
+    discards if a crash strands one (CU-3).
+    """
+    from .file_io import atomic_write_json
+
+    return atomic_write_json(path, dict(fingerprint), sort_keys=True)
+
+
+def attach_task_fingerprint(model: Any, fingerprint: Mapping[str, Any]) -> None:
+    """Attach the fingerprint so Stable-Baselines3 persists it in its ZIP."""
+    setattr(model, MODEL_TASK_ATTRIBUTE, dict(fingerprint))
+
+
+def attach_task_lineage(model: Any, lineage: Mapping[str, Any]) -> None:
+    """Attach a warm-start lineage record to the child checkpoint."""
+    setattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE, dict(lineage))
+
+
+def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
+    sections = ("species", "embodiment", "stage", "backend", "plant", "env", "perturbation", "command")
+    return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
+
+
+def validate_recorded_task(
+    recorded: Mapping[str, Any] | None,
+    current: Mapping[str, Any],
+    *,
+    mode: str,
+    artifact: str = "checkpoint",
+    allow_unfingerprinted: bool = False,
+) -> dict[str, Any] | None:
+    """Validate a recorded fingerprint against the current task, per mode.
+
+    Returns a lineage record for ``initialize_next_stage`` (always — the
+    warm-start is recorded even when the tasks happen to match), ``None``
+    for a clean same-stage resume.  Raises :class:`TaskFingerprintError`
+    on a same-stage mismatch, an unknown mode, or a missing fingerprint
+    without the explicit transition valve.
+    """
+    if mode not in LOAD_MODES:
+        raise TaskFingerprintError(f"unknown load mode {mode!r}; known: {LOAD_MODES}")
+    if recorded is None:
+        message = (
+            f"{artifact} carries no task fingerprint (minted before 2026-08-15); "
+            f"its training task cannot be verified for {mode}"
+        )
+        if mode == "initialize_next_stage":
+            _logger.warning("%s — recording a parentless lineage", message)
+            return {
+                "mode": mode,
+                "parent_task_sha256": None,
+                "child_task_sha256": current["task_sha256"],
+            }
+        if allow_unfingerprinted:
+            _logger.warning("%s — loading only because allow_unfingerprinted was explicitly enabled", message)
+            return None
+        raise TaskFingerprintError(
+            message
+            + ". Pass allow_unfingerprinted=True only for deliberate transition of a pre-fingerprint checkpoint."
+        )
+    if mode == "resume_same_stage":
+        if recorded.get("task_sha256") != current.get("task_sha256"):
+            differing = _differing_sections(recorded, current)
+            raise TaskFingerprintError(
+                f"{artifact} was trained on a different task than it is being resumed into "
+                f"(differing sections: {differing or ['task_sha256']}). A changed task must go through "
+                "initialize_next_stage so the boundary is recorded as lineage, never resumed silently."
+            )
+        return None
+    return {
+        "mode": mode,
+        "parent_task_sha256": recorded.get("task_sha256"),
+        "child_task_sha256": current["task_sha256"],
+        "parent_species": recorded.get("species"),
+        "parent_embodiment": recorded.get("embodiment"),
+        "parent_stage": recorded.get("stage"),
+    }
+
+
+def validate_model_task(
+    model: Any,
+    current: Mapping[str, Any],
+    *,
+    mode: str,
+    artifact: str = "checkpoint",
+    allow_unfingerprinted: bool = False,
+) -> dict[str, Any] | None:
+    """Validate the fingerprint embedded in a loaded SB3 model, per mode."""
+    raw = getattr(model, MODEL_TASK_ATTRIBUTE, _MISSING)
+    if raw is _MISSING:
+        return validate_recorded_task(
+            None, current, mode=mode, artifact=artifact, allow_unfingerprinted=allow_unfingerprinted
+        )
+    if not isinstance(raw, Mapping):
+        raise TaskFingerprintError(
+            f"{artifact} contains invalid task fingerprint metadata of type {type(raw).__name__}"
+        )
+    return validate_recorded_task(
+        raw, current, mode=mode, artifact=artifact, allow_unfingerprinted=allow_unfingerprinted
+    )
+
+
+def read_checkpoint_attribute(checkpoint: "str | Path", attribute: str) -> Any | None:
+    """A JSON-serialisable attribute an SB3 checkpoint ZIP persisted, or ``None``.
+
+    Read straight from the archive's ``data`` member (SB3 stores every
+    JSON-serialisable model attribute there verbatim — the task fingerprint
+    and plant identity dicts included), so a checkpoint's recorded task or
+    plant can be inspected before, and independently of, any model load.
+    A bare stem is resolved the way SB3 and ``config._checkpoint_lineage``
+    resolve it (``<stem>.zip``).  ``None`` for a missing file, a non-ZIP
+    (a JAX ``.pkl``), an archive without a readable ``data`` member, and an
+    absent attribute — every one an honest "not recorded", never a guess.
+    """
+    import zipfile
+
+    path = Path(checkpoint)
+    if not path.is_file() and not path.name.endswith(".zip"):
+        path = path.with_name(path.name + ".zip")
+    if not path.is_file() or not zipfile.is_zipfile(path):
+        return None
+    try:
+        with zipfile.ZipFile(path) as archive:
+            data = json.loads(archive.read("data"))
+    except (KeyError, ValueError, OSError, zipfile.BadZipFile):
+        return None
+    if not isinstance(data, Mapping):
+        return None
+    return data.get(attribute)
+
+
+def read_checkpoint_task_fingerprint(checkpoint: "str | Path") -> dict[str, Any] | None:
+    """The task fingerprint an SB3 checkpoint recorded, or ``None`` when it has none."""
+    raw = read_checkpoint_attribute(checkpoint, MODEL_TASK_ATTRIBUTE)
+    return dict(raw) if isinstance(raw, Mapping) else None
+
+
+def _describe_stage(model_id: ModelId, ref: Any) -> str:
+    """``3 (behavior)`` / ``'recovery'`` — the reference with its id when the manifest knows it."""
+    from .stage_manifest import StageManifestError, load_stage_manifest
+
+    try:
+        entry = load_stage_manifest(model_id).resolve(ref)
+    except (StageManifestError, TypeError, ValueError):
+        return repr(ref)
+    if isinstance(ref, str):
+        return repr(entry.id)
+    return f"{ref!r} ({entry.id})"
+
+
+def validate_declared_parent(
+    recorded: Mapping[str, Any] | None,
+    *,
+    declared_parent: "int | str | None",
+    model_id: ModelId,
+    child_stage: "int | str",
+    artifact: str,
+) -> None:
+    """Refuse an ``initialize_next_stage`` load that does not cross the node's declared edge.
+
+    BEHAVIOR_RECIPES_PLAN §4.2 retarget 3: the stage manifest declares which
+    node each node warm-starts from (``warm_start_from``), and a parent
+    checkpoint whose recorded fingerprint ``stage`` is any other node is
+    refused — before a stage directory, ``stage_config.json`` or an
+    environment exists.  The comparison is against the parent's canonical
+    reference exactly as the fingerprint records it (the legacy integer for a
+    numbered stage, the id otherwise; a bool never matches), and the recorded
+    ``species`` and ``embodiment`` must name this model (a record missing
+    either is refused, never matched on its species alone; decision D-D33).
+
+    *declared_parent* ``None`` means *child_stage* is a root: a root accepts
+    only a parent whose recorded stage is the node ITSELF (re-initialising
+    stance from an earlier stance run across a task change — the path a
+    same-stage resume would refuse on the hash) and refuses any other node
+    (decision D-A3).
+
+    A checkpoint with no fingerprint at all (*recorded* ``None``: minted before
+    2026-08-15) cannot be checked; it warns and continues — the same dated
+    valve :func:`validate_recorded_task` applies, kept so the historical
+    checkpoints stay loadable until fingerprinted ones are the norm.
+    """
+    if recorded is None:
+        _logger.warning(
+            "%s carries no task fingerprint (minted before 2026-08-15); its recorded parent stage "
+            "cannot be checked against %s stage %s's declared warm_start_from edge — loading it "
+            "under initialize_next_stage unverified",
+            artifact,
+            model_id,
+            _describe_stage(model_id, child_stage),
+        )
+        return
+    try:
+        same_model = model_id.matches(recorded)
+    except ValueError as exc:
+        raise TaskFingerprintError(f"{artifact}'s task fingerprint does not name its model: {exc}") from exc
+    if not same_model:
+        raise TaskFingerprintError(
+            f"{artifact} records species {recorded.get('species')!r} and embodiment "
+            f"{recorded.get('embodiment')!r}, not {model_id}; a checkpoint from another model cannot "
+            "initialize this node"
+        )
+    recorded_stage = recorded.get("stage")
+    expected: "int | str" = child_stage if declared_parent is None else declared_parent
+    matches = (
+        not isinstance(recorded_stage, bool) and isinstance(recorded_stage, (int, str)) and recorded_stage == expected
+    )
+    if matches:
+        return
+    recorded_desc = _describe_stage(model_id, recorded_stage)
+    child_desc = _describe_stage(model_id, child_stage)
+    if declared_parent is None:
+        raise TaskFingerprintError(
+            f"{artifact} records {model_id} stage {recorded_desc}, but stage {child_desc} is a root "
+            "node (no warm_start_from): under initialize_next_stage a root accepts only an earlier "
+            "checkpoint of itself. Declare the edge in the model's stage manifest if this node "
+            "should warm-start from that stage."
+        )
+    raise TaskFingerprintError(
+        f"{artifact} records {model_id} stage {recorded_desc}, but stage {child_desc} declares "
+        f"warm_start_from = {_describe_stage(model_id, declared_parent)}: an initialize_next_stage "
+        "load must come from the node's declared parent. Load that parent's checkpoint, or change "
+        "the edge in the model's stage manifest."
+    )
+
+
+def derive_stage_task_fingerprint(
+    *,
+    model_id: ModelId,
+    stage: "int | str",
+    backend: str,
+    env_kwargs: Mapping[str, Any],
+    plant_identity: Mapping[str, Any] | None,
+    command_manifest: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compute a stage's task fingerprint without constructing an environment.
+
+    Re-derives the perturbation manifest from the plant model named by the
+    plant identity, with the same defaults ``BaseDinoEnv`` uses, so the
+    fingerprint can be written with ``stage_config.json`` before any
+    environment exists.  Derivation uses keyframe 0, which is the home
+    keyframe for every current species; a species whose reset keyframe
+    diverges must revisit this (BaseDinoEnv derives from its
+    ``_reset_keyframe_id``).
+
+    Perturbation keys are read from the EFFECTIVE kwargs, matching the
+    fingerprint's env section — the constructor is what fills an absent
+    key at runtime.  Every current species' constructor defaults equal the
+    literal fallbacks below, so no recorded manifest moved with the v2
+    bump; the fallbacks remain for a constructor that omits a key.
+
+    ``command_manifest`` is forwarded verbatim (``None`` for every
+    ``command_mode = "none"`` stage; BEHAVIOR_RECIPES_PLAN §4.6).
+    """
+    manifest: dict[str, Any] | None = None
+    effective_kwargs = _effective_env_kwargs(model_id, env_kwargs)
+    multiple = float(effective_kwargs.get("perturbation_capture_velocity_multiple", 0.0) or 0.0)
+    if multiple > 0.0:
+        if plant_identity is None or not plant_identity.get("model_path"):
+            raise TaskFingerprintError(
+                "a pushed task fingerprint needs the plant identity's model_path to derive the force constants"
+            )
+        import mujoco
+
+        from .perturbation import derive_push_parameters
+
+        model_path = Path(str(plant_identity["model_path"]))
+        if not model_path.is_absolute():
+            # Plant identities record model_path REPO-RELATIVE (the identity
+            # must not depend on where a checkout lives), so resolving it
+            # against the process cwd only works when that happens to be the
+            # repository root — true in the test suite, false in Colab, whose
+            # notebook adds the clone to sys.path without chdir-ing into it.
+            model_path = _REPOSITORY_ROOT / model_path
+        if not model_path.exists():
+            raise TaskFingerprintError(
+                f"pushed task fingerprint cannot find the plant model at {model_path} "
+                f"(identity records {plant_identity['model_path']!r}); the recorded path "
+                "must be repository-relative or absolute"
+            )
+        model = mujoco.MjModel.from_xml_path(str(model_path))
+        params = derive_push_parameters(
+            model,
+            capture_velocity_multiple=multiple,
+            duration_s=float(effective_kwargs.get("perturbation_duration", 0.20)),
+        )
+        manifest = {
+            **params,
+            "interval_s": float(effective_kwargs.get("perturbation_interval", 2.0)),
+            "jitter_s": float(effective_kwargs.get("perturbation_jitter", 0.5)),
+            "direction": effective_kwargs.get("perturbation_direction", "uniform_horizontal"),
+        }
+    return compute_task_fingerprint(
+        model_id=model_id,
+        stage=stage,
+        backend=backend,
+        env_kwargs=env_kwargs,
+        plant_identity=plant_identity,
+        perturbation_manifest=manifest,
+        command_manifest=command_manifest,
+    )
+
+
+def stage_task_fingerprint(
+    model_id: ModelId,
+    stage: "int | str",
+    *,
+    stage_config: Mapping[str, Any] | None = None,
+    env_kwargs: Mapping[str, Any] | None = None,
+    plant_identity: "PlantIdentity | Mapping[str, Any] | None" = None,
+    command_manifest: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """A stage's task fingerprint, derived the one way every caller derives it.
+
+    *stage* is an id or a reference; it is canonicalised to the manifest
+    reference (the legacy integer for a numbered stage, the id otherwise),
+    which is what every recorded fingerprint hashes, so ``"stance"`` and
+    ``1`` give the same digest.  The ``[env]`` block is *env_kwargs* when
+    given (the recovery calibration's measured task), else *stage_config*'s
+    ``env_kwargs`` (an in-memory config, overrides applied), else the
+    committed stage config's; passing both is refused.  *plant_identity*
+    defaults to the model's current plant; a :class:`PlantIdentity` or its
+    ``to_dict()`` mapping gives the same digest.  The backend is always
+    :data:`FINGERPRINT_BACKEND`.  *command_manifest* (a live command mode's
+    controller manifest) is forwarded only when given, so every
+    ``command_mode = "none"`` stage derives from the same five inputs.
+
+    Delegates to :func:`derive_stage_task_fingerprint`, looked up when
+    called, so a test that replaces it sees every derivation.
+    """
+    if stage_config is not None and env_kwargs is not None:
+        raise TypeError(
+            "stage_task_fingerprint takes stage_config or env_kwargs, not both: the task has one [env] block"
+        )
+    from .stage_manifest import load_stage_manifest
+
+    reference = load_stage_manifest(model_id).resolve(stage).reference
+    if env_kwargs is None:
+        if stage_config is None:
+            from .config import load_stage_config
+
+            stage_config = load_stage_config(model_id, reference)
+        env_kwargs = stage_config.get("env_kwargs", {})
+    if plant_identity is None:
+        from .plant_contract import current_plant_identity
+
+        plant_identity = current_plant_identity(model_id)
+    identity = dict(plant_identity) if isinstance(plant_identity, Mapping) else plant_identity.to_dict()
+    command = {} if command_manifest is None else {"command_manifest": command_manifest}
+    return derive_stage_task_fingerprint(
+        model_id=model_id,
+        stage=reference,
+        backend=FINGERPRINT_BACKEND,
+        env_kwargs=env_kwargs,
+        plant_identity=identity,
+        **command,
+    )

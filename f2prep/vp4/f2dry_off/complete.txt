@@ -1,0 +1,43 @@
+r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+C1-C8 stance7_r10LTSBoff_s42 on /home/user/work/pc_study/f2prep/vp4/f2dry_off/round/fetch/F2/stance7_r10LTSBoff_s42
+  C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+      value: {"launches": [1], "launch_check_stops": [], "actions": [], "lines": {"1": "LAUNCH", "2": "FOUND-GONE", "3": "F2-START"}}
+  C2: PASS  C2 artifact_manifest.json
+      value: {"copies": "copies 1 and 2 agree (sha256 1c03eb6ef89b)", "sha256": "1c03eb6ef89b058c0d5ed2f152fdb4821031f8c67116b837667798e850bed753", "schema_problems": [], "run_id": "stance7_r10LTSBoff_s42", "status": "failed", "entries": 20}
+  C3: FAIL  C3 every file the reading uses equals its manifest entry  [no multiple of 262,144 at or before E: R1 does not exist (v5 R-m1)]
+      provenance.json: OK
+      01_stance/stage_config.json: OK
+      01_stance/progress.json: OK
+      01_stance/eval_episodes.csv: OK
+      01_stance/gate_verdict.json: OK
+      01_stance/models/stage1_final.zip: OK
+      01_stance/models/stage1_final_vecnorm.pkl: OK
+  C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+      PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-02T14:09:09.692093+00:00", "resumed_at": false}
+      PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 0.2, "launch": "2026-11-02T14:09:00+00:00"}
+      PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "repository_dirty": false, "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+      PASS             C4 no load key at any depth: []
+      PASS             C4 run.seed: {"got": 42, "want": 42}
+      PASS             C4 run.n_envs 4: 4
+      PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+      PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+      PASS             C4 plant_identity block = pin: "(block)"
+      PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+      PASS             C4 (p) stage_config.json records the critic-phase switch OFF (no key): {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+      PASS             C4 git_commit = branch HEAD: {"git_commit": "1dfe2327f773007fa7fd68460dc0c53740936ff9", "head": "1dfe2327f773007fa7fd68460dc0c53740936ff9"}
+      PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+  C5: PASS  C5 the end
+      value: {"progress_status": "ended", "E": 1024, "final_zip_num_timesteps": 1024, "zip_problem": null, "judged_at": "2026-11-02T14:09:09+00:00", "written_at": "2026-11-02T14:08:35Z", "judged_minus_written_min": 0.6, "ending": "STOPPED"}
+  C6: FAIL  C6 ledger whole to E, every ANY and TAIL input measured
+      value: {"grid_evaluations": 0, "failures": ["row 2 timesteps '512' is not on the grid", "row 3 timesteps '512' is not on the grid", "row 4 timesteps '1024' is not on the grid", "row 5 timesteps '1024' is not on the grid"], "n_failures": 4}
+  C7: NOT ESTABLISHED  C7 traces (and the final certificate)  [PENDING: a measurement absent (run M1/M3; never a failure)]
+      value: {"labels": ["final"], "missing": ["no M1 output at /home/user/work/pc_study/f2prep/vp4/f2dry_off/panels/stance7_r10LTSBoff_s42/final/m1"]}
+  C8: PASS  C8 the manipulation check (R2 and every J pair): a stock critic, no phase input (switch-off arm)
+      value: {"labels": ["final"], "results": {"final": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}}, "missing": []}
+  VERDICT: LOST
+  PRESENCE on /home/user/work/pc_study/f2prep/vp4/f2dry_off/round/fetch/F2/stance7_r10LTSBoff_s42: no PRESENCE RAIL
+    p1: PASS  {"launches": [1], "launch_check_stops": [], "actions": [], "lines": {"1": "LAUNCH", "2": "FOUND-GONE", "3": "F2-START"}} [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+    p2: PASS  "all hold" [provenance.json copies 1 and 2 agree (sha256 4d985f450398); stage_config.json copies 1 and 2 agree (sha256 64a5edfce5d9)]
+    p3: FAIL  {"tail_alarms": [], "tail_flagged": [], "first": null, "ledger": "copies 1 and 2 agree (sha256 be2915243020)"}
+  D-16: triggers []; checks []
+  D-16: notebook last error: None; shown: {"ledger": "copies 1 and 2 agree (sha256 be2915243020)", "last_evaluation": null, "any_flagged": [], "tail_flagged": [], "any_alarms": [], "tail_alarms": [], "needs_resolution": [], "last_checkpoint_listed": "no listing of 01_stance/models/ in the last fetch"}

@@ -1,0 +1,63 @@
+sha256 stage_config 1e3744bc920e73d0e14b04b30fefb00aa8e2232b8aa32abf609b9caa48330912
+sha256 provenance   63fa9118ccc8ce1829375e83254989497171cd4c49e732fb72db13c1b143f269
+=== top-level keys stage_config: ['algorithm', 'curriculum', 'description', 'embodiment', 'git_commit', 'gpu', 'hyperparameters', 'library_version', 'name', 'plant_identity', 'reward_weights', 'run', 'species', 'stage', 'task_fingerprint']
+=== top-level keys provenance: ['algorithm', 'backend', 'captured_at', 'config_hash', 'dependency_versions', 'embodiment', 'evaluation_episodes', 'evaluation_protocols', 'evaluation_seeds', 'hardware', 'model_hash', 'model_revision_status', 'parallel_envs', 'plant_identity', 'platform', 'python_version', 'repository_commit', 'repository_dirty', 'repository_patch_sha256', 'repository_url', 'run_id', 'schema_version', 'seed_roles', 'sessions', 'species', 'training_seed', 'verification_status']
+=== hyperparameters keys: ['batch_size', 'clip_range', 'ent_coef', 'ent_coef_decay_timesteps', 'ent_coef_end', 'gae_lambda', 'gamma', 'learning_rate', 'learning_rate_end', 'n_epochs', 'n_steps', 'policy_kwargs', 'symmetry', 'symmetry_kappa', 'symmetry_mirror_critic', 'symmetry_sigma_floor', 'target_kl']
+'critic_phase' in hyperparameters: False
+raw bytes contain 'critic_phase': False
+raw bytes contain 'phase': False
+raw bytes contain 'critic': True
+search sc for phase/critic: [('key', 'hyperparameters.symmetry_mirror_critic')]
+search prov for phase/critic: []
+search sc for trunk/retrain/resume/init/pretrain/load/warm: [('key', 'reward_weights.foot_load_balance_weight'), ('key', 'reward_weights.foot_load_balance_min_support_force'), ('key', 'reward_weights.foot_load_balance_airborne_penalty'), ('key', 'reward_weights.action_penalty_source'), ('key', 'reward_weights.stance_cop_band_full_price_load_share'), ('key', 'reward_weights.stance_cop_band_min_load_share'), ('key', 'curriculum.min_foot_load_share'), ('key', 'curriculum.min_foot_load_share_windowed'), ('key', 'curriculum.max_nonfoot_load_fraction'), ('key', 'curriculum.collapse_peak_warmup_timesteps'), ('key', 'plant_identity.source_closure_sha256'), ('key', 'task_fingerprint.env.foot_load_balance_weight'), ('key', 'task_fingerprint.env.foot_load_balance_min_support_force'), ('key', 'task_fingerprint.env.foot_load_balance_airborne_penalty'), ('key', 'task_fingerprint.env.action_penalty_source'), ('key', 'task_fingerprint.env.stance_cop_band_full_price_load_share'), ('key', 'task_fingerprint.env.stance_cop_band_min_load_share')]
+search prov for trunk/retrain/resume/init/pretrain/load/warm: [('key', 'plant_identity.source_closure_sha256')]
+search sc for k3/panel/sigma/vector: [('key', 'hyperparameters.symmetry_sigma_floor')]
+search prov for k3/panel/sigma/vector: [('key', 'seed_roles.certification_panel')]
+search sc for ref/branch/dir/path/run_id: [('key', 'reward_weights.neck_posture_reference'), ('key', 'reward_weights.stance_width_reference'), ('key', 'reward_weights.leg_home_pose_reference'), ('key', 'reward_weights.perturbation_direction'), ('key', 'curriculum.collapse_peak_floor_reference'), ('key', 'plant_identity.model_path'), ('key', 'task_fingerprint.env.neck_posture_reference'), ('key', 'task_fingerprint.env.stance_width_reference'), ('key', 'task_fingerprint.env.leg_home_pose_reference'), ('key', 'task_fingerprint.env.perturbation_direction')]
+search prov for ref/branch/dir/path/run_id: [('key', 'plant_identity.model_path'), ('key', 'repository_dirty'), ('key', 'run_id')]
+=== digests
+recomputed canonical(hyperparameters): sha256:7fe3c2efdac2eb0f0b8f29cab2a86891e18ef09f3a22d1fa974adffd76498e17
+recorded run.hyperparameters_sha256:   sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+pins off_arm.hyperparameters_sha256:    sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+pins hyperparameters_sha256_round_switch_off: sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+recomputed stage_config_view_sha256:   sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1
+pins off_arm.stage_config_view_sha256:  sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1
+recorded task_fingerprint.task_sha256:  sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+pins off_arm.task_sha256:               sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+recomputed canonical(task_fingerprint minus task_sha256): sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456 (informational; recipe may differ)
+plant_identity == pins.plant_identity: True
+prov.plant_identity == sc.plant_identity: True
+pins switch-ON hyperparameters_sha256 (must NOT match): sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954 match? False
+pins switch-ON stage_config_view_sha256 (must NOT match): sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab match? False
+=== reference (dry pins_sc/off) digests
+ref canonical(hyperparameters): sha256:7fe3c2efdac2eb0f0b8f29cab2a86891e18ef09f3a22d1fa974adffd76498e17
+ref run.hyperparameters_sha256: sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+ref view: sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1
+ref task_sha256: sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+=== diffs
+--- diff REF(dry off, seed 42) vs RUN(off s60): 7 differing leaf paths
+    git_commit | 'unknown' | '1dfe2327f773007fa7fd68460dc0c53740936ff9'
+    gpu.cuda_version | <absent> | '13.0'
+    gpu.gpu_full_name | <absent> | 'NVIDIA L4'
+    gpu.gpu_memory_gb | <absent> | 23.7
+    gpu.gpu_model | <absent> | 'L4'
+    run.label | 'r10 LTSB s42' | 'r10 LTSB switch-off s60'
+    run.seed | 42 | 60
+--- off_arm pin vs run
+   off_arm. arm = "switch-off (stance7_r10LTSBoff_s60/42/80; notebook CRITIC_PHASE False, its default)"
+   off_arm. hyperparameters_sha256 = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+   off_arm. stage_config_view_sha256 = "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+   off_arm. task_sha256 = "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+   off_arm. critic_phase_switch = {"path": "hyperparameters.critic_phase", "absent": true}
+=== provenance vs stage_config cross-fields
+prov.repository_commit == sc.git_commit: True
+prov.training_seed, seed_roles.training, sc.run.seed: 60 60 60
+prov.parallel_envs, sc.run.n_envs: 4 4
+sc.run.timesteps, sc.curriculum.timesteps: 12000000 12000000
+prov.algorithm/backend: PPO stable-baselines3 | sc.algorithm: PPO
+prov species/embodiment: tyrannosaurus_rex anatomical | sc species/embodiment/name/stage: tyrannosaurus_rex anatomical stance 1
+task_fingerprint species/embodiment/stage/backend: tyrannosaurus_rex anatomical 1 stable-baselines3
+reward_weights == task_fingerprint.env (minus command keys): True
+['copies', '01_stance', 'stage_config.json.copy1'] recomputed sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c recorded sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c shaping keys []
+['pins_sc', 'off', 'stage_config.json'] recomputed sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c recorded sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c shaping keys []
+len 15 sha256 LE float64 17fb067f6dba951ffbffbd137c53a10a86ef09eaa2f65f17542b485e96c83843

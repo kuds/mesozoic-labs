@@ -1,0 +1,78 @@
+DISK REPORT FOR F2 (builder B, ST/f2prep; nothing deleted; every size from du -x / df -B1 with date -u times; labels:
+[measured] = read from the named command or file, [inferred] = reasoned, basis named). S1/S2 = the criteria's SHORT NAMES.
+
+1. FREE SPACE ON / [measured, df -B1 /]
+   13:56:58Z  size 270,553,174,016  used 37,326,651,392  avail 3,955,879,936 B = 3.68 GiB (task start)
+   14:02:55Z  avail 3,842,502,656 (after the 97 MB measuring copy)
+   14:15:00Z  avail 3,036,479,488   14:17:27Z avail 2,438,545,408 (low point seen: 2.27 GiB; the parallel builder's
+              ST/amend2/dry reached 1,170 MB at 14:18, measured du -sm; it cleaned to 2 MB by 14:18:48)
+   14:18:48Z  avail 3,669,622,784
+   (this builder's own peak: ST/f2prep 298 MB at 14:15 incl. a 228 MB pytest basetemp it removed at once)
+
+2. BIGGEST DIRECTORIES [measured, timeout 300 du -x -h -d 2, 13:57Z]
+   /home/user/work 2.0G: phase_screen 651M (runs 387M, validate 217M), repo 416M (.git 297M), wt_records3 135M,
+     wt_records 127M, wt_hwnote 126M, wt_pr655 122M, pc_durable 101M, pc_branch 97M (WT), ps_durable 83M,
+     pc_study 53M, ext 36M.
+   S2 21G: r10round 7.0G (ecs 2.0G, runbranch 1.2G, port_equiv 824M, bias_screen 527M, f2 468M, bias_screen2 430M,
+     lean 423M, port_work 282M, long_blind 262M, fixer 204M, bs2_durable 111M); tailround 6.0G (screen 3.8G,
+     r10cpu 1.1G, r10probe 517M, criteria 270M, fixer_scripts 180M, probes 107M); prs 2.8G (telemetry3_work 515M,
+     r10_work 508M, records_r10 388M, com_tests 304M, records_r10b 256M, telemetry2_work 203M, heading 176M,
+     telemetry3 106M, r10 104M); venv 1.9G (the pinned interpreter: never a candidate); com_revisit 1.8G (notes 1.3G,
+     base 413M, wt_records2 127M); tracework 193M; recbuild 190M; venv-lint 176M; wt-stageend 172M; wt-sat 163M;
+     wt-trace 160M; wt-report 155M; wt-records 102M; wt-records2 99M; handoff-wt 62M.
+   Elsewhere (context, depth 1): S1 2.0G (read only; holds STANCE6's F2 store, panels and RUNLOG: never a candidate);
+     /root 2.2G (the agent's own state folder 1.2G, .rustup 624M, .local 273M, .bun 103M, .npm 76M); /tmp outside the
+     session folders under 100 MB.
+
+3. WHAT F2 AND ITS MEASUREMENTS NEED
+   - measure_r10round.py and manip_check.py refuse every call below 3 GiB = 3,221,225,472 B free (r10m_common
+     DISK_FLOOR_BYTES) [measured, code]; the fetch tool has no disk check [measured, grep].
+   - F2 copies: STANCE6's whole fetch store is 535 MB for three runs (F2 stores 75-79 MB per run, the rest raw
+     transfers) [measured, du S1/foot/stance6/fetch] -> about 1.07 GB for six; the criteria say about 1.2 GB
+     (0.19 GB per run, ROUND l.84-85) [inferred].
+   - Panels: one M1 label is 17-18 MB (gzipped per-step CSVs) [measured, f2prep/vp1/m1_* and STANCE6's s80 final
+     m1 18M]; M3 2.5 MB; a manipulation check a few kB. M1 at J (4,194,304, 5,242,880, 6,291,456, 8,388,608,
+     10,485,760, final; R1 = 10,485,760) and RESOLUTION for six runs: about 0.7-0.8 GB; STANCE6's panels, which
+     also measured the 1,048,576 grid and M2/M4, are 676 MB for three runs (220-237 MB per run) -> up to about
+     1.4 GB for six if the same labels are measured [inferred].
+   - A sealed HEAD measuring copy: 97 MB [measured] (f2prep/copy is one, seal = the pin step's: archive babc6812...,
+     tree 9417b765...; it may be kept for F2 or rebuilt in about 3 s).
+   - VP1 + VP4 (done here): about 0.3 GB at peak including transients [measured].
+   => Free space needed when F2 starts, so the 3 GiB floor still holds at the last measurement:
+      3.22 + 1.2 (F2) + 0.8 to 1.4 (panels) + 0.1 (copy) = about 5.3 to 5.9 GB [inferred]. Free now about 3.7 GB
+      (and it swings by about 1 GB while other builders run tests). Without clearing, F2's 1.2 GB would leave about
+      2.4 GB, below the floor: every M1/M3/manipulation check would refuse (exit 5). Clear at least 2 GB, better 3 GB.
+
+4. DELETION CANDIDATES (none deleted; the coordinator decides). Sizes [measured]; "safe" [inferred] with the basis.
+   Checked for every candidate: not named by any pinned PC tool (ST/tools/pc), ST/tools, criteria.txt, COLAB_STEPS.txt
+   or ROUND as a path [measured, grep]; the paths those DO use are listed under KEEP.
+   TIER 1 -- caches and a lint venv no tool needs (about 0.55 GB):
+     S2/wt-report/.mypy_cache 59M, S2/wt-trace/.mypy_cache 59M, S2/wt-stageend/.mypy_cache 59M,
+     S2/wt-sat/.mypy_cache 60M, S2/tracework/mypycache 59M  (mypy caches, rebuilt on the next mypy run);
+     S2/venv-lint 175M (a lint-only venv; VP0's lint views used ST/review/fixer/nosb3 and the pinned venv);
+     S2/r10round/ecs/tmp 71M (a finished study's tmp, newest file 2026-10-29);
+     __pycache__ folders in the S2 worktrees and clones (a few MB).
+   TIER 2 -- clean copies of the repository whose commits are on the remote (about 1.2 GB beyond tier 1):
+     git worktrees of the main checkout, status 0 lines and 0 commits of HEAD not on a remote-tracking ref
+     [measured, git --no-optional-locks]: S2/wt-report 155M, S2/wt-trace 160M, S2/wt-sat 163M, S2/wt-stageend 172M,
+     S2/wt-records 102M, S2/wt-records2 99M, S2/handoff-wt 62M (newest files 2026-10-24/25). Remove with
+     `git worktree remove` from the main checkout (a git write: the coordinator's, not this builder's).
+     Standalone clones, status 0 lines, 0 unpushed commits on any branch, no stash [measured]:
+     S2/prs/heading 176M, S2/prs/records_r10/clone 384M.
+   TIER 3 -- finished studies' raw data (Oct 24-30), only after the maintainer's word or a confirmed durable copy:
+     S2/tailround/screen 3.9G (panels 2.7G, runs 627M, verify 312M, scratch_tail3bound 190M), S2/tailround/r10probe
+     517M, S2/r10round/ecs 2.0G, S2/r10round/port_equiv 824M, S2/r10round/bias_screen 527M (not bias_screen2),
+     S2/prs/r10_work 508M, S2/prs/telemetry3_work 515M, S2/prs/telemetry2_work 203M, S2/prs/com_tests 304M,
+     S2/prs/records_r10b 256M, S2/recbuild 190M, S2/tracework 193M.
+   NOT candidates: S2/com_revisit/base (7 commits on no remote-tracking ref [measured]); /home/user/work/wt_*
+     (worktrees of the records PRs, newest files 2026-10-31; wt_records3 is the open records draft, RUNLOG 871-872).
+   KEEP (used or cited by the PC tools, the criteria or F2) [measured, grep]: S2/venv (pinned PY); S2/caches
+     (MPLCONFIGDIR of the measuring children); S2/r10round/f2 (score.json, the STANCE6 comparator, and
+     xfer/extract_response.py, F2's exact-copy method); S2/r10round/final_lean (ROUND); S2/r10round/v12;
+     S2/r10round/lean (lane tools, pins_r10round.json); S2/r10round/long_blind (VALIDATION.txt, VP4's reference);
+     S2/r10round/bias_screen2 (read_bs.py, CMD_L); S2/r10round/runbranch (STANCE6's measuring repo, rollbuf.py);
+     S2/com_revisit/notes (criteria line 337); S2/tailround/r10cpu and r10fetch (cited); all of S1; ST/round,
+     ST/tools; /home/user/work/phase_screen, pc_branch, pc_durable, ps_durable, repo.
+   Tiers 1 + 2 free about 1.8 GB; with S2/tailround/screen/scratch_tail3bound (190M) and the ST/f2prep smoke and
+   f2dry folders (64 MB, deleted here after recording) still short of 3 GB: part of tier 3 (e.g.
+   S2/tailround/screen/panels 2.7G or S2/r10round/ecs/runs 855M) is needed for the 3 GB margin [inferred].

@@ -1,0 +1,18 @@
+..................F
+=================================== FAILURES ===================================
+__________ test_f_refuses_an_out_folder_inside_the_round_or_not_empty __________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/rereview/mutants/M12/pt/test_f_refuses_an_out_folder_i0')
+
+    def test_f_refuses_an_out_folder_inside_the_round_or_not_empty(tmp_path):
+        rnd = build(tmp_path)
+        rc, text = run_dev(rnd, rnd.root / "dev_out")
+>       assert rc == D.EXIT_REFUSED and "is inside" in text and not (rnd.root / "dev_out").exists()
+E       AssertionError: assert (3 == 3 and 'is inside' in 'score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)\nPINN... outputs are under /home/user/work/pc_study/amend2/rereview/mutants/M12/pt/test_f_refuses_an_out_folder_i0/r/dev_out\n')
+E        +  where 3 = D.EXIT_REFUSED
+
+test_score_pc_dev.py:383: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_f_refuses_an_out_folder_inside_the_round_or_not_empty
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 18 passed in 47.71s

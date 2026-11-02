@@ -1,0 +1,32 @@
+.............................F
+=================================== FAILURES ===================================
+___________________________ test_r2_json_value_kinds ___________________________
+
+    def test_r2_json_value_kinds():
+        k, A, pc = D.kind_of_json_difference, D.ABSENT, f"runs.{C.RUN_ID_PREFIX}60"
+        assert k(f"{pc}.completeness.C1.value.lines.7", "SNAPSHOT", A, {7}) == "C1's listing of a dropped line"
+        assert k(f"{pc}.presence[0].p1.value.lines.7", "SNAPSHOT", A, {7}) == \
+            "C1's listing of a dropped line (PRESENCE p1 copy)"
+        assert k(f"{pc}.d16.presence[1].p1.value.lines.7", "SNAPSHOT", A, {7}) == \
+            "C1's listing of a dropped line (D-16 PRESENCE p1 copy)"
+        assert k("blindness.not_blind[0]", "x", A, {7}) == "blindness"
+        assert k("reading.one_test.k", 20, 1, {7}) == "THE ONE TEST"
+        for key, x, y in ((f"{pc}.completeness.C1.value.lines.8", "SNAPSHOT", A),      # not a dropped line
+                          (f"{pc}.completeness.C1.value.lines.7", "LAUNCH", A),        # not the SNAPSHOT entry
+                          (f"{pc}.presence[0].p1.value.lines.7", "SNAPSHOT", "TRIGGER-a"),
+                          (f"{pc}.d16.presence[0].p1.value.lines.7", A, "SNAPSHOT"),   # added, not removed
+                          (f"{pc}.presence[0].p2.value.lines.7", "SNAPSHOT", A),       # not a copy of C1
+                          (f"{pc}.presence[0].p1.ok", True, False), (f"{pc}.verdict", "COMPLETE", "LOST"),
+                          ("(unreadable)", "ValueError: x", "")):
+>           assert k(key, x, y, {7}) == "UNEXPECTED", key
+E           AssertionError: runs.stance7_r10LTSBpc_s60.completeness.C1.value.lines.7
+E           assert "C1's listing... dropped line" == 'UNEXPECTED'
+E             
+E             - UNEXPECTED
+E             + C1's listing of a dropped line
+
+test_score_pc_dev.py:592: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r2_json_value_kinds - AssertionError: runs....
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 29 passed in 63.94s (0:01:03)

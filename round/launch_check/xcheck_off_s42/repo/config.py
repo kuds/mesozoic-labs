@@ -1,0 +1,1015 @@
+"""
+Load curriculum stage configurations from TOML files.
+
+Each model (species, embodiment; decision D-D33) has a
+configs/<species>/<embodiment>/ directory with one TOML file per stage,
+named by its stage with no number, as the model's stage manifest
+(``stages.toml`` in the same directory) declares (tyrannosaurus_rex/anatomical:
+stance.toml, recovery.toml, locomotion.toml, behavior.toml).
+
+Each TOML file has up to five tables: [stage], [env], [ppo], [sac] and
+[curriculum].  A top-level ``extends`` key, before the first table header,
+inherits the listed tables from another stage of the same model, one
+level deep and never [curriculum]:
+
+    extends = { stage = "stance", tables = ["stage", "env", "ppo"] }
+
+The [curriculum] table contains per-stage training and advancement settings:
+    timesteps           - number of timesteps to train this stage
+    min_avg_reward      - minimum average reward to advance (optional)
+    min_avg_episode_length - minimum average episode length to advance (optional)
+    required_consecutive   - number of consecutive passes required (optional)
+"""
+
+from __future__ import annotations
+
+import inspect
+import json
+import logging
+import math
+import tomllib
+from collections.abc import Mapping
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from .file_io import read_json_object
+from .paths import REPOSITORY_ROOT as _REPO_ROOT
+
+if TYPE_CHECKING:
+    from .model_id import ModelId
+    from .plant_contract import PlantIdentity
+
+_logger = logging.getLogger(__name__)
+
+
+def get_library_version() -> str:
+    """Return the mesozoic-labs package version string.
+
+    Tries ``importlib.metadata`` first (works when the package is installed),
+    then falls back to parsing ``pyproject.toml`` at the repository root.
+    """
+    try:
+        from importlib.metadata import version
+
+        return version("mesozoic-labs")
+    except Exception:
+        pass
+
+    pyproject = _REPO_ROOT / "pyproject.toml"
+    if pyproject.exists():
+        with open(pyproject, "rb") as f:
+            data = tomllib.load(f)
+        return str(data.get("project", {}).get("version", "unknown"))
+
+    return "unknown"
+
+
+def get_git_commit() -> str:
+    """Return the repository's current git commit hash, or ``"unknown"``.
+
+    Runs ``git rev-parse HEAD`` from the repository root so it works even when
+    the process working directory is elsewhere (e.g. a Colab notebook whose CWD
+    is ``/content``). Falls back to the ``GITHUB_SHA`` environment variable (set
+    in CI) before giving up, so a saved stage config records the exact code
+    revision that produced the run for reproducibility.
+    """
+    import os
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return os.environ.get("GITHUB_SHA", "unknown")
+
+
+# Known GPU short-names extracted from full device strings.
+_GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
+
+
+def _detect_gpu_info() -> dict[str, Any]:
+    """Return a dict with GPU details, or an empty dict if no GPU is available."""
+    # Try torch first (most accurate when available).
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            full_name = torch.cuda.get_device_name(0)
+            short_name = full_name
+            for short in _GPU_SHORT_NAMES:
+                if short in full_name.upper():
+                    short_name = short
+                    break
+            props = torch.cuda.get_device_properties(0)
+            return {
+                "gpu_model": short_name,
+                "gpu_full_name": full_name,
+                "gpu_memory_gb": round(props.total_memory / 1e9, 1),
+                "cuda_version": torch.version.cuda or "",
+            }
+    except Exception:
+        pass
+
+    # Fallback: query nvidia-smi directly (works without torch).
+    return _detect_gpu_info_nvidia_smi()
+
+
+def _detect_gpu_info_nvidia_smi() -> dict[str, Any]:
+    """Detect GPU info via nvidia-smi. Returns empty dict on failure."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,driver_version",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return {}
+        line = result.stdout.strip().split("\n")[0]
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 3:
+            return {}
+        full_name, memory_mb, driver_version = parts[0], parts[1], parts[2]
+        short_name = full_name
+        for short in _GPU_SHORT_NAMES:
+            if short in full_name.upper():
+                short_name = short
+                break
+        return {
+            "gpu_model": short_name,
+            "gpu_full_name": full_name,
+            "gpu_memory_gb": round(float(memory_mb) / 1024, 1),
+            "driver_version": driver_version,
+        }
+    except Exception:
+        return {}
+
+
+_CONFIGS_DIR = _REPO_ROOT / "configs"
+
+# Every stage ref, integer or id, resolves through the model's declared stage
+# manifest; no stage file is found by globbing its name.
+
+#: Every top-level table a stage TOML may declare.  This is the complete set
+#: the loader below reads, once :func:`_read_stage_toml` has resolved and
+#: removed the one other top-level key, ``extends``.  The trainers (the CLI
+#: and the notebook), the report scripts and the recovery harnesses go
+#: through :func:`load_stage_config`; the only library code that opens a
+#: stage TOML itself reads the ``[env]`` of a stage that extends nothing
+#: (``stance_quality_baseline`` stance's, ``train_behaviors`` locomotion's),
+#: and ``stages.toml`` has its own reader in ``stage_manifest``.  Anything
+#: else is rejected rather than ignored: a misspelled ``[environment]`` used
+#: to load as an empty ``[env]`` and the stage silently trained on
+#: constructor defaults (review CF4).  ``[jax]`` has been rejected too since
+#: D-D17 retired the JAX/MJX trainer that read it.
+_STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "curriculum"})
+_ALGORITHM_TABLES = ("ppo", "sac")
+#: The tables ``extends`` may inherit.  ``[curriculum]`` is never inherited:
+#: a stage's budget and advancement gate are its own.
+_INHERITABLE_TABLES = ("stage", "env", "ppo", "sac")
+
+
+def _tables_holding_extends(body: Any, dotted: str) -> list[str]:
+    """The dotted name of every table at or below *body* that holds an ``extends`` key.
+
+    Each table of an array of tables (``[[env.zones]]``) is walked under the
+    array's own name.
+    """
+    if isinstance(body, list):
+        return [where for item in body for where in _tables_holding_extends(item, dotted)]
+    if not isinstance(body, dict):
+        return []
+    found = [dotted] if "extends" in body else []
+    for key, value in body.items():
+        found.extend(_tables_holding_extends(value, f"{dotted}.{key}"))
+    return found
+
+
+def _load_stage_toml(path: Path) -> dict[str, Any]:
+    """Parse the stage TOML at *path*, refusing an ``extends`` written inside any table.
+
+    ``extends`` is a top-level key.  Written after a header, at any depth, it
+    lands inside that table (after ``[ppo.policy_kwargs]``, in the
+    ``policy_kwargs`` dict), where nothing would resolve it.  The top-level
+    value itself is not walked, so a malformed one gets the resolver's own
+    error.  Both reads in :func:`_read_stage_toml`, the file's and its
+    parent's, go through here.
+    """
+    with open(path, "rb") as f:
+        raw = tomllib.load(f)
+    misplaced = sorted(
+        {where for table, body in raw.items() if table != "extends" for where in _tables_holding_extends(body, table)}
+    )
+    if misplaced:
+        raise ValueError(
+            f"{path}: extends is declared inside {misplaced}; it is a top-level key and goes before the "
+            "first table header, or it would be silently ignored."
+        )
+    return raw
+
+
+def _read_stage_toml(path: Path) -> dict[str, Any]:
+    """Read the stage TOML at *path*, with its ``extends`` key resolved.
+
+    ``extends = { stage = "<id>", tables = [...] }`` names a parent stage and
+    the tables inherited from it.  The id resolves through the stage manifest
+    file beside *path* (``stages.toml`` in the same directory,
+    ``configs/<species>/<embodiment>/`` for a committed stage), never through
+    a model argument and never through an identity read off directory names
+    (review L2), so a stage file extends only a sibling in its own embodiment
+    directory, and an explicit ``config_path`` into another configs root reads
+    its parent from beside it.  Each listed table is
+    ``{**parent[table], **child[table]}``: a child key overrides in the
+    parent's position, a new child key is appended, and a nested table the
+    child declares (``[ppo.policy_kwargs]``) replaces the parent's whole.  An
+    unlisted table is the child's own.  Refused, naming the file at fault:
+    ``extends`` written inside a table at any depth (after a header such as
+    ``[stage]``, ``[ppo.policy_kwargs]`` or ``[[env.zones]]``), in the file
+    or in its parent, both read through :func:`_load_stage_toml`; a
+    malformed value; ``curriculum`` or an unknown table in the list; a
+    listed table the parent does not declare; a parent that itself extends
+    (one level only); and an id the directory's manifest cannot resolve,
+    which is how a copied TOML outside its model directory fails.
+    """
+    raw = _load_stage_toml(path)
+    if "extends" not in raw:
+        return raw
+    extends = raw.pop("extends")
+    parent_id = extends.get("stage") if isinstance(extends, dict) else None
+    tables = extends.get("tables") if isinstance(extends, dict) else None
+    if (
+        not isinstance(extends, dict)
+        or set(extends) != {"stage", "tables"}
+        or not isinstance(parent_id, str)
+        or not isinstance(tables, list)
+        or not tables
+        or not all(isinstance(table, str) for table in tables)
+        or len(set(tables)) != len(tables)
+    ):
+        raise ValueError(
+            f'{path}: extends must be {{ stage = "<stage id>", tables = ["<table>", ...] }}, each table '
+            f"named once; got {extends!r}"
+        )
+    refused = [table for table in tables if table not in _INHERITABLE_TABLES]
+    if refused:
+        raise ValueError(
+            f"{path}: extends cannot inherit {refused}; it may list only {list(_INHERITABLE_TABLES)}, "
+            "and never [curriculum]: a stage's budget and advancement gate are its own."
+        )
+    from .stage_manifest import StageManifestError, load_stage_manifest_file
+
+    model_dir = path.absolute().parent
+    try:
+        entry = load_stage_manifest_file(model_dir / "stages.toml").by_id(parent_id)
+    except StageManifestError as exc:
+        raise ValueError(
+            f"{path}: extends stage {parent_id!r}, which the stage manifest of its own directory does not "
+            f"resolve ({exc}); a stage TOML that extends another loads only from its model directory."
+        ) from exc
+    parent_path = model_dir / entry.config_file
+    parent = _load_stage_toml(parent_path)
+    if "extends" in parent:
+        raise ValueError(
+            f"{path}: extends {parent_path}, which itself extends another stage; extends is one level "
+            "deep, so name the root stage instead."
+        )
+    for table in tables:
+        if not isinstance(parent.get(table), dict):
+            raise ValueError(f"{path}: extends lists [{table}], which {parent_path} does not declare")
+        raw[table] = {**parent[table], **raw.get(table, {})}
+    return raw
+
+
+def load_stage_config(
+    model_id: ModelId,
+    stage: "int | str",
+    config_path: str | None = None,
+) -> dict[str, Any]:
+    """Load a curriculum stage configuration from TOML.
+
+    Args:
+        model_id: The model (e.g. ``ModelId("tyrannosaurus_rex", "anatomical")``).
+        stage: Either a legacy stage number (1, 2, or 3 — resolved through
+            the stage manifest's legacy_number mapping, so existing callers
+            and artifacts keep their meaning) or a semantic stage ID — any
+            id the model's manifest declares, resolved through it.  Stages
+            without a legacy number — recovery, every open id — are
+            reachable only by ID.
+        config_path: Optional explicit path to a TOML file. Overrides
+            automatic discovery when provided.  A file that ``extends``
+            another stage finds that parent through the stage manifest of
+            its own directory, whatever *model_id* says, so it loads only
+            from inside a model directory (:func:`_read_stage_toml`).
+
+    Returns:
+        Dictionary with keys "name", "description", "env_kwargs",
+        "ppo_kwargs", "sac_kwargs" and "curriculum_kwargs", read from the
+        tables as resolved through ``extends``.  Values in [env] that are
+        lists are converted to tuples so they can be passed directly to the
+        environment constructors.
+    """
+    if config_path is not None:
+        path = Path(config_path)
+    else:
+        # Every stage reference resolves through the model's manifest, which
+        # names its config files explicitly: each is named by its stage,
+        # with no number (decision D).
+        from .stage_manifest import load_stage_manifest
+
+        entry = load_stage_manifest(model_id).resolve(stage)
+        path = model_id.path(_CONFIGS_DIR) / entry.config_file
+
+    raw = _read_stage_toml(path)
+
+    unknown_tables = sorted(set(raw) - _STAGE_CONFIG_TABLES)
+    if unknown_tables:
+        raise ValueError(
+            f"{path}: unknown top-level table(s) {unknown_tables}; a stage config may declare only "
+            f"{sorted(_STAGE_CONFIG_TABLES)}. A misspelled table would otherwise load as empty and the "
+            "stage would train on class / library defaults — a different experiment, with no warning."
+        )
+    if not raw.get("env"):
+        _logger.warning(
+            "%s declares no [env] table (or an empty one): the stage will train on the environment "
+            "constructor's defaults for every reward, termination and horizon parameter.",
+            path,
+        )
+    if not any(raw.get(table) for table in _ALGORITHM_TABLES):
+        _logger.warning(
+            "%s declares no algorithm table (%s): SB3 will train on library-default hyperparameters.",
+            path,
+            ", ".join(f"[{table}]" for table in _ALGORITHM_TABLES),
+        )
+
+    stage_meta = raw.get("stage", {})
+    env_raw = raw.get("env", {})
+    ppo_raw = raw.get("ppo", {})
+    sac_raw = raw.get("sac", {})
+    curriculum_raw = raw.get("curriculum", {})
+
+    # Convert lists to tuples for range parameters (e.g. prey_distance_range)
+    env_kwargs = {}
+    for key, value in env_raw.items():
+        if isinstance(value, list):
+            env_kwargs[key] = tuple(value)
+        else:
+            env_kwargs[key] = value
+
+    return {
+        "name": stage_meta.get("name", f"stage{stage}"),
+        "description": stage_meta.get("description", ""),
+        "env_kwargs": env_kwargs,
+        "ppo_kwargs": dict(ppo_raw),
+        "sac_kwargs": dict(sac_raw),
+        "curriculum_kwargs": dict(curriculum_raw),
+    }
+
+
+def load_all_stages(model_id: ModelId) -> "dict[int | str, dict[str, Any]]":
+    """Load every stage config the model's manifest declares.
+
+    Returns:
+        Dictionary keyed the way each stage is referenced: legacy stages by
+        their historical number (1, 2, 3 — unchanged for every existing
+        consumer), stages without a numeric history (recovery) by their
+        semantic ID.  Iteration order is the manifest's curriculum order.
+    """
+    from .stage_manifest import load_stage_manifest
+
+    manifest = load_stage_manifest(model_id)
+    configs: "dict[int | str, dict[str, Any]]" = {}
+    for entry in manifest.stages:
+        key: "int | str" = entry.legacy_number if entry.legacy_number is not None else entry.id
+        configs[key] = load_stage_config(model_id, key)
+    return configs
+
+
+def build_env(model_id: ModelId, stage: "int | str", **env_overrides: Any) -> Any:
+    """Construct the stage's environment from its committed config.
+
+    The one construction path the report scripts and the frozen recovery
+    gate share: every ``[env]`` key the stage TOML declares reaches the
+    constructor, exactly as training builds the environment.  Keyword
+    *env_overrides* replace individual ``[env]`` values for the diagnostics
+    that need a deliberately different plant state -- the foot-sensor
+    cross-check zeroes ``reset_noise_scale`` so the plant settles
+    deterministically.  The registry import is deferred because
+    ``species_registry`` imports ``train_base``, which imports this module.
+
+    The built environment's compiled physics is compared with the current
+    plant (``validate_compiled_plant``): the per-process identity cache does
+    not see environment code patched in a live process, so the envs the
+    recovery gate freezes and rolls are checked here, as training's are in
+    ``make_env``.  The comparison with the committed manifest is left to the
+    certifying callers, which each make their own ``current_plant_identity``
+    call, so a diagnostic still runs while a plant edit awaits ``--write``.
+    """
+    from .plant_contract import current_plant_identity, validate_compiled_plant
+    from .species_registry import get_species_config
+
+    config = load_stage_config(model_id, stage)
+    species_config = get_species_config(model_id)
+    identity = current_plant_identity(model_id, verify_generated=False)
+    env = species_config.env_class(**{**config["env_kwargs"], **env_overrides})
+    validate_compiled_plant(env.model, identity, artifact=f"{model_id} stage {stage} environment")
+    return env
+
+
+def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
+    """The task-fingerprint digest an SB3 checkpoint ZIP recorded, or ``None``.
+
+    A digest-only view over
+    :func:`~environments.shared.task_fingerprint.read_checkpoint_task_fingerprint`,
+    which reads the archive's ``data`` member so the lineage can be written
+    before — and independently of — the model load.  ``None`` for a
+    checkpoint minted before fingerprints existed and for a non-SB3 file (a
+    JAX ``.pkl``); both are honest "unknown parent task", never a guess.
+    """
+    from .task_fingerprint import read_checkpoint_task_fingerprint
+
+    recorded = read_checkpoint_task_fingerprint(checkpoint)
+    digest = recorded.get("task_sha256") if recorded is not None else None
+    return digest if isinstance(digest, str) and digest else None
+
+
+#: Run-block key recording how long a stage trained, in seconds, summed over
+#: the sessions that reached a final save in this stage directory (decision
+#: D-A15; a session stopped before its final save records nothing, and a CLI
+#: resume into a fresh directory records only its own session).  Written by
+#: :func:`record_stage_duration` when ``train_base.train`` saves the final
+#: model rather than by :func:`save_stage_config`, which runs BEFORE
+#: training: a node resumed by the notebook's resume cell and judged later
+#: would otherwise report the judge session's 0.0 seconds.  Not a lineage
+#: key — the audit ignores it.
+STAGE_DURATION_KEY = "duration_seconds"
+
+
+#: The record :func:`save_stage_config` writes into every stage directory.
+STAGE_CONFIG_FILENAME = "stage_config.json"
+
+
+def read_recorded_stage_config(stage_dir: str | Path) -> dict[str, Any] | None:
+    """The ``stage_config.json`` *stage_dir* records, or ``None`` when it proves nothing.
+
+    The one lenient reader of the record :func:`save_stage_config` writes:
+    ``None`` when the file is absent (or a directory), unreadable, not UTF-8,
+    not JSON (a byte-order mark included) or not an object, as
+    :func:`~environments.shared.file_io.read_json_object` reads it; NaN is
+    accepted, as the writer writes it.  Callers that must refuse a bad record
+    read the file themselves: :func:`record_stage_duration`, the result-bundle
+    writer, audit, evidence and ancestor readers, the recovery-gate identity
+    check, the stage-results builder and the backfill and widen tools.
+    """
+    return read_json_object(Path(stage_dir) / STAGE_CONFIG_FILENAME)
+
+
+def read_stage_duration(stage_dir: str | Path) -> float | None:
+    """The ``run.duration_seconds`` a stage directory records, or ``None``.
+
+    ``None`` when ``stage_config.json`` is absent, unreadable, has no run
+    block, or the key is missing or not a finite non-negative number — every
+    case an honest "unknown", so a caller accumulating a resumed session's
+    duration starts from nothing rather than from a guess.
+    """
+    data = read_recorded_stage_config(stage_dir)
+    run_block = data.get("run") if data is not None else None
+    value = run_block.get(STAGE_DURATION_KEY) if isinstance(run_block, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    seconds = float(value)
+    return seconds if math.isfinite(seconds) and seconds >= 0.0 else None
+
+
+def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Path:
+    """Record *duration_seconds* into ``stage_config.json``'s run block, atomically.
+
+    Sets the value; it does not accumulate.  A caller resuming an
+    interrupted stage reads the prior value with :func:`read_stage_duration`
+    BEFORE it re-saves the stage config (which writes a fresh run block) and
+    records the sum on exit.  A stage directory without ``stage_config.json``
+    is an error: the duration is a property of a recorded stage, not a
+    record on its own.
+    """
+    from .file_io import atomic_write_text
+
+    seconds = float(duration_seconds)
+    if isinstance(duration_seconds, bool) or not math.isfinite(seconds) or seconds < 0.0:
+        raise ValueError(f"duration_seconds must be a finite non-negative number, not {duration_seconds!r}")
+    path = Path(stage_dir) / STAGE_CONFIG_FILENAME
+    if not path.is_file():
+        raise FileNotFoundError(f"cannot record the stage duration: no stage_config.json in {stage_dir}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must hold a JSON object")
+    run_block = data.get("run")
+    if not isinstance(run_block, dict):
+        run_block = {}
+    run_block[STAGE_DURATION_KEY] = seconds
+    data["run"] = run_block
+    atomic_write_text(path, json.dumps(data, indent=2) + "\n")
+    return path
+
+
+#: Files whose presence means a stage directory is already a RECORDED stage
+#: (decision D-A20): its config was written by an earlier session, or a gate
+#: has judged it.  Writing a fresh stage into such a directory silently
+#: overwrites that record, so :func:`refuse_occupied_stage_dir` refuses it
+#: unless the load is an explicit same-stage resume.
+STAGE_DIR_OCCUPANCY_FILES = (STAGE_CONFIG_FILENAME, "gate_verdict.json")
+
+
+class StageDirectoryOccupiedError(RuntimeError):
+    """A stage directory already holds a recorded stage and the load is not a same-stage resume."""
+
+
+def refuse_occupied_stage_dir(stage_dir: str | Path, *, task_load_mode: str | None) -> None:
+    """Refuse to write a fresh stage into a directory that already records one (D-A20).
+
+    Raises :class:`StageDirectoryOccupiedError` when *stage_dir* holds any
+    of :data:`STAGE_DIR_OCCUPANCY_FILES` and *task_load_mode* is not
+    ``"resume_same_stage"``.  A same-stage resume continues the stage the
+    directory records, so it is the one load that may re-save its config
+    there; every other write — from scratch, or entering from a parent under
+    ``initialize_next_stage`` — is a new variant, and a variant is a new run.
+    Callers pass the EFFECTIVE load mode: ``None`` when nothing is loaded,
+    exactly as ``save_stage_config`` records ``load_mode``, so a
+    ``resume_same_stage`` default without a checkpoint does not slip past
+    the guard.  Never raises for a missing or empty directory.
+    """
+    directory = Path(stage_dir)
+    found = [name for name in STAGE_DIR_OCCUPANCY_FILES if (directory / name).is_file()]
+    if not found or task_load_mode == "resume_same_stage":
+        return
+    raise StageDirectoryOccupiedError(
+        f"{directory} already records a stage ({', '.join(found)} present) and this is not a "
+        f"same-stage resume (load mode {task_load_mode!r}); refusing to overwrite it. Give a new "
+        "variant a fresh run directory (--output-dir / RUN_ID), or resume this stage explicitly with "
+        "--load <checkpoint> --load-mode resume_same_stage (the notebook's RESUME cell)."
+    )
+
+
+#: Run-block keys recording where a stage's initial weights came from.  Read
+#: back by the result-bundle audit under exactly these names (review RP4),
+#: which audits each key when present and skips it when absent — so a
+#: from-scratch stage writes none of them, and an unfingerprinted parent
+#: leaves ``parent_task_sha256`` out rather than recording a null.
+#: ``load_path`` names the file whose sha256 is recorded — ``<stem>.zip`` when
+#: the trainer was handed an SB3 stem — so a parent inside the run directory
+#: resolves to the manifest entry the audit cross-checks the hash against.
+#: ``parent_run_id`` is present iff the parent was a certified ancestor
+#: reused from ANOTHER run (BEHAVIOR_RECIPES_PLAN §4.2): its value is that
+#: run's provenance ``run_id`` when it has one, else the run directory name.
+#: A ``--load`` and a same-run curriculum handoff never write it.
+LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
+
+#: A same-stage resume of a stage that ENTERED from its parent keeps that
+#: edge in the :data:`LOAD_LINEAGE_KEYS` (the reuse rule's chain-by-digest
+#: check, ``ancestors._check_chain``, and the audit read those) and records
+#: the periodic checkpoint it continued from under these two keys instead:
+#: the path as given to the trainer and that file's sha256.  Neither is a
+#: lineage key — the resume continues the recorded stage, it does not
+#: re-parent it — so a resumed-then-judged node stays reusable on top of
+#: the parent it was trained from (BEHAVIOR_RECIPES_PLAN §4.7 branch 3).
+RESUME_LINEAGE_KEYS = ("resume_load_path", "resume_checkpoint_sha256")
+
+#: Run-block keys a WIDENED root records its parent under
+#: (``environments/shared/scripts/widen_checkpoint.py``; BEHAVIOR_RECIPES_PLAN
+#: §4.6 "Widening instead of retraining", decision D-C8): the parent archive
+#: as given, that file's sha256, its VecNormalize sidecar's sha256, the task
+#: digest the parent recorded (``None`` when it carried none), the parent's
+#: ``policy_interface_sha256`` and ``policy_interface_revision`` (the
+#: interface it was trained under, one revision behind), the parent run's
+#: id (its provenance ``run_id``, else its directory name — ``ancestors
+#: .run_id_for`` semantics) and ``widened_by`` (tool version and the commit
+#: the widening ran at).  A widened root records its parent HERE, NOT under
+#: :data:`LOAD_LINEAGE_KEYS`: ``ancestors._check_chain`` refuses a root that
+#: entered under ``initialize_next_stage``, and the result-bundle audit binds
+#: ``parent_run_id`` to an ``ancestors/`` record — a widened checkpoint is
+#: the same policy under a wider interface, not a warm-start across an edge.
+#: These keys are provenance the audit ignores; no reader consumes them
+#: (``_recorded_load_lineage``, ``_recorded_edge_lineage`` and the audit read
+#: only :data:`LOAD_LINEAGE_KEYS`).  The archive carries the same parent
+#: hashes under its ``mesozoic_widen_lineage`` attribute.
+WIDEN_LINEAGE_KEYS = (
+    "widened_from_path",
+    "widened_from_checkpoint_sha256",
+    "widened_from_normalization_sha256",
+    "widened_from_task_sha256",
+    "widened_from_policy_interface_sha256",
+    "widened_from_policy_interface_revision",
+    "widened_from_run_id",
+    "widened_by",
+)
+
+#: Besides *extra* and the lineage keys, the ``run`` block always records
+#: ``hyperparameters_sha256`` — :func:`hyperparameters_sha256` over the
+#: stage's algorithm block and stage-entry shaping keys — and, when the run
+#: was given one, a free-text ``label`` (decision D-A21).  Neither is a
+#: load-lineage key: they describe THIS stage's training recipe, not where
+#: its weights came from.  ``reporting.bundles`` copies both into the
+#: stage's ``provenance.deliverables`` record and the audit cross-checks
+#: the digest against the run block it came from.
+
+#: The stage-config key holding each algorithm's hyperparameter table —
+#: the block ``save_stage_config`` records as ``"hyperparameters"`` and
+#: :func:`hyperparameters_sha256` digests.
+_ALGORITHM_KWARGS_KEYS = {"PPO": "ppo_kwargs", "SAC": "sac_kwargs", "JAX_PPO": "jax_kwargs"}
+
+#: Prefixes of the ``curriculum_kwargs`` keys that shape a stage's ENTRY
+#: (the warm-up and ramp callbacks): they change what a node is trained
+#: under without touching the task fingerprint, so the digest covers them.
+SHAPING_KEY_PREFIXES = ("warmup_", "ramp_")
+
+
+def _algorithm_kwargs_key(algorithm: str) -> str:
+    return _ALGORITHM_KWARGS_KEYS.get(algorithm.upper(), f"{algorithm.lower()}_kwargs")
+
+
+def _json_ready(value: Any) -> Any:
+    """Canonicalise tuples to lists (recursively), as the stage config on disk records them."""
+    if isinstance(value, (tuple, list)):
+        return [_json_ready(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _json_ready(item) for key, item in value.items()}
+    return value
+
+
+def _hyperparameter_view(algorithm: str, hyperparameters: Any, curriculum: Any) -> dict[str, Any]:
+    """The digested view: the algorithm, its block, and the shaping keys of the curriculum block."""
+    if not isinstance(hyperparameters, dict):
+        hyperparameters = {}
+    if not isinstance(curriculum, dict):
+        curriculum = {}
+    return {
+        "algorithm": algorithm.upper(),
+        "hyperparameters": _json_ready(hyperparameters),
+        "shaping": {str(k): _json_ready(v) for k, v in curriculum.items() if str(k).startswith(SHAPING_KEY_PREFIXES)},
+    }
+
+
+def hyperparameters_sha256(stage_config: dict[str, Any], algorithm: str) -> str:
+    """The ``sha256:<hex>`` digest of a stage's training recipe (decision D-A21).
+
+    Hashes, as canonical JSON, ``{"algorithm": ALGORITHM, "hyperparameters":
+    <the algorithm's kwargs table>, "shaping": <the curriculum_kwargs whose
+    keys start with one of SHAPING_KEY_PREFIXES>}`` — exactly the block
+    ``save_stage_config`` records as ``"hyperparameters"`` plus the
+    stage-entry shaping knobs, with tuples canonicalised to lists as the
+    JSON on disk has them.  Independent of key order.  Env kwargs, gate
+    thresholds and everything else in the config leave it unchanged: the
+    task fingerprint owns the task, this owns how it was trained.
+    """
+    from .result_bundle.hashing import canonical_json_sha256
+
+    view = _hyperparameter_view(
+        algorithm,
+        stage_config.get(_algorithm_kwargs_key(algorithm), {}),
+        stage_config.get("curriculum_kwargs", {}),
+    )
+    return canonical_json_sha256(view)
+
+
+def recorded_hyperparameters_sha256(recorded_stage_config: Mapping[str, Any]) -> str | None:
+    """The recipe digest a recorded ``stage_config.json`` states, else the one its blocks imply.
+
+    The run block's ``hyperparameters_sha256`` when the stage recorded one
+    (every stage saved since decision D-A21); otherwise the digest is
+    DERIVED from the file's recorded ``"algorithm"``, top-level
+    ``"hyperparameters"`` and the shaping keys of its ``"curriculum"`` —
+    exactly what :func:`hyperparameters_sha256` hashes at save time, so a
+    pre-D-A21 stage digests to what its run block would have recorded
+    (decision D-B16: a replicate is never skipped for predating the field
+    alone).  ``None`` when the file records no algorithm to digest under.
+    """
+    run_block = recorded_stage_config.get("run")
+    if isinstance(run_block, Mapping):
+        recorded = run_block.get("hyperparameters_sha256")
+        if isinstance(recorded, str) and recorded.strip():
+            return recorded
+    algorithm = recorded_stage_config.get("algorithm")
+    if not isinstance(algorithm, str) or not algorithm.strip():
+        return None
+    hyperparameters = recorded_stage_config.get("hyperparameters", {})
+    curriculum = recorded_stage_config.get("curriculum", {})
+    return hyperparameters_sha256(
+        {
+            _algorithm_kwargs_key(algorithm): dict(hyperparameters) if isinstance(hyperparameters, Mapping) else {},
+            "curriculum_kwargs": dict(curriculum) if isinstance(curriculum, Mapping) else {},
+        },
+        algorithm,
+    )
+
+
+def hyperparameter_diff(
+    stage_config: dict[str, Any],
+    algorithm: str,
+    recorded_stage_config: dict[str, Any],
+) -> list[str]:
+    """Sorted dotted keys on which a stage's recipe differs from a recorded ``stage_config.json``.
+
+    Compares the current node's algorithm block and shaping keys (as
+    :func:`hyperparameters_sha256` sees them) with the recorded file's
+    top-level ``"hyperparameters"`` and the shaping keys of its
+    ``"curriculum"``.  Keys are ``<algorithm>.<key>`` (``ppo.learning_rate``)
+    and ``shaping.<key>`` (``shaping.warmup_timesteps``); a key present on
+    one side only differs; a recorded ``"algorithm"`` other than the
+    current one differs as ``algorithm``.  ``[]`` when nothing differs — in
+    which case the two digests agree.
+    """
+    current = _hyperparameter_view(
+        algorithm,
+        stage_config.get(_algorithm_kwargs_key(algorithm), {}),
+        stage_config.get("curriculum_kwargs", {}),
+    )
+    recorded_algorithm = recorded_stage_config.get("algorithm")
+    recorded = _hyperparameter_view(
+        str(recorded_algorithm) if isinstance(recorded_algorithm, str) and recorded_algorithm else algorithm,
+        recorded_stage_config.get("hyperparameters", {}),
+        recorded_stage_config.get("curriculum", {}),
+    )
+    differing: list[str] = []
+    if current["algorithm"] != recorded["algorithm"]:
+        differing.append("algorithm")
+    for prefix, section in ((algorithm.lower(), "hyperparameters"), ("shaping", "shaping")):
+        ours, theirs = current[section], recorded[section]
+        for key in set(ours) | set(theirs):
+            if key not in ours or key not in theirs or ours[key] != theirs[key]:
+                differing.append(f"{prefix}.{key}")
+    return sorted(differing)
+
+
+def ignored_hyperparameter_edits(config: dict[str, Any], algorithm: str, ancestor_stage_dir: str | Path) -> list[str]:
+    """The dotted keys on which this run's recipe differs from a reused ancestor's record.
+
+    What reusing a certified ancestor ignores (decision D-A21): reuse carries
+    the ancestor's recorded recipe, so an edit made since is named, never
+    applied.  Reads ``<ancestor_stage_dir>/stage_config.json`` and delegates
+    to :func:`hyperparameter_diff`; an ancestor whose record cannot be read —
+    missing, not UTF-8, not JSON, or JSON that is not an object — is reported
+    as ``["<unreadable stage_config.json>"]`` rather than silently trusted.
+    ``[]`` when the recipes agree.  Never raises: the curriculum loop and the
+    notebook's chain loop call it after a successful reuse, where a warning
+    is the whole job.
+    """
+    recorded = read_recorded_stage_config(ancestor_stage_dir)
+    if recorded is None:
+        return ["<unreadable stage_config.json>"]
+    return hyperparameter_diff(config, algorithm, recorded)
+
+
+def _checkpoint_lineage(
+    load_path: str | None,
+    load_mode: str | None,
+    *,
+    parent_run_id: str | None = None,
+) -> dict[str, Any]:
+    """The load-lineage keys for a stage's ``run`` block; empty from scratch.
+
+    A loaded checkpoint records the path of the file hashed, the load mode,
+    the ZIP's own sha256 and the task digest it carries — the load was
+    validated against the current task at ``--load`` time but persisted
+    nowhere readable.  A stem is recorded as the ``.zip`` SB3 appends to it
+    (``train_curriculum`` and the notebook both hand SB3 a stem): the manifest
+    hashes the ``.zip``, and a bare stem never matches a manifest key, so the
+    audit's parent-hash cross-check would never fire.  A relative path stays
+    relative; nothing else about the path is rewritten.  ``parent_run_id``
+    is recorded only when it is a non-empty string — the audit reads
+    absence as "the parent came from this run".
+    """
+    if not load_path:
+        return {}
+    from .result_bundle import sha256_file
+
+    recorded_path = load_path
+    checkpoint = Path(load_path)
+    if not checkpoint.is_file() and not load_path.endswith(".zip"):
+        # SB3 accepts the stem and appends .zip itself; hash the file it loads.
+        recorded_path = load_path + ".zip"
+        checkpoint = Path(recorded_path)
+    if not checkpoint.is_file():
+        raise FileNotFoundError(f"cannot record load lineage: checkpoint not found at {load_path!r}")
+    lineage: dict[str, Any] = {
+        "load_path": recorded_path,
+        "load_mode": load_mode,
+        "parent_checkpoint_sha256": sha256_file(checkpoint),
+    }
+    parent_task_sha256 = _recorded_checkpoint_task_sha256(checkpoint)
+    if parent_task_sha256 is not None:
+        lineage["parent_task_sha256"] = parent_task_sha256
+    if isinstance(parent_run_id, str) and parent_run_id:
+        lineage["parent_run_id"] = parent_run_id
+    return lineage
+
+
+def _recorded_edge_lineage(stage_dir: Path) -> dict[str, Any]:
+    """The ``initialize_next_stage`` lineage *stage_dir*'s ``stage_config.json`` records, else ``{}``.
+
+    Read by :func:`save_stage_config` before it rewrites the run block on a
+    same-stage resume.  A missing or unreadable config, a run block without
+    a load, or one that records a ``resume_same_stage`` load (a root, or a
+    plain ``--load``) all read as "no edge to keep".
+    """
+    record = read_recorded_stage_config(stage_dir)
+    run_block = record.get("run") if record is not None else None
+    if not isinstance(run_block, dict) or run_block.get("load_mode") != "initialize_next_stage":
+        return {}
+    return {key: run_block[key] for key in LOAD_LINEAGE_KEYS if key in run_block}
+
+
+def save_stage_config(
+    stage_dir: str | Path,
+    stage: "int | str",
+    stage_config: dict[str, Any],
+    algorithm: str,
+    extra: dict[str, Any] | None = None,
+    env_class: type | None = None,
+    *,
+    model_id: ModelId,
+    plant_identity: PlantIdentity | None = None,
+    task_fingerprint: dict[str, Any] | None = None,
+    load_path: str | None = None,
+    load_mode: str | None = None,
+    parent_run_id: str | None = None,
+    label: str | None = None,
+) -> Path:
+    """Save the reward weights and model hyperparameters for a stage to JSON.
+
+    Writes ``stage_config.json`` into *stage_dir* with the full reward signal
+    (env_kwargs), the algorithm hyperparameters, curriculum thresholds, and any
+    extra run-level metadata (seed, n_envs, etc.).
+
+    When *env_class* is provided, constructor defaults for parameters not
+    already present in the TOML-derived ``env_kwargs`` are merged in so
+    that the saved JSON captures the effective configuration (including
+    values like ``healthy_z_range`` that may rely on class defaults).
+
+    Args:
+        stage_dir: Directory for this stage (e.g. ``run_dir/stage1``).
+        stage: Stage number (1, 2, or 3).
+        stage_config: The config dict returned by :func:`load_stage_config`.
+        algorithm: Algorithm name (``"PPO"`` or ``"SAC"``).
+        extra: Optional dict of additional metadata to include at the top level
+            (e.g. ``{"seed": 42, "n_envs": 4}``).
+        env_class: Optional environment class whose ``__init__`` defaults are
+            merged into ``env_kwargs`` for completeness.
+        model_id: The model the stage belongs to, recorded as its two
+            fields, ``species`` and ``embodiment`` (decision D-D33).
+        plant_identity: Optional current plant identity.  When supplied it is
+            embedded in the config and written as ``plant_identity.json``.
+        load_path: The checkpoint this stage's weights were loaded from, as
+            given to the trainer, or ``None`` for a from-scratch stage.
+        load_mode: The task load mode the checkpoint was loaded under
+            (``resume_same_stage`` / ``initialize_next_stage``).
+        parent_run_id: The run the loaded checkpoint was reused from when it
+            is a certified ancestor of ANOTHER run; ``None`` (or empty) for a
+            parent trained in this run or a plain ``--load``.
+        label: Free text naming this run (``--label`` / ``RUN_LABEL``),
+            recorded as ``run["label"]`` only when it is a non-empty string
+            (whitespace is stripped); ``None`` records nothing.
+
+    The ``run`` block always carries ``hyperparameters_sha256``
+    (:func:`hyperparameters_sha256` over the algorithm block and the
+    shaping keys; decision D-A21) alongside *extra*, so it is always
+    written; when a checkpoint was loaded it also carries the
+    :data:`LOAD_LINEAGE_KEYS`, and a from-scratch stage carries none of
+    them (the audit reads absence as "no parent").
+
+    A ``resume_same_stage`` load into a directory whose existing
+    ``stage_config.json`` records an ``initialize_next_stage`` entry keeps
+    that edge's lineage keys verbatim (the resume continues the recorded
+    stage on top of the same parent; the reuse rule chains on
+    ``parent_checkpoint_sha256`` and the audit cross-checks it) and records
+    the checkpoint it continued from under the :data:`RESUME_LINEAGE_KEYS`.
+    Any other resume — a root, a plain ``--load`` — records the load under
+    the lineage keys as before.
+
+    Returns:
+        Path to the written JSON file.
+    """
+    stage_dir = Path(stage_dir)
+    stage_dir.mkdir(parents=True, exist_ok=True)
+
+    algo_key = _algorithm_kwargs_key(algorithm)
+
+    # Start with env class constructor defaults so that the saved JSON
+    # captures the full effective configuration, then overlay with
+    # explicit TOML values (which take precedence).
+    env_kwargs: dict[str, Any] = {}
+    if env_class is not None:
+        try:
+            sig = inspect.signature(env_class)
+            skip = {"self", "render_mode"}
+            for name, param in sig.parameters.items():
+                if name in skip or param.default is inspect.Parameter.empty:
+                    continue
+                env_kwargs[name] = param.default
+        except (ValueError, TypeError):
+            pass
+
+    # Overlay TOML-derived values and convert tuples to lists for JSON
+    for key, value in stage_config.get("env_kwargs", {}).items():
+        env_kwargs[key] = list(value) if isinstance(value, tuple) else value
+
+    # Also convert any defaults that were tuples
+    for key, value in env_kwargs.items():
+        if isinstance(value, tuple):
+            env_kwargs[key] = list(value)
+
+    # An opt-in task option left off records none of its constructor
+    # defaults, as the task fingerprint hashes none of them; a key the TOML
+    # sets is always recorded.
+    if env_class is not None:
+        from .task_fingerprint import inert_opt_in_env_kwargs
+
+        for name in inert_opt_in_env_kwargs(env_class, env_kwargs):
+            if name not in stage_config.get("env_kwargs", {}):
+                env_kwargs.pop(name, None)
+
+    data: dict[str, Any] = {
+        **model_id.record(),
+        "stage": stage,
+        "name": stage_config.get("name", ""),
+        "description": stage_config.get("description", ""),
+        "algorithm": algorithm.upper(),
+        "library_version": get_library_version(),
+        "git_commit": get_git_commit(),
+        "reward_weights": env_kwargs,
+        "hyperparameters": stage_config.get(algo_key, {}),
+        "curriculum": stage_config.get("curriculum_kwargs", {}),
+    }
+    # D-A21: the recipe digest is always recorded (so the run block always
+    # exists); the label only when one was given.
+    run_block: dict[str, Any] = {
+        **(extra or {}),
+        "hyperparameters_sha256": hyperparameters_sha256(stage_config, algorithm),
+    }
+    if isinstance(label, str) and label.strip():
+        run_block["label"] = label.strip()
+    lineage = _checkpoint_lineage(load_path, load_mode, parent_run_id=parent_run_id)
+    edge = _recorded_edge_lineage(stage_dir) if load_mode == "resume_same_stage" else {}
+    if edge:
+        # A same-stage resume continues the stage that entered from its
+        # parent: keep the edge, record the continued-from checkpoint apart.
+        run_block.update(edge)
+        run_block["resume_load_path"] = lineage["load_path"]
+        run_block["resume_checkpoint_sha256"] = lineage["parent_checkpoint_sha256"]
+    else:
+        run_block.update(lineage)
+    data["run"] = run_block
+    if plant_identity is not None:
+        data["plant_identity"] = plant_identity.to_dict()
+    if task_fingerprint is not None:
+        data["task_fingerprint"] = dict(task_fingerprint)
+
+    gpu_info = _detect_gpu_info()
+    if gpu_info:
+        data["gpu"] = gpu_info
+
+    from .file_io import atomic_write_json
+
+    # Atomic, like record_stage_duration's rewrite: a same-stage resume reads
+    # this file back (its duration and parent edge), and a reclaim mid-write
+    # would otherwise leave it truncated (CU-3; the bytes are unchanged).
+    out_path = atomic_write_json(stage_dir / STAGE_CONFIG_FILENAME, data)
+    if plant_identity is not None:
+        from .plant_contract import write_plant_identity
+
+        write_plant_identity(stage_dir / "plant_identity.json", plant_identity)
+    if task_fingerprint is not None:
+        from .task_fingerprint import write_task_fingerprint
+
+        write_task_fingerprint(stage_dir / "task_fingerprint.json", task_fingerprint)
+    return out_path
+
+
+def append_stage_result_csv(csv_path: str | Path, data: dict) -> Path:
+    """Append one stage training result row to a CSV file.
+
+    Delegates to :func:`environments.shared.reporting.write_results_csv`
+    in append mode, which creates the file with a header on the first call
+    and expands the column set if later calls introduce new keys.
+
+    Args:
+        csv_path: Path to the CSV file (created if it does not exist).
+        data: Ordered dict of column name → value for this row.
+
+    Returns:
+        Path to the CSV file.
+    """
+    from .reporting import write_results_csv
+
+    return write_results_csv([data], csv_path, append=True)

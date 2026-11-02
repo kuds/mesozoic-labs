@@ -1,0 +1,56 @@
+.......................F
+=================================== FAILURES ===================================
+______ test_m3_lost_phase_run_with_refetch_presence_copies_of_c1_listing _______
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/rereview/mutants/N5/pt/test_m3_lost_phase_run_with_re0')
+
+    def test_m3_lost_phase_run_with_refetch_presence_copies_of_c1_listing(tmp_path):
+        rnd = build(tmp_path, phase_per_seed={60: dict(cut_at=40 * C.GRID, refetch={})})
+        out = tmp_path / "out"
+        rc, text = run_dev(rnd, out)
+        assert rc == SP.EXIT_FINAL, text
+        p, d = one_test(out, "pinned"), one_test(out, "deviation")
+        assert p["k"] == 20 and p["phase_missing"] == [True, False, False] and p["off_missing"] == [True] * 3
+        assert d["k"] == 11 and d["phase_missing"] == [True, False, False] and d["off_missing"] == [False] * 3
+        pinned, dev, diffs = sections(text)
+        for sec in (pinned, dev):
+            assert any(x.startswith(f"  pc s60 {C.RUN_ID_PREFIX}60: LOST") for x in sec), sec
+>       assert_only_blindness_differs(text, c1_listing=1, p1_copies=2)
+
+test_score_pc_dev.py:490: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+text = 'score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)\nPINN...st_phase_run_with_re0/out): runlog_asread.txt, runlog_deviation.txt, pinned.out/.err/.json, deviation.out/.err/.json\n'
+c1_listing = 1, p1_copies = 2
+
+    def assert_only_blindness_differs(text, c1_listing=1, p1_copies=0):
+        """Every differing output line is a blindness line, THE ONE TEST line or (once F2 is read) C1's printed listing of
+        the run's note lines minus the dropped line (and, for a LOST run, PRESENCE p1's printed copies of it): checked here
+        on the lines themselves and on the tool's own kinds."""
+        _p, _d, diffs = sections(text)
+        pin, dev = diff_pairs(diffs)
+        assert len(pin) == len(dev) == 5 + c1_listing + p1_copies, diffs
+        for x, y in zip(pin, dev):
+            if x.startswith(EXPECTED_DIFF_PREFIXES):
+                assert y.startswith(x[:16]), (x, y)
+            else:
+                assert x.startswith(('        value: {"launches": ', '      p1: ')), x
+                assert '"SNAPSHOT"' in x and '"SNAPSHOT"' not in y, x
+                assert any(x.replace(a, "", 1) == y for a in (f', "{i}": "SNAPSHOT"' for i in range(1, 200))), (x, y)
+        heads = [x for x in diffs if x.startswith("    output line ")]
+        kinds = [x[x.index(" [") + 2:x.rindex("]")] for x in heads]
+        assert kinds.count("blindness: the first opening and the NOT BLIND runs") == 1, kinds
+        assert kinds.count("blindness: the seed's OFF run blind or not") == 3 and kinds.count("THE ONE TEST") == 1, kinds
+        c1 = [k for k in kinds if k.startswith("C1's listing of the run's note lines without dropped line")]
+        assert len(c1) == c1_listing + p1_copies, kinds
+        assert sum(", as PRESENCE p1 prints it" in k for k in c1) == p1_copies, kinds
+        jd = [x for x in diffs if x.startswith("    JSON ")]
+>       assert jd and not [x for x in jd if "[UNEXPECTED]" in x], jd
+E       AssertionError: ['    JSON blindness.first_opening.kind [blindness]: pinned "SNAPSHOT" | deviation "F2-START"', '    JSON blindness.fi...(absent)"', '    JSON blindness.not_blind[1] [blindness]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"', ...]
+E       assert (['    JSON blindness.first_opening.kind [blindness]: pinned "SNAPSHOT" | deviation "F2-START"', '    JSON blindness.fi...(absent)"', '    JSON blindness.not_blind[1] [blindness]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"', ...] and not ['    JSON runs.stance7_r10LTSBpc_s60.d16.presence[0].p1.value.lines.7 [UNEXPECTED]: pinned "SNAPSHOT" | deviation "(a...  JSON runs.stance7_r10LTSBpc_s60.presence[1].p1.value.lines.7 [UNEXPECTED]: pinned "SNAPSHOT" | deviation "(absent)"'])
+
+test_score_pc_dev.py:157: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_m3_lost_phase_run_with_refetch_presence_copies_of_c1_listing
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 23 passed in 60.59s (0:01:00)

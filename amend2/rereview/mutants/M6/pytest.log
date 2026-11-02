@@ -1,0 +1,28 @@
+....F
+=================================== FAILURES ===================================
+__________________ test_b_no_snapshot_outputs_byte_identical ___________________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/rereview/mutants/M6/pt/test_b_no_snapshot_outputs_byt0')
+
+    def test_b_no_snapshot_outputs_byte_identical(tmp_path):
+        rnd = build(tmp_path, lines=())
+        out = tmp_path / "out"
+        rc, text = run_dev(rnd, out, "--expect-dropped", "none")
+        assert rc == SP.EXIT_FINAL, text
+        assert (out / "pinned.out").read_bytes() == (out / "deviation.out").read_bytes()
+        assert (out / "pinned.json").read_bytes() == (out / "deviation.json").read_bytes()
+        assert (out / "runlog_asread.txt").read_bytes() == (out / "runlog_deviation.txt").read_bytes()
+        assert "(no output line differs: the two outputs are byte-identical)" in text and "(no JSON value differs)" in text
+        assert "NON-DEFAULT, given by --expect-dropped" in text
+        assert one_test(out, "pinned")["k"] == 1
+        # the default expectation (exactly the pinned line) refuses a RUNLOG without it
+        rc2, text2 = run_dev(rnd, tmp_path / "out2")
+>       assert rc2 == D.EXIT_REFUSED and "REFUSED: the dropped set [] " in text2
+E       assert (0 == 3)
+E        +  where 3 = D.EXIT_REFUSED
+
+test_score_pc_dev.py:235: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_b_no_snapshot_outputs_byte_identical - asse...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 4 passed in 10.73s

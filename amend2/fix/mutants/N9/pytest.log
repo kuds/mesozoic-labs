@@ -1,0 +1,27 @@
+..................................F
+=================================== FAILURES ===================================
+______________ test_json_differences_tell_an_absent_key_from_null ______________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/fix/mutants/N9/pt/test_json_differences_tell_an_0')
+
+    def test_json_differences_tell_an_absent_key_from_null(tmp_path):
+        """A key present with null in one run's JSON and absent in the other's is a difference (the dry run's
+        blindness.first_opening: a dict in the pinned run, null in the deviation run)."""
+        a, b = tmp_path / "a.json", tmp_path / "b.json"
+        a.write_text(json.dumps({"x": {"y": 1}, "z": None, "same": [1]}))
+        b.write_text(json.dumps({"x": None, "same": [1]}))
+        got = {k: (x, y) for k, x, y in D.json_differences(a, b)}
+>       assert got == {"x": (D.ABSENT, None), "x.y": (1, D.ABSENT), "z": (None, D.ABSENT)}, got
+E       AssertionError: {'x.y': (1, (absent))}
+E       assert {'x.y': (1, (absent))} == {'x': ((absen...ne, (absent))}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 2 more items:
+E         {'x': ((absent), None), 'z': (None, (absent))}
+E         Use -v to get more diff
+
+test_score_pc_dev.py:674: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_json_differences_tell_an_absent_key_from_null
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 34 passed in 62.41s (0:01:02)

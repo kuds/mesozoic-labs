@@ -1,0 +1,415 @@
+..........................F
+=================================== FAILURES ===================================
+____________ test_r1_an_off_relaunch_counts_as_the_last_off_launch _____________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0')
+
+    def test_r1_an_off_relaunch_counts_as_the_last_off_launch(tmp_path):
+        """A PHASE SNAPSHOT at 19:30 is after every OFF LAUNCH but before an OFF RELAUNCH at 20:00: it is before the last
+        OFF launch, so it joins the dropped set, which is then not the pinned line alone: refused."""
+        relaunch = S.note(datetime(2026, 11, 1, 20, 0, tzinfo=UTC), "RELAUNCH", f"{C.ARM_PREFIX['off']}60_b", seed=60)
+        rnd = build(tmp_path, lines=(PINNED_LINE, snap("19:30"), relaunch))
+        rc, text = run_dev(rnd, tmp_path / "out")
+>       assert rc == D.EXIT_REFUSED and "REFUSED: the dropped set" in text, text
+E       AssertionError: score_pc_dev 2 (PC AMENDMENT 2, 2026-11-02: the DEVIATION reading of THE ONE TEST, flagged; review fixes M1-M5)
+E         PINNED SCORER: /home/user/work/pc_study/tools/pc/score_pc.py sha256 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986; it loads ['complete_r10round', 'ledger_r10round', 'pc_common', 'r10round_common', 'score_pc', 'score_r10round']; all 14 pinned tool files at APPROVED's and pins_pc.json's sha256 (APPROVED ce8865205a218541...)
+E         RUNLOG /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r/run_log.txt: 31 lines, sha256 caec279e51dba2156da0339f94cdb09c0269fcba2a306a4e5c383667f3832bed; read once, copied byte for byte to /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out/runlog_asread.txt
+E         ======================== PINNED READING (the round's reading of record, printed first): score_pc.py unchanged on RUNLOG as read ========================
+E             command: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/pc_study/tools/pc/score_pc.py --round /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r --runlog /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out/runlog_asread.txt --json /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out/pinned.json --pins /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r/pins.json
+E         score_pc pc-3 (2026-11-01 amendment: six runs, THE ONE TEST phase vs the concurrent switch-off runs, outcome blindness, STANCE6 report only; pc-2 fixer: printed wording; PC criteria THE READING lines 1-5, THE ONE TEST, C1-C8)
+E         r10round lane B tools 1.3, PC adaptation pc-1 (phase-critic Colab round, ST/criteria.txt; adapted 2026-10-31 from the round's pinned lane B tools: constants, launch-check fact (8), C4 (p), C8); PC amendment pc-3 (2026-11-01: six runs, the phase arm and the concurrent switch-off arm)
+E         <PCR> /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r
+E         RUNLOG line 9 names a PC RUN_ID and is not a STANCE7 note of a round RUN_ID (printed; read by no rule): 2026-11-01 18:16 UTC  STANCE7 NOTE the maintainer: "kicked off stance7_r10LTSBoff_s60" (synthetic)
+E         F2 timing (report only): {"last_ending_note": "2026-11-02T09:56:00+00:00", "f2_start_hours_after_last_ending": [-3.93, -3.93, -3.93, 6.27, 6.4, 7.0], "at_least_6_hours": [false, false, false, true, true, true]}
+E         SEED 60 (pc): run of the round stance7_r10LTSBpc_s60; launched ['stance7_r10LTSBpc_s60']; 
+E         SEED 42 (pc): run of the round stance7_r10LTSBpc_s42; launched ['stance7_r10LTSBpc_s42']; 
+E         SEED 80 (pc): run of the round stance7_r10LTSBpc_s80; launched ['stance7_r10LTSBpc_s80']; 
+E         SEED 60 (off): run of the round stance7_r10LTSBoff_s60; launched ['stance7_r10LTSBoff_s60', 'stance7_r10LTSBoff_s60_b']; stance7_r10LTSBoff_s60_b does not meet REPLACEMENT: not of the round (report only); stance7_r10LTSBoff_s60 stays the seed's run
+E         SEED 42 (off): run of the round stance7_r10LTSBoff_s42; launched ['stance7_r10LTSBoff_s42']; 
+E         SEED 80 (off): run of the round stance7_r10LTSBoff_s80; launched ['stance7_r10LTSBoff_s80']; 
+E         OUTCOME BLINDNESS (every switch-off run starts before any phase run's results are opened): first opening {"kind": "SNAPSHOT", "run": "stance7_r10LTSBpc_s60", "time": "2026-11-01T17:44:00+00:00", "line": 7}; not blind (enter THE ONE TEST as missing) ['stance7_r10LTSBoff_s60', 'stance7_r10LTSBoff_s42', 'stance7_r10LTSBoff_s80']
+E             s60: phase stance7_r10LTSBpc_s60 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s60 launched 2026-11-01T18:12:00+00:00; phase-off start gap (report only) 612.0 min; blind False
+E             s42: phase stance7_r10LTSBpc_s42 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s42 launched 2026-11-01T18:56:00+00:00; phase-off start gap (report only) 656.0 min; blind False
+E             s80: phase stance7_r10LTSBpc_s80 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s80 launched 2026-11-01T18:20:00+00:00; phase-off start gap (report only) 620.0 min; blind False
+E         RUN stance7_r10LTSBpc_s60 (pc): COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+E             C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+E                 value: {"launches": [4], "launch_check_stops": [], "actions": [], "lines": {"4": "LAUNCH", "7": "SNAPSHOT", "14": "TRIGGER-a", "15": "FOUND-GONE", "20": "F2-START"}}
+E             C2: PASS  C2 artifact_manifest.json
+E                 value: {"copies": "copies 1 and 2 agree (sha256 161a956c833e)", "sha256": "161a956c833eadf6daf6b2c6526fab2559bee3d7468d262279d832ece9f85512", "schema_problems": [], "run_id": "stance7_r10LTSBpc_s60", "status": "failed", "entries": 103}
+E             C3: PASS  C3 every file the reading uses equals its manifest entry
+E                 provenance.json: OK
+E                 01_stance/stage_config.json: OK
+E                 01_stance/progress.json: OK
+E                 01_stance/eval_episodes.csv: OK
+E                 01_stance/gate_verdict.json: OK
+E                 01_stance/models/stage1_4194304_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+E                 01_stance/models/stage1_5242880_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+E                 01_stance/models/stage1_6291456_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+E                 01_stance/models/stage1_8388608_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+E                 01_stance/models/stage1_10485760_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+E                 01_stance/models/stage1_final.zip: OK
+E                 01_stance/models/stage1_final_vecnorm.pkl: OK
+E             C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+E                 PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-01T08:05:00+00:00", "resumed_at": false}
+E                 PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 5.0, "launch": "2026-11-01T08:00:00+00:00"}
+E                 PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "repository_dirty": false, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 no load key at any depth: []
+E                 PASS             C4 run.seed: {"got": 60, "want": 60}
+E                 PASS             C4 run.n_envs 4: 4
+E                 PASS             C4 run.hyperparameters_sha256 = pin: "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954"
+E                 PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+E                 PASS             C4 plant_identity block = pin: "(block)"
+E                 PASS             C4 stage_config_view_sha256 = pin: "sha256:90d1fbca718dbd486d68a57ef34348f4a219f5fc19b7e9b15ffc680fe1601cb3"
+E                 PASS             C4 (p) stage_config.json records the critic-phase switch ON: {"path": "hyperparameters.critic_phase", "got": true, "want": true}
+E                 PASS             C4 git_commit = branch HEAD: {"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+E             C5: PASS  C5 the end
+E                 value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-11-01T23:19:50.625000+00:00", "written_at": "2026-11-01T22:49:50Z", "judged_minus_written_min": 30.0, "ending": "FINISHED"}
+E             C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+E                 value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+E             C7: PASS  C7 traces (and the final certificate)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+E             C8: PASS  C8 the manipulation check (R2 and every J pair): phase in force, actor independent, obs 6 read
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "5242880": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "6291456": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "8388608": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "10485760": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "final": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds"
+E             VERDICT: COMPLETE
+E         RUN stance7_r10LTSBpc_s42 (pc): COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+E             C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+E                 value: {"launches": [5], "launch_check_stops": [], "actions": [], "lines": {"5": "LAUNCH", "12": "SNAPSHOT", "16": "TRIGGER-a", "17": "FOUND-GONE", "21": "F2-START"}}
+E             C2: PASS  C2 artifact_manifest.json
+E                 value: {"copies": "copies 1 and 2 agree (sha256 5055d65833d4)", "sha256": "5055d65833d4c7a3b9872becebbfe8f5dc08e7053e6bc1fe1cad4b4b788c5f2c", "schema_problems": [], "run_id": "stance7_r10LTSBpc_s42", "status": "failed", "entries": 103}
+E             C3: PASS  C3 every file the reading uses equals its manifest entry
+E                 provenance.json: OK
+E                 01_stance/stage_config.json: OK
+E                 01_stance/progress.json: OK
+E                 01_stance/eval_episodes.csv: OK
+E                 01_stance/gate_verdict.json: OK
+E                 01_stance/models/stage1_4194304_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+E                 01_stance/models/stage1_5242880_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+E                 01_stance/models/stage1_6291456_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+E                 01_stance/models/stage1_8388608_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+E                 01_stance/models/stage1_10485760_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+E                 01_stance/models/stage1_final.zip: OK
+E                 01_stance/models/stage1_final_vecnorm.pkl: OK
+E             C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+E                 PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-01T08:05:00+00:00", "resumed_at": false}
+E                 PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 5.0, "launch": "2026-11-01T08:00:00+00:00"}
+E                 PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "repository_dirty": false, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 no load key at any depth: []
+E                 PASS             C4 run.seed: {"got": 42, "want": 42}
+E                 PASS             C4 run.n_envs 4: 4
+E                 PASS             C4 run.hyperparameters_sha256 = pin: "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954"
+E                 PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+E                 PASS             C4 plant_identity block = pin: "(block)"
+E                 PASS             C4 stage_config_view_sha256 = pin: "sha256:90d1fbca718dbd486d68a57ef34348f4a219f5fc19b7e9b15ffc680fe1601cb3"
+E                 PASS             C4 (p) stage_config.json records the critic-phase switch ON: {"path": "hyperparameters.critic_phase", "got": true, "want": true}
+E                 PASS             C4 git_commit = branch HEAD: {"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+E             C5: PASS  C5 the end
+E                 value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-11-01T23:19:50.625000+00:00", "written_at": "2026-11-01T22:49:50Z", "judged_minus_written_min": 30.0, "ending": "FINISHED"}
+E             C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+E                 value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+E             C7: PASS  C7 traces (and the final certificate)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+E             C8: PASS  C8 the manipulation check (R2 and every J pair): phase in force, actor independent, obs 6 read
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "5242880": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "6291456": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "8388608": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "10485760": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "final": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds"
+E             VERDICT: COMPLETE
+E         RUN stance7_r10LTSBpc_s80 (pc): COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+E             C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+E                 value: {"launches": [6], "launch_check_stops": [], "actions": [], "lines": {"6": "LAUNCH", "18": "TRIGGER-a", "19": "FOUND-GONE", "22": "F2-START"}}
+E             C2: PASS  C2 artifact_manifest.json
+E                 value: {"copies": "copies 1 and 2 agree (sha256 00b85b8934fa)", "sha256": "00b85b8934fafe72e6293ce4f7c2c50245a4c692a8d3eb9a69f3e772a74351e5", "schema_problems": [], "run_id": "stance7_r10LTSBpc_s80", "status": "failed", "entries": 103}
+E             C3: PASS  C3 every file the reading uses equals its manifest entry
+E                 provenance.json: OK
+E                 01_stance/stage_config.json: OK
+E                 01_stance/progress.json: OK
+E                 01_stance/eval_episodes.csv: OK
+E                 01_stance/gate_verdict.json: OK
+E                 01_stance/models/stage1_4194304_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+E                 01_stance/models/stage1_5242880_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+E                 01_stance/models/stage1_6291456_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+E                 01_stance/models/stage1_8388608_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+E                 01_stance/models/stage1_10485760_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+E                 01_stance/models/stage1_final.zip: OK
+E                 01_stance/models/stage1_final_vecnorm.pkl: OK
+E             C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+E                 PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-01T08:05:00+00:00", "resumed_at": false}
+E                 PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 5.0, "launch": "2026-11-01T08:00:00+00:00"}
+E                 PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "repository_dirty": false, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 no load key at any depth: []
+E                 PASS             C4 run.seed: {"got": 80, "want": 80}
+E                 PASS             C4 run.n_envs 4: 4
+E                 PASS             C4 run.hyperparameters_sha256 = pin: "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954"
+E                 PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+E                 PASS             C4 plant_identity block = pin: "(block)"
+E                 PASS             C4 stage_config_view_sha256 = pin: "sha256:90d1fbca718dbd486d68a57ef34348f4a219f5fc19b7e9b15ffc680fe1601cb3"
+E                 PASS             C4 (p) stage_config.json records the critic-phase switch ON: {"path": "hyperparameters.critic_phase", "got": true, "want": true}
+E                 PASS             C4 git_commit = branch HEAD: {"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+E             C5: PASS  C5 the end
+E                 value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-11-01T23:19:50.625000+00:00", "written_at": "2026-11-01T22:49:50Z", "judged_minus_written_min": 30.0, "ending": "FINISHED"}
+E             C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+E                 value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+E             C7: PASS  C7 traces (and the final certificate)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+E             C8: PASS  C8 the manipulation check (R2 and every J pair): phase in force, actor independent, obs 6 read
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "5242880": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "6291456": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "8388608": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "10485760": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds": true}}}, "final": {"verdict": "IN FORCE", "checks": {"(i) phase in force": {"holds"
+E             VERDICT: COMPLETE
+E         RUN stance7_r10LTSBoff_s60 (off): COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+E             C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+E                 value: {"launches": [8], "launch_check_stops": [], "actions": [], "lines": {"8": "LAUNCH", "23": "TRIGGER-a", "24": "FOUND-GONE", "29": "F2-START"}}
+E             C2: PASS  C2 artifact_manifest.json
+E                 value: {"copies": "copies 1 and 2 agree (sha256 392bc1457d5d)", "sha256": "392bc1457d5d23981939e0e19fd3d2be7ea0a8f7b020d06cb3cb5ba28ecac501", "schema_problems": [], "run_id": "stance7_r10LTSBoff_s60", "status": "failed", "entries": 103}
+E             C3: PASS  C3 every file the reading uses equals its manifest entry
+E                 provenance.json: OK
+E                 01_stance/stage_config.json: OK
+E                 01_stance/progress.json: OK
+E                 01_stance/eval_episodes.csv: OK
+E                 01_stance/gate_verdict.json: OK
+E                 01_stance/models/stage1_4194304_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+E                 01_stance/models/stage1_5242880_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+E                 01_stance/models/stage1_6291456_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+E                 01_stance/models/stage1_8388608_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+E                 01_stance/models/stage1_10485760_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+E                 01_stance/models/stage1_final.zip: OK
+E                 01_stance/models/stage1_final_vecnorm.pkl: OK
+E             C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+E                 PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-01T18:17:00+00:00", "resumed_at": false}
+E                 PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 5.0, "launch": "2026-11-01T18:12:00+00:00"}
+E                 PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "repository_dirty": false, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 no load key at any depth: []
+E                 PASS             C4 run.seed: {"got": 60, "want": 60}
+E                 PASS             C4 run.n_envs 4: 4
+E                 PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+E                 PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+E                 PASS             C4 plant_identity block = pin: "(block)"
+E                 PASS             C4 stage_config_view_sha256 = pin: "sha256:96bec498479a85123c5d2ef5d64afc00d92cae7728415fd0031c4ab6abd55b88"
+E                 PASS             C4 (p) stage_config.json records the critic-phase switch OFF (no key): {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+E                 PASS             C4 git_commit = branch HEAD: {"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+E             C5: PASS  C5 the end
+E                 value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-11-02T09:31:50.625000+00:00", "written_at": "2026-11-02T09:01:50Z", "judged_minus_written_min": 30.0, "ending": "FINISHED"}
+E             C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+E                 value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+E             C7: PASS  C7 traces (and the final certificate)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+E             C8: PASS  C8 the manipulation check (R2 and every J pair): a stock critic, no phase input (switch-off arm)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "5242880": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "6291456": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "8388608": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"h
+E             VERDICT: COMPLETE
+E         RUN stance7_r10LTSBoff_s60_b (None): NOT FETCHED  F2 null
+E         RUN stance7_r10LTSBoff_s42 (off): COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+E             C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+E                 value: {"launches": [11], "launch_check_stops": [], "actions": [], "lines": {"11": "LAUNCH", "27": "TRIGGER-a", "28": "FOUND-GONE", "31": "F2-START"}}
+E             C2: PASS  C2 artifact_manifest.json
+E                 value: {"copies": "copies 1 and 2 agree (sha256 a9972ce5e72f)", "sha256": "a9972ce5e72f9d4ac9823fdc7e4bd091814e99ecdf7b1004fd78f35a7c3d531a", "schema_problems": [], "run_id": "stance7_r10LTSBoff_s42", "status": "failed", "entries": 103}
+E             C3: PASS  C3 every file the reading uses equals its manifest entry
+E                 provenance.json: OK
+E                 01_stance/stage_config.json: OK
+E                 01_stance/progress.json: OK
+E                 01_stance/eval_episodes.csv: OK
+E                 01_stance/gate_verdict.json: OK
+E                 01_stance/models/stage1_4194304_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+E                 01_stance/models/stage1_5242880_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+E                 01_stance/models/stage1_6291456_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+E                 01_stance/models/stage1_8388608_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+E                 01_stance/models/stage1_10485760_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+E                 01_stance/models/stage1_final.zip: OK
+E                 01_stance/models/stage1_final_vecnorm.pkl: OK
+E             C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+E                 PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-01T19:01:00+00:00", "resumed_at": false}
+E                 PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 5.0, "launch": "2026-11-01T18:56:00+00:00"}
+E                 PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "repository_dirty": false, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 no load key at any depth: []
+E                 PASS             C4 run.seed: {"got": 42, "want": 42}
+E                 PASS             C4 run.n_envs 4: 4
+E                 PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+E                 PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+E                 PASS             C4 plant_identity block = pin: "(block)"
+E                 PASS             C4 stage_config_view_sha256 = pin: "sha256:96bec498479a85123c5d2ef5d64afc00d92cae7728415fd0031c4ab6abd55b88"
+E                 PASS             C4 (p) stage_config.json records the critic-phase switch OFF (no key): {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+E                 PASS             C4 git_commit = branch HEAD: {"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+E             C5: PASS  C5 the end
+E                 value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-11-02T10:15:50.625000+00:00", "written_at": "2026-11-02T09:45:50Z", "judged_minus_written_min": 30.0, "ending": "FINISHED"}
+E             C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+E                 value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+E             C7: PASS  C7 traces (and the final certificate)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+E             C8: PASS  C8 the manipulation check (R2 and every J pair): a stock critic, no phase input (switch-off arm)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "5242880": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "6291456": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "8388608": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"h
+E             VERDICT: COMPLETE
+E         RUN stance7_r10LTSBoff_s80 (off): COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS", "C8": "PASS"}
+E             C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+E                 value: {"launches": [10], "launch_check_stops": [], "actions": [], "lines": {"10": "LAUNCH", "25": "TRIGGER-a", "26": "FOUND-GONE", "30": "F2-START"}}
+E             C2: PASS  C2 artifact_manifest.json
+E                 value: {"copies": "copies 1 and 2 agree (sha256 4ab281e74efc)", "sha256": "4ab281e74efc7ee8fcdbd96945d0af6a629f83ae5fa8b1ac44c2d50458c0f770", "schema_problems": [], "run_id": "stance7_r10LTSBoff_s80", "status": "failed", "entries": 103}
+E             C3: PASS  C3 every file the reading uses equals its manifest entry
+E                 provenance.json: OK
+E                 01_stance/stage_config.json: OK
+E                 01_stance/progress.json: OK
+E                 01_stance/eval_episodes.csv: OK
+E                 01_stance/gate_verdict.json: OK
+E                 01_stance/models/stage1_4194304_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+E                 01_stance/models/stage1_5242880_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+E                 01_stance/models/stage1_6291456_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+E                 01_stance/models/stage1_8388608_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+E                 01_stance/models/stage1_10485760_steps.zip: OK
+E                 01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+E                 01_stance/models/stage1_final.zip: OK
+E                 01_stance/models/stage1_final_vecnorm.pkl: OK
+E             C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+E                 PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-11-01T18:25:00+00:00", "resumed_at": false}
+E                 PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 5.0, "launch": "2026-11-01T18:20:00+00:00"}
+E                 PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "repository_dirty": false, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 no load key at any depth: []
+E                 PASS             C4 run.seed: {"got": 80, "want": 80}
+E                 PASS             C4 run.n_envs 4: 4
+E                 PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+E                 PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+E                 PASS             C4 plant_identity block = pin: "(block)"
+E                 PASS             C4 stage_config_view_sha256 = pin: "sha256:96bec498479a85123c5d2ef5d64afc00d92cae7728415fd0031c4ab6abd55b88"
+E                 PASS             C4 (p) stage_config.json records the critic-phase switch OFF (no key): {"path": "hyperparameters.critic_phase", "present": false, "got": null, "want": "absent"}
+E                 PASS             C4 git_commit = branch HEAD: {"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+E                 PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": false}
+E             C5: PASS  C5 the end
+E                 value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-11-02T09:39:50.625000+00:00", "written_at": "2026-11-02T09:09:50Z", "judged_minus_written_min": 30.0, "ending": "FINISHED"}
+E             C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+E                 value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+E             C7: PASS  C7 traces (and the final certificate)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+E             C8: PASS  C8 the manipulation check (R2 and every J pair): a stock critic, no phase input (switch-off arm)
+E                 value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "results": {"4194304": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "5242880": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "6291456": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}}, "8388608": {"verdict": "NOT IN FORCE", "checks": {"(i) phase in force": {"h
+E             VERDICT: COMPLETE
+E         PER-RUN TABLE (the phase runs; the same-seed concurrent switch-off run beside; STANCE6 beside, report only):
+E           pc s60 stance7_r10LTSBpc_s60: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.049999999999999996 (J window 0.05; missing []) [switch-off s60: stance7_r10LTSBoff_s60: CLEAR, GATE PASS, POSITIVE, habit FREE, TD 0.5] [STANCE6 s60 REPORT ONLY: PARKED , GATE PASS, NEGATIVE, TD 0.38822738704353094, habit FREE []]
+E               early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": null, "cmd_l_ge_0.30": null, "cmd_l_ge_0.60": null, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 0 evaluations; max (131072, 0.05); last (11927552, 0.05); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+E               MEAN_a {"tail_1_pitch_act": 0.0, "tail_1_yaw_act": 0.0, "tail_2_pitch_act": 0.0, "tail_3_pitch_act": 0.0}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+E               report only: Q4 {"mean_return": 4404.5, "falls": 0, "rows": 910, "clean": 910}; on-policy tail_3 {"error": "ValueError: This file contains pickled (object) data. If you trust the file you can load it unsafely using the `allow_pickle=` keyword argument or `pickle.load()`."}; guard {"tail_1_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}, "tail_2_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}}
+E           pc s42 stance7_r10LTSBpc_s42: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.049999999999999996 (J window 0.05; missing []) [switch-off s42: stance7_r10LTSBoff_s42: CLEAR, GATE PASS, POSITIVE, habit FREE, TD 0.5] [STANCE6 s42 REPORT ONLY: RAIL RAIL-LEDGER-PERSISTENT, GATE FAIL, NEGATIVE, TD 0.6353434591453841, habit FREE []]
+E               early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": null, "cmd_l_ge_0.30": null, "cmd_l_ge_0.60": null, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 0 evaluations; max (131072, 0.05); last (11927552, 0.05); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+E               MEAN_a {"tail_1_pitch_act": 0.0, "tail_1_yaw_act": 0.0, "tail_2_pitch_act": 0.0, "tail_3_pitch_act": 0.0}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+E               report only: Q4 {"mean_return": 4404.5, "falls": 0, "rows": 910, "clean": 910}; on-policy tail_3 {"error": "ValueError: This file contains pickled (object) data. If you trust the file you can load it unsafely using the `allow_pickle=` keyword argument or `pickle.load()`."}; guard {"tail_1_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}, "tail_2_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}}
+E           pc s80 stance7_r10LTSBpc_s80: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.049999999999999996 (J window 0.05; missing []) [switch-off s80: stance7_r10LTSBoff_s80: CLEAR, GATE PASS, POSITIVE, habit FREE, TD 0.5] [STANCE6 s80 REPORT ONLY: CLEAR , GATE PASS, POSITIVE, TD 0.15433899719014801, habit SATURATING ['neck_pitch_act']]
+E               early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": null, "cmd_l_ge_0.30": null, "cmd_l_ge_0.60": null, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 0 evaluations; max (131072, 0.05); last (11927552, 0.05); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+E               MEAN_a {"tail_1_pitch_act": 0.0, "tail_1_yaw_act": 0.0, "tail_2_pitch_act": 0.0, "tail_3_pitch_act": 0.0}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+E               report only: Q4 {"mean_return": 4404.5, "falls": 0, "rows": 910, "clean": 910}; on-policy tail_3 {"error": "ValueError: This file contains pickled (object) data. If you trust the file you can load it unsafely using the `allow_pickle=` keyword argument or `pickle.load()`."}; guard {"tail_1_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}, "tail_2_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}}
+E         THE CONCURRENT SWITCH-OFF RUNS (the one test's control; classes printed beside the phase runs', deciding no line):
+E           off s60 stance7_r10LTSBoff_s60: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.5 (J window 0.5; missing []) 
+E               early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": null, "cmd_l_ge_0.30": 131072, "cmd_l_ge_0.60": null, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 0 evaluations; max (131072, 0.5); last (11927552, 0.5); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+E               MEAN_a {"tail_1_pitch_act": 0.0, "tail_1_yaw_act": 0.0, "tail_2_pitch_act": 0.0, "tail_3_pitch_act": 0.0}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+E               report only: Q4 {"mean_return": 4404.5, "falls": 0, "rows": 910, "clean": 910}; on-policy tail_3 {"error": "ValueError: This file contains pickled (object) data. If you trust the file you can load it unsafely using the `allow_pickle=` keyword argument or `pickle.load()`."}; guard {"tail_1_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}, "tail_2_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}}
+E           off s42 stance7_r10LTSBoff_s42: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.5 (J window 0.5; missing []) 
+E               early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": null, "cmd_l_ge_0.30": 131072, "cmd_l_ge_0.60": null, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 0 evaluations; max (131072, 0.5); last (11927552, 0.5); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+E               MEAN_a {"tail_1_pitch_act": 0.0, "tail_1_yaw_act": 0.0, "tail_2_pitch_act": 0.0, "tail_3_pitch_act": 0.0}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+E               report only: Q4 {"mean_return": 4404.5, "falls": 0, "rows": 910, "clean": 910}; on-policy tail_3 {"error": "ValueError: This file contains pickled (object) data. If you trust the file you can load it unsafely using the `allow_pickle=` keyword argument or `pickle.load()`."}; guard {"tail_1_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}, "tail_2_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}}
+E           off s80 stance7_r10LTSBoff_s80: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.5 (J window 0.5; missing []) 
+E               early signs: {"first_t3_over": null, "FOB_tail": null, "first_over_any": null, "cmd_l_ge_0.30": 131072, "cmd_l_ge_0.60": null, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 0 evaluations; max (131072, 0.5); last (11927552, 0.5); M5 TAIL-flagged 0, TAIL ALARMs 0 (first none)
+E               MEAN_a {"tail_1_pitch_act": 0.0, "tail_1_yaw_act": 0.0, "tail_2_pitch_act": 0.0, "tail_3_pitch_act": 0.0}; PARKED []; DRIVEN []; tail alarms []; trace rail []; ANY ALARMs 0
+E               report only: Q4 {"mean_return": 4404.5, "falls": 0, "rows": 910, "clean": 910}; on-policy tail_3 {"error": "ValueError: This file contains pickled (object) data. If you trust the file you can load it unsafely using the `allow_pickle=` keyword argument or `pickle.load()`."}; guard {"tail_1_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}, "tail_2_pitch_act": {"4194304": null, "5242880": null, "6291456": null, "8388608": null, "10485760": null, "11927552": null}}
+E         OFF-vs-STANCE6 REPLICATION (REPORT ONLY: with the switch OFF the code equals 8737cd3d bitwise (A6, measured on CPU), so the concurrent switch-off runs replicate STANCE6's configuration on today's Colab image; this block prints each switch-off run beside STANCE6's same seed and decides nothing):
+E             s60: switch-off stance7_r10LTSBoff_s60 {'cls': 'CLEAR', 'kind': None, 'first_tail_alarm': None, 'gate': 'PASS', 'outcome': 'POSITIVE', 'habit': 'FREE', 'saturating': [], 'td': 0.5, 'td_j': 0.5, 'n_cmd_l_ge_060': 0}; STANCE6 {'run': 'stance6_r10LTSB_s60', 'cls': 'PARKED', 'kind': None, 'first_tail_alarm': None, 'gate': 'PASS', 'outcome': 'NEGATIVE', 'habit': 'FREE', 'saturating': [], 'td': 0.38822738704353094, 'td_j': 0.5776576649990833, 'n_cmd_l_ge_060': 37}
+E             s42: switch-off stance7_r10LTSBoff_s42 {'cls': 'CLEAR', 'kind': None, 'first_tail_alarm': None, 'gate': 'PASS', 'outcome': 'POSITIVE', 'habit': 'FREE', 'saturating': [], 'td': 0.5, 'td_j': 0.5, 'n_cmd_l_ge_060': 0}; STANCE6 {'run': 'stance6_r10LTSB_s42', 'cls': 'RAIL', 'kind': 'RAIL-LEDGER-PERSISTENT', 'first_tail_alarm': 3932160, 'gate': 'FAIL', 'outcome': 'NEGATIVE', 'habit': 'FREE', 'saturating': [], 'td': 0.6353434591453841, 'td_j': 0.8087506936457785, 'n_cmd_l_ge_060': 57}
+E             s80: switch-off stance7_r10LTSBoff_s80 {'cls': 'CLEAR', 'kind': None, 'first_tail_alarm': None, 'gate': 'PASS', 'outcome': 'POSITIVE', 'habit': 'FREE', 'saturating': [], 'td': 0.5, 'td_j': 0.5, 'n_cmd_l_ge_060': 0}; STANCE6 {'run': 'stance6_r10LTSB_s80', 'cls': 'CLEAR', 'kind': None, 'first_tail_alarm': None, 'gate': 'PASS', 'outcome': 'POSITIVE', 'habit': 'SATURATING', 'saturating': ['neck_pitch_act'], 'td': 0.15433899719014801, 'td_j': 0.21791394469249162, 'n_cmd_l_ge_060': 1}
+E             totals: {"off": {"read": 3, "rail": 0, "parked": 0, "gate_pass": 3, "td_mean": 0.5}, "stance6": {"read": 3, "rail": 1, "parked": 1, "gate_pass": 2, "td_mean": 0.3926366144596877}}
+E         STANCE6 (historical, REPORT ONLY: decides nothing; recomputed; score.json cb380a7e816e519c..., fetch manifest f5777ae32a542890...):
+E           s60 stance6_r10LTSB_s60: PARKED ; first TAIL ALARM none (0); GATE PASS; NEGATIVE; ANY ALARMs 0; habit FREE {}; TD 0.388227 (J 0.577658); early {"first_t3_over": 8126464, "FOB_tail": 8126464, "first_over_any": 8126464, "cmd_l_ge_0.30": 6422528, "cmd_l_ge_0.60": 6946816, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 37; on-policy tail_3 {'last8_mean': 0.5358520448207855, 'rows': [11943936, 12001280]}; mean return 4412.6; falls 1 of 910
+E           s42 stance6_r10LTSB_s42: RAIL RAIL-LEDGER-PERSISTENT; first TAIL ALARM 3,932,160 (22); GATE FAIL; NEGATIVE; ANY ALARMs 22; habit FREE {}; TD 0.635343 (J 0.808751); early {"first_t3_over": 3670016, "FOB_tail": 3670016, "first_over_any": 3670016, "cmd_l_ge_0.30": 2883584, "cmd_l_ge_0.60": 3407872, "cmd_l_ge_0.90": 3670016}; CMD_L >= 0.60 in 57; on-policy tail_3 {'last8_mean': 0.8128818199038506, 'rows': [11943936, 12001280]}; mean return 4377.7; falls 1 of 910
+E           s80 stance6_r10LTSB_s80: CLEAR ; first TAIL ALARM none (0); GATE PASS; POSITIVE; ANY ALARMs 6; habit SATURATING {'neck_pitch_act': ['L', 'A', 'T', 'D'], 'head_pitch_act': ['D']}; TD 0.154339 (J 0.217914); early {"first_t3_over": null, "FOB_tail": null, "first_over_any": 3801088, "cmd_l_ge_0.30": 9830400, "cmd_l_ge_0.60": 11796480, "cmd_l_ge_0.90": null}; CMD_L >= 0.60 in 1; on-policy tail_3 {'last8_mean': 0.5171498730778694, 'rows': [11943936, 12001280]}; mean return 4415.8; falls 1 of 910
+E         READING: incomplete; no line is read. Open:
+E             stance7_r10LTSBoff_s60_b has not ENDED (no DELETED or FOUND-GONE note)
+E             stance7_r10LTSBoff_s60_b: no F2 store
+E         STATUS: INCOMPLETE (no line read)
+E             PROVISIONAL: branch HEAD: APPROVED aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, RUNLOG LAUNCH lines ['None', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']
+E         ======================== END OF THE PINNED READING ========================
+E         
+E         DEVIATION READING (flagged; not the pinned reading): THE ONE TEST computed as if the three OFF runs were blind; maintainer decision 2026-11-02 13:52 UTC, recorded before F2; the pinned reading above stands
+E             maintainer decision line: NOT FOUND in the RUNLOG read (a test RUNLOG, or the line changed)
+E             dropped (content removed, line feed kept; every other line byte-identical): [(7, 'SNAPSHOT', 'stance7_r10LTSBpc_s60', '2026-11-01 17:44 UTC')] at or before the last OFF launch 2026-11-01 18:56 UTC; dropped-line sha256 ['0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12']; expected: the pinned line (default)
+E             deviation RUNLOG copy: /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out/runlog_deviation.txt sha256 cc486d03f991bc880b6f101bc34875bab5d38e2c982233d0f2a22c0af7312c79
+E             command: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /home/user/work/pc_study/tools/pc/score_pc.py --round /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r --runlog /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out/runlog_deviation.txt --json /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out/deviation.json --pins /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r/pins.json
+E           [deviation] OUTCOME BLINDNESS (every switch-off run starts before any phase run's results are opened): first opening {"kind": "SNAPSHOT", "run": "stance7_r10LTSBpc_s42", "time": "2026-11-01T19:30:00+00:00", "line": 12}; not blind (enter THE ONE TEST as missing) []
+E           [deviation]     s60: phase stance7_r10LTSBpc_s60 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s60 launched 2026-11-01T18:12:00+00:00; phase-off start gap (report only) 612.0 min; blind True
+E           [deviation]     s42: phase stance7_r10LTSBpc_s42 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s42 launched 2026-11-01T18:56:00+00:00; phase-off start gap (report only) 656.0 min; blind True
+E           [deviation]     s80: phase stance7_r10LTSBpc_s80 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s80 launched 2026-11-01T18:20:00+00:00; phase-off start gap (report only) 620.0 min; blind True
+E           [deviation]   pc s60 stance7_r10LTSBpc_s60: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.049999999999999996 (J window 0.05; missing []) [switch-off s60: stance7_r10LTSBoff_s60: CLEAR, GATE PASS, POSITIVE, habit FREE, TD 0.5] [STANCE6 s60 REPORT ONLY: PARKED , GATE PASS, NEGATIVE, TD 0.38822738704353094, habit FREE []]
+E           [deviation]   pc s42 stance7_r10LTSBpc_s42: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.049999999999999996 (J window 0.05; missing []) [switch-off s42: stance7_r10LTSBoff_s42: CLEAR, GATE PASS, POSITIVE, habit FREE, TD 0.5] [STANCE6 s42 REPORT ONLY: RAIL RAIL-LEDGER-PERSISTENT, GATE FAIL, NEGATIVE, TD 0.6353434591453841, habit FREE []]
+E           [deviation]   pc s80 stance7_r10LTSBpc_s80: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.049999999999999996 (J window 0.05; missing []) [switch-off s80: stance7_r10LTSBoff_s80: CLEAR, GATE PASS, POSITIVE, habit FREE, TD 0.5] [STANCE6 s80 REPORT ONLY: CLEAR , GATE PASS, POSITIVE, TD 0.15433899719014801, habit SATURATING ['neck_pitch_act']]
+E           [deviation]   off s60 stance7_r10LTSBoff_s60: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.5 (J window 0.5; missing []) 
+E           [deviation]   off s42 stance7_r10LTSBoff_s42: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.5 (J window 0.5; missing []) 
+E           [deviation]   off s80 stance7_r10LTSBoff_s80: COMPLETE; TAIL CLASS CLEAR; GATE PASS (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification) ; OUTCOME POSITIVE []; HABIT ELSEWHERE FREE saturating [] drive-only []; TD 0.5 (J window 0.5; missing []) 
+E           [deviation] READING: incomplete; no line is read. Open:
+E           [deviation]     stance7_r10LTSBoff_s60_b has not ENDED (no DELETED or FOUND-GONE note)
+E           [deviation]     stance7_r10LTSBoff_s60_b: no F2 store
+E           [deviation] STATUS: INCOMPLETE (no line read)
+E           [deviation]     PROVISIONAL: branch HEAD: APPROVED aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, RUNLOG LAUNCH lines ['None', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']
+E           [deviation]     THE ONE TEST (deviation): not computed by the scorer in this run (READING incomplete; the open items are listed above)
+E         DIFFERENCES between the pinned run and the deviation run (every output line that differs; then every JSON value):
+E             output line 12/12 [blindness: the first opening and the NOT BLIND runs]:
+E                 pinned:    OUTCOME BLINDNESS (every switch-off run starts before any phase run's results are opened): first opening {"kind": "SNAPSHOT", "run": "stance7_r10LTSBpc_s60", "time": "2026-11-01T17:44:00+00:00", "line": 7}; not blind (enter THE ONE TEST as missing) ['stance7_r10LTSBoff_s60', 'stance7_r10LTSBoff_s42', 'stance7_r10LTSBoff_s80']
+E                 deviation: OUTCOME BLINDNESS (every switch-off run starts before any phase run's results are opened): first opening {"kind": "SNAPSHOT", "run": "stance7_r10LTSBpc_s42", "time": "2026-11-01T19:30:00+00:00", "line": 12}; not blind (enter THE ONE TEST as missing) []
+E             output line 13/13 [blindness: the seed's OFF run blind or not]:
+E                 pinned:        s60: phase stance7_r10LTSBpc_s60 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s60 launched 2026-11-01T18:12:00+00:00; phase-off start gap (report only) 612.0 min; blind False
+E                 deviation:     s60: phase stance7_r10LTSBpc_s60 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s60 launched 2026-11-01T18:12:00+00:00; phase-off start gap (report only) 612.0 min; blind True
+E             output line 14/14 [blindness: the seed's OFF run blind or not]:
+E                 pinned:        s42: phase stance7_r10LTSBpc_s42 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s42 launched 2026-11-01T18:56:00+00:00; phase-off start gap (report only) 656.0 min; blind False
+E                 deviation:     s42: phase stance7_r10LTSBpc_s42 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s42 launched 2026-11-01T18:56:00+00:00; phase-off start gap (report only) 656.0 min; blind True
+E             output line 15/15 [blindness: the seed's OFF run blind or not]:
+E                 pinned:        s80: phase stance7_r10LTSBpc_s80 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s80 launched 2026-11-01T18:20:00+00:00; phase-off start gap (report only) 620.0 min; blind False
+E                 deviation:     s80: phase stance7_r10LTSBpc_s80 launched 2026-11-01T08:00:00+00:00; switch-off stance7_r10LTSBoff_s80 launched 2026-11-01T18:20:00+00:00; phase-off start gap (report only) 620.0 min; blind True
+E             output line 18/18 [C1's listing of the run's note lines without dropped line 7 (C1's verdict reads only launches, launch-check stops and actions)]:
+E                 pinned:            value: {"launches": [4], "launch_check_stops": [], "actions": [], "lines": {"4": "LAUNCH", "7": "SNAPSHOT", "14": "TRIGGER-a", "15": "FOUND-GONE", "20": "F2-START"}}
+E                 deviation:         value: {"launches": [4], "launch_check_stops": [], "actions": [], "lines": {"4": "LAUNCH", "14": "TRIGGER-a", "15": "FOUND-GONE", "20": "F2-START"}}
+E             JSON blindness.first_opening.line [blindness]: pinned 7 | deviation 12
+E             JSON blindness.first_opening.run [blindness]: pinned "stance7_r10LTSBpc_s60" | deviation "stance7_r10LTSBpc_s42"
+E             JSON blindness.first_opening.time [blindness]: pinned "2026-11-01T17:44:00+00:00" | deviation "2026-11-01T19:30:00+00:00"
+E             JSON blindness.not_blind [blindness]: pinned "(absent)" | deviation []
+E             JSON blindness.not_blind[0] [blindness]: pinned "stance7_r10LTSBoff_s60" | deviation "(absent)"
+E             JSON blindness.not_blind[1] [blindness]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"
+E             JSON blindness.not_blind[2] [blindness]: pinned "stance7_r10LTSBoff_s80" | deviation "(absent)"
+E             JSON blindness.seeds.42.blind [blindness]: pinned false | deviation true
+E             JSON blindness.seeds.60.blind [blindness]: pinned false | deviation true
+E             JSON blindness.seeds.80.blind [blindness]: pinned false | deviation true
+E             JSON runs.stance7_r10LTSBpc_s60.completeness.C1.value.lines.7 [C1's listing of a dropped line]: pinned "SNAPSHOT" | deviation "(absent)"
+E             5 output lines and 11 JSON values differ; every one is a blindness line, THE ONE TEST or C1's listing of a dropped line (C1's own, or its PRESENCE p1 / D-16 copies)
+E             exit codes: pinned 10, deviation 10; stderr bytes: pinned 0, deviation 0
+E         CONTAINMENT: /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/r: unchanged (every file's size and mtime as before; enforced: a change refuses)
+E         CONTAINMENT: /home/user/work/pc_study/tools/pc: unchanged (every file's size and mtime as before; enforced: a change refuses)
+E         CONTAINMENT: the scorer's cwd and TMPDIR (under --out): left empty, removed
+E         OUTPUT FILES (all under /home/user/work/pc_study/amend2/rereview/mutants/R1/pt/test_r1_an_off_relaunch_counts0/out): runlog_asread.txt, runlog_deviation.txt, pinned.out/.err/.json, deviation.out/.err/.json
+E         
+E       assert (10 == 3)
+E        +  where 3 = D.EXIT_REFUSED
+
+test_score_pc_dev.py:530: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r1_an_off_relaunch_counts_as_the_last_off_launch
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 26 passed in 58.79s

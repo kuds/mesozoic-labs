@@ -1,0 +1,144 @@
+SKEPTIC NOTES ON ST/final/NEXT_STEPS.md
+Written 2026-11-02, about 20:03-20:20 UTC (date -u). Read only, except this folder. No training, simulation, Drive,
+git write or network call. NS = ST/final/NEXT_STEPS.md, read at sha256 c123794c359d0b29... (473 lines, 20:12 UTC).
+Short names as NS defines them (ST, RUNLOG, S1, S2, SCORE, DEV, CRIT, REPORT, NS6, REVIEW6, REC, MAIN = 4c9d5e9b,
+BR = 1dfe2327, RB = 8737cd3d, BRP, GQP, CHAT). RUNLOG read at 971 lines, sha256 89425ea9... (same as NS).
+
+VERDICT
+Mostly sound and honest. Every number I re-derived matches its source: head tips and neck commands (W/head_neck.out),
+PHASE s60's 9 short episodes and their lengths (W/short_eps.out), the return gaps +30.1 / +103.4 / +66.5 (SCORE
+lines 324, 328, 332 against 337, 341, 347), TDs, the BR diff (6 commits, 10 files, +1,353 / -5, 8 + 17 tests), the
+distances (RB 7 commits on 06b1a8e1, main 38), main's config lines, the quoted question (CHAT record 14791,
+03:39:10 UTC) and the answer (03:39:37 UTC). The pinned reading and the failed pre-registered test are kept as they
+are. But one claim about the pinned parent rule is wrong, the summary overstates how the four "stay on stance"
+cases came out, and several smaller facts, labels and citations need fixing before the maintainer reads it.
+
+FINDINGS (most severe first)
+
+F1 BLOCKING. Option A's risk misstates the pinned parent rule (NS lines 192-193).
+  Claim: "M4 may fail a PHASE final: STANCE6 s80 failed K1 and K3 [NS6 line 418]. Then no parent is named."
+  [measured] The pinned rule (ST/tools/pc/score_r10round.py lines 505-540, sha256 3de2330a... = the APPROVED pin)
+  never reads a K1-K4 pass or fail. It reads M4's record at each POSITIVE final and names the one with the most
+  clean panel episodes, then the fewest noise falls. It prints "not named" only when a record is missing.
+  [measured] STANCE6 s80's K1 failure was at 6.29M steps, not at its final (40/40 clean at the final); its K3 failure
+  combined 5 falls at 6.29M with 2 at the final (REVIEW6 lines 395-402; NS6 line 418). M4 at a final only would not
+  have caught the 6.29M K1 failure.
+  So: a K1-K4 failure would not stop the rule naming a parent. The decision tree's Q2 ("does a PHASE final pass M4")
+  is a new test the maintainer would add, not what the pinned rule does.
+  Fix: replace the sentence with: "The pinned parent rule names the best PHASE final whatever K1-K4 read (it ranks by
+  clean panel episodes, then falls). If K1-K4 fail at that final, the maintainer decides whether it can still be a
+  parent. STANCE6 s80 failed K1 at 6.29M, not at its final." Say in Q2 that "pass M4" is the maintainer's added bar.
+
+F2 MINOR. The summary says PC "met none" of the four stay-on-stance cases (task summary item 2; NS line 72 table).
+  [measured] The table itself says the fourth case is split: the numbers separate (every PHASE TD below every OFF
+  TD), but the pre-registered test reads NOT SEPARATED (p = 20/20), and the OFF arm is a byte copy of STANCE6, so only
+  three control seeds exist. The earlier answer's own remedy for that case was "more seeds before relying on it"
+  (CHAT, 03:39:37 UTC).
+  Fix: "PC met none of the first three cases. The fourth is split: the numbers separate, the pre-registered test
+  does not, and only three control seeds exist."
+
+F3 MINOR. The paraphrase of the earlier answer drops a sentence that cuts against Option D (NS line 66).
+  [measured] Item 3 of the answer also said: "The plan's GQ-3 rule already requires a certified stance before walking
+  pilots." NS recommends D (a walking pilot from an uncertified parent) before E (certification).
+  Fix: quote the sentence in item 3, and say in section 1 that D departs from that step, as an exception like D-D36.
+
+F4 MINOR. "The code sets no determinism switch (... no cuDNN flag)" (NS lines 416-418).
+  [measured] True of the repository (git grep on BR finds none). But the training library, version 2.9.0 (the
+  version all nine runs record), sets cudnn.deterministic = True and cudnn.benchmark = False whenever a seed is set on
+  a GPU (S2/venv/.../common/utils.py lines 42-45; base_class.py set_random_seed calls it with using_cuda). Nothing
+  sets the deterministic-algorithms flag or the cuBLAS workspace setting. [inferred] So "not a guarantee" still holds.
+  Fix: "The repository sets none; the training library sets the cuDNN flags when it seeds on a GPU; no
+  deterministic-algorithms flag or cuBLAS setting is set anywhere."
+
+F5 MINOR. The locomotion ramp is described wrongly (NS lines 333-335).
+  Claim: forward-velocity weight "ramps from 0.2 over 2,000,000 training steps after a 300,000-step warm-up".
+  [measured] The ramp starts at step 0 and runs 0.2 -> 2.0 over the first 2,000,000 steps (MAIN
+  environments/shared/curriculum/advancement.py, RewardRampCallback: progress = num_timesteps / ramp_timesteps;
+  train_base.py lines 1086-1097; locomotion.toml line 6 forward_vel_weight 2.0). The 300,000-step warm-up (small clip
+  range, entropy 0.02) is a separate schedule over the same first steps.
+  Fix: "ramps from 0.2 to 2.0 over the first 2,000,000 steps; a 300,000-step warm-up runs at the same time."
+
+F6 MINOR. Head posture misses the reward's own target (NS lines 156-171, 196-197).
+  [measured] Both RB's and main's stance.toml set head_clearance_target = 0.90 m (RB line 316; MAIN line 292): full
+  credit at 0.90 m or higher, none at 0.75 m, nothing more for a higher head (reward_functions.py
+  reward_head_clearance). The PHASE heads sit at 0.902-0.913 m, just at that bar.
+  [inferred] So the PHASE heads stop where the reward stops paying, not at a random height. That matters for the
+  "ruling on head posture" NS asks for.
+  Fix: add one sentence: "The reward pays full head credit from 0.90 m (both recipes); the PHASE heads sit just at
+  that bar."
+
+F7 MINOR. C3's arithmetic mixes two tests (NS lines 304-310).
+  [inferred, my arithmetic] NS names "a paired sign-flip test on TD" but gives sign-test (binomial) numbers. With a
+  sign-flip test, 6 pairs reach p = 2/64 = 0.031 if the one reversed pair is the smallest difference; with a sign test,
+  8 pairs are needed (9/256 = 0.035). Also, "launch both runs of a seed in the same wave" with three slots fits one
+  pair per wave, so 5 pairs take 5 waves of about 15 h, about 3.1 days, not 2.5.
+  Fix: name one test and give its numbers; give 5 waves (about 3 days) for 5 pairs with three slots.
+
+F8 MINOR. Q4 contradicts the risks (NS line 122 against lines 372-373).
+  "NO, it stood -> a locomotion problem ..., not a stance one." The risk list gives the parent's small action noise
+  (a stance-stage property) as a reason it may stand still.
+  Fix: "NO, it stood -> could be the parent's low action noise or the walking reward; not decided by the pilot."
+
+F9 MINOR. Missing weak or negative report-only results relevant to Q1 ("is consistent enough to act on?").
+  [measured] SCORE line 359: if the phase critic changed nothing, "no RAIL in 3 runs" has a 0.296 chance. SCORE line
+  363: Statistic A, phase 0 of 3 against switch-off 2 of 3, one-sided Fisher p 0.2. Neither is in NS.
+  Fix: add both, labelled report only, beside Q1.
+
+F10 MINOR. The F2 omission is reported without its cause (NS lines 152-155; summary item 3).
+  [measured] CRIT line 271 makes M4 at the finals F2 work once line 4 reads. The pinned operating steps (COLAB_STEPS
+  F2 measurement list, lines 264-269) list the manipulation check, M1, M3, the completeness tool and the scorer,
+  and no M4. The critic readouts (CRIT lines 332-337) are not in that list either. ST/f2/check_process holds no M4 or
+  readout check. [inferred] The slip sits in a gap between two pinned texts, and the independent process check did not
+  catch it.
+  Fix: one sentence saying so. It stays a fail.
+
+F11 MINOR. "No measured stance problem remains in the PHASE runs" (NS line 104) overclaims.
+  [measured] K1-K4 were not run, the critic readouts were not run, and PHASE s60 had 9 early endings in 910 against 0-1
+  elsewhere. The sentence is true only because the main stance tests were not run.
+  Fix: "No stance problem was found by the tests that ran (gate, tail class, habit elsewhere); K1-K4 and the critic
+  readouts were not run."
+
+F12 MINOR. Labels and citations that do not match their sources.
+  - "Main's recipe has no r10 runs [measured: stages.toml line 34]" (NS line 389). Line 34 says "no r10 seed yet
+    (bar 2)": no certified seed. That no main-recipe r10 run exists is [inferred] (none in RUNLOG).
+  - STANCE6 "14.75-14.88 h from session start to manifest [measured: REVIEW6 lines 820-824]" (NS line 139). REVIEW6
+    line 823 labels those figures [inferred].
+  - "Full-depth CI took about 24 minutes" (NS line 142). RUNLOG line 605's 13:41:32-14:05:08 is the test-sb3 job's
+    span, not the whole CI run.
+  - S1 and S2 are defined at CRIT lines 37-38, not 38-40 (NS line 16).
+  - Tail class CLEAR and OFF TDs cited to SCORE line 362 (NS line 78). Line 362 prints the OFF TDs as None (missing);
+    CLEAR is on lines 321, 325, 329; the OFF TDs are on 334, 338, 342.
+  - Returns cited to "SCORE lines 321-343" (NS line 106); OFF s80's return is on line 347.
+  - E1 "a reward PR of 3,425 inserted lines" (NS line 393). The RB diff is +3,425 / -776 over 22 files, and it holds
+    the round's pins, the checkpoint cadence and test re-calibration as well as the reward terms.
+  - Option D: "the warm start would be refused (gamma 0.995 against 0.98)" (NS line 344). As built it is refused
+    first because walking declares no phase at all (BR train_base.py lines 667-676; critic_phase_ppo.py lines
+    299-304). The gamma clash applies only if walking turned the option on. Line 609, cited for the rule, is a
+    docstring line; the code is lines 667-676.
+  Fix: correct each label or line number as shown.
+
+F13 MINOR (clarity). Terms used without a one-line gloss: LTSB (never spelled out), F2, PS (line 289, not in the
+  short-name table), M1, C8, A6, V - G, loop gain, XR, log-std, screen_v2_reasons, K3 panel, sign-flip test,
+  "bootstraps the value". Fix: add them to "Words used".
+
+F14 INFO. Cross-document conflict, NS is right. REPORT says "provenance.json records no torch, CUDA or GPU version".
+  [measured] Each run's 01_stance/stage_config.json has a gpu block (gpu_model L4, NVIDIA L4, cuda_version 13.0); no
+  torch, driver or cuDNN field exists in either file for any of the six PC or three STANCE6 runs (my grep). NS's
+  section 3 states this correctly. REPORT should be aligned.
+
+CHECKED AND FOUND RIGHT [measured unless marked]
+- The question is not in RUNLOG (grep for walking, what next, fine tun). Question text and timestamps match CHAT.
+- The six answer items and the four stay-on-stance cases match CHAT's 03:39:37 UTC entry (apart from F3).
+- SCORE lines 321-362 (classes, TDs, gate 40/40 at each heading, habits, parent rule "not named", THE ONE TEST
+  NOT SEPARATED p = 20/20); DEV line 393 (LOWER, p = 1/20); RUNLOG lines 902, 967, 970-971.
+- No M4 record and no critic readout exist under ST/round/panels or ST/f2/measure.
+- Head and neck figures, 15-31 cm above and about 5 cm below the statue's 0.959 m; falls 9 / 0 / 0 / 1 / 1 / 1;
+  7 of 9 between steps 211 and 378.
+- C8: actor independent at all 6 checkpoints of each PHASE run (score_pc.json).
+- Main: one step-200 term (stance_width, settled); lean gated in code but weight 0; stagger only in comments 723 and
+  1135; recovery settle 140 and pushes 200 +- 50; recovery extends stance's [ppo]; locomotion gamma 0.995, no
+  stance_width, lean, action_saturation or tail_home_pose key; 1,000-step truncation; follow-direction 6.0 +- 1.0 s;
+  walking warm-starts from stance (stages.toml lines 47-48).
+- BRP D-D36: pilot 1 STILL 3 of 3, forward-velocity 0.5-3.2, parent std 0.095; GQ-3 and GQ-17 "stay open".
+- Cost basis numbers (237.6-239.9 steps/s; 5.1 CPU-hours; 4.3 h build; 44.6 L4-hours for OFF).
+- No AI model or product names in NS; no null-device reference.

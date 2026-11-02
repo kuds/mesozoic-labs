@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.17, pytest-9.1.1, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python
+rootdir: /home/user/work/pc_study/amend2/tests
+configfile: pytest.ini
+plugins: cov-7.1.0
+collecting ... collected 20 items
+
+test_score_pc_dev.py::test_pinned_line_constant_is_the_lines_sha256 PASSED [  5%]
+test_score_pc_dev.py::test_runlog_line_902_is_the_pinned_line PASSED     [ 10%]
+test_score_pc_dev.py::test_a_snapshot_before_every_off_launch_complete_separation PASSED [ 15%]
+test_score_pc_dev.py::test_a_deviation_copy_blanks_only_the_pinned_line PASSED [ 20%]
+test_score_pc_dev.py::test_b_no_snapshot_outputs_byte_identical PASSED   [ 25%]
+test_score_pc_dev.py::test_c_snapshot_only_after_every_off_launch_identical PASSED [ 30%]
+test_score_pc_dev.py::test_c_later_report_only_snapshot_is_kept_and_changes_nothing PASSED [ 35%]
+test_score_pc_dev.py::test_status_passes_through_provisional_in_both PASSED [ 40%]
+test_score_pc_dev.py::test_d_off_never_launched_missing_in_both PASSED   [ 45%]
+test_score_pc_dev.py::test_d_off_lost_missing_in_both PASSED             [ 50%]
+test_score_pc_dev.py::test_e_partial_separation_no_snapshot_same_p PASSED [ 55%]
+test_score_pc_dev.py::test_e_partial_separation_deviation_p_is_the_pinned_scorers_without_the_snapshot PASSED [ 60%]
+test_score_pc_dev.py::test_f_refuses_changed_scorer_bytes PASSED         [ 65%]
+test_score_pc_dev.py::test_f_refuses_changed_imported_tool_even_with_pins_refilled PASSED [ 70%]
+test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines0-two early SNAPSHOT lines] PASSED [ 75%]
+test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines1-the pinned line edited by one byte] PASSED [ 80%]
+test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines2-a SNAPSHOT in the last OFF launch's minute (the pinned rule reads it NOT BLIND)] PASSED [ 85%]
+test_score_pc_dev.py::test_f_refuses_a_dropped_set_other_than_the_pinned_line[lines3-the pinned line's time moved after every OFF launch] PASSED [ 90%]
+test_score_pc_dev.py::test_f_refuses_an_out_folder_inside_the_round_or_not_empty PASSED [ 95%]
+test_score_pc_dev.py::test_g_the_deviation_run_writes_only_into_its_out_folder PASSED [100%]
+
+============================= 20 passed in 48.59s ==============================

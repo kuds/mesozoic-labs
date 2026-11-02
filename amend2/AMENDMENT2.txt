@@ -1,0 +1,270 @@
+PC STUDY, AMENDMENT 2 (addendum to criteria.txt, which stays unchanged): THE DEVIATION READING OF THE ONE TEST
+
+Status: built 2026-11-02 (UTC) by builder A of workflow wf_8a4486a0-a57 (RUNLOG line 950), before any F2 file and
+before any tail-command, TD or ledger figure of any of the six runs was seen; revised the same day by the fixer after
+the independent review (RUNLOG line 951: 1 blocking text finding, 5 minor; what changed and the evidence: FIXES.txt;
+the reviewed bytes: orig/), still before any F2 file. A draft for review: nothing here is pinned until the maintainer
+approves these bytes (RUNLOG line 949: "Both are to be pinned before F2, reviewed, and their bytes approved by the
+maintainer"). Every claim is labelled [measured] (read from a file or computed by a tool run named here) or [inferred]
+(reasoning, not checked by a tool).
+
+0. IN PLAIN WORDS
+
+- The rule. THE ONE TEST compares the three phase-critic (PHASE) runs with the three concurrent switch-off (OFF) runs.
+  It is only fair if the people starting the OFF runs had not seen any PHASE results yet; otherwise what they saw could,
+  even without anyone meaning it, shape how the controls were started. The pinned rule does not try to judge whether a
+  look mattered: any look at a PHASE run's results before the last OFF launch (an F2-START, REFETCH-START or SNAPSHOT
+  line of a PHASE run) makes every OFF run launched after it NOT BLIND, and a NOT BLIND OFF run counts in THE ONE TEST
+  as missing, at -infinity (criteria.txt lines 297-302 and 353-361; what is an opening: lines 371-373). A missing run
+  always counts against the hoped-for result, so THE ONE TEST can then never read LOWER.
+- What happened. At 17:44 UTC on 2026-11-01 the maintainer pasted the s60 PHASE run's notebook output into the chat to
+  ask whether more results should be in the run folder (RUNLOG lines 902-903). It held rewards, episode lengths,
+  distance and the checkpoint choice; no tail command, TD or ledger figure (RUNLOG line 902) [measured: RUNLOG text; what
+  was on screen is the operator's record]. That is an opening under the rule (criteria.txt lines 371-373: a PHASE run's
+  notebook output read is an opening, noted as a SNAPSHOT line; every OFF run launched after it is NOT BLIND), and it
+  came before the three OFF launches (18:12, 18:20, 18:56 UTC). RUNLOG records more after it: possible views before
+  the OFF launches (LIMITS (i)) and an order deviation between them (LIMITS (ii)). Under the pinned reading all three OFF runs are NOT BLIND, at -infinity, and THE ONE TEST reads
+  p = 20/20 whatever the six TDs: every other 3 + 3 split holds at least one -infinity, so its 3-sum ranks below the
+  PHASE sum (criteria.txt lines 297-302); it cannot pass [measured: the dry run on RUNLOG reads all three OFF runs NOT
+  BLIND; the pinned p is 20/20 in every synthetic test with the line, a LOST PHASE run included (tests (a), (d), (e),
+  M3); inferred: the rank argument, for every TD value].
+- "Report only" looks. criteria.txt allows report-only looks at a run (SNAPSHOT lines that decide nothing) only AFTER
+  every OFF run's LAUNCH line is in RUNLOG (lines 374-377). Before that point the rule has no report-only kind of look:
+  any look is an opening (lines 371-373). The 17:44 look came before the OFF launches, so the pinned rule cannot read it
+  as report only. Looks after 18:56 UTC would have been report only and changed nothing.
+- The two readings. The pinned reading applies the rule as written and stays the round's reading of record; it is
+  printed first and whole. The DEVIATION reading computes THE ONE TEST as if the three OFF runs were blind: it sets
+  aside RUNLOG line 902, the only recorded opening before the OFF launches (see LIMITS). It is printed second, under its
+  own header, flagged as not the pinned reading. If the deviation reads LOWER and the pinned one does not, the honest
+  summary is: the pre-registered test could not be passed because of a procedural slip; a reading decided after the
+  slip, which assumes the slip had no effect on the OFF runs, reads LOWER.
+
+1. WHAT STAYS AS PINNED
+
+- criteria.txt (sha256 e612d52362b4336b7bbaa437a217e18909b86d4f2f04a0135a9c58c9e21d61ec, APPROVED's criteria_sha256)
+  and <PCR>/APPROVED (sha256 ce8865205a218541a742d7acf0cee479e87d63c7b53cbc52ae47a8892569873a) are unchanged; score_pc.py
+  (sha256 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986) and every pinned tool are unchanged and are
+  run unchanged by the deviation tool [measured: sha256 at the build; the tool re-checks them at every run].
+- The pinned reading is THE reading of the round: score_pc.py on RUNLOG as it stands. It is printed first and whole.
+- The deviation reading never changes a class, a per-run verdict, THE READING's line, Statistic A, Q1-Q3 or any
+  report-only block: on the synthetic roots every such output line is byte-identical between the two runs, and in the
+  dry run on RUNLOG (no class computed yet) only blindness lines differ (sections 3 and 5) [measured].
+
+2. WHY A SECOND READING (the maintainer's decision)
+
+- The 17:44 UTC opening (RUNLOG line 902, a SNAPSHOT line of stance7_r10LTSBpc_s60): the in-training evaluations at
+  11,796,480 and 11,927,552 (episode reward and length), the final-model save and its evaluation (mean reward, length,
+  forward velocity, distance, success rate), the best-model evaluation step (6,815,744), the selected checkpoint and the
+  selected-model 30-episode evaluation; "No tail command, TD or ledger figure was shown" [measured: RUNLOG line 902]. At
+  17:47 the maintainer said the paste was to check whether more results should be in the run folder and to ignore the
+  results; the pasted figures were not used or repeated (RUNLOG line 903) [measured: RUNLOG text]. RUNLOG line 905
+  (18:01 UTC) records, inferred and not established, later views of three pc_s60 files; see LIMITS (i).
+- The OFF launches were fixed by procedure, not chosen after the look: wave 2 started each OFF run in the runtime a
+  PHASE run freed, with the settings the steps fix (RUN_ID, seed, CRITIC_PHASE False, the round's head 1dfe2327...)
+  (RUNLOG lines 906-911, 922-923), and each passed its launch check: CHECK lines 915 (stance7_r10LTSBoff_s60, 18:43
+  UTC), 920 (stance7_r10LTSBoff_s80, 18:51 UTC) and 932 (stance7_r10LTSBoff_s42, 19:15 UTC), each "result=no-fault ...
+  phase_row="Critic phase: off"", with launch-check facts (1)-(8) all PASS and no fault (NOTE lines 916, 921, 933)
+  [measured: RUNLOG lines]. One order deviation is recorded: s80 started before s42 (RUNLOG line 910); no scoring rule
+  reads the order [measured: RUNLOG line 910].
+- The maintainer's decision, RUNLOG line 949, 2026-11-02 13:52 UTC: "Pin both readings" -- the pinned reading stays
+  exactly as pinned and a second, clearly flagged DEVIATION reading of THE ONE TEST is added, computed as if the three
+  OFF runs were blind; made before any F2 file and before any tail-command figure of any run was seen [measured: RUNLOG
+  line 949 (its sha256 f7b7278a60b3b2e9ecab7eaffae3eb010c862bf1b90fab9c8409a1b8bf3c79fc is a constant of the tool);
+  RUNLOG held no F2-START or REFETCH-START line at the build].
+
+3. THE DEVIATION READING, EXACTLY AS BUILT (amend2/tools/score_pc_dev.py, revised after review: FIXES.txt)
+
+- Definition. The DEVIATION reading of THE ONE TEST is THE ONE TEST line that the pinned score_pc.py, unchanged, prints
+  when it reads a copy of RUNLOG in which exactly one line's content is removed: RUNLOG line 902, the 17:44 UTC SNAPSHOT
+  line of stance7_r10LTSBpc_s60, identified by the sha256 of its exact bytes (UTF-8, without its line feed, 873 bytes):
+  0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12. Everything else is as in the pinned run: the same
+  round folder, pins, APPROVED, F2 stores, panels, classes, TDs, MISSING ranks and permutation test.
+- The dropped set, computed then checked. The tool parses RUNLOG with the pinned parser (r10round_common.parse_runlog)
+  and takes every SNAPSHOT note of a PHASE RUN_ID whose time is at or before the last OFF LAUNCH or RELAUNCH note (the
+  pinned rule reads an OFF launch in the opening's minute as NOT BLIND, so a same-minute SNAPSHOT is in the set). That
+  set must be exactly {the line with the sha256 above}; any other set refuses (exit 3): none, two lines, the line edited
+  by one byte, its time moved, a second line in the last launch's minute. A report-only SNAPSHOT after every OFF launch
+  is not in the set, stays in the copy and, under the rules, changes nothing. F2-START and REFETCH-START lines are never
+  dropped. A SNAPSHOT of an OFF RUN_ID is not an opening and is never dropped.
+- --expect-dropped (tests only). The option replaces the expected set for synthetic tests (the output then says
+  "NON-DEFAULT ... not the round's deviation reading"). It is refused (exit 3) when --runlog is the round's RUNLOG (the
+  pinned tools' RUNLOG path, compared after resolving links, or the same file), when --round is the pinned round folder
+  (likewise), and when the RUNLOG read holds the maintainer decision line (the exact bytes of RUNLOG line 949, so a
+  byte copy of the round's RUNLOG elsewhere is refused too); the first two checks come before the --out check, so a
+  refused call reads nothing of the round. The round's deviation reading therefore always drops exactly line 902
+  [measured: tests M1].
+- Line numbers kept. The line's content is removed and its line feed kept, so every other line keeps its bytes and its
+  line number. The scorer prints "RUNLOG line <i>" for every non-note line naming a RUN_ID; deleting the line instead
+  renumbers 16 such printed lines on today's RUNLOG [measured: amend2/dry/deletion_demo/diff_blanked_vs_deleted.txt],
+  differences that are not the deviation. The tool re-reads the copy and checks: same line count, every other line
+  byte-identical, its notes equal RUNLOG's notes minus the dropped one, no early PHASE SNAPSHOT left.
+- The pinned bytes. Before anything is read the tool checks <PCR>/APPROVED at its sha256 (a constant), pins_pc.json at
+  APPROVED's sha256, and every pinned tool file (14) at both APPROVED's pins.tools_pc and pins_pc.json's tool_sha256;
+  score_pc.py's load closure (complete_r10round, ledger_r10round, pc_common, r10round_common, score_r10round) must be
+  among them. Any other byte refuses (exit 3).
+- Writes contained. score_pc.py writes only its --json file and standard output [measured: every write call in
+  score_pc.py and the five tools it loads; complete_r10round, score_r10round and ledger_r10round write only in their own
+  main(), which score_pc.py never calls]. The tool runs it twice (PY -I -B, cwd and TMPDIR inside --out), on the byte
+  copy of RUNLOG as read and on the deviation copy, with both --json paths inside --out; --out must be new or empty and
+  outside the round folder, the tools folders and the RUNLOG folder. Containment is enforced: every file under --round
+  and the tools folder is listed (size, mtime) before and after the two runs, and if any file was added, removed or
+  changed in between the tool refuses (exit 3, the changes listed, no reading printed); otherwise it prints CONTAINMENT
+  lines saying so [measured: test M5, a file added under --round, and under --tools, during the runs]. No read-only
+  view of the round folder is needed for the real run because the scorer writes nothing there; the dry run used a view
+  anyway (section 5) so that no file of the six runs was opened.
+- Every OFF run blind, or nothing printed. After both runs the tool reads the deviation run's JSON: if its
+  blindness.not_blind is not empty (an opening the deviation does not drop -- a PHASE F2-START or REFETCH-START line
+  before an OFF launch -- leaves that OFF run NOT BLIND), the tool refuses (exit 3) and prints neither header nor
+  deviation reading, so the header "as if the three OFF runs were blind" is never printed when it is untrue [measured:
+  test M2, a PHASE F2-START at 18:30 before OFF s42's 18:56 launch].
+- Printed, in order: the pinned run's whole output (the reading of record); the header
+    DEVIATION READING (flagged; not the pinned reading): THE ONE TEST computed as if the three OFF runs were blind;
+    maintainer decision 2026-11-02 13:52 UTC, recorded before F2; the pinned reading above stands
+  (one line); the decision line's check, the dropped line and its sha256, the deviation copy's sha256 and command; the
+  deviation run's OUTCOME BLINDNESS block, every run's class line, the READING block with THE ONE TEST line, STATUS and
+  its PROVISIONAL items; then every output line and every JSON value that differs between the two runs, each with its
+  kind, and a count of UNEXPECTED differences: any difference that is not a blindness line or value, THE ONE TEST line
+  or value, or C1's listing of the run's note lines (C1's printed value line, PRESENCE p1's printed copy of it, or the
+  JSON values runs.<RUN_ID>.completeness.C1.value.lines.<i>, runs.<RUN_ID>.presence[n].p1.value.lines.<i> and
+  runs.<RUN_ID>.d16.presence[n].p1.value.lines.<i>) whose only change is one dropped line's '"<i>": "SNAPSHOT"' entry
+  removed: in the JSON, "SNAPSHOT" in the pinned run and absent in the deviation run; in a printed line, the pinned
+  line with that one entry removed is exactly the deviation line. The tool's exit code is the pinned run's.
+- What differs, and only that: the OUTCOME BLINDNESS line (first opening; NOT BLIND runs), the three per-seed "blind"
+  rows, THE ONE TEST line, and, once F2 is read, C1's printed listing of stance7_r10LTSBpc_s60's note lines (which lists
+  line 902 in the pinned run; C1's verdict reads only launches, launch-check stops and actions); and, if that run is
+  LOST, the same listing as PRESENCE p1 prints it (p1 is C1 on the run's notes; one printed line per fetch read for
+  PRESENCE) and stores it in the JSON (presence[n].p1 and d16.presence[n].p1) [measured: synthetic tests (a), (c), M3
+  (pc_s60 LOST with a re-fetch: 8 output lines and 4 PRESENCE p1 / D-16 JSON values besides C1's, none UNEXPECTED); dry
+  run on RUNLOG: 4 output lines, 12 JSON values, all blindness, THE ONE TEST not computed because no F2 store exists
+  (section 5)]. The scorer cuts C1's printed value at 600 characters and p1's at 500; stance7_r10LTSBpc_s60's listing is
+  164 characters on today's RUNLOG [measured: the pinned parser on RUNLOG], so the one-entry check sees whole lines; a
+  cut line would be counted UNEXPECTED, never accepted.
+- Report-flagged. The deviation line decides nothing the pinned reading decides. It is a second, labelled reading
+  of THE ONE TEST alone, decided at RUNLOG line 949 (2026-11-02 13:52 UTC), before any F2 file.
+
+4. LIMITS
+
+- (i) More than line 902 was seen before the OFF launches. RUNLOG line 905 (18:01 UTC) records, inferred and not
+  established, views of three pc_s60 01_stance files (stance_gate_probe_constant.txt 17:50:58Z, gate_verdict.json
+  17:51:12Z, stage_summary.txt 17:51:20Z; their viewedByMeTime metadata; line 905 says these may be views in the
+  folder's web interface or reads by the notebook [paraphrase]) after 17:44 and before every OFF launch (18:12 the first). They were not written as a SNAPSHOT
+  line because the 17:44 opening already governed pc_s60 (line 905: "its first opening governs"). The scorer reads only
+  RUNLOG's SNAPSHOT, F2-START and REFETCH-START lines, so these views enter neither run; computing THE ONE TEST as if
+  the three OFF runs were blind sets them aside too. What they showed is not on record [measured: RUNLOG line 905].
+- (ii) An order deviation after the opening. RUNLOG line 910 records that OFF s80 was launched (18:20) before OFF s42
+  (18:56), against THE ORDER (the OFF runs start in seed order s60, s42, s80); it came after the 17:44 opening. No
+  scoring rule reads the order (the scorer prints each seed's PHASE-OFF start gap, report only) [measured: RUNLOG lines
+  907, 910, 911, 923].
+- (iii) The pinned reading's test is empty by construction. With the three OFF runs NOT BLIND, at -infinity, the
+  pinned p is 20/20 whatever the six TDs (section 0): the pinned reading cannot read LOWER, so "both readings agree" can
+  only mean the deviation reads NOT SEPARATED too; it says nothing about whether the look mattered [measured: every
+  synthetic test with line 902; inferred: the rank argument].
+- (iv) Post hoc relative to the opening, fixed before the data. The deviation was decided about 20 hours after the 17:44
+  opening (RUNLOG line 949, 2026-11-02 13:52 UTC), by people who knew what the opening showed (rewards, lengths,
+  distance of PHASE s60; no TD): it is not pre-registered relative to the opening. It was decided before any F2 file and
+  before any tail-command, TD or ledger figure of any run was seen [measured: RUNLOG lines 902, 949; for the line-905 views this rests on line 949's statement, which names the
+  tail-command figure only, and their content is not on record; RUNLOG holds no
+  F2-START or REFETCH-START line (952 lines, read by the dry run at 2026-11-02 15:04 UTC); inferred: that nothing shown
+  at 17:44 reveals a TD]. Even so it reads LOWER only on complete separation: THE ONE TEST is an exact one-sided
+  permutation test over the 20 ways to split six TDs 3 + 3; p = 1/20 = 0.05 only when every PHASE TD is below every OFF
+  TD; any other placement gives p >= 2/20, above alpha 0.05 [measured: synthetic tests (a) and (e): complete separation
+  1/20, one OFF TD below the PHASE TDs 4/20]. Under no effect and exchangeability the chance of complete separation is
+  1/20 [inferred from the test's definition].
+- "As if blind" is an assumption, not a repair. The rule exists because a look cannot be shown to have had no effect.
+  The deviation assumes the looks (line 902, and the views of line 905) had no effect on the OFF runs; the support for
+  that is that their launches were fixed by procedure and passed their launch checks (section 2) [inferred: the checks
+  cover configuration, not every possible influence].
+- Do not choose between the readings after seeing them. The pinned reading is the record, printed first; the deviation
+  is printed beside it whatever either says.
+- Every caveat of THE ONE TEST in criteria.txt (concurrent control, the within-seed dependence A5, GPU nondeterminism,
+  TD's form chosen with STANCE6's values in view) applies to both readings.
+- An OFF run that is LOST, not COMPLETE or never launched stays missing (-infinity) in both readings; a PHASE run that
+  is LOST stays at +infinity in both: the deviation removes only the opening [measured: synthetic tests (d), M3].
+
+5. EVIDENCE (amend2/; the revised tool's logs under amend2/fix/; the build's, on the reviewed bytes, under amend2/dry/)
+
+- Tests: amend2/tests/test_score_pc_dev.py, 35 tests on the synthetic six-run roots of tools/tests/synth_pc.py
+  (imported read only). The build's 20: (a) the pinned line before every OFF launch with complete separation: pinned
+  NOT SEPARATED (p = 20/20), deviation LOWER (p = 1/20), only blindness lines differ, the copy differs from RUNLOG in
+  that line alone; (b) no SNAPSHOT: outputs and JSON byte-identical (and the default expectation refuses); (c) a
+  SNAPSHOT only after the OFF launches: identical; the pinned line plus a later report-only SNAPSHOT: only the pinned
+  line dropped; (d) an OFF run never launched or LOST: missing in both; (e) partial separation: same p (4/20) with no
+  SNAPSHOT; with the pinned line the deviation's p equals the pinned scorer's on RUNLOG with the line deleted; (f)
+  refusals: score_pc.py one byte changed, an imported tool changed even with pins_pc.json refilled, two early SNAPSHOT
+  lines, the line edited by one byte, its time moved, a same-minute SNAPSHOT, --out inside the round or the tools or
+  not empty; (g) nothing written outside --out (every file under the test folder, tools/, amend2/tools and the tool's
+  folder hashed before and after); status passed through (PROVISIONAL in both). The 15 added after the review: M1
+  --expect-dropped refused on the round's RUNLOG path, a link to it and the pinned round (with a non-empty --out, so a
+  call past the guard is refused by the --out check and reads nothing of the round; controls: the default expectation
+  on the round's RUNLOG and --expect-dropped on a synthetic pair pass the guard) and on a RUNLOG holding line 949; M2 a
+  PHASE F2-START at 18:30, before OFF s42's launch: refused, no header printed; M3 stance7_r10LTSBpc_s60 LOST with a
+  re-fetch (the review's S4): pinned 20/20, deviation 11/20, C1's listing and its 2 printed PRESENCE p1 copies and 4
+  JSON copies classed as C1's listing, none UNEXPECTED; M5 a file added under --round, and under --tools, while the
+  scorer runs: refused; R1 an OFF RELAUNCH at 20:00 after a PHASE SNAPSHOT at 19:30: the SNAPSHOT joins the dropped set
+  (refused); R8 an OFF run's SNAPSHOT before the last OFF launch: kept, not dropped; R2, R3 the classifier's kinds
+  (unit tests) and main() with stubbed scorer outputs that differ in a class line and a class value: both UNEXPECTED,
+  counted 2; R5 a closure module missing from an APPROVED test copy: refused; R6 the decision line's check (equal, one
+  byte changed, after an F2-START, absent); R7 a faulty copy builder: refused by the copy's self-check before any
+  scorer run; an absent JSON key told from a null value. Result: 35 passed in 70.00 s [measured: fix/pytest.log]. The
+  reviewed tool fails 11 of them (34 at that run, before the absent-vs-null test): the M1 (2), M2, M3, M5 (2) tests,
+  the R2 and R3 unit tests, and 3 tests that read the revised summary wording [measured:
+  fix/reviewed_tool_vs_new_suite.log].
+- Mutants: amend2/tests/mutate_dev.py, 30 mutants; the unmutated tool passes first: M1-M13 (the build's, as before),
+  R1-R8 (the reviewer's, review/rt/own_mutants.py; R1-R4 had survived the build's suite) and N1-N9 (one per fix: the
+  --expect-dropped path guard and the decision-line guard skipped; the not-blind refusal skipped; PRESENCE p1 lines, and
+  the PRESENCE / D-16 JSON paths, never accepted; any value, or any change of a C1 / p1 line, accepted; the containment
+  refusal skipped; absent and null compared equal). Result: 30 killed, 0 survived; the unmutated tool: 35 passed. The
+  first failing test of each: M1-M13 as in the build's run; R1 test R1; R2 and N6 the JSON-kind unit test; R3 and N7 the
+  line-kind unit test; R4 and N8 test M5; R5, R6, R7, R8 tests R5-R8; N1, N2 the M1 tests; N3 test M2; N4, N5 test M3;
+  N9 the absent-vs-null test [measured: fix/mutants.log; each mutant's tool copy was deleted after its sha256 was
+  logged, its pytest log is kept under fix/mutants/<M>/].
+- Lint: ruff (E, F, W, I; line length 120, the branch's configuration) on the tool, the tests and the mutation runner:
+  All checks passed (ruff 0.16.9, exit 0) [measured: fix/ruff.log].
+- Dry run of the revised tool on RUNLOG (952 lines at 15:04 UTC, sha256
+  c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d; lines 951-952 are NOTE lines added since the
+  build) with the build's empty-fetch view (dry/round_view: APPROVED and criteria.txt byte copies, fetch/ empty; no F2
+  data exists): exit 10, both runs "STATUS: INCOMPLETE (no line read)" with the PROVISIONAL items as before; dropped
+  exactly line 902 (the deviation copy differs from RUNLOG in line 902 alone, now a bare line feed); 4 output lines and
+  12 JSON values differ, every one blindness (first opening SNAPSHOT line 902 -> none; NOT BLIND [OFF s60, s42, s80] ->
+  []; blind False -> True for each seed); THE ONE TEST not computed in either run (no F2 store); CONTAINMENT unchanged
+  (enforced); both stderr empty. The scorer's four outputs (pinned.out, pinned.json, deviation.out, deviation.json)
+  are byte-identical to the build's dry run (sha256 9395b83a..., aaf2aaf8..., 63b95115..., 4744c97b...). The 12th JSON
+  value (the build listed 11) is blindness.first_opening: absent as a value in the pinned JSON (it holds
+  first_opening.kind, .line, .run, .time) and null in the deviation JSON; the build's comparison read an absent key as
+  null and missed it [measured: fix/dryrun.out, fix/dryrun_out/].
+- The reviewer's own synthetic roots and probes, rerun unchanged on the revised tool: S1-S4 agree with the reviewer's
+  permutation oracle in both readings; S4 now lists 8 output lines and 29 JSON values, none UNEXPECTED (6 UNEXPECTED
+  before); probes P1-P8, P10 and the --out probes behave as before; P9 (a PHASE F2-START before the last OFF launch)
+  is now refused (M2) [measured: fix/review_own_roots_rerun.log, fix/review_probes_rerun.log].
+
+6. FILES AND SHA256 (paths under ST/amend2/; SHA256SUMS.txt lists every file, this one and FIXES.txt included)
+
+  The revised files and the new evidence:
+  efb37b2099bf77d38c8e585cbc0b86f7eb215e21598a1b93a92633e3b13c62a3  tools/score_pc_dev.py
+  38047c1771f85c095fa021c26ecf360a060bdd2ea41ce8c1a20453f6e243901d  tests/test_score_pc_dev.py
+  b79919213d8033b75001160f1cc28e11ad6f2ab5e59d5b12f3c0afcba9a162ab  tests/mutate_dev.py
+  aaabed120d2fb059160bb38bf8843dc0bbb6abca5f013dffb5228bfffb9a3404  tests/pytest.ini
+  5a61e1763d0ddeb23d9857eaf001657a6ad91524740e8d498b98d7bfcf46e09d  NOTES.txt
+  d563dfbbc0bc4deefe9684bff96dfae07736262fa9f7d23d74d7d6b0347652e1  fix/pytest.log
+  d0fe35c88da9242462af690eedba52a09b41dc9a5aab2add02c0c99195ae09d3  fix/mutants.log
+  a8b28a27bff5939e72da9c8264476abb0465e7f0d9fa300a9f629cc85d4c9ad7  fix/ruff.log
+  40b385ec5ac82324f4910bcbf01a0c3eb192d98aa015d7ee0e79143b0d8bd34f  fix/reviewed_tool_vs_new_suite.log
+  62d9f1a56a84b4047746d93a97b0407c6f2a06c38d9da0425123c2aaea1d3e01  fix/review_own_roots_rerun.log
+  72b85afb6a211ac4693b838998a55590e48ac68889a80781257189aed4a39990  fix/review_probes_rerun.log
+  c43f7bc1c74b3e1edbde6a649d3dc0d01270de1c97ba0c16d147597242f6ef88  fix/c1len.log
+  a4fc1b8b2b9f0f410e30dd49fc4e10ca0f873fc54f5c047fc1ceb847fbd6db15  fix/dryrun.out
+  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  fix/dryrun.err
+  c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d  fix/dryrun_out/runlog_asread.txt
+  086a1e5f30373d73499e0a39b0660fb883af8b6f0d348b620537422cda87c0d3  fix/dryrun_out/runlog_deviation.txt
+  9395b83ad98a79dc01904b2773b2a86d23a32464dfaf85548c858023452b3aaa  fix/dryrun_out/pinned.out
+  aaf2aaf84abf38117b1218c51f24f617d85bae57ff7606e4562274ac546e45e5  fix/dryrun_out/pinned.json
+  63b951151fe4527fd3e60ca5d2b0da206db35a853f60747803aed7cf19a78a1d  fix/dryrun_out/deviation.out
+  4744c97b42b42211fb78ba17975ee8edaf031ab3031919825c993db2e2b8511f  fix/dryrun_out/deviation.json
+
+  The reviewed bytes (as reviewed; dry/ holds the build's evidence on them, unchanged):
+  74b619decea957958161e6cdf7d69159ec045c5ed8afcd85e41f8104f2b3f1db  orig/tools/score_pc_dev.py
+  a64f5d3505eeebfd3b6840bd977c7bdd2c6058a21b4a7abd625839f14e682b35  orig/tests/test_score_pc_dev.py
+  60f30bc5fdd6b516546b0abf8e35a313e3746f0e501fef07f511342c6796a64b  orig/tests/mutate_dev.py
+  dcbe59b372bd2f259b7acaf1cda743bef17579fa7d2f6a2206603fa97b28c9e5  orig/AMENDMENT2.txt
+  c30f04ecfa063cd7909ac2db0e8445c462bd1c7cd72f5e50030fd319aae8cf7e  orig/NOTES.txt
+  c61d8fb0028dcac42197efe5e760da3c9c15ce6081481190062cbc304472f391  orig/SHA256SUMS.txt

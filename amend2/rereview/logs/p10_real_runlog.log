@@ -1,0 +1,33 @@
+P10-real probes of the fixed tool (sha256 efb37b2099bf77d38c8e585cbc0b86f7eb215e21598a1b93a92633e3b13c62a3); RUNLOG sha256 c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d; --round is the build's empty-fetch view dry/round_view unless said
+(paths shortened after the run: RUNLOG_PATH = the round RUNLOG path, i.e. the pinned tools RUNLOG constant; RUNLOG_DIR = its folder)
+== A_real_runlog_path: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/amend2/dry/round_view --runlog RUNLOG_PATH --expect-dropped none
+   REFUSED: --expect-dropped is for synthetic tests only: --runlog RUNLOG_PATH is the round's RUNLOG RUNLOG_PATH (the round
+== B_runlog_default: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/amend2/dry/round_view --expect-dropped none
+   REFUSED: --expect-dropped is for synthetic tests only: --runlog RUNLOG_PATH is the round's RUNLOG RUNLOG_PATH (the round
+== C_symlink_to_runlog: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/amend2/dry/round_view --runlog /home/user/work/pc_study/amend2/rereview/p10real/link_runlog.txt --expect-dropped none
+   REFUSED: --expect-dropped is for synthetic tests only: --runlog /home/user/work/pc_study/amend2/rereview/p10real/link_runlog.txt is the round's RUNLOG RUNLOG_PATH (the round's deviation reading drops exactly the pinned line 9
+== D_dotdot_path: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/amend2/dry/round_view --runlog RUNLOG_DIR/../live/run_log.txt --expect-dropped 0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12
+   REFUSED: --expect-dropped is for synthetic tests only: --runlog RUNLOG_DIR/../live/run_log.txt is the round's RUNLOG RUNLOG_PATH (t
+== E_pinned_round: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/round --runlog /home/user/work/pc_study/amend2/rereview/p10real/fake_runlog.txt --expect-dropped none
+   REFUSED: --expect-dropped is for synthetic tests only: --round /home/user/work/pc_study/round is the pinned round /home/user/work/pc_study/round (the round's deviation reading drops exactly the pinned line 902)
+== E2_symlink_to_pinned_round: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/amend2/rereview/p10real/link_round --runlog /home/user/work/pc_study/amend2/rereview/p10real/fake_runlog.txt --expect-dropped none
+   REFUSED: --expect-dropped is for synthetic tests only: --round /home/user/work/pc_study/amend2/rereview/p10real/link_round is the pinned round /home/user/work/pc_study/round (the round's deviation reading drops exactly the pinned line 902)
+== F_byte_copy_of_runlog: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/outF --round /home/user/work/pc_study/amend2/dry/round_view --runlog /home/user/work/pc_study/amend2/rereview/p10real/copy/run_log.txt --expect-dropped 0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12
+   RUNLOG /home/user/work/pc_study/amend2/rereview/p10real/copy/run_log.txt: 952 lines, sha256 c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d; read once, copied byte for byte to /home/user/work/pc_study/amend2/rereview/p10real/outF/runlog_asread.txt
+   REFUSED: --expect-dropped is for synthetic tests only: the RUNLOG read holds the maintainer decision line (line 949, the exact bytes of RUNLOG line 949), so it is the round's RUNLOG or a copy of it (the round's deviation reading drops exactly the pinned line 902)
+   outF holds: runlog_asread.txt
+== G_control_default_on_real_runlog: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/full --round /home/user/work/pc_study/amend2/dry/round_view --runlog RUNLOG_PATH
+   REFUSED: --out /home/user/work/pc_study/amend2/rereview/p10real/full exists and is not an empty folder
+== H_copy_truncated_before_line_949: exit 3; stderr 0 B
+   args: --out /home/user/work/pc_study/amend2/rereview/p10real/outH --round /home/user/work/pc_study/amend2/dry/round_view --runlog /home/user/work/pc_study/amend2/rereview/p10real/trunc/run_log.txt --expect-dropped none
+   RUNLOG /home/user/work/pc_study/amend2/rereview/p10real/trunc/run_log.txt: 948 lines, sha256 2178ae2a80817df7704289167a113086a9b4568bf3c3f25b968c2be8b6be3877; read once, copied byte for byte to /home/user/work/pc_study/amend2/rereview/p10real/outH/runlog_asread.txt
+   REFUSED: the dropped set [(902, 'SNAPSHOT', 'stance7_r10LTSBpc_s60', '2026-11-01 17:44:00+00:00')] (sha256 ['0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12']) is not the expected set [] [NON-DEFAULT, given by --expect-dropped (synthetic tests only; not the round's deviation reading)]
+   outH holds: runlog_asread.txt

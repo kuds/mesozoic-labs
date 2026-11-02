@@ -1,0 +1,59 @@
+[c8] measure_r10round 1.2, PC adaptation pc-1 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8; PC 2026-10-31: RUN_IDs stance7_r10LTSBpc_s*; PC amendment 2026-11-01: and stance7_r10LTSBoff_s*); r10m_common 1.1, PC adaptation pc-1 (2026-10-31; HEAD from <PCR>/APPROVED, base 8737cd3d; PC amendment 2026-11-01: RUN_IDS_OFF)
+{
+ "verdict": "IN FORCE",
+ "failing": [],
+ "bank_rows": 1000,
+ "bank_episodes": [
+  {
+   "seed": 3042,
+   "rows": 500,
+   "k_first": 0,
+   "k_last": 499,
+   "ended_before_limit": null
+  },
+  {
+   "seed": 3043,
+   "rows": 500,
+   "k_first": 0,
+   "k_last": 499,
+   "ended_before_limit": null
+  }
+ ],
+ "checks": {
+  "(i) phase in force": {
+   "holds": true,
+   "phase_weights_nonzero": 1536,
+   "phase_weights_shape": [
+    512,
+    3
+   ],
+   "phase_weights_max_abs": 0.13209377229213715,
+   "max_abs_dV_by_perturbation": {
+    "all 0": 0.36443138122558594,
+    "all 1": 0.34758996963500977,
+    "+1": 0.35259103775024414,
+    "all 3": 0.6362910270690918,
+    "1 - x": 0.36443138122558594
+   }
+  },
+  "(ii) actor independent": {
+   "holds": true,
+   "max_abs_dmu_by_perturbation": {
+    "all 0": 0.0,
+    "all 1": 0.0,
+    "+1": 0.0,
+    "all 3": 0.0,
+    "1 - x": 0.0
+   },
+   "mean_63_equals_mean_with_phase": true,
+   "actor_first_layer_inputs": 63
+  },
+  "(iii) critic input from observation 6": {
+   "holds": true,
+   "obs6_weights_nonzero": 512,
+   "obs6_weights_max_abs": 0.24957051873207092,
+   "report_only_max_abs_dV_obs6_plus1": 0.02160024642944336
+  }
+ }
+}
+[manip_check] wrote /home/user/work/pc_study/round/panels/stance7_r10LTSBpc_s60/6291456/c8/manip_check.json

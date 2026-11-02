@@ -1,0 +1,13 @@
+Reviewer dry run (measured 2026-11-02 ~14:33 UTC): score_pc_dev.py, defaults except --round = a reviewer view (APPROVED and criteria.txt byte copies, sha256 ce886520... and e612d523...; empty fetch/), --out review/dry/out (removed after this summary).
+tool exit 10 (both scorer runs 10); tool stderr 0 bytes
+RUNLOG <RUNLOG>: 950 lines, sha256 7a713156dd57454e16e50dc0f559371f2a876beb0a891bd92a737a5fdd377515; read once, copied byte for byte to /home/user/work/pc_study/amend2/review/dry/out/runlog_asread.txt
+    dropped (content removed, line feed kept; every other line byte-identical): [(902, 'SNAPSHOT', 'stance7_r10LTSBpc_s60', '2026-11-01 17:44 UTC')] at or before the last OFF launch 2026-11-01 18:56 UTC; dropped-line sha256 ['0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12']; expected: the pinned line (default)
+    deviation RUNLOG copy: /home/user/work/pc_study/amend2/review/dry/out/runlog_deviation.txt sha256 f2b943eb80f6c444e76bd4e7d32df8c33e33cc697b1092290e4c101c73bd394c
+    4 output lines and 11 JSON values differ; every one is a blindness line, THE ONE TEST or C1's listing of a dropped line
+    exit codes: pinned 10, deviation 10; stderr bytes: pinned 0, deviation 0
+CONTAINMENT: /home/user/work/pc_study/amend2/review/dry/round_view: unchanged (every file's size and mtime as before)
+CONTAINMENT: /home/user/work/pc_study/tools/pc: unchanged (every file's size and mtime as before)
+CONTAINMENT: the scorer's cwd and TMPDIR (under --out): left empty, removed
+deviation copy sha256 equals builder's dry/dryrun_out/runlog_deviation.txt: yes
+as-read copy sha256: 7a713156dd57454e16e50dc0f559371f2a876beb0a891bd92a737a5fdd377515
+differing output lines: 4; kinds:       1 blindness: the first opening and the NOT BLIND runs];      3 blindness: the seed's OFF run blind or not];

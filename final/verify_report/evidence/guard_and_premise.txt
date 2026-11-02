@@ -1,0 +1,16 @@
+# date -u: Mon Nov  2 20:07:07 UTC 2026
+# score_pc.txt guard (ledger tail_1/tail_2 command at J steps), PHASE runs, lines 324, 328, 332
+guard {"tail_1_pitch_act": {"4194304": -0.00216945850323166, "5242880": -0.007990614727779757, "6291456": -0.0013773511213657913, "8388608": -0.0007055777237619627, "10485760": 0.021969608320214322, "11927552": 0.009934476771042682}, "tail_2_pitch_act": {"4194304": -0.006894097023770552, "5242880": 0.006575727094168542, "6291456": -0.003114279223125777, "8388608": -0.015326916840189369, "10485760": 0.010962601749342866, "11927552": -0.014461529370426432}}
+guard {"tail_1_pitch_act": {"4194304": -0.016656543774181045, "5242880": -0.029315721925289834, "6291456": -0.009064363146317192, "8388608": -0.031169240487186473, "10485760": -0.026494050058128778, "11927552": -0.023668635512789478}, "tail_2_pitch_act": {"4194304": -0.020861651384271682, "5242880": -0.022621976655675096, "6291456": -0.027307858038519046, "8388608": -0.032815098883584144, "10485760": -0.03882534799317364, "11927552": -0.03502454252238386}}
+guard {"tail_1_pitch_act": {"4194304": -0.027004064284672495, "5242880": -0.0009095440267410596, "6291456": 0.0054959911643964006, "8388608": 0.016115492504555733, "10485760": -0.0009747111279139065, "11927552": 0.039182587468225394}, "tail_2_pitch_act": {"4194304": 0.014221753517340402, "5242880": 0.016034714479654214, "6291456": 0.014675784386228772, "8388608": 0.022299102725461126, "10485760": 0.034350121752126136, "11927552": 0.05519123978586867}}
+# EVID lines 249-256 (stance6 round evidence file)
+[moved unchanged from criteria v10, lines 130-136, of ARMS AND SEEDS]
+ARMS AND SEEDS: WHY SEEDS DO NOT PAIR RUNS (detail)
+- Seeds do not pair runs. The seed fixes the initial policy weights: the CPU construction gives the same initial-weight
+  digest on the r9 trees and on the r10 port for each seed (60 b25724e3..., 42 b8870621..., 80 3b79f290...) [measured, PW
+  eq_r9/smoke_port_r9/smoke.json, r10/smoke_scratch/smoke.json; PE rollbuf/r9_vs_r10_same_seed.txt], and on Colab the
+  weights are built on the CPU before moving to the GPU [inferred]; but r10 changes the dynamics from the first step (the
+  first normalized observation already differs; seed 60's 300-step digest is 5a8b79c8... on r9, bb8cfc04... on r10
+  [measured, same files]) and Colab GPU training is not bit-reproducible [inferred, as REPL]. Per-seed comparisons are
+# stance6 REVIEW.txt line 511
+  GPU training is not bit-reproducible, so none of this is a paired effect [measured, EVID l250-l258].

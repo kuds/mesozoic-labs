@@ -1,0 +1,449 @@
+# Phase-critic Colab round (PC, STANCE7): result
+
+2026-11-02 (UTC). Six 12M-step training runs on Colab L4 runtimes; report only; nothing merged. The reading is the
+pinned scorer's (score_pc.py 3c55bf21, run 19:12:31-19:12:44 UTC). The flagged deviation reading is the approved
+deviation tool's (score_pc_dev.py efb37b20, run 19:13:15-19:13:22 UTC). Two independent checks found no wrong number
+and no blocking process problem. They also found that the three switch-off runs are bit-for-bit copies of last week's
+STANCE6 runs. [measured] cites a file and line or field; [inferred] marks reasoning.
+
+Short names. ST = /home/user/work/pc_study. RUNLOG = S1/foot/stance4/live/run_log.txt; S1 and S2 are the two
+scratchpad folders that ST/round/criteria.txt lines 38-40 define. RUNLOG was read at 971 lines (sha256 89425ea9...);
+the scorers read it at 966 lines (8c05d9ba...). `<prefix>/` stands for the agent branch prefix, left out under the rule
+against product names. PHASE = the three runs with the phase input; OFF = the three switch-off runs.
+
+## The reading
+
+### Pinned reading of record: line 4 (STATUS: FINAL)
+
+> READING: line 4: NO TAIL RAIL OR PARK IN 3 OF 3 PHASE-CRITIC RUNS, THE STANCE GATE CERTIFICATE PASSED IN 3 OF 3
+> (GATE CERTIFICATE: final checkpoint, measured on a screen task; not certification), NO SATURATING HABIT ON ANOTHER
+> ACTUATOR: CONSISTENT WITH THE PHASE CRITIC REMOVING THE HABIT, NOT CONFIRMATORY (descriptive: 3 phase-critic runs
+> beside 3 concurrent switch-off runs; KNOWN LIMITS)
+
+[measured: ST/f2/score/score_pc.txt line 357; "STATUS: FINAL" at line 365]
+
+### THE ONE TEST, pinned: NOT SEPARATED (STATUS: FINAL; a failed pre-registered test)
+
+> THE ONE TEST (phase vs the concurrent switch-off runs): NOT SEPARATED (p = 20/20)
+
+[measured: score_pc.txt line 362]
+
+- **Why it failed.** At 17:44 UTC on 2026-11-01 a PHASE run's notebook output was read before any OFF run had started
+  (RUNLOG line 902). Under the pinned rule that is an "opening". Every OFF run launched after it is NOT BLIND and enters
+  the test as missing, ranked lowest (criteria.txt lines 297-302, 353-361, 371-373). [measured: score_pc.txt line 40]
+- **It could not have passed.** With all three controls ranked lowest, p is 20/20 whatever the six numbers.
+  [measured: ST/amend2/AMENDMENT2.txt section 4 (iii); inferred: the rank argument]
+- This fail stays a fail. The pinned reading is the round's reading of record.
+
+### Flagged deviation reading: LOWER (approved before F2; not the reading of record)
+
+> DEVIATION READING (flagged; not the pinned reading): THE ONE TEST computed as if the three OFF runs were blind;
+> maintainer decision 2026-11-02 13:52 UTC, recorded before F2; the pinned reading above stands
+
+> THE ONE TEST (phase vs the concurrent switch-off runs): LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact
+> permutation p = 1/20)
+
+[measured: ST/f2/score/score_pc_dev.txt lines 373 and 393; "[deviation] STATUS: FINAL" at line 396]
+
+- **Decided** by the maintainer at RUNLOG line 949 (2026-11-02 13:52 UTC, "Pin both readings"). That was before any F2
+  file and before any tail-command figure of any run was seen. **Approved**, with its exact bytes, at line 954
+  (15:59:28 UTC, "Approve all (Recommended)"). [measured]
+- **How it works.** The pinned scorer runs unchanged on a RUNLOG copy with only line 902's content removed (the removed
+  line's sha256 is 0e30b26e...). [measured: score_pc_dev.txt lines 374-376]
+- **What differs.** Only the blindness lines, THE ONE TEST line and one C1 listing: 6 output lines and 26 JSON values,
+  0 unexpected. Exit codes 0 and 0. [measured: score_pc_dev.txt lines 442-443]
+- **The wording fixed in advance for this case:** "the pre-registered test could not be passed because of a
+  procedural slip; a reading decided after the slip, which assumes the slip had no effect on the OFF runs, reads
+  LOWER." [measured: AMENDMENT2.txt lines 38-40]
+- **New since the approval.** The OFF runs equal STANCE6 bit for bit (see the checks below). That supports the
+  deviation's assumption: the look could not have changed the OFF runs. It also undercuts the claim that the control
+  values were unseen at the pin: they were printed in criteria.txt. [inferred]
+
+### Design, in brief (pinned 2026-11-01 03:07 UTC, RUNLOG lines 880-881)
+
+- **The change tested.** The critic (the network that scores states) gets the episode phase through its own input from
+  step 0: a ramp to step 200, a "settled" flag and a discount (criteria.txt lines 95-98). The actor (the network that
+  picks actions) still reads the same 63 inputs.
+- **Runs.** Six runs of 12,001,280 steps: T. rex, physics r10, arm LTSB, 4 environments, branch head 1dfe2327.
+  - PHASE: stance7_r10LTSBpc_s60 / _s42 / _s80, switch on.
+  - OFF: stance7_r10LTSBoff_s60 / _s42 / _s80, switch off; everything else the same (criteria.txt lines 49-52).
+- **Waves.** "Phase first" (RUNLOG line 876). PHASE launched 03:26, 03:27 and 03:28 UTC on 11-01 (lines 885-887). OFF
+  launched 18:12 (s60), 18:20 (s80) and 18:56 (s42), each in a runtime a PHASE run had freed (lines 907, 911, 923).
+- **TAIL DRIVE (TD), the test's statistic.** For each of the run's 91 training evaluations, average the tail_3 pitch
+  command over its 10 episodes; TD is the mean size of that number. 0 = the tail motor idle on average; 1 = held at
+  full command. (criteria.txt lines 211-218)
+- **THE ONE TEST.** An exact one-sided permutation test. Six TDs can be split 3 + 3 in 20 ways; p is the share of
+  splits whose sum is at or below the PHASE sum. p = 1/20 only if every PHASE TD is below every OFF TD.
+  (criteria.txt lines 289-296)
+- **All six runs are COMPLETE** (C1-C8 PASS): one launch each, whole manifests, configuration pins, the ledger whole to
+  the end, traces, and the manipulation check. [measured: score_pc.txt lines 44-319; ST/f2/measure/*/complete_post.txt]
+  - PHASE: the phase input was in force at all 6 checkpoints checked, and the actor's output changed by exactly 0.0
+    when the phase was perturbed. OFF: a stock critic with no phase input. [measured: score_pc.json
+    runs.*.completeness.C8.value.results]
+
+## Per-run table
+
+Seeds are paired. TD is in tail-command units (a fraction of full command). The J window is the 60 evaluations from
+4,194,304 steps on.
+
+| Run | TD (91 evals) | J-window TD | Tail class | Gate certificate (final; seeds clean of 40) | Outcome | Habit elsewhere | Alarms: ANY / TAIL (tail-flagged evals) |
+|---|---|---|---|---|---|---|---|
+| PHASE s60 | 0.0079 | 0.0053 | CLEAR | PASS (40/40) | POSITIVE | FREE | 0 / 0 (0) |
+| OFF s60 | 0.3882 | 0.5777 | PARKED | PASS (40/40) | NEGATIVE | FREE | 0 / 0 (0) |
+| PHASE s42 | 0.0173 | 0.0113 | CLEAR | PASS (40/40) | POSITIVE | FREE | 0 / 0 (0) |
+| OFF s42 | 0.6353 | 0.8088 | RAIL (ledger, persistent) | **FAIL** (38/40; 2 hop-or-fall episodes, limit 1) | NEGATIVE | FREE | 22 / 22 (26); first 3,932,160 |
+| PHASE s80 | 0.0122 | 0.0132 | CLEAR | PASS (40/40) | POSITIVE | FREE | 0 / 0 (0) |
+| OFF s80 | 0.1543 | 0.2179 | CLEAR | PASS (40/40) | POSITIVE | **SATURATING** neck_pitch; DRIVE ONLY head_pitch | 6 (neck_pitch, 5,505,024-7,077,888) / 0 (0) |
+
+[measured: score_pc.txt lines 321, 325, 329 (PHASE), 334, 338, 342 (OFF), 345-346 (OFF s80 habits); full-precision
+TDs at line 362; seeds clean at ST/round/panels/<RUN_ID>/final/m3/stance_heading_report.txt line 10; OFF s42's two
+unclean seeds 3079 and 3080, actuator saturation 0.539 and 0.515 against a limit of 0.10, same file lines 76-77]
+
+- **RAIL:** the tail motor held at its limit in training evaluations, raising TAIL ALARMs. A TAIL ALARM is the second
+  of two evaluations in a row with at least 5 of 10 episodes over the saturation bar. ANY ALARM is the same for any
+  motor.
+- **PARKED:** the tail_3 command averaging +0.60 or more without a rail. **CLEAR:** neither.
+- **Gate certificate:** the six-heading stance test on the final checkpoint, 40 seeded episodes per heading. It is a
+  screen measurement, not certification.
+- **Habit elsewhere:** SATURATING = another motor at its limit (alarms or traces). DRIVE ONLY = another motor's mean
+  command 0.60 or more in size without saturation. FREE = neither.
+
+Report only (these decide nothing):
+
+| Run | tail_3 mean command, traced | Ledger tail_3 maximum (step) | Evaluations with ledger tail_3 at or above 0.60 | On-policy tail_3, last 8 updates | Mean return, 910 eval episodes | Falls | Clean rows of 910 |
+|---|---|---|---|---|---|---|---|
+| PHASE s60 | -0.006 | 0.021 (4,849,664) | 0 | -0.007 | 4442.7 | **9** | 892 |
+| OFF s60 | +0.642 | 0.894 (8,650,752) | 37 | +0.536 | 4412.6 | 1 | 864 |
+| PHASE s42 | +0.019 | 0.030 (7,864,320) | 0 | +0.008 | 4481.0 | 0 | 899 |
+| OFF s42 | +0.915 | 1.000 (4,587,520) | 57 | +0.813 | 4377.7 | 1 | 645 |
+| PHASE s80 | +0.019 | 0.031 (9,961,472) | 0 | +0.017 | 4482.3 | 0 | 903 |
+| OFF s80 | +0.505 | 0.616 (11,796,480) | 1 | +0.517 | 4415.8 | 1 | 778 |
+
+[measured: score_pc.txt lines 322-324, 326-328, 330-332, 335-337, 339-341, 343-347 (MEAN_a, early signs, Q4,
+on-policy tail_3)]
+
+- **Separation [measured, my arithmetic on score_pc.txt line 362].** Every PHASE TD is below every OFF TD. The largest
+  PHASE TD (0.0173) is 8.9 times smaller than the smallest OFF TD (0.1543). Within each seed the PHASE TD is 2.0%,
+  2.7% and 7.9% of the OFF TD (s60, s42, s80).
+- **Every other tail measure splits the arms the same way:** the J window, the count of evaluations at or above 0.60
+  (0/0/0 against 37/57/1), and the on-policy command. [measured: tables above; check_numbers]
+- **No early signs in PHASE.** The ledger tail_3 command never reached 0.30 in any PHASE run, and no evaluation had a
+  tail over the bar. [measured: score_pc.txt lines 322, 326, 330]
+- **No drift to other tail joints.** PHASE tail_1 and tail_2 mean commands stay within ±0.051 (largest: s80 tail_2
+  +0.051). OFF runs reach +0.168 (s60 tail_2) and +0.186 (s80 tail_1). [measured: MEAN_a, score_pc.txt lines 323,
+  327, 331, 336, 340, 344]
+- **Returns.** PHASE was higher in all 3 pairs, by +30.1, +103.4 and +66.5. [measured: Q4; my arithmetic]
+- **Falls, a negative (report only).** PHASE s60 had 9 falls in its 910 training-evaluation episodes, against 1 in OFF
+  s60 and 0 in the other two PHASE runs. Two of them (evaluations 25 and 26, episode lengths 192 and 150 steps) left a
+  blank tail cell, which TD skips as the criteria say. Its final checkpoint still passed the gate 40/40. Not looked
+  into further. [measured: score_pc.txt line 324; check_numbers finding (a) in the journal]
+- **The pinned plug-in figure (report only):** "if the phase critic changed nothing, no RAIL in 3 runs has chance (1 -
+  1/3)^3 = 0.296". [measured: score_pc.txt line 359] So "no rail in 3 of 3" alone would happen about 3 times in 10 with
+  no effect. [inferred]
+- **Statistic A (report only):** runs with any ALARM, PHASE 0 of 3 against OFF 2 of 3, one-sided Fisher p 0.2.
+  [measured: score_pc.txt line 363]
+- **No parent named.** Line 4 asks stance3's parent rule to name the best POSITIVE final. It printed "not named: an
+  input is absent": there is no M4 judge record at any of the three PHASE finals. No checkpoint is offered.
+  [measured: score_pc.txt line 361]
+
+## What the independent checks found
+
+Both checks ran on 2026-11-02 in workflow wf_cd81846d-bc1, read only, on the F2 copies. [measured: its journal,
+result.checkA and result.checkB; RUNLOG line 970]
+
+### Numbers (ST/f2/check_numbers, 19:15-19:24 UTC): no wrong number
+
+- All 6 TDs and all 6 J-window TDs match the scorer to the last digit. [out/td_check.json]
+- Its own permutation code gives 20/20 NOT SEPARATED with the pinned blindness, and 1/20 LOWER as if blind.
+  [out/one_test_check.json]
+- Its own reduction of the traces and its own ledger reading give line 4 (r 0, u 0, p 0, g 3, hs 0, hd 0). The OFF
+  classes, alarms and counts come out as printed. [out/m1_check.json, out/ledger_check.json]
+- Statistic A, the plug-in figure and the replication totals recompute.
+- Info: an exact-fraction TD mean differs from the tools' value in the last digit in a few cases. The test result is
+  the same either way.
+- **Not checked by it:** the gate certificates were not re-simulated (PHASE verdicts were taken from m3_summary.json;
+  OFF verdicts were cross-checked only through byte-identity with STANCE6). Also not checked: C1-C8 and the
+  manipulation records, the M4 parent rule, the PHASE on-policy tail_3 values, and the deviation tool's other JSON
+  differences.
+
+### Process (ST/f2/check_process, 19:15-19:30 UTC): no blocking finding
+
+- **Pinned files unchanged:** criteria e612d523, APPROVED ce886520, F2_PINS ed3e29c5, COLAB_STEPS 98abcaa6, all 14
+  tools, and the approved amendment files; 1338 of 1338 amend2 sums OK. [pinned_end_sha256.txt,
+  amend2_sums_check.txt]
+- **F2 order:** six F2-START lines at 16:39 UTC (RUNLOG lines 960-965), 6.12 h after the last ending note (10:32 UTC).
+  F2 rows ran 16:45:01-17:32:44 UTC: 410 copies, each equal to its run manifest. Drive was used read only (410
+  downloads, no write tool). [manifest_check.out]
+- **Inputs:** 78 measurement records (6 runs × 13), each bound to its own manifest-checked pair. [inputs_check.out]
+- **Measuring copy:** seal intact (tree digest 9417b765..., 1410 files; archive babc6812...), no bytecode.
+  [seal_check.out, archive_check.out]
+- **Writes:** none outside the allowed folders, none in the repositories. [outside_writes.txt, wider_writes.txt,
+  repo_writes.txt]
+- **Deviation run as designed:** line 902 blanked with its line feed kept; 6 lines and 26 values differ, none
+  unexpected. [dev_diff_check.out]
+- **Concurrency:** at most 2 simulation processes at once. [concurrency_check.out]
+- **Minor M1:** Python ran with -I but without -B in the six fetch helper scripts and in four inline reads. No bytecode
+  file was written anywhere after 16:39 UTC. [py_flag_scan.out; journal]
+
+### MEASURED: the three OFF runs are bit-for-bit copies of STANCE6's same-seed runs
+
+Evidence:
+
+- **Same records.** For all three seeds, the OFF run's eval_episodes.csv, train_episodes.csv, evaluations.npz,
+  k3_panel.csv, gate_progress.npz, replay CSVs and stance_heading_report.txt are sha256-equal to STANCE6's same-seed F2
+  copies. They came from different Drive files. [measured: check_numbers, journal result.checkA]
+- **Same networks.** In the final checkpoints the policy weights, optimizer state, torch variables and system info have
+  equal CRC32 and size. num_timesteps (12,001,280) and the update counts (11,265 / 10,607 / 11,052) are equal. Every
+  policy-probe array is equal except its wall-clock build time. [measured: check_numbers/out/zipcrc_off_vs_stance6.out,
+  out/zipdata_off_vs_stance6.out]
+- **Really new runs.** Commit 1dfe2327 against 8737cd3d; different run ids; start times 2026-11-01 against 2026-10-27;
+  different wall-clock totals. [measured: the same two files; journal]
+- **Spot checks.** The coordinator (RUNLOG line 971) and this report (sha256sum, 19:37-19:42 UTC) both found eval_episodes.csv
+  copy 1 of OFF s60 / s42 / s80 equal to STANCE6's (1821fd2e..., d1bcb789..., b677ce76...), while PHASE differs
+  (d7022a3e..., 92135e33..., 7f939be3...). This report also found OFF s42's gate certificate text byte-identical to
+  STANCE6 s42's (cmp). [measured]
+
+Consequences:
+
+1. **No new OFF sample.** The OFF arm repeats STANCE6; it adds no run independent of it. [inferred] The OFF training
+   took 44.6 L4-hours (s60 14.9 h, s80 15.0 h, s42 14.7 h, session start to manifest). What it bought is a measurement:
+   same-configuration training is deterministic on this image. [measured: start times in score_pc.txt C4 values,
+   manifest times at RUNLOG lines 941, 943, 945; my arithmetic]
+2. **The OFF TDs were known at the pin.** STANCE6's TDs 0.388227 / 0.635343 / 0.154339 are printed in criteria.txt at
+   lines 229 and 309. So "the six runs' values are unseen at the pin" (criteria.txt lines 305-307, 311 and 507;
+   printed at score_pc.txt line 362) is false for the OFF three. TD's form was chosen with these exact values in view.
+   The PHASE values were unseen. [measured]
+3. **Paired by construction.** Each pair shares the switch-off code path (A6), the seed, the starting networks (A5) and
+   the image; training is deterministic. So each seed's PHASE/OFF pair differs only by the critic's phase input.
+   [inferred; PHASE's own determinism was not measured]
+4. **The peek could not have changed the OFF outcomes.** They equal runs trained on 2026-10-27/28, before any PHASE run
+   existed. [inferred from the identity]
+5. **A premise of the criteria is contradicted:** "GPU training is not bit-reproducible" (criteria.txt line 149), "GPU
+   nondeterminism can move any single run" (lines 83-84) and "GPU nondeterminism within today's image remains" (lines
+   315 and 496). [measured: the identity] The numbers check cites lines 313 and 500 for the last one; the text stands
+   at 315 and 496. [measured: grep of criteria.txt]
+
+## What it means [inferred]
+
+- **In 3 of 3 seeds, the phase input kept the tail habit away.** With the critic told the episode phase from step 0,
+  no run formed a rail or a park in 12M steps. The tail_3 command stayed near zero: TD 0.008-0.017, against 0.15-0.64
+  in the same seeds without it.
+- **Each seed is close to a controlled experiment.** Training is deterministic and each pair starts from the same
+  networks, so the phase input is the only difference. In every seed it turned a run with a habit (a rail, a park, or
+  high tail drive with a neck habit) into a run with none. A deterministic system can still be chaotic, so one pair
+  alone would prove little. All three moved the same way, to near-zero tail drive, which a random butterfly effect
+  would not favour.
+- **It fits the explanation the phase screen tested.** Four stance reward terms switch on at step 200. A critic that
+  cannot see time reads the slowly creeping tail angle as a clock. The policy gradient then pays for raising the tail
+  (PS REPORT.md, "What it means"). PS showed this from s42's 2.10M state on CPU. This round shows it from scratch, on
+  GPU, for 12M steps.
+- **No visible cost to the stance.** All three PHASE finals passed the gate 40/40. No habit moved to another motor.
+  Returns were slightly higher. One PHASE run had 9 falls during training evaluations, against 1 in its pair.
+- **The formal case is weaker than the raw numbers.**
+  - The pre-registered test failed on procedure.
+  - The flagged deviation reads LOWER, but its controls were values known at the pin.
+  - A paired sign test on 3 pairs cannot go below p = 1/8 (criteria.txt line 316).
+  - The pinned plug-in says "no rail in 3" happens 30% of the time with no effect.
+  - The strength lies in the size of the gap and in the controlled pairs. Both were understood only after the data.
+- **Post hoc, not pre-registered, deciding nothing:** if a rail or a park happened in 2 of 3 runs, as in the OFF arm,
+  0 of 3 would happen with chance (1/3)^3 = 0.037. A rate from 3 runs is very rough. [my arithmetic]
+
+## What it does not show
+
+- **Other seeds.** Only seeds 60, 42 and 80, chosen with their earlier outcomes known; 3 runs measure no rate
+  (criteria.txt lines 492, 507-508).
+- **Other images or hardware.** All runs used one Colab L4 image (2026-11-01/02). Determinism was measured only there,
+  and only for the switch-off configuration. provenance.json records no torch, CUDA or GPU version (criteria.txt lines
+  497-498).
+- **Certification.** The gate is a screen-task measurement on the final checkpoint only, not certification.
+- **A chosen checkpoint.** M4 was not run at the PHASE finals, so stance3's parent rule named nothing and nothing is
+  offered (score_pc.txt line 361). Criteria.txt lines 269-272 make M4 at the finals F2 work once line 4 reads; it was
+  not done in F2 (RUNLOG line 967 lists C8, M1 and M3 only).
+- **Walking.** Not tested. The phase features belong to this stage (settle step 200, discount 0.98); walking stages
+  need their own (criteria.txt lines 513-514).
+- **Main's configuration.** On main only one stance term, stance_width, is gated (#655). This branch switches on four
+  stance terms at step 200. Whether the habit, or this fix, carries over to main is untested.
+- **That it is the phase.** No sham-input arm: "any extra critic input" is not separated from "the phase"
+  (criteria.txt line 513).
+- **The mechanism in these runs.** The report-only critic readouts (tail-angle slope, V − G by step bucket, loop gain;
+  criteria.txt lines 332-337) were not run in F2 (RUNLOG line 967).
+- **Later or in between.** A rail after 12M steps, or between evaluations, is not seen; the gate reads the final only
+  (criteria.txt line 515).
+
+## Process notes
+
+### Timeline (UTC; RUNLOG line in brackets)
+
+| When | What |
+|---|---|
+| 10-31 20:54 | Maintainer switches to a Colab run with a separate critic-only input [867] |
+| 10-31 20:57 | Build workflow wf_9b7ee473-01d launched [869] |
+| 11-01 01:12 | Build done; re-review READY; commit trailers reworded; head 1dfe2327 [873] |
+| 11-01 01:15 | Maintainer adds 3 switch-off runs as the test's control [874] |
+| 11-01 01:41 | Maintainer: 3 runs at a time, "Phase first" [876] |
+| 11-01 02:57 | Amendment ready to pin (blocking B1 fixed by THE BLIND PERIOD rule) [878] |
+| 11-01 03:07 | PIN: APPROVED ce886520 [880-881] |
+| 11-01 03:26-03:28 | PHASE launches [885-887]; launch checks no-fault at 03:50 [893-895] |
+| 11-01 17:44 | SNAPSHOT: PHASE s60 notebook output read [902] |
+| 11-01 17:47 | Maintainer: "You can ignore the results for now"; decision deferred [903] |
+| 11-01 18:01 | Possible views of three PHASE s60 files at 17:50-17:51 noted, inferred [905] |
+| 11-01 18:12 / 18:20 / 18:56 | OFF launches s60 / s80 / s42 [907, 911, 923]; order deviation [910] |
+| 11-01 18:56 | THE BLIND PERIOD ends [924] |
+| 11-01 19:15 | All six launch checks no-fault [933] |
+| 11-02 10:32 | All six runs ENDED; none lost, stopped or relaunched [947] |
+| 11-02 13:52 | Maintainer: "Pin both readings" [949] |
+| 11-02 14:45-14:47 | Deviation review returned; disk deletions [951-952] |
+| 11-02 15:59 | Maintainer approves the deviation reading and F2 pins [954-957] |
+| 11-02 16:39 | Six F2-START lines [960-965] |
+| 11-02 16:45-19:10 | F2 fetch, then measurements [967] |
+| 11-02 19:12-19:13 | Pinned scorer, then deviation tool (score_pc_rc.txt, score_pc_dev_rc.txt) |
+| 11-02 19:15-19:30 | Two independent checks [970] |
+| 11-02 19:32-19:33 | Results noted; this review started [967-971] |
+
+### The 17:44 opening, and lines 905 and 910
+
+- **What was shown (line 902).** The maintainer pasted the PHASE s60 notebook output into chat. It held in-training
+  evaluations at 11,796,480 and 11,927,552 steps (reward, length), the final-model evaluation, the best-model step
+  (6,815,744), the selected checkpoint and its 30-episode evaluation. No tail command, TD or ledger figure. [measured:
+  RUNLOG line 902; what was on screen is the operator's record]
+- **Line 903 (17:47).** The maintainer: "So I was just trying to confirm if there should be more results in the google
+  drive notebook. You can ignore the results for now". The figures were not used or repeated. [measured]
+- **Line 905 (18:01).** Drive metadata showed "viewed" times on three PHASE s60 files at 17:50:58-17:51:20 UTC
+  (stance_gate_probe_constant.txt, gate_verdict.json, stage_summary.txt): after the opening, before every OFF launch.
+  RUNLOG records this as inferred, not established. They may be views in the Drive web page or reads by the notebook.
+  No SNAPSHOT line was added, because the 17:44 opening already governed that run. What they showed is not on
+  record. [measured: RUNLOG line 905; AMENDMENT2 section 4 (i)]
+  - gate_verdict.json holds the run's own gate verdict. If a person viewed it, more than line 902 was seen before the
+    OFF launches. [inferred] With the OFF runs equal to STANCE6, none of it could have changed them. [inferred]
+- **Line 910.** See the order deviation below.
+
+### The deviation decision and its approval
+
+- The keep-or-amend decision was left to the maintainer at 17:47 (line 903) and was still open at lines 924, 947 and
+  948. [measured]
+- **13:52 (line 949):** "Pin both readings". The pinned reading stays exactly as pinned; a second, flagged reading
+  computes THE ONE TEST as if the OFF runs were blind. Both were to be pinned, reviewed and approved before F2.
+- **13:56 (line 950):** build wf_8a4486a0-a57 started, with an independent adversarial review.
+- **14:45 (line 951):** review: 1 blocking text finding (AMENDMENT2 must name RUNLOG lines 905 and 910) and 5 minor.
+- **15:58 (line 953):** fixer and re-review: every finding fixed; 35 tests pass; 30 of 30 mutants killed; re-review
+  READY with two minor text points, fixed in AMENDMENT2 only.
+- **15:59:28 (line 954):** "Approve all (Recommended)". Pinned read-only: AMENDMENT2 c1ec55be, score_pc_dev.py
+  efb37b20, amend2 SHA256SUMS 1a4786e8; F2_PINS ed3e29c5 (line 955); APPROVED2 0c034e90 (lines 956-957).
+- **Its own stated limit:** it was decided about 20 h after the opening, by people who knew what the opening showed. So
+  it is not pre-registered relative to the opening. [measured: AMENDMENT2 section 4 (iv)]
+
+### The order deviation (s80 before s42)
+
+- The Colab steps start the OFF runs in seed order s60, s42, s80 (COLAB_STEPS.txt lines 75-77). OFF s80 started at
+  18:20, before OFF s42 at 18:56. RUNLOG recorded it as a deviation at once (line 910). [measured]
+- No scoring rule reads the order. The start gaps are printed: 886, 929 and 892 minutes for s60, s42 and s80.
+  [measured: score_pc.txt lines 41-43]
+- [inferred] PHASE s80 freed its runtime before PHASE s42 (manifests 18:04:50 and 18:37:39 UTC; lines 908, 919).
+
+### Disk deletions
+
+- **14:45 UTC (line 951).** F2 needed about 6.5 GB; 1.37 GiB was free at 14:41. The coordinator deleted reviewer A's
+  scratch in ST/amend2/review (mutant tool copies, test roots, probe work folders). DELETED_SCRATCH.txt lists 2,381,764
+  KiB. Findings were kept in the workflow journal and review/*.txt. Free after: 3,914,477,568 B. [measured]
+- **14:47 UTC (line 952).** The maintainer chose "Caches, clean copies + ECS raw (Recommended)". After re-checking each
+  git copy clean (0 unpushed commits, 0 stashes), the coordinator deleted:
+  - five type-check caches and a lint environment;
+  - the ECS tmp, runs, validate and traces folders (the ECS text record is pushed at `<prefix>/handoff-ecs` 067b8a10);
+  - two pull-request clones and seven worktrees (git worktree remove, all exit 0).
+  - Free space went from 3,913,723,904 B to 7,625,555,968 B. ST/f2prep/DELETIONS.txt lists 3,948,700 KiB. [measured]
+- No file of this round and no pinned file is in either list. The ECS raw outputs deleted belong to an earlier screen
+  whose text record is pushed. [measured: both lists; RUNLOG line 952] Before F2: 7,616,159,744 B free (line 959);
+  lowest during measuring: 5,075,619,840 B (process check). [measured]
+
+### Rule slips recorded for this round
+
+| When (UTC) | Who | What | Effect | Record |
+|---|---|---|---|---|
+| 10-31 20:57 to 11-01 01:12 | Build agents | All six branch commits carried a trailer naming an AI model, against the maintainer's rule (the agents followed a harness reminder) | Reworded locally with git filter-branch; trees byte-identical, 6 of 6; head e4d222bb became 1dfe2327 | RUNLOG 873 |
+| 11-01, about 02:50 | Coordinator | A read-only grep sent its error output to the zero device ("rule slip AGAIN") | Nothing written | RUNLOG 878 |
+| 11-02, 13:56-14:45 | Deviation reviewer B | One read-only du sent its error output to the zero device; self-reported | Nothing written | RUNLOG 951 |
+| 11-02, 14:47-15:58 | Deviation re-reviewer | One read-only cat sent its error output to the null device; self-reported | Nothing written | RUNLOG 953 |
+| 11-02, 16:44-18:07 | F2 fetch and measuring agents | Python with -I but without -B: the six fetch helper scripts, and four inline reads (OFF s42 fetch at 16:57:32; OFF s60 measuring at 17:33:07, 17:33:12 and 18:06:52) | No bytecode written anywhere after 16:39 | RUNLOG 970; process check M1 |
+| 11-02, 19:15-19:30 | Process checker (its own) | One `python3 -` call without -I -B on empty input; its scanner first held the device names as a literal pattern | Ran nothing; no device opened | Process check I6 (journal only) |
+| 10-31, 21:00-22:31 | Parallel records draft (phase-screen records, not PC data) | Its checks found slips not stated and an AI product name in an evidence copy | Fixed by its fixer | RUNLOG 872 |
+
+The phase screen's own slip at RUNLOG line 860 (10-31 20:31 UTC) came before this round; PS REPORT.md covers it.
+
+### Other notes
+
+- **F0 files in an agent's context (line 892).** The Drive connector returned the launch-check files as inline encoded
+  text in the fetch agent's context, undecoded. These are the launch check's allowed reads, so no SNAPSHOT. [measured]
+- **A blind-period listing (line 897).** A liveness listing also showed the best-model files' names and modification
+  times. These are metadata, which the blind period allows. They were not interpreted, and later checks listed fewer
+  names. [measured]
+- **A wrong estimate (line 935).** The coordinator told the maintainer the OFF runs would end at 9:15-10:00 am CST; that
+  added 15 h twice. It was corrected. The manifests landed at 09:05-09:36 UTC. [measured: lines 935, 941-945]
+- **Launch times.** LAUNCH times are Drive folder creation times. Each run's session began within 0.1-0.8 min of its
+  LAUNCH time. [measured: score_pc.txt C4 "minutes_from_launch"]
+- **The design's predictions (criteria.txt lines 75-84):** no PHASE rail likelier (it happened); PHASE gate passes
+  likely (3 of 3); a habit in about 2 of 3 OFF runs (2 had a tail habit, the third a neck habit). [measured]
+- **This report.** Written 2026-11-02 19:33-19:50 UTC (date -u) from the files listed, read only. It writes only under
+  ST/final/; no Python was run. One slip of its own: a read-only grep over RUNLOG held the zero device's path as text
+  in its search pattern. No device was opened and nothing was written. The tool harness also saved one long command
+  output to its own results folder, outside ST/final/.
+
+## Files (sha256)
+
+Round and pins (ST/):
+- e612d52362b4336b7bbaa437a217e18909b86d4f2f04a0135a9c58c9e21d61ec round/criteria.txt
+- ce8865205a218541a742d7acf0cee479e87d63c7b53cbc52ae47a8892569873a round/APPROVED
+- ed3e29c5711946d81ab3f365c4dba6b34c9a1a4fd0f95844b4df70e377a2a356 round/F2_PINS.json
+- 98abcaa6efd68af38ca257d7ab14c5aa6c75eb8940f68764a2f9c9874e7311e1 COLAB_STEPS.txt
+- 69b5acf9cd6bde0cf40c86e1757d14b6bb35e64e1db41798b20547ec62cfc7f1 design/DESIGN_NOTES.txt
+- 3c55bf21f121d30bc31d78a7228c904f83179ece8dabdaa8530c45f54d203986 tools/pc/score_pc.py
+- c1ec55be6254b939fc751fbcef9f984f170e3cf463c5d5b55f9d2f5517f884b5 amend2/AMENDMENT2.txt
+- efb37b2099bf77d38c8e585cbc0b86f7eb215e21598a1b93a92633e3b13c62a3 amend2/tools/score_pc_dev.py
+- 0c034e90024adec82542658150009a3597795a97bb81142b0f7efcbeeaa31b0c amend2/APPROVED2.json
+- 1a4786e88b89a009e692f19a5d3782ea89d83eed9badf30d6295690216960822 amend2/SHA256SUMS.txt
+
+Readings (ST/f2/score/; its SHA256SUMS.txt: 33 of 33 OK at about 19:36 UTC):
+- c3736b1fbda069641a72caedee6105ab203d0442d236fc465b2d2ae3e5011ffb score_pc.txt
+- 915f661ec97107998f759ab10a1050f0f8ea9b48c30ad760a496b618c6079f68 score_pc.json (= dev/pinned.json)
+- 483eba8fe925cd0c9edfee6deff6c14dd1a5f783f5ba1fcd3b1b31994b68883f score_pc_dev.txt
+- 89f15e9f1543078439a5dcc1cc35d9cf3a33dc820f724bcb9a61aa9e88d56ee2 dev/deviation.json
+- 8c05d9ba257fad9ada011b417d70d05b56c267ca8fa42998448e508e6e7193e5 dev/runlog_asread.txt (RUNLOG as scored, 966 lines)
+- 4ea162967b8e8458cd16332581736688aa46ac9d72238980f9762e48f26f0c93 dev/runlog_deviation.txt
+- 1f91dbf37bb146d4ae663f0680695dfa2776a4ae1703cfc5c9ac4b36fcbc681b SHA256SUMS.txt
+
+Per-run completeness and gate (ST/):
+- 4ff1c8860da14daa6da07e4bf393afb7bb3a0c8fcdd61331294de0ed12054b67 f2/measure/stance7_r10LTSBpc_s60/complete_post.txt
+- 76d03b5a43fc0be45dade2d81693034b69c59193bcc461e114de5830f36ab187 f2/measure/stance7_r10LTSBpc_s42/complete_post.txt
+- 2f51b1ddd1a69b60f9cf6d617b9c90f3c8b06b483c6fe15119e5c4ac03953548 f2/measure/stance7_r10LTSBpc_s80/complete_post.txt
+- 762862bfebdb9646746bfdd37569cc990680bc17b88290a7d58979fddca28786 f2/measure/stance7_r10LTSBoff_s60/complete_post.txt
+- 9bb045f5ee117b9313a7ec4cb2608ddcaf881d7d5e68435222267f22f60c3777 f2/measure/stance7_r10LTSBoff_s42/complete_post.txt
+- 52d31fc420272037f1ff6dca7edbe70240c92a66ea2e21dc36150e6a26f9d6f5 f2/measure/stance7_r10LTSBoff_s80/complete_post.txt
+- 201e7e27162c4eadd3d7305605f0a155b4ae76c3d298bb75cde86a3005ae7e97 round/panels/stance7_r10LTSBpc_s60/final/m3/stance_heading_report.txt
+- 25c37ba44859445f7373bf4fb2b8b458d890e3c249c2c5b937d23257c85b36a7 round/panels/stance7_r10LTSBpc_s42/final/m3/stance_heading_report.txt
+- b21ec5c7cbf24e8308ce0b2f01be79b599bd5916e88a9c90dd0a2337cbbf5440 round/panels/stance7_r10LTSBpc_s80/final/m3/stance_heading_report.txt
+- 95fe810ea65f1fdba577ec92d62dc88505ba3ccc2d28f234144de6247562b387 round/panels/stance7_r10LTSBoff_s60/final/m3/stance_heading_report.txt
+- e7bb9e5e56b2ec708ff51ba6613d7d22ef29748389efd26337768fc008ef3259 round/panels/stance7_r10LTSBoff_s42/final/m3/stance_heading_report.txt
+- d8e6c5a4cf682f552c4b460157dd05d55ffafedf5c66a0d85fec56ee0aa83abc round/panels/stance7_r10LTSBoff_s80/final/m3/stance_heading_report.txt
+
+Checks (ST/f2/; each SHA256SUMS.txt fully OK at about 19:36 UTC: 16 of 16 and 41 of 41):
+- 3099f69c914bbede120df2ee8900ef5e9de565b7315b43acbc8dcfcc332f6a61 check_numbers/SHA256SUMS.txt
+- de5cb588126f704b737c29c0a396badd2bb1658df51af0ae2c908667f015db4b check_numbers/out/td_check.json
+- 8d67fc46c42e8c31e76e56582ae4fdb346d3147abbed5a6ebbe1530a5667ddbd check_numbers/out/one_test_check.json
+- 777771d326317b53761c8a8f8f01a4cb9c10d24ae615dbe9e625e946c587578f check_numbers/out/m1_check.json
+- c47e7dd8bc4af05205723392d085608644b1eb794ea7b89a86930880f20ea697 check_numbers/out/ledger_check.json
+- 65d58d71547956cfe0d24f05ef589f2222cf23c7061b11f6382b57f25ad47fd4 check_numbers/out/zipcrc_off_vs_stance6.out
+- 3a78e8e8dbe8c93eecb5082855f0db5743683b7bc839bee04aa006209a33fa53 check_numbers/out/zipdata_off_vs_stance6.out
+- ffe3c3f4cb452945dfa7088ed1a9752c189e7f31e45450e2c125e421d59b82e9 check_process/SHA256SUMS.txt
+- b06229c289141cb5c2c1fd3ebebcf974fb73756b69eac45b19ff7cb7ae777056 check_process/manifest_check.out
+- 0b5a89271a213601600078d7cdace841264da2ab704db01a1a96a527bec28707 check_process/inputs_check.out
+- fc70b7e4fd319f55b0e5e6d9965badc3006a78ba2b978a05d1b763561f34dbc6 check_process/seal_check.out
+- 9c81528a6d4b555c1d3322c9f02e1f4c08221599546340fda0ce8756a579c330 check_process/dev_diff_check.out
+- afb5362fa10613b65277c9b86df05cc115d24205dbe3ebc70bff9607eb9dc12b check_process/concurrency_check.out
+- ea00b5612ad4fe9017a2642acb0c1a20f5f0ae6a3e14f420d7e56a7a6db4cfe1 check_process/py_flag_scan.out
+- 102a3c4d68b1c2f2dc5e9ef5b853c174d6b2bce8d23594b42042cbc083e82fbf check_process/transcript_scan.out
+
+Other:
+- 89425ea97aff2bb93ab9b0643a33ae7580f0877f98db8761b3f451508f4d5f16 RUNLOG as read for this report (971 lines)
+- 85f43e8c5ad810b34e6154e355ee0c888724e3b3e9392fe02dce7ebffa9c9790 /home/user/work/phase_screen/REPORT.md (the shape)
+- Check summaries: the journal of workflow wf_cd81846d-bc1, result.checkA (numbers) and result.checkB (process).
+- Durable copies (names only, not fetched): `<prefix>/handoff-phase-critic-prereg` (dd0e5ffd, RUNLOG line 883),
+  `<prefix>/handoff-phase-screen`, `<prefix>/handoff-ecs`, `<prefix>/handoff-tailscreen`.

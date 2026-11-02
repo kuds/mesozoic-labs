@@ -1,0 +1,161 @@
+AMENDMENT 2 FIXES (the fixer, 2026-11-02 UTC, after the independent review recorded at RUNLOG line 951)
+
+Scope: ST/amend2 only (ST = /home/user/work/pc_study). The reviewed bytes of every changed file are in orig/ (sha256
+below); the new logs are in fix/; dry/ (the build's evidence on the reviewed bytes) and review/ are unchanged. Nothing
+was written outside ST/amend2; TMPDIR was inside it; no cloud-folder access; no PC run file opened; F2 not started;
+RUNLOG read only; ST/round and ST/tools only read (after the work, all 115 files of the review's after_sha_tools.txt
+and ST/round/criteria.txt and APPROVED still at their sha256 [measured: sha256sum -c]). Labels: [measured] = read from a
+file or computed by a run named here; [inferred] = reasoning.
+
+FINDINGS: VERIFIED?, WHAT CHANGED, EVIDENCE
+
+B1 (blocking, text). Verified [measured]. AMENDMENT2 section 0 said the deviation "computes THE ONE TEST as if the 17:44
+  look had not happened" and "If both read the same, the look did not matter to the result". RUNLOG line 905 records
+  (inferred, not established) views of three pc_s60 01_stance files at 17:50:58Z, 17:51:12Z and 17:51:20Z, after 17:44
+  and before the first OFF launch (18:12; line 907), not written as a SNAPSHOT because "its first opening governs";
+  line 910 records the order deviation (OFF s80 before OFF s42); with the three OFF runs at -infinity every other split
+  ranks below the PHASE split, so the pinned p is 20/20 for any TDs [inferred: the rank rule of criteria.txt lines
+  300-302; measured: pinned k = 20 in every synthetic test with line 902, a LOST PHASE run included (the review's S4 and
+  test M3)].
+  Changed: section 0 now says "computes THE ONE TEST as if the three OFF runs were blind: it sets aside RUNLOG line 902,
+  the only recorded opening before the OFF launches (see LIMITS)"; the sentence "If both read the same, the look did
+  not matter" is removed; the pinned reading stays the reading of record, printed first and whole. LIMITS has the four
+  bullets asked for: (i) line 905's views (times, file names, "not written as a SNAPSHOT because 17:44 already
+  governed", set aside too, "what they showed is not on record"); (ii) line 910's order deviation after the opening, no
+  rule reads the order; (iii) the pinned p is 20/20 whatever the six TDs, so its test is empty by construction; (iv)
+  decided after the opening (post hoc relative to it) but before any F2 file or tail-command figure; p = 1/20 only on
+  complete separation. Section 2 points to LIMITS (i). NOTES.txt's Scope says the same (it never used the phrase "as if
+  the look had not happened"; it now states what the deviation sets aside). One wording departure: where the finding
+  names the cloud-folder service, the text writes "views ... in the cloud folder's web interface or reads by the
+  notebook" (line 905's own two alternatives), because files written here carry no product names.
+
+M1 (--expect-dropped usable on the real RUNLOG). Verified [measured: review probe P10 ran a non-default dropped set; the
+  reviewed tool had no check on the RUNLOG or round path]. Changed: score_pc_dev.py check_expect_dropped(): with
+  --expect-dropped, refused (exit 3) when --runlog is the pinned tools' RUNLOG path or --round the pinned round folder
+  (equal after resolving links, or the same file); it runs before the --out check, so a refused call reads nothing of
+  the round. Added check_no_decision_line(): with --expect-dropped, also refused when the RUNLOG read holds the exact
+  bytes of RUNLOG line 949 (a byte copy of the round's RUNLOG elsewhere); this goes beyond the finding's wording, in its
+  direction. Documented in AMENDMENT2 section 3 ("--expect-dropped (tests only)") and the tool's docstring. Evidence:
+  tests test_m1_expect_dropped_refused_on_the_rounds_runlog_and_the_pinned_round (the real path, a link to it, the
+  pinned round; controls pass the guard) and test_m1_expect_dropped_refused_on_a_runlog_holding_the_decision_line;
+  mutants N1, N2.
+M2 (no check that the deviation reads every OFF run blind). Verified [measured: review probe P9, a PHASE F2-START at
+  18:30, printed the header "as if the three OFF runs were blind" while the deviation run read OFF s42 NOT BLIND].
+  Changed: check_deviation_blind() after both runs: if deviation.json's blindness.not_blind is not empty, or cannot be
+  read, refused (exit 3) with the NOT BLIND runs and the first opening named; no header, no deviation reading printed.
+  Evidence: test_m2_refuses_when_the_deviation_run_still_reads_an_off_run_not_blind; mutant N3; the review's P9 rerun is
+  now refused [fix/review_probes_rerun.log].
+
+M3 (classifier misses PRESENCE / D-16 copies of C1's listing). Verified [measured: review S4 (pc_s60 LOST with a
+  re-fetch): 2 output lines "      p1: PASS  {"launches": ...}" and 4 JSON values runs.<id>.(d16.)presence[n].p1.value.
+  lines.7 counted UNEXPECTED; in the pinned tools, presence() sets p1 = c1(run_id, notes) and render_presence() prints
+  it, complete_r10round.py lines 731-766 and 873-883]. Changed: kind_of_line_difference() accepts output lines matching
+  '\s+p1: \S+\s+\{"launches": ' with the same one-entry-removed check as C1's value line (one dropped line's '"<i>":
+  "SNAPSHOT"' entry removed, the rest equal); kind_of_json_difference(k, x, y, dropped) accepts
+  runs.<id>.completeness.C1 / presence[n].p1 / d16.presence[n].p1 .value.lines.<dropped> and now also requires the
+  values "SNAPSHOT" (pinned) and absent (deviation), for C1 too. json_differences() now tells an absent key from null
+  (an ABSENT sentinel, printed "(absent)" as before); the reviewed code read an absent key as null and so missed a
+  difference (in today's dry run: blindness.first_opening, a dict in the pinned JSON, null in the deviation JSON; 12
+  JSON values listed instead of 11, all blindness). AMENDMENT2 section 3 ("Printed, in order" and "What differs, and
+  only that") and the docstring say so. The scorer cuts C1's printed value at 600 characters and p1's at 500
+  (complete_r10round.py lines 868 and 881); stance7_r10LTSBpc_s60's listing is 164 characters on today's RUNLOG
+  [measured: the pinned parser on RUNLOG], so the check sees whole lines; a cut line would be counted UNEXPECTED, never
+  accepted [inferred]. Evidence: test_m3_lost_phase_run_with_refetch_presence_copies_of_c1_listing (8 output lines, 4
+  PRESENCE JSON copies, none UNEXPECTED), test_r3_output_line_kinds, test_r2_json_value_kinds,
+  test_json_differences_tell_an_absent_key_from_null; mutants N4-N7, N9; the review's S4 rerun: 0 UNEXPECTED (was 6)
+  [fix/review_own_roots_rerun.log].
+M4 (criteria line citations). Verified [measured: criteria.txt lines 371-373 define an opening ("Anything more ... is an
+  opening, noted at once as a SNAPSHOT line ...: every OFF run launched after it is NOT BLIND"); lines 374-377 are the
+  report-only rule ("allowed only after every OFF run's LAUNCH line"); the reviewed text cited 370-373 for the
+  report-only rule and 352-373 for the rule].
+  Changed: AMENDMENT2 section 0 cites 374-377 for report-only looks, 371-373 for what is an opening, and 297-302 and
+  353-361 for the rule (STARTS AND OUTCOME BLINDNESS).
+
+M5 (containment reported, not enforced). Verified [measured: the reviewed main() printed "CONTAINMENT ... CHANGED" and
+  returned the pinned exit code; the reviewer's R4 (always "unchanged") survived the suite].
+  Changed: after the two runs, any file added, removed or changed (size, mtime) under --round or --tools refuses (exit
+  3), the changes listed, no reading printed. AMENDMENT2 section 3 ("Writes contained") and NOTES point 7 reworded.
+  Evidence: test_m5_refuses_when_a_file_under_round_or_tools_changes_during_the_runs[round] and [tools] (a file added
+  while the scorers run); mutants R4, N8.
+
+I1 ("p = 20/20 whatever the TDs"). Verified [inferred: the rank rule; measured: as in B1]. Changed: section 0 now says
+  the pinned reading reads p = 20/20 whatever the six TDs (it said "p >= 11/20 ...; p = 20/20 when the three PHASE runs
+  are complete"); LIMITS (iii).
+
+I4 (NOTES.txt's product-name sentence). Verified [measured: grep; the build's sentence "no other place names a
+  product" was wrong: product names occur in the byte copies of RUNLOG, APPROVED and criteria.txt, in the scorer's
+  outputs (which print RUNLOG lines and fields) and in absolute paths the tools and pytest print]. Changed: NOTES.txt
+  says where product names occur (copied or printed text, never authored) and that the hand-written files (AMENDMENT2,
+  NOTES, FIXES, the tool, the tests, the mutation runner) name none [measured: grep of the names over those files].
+
+R1-R4 (the reviewer's surviving mutants). Verified [measured: review/rt/own_mutants.log, 20 passed under each].
+  R1 (OFF RELAUNCH ignored): killed by test_r1_an_off_relaunch_counts_as_the_last_off_launch (a PHASE SNAPSHOT at 19:30
+  between the last OFF LAUNCH and an OFF RELAUNCH at 20:00 joins the dropped set). R2 (no JSON difference UNEXPECTED):
+  killed by test_r2_json_value_kinds and test_r2_r3_unexpected_differences_are_flagged_and_counted (main() with stubbed
+  scorer outputs differing in a class line and value: 2 UNEXPECTED counted). R3 (no output-line difference UNEXPECTED):
+  killed by test_r3_output_line_kinds and the same main() test. R4 (containment always unchanged): killed by the M5
+  tests. All four are in tests/mutate_dev.py (R2's text adapted to the new kind_of_json_difference signature).
+  Also added the reviewer's R5-R8 (defined in review/rt/own_mutants.py; their results were not on record): R5 the
+  load-closure check skipped (test_r5: an APPROVED test copy without pc_common.py, monkeypatched in process), R6 the
+  decision line's sha256 never checked (test_r6, unit), R7 the copy's self-check removed (test_r7: a faulty copy
+  builder, in process, refused before any scorer run), R8 any arm's SNAPSHOT dropped (test_r8: an OFF run's SNAPSHOT at
+  18:30 is kept).
+
+CHECKS (after the fixes; logs in fix/)
+- pytest: 35 passed in 70.00 s (the build's 20 + 15) [fix/pytest.log]. The reviewed tool (orig/) against the new
+  suite: 11 failed, 23 passed (M1 x2, M2, M3, M5 x2, the R2 and R3 unit tests, and 3 tests that read the revised
+  summary wording) [fix/reviewed_tool_vs_new_suite.log, which predates the absent-vs-null test, 34 tests].
+- ruff 0.16.9 (E, F, W, I; 120): All checks passed, exit 0 [fix/ruff.log].
+- mutants: 30 mutants (M1-M13, R1-R8, N1-N9), 30 killed, 0 survived; the unmutated tool first: 35 passed; M1-M13
+  killed by the same first tests as in the build's run [fix/mutants.log; dry/mutants.log].
+- dry run on RUNLOG (952 lines, sha256 c5bb800f5d7a130cf9d2757a1a74bbb85505fad5b1a2e2ec9be16cb7fbb1906d) with the
+  empty-fetch view dry/round_view: exit 10; dropped exactly line 902 (the copy differs in that line alone); 4 output
+  lines and 12 JSON values differ, every one blindness; CONTAINMENT unchanged; stderr empty; the scorer's four outputs
+  byte-identical to the build's dry run [fix/dryrun.out, fix/dryrun_out/].
+- the reviewer's own_roots.py (S1-S4) and probes.py (P1-P10, --out probes), unchanged, on the revised tool: every
+  scenario agrees with the reviewer's oracle; S4 0 UNEXPECTED; P9 refused (M2); the rest as before
+  [fix/review_own_roots_rerun.log, fix/review_probes_rerun.log].
+
+COMMANDS (PY = the study's venv python, run as "PY -I -B" with nice 10; TMPDIR always inside ST/amend2/fix)
+  cd ST/amend2/tests && PY -I -B -m pytest -q -rA -p no:cacheprovider -o tmp_path_retention_policy=failed
+      --basetemp=ST/amend2/fix/pytest_tmp/pt test_score_pc_dev.py                              -> fix/pytest.log
+  the same with -q only and AMEND2_DEV_TOOL=ST/amend2/orig/tools/score_pc_dev.py  -> fix/reviewed_tool_vs_new_suite.log
+  cd ST/amend2 && ruff check --no-cache --config <branch>/pyproject.toml tools/score_pc_dev.py
+      tests/test_score_pc_dev.py tests/mutate_dev.py                                          -> fix/ruff.log
+  cd ST/amend2/tests && PY -I -B mutate_dev.py ST/amend2/fix/mutants                          -> fix/mutants.log
+  cd ST/amend2/fix/cwd && PY -I -B ST/amend2/tools/score_pc_dev.py --out ST/amend2/fix/dryrun_out
+      --round ST/amend2/dry/round_view                                    -> fix/dryrun.out, fix/dryrun.err (exit 10)
+  cd ST/amend2/review/own && PY -I -B own_roots.py ST/amend2/fix/review_rerun/roots    -> fix/review_own_roots_rerun.log
+  cd ST/amend2/review/own && PY -I -B probes.py ST/amend2/fix/review_rerun/probes         -> fix/review_probes_rerun.log
+  Scratch deleted once its results were logged: fix/DELETED.txt (the first mutant run, stopped to add a test, is kept
+  as fix/mutants_run1_aborted.log).
+
+FILES CHANGED (sha256 of the reviewed bytes, kept in orig/, and of the revised file)
+  tools/score_pc_dev.py
+    reviewed 74b619decea957958161e6cdf7d69159ec045c5ed8afcd85e41f8104f2b3f1db
+    revised  efb37b2099bf77d38c8e585cbc0b86f7eb215e21598a1b93a92633e3b13c62a3
+  tests/test_score_pc_dev.py
+    reviewed a64f5d3505eeebfd3b6840bd977c7bdd2c6058a21b4a7abd625839f14e682b35
+    revised  38047c1771f85c095fa021c26ecf360a060bdd2ea41ce8c1a20453f6e243901d
+  tests/mutate_dev.py
+    reviewed 60f30bc5fdd6b516546b0abf8e35a313e3746f0e501fef07f511342c6796a64b
+    revised  b79919213d8033b75001160f1cc28e11ad6f2ab5e59d5b12f3c0afcba9a162ab
+  NOTES.txt
+    reviewed c30f04ecfa063cd7909ac2db0e8445c462bd1c7cd72f5e50030fd319aae8cf7e
+    revised  5a61e1763d0ddeb23d9857eaf001657a6ad91524740e8d498b98d7bfcf46e09d
+  AMENDMENT2.txt
+    reviewed dcbe59b372bd2f259b7acaf1cda743bef17579fa7d2f6a2206603fa97b28c9e5
+    revised  b924eb7978c1c2ff497f7f8bfec4759dc4a2ca55a887105c73ca56991a314d90
+  SHA256SUMS.txt
+    reviewed c61d8fb0028dcac42197efe5e760da3c9c15ce6081481190062cbc304472f391
+    revised  refreshed after this file was written: it lists every file under ST/amend2, FIXES.txt included
+  tests/pytest.ini unchanged (aaabed120d2fb059160bb38bf8843dc0bbb6abca5f013dffb5228bfffb9a3404); new: FIXES.txt, orig/,
+  fix/.
+
+DISK
+  ST/amend2 holds 14.1 MB after the work (fix/ 1.7 MB) [measured: file sizes]. The fixer's scratch stayed below
+  about 210 MB at every size check (largest: the reviewer's roots and probes rerun, 191 MB, while the mutant run held
+  about 10 MB; both deleted after logging; pytest kept only failed tests' folders) [measured: du at each step]. Free on
+  / at the end: 7620587520 B [measured: statvfs]. Deleted scratch: fix/DELETED.txt.
+
+COORDINATOR TEXT EDITS 2026-11-02 15:58 UTC (after the re-review, wf_46c8d3f0-40f, verdict READY): AMENDMENT2.txt only, three wording points of the re-review, no code or test changed. T1: line 905 is now paraphrased, not quoted ("[paraphrase]"). T2: LIMITS (iv) now says that for the line-905 views the "before any figure was seen" claim rests on line 949, which names the tail-command figure only, and their content is not on record. I1: section 0 now says the views came before the OFF launches and the order deviation between them. Bytes before these edits: orig2/AMENDMENT2.txt b924eb7978c1c2ff497f7f8bfec4759dc4a2ca55a887105c73ca56991a314d90; after: c1ec55be6254b939fc751fbcef9f984f170e3cf463c5d5b55f9d2f5517f884b5.

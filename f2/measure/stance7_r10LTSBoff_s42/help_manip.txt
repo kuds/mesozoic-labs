@@ -1,0 +1,45 @@
+usage: manip_check.py [-h] --copy COPY [--header-parent] [--approved APPROVED]
+                      --zip ZIP --pkl PKL [--stage-config STAGE_CONFIG]
+                      [--no-run-records] [--out OUT] [--run-id RUN_ID]
+                      [--label LABEL]
+
+PC study: THE MANIPULATION CHECK (C8; PC criteria WHAT IS READ) and the phase-fed critic feed (report-only
+readers).  Never trains; no optimizer step; writes only its record.
+
+    PY -I -B manip_check.py --copy COPY [--approved APPROVED | --header-parent] --zip Z --pkl P
+                            (--stage-config SC | --no-run-records) (--out DIR | --run-id RUN_ID --label LABEL)
+
+THE CHECK, on one fetched pair (its zip and VecNormalize sidecar), on the measuring copy of HEAD (sealed; the runner's
+preflight of measure_r10round.py: disk floor, seal and commit, the checkpoint's physics_revision 10, the run's records,
+the RUN_ID and label binding, the output outside every run folder; then the seal again):
+  BANK: the first 500 observations (k = 0 ... 499; fewer if an episode ends) of two deterministic episodes of the pair's
+        own actor, reset seeds 3042 and 3043, the observation normalised with the pair's VecNormalize statistics frozen
+        (the trace tool's load_trace_policy, as M1 loads a pair), k = the env's own _step_count at each observation
+        (checked against the step index).
+  (i)   PHASE IN FORCE: the critic's phase weights (value_net[0].weight[:, 63:66]) are not all zero, and for each of A1's
+        five perturbations of the phase (all 0; all 1; +1; all 3; 1 - x) the largest |dV| over the bank is > 0.
+  (ii)  ACTOR INDEPENDENCE: under the same perturbations the actor's deterministic mean changes by exactly 0.0 on every
+        row, and equals the mean of the 63-value observation alone (the deploy interface).
+  (iii) THE CRITIC'S INPUT FROM OBSERVATION 6 (an interface check, fixer I5): the critic's first-layer input weights
+        from observation 6 (the tail_3 angle; value_net[0].weight[:, 6]) are not all zero.  The critic's response, the
+        largest |dV| over the bank under a +1 shift of the normalised value of observation 6, is printed, report only:
+        it reads the mechanism the study is about (PS: the critic's tail slope went to about 0) and decides nothing.
+  VERDICT: "IN FORCE" when (i), (ii) and (iii) hold, else "NOT IN FORCE" with the failing items (a checkpoint whose
+  critic reads no phase at all is "NOT IN FORCE").  A crash writes no record (C8 then stays PENDING; rerun on the same
+  files).
+THE FEED (critic_values): V of a bank with the phase of its step counters appended (critic_phase.CriticPhaseSpec.matrix,
+float32 as the training env appends it); "effective" = phi(k), "settled" = phi(1000).  The report-only critic readers
+(slope on the tail angle, V - G by step bucket) call it; a stock critic is fed the bank alone.
+
+options:
+  -h, --help            show this help message and exit
+  --copy COPY
+  --header-parent
+  --approved APPROVED
+  --zip ZIP
+  --pkl PKL
+  --stage-config STAGE_CONFIG
+  --no-run-records
+  --out OUT
+  --run-id RUN_ID
+  --label LABEL

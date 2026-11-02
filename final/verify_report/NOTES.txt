@@ -1,0 +1,187 @@
+SKEPTIC'S CHECK OF ST/final/PC_REPORT.md (the phase-critic Colab round report, STANCE7)
+
+Written 2026-11-02, 19:56-20:10 UTC (date -u). Read only, except this folder. Every claim below is
+labelled [measured] (with the file and line or field) or [inferred]. ST = /home/user/work/pc_study.
+RUNLOG = the run log named in ST/round/criteria.txt line 40.
+
+What was checked
+- The report as reviewed: 449 lines, sha256 2f3c93a9..., last written 19:45:43 UTC
+  [measured: evidence/report_and_runlog_state.txt].
+- RUNLOG at 971 lines, sha256 89425ea9...; its first 966 lines hash to 8c05d9ba..., the copy the
+  scorers read [measured: same file]. Both match the report.
+
+VERDICT: NEEDS FIXES BEFORE IT IS FINAL. The numbers hold up. One overclaim is blocking. About ten
+other fixes are small.
+- All 46 sha256 values the report lists match the files [measured: evidence/report_hash_list.txt,
+  re-hashed 19:57 UTC].
+- Every number in both per-run tables matches score_pc.txt lines 321-347 and 357-363. This includes
+  each TD, J-window TD, class, gate, alarm count, return, fall count, clean-row count, ledger maximum
+  and on-policy value [measured].
+- Every derived figure recomputes [measured, my arithmetic]:
+  - 8.9x separation, and the per-seed ratios 2.0%, 2.7% and 7.9%;
+  - return gaps of +30.1, +103.4 and +66.5;
+  - 44.6 L4-hours for the OFF runs (14.89 + 15.04 + 14.68 h, from C4 started_at to the manifest times
+    at RUNLOG lines 941, 943 and 945);
+  - (2/3)^3 = 0.296 and (1/3)^3 = 0.037.
+- Every RUNLOG line the report cites says what the report says it says. This covers lines 867-971.
+- Almost every criteria.txt and AMENDMENT2.txt line citation is right. The exceptions are below.
+- The OFF = STANCE6 identity holds. I re-checked it myself: eval_episodes.csv and train_episodes.csv
+  are equal, and so are the M3 gate reports, for all 3 seeds. PHASE files differ
+  [measured: evidence/identity_spot.txt].
+
+BLOCKING
+
+B1. The report says the mechanism was shown. Neither this round nor the phase screen showed it.
+- What the report says ("What it means"): "PS showed this from s42's 2.10M state on CPU. This round
+  shows it from scratch, on GPU, for 12M steps." "This" is the hidden-clock explanation (reward terms
+  switch on at step 200, and the critic reads the tail angle as a clock).
+- Why that is wrong:
+  - PS REPORT.md labels that explanation [inferred], lines 94-97. It labels only the stopped tail
+    climb [measured], line 91.
+  - The pinned reading says "NOT CONFIRMATORY" [measured: score_pc.txt line 357].
+  - The mechanism readouts were not run in this round: critic slope, V - G and loop gain
+    (criteria.txt lines 332-337). The report says so itself under "What it does not show".
+- The same section also uses causal wording: "the phase input kept the tail habit away"; "In every
+  seed it turned a run with a habit ... into a run with none".
+- Fix: replace the two sentences with: "PS found the tail climb stopped from s42's 2.10M state on CPU;
+  the explanation itself is [inferred] there. This round's tail results fit it, from scratch on GPU
+  for 12M steps, but its mechanism readouts were not run." Also change "kept the tail habit away" to
+  "no run formed the tail habit".
+
+MINOR
+
+M1. "Paired by construction" has a wrong reason and an unmeasured one.
+- The report says each pair "shares the switch-off code path (A6) ... and the image". A6 says the OFF
+  code equals 8737cd3d (criteria.txt lines 126-134). PHASE runs use the switch-on path, so they do not
+  share it [measured: criteria text].
+- The image is not measured: criteria.txt lines 497-498 [measured].
+- What the files do record is the same for all six runs and the three STANCE6 runs: GPU L4,
+  CUDA 13.0, Python 3.13.16, numpy 2.1.3 and the same kernel string [measured:
+  evidence/env_fields.txt, from stage_config.json "gpu" and provenance.json].
+- The per-run table opens with "Seeds are paired." with no label. Criteria line 149 pinned the
+  opposite.
+- Fix:
+  - say "share the commit 1dfe2327, the seed and the starting networks (A5, shown on CPU)";
+  - say "the recorded GPU and software fields are equal; the image itself is not measured";
+  - label "Seeds are paired" [inferred from the OFF runs' determinism].
+
+M2. "No visible cost to the stance" plays down a negative result.
+- PHASE s60 had 9 falls in its 910 training-evaluation episodes, against 1 in OFF s60 and 0 in the
+  other two PHASE runs.
+- The falls do not stop early in training. 6 of the 9 came at or after 4,194,304 steps, and the last
+  was at 11,665,408 steps [measured: evidence/falls.txt, from eval_episodes.csv.copy1].
+- The report says "Not looked into further".
+- Fix: retitle the bullet "Stance cost: none at the final gate; one PHASE run fell 9 times in training"
+  and add the timing.
+
+M3. "No drift to other tail joints" is too strong.
+- The phase screen warned that tail_2 drifts up in the phase arm (SEC-TAIL2, RUNLOG line 857;
+  criteria.txt lines 81-82).
+- In PHASE s80, tail_2's ledger command rose at 4 of 5 steps: +0.014, +0.016, +0.015, +0.022, +0.034,
+  then +0.055 at 11,927,552 steps. That last value is above the report's own "within ±0.051" bound
+  [measured: score_pc.txt line 332, guard; evidence/guard_and_premise.txt].
+- It is small next to the OFF values, but it is the guard the criteria asked for (line 338).
+- Fix: "small; PHASE s80 tail_2 rose steadily to +0.055 by the last evaluation, the drift PS warned
+  of; far below OFF".
+
+M4. The deviation decision's "blind to tail figures" is stated as [measured], with no caveat.
+- The report says the 13:52 decision came "before any tail-command figure of any run was seen"
+  [measured]. That is RUNLOG line 949's own statement.
+- AMENDMENT2 section 4 (iv) adds a caveat the report leaves out. For the three files possibly viewed
+  at 17:50-17:51 (line 905), that statement names only the tail-command figure, and what those files
+  showed is not on record [measured: AMENDMENT2.txt lines 165-168].
+- Also, the OFF runs' tail figures were in criteria.txt before 13:52, because OFF = STANCE6 [measured].
+  The report says this undercuts the pin's claim. It does not say it also undercuts the decision's.
+- Fix: write "RUNLOG line 949 records ...". Add the line-905 caveat. Add that the controls' values
+  were in fact known; only the PHASE values were unseen.
+
+M5. The slip table leaves out the round's main procedural deviations.
+- "Rule slips recorded for this round" has no row for the 17:44 opening (line 902). It also has none
+  for the possible 17:50-17:51 views (line 905, inferred) or the s80-before-s42 order deviation
+  (line 910).
+- Gaps in the PHASE launch-check record are not mentioned anywhere:
+  - The CHECK lines say new_run=not-reported for all three PHASE runs and were never updated (lines
+    893-895). The OFF runs got theirs (lines 925-927).
+  - No cell-9 row was pasted for PHASE s42. Lines 889 and 891 cover s60 and s80 only.
+  - The cell-6 rows came from an unnamed run (line 890).
+  [measured: RUNLOG]
+- C4 and C8 cover the substance (one session from step 0; switch ON) [measured: score_pc.txt C4/C8].
+- Fix: add one row per item, each pointing to its section.
+
+M6. Work the criteria call for was not done, and the report does not list it as open.
+- Line 4 read, so M4 at the PHASE finals is "F2 work" (criteria.txt lines 269-272). The report files
+  this under "What it does not show". It is owed work, not a limit.
+- Q4 asks for M2 posture at J and ROUND's D-1 to D-15 "as computable" (criteria.txt lines 329-331).
+  Neither appears in score_pc.txt, and the report does not mention them
+  [measured: grep of score_pc.txt; panels hold only c8, m1 and m3].
+- Fix: add an "Open items" list: M4 at the three PHASE finals; the critic readouts; M2 posture;
+  D-1 to D-15.
+
+M7. Jargon is used with no gloss.
+- These terms are never defined: F0/F2, ledger, traced/M1, M3, M4, on-policy command, C1-C8, PRESENCE,
+  "stance3's parent rule".
+- Fix: add a short glossary of about 8 lines after "Short names", for example:
+  - F2 = the end-of-run download of each run's files from Drive.
+  - ledger = the 91 in-training evaluations in eval_episodes.csv.
+  - traced = deterministic replays of a saved checkpoint (M1).
+  - M4 = the offline judge used to pick a checkpoint.
+
+M8. Some wording misleads.
+- "Bit-for-bit copies" can read as files copied by hand. Say "bit-for-bit reproductions".
+- The first paragraph says the two checks "also found" the identity. Only the numbers check did. The
+  process check does not mention STANCE6 [measured: journal result.checkB].
+- The OFF s42 gate cell "FAIL (38/40 ...)" can read as 38/40 failing its bar. In fact 38/40 passed
+  that bar (LCB95 0.8508 >= 0.80). The FAIL came from 2 hop-or-fall episodes, over the limit of 1, at
+  each of the 6 headings [measured: round/panels/stance7_r10LTSBoff_s42/final/m3/
+  stance_heading_report.txt lines 10, 15-20, 63].
+
+M9. Citations that are slightly off.
+- "each in a runtime a PHASE run had freed (lines 907, 911, 923)": those lines do not say this. Lines
+  906 and 922/930 do, for s60 and s42. For s80 it is inferred [measured: RUNLOG].
+- "410 downloads, no write tool [manifest_check.out]": this comes from the checker's reading of the
+  agents' transcripts (journal result.checkB item 2), not from manifest_check.out.
+- "[check_numbers]" is cited for the on-policy split. The numbers check did not load the PHASE
+  on-policy values, as the report itself says later.
+- "four stance terms at step 200" has no source. Cite PS REPORT.md line 95.
+
+INFO
+
+I1. The "GPU training is not bit-reproducible" premise was never measured.
+- The stance6 round's evidence file labels it "[inferred, as REPL]" (evidence_r10round_v12.txt line
+  256).
+- But the stance6 REVIEW.txt line 511 labels it "[measured, EVID l250-l258]", which is a wrong label
+  [measured: evidence/guard_and_premise.txt].
+- The report could say: an inferred premise, now contradicted by a measurement. The earlier review's
+  label needs correcting in the records.
+
+I2. The reproduction spans two dates.
+- STANCE6 trained on 10-27/28; the OFF runs trained on 11-01/02. The report says "Determinism was
+  measured only there", meaning this image. That is imprecise.
+- The recorded GPU and software fields are identical across all nine runs [measured:
+  evidence/env_fields.txt].
+
+I3. Not everything in the final zips is equal.
+- 5 of the 43 keys in the final zip's "data" member differ: ep_info_buffer, policy_class,
+  rollout_buffer_class, start_time and tensorboard_log.
+- policy_class and rollout_buffer_class differ only in memory addresses inside printed function names
+  [measured: evidence/identity_spot.txt, OFF s60 against STANCE6 s60].
+- The report could name these.
+
+I4. The report's own times do not match its file.
+- It says "Written 19:33-19:50 UTC". Its last write was at 19:45:43 UTC [measured: stat].
+
+I5. The 17:44 opening showed outcome-related numbers.
+- It showed PHASE s60's rewards. In this data, PHASE returns are higher than OFF in all 3 pairs.
+- So "no TD shown" is not quite "no outcome information shown". The hint is weak: the s60 gap is only
+  30.1 [inferred].
+
+I6. Some phrases are hard to read: "8.9 times smaller" and "added 15 h twice".
+
+MY OWN SLIPS (stated, not hidden)
+- About 19:59 UTC: a read-only listing command sent its error output to the zero device. That breaks
+  the rule. No device content was used and nothing was written.
+- About 20:04 UTC: a read-only grep of the report used a search pattern built to match both device
+  paths. No device was opened and nothing was written.
+- The tool harness saved one long command output to its own results folder, outside ST/final.
+- Every file I wrote is under ST/final/verify_report/. I ran no simulation or training, no network,
+  Drive or git writes, and loaded no pickle.

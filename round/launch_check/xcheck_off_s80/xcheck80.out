@@ -1,0 +1,119 @@
+sha256 provenance: 58d21210b1559044dc36bfffbc57be5d67b432ba76184c0b61612b8116115357 (2444 bytes)
+sha256 stage_config: 2c196e6278510906850952faf72f9302fff83f5625806ed750da4e8ce4a47557 (10940 bytes)
+sha256 task_fingerprint: 5964a6f375d39ebc4b9eabf854a71ca59936b8710b22f4ebae42df6affcb4b83 (3587 bytes)
+sha256 trunk_run: 7c26c63b9e154d2f9619dc2d07c8cd50b80173bf1e49a0c5cbdcf97586d25d48 (60 bytes)
+sha256 REF stage_config: cc7780cf4bfefbbbadc4557c630d37ae828edd35c905915c46a93ae9a8ede768 (10769 bytes)
+sha256 REF task_fingerprint: 5964a6f375d39ebc4b9eabf854a71ca59936b8710b22f4ebae42df6affcb4b83 (3587 bytes)
+
+=== (a) commit / dirty
+provenance.repository_commit: "1dfe2327f773007fa7fd68460dc0c53740936ff9"
+provenance.repository_dirty: false
+provenance.repository_patch_sha256: null
+provenance.repository_url: "https://github.com/kuds/mesozoic-labs.git"
+stage_config.git_commit: "1dfe2327f773007fa7fd68460dc0c53740936ff9"
+commit == expected (prov, sc): True True
+dirty is JSON false: True
+
+=== (b) seed
+provenance.training_seed: 80
+provenance.seed_roles.training: 80
+provenance.seed_roles.checkpoint_selection_evaluation: 1080
+provenance.seed_roles.publication_evaluation: 3080
+provenance.seed_roles.certification_panel: 3042
+provenance.evaluation_seeds: [1080, 3080]
+stage_config.run.seed: 80
+seed checks: training_seed True | seed_roles.training True | run.seed True | selection = seed+1000 True | publication = seed+3000 True
+
+=== (c) run id
+provenance.run_id: "stance7_r10LTSBoff_s80"
+stage_config.run.label: "r10 LTSB switch-off s80"
+run_id == expected: True
+
+=== (d) stage / species / embodiment / algorithm / n_envs / timesteps
+stage_config.name: "stance"
+stage_config.stage: 1
+stage_config.species: "tyrannosaurus_rex"
+stage_config.embodiment: "anatomical"
+stage_config.algorithm: "PPO"
+stage_config.run.n_envs: 4
+stage_config.run.timesteps: 12000000
+stage_config.curriculum.timesteps: 12000000
+stage_config.curriculum.gate_kind: "stance_quality_heading/v1"
+stage_config.task_fingerprint.stage: 1
+stage_config.task_fingerprint.backend: "stable-baselines3"
+provenance.species: "tyrannosaurus_rex"
+provenance.embodiment: "anatomical"
+provenance.algorithm: "PPO"
+provenance.backend: "stable-baselines3"
+provenance.parallel_envs: 4
+provenance.hardware: "Google Colab"
+checks: name stance True | species True | embodiment True | algorithm PPO True | n_envs 4 True | timesteps 12,000,000 True
+
+=== (e) the switch
+hyperparameters keys: ['batch_size', 'clip_range', 'ent_coef', 'ent_coef_decay_timesteps', 'ent_coef_end', 'gae_lambda', 'gamma', 'learning_rate', 'learning_rate_end', 'n_epochs', 'n_steps', 'policy_kwargs', 'symmetry', 'symmetry_kappa', 'symmetry_mirror_critic', 'symmetry_sigma_floor', 'target_kl']
+'critic_phase' in hyperparameters: False
+dig hyperparameters.critic_phase: <absent>
+raw stage_config: contains 'critic_phase' False, 'critic' True, 'phase' False
+raw provenance: contains 'critic_phase' False, 'critic' False, 'phase' False
+raw task_fingerprint: contains 'critic_phase' False, 'critic' False, 'phase' False
+raw trunk_run: contains 'critic_phase' False, 'critic' False, 'phase' False
+key/value search stage_config phase/critic: [('key', 'hyperparameters.symmetry_mirror_critic')]
+key/value search provenance phase/critic: []
+pins off_arm.critic_phase_switch: {"path": "hyperparameters.critic_phase", "absent": true}
+
+=== (f) trunk
+trunk_run.json: {"schema": "mesozoic.trunk-run/v1", "trunk_from": ""}
+trunk_from is the empty string: True
+load keys at any depth in stage_config: []
+load keys at any depth in provenance: []
+search sc trunk/retrain/resume/load/warm/parent/ancestor/widen: [('key', 'reward_weights.foot_load_balance_weight'), ('key', 'reward_weights.foot_load_balance_min_support_force'), ('key', 'reward_weights.foot_load_balance_airborne_penalty'), ('key', 'reward_weights.stance_cop_band_full_price_load_share'), ('key', 'reward_weights.stance_cop_band_min_load_share'), ('key', 'curriculum.min_foot_load_share'), ('key', 'curriculum.min_foot_load_share_windowed'), ('key', 'curriculum.max_nonfoot_load_fraction'), ('key', 'curriculum.collapse_peak_warmup_timesteps'), ('key', 'task_fingerprint.env.foot_load_balance_weight'), ('key', 'task_fingerprint.env.foot_load_balance_min_support_force'), ('key', 'task_fingerprint.env.foot_load_balance_airborne_penalty'), ('key', 'task_fingerprint.env.stance_cop_band_full_price_load_share'), ('key', 'task_fingerprint.env.stance_cop_band_min_load_share')]
+search prov trunk/retrain/resume/load/warm/parent/ancestor/widen: []
+provenance.sessions count: 1
+provenance.model_hash: null
+provenance.config_hash: null
+
+=== (g) K3 sigma readiness
+sigma file sha256: 939285e30f377e696fef7bdcc30d6d61786e18c593ae39a1b50c936e3822a0ab | pins sigma_file_sha256: 939285e30f377e696fef7bdcc30d6d61786e18c593ae39a1b50c936e3822a0ab | equal: True
+control_sigma.80: length 15 | finite and positive: True
+vector sha256 (<f8 bytes): df38050540f4a30844636d4d9e862a7126e232b38299b8774685a2f73a30ffe1 | pins sigma_vector_sha256['80']: df38050540f4a30844636d4d9e862a7126e232b38299b8774685a2f73a30ffe1 | equal: True
+k3/panel/sigma in stage_config: [('key', 'hyperparameters.symmetry_sigma_floor')]
+k3/panel/sigma in provenance: [('key', 'seed_roles.certification_panel')]
+
+=== (h) digests
+recorded run.hyperparameters_sha256:    sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+recomputed hyperparameters digest:      sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c (shaping keys: [] )
+pins off_arm.hyperparameters_sha256:    sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+pins switch-ON hyperparameters_sha256:  sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954
+  recorded == recomputed: True | == off pin: True | == ON pin: False
+recomputed stage_config_view_sha256:   sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1
+pins off_arm.stage_config_view_sha256:  sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1
+pins switch-ON stage_config_view_sha256: sha256:7bee0efc26730951f7c0dd8316cd8c0eec5cd623070be1c0106cf1f8d13b56ab
+  == off pin: True | == ON pin: False
+stage_config.task_fingerprint.task_sha256: sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+task_fingerprint.json task_sha256:         sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+recomputed task digest (sc block / file):  sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456 sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+pins off_arm.task_sha256:                  sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456 | pins task_sha256 (ON): sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+  recorded == recomputed: True | == off pin: True
+task_fingerprint.json == stage_config.task_fingerprint (parsed): True
+task_fingerprint.json bytes == REF task_fingerprint.json bytes: True
+plant_identity == pins.plant_identity: True | provenance.plant_identity == sc.plant_identity: True
+reward_weights (minus command keys) == task_fingerprint.env: True
+repo digest snapshot (T. rex anatomical stance) at the commit: {"config_file": "stance.toml", "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456", "gate_sha256": "sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf", "hyperparameters_sha256.PPO": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c", "hyperparameters_sha256.SAC": "sha256:c6eb8d73dfdde463350306ba49070b031cbe327407cfdaf6aee270eb52d8fd26", "stage_config_view_sha256.PPO": "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1", "stage_config_view_sha256.SAC": "sha256:2d7eea98fad2534549c718cc10d36195f9ff88a88e5598e3ac15e80cc6c2e3a6"}
+  snapshot hyperparameters_sha256.PPO == recorded: True | snapshot stage_config_view_sha256.PPO == recomputed view: True | snapshot task_sha256 == recorded: True
+
+=== reference (measured off, seed 42, CPU) digests
+REF run.hyperparameters_sha256: sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c | recomputed: sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c
+REF view: sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1 | REF task: sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+REF 'critic_phase' in hyperparameters: False
+
+=== leaf diffs
+--- leaf diff REF(off, seed 42) vs RUN(off s80): 7 differing leaf paths
+    git_commit | 'unknown' | '1dfe2327f773007fa7fd68460dc0c53740936ff9'
+    gpu.cuda_version | <absent> | '13.0'
+    gpu.gpu_full_name | <absent> | 'NVIDIA L4'
+    gpu.gpu_memory_gb | <absent> | 23.7
+    gpu.gpu_model | <absent> | 'L4'
+    run.label | 'r10 LTSB s42' | 'r10 LTSB switch-off s80'
+    run.seed | 42 | 80
+--- leaf diff REF task_fingerprint vs RUN task_fingerprint: 0 differing leaf paths
+top-level keys equal (REF vs RUN): False ['gpu']

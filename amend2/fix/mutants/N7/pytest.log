@@ -1,0 +1,34 @@
+............................F
+=================================== FAILURES ===================================
+__________________________ test_r3_output_line_kinds ___________________________
+
+    def test_r3_output_line_kinds():
+        k = D.kind_of_line_difference
+        c1y, p1y = C1X.replace(', "7": "SNAPSHOT"', ""), P1X.replace('"7": "SNAPSHOT", ', "")
+        assert k(C1X, c1y, {7}) == ("C1's listing of the run's note lines without dropped line 7 (C1's verdict reads only "
+                                    "launches, launch-check stops and actions)")
+        assert k(P1X, p1y, {7}).startswith("C1's listing of the run's note lines without dropped line 7, as PRESENCE p1 "
+                                           "prints it")
+        assert k("OUTCOME BLINDNESS (x): a", "OUTCOME BLINDNESS (x): b", {7}).startswith("blindness")
+        assert k("    THE ONE TEST (phase vs the concurrent switch-off runs): a",
+                 "    THE ONE TEST (phase vs the concurrent switch-off runs): b", {7}) == "THE ONE TEST"
+        for x, y, dl in ((C1X, c1y, {8}),                                          # not a dropped line
+                         (C1X, c1y.replace("TRIGGER-a", "TRIGGER-b"), {7}),        # another change too
+                         (P1X, p1y.replace("p1: PASS", "p1: FAIL"), {7}),          # p1's status changed too
+                         (C1X, C1X.replace('"4": "LAUNCH", ', ""), {4, 7}),        # a LAUNCH entry removed
+                         (C1X, p1y, {7}),                                          # C1 line against a p1 line
+                         ("  pc s60 x: CLASS A", "  pc s60 x: CLASS B", {7}),
+                         ("RUN x: COMPLETE", None, {7}), (None, "RUN x: COMPLETE", {7}),
+                         ("    s60: phase a blind False", "    s60: phase b blind True", {7})):
+>           assert k(x, y, dl) == "UNEXPECTED (not a blindness line)", (x, y)
+E           AssertionError: ('        value: {"launches": [4], "launch_check_stops": [], "actions": [], "lines": {"4": "LAUNCH", "7": "SNAPSHOT", ...       value: {"launches": [4], "launch_check_stops": [], "actions": [], "lines": {"4": "LAUNCH", "10": "TRIGGER-b"}}')
+E           assert "C1's listing... and actions)" == 'UNEXPECTED (...indness line)'
+E             
+E             - UNEXPECTED (not a blindness line)
+E             + C1's listing of the run's note lines without dropped line 7 (C1's verdict reads only launches, launch-check stops and actions)
+
+test_score_pc_dev.py:573: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r3_output_line_kinds - AssertionError: ('  ...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 28 passed in 63.19s (0:01:03)

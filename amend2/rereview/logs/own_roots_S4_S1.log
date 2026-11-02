@@ -1,0 +1,81 @@
+cwd ST/amend2/review/own: PY -I -B own_roots.py /home/user/work/pc_study/amend2/rereview/own_roots S4_lost_pc60 S1_separation (own_roots.py sha256 9d31f5e3329e466cd6e2e5d93cf53cc67bb9537a9405434ff3961872a52d494f)
+RUNLOG line 902 sha256 0e30b26ed0a346dd0bdacd8bfd18f2ff9d5f6f58e492e1cc6e29d29763fbce12; tool constant equal: True
+== S4_lost_pc60: tool exit 0; stderr 0 bytes; files changed outside --out: none
+   pinned   : scorer k=20 p=20/20 text='NOT SEPARATED (p = 20/20)'; oracle k=20 (on reported values 20); TDs as intended True; off_missing [True, True, True] phase_missing [True, False, False] not_blind ['stance7_r10LTSBoff_s42', 'stance7_r10LTSBoff_s60', 'stance7_r10LTSBoff_s80'] -> AGREE
+   deviation: scorer k=11 p=11/20 text='NOT SEPARATED (p = 11/20)'; oracle k=11 (on reported values 11); TDs as intended True; off_missing [False, False, False] phase_missing [True, False, False] not_blind [] -> AGREE
+       output line 11/11 [blindness: the first opening and the NOT BLIND runs]:
+       output line 12/12 [blindness: the seed's OFF run blind or not]:
+       output line 13/13 [blindness: the seed's OFF run blind or not]:
+       output line 14/14 [blindness: the seed's OFF run blind or not]:
+       output line 17/17 [C1's listing of the run's note lines without dropped line 7 (C1's verdict reads only launches, launch-check stops and actions)]:
+       output line 50/50 [C1's listing of the run's note lines without dropped line 7, as PRESENCE p1 prints it (p1 is C1) (C1's verdict reads only launches, launch-check stops and actions)]:
+       output line 54/54 [C1's listing of the run's note lines without dropped line 7, as PRESENCE p1 prints it (p1 is C1) (C1's verdict reads only launches, launch-check stops and actions)]:
+       output line 323/323 [THE ONE TEST]:
+       JSON blindness.first_opening.kind [blindness]: pinned "SNAPSHOT" | deviation "F2-START"
+       JSON blindness.first_opening.line [blindness]: pinned 7 | deviation 17
+       JSON blindness.first_opening.time [blindness]: pinned "2026-11-01T17:44:00+00:00" | deviation "2026-11-02T01:26:00+00:00"
+       JSON blindness.not_blind [blindness]: pinned "(absent)" | deviation []
+       JSON blindness.not_blind[0] [blindness]: pinned "stance7_r10LTSBoff_s60" | deviation "(absent)"
+       JSON blindness.not_blind[1] [blindness]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"
+       JSON blindness.not_blind[2] [blindness]: pinned "stance7_r10LTSBoff_s80" | deviation "(absent)"
+       JSON blindness.seeds.42.blind [blindness]: pinned false | deviation true
+       JSON blindness.seeds.60.blind [blindness]: pinned false | deviation true
+       JSON blindness.seeds.80.blind [blindness]: pinned false | deviation true
+       JSON reading.one_test.k [THE ONE TEST]: pinned 20 | deviation 11
+       JSON reading.one_test.not_blind_entered_as_missing [THE ONE TEST]: pinned "(absent)" | deviation []
+       JSON reading.one_test.not_blind_entered_as_missing[0] [THE ONE TEST]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"
+       JSON reading.one_test.not_blind_entered_as_missing[1] [THE ONE TEST]: pinned "stance7_r10LTSBoff_s60" | deviation "(absent)"
+       JSON reading.one_test.not_blind_entered_as_missing[2] [THE ONE TEST]: pinned "stance7_r10LTSBoff_s80" | deviation "(absent)"
+       JSON reading.one_test.off[0] [THE ONE TEST]: pinned null | deviation 0.5
+       JSON reading.one_test.off[1] [THE ONE TEST]: pinned null | deviation 0.6
+       JSON reading.one_test.off[2] [THE ONE TEST]: pinned null | deviation 0.7
+       JSON reading.one_test.off_missing[0] [THE ONE TEST]: pinned true | deviation false
+       JSON reading.one_test.off_missing[1] [THE ONE TEST]: pinned true | deviation false
+       JSON reading.one_test.off_missing[2] [THE ONE TEST]: pinned true | deviation false
+       JSON reading.one_test.p [THE ONE TEST]: pinned "20/20" | deviation "11/20"
+       JSON reading.one_test.p_float [THE ONE TEST]: pinned 1.0 | deviation 0.55
+       JSON reading.one_test.text [THE ONE TEST]: pinned "NOT SEPARATED (p = 20/20)" | deviation "NOT SEPARATED (p = 11/20)"
+       JSON runs.stance7_r10LTSBpc_s60.completeness.C1.value.lines.7 [C1's listing of a dropped line]: pinned "SNAPSHOT" | deviation "(absent)"
+       JSON runs.stance7_r10LTSBpc_s60.d16.presence[0].p1.value.lines.7 [C1's listing of a dropped line (D-16 PRESENCE p1 copy)]: pinned "SNAPSHOT" | deviation "(absent)"
+       JSON runs.stance7_r10LTSBpc_s60.d16.presence[1].p1.value.lines.7 [C1's listing of a dropped line (D-16 PRESENCE p1 copy)]: pinned "SNAPSHOT" | deviation "(absent)"
+       JSON runs.stance7_r10LTSBpc_s60.presence[0].p1.value.lines.7 [C1's listing of a dropped line (PRESENCE p1 copy)]: pinned "SNAPSHOT" | deviation "(absent)"
+       JSON runs.stance7_r10LTSBpc_s60.presence[1].p1.value.lines.7 [C1's listing of a dropped line (PRESENCE p1 copy)]: pinned "SNAPSHOT" | deviation "(absent)"
+       8 output lines and 29 JSON values differ; every one is a blindness line, THE ONE TEST or C1's listing of a dropped line (C1's own, or its PRESENCE p1 / D-16 copies)
+== S1_separation: tool exit 0; stderr 0 bytes; files changed outside --out: none
+   pinned   : scorer k=20 p=20/20 text='NOT SEPARATED (p = 20/20)'; oracle k=20 (on reported values 20); TDs as intended True; off_missing [True, True, True] phase_missing [False, False, False] not_blind ['stance7_r10LTSBoff_s42', 'stance7_r10LTSBoff_s60', 'stance7_r10LTSBoff_s80'] -> AGREE
+   deviation: scorer k=1 p=1/20 text='LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact permutation p = 1/20)'; oracle k=1 (on reported values 1); TDs as intended True; off_missing [False, False, False] phase_missing [False, False, False] not_blind [] -> AGREE
+       output line 11/11 [blindness: the first opening and the NOT BLIND runs]:
+       output line 12/12 [blindness: the seed's OFF run blind or not]:
+       output line 13/13 [blindness: the seed's OFF run blind or not]:
+       output line 14/14 [blindness: the seed's OFF run blind or not]:
+       output line 17/17 [C1's listing of the run's note lines without dropped line 7 (C1's verdict reads only launches, launch-check stops and actions)]:
+       output line 331/331 [THE ONE TEST]:
+       JSON blindness.first_opening.kind [blindness]: pinned "SNAPSHOT" | deviation "F2-START"
+       JSON blindness.first_opening.line [blindness]: pinned 7 | deviation 17
+       JSON blindness.first_opening.time [blindness]: pinned "2026-11-01T17:44:00+00:00" | deviation "2026-11-02T01:26:00+00:00"
+       JSON blindness.not_blind [blindness]: pinned "(absent)" | deviation []
+       JSON blindness.not_blind[0] [blindness]: pinned "stance7_r10LTSBoff_s60" | deviation "(absent)"
+       JSON blindness.not_blind[1] [blindness]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"
+       JSON blindness.not_blind[2] [blindness]: pinned "stance7_r10LTSBoff_s80" | deviation "(absent)"
+       JSON blindness.seeds.42.blind [blindness]: pinned false | deviation true
+       JSON blindness.seeds.60.blind [blindness]: pinned false | deviation true
+       JSON blindness.seeds.80.blind [blindness]: pinned false | deviation true
+       JSON reading.one_test.k [THE ONE TEST]: pinned 20 | deviation 1
+       JSON reading.one_test.lower [THE ONE TEST]: pinned false | deviation true
+       JSON reading.one_test.not_blind_entered_as_missing [THE ONE TEST]: pinned "(absent)" | deviation []
+       JSON reading.one_test.not_blind_entered_as_missing[0] [THE ONE TEST]: pinned "stance7_r10LTSBoff_s42" | deviation "(absent)"
+       JSON reading.one_test.not_blind_entered_as_missing[1] [THE ONE TEST]: pinned "stance7_r10LTSBoff_s60" | deviation "(absent)"
+       JSON reading.one_test.not_blind_entered_as_missing[2] [THE ONE TEST]: pinned "stance7_r10LTSBoff_s80" | deviation "(absent)"
+       JSON reading.one_test.off[0] [THE ONE TEST]: pinned null | deviation 0.4099999999999999
+       JSON reading.one_test.off[1] [THE ONE TEST]: pinned null | deviation 0.36
+       JSON reading.one_test.off[2] [THE ONE TEST]: pinned null | deviation 0.52
+       JSON reading.one_test.off_missing[0] [THE ONE TEST]: pinned true | deviation false
+       JSON reading.one_test.off_missing[1] [THE ONE TEST]: pinned true | deviation false
+       JSON reading.one_test.off_missing[2] [THE ONE TEST]: pinned true | deviation false
+       JSON reading.one_test.p [THE ONE TEST]: pinned "20/20" | deviation "1/20"
+       JSON reading.one_test.p_float [THE ONE TEST]: pinned 1.0 | deviation 0.05
+       JSON reading.one_test.text [THE ONE TEST]: pinned "NOT SEPARATED (p = 20/20)" | deviation "LOWER THAN EVERY CONCURRENT SWITCH-OFF RUN (exact permutation p = 1/20)"
+       JSON runs.stance7_r10LTSBpc_s60.completeness.C1.value.lines.7 [C1's listing of a dropped line]: pinned "SNAPSHOT" | deviation "(absent)"
+       6 output lines and 26 JSON values differ; every one is a blindness line, THE ONE TEST or C1's listing of a dropped line (C1's own, or its PRESENCE p1 / D-16 copies)
+scenarios with a disagreement: 0
+exit 0

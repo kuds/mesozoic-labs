@@ -1,0 +1,44 @@
+01_stance/models/stage1_final.zip.copy1 sha256 55ca16f498ccd7f4bc017459098c1e271fc4dfa9e3a65cc8be2ec7a721dbaba6 in the F2 fetch manifest: True
+01_stance/models/stage1_final_vecnorm.pkl.copy1 sha256 47dab7fd335e9e1d26c9602fb6e67abd11c35c92a223050893e71287841d331e in the F2 fetch manifest: True
+stock policy ActorCriticPolicy; bank (1000, 63); episodes [{"seed": 3042, "rows": 500, "k_first": 0, "k_last": 499, "ended_before_limit": null}, {"seed": 3043, "rows": 500, "k_first": 0, "k_last": 499, "ended_before_limit": null}]
+STOCK (no phase input): verdict NOT IN FORCE {"(i) phase in force": {"holds": false, "why": "the critic reads no phase (a stock critic)"}}
+WIDENED (zero phase columns): verdict NOT IN FORCE, failing ['(i)']
+{
+ "(i) phase in force": {
+  "holds": false,
+  "phase_weights_nonzero": 0,
+  "phase_weights_shape": [
+   512,
+   3
+  ],
+  "phase_weights_max_abs": 0.0,
+  "max_abs_dV_by_perturbation": {
+   "all 0": 0.0,
+   "all 1": 0.0,
+   "+1": 0.0,
+   "all 3": 0.0,
+   "1 - x": 0.0
+  }
+ },
+ "(ii) actor independent": {
+  "holds": true,
+  "max_abs_dmu_by_perturbation": {
+   "all 0": 0.0,
+   "all 1": 0.0,
+   "+1": 0.0,
+   "all 3": 0.0,
+   "1 - x": 0.0
+  },
+  "mean_63_equals_mean_with_phase": true,
+  "actor_first_layer_inputs": 63
+ },
+ "(iii) critic input from observation 6": {
+  "holds": true,
+  "obs6_weights_nonzero": 512,
+  "obs6_weights_max_abs": 0.1971960812807083,
+  "report_only_max_abs_dV_obs6_plus1": 0.04936408996582031
+ }
+}
+phase-fed V (effective) vs the stock critic's V: bitwise equal True; max |dV| 0.000e+00; rows differing 0 of 1000
+phase-fed V (settled) vs the stock critic's V: bitwise equal True; max |dV| 0.000e+00; rows differing 0 of 1000
+actor means widened (phase appended) vs stock: bitwise equal True

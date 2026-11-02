@@ -1,0 +1,152 @@
+FINALIZE NOTES: the three PC (STANCE7) review documents
+Written 2026-11-02, 20:14-20:35 UTC (date -u). ST = /home/user/work/pc_study. S1, S2 = the two scratch folders of
+ST/round/criteria.txt lines 38-39 (full paths left out: they contain a product name). RUNLOG = S1/foot/stance4/live/
+run_log.txt, read at 971 lines, sha256 89425ea97aff2bb9... (unchanged since the drafts). Labels: [measured] = read from
+the named file and line; [inferred] = my reasoning.
+
+WHAT WAS DONE
+- Drafts kept before any edit (cp -p), in ST/final/drafts/:
+    2f3c93a918bb17d96480adf408ec9eebc466df890a1244062e8f51827efbe738  PC_REPORT.md.v1 (449 lines)
+    8709a86a0997681a2dc275779161f8299a3916cdd8b9e3fa409a140441558a6c  ALL_EXPERIMENTS_SUMMARY.md.v1 (486 lines)
+    c123794c359d0b29e2ec70d06cbe57ba119417719045755686ebd0fb5865a360  NEXT_STEPS.md.v1 (473 lines)
+- Every finding of the three verifications (ST/final/verify_report, verify_summary, verify_next NOTES.txt) was
+  checked against its source before it was applied. The results are below. No finding changed a number of substance:
+  the verifiers' own checks of the numbers stand, and I re-read the lines each fix rests on.
+- The pinned reading, the failed pre-registered test and the flagged deviation reading are worded the same way in
+  all three documents: line 4, "CONSISTENT WITH THE PHASE CRITIC REMOVING THE HABIT, NOT CONFIRMATORY"; THE ONE TEST
+  NOT SEPARATED (p = 20/20), a FAIL; the deviation reading LOWER (p = 1/20), flagged, not the reading of record.
+
+HOW EACH FINDING WAS HANDLED (A = applied as proposed; A* = applied with a change, reason given; R = rejected)
+
+Report (verify_report):
+- B1 A. Checked: PS REPORT.md line 91 is [measured] (the climb stopped), lines 94-97 are [inferred] (the explanation);
+  score_pc.txt line 357 reads NOT CONFIRMATORY; RUNLOG line 967 lists C8, M1, M3 only. The "PS showed this / this
+  round shows it" sentences and the causal wording ("kept the habit away", "turned a run ... into") are replaced.
+- M1 A. Checked: criteria.txt lines 112-125 (A5, CPU), 126-134 (A6, switch-off path only), 149 ("Seeds do not pair
+  runs"), 497-498 (image not measured); env fields equal in all nine runs (verify_report/evidence/env_fields.txt;
+  next_steps_work/env_fields.out). "Seeds are paired" is replaced by a labelled sentence.
+- M2 A. Checked: verify_report/evidence/falls.txt and next_steps_work/short_eps.out: 9 falls for PHASE s60 at
+  3,407,872 ... 11,665,408; 6 of 9 at or after 4,194,304; lengths 150-378, 7 of 9 between 211 and 378.
+- M3 A*. Checked: score_pc.txt line 332, guard tail_2 0.0142, 0.0160, 0.0147, 0.0223, 0.0344, 0.0552. It rose at 4 of
+  5 steps, not at every step, so the text says "up at 4 of 5 steps" instead of "steadily".
+- M4 A. Checked: AMENDMENT2.txt lines 162-168 (section 4 (iv)); criteria.txt lines 229 and 309.
+- M5 A. Checked: RUNLOG lines 889-895 (CHECK new_run=not-reported, never updated for PHASE), 925-927 (updated for OFF),
+  889 and 891 (cell-9 rows for s60 and s80 only), 890 (cell-6 rows from an unnamed run), 902, 905, 910, 935.
+- M6 A. Checked: criteria.txt lines 269-272 and 329-337; score_pc.txt has no M2 posture or D-1 to D-15 output (grep);
+  panels hold only c8, m1, m3 (listing of round/panels/stance7_r10LTSBpc_s42/final). An "Open items" section is added.
+  Also found: COLAB_STEPS.txt lines 264-269 (the pinned F2 step list) name no M4, which is how the omission happened.
+- M7 A. A "Words used" block is added after the short names.
+- M8 A. Checked: the journal's result.checkB never mentions STANCE6; OFF s42's M3 report line 10 (38/40, LCB95 0.8508
+  >= 0.80), lines 15-20 and 63 (2 hop-or-fall episodes, limit 1).
+- M9 A*. Checked: RUNLOG lines 906/913 (s60) and 922/930 (s42) name the freed runtime; no line does for s80. The "410
+  downloads, no write tool" figure is in ST/f2/check_process/drive_scan.out line 40 (and the journal's result.checkB
+  item 2), not manifest_check.out; I cite drive_scan.out, which the verifier did not name. "Four stance terms at
+  step 200" now cites PS REPORT.md line 95 and RUNLOG line 804.
+- I1 A. Checked: S2/r10round/final_lean/evidence_r10round_v12.txt line 256 "[inferred, as REPL]"; S2/r10round/f2/
+  REVIEW.txt line 511 "[measured, EVID l250-l258]". Added to the report, the summary (open item 17) and next steps.
+- I2 A. I3 A (checked: check_numbers/out/zipdata_off_vs_stance6.out lines 2-6, 12-16, 22-26 list the five keys for
+  all three seeds; ep_info_buffer's content is labelled [inferred]). I4 A (the report now gives its draft and
+  finalize times). I5 A. I6 A* ("8.9 times smaller" became "one ninth (1/8.9)"; "15 h added twice" kept: it quotes
+  RUNLOG line 935).
+
+Summary (verify_summary):
+- B1 A. Checked: RUNLOG lines 772, 794 (BS2 hid the tail angle, gave no phase), 857 (PS gave the phase); PS REPORT.md
+  lines 9-11 and 103 (one start state); score_pc.txt line 357. Link 4 is retitled as proposed.
+- B2 A*. Checked: RUNLOG lines 757, 770, 771, 779. I also avoided calling the 2.10M source a "clock error" as a
+  measurement: line 771 measures the critic's bootstrapped value as the source; "clock error" is the why-probe's
+  reading (line 804), so it is labelled [inferred].
+- M1 A*. Checked each RUNLOG line named (237, 400-405, 708-709, 768-769, 854, 860, 862, 873, 878, 905, 935, 951, 953).
+  I added line 848 (a VG-build fixer's error output to a system device path) and line 872 (the records draft's
+  stated-slip findings), and the PC items from the report's slip table, so the two lists agree. Device paths are not
+  written out; the documents say "a system device path".
+- M2 A. Checked RUNLOG 493, 689; TAILREC line 597 (L028).
+- M3 A. Checked PS REPORT.md line 69; RUNLOG line 804.
+- M4 A. Checked RUNLOG 740 ("s42 ARM A AT 6 OF 6 (no room for B HIGHER)") and 742.
+- M5 A. M6 A (checked RUNLOG 804, 970, 771; "Both terms are still in force" now cites main's stance.toml lines 267 and
+  283 and the run branch's lines 291 and 307, read with git show).
+- M7 A. Checked criteria.txt lines 305-307; score_pc.txt line 363; complete_post.txt line 68 (the same line in all three
+  PHASE runs).
+- M8 A. Checked RUNLOG 804 (B-apparent), 526 (untested objective), 770 (s80 +0.15).
+- M9 A*. Glossary, a short "In short" section and "five links" added. I did not define the letters L and T one by
+  one: no source I read defines them, so the gloss gives what is recorded (LTS = L+T plus a stagger penalty, LTSB
+  adds the CoP band; RUNLOG lines 2-3, 185-187). The reading string "R 1 ... G+ 1" is glossed from S2/r10round/
+  final_lean/criteria_r10round_final.txt lines 308-310.
+- M10 A*. Checked RUNLOG 750 (0.27 at the ECS start state) and 769. The verifier's XREF.txt line 46 values (-0.25 at
+  1.05M, -0.386 at 2.10M) come from the record's clipped 0-6 degree sweep; RUNLOG line 769 gives -0.73 at 1.05M from
+  an unclipped sweep. Both are cited; the signs agree.
+- I1 A (E24 PR cell "draft, unpushed"). I2 A (lines 38-39). I3 A ("about 13 to 49"). I4 A. I5 A (RUNLOG 862). I6 A
+  (the 0.037 rail-or-park plug-in, labelled post hoc and [inferred]).
+
+Next steps (verify_next):
+- F1 A. Checked ST/tools/pc/score_r10round.py lines 505-540 (sha256 3de2330a..., equal to the APPROVED pin): it ranks
+  POSITIVE finals by clean panel episodes, then falls, and never reads K1-K4 pass or fail. REVIEW6 lines 395-402:
+  STANCE6 s80 failed K1 at 6.29M (40/40 at the final), K3 with 5 falls at 6.29M and 2 at the final. Q2 now says the
+  extra bar is the maintainer's to add.
+- F2 A. The draft's table already showed the split; a sentence now says "none of the first three; the fourth is
+  split". (The phrase "met none" was not in the file; it was in the draft's returned summary.)
+- F3 A*. Checked the session record (CHAT, 03:39:37 UTC) for the sentence. Checked GQP lines 185, 199, 700: GQ-3 (a)
+  is "no walker session on today's rewards", and the certified-stance-before-walk rule is GQ-17 (line 700). Option D's
+  departure is stated against both, quoting the earlier answer's own words.
+- F4 A. Checked the training library 2.9.0 in S2's environment: common/utils.py lines 42-45 set the cuDNN flags when
+  seeding on a GPU; base_class.py set_random_seed calls it. grep of that library and of the branch at 1dfe2327 finds
+  no deterministic-algorithms call and no cuBLAS workspace setting.
+- F5 A. Checked main 4c9d5e9b: locomotion.toml lines 6 and 158-162; advancement.py RewardRampCallback (progress =
+  num_timesteps / ramp_timesteps); train_base.py lines 1086-1097.
+- F6 A. Checked RB stance.toml line 316 and main line 292 (head_clearance_target 0.90, tolerance 0.15);
+  reward_head_clearance in main's reward_functions.py (smoothstep from 0.75 m to 0.90 m, clipped above).
+- F7 A*. Checked the arithmetic: sign-flip test, 5 pairs, p = 1/32 only with all 5 positive; one reversal on the
+  smallest difference needs 6 pairs (2/64); a sign test needs 8 pairs (9/256). With both runs of a seed in one wave and
+  three slots, one pair per wave: 5 waves, about 3.1 days. The text keeps the sign-flip test and gives its own numbers
+  (and the 6-pair cost, about 180 L4-hours, about 3.8 days).
+- F8 A. F9 A (beside Q1, and in Option C's facts). F10 A (checked COLAB_STEPS.txt lines 264-269). F11 A.
+- F12 A*, item by item:
+  (a) A: stages.toml line 34 says "no r10 seed yet (bar 2)", a certified seed.
+  (b) A: REVIEW6 line 823 labels 14.75-14.88 h [inferred]; steps/s are [measured] at lines 821-822.
+  (c) A: RUNLOG line 605's 13:41:32-14:05:08 is the test-sb3 job.
+  (d) A*: the finding's own line numbers are wrong. criteria.txt line 37 is the heading "SHORT NAMES"; S1 is line 38
+      and S2 line 39. All three documents now cite lines 38-39.
+  (e) A: CLEAR at lines 321, 325, 329; OFF TDs at 334, 338, 342; line 362 prints the OFF TDs as None.
+  (f) A: OFF s80's return is at line 347.
+  (g) A: git diff --stat 06b1a8e1..8737cd3d: 22 files, +3,425 / -776; 7 commits incl. pins, cadence, test
+      re-calibration.
+  (h) A: branch train_base.py lines 667-676 (code) refuse a phase checkpoint on a stage without one; line 609 is the
+      docstring.
+- F13 A (glossary). F14 A (applied to the report: stage_config.json's gpu block records NVIDIA L4 and CUDA 13.0;
+  no file records torch, cuDNN or the driver).
+
+Rejected outright: none. The partial changes are marked A* above with the reason.
+
+CONSISTENCY CHANGES ACROSS THE THREE DOCUMENTS
+- Same figures everywhere: PHASE TD 0.0079 / 0.0173 / 0.0122; OFF TD 0.3882 / 0.6353 / 0.1543; OFF/PHASE ratios
+  49.1 / 36.7 / 12.6 ("about 13 to 49 times"); returns +30.1 / +103.4 / +66.5; 9 falls in 910 for PHASE s60 (3.41M to
+  11.67M); PHASE s80 tail_2 +0.014 to +0.055; plug-ins 0.296 (pinned) and 0.037 (post hoc); Statistic A p 0.2; OFF
+  arm 44.6 L4-hours.
+- Same names: "bit-for-bit reproductions" (not "copies") for OFF = STANCE6; "the parent rule (from stance3)"; PHASE,
+  OFF, STANCE6, PS.
+- Same caveats: same-seed pairs do not isolate the phase information (no sham arm); the image is not measured but the
+  recorded GPU and software fields are equal; M4 at the PHASE finals is owed F2 work, not done; the deviation reading's
+  controls were known values; the stance6 review's wrong label.
+- The report, the summary and next steps now each give a short "In short" block that points to the labelled text.
+
+OWN SLIPS (stated, not hidden)
+- About 20:17 UTC: a read-only sed over RUNLOG output used a substitution pattern that matches system device paths, to
+  mask such paths on screen. No device was opened and nothing was written. That is against the rule on device paths.
+- About 20:15 UTC: a directory listing printed more than the tool shows; the tool harness saved the full output to its
+  own results folder, outside ST/final/. I did not write it. A malformed read-only grep glob at about 20:26 UTC
+  matched no file and printed errors; nothing was written.
+- Everything I wrote is under ST/final/ (drafts/, finalize_work/, the three documents, this file, SHA256SUMS.txt).
+  No training, simulation, network, Drive or git write; git was used only with show, diff, log, grep and cat-file.
+  Python ran only with -I -B (TMPDIR inside ST/final/finalize_work/tmp), to read ten lines of the session record and
+  the F2 workflow journal (JSON); it wrote nothing.
+
+POINTS THE MAINTAINER MUST DECIDE (the same list ends NEXT_STEPS.md)
+1. Whether "consistent, not confirmatory" (and a failed pre-registered test) is enough to act on, or a confirmatory
+   round with new seeds comes first.
+2. What bar a parent must meet beyond the pinned rule, which names a final whatever K1-K4 read.
+3. The head-posture ruling (PHASE heads at about 0.90 m, the reward's full-credit bar, against the statue's 0.96 m).
+4. Whether a walking pilot from an uncertified PHASE parent is allowed as an exception to GQ-3 (a) and GQ-17.
+5. Whether the phase critic lands on main default-off; later, whether default-on.
+6. Whether to run the owed F2 work now (M4 at the PHASE finals, the critic readouts, M2 posture, D-1 to D-15), and
+   whether the records should correct the stance6 review's "[measured]" label.
+
+FINAL DOCUMENTS: see ST/final/SHA256SUMS.txt.

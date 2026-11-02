@@ -1,0 +1,41 @@
+.................................F
+=================================== FAILURES ===================================
+______________ test_r7_the_copy_self_check_refuses_a_faulty_copy _______________
+
+tmp_path = PosixPath('/home/user/work/pc_study/amend2/rereview/mutants/R7/pt/test_r7_the_copy_self_check_re0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f76e6ec30b0>
+capsys = <_pytest.capture.CaptureFixture object at 0x7f76e6eb1090>
+
+    def test_r7_the_copy_self_check_refuses_a_faulty_copy(tmp_path, monkeypatch, capsys):
+        """A faulty copy builder (the line not blanked) is refused by the copy's self-check before any scorer run."""
+        rnd = build(tmp_path)
+        monkeypatch.setattr(D, "build_deviation_copy", lambda lines, drop_lines: "".join(lines))
+    
+        def no_run(*a, **k):
+            raise AssertionError("the scorer ran on a faulty deviation copy")
+    
+        monkeypatch.setattr(D, "run_both", no_run)
+>       rc, text = _main_in_process(rnd, tmp_path / "out", capsys)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test_score_pc_dev.py:663: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test_score_pc_dev.py:597: in _main_in_process
+    rc = D.main(["--out", str(out), "--round", str(rnd.root), "--runlog", str(rnd.runlog), "--pins",
+../rereview/mutants/R7/score_pc_dev.py:500: in main
+    res = run_both(tools, out, a, {"pinned": asread, "deviation": dev})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (PosixPath('/home/user/work/pc_study/tools/pc'), PosixPath('/home/user/work/pc_study/amend2/rereview/mutants/R7/pt/tes...th('/home/user/work/pc_study/amend2/rereview/mutants/R7/pt/test_r7_the_copy_self_check_re0/out/runlog_deviation.txt')})
+k = {}
+
+    def no_run(*a, **k):
+>       raise AssertionError("the scorer ran on a faulty deviation copy")
+E       AssertionError: the scorer ran on a faulty deviation copy
+
+test_score_pc_dev.py:660: AssertionError
+=========================== short test summary info ============================
+FAILED test_score_pc_dev.py::test_r7_the_copy_self_check_refuses_a_faulty_copy
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 33 passed in 63.23s (0:01:03)
