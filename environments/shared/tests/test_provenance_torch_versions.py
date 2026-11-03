@@ -16,11 +16,16 @@ REPOSITORY = Path(__file__).resolve().parents[3]
 
 #: Runs in a fresh interpreter, so torch's state before the call is the state a training process has at the
 #: notebook's storage cell: every random generator, the thread count and every determinism flag, before and after.
+#: The module is imported before the first snapshot, as a training process has imported it long before that cell:
+#: the import reaches stable_baselines3 (through ``result_bundle.audit`` and ``curriculum.sb3_compat``, as on main),
+#: and with SB3's extras installed importing SB3 alone advances Python's global random state.  What is tested is
+#: the call.
 _PROBE = """
 import json, random, sys
 sys.path.insert(0, {root!r})
 import numpy as np
 import torch
+from environments.shared.result_bundle.provenance import _dependency_versions
 
 def state():
     return {{
@@ -35,7 +40,6 @@ def state():
     }}
 
 before = state()
-from environments.shared.result_bundle.provenance import _dependency_versions
 versions = _dependency_versions()
 after = state()
 print(json.dumps({{"same": before == after, "versions": versions, "torch": torch.__version__,
