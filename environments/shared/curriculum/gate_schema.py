@@ -324,6 +324,13 @@ _DIAGNOSTIC_KEYS = frozenset(
 #: ``checkpoints.checkpoint_archive_every``).
 _RETENTION_KEYS = frozenset({"max_checkpoints", "checkpoint_archive_every_timesteps"})
 
+#: Keys that set the evaluation and periodic-checkpoint cadence rather than
+#: the gate (``train_base._stage_cadence``, ``train_base._eval_episodes_for_stage``):
+#: ``eval_freq`` and ``checkpoint_freq`` in environment steps, ``eval_episodes``
+#: the in-training evaluation panel.  Like retention they enter no gate,
+#: recipe or task digest.
+_CADENCE_KEYS = frozenset({"eval_freq", "eval_episodes", "checkpoint_freq"})
+
 #: The stage-entry key that sets the policy's exploration noise when the
 #: stage is warm-started: ``warm_start_log_std``, the value written into
 #: every entry of a PPO policy's state-independent ``log_std`` after the
@@ -588,6 +595,7 @@ def validate_gate_config(
         | _SCHEDULE_KEYS
         | _COLLAPSE_KEYS
         | _RETENTION_KEYS
+        | _CADENCE_KEYS
         | _WARM_START_KEYS
         | _DIAGNOSTIC_KEYS
         | _PROVENANCE_KEYS
