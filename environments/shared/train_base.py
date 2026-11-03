@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 import time
 from datetime import datetime
 from pathlib import Path
@@ -51,8 +52,10 @@ from .constants import (
     DEFAULT_NORM_REWARD,
     PUBLICATION_SEED_START,
 )
+from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
+from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
-from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS
+from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, WARM_START_LOG_STD_KEY, declared_warm_start_log_std
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
@@ -187,6 +190,182 @@ def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
     return max(_DEFAULT_EVAL_EPISODES, int(curriculum.get("min_eval_episodes", 0)))
 
 
+#: The ``run``-block keys a warm start across a node's edge records (``stage_config.json``), and a same-stage resume of
+#: that stage keeps: ``critic_phase_dropped``, the critic-phase record :func:`_critic_phase_drop_record` read off the
+#: parent, and ``warm_start_log_std``, the value :func:`_warm_start_log_std` wrote into the policy's ``log_std``.
+WARM_START_RUN_KEYS = ("critic_phase_dropped", WARM_START_LOG_STD_KEY)
+
+
+def _load_crosses_edge(task_load_mode: str, parent_id: str | None, load_path: str | None) -> bool:
+    """Whether a load crosses the node's declared edge: the rule of stage-entry shaping
+    (:func:`_stage_entry_shaping_callbacks`), of the critic-phase drop and of every other warm-start-only step.
+
+    The node has an edge (``parent_id``, the manifest's ``warm_start_from``) and a checkpoint is loaded across it
+    under ``initialize_next_stage``.  Never a root (no edge), a same-stage resume or a fresh start.
+    """
+    return task_load_mode == "initialize_next_stage" and parent_id is not None and bool(load_path)
+
+
+def _critic_phase_drop_record(
+    stage_config: dict[str, Any],
+    *,
+    stage: "int | str",
+    algorithm: str,
+    task_load_mode: str,
+    parent_id: str | None,
+    load_path: str | None,
+) -> dict[str, Any] | None:
+    """The critic-phase record this load's warm-start drop removes (``run.critic_phase_dropped``), else ``None``.
+
+    Read off the archive's JSON (``mesozoic_critic_phase``; never unpickled, ``None`` for a stock archive, a missing
+    file or a non-SB3 file), before the stage directory exists, so a load the drop cannot serve is refused with
+    nothing behind it.  The drop applies when the checkpoint's critic reads the episode phase, the stage declares no
+    ``[ppo] critic_phase`` and the load crosses the node's edge (:func:`_load_crosses_edge`).  A checkpoint whose
+    record is malformed, a non-PPO load of one, and a load of one that crosses no edge into a stage without the
+    option (a same-stage resume, a root re-initialised from itself) raise
+    :class:`~environments.shared.critic_phase.CriticPhaseError`.  A stage that declares the option returns ``None``:
+    the load is checked against its phase when the model loads (both ways), as before.
+    """
+    if not load_path:
+        return None
+    from .task_fingerprint import read_checkpoint_attribute
+
+    record = read_checkpoint_attribute(load_path, CRITIC_PHASE_ATTRIBUTE)
+    if record is None:
+        return None
+    try:
+        CriticPhaseSpec.from_record(record)
+    except CriticPhaseError as exc:
+        raise CriticPhaseError(f"refusing to load {load_path}: {exc}") from exc
+    if algorithm != "ppo":
+        raise CriticPhaseError(
+            f"refusing to load {load_path}: its critic reads the episode phase ({record!r}), a PPO option; "
+            f"{algorithm.upper()} cannot load it"
+        )
+    if read_critic_phase(stage_config.get("ppo_kwargs", {})):
+        return None
+    if not _load_crosses_edge(task_load_mode, parent_id, load_path):
+        raise CriticPhaseError(
+            f"refusing to load {load_path}: the checkpoint's critic reads the episode phase ({record!r}) and stage "
+            f"{stage} declares no [ppo] critic_phase; the phase inputs are dropped only at a warm start across the "
+            f"node's edge (initialize_next_stage from its declared parent), and this load ({task_load_mode}) "
+            "crosses none"
+        )
+    return dict(record)
+
+
+def _warm_start_log_std(
+    stage_config: dict[str, Any],
+    *,
+    stage: "int | str",
+    algorithm: str,
+    task_load_mode: str,
+    parent_id: str | None,
+    load_path: str | None,
+) -> float | None:
+    """The ``log_std`` this load writes into the policy, or ``None`` when it writes none.
+
+    ``[curriculum] warm_start_log_std`` (untested in training: no committed
+    stage declares it) applies exactly when stage-entry shaping does
+    (:func:`_load_crosses_edge`): the node has an edge and a checkpoint is
+    loaded across it under ``initialize_next_stage``.  A same-stage resume
+    continues the noise its checkpoint learned, a fresh start keeps the
+    policy's ``log_std_init``, and a root has no edge: ``None`` for each, as
+    for a stage that declares no key.  The value is validated on every call
+    (:func:`~environments.shared.curriculum.gate_schema.declared_warm_start_log_std`),
+    so a malformed key fails a fresh start too.  Where it applies it needs a
+    PPO policy: SAC's noise is state-dependent, with no ``log_std`` parameter
+    to set.
+    """
+    value = declared_warm_start_log_std(stage_config.get("curriculum_kwargs", {}), stage=stage)
+    if value is None or not _load_crosses_edge(task_load_mode, parent_id, load_path):
+        return None
+    if algorithm != "ppo":
+        raise ValueError(
+            f"stage {stage}: [curriculum] {WARM_START_LOG_STD_KEY} sets a PPO policy's log_std at a warm start; "
+            f"{algorithm.upper()} has no state-independent log_std to set"
+        )
+    return value
+
+
+def _apply_warm_start_log_std(model: Any, value: float) -> None:
+    """Write *value* into every entry of the policy's ``log_std``, after the parent's parameters are loaded.
+
+    In place (``fill_`` under ``no_grad``), so the ``Parameter`` the
+    optimizer holds is the one changed, and its Adam moments are KEPT, as
+    every other parameter's are across the warm start.  They are running
+    estimates of the gradient's mean and square, and the PPO loss's gradient
+    with respect to ``log_std`` does not scale with the std (normalised
+    advantages times ``(a - mu)^2 / sigma^2 - 1`` with ``a`` drawn at sigma,
+    plus the constant entropy coefficient), so the parent's second moment
+    stays a valid step normaliser and its first moment decays by beta1 = 0.9
+    per minibatch.  Clearing them would change the optimizer as well as the
+    value: zeroed moments under the parent's step count lose Adam's bias
+    correction, and a dropped state restarts this one tensor's bias
+    correction alone.  Untested in training (walking pilot 2, which planned
+    it at -1.5, was never launched).
+
+    Refused for a policy without a state-independent, per-actuator
+    ``log_std`` (gSDE, or no Gaussian head).  The "Warm start:" line is
+    PRINTED to stdout, not logged, so it shows wherever the trainer runs
+    whatever logging is configured (the notebook configures none);
+    ``stage_config.json``'s ``run.warm_start_log_std`` is the durable record.
+    """
+    import torch as th
+
+    policy = model.policy
+    log_std = getattr(policy, "log_std", None)
+    if not isinstance(log_std, th.nn.Parameter) or log_std.dim() != 1 or getattr(policy, "use_sde", False):
+        raise ValueError(
+            f"[curriculum] {WARM_START_LOG_STD_KEY} needs a Gaussian policy with one state-independent log_std "
+            f"per actuator; {type(policy).__name__} has none"
+            + (" (gSDE)" if getattr(policy, "use_sde", False) is True else "")
+        )
+    parent_std = log_std.detach().double().exp().cpu()
+    with th.no_grad():
+        log_std.fill_(value)
+    print(
+        f"Warm start: policy log_std set to {value:g} (std {math.exp(value):.3f}) on all {log_std.numel()} "
+        f"actuators (the parent's std: mean {float(parent_std.mean()):.3f}, min {float(parent_std.min()):.3f}, "
+        f"max {float(parent_std.max()):.3f}; Adam moments kept)",
+        flush=True,
+    )
+
+
+def _warm_start_record(
+    stage_dir: Path,
+    *,
+    critic_phase_dropped: dict[str, Any] | None = None,
+    log_std: float | None = None,
+    task_load_mode: str,
+    load_path: str | None,
+) -> dict[str, Any]:
+    """The :data:`WARM_START_RUN_KEYS` this load records in ``stage_config.json``'s ``run`` block.
+
+    What this load does (*critic_phase_dropped*, from :func:`_critic_phase_drop_record`; *log_std*, from
+    :func:`_warm_start_log_std`).  A same-stage resume does none of it, but the stage it continues entered across
+    its edge with what its ``stage_config.json`` records, and the re-save keeps it, as
+    :func:`~environments.shared.config.save_stage_config` keeps that stage's edge.  Otherwise empty: a load that
+    does none of it records nothing new.  The ``warm_start_log_std`` the config declares is recorded in
+    ``curriculum`` either way, and ``run.hyperparameters_sha256`` covers it (``config.SHAPING_KEY_PREFIXES``).
+    """
+    record: dict[str, Any] = {}
+    if critic_phase_dropped is not None:
+        record["critic_phase_dropped"] = critic_phase_dropped
+    if log_std is not None:
+        record[WARM_START_LOG_STD_KEY] = log_std
+    if load_path and task_load_mode == "resume_same_stage":
+        from .config import read_recorded_stage_config
+
+        recorded = read_recorded_stage_config(stage_dir)
+        run_block = recorded.get("run") if recorded is not None else None
+        if isinstance(run_block, dict) and run_block.get("load_mode") == "initialize_next_stage":
+            record.update(
+                {key: run_block[key] for key in WARM_START_RUN_KEYS if key in run_block and key not in record}
+            )
+    return record
+
+
 def make_env(
     species_cfg: SpeciesConfig,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -228,6 +407,7 @@ def create_vec_env(
     algorithm: str | None = None,
     gamma: float | None = None,
     plant_identity: PlantIdentity | None = None,
+    critic_phase_gamma: float | None = None,
 ):
     """Create vectorized environment with observation/reward normalization.
 
@@ -241,6 +421,12 @@ def create_vec_env(
     ``gamma`` is forwarded to ``VecNormalize`` so its discounted-return
     statistics match the algorithm's discount factor; otherwise it silently
     drifts from SB3's hard-coded default of 0.99.
+
+    ``critic_phase_gamma`` (``None``: off, the stock ``VecNormalize``) makes
+    the wrapper a :class:`~environments.shared.critic_phase_ppo.CriticPhaseVecNormalize`,
+    which appends the critic's episode phase (``[ppo] critic_phase``, that
+    discount) to the observations it returns: the TRAINING env of such a
+    stage only, never an evaluation env.
     """
     from .policy_loading import _ensure_sb3
 
@@ -266,7 +452,12 @@ def create_vec_env(
     if gamma is not None:
         vecnorm_kwargs["gamma"] = gamma
 
-    env = sb3["VecNormalize"](env, **vecnorm_kwargs)
+    if critic_phase_gamma is None:
+        env = sb3["VecNormalize"](env, **vecnorm_kwargs)
+    else:
+        from .critic_phase_ppo import CriticPhaseVecNormalize
+
+        env = CriticPhaseVecNormalize(env, critic_phase_gamma=critic_phase_gamma, **vecnorm_kwargs)
     if plant_identity is not None:
         # VecNormalize is pickled separately from the SB3 model.  Embedding the
         # same contract in both artifacts prevents a policy from being paired
@@ -524,6 +715,8 @@ def _create_or_load_model(
     task_fingerprint: "dict[str, Any] | None" = None,
     task_load_mode: str = "resume_same_stage",
     symmetry: "SymmetryConfig | None" = None,
+    critic_phase: "CriticPhaseSpec | None" = None,
+    crosses_edge: bool = False,
 ) -> Any:
     """Create a new model or load from checkpoint.
 
@@ -550,6 +743,27 @@ def _create_or_load_model(
     records (``mesozoic_symmetry``), both ways; a warm start under ``initialize_next_stage`` takes the child's, and
     a child that enables it needs a parent trained with it (:func:`~environments.shared.mirror_kl_ppo.enable_mirror_kl`
     refuses a stock parent's asymmetric observation statistics and ``log_std``).
+
+    ``critic_phase`` (the stage's ``[ppo] critic_phase``: the
+    :class:`~environments.shared.critic_phase.CriticPhaseSpec` the training
+    env appends; ``None``: off) builds the model with
+    :mod:`~environments.shared.critic_phase_ppo`'s policy and rollout buffer,
+    whose critic alone reads the phase, and records the spec in the
+    checkpoint attribute ``mesozoic_critic_phase``.  Any load -- a resume or
+    a warm start -- whose critic reads another phase, or none, than the stage
+    declares is refused before training, both ways
+    (:func:`~environments.shared.critic_phase_ppo.critic_phase_mismatch`),
+    with one exception: a PPO warm start under ``initialize_next_stage``
+    that ``crosses_edge`` (the load crosses the node's declared edge,
+    :func:`_load_crosses_edge`; ``False`` for every direct caller) from a
+    phase checkpoint into a stage that declares no phase DROPS the critic's
+    phase inputs (:func:`~environments.shared.critic_phase_ppo.drop_critic_phase`:
+    the actor is untouched and the model becomes stock PPO), right after
+    the load and before the plant and task validation and the command-column
+    neutralisation, which read a stock critic; the task lineage records it
+    as ``dropped_critic_phase``.  ``train_env`` must then be the stage's
+    :class:`~environments.shared.critic_phase_ppo.CriticPhaseVecNormalize`
+    with the same spec.
     """
     from .symmetry import CHECKPOINT_ATTRIBUTE, MirrorMap, SymmetryError, symmetry_mismatch
     from .task_fingerprint import (
@@ -562,6 +776,15 @@ def _create_or_load_model(
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
 
+    if critic_phase is not None:
+        if algorithm != "ppo":
+            raise CriticPhaseError(f"the critic phase is a PPO option, not {algorithm!r}")
+        if getattr(train_env, "critic_phase", None) != critic_phase:
+            raise CriticPhaseError(
+                f"the training env appends {getattr(train_env, 'critic_phase', None)!r}, the stage declares "
+                f"{critic_phase!r}: the critic would not see the phase it is built for"
+            )
+
     mirror_map = None
     if symmetry is not None:
         if algorithm != "ppo":
@@ -571,6 +794,7 @@ def _create_or_load_model(
         mirror_map = MirrorMap.load(plant_identity.model_id, plant_identity)
 
     task_lineage = None
+    critic_phase_drop: dict[str, Any] | None = None
     if load_path:
         logger.info("Loading model from: %s", load_path)
         if task_load_mode == "resume_same_stage":
@@ -594,6 +818,38 @@ def _create_or_load_model(
                     allow_legacy=allow_legacy_plant,
                 )
         model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
+        # Both ways, any load mode: a critic built for the phase cannot train without it, nor one built without
+        # it on the phase-carrying observations.  A phase checkpoint always carries its JSON record (read from
+        # the instance's own attributes, as SB3's load restores them); a stock checkpoint on a stage without the
+        # option never enters this branch, and nothing else of the loaded model is read for it.  The one
+        # exception is the warm start across the node's edge into a stage without the option: the critic's
+        # phase inputs are dropped, before anything below reads the critic.
+        recorded_phase = getattr(model, "__dict__", {}).get(CRITIC_PHASE_ATTRIBUTE)
+        if (
+            recorded_phase is not None
+            and critic_phase is None
+            and crosses_edge
+            and task_load_mode == "initialize_next_stage"
+            and algorithm == "ppo"
+        ):
+            from .critic_phase_ppo import drop_critic_phase
+
+            critic_phase_drop = drop_critic_phase(model)
+            source = critic_phase_drop["source"]
+            line = (
+                f"Warm start: dropped the critic's {len(critic_phase_drop['columns'])} episode-phase inputs "
+                f"(settle step {source['settle_steps']}, gamma {source['gamma']}; column L2 "
+                + ", ".join(f"{value:.3f}" for value in critic_phase_drop["column_l2"])
+                + "); the actor is unchanged"
+            )
+            print(line, flush=True)
+            logger.info("%s", line)
+        elif critic_phase is not None or recorded_phase is not None:
+            from .critic_phase_ppo import critic_phase_mismatch
+
+            mismatch = critic_phase_mismatch(model, critic_phase)
+            if mismatch:
+                raise CriticPhaseError(f"refusing to load {load_path}: {mismatch}")
         if plant_identity is not None:
             validate_model_plant(
                 model,
@@ -651,6 +907,13 @@ def _create_or_load_model(
                     "cleared the warm-up marker so entropy decay resumes. The remainder "
                     "of that warm-up is NOT re-applied on a same-stage resume."
                 )
+    elif critic_phase is not None:
+        from .critic_phase_ppo import new_model_kwargs
+
+        logger.info(
+            "Creating new %s model (the critic also reads the episode phase: %s)...", algorithm.upper(), critic_phase
+        )
+        model = alg_cls(env=train_env, **new_model_kwargs(critic_phase, policy_kwargs), **alg_kwargs)
     else:
         logger.info("Creating new %s model...", algorithm.upper())
         model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
@@ -663,7 +926,12 @@ def _create_or_load_model(
         # Same ordering contract as the plant identity above.
         attach_task_fingerprint(model, task_fingerprint)
         if task_lineage is not None:
+            if critic_phase_drop is not None:
+                # In every checkpoint the child saves: the source record, the dropped columns' norms, the moments.
+                task_lineage["dropped_critic_phase"] = critic_phase_drop
             attach_task_lineage(model, task_lineage)
+    if critic_phase is not None:
+        setattr(model, CRITIC_PHASE_ATTRIBUTE, critic_phase.record())
     if symmetry is not None and mirror_map is not None:
         from .mirror_kl_ppo import enable_mirror_kl
 
@@ -1292,6 +1560,10 @@ def _train_stage_body(
         logger.info("Auto-enabling SubprocVecEnv for SAC (use --subproc to make explicit)")
     alg_kwargs_key = f"{algorithm}_kwargs"
     alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
+    # [ppo] critic_phase (environments/shared/critic_phase.py): the TRAINING env appends the critic's episode
+    # phase, discounted at the stage's PPO gamma (SB3's 0.99 when the table sets none); the evaluation env stays
+    # the env's own observation, as every other consumer of the policy sees it.
+    critic_phase_on = algorithm == "ppo" and read_critic_phase(config.get(alg_kwargs_key, {}))
     if announce:
         logger.info("Creating %d training environments...", n_envs)
     train_env = create_vec_env(
@@ -1304,6 +1576,7 @@ def _train_stage_body(
         algorithm=algorithm,
         gamma=alg_gamma,
         plant_identity=plant_identity,
+        critic_phase_gamma=(0.99 if alg_gamma is None else alg_gamma) if critic_phase_on else None,
     )
 
     if announce:
@@ -1347,6 +1620,11 @@ def _train_stage_body(
     # hyperparameters digest record them with the rest of the table.  Absent,
     # this is None and training is stock PPO.
     symmetry = pop_symmetry_config(alg_kwargs) if algorithm == "ppo" else None
+    # The same for [ppo] critic_phase: recorded with the table, not a PPO constructor kwarg.
+    critic_phase: CriticPhaseSpec | None = None
+    if algorithm == "ppo" and pop_critic_phase(alg_kwargs):
+        critic_phase = train_env.critic_phase
+        logger.info("Critic phase: the critic also reads %s (the actor does not)", critic_phase.record())
 
     wandb_run = None
     if use_wandb:
@@ -1373,7 +1651,23 @@ def _train_stage_body(
         # warm-started from stance) and is recorded as lineage.
         task_load_mode=task_load_mode,
         symmetry=symmetry,
+        critic_phase=critic_phase,
+        # The warm-start drop (a phase checkpoint into a stage without the option) needs the load to cross the
+        # node's edge, the stage-entry shaping's own rule.
+        crosses_edge=_load_crosses_edge(task_load_mode, parent_id, load_path),
     )
+    # [curriculum] warm_start_log_std, written over the parent's loaded log_std before anything learns; only on a
+    # load across the node's edge, as the stage-entry shaping below.
+    warm_start_log_std = _warm_start_log_std(
+        config,
+        stage=stage,
+        algorithm=algorithm,
+        task_load_mode=task_load_mode,
+        parent_id=parent_id,
+        load_path=load_path,
+    )
+    if warm_start_log_std is not None:
+        _apply_warm_start_log_std(model, warm_start_log_std)
 
     if announce:
         logger.info("Model architecture:")
@@ -1781,6 +2075,26 @@ def train(
         handoff = _select_handoff_checkpoint(loaded.parent) if loaded.parent.name == "models" else None
         if handoff is not None and loaded.name.removesuffix(".zip") == handoff[0]:
             _warn_on_heading_probe_handoff(loaded.parent.parent, stage=entry.id)
+    # A phase checkpoint into a stage without [ppo] critic_phase: the warm-start drop's record, or its refusal,
+    # before the stage directory exists.
+    critic_phase_dropped = _critic_phase_drop_record(
+        config,
+        stage=stage,
+        algorithm=algorithm,
+        task_load_mode=task_load_mode,
+        parent_id=entry.warm_start_from,
+        load_path=load_path,
+    )
+    # A malformed warm_start_log_std, or one a SAC warm start cannot apply, is refused before the stage directory
+    # exists.
+    warm_start_log_std = _warm_start_log_std(
+        config,
+        stage=stage,
+        algorithm=algorithm,
+        task_load_mode=task_load_mode,
+        parent_id=entry.warm_start_from,
+        load_path=load_path,
+    )
 
     sb3 = _ensure_sb3()
 
@@ -1817,13 +2131,21 @@ def train(
     # D-A15: a same-stage resume continues a recorded stage, so its duration
     # accumulates on the record's, read before the re-save below rewrites it.
     prior_duration = read_stage_duration(log_path) if (load_path and task_load_mode == "resume_same_stage") else None
+    # Read before the re-save below rewrites the record a resume keeps it from.
+    warm_start_record = _warm_start_record(
+        log_path,
+        critic_phase_dropped=critic_phase_dropped,
+        log_std=warm_start_log_std,
+        task_load_mode=task_load_mode,
+        load_path=load_path,
+    )
 
     save_stage_config(
         log_path,
         stage,
         config,
         algorithm.upper(),
-        extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+        extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps, **warm_start_record},
         env_class=species_cfg.env_class,
         model_id=model_id,
         plant_identity=plant_identity,
@@ -2725,6 +3047,26 @@ def train_curriculum(
                 retrain_entry.id,
             )
 
+    # Every chain node's warm_start_log_std is checked here, before the run
+    # has a footprint and before any node trains, as train() checks its one
+    # node before its stage directory exists: a malformed value, or a SAC run
+    # whose chain declares the key on a node with an edge, is refused now
+    # rather than after the earlier nodes have trained.  A node with an edge
+    # that this run trains enters on its parent's handoff under
+    # initialize_next_stage, which the check assumes (the stand-in path
+    # below; the real one is not known until the parent resolves).  A node
+    # reused from trunk_from would not apply the key, but under SAC the key
+    # has no meaning on any node, so it is refused there too.
+    for chain_entry in chain:
+        _warm_start_log_std(
+            stage_configs[chain_entry.reference],
+            stage=chain_entry.reference,
+            algorithm=algorithm,
+            task_load_mode="initialize_next_stage",
+            parent_id=chain_entry.warm_start_from,
+            load_path="<the parent's handoff checkpoint>",
+        )
+
     thresholds = thresholds_from_configs(stage_configs)
     manager = CurriculumManager(model_id=model_id, stage_thresholds=thresholds, total_stages=len(advancing))
 
@@ -2947,6 +3289,30 @@ def train_curriculum(
         parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
         if parent_node is not None:
             _warn_on_heading_probe_handoff(parent_node.stage_dir, stage=entry.id)
+        # The warm-start drop's record (a phase parent into a node without [ppo] critic_phase), or its refusal,
+        # before the node's stage directory exists.
+        warm_start_record = _warm_start_record(
+            base_dir / stage_dirname(model_id, stage),
+            critic_phase_dropped=_critic_phase_drop_record(
+                config,
+                stage=stage,
+                algorithm=algorithm,
+                task_load_mode="initialize_next_stage",
+                parent_id=entry.warm_start_from,
+                load_path=load_path,
+            ),
+            # The node's warm_start_log_std, when its entry sets one (the body applies it).
+            log_std=_warm_start_log_std(
+                config,
+                stage=stage,
+                algorithm=algorithm,
+                task_load_mode="initialize_next_stage",
+                parent_id=entry.warm_start_from,
+                load_path=load_path,
+            ),
+            task_load_mode="initialize_next_stage",
+            load_path=load_path,
+        )
 
         stage_dir = base_dir / stage_dirname(model_id, stage)
         # D-A20: the curriculum has no resume mode, so a stage directory
@@ -2962,7 +3328,7 @@ def train_curriculum(
             stage,
             config,
             algorithm.upper(),
-            extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+            extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps, **warm_start_record},
             env_class=species_cfg.env_class,
             model_id=model_id,
             plant_identity=plant_identity,

@@ -117,7 +117,57 @@ def _repository_state(repository_root: Path) -> dict[str, Any]:
     }
 
 
+#: The ``nvidia-smi`` query :func:`_gpu_driver_version` runs in a child process (``config._detect_gpu_info``'s tool).
+_NVIDIA_SMI_DRIVER_QUERY = ("nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader")
+
+
+def _gpu_driver_version() -> str | None:
+    """The GPU driver version ``nvidia-smi`` reports for the first GPU, or ``None`` (no tool, no GPU, any failure)."""
+    try:
+        result = subprocess.run(list(_NVIDIA_SMI_DRIVER_QUERY), capture_output=True, text=True, timeout=10, check=False)
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    first = result.stdout.strip().splitlines()[0].strip() if result.stdout.strip() else ""
+    return first or None
+
+
+def _accelerator_versions() -> dict[str, str | None]:
+    """The CUDA runtime torch was built with (``cuda_runtime``), its cuDNN (``cudnn``) and the GPU driver
+    (``gpu_driver``); ``None`` for each that cannot be read, never a guess.
+
+    torch is imported only when it is installed (``importlib.util.find_spec``), and nothing here changes what a run
+    computes: no random number is drawn, no flag is set (``cudnn.deterministic``, ``benchmark``,
+    ``use_deterministic_algorithms``), CUDA is not initialised (``torch.version.cuda`` is a build constant;
+    ``torch.cuda.is_available()`` is never called), and the driver is read in a child process.
+    """
+    versions: dict[str, str | None] = {"cuda_runtime": None, "cudnn": None, "gpu_driver": _gpu_driver_version()}
+    import importlib.util
+
+    try:
+        if importlib.util.find_spec("torch") is None:
+            return versions
+        import torch
+    except Exception:
+        return versions
+    try:
+        cuda = torch.version.cuda
+        versions["cuda_runtime"] = str(cuda) if cuda else None
+    except Exception:
+        pass
+    try:
+        if torch.backends.cudnn.is_available():
+            cudnn = torch.backends.cudnn.version()
+            versions["cudnn"] = str(cudnn) if cudnn else None
+    except Exception:
+        pass
+    return versions
+
+
 def _dependency_versions() -> dict[str, str | None]:
+    """Every :data:`_DEPENDENCY_PACKAGES` version from the installed package metadata (``None`` when absent), and
+    the accelerator stack's (:func:`_accelerator_versions`)."""
     installed: dict[str, str | None] = {}
     for label, package in _DEPENDENCY_PACKAGES.items():
         try:
@@ -126,6 +176,7 @@ def _dependency_versions() -> dict[str, str | None]:
             installed[label] = None
         except Exception:
             installed[label] = None
+    installed.update(_accelerator_versions())
     return installed
 
 

@@ -58,6 +58,7 @@ _DEPENDENCY_PACKAGES = {
     "gymnasium": "gymnasium",
     "numpy": "numpy",
     "stable_baselines3": "stable-baselines3",
+    "torch": "torch",
     "jax": "jax",
     "flax": "flax",
     "optax": "optax",

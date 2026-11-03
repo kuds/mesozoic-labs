@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The critic's episode phase as a PPO option, off by default, with a
+  warm-start rule and a warm-start noise reset** (approved by the maintainer
+  on 2026-11-03).
+  - `[ppo] critic_phase = true` (`environments/shared/critic_phase.py`,
+    `environments/shared/critic_phase_ppo.py`; the notebook's `CRITIC_PHASE`
+    switch) gives PPO's critic, and never the actor, three more inputs: the
+    episode phase of the env's step counter (ramp, settled, discount, keyed by
+    the env's `stance_width_settle_steps` and the stage's gamma). The actor's
+    63 inputs, the observation space, the VecNormalize sidecar and every
+    evaluation and deploy path are unchanged. No committed stage config sets
+    it, so nothing trains differently: with the key absent the trainer builds
+    the stock classes, and a scenario run of the stance, a locomotion warm
+    start and a resume equals main at `4c9d5e9b` bitwise in the environment
+    its golden was made in (`test_critic_phase_off_path.py`; Python 3.13,
+    AVX512). CI's SB3 job runs Python 3.12, so there the bitwise comparison
+    skips, and CI checks the off path's structure against that golden and
+    the trainer's load of a stock archive against `PPO.load`. Writing
+    `critic_phase = false` trains as the absent key does, but it is recorded
+    with the `[ppo]` table and so gives another `hyperparameters_sha256`. The
+    option is untested on main's recipe; the phase-critic stance runs trained
+    on the never-merged r10 screen branch, whose code this ports without that
+    branch's run recipe.
+  - **The warm-start drop:** a PPO warm start across a node's edge
+    (`initialize_next_stage` from its declared parent) from a phase-critic
+    checkpoint into a stage without the option drops the critic's three phase
+    inputs (and their Adam moments); the actor is untouched and the child is
+    stock PPO. Recorded as `run.critic_phase_dropped` in `stage_config.json`,
+    as `dropped_critic_phase` in every child checkpoint's task lineage, and by
+    one printed "Warm start: dropped ..." line. Every other load whose critic
+    reads another phase, or none, than the stage declares is still refused,
+    and so is a phase-critic parent in the widen tool.
+  - `[curriculum] warm_start_log_std` sets every actuator's policy `log_std`
+    at a warm start across a node's edge (PPO only; Adam moments kept;
+    `run.warm_start_log_std`, one printed line; covered by the recipe digest
+    through the `warm_start_` shaping prefix). No committed stage declares it,
+    and it is **untested in training**: walking pilot 2, which planned it at
+    -1.5, was never launched.
+  - `provenance.json`'s `dependency_versions` also records `torch`,
+    `cuda_runtime`, `cudnn` and `gpu_driver` (`None` when unreadable). A run
+    started before this change and resumed after it records one
+    `environment_drift` entry and logs one warning. Reading them imports torch
+    in any process that has it installed (JAX runs too); on CPU torch it
+    draws no random number and sets no flag, and it is untested on a GPU.
+  - Sources: the screen branch `claude/screen-trex-r10-phasecritic`
+    (`3b55411`, `d8ac5c2`, `30209c0`, `dce9678`, `f2d68ee`, `1dfe2327`) and
+    the walking pilot 2 branch `claude/pilot-walk-r9-b` (`fb5510d`,
+    `8c0015b`, the reset only).
 - **A dated hardware reference note: Microduck's training stack read against
   the T. rex tail saturation habit** (`docs/hardware/REFERENCE_MICRODUCK_2026_10.md`,
   linked from `docs/hardware/README.md`, `docs/hardware/SIM_TO_REAL_PLAN.md`

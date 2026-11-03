@@ -732,3 +732,60 @@ def test_untracked_file_at_repository_root_enters_the_patch_hash(tmp_path: Path)
     assert subdir_after == subdir_before, (
         "a too-deep root cannot see it — which is why REPOSITORY_ROOT must be the repository"
     )
+
+
+# ---------------------------------------------------------------------------------------------------- torch and GPU
+_REAL_DEPENDENCY_VERSIONS = result_bundle_provenance._dependency_versions
+_ACCELERATOR_KEYS = ("torch", "cuda_runtime", "cudnn", "gpu_driver")
+
+
+def test_dependency_versions_record_torch_and_the_accelerator_stack(
+    tmp_path: Path, stable_provenance: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    versions = _REAL_DEPENDENCY_VERSIONS()
+    for key in _ACCELERATOR_KEYS:
+        assert key in versions, key
+        assert versions[key] is None or (isinstance(versions[key], str) and versions[key]), (key, versions[key])
+    # A provenance that records them validates (the schema takes any name -> optional string).
+    monkeypatch.setattr(result_bundle_provenance, "_dependency_versions", _REAL_DEPENDENCY_VERSIONS)
+    written = initialize_result_bundle(tmp_path / "run", **_resume_run_kwargs())
+    recorded = json.loads(written.read_text(encoding="utf-8"))["dependency_versions"]
+    assert set(_ACCELERATOR_KEYS) <= set(recorded)
+
+
+def test_the_gpu_driver_is_none_without_nvidia_smi(monkeypatch: pytest.MonkeyPatch) -> None:
+    def missing(*args: Any, **kwargs: Any) -> Any:
+        raise FileNotFoundError("nvidia-smi")
+
+    monkeypatch.setattr(result_bundle_provenance.subprocess, "run", missing)
+    assert result_bundle_provenance._gpu_driver_version() is None
+    assert _REAL_DEPENDENCY_VERSIONS()["gpu_driver"] is None
+
+    def failing(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args[0], 9, stdout="", stderr="no devices")
+
+    monkeypatch.setattr(result_bundle_provenance.subprocess, "run", failing)
+    assert result_bundle_provenance._gpu_driver_version() is None
+
+    def driver(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        assert list(args[0]) == ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"]
+        return subprocess.CompletedProcess(args[0], 0, stdout="580.82.07\n580.82.07\n", stderr="")
+
+    monkeypatch.setattr(result_bundle_provenance.subprocess, "run", driver)
+    assert result_bundle_provenance._gpu_driver_version() == "580.82.07"
+
+
+def test_without_torch_the_torch_values_are_none_and_torch_is_not_imported(monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib.util
+    import sys
+
+    real_find_spec = importlib.util.find_spec
+
+    def no_torch(name: str, *args: Any, **kwargs: Any) -> Any:
+        return None if name == "torch" else real_find_spec(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.util, "find_spec", no_torch)
+    monkeypatch.setattr(result_bundle_provenance, "_gpu_driver_version", lambda: None)
+    imported_before = "torch" in sys.modules
+    assert result_bundle_provenance._accelerator_versions() == {"cuda_runtime": None, "cudnn": None, "gpu_driver": None}
+    assert ("torch" in sys.modules) is imported_before
