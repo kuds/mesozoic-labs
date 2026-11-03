@@ -3042,6 +3042,73 @@ class TestOneStageBody:
         # The statistics load from the parent's sidecar itself, never through an explicit vecnorm_path.
         assert self.record["vecnorm_loads"] == [(body["vecnorm_load_path"], None) for body in bodies]
 
+    def _curriculum_on_a_phase_root(self, tmp_path, monkeypatch, record):
+        """The curriculum with the root's final checkpoint recording *record* as its critic phase (a root trained
+        with ``[ppo] critic_phase``; no committed stage declares it, so the stub writes the record), and every
+        ``_create_or_load_model`` call's keyword arguments kept.  Returns them and the manifest's advancing nodes."""
+        import zipfile
+
+        from environments.shared import train_base
+        from environments.shared.critic_phase import CHECKPOINT_ATTRIBUTE
+        from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
+
+        self._patch(monkeypatch)
+        nodes = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).advancing_stages
+        root_dir = stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, nodes[0].reference)
+        stub_save, stub_load = train_base._save_final_and_sync_tb, train_base._create_or_load_model
+        loads: list[dict] = []
+
+        def save_final(model, train_env, model_dir, stage, *rest):
+            stem = stub_save(model, train_env, model_dir, stage, *rest)
+            if Path(model_dir).parent.name == root_dir:
+                with zipfile.ZipFile(f"{stem}.zip", "w") as archive:
+                    archive.writestr("data", json.dumps({CHECKPOINT_ATTRIBUTE: record}))
+                    archive.writestr("policy.pth", b"weights")
+            return stem
+
+        def create_or_load_model(*args, **kwargs):
+            loads.append(kwargs)
+            return stub_load(*args, **kwargs)
+
+        monkeypatch.setattr(train_base, "_save_final_and_sync_tb", save_final)
+        monkeypatch.setattr(train_base, "_create_or_load_model", create_or_load_model)
+        self._run_curriculum(tmp_path)
+        return loads, nodes
+
+    def test_the_curriculum_records_the_warm_start_drop_at_the_phase_root_s_child(self, tmp_path, monkeypatch):
+        """The notebook's chain path of the warm-start drop: the record is read off the parent's bare handoff stem
+        before the child's stage directory exists, recorded as ``run.critic_phase_dropped``, and the child's body
+        loads across its edge, where ``_create_or_load_model`` drops the columns (the body ``train()`` shares;
+        ``test_critic_phase_drop.py`` drops them end to end).  The grandchild's parent is stock: nothing more."""
+        from environments.shared.critic_phase import CriticPhaseSpec
+        from environments.shared.stage_manifest import stage_dirname
+
+        record = CriticPhaseSpec(settle_steps=200, gamma=0.98).record()
+        loads, nodes = self._curriculum_on_a_phase_root(tmp_path, monkeypatch, record)
+        stage_dirs = [tmp_path / "run" / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, node.reference) for node in nodes]
+        runs = [json.loads((stage_dir / "stage_config.json").read_text())["run"] for stage_dir in stage_dirs]
+        assert [run.get("critic_phase_dropped") for run in runs] == [None, record, None]
+        child = self.record["bodies"][1]
+        assert nodes[1].warm_start_from is not None and child["parent_id"] == nodes[1].warm_start_from
+        assert child["load_path"] == str(stage_dirs[0] / "models" / "final")
+        assert child["task_load_mode"] == "initialize_next_stage"
+        assert [load["crosses_edge"] for load in loads] == [False, True, True]
+        assert [load["critic_phase"] for load in loads] == [None, None, None]  # no node declares the option
+
+    def test_the_curriculum_refuses_a_malformed_phase_record_before_the_child_s_stage_directory_exists(
+        self, tmp_path, monkeypatch
+    ):
+        from environments.shared.critic_phase import CriticPhaseError, CriticPhaseSpec
+        from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
+
+        malformed = {**CriticPhaseSpec(settle_steps=200, gamma=0.98).record(), "settle_steps": 0}
+        with pytest.raises(CriticPhaseError, match="refusing to load .*the settle step must be"):
+            self._curriculum_on_a_phase_root(tmp_path, monkeypatch, malformed)
+        nodes = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).advancing_stages
+        assert len(self.record["bodies"]) == 1
+        assert (tmp_path / "run" / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, nodes[0].reference)).is_dir()
+        assert not (tmp_path / "run" / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, nodes[1].reference)).exists()
+
     def test_both_entry_points_build_the_eval_env_on_eval_env_seed(self, tmp_path, monkeypatch):
         from environments.shared.train_base import eval_env_seed
 
