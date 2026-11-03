@@ -4,14 +4,15 @@ Why.  On the T. rex stance (``TyrannosaurusRexAnatomicalEnv``) one reward term o
 after the settle: ``reward_stance_width`` under ``stance_width_reference = "settled"``, while
 ``_step_count > stance_width_settle_steps`` (200).  The lateral-lean term has the same gate in code but weight 0 in
 the committed stance; the never-merged r10 run branch on which this option was screened also paid stagger and
-CoP-band terms on that gate (four in all).  The 63-value observation carries no clock, so on that branch the critic
-read a slowly creeping input (the tail_3 pitch angle, observation 6) as one, and the policy gradient paid the actor
-for raising the tail.  A CPU screen of 2026-10-31 gave the critic alone the episode phase and the tail climb
-stopped.  A three-seed GPU round on the run branch's recipe (2026-11-01/02) read "consistent with the phase critic
-removing the habit, not confirmatory" (its pre-registered test did not separate the arms).  Whether the committed
-recipe forms the habit is not measured.  This module makes the phase a training option: the critic, and only the
-critic, also reads three features of the env's own per-episode step counter ``k`` (``BaseDinoEnv._step_count`` when
-the observation was made):
+CoP-band terms on that gate (four in all).  The 63-value observation carries no clock.  The working explanation of
+the tail habit on that branch, inferred and not established, is that the critic read a slowly creeping input (the
+tail_3 pitch angle, observation 6) as one, and that the policy gradient paid the actor for raising the tail.  A CPU
+screen of 2026-10-31 gave the critic alone the episode phase and the tail climb stopped in that screen.  A
+three-seed GPU round on the run branch's recipe (2026-11-01/02) read "consistent with the phase critic removing the
+habit, not confirmatory" (its pre-registered test did not separate the arms).  Whether the committed recipe forms
+the habit is not measured.  This module makes the phase a training option: the critic, and only the critic, also
+reads three features of the env's own per-episode step counter ``k`` (``BaseDinoEnv._step_count`` when the
+observation was made):
 
     ramp      min(k, S) / S
     settled   1 if k >= S else 0

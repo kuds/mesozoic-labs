@@ -1,4 +1,4 @@
-"""The critic's episode phase for SB3 PPO (``[ppo] critic_phase = true``): the four pieces, see
+"""The critic's episode phase for SB3 PPO (``[ppo] critic_phase = true``): the five pieces, see
 :mod:`environments.shared.critic_phase` for what the phase is and why.
 
 1. :class:`CriticPhaseVecNormalize`, the TRAINING env's ``VecNormalize``: stock normalisation of the env's

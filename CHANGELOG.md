@@ -21,9 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     it, so nothing trains differently: with the key absent the trainer builds
     the stock classes, and a scenario run of the stance, a locomotion warm
     start and a resume equals main at `4c9d5e9b` bitwise in the environment
-    its golden was made in (`test_critic_phase_off_path.py`). The option is
-    untested on main's recipe; the phase-critic stance runs trained on the
-    never-merged r10 screen branch, whose code this ports without that
+    its golden was made in (`test_critic_phase_off_path.py`; Python 3.13,
+    AVX512). CI's SB3 job runs Python 3.12, so there the bitwise comparison
+    skips, and CI checks the off path's structure against that golden and
+    the trainer's load of a stock archive against `PPO.load`. Writing
+    `critic_phase = false` trains as the absent key does, but it is recorded
+    with the `[ppo]` table and so gives another `hyperparameters_sha256`. The
+    option is untested on main's recipe; the phase-critic stance runs trained
+    on the never-merged r10 screen branch, whose code this ports without that
     branch's run recipe.
   - **The warm-start drop:** a PPO warm start across a node's edge
     (`initialize_next_stage` from its declared parent) from a phase-critic
@@ -43,7 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `provenance.json`'s `dependency_versions` also records `torch`,
     `cuda_runtime`, `cudnn` and `gpu_driver` (`None` when unreadable). A run
     started before this change and resumed after it records one
-    `environment_drift` entry and logs one warning.
+    `environment_drift` entry and logs one warning. Reading them imports torch
+    in any process that has it installed (JAX runs too); on CPU torch it
+    draws no random number and sets no flag, and it is untested on a GPU.
   - Sources: the screen branch `claude/screen-trex-r10-phasecritic`
     (`3b55411`, `d8ac5c2`, `30209c0`, `dce9678`, `f2d68ee`, `1dfe2327`) and
     the walking pilot 2 branch `claude/pilot-walk-r9-b` (`fb5510d`,
