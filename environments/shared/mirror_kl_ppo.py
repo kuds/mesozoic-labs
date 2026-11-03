@@ -253,9 +253,17 @@ class MirrorKLPPO(PPO):
         # Built once per state: SB3 fixes self.device at construction, and a
         # bare th.device("cuda") would never compare equal to a tensor's cuda:0.
         if not state.tensors:
+            obs_perm, obs_sign = state.mirror_map.obs.perm, state.mirror_map.obs.sign
+            # A critic that also reads the episode phase (environments/shared/critic_phase_ppo.py) stores it in
+            # the buffer after the observation: those columns are their own mirror image (sign +1).  0 on a stock
+            # policy, whose maps are used exactly as they are.
+            extra = int(getattr(type(self.policy), "critic_phase_width", 0))
+            if extra:
+                obs_perm = np.concatenate([obs_perm, np.arange(len(obs_perm), len(obs_perm) + extra)])
+                obs_sign = np.concatenate([obs_sign, np.ones(extra)])
             state.tensors = {
-                "obs_perm": th.as_tensor(state.mirror_map.obs.perm, device=self.device),
-                "obs_sign": th.as_tensor(state.mirror_map.obs.sign, dtype=th.float32, device=self.device),
+                "obs_perm": th.as_tensor(obs_perm, device=self.device),
+                "obs_sign": th.as_tensor(obs_sign, dtype=th.float32, device=self.device),
                 "act_perm": th.as_tensor(state.mirror_map.action.perm, device=self.device),
                 "act_sign": th.as_tensor(state.mirror_map.action.sign, dtype=th.float32, device=self.device),
             }

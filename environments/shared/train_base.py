@@ -51,6 +51,8 @@ from .constants import (
     DEFAULT_NORM_REWARD,
     PUBLICATION_SEED_START,
 )
+from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
+from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
 from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS
 from .curriculum.schedules import CosineSchedule, LinearSchedule
@@ -228,6 +230,7 @@ def create_vec_env(
     algorithm: str | None = None,
     gamma: float | None = None,
     plant_identity: PlantIdentity | None = None,
+    critic_phase_gamma: float | None = None,
 ):
     """Create vectorized environment with observation/reward normalization.
 
@@ -241,6 +244,12 @@ def create_vec_env(
     ``gamma`` is forwarded to ``VecNormalize`` so its discounted-return
     statistics match the algorithm's discount factor; otherwise it silently
     drifts from SB3's hard-coded default of 0.99.
+
+    ``critic_phase_gamma`` (``None``: off, the stock ``VecNormalize``) makes
+    the wrapper a :class:`~environments.shared.critic_phase_ppo.CriticPhaseVecNormalize`,
+    which appends the critic's episode phase (``[ppo] critic_phase``, that
+    discount) to the observations it returns: the TRAINING env of such a
+    stage only, never an evaluation env.
     """
     from .policy_loading import _ensure_sb3
 
@@ -266,7 +275,12 @@ def create_vec_env(
     if gamma is not None:
         vecnorm_kwargs["gamma"] = gamma
 
-    env = sb3["VecNormalize"](env, **vecnorm_kwargs)
+    if critic_phase_gamma is None:
+        env = sb3["VecNormalize"](env, **vecnorm_kwargs)
+    else:
+        from .critic_phase_ppo import CriticPhaseVecNormalize
+
+        env = CriticPhaseVecNormalize(env, critic_phase_gamma=critic_phase_gamma, **vecnorm_kwargs)
     if plant_identity is not None:
         # VecNormalize is pickled separately from the SB3 model.  Embedding the
         # same contract in both artifacts prevents a policy from being paired
@@ -524,6 +538,7 @@ def _create_or_load_model(
     task_fingerprint: "dict[str, Any] | None" = None,
     task_load_mode: str = "resume_same_stage",
     symmetry: "SymmetryConfig | None" = None,
+    critic_phase: "CriticPhaseSpec | None" = None,
 ) -> Any:
     """Create a new model or load from checkpoint.
 
@@ -550,6 +565,19 @@ def _create_or_load_model(
     records (``mesozoic_symmetry``), both ways; a warm start under ``initialize_next_stage`` takes the child's, and
     a child that enables it needs a parent trained with it (:func:`~environments.shared.mirror_kl_ppo.enable_mirror_kl`
     refuses a stock parent's asymmetric observation statistics and ``log_std``).
+
+    ``critic_phase`` (the stage's ``[ppo] critic_phase``: the
+    :class:`~environments.shared.critic_phase.CriticPhaseSpec` the training
+    env appends; ``None``: off) builds the model with
+    :mod:`~environments.shared.critic_phase_ppo`'s policy and rollout buffer,
+    whose critic alone reads the phase, and records the spec in the
+    checkpoint attribute ``mesozoic_critic_phase``.  Any load -- a resume or
+    a warm start -- whose critic reads another phase, or none, than the stage
+    declares is refused before training, both ways
+    (:func:`~environments.shared.critic_phase_ppo.critic_phase_mismatch`).
+    ``train_env`` must then be the stage's
+    :class:`~environments.shared.critic_phase_ppo.CriticPhaseVecNormalize`
+    with the same spec.
     """
     from .symmetry import CHECKPOINT_ATTRIBUTE, MirrorMap, SymmetryError, symmetry_mismatch
     from .task_fingerprint import (
@@ -561,6 +589,15 @@ def _create_or_load_model(
 
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
+
+    if critic_phase is not None:
+        if algorithm != "ppo":
+            raise CriticPhaseError(f"the critic phase is a PPO option, not {algorithm!r}")
+        if getattr(train_env, "critic_phase", None) != critic_phase:
+            raise CriticPhaseError(
+                f"the training env appends {getattr(train_env, 'critic_phase', None)!r}, the stage declares "
+                f"{critic_phase!r}: the critic would not see the phase it is built for"
+            )
 
     mirror_map = None
     if symmetry is not None:
@@ -594,6 +631,16 @@ def _create_or_load_model(
                     allow_legacy=allow_legacy_plant,
                 )
         model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
+        # Both ways, any load mode: a critic built for the phase cannot train without it, nor one built without
+        # it on the phase-carrying observations.  A phase checkpoint always carries its JSON record (read from
+        # the instance's own attributes, as SB3's load restores them); a stock checkpoint on a stage without the
+        # option never enters this branch, and nothing else of the loaded model is read for it.
+        if critic_phase is not None or getattr(model, "__dict__", {}).get(CRITIC_PHASE_ATTRIBUTE) is not None:
+            from .critic_phase_ppo import critic_phase_mismatch
+
+            mismatch = critic_phase_mismatch(model, critic_phase)
+            if mismatch:
+                raise CriticPhaseError(f"refusing to load {load_path}: {mismatch}")
         if plant_identity is not None:
             validate_model_plant(
                 model,
@@ -651,6 +698,13 @@ def _create_or_load_model(
                     "cleared the warm-up marker so entropy decay resumes. The remainder "
                     "of that warm-up is NOT re-applied on a same-stage resume."
                 )
+    elif critic_phase is not None:
+        from .critic_phase_ppo import new_model_kwargs
+
+        logger.info(
+            "Creating new %s model (the critic also reads the episode phase: %s)...", algorithm.upper(), critic_phase
+        )
+        model = alg_cls(env=train_env, **new_model_kwargs(critic_phase, policy_kwargs), **alg_kwargs)
     else:
         logger.info("Creating new %s model...", algorithm.upper())
         model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
@@ -664,6 +718,8 @@ def _create_or_load_model(
         attach_task_fingerprint(model, task_fingerprint)
         if task_lineage is not None:
             attach_task_lineage(model, task_lineage)
+    if critic_phase is not None:
+        setattr(model, CRITIC_PHASE_ATTRIBUTE, critic_phase.record())
     if symmetry is not None and mirror_map is not None:
         from .mirror_kl_ppo import enable_mirror_kl
 
@@ -1292,6 +1348,10 @@ def _train_stage_body(
         logger.info("Auto-enabling SubprocVecEnv for SAC (use --subproc to make explicit)")
     alg_kwargs_key = f"{algorithm}_kwargs"
     alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
+    # [ppo] critic_phase (environments/shared/critic_phase.py): the TRAINING env appends the critic's episode
+    # phase, discounted at the stage's PPO gamma (SB3's 0.99 when the table sets none); the evaluation env stays
+    # the env's own observation, as every other consumer of the policy sees it.
+    critic_phase_on = algorithm == "ppo" and read_critic_phase(config.get(alg_kwargs_key, {}))
     if announce:
         logger.info("Creating %d training environments...", n_envs)
     train_env = create_vec_env(
@@ -1304,6 +1364,7 @@ def _train_stage_body(
         algorithm=algorithm,
         gamma=alg_gamma,
         plant_identity=plant_identity,
+        critic_phase_gamma=(0.99 if alg_gamma is None else alg_gamma) if critic_phase_on else None,
     )
 
     if announce:
@@ -1347,6 +1408,11 @@ def _train_stage_body(
     # hyperparameters digest record them with the rest of the table.  Absent,
     # this is None and training is stock PPO.
     symmetry = pop_symmetry_config(alg_kwargs) if algorithm == "ppo" else None
+    # The same for [ppo] critic_phase: recorded with the table, not a PPO constructor kwarg.
+    critic_phase: CriticPhaseSpec | None = None
+    if algorithm == "ppo" and pop_critic_phase(alg_kwargs):
+        critic_phase = train_env.critic_phase
+        logger.info("Critic phase: the critic also reads %s (the actor does not)", critic_phase.record())
 
     wandb_run = None
     if use_wandb:
@@ -1373,6 +1439,7 @@ def _train_stage_body(
         # warm-started from stance) and is recorded as lineage.
         task_load_mode=task_load_mode,
         symmetry=symmetry,
+        critic_phase=critic_phase,
     )
 
     if announce:
