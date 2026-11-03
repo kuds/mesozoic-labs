@@ -1,0 +1,93 @@
+Walking pilot 3 parent checkpoint (never merged; this directory exists only on the pilot branch pilot-walk-r10-p3)
+
+What it is
+  The T. rex stance policy "stance7_r10LTSBpc_s42 final": the final checkpoint (stage1_final, 12,001,280 steps) of
+  the PC round's run stance7_r10LTSBpc_s42 (seed 42, physics r10, policy interface r15), with its VecNormalize
+  sidecar. Trained from scratch (no parent) on Colab (L4 GPU, N_ENVS 4, CRITIC_PHASE True, K3_PANEL True) from the
+  never-merged branch claude/screen-trex-r10-phasecritic at 1dfe2327f773007fa7fd68460dc0c53740936ff9 (the run branch
+  claude/screen-trex-r10-armltsb at 8737cd3d plus six commits that give the stance critic the episode phase): the
+  run branch's LTSB stance recipe, trained with mirror-symmetric PPO (mirror_kl, kappa 0.3, sigma floor 0.01,
+  mirrored critic) and a critic that also reads the episode phase. Launched 2026-11-01 about 03:27 UTC; its last
+  writes on Drive are at about 18:37 UTC the same day. Its stance task digest, as the child records it, is
+  sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456 (the run branch's stance task; this
+  branch's own stance task, 533fff20..., differs from it in the stance [env] keys of the LTSB recipe).
+  Not certified: a screen run on a never-merged branch, and no r10 T. rex stance is certified on main.
+
+Why this one: the maintainer's decisions of 2026-11-03
+  02:35 UTC: the parent is this checkpoint. The PC round's pinned parent rule named a tie, s42 and s80 (both held
+  K1-K4 and had 40/40 clean panel episodes with 0 noise falls at the final); the maintainer chose s42. At a warm
+  start into a stage that declares no phase, the critic's 3 phase inputs are dropped (the actor is untouched); that
+  rule landed on main with PR #658 (merge commit 4d5f4e7, the base of this branch). The policy's log_std is reset to
+  -1.5 at the warm start (walking pilot 2's change, never trained): UNTESTED.
+  11:29 UTC: walking pilot 3 runs as a declared exception to the gait-quality plan's GQ-3 (a) and GQ-17, as pilot 1
+  did under D-D36; both stay open. It will be recorded in the repository's decision tables by a later records PR,
+  not on this branch.
+  14:53 UTC: budget 8,000,000 steps (production's; no learning-rate or catalog edit), no early stop, the habit rule
+  as written, seeds 42, 52 and 60, 10 evaluation episodes every 131,072 steps, checkpoints every 500,000 steps.
+  The criteria, the Colab steps and the judging tools are scratch files outside the repository (the session's
+  work/pilot3/ folder); nothing on this branch is merged. Pilot 1's and pilot 2's parent folders are on their own
+  branches (pilot-walk-r9, pilot-walk-r9-b), not on this one, which is built on main.
+
+Where it came from
+  The run's Drive stage directory MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance7_r10LTSBpc_s42/
+  01_stance/models/ (stage1_final.zip and stage1_final_vecnorm.pkl; the zip's own tensorboard_log names the same
+  run folder). Fetched read-only for the Option A checks on 2026-11-02: the zip at 22:10 UTC as a download, the
+  sidecar at 22:14 UTC as one base64 transcription (an earlier request for it returned the zip instead and was
+  discarded). Each file was stored only when its size and sha256 equalled the PC round's own F2 manifest, and the
+  zip's members pass their CRC check. The Drive file ids are in the session's fetch log, not here. The two files here
+  were copied byte for byte on 2026-11-03 from that store and their sha256 re-checked after the copy.
+
+Plant identity (equal in the zip's plant record and on this branch, configs/digest_snapshot.generated.txt)
+  physics r10           sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d
+  policy interface r15  sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8
+  visual r4             sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4
+  source closure        sha256:ccda5ddff3602676409ce79f28373a56e8ac069f37ab4b83808ef02aae8442e0
+  observation 63, action 15, nq 28, nv 27, nu 15. Policy: net_arch [512, 256], log_std_init -1.5; the critic's
+  first layer reads 66 inputs (the 63 observations plus the phase record's 3 features: ramp, settled, discount;
+  settle step 200, gamma 0.98, width 3). PPO gamma 0.98, n_steps 2048, batch 128. Trained under Python 3.13.16,
+  SB3 2.9.0, torch 2.11.0+cu130 (the archive's system_info).
+
+How it was judged (the PC round's own readouts, and its K1-K4 measures re-run on CPU for Option A on 2026-11-03)
+  K1-K4 PASS: 40/40 clean stance panel episodes at all six judged checkpoints (4.2M, 5.2M, 6.3M, 8.4M, 10.5M and
+  final); joint-space noise falls 0/20 at 6.3M and at the final (one early end, seed 3061, at 8.4M); own-sigma noise
+  falls 0/20 at every checkpoint; no roll-rail episode; K2c range 2.11 mm. The PC round's six-heading certificate
+  on the final: 40/40 (a screen measurement).
+  Tail near zero at all 12 measured checkpoints. Head tip 0.904 m (statue 0.959 m), neck pitch 16.2 deg (the most
+  nose-down of the three phase-critic runs; statue 12.3 deg), head pitch 14.7 deg. Action std mean 0.057, min
+  0.007, max 0.111 (hip_roll 0.0520, the lowest of the six PC runs). Training falls after 4.2M: 2 of 7,808 episodes.
+  The PC round's pre-registered test of the phase critic reads NOT SEPARATED (p = 20/20): "consistent, not
+  confirmatory".
+
+What the warm start does with it (main after PR #658; this branch's locomotion.toml)
+  Into the locomotion stage under initialize_next_stage: the critic's 3 phase input columns are dropped (512 x 66 ->
+  512 x 63, their Adam moments cut), the actor is kept bit for bit, every log_std entry is set to -1.5 (std 0.2231;
+  the parent's Adam moments kept), obs_rms is carried and ret_rms reset. The child is stock PPO with no phase and no
+  symmetry record. Measured through train() on PR #658's head cab70394 (whose tree is the merge commit's), the two
+  lines read:
+    Warm start: dropped the critic's 3 episode-phase inputs (settle step 200, gamma 0.98; column L2 0.812, 0.408, 0.827); the actor is unchanged
+    Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.057, min 0.007, max 0.111; Adam moments kept)
+  The archive records its own runtime's TensorBoard buffer (/tmp/tb_buffer/..._stance7_r10LTSBpc_s42_01_stance_
+  tensorboard); with TensorBoard on (the notebook's default) train() passes the child's own path to the load, so
+  the child writes under its own run folder.
+
+Files (sha256)
+  stage1_final.zip            1c9d87c3d0f817b048de429bb80cdc89fcd2c83d5fbafd7f444af0b5474b9ff6  4048776 bytes
+  stage1_final_vecnorm.pkl    5e417fef0ea52b9bbbcb641443854f309598702f25ece32e01e8eb65e6d507b1     5291 bytes
+  The names are the run's own (the notebook's final save). Each run records the zip's sha256 as
+  run.parent_checkpoint_sha256 (the sidecar's is not recorded), and the pilot's judge binds it.
+
+How it is loaded
+  The notebook's manual single-node cell: MANUAL_NODE = "locomotion", MANUAL_LOAD_MODE = "initialize_next_stage",
+  MANUAL_LOAD_PATH = this directory's stage1_final (the stem; on Colab
+  "/content/mesozoic-labs/pilot_checkpoints/stance7_r10LTSBpc_s42_final/stage1_final"), MANUAL_VECNORM_PATH =
+  MANUAL_LOAD_PATH + "_vecnorm.pkl", MANUAL_TIMESTEPS = None; CRITIC_PHASE = False (the locomotion stage declares no
+  phase, which is what makes the warm start drop it). The loader checks the plant (physics r10 and policy interface
+  r15 match this branch) and that the checkpoint's recorded stage is stance, the locomotion node's declared parent.
+  Text only: no code reads pilot_checkpoints/.
+
+Provenance caveats
+  - Its recipe is not main's: the run branch's LTSB stance terms, mirror-symmetric PPO and the phase critic. The
+    locomotion stage uses none of them: stock PPO on the production locomotion [env].
+  - Not a certified stance; the tie with s80 was broken by the maintainer's choice, not by a measurement.
+  - The reset to std 0.2231 is a large relative jump from this parent's noise (about x3.9 on the mean, about x32 on
+    the smallest actuator, from the printed three-decimal values), and it has never been trained.
