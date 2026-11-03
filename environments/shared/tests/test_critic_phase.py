@@ -155,6 +155,16 @@ def test_the_recipe_digest_records_the_switch_when_a_table_writes_it():
     assert len(set(digests.values())) == 3
 
 
+def test_the_recipe_digest_records_a_warm_start_log_std_when_a_stage_declares_one():
+    import copy
+
+    locomotion = load_stage_config(TYRANNOSAURUS_REX, "locomotion")
+    declared = copy.deepcopy(locomotion)
+    declared["curriculum_kwargs"]["warm_start_log_std"] = -1.5
+    assert hyperparameters_sha256(locomotion, "PPO") == MAIN_RECIPE_DIGESTS[("locomotion", "PPO")]
+    assert hyperparameters_sha256(declared, "PPO") != MAIN_RECIPE_DIGESTS[("locomotion", "PPO")]
+
+
 def test_the_tyrannosaurus_rex_stance_gates_are_the_spec_s_settle_step():
     config = load_stage_config(TYRANNOSAURUS_REX, 1)
     assert config["env_kwargs"][CP.SETTLE_ATTRIBUTE] == 200

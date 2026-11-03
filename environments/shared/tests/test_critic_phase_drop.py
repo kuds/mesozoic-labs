@@ -424,29 +424,52 @@ def test_the_edge_rule_is_the_stage_entry_shaping_s(mode, parent_id, load_path):
 
 
 # ---------------------------------------------------------------------------------------------------- the trainer
-def test_the_trainer_drops_records_and_resumes_the_child_stock(tmp_path, monkeypatch, capsys):  # D7, D9
-    """train_base.train on the real T. rex stages: a stance with the phase, then locomotion warm-started from it
-    (the node's edge; locomotion declares no phase), then a same-stage resume of locomotion's periodic checkpoint."""
-    from environments.shared import train_base
-    from environments.shared.config import load_all_stages
-    from environments.shared.species_registry import get_species_config
+_TRAIN: dict[str, Any] = {
+    "n_envs": 1,
+    "seed": 42,
+    "eval_freq": 10**9,
+    "verbose": 0,
+    "use_tensorboard": False,
+    "report_metrics": False,
+    "save_on_interrupt": False,
+}
 
-    species = get_species_config(TYRANNOSAURUS_REX)
+
+def _trex_configs() -> dict:
+    from environments.shared.config import load_all_stages
+
     configs = copy.deepcopy(load_all_stages(TYRANNOSAURUS_REX))
     for stage in (1, 2):
         configs[stage]["ppo_kwargs"].update(n_steps=64, batch_size=64, n_epochs=1)
     configs[1]["ppo_kwargs"]["critic_phase"] = True
-    common: dict[str, Any] = {
-        "n_envs": 1,
-        "seed": 42,
-        "eval_freq": 10**9,
-        "verbose": 0,
-        "use_tensorboard": False,
-        "report_metrics": False,
-        "save_on_interrupt": False,
-    }
-    train_base.train(species, configs, 1, 64, save_freq=10**9, output_dir=str(tmp_path / "stance"), **common)
-    parent = tmp_path / "stance" / "models" / "stage1_final.zip"
+    return configs
+
+
+@pytest.fixture(scope="module")
+def trex_phase_parent(tmp_path_factory) -> Path:
+    """train_base.train on the real T. rex stance with the phase: one 64-step update, its final checkpoint."""
+    from environments.shared import train_base
+    from environments.shared.species_registry import get_species_config
+
+    out = tmp_path_factory.mktemp("trex") / "stance"
+    train_base.train(
+        get_species_config(TYRANNOSAURUS_REX), _trex_configs(), 1, 64, save_freq=10**9, output_dir=str(out), **_TRAIN
+    )
+    parent: Path = out / "models" / "stage1_final.zip"
+    return parent
+
+
+def test_the_trainer_drops_records_and_resumes_the_child_stock(trex_phase_parent, tmp_path, monkeypatch, capsys):
+    """train_base.train on the real T. rex stages: a stance with the phase, then locomotion warm-started from it
+    (the node's edge; locomotion declares no phase), then a same-stage resume of locomotion's periodic checkpoint
+    (D7, D9)."""
+    from environments.shared import train_base
+    from environments.shared.species_registry import get_species_config
+
+    species = get_species_config(TYRANNOSAURUS_REX)
+    configs = _trex_configs()
+    common = _TRAIN
+    parent = trex_phase_parent
     parent_policy = load_from_zip_file(str(parent), device="cpu", load_data=False)[1]["policy"]
     record = json.loads(zipfile.ZipFile(parent).read("data"))[CP.CHECKPOINT_ATTRIBUTE]
 
@@ -512,6 +535,48 @@ def test_the_trainer_drops_records_and_resumes_the_child_stock(tmp_path, monkeyp
     run = json.loads((tmp_path / "locomotion" / "stage_config.json").read_text())["run"]
     assert run["critic_phase_dropped"] == record and run["load_mode"] == "initialize_next_stage"
     assert run["resume_load_path"].endswith("stage2_64_steps.zip")
+
+
+def test_the_drop_and_the_log_std_reset_apply_at_the_same_warm_start(trex_phase_parent, tmp_path, monkeypatch, capsys):
+    """[curriculum] warm_start_log_std on the child as well (D11): the drop in the load, then the reset; both are
+    printed and recorded, and every actor tensor but log_std is the parent's, bitwise."""
+    from environments.shared import train_base
+    from environments.shared.curriculum.gate_schema import WARM_START_LOG_STD_KEY
+    from environments.shared.species_registry import get_species_config
+
+    configs = _trex_configs()
+    configs[2]["curriculum_kwargs"][WARM_START_LOG_STD_KEY] = -1.5
+    parent_policy = load_from_zip_file(str(trex_phase_parent), device="cpu", load_data=False)[1]["policy"]
+    after_reset: dict[str, Any] = {}
+    original = train_base._apply_warm_start_log_std
+
+    def spy(model, value):
+        original(model, value)
+        after_reset.update(_state(model.policy))
+
+    monkeypatch.setattr(train_base, "_apply_warm_start_log_std", spy)
+    capsys.readouterr()
+    train_base.train(
+        get_species_config(TYRANNOSAURUS_REX),
+        configs,
+        2,
+        64,
+        save_freq=10**9,
+        output_dir=str(tmp_path / "locomotion"),
+        load_path=str(trex_phase_parent),
+        task_load_mode="initialize_next_stage",
+        **_TRAIN,
+    )
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("Warm start:")]
+    assert len(lines) == 2
+    assert lines[0].startswith("Warm start: dropped the critic's 3 episode-phase inputs")
+    assert lines[1].startswith("Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators")
+    assert torch.equal(after_reset["log_std"], torch.full((15,), -1.5))
+    for name, value in after_reset.items():
+        if name.startswith(ACTOR) and name != "log_std":
+            assert torch.equal(value, parent_policy[name]), name
+    run = json.loads((tmp_path / "locomotion" / "stage_config.json").read_text())["run"]
+    assert run[WARM_START_LOG_STD_KEY] == -1.5 and run["critic_phase_dropped"]["settle_steps"] == 200
 
 
 # ---------------------------------------------------------------------------------------------------- compatibility
