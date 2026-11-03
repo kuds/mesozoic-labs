@@ -1056,6 +1056,7 @@ REFUSAL_CASES = (
     "target_inside_parent_run",
     "parent_inside_target",
     "explicit_non_handoff_stem",
+    "critic_phase_parent",
 )
 
 
@@ -1231,6 +1232,11 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         shutil.copyfile(parent["vecnorm_pkl"], final_pkl)
         kwargs = {**explicit, "model_zip": final_zip, "vecnorm_pkl": final_pkl}
         fragments = ("stage1_final.zip is not a handoff checkpoint (robust_best_model / best_model)",)
+    elif case == "critic_phase_parent":
+        # A parent whose critic also reads the episode phase ([ppo] critic_phase) is refused by its record.
+        record = {"schema": "mesozoic.critic-phase/v1", "settle_steps": 200, "gamma": 0.98}
+        rewrite_archive(parent["model_zip"], lambda data, params: data.__setitem__("mesozoic_critic_phase", record))
+        fragments = ("records mesozoic_critic_phase", "does not widen")
     else:  # pragma: no cover - the parametrisation is closed
         raise AssertionError(case)
 

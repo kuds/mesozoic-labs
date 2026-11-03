@@ -1005,6 +1005,17 @@ def widen_checkpoint(
             f"{parent.model_zip} is a {sniffed.upper()} archive, not the {parent.declared_algorithm.upper()} declared"
         )
     resolved_algorithm = sniffed
+    # A critic that also reads the episode phase ([ppo] critic_phase) reads the observation plus three phase
+    # columns, which this tool would not widen: refused here, by its record, before anything is read or written.
+    from environments.shared.critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
+
+    critic_phase = read_checkpoint_attribute(parent.model_zip, CRITIC_PHASE_ATTRIBUTE)
+    if critic_phase is not None:
+        raise WidenError(
+            f"{parent.model_zip} records {CRITIC_PHASE_ATTRIBUTE} ({critic_phase!r}): its critic also reads the "
+            "episode phase ([ppo] critic_phase), which this tool does not widen; widen a parent trained without "
+            "it, or warm-start a stage without the option from this one (train_base drops the critic's phase inputs)"
+        )
 
     raw_identity = read_checkpoint_attribute(parent.model_zip, MODEL_IDENTITY_ATTRIBUTE)
     parent_identity: Any = None
