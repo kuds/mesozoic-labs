@@ -22,10 +22,15 @@
    starts out reading no phase and learns to from its first update (the screen's zero-column start).
 4. MirrorKLPPO maps the phase columns to themselves with sign +1 (``mirror_kl_ppo``): a function of the step
    counter is its own mirror image.  The observation statistics stay the env's width, symmetrised as before.
+5. :func:`drop_critic_phase`, the warm start into a stage without the option: the loaded critic's phase columns
+   (and their Adam moments) are cut off and the model becomes stock PPO, the exact reverse of the zero-column start;
+   the actor is untouched.
 
 Checkpoints: ``model.save`` records the policy class and its two keyword arguments (``policy_kwargs``), the buffer
 class, and the JSON attribute :data:`~environments.shared.critic_phase.CHECKPOINT_ATTRIBUTE`; ``train_base``
-refuses any load whose phase (or its absence) differs from the stage's, both ways (:func:`critic_phase_mismatch`).
+refuses any load whose phase (or its absence) differs from the stage's, both ways (:func:`critic_phase_mismatch`),
+with one exception: a warm start across a node's edge into a stage that declares no phase drops the critic's phase
+columns (:func:`drop_critic_phase`; the actor is untouched).
 """
 
 from __future__ import annotations
@@ -46,6 +51,7 @@ from torch import nn
 from .critic_phase import (
     CHECKPOINT_ATTRIBUTE,
     PHASE_WIDTH,
+    POLICY_KWARGS,
     SETTLE_ATTRIBUTE,
     CriticPhaseError,
     CriticPhaseSpec,
@@ -327,4 +333,141 @@ def new_model_kwargs(spec: CriticPhaseSpec, policy_kwargs: dict[str, Any] | None
         "policy_kwargs": {**dict(policy_kwargs or {}), **spec.policy_kwargs()},
         "rollout_buffer_class": CriticPhaseRolloutBuffer,
         "rollout_buffer_kwargs": {"critic_phase_width": PHASE_WIDTH},
+    }
+
+
+# ---------------------------------------------------------------------------------------------------- 5. the drop
+#: The schema of the report :func:`drop_critic_phase` returns (``mesozoic_task_lineage["dropped_critic_phase"]``).
+DROP_SCHEMA = "mesozoic.critic-phase-drop/v1"
+#: The one tensor the drop changes: the critic's first layer, (hidden, observation + phase) -> (hidden, observation).
+DROP_PARAMETER = "mlp_extractor.value_net.0.weight"
+#: The Adam state of that tensor, cut alike; its step count is kept.
+DROP_MOMENTS = ("exp_avg", "exp_avg_sq")
+#: The actor's parameters (and the state-independent log-std): proven bitwise unchanged by the drop.
+_ACTOR_PREFIXES = ("mlp_extractor.policy_net.", "action_net.", "log_std")
+
+
+def _actor_mode(policy: Any, probe: th.Tensor) -> th.Tensor:
+    """The deterministic action on *probe*, leaving the policy's action distribution as it was."""
+    stored = dict(vars(policy.action_dist))
+    try:
+        with th.no_grad():
+            mode: th.Tensor = policy.get_distribution(probe).mode().clone()
+    finally:
+        vars(policy.action_dist).clear()
+        vars(policy.action_dist).update(stored)
+    return mode
+
+
+def drop_critic_phase(model: Any) -> dict[str, Any]:
+    """The warm-start drop: remove the critic's phase inputs from a loaded phase checkpoint, in memory.
+
+    The exact reverse of the zero-column start (:meth:`CriticPhaseMlpExtractor.widen_critic`): the critic's first
+    layer loses its last :data:`PHASE_WIDTH` columns (its other columns, its bias and every deeper layer are kept),
+    the same columns of that tensor's Adam ``exp_avg`` / ``exp_avg_sq`` go (the step count is kept), and the model
+    becomes stock PPO -- SB3's ``ActorCriticPolicy`` and ``RolloutBuffer``, ``policy_kwargs`` without the phase keys,
+    no :data:`~environments.shared.critic_phase.CHECKPOINT_ATTRIBUTE` -- so every checkpoint it saves is a stock
+    archive.  The actor, every other parameter and optimizer state, the step counters and every other attribute are
+    untouched, and no random number is drawn from the global generators: the stock policy is built under
+    ``torch.random.fork_rng`` as SB3's own load builds one (``_setup_model``), then given the loaded state.  The
+    dropped critic computes the phase-reading critic's value at phase (0, 0, 0); the stage that warm-starts from it
+    re-fits it.  The last observations (``_last_obs``, ``_last_original_obs``, phase-wide) are cleared: a warm start
+    resets the env before its first rollout.
+
+    Refused (:class:`~environments.shared.critic_phase.CriticPhaseError`), before anything changes, for a model whose
+    record is absent or malformed, whose policy, buffer or record disagree (:func:`critic_phase_mismatch`), whose
+    critic or actor does not read the widths the record implies, or whose optimizer state for that tensor holds any
+    moment but Adam's two.
+
+    Returns the JSON report ``train_base`` records in the child's task lineage under ``dropped_critic_phase``.
+    """
+    source_record: Any = getattr(model, "__dict__", {}).get(CHECKPOINT_ATTRIBUTE)
+    source = CriticPhaseSpec.from_record(source_record)  # a Mapping from here on, or refused
+    mismatch = critic_phase_mismatch(model, source)
+    if mismatch:
+        raise CriticPhaseError(f"cannot drop the critic phase: {mismatch}")
+    old = model.policy
+    obs_dim = int(model.observation_space.shape[0])
+    wide = old.mlp_extractor.value_net[0]
+    actor_first = old.mlp_extractor.policy_net[0] if len(old.mlp_extractor.policy_net) else None
+    if not isinstance(wide, nn.Linear) or wide.in_features != obs_dim + PHASE_WIDTH:
+        raise CriticPhaseError(f"the critic's first layer does not read {obs_dim + PHASE_WIDTH} inputs")
+    if not isinstance(actor_first, nn.Linear) or actor_first.in_features != obs_dim:
+        raise CriticPhaseError(f"the actor's first layer does not read the {obs_dim}-value observation")
+    names = [name for name, _ in old.named_parameters()]
+    if DROP_PARAMETER not in names or dict(old.named_parameters())[DROP_PARAMETER] is not wide.weight:
+        raise CriticPhaseError(f"{DROP_PARAMETER} is not the critic's first layer")
+    moments = old.optimizer.state.get(wide.weight, {})
+    other = sorted(
+        str(key)
+        for key, value in moments.items()
+        if th.is_tensor(value) and value.dim() > 0 and key not in DROP_MOMENTS
+    )
+    if other or any(tuple(moments[key].shape) != tuple(wide.weight.shape) for key in DROP_MOMENTS if key in moments):
+        raise CriticPhaseError(
+            f"the optimizer state of {DROP_PARAMETER} holds {sorted(map(str, moments))}; only Adam's "
+            f"{list(DROP_MOMENTS)} can be cut"
+        )
+
+    stock_kwargs = {key: value for key, value in dict(model.policy_kwargs).items() if key not in POLICY_KWARGS}
+    with th.random.fork_rng(devices=[]):
+        new = ActorCriticPolicy(
+            model.observation_space, model.action_space, model.lr_schedule, use_sde=model.use_sde, **stock_kwargs
+        )
+    new = new.to(model.device)
+    if [name for name, _ in new.named_parameters()] != names:
+        raise CriticPhaseError("the stock policy's parameters are not the loaded policy's, in order")
+
+    state = old.state_dict()
+    phase_columns = state[DROP_PARAMETER][:, obs_dim:].detach().double().cpu()
+    state[DROP_PARAMETER] = state[DROP_PARAMETER][:, :obs_dim].clone()
+    new.load_state_dict(state, strict=True)
+    optimizer_state = old.optimizer.state_dict()
+    index = names.index(DROP_PARAMETER)
+    groups = optimizer_state["param_groups"]
+    if len(groups) != 1 or list(groups[0]["params"]) != list(range(len(names))):
+        raise CriticPhaseError("the optimizer does not hold the policy's parameters in one group, in order")
+    for key in DROP_MOMENTS:
+        if key in optimizer_state["state"].get(index, {}):
+            optimizer_state["state"][index][key] = optimizer_state["state"][index][key][:, :obs_dim].clone()
+    new.optimizer.load_state_dict(optimizer_state)
+    new.set_training_mode(old.training)
+
+    # Self-check before the swap: the actor, bitwise, and its deterministic action on a fixed probe batch (a local
+    # generator: the global ones are never drawn from).
+    new_state = new.state_dict()
+    changed = [
+        name
+        for name, value in old.state_dict().items()
+        if name.startswith(_ACTOR_PREFIXES) and not th.equal(value, new_state[name])
+    ]
+    probe = th.as_tensor(np.random.default_rng(0).normal(size=(16, obs_dim)), dtype=th.float32, device=model.device)
+    if changed or not th.equal(_actor_mode(old, probe), _actor_mode(new, probe)):
+        raise CriticPhaseError(f"the drop would change the actor ({changed or 'its deterministic action'})")
+
+    model.policy = new
+    model.policy_class = ActorCriticPolicy
+    model.policy_kwargs = stock_kwargs
+    model.rollout_buffer_class = RolloutBuffer
+    model.rollout_buffer_kwargs = {}
+    model.rollout_buffer = RolloutBuffer(
+        model.n_steps,
+        model.observation_space,
+        model.action_space,
+        device=model.device,
+        gamma=model.gamma,
+        gae_lambda=model.gae_lambda,
+        n_envs=model.n_envs,
+    )
+    del model.__dict__[CHECKPOINT_ATTRIBUTE]
+    model._last_obs = None
+    model._last_original_obs = None
+    return {
+        "schema": DROP_SCHEMA,
+        "source": dict(source_record),
+        "parameter": DROP_PARAMETER,
+        "columns": list(range(obs_dim, obs_dim + PHASE_WIDTH)),
+        "column_l2": [float(value) for value in th.linalg.vector_norm(phase_columns, dim=0)],
+        "column_max_abs": [float(value) for value in phase_columns.abs().amax(dim=0)],
+        "optimizer_moments": [key for key in DROP_MOMENTS if key in moments],
     }

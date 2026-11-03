@@ -171,8 +171,12 @@ def _state(model) -> dict[str, np.ndarray]:
     return arrays
 
 
-@pytest.mark.parametrize("mode", ["resume_same_stage", "initialize_next_stage"])
-def test_the_trainer_s_load_of_a_stock_archive_trains_bitwise_as_ppo_load(mode, tmp_path):
+@pytest.mark.parametrize(
+    "mode, crosses_edge",
+    [("resume_same_stage", False), ("initialize_next_stage", False), ("initialize_next_stage", True)],
+    ids=["resume", "no-edge", "edge"],
+)
+def test_the_trainer_s_load_of_a_stock_archive_trains_bitwise_as_ppo_load(mode, crosses_edge, tmp_path):
     """``_create_or_load_model`` with no phase on a stock archive (the path the warm-start drop and the log-std reset
     sit beside) gives the parameters, optimizer state and rollout buffer of ``PPO.load`` then ``learn``, bitwise."""
     from environments.shared.policy_loading import _ensure_sb3
@@ -189,6 +193,7 @@ def test_the_trainer_s_load_of_a_stock_archive_trains_bitwise_as_ppo_load(mode, 
         _venv(21),
         str(tmp_path / "parent.zip"),
         task_load_mode=mode,
+        crosses_edge=crosses_edge,
     )
     assert type(trainer) is PPO and "mesozoic_critic_phase" not in vars(trainer)
     trainer.learn(total_timesteps=64, reset_num_timesteps=mode == "initialize_next_stage")

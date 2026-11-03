@@ -79,6 +79,30 @@ def test_the_record_round_trips_and_names_the_features():
         CP.CriticPhaseSpec.from_record({**record, "features": ["ramp"]})
 
 
+def test_the_record_and_keys_are_the_ones_the_phase_critic_runs_recorded():
+    # The archives the phase-critic stance runs wrote (the screen branch's code) carry these literals: a change here
+    # would stop them loading, or dropping at a warm start.  The record is the chosen walking parent's, verbatim.
+    assert CP.CRITIC_PHASE_KEY == "critic_phase" and CP.CHECKPOINT_ATTRIBUTE == "mesozoic_critic_phase"
+    assert CP.CHECKPOINT_SCHEMA == "mesozoic.critic-phase/v1" and CP.SETTLE_ATTRIBUTE == "stance_width_settle_steps"
+    assert CP.POLICY_KWARGS == ("critic_phase_settle_steps", "critic_phase_gamma")
+    assert CP.PHASE_FEATURES == ("ramp", "settled", "discount") and CP.PHASE_WIDTH == 3
+    parent = {
+        "schema": "mesozoic.critic-phase/v1",
+        "features": ["ramp", "settled", "discount"],
+        "settle_steps": 200,
+        "gamma": 0.98,
+        "width": 3,
+        "step_counter": "the env's _step_count when the observation was made (0 at reset)",
+        "input": "the critic's only: appended after the normalized observation, never normalized",
+    }
+    assert CP.CriticPhaseSpec(200, 0.98).record() == parent
+    assert CP.CriticPhaseSpec.from_record(parent) == CP.CriticPhaseSpec(200, 0.98)
+    assert CP.CriticPhaseSpec(200, 0.98).policy_kwargs() == {
+        "critic_phase_settle_steps": 200,
+        "critic_phase_gamma": 0.98,
+    }
+
+
 def test_the_switch_is_a_boolean_popped_from_the_ppo_table():
     assert CP.read_critic_phase({}) is False and CP.read_critic_phase(None) is False
     table = {"gamma": 0.98, "critic_phase": True}

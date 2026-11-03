@@ -551,6 +551,9 @@ def test_every_load_whose_critic_reads_another_phase_is_refused_both_ways(plant,
     sb3 = _ensure_sb3()
     _create(sb3, plant, _venv(3)).save(tmp_path / "phase.zip")
     _create(sb3, plant, _venv(3, phase=False), spec=None).save(tmp_path / "stock.zip")
+    # _create passes no crosses_edge, so initialize_next_stage here is a load that crosses no node's edge (a root
+    # re-initialised from itself, or a direct caller): refused both ways.  The warm start across an edge into a stage
+    # without the option drops the phase instead (test_critic_phase_drop.py).
     for mode in ("resume_same_stage", "initialize_next_stage"):
         with pytest.raises(CP.CriticPhaseError, match="declares no"):
             _create(sb3, plant, _venv(3, phase=False), str(tmp_path / "phase.zip"), mode=mode, spec=None)
