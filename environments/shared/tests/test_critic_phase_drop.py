@@ -435,7 +435,7 @@ _TRAIN: dict[str, Any] = {
 }
 
 
-def _trex_configs() -> dict:
+def _tyrannosaurus_rex_configs() -> dict:
     from environments.shared.config import load_all_stages
 
     configs = copy.deepcopy(load_all_stages(TYRANNOSAURUS_REX))
@@ -446,20 +446,26 @@ def _trex_configs() -> dict:
 
 
 @pytest.fixture(scope="module")
-def trex_phase_parent(tmp_path_factory) -> Path:
+def phase_stance_parent(tmp_path_factory) -> Path:
     """train_base.train on the real T. rex stance with the phase: one 64-step update, its final checkpoint."""
     from environments.shared import train_base
     from environments.shared.species_registry import get_species_config
 
-    out = tmp_path_factory.mktemp("trex") / "stance"
+    out = tmp_path_factory.mktemp("tyrannosaurus_rex") / "stance"
     train_base.train(
-        get_species_config(TYRANNOSAURUS_REX), _trex_configs(), 1, 64, save_freq=10**9, output_dir=str(out), **_TRAIN
+        get_species_config(TYRANNOSAURUS_REX),
+        _tyrannosaurus_rex_configs(),
+        1,
+        64,
+        save_freq=10**9,
+        output_dir=str(out),
+        **_TRAIN,
     )
     parent: Path = out / "models" / "stage1_final.zip"
     return parent
 
 
-def test_the_trainer_drops_records_and_resumes_the_child_stock(trex_phase_parent, tmp_path, monkeypatch, capsys):
+def test_the_trainer_drops_records_and_resumes_the_child_stock(phase_stance_parent, tmp_path, monkeypatch, capsys):
     """train_base.train on the real T. rex stages: a stance with the phase, then locomotion warm-started from it
     (the node's edge; locomotion declares no phase), then a same-stage resume of locomotion's periodic checkpoint
     (D7, D9)."""
@@ -467,9 +473,9 @@ def test_the_trainer_drops_records_and_resumes_the_child_stock(trex_phase_parent
     from environments.shared.species_registry import get_species_config
 
     species = get_species_config(TYRANNOSAURUS_REX)
-    configs = _trex_configs()
+    configs = _tyrannosaurus_rex_configs()
     common = _TRAIN
-    parent = trex_phase_parent
+    parent = phase_stance_parent
     parent_policy = load_from_zip_file(str(parent), device="cpu", load_data=False)[1]["policy"]
     record = json.loads(zipfile.ZipFile(parent).read("data"))[CP.CHECKPOINT_ATTRIBUTE]
 
@@ -537,16 +543,18 @@ def test_the_trainer_drops_records_and_resumes_the_child_stock(trex_phase_parent
     assert run["resume_load_path"].endswith("stage2_64_steps.zip")
 
 
-def test_the_drop_and_the_log_std_reset_apply_at_the_same_warm_start(trex_phase_parent, tmp_path, monkeypatch, capsys):
+def test_the_drop_and_the_log_std_reset_apply_at_the_same_warm_start(
+    phase_stance_parent, tmp_path, monkeypatch, capsys
+):
     """[curriculum] warm_start_log_std on the child as well (D11): the drop in the load, then the reset; both are
     printed and recorded, and every actor tensor but log_std is the parent's, bitwise."""
     from environments.shared import train_base
     from environments.shared.curriculum.gate_schema import WARM_START_LOG_STD_KEY
     from environments.shared.species_registry import get_species_config
 
-    configs = _trex_configs()
+    configs = _tyrannosaurus_rex_configs()
     configs[2]["curriculum_kwargs"][WARM_START_LOG_STD_KEY] = -1.5
-    parent_policy = load_from_zip_file(str(trex_phase_parent), device="cpu", load_data=False)[1]["policy"]
+    parent_policy = load_from_zip_file(str(phase_stance_parent), device="cpu", load_data=False)[1]["policy"]
     after_reset: dict[str, Any] = {}
     original = train_base._apply_warm_start_log_std
 
@@ -563,7 +571,7 @@ def test_the_drop_and_the_log_std_reset_apply_at_the_same_warm_start(trex_phase_
         64,
         save_freq=10**9,
         output_dir=str(tmp_path / "locomotion"),
-        load_path=str(trex_phase_parent),
+        load_path=str(phase_stance_parent),
         task_load_mode="initialize_next_stage",
         **_TRAIN,
     )
