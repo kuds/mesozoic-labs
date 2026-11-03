@@ -87,6 +87,18 @@ net_arch = [512, 256]            # Match raptor width; T-Rex obs is 63 (heading-
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
+eval_freq = 131072                      # WALKING PILOT 3 (pilot-only, never merged; production evaluates every 50,000
+                                        # steps): one evaluation every 131,072 steps, walking pilot 1's cadence, kept by
+                                        # the maintainer's decision of 2026-11-03 (14:53 UTC, the remaining defaults).
+                                        # Read by train_base._stage_cadence; evaluation never changes training.
+eval_episodes = 10                      # WALKING PILOT 3 (pilot-only, never merged; production 30): 10 episodes per
+                                        # evaluation, walking pilot 1's panel, by the same decision of 2026-11-03.
+checkpoint_freq = 500000                # WALKING PILOT 3 (pilot-only, never merged; production 100,000): a periodic
+                                        # checkpoint every 500,000 steps, so the pairs the pilot is judged at exist at
+                                        # 2,000,000, 4,000,000, 6,000,000 and 8,000,000 (the maintainer's decisions of
+                                        # 2026-11-03, 14:53 UTC: budget 8,000,000 and checkpoints every 500,000).
+max_checkpoints = 0                     # WALKING PILOT 3 (pilot-only, never merged; production keeps the newest 5):
+                                        # keep every periodic pair (16 at 8,000,000), by the same decision of 2026-11-03.
 min_avg_reward = 100.0
 # Collapse backstop: the relative floor pair stance and recovery use
 # (PLANT_VALIDATION §14 item 3), replacing the absolute
@@ -160,3 +172,14 @@ warmup_clip_range = 0.02                # Small clip range during warm-up to lim
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
 ramp_timesteps = 2000000                # Increased from 500k: much slower ramp prevents reward-chasing collapse. 500k was only 6% of 8M budget; 2M is 25%, matching raptor stage 2 proportion.
 ramp_start_value = 0.2                  # Increased from 0.1: start with detectable forward signal (matches raptor stage 2)
+warm_start_log_std = -1.5               # WALKING PILOT 3 (pilot-only, never merged; production has no such key and
+                                        # keeps the parent's log_std as loaded): the maintainer's decision (c) of
+                                        # 2026-11-03 (02:35 UTC), walking pilot 2's change, never trained: UNTESTED.
+                                        # At the warm start from the stance parent (initialize_next_stage only;
+                                        # nothing on a RESUME of this stage, a fresh start or a root) every actuator's
+                                        # log_std is set to -1.5, std exp(-1.5) = 0.2231, the T. rex stance stage's own
+                                        # log_std_init (stance.toml [ppo.policy_kwargs], D-D27). The parent's std is
+                                        # mean 0.057, min 0.007, max 0.111. Applied after the parent's parameters load
+                                        # and before learning, Adam moments kept (train_base._apply_warm_start_log_std);
+                                        # recorded as run.warm_start_log_std in stage_config.json; the recipe digest
+                                        # (hyperparameters_sha256) covers it (config.SHAPING_KEY_PREFIXES).
