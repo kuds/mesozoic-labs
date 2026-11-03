@@ -7,8 +7,22 @@ import numpy as np
 import pytest
 
 from environments.shared import critic_phase as CP
-from environments.shared.config import load_stage_config
+from environments.shared.config import hyperparameters_sha256, load_stage_config
 from environments.shared.model_id import ModelId
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+#: The T. rex recipe digests of main at 4c9d5e9b, before the option existed (configs/digest_snapshot.generated.txt
+#: there, lines 384-406).  Written out here, never read from a golden a later --write could move.
+MAIN_RECIPE_DIGESTS = {
+    ("stance", "PPO"): "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e",
+    ("stance", "SAC"): "sha256:c6eb8d73dfdde463350306ba49070b031cbe327407cfdaf6aee270eb52d8fd26",
+    ("recovery", "PPO"): "sha256:4ac6592a9159dd5aae860949029f757d6d6cdceee083df4d9215db2480e11274",
+    ("recovery", "SAC"): "sha256:09b1e8034671fa666c74e2e4faac98fa751288a4ead8dc3473d1c702b7116b31",
+    ("locomotion", "PPO"): "sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c",
+    ("locomotion", "SAC"): "sha256:49ef875a97a5105b442714fe18795a5a5277b765476f92b79616469ab1d1a799",
+    ("behavior", "PPO"): "sha256:3b59c56dd347b26e87c4a9b5fd90f721350698c6efb5987e6bf05fe186236639",
+    ("behavior", "SAC"): "sha256:8a9c178c021753cfe300e6896eb82277e0740d3ac86f1c71949000f5b7a81b38",
+}
 
 
 def test_the_features_at_the_gate_and_the_horizon():
@@ -79,17 +93,45 @@ def test_the_switch_is_a_boolean_popped_from_the_ppo_table():
 
 def test_no_stage_config_turns_the_critic_phase_on():
     # Off by default: the switch is a launch choice (the notebook's CRITIC_PHASE, or --override
-    # ppo.critic_phase=true), never a committed stage key.
+    # ppo.critic_phase=true), never a committed stage key.  No stage declares a warm_start_ curriculum key either.
     from environments.shared.species_names import model_ids
     from environments.shared.stage_manifest import load_stage_manifest
 
     for model_id in model_ids():
         for entry in load_stage_manifest(model_id).stages:
-            ppo = dict(load_stage_config(model_id, entry.reference).get("ppo_kwargs", {}))
+            config = load_stage_config(model_id, entry.reference)
+            ppo = dict(config.get("ppo_kwargs", {}))
             assert CP.CRITIC_PHASE_KEY not in ppo, (model_id, entry.id)
+            assert not [key for key in config.get("curriculum_kwargs", {}) if key.startswith("warm_start_")], (
+                model_id,
+                entry.id,
+            )
+
+
+@pytest.mark.parametrize("stage, algorithm", sorted(MAIN_RECIPE_DIGESTS))
+def test_the_tyrannosaurus_rex_recipe_digests_are_main_s(stage, algorithm):
+    # The option adds no committed key, so no recorded run.hyperparameters_sha256 moves.
+    assert (
+        hyperparameters_sha256(load_stage_config(TYRANNOSAURUS_REX, stage), algorithm)
+        == (MAIN_RECIPE_DIGESTS[(stage, algorithm)])
+    )
+
+
+def test_the_recipe_digest_records_the_switch_when_a_table_writes_it():
+    import copy
+
+    stance = load_stage_config(TYRANNOSAURUS_REX, "stance")
+    digests = {"absent": hyperparameters_sha256(stance, "PPO")}
+    for name, value in (("on", True), ("off", False)):
+        written = copy.deepcopy(stance)
+        written["ppo_kwargs"][CP.CRITIC_PHASE_KEY] = value
+        digests[name] = hyperparameters_sha256(written, "PPO")
+    assert digests["absent"] == MAIN_RECIPE_DIGESTS[("stance", "PPO")]
+    # Each moves the digest, an explicit false too: "absent" is the default, and the record says what the table said.
+    assert len(set(digests.values())) == 3
 
 
 def test_the_tyrannosaurus_rex_stance_gates_are_the_spec_s_settle_step():
-    config = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1)
+    config = load_stage_config(TYRANNOSAURUS_REX, 1)
     assert config["env_kwargs"][CP.SETTLE_ATTRIBUTE] == 200
     assert config["ppo_kwargs"]["gamma"] == 0.98
