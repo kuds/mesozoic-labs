@@ -11,8 +11,9 @@ simultaneous landing), one control step later than SCREEN paid it so that no pay
   fingerprint and the recorded stage config), against a golden recorded on an export of 3ae1c959.
 - B: the support flag, the down rule and the touchdown event on synthetic inputs: the probe's debounced touchdown set
   exhaustively, SCREEN's own events_probe (ported verbatim) one step later, no read of a future step.
-- C: the env's R6 terms against an offline recompute of its own episodes, and the R6 returns of SCREEN's recorded
-  hand-built episodes (fixtures/walk_r6/screen_cases.npz) against SCREEN's published R6p.
+- C: the env's R6 terms against an offline recompute of its own episodes, episodes one after another on one env (the
+  reset forgets the event), and the R6 returns of SCREEN's recorded hand-built episodes
+  (fixtures/walk_r6/screen_cases.npz) against SCREEN's published R6p.
 """
 
 from __future__ import annotations
@@ -725,14 +726,95 @@ def test_the_env_r6_terms_equal_an_offline_recompute_of_its_own_episode(pattern,
         if terminated and not info.get("success"):
             total += -150.0
         assert reward == total, m
-    # The patterns do what they are here for: a paid alternating touchdown, an unpaid simultaneous landing, steps
-    # without support and airborne substeps.
+    # The patterns do what they are here for, asserted by kind rather than by exact counts (which hang on the
+    # trajectory): ALT pays at least one alternating touchdown; HOP lands both feet within 2 steps of each other at
+    # least once, pays neither foot of such a landing, and has steps without support.
     registered = sum(info["walk_touchdowns_registered"] for _, _, info, _ in rows)
     unsupported = sum(info["walk_support"] == 0.0 for _, _, info, _ in rows)
     if pattern[0] == "ALT":
-        assert registered >= 3 and np.count_nonzero(e4) == 1
+        assert registered >= 3 and np.count_nonzero(e4) >= 1
     else:
-        assert registered >= 4 and np.count_nonzero(e4) == 0 and unsupported >= 15
+        probe = _probe()
+        touchdowns = [
+            [int(k) for k in probe._events(probe.debounce(down[:, foot]))[0] if 1 <= k <= T - 3] for foot in (0, 1)
+        ]
+        landings = [(k, j) for k in touchdowns[0] for j in touchdowns[1] if abs(k - j) <= 2]
+        assert registered >= 4 and landings and unsupported >= 15
+        assert all(e4[m + 4] == 0.0 for landing in landings for m in landing if m + 4 < T), landings
+
+
+def _episode(env: Any, seed: int, action: Any, steps: int = 400) -> dict[str, Any]:
+    """One episode on *env* from env.reset(seed): per step the reward and the R6 info items, and the down flags and
+    leads the event folded in (the leads recomputed, as SCREEN computed them, from the foot sites and the pelvis
+    quaternion at each state)."""
+    env.reset(seed=seed)
+    sites = [np.array([env.data.site_xpos[env.r_foot_site_id], env.data.site_xpos[env.l_foot_site_id]])]
+    quats = [env.data.sensordata[env._sensor_quat_start : env._sensor_quat_start + 4].copy()]
+    rows = []
+    for k in range(steps):
+        _, reward, terminated, truncated, info = env.step(action(k))
+        rows.append((reward, {key: info[key] for key in sorted(R6_INFO_KEYS)}))
+        sites.append(np.array([env.data.site_xpos[env.r_foot_site_id], env.data.site_xpos[env.l_foot_site_id]]))
+        quats.append(env.data.sensordata[env._sensor_quat_start : env._sensor_quat_start + 4].copy())
+        if terminated or truncated:
+            break
+    T = len(rows)
+    fp, hd = np.asarray(sites), fwd2d(np.asarray(quats))
+    dx = np.array([[float((fp[m, i, :2] - fp[m, 1 - i, :2]) @ hd[m]) for i in (0, 1)] for m in range(T + 1)])
+    down = np.array([(info["r_foot_down"], info["l_foot_down"]) for _, info in rows], dtype=bool)
+    return {"rows": rows, "down": down, "dx": dx, "units": np.array([info["walk_touchdown_unit"] for _, info in rows])}
+
+
+def test_a_reset_starts_the_touchdown_event_afresh_on_the_same_env():
+    """Episodes one after another on one env instance, as training uses an env: the ALT pattern on seed 3042 to its
+    end, then on seed 3045 cut just after a touchdown is registered (its pay still pending), then on seed 3045 again.
+    The reset (_spawn_target) forgets the event: the event's state equals a new event's, the last episode's step 0 is
+    accepted, its rewards and R6 info equal
+    the same episode on a fresh instance and an offline recompute of that episode alone, its first touchdown (of the
+    other foot than the last one registered before the reset) is not paid as an alternation, and a foot's first
+    touchdown is timed from the new reset."""
+    kwargs = {**_locomotion_as_3ae1c959(), **PILOT}
+    action = _alt_or_hop("ALT", 1.5, 0.15, 0.3, 0.3, math.pi / 2, 1.0)
+    fresh_env = TyrannosaurusRexAnatomicalEnv(**kwargs)
+    try:
+        fresh = _episode(fresh_env, 3045, action)
+    finally:
+        fresh_env.close()
+    registrations = [m for m, (_, info) in enumerate(fresh["rows"]) if info["walk_touchdowns_registered"] > 0]
+    env = TyrannosaurusRexAnatomicalEnv(**kwargs)
+    try:
+        tracker = env._walk_touchdowns
+        assert tracker is not None
+        stride, dt = tracker.stride_scale_m, env.dt
+        _episode(env, 3042, action)
+        # Cut one step after a touchdown's registration (at k + 2), so its pay (at k + 4) is pending at the reset.
+        _episode(env, 3045, action, steps=registrations[1] + 2)
+        last_foot = tracker._last_foot
+        assert tracker._pending and last_foot is not None and tracker._last_step == registrations[1] + 1
+        env.reset(seed=3045)
+        assert vars(tracker) == vars(_WalkTouchdownEvents(dt, stride))  # every piece of the event's state forgotten
+        again = _episode(env, 3045, action)  # step 0 after this reset is accepted: no step-gap refusal
+        assert tracker is env._walk_touchdowns and tracker._last_step == len(again["rows"]) - 1
+    finally:
+        env.close()
+    assert again["rows"] == fresh["rows"]
+    assert np.array_equal(again["units"], screen_events_probe(again["down"], again["dx"], DT, stride, 4))
+    probe = _probe()
+    touchdowns = sorted(
+        (int(k), foot) for foot in (0, 1) for k in probe._events(probe.debounce(again["down"][:, foot]))[0] if k >= 1
+    )
+    # The first touchdown after the reset is the other foot's than the last registered before it, so a remembered
+    # foot would pay it as an alternation at k + 4; it is not paid.
+    first_k, first_foot = touchdowns[0]
+    assert first_foot == 1 - last_foot and again["units"][first_k + 4] == 0.0
+    # A paid touchdown that is its foot's first since the reset, under the 1.2 s cap: its interval is k x dt from
+    # the new reset (a remembered touchdown of that foot would shorten or negate it).
+    firsts = [(k, foot) for k, foot in touchdowns if (k, foot) == min(t for t in touchdowns if t[1] == foot)]
+    timed = [(k, foot) for k, foot in firsts if again["units"][k + 4] > 0.0 and k * dt < 1.2]
+    assert timed, touchdowns
+    for k, foot in timed:
+        scale = float(np.clip(again["dx"][k + 2, foot] / stride, 0.0, 1.0))
+        assert again["units"][k + 4] == min(k * dt, 1.2) / (2.0 * dt) * scale, (k, foot)
 
 
 @functools.cache
