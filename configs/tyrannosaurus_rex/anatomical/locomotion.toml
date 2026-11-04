@@ -10,10 +10,12 @@ alive_bonus = 0.5                      # Keep: already reduced from Stage 1
 fall_penalty = -150.0                  # Raised from -50: hedge against late-episode falls, which stay cheap
                                        # in the discounted objective at gamma=0.995 (corrected break-even math
                                        # in docs/investigations/STAGE2_RECOMMENDATIONS.md section 2.1).
-forward_vel_max = 2.5                  # NEW: was unset (env default 8.0 -> effectively uncapped speed
-                                       # incentive). Saturate just past the 2.0 m/s gate instead of paying
-                                       # for robustness-destroying top speed — the trap that collapsed
-                                       # velociraptor stage 2 (STAGE2_RECOMMENDATIONS.md R4).
+forward_vel_max = 1.5                  # WALKING PILOT 3 (pilot-only, never merged; production 2.5, which
+                                       # saturates just past the old 2.0 m/s gate): R6 part (c), the maintainer's
+                                       # decision (9) of 2026-11-04. Pays forward speed up to 1.5 m/s, on a 5/3
+                                       # steeper slope below it. The gate's min_avg_forward_vel 1.0 is unchanged
+                                       # (decision 10); in the SCREEN stage caps at or below 1.4 m/s conflicted
+                                       # with that episode-mean gate and 1.5 did not.
 energy_penalty_weight = 0.002          # Increase from 0.001: CoT was near 0, provide some efficiency signal
 tail_stability_weight = 0.05           # Reduce from 0.08 to match raptor: tail oscillation is less
                                        # critical than forward progress at this stage
@@ -34,6 +36,19 @@ max_episode_steps = 1000
 reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
                                        # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
                                        # inherited a 5x narrower reset distribution by accident.
+# WALKING PILOT 3 (pilot-only, never merged): the rest of R6, the walking reward of the maintainer's decision (9) of
+# 2026-11-04 (with forward_vel_max above). The SCREEN stage's offline recomputation on hand-built r10 behaviours
+# ranked every stable alternating walk above standing and above its speed-matched two-footed hop on every seed under
+# R6. The T. rex behavior recipes inherit this [env] (train_behaviors.read_recipe), so they carry R6 too.
+airborne_substep_weight = 1.0          # R6 part (b); production leaves it unset (env default 0.0), the stance stage's
+                                       # own value: -1.0 x the share of a step's substeps on which every foot's touch
+                                       # is at most 0.1 N.
+walk_support_gate_bw = 0.04            # R6 part (a), a new key off by default: alive, posture and height are paid only
+                                       # while the two feet's substep-MIN touch sums to more than 4% of body weight
+                                       # (33.6 N; the compsognathus rule).
+walk_touchdown_weight = 0.1            # R6 part (d), a new key off by default: SCREEN's alternating-touchdown event
+                                       # R5p, min(T_i, 1.2 s) / (2 dt) x clip(lead / (0.1 L), 0, 1) per alternating,
+                                       # non-simultaneous touchdown, paid 4 control steps after it.
 
 [ppo]
 learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance

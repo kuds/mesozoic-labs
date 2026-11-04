@@ -180,14 +180,29 @@ def _same(a: Any, b: Any) -> bool:
 
 
 # ======================================================================================== A. off is the branch head
-def test_the_r6_keys_default_to_off_and_no_committed_config_sets_them():
+def test_the_r6_keys_default_to_off_and_only_locomotion_sets_them():
+    """Off by default.  On this branch only the committed locomotion stage sets them, with the pilot's four [env]
+    values (on main no config would); its [env] is otherwise 3ae1c959's.  The behavior recipes inherit locomotion's
+    [env] (train_behaviors.read_recipe), so their resolved env carries R6 too; no stance, recovery or behavior-stage
+    config sets it."""
+    from environments.shared.train_behaviors import read_recipe
+
     parameters = inspect.signature(TyrannosaurusRexAnatomicalEnv).parameters
     assert {key: parameters[key].default for key in R6_KEYS} == dict.fromkeys(R6_KEYS, 0.0)
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
-        assert not set(R6_KEYS) & set(env_kwargs), entry.id
+        if entry.id == "locomotion":
+            assert dict(env_kwargs) == {**_locomotion_as_3ae1c959(), **PILOT}
+        else:
+            assert not set(R6_KEYS) & set(env_kwargs), entry.id
     for path in sorted((REPOSITORY / "configs" / "tyrannosaurus_rex").rglob("*.toml")):
-        assert not [key for key in R6_KEYS if key in path.read_text()], path
+        if path.name != "locomotion.toml":
+            assert not [key for key in R6_KEYS if key in path.read_text()], path
+    recipes = sorted((REPOSITORY / "configs" / "tyrannosaurus_rex" / "anatomical" / "behaviors").glob("*.toml"))
+    assert recipes
+    for path in recipes:
+        env_kwargs = read_recipe(path, TYRANNOSAURUS_REX)[3]
+        assert {key: env_kwargs[key] for key in PILOT} == PILOT, path.name
 
 
 def _roll(kwargs: dict[str, Any], seed: int, steps: int = 240, amplitude: float = 0.05) -> list[tuple[Any, ...]]:

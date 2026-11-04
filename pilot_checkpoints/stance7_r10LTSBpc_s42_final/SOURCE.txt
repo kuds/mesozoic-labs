@@ -87,7 +87,8 @@ How it is loaded
 
 Provenance caveats
   - Its recipe is not main's: the run branch's LTSB stance terms, mirror-symmetric PPO and the phase critic. The
-    locomotion stage uses none of them: stock PPO on the production locomotion [env].
+    locomotion stage uses none of them: stock PPO on the production locomotion [env] with walking pilot 3's R6
+    walking reward (the maintainer's decision (9) of 2026-11-04; pilot-only, never merged).
   - Not a certified stance; the tie with s80 was broken by the maintainer's choice, not by a measurement.
   - The reset to std 0.2231 is a large relative jump from this parent's noise (about x3.9 on the mean, about x32 on
     the smallest actuator, from the printed three-decimal values), and it has never been trained.
