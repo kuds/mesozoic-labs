@@ -187,14 +187,18 @@ warmup_clip_range = 0.02                # Small clip range during warm-up to lim
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
 ramp_timesteps = 2000000                # Increased from 500k: much slower ramp prevents reward-chasing collapse. 500k was only 6% of 8M budget; 2M is 25%, matching raptor stage 2 proportion.
 ramp_start_value = 0.2                  # Increased from 0.1: start with detectable forward signal (matches raptor stage 2)
-warm_start_log_std = -1.5               # WALKING PILOT 3 (pilot-only, never merged; production has no such key and
-                                        # keeps the parent's log_std as loaded): the maintainer's decision (c) of
-                                        # 2026-11-03 (02:35 UTC), walking pilot 2's change, never trained: UNTESTED.
+warm_start_log_std = -2.0               # WALKING PILOT 3 (pilot-only, never merged; production has no such key and
+                                        # keeps the parent's log_std as loaded): the maintainer's decision (8) of
+                                        # 2026-11-04 (11:57 UTC), which replaces decision (c) of 2026-11-03's -1.5
+                                        # (the stance stage's own log_std_init, stance.toml [ppo.policy_kwargs]).
+                                        # The log_std scan of 2026-11-04: the parent, stochastic in the locomotion
+                                        # env, stood 359 of 360 episodes at -2.0 against 9 of 120 at -1.5. Written
+                                        # -2.0, not -2: a TOML integer would be recorded, and hashed, as -2.
                                         # At the warm start from the stance parent (initialize_next_stage only;
                                         # nothing on a RESUME of this stage, a fresh start or a root) every actuator's
-                                        # log_std is set to -1.5, std exp(-1.5) = 0.2231, the T. rex stance stage's own
-                                        # log_std_init (stance.toml [ppo.policy_kwargs], D-D27). The parent's std is
-                                        # mean 0.057, min 0.007, max 0.111. Applied after the parent's parameters load
-                                        # and before learning, Adam moments kept (train_base._apply_warm_start_log_std);
-                                        # recorded as run.warm_start_log_std in stage_config.json; the recipe digest
-                                        # (hyperparameters_sha256) covers it (config.SHAPING_KEY_PREFIXES).
+                                        # log_std is set to -2.0, std exp(-2.0) = 0.1353; never trained: UNTESTED.
+                                        # The parent's std is mean 0.057, min 0.007, max 0.111. Applied after the
+                                        # parent's parameters load and before learning, Adam moments kept
+                                        # (train_base._apply_warm_start_log_std); recorded as run.warm_start_log_std in
+                                        # stage_config.json; the recipe digest (hyperparameters_sha256) covers it
+                                        # (config.SHAPING_KEY_PREFIXES).

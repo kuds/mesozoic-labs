@@ -17,8 +17,12 @@ Why this one: the maintainer's decisions of 2026-11-03
   02:35 UTC: the parent is this checkpoint. The PC round's pinned parent rule named a tie, s42 and s80 (both held
   K1-K4 and had 40/40 clean panel episodes with 0 noise falls at the final); the maintainer chose s42. At a warm
   start into a stage that declares no phase, the critic's 3 phase inputs are dropped (the actor is untouched); that
-  rule landed on main with PR #658 (merge commit 4d5f4e7, the base of this branch). The policy's log_std is reset to
-  -1.5 at the warm start (walking pilot 2's change, never trained): UNTESTED.
+  rule landed on main with PR #658 (merge commit 4d5f4e7, the base of this branch). The policy's log_std was to be
+  reset to -1.5 at the warm start (walking pilot 2's change, never trained).
+  2026-11-04, 11:57 UTC, decision (8): the reset is -2.0 instead (std 0.1353), never trained: UNTESTED. The log_std
+  scan of 2026-11-04 measured the parent, stochastic in the locomotion env, standing 359 of 360 episodes at -2.0
+  against 9 of 120 at -1.5. Decision (9) of the same day: the locomotion stage trains on walking pilot 3's R6
+  walking reward (pilot-only, never merged).
   11:29 UTC: walking pilot 3 runs as a declared exception to the gait-quality plan's GQ-3 (a) and GQ-17, as pilot 1
   did under D-D36; both stay open. It will be recorded in the repository's decision tables by a later records PR,
   not on this branch.
@@ -60,12 +64,15 @@ How it was judged (the PC round's own readouts, and its K1-K4 measures re-run on
 
 What the warm start does with it (main after PR #658; this branch's locomotion.toml)
   Into the locomotion stage under initialize_next_stage: the critic's 3 phase input columns are dropped (512 x 66 ->
-  512 x 63, their Adam moments cut), the actor is kept bit for bit, every log_std entry is set to -1.5 (std 0.2231;
+  512 x 63, their Adam moments cut), the actor is kept bit for bit, every log_std entry is set to -2.0 (std 0.1353;
   the parent's Adam moments kept), obs_rms is carried and ret_rms reset. The child is stock PPO with no phase and no
-  symmetry record. Measured through train() on PR #658's head cab70394 (whose tree is the merge commit's), the two
-  lines read:
+  symmetry record. Measured through train() on PR #658's head cab70394 (whose tree is the merge commit's) with the
+  reset at -1.5, the two lines read:
     Warm start: dropped the critic's 3 episode-phase inputs (settle step 200, gamma 0.98; column L2 0.812, 0.408, 0.827); the actor is unchanged
     Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.057, min 0.007, max 0.111; Adam moments kept)
+  At -2.0 the first line is unchanged and the second, from train_base's format string ({value:g}, then the std to
+  three decimals), is expected to read (not yet measured here; the pre-launch re-smoke measures it):
+    Warm start: policy log_std set to -2 (std 0.135) on all 15 actuators (the parent's std: mean 0.057, min 0.007, max 0.111; Adam moments kept)
   The archive records its own runtime's TensorBoard buffer (/tmp/tb_buffer/..._stance7_r10LTSBpc_s42_01_stance_
   tensorboard); with TensorBoard on (the notebook's default) train() passes the child's own path to the load, so
   the child writes under its own run folder.
@@ -90,5 +97,6 @@ Provenance caveats
     locomotion stage uses none of them: stock PPO on the production locomotion [env] with walking pilot 3's R6
     walking reward (the maintainer's decision (9) of 2026-11-04; pilot-only, never merged).
   - Not a certified stance; the tie with s80 was broken by the maintainer's choice, not by a measurement.
-  - The reset to std 0.2231 is a large relative jump from this parent's noise (about x3.9 on the mean, about x32 on
-    the smallest actuator, from the printed three-decimal values), and it has never been trained.
+  - The reset to std 0.1353 is a large relative jump from this parent's noise (about x2.4 on the mean, about x19 on
+    the smallest actuator and x1.2 on the largest, from the printed three-decimal values; at -1.5 it was x3.9 and
+    x32), and it has never been trained.
