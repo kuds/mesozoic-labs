@@ -1,0 +1,169 @@
+{
+ "schema": "walking-pilot3-noise/v1",
+ "report_only": true,
+ "tool_sha256": "sha256:95f058519c212236b95f6392a5ab24641eb80786932e77c1acaaaf9b6ae6bf33",
+ "run": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot3_walk_s42",
+ "checkpoints": {
+  "periodic": [
+   {
+    "steps": 32768,
+    "file": "stage2_32768_steps.zip",
+    "mean": 0.2244881271670292,
+    "min": 0.22403321634828446,
+    "max": 0.22521843865332858,
+    "n": 15
+   },
+   {
+    "steps": 65536,
+    "file": "stage2_65536_steps.zip",
+    "mean": 0.22521841150286956,
+    "min": 0.2246163432978707,
+    "max": 0.22602114818890837,
+    "n": 15
+   }
+  ],
+  "final": {
+   "file": "stage2_final.zip",
+   "mean": 0.22519404970223658,
+   "min": 0.22460429426143622,
+   "max": 0.22599668452391755,
+   "n": 15
+  }
+ },
+ "tensorboard": {
+  "files": [
+   {
+    "path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot3_walk_s42/03_locomotion/tensorboard/PPO_1/events.out.tfevents.1793732531.vm.9673.0",
+    "records": 720,
+    "stopped": null
+   }
+  ],
+  "tags_found": 244,
+  "train/std": {
+   "n": 3,
+   "warmup": [
+    [
+     32768,
+     0.22448809444904327
+    ],
+    [
+     49152,
+     0.22502484917640686
+    ],
+    [
+     65536,
+     0.22521840035915375
+    ]
+   ],
+   "first": [
+    32768,
+    0.22448809444904327
+   ],
+   "last": [
+    65536,
+    0.22521840035915375
+   ],
+   "blocks": [
+    {
+     "from": 0,
+     "to": 500000,
+     "n": 3,
+     "mean": 0.22491044799486795,
+     "min": 0.22448809444904327,
+     "max": 0.22521840035915375
+    }
+   ],
+   "all": [
+    [
+     32768,
+     0.22448809444904327
+    ],
+    [
+     49152,
+     0.22502484917640686
+    ],
+    [
+     65536,
+     0.22521840035915375
+    ]
+   ],
+   "steps_not_increasing": false
+  },
+  "train/value_loss": {
+   "n": 3,
+   "warmup": [
+    [
+     32768,
+     1.0547494888305664
+    ],
+    [
+     49152,
+     0.1936935931444168
+    ],
+    [
+     65536,
+     0.15658186376094818
+    ]
+   ],
+   "first": [
+    32768,
+    1.0547494888305664
+   ],
+   "last": [
+    65536,
+    0.15658186376094818
+   ]
+  },
+  "train/explained_variance": {
+   "n": 3,
+   "warmup": [
+    [
+     32768,
+     0.7391034364700317
+    ],
+    [
+     49152,
+     0.9164571166038513
+    ],
+    [
+     65536,
+     0.9514639973640442
+    ]
+   ],
+   "first": [
+    32768,
+    0.7391034364700317
+   ],
+   "last": [
+    65536,
+    0.9514639973640442
+   ]
+  }
+ },
+ "forward": {
+  "file": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot3_walk_s42/03_locomotion/gate_progress.npz",
+  "sha256": "sha256:138593490d780d54196de76bce2f5586f5c92dfa3f2fe8aa67d19b08a9b56a36",
+  "rows": [
+   {
+    "timesteps": 32768,
+    "term_forward": -1.7780570221170002,
+    "full_horizon_term_forward": -1.7780570221170098
+   },
+   {
+    "timesteps": 65536,
+    "term_forward": -3.0568509482171207,
+    "full_horizon_term_forward": -3.0568509482171224
+   }
+  ]
+ },
+ "references": {
+  "warm_start_std": 0.22313016014842982,
+  "parent_std": {
+   "mean": 0.057,
+   "min": 0.007,
+   "max": 0.111
+  },
+  "forward": "pilot 1: 0.5-3.2; September walkers at 2.1M: 39-54",
+  "warmup_steps": 300000
+ }
+}

@@ -1,0 +1,12 @@
+Walking pilot score (e2e/OUT); launched seeds [42]; primary checkpoint 8,000,000
+  s42 2,000,000: missing
+  s42 4,000,000: missing
+  s42 6,000,000: missing
+  s42 8,000,000: STILL  {'WALK': 0, 'HOP': 0, 'STILL': 40, 'FALL': 0, 'OTHER': 0}  v 0.000 m/s (fwd -0.000), alt nan, sim nan, swaps nan, flight 0.00, hip lag 0.91, stride nan Hz, duty L/R 1.00/1.00; OTHER passing the contact bar, by rejecting guards: {}
+      STILL 40: 0 at >= 0.5 touchdowns/s; medians 0.00 touchdowns/s, alternation nan, |yaw change| 1.2 deg (report only)
+  s42 seed outcome: STILL (checkpoint 8,000,000); video review: not needed
+VIDEO REVIEW REQUIRED (criteria_pilot3.txt "Video review"): for every seed that is WALKS by the rule, even when its verdict cannot change the pilot outcome; a seed's WALKS counts only when the maintainer has watched these and agrees they show alternating single-leg steps; record the verdicts in a JSON file ({"42": "agree" | "disagree", ...}) and pass --video-review.
+  s42 (STILL: not required, listed for reference) at 8,000,000: panel episodes (reset seed 3042 + episode; render with tools/pilot3_video.py OUT/s42/8000000 --from-score <this JSON>): WALK [none]; foot duty > 0.8 [none]; 40 STILL episodes over the duty line not listed. Notebook replay: MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot3_walk_s42/03_locomotion/replays/tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4 (or pilot3_walk_s42_b if the seed was restarted)
+PILOT OUTCOME: STILL (single seed (s42))
+EXISTENCE: NO WALK SEEN (A = [], k = 0 of 1; WALKS by the rule []; review pending []; video-disagreed [])
+Q4 NO by the pilot outcome: STILL (0 of 1; pilot outcome STILL): NO WALK SEEN

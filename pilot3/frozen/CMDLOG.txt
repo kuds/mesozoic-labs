@@ -1,0 +1,738 @@
+CMDLOG, walking pilot 3, AMEND stage (folder SP/work/pilot3/frozen_candidate2, "FC2" below; SP = the session
+scratchpad /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad). Times are UTC.
+The first three shell calls ran directly in the shell tool and are copied here by hand, literally (only the first
+time is measured; the others ran between it and the first helper entry, in this order). From the first "=== ... BEGIN"
+on, entries are written by FC2/bin/run.sh, which logs the literal command block and runs it with bash.
+File reads with the file-reading tool are not shell commands; they are listed in words where they matter.
+
+-- before the helper (shell tool, in this order) --
+2026-11-04T16:01:59Z  $ SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad; ls -la $SP/work/pilot3/; ls -la $SP/work/pilot3/frozen_candidate/; ls $SP/work/pilot3/frozen_candidate2 2>&1 | head -5; date -u +%FT%TZ
+                      $ SP=...; F=$SP/work/pilot3/frozen_candidate2; mkdir -p $F/tmp $F/diffs $F/out $F/tools_before; echo "# CMDLOG ..." > $F/CMDLOG.txt; echo "$(date -u +%FT%TZ) mkdir ..." >> $F/CMDLOG.txt; head -30 $SP/work/pilot3/frozen_candidate/CMDLOG.txt; tail -5 $SP/work/pilot3/r6_validate/CMDLOG.txt
+                      $ SP=...; ls $SP/work/pilot3/frozen_candidate/bin; cat $SP/work/pilot3/frozen_candidate/bin/*; ls $SP/work/pilot3/r6_validate; ls $SP/work/pilot3/r6_validate/bin 2>&1; cat $SP/work/pilot3/r6_validate/bin/* 2>&1 | head -60
+                      (heredoc write of FC2/bin/run.sh; then this header, which replaced the first two-line CMDLOG.txt)
+                      (SP=... stands for the full scratchpad path written out in the command; shortened here only)
+
+-- from here on, written by FC2/bin/run.sh --
+=== 2026-11-04T16:02:22Z BEGIN
+SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
+tail -60 $SP/work/run_log.txt | cut -c1-1500
+wc -l $SP/work/run_log.txt
+=== 2026-11-04T16:02:22Z END rc=0
+=== 2026-11-04T16:02:25Z BEGIN
+SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
+grep -n "" $SP/work/run_log.txt | tail -14 | cut -c1-3000
+=== 2026-11-04T16:02:25Z END rc=0
+=== 2026-11-04T16:02:28Z BEGIN
+SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
+cd $SP/work/pilot3; ls -la r6_design r6_impl r6_validate; ls r6_design/* r6_impl/* | head -80; du -sh r6_design r6_impl r6_validate
+cd $SP/wt_p3 && git status --short --branch | head; git log --format='%H %h %s' -8
+=== 2026-11-04T16:02:29Z END rc=0
+=== 2026-11-04T16:02:39Z BEGIN
+SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
+cd $SP/wt_p3 && for c in b7a146d 4dfc7cb a3f1b37; do echo "=== $c"; git log -1 --format='%H%n parents %P%n tree %T%n%B' $c; git show --stat --format= $c | cat; done
+=== 2026-11-04T16:02:39Z END rc=0
+=== 2026-11-04T16:02:45Z BEGIN
+echo "NOTE: file-reading tool read frozen_candidate/criteria_pilot3.txt lines 1-200 (16:0xZ)"
+=== 2026-11-04T16:02:45Z END rc=0
+=== 2026-11-04T16:02:58Z BEGIN
+echo "NOTE: file-reading tool read frozen_candidate/criteria_pilot3.txt lines 200-966, r6_validate/RESULT.md, r6_design/DESIGN.md (16:03-16:08Z)"
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate
+cat BRANCH_PLAN.md
+=== 2026-11-04T16:02:58Z END rc=0
+=== 2026-11-04T16:03:02Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate
+cat NOTES.md
+=== 2026-11-04T16:03:02Z END rc=0
+=== 2026-11-04T16:03:06Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate
+cat CHANGES.md; ls diffs base out tmp; sha256sum criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md; wc -l criteria_pilot3.txt
+=== 2026-11-04T16:03:06Z END rc=0
+=== 2026-11-04T16:03:24Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+ls -la; ls tests out; du -sh . tree out tests; cat SHA256SUMS.txt
+=== 2026-11-04T16:03:34Z END rc=0
+=== 2026-11-04T16:03:39Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+cat out/fix3_final_run.sh; echo ======; cat tests/_tree_facts.py; echo =====; du -sh tree venv e2e out tmp src; GIT_OPTIONAL_LOCKS=0 git -C tree log --oneline -2; GIT_OPTIONAL_LOCKS=0 git -C tree status --short --branch | head; GIT_OPTIONAL_LOCKS=0 git -C tree remote -v; cat tree/.git/objects/info/alternates 2>&1
+=== 2026-11-04T16:03:40Z END rc=0
+=== 2026-11-04T16:03:57Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+grep -n -e '-1\.5' -e '0\.2231' -e '0\.223\b' -e '3ae1c95' -e '8263f82f' -e '5f835d65' -e 'a958a8fb' -e '08c92901' -e 'exp(-' *.py tests/*.py | cut -c1-220
+echo ====; cat /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/r6_validate/out/tools_stale_constants_grep.txt
+=== 2026-11-04T16:03:57Z END rc=0
+=== 2026-11-04T16:04:02Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+sed -n 30,45p pilot3_judge.py; echo ...; sed -n 80,90p pilot3_judge.py; echo ...; sed -n 198,215p pilot3_judge.py; echo ====NOISE; sed -n 1,45p pilot3_noise.py; grep -n WARM_START_STD pilot3_noise.py
+=== 2026-11-04T16:04:02Z END rc=0
+=== 2026-11-04T16:04:11Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+cat tests/e2e_parent_cell.py
+=== 2026-11-04T16:04:11Z END rc=0
+=== 2026-11-04T16:04:40Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+sed -n 1,100p tests/test_pilot3_judge.py; echo ....; sed -n 330,385p tests/test_pilot3_judge.py; echo ....HABIT; sed -n 295,320p tests/test_pilot3_habit.py; grep -n "HEAD" tests/test_pilot3_habit.py | head; echo ...NOISE; sed -n 95,135p tests/test_pilot3_noise.py
+=== 2026-11-04T16:04:40Z END rc=0
+=== 2026-11-04T16:04:58Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3
+tail -3 tools/out/fix3_final/pytest.log.txt; tail -3 tools/out/fix3_final/test_pilot3_score.log.txt; cat tools/out/fix3_final/rcs.txt; cat tools/out/fix3_final/started.txt tools/out/fix3_final/ended.txt 2>&1
+echo ====; ls r6_validate/judge r6_validate/judge_diag r6_validate/judge_diag/logs; cat r6_validate/judge/run_judge.sh; cat r6_validate/judge_diag/logs/rcs.txt
+=== 2026-11-04T16:04:58Z END rc=0
+=== 2026-11-04T16:05:19Z BEGIN
+P=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3
+F=$P/frozen_candidate2
+mkdir -p $F/base
+cd $P/frozen_candidate && cp -p criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md $F/ && cp -p criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md $F/base/
+cd $P && sha256sum frozen_candidate/criteria_pilot3.txt frozen_candidate/BRANCH_PLAN.md frozen_candidate/NOTES.md frozen_candidate/CHANGES.md frozen_candidate2/base/* frozen_candidate2/*.md frozen_candidate2/criteria_pilot3.txt | tee $F/out/copy_sha.txt
+wc -l $F/base/*
+=== 2026-11-04T16:05:19Z END rc=0
+=== 2026-11-04T16:05:30Z BEGIN
+P=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3
+F=$P/frozen_candidate2
+cp -p $P/frozen_candidate/FIXES2.md $P/frozen_candidate/FIXES3.md $F/
+cd $P/tools
+sha256sum -c SHA256SUMS.txt > $F/out/tools_sha256_check_start.txt 2>&1; echo "sha256sum -c rc=$?"; grep -c ': OK$' $F/out/tools_sha256_check_start.txt; grep -v ': OK$' $F/out/tools_sha256_check_start.txt
+mkdir -p $F/tools_before/tests
+cp -p SHA256SUMS.txt pilot3_judge.py pilot3_noise.py $F/tools_before/
+cp -p tests/test_pilot3_judge.py tests/test_pilot3_noise.py tests/e2e_parent_cell.py $F/tools_before/tests/
+{ echo "tools/tree before the AMEND stage moved it (git -C tools/tree, read with GIT_OPTIONAL_LOCKS=0):"; GIT_OPTIONAL_LOCKS=0 git -C tree rev-parse HEAD HEAD^{tree}; GIT_OPTIONAL_LOCKS=0 git -C tree branch --show-current; echo "status --porcelain --ignored entries: $(GIT_OPTIONAL_LOCKS=0 git -C tree status --porcelain --ignored | wc -l)"; GIT_OPTIONAL_LOCKS=0 git -C tree status --short --branch | head -3; } > $F/tools_before/tree_state.txt
+cat $F/tools_before/tree_state.txt
+cd $F/tools_before && sha256sum SHA256SUMS.txt pilot3_judge.py pilot3_noise.py tests/*.py | tee $F/tools_before/BACKUP_SHA256.txt
+=== 2026-11-04T16:05:30Z END rc=0
+=== 2026-11-04T16:06:00Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cat > $F/bin/edit_tools.py <<'PYEOF'
+"""AMEND stage: the minimal -1.5 -> -2.0 edits of the pinned pilot-3 tools and their tests (decision (8) of 2026-11-04).
+
+Exact, counted replacements: each old string must occur exactly once in its file, else nothing is written for any
+file. Usage: edit_tools.py TOOLS_DIR
+"""
+import sys
+from pathlib import Path
+
+T = Path(sys.argv[1])
+EDITS = {
+    "pilot3_judge.py": [
+        ("    curriculum.warm_start_log_std are both -1.5; run.n_envs is 4;",
+         "    curriculum.warm_start_log_std are both -2.0; run.n_envs is 4;"),
+        ("\nWARM_START_LOG_STD = -1.5\n", "\nWARM_START_LOG_STD = -2.0\n"),
+    ],
+    "pilot3_noise.py": [
+        ("    0.2231 at the warm start (exp(-1.5)) and the parent's", "    0.1353 at the warm start (exp(-2.0)) and the parent's"),
+        ("\nWARM_START_STD = math.exp(-1.5)\n", "\nWARM_START_STD = math.exp(-2.0)\n"),
+    ],
+    "tests/test_pilot3_judge.py": [
+        ('"critic_phase_dropped": copy.deepcopy(RECORD),\n           "warm_start_log_std": -1.5, "hyperparameters_sha256": HP,',
+         '"critic_phase_dropped": copy.deepcopy(RECORD),\n           "warm_start_log_std": -2.0, "hyperparameters_sha256": HP,'),
+        ('"curriculum": {"warm_start_log_std": -1.5, "eval_freq": 131072,',
+         '"curriculum": {"warm_start_log_std": -2.0, "eval_freq": 131072,'),
+        ("assert pj.WARM_START_LOG_STD == -1.5 and pj.N_ENVS == 4", "assert pj.WARM_START_LOG_STD == -2.0 and pj.N_ENVS == 4"),
+        ('    (lambda sc: sc["run"].update(warm_start_log_std=-1.0), "run.warm_start_log_std is -1.0"),\n',
+         '    (lambda sc: sc["run"].update(warm_start_log_std=-1.0), "run.warm_start_log_std is -1.0"),\n'
+         '    (lambda sc: sc["run"].update(warm_start_log_std=-1.5), "run.warm_start_log_std is -1.5, not -2.0"),\n'
+         '    (lambda sc: sc["curriculum"].update(warm_start_log_std=-1.5), "curriculum.warm_start_log_std is -1.5, not -2.0"),\n'),
+        ('(lambda sc: sc["curriculum"].update(warm_start_log_std="-1.5"), "curriculum.warm_start_log_std is \'-1.5\'"),',
+         '(lambda sc: sc["curriculum"].update(warm_start_log_std="-2.0"), "curriculum.warm_start_log_std is \'-2.0\'"),'),
+        ('"critic_phase_dropped": facts["parent_record"],\n             "warm_start_log_std": -1.5, "hyperparameters_sha256": facts["hp"],',
+         '"critic_phase_dropped": facts["parent_record"],\n             "warm_start_log_std": -2.0, "hyperparameters_sha256": facts["hp"],'),
+        ('assert facts["curriculum"]["warm_start_log_std"] == -1.5 and facts["n_steps"] == 4096',
+         'assert facts["curriculum"]["warm_start_log_std"] == -2.0 and facts["n_steps"] == 4096'),
+    ],
+    "tests/e2e_parent_cell.py": [
+        ("the parent's critic-phase record, -1.5, n_envs 4, seed", "the parent's critic-phase record, -2.0, n_envs 4, seed"),
+        ('                  "warm_start_log_std": -1.5, "hyperparameters_sha256": facts["hp"],',
+         '                  "warm_start_log_std": -2.0, "hyperparameters_sha256": facts["hp"],'),
+        ('binding["warm_start"]["run_warm_start_log_std"] == -1.5', 'binding["warm_start"]["run_warm_start_log_std"] == -2.0'),
+    ],
+    "tests/test_pilot3_noise.py": [
+        ('assert rec["references"]["warm_start_std"] == pytest.approx(0.2231, abs=5e-5)',
+         'assert rec["references"]["warm_start_std"] == pytest.approx(0.1353, abs=5e-5)'),
+    ],
+}
+new_texts = {}
+for name, pairs in EDITS.items():
+    text = (T / name).read_text(encoding="utf-8")
+    for old, new in pairs:
+        n = text.count(old)
+        if n != 1:
+            print(f"refusing: {n} matches in {name} for {old[:70]!r}; nothing written")
+            sys.exit(2)
+        text = text.replace(old, new)
+    new_texts[name] = text
+for name, text in new_texts.items():
+    (T / name).write_text(text, encoding="utf-8")
+    print(f"edited {name}: {len(EDITS[name])} replacements")
+PYEOF
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+$PY -I -B $F/bin/edit_tools.py /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+for f in pilot3_judge.py pilot3_noise.py tests/test_pilot3_judge.py tests/e2e_parent_cell.py tests/test_pilot3_noise.py; do diff -u $F/tools_before/$f $f; done > $F/diffs/tools_amend.diff; echo "diff rc=$?"; cat $F/diffs/tools_amend.diff
+=== 2026-11-04T16:06:01Z END rc=0
+=== 2026-11-04T16:06:13Z BEGIN
+P=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3
+F=$P/frozen_candidate2
+diff $P/r6_validate/judge_diag/tools/pilot3_judge.py $P/tools/pilot3_judge.py > $F/out/judge_vs_validate_diagnostic_copy.diff; echo "diff rc=$?"; cat $F/out/judge_vs_validate_diagnostic_copy.diff
+sha256sum $P/r6_validate/judge_diag/tools/pilot3_judge.py
+cd $P/tools/tree
+GIT_OPTIONAL_LOCKS=0 git cat-file -t a3f1b378aede66b0ee8630197f36a7c374ec77c0
+GIT_OPTIONAL_LOCKS=0 git merge-base --is-ancestor HEAD a3f1b378aede66b0ee8630197f36a7c374ec77c0 && echo "HEAD is an ancestor of a3f1b378"
+git merge --ff-only a3f1b378aede66b0ee8630197f36a7c374ec77c0 > $F/out/tree_ff_merge.txt 2>&1; echo "merge rc=$?"; head -30 $F/out/tree_ff_merge.txt
+{ echo "tools/tree after the AMEND stage's fast-forward (git merge --ff-only a3f1b378...):"; GIT_OPTIONAL_LOCKS=0 git rev-parse HEAD HEAD^{tree}; GIT_OPTIONAL_LOCKS=0 git branch --show-current; echo "status --porcelain --ignored entries: $(GIT_OPTIONAL_LOCKS=0 git status --porcelain --ignored | wc -l)"; GIT_OPTIONAL_LOCKS=0 git status --short --branch | head -3; } > $F/out/tree_state_after.txt
+cat $F/out/tree_state_after.txt
+=== 2026-11-04T16:06:14Z END rc=0
+=== 2026-11-04T16:06:37Z BEGIN
+P=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3
+diff $P/r6_validate/judge/run_judge.sh $P/r6_validate/judge_diag/run_judge.sh; ls $P/r6_validate/judge/copies; ls $P/r6_validate/judge_diag/tools; cat $P/r6_validate/bin/env.sh | head -3; ls $P/r6_validate/judge_diag/OUT; find $P/r6_validate/judge_diag/OUT -maxdepth 4 | head -20; du -sh $P/r6_validate/judge_diag/OUT
+grep -n "write\|mkdir\|open(" $P/tools/pilot3_judge.py | head -30
+=== 2026-11-04T16:06:37Z END rc=0
+=== 2026-11-04T16:06:51Z BEGIN
+P=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3
+ls $P/r6_validate/out/noise; cat $P/tools/venv/pyvenv.cfg; cat $P/tools/venv/lib/python3*/site-packages/*.pth 2>&1 | head; ls $P/tools/venv/bin
+for f in $P/r6_validate/judge_diag/logs/J*.log; do echo "== $(basename $f)"; tail -2 $f | cut -c1-400; done
+python3 -c "print(1)" 2>&1 | head -1
+=== 2026-11-04T16:06:51Z END rc=0
+=== 2026-11-04T16:07:26Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+cat > $T/out/amend_final_run.sh <<'SHEOF'
+#!/bin/bash
+# AMEND stage (2026-11-04): the final run on the re-pinned tool files after the -1.5 -> -2.0 edit (decision (8)):
+# pilot3_judge.py and pilot3_noise.py, their tests and tests/e2e_parent_cell.py changed; tools/tree fast-forwarded
+# from 3ae1c959 to the branch head a3f1b378. Every pytest file (the tree moved under all of them), the adapted score
+# test, the PC ledger validation (compared with FIX3's), the noise readout on the VALIDATE stage's re-smoke runs
+# (compared with that stage's records), and the judge's ten smoke validation steps J1-J10 with the re-pinned judge on
+# tools/tree (compared with the VALIDATE stage's diagnostic copy, whose code differs only in docstring line 39).
+# The e2e is not re-run (it deletes and rewrites tools/e2e, and its video step starts Xvfb, which writes outside the
+# stage folders). One simulation at a time (J1, J7, J10 roll the probe); nothing trains.
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/fetch
+X=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+V=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/r6_validate
+S=$V/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test
+O=$T/out/amend_final
+J=$X/judge
+cd $T
+mkdir -p $O $J/logs
+export TMPDIR=$X/tmp OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1
+export MESA_SHADER_CACHE_DISABLE=true MPLCONFIGDIR=$X/tmp/mpl XDG_CACHE_HOME=$X/tmp/xdg_cache GIT_OPTIONAL_LOCKS=0
+export MUJOCO_GL=disable
+PY=$T/venv/bin/python
+FILES="iso.py pilot3_judge.py pilot3_score.py test_pilot3_score.py pilot3_habit.py pilot3_video.py pilot3_vg.py pilot3_noise.py nb_pilot_runner3.py gait_probe_pilot.py make_gait_cases.py fixtures/gait_cases.json tests/_tree_facts.py tests/test_pilot3_judge.py tests/test_pilot3_habit.py tests/test_nb_pilot_runner3.py tests/test_pilot3_video.py tests/test_pilot3_vg.py tests/test_pilot3_noise.py tests/validate_pc_ledgers.py tests/e2e_parent_cell.py"
+RCS=$O/rcs.txt
+: > $RCS
+sha256sum $FILES > $O/sha256_before.txt
+date -u +%FT%TZ > $O/started.txt
+echo "tree HEAD $(git -C tree rev-parse HEAD) branch $(git -C tree branch --show-current) status entries $(git -C tree status --porcelain --ignored | wc -l)" >> $RCS
+rm -rf $X/tmp/pt_amend_final
+nice -n 10 $PY -I -B -m pytest -p no:cacheprovider --basetemp=$X/tmp/pt_amend_final -v -rfE --junitxml=$O/pytest.xml tests/test_pilot3_judge.py tests/test_pilot3_habit.py tests/test_nb_pilot_runner3.py tests/test_pilot3_video.py tests/test_pilot3_vg.py tests/test_pilot3_noise.py > $O/pytest.log.txt 2>&1; echo "pytest rc=$?" >> $RCS
+nice -n 10 $PY -I -B test_pilot3_score.py tree > $O/test_pilot3_score.log.txt 2>&1; echo "test_pilot3_score rc=$?" >> $RCS
+nice -n 10 $PY -I -B tests/validate_pc_ledgers.py $F > $O/habit_pc_validation.txt 2>&1; echo "validate_pc_ledgers rc=$?" >> $RCS
+cmp $O/habit_pc_validation.txt out/fix3_final/habit_pc_validation.txt && echo "validate_pc_ledgers: byte-identical to FIX3's" >> $RCS
+for r in pilot3_walk_s42 pilot3_walk_s42_rtest; do nice -n 10 $PY -I -B pilot3_noise.py $S/$r --json $O/noise_resmoke_$r.json > $O/noise_resmoke_$r.txt 2>&1; echo "noise_resmoke_$r rc=$?" >> $RCS; done
+# the judge's ten smoke validation steps (VALIDATE's judge/run_judge.sh with the pinned judge and tools/tree)
+HEAD=a3f1b378aede66b0ee8630197f36a7c374ec77c0
+P3=sha256:1c9d87c3d0f817b048de429bb80cdc89fcd2c83d5fbafd7f444af0b5474b9ff6
+P1=sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e
+RUN=$S/pilot3_walk_s42
+RTEST=$S/pilot3_walk_s42_rtest
+C=$V/judge/copies
+JR=$J/logs/rcs.txt
+: > $JR
+judge() {  # judge NAME OUTDIR RUNDIR ARGS...
+  local name=$1 out=$2 rundir=$3; shift 3
+  local t0; t0=$(date -u +%FT%TZ)
+  (cd $T/tree && ISO_WT=$T/tree nice -n 10 $PY -I -B $T/iso.py $T/pilot3_judge.py $rundir --seed 42 \
+      --expect-head $HEAD --out $out "$@") > $J/logs/$name.log 2>&1
+  local rc=$?
+  local st; st=$(git -C $T/tree status --porcelain --ignored | wc -l)
+  printf '%s %s rc=%s out_exists=%s tree_status_entries=%s end=%s\n' "$t0" "$name" "$rc" \
+      "$([ -e $out ] && echo yes || echo no)" "$st" "$(date -u +%FT%TZ)" >> $JR
+}
+judge J1_accept_65536 $J/OUT $RUN --steps 65536 --parent-sha256 $P3 --expect-budget 50000
+judge J2_refuse_pilot1_parent $J/OUT_J2 $RUN --steps 65536 --parent-sha256 $P1 --expect-budget 50000
+judge J3_refuse_no_drop $J/OUT_J3 $C/no_drop --steps 65536 --parent-sha256 $P3 --expect-budget 50000
+judge J4_refuse_no_reset $J/OUT_J4 $C/no_reset --steps 65536 --parent-sha256 $P3 --expect-budget 50000
+judge J5_refuse_n_envs_2 $J/OUT_J5 $C/n_envs_2 --steps 65536 --parent-sha256 $P3 --expect-budget 50000
+judge J6_refuse_other_head $J/OUT_J6 $C/other_head --steps 65536 --parent-sha256 $P3 --expect-budget 50000
+judge J7_fallback_accept $J/OUT $RUN --steps 50000 --parent-sha256 $P3 --expect-budget 50000 --final-fallback
+judge J8_fallback_refuse_49152 $J/OUT_J8 $C/fallback_wrong --steps 50000 --parent-sha256 $P3 --expect-budget 50000 --final-fallback
+judge J9_resume_refuse_off_schedule $J/OUT_J9 $RTEST --steps 65536 --parent-sha256 $P3 --expect-budget 50000
+judge J10_resume_report_off_schedule $J/OUT $RTEST --steps 65536 --parent-sha256 $P3 --expect-budget 50000 --report-off-schedule
+find $J/OUT -maxdepth 5 -type d | sort > $J/logs/OUT_dirs.txt
+cp -p $JR $O/judge_rcs.txt
+nice -n 10 $PY -I -B $X/bin/compare_amend.py $T $O $J $V > $O/compare_with_validate.txt 2>&1; echo "compare_amend rc=$?" >> $RCS
+echo "tree status lines after: $(git -C tree status --porcelain --ignored | wc -l)" >> $RCS
+sha256sum $FILES > $O/sha256_after.txt
+cmp $O/sha256_before.txt $O/sha256_after.txt && echo "tool files unchanged during the run" >> $RCS
+date -u +%FT%TZ > $O/ended.txt
+SHEOF
+chmod +x $T/out/amend_final_run.sh
+bash -n $T/out/amend_final_run.sh && echo "syntax ok"
+=== 2026-11-04T16:07:26Z END rc=0
+=== 2026-11-04T16:07:53Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cat > $F/bin/compare_amend.py <<'PYEOF'
+"""AMEND stage: compare the re-pinned tools' outputs with the VALIDATE stage's records (read only).
+
+Usage: compare_amend.py TOOLS O J V
+  noise: O/noise_resmoke_<run>.json against V/out/noise/noise_smoke_<run>.json (expected to differ only in the tool
+         sha256 and the warm-start reference);
+  judge: J/logs (the re-pinned judge on tools/tree) against V/judge_diag/logs (VALIDATE's diagnostic -2.0 copy on its
+         judge_tree): exit codes, each log's last line with the folder names mapped, and for the three written cells
+         probe.json's episodes and binding.json (differing keys listed).
+"""
+import json
+import re
+import sys
+from pathlib import Path
+
+T, O, J, V = (Path(a) for a in sys.argv[1:5])
+bad = 0
+
+
+def diff(a, b, path=""):
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = []
+        for k in sorted(set(a) | set(b)):
+            if k not in a or k not in b:
+                out.append(f"{path}.{k} (only in {'new' if k in a else 'validate'})")
+            else:
+                out += diff(a[k], b[k], f"{path}.{k}")
+        return out
+    if isinstance(a, list) and isinstance(b, list):
+        if len(a) != len(b):
+            return [f"{path} (length {len(a)} vs {len(b)})"]
+        out = []
+        for i, (x, y) in enumerate(zip(a, b)):
+            out += diff(x, y, f"{path}[{i}]")
+        return out
+    return [] if a == b else [f"{path}: {str(a)[:120]!r} vs {str(b)[:120]!r}"]
+
+
+print("== noise readout on the re-smoke runs (new tool vs VALIDATE's run of the pinned -1.5 tool)")
+for run in ("pilot3_walk_s42", "pilot3_walk_s42_rtest"):
+    new = json.loads((O / f"noise_resmoke_{run}.json").read_text())
+    old = json.loads((V / "out" / "noise" / f"noise_smoke_{run}.json").read_text())
+    d = diff(new, old)
+    allowed = [x for x in d if x.startswith((".tool_sha256", ".references.warm_start_std"))]
+    other = [x for x in d if x not in allowed]
+    print(f"{run}: {len(d)} differing paths; allowed {allowed}; other {other}")
+    print(f"  warm_start_std new {new['references']['warm_start_std']!r} old {old['references']['warm_start_std']!r}")
+    bad += bool(other)
+
+print("== judge J1-J10 (re-pinned judge on tools/tree vs VALIDATE's diagnostic copy on its judge_tree)")
+rc_re = re.compile(r"^\S+ (\S+) rc=(\d+) out_exists=(\S+) tree_status_entries=(\d+)")
+
+
+def rcs(path):
+    return {m.group(1): m.group(2, 3, 4) for m in map(rc_re.match, path.read_text().splitlines()) if m}
+
+
+new_rc, old_rc = rcs(J / "logs" / "rcs.txt"), rcs(V / "judge_diag" / "logs" / "rcs.txt")
+for name in sorted(old_rc, key=lambda s: int(s.split("_")[0][1:])):
+    eq = new_rc.get(name) == old_rc[name]
+    bad += not eq
+    nl = (J / "logs" / f"{name}.log").read_text().rstrip("\n").splitlines()[-1]
+    ol = (V / "judge_diag" / "logs" / f"{name}.log").read_text().rstrip("\n").splitlines()[-1]
+    nl_m = nl.replace(str(J), "<J>")
+    ol_m = ol.replace(str(V / "judge_diag"), "<J>")
+    same_last = nl_m == ol_m
+    bad += not same_last
+    print(f"{name}: rc/out_exists/tree_entries new {new_rc.get(name)} validate {old_rc[name]} {'EQUAL' if eq else 'DIFFER'};"
+          f" last line {'EQUAL' if same_last else 'DIFFER'} (folders mapped): {nl_m[:300]}")
+    if not same_last:
+        print(f"    validate: {ol_m[:300]}")
+
+for cell in ("s42/65536", "s42/50000", "off_schedule/pilot3_walk_s42_rtest/s42/65536"):
+    pn = json.loads((J / "OUT" / cell / "probe.json").read_text())
+    po = json.loads((V / "judge_diag" / "OUT" / cell / "probe.json").read_text())
+    ep_eq = pn["episodes"] == po["episodes"]
+    bad += not ep_eq
+    labels = {}
+    for e in pn["episodes"]:
+        labels[e.get("floor_gait_class")] = labels.get(e.get("floor_gait_class"), 0) + 1
+    meta_d = diff(pn.get("meta", {}), po.get("meta", {}))
+    print(f"{cell}: probe episodes {'EQUAL' if ep_eq else 'DIFFER'} ({len(pn['episodes'])}; floor classes {labels});"
+          f" meta differing paths: {meta_d}")
+    bn = json.loads((J / "OUT" / cell / "binding.json").read_text())
+    bo = json.loads((V / "judge_diag" / "OUT" / cell / "binding.json").read_text())
+    print(f"  binding differing paths: {diff(bn, bo)}")
+    print(f"  binding warm_start {bn.get('warm_start')}; head {bn.get('head')}; validation_only {bn.get('validation_only')}")
+print(f"RESULT: {'every compared item equal (beyond the listed path, time and tool-hash fields)' if not bad else f'{bad} unexpected differences'}")
+sys.exit(1 if bad else 0)
+PYEOF
+echo written; date -u +%FT%TZ
+=== 2026-11-04T16:07:53Z END rc=0
+=== 2026-11-04T16:08:03Z BEGIN
+bash /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final_run.sh > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2/out/amend_final_run.console.txt 2>&1; echo "amend_final_run rc=$?"
+=== 2026-11-04T16:08:35Z BEGIN
+echo "NOTE (hand-written, 16:13Z): slips since the last entry. (1) At about 16:07Z one shell call, outside this logger, ran: ls of SP/work/morning, SP/work/overnight/, overnight/screen, overnight/logstd, and wc -l of SP/work/overnight/*/RESULT.md and SP/work/morning/MORNING_REPORT.md (read only). (2) The logged block at about 16:06Z (the 'diff run_judge.sh ...' block) ended with a stray 'python3 -c \"print(1)\"' that ran the SYSTEM python3 (printed 1; nothing else). Both are listed as slips in CHANGES2.md. File-reading tool reads since 16:08Z: frozen_candidate BRANCH_PLAN/NOTES/CHANGES (by cat, logged), overnight/screen/RESULT.md lines 1-360 and 505-516, verify_screen/RESULT.md (search), overnight/logstd/RESULT.md lines 1-70, verify_logstd/RESULT.md (search)."
+tail -3 /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final/rcs.txt
+=== 2026-11-04T16:08:35Z END rc=0
+=== 2026-11-04T16:08:54Z BEGIN
+O=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final
+echo "NOTE: file-reading tool and search tool read tools/tree (now a3f1b378) configs/tyrannosaurus_rex/anatomical/locomotion.toml and configs/digest_snapshot.generated.txt (lines 390-410, locomotion lines)."
+cat $O/rcs.txt; tail -3 $O/pytest.log.txt | cut -c1-300
+=== 2026-11-04T16:08:54Z END rc=0
+=== 2026-11-04T16:10:32Z BEGIN
+O=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final
+echo "NOTE: file-reading/search tools read tools/tree base_env.py lines 110-234 and 1085-1109 and grep of walk_ keys; compsognathus_longipes/base_env.py grep (lines 200, 202, 250)."
+cat $O/rcs.txt; tail -2 $O/pytest.log.txt | cut -c1-300; grep -c PASSED $O/pytest.log.txt; grep -E "FAILED|ERROR" $O/pytest.log.txt | head
+=== 2026-11-04T16:10:32Z END rc=0
+=== 2026-11-04T16:11:58Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE: search tool read r6_validate/nb for 'Warm start:' lines."
+cat $F/judge/logs/rcs.txt 2>&1; cat /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final/rcs.txt | tail -2
+=== 2026-11-04T16:11:58Z END rc=0
+=== 2026-11-04T16:14:02Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE: file-reading tool read tools/tree base_env.py lines 308-317 and 1404-1439; criteria edits so far made with the file-editing tool (title, status, decision (c), the 2026-11-04 decisions, C1-C5, C16, Code, What is trained: R6 block, Warm start lines, TensorBoard)."
+cat $F/judge/logs/rcs.txt | tail -4; cat /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final/rcs.txt | tail -4; cat $F/out/amend_final_run.console.txt | tail -3
+=== 2026-11-04T16:14:02Z END rc=0
+=== 2026-11-04T16:14:38Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cat $F/judge/logs/rcs.txt | tail -1; cat /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final/rcs.txt; cat $F/out/amend_final_run.console.txt
+=== 2026-11-04T16:14:38Z END rc=0
+=== 2026-11-04T16:14:44Z BEGIN
+cd /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+sha256sum pilot3_judge.py pilot3_noise.py tests/test_pilot3_judge.py tests/test_pilot3_noise.py tests/e2e_parent_cell.py
+=== 2026-11-04T16:14:44Z END rc=0
+=== 2026-11-04T16:15:14Z END rc=0
+=== 2026-11-04T16:15:27Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+O=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final
+cat $F/out/amend_final_run.console.txt; echo ===; cat $O/rcs.txt; echo ===; cat $O/judge_rcs.txt; echo ===; cat $O/compare_with_validate.txt | cut -c1-600; cat $O/started.txt $O/ended.txt; tail -1 $O/test_pilot3_score.log.txt; grep -c "PASSED" $O/pytest.log.txt; grep -E "^tests/.*(PASSED|FAILED)" $O/pytest.log.txt | sed 's/::.*//' | sort | uniq -c
+=== 2026-11-04T16:15:27Z END rc=0
+=== 2026-11-04T16:15:35Z BEGIN
+O=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final
+grep -o "other \[.*\]" $O/compare_with_validate.txt | tr ',' '\n' | grep -o "^ *\"\.[a-z_./]*\|^other \[\"\.[a-z_./]*" 
+head -12 $O/noise_resmoke_pilot3_walk_s42.txt | cut -c1-200
+=== 2026-11-04T16:15:35Z END rc=0
+=== 2026-11-04T16:15:49Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cat > $F/bin/noise_path_check.py <<'PYEOF'
+"""AMEND stage: the noise records' path fields, resolved (VALIDATE ran pilot3_noise.py from its stage folder with
+relative paths; the AMEND run used absolute ones). Usage: noise_path_check.py O V"""
+import json
+import sys
+from pathlib import Path
+
+O, V = Path(sys.argv[1]), Path(sys.argv[2])
+ok = True
+for run in ("pilot3_walk_s42", "pilot3_walk_s42_rtest"):
+    new = json.loads((O / f"noise_resmoke_{run}.json").read_text())
+    old = json.loads((V / "out" / "noise" / f"noise_smoke_{run}.json").read_text())
+
+    def res(p):
+        p = Path(p)
+        return str((p if p.is_absolute() else V / p).resolve())
+
+    pairs = [("run", new["run"], old["run"]), ("forward.file", new["forward"]["file"], old["forward"]["file"])]
+    pairs += [(f"tensorboard.files[{i}]", a, b) for i, (a, b) in
+              enumerate(zip(new["tensorboard"]["files"], old["tensorboard"]["files"]))]
+    if len(new["tensorboard"]["files"]) != len(old["tensorboard"]["files"]):
+        ok = False
+        print(run, "tensorboard.files lengths differ")
+    for key, a, b in pairs:
+        same = res(a) == res(b)
+        ok &= same
+        print(f"{run} {key}: {'SAME FILE' if same else 'DIFFERENT'} ({a} | {b})")
+print("RESULT:", "every path field names the same file once resolved" if ok else "a path differs")
+sys.exit(0 if ok else 1)
+PYEOF
+/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python -I -B $F/bin/noise_path_check.py /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/r6_validate > $F/out/noise_path_check.txt 2>&1; echo "rc=$?"; cut -c1-160 $F/out/noise_path_check.txt
+=== 2026-11-04T16:15:50Z END rc=0
+=== 2026-11-04T16:15:55Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python -I -B -c "
+import json; d=json.load(open('/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/r6_validate/out/noise/noise_smoke_pilot3_walk_s42.json')); print(json.dumps(d['tensorboard']['files'])[:400])"
+=== 2026-11-04T16:15:55Z END rc=0
+=== 2026-11-04T16:16:03Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python -I -B - "$F/bin/noise_path_check.py" <<'PYEOF'
+import sys
+p = sys.argv[1]
+t = open(p).read()
+old = """    pairs += [(f"tensorboard.files[{i}]", a, b) for i, (a, b) in
+              enumerate(zip(new["tensorboard"]["files"], old["tensorboard"]["files"]))]"""
+new = """    for i, (a, b) in enumerate(zip(new["tensorboard"]["files"], old["tensorboard"]["files"])):
+        rest_equal = {k: v for k, v in a.items() if k != "path"} == {k: v for k, v in b.items() if k != "path"}
+        ok &= rest_equal
+        print(f"{run} tensorboard.files[{i}] fields other than path {'EQUAL' if rest_equal else 'DIFFER'}: "
+              f"{ {k: v for k, v in a.items() if k != 'path'} }")
+        pairs.append((f"tensorboard.files[{i}].path", a["path"], b["path"]))"""
+assert t.count(old) == 1
+open(p, "w").write(t.replace(old, new))
+print("patched")
+PYEOF
+/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python -I -B $F/bin/noise_path_check.py /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/out/amend_final /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/r6_validate > $F/out/noise_path_check.txt 2>&1; echo "rc=$?"; cut -c1-200 $F/out/noise_path_check.txt
+=== 2026-11-04T16:16:04Z END rc=0
+=== 2026-11-04T16:16:13Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+ls $T/out/amend_final; grep -E "two_|warm_start_log_std is -1.5|is '-2.0'" $T/out/amend_final/pytest.log.txt | head; grep -n "edit7\|-1.5, not -2.0" $T/out/amend_final/pytest.log.txt | head -5
+cmp $T/out/amend_final/sha256_before.txt $T/out/amend_final/sha256_after.txt && echo same
+=== 2026-11-04T16:16:13Z END rc=0
+=== 2026-11-04T16:16:30Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+cat > $F/bin/repin.py <<'PYEOF'
+"""AMEND stage: re-pin tools/SHA256SUMS.txt (the FIX3 list is kept as FC2/tools_before/SHA256SUMS.txt).
+
+The changed files' lines get their new sha256 in place; the header says what changed; the AMEND final run's evidence
+is added as a block before FIX3's. Every other line is kept byte for byte. Usage: repin.py TOOLS_DIR
+"""
+import hashlib
+import sys
+from pathlib import Path
+
+T = Path(sys.argv[1])
+old = (T / "SHA256SUMS.txt").read_text(encoding="ascii").split("\n")
+changed = ["pilot3_judge.py", "pilot3_noise.py", "tests/test_pilot3_judge.py", "tests/test_pilot3_noise.py",
+           "tests/e2e_parent_cell.py"]
+evidence = ["out/amend_final_run.sh"] + [f"out/amend_final/{n}" for n in (
+    "pytest.log.txt", "pytest.xml", "test_pilot3_score.log.txt", "habit_pc_validation.txt",
+    "noise_resmoke_pilot3_walk_s42.json", "noise_resmoke_pilot3_walk_s42.txt",
+    "noise_resmoke_pilot3_walk_s42_rtest.json", "noise_resmoke_pilot3_walk_s42_rtest.txt", "judge_rcs.txt",
+    "compare_with_validate.txt", "rcs.txt", "started.txt", "ended.txt", "sha256_before.txt", "sha256_after.txt")]
+
+
+def h(rel):
+    return hashlib.sha256((T / rel).read_bytes()).hexdigest()
+
+
+header = [
+    "# Walking pilot 3 tools, RE-PINNED at the AMEND stage (2026-11-04) after the final run of out/amend_final, in "
+    "which every test passed on these exact files (out/amend_final/sha256_before.txt equals sha256_after.txt) with the "
+    "tests' tree (tools/tree) fast-forwarded from 3ae1c959 to the branch head a3f1b378. AMEND changed only -1.5 to -2.0 "
+    "(decision (8) of 2026-11-04) in pilot3_judge.py, pilot3_noise.py, tests/test_pilot3_judge.py (plus two cases "
+    "refusing -1.5), tests/test_pilot3_noise.py and tests/e2e_parent_cell.py. The FIX3 list this replaces is kept as "
+    "SP/work/pilot3/frozen_candidate2/tools_before/SHA256SUMS.txt.",
+]
+out, seen = [], set()
+for i, line in enumerate(old):
+    if i == 0:
+        out += header
+        out.append("# The FIX3 header, kept: " + line.lstrip("# "))
+        continue
+    parts = line.split("  ", 1)
+    if len(parts) == 2 and parts[1] in changed and len(parts[0]) == 64:
+        out.append(f"{h(parts[1])}  {parts[1]}")
+        seen.add(parts[1])
+        continue
+    if line.startswith("# Evidence of the FIX3 final run"):
+        out.append("# Evidence of the AMEND final run (2026-11-04 16:08:03-16:15:14 UTC; compare_with_validate.txt's "
+                   "two unexpected differences are the noise records' path fields, relative in VALIDATE's run and "
+                   "absolute here, which name the same files: SP/work/pilot3/frozen_candidate2/out/noise_path_check.txt):")
+        out += [f"{h(rel)}  {rel}" for rel in evidence]
+    out.append(line)
+assert seen == set(changed), seen
+(T / "SHA256SUMS.txt").write_text("\n".join(out), encoding="ascii")
+n = sum(1 for ln in out if len(ln.split("  ", 1)[0]) == 64 and not ln.startswith("#"))
+print(f"re-pinned: {len(changed)} lines changed, {len(evidence)} evidence lines added, {n} entries")
+PYEOF
+/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python -I -B $F/bin/repin.py $T
+cd $T && sha256sum -c SHA256SUMS.txt > $F/out/tools_sha256_check_after_repin.txt 2>&1; echo "sha256sum -c rc=$?"; grep -c ': OK$' $F/out/tools_sha256_check_after_repin.txt; grep -v ': OK$' $F/out/tools_sha256_check_after_repin.txt
+diff $F/tools_before/SHA256SUMS.txt $T/SHA256SUMS.txt > $F/diffs/SHA256SUMS.txt.diff; echo "diff rc=$?"; cat $F/diffs/SHA256SUMS.txt.diff | cut -c1-250
+sha256sum $T/SHA256SUMS.txt
+=== 2026-11-04T16:16:30Z END rc=0
+=== 2026-11-04T16:16:38Z BEGIN
+echo "NOTE: further criteria edits with the file-editing tool (R6 evidence section, How it is judged: probe sentence, re-pin sentence, judge -2.0 and sha256s, noise tool, e2e)."
+grep -n "^[A-Z]" /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2/criteria_pilot3.txt | cut -c1-120
+=== 2026-11-04T16:16:38Z END rc=0
+=== 2026-11-04T16:21:22Z BEGIN
+SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
+F=$SP/work/pilot3/frozen_candidate2
+echo "NOTE: criteria edits with the file-editing tool since the last NOTE: probe and fixtures, collapse note, Run handling (ref line, first Eval, first hour, RESUME), What each outcome means (intro, Q4 YES, HOPS, STILL, FALLS), the gate, Report only (noise, forward scale, hidden clock, G), Known limits, Pre-launch checks (intro, tree, commits 4-6, stance, smoke headers, re-smoke, AMEND checks, sha256s, pending), exception text, September table header."
+{ echo "SP/wt_p3, read only (GIT_OPTIONAL_LOCKS=0), $(date -u +%FT%TZ):"; GIT_OPTIONAL_LOCKS=0 git -C $SP/wt_p3 rev-parse HEAD HEAD^{tree}; GIT_OPTIONAL_LOCKS=0 git -C $SP/wt_p3 branch --show-current; echo "status --porcelain --ignored entries: $(GIT_OPTIONAL_LOCKS=0 git -C $SP/wt_p3 status --porcelain --ignored | wc -l)"; GIT_OPTIONAL_LOCKS=0 git -C $SP/wt_p3 log --format='%H %P' -7; } > $F/out/wt_p3_state.txt
+cat $F/out/wt_p3_state.txt
+=== 2026-11-04T16:21:22Z END rc=0
+=== 2026-11-04T16:21:29Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cd $F
+grep -n -e '3ae1c95' -e '-1\.5' -e '0\.2231' -e '0\.223\b' -e '8263f82f' -e '5f835d65' -e 'a958a8fb' -e '08c92901' -e '0442ad41' -e '73 entries' -e '244' -e "today's walk" -e 'x3\.9' -e 'x32' criteria_pilot3.txt | cut -c1-170
+echo ====; awk 'length($0) > 120 {print FILENAME": "FNR": "length($0)}' criteria_pilot3.txt; LC_ALL=C grep -n -P '[^\x00-\x7F]' criteria_pilot3.txt | head; grep -c '^ *Warm start: ' criteria_pilot3.txt; wc -l criteria_pilot3.txt
+=== 2026-11-04T16:21:29Z END rc=0
+=== 2026-11-04T16:21:38Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+for n in 158 609 643 863 883 954 1051; do sed -n "$((n-1)),$((n+1))p" $F/criteria_pilot3.txt; echo ----; done; sed -n 420,430p $F/criteria_pilot3.txt
+=== 2026-11-04T16:21:38Z END rc=0
+=== 2026-11-04T16:22:11Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cat > $F/bin/reflow2.py <<'PYEOF'
+"""Reflow one paragraph of a text file in place (AMEND stage; FINALISE's reflow.py plus a continuation indent).
+
+Usage: reflow2.py FILE FIRST_LINE_PREFIX LAST_LINE_SUFFIX [WIDTH] [CONT_INDENT]
+
+The paragraph starts at the one line that starts with FIRST_LINE_PREFIX (after its indentation) and ends at the
+first line at or after it that ends with LAST_LINE_SUFFIX. Its words are rewrapped at WIDTH (default 120); the first
+line keeps its indentation, later lines get CONT_INDENT spaces (default: the first line's indentation, plus 2 when
+the first line is a "- " bullet). Whitespace only: the words and their order are unchanged (checked). The file must
+be ASCII; the script refuses if either line is not found as required.
+"""
+
+import sys
+import textwrap
+
+
+def main() -> int:
+    path, first, last = sys.argv[1], sys.argv[2], sys.argv[3]
+    width = int(sys.argv[4]) if len(sys.argv) > 4 else 120
+    with open(path, encoding="ascii") as handle:
+        lines = handle.read().split("\n")
+    starts = [i for i, line in enumerate(lines) if line.lstrip().startswith(first)]
+    if len(starts) != 1:
+        print(f"refusing: {len(starts)} lines start with {first!r}")
+        return 2
+    start = starts[0]
+    ends = [i for i in range(start, len(lines)) if lines[i].rstrip().endswith(last)]
+    if not ends:
+        print(f"refusing: no line ends with {last!r} after line {start + 1}")
+        return 2
+    end = ends[0]
+    indent = lines[start][: len(lines[start]) - len(lines[start].lstrip())]
+    default_cont = len(indent) + (2 if lines[start].lstrip().startswith("- ") else 0)
+    cont = " " * (int(sys.argv[5]) if len(sys.argv) > 5 else default_cont)
+    words = " ".join(line.strip() for line in lines[start : end + 1])
+    wrapped = textwrap.wrap(words, width=width, initial_indent=indent, subsequent_indent=cont,
+                            break_on_hyphens=False, break_long_words=False)
+    if " ".join(w.strip() for w in wrapped).split() != words.split():
+        print("refusing: the words changed")
+        return 2
+    lines[start : end + 1] = wrapped
+    with open(path, "w", encoding="ascii") as handle:
+        handle.write("\n".join(lines))
+    print(f"reflowed lines {start + 1}-{end + 1} into {len(wrapped)} lines")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+PYEOF
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+C=$F/criteria_pilot3.txt
+$PY -I -B $F/bin/reflow2.py $C "Main at PR #658's merge commit" "is judged."
+$PY -I -B $F/bin/reflow2.py $C "Within the first hour, read-only on Drive:" "branch the smoke cannot reach)."
+$PY -I -B $F/bin/reflow2.py $C "An outcome says what this parent," "printed by pilot3_score.py."
+$PY -I -B $F/bin/reflow2.py $C "- The stance rounds reproduced byte for byte" "not measured on L4]."
+$PY -I -B $F/bin/reflow2.py $C "At each commit: ruff check and ruff format --check clean; mypy clean" "(1c9d87c3..., 5e417fef...)."
+$PY -I -B $F/bin/reflow2.py $C "Notebook smoke (run twice:" "logs under SP/work/pilot3/smoke/."
+$PY -I -B $F/bin/reflow2.py $C "2, nothing written. The on-schedule resume branch" "refusals on a real clean tree write nothing."
+awk 'length($0) > 120 {print FNR": "length($0)}' $C
+=== 2026-11-04T16:22:11Z END rc=0
+=== 2026-11-04T16:22:18Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cd $F && diff -u base/criteria_pilot3.txt criteria_pilot3.txt > diffs/criteria_pilot3.txt.diff; echo "diff rc=$?"; wc -l diffs/criteria_pilot3.txt.diff criteria_pilot3.txt
+=== 2026-11-04T16:22:18Z END rc=0
+=== 2026-11-04T16:22:32Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE: file-reading tool read FC2/diffs/criteria_pilot3.txt.diff lines 1-330."
+/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python -I -B $F/bin/reflow2.py $F/criteria_pilot3.txt "- The noisy start: the parent at log_std -2.0" "[measured: VALIDATE part 3; the comparison inferred]."
+=== 2026-11-04T16:22:32Z END rc=0
+=== 2026-11-04T16:22:43Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE: file-reading tool read FC2/diffs/criteria_pilot3.txt.diff lines 330-629."
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+$PY -I -B $F/bin/reflow2.py $F/criteria_pilot3.txt "- else 2,000,000 or later: RESUME" "that seed is RESTARTED under _b;"
+$PY -I -B $F/bin/reflow2.py $F/criteria_pilot3.txt "- The WALK label's known limits (pilot 1)" '"Pre-launch checks").'
+cd $F && diff -u base/criteria_pilot3.txt criteria_pilot3.txt > diffs/criteria_pilot3.txt.diff; grep -n "^@@" diffs/criteria_pilot3.txt.diff | tail -12
+=== 2026-11-04T16:22:43Z END rc=0
+=== 2026-11-04T16:22:58Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE: file-reading tool read FC2/diffs/criteria_pilot3.txt.diff lines 692-931."
+cd $F; grep -n '[a-z0-9_]/ [a-zA-Z_]' base/criteria_pilot3.txt | cut -c1-140; echo ===; grep -n '[a-z0-9_]/ [a-zA-Z_]' criteria_pilot3.txt | cut -c1-140
+=== 2026-11-04T16:22:58Z END rc=0
+=== 2026-11-04T16:23:10Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+cat > $F/bin/edit_fix1.py <<'PYEOF'
+"""AMEND stage: exact, counted replacements in criteria_pilot3.txt (proofreading fixes)."""
+import sys
+
+path = sys.argv[1]
+text = open(path, encoding="ascii").read()
+pairs = [
+    ("optB impl/parent_evidence/ out_warm_start_try1_tensorboard.txt", "optB impl/parent_evidence/out_warm_start_try1_tensorboard.txt"),
+    ('printed "Checkpoint steps: 32,768 of 50,000\n    - remaining budget: 17,232" and no Warm start line',
+     "printed its checkpoint line (32,768 of 50,000\n    steps, remaining budget 17,232) and no Warm start line"),
+    ("and the gate digest 02602cb0....", "and the gate digest 02602cb0..."),
+]
+for old, new in pairs:
+    n = text.count(old)
+    if n != 1:
+        print(f"refusing: {n} matches for {old[:70]!r}")
+        sys.exit(2)
+    text = text.replace(old, new)
+open(path, "w", encoding="ascii").write(text)
+print(f"applied {len(pairs)} replacements")
+PYEOF
+$PY -I -B $F/bin/edit_fix1.py $F/criteria_pilot3.txt
+C=$F/criteria_pilot3.txt
+$PY -I -B $F/bin/reflow2.py $C "- RESUME (RUN_ID pilot3_walk_s42_rtest)" '(Eval 1095.54 against 1092.31; "Known limits").'
+$PY -I -B $F/bin/reflow2.py $C "D-D<next> | Taken 2026-11-03" "A later PR records its outcome."
+$PY -I -B $F/bin/reflow2.py $C "Why they still apply [inferred]:" "STILL readings lean on that baseline)."
+$PY -I -B $F/bin/reflow2.py $C "Launch, per seed (the Colab steps" "it stops nothing)."
+$PY -I -B $F/bin/reflow2.py $C "Notebook smoke (run twice:" "logs under SP/work/pilot3/smoke/."
+awk 'length($0) > 120 {print FNR": "length($0)}' $C; LC_ALL=C grep -c -P '[^\x00-\x7F]' $C; grep -n '^ *- remaining' $C
+=== 2026-11-04T16:23:10Z END rc=1
+=== 2026-11-04T16:23:17Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+cd $F; grep -n '[a-zA-Z0-9_.]/ [a-zA-Z_.]' criteria_pilot3.txt | cut -c1-160; echo; sed -n 587,600p criteria_pilot3.txt
+=== 2026-11-04T16:23:17Z END rc=0
+=== 2026-11-04T16:23:34Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+echo "NOTE: file-editing tool fixed the split path and the split Eval string in the Launch paragraph (criteria line 595-596)."
+$PY -I -B $F/bin/reflow2.py $F/criteria_pilot3.txt '"Eval num_timesteps=131072" line (its reward is noted' "it stops nothing)." 
+awk 'length($0) > 120 {print FNR": "length($0)}' $F/criteria_pilot3.txt; sed -n 594,600p $F/criteria_pilot3.txt
+grep -n 'Eval$\|"Eval *$' $F/criteria_pilot3.txt | head
+=== 2026-11-04T16:23:34Z END rc=0
+=== 2026-11-04T16:23:39Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+$PY -I -B $F/bin/reflow2.py $F/criteria_pilot3.txt '"Eval num_timesteps=131072" line (its reward is noted' "nothing)." 
+awk 'length($0) > 120 {print FNR": "length($0)}' $F/criteria_pilot3.txt; sed -n 594,600p $F/criteria_pilot3.txt
+=== 2026-11-04T16:23:39Z END rc=0
+=== 2026-11-04T16:26:05Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE: file-editing tool: criteria proofreading fixes; BRANCH_PLAN.md (header, As built, commit 2 cell, commits 4-6 sections, possible extra commit, AMEND note on tools, judge row, order of work step 6, risks); NOTES.md (AMEND paragraph, I6, I10, I17, I30-I33, section 4 AMEND decisions, section 5 items, records-PR note); CHANGES.md (AMEND pointer). Search tool read tools/tree SOURCE.txt and locomotion.toml for two wordings."
+cd $F
+for f in criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md; do diff -u base/$f $f > diffs/$f.diff; echo "$f diff rc=$?"; done
+wc -l diffs/*; awk 'length($0) > 120 {print FILENAME": "FNR": "length($0)}' criteria_pilot3.txt
+LC_ALL=C grep -c -P '[^\x00-\x7F]' criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md
+=== 2026-11-04T16:26:06Z END rc=1
+=== 2026-11-04T16:26:29Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/bin/python
+echo "NOTE: file-editing tool: criteria 'How it is judged' re-pin sentence (two added judge test cases)."
+$PY -I -B $F/bin/reflow2.py $F/criteria_pilot3.txt "Judging tools (scratch, never on the branch;" "sha256_after.txt]:"
+awk 'length($0) > 120 {print FNR": "length($0)}' $F/criteria_pilot3.txt
+sed -n 366,380p $F/criteria_pilot3.txt
+=== 2026-11-04T16:26:29Z END rc=0
+=== 2026-11-04T16:26:39Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+cd $F
+for f in criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md; do diff -u base/$f $f > diffs/$f.diff; done
+grep -c '^ *Warm start: ' criteria_pilot3.txt; grep '^ *Warm start: ' criteria_pilot3.txt | sed 's/^ *//' | diff - $(dirname $F)/r6_validate/nb/expected_warm_start.txt && echo "Warm start lines equal VALIDATE's measured pair"
+grep -c 'TO FILL' criteria_pilot3.txt
+sha256sum criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md FIXES2.md FIXES3.md $T/SHA256SUMS.txt; wc -l criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md
+cd $T && sha256sum -c SHA256SUMS.txt 2>&1 | grep -c ': OK$'; GIT_OPTIONAL_LOCKS=0 git -C $T/tree status --porcelain --ignored | wc -l
+du -sh $F
+=== 2026-11-04T16:26:39Z END rc=0
+=== 2026-11-04T16:27:02Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+grep -n "BEGIN" $F/CMDLOG.txt | head -3; grep -c "BEGIN" $F/CMDLOG.txt; ls $F $F/out $F/judge $F/bin; du -sh $F/judge $F/tmp
+=== 2026-11-04T16:27:02Z END rc=0
+=== 2026-11-04T16:28:57Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools
+echo "NOTE: file-writing tool wrote FC2/CHANGES2.md."
+cd $F; grep -n "BEGIN" CMDLOG.txt | sed -n '30,45p' | cut -c1-60; LC_ALL=C grep -c -P '[^\x00-\x7F]' CHANGES2.md
+sha256sum criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md CHANGES2.md $T/SHA256SUMS.txt; wc -l criteria_pilot3.txt
+cd $T && sha256sum -c SHA256SUMS.txt 2>&1 | grep -c ': OK$'; du -sh $F; date -u +%FT%TZ
+=== 2026-11-04T16:28:57Z END rc=0
+=== 2026-11-04T16:29:06Z BEGIN
+F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/frozen_candidate2
+echo "NOTE (hand-written): file-editing tool set CHANGES2.md's time line. Stage end; no simulation running. Output sha256s follow."
+cd $F && sha256sum criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md CHANGES2.md FIXES2.md FIXES3.md diffs/* | tee out/final_sha256.txt; wc -l criteria_pilot3.txt BRANCH_PLAN.md NOTES.md CHANGES.md CHANGES2.md; date -u +%FT%TZ
+=== 2026-11-04T16:29:06Z END rc=0

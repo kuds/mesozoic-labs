@@ -1,0 +1,124 @@
+{
+ "checks": [
+  {
+   "name": "judge --check-only: exit 0 in (0,)",
+   "ok": true,
+   "detail": "see judge_check_only.log.txt"
+  },
+  {
+   "name": "judge --check-only wrote nothing",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "judge (probe on the cell): exit 0 in (0,)",
+   "ok": true,
+   "detail": "see judge.log.txt"
+  },
+  {
+   "name": "judge wrote probe.json and binding.json",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "binding schema, final_fallback false, warm-start records bound",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "probe panel: 40 episodes, panel 3042, window 100",
+   "ok": true,
+   "detail": "L 0.8765999999999999"
+  },
+  {
+   "name": "a second judgement of the cell is refused: exit 2 in (2,)",
+   "ok": true,
+   "detail": "see judge_again.log.txt"
+  },
+  {
+   "name": "habit seed: exit 0 in (0,)",
+   "ok": true,
+   "detail": "see habit_seed.log.txt"
+  },
+  {
+   "name": "habit seed reads NO HABIT on the parent's checkpoint with a quiet ledger",
+   "ok": true,
+   "detail": "NO HABIT"
+  },
+  {
+   "name": "habit record names the cell's checkpoint",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "score: exit 0 in (0,)",
+   "ok": true,
+   "detail": "see score.log.txt"
+  },
+  {
+   "name": "score: the cell is scored and Q4 is read",
+   "ok": true,
+   "detail": "STILL; Q4 NO by the pilot outcome: STILL"
+  },
+  {
+   "name": "video episodes 0,1 (panel prefix): exit 0 in (0,)",
+   "ok": true,
+   "detail": "see video.log.txt"
+  },
+  {
+   "name": "video: re-rolled episodes equal probe.json's and the boxes equal the probe's floor channel",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "video: 4 mp4s of 1,000 frames, 100 and 25 fps",
+   "ok": true,
+   "detail": "{'0/realtime': (1000, '100/1'), '0/quarter': (1000, '25/1'), '1/realtime': (1000, '100/1'), '1/quarter': (1000, '25/1')}"
+  },
+  {
+   "name": "video on a nudged probe.json refuses episode 1: exit 1 in (1,)",
+   "ok": true,
+   "detail": "see video_tampered.log.txt"
+  },
+  {
+   "name": "video: the nudged episode gets no video and names the key",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "video --standalone episode 1 (information): exit 0 in (0, 1)",
+   "ok": true,
+   "detail": "see video_standalone.log.txt"
+  },
+  {
+   "name": "the tree is still clean (nothing written into it)",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "parent_probe_by_product": {
+  "floor_classes": {
+   "stand": 40
+  },
+  "lengths": {
+   "1000": 40
+  },
+  "speed_displacement_mps_max": 0.002257254074934661,
+  "leg_length_m": 0.8765999999999999,
+  "plant_policy_interface_revision": 15,
+  "elapsed_s": 122.96046900749207
+ },
+ "score_lines": [
+  "  s42 2,000,000: missing",
+  "  s42 4,000,000: missing",
+  "  s42 6,000,000: missing",
+  "  s42 8,000,000: STILL  {'WALK': 0, 'HOP': 0, 'STILL': 40, 'FALL': 0, 'OTHER': 0}  v 0.000 m/s (fwd -0.000), alt nan, sim nan, swaps nan, flight 0.00, hip lag 0.91, stride nan Hz, duty L/R 1.00/1.00; OTHER passing the contact bar, by rejecting guards: {}",
+  "  s42 seed outcome: STILL (checkpoint 8,000,000); video review: not needed",
+  "  s42 (STILL: not required, listed for reference) at 8,000,000: panel episodes (reset seed 3042 + episode; render with tools/pilot3_video.py OUT/s42/8000000 --from-score <this JSON>): WALK [none]; foot duty > 0.8 [none]; 40 STILL episodes over the duty line not listed. Notebook replay: MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot3_walk_s42/03_locomotion/replays/tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4 (or pilot3_walk_s42_b if the seed was restarted)",
+  "PILOT OUTCOME: STILL (single seed (s42))",
+  "EXISTENCE: NO WALK SEEN (A = [], k = 0 of 1; WALKS by the rule []; review pending []; video-disagreed [])",
+  "Q4 NO by the pilot outcome: STILL (0 of 1; pilot outcome STILL): NO WALK SEEN"
+ ],
+ "standalone_episode_1_matches": true,
+ "failed": 0
+}

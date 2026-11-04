@@ -1,0 +1,225 @@
+{
+ "episodes": 32,
+ "truncated": 6,
+ "terminated": 26,
+ "lengths": [
+  225,
+  219,
+  249,
+  373,
+  1000,
+  524,
+  211,
+  216,
+  715,
+  334,
+  586,
+  283,
+  314,
+  334,
+  211,
+  407,
+  1000,
+  324,
+  217,
+  1000,
+  261,
+  366,
+  305,
+  236,
+  202,
+  246,
+  1000,
+  164,
+  1000,
+  459,
+  1000,
+  812
+ ],
+ "units": {
+  "gamma": 0.995,
+  "ret_var": 3435.2643367930564,
+  "epsilon": 1e-08,
+  "clip_reward": 50.0,
+  "num_timesteps": 65536
+ },
+ "max_abs_dV_loop": 1.1920928955078125e-06,
+ "buckets": [
+  {
+   "bucket": "[0,100)",
+   "n_episodes": 32,
+   "n_states": 3200,
+   "mean_err": 0.7317670200005919,
+   "se_err": 0.11775890577087153,
+   "mean_abs_err": 0.9835799963364095,
+   "se_abs_err": 0.08284681076016244,
+   "mean_V": 2.8403847238863817,
+   "mean_G": 2.10861770388579
+  },
+  {
+   "bucket": "[100,200)",
+   "n_episodes": 32,
+   "n_states": 3164,
+   "mean_err": 0.024681787685029544,
+   "se_err": 0.14887755883169784,
+   "mean_abs_err": 0.7920880962249872,
+   "se_abs_err": 0.08020689153803498,
+   "mean_V": 1.2470875394621255,
+   "mean_G": 1.2154603388113465
+  },
+  {
+   "bucket": "[200,500)",
+   "n_episodes": 31,
+   "n_states": 4792,
+   "mean_err": 0.06977517805245849,
+   "se_err": 0.1290175107873541,
+   "mean_abs_err": 0.6348666583797639,
+   "se_abs_err": 0.08757600865848542,
+   "mean_V": 1.6156831915056542,
+   "mean_G": 1.3816952495509347
+  },
+  {
+   "bucket": "[500,800)",
+   "n_episodes": 10,
+   "n_states": 2425,
+   "mean_err": 0.16499874741714957,
+   "se_err": 0.18099244167677483,
+   "mean_abs_err": 0.6525601030027165,
+   "se_abs_err": 0.120411389306049,
+   "mean_V": 2.2991689946202887,
+   "mean_G": 2.1696450467577186
+  },
+  {
+   "bucket": "[800,1000]",
+   "n_episodes": 7,
+   "n_states": 1212,
+   "mean_err": 0.2135774200767084,
+   "se_err": 0.1795832542057036,
+   "mean_abs_err": 0.5502655943806293,
+   "se_abs_err": 0.12650682647748546,
+   "mean_V": 2.321933976912459,
+   "mean_G": 2.0952769499181065
+  }
+ ],
+ "localisation": [
+  {
+   "bucket": "[0,100)",
+   "comparisons": [
+    {
+     "neighbour": "[100,200)",
+     "n": 32,
+     "mean_diff": 0.7070852323155624,
+     "se": 0.15203233238167566,
+     "over": true
+    }
+   ],
+   "step_localised": true
+  },
+  {
+   "bucket": "[100,200)",
+   "comparisons": [
+    {
+     "neighbour": "[0,100)",
+     "n": 32,
+     "mean_diff": -0.7070852323155624,
+     "se": 0.15203233238167566,
+     "over": true
+    },
+    {
+     "neighbour": "[200,500)",
+     "n": 31,
+     "mean_diff": -0.025402273321164806,
+     "se": 0.153798374470873,
+     "over": false
+    }
+   ],
+   "step_localised": false
+  },
+  {
+   "bucket": "[200,500)",
+   "comparisons": [
+    {
+     "neighbour": "[100,200)",
+     "n": 31,
+     "mean_diff": 0.025402273321164806,
+     "se": 0.153798374470873,
+     "over": false
+    },
+    {
+     "neighbour": "[500,800)",
+     "n": 10,
+     "mean_diff": 0.14770960194643729,
+     "se": 0.18468118329888678,
+     "over": false
+    }
+   ],
+   "step_localised": false
+  },
+  {
+   "bucket": "[500,800)",
+   "comparisons": [
+    {
+     "neighbour": "[200,500)",
+     "n": 10,
+     "mean_diff": -0.14770960194643729,
+     "se": 0.18468118329888678,
+     "over": false
+    },
+    {
+     "neighbour": "[800,1000]",
+     "n": 7,
+     "mean_diff": -0.23222863438688018,
+     "se": 0.14288482789713966,
+     "over": false
+    }
+   ],
+   "step_localised": false
+  },
+  {
+   "bucket": "[800,1000]",
+   "comparisons": [
+    {
+     "neighbour": "[500,800)",
+     "n": 7,
+     "mean_diff": 0.23222863438688018,
+     "se": 0.14288482789713966,
+     "over": false
+    }
+   ],
+   "step_localised": false
+  }
+ ],
+ "problems": [],
+ "seeding": {
+  "vecenv_seed": 6271,
+  "torch_initial_seed": 6271,
+  "numpy_mt19937_key0": 6271
+ },
+ "schema": "walking-pilot3-vg/v1",
+ "label": "stage2_65536_steps.zip",
+ "report_only": true,
+ "tool_sha256": "sha256:a58d5f4f24e0c3e70467c8aeea8df20188fc246d48b3127bef594061a6b44545",
+ "tree": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/tools/tree",
+ "head": "3ae1c95967547ada569ad71aebaa88999afa02cd",
+ "tree_clean": true,
+ "cell": null,
+ "checkpoint": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot3_walk_s42/03_locomotion/models/stage2_65536_steps.zip",
+ "checkpoint_sha256": "sha256:e1eb3dfa5974b6a78b16f5f9d315f27d1df6a77f69686d33f858457cac1061b3",
+ "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_65536_steps.pkl",
+ "vecnorm_sha256": "sha256:b1159b894e1a60d58ef1a436018c72ee48f0b115b162db368a559b1f3355bbee",
+ "settings": {
+  "seed_base": 6271,
+  "n_envs": 4,
+  "episodes_per_env": 8,
+  "buckets": [
+   "[0,100)",
+   "[100,200)",
+   "[200,500)",
+   "[500,800)",
+   "[800,1000]"
+  ],
+  "gamma": 0.995,
+  "localised_se_factor": 4.0
+ },
+ "beside": "loop gain and the critic's tail_3 slope: not run (this tool does not run the PC round's ported critic tools; whether they run on the locomotion env unchanged was not tried)"
+}

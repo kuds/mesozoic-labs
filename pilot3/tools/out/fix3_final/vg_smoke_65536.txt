@@ -1,0 +1,9 @@
+V - G (report only) at stage2_65536_steps.zip: 32 episodes (6 truncated at 1000, 26 terminated), seed base 6271, gamma 0.995, num_timesteps 65,536
+  bucket        n_ep  states  mean V-G (SE)          mean |V-G| (SE)        mean V    mean G   step-localised
+  [0,100)         32    3200  +0.7318 (0.1178)    0.9836 (0.0828)    2.840  2.109   STEP-LOCALISED  [vs [100,200) +0.7071 (SE 0.1520, n 32)]
+  [100,200)       32    3164  +0.0247 (0.1489)    0.7921 (0.0802)    1.247  1.215   no  [vs [0,100) -0.7071 (SE 0.1520, n 32); vs [200,500) -0.0254 (SE 0.1538, n 31)]
+  [200,500)       31    4792  +0.0698 (0.1290)    0.6349 (0.0876)    1.616  1.382   no  [vs [100,200) +0.0254 (SE 0.1538, n 31); vs [500,800) +0.1477 (SE 0.1847, n 10)]
+  [500,800)       10    2425  +0.1650 (0.1810)    0.6526 (0.1204)    2.299  2.170   no  [vs [200,500) -0.1477 (SE 0.1847, n 10); vs [800,1000] -0.2322 (SE 0.1429, n 7)]
+  [800,1000]       7    1212  +0.2136 (0.1796)    0.5503 (0.1265)    2.322  2.095   no  [vs [500,800) +0.2322 (SE 0.1429, n 7)]
+  loop gain and the critic's tail_3 slope: not run (this tool does not run the PC round's ported critic tools; whether they run on the locomotion env unchanged was not tried)
+  PROBLEMS: none

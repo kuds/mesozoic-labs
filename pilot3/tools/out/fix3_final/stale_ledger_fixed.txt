@@ -1,0 +1,15 @@
+full ledger, the judged copy's own:
+  read: window 131,072-7,995,392 (61 evaluations, grid 131,072); seed reading with a quiet trace: HABIT
+stale same-named copy elsewhere (cut 3,800,000):
+  REFUSED before reading: --ledger /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/fix3/tmp/stale_work/downloads/pilot3_walk_s42/03_locomotion/eval_episodes.csv is not the judged run's own ledger (/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/fix3/tmp/stale_work/judged/pilot3_walk_s42/03_locomotion/eval_episodes.csv, in the run copy the cell's binding.json names)
+stale copy AT the judged path (cut 3,800,000):
+  REFUSED after reading, before the trace: the ledger's last evaluation at or before the deciding checkpoint 8,000,000 is 3,670,016, 4,329,984 steps short (131,072 or more: a stale or partial copy)
+copy at the judged path without its first evaluation:
+  REFUSED after reading, before the trace: the ledger's first evaluation is 262,144, not 131,072 (its first rows are missing)
+another file in the judged run's 03_locomotion/:
+  REFUSED before reading: --ledger /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/fix3/tmp/stale_work/judged/pilot3_walk_s42/03_locomotion/other.csv is not the judged run's own ledger (/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/fix3/tmp/stale_work/judged/pilot3_walk_s42/03_locomotion/eval_episodes.csv, in the run copy the cell's binding.json names)
+smoke validation cell /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/fix3/../fix2/out/judge/OUT/retired/pilot3_walk_s42/s42/65536/binding.json (run /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/review2_code/runs/pilot3_walk_s42, steps 65536, validation_only True, eval_freq 32768):
+  with --validation:
+  read: window 32,768-65,536 (2 evaluations, grid 32,768); seed reading with a quiet trace: NO HABIT
+  without --validation:
+  REFUSED before reading: the cell is validation-only (run budget 50000); --validation reads it for a check, never for Q4
