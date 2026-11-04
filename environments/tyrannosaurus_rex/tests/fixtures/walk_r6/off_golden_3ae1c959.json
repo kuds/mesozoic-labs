@@ -1,0 +1,375 @@
+{
+ "env_kwargs": {
+  "default": {},
+  "locomotion": {
+   "alive_bonus": 0.5,
+   "bite_approach_weight": 0.0,
+   "bite_bonus": 0.0,
+   "energy_penalty_weight": 0.002,
+   "fall_penalty": -150.0,
+   "forward_vel_max": 2.5,
+   "forward_vel_weight": 2.0,
+   "gait_symmetry_weight": 0.0,
+   "heading_weight": 0.3,
+   "height_weight": 0.3,
+   "lateral_penalty_weight": 0.1,
+   "max_episode_steps": 1000,
+   "nosedive_weight": 0.5,
+   "posture_weight": 0.2,
+   "prey_distance_range": [
+    8.0,
+    12.0
+   ],
+   "reset_noise_scale": 0.05,
+   "smoothness_weight": 0.05,
+   "tail_stability_weight": 0.05
+  },
+  "recovery": {
+   "action_jerk_weight": 3.0,
+   "action_penalty_source": "raw",
+   "action_saturation_threshold": 0.9,
+   "action_saturation_weight": 0.5,
+   "airborne_substep_weight": 1.0,
+   "alive_bonus": 1.0,
+   "backward_vel_penalty_weight": 0.0,
+   "bilateral_support_weight": 0.6,
+   "bite_approach_weight": 0.0,
+   "bite_bonus": 0.0,
+   "drift_penalty_weight": 0.3,
+   "energy_penalty_weight": 0.075,
+   "fall_penalty": -100.0,
+   "floor_impact_threshold_bw": 1.4,
+   "floor_impact_weight": 2.0,
+   "foot_contact_gate": 0.0,
+   "foot_contact_saturation_force": 350.0,
+   "foot_contact_weight": 0.0,
+   "foot_flatness_tolerance_deg": 3.0,
+   "foot_flatness_weight": 0.15,
+   "foot_load_balance_airborne_penalty": 0.3,
+   "foot_load_balance_min_support_force": 42.0,
+   "foot_load_balance_weight": 0.3,
+   "foot_terms_min_support_force": 168.0,
+   "forward_vel_weight": 0.0,
+   "gait_symmetry_weight": 0.0,
+   "head_clearance_target": 0.9,
+   "head_clearance_tolerance": 0.15,
+   "head_clearance_weight": 0.35,
+   "heading_weight": 0.1,
+   "height_target_tolerance": 0.06,
+   "height_weight": 0.6,
+   "leg_home_pose_broad_fraction": 0.25,
+   "leg_home_pose_broad_scale": 6.0,
+   "leg_home_pose_tolerance": 0.1,
+   "leg_home_pose_weight": 0.5,
+   "max_episode_steps": 1000,
+   "neck_posture_reference": "settled",
+   "neck_posture_tolerance": 0.35,
+   "neck_posture_weight": 0.2,
+   "nosedive_termination_threshold": 0.503,
+   "nosedive_weight": 1.5,
+   "perturbation_capture_velocity_multiple": 1.5,
+   "perturbation_direction": "uniform_horizontal",
+   "perturbation_duration": 0.2,
+   "perturbation_interval": 2.0,
+   "perturbation_jitter": 0.5,
+   "posture_weight": 1.5,
+   "prey_distance_range": [
+    10.0,
+    15.0
+   ],
+   "reset_noise_scale": 0.05,
+   "smoothness_weight": 2.0,
+   "speed_penalty_threshold": 0.1,
+   "speed_penalty_weight": 0.3,
+   "spin_penalty_weight": 0.1,
+   "stance_width_reference": "settled",
+   "stance_width_settle_steps": 140,
+   "stance_width_tolerance_m": 0.05,
+   "stance_width_weight": 0.1,
+   "support_conditioned_alive_fraction": 0.5,
+   "tail_home_pose_tolerance": 0.05,
+   "tail_home_pose_weight": 0.25,
+   "tail_stability_weight": 0.15
+  },
+  "stance": {
+   "action_jerk_weight": 3.0,
+   "action_penalty_source": "raw",
+   "action_saturation_threshold": 0.9,
+   "action_saturation_weight": 0.5,
+   "airborne_substep_weight": 1.0,
+   "alive_bonus": 1.0,
+   "backward_vel_penalty_weight": 0.0,
+   "bilateral_support_weight": 0.6,
+   "bite_approach_weight": 0.0,
+   "bite_bonus": 0.0,
+   "drift_penalty_weight": 0.3,
+   "energy_penalty_weight": 0.075,
+   "fall_penalty": -100.0,
+   "floor_impact_threshold_bw": 1.4,
+   "floor_impact_weight": 2.0,
+   "foot_contact_gate": 0.0,
+   "foot_contact_saturation_force": 350.0,
+   "foot_contact_weight": 0.0,
+   "foot_flatness_tolerance_deg": 3.0,
+   "foot_flatness_weight": 0.15,
+   "foot_load_balance_airborne_penalty": 0.3,
+   "foot_load_balance_min_support_force": 42.0,
+   "foot_load_balance_weight": 0.3,
+   "foot_terms_min_support_force": 168.0,
+   "forward_vel_weight": 0.0,
+   "gait_symmetry_weight": 0.0,
+   "head_clearance_target": 0.9,
+   "head_clearance_tolerance": 0.15,
+   "head_clearance_weight": 0.35,
+   "heading_weight": 0.1,
+   "height_target_tolerance": 0.06,
+   "height_weight": 0.6,
+   "leg_home_pose_broad_fraction": 0.25,
+   "leg_home_pose_broad_scale": 6.0,
+   "leg_home_pose_tolerance": 0.1,
+   "leg_home_pose_weight": 0.5,
+   "max_episode_steps": 1000,
+   "neck_posture_reference": "settled",
+   "neck_posture_tolerance": 0.35,
+   "neck_posture_weight": 0.2,
+   "nosedive_termination_threshold": 0.503,
+   "nosedive_weight": 1.5,
+   "posture_weight": 1.5,
+   "prey_distance_range": [
+    10.0,
+    15.0
+   ],
+   "reset_noise_scale": 0.05,
+   "smoothness_weight": 2.0,
+   "speed_penalty_threshold": 0.1,
+   "speed_penalty_weight": 0.3,
+   "spin_penalty_weight": 0.1,
+   "stance_width_reference": "settled",
+   "stance_width_settle_steps": 200,
+   "stance_width_tolerance_m": 0.05,
+   "stance_width_weight": 0.1,
+   "support_conditioned_alive_fraction": 0.5,
+   "tail_home_pose_tolerance": 0.05,
+   "tail_home_pose_weight": 0.25,
+   "tail_stability_weight": 0.15
+  }
+ },
+ "environment": {
+  "gymnasium": "1.4.0",
+  "machine": "x86_64",
+  "mujoco": "3.10.0",
+  "numpy": "2.5.4",
+  "numpy_cpu_features": "AVX,AVX2,AVX512BF16,AVX512BITALG,AVX512BW,AVX512CD,AVX512DQ,AVX512F,AVX512FP16,AVX512IFMA,AVX512VBMI,AVX512VBMI2,AVX512VL,AVX512VNNI,AVX512VPOPCNTDQ,AVX512_CLX,AVX512_CNL,AVX512_ICL,AVX512_SKX,AVX512_SPR,BMI,BMI2,CX16,F16C,FMA3,GFNI,LAHF,LZCNT,MMX,MOVBE,POPCNT,SSE,SSE2,SSE3,SSE41,SSE42,SSSE3,VAES,VPCLMULQDQ,X86_V2,X86_V3,X86_V4",
+  "python": "3.13.18",
+  "system": "Linux"
+ },
+ "generator": "gen_off_golden.py",
+ "generator_sha256": "2208eb0947f07a5072fa4cb41fd80a98e5e2269e7b20731a3b114982eb6725ed",
+ "locomotion_as_3ae1c959": false,
+ "procedure": {
+  "alt_steps": 400,
+  "seeds": [
+   3042,
+   3043
+  ],
+  "uniform_amplitude": 0.1,
+  "uniform_steps": 300,
+  "zero_steps": 100
+ },
+ "scenarios": {
+  "default/alt/3042": {
+   "digests": {
+    "info": "ea8d8f47b2b1b4657f3c69efe254740c3517946b1fa0fcdd89015da3438ff5ed",
+    "obs": "c44bccf7a4652e676136134383b8068e025c5bcf15694f9cb8e9642a12ab505c",
+    "reward": "c352059c3d4697798f515d53fc0c60cbeb84801699b1a6a652877d40bbe088f5",
+    "state": "3ba521b695c84509ab09c5a14ce4c35068e8b6c07201746b27e6c4e72d64c4a4",
+    "terminated": "a726e1df99cd0cf3aae06b2b54357f05c10cbebf9c3a24b8d27e248b5dc755c5",
+    "truncated": "97779f7cae716a4243ac78cdd8c051cfbefdd111d26740978dd0f4c962c2aa7d"
+   },
+   "return": -93.07784247634639,
+   "steps": 205
+  },
+  "default/alt/3043": {
+   "digests": {
+    "info": "b7dbcb26085078bfc26c131381096c070561b07015f1491a1a11fe7c2d4d97d5",
+    "obs": "e57ceb3e5905ecdeb30caee2c6959ab0b6d7f67d02691a50194f70e9514578db",
+    "reward": "d0fca6f6531645dc57546a9cd757feaa0185c8412454e354840b232923bd96bd",
+    "state": "efa119b51c1dfd23571a39311b2d68f366e4fe8c1bd083e8e7dc9558e95721c7",
+    "terminated": "375acac1f4e2afa8660e929ab7ce4902759013904f392bf9a62a4d83c0e04520",
+    "truncated": "a6eab4025a7c9c0877549f6e5d790f66af88ee7f2320e814954e638d8051f812"
+   },
+   "return": -93.04966298200907,
+   "steps": 198
+  },
+  "default/uniform/3042": {
+   "digests": {
+    "info": "cb76709a1896cb04dd5b7ac162ef74d1d62b6ae1121da05729137a5ef4ef6e4e",
+    "obs": "6967c0c630dcac745b5938200328245f31825c2bf94590084f806175750a7b85",
+    "reward": "e0f0739f14d74a7714d934a7de43b3065dd761b07582789a0d20739386c1c77a",
+    "state": "05b77c0f9497e273cbe2f1d89b413cdf2061cf4de62d706e4148a97e1a346991",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 38.87398380656109,
+   "steps": 400
+  },
+  "default/uniform/3043": {
+   "digests": {
+    "info": "fa16f1569a93047e7f4671e386c73cd4b69eada797b56c79204a5a384a130edf",
+    "obs": "25cd0e46ef3bc3084f986233ec1c41dda97cbc339506894b71ec9695515ee866",
+    "reward": "494fc605a380a3661eb210b138e947bba0a62cf6c0fd823db24a84a3131379bd",
+    "state": "24916a75e2248a12ffeeee41279f4a9a0a48bcdde7d071beb3da4a25c0646f98",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 38.77588796216276,
+   "steps": 400
+  },
+  "locomotion/alt/3042": {
+   "digests": {
+    "info": "c6f40337e6a2c844fe48f7154252582beeeb5eb462698b79d191150df1323698",
+    "obs": "f154169727cd445fac45cb2d895e410dc7445756f1fe763887452a1cd66b7c68",
+    "reward": "5b9f939f414e47d108edfa1d160804624f7d6627da9e34479996cb87c47f8fe2",
+    "state": "8bf2dd3ac9915605c94c2ab79daa06bd90d4a1c36d3cd83f6605c98e3a9bd568",
+    "terminated": "a95cbbdc0e792a23616ece2ee12e04cc51d2768801a374d54fd732da524ba8c4",
+    "truncated": "36b0a196916432bd5807bf323358d61475e8dcb318f637a7350e2e3d767afa5f"
+   },
+   "return": 34.71788899849355,
+   "steps": 214
+  },
+  "locomotion/alt/3043": {
+   "digests": {
+    "info": "f9b9fa6d0f25a3e74fcdcd7e9fb2aa266f8d94f48e3e19bfd99e845fe476e823",
+    "obs": "9759394b109370e4b8db93e0d184789e5b5941c41d452a8976000fde74742feb",
+    "reward": "bc6c0fe711d296309ff7786aeaeab1c4bd002ad9c7705372f7cef56842a57c99",
+    "state": "44cbe9650a9c6e447f3741126b9d17ded24540ea354ec2b795f9ee83d51cf9a3",
+    "terminated": "a5f93932e972f17122040f52f1d63885478587a980d96b3efb80b15f093dce0e",
+    "truncated": "8d4f9c224a3cdb25eb98be11d63973fb19fcc8c57ccf9d7b9dd69862b6392c86"
+   },
+   "return": 73.70926477933651,
+   "steps": 246
+  },
+  "locomotion/uniform/3042": {
+   "digests": {
+    "info": "7115507a00ec0a51eb21d882b2fbc56cce3a628456d450be47f72a896c27c9db",
+    "obs": "904a9789246f1ef6325208a1255be6137a8162600a61d8394efd195fc3f31d48",
+    "reward": "d6afec3d7dc05742056e746f0229744d859610d899df83a96441ab7c56ed25df",
+    "state": "1ef827eed009f76c0e6b2b5eeac4acf1e459043e14684ba0f9198f9f1d3feca8",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 434.7753334905041,
+   "steps": 400
+  },
+  "locomotion/uniform/3043": {
+   "digests": {
+    "info": "d20b832ee1181080ea299a10f1f213b54de81ce7f5f0a1e8a35b423f68e89830",
+    "obs": "2603596079042dca0b02160f885e1b583915e63d3a31df2ef268c80df456358f",
+    "reward": "182599be1b2a61b097ac1664a13e05761aa7be4149755781aef2ea2c7829d337",
+    "state": "f79aea9ea16655d7d5c58a3817521796ef1c8d0da1c594bc2cdbbc711c72e43c",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 430.5291775425452,
+   "steps": 400
+  },
+  "recovery/alt/3042": {
+   "digests": {
+    "info": "96115c62700d990c8cc3c5c95e8ce050bb15868cdb8ab42b576180b992d41925",
+    "obs": "eb42cebfa5a9889ddce4fca011ce88b947a5aa14446b98a1412bb66c2b3e0413",
+    "reward": "1584c2a93b0d175b7a08c423170acfffbadd6ac487078b9ac061236193cbe43c",
+    "state": "6216a4b34fa74b422c304576457874bb403438b95b4bcf7f7f1e7eaf052d5f32",
+    "terminated": "f7adb0a64d28e0be0a86638f302f336f50a55990e58e1d401d198df02fa4fd29",
+    "truncated": "fe4694d7f45409213100b16873d196b2957c894e9938b05e72786525230a3873"
+   },
+   "return": 482.90384108751414,
+   "steps": 213
+  },
+  "recovery/alt/3043": {
+   "digests": {
+    "info": "2ad79e519b3e18866302153d5f05965a5f9d167f56e04836553b3ce049f31ac8",
+    "obs": "dc0891ae499a3321b6401cc74caaec8c7ef38a016420a60956aecfb12f4eb47b",
+    "reward": "0bb5d6f191db2361fbe6f0a3da15171299953e21e49bd35c7e1f9bf8164ac822",
+    "state": "50d617ddb089a3d86594586c86dfcc19107b4f78fa4652bb90083351eabec6f3",
+    "terminated": "10e824477b10493734ca37c54953ba3079d0080788d6f003c37c8c4bf1686156",
+    "truncated": "c83713aa8f001c364e368c61beaec08521f994d05fd0033766fa4fd6e33cd933"
+   },
+   "return": 571.3506070423921,
+   "steps": 247
+  },
+  "recovery/uniform/3042": {
+   "digests": {
+    "info": "5faf9663c72b250a549fb0258ca64c9b100ee502f12e9b551572d41c22f1d580",
+    "obs": "c6edeb9cd76b36ab07745864b1d55f63f34197b1562418d761f3a616afc2302c",
+    "reward": "87a3e9b60ea725050f4798c58d106df0db379aa0ffb9a84a70541a5e19c51052",
+    "state": "df750c3bf346de232be31e56900f1a272e916802dd2121ed2095e83eea7cde96",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 1313.091267125992,
+   "steps": 400
+  },
+  "recovery/uniform/3043": {
+   "digests": {
+    "info": "ab47f4a2d149ba61a33081744a79acf803002a0b878add90438399ce00b9941d",
+    "obs": "fc283ab455c0daadb8c3a0a972bad75625357a1a1fdc31c7c9719f1300810f54",
+    "reward": "377364d0ebff88c3a81c8f296a4c60312f9424733b2413ea6bf4945bd48e6aef",
+    "state": "b5c166f1b008b8b106810e9be5efa1e31b3864b2e3f22fe3c3ae33b531bea09e",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 1226.0270607715468,
+   "steps": 400
+  },
+  "stance/alt/3042": {
+   "digests": {
+    "info": "0f441ae4f35ae70393cd5de0cd5e4599976d7ca5681c43d3890b08dc9127ed23",
+    "obs": "7064717e8f309965527994a4e70aa48bf2d34cceaf0bc3727a790d1b6ecf2258",
+    "reward": "54e6764cde3124544d673bf8bf3c6de8322988737fb454353314ff10341c6aad",
+    "state": "8bf2dd3ac9915605c94c2ab79daa06bd90d4a1c36d3cd83f6605c98e3a9bd568",
+    "terminated": "a95cbbdc0e792a23616ece2ee12e04cc51d2768801a374d54fd732da524ba8c4",
+    "truncated": "36b0a196916432bd5807bf323358d61475e8dcb318f637a7350e2e3d767afa5f"
+   },
+   "return": 483.3704391381594,
+   "steps": 214
+  },
+  "stance/alt/3043": {
+   "digests": {
+    "info": "bf6fd10342a66016258f4822575c49a18797b0e33626c975e6be690a1d6d4fe1",
+    "obs": "2ac18ce1bde1c43b0e2657ce2cc30fb8e2e6644397f748baf72659e75a501458",
+    "reward": "1fc987f742094b445a16f1d5bac5d6cf1c08f1f5081c9134dd141c543449ff7f",
+    "state": "44cbe9650a9c6e447f3741126b9d17ded24540ea354ec2b795f9ee83d51cf9a3",
+    "terminated": "a5f93932e972f17122040f52f1d63885478587a980d96b3efb80b15f093dce0e",
+    "truncated": "8d4f9c224a3cdb25eb98be11d63973fb19fcc8c57ccf9d7b9dd69862b6392c86"
+   },
+   "return": 575.4250765327996,
+   "steps": 246
+  },
+  "stance/uniform/3042": {
+   "digests": {
+    "info": "23300599bf67639003f6ec5f3b36d312165cf00a7d636dcb78a302d8217cd70d",
+    "obs": "36a863484a835f1bf924df086195f796862bf6905cc2c396a14a93f82ebee758",
+    "reward": "afc9c9faf75598cb06237e256a9a1b84a01b984c3317aa27addf843f5f6698f2",
+    "state": "1ef827eed009f76c0e6b2b5eeac4acf1e459043e14684ba0f9198f9f1d3feca8",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 1385.57304627625,
+   "steps": 400
+  },
+  "stance/uniform/3043": {
+   "digests": {
+    "info": "ac866d654897bd8c752c541b4b8a37e4dce450d86cf65a6fa12496b061f4c524",
+    "obs": "af905edf964fd9b9460c8f2f2bbc80cc61a1554fe3cdf43cd438612e225f08ea",
+    "reward": "ae91e3651c750bb1f2d69191ffabeb66455f9f230042184f883e30ef21c4e1a4",
+    "state": "f79aea9ea16655d7d5c58a3817521796ef1c8d0da1c594bc2cdbbc711c72e43c",
+    "terminated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+    "truncated": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5"
+   },
+   "return": 1392.8737668786885,
+   "steps": 400
+  }
+ },
+ "schema": "walk-r6-off-golden/v1",
+ "source_commit": "3ae1c95967547ada569ad71aebaa88999afa02cd"
+}

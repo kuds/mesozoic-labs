@@ -56,6 +56,9 @@ Reward components:
       airborne substeps, read per physics substep
     - Standing lateral lean (the centre of mass over the feet, left to right;
       off by default)
+    - Walking pilot 3's R6 (pilot-only, never merged; both off by default):
+      alive, posture and height paid only on a supported step (the
+      compsognathus support rule), and an alternating-touchdown event
     - Head clearance and neck posture
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -103,6 +106,121 @@ from environments.shared.reward_functions import (
 from environments.shared.reward_functions import (
     reward_target_centered_height as _reward_target_centered_height_pure,
 )
+
+# Walking pilot 3's R6 walking reward (pilot-only, never merged): the maintainer's decision (9) of 2026-11-04, from the
+# SCREEN stage's offline recomputation of hypothetical walking rewards on hand-built r10 behaviours (alternating walks,
+# two-footed hops, standing), where R6 ranked every stable walk above standing and above its speed-matched hop on every
+# seed.  The alternating-touchdown event's free parameters are SCREEN's R5p, fixed before any SCREEN number was
+# computed and not tuned: a foot's time since its previous touchdown is capped at 1.2 s, its lead over the other foot
+# is scaled by a tenth of the frozen gait probe's leg length, two touchdowns within 2 control steps are one
+# simultaneous landing (the probe's MERGE_STEPS), and a foot is down on a control step when its touch exceeds 0.1 N
+# (_AIRBORNE_TOUCH_N) on at least half of the step's physics substeps (the probe's floor rule).
+_WALK_TOUCHDOWN_T_CAP_S = 1.2
+_WALK_TOUCHDOWN_STRIDE_FRACTION = 0.1
+_WALK_TOUCHDOWN_MERGE_STEPS = 2
+_WALK_DOWN_SUBSTEP_FRACTION = 0.5
+
+
+def _walk_heading_2d(quat: np.ndarray) -> np.ndarray:
+    """The pelvis +x axis projected on the ground plane and normalised, from a (w, x, y, z) quaternion.
+
+    The SCREEN stage's ``fwd2d`` verbatim, on a (1, 4) array: the shared ``quat_to_forward_2d`` normalises through a
+    different norm call and a 1e-6 guard, so its last bit can differ.
+    """
+    q = np.asarray(quat, dtype=np.float64)[None]
+    w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
+    v = np.stack([1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y + w * z)], axis=-1)
+    return np.asarray((v / np.maximum(np.linalg.norm(v, axis=-1, keepdims=True), 1e-9))[0])
+
+
+class _WalkTouchdownEvents:
+    """Walking pilot 3's alternating-touchdown event (R6 part d; pilot-only, never merged), one control step at a time.
+
+    Pure (no MuJoCo).  Each completed control step m (0 for the first step after a reset) is folded in with the two
+    feet's "down" flags and their forward leads ``dx_r = (p_r - p_l)[:2] @ h`` and ``dx_l = (p_l - p_r)[:2] @ h`` at
+    the state after the step (p the foot sites, h the pelvis heading); :meth:`update` returns the unit-weight pay
+    delivered at m and the number of touchdowns registered at m.
+
+    A foot's touchdown at step k >= 1 is ``down[k-2] = down[k-1] = 0``, ``down[k] = 1`` and ``down[k+1] or
+    down[k+2]`` (steps before the reset read as up): exactly the frozen gait probe's debounced touchdown set
+    (``debounce`` with MIN_RUN_STEPS 2, then ``_events``) for every k <= T-3, registered at step k+2 in (k, right
+    before left) order.  A touchdown of foot i is paid ``min(T_i, 1.2 s) / (2 dt) * clip(dx_i / (0.1 L), 0, 1)`` at
+    step k+4 when the previous registered touchdown, of either foot, was the other foot's, and the other foot has no
+    registered touchdown within 2 steps of k (a simultaneous landing pays neither foot).  T_i is the time since foot
+    i's previous touchdown, or since the reset for its first; dx_i is read at the state after step k+1.  The SCREEN
+    stage paid at k+3; a touchdown of the other foot at k+2 whose step k+3 is a one-step gap is decided only at k+4,
+    so k+4 is the first step at which the simultaneity test never reads a step not yet taken.  Every pay is SCREEN's
+    one step later, and a touchdown at k = T-4 is never paid.
+
+    Steps are folded in strictly in order: ``update(m)`` after ``update(m - 1)`` (or after :meth:`reset` for m = 0);
+    ``update(m)`` again returns the stored result and changes nothing; any other step raises ``RuntimeError``.
+    """
+
+    def __init__(self, dt: float, stride_scale_m: float) -> None:
+        if not (0.0 < dt < np.inf and 0.0 < stride_scale_m < np.inf):
+            raise ValueError("the touchdown event needs a positive, finite control step and stride scale")
+        self.dt = float(dt)
+        self.stride_scale_m = float(stride_scale_m)
+        self.reset()
+
+    def reset(self) -> None:
+        """Forget every step: the next step folded in is step 0."""
+        # Per foot, the down flags of steps m-4..m (four steps before the reset read as up).
+        self._down: tuple[list[bool], list[bool]] = ([False] * 4, [False] * 4)
+        self._dx_prev: tuple[float, float] = (0.0, 0.0)
+        self._last_touchdown: list[int | None] = [None, None]
+        self._last_foot: int | None = None
+        self._recent: tuple[list[int], list[int]] = ([], [])
+        self._pending: list[tuple[int, int, bool, float]] = []
+        self._last_step = -1
+        self._last_output: tuple[float, int] = (0.0, 0)
+
+    def update(self, step: int, down_r: bool, down_l: bool, dx_r: float, dx_l: float) -> tuple[float, int]:
+        """Fold in control step *step*; return (the unit-weight pay delivered at it, touchdowns registered at it)."""
+        if step == self._last_step and step >= 0:
+            return self._last_output
+        if step != self._last_step + 1:
+            raise RuntimeError(
+                f"the touchdown event folds steps in order: step {step} after step {self._last_step} "
+                "(a reset that skipped _spawn_target, or a step history that was edited)"
+            )
+        for window, flag in zip(self._down, (down_r, down_l)):
+            window.append(bool(flag))
+            del window[:-5]
+        registered = 0
+        k = step - 2
+        if k >= 1:
+            for foot in (0, 1):
+                w = self._down[foot]
+                if not w[0] and not w[1] and w[2] and (w[3] or w[4]):
+                    alternates = self._last_foot == 1 - foot
+                    last = self._last_touchdown[foot]
+                    interval = (k - last) * self.dt if last is not None else k * self.dt
+                    scale = float(np.clip(self._dx_prev[foot] / self.stride_scale_m, 0.0, 1.0))
+                    base = min(interval, _WALK_TOUCHDOWN_T_CAP_S) / (2.0 * self.dt) * scale
+                    self._pending.append((k, foot, alternates, base))
+                    self._recent[foot].append(k)
+                    self._last_touchdown[foot] = k
+                    self._last_foot = foot
+                    registered += 1
+        pay = 0.0
+        due = step - 4
+        pending = []
+        for entry in self._pending:
+            touchdown, foot, alternates, base = entry
+            if touchdown == due:
+                near = any(abs(other - touchdown) <= _WALK_TOUCHDOWN_MERGE_STEPS for other in self._recent[1 - foot])
+                if alternates and not near:
+                    pay += base
+            elif touchdown > due:
+                pending.append(entry)
+        self._pending = pending
+        for recent in self._recent:
+            recent[:] = [touchdown for touchdown in recent if touchdown >= step - 8]
+        self._dx_prev = (float(dx_r), float(dx_l))
+        self._last_step = step
+        self._last_output = (pay, registered)
+        return self._last_output
 
 
 class TyrannosaurusRexEnv(BaseDinoEnv):
@@ -193,6 +311,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     OPT_IN_TASK_KWARGS = (
         ("lateral_lean_weight", 0.0, ("lateral_lean_weight", "lateral_lean_tolerance_m")),
         ("leg_home_pose_reference", "keyframe", ("leg_home_pose_reference",)),
+        # Walking pilot 3's R6 (pilot-only, never merged): the support gate and the touchdown event.
+        ("walk_support_gate_bw", 0.0, ("walk_support_gate_bw",)),
+        ("walk_touchdown_weight", 0.0, ("walk_touchdown_weight",)),
     )
     _STANCE_WIDTH_REFERENCES = ("keyframe", "settled")
     _ACTION_PENALTY_SOURCES = ("filtered", "raw")
@@ -277,6 +398,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         lateral_lean_weight: float = 0.0,
         lateral_lean_tolerance_m: float = 0.015,
         leg_home_pose_reference: str = "keyframe",
+        walk_support_gate_bw: float = 0.0,
+        walk_touchdown_weight: float = 0.0,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -389,6 +512,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.lateral_lean_weight = lateral_lean_weight
         self.lateral_lean_tolerance_m = lateral_lean_tolerance_m
         self.leg_home_pose_reference = leg_home_pose_reference
+        self.walk_support_gate_bw = walk_support_gate_bw
+        self.walk_touchdown_weight = walk_touchdown_weight
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -456,6 +581,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 f"leg_home_pose_reference must be one of {self._LEG_HOME_POSE_REFERENCES}, "
                 f"got {self.leg_home_pose_reference!r}"
             )
+        if not 0.0 <= self.walk_support_gate_bw < np.inf:
+            raise ValueError("walk_support_gate_bw must be a finite, non-negative multiple of body weight")
+        if not 0.0 <= self.walk_touchdown_weight < np.inf:
+            raise ValueError("walk_touchdown_weight must be finite and non-negative")
         # The leg target under leg_home_pose_reference = "settled", chosen in
         # _get_reward_info rather than written over _leg_home_qpos: _cache_ids
         # (hashed by the plant contract) rebuilds that from the keyframe
@@ -497,6 +626,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         # Gait symmetry: track foot touchdown events for alternation reward
         self._init_gait_state()
+        # Walking pilot 3's touchdown event (R6 part d), built below only when it is on.
+        self._walk_touchdowns: _WalkTouchdownEvents | None = None
 
         # Cached initial direction to prey (set in _spawn_target).
         # Used by forward-velocity and heading rewards so the "forward"
@@ -527,6 +658,30 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             command_mode=command_mode,
             command_config=command_config,
         )
+        # Walking pilot 3's touchdown event (R6 part d; pilot-only, never merged): the stride scale is SCREEN's, a
+        # tenth of the frozen gait probe's leg length.  Nothing is computed while the event is off.
+        if self.walk_touchdown_weight > 0.0:
+            self._walk_touchdowns = _WalkTouchdownEvents(
+                self.dt, _WALK_TOUCHDOWN_STRIDE_FRACTION * self._probe_leg_length()
+            )
+
+    def _probe_leg_length(self) -> float:
+        """The frozen gait probe's leg length L in m (its ``RobotDescription.leg_length``), from the plant.
+
+        The mean world height of the r_hip_pitch and l_hip_pitch joint anchors at the home keyframe (0.8766 m on
+        physics r10), on a scratch MjData so self.data is untouched; read once, in ``__init__``, and only while the
+        touchdown event is on (never in ``_cache_ids``, which the plant contract hashes).
+        """
+        data = mujoco.MjData(self.model)
+        mujoco.mj_resetDataKeyframe(self.model, data, self.home_keyframe_id)
+        mujoco.mj_forward(self.model, data)
+        heights = []
+        for name in ("r_hip_pitch", "l_hip_pitch"):
+            joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
+            if joint_id < 0:
+                raise ValueError(f"T-Rex model must define joint {name!r}")
+            heights.append(float(data.xanchor[joint_id][2]))
+        return float(np.mean(heights))
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
@@ -934,6 +1089,18 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info["r_foot_contact"] = r_contact
         info["l_foot_contact"] = l_contact
 
+        # 1e. Walking pilot 3's support flag (R6 part a; pilot-only, never merged; off unless walk_support_gate_bw > 0,
+        # and its info key exists only then).  The compsognathus rule (compsognathus_longipes/base_env.py: alive,
+        # posture and height times float(right + left > 4% of body weight)) on the two feet's substep-MIN touch above,
+        # with this animal's own weight: at 0.04 the threshold is 33.6 N.  The three terms below are multiplied by it
+        # in place, so info records the paid values; raw_alive, alive_gate, tilt_angle and height_quality stay the
+        # ungated inputs.  The T. rex posture term is a penalty, so the gate also forgives tilt on an unsupported step
+        # (decided with the rule).
+        walk_support = 1.0
+        if self.walk_support_gate_bw > 0.0:
+            walk_support = float(r_contact + l_contact > self.walk_support_gate_bw * self._body_weight_n)
+            info["walk_support"] = walk_support
+
         bilateral_support_quality = self._bilateral_support_quality(r_contact, l_contact)
         reward_bilateral_support = self.bilateral_support_weight * bilateral_support_quality
         info["bilateral_support_quality"] = bilateral_support_quality
@@ -954,6 +1121,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         alive_fraction = self.support_conditioned_alive_fraction
         alive_gate = (1.0 - alive_fraction) + alive_fraction * bilateral_support_quality
         reward_alive = raw_alive * alive_gate
+        if self.walk_support_gate_bw > 0.0:
+            reward_alive = reward_alive * walk_support
         info["raw_alive"] = raw_alive
         info["alive_gate"] = alive_gate
         info["reward_alive"] = reward_alive
@@ -1037,6 +1206,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # 7. Continuous posture reward
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         reward_posture, tilt_angle = self._compute_posture_reward(pelvis_quat, self.posture_weight)
+        if self.walk_support_gate_bw > 0.0:
+            reward_posture = reward_posture * walk_support
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
@@ -1077,6 +1248,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             height_error = abs(pelvis_height - target_z)
             height_quality = float(np.clip((pelvis_height - min_z) / (target_z - min_z), 0.0, 1.0))
             reward_height = self.height_weight * height_quality
+        if self.walk_support_gate_bw > 0.0:
+            reward_height = reward_height * walk_support
         info["height_error"] = height_error
         info["height_quality"] = height_quality
         info["reward_height"] = reward_height
@@ -1232,6 +1405,37 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info["reward_floor_impact"] = float(reward_floor_impact)
         info["reward_airborne_substeps"] = float(reward_airborne_substeps)
 
+        # 9c. Walking pilot 3's alternating-touchdown event (R6 part d; pilot-only, never merged; off unless
+        # walk_touchdown_weight > 0, and its info keys exist only then): the SCREEN stage's R5p, paid one control step
+        # later than SCREEN paid it (_WalkTouchdownEvents says why).  A foot is down on a step when its touch exceeds
+        # _AIRBORNE_TOUCH_N on at least half of the substeps of the block above (the probe's floor rule on the touch
+        # sensors); the leads are read from the two foot sites (the probe's primary sites) along the pelvis heading.
+        # Only a completed step since the reset is folded in: a read before the first step (the constructor's, the
+        # digest harness's posed states) pays nothing and leaves the event untouched.
+        reward_walk_touchdown = 0.0
+        if self._walk_touchdowns is not None:
+            down = (foot_force_block > self._AIRBORNE_TOUCH_N).mean(axis=0) >= _WALK_DOWN_SUBSTEP_FRACTION
+            walk_touchdown_unit, walk_touchdowns_registered = 0.0, 0
+            step = self._step_count - 1
+            if step >= 0:
+                feet = np.array(
+                    [self.data.site_xpos[self.r_foot_site_id], self.data.site_xpos[self.l_foot_site_id]], dtype=float
+                )
+                heading = _walk_heading_2d(pelvis_quat)
+                walk_touchdown_unit, walk_touchdowns_registered = self._walk_touchdowns.update(
+                    step,
+                    bool(down[0]),
+                    bool(down[1]),
+                    float((feet[0, :2] - feet[1, :2]) @ heading),
+                    float((feet[1, :2] - feet[0, :2]) @ heading),
+                )
+            reward_walk_touchdown = self.walk_touchdown_weight * walk_touchdown_unit
+            info["r_foot_down"] = float(down[0])
+            info["l_foot_down"] = float(down[1])
+            info["walk_touchdowns_registered"] = float(walk_touchdowns_registered)
+            info["walk_touchdown_unit"] = walk_touchdown_unit
+            info["reward_walk_touchdown"] = reward_walk_touchdown
+
         # 10. Action smoothness (shared helper)
         # Jerk BEFORE smoothness: _reward_action_smoothness rotates the action
         # history, so calling it first would leave the jerk term reading this
@@ -1324,6 +1528,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             total_reward += reward_airborne_substeps
         if self.lateral_lean_weight > 0.0:
             total_reward += info["reward_lateral_lean"]
+        if self.walk_touchdown_weight > 0.0:
+            total_reward += reward_walk_touchdown
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -1392,3 +1598,6 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         # Reset gait symmetry tracking
         self._reset_gait_state()
+        # Walking pilot 3's touchdown event: a new episode starts at step 0 with no touchdown.
+        if self._walk_touchdowns is not None:
+            self._walk_touchdowns.reset()
