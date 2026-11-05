@@ -523,8 +523,15 @@ def test_live_modes_build_the_controller_and_refuse_settings_they_would_ignore()
         with pytest.raises(ValueError, match="'heading' holds cruise_speed"):
             TyrannosaurusRexAnatomicalEnv(command_mode="heading", command_config=varied)
         TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config=varied).close()
+    # Walking pilot 4 (pilot-only, never merged): a mapping, the form a stage TOML's [env] table arrives in, is built
+    # into the dataclass (base_env.BaseDinoEnv.__init__); anything else that is not the dataclass is still refused.
+    table = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config={"cruise_speed": 0.5})
+    try:
+        assert table.command_config == config and isinstance(table.command_config, DirectionCommandConfig)
+    finally:
+        table.close()
     with pytest.raises(TypeError, match="DirectionCommandConfig"):
-        TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config={"cruise_speed": 0.5})
+        TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config=[("cruise_speed", 0.5)])
     with pytest.raises(ValueError, match=re.escape(f"command_mode='bogus' is not one of {COMMAND_MODES}")):
         TyrannosaurusRexAnatomicalEnv(command_mode="bogus")
     for removed in RETIRED_COMMAND_ENV_KEYS:

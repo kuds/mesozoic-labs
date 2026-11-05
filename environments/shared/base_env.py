@@ -13,7 +13,7 @@ across all dinosaur species. Subclasses override species-specific methods:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Mapping
 from typing import Any
 
 import gymnasium as gym
@@ -227,7 +227,7 @@ class BaseDinoEnv(gym.Env, ABC):
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
         command_mode: str = "none",
-        command_config: DirectionCommandConfig | None = None,
+        command_config: DirectionCommandConfig | Mapping[str, Any] | None = None,
     ):
         super().__init__()
 
@@ -329,6 +329,13 @@ class BaseDinoEnv(gym.Env, ABC):
         # constant zero, appended LAST by each species' _get_obs (see the
         # _command class attribute for the hook contract).
         self.command_mode = _validate_command_mode(command_mode, backend="stable-baselines3")
+        if isinstance(command_config, Mapping):
+            # WALKING PILOT 4 (pilot-only, never merged): a stage TOML's [env] command_config table reaches every
+            # constructor call (make_env, the evaluation env, the probe bank, the judge's gait probe) as a dict,
+            # because config.load_stage_config passes [env] through; the dataclass is built here, the one place they
+            # all share.  An unknown field is a TypeError and an invalid value a ValueError (the dataclass's own
+            # checks); everything below then sees the dataclass.
+            command_config = DirectionCommandConfig(**command_config)
         self.command_config = command_config
         self.direction_controller: DirectionCommandController | None = None
         if self.command_mode != COMMAND_MODE_NONE:
