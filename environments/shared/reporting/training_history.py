@@ -52,7 +52,17 @@ the training step, for one run or overlaid for several:
   ``k3_panel.json`` and the judge files named (``17_exploration_k3``);
 - the observation normalization's drift per checkpoint, from the
   VecNormalize pickles in ``models/`` and the probe's per-update statistics
-  (``18_obs_normalization``).
+  (``18_obs_normalization``);
+- the gait ledger (``20_gait_ledger`` and the JSON's ``gait_ledger`` block,
+  :func:`gait_ledger`): over the last :data:`GAIT_LEDGER_EVALUATIONS`
+  evaluations and per evaluation, ``window_yaw_change_signed_deg`` (+ left;
+  its same-sign share first, since its magnitude includes target steering),
+  ``window_displacement_lateral_m``, the left-minus-right offsets, the
+  right-over-left ``<foot>_leg_work_abs_j`` and ``<foot>_slip_m`` ratios,
+  ``root_roll_mean_deg``, ``saturated_actuator`` and
+  ``saturated_actuator_fraction``, each ``<joint>_stop_share`` and
+  ``head_angular_rate_rms_dps``, with report-only flags whose bars are
+  choices (on a locomotion stage only).
 
 Every per-episode value is reduced over the evaluation's full-horizon episodes,
 the set ``gate_progress.npz`` averages over; the outcome counts are over all its
@@ -394,6 +404,41 @@ _FINAL_VECNORM = re.compile(r"^(?P<prefix>.+)_final_vecnorm\.pkl$")
 FLAT_VARIANCE = 1e-6
 #: The probe's bank row whose normalized value the normalization page follows (the settled statue, the first seed).
 NORMALIZATION_BANK_ROW = "statue_settled"
+
+#: The gait ledger (:func:`gait_ledger`): its page, and how many of the run's last evaluations its lines pool.
+GAIT_LEDGER_PAGE = "20_gait_ledger"
+GAIT_LEDGER_EVALUATIONS = 6
+#: The ledger's signed whole-body columns (``gait.body_telemetry``), each with its unit and what + means.
+GAIT_YAW_COLUMN = "window_yaw_change_signed_deg"
+GAIT_LATERAL_COLUMN = "window_displacement_lateral_m"
+GAIT_ROLL_COLUMN = "root_roll_mean_deg"
+GAIT_SIGNED_COLUMNS: dict[str, tuple[str, str]] = {
+    GAIT_YAW_COLUMN: ("deg", "+ = a left turn"),
+    GAIT_LATERAL_COLUMN: ("m", "+ = left of the heading at the window's start"),
+    GAIT_ROLL_COLUMN: ("deg", "+ = right side down"),
+}
+GAIT_HEAD_RATE_COLUMN = "head_angular_rate_rms_dps"
+#: The per-leg columns read as a right-over-left ratio per episode: ``<foot>_<field>``.
+GAIT_RATIO_FIELDS: tuple[str, ...] = (_body.LEG_WORK_FIELD, "slip_m")
+#: What the window's signed yaw holds besides a veer, said wherever its value is printed.
+GAIT_YAW_CAVEAT = "measured from the settle step to the episode end: magnitude includes target steering"
+#: The report-only flags the ledger can evaluate, with the gait report's bars: VEER's same-sign share, ASYMMETRY's
+#: leg power max/min (read as leg work over the same window), LEAN's |roll| in degrees and ON STOP's share.  Each bar
+#: is a choice, set on three pilot seeds and three mirror-symmetric hand-built walks, never validated.
+GAIT_LEDGER_BARS: dict[str, float] = {"VEER": 0.8, "ASYMMETRY": 1.3, "LEAN": 2.0, "ON STOP": 0.05}
+#: The stage names the bars were set on (walking); another stage's ledger gets the numbers without flags.
+GAIT_LEDGER_STAGES: tuple[str, ...] = ("locomotion",)
+#: Under this share of full-horizon episodes, every aggregate line says "survivors only".
+GAIT_SURVIVOR_SHARE = 0.8
+GAIT_LEDGER_NOTE = (
+    "report only: no gate, checkpoint choice or training input reads this; flag bars are choices set on three "
+    "seeds and three hand-built walks, not validated"
+)
+#: What a ledger cannot show (a rolled panel measures it).
+GAIT_LEDGER_NOT_SHOWN = (
+    "the target split, weave, landing peaks, step length and time, foot lift, scuffing, joint phase, per-stride "
+    "ranges, servo authority and neck or head stops"
+)
 
 
 def _number(text: Any) -> float:
@@ -1773,8 +1818,13 @@ class RunHistory:
     rollout_actuator_source: str = ""
     absent: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
-    #: Per evaluation, its full-horizon rows of eval_episodes.csv (kept for the band counts; never serialised).
+    #: Per evaluation, its full-horizon rows of eval_episodes.csv (kept for the band counts and the gait ledger; never
+    #: serialised).
     fh_rows: list[list[Mapping[str, str]]] = field(default_factory=list, repr=False)
+    #: The stage's name (``stage_config.json``'s ``name``), when recorded.
+    stage_name: str | None = None
+    #: The gait ledger's block (:func:`gait_ledger`), filled by :func:`load_run_history` (:func:`ledger_of` reads it).
+    gait_ledger: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
     def band_active(self) -> bool:
@@ -1864,12 +1914,13 @@ def load_run_history(
     read_std: bool = True,
     training_window: int = TRAINING_WINDOW_TIMESTEPS,
     judged: "str | Path | None" = None,
+    gait_evaluations: int = GAIT_LEDGER_EVALUATIONS,
 ) -> RunHistory:
     """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised.
 
     *judged*: a directory of the run's judge files (``judge_<steps>.json``, ``judge_final.json``), read for K3's
     inputs (:func:`read_judge_k3`), drawn as a readout of the stance5 replication judge's K3 criterion on the outcomes
-    page.
+    page.  *gait_evaluations*: how many of the last evaluations the gait ledger's lines pool (:func:`gait_ledger`).
     """
     stage = Path(stage_dir)
     run = RunHistory(stage_dir=stage, label=label or stage.resolve().parent.name or stage.name, group=group)
@@ -1904,6 +1955,7 @@ def load_run_history(
     run.bars = _bars(record)
     run.band = _band(record)
     run.head_target = _head_target(record)
+    run.stage_name = record.get("name") if isinstance(record.get("name"), str) else None
     if not record:
         run.absent.append("stage_config.json: no bars or band recorded")
 
@@ -2046,6 +2098,12 @@ def load_run_history(
     run.errors += [f"normalization: {error}" for error in run.obs_norm.get("errors", [])]
     if run.obs_norm.get("why"):
         run.absent.append(f"normalization drift: {run.obs_norm['why']}")
+    try:
+        run.gait_ledger = gait_ledger(run, evaluations=gait_evaluations)
+    except Exception as exc:  # noqa: BLE001 - a report must not fail on one block's input
+        why = f"{type(exc).__name__}: {exc}"
+        run.gait_ledger = {"report_only": GAIT_LEDGER_NOTE, "computed": False, "why": why, "lines": []}
+        run.errors.append(f"gait ledger: {why}")
     return run
 
 
@@ -2224,6 +2282,530 @@ def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int |
 def k3_point(run: "RunHistory", step: int) -> dict[str, Any] | None:
     """The judge's K3 point at exactly *step*, or ``None``."""
     return next((p for p in (run.k3 or {}).get("checkpoints", []) if p.get("timesteps") == step), None)
+
+
+# ---------------------------------------------------------------------------------------------- gait ledger
+
+#: Why a gait ledger column is not read.
+_GAIT_MISSING = f"not in {EVAL_EPISODES_FILENAME}: a ledger written before the column, or a model that records none"
+#: An episode whose saturated_actuator cell is empty because no actuator reached the bar (fraction 0).
+GAIT_NONE_SATURATED = f"(none at |action| >= {SATURATION_ABS:g})"
+_SIDE_NAMES = {
+    "r": "right",
+    "l": "left",
+    "fr": "front right",
+    "fl": "front left",
+    "rr": "rear right",
+    "rl": "rear left",
+}
+
+
+def _ledger_header(run: RunHistory) -> list[str]:
+    """The ledger's columns, read off its full-horizon rows (every row of one file holds the same keys)."""
+    for group in run.fh_rows:
+        for row in group:
+            return [key for key in row if isinstance(key, str)]
+    return []
+
+
+def gait_ledger_specs(header: Sequence[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """The gait ledger's metrics *header* holds, in page order, and the ones it lacks with why.
+
+    Each metric: ``key``, ``kind`` (``signed``: a median with the episodes on each side; ``ratio``: right over left
+    per episode; ``named``: the episodes by the actuator they name; ``plain``), ``columns``, ``unit`` and ``sign``.
+    """
+    present = set(header)
+    specs: list[dict[str, Any]] = []
+    absent: dict[str, str] = {}
+
+    def add(key: str, kind: str, columns: Sequence[str], unit: str, sign: str = "") -> None:
+        if all(column in present for column in columns):
+            specs.append({"key": key, "kind": kind, "columns": list(columns), "unit": unit, "sign": sign})
+        else:
+            absent[key] = _GAIT_MISSING
+
+    for column in (GAIT_YAW_COLUMN, GAIT_LATERAL_COLUMN):
+        add(column, "signed", [column], *GAIT_SIGNED_COLUMNS[column])
+    offsets = [column for column in header if _LR_COLUMN.match(column)]
+    for column in offsets:
+        add(column, "signed", [column], "deg", "+ = the left leg's angle larger")
+    if not offsets:
+        absent["leg_q_<left>_minus_<right>_<joint>_deg"] = _GAIT_MISSING
+    for suffix in GAIT_RATIO_FIELDS:
+        labels = [column[: -len(suffix) - 1] for column in header if re.fullmatch(rf"[A-Za-z0-9]+_{suffix}", column)]
+        pairs = hip_roll_pairs(labels)
+        for left, right in pairs:
+            add(f"{right}_over_{left}_{suffix}", "ratio", [f"{right}_{suffix}", f"{left}_{suffix}"], "ratio")
+        if not pairs:
+            absent[f"<right>_over_<left>_{suffix}"] = _GAIT_MISSING
+    add(GAIT_ROLL_COLUMN, "signed", [GAIT_ROLL_COLUMN], *GAIT_SIGNED_COLUMNS[GAIT_ROLL_COLUMN])
+    add(ACTUATOR_COLUMN, "named", [ACTUATOR_COLUMN], "episodes")
+    add(ACTUATOR_FRACTION_COLUMN, "plain", [ACTUATOR_FRACTION_COLUMN], "share of window steps")
+    stops = [column for column in header if column.endswith("_stop_share")]
+    for column in stops:
+        add(column, "plain", [column], "share of window substeps")
+    if not stops:
+        absent["<joint>_stop_share"] = _GAIT_MISSING
+    add(GAIT_HEAD_RATE_COLUMN, "plain", [GAIT_HEAD_RATE_COLUMN], "deg/s")
+    return specs, absent
+
+
+def _gait_values(rows: Sequence[Mapping[str, str]], spec: Mapping[str, Any]) -> np.ndarray:
+    """One value per row: the column's, or for a ratio right over left (NaN unless both are finite, left above 0)."""
+    first = np.asarray([_number(row.get(spec["columns"][0])) for row in rows], dtype=float)
+    if spec["kind"] != "ratio":
+        return first
+    left = np.asarray([_number(row.get(spec["columns"][1])) for row in rows], dtype=float)
+    ok = np.isfinite(first) & np.isfinite(left) & (left > 0.0) & (first >= 0.0)
+    out = np.full(first.shape, np.nan)
+    np.divide(first, left, out=out, where=ok)
+    return out
+
+
+def _gait_stats(values: np.ndarray, kind: str) -> dict[str, Any]:
+    """Median, minimum, maximum and n of the finite *values*; a signed metric's episodes on each side and its
+    same-sign share (those with the median's sign, over n); a ratio's episodes with each side larger and its
+    max/min (the median or its inverse, whichever is at least 1)."""
+    finite = values[np.isfinite(values)]
+    n = int(finite.size)
+    median = float(np.median(finite)) if n else math.nan
+    out: dict[str, Any] = {
+        "n": n,
+        "median": median,
+        "min": float(finite.min()) if n else math.nan,
+        "max": float(finite.max()) if n else math.nan,
+    }
+    if kind == "signed":
+        negative, positive = int((finite < 0.0).sum()), int((finite > 0.0).sum())
+        agree = positive if median > 0.0 else negative if median < 0.0 else 0
+        out.update(negative=negative, positive=positive, same_sign=agree / n if n and median != 0.0 else math.nan)
+    elif kind == "ratio":
+        out.update(
+            right_larger=int((finite > 1.0).sum()),
+            left_larger=int((finite < 1.0).sum()),
+            max_over_min=max(median, 1.0 / median) if median > 0.0 else math.nan,
+        )
+    return out
+
+
+def _saturated_label(row: Mapping[str, str]) -> str:
+    """The actuator a row's saturated_actuator names, or why it names none (no actuator at the bar, unmeasured, or a
+    row written before the column)."""
+    if not (row.get(ACTUATOR_FRACTION_COLUMN) or "").strip():
+        return NOT_RECORDED_ACTUATOR
+    name = (row.get(ACTUATOR_COLUMN) or "").strip()
+    if name:
+        return name
+    return GAIT_NONE_SATURATED if _number(row.get(ACTUATOR_FRACTION_COLUMN)) == 0.0 else UNMEASURED_ACTUATOR
+
+
+def _side_name(label: str) -> str:
+    return _SIDE_NAMES.get(label, label)
+
+
+def _agree(entry: Mapping[str, Any]) -> int:
+    """A signed metric's episodes with its median's sign."""
+    median = entry["median"]
+    return int(entry["positive"] if median > 0.0 else entry["negative"] if median < 0.0 else 0)
+
+
+def _met(steps: Sequence[int], ok: Sequence[bool]) -> tuple[int, int | None]:
+    """How many evaluations meet a condition, and the first step of the unbroken run of them that ends at the last
+    evaluation (``None`` when the last does not meet it)."""
+    since: int | None = None
+    for step, good in zip(steps, ok):
+        since = (since if since is not None else int(step)) if good else None
+    return int(sum(bool(good) for good in ok)), since
+
+
+def _met_text(met: int, total: int, since: int | None, first: int) -> str:
+    if since is None:
+        return f"; met at {met} of {total} evaluations, not at the last"
+    if since == first:
+        return f"; met at every evaluation ({total})"
+    return f"; met at {met} of {total} evaluations, every one since {_fmt_steps(since)}"
+
+
+def _gait_flag(
+    flag: str, group: str, metric: str, side: str | None, value: float, rule: str, ok: Sequence[bool], steps: list[int]
+) -> dict[str, Any]:
+    bar = GAIT_LEDGER_BARS[flag]
+    fired = math.isfinite(value) and (value >= bar if flag == "VEER" else value > bar)
+    met, since = _met(steps, ok)
+    return {
+        "id": flag,
+        "group": group,
+        "metric": metric,
+        "side": side,
+        "value": value,
+        "threshold": bar,
+        "rule": rule,
+        "bar": "a choice, set on three seeds and three hand-built walks; not validated",
+        "fired": bool(fired),
+        "evaluations_met": met,
+        "met_since": since,
+        "text": "",
+    }
+
+
+def _gait_flags(block: dict[str, Any], steps: list[int]) -> list[dict[str, Any]]:
+    """The report-only flags the ledger's window supports, each with its value, bar and rule, fired or not."""
+    metrics, trend = block["metrics"], block["trend"]
+    flags: list[dict[str, Any]] = []
+
+    def per(key: str, name: str) -> list[float]:
+        return [float(v) for v in trend[key][name]]
+
+    yaw = metrics.get(GAIT_YAW_COLUMN)
+    if yaw is not None and math.isfinite(yaw["median"]) and yaw["median"] != 0.0:
+        sign = math.copysign(1.0, yaw["median"])
+        ok = [
+            math.isfinite(s) and s >= GAIT_LEDGER_BARS["VEER"] and m * sign > 0
+            for m, s in zip(per(GAIT_YAW_COLUMN, "median"), per(GAIT_YAW_COLUMN, "same_sign"))
+        ]
+        flags.append(
+            _gait_flag(
+                "VEER",
+                "DIRECTION",
+                GAIT_YAW_COLUMN,
+                "right" if sign < 0 else "left",
+                yaw["same_sign"],
+                f"same-sign share of {GAIT_YAW_COLUMN} over the window's episodes >= {GAIT_LEDGER_BARS['VEER']:g}; the "
+                "gait report's turn-rate bar (per 10 leg lengths, after the target) needs a leg length and the target "
+                "split, which these files do not hold",
+                ok,
+                steps,
+            )
+        )
+    for key, entry in metrics.items():
+        if entry.get("kind") != "ratio" or not key.endswith(_body.LEG_WORK_FIELD):
+            continue
+        median = entry["median"]
+        if not (math.isfinite(median) and median > 0.0):
+            continue
+        right, left = (column[: -len(_body.LEG_WORK_FIELD) - 1] for column in entry["columns"])
+        larger = 1.0 if median >= 1.0 else -1.0
+        ok = [
+            math.isfinite(m) and m > 0.0 and max(m, 1.0 / m) > GAIT_LEDGER_BARS["ASYMMETRY"] and (m - 1.0) * larger > 0
+            for m in per(key, "median")
+        ]
+        flags.append(
+            _gait_flag(
+                "ASYMMETRY",
+                "ASYMMETRY",
+                key,
+                right if larger > 0 else left,
+                entry["max_over_min"],
+                f"max/min of the median per-episode {right}/{left} {_body.LEG_WORK_FIELD} > "
+                f"{GAIT_LEDGER_BARS['ASYMMETRY']:g}: the gait report's POWER bar, set on each leg's mean absolute power, "
+                "which the absolute work over the same window is in proportion to",
+                ok,
+                steps,
+            )
+        )
+    roll = metrics.get(GAIT_ROLL_COLUMN)
+    if roll is not None and math.isfinite(roll["median"]):
+        sign = 1.0 if roll["median"] >= 0.0 else -1.0
+        ok = [
+            math.isfinite(m) and abs(m) > GAIT_LEDGER_BARS["LEAN"] and m * sign > 0
+            for m in per(GAIT_ROLL_COLUMN, "median")
+        ]
+        flags.append(
+            _gait_flag(
+                "LEAN",
+                "POSTURE",
+                GAIT_ROLL_COLUMN,
+                "right side down" if sign > 0 else "left side down",
+                abs(roll["median"]),
+                f"|median {GAIT_ROLL_COLUMN}| > {GAIT_LEDGER_BARS['LEAN']:g} deg",
+                ok,
+                steps,
+            )
+        )
+    stops = {
+        key: entry for key, entry in metrics.items() if key.endswith("_stop_share") and math.isfinite(entry["median"])
+    }
+    rule = (
+        f"median <joint>_stop_share > {GAIT_LEDGER_BARS['ON STOP']:g}: the gait report's ON STOP bar is on the share of "
+        "steps with any substep on the stop, which is never below this share of substeps, so a substep share over the "
+        "bar puts the step share over it too"
+    )
+    over = [key for key, entry in stops.items() if entry["median"] > GAIT_LEDGER_BARS["ON STOP"]]
+    for key in over or ([max(stops, key=lambda k: stops[k]["median"])] if stops else []):
+        ok = [math.isfinite(m) and m > GAIT_LEDGER_BARS["ON STOP"] for m in per(key, "median")]
+        flags.append(_gait_flag("ON STOP", "POSTURE", key, None, stops[key]["median"], rule, ok, steps))
+    return flags
+
+
+def _gait_lines(block: dict[str, Any], run: RunHistory) -> list[str]:
+    """The ledger's text lines: the window, each fired flag, the context numbers, what was not flagged or held."""
+    metrics, window = block["metrics"], block["window"]
+    steps = block["trend"]["timesteps"]
+    total, first = len(steps), int(steps[0])
+    survivors = (
+        f" [survivors only, {window['full_horizon_episodes']} of {window['episodes']}]"
+        if window["survivors_only"]
+        else ""
+    )
+    species = run.model_id.species if run.model_id is not None else None
+    other = "" if species == "tyrannosaurus_rex" else "; bar set on T. rex"
+    lines = [f"GAIT LEDGER ({GAIT_LEDGER_NOTE})"]
+    held = (
+        f"last {window['evaluations']} evaluations, {window['from_timesteps']:,} to {window['to_timesteps']:,} steps: "
+        f"{window['full_horizon_episodes']} full-horizon episodes of {window['episodes']}"
+    )
+    if window["evaluations"] < block["evaluations_requested"]:
+        held += f" (the run has {window['evaluations']} evaluations, fewer than {block['evaluations_requested']})"
+    if not window["full_horizon_known"]:
+        held += "; the ledger records no full horizon, so every episode is read"
+    lines.append(held + survivors)
+    quiet: list[str] = []
+    for flag in block["flags"]:
+        key, value = flag["metric"], flag["value"]
+        entry = metrics[key]
+        trend = _met_text(flag["evaluations_met"], total, flag["met_since"], first)
+        if flag["id"] == "VEER":
+            agree = entry["negative"] if flag["side"] == "right" else entry["positive"]
+            text = (
+                f"VEER: turns {flag['side']} in {agree} of {entry['n']} full-horizon episodes, median "
+                f"{abs(entry['median']):.1f} deg {flag['side']} ({key} {entry['median']:+.1f} deg, + = left; same-sign "
+                f"{value:.2f}; bar >= {flag['threshold']:g}, a choice{other}){trend}; {GAIT_YAW_CAVEAT}"
+            )
+            quiet_text = f"VEER (same-sign {value:.2f}; bar {flag['threshold']:g})"
+        elif flag["id"] == "ASYMMETRY":
+            right, left = (column[: -len(_body.LEG_WORK_FIELD) - 1] for column in entry["columns"])
+            larger, smaller = (right, left) if flag["side"] == right else (left, right)
+            count = entry["right_larger"] if larger == right else entry["left_larger"]
+            text = (
+                f"ASYMMETRY: {_side_name(larger)} leg does {value:.2f}x the {_side_name(smaller)} leg's absolute "
+                f"mechanical work, larger in {count} of {entry['n']} episodes ({right}/{left} "
+                f"{_body.LEG_WORK_FIELD} {entry['median']:.2f}; bar max/min > {flag['threshold']:g}, a choice{other})"
+                f"{trend}"
+            )
+            quiet_text = (
+                f"ASYMMETRY ({right}/{left} {_body.LEG_WORK_FIELD} {entry['median']:.2f}; bar {flag['threshold']:g})"
+            )
+        elif flag["id"] == "LEAN":
+            agree = entry["positive"] if entry["median"] > 0 else entry["negative"]
+            text = (
+                f"LEAN: pelvis rolled {value:.1f} deg, {flag['side']}, same sign in {agree} of {entry['n']} episodes "
+                f"({key} {entry['median']:+.2f} deg, + = right side down; bar |median| > {flag['threshold']:g} deg, a "
+                f"choice{other}){trend}"
+            )
+            quiet_text = f"LEAN ({key} {entry['median']:+.2f} deg; bar {flag['threshold']:g})"
+        else:
+            joint = key[: -len("_stop_share")]
+            text = (
+                f"ON STOP: {joint} on its joint stop on {100.0 * value:.1f}% of window substeps (median {key} "
+                f"{value:.3f}; bar {flag['threshold']:g} on the share of steps, a choice{other}){trend}"
+            )
+            quiet_text = f"ON STOP (largest {key} {value:.3f}; bar {flag['threshold']:g})"
+        flag["text"] = text + survivors
+        if flag["fired"]:
+            lines.append(flag["text"])
+        else:
+            quiet.append(quiet_text)
+    yaw = metrics.get(GAIT_YAW_COLUMN)
+    if yaw is not None and not any(flag["id"] == "VEER" and flag["fired"] for flag in block["flags"]):
+        lines.append(
+            f"context: {GAIT_YAW_COLUMN} median {yaw['median']:+.1f} deg (+ = left), right in {yaw['negative']} and "
+            f"left in {yaw['positive']} of {yaw['n']}; {GAIT_YAW_CAVEAT}{survivors}"
+        )
+    lateral = metrics.get(GAIT_LATERAL_COLUMN)
+    if lateral is not None:
+        lines.append(
+            f"context: {GAIT_LATERAL_COLUMN} median {lateral['median']:+.2f} m (+ = left), right in "
+            f"{lateral['negative']} and left in {lateral['positive']} of {lateral['n']}; no bar{survivors}"
+        )
+    offsets = [(key, entry) for key, entry in metrics.items() if _LR_COLUMN.match(key)]
+    if offsets:
+        parts = [
+            f"{key} {entry['median']:+.1f} (same sign in {_agree(entry)} of {entry['n']})" for key, entry in offsets
+        ]
+        lines.append(f"context: left minus right, deg (+ = left larger): {', '.join(parts)}; no bar{survivors}")
+    for key, entry in metrics.items():
+        if entry.get("kind") != "ratio":
+            continue
+        right_col, left_col = entry["columns"]
+        suffix = right_col.split("_", 1)[1]
+        right, left = right_col[: -len(suffix) - 1], left_col[: -len(suffix) - 1]
+        work = suffix == _body.LEG_WORK_FIELD
+        values = [
+            f"{entry[side]:,.0f} J" if work else f"{entry[side]:.3f} m" for side in ("right_median", "left_median")
+        ]
+        lines.append(
+            f"context: {right}/{left} {suffix} {entry['median']:.2f} (medians {right_col} {values[0]}, {left_col} "
+            f"{values[1]}; {right} larger in {entry['right_larger']} of {entry['n']})"
+            + ("; its bar is ASYMMETRY's" if work else "; no bar")
+            + survivors
+        )
+    roll = metrics.get(GAIT_ROLL_COLUMN)
+    if roll is not None:
+        lines.append(
+            f"context: {GAIT_ROLL_COLUMN} median {roll['median']:+.2f} deg (+ = right side down), min {roll['min']:+.2f}, "
+            f"max {roll['max']:+.2f}, of {roll['n']}{survivors}"
+        )
+    named = metrics.get(ACTUATOR_COLUMN)
+    fraction = metrics.get(ACTUATOR_FRACTION_COLUMN)
+    if named is not None or fraction is not None:
+        text = "context: "
+        if named is not None:
+            top = named.get("most_named")
+            text += (
+                f"{ACTUATOR_COLUMN} {top} in {named['most_named_episodes']} of {named['episodes']} episodes"
+                if top
+                else f"{ACTUATOR_COLUMN} names none of {named['episodes']} episodes"
+            )
+        if fraction is not None:
+            text += "; " if named is not None else ""
+            text += (
+                f"{ACTUATOR_FRACTION_COLUMN} median {fraction['median']:.3f}, max {fraction['max']:.3f} (the named "
+                f"actuator's share of window steps at |action| >= {SATURATION_ABS:g})"
+            )
+        bar = run.bars.get("max_actuator_saturation_fraction")
+        text += (
+            f"; no gait bar (the stage's screen bar max_actuator_saturation_fraction is {bar:g})"
+            if bar is not None and math.isfinite(bar)
+            else "; no bar"
+        )
+        lines.append(text + survivors)
+    head = metrics.get(GAIT_HEAD_RATE_COLUMN)
+    if head is not None:
+        lines.append(f"context: {GAIT_HEAD_RATE_COLUMN} median {head['median']:.1f} deg/s; no bar{survivors}")
+    if not block["flags_evaluated"]:
+        lines.append(f"Flags not evaluated: {block['flags_why']}")
+    elif quiet:
+        lines.append(f"Not flagged: {', '.join(quiet)}")
+    if block["absent"]:
+        lines.append("Absent: " + "; ".join(f"{key} ({why})" for key, why in block["absent"].items()))
+    lines.append(f"Not in these files: {GAIT_LEDGER_NOT_SHOWN} (a rolled gait panel measures them)")
+    return lines
+
+
+def gait_ledger(run: RunHistory, *, evaluations: int = GAIT_LEDGER_EVALUATIONS) -> dict[str, Any]:
+    """The run's gait ledger: the gait columns of ``eval_episodes.csv``, report only, as the JSON's ``gait_ledger``.
+
+    Read from the evaluations :func:`load_run_history` already reduced (``RunHistory.fh_rows``: each evaluation's
+    full-horizon episodes, the set every page reduces over): no other reader, no other horizon rule.  Over the last
+    *evaluations* evaluations, pooled, and per evaluation (``trend``), each metric of :func:`gait_ledger_specs`:
+    the signed window yaw (:data:`GAIT_YAW_COLUMN`, + left; measured from the settle step, so its magnitude
+    includes target steering and the line leads with its same-sign share), the lateral displacement, the
+    left-minus-right sagittal offsets, the right-over-left ratios of ``<foot>_leg_work_abs_j`` and ``<foot>_slip_m``
+    (per episode, then the median), the pelvis roll (+ right side down), ``saturated_actuator`` and
+    ``saturated_actuator_fraction``, each ``<joint>_stop_share`` and ``head_angular_rate_rms_dps``.  Report-only
+    flags (:data:`GAIT_LEDGER_BARS`, each bar a choice) on a locomotion stage only.  A column the ledger lacks is
+    listed under ``absent`` with why; a run with no full-horizon evaluation episode gets ``computed: false`` and
+    why.  Nothing reads this back.
+    """
+    requested = max(1, int(evaluations))
+    block: dict[str, Any] = {
+        "report_only": GAIT_LEDGER_NOTE,
+        "page": f"{GAIT_LEDGER_PAGE}.png",
+        "source": f"{EVAL_EPISODES_FILENAME}: each evaluation's full-horizon episodes, as every page reduces them",
+        "evaluations_requested": requested,
+        "stage": run.stage_name,
+        "computed": False,
+        "why": None,
+        "window": None,
+        "metrics": {},
+        "absent": {},
+        "flags_evaluated": False,
+        "flags_why": None,
+        "flags": [],
+        "lines": [],
+        "trend": {},
+        "caveats": {
+            GAIT_YAW_COLUMN: f"{GAIT_YAW_COLUMN} is the root's unwrapped yaw at the episode end minus its yaw "
+            f"at the settle step, + left (gait.body_telemetry): it includes any turn toward the task's target "
+            f"and the tail of the start-up, so {GAIT_YAW_CAVEAT}"
+        },
+        "not_shown": GAIT_LEDGER_NOT_SHOWN,
+    }
+    steps = [int(step) for step in run.steps.tolist()]
+    if not steps:
+        held = run.files.get(EVAL_EPISODES_FILENAME)
+        block["why"] = "no evaluation recorded" + ("" if held else f" (no {EVAL_EPISODES_FILENAME})")
+    elif len(run.fh_rows) != len(steps):
+        block["why"] = "the evaluations' full-horizon rows were not kept (a history not read by load_run_history)"
+    elif not any(run.fh_rows):
+        block["why"] = "no full-horizon evaluation episode: every evaluation episode ended early"
+    if block["why"]:
+        block["lines"] = [f"GAIT LEDGER ({GAIT_LEDGER_NOTE})", f"not computed: {block['why']}"]
+        return block
+    header = _ledger_header(run)
+    specs, absent = gait_ledger_specs(header)
+    used = min(requested, len(steps))
+    window_rows = [row for group in run.fh_rows[-used:] for row in group]
+    episodes = run.series("episodes")
+    known = "full_horizon" in header or "cause" in header
+    total = int(np.nansum(episodes[-used:])) if episodes is not None else len(window_rows)
+    block["window"] = {
+        "evaluations": used,
+        "from_timesteps": steps[-used],
+        "to_timesteps": steps[-1],
+        "evaluation_timesteps": steps[-used:],
+        "episodes": total,
+        "full_horizon_episodes": len(window_rows),
+        "full_horizon_known": known,
+        "survivors_only": bool(known and len(window_rows) < GAIT_SURVIVOR_SHARE * total),
+    }
+    trend: dict[str, Any] = {"timesteps": steps, "full_horizon_episodes": [len(group) for group in run.fh_rows]}
+    for spec in specs:
+        key, kind = spec["key"], spec["kind"]
+        if kind == "named":
+            counts = tally([{_saturated_label(row): 1} for row in window_rows])
+            ranked = [
+                label
+                for label in counts
+                if label not in (GAIT_NONE_SATURATED, UNMEASURED_ACTUATOR, NOT_RECORDED_ACTUATOR)
+            ]
+            block["metrics"][key] = {
+                "kind": kind,
+                "columns": spec["columns"],
+                "episodes": len(window_rows),
+                "named": counts,
+                "most_named": ranked[0] if ranked else None,
+                "most_named_episodes": counts[ranked[0]] if ranked else 0,
+            }
+            continue
+        stats = [_gait_stats(_gait_values(group, spec), kind) for group in run.fh_rows]
+        trend[key] = {name: [s[name] for s in stats] for name in stats[0] if name not in ("min", "max")}
+        pooled = _gait_stats(_gait_values(window_rows, spec), kind)
+        if not pooled["n"]:
+            unmeasured = any(column in run.body_unmeasured for column in spec["columns"])
+            absent[key] = (
+                f"nan on every episode ({BODY_UNMEASURED_REASON})"
+                if unmeasured
+                else f"no finite value over the window's {len(window_rows)} full-horizon episodes"
+            )
+            continue
+        pooled.update(kind=kind, unit=spec["unit"], sign=spec["sign"], columns=spec["columns"])
+        if kind == "ratio":
+            for side, column in zip(("right_median", "left_median"), spec["columns"]):
+                values = np.asarray([_number(row.get(column)) for row in window_rows], dtype=float)
+                pooled[side] = float(np.median(values[np.isfinite(values)])) if np.isfinite(values).any() else math.nan
+        block["metrics"][key] = pooled
+    block["absent"] = absent
+    block["trend"] = trend
+    if run.stage_name is not None and run.stage_name not in GAIT_LEDGER_STAGES:
+        block["flags_why"] = (
+            f"the bars were set on walking ({', '.join(GAIT_LEDGER_STAGES)}), and this stage is {run.stage_name!r}"
+        )
+    else:
+        block["flags_evaluated"] = True
+        block["flags_why"] = None if run.stage_name is not None else "the stage records no name; read as walking"
+        block["flags"] = _gait_flags(block, steps)
+    block["computed"] = True
+    block["lines"] = _gait_lines(block, run)
+    return block
+
+
+def ledger_of(run: RunHistory) -> dict[str, Any]:
+    """*run*'s gait ledger block: the one :func:`load_run_history` computed, else computed now at the default
+    window."""
+    if not run.gait_ledger:
+        run.gait_ledger = gait_ledger(run)
+    return run.gait_ledger
 
 
 # ---------------------------------------------------------------------------------------------- marks
@@ -2422,6 +3004,7 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "k3_panel": run.k3_panel,
             "exploration": exploration_summary(run),
             "obs_normalization": _normalization_record(run),
+            "gait_ledger": ledger_of(run),
             "body_unmeasured": run.body_unmeasured,
             "absent": run.absent,
             "errors": run.errors,
@@ -2524,6 +3107,20 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "(_prev) and the final pickle (_final), their max and median over the dimensions; the probe bank's "
             f"{NORMALIZATION_BANK_ROW} row's clipped normalized value's change between checkpoints; the probe's "
             "float32 rows against the pickles at shared steps",
+            "gait_ledger": "per run, from the same full-horizon episodes (no other reader or horizon rule), pooled "
+            f"over the last {GAIT_LEDGER_EVALUATIONS} evaluations (the block's window says how many were read) and "
+            f"per evaluation (trend): the median, min, max and n of {GAIT_YAW_COLUMN} (+ left; measured from the "
+            f"settle step, so {GAIT_YAW_CAVEAT}), {GAIT_LATERAL_COLUMN} (+ left), each "
+            "leg_q_<left>_minus_<right>_<joint>_deg, the right-over-left ratio of each leg pair's "
+            f"<foot>_{_body.LEG_WORK_FIELD} and <foot>_slip_m (per episode, then the median), {GAIT_ROLL_COLUMN} "
+            f"(+ right side down), {ACTUATOR_FRACTION_COLUMN}, each <joint>_stop_share and {GAIT_HEAD_RATE_COLUMN}; a "
+            "signed column's episodes on each side and its same-sign share (the episodes with the median's sign, over "
+            f"n); the episodes by the {ACTUATOR_COLUMN} each names. Report-only flags with the gait report's bars "
+            f"(VEER same-sign >= {GAIT_LEDGER_BARS['VEER']:g}, ASYMMETRY leg work max/min > "
+            f"{GAIT_LEDGER_BARS['ASYMMETRY']:g}, LEAN |roll| > {GAIT_LEDGER_BARS['LEAN']:g} deg, ON STOP "
+            f"<joint>_stop_share > {GAIT_LEDGER_BARS['ON STOP']:g}), each a choice set on three seeds and three "
+            f"hand-built walks, on a locomotion stage only; under {GAIT_SURVIVOR_SHARE:.0%} full-horizon episodes "
+            "every line says survivors only",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -3270,13 +3867,15 @@ NORMALIZATION_PAGE = "18_obs_normalization"
 
 def page_names() -> list[str]:
     """Every page's name in the order a report draws them: :data:`PAGES`, ``10_policy_std``, :data:`POSTURE_PAGES`,
-    :data:`BODY_PAGES`, ``17_exploration_k3``, ``18_obs_normalization`` and :data:`DYNAMICS_PAGES`."""
+    :data:`BODY_PAGES`, ``17_exploration_k3``, ``18_obs_normalization``, :data:`DYNAMICS_PAGES` and
+    ``20_gait_ledger``."""
     return (
         [spec.name for spec in PAGES]
         + ["10_policy_std"]
         + [spec.name for spec in (*POSTURE_PAGES, *BODY_PAGES)]
         + [EXPLORATION_PAGE, NORMALIZATION_PAGE]
         + [spec.name for spec in DYNAMICS_PAGES]
+        + [GAIT_LEDGER_PAGE]
     )
 
 
@@ -5460,6 +6059,347 @@ def _normalization_figure(context: _Context, *, title: str, dpi: int, width: flo
     return figure
 
 
+#: The gait page's line text: a fired flag in the status red, the context and notes in the secondary ink.
+_GAIT_TEXT_PT = 9.0
+_GAIT_LINE_IN = 0.165
+_GAIT_MEMBER_STYLES = ("-", "--", ":", "-.")
+
+
+def _gait_trend(ledger: Mapping[str, Any], key: str, name: str = "median") -> tuple[np.ndarray, np.ndarray] | None:
+    """``(steps in millions, values)`` of one per-evaluation series of a gait ledger, or ``None`` with no finite
+    value."""
+    trend = ledger.get("trend") or {}
+    entry = trend.get(key)
+    if not isinstance(entry, Mapping) or name not in entry:
+        return None
+    y = np.asarray(entry[name], dtype=float)
+    if not np.isfinite(y).any():
+        return None
+    return np.asarray(trend["timesteps"], dtype=float) / 1e6, y
+
+
+def _gait_keys(ledgers: Sequence[Mapping[str, Any]], test: Any) -> list[str]:
+    """The trend keys of any ledger that pass *test*, in the first ledger's order."""
+    keys: list[str] = []
+    for ledger in ledgers:
+        keys += [key for key in (ledger.get("trend") or {}) if key != "timesteps" and test(key) and key not in keys]
+    return keys
+
+
+def _gait_absent(ledgers: Sequence[Mapping[str, Any]], keys: Sequence[str]) -> str:
+    """Why a gait panel draws nothing: the first ledger's reason for one of *keys*, or its not-computed reason."""
+    for ledger in ledgers:
+        if not ledger.get("computed"):
+            return f"not computed: {ledger.get('why')}"
+        for key in keys:
+            if key in (ledger.get("absent") or {}):
+                return f"{key}: {ledger['absent'][key]}"
+    return f"not recorded in these files ({', '.join(keys)})"
+
+
+def _gait_ledger_figure(context: _Context, *, title: str, dpi: int, width: float) -> Any:
+    """Page ``20_gait_ledger``: the gait ledger's lines above its per-evaluation trends (report only)."""
+    ledgers = [ledger_of(run) for run in context.runs]
+    text_width = width - _LEFT_IN - 0.4
+    lines: list[tuple[str, str]] = []
+    for index, (run, ledger) in enumerate(zip(context.runs, ledgers)):
+        fired = {flag["text"] for flag in ledger.get("flags", []) if flag.get("fired")}
+        if context.comparison:
+            lines.append((f"{run.label}:", _INK))
+        for number, line in enumerate(ledger.get("lines") or []):
+            if context.comparison and number == 0 and index > 0:
+                continue  # the report-only header once
+            muted = line.startswith(("context", "Not ", "Absent", "Flags not", "GAIT LEDGER"))
+            colour = _CRITICAL if line in fired else _INK_2 if muted else _INK
+            for part in _wrap(line, text_width, _GAIT_TEXT_PT).split("\n"):
+                lines.append((part, colour))
+    requested = sorted({int(ledger.get("evaluations_requested") or GAIT_LEDGER_EVALUATIONS) for ledger in ledgers})
+    window = "/".join(str(k) for k in requested)
+    single = not context.comparison
+    yaw = GAIT_YAW_COLUMN
+    run_note = "" if single else " Runs: smoothed, each evaluation faint behind; the run's name at its line's end."
+    panels = [
+        _Panel(
+            None,
+            None,
+            f"The ledger's gait lines over the last {window} evaluations (red: a report-only flag; its bar is a choice)",
+            "",
+            _GAIT_LINE_IN * max(1, len(lines)) + 0.1,
+        ),
+        _Panel(
+            None,
+            None,
+            f"{yaw}: median over each evaluation's full-horizon episodes"
+            + ("; dots: each episode" if single else "")
+            + f"; shaded: the last {window} evaluations the lines pool; {GAIT_YAW_CAVEAT}."
+            + run_note,
+            "deg (+ left turn)",
+            _LINE_IN,
+        ),
+        _Panel(
+            None,
+            None,
+            f"Share of each evaluation's full-horizon episodes turning right ({yaw} < 0); dashed: VEER's bar, a choice "
+            f"(a same-sign share >= {GAIT_LEDGER_BARS['VEER']:g} either way). Never smoothed",
+            "share",
+            _COUNT_IN,
+        ),
+        _Panel(None, None, f"{GAIT_LATERAL_COLUMN}: median." + run_note, "m (+ left)", _MEMBER_IN),
+        _Panel(
+            None,
+            None,
+            "leg_q_<left>_minus_<right>_<joint>_deg: median"
+            + ("" if single else " (solid hip pitch, dashed knee, dotted ankle)")
+            + "."
+            + run_note,
+            "deg (+ left larger)",
+            _LINE_IN,
+        ),
+        _Panel(
+            None,
+            None,
+            f"Right over left, per episode then the median (log): <foot>_{_body.LEG_WORK_FIELD}"
+            + (" (solid)" if not single else "")
+            + " and <foot>_slip_m"
+            + (" (dashed)" if not single else "")
+            + f"; dashed grey: ASYMMETRY's bar on leg work, a choice (max/min > {GAIT_LEDGER_BARS['ASYMMETRY']:g})."
+            + run_note,
+            "right / left (log)",
+            _LINE_IN,
+        ),
+        _Panel(
+            None,
+            None,
+            f"{GAIT_ROLL_COLUMN}: median; dashed: LEAN's bar, a choice (|median| > {GAIT_LEDGER_BARS['LEAN']:g} deg)."
+            + run_note,
+            "deg (+ right side down)",
+            _MEMBER_IN,
+        ),
+        _Panel(
+            None,
+            None,
+            f"{ACTUATOR_FRACTION_COLUMN}: median (the named actuator's share of window steps at |action| >= "
+            f"{SATURATION_ABS:g}); the {ACTUATOR_COLUMN} most named over the window in the legend." + run_note,
+            "share",
+            _MEMBER_IN,
+        ),
+        _Panel(
+            None,
+            None,
+            "<joint>_stop_share: median"
+            + (", the joints above 0 at some evaluation" if single else ", each run's largest joint")
+            + f"; dashed: ON STOP's bar, a choice ({GAIT_LEDGER_BARS['ON STOP']:g}, set on the share of steps, which "
+            "is never below this share of substeps)." + run_note,
+            "share of substeps",
+            _MEMBER_IN,
+        ),
+        _Panel(None, None, f"{GAIT_HEAD_RATE_COLUMN}: median." + run_note, "deg/s", _MEMBER_IN),
+    ]
+    handles, labels = _run_handles(context) if context.comparison else _single_handles(context)
+    ncol = min(4, len(labels))
+    figure, axes = _new_figure(
+        panels,
+        width=width,
+        dpi=dpi,
+        title=f"{title}\nGait ledger: the gait columns of eval_episodes.csv over training (report only; no rollout)",
+        legend_rows=math.ceil(len(labels) / ncol),
+    )
+    for index, (axis, panel) in enumerate(zip(axes, panels)):
+        _style_axis(axis, panel, top=index == 1)
+        axis.set_xlim(0.0, context.xmax * 1.01 if context.xmax > 0 else 1.0)
+    text_axis = axes[0]
+    text_axis.set_axis_off()
+    height = panels[0].height
+    for number, (line, colour) in enumerate(lines):
+        top = 1.0 - (number * _GAIT_LINE_IN + 0.04) / height
+        text_axis.text(
+            0.0, top, line, transform=text_axis.transAxes, ha="left", va="top", fontsize=_GAIT_TEXT_PT, color=colour
+        )
+
+    def plot_line(
+        axis: Any, index: int, x: np.ndarray, y: np.ndarray, colour: str, style: Any, label: str | None
+    ) -> tuple:
+        if context.comparison:
+            axis.plot(x, y, color=colour, linewidth=0.8, alpha=0.22, label="_nolegend_")
+            y = _smooth(y, context.smooth)
+            axis.plot(x, y, color=colour, linestyle=style, linewidth=1.8, label="_nolegend_")
+        else:
+            axis.plot(
+                x,
+                y,
+                color=colour,
+                linestyle=style,
+                linewidth=1.7,
+                label=label,
+                marker="o" if x.size < 40 else None,
+                markersize=3,
+            )
+        finite = np.flatnonzero(np.isfinite(y))
+        return (
+            (float(x[finite[-1]]), float(y[finite[-1]]), context.runs[index].label, colour, style)
+            if finite.size
+            else ()
+        )
+
+    def shade(axis: Any) -> None:
+        for ledger in ledgers:
+            window_block = ledger.get("window") or {}
+            if window_block:
+                axis.axvspan(
+                    window_block["from_timesteps"] / 1e6,
+                    window_block["to_timesteps"] / 1e6,
+                    color=_GRID,
+                    alpha=0.55,
+                    linewidth=0,
+                    zorder=0,
+                )
+
+    def bar_lines(axis: Any, levels: Sequence[float], text: str) -> None:
+        for number, level in enumerate(levels):
+            axis.axhline(
+                level,
+                color=_INK_2,
+                linestyle="--",
+                linewidth=1.1,
+                zorder=1,
+                label=text if number == 0 else "_nolegend_",
+            )
+
+    def colour_of(index: int, member: int) -> tuple[str, Any]:
+        if context.comparison:
+            return context.colours[index], _GAIT_MEMBER_STYLES[member % len(_GAIT_MEMBER_STYLES)]
+        return _SERIES[member % len(_SERIES)], "-"
+
+    def draw(axis: Any, keys: Sequence[str], name: str = "median", member_styles: bool = False) -> list[tuple]:
+        ends: list[tuple] = []
+        for index, ledger in enumerate(ledgers):
+            labelled = False
+            for member, key in enumerate(keys):
+                series = _gait_trend(ledger, key, name)
+                if series is None:
+                    continue
+                colour, style = colour_of(index, member if (member_styles or single) else 0)
+                if not member_styles and not single:
+                    style = context.styles[index]
+                end = plot_line(axis, index, *series, colour, style, key if single else None)
+                if end and (single or not labelled):  # a comparison names each run once
+                    ends.append(end)
+                    labelled = True
+        return ends
+
+    drawn_axes = axes[1:]
+    yaw_axis, share_axis, lateral_axis, offset_axis, ratio_axis, roll_axis, sat_axis, stop_axis, head_axis = drawn_axes
+    results: list[tuple[Any, list[tuple], Sequence[str]]] = []
+    # The signed yaw: each episode's dots behind one run's median.
+    if single and ledgers[0].get("computed") and yaw in (ledgers[0].get("trend") or {}):
+        run = context.runs[0]
+        xs = [step / 1e6 for step, group in zip(run.steps.tolist(), run.fh_rows) for _ in group]
+        ys = [_number(row.get(yaw)) for group in run.fh_rows for row in group]
+        yaw_axis.scatter(xs, ys, s=5, color=_MUTED, alpha=0.5, linewidths=0, label="each episode", zorder=2)
+    results.append((yaw_axis, draw(yaw_axis, [yaw]), [yaw]))
+    # The share turning right, never smoothed.
+    ends: list[tuple] = []
+    for index, ledger in enumerate(ledgers):
+        negative = _gait_trend(ledger, yaw, "negative")
+        n = _gait_trend(ledger, yaw, "n")
+        if negative is None or n is None:
+            continue
+        with np.errstate(invalid="ignore", divide="ignore"):
+            share = np.where(n[1] > 0, negative[1] / np.where(n[1] > 0, n[1], 1.0), np.nan)
+        colour = context.colours[index] if context.comparison else _SERIES[1]
+        style = context.styles[index] if context.comparison else "-"
+        share_axis.plot(
+            negative[0],
+            share,
+            color=colour,
+            linestyle=style,
+            linewidth=1.7,
+            label="turning right" if single else "_nolegend_",
+            marker="o" if share.size < 40 else None,
+            markersize=3,
+        )
+        finite = np.flatnonzero(np.isfinite(share))
+        if finite.size:
+            ends.append(
+                (float(negative[0][finite[-1]]), float(share[finite[-1]]), context.runs[index].label, colour, style)
+            )
+    if ends:
+        bar_lines(share_axis, [GAIT_LEDGER_BARS["VEER"], 1.0 - GAIT_LEDGER_BARS["VEER"]], "VEER bar (a choice)")
+        share_axis.set_ylim(-0.04, 1.04)
+    results.append((share_axis, ends, [yaw]))
+    results.append((lateral_axis, draw(lateral_axis, [GAIT_LATERAL_COLUMN]), [GAIT_LATERAL_COLUMN]))
+    offsets = _gait_keys(ledgers, lambda key: _LR_COLUMN.match(key) is not None)
+    results.append(
+        (
+            offset_axis,
+            draw(offset_axis, offsets, member_styles=True),
+            offsets or ["leg_q_<left>_minus_<right>_<joint>_deg"],
+        )
+    )
+    ratios = _gait_keys(ledgers, lambda key: "_over_" in key)
+    ratio_ends = draw(ratio_axis, ratios, member_styles=True)
+    if ratio_ends:
+        ratio_axis.set_yscale("log")
+        ratio_axis.axhline(1.0, color=_AXIS, linewidth=0.9, zorder=1)
+        bar = GAIT_LEDGER_BARS["ASYMMETRY"]
+        bar_lines(ratio_axis, [bar, 1.0 / bar], "ASYMMETRY bar on leg work (a choice)")
+        _log_ticks_auto(ratio_axis)
+    results.append((ratio_axis, ratio_ends, ratios or [f"<right>_over_<left>_{_body.LEG_WORK_FIELD}"]))
+    roll_ends = draw(roll_axis, [GAIT_ROLL_COLUMN])
+    if roll_ends:
+        bar_lines(roll_axis, [GAIT_LEDGER_BARS["LEAN"], -GAIT_LEDGER_BARS["LEAN"]], "LEAN bar (a choice)")
+    results.append((roll_axis, roll_ends, [GAIT_ROLL_COLUMN]))
+    sat_ends = draw(sat_axis, [ACTUATOR_FRACTION_COLUMN])
+    if sat_ends and single:
+        named = (ledgers[0].get("metrics") or {}).get(ACTUATOR_COLUMN) or {}
+        if named.get("most_named"):
+            sat_axis.plot(
+                [],
+                [],
+                linestyle="none",
+                label=f"most named: {named['most_named']} ({named['most_named_episodes']} of {named['episodes']})",
+            )
+    results.append((sat_axis, sat_ends, [ACTUATOR_FRACTION_COLUMN]))
+    stops = _gait_keys(ledgers, lambda key: key.endswith("_stop_share"))
+    stop_ends: list[tuple] = []
+    if single:
+        moving = [key for key in stops if (s := _gait_trend(ledgers[0], key)) is not None and np.nanmax(s[1]) > 0.0]
+        stop_ends = draw(stop_axis, moving[: len(_SERIES)])
+        stop_note = f"0 at every evaluation ({len(stops)} <joint>_stop_share columns)" if stops and not moving else None
+    else:
+        for index, ledger in enumerate(ledgers):
+            series = [s for key in stops if (s := _gait_trend(ledger, key)) is not None]
+            if not series:
+                continue
+            x = series[0][0]
+            y = np.fmax.reduce(np.vstack([s[1] for s in series]), axis=0)  # nan where every joint is nan
+            end = plot_line(stop_axis, index, x, y, context.colours[index], context.styles[index], None)
+            if end:
+                stop_ends.append(end)
+        stop_note = None
+    if stop_ends:
+        bar_lines(stop_axis, [GAIT_LEDGER_BARS["ON STOP"]], "ON STOP bar (a choice)")
+    results.append((stop_axis, stop_ends, stops or ["<joint>_stop_share"]))
+    results.append((head_axis, draw(head_axis, [GAIT_HEAD_RATE_COLUMN]), [GAIT_HEAD_RATE_COLUMN]))
+    for number, (axis, axis_ends, keys) in enumerate(results):
+        if axis_ends:
+            shade(axis)
+            if axis not in (share_axis, ratio_axis, stop_axis, sat_axis, head_axis):
+                axis.axhline(0.0, color=_AXIS, linewidth=0.9, zorder=1)
+        elif axis is stop_axis and stop_note:
+            _absent(axis, stop_note)
+        else:
+            _absent(axis, _gait_absent(ledgers, keys))
+        _draw_marks(axis, context, top=number == 0)
+        if context.comparison:
+            _end_labels(axis, axis_ends)
+        else:
+            _legend(axis)
+    axes[-1].set_xlabel("training steps (millions)", fontsize=_TICK_PT + 0.5, color=_INK_2)
+    _figure_legend(figure, handles, labels, ncol)
+    return figure
+
+
 def _colours(runs: Sequence[RunHistory]) -> tuple[list[str], str]:
     """One colour per run: by seed when every run records one and no (seed, group) repeats, else by position."""
     seeds = [run.seed for run in runs]
@@ -5715,6 +6655,29 @@ def render_pages(
                 errors.append(f"{name}: {type(exc).__name__}: {exc}")
         for spec in DYNAMICS_PAGES:
             draw(spec)
+        try:
+            figure = _gait_ledger_figure(context, title=title, dpi=dpi, width=width)
+            caption = (
+                "From eval_episodes.csv's full-horizon episodes, as every page reduces them: no rollout and no other "
+                "reader. Above, the gait ledger's lines over the run's last evaluations (the JSON's gait_ledger block "
+                "holds every number, its trend and its rules): the window's signed yaw (window_yaw_change_signed_deg, "
+                "+ left), led by its same-sign share because it runs from the settle step to the episode end and so "
+                "includes steering toward the task's target and the tail of the start-up (magnitude includes target "
+                "steering); the lateral displacement (+ left); the left-minus-right hip pitch, knee and ankle; the "
+                "right-over-left ratios of <foot>_leg_work_abs_j and <foot>_slip_m, per episode then the median; the "
+                "pelvis roll (+ right side down); the actuator saturated_actuator names and saturated_actuator_fraction; "
+                "each <joint>_stop_share (a share of substeps); head_angular_rate_rms_dps. Below, each per evaluation "
+                "(its median). Report only: no gate, checkpoint choice or training input reads it. The flags (VEER, "
+                "ASYMMETRY, LEAN, ON STOP) use the gait "
+                "report's bars where these files hold the quantity, each a choice set on three seeds and three "
+                "hand-built walks, not validated, and are evaluated on a locomotion stage only. Not in these files: "
+                f"{GAIT_LEDGER_NOT_SHOWN}; a rolled gait panel measures them."
+                + (f" Runs: {colour_note}." if comparison else "")
+            )
+            pages.append(Page(GAIT_LEDGER_PAGE, "Gait ledger", caption, _png(figure, dpi)))
+        except Exception as exc:  # noqa: BLE001 - a failure costs this page only
+            logger.warning("training history page %s failed: %s", GAIT_LEDGER_PAGE, exc)
+            errors.append(f"{GAIT_LEDGER_PAGE}: {type(exc).__name__}: {exc}")
     return pages, errors
 
 
@@ -6087,6 +7050,15 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
     parts += [_k3_table(run) for run in runs if run.get("judge_k3")]
     parts += [_k3_panel_table(run) for run in runs]
     parts += [_normalization_table(run) for run in runs]
+    parts.append(
+        "<h2>Gait ledger</h2><p>From the same full-horizon episodes, over each run's last evaluations (page "
+        f"<code>{GAIT_LEDGER_PAGE}</code>; every number in the JSON's <code>gait_ledger</code>). Report only: no gate "
+        "reads it, and each flag's bar is a choice, not validated.</p>"
+    )
+    for run in runs:
+        ledger = run.get("gait_ledger") or {}
+        items = "".join(f"<li>{html.escape(str(line))}</li>" for line in ledger.get("lines") or [])
+        parts.append(f"<h3>{html.escape(str(run['label']))}</h3><ul>{items or '<li>none</li>'}</ul>")
     parts.append("<h2>What these pages do not show</h2><ul>")
     parts += [f"<li>{html.escape(note)}</li>" for note in document["not_recorded"]]
     parts.append("</ul><h2>How the numbers are reduced</h2><ul>")

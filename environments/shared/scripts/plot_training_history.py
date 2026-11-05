@@ -5,7 +5,9 @@ Reads each stage directory's ``eval_episodes.csv``, ``train_episodes.csv``,
 checkpoint zips (:mod:`environments.shared.reporting.training_history`) and
 writes, into ``--out``: one PNG per page, ``training_history.html``
 (self-contained: the pages embedded as base64) and ``training_history.json``
-(``mesozoic.training-history/v1``).  One stage directory gives that run's page
+(``mesozoic.training-history/v1``, with each run's report-only
+``gait_ledger`` block over its last ``--gait-evaluations`` evaluations, drawn
+on page ``20_gait_ledger``).  One stage directory gives that run's page
 set; several give the comparison set, one colour per seed (else per run) and
 one line style per ``--groups`` value.  Labels must be distinct.  On a
 comparison, a run that records no CoP band is counted against the edges the
@@ -116,6 +118,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--no-std", action="store_true", help="skip the per-actuator std (no torch import)")
     parser.add_argument(
+        "--gait-evaluations",
+        type=int,
+        default=None,
+        metavar="K",
+        help="the gait ledger's window: the last K evaluations its lines pool (default "
+        "training_history.GAIT_LEDGER_EVALUATIONS, 6)",
+    )
+    parser.add_argument(
         "--judged",
         nargs="+",
         default=None,
@@ -131,6 +141,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error(f"{name} needs one value per STAGE_DIR ({len(stage_dirs)}), got {len(values)}")
     if args.labels is not None and len(set(args.labels)) != len(args.labels):
         parser.error(f"--labels must be distinct, got {args.labels}")
+    if args.gait_evaluations is not None and args.gait_evaluations < 1:
+        parser.error(f"--gait-evaluations must be at least 1, got {args.gait_evaluations}")
     reason = refusal(args.out, stage_dirs)
     if reason is not None:
         print(reason, file=sys.stderr)
@@ -152,6 +164,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             group=args.groups[i] if args.groups else None,
             read_std=not args.no_std,
             judged=None if not args.judged or args.judged[i] == "-" else Path(args.judged[i]),
+            gait_evaluations=args.gait_evaluations or training_history.GAIT_LEDGER_EVALUATIONS,
         )
         for i, stage in enumerate(stage_dirs)
     ]
