@@ -5,12 +5,15 @@ stage 2) and feeds a "point straight" command through the reserved command input
 check of 2026-11-05 measured that config alone cannot do it; these tests pin the pilot-only edits that let it:
 
 - (1) ``BaseDinoEnv.__init__`` builds the ``DirectionCommandConfig`` from a TOML ``command_config`` table (a mapping).
+- (2) ``task_fingerprint.derive_stage_task_fingerprint`` derives a live stage's command manifest from that table when
+  no manifest is passed, so ``train()``'s ``stage_task_fingerprint(stage_config=...)`` and the digest harness hash it.
 
 Nothing here trains.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import tomllib
 from dataclasses import asdict, fields
@@ -24,6 +27,13 @@ from environments.compsognathus_longipes.anatomical.env import CompsognathusLong
 from environments.shared.config import load_stage_config
 from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController, wrap_angle
 from environments.shared.model_id import ModelId
+from environments.shared.plant_contract import current_plant_identity
+from environments.shared.task_fingerprint import (
+    TaskFingerprintError,
+    compute_task_fingerprint,
+    derive_stage_task_fingerprint,
+    stage_task_fingerprint,
+)
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
@@ -162,3 +172,127 @@ def test_the_straight_table_names_real_fields_and_holds_the_heading():
             assert state.desired_heading == 0.25 and state.desired_speed == 1.5 and state.heading_active
         assert len(controller.events) > 1, "the switches fired"
         assert {(event["desired_heading"], event["desired_speed"]) for event in controller.events} == {(0.25, 1.5)}
+
+
+# ======================================================================================== (2) the derived command section
+def _command_free_locomotion() -> dict[str, Any]:
+    """The committed locomotion [env] without its command keys (the pilot-3 [env] until pilot 4's TOML sets them)."""
+    env_kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"])
+    return {key: value for key, value in env_kwargs.items() if key not in ("command_mode", "command_config")}
+
+
+def _live(table: dict[str, Any], mode: str = "heading") -> dict[str, Any]:
+    return {**_command_free_locomotion(), "command_mode": mode, "command_config": dict(table)}
+
+
+def test_a_live_toml_table_is_hashed_with_the_manifest_its_env_reports():
+    """No manifest passed: the command section is derived from the table, and it is the one the env built from the
+    same [env] reports; the fingerprint equals the one hashed with that manifest passed explicitly."""
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    env_kwargs = _live(STRAIGHT_TABLE)
+    env = TyrannosaurusRexAnatomicalEnv(**env_kwargs)
+    try:
+        reported = env.command_manifest()
+    finally:
+        env.close()
+    assert reported == DirectionCommandController(DirectionCommandConfig(**STRAIGHT_TABLE)).manifest()
+    derived = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=env_kwargs, plant_identity=identity)
+    passed = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, "locomotion", env_kwargs=env_kwargs, plant_identity=identity, command_manifest=reported
+    )
+    assert derived == passed
+    assert derived["command"] == json.loads(json.dumps(reported))
+    assert derived["env"]["command_mode"] == "heading" and derived["env"]["command_config"] == STRAIGHT_TABLE
+    command_free = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, "locomotion", env_kwargs=_command_free_locomotion(), plant_identity=identity
+    )
+    assert "command" not in command_free and derived["task_sha256"] != command_free["task_sha256"]
+    low_level = derive_stage_task_fingerprint(
+        model_id=TYRANNOSAURUS_REX,
+        stage=2,
+        backend="stable-baselines3",
+        env_kwargs=env_kwargs,
+        plant_identity=identity,
+    )
+    assert low_level == derived
+
+
+def test_train_s_call_hashes_a_live_stage_toml(tmp_path):
+    """train() derives the task as stage_task_fingerprint(model_id, stage, stage_config=config): a stage TOML whose
+    [env] carries the command table, read by load_stage_config, is hashed (it was refused at 31d02e42)."""
+    path = tmp_path / "locomotion.toml"
+    lines = ["[env]", 'command_mode = "heading"', "[env.command_config]"]
+    lines += [f"{key} = {'true' if value is True else repr(value)}" for key, value in STRAIGHT_TABLE.items()]
+    path.write_text("\n".join(lines) + "\n")
+    config = load_stage_config(TYRANNOSAURUS_REX, "locomotion", config_path=str(path))
+    identity = current_plant_identity(TYRANNOSAURUS_REX)
+    fingerprint = stage_task_fingerprint(TYRANNOSAURUS_REX, 2, stage_config=config, plant_identity=identity)
+    assert fingerprint["command"]["config"] == asdict(DirectionCommandConfig(**STRAIGHT_TABLE))
+    assert fingerprint["env"]["command_config"] == STRAIGHT_TABLE
+
+
+def test_the_env_section_hashes_the_table_as_written():
+    """The same command written as two different tables is two tasks: the command sections agree (the dataclass,
+    field by field) while the env sections, and so the digests, differ.  Pilot 4's table is written once."""
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    one_key = {"turn_increment_max": 0.0}
+    spelled_out = {
+        field.name: getattr(DirectionCommandConfig(turn_increment_max=0.0), field.name)
+        for field in fields(DirectionCommandConfig)
+        if field.name != "speed_range"  # TOML has no null
+    }
+    assert DirectionCommandConfig(**one_key) == DirectionCommandConfig(**spelled_out)
+    a = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live(one_key), plant_identity=identity)
+    b = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live(spelled_out), plant_identity=identity)
+    assert a["command"] == b["command"]
+    assert a["env"] != b["env"] and a["task_sha256"] != b["task_sha256"]
+    # Key order within the table does not matter (the payload is hashed with sorted keys).
+    reordered = dict(reversed(list(spelled_out.items())))
+    c = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live(reordered), plant_identity=identity)
+    assert c["task_sha256"] == b["task_sha256"]
+
+
+def test_a_passed_manifest_is_hashed_verbatim_and_nothing_is_derived():
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    manifest = DirectionCommandController(DirectionCommandConfig(**STRAIGHT_TABLE)).manifest()
+    bumped = {**manifest, "adapter": manifest["adapter"] + "+next"}
+    passed = stage_task_fingerprint(
+        TYRANNOSAURUS_REX,
+        "locomotion",
+        env_kwargs=_live(STRAIGHT_TABLE),
+        plant_identity=identity,
+        command_manifest=bumped,
+    )
+    assert passed["command"]["adapter"] == bumped["adapter"]
+
+
+def test_what_the_derivation_leaves_refused_or_carved_out():
+    """A live mode with the dataclass object or with no command_config still needs the manifest passed (refused
+    without it); a table under command_mode "none" is carved out as before, so the command-free digest holds; and
+    the low-level compute_task_fingerprint derives nothing."""
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    for env_kwargs in (
+        {**_command_free_locomotion(), "command_mode": "heading"},
+        {**_command_free_locomotion(), "command_mode": "heading", "command_config": DirectionCommandConfig()},
+    ):
+        with pytest.raises(TaskFingerprintError, match="exactly when command_mode is not 'none'"):
+            stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=env_kwargs, plant_identity=identity)
+    carved = stage_task_fingerprint(
+        TYRANNOSAURUS_REX,
+        "locomotion",
+        env_kwargs={**_command_free_locomotion(), "command_mode": "none", "command_config": dict(STRAIGHT_TABLE)},
+        plant_identity=identity,
+    )
+    command_free = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, "locomotion", env_kwargs=_command_free_locomotion(), plant_identity=identity
+    )
+    assert carved == command_free
+    with pytest.raises(TaskFingerprintError, match="exactly when command_mode is not 'none'"):
+        compute_task_fingerprint(
+            model_id=TYRANNOSAURUS_REX,
+            stage=2,
+            backend="stable-baselines3",
+            env_kwargs=_live(STRAIGHT_TABLE),
+            plant_identity=identity,
+            perturbation_manifest=None,
+        )

@@ -538,9 +538,31 @@ def derive_stage_task_fingerprint(
 
     ``command_manifest`` is forwarded verbatim (``None`` for every
     ``command_mode = "none"`` stage; BEHAVIOR_RECIPES_PLAN §4.6).
+
+    Walking pilot 4 (pilot-only, never merged): when none is passed and the
+    EFFECTIVE ``[env]`` is live with a ``command_config`` TABLE (a mapping,
+    the form a stage TOML gives), the manifest is derived from that table,
+    as the env built from the same ``[env]`` reports it
+    (``BaseDinoEnv.command_manifest``), so ``train()``'s
+    ``stage_task_fingerprint(stage_config=...)`` and the digest harness can
+    hash a live stage TOML.  A live mode with a ``DirectionCommandConfig``
+    object, or with no ``command_config``, still needs the manifest passed
+    and is refused without it (:func:`compute_task_fingerprint`).  The env
+    section hashes the table as written, so the same command written as a
+    different table is a different task.
     """
     manifest: dict[str, Any] | None = None
     effective_kwargs = _effective_env_kwargs(model_id, env_kwargs)
+    command_table = effective_kwargs.get("command_config")
+    if (
+        command_manifest is None
+        and isinstance(command_table, Mapping)
+        and effective_kwargs.get("command_mode", COMMAND_MODE_NONE) != COMMAND_MODE_NONE
+    ):
+        # WALKING PILOT 4 (pilot-only, never merged): the live locomotion stage's [env] command_config table.
+        from .direction_commands import DirectionCommandConfig, DirectionCommandController
+
+        command_manifest = DirectionCommandController(DirectionCommandConfig(**command_table)).manifest()
     multiple = float(effective_kwargs.get("perturbation_capture_velocity_multiple", 0.0) or 0.0)
     if multiple > 0.0:
         if plant_identity is None or not plant_identity.get("model_path"):
