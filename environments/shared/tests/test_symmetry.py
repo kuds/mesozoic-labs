@@ -461,6 +461,11 @@ _SCREENED_OPTIONS = {
 _STAGGER_OPTIONS = {**_SCREENED_OPTIONS, "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045}
 #: The screened options plus the per-foot CoP band (the stance5 band screen, decision D-D40).
 _BAND_OPTIONS = {**_SCREENED_OPTIONS, "stance_cop_band_weight": 0.30}
+#: All six opt-in stance options as the committed T. rex stance sets them (the r10 LTSB recipe, the stance-landing
+#: decision of 2026-11-06).
+_LTSB_OPTIONS = {**_STAGGER_OPTIONS, "stance_cop_band_weight": 0.30}
+#: The opt-in stance options; "options off" is the committed stance without any of them.
+_OPTION_KEYS = frozenset(_LTSB_OPTIONS)
 #: The band with its load guard's ramp widened to 0.40 -> 0.49, so a foot sits on the ramp on most steps of every
 #: rollout here (measured: 145-233 of 260 per seed and action set; the default 0.25 -> 0.35 ramp, 0-22).
 _BAND_RAMP_OPTIONS = {
@@ -473,22 +478,32 @@ _BAND_RAMP_OPTIONS = {
 @pytest.mark.parametrize(
     ("options", "steps"),
     # On, the rollout runs past stance_width_settle_steps (200) so the lean and stagger terms' gates open.
-    [({}, 40), (_SCREENED_OPTIONS, 260), (_STAGGER_OPTIONS, 260), (_BAND_OPTIONS, 260), (_BAND_RAMP_OPTIONS, 260)],
+    [
+        ({}, 40),
+        (_SCREENED_OPTIONS, 260),
+        (_STAGGER_OPTIONS, 260),
+        (_BAND_OPTIONS, 260),
+        (_BAND_RAMP_OPTIONS, 260),
+        (_LTSB_OPTIONS, 260),
+    ],
     ids=[
         "options off",
         "screened options on",
         "screened options and stagger on",
         "screened options and CoP band on",
         "screened options and CoP band on its load ramp",
+        "the committed LTSB stance",
     ],
 )
 @pytest.mark.parametrize("seed", [3047, 3059])
 def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror_map, seed, options, steps):
     """Zero action (the statue) and small smooth actions from a mirrored reset: the mirrored episode is the
     mirror image of the source, its observation to float32 rounding, its reward and info to 1e-9, with the stance
-    options off (as every stage has them), with the lean term and the settled leg target on, and with the stagger
-    penalty on as well; and with the CoP band on instead, its load guard's ramp at its defaults and widened."""
-    kwargs = {**stance_kwargs, **options}
+    options off (the committed stance without its six opt-in options, as every other stage has them), with the
+    lean term and the settled leg target on, and with the stagger penalty on as well; with the CoP band on instead,
+    its load guard's ramp at its defaults and widened; and with all six on, as the committed stance has them."""
+    off = {key: value for key, value in stance_kwargs.items() if key not in _OPTION_KEYS}
+    kwargs = {**off, **options}
     stagger_live = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_stagger_weight", 0) > 0
     band_on = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_cop_band_weight", 0) > 0
     for actions in ([np.zeros(15)] * steps, _smooth_actions(steps, seed, 0.03)):
@@ -505,6 +520,12 @@ def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror
             assert not any(row["band_paid"] for row in rows[1:])
         if options is _BAND_RAMP_OPTIONS:  # the guard factor read strictly between 0 and 1, mirrored to 1e-9
             assert any(row["band_ramped"] for row in rows[1:])
+
+
+def test_the_ltsb_case_is_the_committed_stance(stance_kwargs):
+    """The "committed LTSB stance" case above sets exactly the committed stance's opt-in options (the stance-landing
+    decision of 2026-11-06), and the "options off" case strips exactly those."""
+    assert {key: stance_kwargs[key] for key in _OPTION_KEYS if key in stance_kwargs} == _LTSB_OPTIONS
 
 
 def test_termination_is_mirror_invariant(stance_kwargs, mirror_map):
