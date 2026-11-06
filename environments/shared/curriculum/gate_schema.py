@@ -345,6 +345,22 @@ _CADENCE_KEYS = frozenset({"eval_freq", "eval_episodes", "checkpoint_freq"})
 WARM_START_LOG_STD_KEY = "warm_start_log_std"
 _WARM_START_KEYS = frozenset({WARM_START_LOG_STD_KEY})
 
+#: Walking pilot 4 (pilot-only, never merged; the maintainer's decision (25)
+#: of 2026-11-05): ``initialize_from_own_checkpoint = true`` lets a NON-ROOT
+#: node accept, under ``initialize_next_stage``, an earlier checkpoint of
+#: ITSELF beside its declared ``warm_start_from`` parent
+#: (``task_fingerprint.validate_declared_parent``), as a root does (decision
+#: D-A3): the T. rex locomotion stage re-initialised from walking pilot 3's
+#: command-free locomotion checkpoints into its live-command task.  Absent or
+#: false, the edge rule is unchanged; only the stage that declares it is
+#: affected, and only the T. rex locomotion config declares it.  It permits a
+#: load and shapes nothing, so it enters no gate, recipe or task digest (its
+#: name avoids ``config.SHAPING_KEY_PREFIXES``); stage_config.json records it
+#: with the rest of ``[curriculum]``.  :func:`declared_initialize_from_own_checkpoint`
+#: is its one reader.
+INITIALIZE_FROM_OWN_CHECKPOINT_KEY = "initialize_from_own_checkpoint"
+_OWN_CHECKPOINT_KEYS = frozenset({INITIALIZE_FROM_OWN_CHECKPOINT_KEY})
+
 #: Keys that record measurement provenance rather than configure anything.
 #: ``statue_constants_physics_revision`` pins the plant revision the stage's
 #: statue-derived constants (``min_avg_reward``,
@@ -556,6 +572,24 @@ def declared_warm_start_log_std(curriculum: Mapping[str, Any], *, stage: int | s
     return float(value)
 
 
+def declared_initialize_from_own_checkpoint(curriculum: Mapping[str, Any], *, stage: int | str = "?") -> bool:
+    """Whether a ``[curriculum]`` block declares ``initialize_from_own_checkpoint = true`` (walking pilot 4).
+
+    The one reader the schema check and the trainer share.  ``False`` when the
+    key is absent; a present value must be a bool (TOML ``true`` / ``false``),
+    anything else is a :class:`GateSchemaError`, never a silent default.
+    """
+    if INITIALIZE_FROM_OWN_CHECKPOINT_KEY not in curriculum:
+        return False
+    value = curriculum[INITIALIZE_FROM_OWN_CHECKPOINT_KEY]
+    if not isinstance(value, bool):
+        raise GateSchemaError(
+            f"{_describe(stage)}: {INITIALIZE_FROM_OWN_CHECKPOINT_KEY} must be true or false (whether this node also "
+            f"accepts an earlier checkpoint of itself under initialize_next_stage), not {value!r}"
+        )
+    return value
+
+
 def validate_gate_config(
     stage: int | str,
     curriculum_kwargs: Mapping[str, Any],
@@ -597,6 +631,7 @@ def validate_gate_config(
         | _RETENTION_KEYS
         | _CADENCE_KEYS
         | _WARM_START_KEYS
+        | _OWN_CHECKPOINT_KEYS
         | _DIAGNOSTIC_KEYS
         | _PROVENANCE_KEYS
         | _PUBLICATION_KEYS
@@ -617,6 +652,8 @@ def validate_gate_config(
     declared_certification_seeds(curriculum_kwargs, stage=stage)
     # Likewise the warm-start key: never a threshold, validated for every kind.
     declared_warm_start_log_std(curriculum_kwargs, stage=stage)
+    # And walking pilot 4's own-checkpoint key.
+    declared_initialize_from_own_checkpoint(curriculum_kwargs, stage=stage)
 
     declared_kind = curriculum_kwargs.get("gate_kind")
     declared_version = curriculum_kwargs.get("gate_schema_version")

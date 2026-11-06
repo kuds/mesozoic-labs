@@ -443,6 +443,7 @@ def validate_declared_parent(
     model_id: ModelId,
     child_stage: "int | str",
     artifact: str,
+    accept_own_checkpoint: bool = False,
 ) -> None:
     """Refuse an ``initialize_next_stage`` load that does not cross the node's declared edge.
 
@@ -462,11 +463,21 @@ def validate_declared_parent(
     same-stage resume would refuse on the hash) and refuses any other node
     (decision D-A3).
 
+    *accept_own_checkpoint* (walking pilot 4, pilot-only, never merged; the
+    maintainer's decision (25) of 2026-11-05) lets a NON-root also accept an
+    earlier checkpoint of ITSELF, beside its declared parent, exactly as a
+    root does.  ``train()`` passes it from the child stage's ``[curriculum]
+    initialize_from_own_checkpoint`` (only the T. rex locomotion config
+    declares it), so every other node keeps the rule above; it changes
+    nothing for a root.
+
     A checkpoint with no fingerprint at all (*recorded* ``None``: minted before
     2026-08-15) cannot be checked; it warns and continues — the same dated
     valve :func:`validate_recorded_task` applies, kept so the historical
     checkpoints stay loadable until fingerprinted ones are the norm.
     """
+    if not isinstance(accept_own_checkpoint, bool):
+        raise TypeError(f"accept_own_checkpoint must be a bool, not {accept_own_checkpoint!r}")
     if recorded is None:
         _logger.warning(
             "%s carries no task fingerprint (minted before 2026-08-15); its recorded parent stage "
@@ -489,8 +500,10 @@ def validate_declared_parent(
         )
     recorded_stage = recorded.get("stage")
     expected: "int | str" = child_stage if declared_parent is None else declared_parent
+    # Walking pilot 4: the node itself joins its declared parent only when the child stage opts in.
+    accepted = (expected, child_stage) if accept_own_checkpoint else (expected,)
     matches = (
-        not isinstance(recorded_stage, bool) and isinstance(recorded_stage, (int, str)) and recorded_stage == expected
+        not isinstance(recorded_stage, bool) and isinstance(recorded_stage, (int, str)) and recorded_stage in accepted
     )
     if matches:
         return
@@ -503,10 +516,11 @@ def validate_declared_parent(
             "checkpoint of itself. Declare the edge in the model's stage manifest if this node "
             "should warm-start from that stage."
         )
+    also_itself = " (or, by its initialize_from_own_checkpoint, from itself)" if accept_own_checkpoint else ""
     raise TaskFingerprintError(
         f"{artifact} records {model_id} stage {recorded_desc}, but stage {child_desc} declares "
         f"warm_start_from = {_describe_stage(model_id, declared_parent)}: an initialize_next_stage "
-        "load must come from the node's declared parent. Load that parent's checkpoint, or change "
+        f"load must come from the node's declared parent{also_itself}. Load that parent's checkpoint, or change "
         "the edge in the model's stage manifest."
     )
 

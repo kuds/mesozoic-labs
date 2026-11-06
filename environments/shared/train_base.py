@@ -55,7 +55,12 @@ from .constants import (
 from .critic_phase import CHECKPOINT_ATTRIBUTE as CRITIC_PHASE_ATTRIBUTE
 from .critic_phase import CriticPhaseError, CriticPhaseSpec, pop_critic_phase, read_critic_phase
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
-from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, WARM_START_LOG_STD_KEY, declared_warm_start_log_std
+from .curriculum.gate_schema import (
+    FLOOR_TRUTH_STANCE_GATE_KINDS,
+    WARM_START_LOG_STD_KEY,
+    declared_initialize_from_own_checkpoint,
+    declared_warm_start_log_std,
+)
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
@@ -2014,6 +2019,13 @@ def train(
     checkpoint of itself), refused before any directory exists; a
     checkpoint with no fingerprint warns through the dated valve
     (:func:`~environments.shared.task_fingerprint.validate_declared_parent`).
+    A stage whose ``[curriculum]`` declares ``initialize_from_own_checkpoint
+    = true`` (walking pilot 4's T. rex locomotion only) also accepts an
+    earlier checkpoint of itself.  To everything after the check such a load
+    is an edge crossing (:func:`_load_crosses_edge`): the stage-entry shaping
+    and ``warm_start_log_std`` apply when declared, and the
+    ``initialize_next_stage`` load prepares a command-blind parent's command
+    columns as it does for any parent.
 
     A ``resume_same_stage`` load is treated as a **continuation** of the
     interrupted run: the SB3 step counter keeps counting from the
@@ -2102,6 +2114,11 @@ def train(
             model_id=model_id,
             child_stage=entry.reference,
             artifact=str(load_path),
+            # Walking pilot 4 (pilot-only, never merged): the node's own earlier checkpoint too, only when THIS
+            # stage's [curriculum] declares initialize_from_own_checkpoint (only T. rex locomotion does).
+            accept_own_checkpoint=declared_initialize_from_own_checkpoint(
+                config.get("curriculum_kwargs", {}), stage=stage
+            ),
         )
         # The probe rolled the stage's handoff, the pair select_handoff_checkpoint picks in
         # <stage_dir>/models/; it describes no other checkpoint there.

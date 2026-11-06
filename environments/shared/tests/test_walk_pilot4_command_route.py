@@ -7,6 +7,9 @@ check of 2026-11-05 measured that config alone cannot do it; these tests pin the
 - (1) ``BaseDinoEnv.__init__`` builds the ``DirectionCommandConfig`` from a TOML ``command_config`` table (a mapping).
 - (2) ``task_fingerprint.derive_stage_task_fingerprint`` derives a live stage's command manifest from that table when
   no manifest is passed, so ``train()``'s ``stage_task_fingerprint(stage_config=...)`` and the digest harness hash it.
+- (3) ``task_fingerprint.validate_declared_parent`` accepts a non-root node's own earlier checkpoint only when the
+  child stage's ``[curriculum]`` declares ``initialize_from_own_checkpoint = true`` (decision (25): this one stage);
+  every other node of every model keeps the edge rule, which the tests here walk exhaustively.
 
 Nothing here trains.
 """
@@ -296,3 +299,192 @@ def test_what_the_derivation_leaves_refused_or_carved_out():
             plant_identity=identity,
             perturbation_manifest=None,
         )
+
+
+# ======================================================================================== (3) the node's own checkpoint
+#: The (model, stage id) pairs whose committed [curriculum] declares initialize_from_own_checkpoint.
+DECLARING_OWN_CHECKPOINT: set[tuple[ModelId, str]] = set()
+
+
+def test_only_the_pilot_stage_declares_the_own_checkpoint_key():
+    """Decision (25): the self-load is limited to one stage; no other node of any model declares the key."""
+    from environments.shared.config import load_all_stages
+    from environments.shared.curriculum.gate_schema import declared_initialize_from_own_checkpoint
+    from environments.shared.species_names import model_ids
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    declaring = set()
+    for model_id in model_ids():
+        configs = load_all_stages(model_id)
+        for entry in load_stage_manifest(model_id).stages:
+            curriculum = configs[entry.reference]["curriculum_kwargs"]
+            if "initialize_from_own_checkpoint" in curriculum:
+                assert declared_initialize_from_own_checkpoint(curriculum, stage=entry.id) is True
+                declaring.add((model_id, entry.id))
+    assert declaring == DECLARING_OWN_CHECKPOINT
+    for path in sorted((REPOSITORY / "configs").rglob("*.toml")):
+        if "initialize_from_own_checkpoint" in path.read_text(encoding="utf-8"):
+            assert path.relative_to(REPOSITORY).as_posix() == "configs/tyrannosaurus_rex/anatomical/locomotion.toml"
+
+
+def _every_edge_case() -> list[tuple[ModelId, Any, Any, list[Any]]]:
+    """Per model and node: (model, node reference, declared parent reference or None, every node's reference)."""
+    from environments.shared.species_names import model_ids
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    cases = []
+    for model_id in model_ids():
+        manifest = load_stage_manifest(model_id)
+        references = [entry.reference for entry in manifest.stages]
+        for entry in manifest.stages:
+            parent = manifest.parent_of(entry.id)
+            cases.append((model_id, entry.reference, parent.reference if parent is not None else None, references))
+    return cases
+
+
+def _accepted(model_id: ModelId, child: Any, parent: Any, recorded: dict[str, Any] | None, **flag: Any) -> bool:
+    from environments.shared.task_fingerprint import validate_declared_parent
+
+    try:
+        validate_declared_parent(
+            recorded, declared_parent=parent, model_id=model_id, child_stage=child, artifact="x", **flag
+        )
+    except TaskFingerprintError:
+        return False
+    return True
+
+
+def test_without_the_key_every_node_of_every_model_keeps_the_edge_rule():
+    """The default (the keyword left out, as every caller but train() leaves it, and False): a non-root accepts
+    exactly its declared parent and a root exactly itself, against a record of every node of its own model; another
+    model's record, a bool stage and a record without the model's fields are refused."""
+    from environments.shared.species_names import model_ids
+
+    cases = _every_edge_case()
+    others = list(model_ids())
+    assert {case[0] for case in cases} == set(others) and any(parent is not None for _, _, parent, _ in cases)
+    for model_id, child, parent, references in cases:
+        for flag in ({}, {"accept_own_checkpoint": False}):
+            for reference in references:
+                expected = reference == (child if parent is None else parent)
+                record = {**model_id.record(), "stage": reference}
+                assert _accepted(model_id, child, parent, record, **flag) is expected, (model_id, child, reference)
+            for other in others:
+                if other != model_id:
+                    assert not _accepted(model_id, child, parent, {**other.record(), "stage": child}, **flag)
+            assert not _accepted(model_id, child, parent, {**model_id.record(), "stage": True}, **flag)
+            assert not _accepted(model_id, child, parent, {"stage": child}, **flag)
+
+
+def test_the_key_adds_exactly_the_node_itself():
+    """accept_own_checkpoint=True: a non-root accepts its parent and itself and nothing else; a root is unchanged."""
+    for model_id, child, parent, references in _every_edge_case():
+        for reference in references:
+            expected = reference == child or (parent is not None and reference == parent)
+            record = {**model_id.record(), "stage": reference}
+            assert _accepted(model_id, child, parent, record, accept_own_checkpoint=True) is expected
+    with pytest.raises(TypeError, match="accept_own_checkpoint must be a bool"):
+        _accepted(TYRANNOSAURUS_REX, 2, 1, None, accept_own_checkpoint="yes")
+
+
+def test_the_key_is_a_bool_in_no_digest():
+    """The schema knows the key and types it; it enters neither the gate view nor the recipe digest."""
+    import copy
+
+    from environments.shared.config import hyperparameters_sha256
+    from environments.shared.curriculum.gate_schema import (
+        GateSchemaError,
+        declared_initialize_from_own_checkpoint,
+        gate_config_view,
+        validate_gate_config,
+    )
+
+    config = load_stage_config(TYRANNOSAURUS_REX, "locomotion")
+    curriculum = {k: v for k, v in config["curriculum_kwargs"].items() if k != "initialize_from_own_checkpoint"}
+    assert declared_initialize_from_own_checkpoint(curriculum) is False
+    for value in (True, False):
+        declared = {**curriculum, "initialize_from_own_checkpoint": value}
+        assert validate_gate_config(2, declared) == validate_gate_config(2, curriculum)
+        assert declared_initialize_from_own_checkpoint(declared) is value
+        assert gate_config_view(declared) == gate_config_view(curriculum)
+        with_key = copy.deepcopy(config)
+        with_key["curriculum_kwargs"] = declared
+        without = copy.deepcopy(config)
+        without["curriculum_kwargs"] = curriculum
+        for algorithm in ("ppo", "sac"):
+            assert hyperparameters_sha256(with_key, algorithm) == hyperparameters_sha256(without, algorithm)
+    for bad in ("true", 1, 0, None, 1.0):
+        with pytest.raises(GateSchemaError, match="initialize_from_own_checkpoint must be true or false"):
+            validate_gate_config(2, {**curriculum, "initialize_from_own_checkpoint": bad})
+
+
+class _SB3Reached(RuntimeError):
+    """train() passed the declared-parent check and went on to import the backend."""
+
+
+def _train_from(tmp_path: Path, monkeypatch: Any, stage_configs: dict[Any, Any], *, recorded: Any, child: Any) -> str:
+    """train()'s launch path up to the backend import, on a checkpoint whose fingerprint records stage *recorded*
+    (the pattern of test_train_base.py's TestTrainRefusesAnUndeclaredParent)."""
+    import zipfile
+    from types import SimpleNamespace
+
+    from environments.shared import task_fingerprint, train_base
+    from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+    monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
+    monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+    monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: (_ for _ in ()).throw(_SB3Reached()))
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    parent = tmp_path / f"parent_{recorded}.zip"
+    with zipfile.ZipFile(parent, "w") as archive:
+        archive.writestr("data", json.dumps({MODEL_TASK_ATTRIBUTE: {**TYRANNOSAURUS_REX.record(), "stage": recorded}}))
+    output_dir = tmp_path / f"out_{recorded}_{child}"
+    output_dir.mkdir()
+    species: Any = SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object)
+    try:
+        train_base.train(
+            species,
+            stage_configs,
+            child,
+            total_timesteps=1,
+            load_path=str(parent),
+            task_load_mode="initialize_next_stage",
+            output_dir=str(output_dir),
+            use_tensorboard=False,
+            verbose=0,
+        )
+    except _SB3Reached:
+        assert not any(output_dir.iterdir())
+        return "passed-the-check"
+    return "returned"
+
+
+def test_train_reads_the_key_of_the_stage_it_trains_and_nothing_else(tmp_path, monkeypatch):
+    """train() passes THIS stage's key: set on locomotion, locomotion accepts its own checkpoint and still refuses a
+    foreign node's; recovery and behavior, which do not declare it, still refuse their own; cleared, locomotion
+    refuses its own again.  Every refusal comes before a directory exists."""
+    import copy
+
+    from environments.shared.config import load_all_stages
+
+    committed = load_all_stages(TYRANNOSAURUS_REX)
+    on = copy.deepcopy(committed)
+    on[2]["curriculum_kwargs"]["initialize_from_own_checkpoint"] = True
+    off = copy.deepcopy(committed)
+    off[2]["curriculum_kwargs"].pop("initialize_from_own_checkpoint", None)
+    assert _train_from(tmp_path / "a", monkeypatch, on, recorded=2, child=2) == "passed-the-check"
+    assert _train_from(tmp_path / "b", monkeypatch, on, recorded=1, child=2) == "passed-the-check"
+    with pytest.raises(TaskFingerprintError, match=r"declared parent \(or, by its initialize_from_own_checkpoint"):
+        _train_from(tmp_path / "c", monkeypatch, on, recorded=3, child=2)
+    for configs in (on, off):
+        for node in ("recovery", 3):
+            with pytest.raises(TaskFingerprintError, match=r"declared parent\. Load"):
+                _train_from(tmp_path / f"d{node}{id(configs)}", monkeypatch, configs, recorded=node, child=node)
+    with pytest.raises(TaskFingerprintError, match=r"declared parent\. Load"):
+        _train_from(tmp_path / "e", monkeypatch, off, recorded=2, child=2)
+    bad = copy.deepcopy(committed)
+    bad[2]["curriculum_kwargs"]["initialize_from_own_checkpoint"] = "true"
+    from environments.shared.curriculum.gate_schema import GateSchemaError
+
+    with pytest.raises(GateSchemaError, match="initialize_from_own_checkpoint"):
+        _train_from(tmp_path / "f", monkeypatch, bad, recorded=2, child=2)
