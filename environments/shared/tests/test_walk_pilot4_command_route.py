@@ -13,6 +13,8 @@ check of 2026-11-05 measured that config alone cannot do it; these tests pin the
 - (4) ``train_behaviors.read_recipe`` leaves pilot 4's T. rex locomotion keys (the command, the prey line, the heading
   price) out of the [env] the T. rex behavior recipes inherit, so the 11 recipes keep their task digests; every other
   model's recipes inherit their locomotion [env] whole, as before.
+- (5) the committed T. rex locomotion TOML is pilot 4's: the straight command's one table, the prey line, the
+  heading price, the fine-tune's [curriculum]; without them it is pilot 3's stage digest for digest.
 
 Nothing here trains.
 """
@@ -181,10 +183,20 @@ def test_the_straight_table_names_real_fields_and_holds_the_heading():
 
 
 # ======================================================================================== (2) the derived command section
+#: Every locomotion [env] key pilot 4's TOML adds (the command, the prey line, the heading price).
+PILOT4_ENV_KEYS = (
+    "command_mode",
+    "command_config",
+    "prey_lateral_range",
+    "walk_heading_price_weight",
+    "walk_heading_price_scale_rad",
+)
+
+
 def _command_free_locomotion() -> dict[str, Any]:
-    """The committed locomotion [env] without its command keys (the pilot-3 [env] until pilot 4's TOML sets them)."""
+    """The committed locomotion [env] without pilot 4's keys: walking pilot 3's [env] (R6, no command)."""
     env_kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"])
-    return {key: value for key, value in env_kwargs.items() if key not in ("command_mode", "command_config")}
+    return {key: value for key, value in env_kwargs.items() if key not in PILOT4_ENV_KEYS}
 
 
 def _live(table: dict[str, Any], mode: str = "heading") -> dict[str, Any]:
@@ -306,7 +318,7 @@ def test_what_the_derivation_leaves_refused_or_carved_out():
 
 # ======================================================================================== (3) the node's own checkpoint
 #: The (model, stage id) pairs whose committed [curriculum] declares initialize_from_own_checkpoint.
-DECLARING_OWN_CHECKPOINT: set[tuple[ModelId, str]] = set()
+DECLARING_OWN_CHECKPOINT: set[tuple[ModelId, str]] = {(TYRANNOSAURUS_REX, "locomotion")}
 
 
 def test_only_the_pilot_stage_declares_the_own_checkpoint_key():
@@ -476,6 +488,8 @@ def test_train_reads_the_key_of_the_stage_it_trains_and_nothing_else(tmp_path, m
     off = copy.deepcopy(committed)
     off[2]["curriculum_kwargs"].pop("initialize_from_own_checkpoint", None)
     assert _train_from(tmp_path / "a", monkeypatch, on, recorded=2, child=2) == "passed-the-check"
+    # The committed locomotion stage declares the key itself (pilot 4's TOML).
+    assert _train_from(tmp_path / "a0", monkeypatch, committed, recorded=2, child=2) == "passed-the-check"
     assert _train_from(tmp_path / "b", monkeypatch, on, recorded=1, child=2) == "passed-the-check"
     with pytest.raises(TaskFingerprintError, match=r"declared parent \(or, by its initialize_from_own_checkpoint"):
         _train_from(tmp_path / "c", monkeypatch, on, recorded=3, child=2)
@@ -657,3 +671,93 @@ def test_every_other_model_s_recipes_inherit_their_locomotion_env_whole(monkeypa
         "compsognathus_longipes/robot",
         "dibothrosuchus_elaphros/anatomical",
     }
+
+
+# ======================================================================================== (5) the committed pilot-4 TOML
+#: Walking pilot 3's locomotion digests at 31d02e42 (configs/digest_snapshot.generated.txt there): its task and its
+#: PPO and SAC recipes.
+PILOT3_TASK_SHA256 = "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+PILOT3_HYPERPARAMETERS_SHA256 = {
+    "ppo": "sha256:85881fc441355fc58f353a089d665c857b377aa1e7a9b6a5a5f89ef64271af4c",
+    "sac": "sha256:05cce74dfc1365857f67ed187f8be9309f99146ea69641559fa5579f5351424e",
+}
+#: Pilot 3's three entry-shaping lines, which pilot 4 switches off (decision (26)).
+PILOT3_SHAPING = {"warmup_timesteps": 300000, "ramp_start_value": 0.2, "warm_start_log_std": -2.0}
+LOCOMOTION_TOML = REPOSITORY / "configs" / "tyrannosaurus_rex" / "anatomical" / "locomotion.toml"
+
+
+def test_the_committed_locomotion_toml_carries_pilot_4_s_values():
+    """The TOML as written (decisions (23)-(28)): the straight command's one table, value for value and type for type
+    (the env section hashes it as written), the prey line, the price, and the [curriculum] of the fine-tune."""
+    raw = tomllib.loads(LOCOMOTION_TOML.read_text(encoding="utf-8"))
+    env, curriculum = raw["env"], raw["curriculum"]
+    assert env["command_mode"] == "heading"
+    assert env["command_config"] == STRAIGHT_TABLE
+    assert {key: type(value) for key, value in env["command_config"].items()} == {
+        key: type(value) for key, value in STRAIGHT_TABLE.items()
+    }
+    assert env["prey_lateral_range"] == [0.0, 0.0]
+    assert (env["walk_heading_price_weight"], env["walk_heading_price_scale_rad"]) == (0.2, 0.5)
+    expected = {
+        "timesteps": 2_000_000,
+        "eval_freq": 65_536,
+        "eval_episodes": 10,
+        "checkpoint_freq": 250_000,
+        "max_checkpoints": 0,
+        "warmup_timesteps": 0,
+        "ramp_start_value": 2.0,
+        "ramp_timesteps": 2_000_000,
+        "initialize_from_own_checkpoint": True,
+        "collapse_peak_floor_reference": 1064.0,
+        "collapse_peak_floor_fraction": 0.45,
+    }
+    assert {key: curriculum[key] for key in expected} == expected
+    assert "warm_start_log_std" not in curriculum
+    assert env["forward_vel_weight"] == 2.0, "the constant forward weight the ramp starts and ends at"
+
+
+def test_pilot_4_changes_nothing_else_in_pilot_3_s_locomotion_stage():
+    """Without pilot 4's five [env] keys the stage's task is pilot 3's task exactly, and with pilot 3's three shaping
+    lines put back its PPO and SAC recipes are pilot 3's: R6, [ppo], [sac] and the rest of [env] did not move."""
+    import copy
+
+    from environments.shared.config import hyperparameters_sha256
+
+    config = load_stage_config(TYRANNOSAURUS_REX, "locomotion")
+    identity = current_plant_identity(TYRANNOSAURUS_REX)
+    pilot3_env = _command_free_locomotion()
+    task = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=pilot3_env, plant_identity=identity)
+    assert task["task_sha256"] == PILOT3_TASK_SHA256
+    pilot3 = copy.deepcopy(config)
+    pilot3["env_kwargs"] = pilot3_env
+    pilot3["curriculum_kwargs"].update(PILOT3_SHAPING)
+    for algorithm, digest in PILOT3_HYPERPARAMETERS_SHA256.items():
+        assert hyperparameters_sha256(pilot3, algorithm) == digest
+        assert hyperparameters_sha256(config, algorithm) != digest
+
+
+def test_the_committed_stage_is_hashed_as_the_golden_records_it_and_builds_straight():
+    """train()'s derivation of the committed live stage is the golden's task line; the env built from the stage config
+    starts on a straight command at top-of-scale speed with the prey on the spawn line, and the price on."""
+    golden = {}
+    for line in (REPOSITORY / "configs" / "digest_snapshot.generated.txt").read_text(encoding="utf-8").splitlines():
+        fields_ = line.split("\t")
+        if fields_[:4] == ["stage", "tyrannosaurus_rex", "anatomical", "locomotion"]:
+            golden[fields_[4]] = fields_[-1]
+    config = load_stage_config(TYRANNOSAURUS_REX, "locomotion")
+    identity = current_plant_identity(TYRANNOSAURUS_REX)
+    fingerprint = stage_task_fingerprint(TYRANNOSAURUS_REX, 2, stage_config=config, plant_identity=identity)
+    assert fingerprint["task_sha256"] == golden["task_sha256"] != PILOT3_TASK_SHA256
+    assert fingerprint["command"]["config"] == asdict(DirectionCommandConfig(**STRAIGHT_TABLE))
+    env = TyrannosaurusRexAnatomicalEnv(**config["env_kwargs"])
+    try:
+        for seed in (3042, 3043, 3044):
+            obs, _ = env.reset(seed=seed)
+            np.testing.assert_array_equal(obs[-3:], np.array([1.0, 0.0, 0.0], dtype=np.float32))
+            state = env._command_state
+            assert state is not None and state.desired_heading == wrap_angle(env._heading())
+            assert env._initial_prey_dir_2d[1] == 0.0 and env._initial_prey_dir_2d[0] == pytest.approx(1.0)
+            _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+            assert {"walk_heading_error_rad", "reward_walk_heading_price"} <= set(info)
+    finally:
+        env.close()

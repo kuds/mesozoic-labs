@@ -112,6 +112,9 @@ from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatom
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+#: Walking pilot 4 (pilot-only, never merged; the maintainer's decisions (23)-(28) of 2026-11-05): the one
+#: committed stage with a live command, the T. rex locomotion stage (its straight command table).
+_WALKING_PILOT_4_LIVE = (TYRANNOSAURUS_REX, 2)
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 MODEL_ENVS = [
@@ -631,11 +634,12 @@ def _fingerprint(**overrides):
 
 
 def test_committed_stages_carry_no_command_keys_and_no_command_section():
-    """(i): under the committed TOMLs every stage's env section is command-free."""
+    """(i): under the committed TOMLs every stage's env section is command-free, walking pilot 4's live T. rex
+    locomotion stage aside (its own command section, derived from its TOML table)."""
+    live = []
     for model_id in model_ids():
         identity = current_plant_identity(model_id, verify_generated=False).to_dict()
         for stage_key, stage_config in load_all_stages(model_id).items():
-            assert not COMMAND_ENV_KEYS_SET & set(stage_config["env_kwargs"]), (model_id, stage_key)
             payload = derive_stage_task_fingerprint(
                 model_id=model_id,
                 stage=stage_key,
@@ -643,8 +647,15 @@ def test_committed_stages_carry_no_command_keys_and_no_command_section():
                 env_kwargs=stage_config["env_kwargs"],
                 plant_identity=identity,
             )
+            if (model_id, stage_key) == _WALKING_PILOT_4_LIVE:
+                assert stage_config["env_kwargs"]["command_mode"] == "heading"
+                assert payload["command"]["config"]["turn_increment_max"] == 0.0
+                live.append((model_id, stage_key))
+                continue
+            assert not COMMAND_ENV_KEYS_SET & set(stage_config["env_kwargs"]), (model_id, stage_key)
             assert not COMMAND_ENV_KEYS_SET & set(payload["env"]), (model_id, stage_key)
             assert "command" not in payload, (model_id, stage_key)
+    assert live == [_WALKING_PILOT_4_LIVE]
 
 
 def test_command_kwargs_enter_the_task_fingerprint_and_a_live_mode_has_a_command_section():
@@ -764,13 +775,21 @@ def test_a_record_written_before_pr9_rebuilds_its_stage_once_the_retired_keys_ar
         tmp_path, stage, load_stage_config(model_id, stage), "PPO", env_class=env_class, model_id=model_id
     )
     record = json.loads(path.read_text())["reward_weights"]
-    assert record.pop("command_config") is None and record["command_mode"] == "none"
+    command_config = record.pop("command_config")
+    if (model_id, load_stage_manifest(model_id).resolve(stage).reference) == _WALKING_PILOT_4_LIVE:
+        # Walking pilot 4's live stage records its TOML table as written, which the rebuilt kwargs keep.
+        toml_env = load_stage_config(model_id, stage)["env_kwargs"]
+        assert command_config == toml_env["command_config"] and record["command_mode"] == "heading"
+    else:
+        assert command_config is None and record["command_mode"] == "none"
     recorded = {**record, **_PRE_PR9_RETIRED_RECORD}  # this stage's record as save_stage_config wrote it before PR-9
     with pytest.raises(TypeError, match="command_"):
         env_class(**recorded)
     with pytest.raises(TaskFingerprintError, match="RETIRED_COMMAND_ENV_KEYS"):
         stage_task_fingerprint(model_id, stage, env_kwargs=recorded)
     kept = {key: value for key, value in recorded.items() if key not in RETIRED_COMMAND_ENV_KEYS}
+    if command_config is not None:
+        kept["command_config"] = command_config
     env_class(**kept).close()
     committed = stage_task_fingerprint(model_id, stage)["task_sha256"]
     derived = stage_task_fingerprint(model_id, stage, env_kwargs=kept)["task_sha256"]

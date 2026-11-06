@@ -3741,12 +3741,20 @@ class TestCommandSliceReseed:
         assert parameters["reseed_command_slice"].default is False, "reseeding stays opt-in in the library"
 
     def test_every_committed_stage_is_command_mode_none_in_phase_c(self):
-        """The flag is False on every committed config today; Phase D flips it per stage, not the notebook."""
-        from environments.shared.config import load_all_stages
+        """The flag is False on every committed config today but one; Phase D flips it per stage, not the notebook.
 
+        Walking pilot 4 (pilot-only, never merged; the maintainer's decisions (23)-(28) of 2026-11-05) flips it on
+        the T. rex locomotion stage's own TOML (a straight command), the one exception."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.model_id import ModelId
+
+        live = []
         for model_id in MODELS_WITH_MANIFESTS:
             for reference, config in load_all_stages(model_id).items():
-                assert config.get("env_kwargs", {}).get("command_mode", "none") == "none", (model_id, reference)
+                mode = config.get("env_kwargs", {}).get("command_mode", "none")
+                if mode != "none":
+                    live.append((model_id, reference, mode))
+        assert live == [(ModelId("tyrannosaurus_rex", "anatomical"), 2, "heading")]
 
 
 class TestDeliverableAwareCells:

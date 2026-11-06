@@ -49,6 +49,37 @@ walk_support_gate_bw = 0.04            # R6 part (a), a new key off by default: 
 walk_touchdown_weight = 0.1            # R6 part (d), a new key off by default: SCREEN's alternating-touchdown event
                                        # R5p, min(T_i, 1.2 s) / (2 dt) x clip(lead / (0.1 L), 0, 1) per alternating,
                                        # non-simultaneous touchdown, paid 4 control steps after it.
+# WALKING PILOT 4 (pilot-only, never merged): the maintainer's decisions (23)-(28) of 2026-11-05. R6 above is
+# unchanged; pilot 4 adds a live "walk straight" command on the reserved command inputs (obs[60:63]), the prey held
+# on the spawn line, and a heading price. The T. rex behavior recipes do NOT inherit these five keys
+# (train_behaviors.LOCOMOTION_ONLY_ENV_KEYS); they keep R6 and their own [commands].
+command_mode = "heading"               # Decision (23): the command fixes the desired heading at the spawn heading
+                                       # (a straight command never turns; the table below) and adapts a yaw-rate
+                                       # request to the actual heading (BaseDinoEnv; direction_commands.py).
+prey_lateral_range = [0.0, 0.0]        # Carried default of 2026-11-05: the prey 8-12 m straight ahead of the spawn
+                                       # heading (env default [-2, 2] m), so R6's forward and heading reference (the
+                                       # prey line), the command's desired heading and the price share one heading.
+walk_heading_price_weight = 0.2        # Decision (27), a new key off by default: -0.2 x min(|theta| / 0.5 rad, 1) per
+walk_heading_price_scale_rad = 0.5     # step, theta = wrap(pelvis yaw - the command's desired heading) in [-pi, pi),
+                                       # from the current pelvis quaternion (tyrannosaurus_rex/base_env.py, 9d).
+
+[env.command_config]
+# WALKING PILOT 4: the straight command, one fixed table (decisions (21)-(28)). WRITTEN ONCE: the task digest hashes
+# the table as written, so the same command written differently is another task (and a resume would refuse it).
+# Fields left out take the DirectionCommandConfig defaults: speed_range none (TOML has no null), switch_interval_s
+# 4.0 and switch_jitter_s 0.0 (a switch only re-draws a straight request; it never turns).
+cruise_speed = 1.5                     # Decision (28): the speed input shows top of scale (obs[60] = 1.0 when on heading).
+stop_probability = 0.0                 # Never a stop.
+turn_increment_max = 0.0               # Never a turn: the desired heading stays the spawn heading all episode.
+straight_probability = 1.0             # Every switch keeps the heading.
+speed_scale = 1.5                      # From here down the follow_direction recipe's values (yaw_gain, turn_slowdown
+                                       # and minimum_turn_speed_fraction the dataclass defaults it keeps).
+lateral_speed_scale = 1.0
+yaw_rate_scale = 0.6
+yaw_gain = 1.5
+yaw_rate_max = 0.3
+turn_slowdown = true
+minimum_turn_speed_fraction = 0.25
 
 [ppo]
 learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
@@ -101,19 +132,30 @@ net_arch = [512, 256]            # Match raptor width; T-Rex obs is 63 (heading-
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
-timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
-eval_freq = 131072                      # WALKING PILOT 3 (pilot-only, never merged; production evaluates every 50,000
-                                        # steps): one evaluation every 131,072 steps, walking pilot 1's cadence, kept by
-                                        # the maintainer's decision of 2026-11-03 (14:53 UTC, the remaining defaults).
-                                        # Read by train_base._stage_cadence; evaluation never changes training.
-eval_episodes = 10                      # WALKING PILOT 3 (pilot-only, never merged; production 30): 10 episodes per
-                                        # evaluation, walking pilot 1's panel, by the same decision of 2026-11-03.
-checkpoint_freq = 500000                # WALKING PILOT 3 (pilot-only, never merged; production 100,000): a periodic
-                                        # checkpoint every 500,000 steps, so the pairs the pilot is judged at exist at
-                                        # 2,000,000, 4,000,000, 6,000,000 and 8,000,000 (the maintainer's decisions of
-                                        # 2026-11-03, 14:53 UTC: budget 8,000,000 and checkpoints every 500,000).
-max_checkpoints = 0                     # WALKING PILOT 3 (pilot-only, never merged; production keeps the newest 5):
-                                        # keep every periodic pair (16 at 8,000,000), by the same decision of 2026-11-03.
+timesteps = 2000000                     # WALKING PILOT 4 (pilot-only, never merged; pilot 3 and production 8,000,000):
+                                        # a 2,000,000-step fine-tune of each pilot-3 seed's 8M checkpoint, the
+                                        # maintainer's decision (25) of 2026-11-05.
+eval_freq = 65536                       # WALKING PILOT 4 (pilot-only, never merged; PROPOSED, not yet decided; pilot 3
+                                        # 131,072, production 50,000): one evaluation every 65,536 steps, 30 over the
+                                        # 2,000,000 budget (pilot 3's cadence would give 15). Read by
+                                        # train_base._stage_cadence; evaluation never changes training.
+eval_episodes = 10                      # WALKING PILOT 3 and 4 (pilot-only, never merged; production 30): 10 episodes
+                                        # per evaluation, walking pilot 1's panel (decision of 2026-11-03), kept.
+checkpoint_freq = 250000                # WALKING PILOT 4 (pilot-only, never merged; PROPOSED, not yet decided; pilot 3
+                                        # 500,000, production 100,000): a periodic checkpoint every 250,000 steps, 8 pairs
+                                        # at 250,000 ... 2,000,000, so the fine-tune can be judged at 1,000,000 and
+                                        # 2,000,000 and watched in between.
+max_checkpoints = 0                     # WALKING PILOT 3 and 4 (pilot-only, never merged; production keeps the newest
+                                        # 5): keep every periodic pair (8 at 2,000,000), pilot 3's decision of 2026-11-03.
+initialize_from_own_checkpoint = true   # WALKING PILOT 4 (pilot-only, never merged; no other stage of any model
+                                        # declares it): the maintainer's decision (25) of 2026-11-05. Under
+                                        # initialize_next_stage this node also accepts an earlier checkpoint of ITSELF
+                                        # beside its declared parent (stance): pilot 3's command-free 8M locomotion
+                                        # pairs into this live-command task (task_fingerprint.validate_declared_parent).
+                                        # Such a load is an edge crossing to train_base: the command columns are zeroed
+                                        # and their inputs reseeded, ret_rms starts afresh, and the stage-entry shaping
+                                        # applies, which the warm-up and ramp lines below make inert. Permits a load and
+                                        # shapes nothing: it enters no gate, recipe or task digest.
 min_avg_reward = 100.0
 # Collapse backstop: the relative floor pair stance and recovery use
 # (PLANT_VALIDATION §14 item 3), replacing the absolute
@@ -123,7 +165,7 @@ min_avg_reward = 100.0
 # not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
 # lets an explicit collapse_peak_floor win over the pair, so leaving it in
 # place would silently keep the old floor.
-collapse_peak_floor_reference = 1092.6  # The zero-action locomotion statue's reward at noise 0.05:
+collapse_peak_floor_reference = 1064.0  # The zero-action locomotion statue's reward at noise 0.05:
                                         # 1091.51 ± 5.46 over 40 episodes, 40/40 full horizon, measured
                                         # 2026-08-23 with environments/shared/scripts/
                                         # zero_action_baseline.py --model-id tyrannosaurus_rex anatomical
@@ -149,13 +191,23 @@ collapse_peak_floor_reference = 1092.6  # The zero-action locomotion statue's re
                                         # 2026-10-25: 1092.60 ± 5.35 with 40/40 full horizon, +1.1 against
                                         # 1091.5 at a 0.85 standard error (1.3 standard errors), so the
                                         # reference moves to 1092.6.
-collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 1092.6 =
+                                        # WALKING PILOT 4 (pilot-only, never merged): re-measured with the same
+                                        # command on 2026-11-06, on the pilot-4 branch. Pilot 3's [env] (R6, no
+                                        # command): 1091.07 ± 5.83, 40/40 full horizon, so 1092.6 carried for pilot
+                                        # 3 (-1.5 at a 0.92 standard error). This [env] (R6 with the straight
+                                        # command, the prey on the spawn line and the heading price 0.2): 1064.02
+                                        # ± 24.62, 40/40 full horizon: the statue yaws up to 14 deg in 10 s and pays
+                                        # the price, -29.3 per episode on average (median -23.1, worst -86.9; the
+                                        # same [env] with the price off: 1093.37 ± 4.01). -28.6 against 1092.6 at a
+                                        # 3.9 standard error (7.3 standard errors), so the reference moves to 1064.0.
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 1064.0 =
+                                        # 478.8 under walking pilot 4; pilot 3 had 0.45 x 1092.6 =
                                         # 491.7 (491.2 at r9's 1091.5). The interrupted run
                                         # 20260821_142144's best eval (1494.47 at 5.3M) clears it, and even its ~1100 ramp-window plateau does,
                                         # so the backstop arms as soon as collapse_min_evals is met and
                                         # watches the rest of the run. The ratio, not the product, is what
                                         # carries across a reward change.
-statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1092.6 reference was measured on
+statue_constants_physics_revision = 10  # The trex PHYSICS revision the reference (1064.0; 1092.6 before pilot 4) was measured on
                                         # (1091.5 measured 2026-08-23 on r7 and carried on r8 and r9;
                                         # re-measured on r10 above).
                                         # test_statue_constant_freshness.py holds this pin
@@ -182,23 +234,15 @@ required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives.
-warmup_timesteps = 300000               # Increased from 100k: give critic more time to adapt to new reward landscape (matches raptor stage 2 proportional warmup)
+warmup_timesteps = 0                    # WALKING PILOT 4 (pilot-only, never merged; pilot 3 and production 300,000):
+                                        # no warm-up, the maintainer's decision (26) of 2026-11-05 (the entry shaping
+                                        # switched off): [ppo]'s clip, entropy and learning rate apply from the first
+                                        # update (by code reading, a 0-step warm-up restores them at the first env
+                                        # step), so the two warmup_ values below are never applied.
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
 ramp_timesteps = 2000000                # Increased from 500k: much slower ramp prevents reward-chasing collapse. 500k was only 6% of 8M budget; 2M is 25%, matching raptor stage 2 proportion.
-ramp_start_value = 0.2                  # Increased from 0.1: start with detectable forward signal (matches raptor stage 2)
-warm_start_log_std = -2.0               # WALKING PILOT 3 (pilot-only, never merged; production has no such key and
-                                        # keeps the parent's log_std as loaded): the maintainer's decision (8) of
-                                        # 2026-11-04 (11:57 UTC), which replaces decision (c) of 2026-11-03's -1.5
-                                        # (the stance stage's own log_std_init, stance.toml [ppo.policy_kwargs]).
-                                        # The log_std scan of 2026-11-04: the parent, stochastic in the locomotion
-                                        # env, stood 359 of 360 episodes at -2.0 against 9 of 120 at -1.5. Written
-                                        # -2.0, not -2: a TOML integer would be recorded, and hashed, as -2.
-                                        # At the warm start from the stance parent (initialize_next_stage only;
-                                        # nothing on a RESUME of this stage, a fresh start or a root) every actuator's
-                                        # log_std is set to -2.0, std exp(-2.0) = 0.1353; never trained: UNTESTED.
-                                        # The parent's std is mean 0.057, min 0.007, max 0.111. Applied after the
-                                        # parent's parameters load and before learning, Adam moments kept
-                                        # (train_base._apply_warm_start_log_std); recorded as run.warm_start_log_std in
-                                        # stage_config.json; the recipe digest (hyperparameters_sha256) covers it
-                                        # (config.SHAPING_KEY_PREFIXES).
+ramp_start_value = 2.0                  # WALKING PILOT 4 (pilot-only, never merged; pilot 3 and production 0.2): the
+                                        # ramp starts at [env] forward_vel_weight 2.0, so the forward weight is a
+                                        # constant 2.0 (decision (26)). Pilot 3's warm_start_log_std = -2.0 is removed
+                                        # by the same decision: each walker keeps its own log_std (about -1.94).

@@ -127,10 +127,12 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it
     # has no legacy number and none is invented for it.
+    # Walking pilot 4 (pilot-only, never merged; the maintainer's decision (25) of 2026-11-05): the locomotion
+    # stage's TOML budget is the 2M fine-tune of pilot 3's 8M walkers (production and pilot 3: 8M).
     assert [stage["timesteps"] for stage in models[TYRANNOSAURUS_REX]["stages"]] == [
         12_000_000,
         3_000_000,
-        8_000_000,
+        2_000_000,
         8_000_000,
     ]
     assert [

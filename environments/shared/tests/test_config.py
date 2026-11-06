@@ -263,6 +263,18 @@ class TestCatastrophicForgettingMitigation:
     in docs/investigations/TRAINING_REVIEW.md.
     """
 
+    @staticmethod
+    def _walking_pilot_4(model_id, cur):
+        """Walking pilot 4 (pilot-only, never merged): its T. rex locomotion stage fine-tunes walkers OF THAT STAGE
+        (pilot 3's 8M checkpoints) with the entry shaping switched off, the maintainer's decision (26) of 2026-11-05:
+        no warm-up and a constant forward weight (ramp 2.0 -> 2.0).  True for that stage, its values pinned here;
+        every other model's stage 2 keeps the checks below."""
+        if model_id != TYRANNOSAURUS_REX:
+            return False
+        assert cur["warmup_timesteps"] == 0 and cur["ramp_start_value"] == 2.0 and cur["ramp_timesteps"] > 0
+        assert cur["initialize_from_own_checkpoint"] is True
+        return True
+
     def test_velociraptor_mongoliensis_stage2_reduces_posture_weight(self):
         """Stage 2 posture_weight must be strictly lower than Stage 1."""
         stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
@@ -311,6 +323,8 @@ class TestCatastrophicForgettingMitigation:
         stages = load_all_stages(model_id)
         cur = stages[2].get("curriculum_kwargs", {})
         assert "warmup_timesteps" in cur, f"{model_id} Stage 2 missing warmup_timesteps"
+        if self._walking_pilot_4(model_id, cur):
+            return
         assert cur["warmup_timesteps"] > 0
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -321,6 +335,8 @@ class TestCatastrophicForgettingMitigation:
         assert "ramp_timesteps" in cur, f"{model_id} Stage 2 missing ramp_timesteps"
         assert cur["ramp_timesteps"] > 0
         assert "ramp_start_value" in cur, f"{model_id} Stage 2 missing ramp_start_value"
+        if self._walking_pilot_4(model_id, cur):
+            return
         assert 0 < cur["ramp_start_value"] < 1.0
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -328,6 +344,8 @@ class TestCatastrophicForgettingMitigation:
         """Stage 2 must have warmup to mitigate catastrophic forgetting (replaces LR-drop requirement)."""
         stages = load_all_stages(model_id)
         cur = stages[2].get("curriculum_kwargs", {})
+        if self._walking_pilot_4(model_id, cur):
+            return
         assert cur.get("warmup_timesteps", 0) > 0, (
             f"{model_id}: Stage 2 needs warmup_timesteps > 0 to mitigate catastrophic forgetting"
         )

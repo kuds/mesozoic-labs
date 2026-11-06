@@ -63,6 +63,27 @@ PILOT = {
     "walk_support_gate_bw": 0.04,
     "walk_touchdown_weight": 0.1,
 }
+#: Walking pilot 4's five locomotion [env] keys (the maintainer's decisions (23)-(28) of 2026-11-05; its TOML commit):
+#: the straight command, the prey on the spawn line and the heading price, laid over R6, which they leave unchanged.
+PILOT4 = {
+    "command_mode": "heading",
+    "command_config": {
+        "cruise_speed": 1.5,
+        "stop_probability": 0.0,
+        "turn_increment_max": 0.0,
+        "straight_probability": 1.0,
+        "speed_scale": 1.5,
+        "lateral_speed_scale": 1.0,
+        "yaw_rate_scale": 0.6,
+        "yaw_gain": 1.5,
+        "yaw_rate_max": 0.3,
+        "turn_slowdown": True,
+        "minimum_turn_speed_fraction": 0.25,
+    },
+    "prey_lateral_range": (0.0, 0.0),
+    "walk_heading_price_weight": 0.2,
+    "walk_heading_price_scale_rad": 0.5,
+}
 #: The env's 29-term sum, in its order (base_env.py, "Total reward").
 ORDER = (
     "reward_forward",
@@ -163,9 +184,11 @@ def track(
 
 def _locomotion_as_3ae1c959() -> dict[str, Any]:
     """The committed locomotion [env] with the pilot's four R6 lines as they were at 3ae1c959 (2.5, unset, unset,
-    unset)."""
+    unset), and without walking pilot 4's five keys (unset at 3ae1c959)."""
     kwargs = {
-        k: v for k, v in load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"].items() if k not in PILOT
+        k: v
+        for k, v in load_stage_config(TYRANNOSAURUS_REX, "locomotion")["env_kwargs"].items()
+        if k not in PILOT and k not in PILOT4
     }
     kwargs["forward_vel_max"] = 2.5
     return kwargs
@@ -193,7 +216,8 @@ def test_the_r6_keys_default_to_off_and_only_locomotion_sets_them():
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
         if entry.id == "locomotion":
-            assert dict(env_kwargs) == {**_locomotion_as_3ae1c959(), **PILOT}
+            # Walking pilot 4 lays its five keys over pilot 3's [env]; R6's four values are unchanged.
+            assert dict(env_kwargs) == {**_locomotion_as_3ae1c959(), **PILOT, **PILOT4}
         else:
             assert not set(R6_KEYS) & set(env_kwargs), entry.id
     for path in sorted((REPOSITORY / "configs" / "tyrannosaurus_rex").rglob("*.toml")):

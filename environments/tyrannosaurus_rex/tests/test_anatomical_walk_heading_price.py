@@ -54,7 +54,7 @@ STRAIGHT_TABLE: dict[str, Any] = {
     "straight_probability": 1.0,
 }
 #: The T. rex stages whose committed [env] turns the price on.
-PRICED_STAGES: set[str] = set()
+PRICED_STAGES: set[str] = {"locomotion"}
 #: Every locomotion [env] key walking pilot 4 adds.
 PILOT4_ENV_KEYS = ("command_mode", "command_config", "prey_lateral_range", *PRICE_KEYS)
 
