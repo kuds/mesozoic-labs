@@ -11,7 +11,7 @@ legends, notebook tables, the public catalog, and W&B run titles.
 
 | Species ID | Embodiment | Model display name | Stance gate |
 |---|---|---|---|
-| `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `stance_quality/v2` |
+| `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `stance_quality_heading/v1` |
 | `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus Rex (Anatomical) | `stance_quality_heading/v1` |
 | `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus Altithorax (Anatomical) | `reward_and_length/v1` |
 | `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `reward_and_length/v1` |
@@ -461,8 +461,8 @@ episodes, at yaw 0, on the evaluation env's own resets, without the
 statue-relative criteria (on the T. rex, `min_avg_reward_statue_ratio`; on
 the anatomical Compsognathus, that and `min_foot_load_share_statue_ratio`).
 Today that is the T. rex and the anatomical Compsognathus stances. The
-Velociraptor's `stance_quality/v2` stance has no box pad and no recorder,
-so it has no screen. The screen shows during training whether an
+Velociraptor's stance (the six-heading certificate since 2026-11-06) has no
+box pad and no recorder, so it has no screen. The screen shows during training whether an
 evaluation's episodes clear the stage's clean-episode bound at yaw 0. It is
 never a verdict: the certificate applies the full decision at six headings
 on its own seeded panel after the stage, and no gate, verdict or checkpoint

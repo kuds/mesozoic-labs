@@ -1,6 +1,6 @@
 # Heading-free observations and stance certification
 
-Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; both halves are carried out (2026-10-11): the observation migration (D-D31), and the six-heading certificate, implemented and declared by both stances (D-D32); the Velociraptor followed on 2026-11-06 (D-D59)**.
+Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; both halves are carried out (2026-10-11): the observation migration (D-D31), and the six-heading certificate, implemented and declared by both stances (D-D32); the Velociraptor followed on 2026-11-06 (2026-11-06)**.
 Repository baseline: `10f859f96223054932bdc4fa883b1153dde78500` (#604).
 
 ## Recommendation
@@ -51,7 +51,7 @@ only after the maintainer's two current Velociraptor runs are reviewed (the
 2026-10-07 decision). Its
 heading-free revision should be coordinated with #608's planned Velociraptor
 interface change (per-site contact-load channels), so its checkpoints are
-stranded once, not twice. *2026-11-06 (decision D-D59): the Velociraptor
+stranded once, not twice. *2026-11-06 (the maintainer's decision that day): the Velociraptor
 followed, alone. Its two runs were reviewed (both 0/40, a ~10 Hz hop) and
 stranded by physics r4, on which nothing has trained, so the migration strands
 no certified checkpoint; the per-site channels, the pilot findings' priority 4,

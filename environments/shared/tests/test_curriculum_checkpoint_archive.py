@@ -215,7 +215,7 @@ class TestTheKey:
 
 
 def test_the_two_stances_that_keep_one_checkpoint_per_half_million_steps_and_no_other_stage_declares_it():
-    """The T-Rex stance and, since D-D59, the velociraptor's keep their onset record; every other stage's is unchanged."""
+    """The T-Rex stance and, since 2026-11-06, the velociraptor's keep their onset record; every other stage's is unchanged."""
     from environments.shared.config import load_all_stages, load_stage_config
     from environments.shared.model_id import ModelId
     from environments.shared.species_names import model_ids

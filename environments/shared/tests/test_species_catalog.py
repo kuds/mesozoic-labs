@@ -243,8 +243,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # species base classes. POLICY only, physics and visual unchanged.
     # T-Rex physics r10 (plant_versions note 20, decision D-D44) preloaded the
     # tail pitch springs: PHYSICS only, policy and visual unchanged.
-    # Velociraptor heading-free observations (plant_versions note 21, decision
-    # D-D59): POLICY only, physics and visual unchanged.
+    # Velociraptor heading-free observations (plant_versions note 21,
+    # the maintainer's decision of 2026-11-06): POLICY only, physics and visual unchanged.
     expected_policy_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 13,
         TYRANNOSAURUS_REX: 15,
@@ -333,8 +333,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # width; 3495.2 on r7 with the 20260810 shaping pack:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
-    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 2842.8 (physics
-    # r3 with its stance-quality terms, 2843.0 on r4; 1745.8 on the r2 plant),
+    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3091.3 (physics
+    # r4 with the 2026-11-06 tail, impact and airborne terms; 2843.0 on r4
+    # before them, 2842.8 on r3 with its stance-quality terms, 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8; 1738.4 on physics r5),
     # dibothrosuchus 2598.3 (2598.5 on physics r2); the elliptic cone of note
@@ -365,7 +366,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 3756.8, x0.60 = 2254.1 -> 2250, and for physics r10 (D-D44): statue
         # 3766.6, x0.60 = 2260.0 -> 2260.
         TYRANNOSAURUS_REX: 2260.0,
-        # 0.60 x 3091.3 = 1854.8 -> 1850 nearest-10 (the D-D59 [env]; 1710 on 2842.8 before it, 1050 on the
+        # 0.60 x 3091.3 = 1854.8 -> 1850 nearest-10 (the 2026-11-06 [env]; 1710 on 2842.8 before it, 1050 on the
         # r2 plant).
         VELOCIRAPTOR_MONGOLIENSIS: 1850.0,
         BRACHIOSAURUS_ALTITHORAX: 1040.0,
@@ -456,7 +457,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_phantom_support_fraction": 0.05,
         "max_nonfoot_load_fraction": 0.01,
         "min_avg_reward_statue_ratio": 0.60,
-        # The T-Rex's D-D27 rails, set on the r4 statue's six-heading panels (D-D59).
+        # The T-Rex's D-D27 rails, set on the r4 statue's six-heading panels (2026-11-06).
         "max_settle_touchdowns": 2,
         "max_episode_yaw_change_deg": 25.0,
         "max_hop_or_fall_episodes": 1,
@@ -1802,7 +1803,7 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
     # stance_quality/v2 with physics r8 (D-D24), velociraptor from the reward gate
     # with physics r3 (D-D25) and the anatomical compsognathus with physics r2
     # (D-D26); trex and the anatomical compsognathus to the six-heading
-    # certificate (D-D32), and velociraptor with D-D59, whose definition names
+    # certificate (D-D32), and velociraptor with the decision of 2026-11-06, whose definition names
     # the v2 decision it applies at each heading; the compsognathus robot keeps v1.
     expected = {
         TYRANNOSAURUS_REX: "stance_quality_heading/v1",
@@ -1920,7 +1921,7 @@ def test_readme_species_table_renders_recipe_edges() -> None:
     assert "- **recovery (" not in rendered and "- **stand (" not in rendered
     assert "- **stance (1 — Stance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
     # The velociraptor stance certifies under the floor-truth gate since physics r3 (D-D25), judged at six
-    # headings since its heading-free observation (D-D59), as the trex and anatomical compsognathus stances are.
+    # headings since its heading-free observation (2026-11-06), as the trex and anatomical compsognathus stances are.
     assert (
         "- **stance (1 — Stance) · Stable-Baselines3 — Stance quality at six headings (stance_quality_heading/v1):**"
         in rendered

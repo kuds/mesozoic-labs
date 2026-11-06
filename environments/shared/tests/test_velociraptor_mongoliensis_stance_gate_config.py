@@ -1,9 +1,9 @@
-"""The velociraptor stance stage's floor-truth declaration (decision D-D25, 2026-10-06; D-D59, 2026-11-06).
+"""The velociraptor stance stage's floor-truth declaration (decision D-D25, 2026-10-06; the maintainer's decision of 2026-11-06).
 
 ``configs/velociraptor_mongoliensis/anatomical/stance.toml`` moved from
 ``reward_and_length/v1``, which its zero-action statue cleared by design, to
 the floor-truth gate ``stance_quality/v2`` with physics r3, and with policy
-interface r13 (heading-free observations, D-D59) to the six-heading
+interface r13 (heading-free observations, 2026-11-06) to the six-heading
 certificate ``stance_quality_heading/v1``, which judges the same v2 block at
 every whole-scene heading.  Its bars were set on the r3 statue's
 40-episode panel and validated against the two audited checkpoints of the
@@ -33,7 +33,7 @@ the declaration in the ways that each fail differently:
    recomputed here rather than copied: the bound admits 37/40 and refuses
    36/40, the reward rail is its fraction of the statue reference the stage
    records, and the collapse floor is the relative 0.45 of it, not an
-   absolute number (D-D59).
+   absolute number (2026-11-06).
 """
 
 from __future__ import annotations
@@ -178,7 +178,7 @@ def _without(curriculum: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any
 
 
 def test_the_stance_declares_the_heading_certificate_and_validates_as_it(stage, curriculum):
-    """Since D-D59 the v2 block is judged at six whole-scene headings: v2's keys, the certificate's kind."""
+    """Since the 2026-11-06 decision the v2 block is judged at six whole-scene headings: v2's keys, the certificate's kind."""
     assert curriculum["gate_kind"] == STANCE_HEADING_GATE_KIND
     assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_HEADING_GATE_KIND
     # The certificate replaces the report-only heading probe (config load would refuse it beside the kind).
@@ -252,7 +252,7 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
 def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
     """min_avg_reward is 0.60 of the statue, rounded to 10; the ratio states 0.60 itself; the floor is relative.
 
-    The reference is the r4 statue's standing reward under the D-D59 [env] (3091.32, 40 episodes, seeds
+    The reference is the r4 statue's standing reward under the 2026-11-06 [env] (3091.32, 40 episodes, seeds
     3042-3081: the 2843.00 of the r4 plant plus the tail term's 248.3), pinned to the physics revision it was
     last measured on (test_statue_constant_freshness.py checks the pin).  The collapse floor is the T-Rex's
     relative 0.45 of it behind a 1M-step peak warm-up: an explicit collapse_peak_floor would win over the pair

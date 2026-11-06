@@ -240,7 +240,7 @@ class TestProbeTable:
     )
     def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance_without_the_certificate(self, model_id):
         # The maintainer's decision of 2026-10-11 for the velociraptor and the compsognathus robot (D-D27 for the
-        # trex until the certificate replaced it there, D-D32, and for the velociraptor until D-D59).
+        # trex until the certificate replaced it there, D-D32, and for the velociraptor until 2026-11-06).
         assert "stance_probe_spawn_yaw_deg" in _DIAGNOSTIC_KEYS
         curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
         assert curriculum["stance_probe_spawn_yaw_deg"] == [-90.0, -45.0, 45.0, 90.0]
@@ -248,7 +248,7 @@ class TestProbeTable:
 
     def test_the_heading_free_stances_declare_the_certificate_and_no_probe(self):
         """The maintainer's approval of 2026-10-11 (D-D32): T. rex and the anatomical compsognathus; the velociraptor
-        with its heading-free observation since D-D59 (2026-11-06)."""
+        with its heading-free observation since 2026-11-06."""
         assert _CERTIFIED == {
             ModelId("tyrannosaurus_rex", "anatomical"),
             ModelId("compsognathus_longipes", "anatomical"),
@@ -430,7 +430,7 @@ class TestHandoffWarning:
         # the probe, so a stance the command-line curriculum trained (it rolls none) warns; the brachiosaurus
         # stance does not, nor does a robot stance recorded before its config declared the probe (2026-10-11),
         # whatever the checkout's config now says.  The trex stance's certificate replaced it (D-D32), as the
-        # velociraptor's did (D-D59): with no certificate on disk it warns the certificate missing instead,
+        # velociraptor's did (2026-11-06): with no certificate on disk it warns the certificate missing instead,
         # whatever *declared* says.
         tyrannosaurus_rex, compsognathus_longipes_robot, brachiosaurus_altithorax = (
             tmp_path / "tyrannosaurus_rex",

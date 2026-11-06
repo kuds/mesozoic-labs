@@ -509,7 +509,7 @@ class TestCurriculumStageRewards:
 
 
 class TestPortedStanceTerms:
-    """The T-Rex's tail-pose, floor-impact and airborne-substep terms on the raptor (decision D-D59).
+    """The T-Rex's tail-pose, floor-impact and airborne-substep terms on the raptor (the maintainer's decision of 2026-11-06).
 
     Each is off by default and declared in ``OPT_IN_TASK_KWARGS``: off, it emits
     no info key and leaves the reward and the task fingerprint as they were;
@@ -559,7 +559,9 @@ class TestPortedStanceTerms:
                 )
                 if terminated and not info.get("success"):
                     expected += env.fall_penalty
-                assert reward == pytest.approx(expected, abs=1e-12)
+                # Exact, as the legacy test compares: summing the new terms anywhere else changes the last bits
+                # on most steps (89 of these 200 with them first).
+                assert reward == expected
                 if terminated or truncated:
                     env.reset(seed=3043)
         finally:

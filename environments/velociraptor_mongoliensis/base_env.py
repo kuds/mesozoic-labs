@@ -3,8 +3,9 @@ Velociraptor Gymnasium Environment
 
 A bipedal dinosaur locomotion environment with predatory strike behavior.
 
-Observation space (bipedal-target-heading-free/v1 since policy interface r13,
-decision D-D59; the total dimension is generated in the public species catalog):
+Observation space (bipedal-target-heading-free/v1 since policy interface r13, the
+maintainer's decision of 2026-11-06; the total dimension is generated in the
+public species catalog):
     - Joint positions (qpos[7:]) — 24 hinge joints excluding root freejoint
     - Joint velocities (qvel[6:]) — 24 hinge joints excluding root freejoint
     - Pelvis projected gravity (unit down vector in pelvis coordinates) — 3
@@ -122,7 +123,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: no reward, info key, trajectory or reset draw, so a stage that leaves
     #: them off keeps its task_sha256 (task_fingerprint.inert_opt_in_env_kwargs,
     #: the T-Rex's lateral-lean pattern).  The stance stage turns all three on
-    #: (decision D-D59); locomotion, strike and the behaviors leave them off.
+    #: (the maintainer's decision of 2026-11-06); locomotion, strike and the behaviors leave them off.
     OPT_IN_TASK_KWARGS = (
         ("tail_home_pose_weight", 0.0, ("tail_home_pose_weight", "tail_home_pose_tolerance")),
         ("floor_impact_weight", 0.0, ("floor_impact_weight", "floor_impact_threshold_bw")),
@@ -133,8 +134,10 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: TestSettledTailTargetTracksTheStatue re-measures it).  The tail servos
     #: hold the keyframe zeros against gravity only to within their kp: under
     #: the home controller the statue's tail settles 4.5 deg down at tail_1
-    #: (2.7 / 1.3 deg at tail_2 / tail_3), 0.18-0.24 rad clear of every +-15 deg
-    #: stop (40-seed window means at reset noise 0.05 agree to 1.3e-4 rad).  So, as
+    #: (2.7 / 1.3 deg at tail_2 / tail_3), 0.17-0.24 rad clear of every stop
+    #: (tail_1_yaw's at +-10 deg, the pitch joints' at +-15 deg; the per-seed
+    #: window means at reset noise 0.05 within 4.1e-4 rad, 1.2e-4 on the pitch
+    #: joints, and their pooled mean within 1e-5).  So, as
     #: on the T-Rex through physics r9, the target is the statue's own droop:
     #: pricing the keyframe would cap the ideal statue below full quality.
     #: Unlike the T-Rex r9 tail, no joint rests on a stop, so the droop needs
@@ -193,8 +196,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         action_saturation_threshold: float = 0.9,
         leg_home_pose_weight: float = 0.0,
         leg_home_pose_tolerance: float = 0.35,
-        # The T-Rex's D-D27 contact terms and its tail pose term (decision
-        # D-D59), each off by default and carved out of the task fingerprint
+        # The T-Rex's D-D27 contact terms and its tail pose term (
+        # the maintainer's decision of 2026-11-06), each off by default and carved out of the task fingerprint
         # while off (OPT_IN_TASK_KWARGS): a zero weight reproduces the reward
         # that predates them bit for bit and emits none of their info keys.
         tail_home_pose_weight: float = 0.0,
@@ -469,7 +472,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     def _get_obs(self) -> np.ndarray:
         """Construct the bipedal-target-heading-free/v1 observation vector (69 values).
 
-        Since policy interface r13 (decision D-D59) no channel carries the
+        Since policy interface r13 (the maintainer's decision of 2026-11-06) no channel carries the
         world heading: the pelvis orientation is projected gravity, the pelvis
         linear velocity is expressed in the gravity-aligned heading frame and
         the prey direction in pelvis coordinates, all three from the free
@@ -666,7 +669,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # the four servoed tail joints around the statue's settled tail
         # (_TAIL_SETTLED_QPOS).  The tail stability term (4) reads only the
         # tail-tip gyro, so a tail frozen against a stop is optimal for it;
-        # this prices the joint positions themselves (the T-Rex's term, D-D59).
+        # this prices the joint positions themselves (the T-Rex's term, 2026-11-06).
         reward_tail_home_pose = 0.0
         if self.tail_home_pose_weight > 0.0:
             _, tail_rms_error, tail_quality = _reward_soft_home_pose_pure(
@@ -712,7 +715,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # whole episode, settle included, where the support terms' step-level
         # MIN and the gate's window let a stomp or a two-foot hop go unpriced
         # (the T-Rex's D-D27 terms, here in the capped form of the anatomical
-        # Compsognathus; decision D-D59).
+        # Compsognathus; the maintainer's decision of 2026-11-06).
         reward_floor_impact = 0.0
         reward_airborne_substeps = 0.0
         if self.floor_impact_weight > 0.0 or self.airborne_substep_weight > 0.0:

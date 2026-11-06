@@ -87,7 +87,7 @@ from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_y
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
-#: The heading-free models and their environments (the velociraptor since policy interface r13, D-D59).
+#: The heading-free models and their environments (the velociraptor since policy interface r13, 2026-11-06).
 HEADING_FREE_ENVS = {
     ModelId("tyrannosaurus_rex", "anatomical"): TyrannosaurusRexAnatomicalEnv,
     ModelId("compsognathus_longipes", "anatomical"): CompsognathusLongipesAnatomicalEnv,
@@ -123,7 +123,7 @@ def zero_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.nda
 
 
 #: The linear policy's weight scale per environment class, small enough to stand the whole horizon.  0.003
-#: unless listed: the velociraptor's statue falls past an action noise of about 0.07 (D-D59's cliff panel),
+#: unless listed: the velociraptor's statue falls past an action noise of about 0.07 (the 2026-11-06 cliff panel),
 #: and at 0.003 its seed-3042 actions reach 0.135 and it ends on its tail at step 204; at 0.001 they stay under
 #: 0.045 and seeds 3042-3043 stand all 1000 steps.
 LINEAR_POLICY_GAINS: dict[type, float] = {VelociraptorMongoliensisAnatomicalEnv: 0.001}

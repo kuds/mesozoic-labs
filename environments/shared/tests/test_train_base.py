@@ -919,7 +919,7 @@ class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
         assert not any("table" in record.message for record in caplog.records)
 
 
-#: A velociraptor stance block as recorded before decision D-D59: ``stance_quality/v2`` with the report-only heading
+#: A velociraptor stance block as recorded before the maintainer's decision of 2026-11-06: ``stance_quality/v2`` with the report-only heading
 #: probe declared (the maintainer's decision of 2026-10-11), the shape the probe-warning tests need now that no
 #: committed biped stance but the compsognathus robot's declares the probe.
 _PRE_D_D59_PROBED_STANCE = {
@@ -1412,7 +1412,7 @@ class TestTrainCurriculumWalksTheManifest:
         original.mkdir(parents=True)
         # The trunk's stance was judged under the run's own velociraptor stance
         # block, so rule 7 (D-A22) matches the gate this run declares.  The block
-        # is served as it was recorded before D-D59 moved it to the six-heading
+        # is served as it was recorded before 2026-11-06 moved it to the six-heading
         # certificate (stance_quality/v2 with the report-only heading probe):
         # build_trunk_run writes a v2 report, and this test is about following the
         # middle run's record, not about the kind.
@@ -1578,7 +1578,7 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_every_trained_node_records_the_managers_verdict(self, tmp_path, monkeypatch, caplog):
         """Decision D-A5: the in-training verdict is written per node, hash-bound to its handoff.  The
-        velociraptor stance declares the six-heading certificate since D-D59 (``stance_quality/v2`` from D-D25),
+        velociraptor stance declares the six-heading certificate since 2026-11-06 (``stance_quality/v2`` from D-D25),
         so its verdict is the post-training judge's (stubbed by ``_run``) and the other two nodes' the manager's."""
         from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY, STANCE_HEADING_POST_TRAINING_JUDGED_BY
 
@@ -2202,7 +2202,7 @@ class TestTrainCurriculumWalksTheManifest:
         whose heading probe falls on a whole-scene row is trained as before, with the warning logged
         where the node enters on it (``record_ancestor``, stubbed here, logs its own line for the
         reuse).  The probe is read for any species that has one; the ancestor here is a velociraptor
-        stance recorded before D-D59 moved the species to the six-heading certificate, under v2 with the
+        stance recorded before 2026-11-06 moved the species to the six-heading certificate, under v2 with the
         probe declared, as the recorded config (not the checkout's) decides."""
         ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_D_D59_PROBED_STANCE)
         _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=0.0)

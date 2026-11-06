@@ -520,7 +520,7 @@ class TestStanceReports:
         older rail is refused, never re-scored; one the v2 code scored under the current block re-derives, so its
         verdict is written -- the FAIL it re-derives to, since its statue-like episodes score 1000 against the rail.
 
-        No committed stance declares v2 since the velociraptor's moved to the six-heading certificate (D-D59, as the
+        No committed stance declares v2 since the velociraptor's moved to the six-heading certificate (2026-11-06, as the
         T-Rex's and the anatomical compsognathus's did with D-D32), so the checkout's current block is the
         velociraptor's own v2 block under the v2 kind, served the way the checkout would serve it."""
         from environments.shared import config as config_module

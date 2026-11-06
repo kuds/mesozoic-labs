@@ -59,7 +59,7 @@ COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 MODELS = (TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES, VELOCIRAPTOR_MONGOLIENSIS)
 #: The pre-migration policy interfaces, as the committed plant manifest recorded them before note 18 (the
-#: velociraptor's before note 21, D-D59).
+#: velociraptor's before note 21, 2026-11-06).
 PRE_MIGRATION: dict[ModelId, dict[str, Any]] = {
     TYRANNOSAURUS_REX: {
         "policy_interface_revision": 13,

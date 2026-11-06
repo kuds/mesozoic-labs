@@ -92,7 +92,7 @@ class TestSettings:
         )
 
     def test_the_velociraptor_mongoliensis_stance_block(self):
-        """The T-Rex's watch ported with its anchor (decision D-D59): the duty bar, the entropy anneal's end, stop."""
+        """The T-Rex's watch ported with its anchor (the maintainer's decision that day): the duty bar, the entropy anneal's end, stop."""
         stage = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")
         curriculum = stage["curriculum_kwargs"]
         assert hop_watch_settings(curriculum) == (0.05, 7_000_000, True)

@@ -38,7 +38,7 @@ DUAL_BACKEND = frozenset(model_ids(backend="jax-mjx"))
 # segment (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77 -> 70/64/86/80, and 43 / 53 -> 46 / 56 for the two Compsognathus
 # plants; velociraptor left the frozen MJX core at policy-interface revision 11, and trex at revision 14 with the
 # heading-free observation (64 -> 63), which also took the anatomical compsognathus from 56 to 55 (projected gravity
-# replaces the 4-wide quaternion), and the velociraptor from 70 to 69 at revision 13 (D-D59).
+# replaces the 4-wide quaternion), and the velociraptor from 70 to 69 at revision 13 (2026-11-06).
 #: Each SB3-only model's observation width.  Exempt: DUAL_BACKEND, which does claim MJX parity.
 SB3_ONLY_OBSERVATION_WIDTH = {
     COMPSOGNATHUS_LONGIPES: 55,

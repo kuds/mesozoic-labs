@@ -382,12 +382,16 @@ def test_the_turn_text_cites_the_elliptic_cone():
     from .test_stance_heading_probe import STANDS, _sweeps
 
     # The observation half (D-D31): the T-Rex from r14 and the anatomical Compsognathus from r4 observe no world
-    # heading, so a whole-scene turn changes nothing they see; the Velociraptor and the robot still observe it.
+    # heading, and the Velociraptor from r13 (the maintainer's decision of 2026-11-06), so a whole-scene turn
+    # changes nothing they see; only the robot still observes it.
     assert "D-D31" in doc and "policy interface r14" in doc and "anatomical Compsognathus from r4" in doc
-    assert "The Velociraptor and the Compsognathus robot still observe those world-frame channels" in doc
+    assert "the Velociraptor from r13" in doc
+    assert "The Compsognathus robot still observes those world-frame channels" in doc
+    assert "The Velociraptor and the Compsognathus robot still observe" not in doc
     assert "only the world-frame observation differs" not in doc
     text, payload = stance_report.render_heading_probe(*_sweeps(STANDS), probe_episodes=8)
     assert "elliptic friction cone" in payload["note"] and "stance_quality_heading/v1" in payload["note"]
     assert "the six-heading certificate, D-D32" in text and "not a gate result" in text
     assert "observe no world heading (D-D31)" in payload["note"] and "only the world-frame" not in payload["note"]
-    assert "the T-Rex r14 and anatomical Compsognathus r4 observe none" in text
+    assert "the T-Rex r14, anatomical Compsognathus r4 and Velociraptor" in text and "r13 observe none" in text
+    assert "nor does the Velociraptor (r13" in payload["note"] and "the Velociraptor's and" not in payload["note"]

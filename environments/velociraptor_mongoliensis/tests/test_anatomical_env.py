@@ -381,7 +381,7 @@ class TestFootContactSensors:
             foot_dims = obs[-9:-7]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
             np.testing.assert_array_equal(foot_dims, np.asarray(env._foot_contact_forces(), dtype=np.float32))
-            # 69 since policy interface r13 (D-D59): projected gravity (3) for the quaternion (4).
+            # 69 since policy interface r13 (2026-11-06): projected gravity (3) for the quaternion (4).
             assert env.observation_space.shape == (69,)
         finally:
             env.close()
@@ -427,17 +427,19 @@ def test_velociraptor_mongoliensis_is_sb3_only():
 
 
 class TestSettledTailTargetTracksTheStatue:
-    """``_TAIL_SETTLED_QPOS`` (the tail_home_pose term's target, D-D59) is a measured constant.
+    """``_TAIL_SETTLED_QPOS`` (the tail_home_pose term's target, 2026-11-06) is a measured constant.
 
     It is the noise-free statue's tail pose over the post-settle window, measured
     on physics r4: -0.078506 / 0.0 / -0.046391 / -0.023066 rad (tail_1 pitch and
-    yaw, tail_2 and tail_3 pitch), a 5000-step roll ends within 1e-5 of it, and the
-    40-seed window means at reset noise 0.05 (the stance config, seeds 3042-3081)
-    agree to 1.3e-4.  Nothing derives it from the plant at run time, so a gain,
-    spring or mass edit that moves the tail would silently re-centre the statue off
-    its own target; this re-measures it, as the T-Rex's
-    TestSettledPoseTargetsTrackTheStatue does.  Every joint stays clear of its
-    +-15 deg stop: the droop the term targets is not a parked tail.
+    yaw, tail_2 and tail_3 pitch); a 5000-step roll ends 1.2e-5 rad from it, and
+    the per-seed window means at reset noise 0.05 (the stance config, seeds
+    3042-3081) sit within 4.1e-4 rad of it (tail_1_yaw; 1.2e-4 on the pitch
+    joints), their pooled mean within 1e-5.  Nothing derives it from the plant
+    at run time, so a gain, spring or mass edit that moves the tail would
+    silently re-centre the statue off its own target; this re-measures it, as
+    the T-Rex's TestSettledPoseTargetsTrackTheStatue does.  Every joint stays
+    0.17 rad or more clear of its stop (tail_1_yaw's at +-10 deg, the pitch
+    joints' at +-15 deg): the droop the term targets is not a parked tail.
     """
 
     SETTLE_STEPS = 200

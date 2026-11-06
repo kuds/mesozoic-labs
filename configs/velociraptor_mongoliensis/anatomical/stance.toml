@@ -28,16 +28,24 @@ alive_bonus = 1.75                                # Setting 4 sweep: all best en
 # [env] change. Re-measured on physics r4 (plant_versions note 17: the elliptic friction cone): the statue still
 # scores the maximum of every term (support 0.997, leg pose 0.9989, no saturation, no jerk) at 2843.0 +/- 2.7, pays
 # -2.4 of nosedive charge and carries 29% of each foot's load on the metatarsal head, so every weight carries.
-# 2026-11-06 (decision D-D59, the T-Rex's stance lessons ported): the start moves to action std 0.07
+# 2026-11-06 (the maintainer's decision that day, the T-Rex's stance lessons ported): the start moves to action std 0.07
 # ([ppo.policy_kwargs] log_std_init) and three T-Rex terms join below (tail home pose, floor impact, airborne
 # substeps). Re-measured on r4 with clip(N(0, sigma)) commands, seeds 3042-3081: at sigma 1.0 (the old start)
 # the noise IS a hop -- no foot down on 49% of steps, 59% of substeps airborne -- and the penalties above cost
 # 1.10/step plus 0.34/step of conditioned alive, 63% + 19% of the alive bonus, past the T-Rex's init rule (a
-# fresh policy's penalties under about half of it); at sigma 0.07 they cost 0.021 + 0.110/step and no substep
-# is airborne. With the three terms on, the per-step reward (the fall penalty aside) is +2.80 at sigma 0.07,
-# +1.50 at 0.22, +0.72 at 0.37 and +0.34 at 0.5, so surviving pays wherever a quiet start can drift; at the old
-# sigma 1.0 it is -0.50 (the airborne term's -0.59 tips it; without the terms about -0.01), which is how the
-# r3 contact-quality pilot, trained at std 1.0, shortened its episodes. The terms belong with the quiet start.
+# fresh policy's penalties under about half of it); at sigma 0.07 they cost 0.021 + 0.110/step and about 2e-5
+# of substeps are airborne. With the three terms on, the per-step reward with the -50 fall penalty set aside is
+# +2.81 at sigma 0.07, +1.84 at 0.22, +1.28 at 0.37, +0.96 at 0.5 and +0.29 at the old sigma 1.0 (+0.78 there
+# without the terms; the airborne term's -0.59 takes most of the margin), so surviving pays at every sigma
+# measured and none of the terms pays a noisy policy to fall sooner; averaged with the fall penalty in, it is
+# -0.50 at sigma 1.0 (-0.01 without the terms), where every episode falls within about 63 steps.
+# No term here is paid on the episode step. The T-Rex's settled stance width (paid after step 200, on in its
+# committed stance), its lateral lean and settled leg target (off on main) and the screens' stagger and CoP band
+# are step-gated or settle-referenced, and the T-Rex's tail habit was traced in part to that hidden clock: the
+# critic reads the step from the tail angle (the 2026-10-30 why-probe and the critic-phase screen, on the
+# never-merged branches claude/handoff-day-2026-10-30 and claude/records-phase-screen). None is ported; one
+# would need [ppo] critic_phase, which reads a stance_width_settle_steps attribute this env does not have. No
+# clock does not rule a tail habit out: the r2 audit stance parked tail_1_pitch at its stop with none.
 support_conditioned_alive_fraction = 0.2      # Fraction of alive_bonus paid in proportion to bilateral support.
                                                # Costs the audit policy 239/188 per episode against the statue's
                                                # 1.1, and 0.34/step at init, where random commands keep the
@@ -76,22 +84,25 @@ action_jerk_weight = 1.0                       # Second difference of actions: t
                                                # whose chatter is contact chatter under parked commands. Sized to the
                                                # init budget: 0.19/step, against a full-scale Nyquist toggle on one
                                                # actuator at 45 per episode.
-tail_home_pose_weight = 0.25                   # The T-Rex's tail term (D-D59): the four servoed tail joints around the
+tail_home_pose_weight = 0.25                   # The T-Rex's tail term (2026-11-06): the four servoed tail joints around the
                                                # statue's own settled tail (VelociraptorMongoliensisEnv._TAIL_SETTLED_QPOS,
                                                # 4.5 deg down at tail_1, clear of every stop). tail_stability below reads
                                                # only the tail-tip gyro, which a tail parked on a stop satisfies; the
                                                # r2 audit stance held tail_1_pitch at -15 deg, its stop, on 95% of
                                                # steps, and the T-Rex's 2026-08 run parked three tail joints that way.
-                                               # Statue quality 0.993 (+248/episode, all 120 seeds of 3042-3081,
-                                               # 3082-3121 and 7042-7081 within 0.001); 0.986-0.988 at the sigma-0.07
-                                               # start; one joint on its stop forfeits a quarter of the term.
-tail_home_pose_tolerance = 0.05                # rad, the T-Rex's: the statue's 40-seed window means sit within 1.3e-4
-                                               # rad of the target, the noise-free one within 1e-5.
+                                               # Statue quality 0.993 (+248/episode; per seed 0.988-0.998 over the 120
+                                               # seeds of 3042-3081, 3082-3121 and 7042-7081, the three 40-seed block
+                                               # means 0.9929-0.9937); 0.986-0.988 at the sigma-0.07 start; one joint
+                                               # on its stop forfeits a quarter of the term.
+tail_home_pose_tolerance = 0.05                # rad, the T-Rex's: the statue's per-seed window means (seeds 3042-3081)
+                                               # sit within 4.1e-4 rad of the target (tail_1_yaw; 1.2e-4 on the pitch
+                                               # joints), their pooled mean within 1e-5.
 floor_impact_weight = 0.5                      # The T-Rex's D-D27 impact term in the anatomical Compsognathus's capped
-                                               # form (D-D59): per step, weight x min(peak summed foot force in body
+                                               # form (2026-11-06): per step, weight x min(peak summed foot force in body
                                                # weights - threshold, 1), over every substep of the whole episode,
-                                               # settle included. The r3 stances' ~10 Hz hop landed at 11-12.6 BW
-                                               # (median window peaks), so it pays the full cap, 0.5 per landing step;
+                                               # settle included. The r3 pilots' control panels peaked at 11-12.6 BW
+                                               # (median window peaks; both r3 6M stances hopped at ~10 Hz), so a hop
+                                               # landing pays the full cap, 0.5 per landing step;
                                                # uncapped, a few landings would out-price the -50 fall penalty. Costs
                                                # sigma 0.22 0.011/step and sigma 1.0 0.085/step.
 floor_impact_threshold_bw = 2.5                # The statue's largest peak on 120 seeds is 2.02 BW (its reset pop, seed
@@ -99,13 +110,14 @@ floor_impact_threshold_bw = 2.5                # The statue's largest peak on 12
                                                # of 120 episodes (a 0.25 BW excess, once) and never otherwise. The
                                                # Compsognathus's 2.5; the T-Rex's 1.4 sits under its own statue's
                                                # settle bar, which on this plant the reset pop already crosses.
-airborne_substep_weight = 1.0                  # The T-Rex's D-D27 flight term (D-D59): the share of a step's substeps on
+airborne_substep_weight = 1.0                  # The T-Rex's D-D27 flight term (2026-11-06): the share of a step's substeps on
                                                # which every foot is unloaded (touch <= 0.1 N), over the whole episode.
-                                               # A fully airborne step forfeits 57% of the alive bonus. Statue and the
-                                               # sigma-0.07 start 0; sigma 0.22 0.11/step and sigma 1.0 0.59/step; the r3
-                                               # hoppers had no foot down on 0.54-0.69 of window steps. With the other
-                                               # terms the per-step reward stays positive to sigma 0.5 (+0.34; header
-                                               # above), so it prices flight without paying a noisy policy to fall.
+                                               # A fully airborne step forfeits 57% of the alive bonus. Statue 0, the
+                                               # sigma-0.07 start about 2e-5/step; sigma 0.22 0.11/step and sigma 1.0
+                                               # 0.59/step; the r3 pilots' control panels had no foot down on 0.54-0.69
+                                               # of window steps. With the other terms the per-step reward, the fall
+                                               # penalty aside, stays positive at every sigma measured (+0.29 at 1.0;
+                                               # header above), so it prices flight without paying a policy to fall.
 fall_penalty = -50.0                   # Match stage 2 and T-Rex stage 1; default -100 is disproportionate with alive_bonus=2.0
 energy_penalty_weight = 0.075                      # Setting 4 sweep: 0.075 forces efficient standing posture. Proven across all three species.
 tail_stability_weight = 0.02
@@ -135,7 +147,7 @@ gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
 ent_coef_end = 0.0                               # Decay entropy over the stage (EntCoefDecayCallback), to 0 rather than a
-                                                 # floor (D-D59, the T-Rex's and the anatomical Compsognathus's value).
+                                                 # floor (2026-11-06, the T-Rex's and the anatomical Compsognathus's value).
                                                  # The decay itself stays: run 20260711_235303 stage 1 collapsed late
                                                  # (peak 1524 @ 2.45M -> 385 @ 3.95M, bimodal falls) under constant
                                                  # ent_coef on the 1.5x-kp r2-era plant (STAGE2_RECOMMENDATIONS.md
@@ -154,7 +166,7 @@ target_kl = 0.03                                # Early-stop PPO epochs on high 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
 log_std_init = -2.66                             # Initial action std exp(-2.66) = 0.070 on every actuator (SB3's default 0,
-                                                 # std 1.0, before; D-D59). The T-Rex's D-D27 lesson: start quiet, because
+                                                 # std 1.0, before; 2026-11-06). The T-Rex's D-D27 lesson: start quiet, because
                                                  # at std 1.0 the stochastic policy's flight IS the exploration noise and
                                                  # both physics-r8 T-Rex runs entered a hop regime (unsupported duty
                                                  # 0.52-0.57 at 0.1M); since D-D27 (-1.5) no full-budget T-Rex stance has
@@ -191,7 +203,7 @@ gate_kind = "stance_quality_heading/v1" # environments/shared/curriculum/gate_sc
 timesteps = 12000000
 
 # ---------------------------------------------------------------------------
-# The six-heading certificate (decision D-D59; the T-Rex's and the anatomical
+# The six-heading certificate (the maintainer's decision of 2026-11-06; the T-Rex's and the anatomical
 # Compsognathus's since D-D32). Since policy interface r13 the observation
 # reads no world heading (plant_versions note 21), so the certificate judges
 # the v2 classification below at every whole-scene turn of -90, -45, 0, 45, 90
@@ -360,21 +372,21 @@ max_phantom_support_fraction = 0.05      # Window steps where touch reads a load
 max_nonfoot_load_fraction = 0.01         # Floor load on the tail, trunk, arms or head. Statue (r4 too) and hacks 0:
                                          # a guard.
 max_settle_touchdowns = 2                # Debounced landings in steps 0-99, summed over the feet: the T-Rex's D-D27
-                                         # rail (D-D59). The r4 statue lands exactly once (a foot that spawns in
+                                         # rail (2026-11-06). The r4 statue lands at most once (a foot that spawns in
                                          # the air) on every episode of its six-heading panels, 480 episodes on
-                                         # 3042-3081 and 7042-7081 with the D-D59 [env]; 2 admits that landing plus
-                                         # one re-plant. It closes the settle re-seat the [env] terms leave
+                                         # 3042-3081 and 7042-7081 with the 2026-11-06 [env]: once on 432, never on
+                                         # 48; 2 admits that landing plus one re-plant. It closes the settle re-seat the [env] terms leave
                                          # unpriced: a quiet single-foot step stays single support and lands under
                                          # floor_impact_threshold_bw, and the other settle bars see only flight and
                                          # peaks.
-max_episode_yaw_change_deg = 25.0        # The root's heading change over the episode (the T-Rex's D-D27 rail, D-D59).
+max_episode_yaw_change_deg = 25.0        # The root's heading change over the episode (the T-Rex's D-D27 rail, 2026-11-06).
                                          # The r4 statue at most 10.9 deg on its six-heading panel here (median
                                          # 3.1) and 15.7 out of sample (7042-7081, median 6.1; the friction
                                          # pre-stress relaxation the creep scan measured, D-D54): 1.6x its
                                          # largest, the T-Rex's 25 (1.69x its r10 statue's 14.8). The certificate
                                          # judges heading DEPENDENCE; this bar reads the drift within an episode,
                                          # at each heading.
-max_hop_or_fall_episodes = 1             # Panel rail (the T-Rex's D-D27, D-D59): episodes that end early or fail
+max_hop_or_fall_episodes = 1             # Panel rail (the T-Rex's D-D27, 2026-11-06): episodes that end early or fail
                                          # min_all_feet_support, max_touchdown_rate, max_window_displacement_m or
                                          # max_actuator_saturation_fraction -- the signature of a whole-episode hop
                                          # or a fall; pad, load-share, yaw and settle misses stay with the bound.
@@ -396,7 +408,7 @@ min_avg_reward = 1850.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # friction cone), same command: 2843.00 +/- 2.70, 40/40 full horizon, +0.2
                                         # against 2842.8 at a 0.4 standard error (+0.24 paired over the 40
                                         # episodes). The rail carries: 0.60 x 2843.0 = 1705.8, rounded to 1710.
-                                        # Re-measured 2026-11-06 with the D-D59 terms ([env] above), same command:
+                                        # Re-measured 2026-11-06 with the 2026-11-06 terms ([env] above), same command:
                                         # 3091.32 +/- 2.80, 40/40 full horizon -- +248.3, the tail term's 0.25 x
                                         # 0.993 per step; the impact and airborne terms charge the statue nothing --
                                         # so the rail moves to 0.60 x 3091.3 = 1854.8, rounded to 1850.
@@ -406,23 +418,24 @@ min_avg_reward_statue_ratio = 0.60      # The same 0.60 rail against the statue 
                                         # was not re-measured. Neither rail refuses the audit stance, which scored
                                         # 1.006 (robust_best) and 1.015 (final) of its own r2 statue: the rails
                                         # catch a collapse, the bars above catch the hacks.
-collapse_peak_floor_fraction = 0.45    # RELATIVE floor, the T-Rex's (D-D59): the backstop arms once a peak clears
-                                        # 0.45 x collapse_peak_floor_reference below. Was the absolute 2130 (0.75 x
-                                        # the statue), which is above what a learning policy passes through: with
-                                        # home-keyframe residuals the UNTRAINED policy already stands near the
-                                        # statue, so a 0.75 floor arms on initialisation and the ordinary
-                                        # exploration dip that follows reads as a collapse -- the T-Rex's run
-                                        # 20260803_012355 stopped that way at 1.45M of 10M, and the dibothrosuchus
-                                        # stance at 1.45M too (KNOWN_ISSUES). The quiet start above makes the first
-                                        # evaluations statue-like here. Re-derive the reference, not this fraction,
-                                        # whenever the reward changes.
+collapse_peak_floor_fraction = 0.45    # RELATIVE floor, the T-Rex's (2026-11-06): the backstop arms once a peak clears
+                                        # 0.45 x collapse_peak_floor_reference below, 1391.1, and so re-anchors with
+                                        # the statue whenever the reward moves, where the absolute 2130 (0.75 x the
+                                        # statue) had to be re-derived by hand. Either floor is below the statue-like
+                                        # first evaluations (evaluation is deterministic, and the untrained network
+                                        # stands like the statue: 20/20 clean in the r3 pilots), so neither alone
+                                        # keeps the backstop from arming on initialisation and reading the
+                                        # exploration dip that follows as a collapse (the T-Rex's run 20260803_012355
+                                        # stopped that way at 1.45M of 10M, the dibothrosuchus stance at 1.45M too,
+                                        # KNOWN_ISSUES): collapse_peak_warmup_timesteps below does. Re-derive the
+                                        # reference, not this fraction, whenever the reward changes.
                                         #
                                         # Superseded absolute value, kept for the record:
                                         # collapse_peak_floor = 2130.0  # 0.75 x the statue's standing reward (2842.8 -> 2132.1 -> 2130; r4 2132.2
                                         # -> 2130): above the grind, below a plausible active-policy peak. Was 1300 on the r2 plant; the old
                                         # 100.0 armed on any positive blip.
 collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (the T-Rex's value and
-                                         # reason, D-D59): the untrained policy's statue-like first evaluations
+                                         # reason, 2026-11-06): the untrained policy's statue-like first evaluations
                                          # must not arm the floor. 1.0M was measured on the T-Rex's 20260803_012355
                                          # series (its initialisation advantage gone by 200k); it leaves 92% of
                                          # this 12M budget protected. Untested on a full run at this start.
@@ -435,12 +448,12 @@ collapse_peak_floor_reference = 3091.3  # The zero-action statue's standing rewa
                                         # changes. Re-measured on physics r4 (plant_versions note 17): 2843.00 +/-
                                         # 2.70, so the reference carries (min_avg_reward above has the figures);
                                         # the v2 report's statue panel agrees (2843.0, 40/40; 2842.2 on 3082-3161).
-                                        # Re-measured with the D-D59 [env] (2026-11-06): 3091.32 +/- 2.80, 40/40
+                                        # Re-measured with the 2026-11-06 [env] (2026-11-06): 3091.32 +/- 2.80, 40/40
                                         # (min_avg_reward above), so it moves to 3091.3 and the floor is 0.45 x
                                         # 3091.3 = 1391.1.
 statue_constants_physics_revision = 4   # The velociraptor physics revision the statue-derived constants above
                                         # (min_avg_reward and collapse_peak_floor_reference) were measured on
-                                        # (r3, re-measured on r4 above, and with the D-D59 [env] on r4).
+                                        # (r3, re-measured on r4 above, and with the 2026-11-06 [env] on r4).
                                         # test_statue_constant_freshness.py cross-checks this against the plant
                                         # manifest, so a plant revision bump that forgets to re-measure the statue
                                         # fails CI. Update it WITH the re-measurement, never alone.
@@ -458,31 +471,32 @@ max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointR
                                         # DEFAULT_MAX_CHECKPOINTS). best_model, robust_best_model and the final
                                         # model are never periodic checkpoints and are never pruned.
 checkpoint_archive_every_timesteps = 500000  # Also keep the newest periodic checkpoint of every 500,000-step interval
-                                        # beside the newest 5: the onset record (the T-Rex's, D-D59). The T-Rex
-                                        # screens judged FINAL and intermediate checkpoints, and 15 of their
-                                        # notebook PASSes, each judged on an early robust_best near the statue,
-                                        # were failures at the final; this keeps the checkpoints that judging
-                                        # needs (about 28 pairs on a 12M run instead of 5, as on the
+                                        # beside the newest 5: the onset record (the T-Rex's; 2026-11-06). The T-Rex
+                                        # screens judged FINAL and intermediate checkpoints, and 11 of the 17
+                                        # distinct screen runs whose notebook certificate passed (most on a
+                                        # robust_best at or before 1.84M steps, near the statue) failed those
+                                        # checks; this keeps the checkpoints that judging needs (about 28 pairs on a 12M run instead of 5, as on the
                                         # T-Rex's 12M stance). A retention key: in no gate,
                                         # task or hyperparameter digest; only the stage-config view digests move.
 certification_seeds = 2                 # Publication bar, not a gate threshold (BEHAVIOR_RECIPES_PLAN §4.5, decision
-                                        # D-B9; the T-Rex's, D-D59): distinct-seed runs that must certify this node
+                                        # D-B9; the T-Rex's, 2026-11-06): distinct-seed runs that must certify this node
                                         # before its deliverable stops being labelled provisional. On the T-Rex one
                                         # passing seed told "solved" from "lucky" no better than a coin (seeds 42 / 43
                                         # / 44 PASS / FAIL / PASS on one configuration, r7), and this species' r3 seeds
                                         # split too (seed 42 hopped on 25/40, seed 48 on 40/40). Enters neither
                                         # gate_sha256 nor hyperparameters_sha256 nor task_sha256.
 baseline_warn_after_budget_fraction = 0.35  # Warn once past this share of the budget (4.2M) if the policy has still
-                                         # never beaten the zero-action statue. Advisory only; the T-Rex's (D-D59),
+                                         # never beaten the zero-action statue. Advisory only; the T-Rex's (2026-11-06),
                                          # after its run 20260804_143747 trained 10M steps under the statue and
                                          # nothing said so (issue #486).
 hop_watch_max_unsupported_duty = 0.05    # Opt-in hop watch (curriculum/hop_watch.py, the T-Rex's D-D27 guard;
-                                         # D-D59): from hop_watch_after_timesteps on, an evaluation whose unsupported
+                                         # the 2026-11-06 decision): from hop_watch_after_timesteps on, an evaluation whose unsupported
                                          # duty (gate_progress.npz, from the r/l_foot_contact info keys) is above
                                          # this logs a warning, writes hop_watch.json and, with hop_watch_stop, ends
                                          # training; the post-stage certificate then judges the handoff pair as
-                                         # usual. The statue's duty is 0 at every noise up to sigma 0.08 (and 0.002
-                                         # at 0.10); the r3 hoppers had no foot down on 0.54-0.69 of window steps.
+                                         # usual. The statue's duty is 0 up to sigma 0.07 (4e-4 at 0.08, 0.002 at
+                                         # 0.10); the r3 pilots' control panels had no foot down on 0.54-0.69 of
+                                         # window steps.
 hop_watch_after_timesteps = 7000000      # = ent_coef_decay_timesteps in [ppo], where the entropy bonus reaches 0:
                                          # move them together (test_curriculum_hop_watch.py pins it).
 hop_watch_stop = true                    # Stop rather than warn: a seed still hopping when its entropy has run out

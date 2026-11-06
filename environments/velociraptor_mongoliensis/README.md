@@ -140,13 +140,12 @@ the sum of three touch sensors, on the middle toe, the outer toe and the metatar
 the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
 interface revision 11; it has no `mjx_config.py`. Since physics r4 (note 17, decision D-D30) the friction cone is
 elliptic, the one friction model of every species: the capsule feet were already heading-invariant under MuJoCo's
-default pyramidal cone, and the elliptic cone keeps any foot shape so. Since policy interface r13 (note 21, decision
-D-D59) the observation reads no world heading, as the T-Rex's and the anatomical Compsognathus's do: projected gravity,
+default pyramidal cone, and the elliptic cone keeps any foot shape so. Since policy interface r13 (note 21, the maintainer's decision of 2026-11-06) the observation reads no world heading, as the T-Rex's and the anatomical Compsognathus's do: projected gravity,
 the root velocity in the gravity-aligned heading frame and the prey direction in pelvis coordinates replace the world
 quaternion, velocity and prey direction, so turning the whole scene about vertical leaves the observation unchanged.
 
 ### Stance gate
-The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (decision D-D59; the
+The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (the maintainer's decision of 2026-11-06; the
 `stance_quality/v2` block of D-D25, judged at every heading): the 40 seeds of the certification panel (3042-3081)
 are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees, each episode is classified on floor
 truth, the floor's normal force under each leg on every physics substep, and the stance passes when every heading
@@ -160,7 +159,7 @@ stays provisional until two seeds certify (`certification_seeds = 2`). Judge its
 and re-judge it on the fresh seeds 7042-7081 (`docs/NEXT_STEPS.md`).
 
 ### Exploration
-The stance starts at action std 0.07 (`log_std_init = -2.66`, decision D-D59): the zero-action statue survives white
+The stance starts at action std 0.07 (`log_std_init = -2.66`, the maintainer's decision of 2026-11-06): the zero-action statue survives white
 command noise to about that sigma and falls past it, onto its tail
 (`tests/test_anatomical_noise_tolerance.py`). At SB3's default std 1.0 the noise itself is a hop. Move
 `log_std_init` with the cliff if the plant changes.
@@ -175,7 +174,7 @@ shaping is direction-aware and centred on the raptor's natural forward lean;
 absolute tilt remains the safety signal for termination. The stance stage also
 pays bilateral support (the weaker-loaded foot), retention of the home leg pose,
 and charges commands parked at their limits and command chatter (action jerk),
-with part of the alive bonus conditioned on support; since decision D-D59 it also
+with part of the alive bonus conditioned on support; since the maintainer's decision of 2026-11-06 it also
 pays the tail's settled pose and charges fully airborne substeps and floor
 impacts above 2.5 body weights (the T-Rex's terms). Each is a
 `VelociraptorMongoliensisEnv` kwarg that is inert at its default and set in
