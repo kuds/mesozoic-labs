@@ -1,0 +1,70 @@
+F401 [*] `collections.Counter` imported but unused
+  --> e2e_summary.py:15:25
+   |
+13 | import re
+14 | import sys
+15 | from collections import Counter
+   |                         ^^^^^^^
+16 | from pathlib import Path
+   |
+help: Remove unused import: `collections.Counter`
+   |
+14 | import sys
+   - from collections import Counter
+15 | from pathlib import Path
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> from_e2e/edge_pairs.py:109:1
+    |
+107 |       sys.exit(1)
+108 |
+109 | / import environments  # noqa: E402
+110 | | from stable_baselines3 import PPO  # noqa: E402
+111 | | from stable_baselines3.common.callbacks import CheckpointCallback  # noqa: E402
+112 | | from stable_baselines3.common.logger import Logger  # noqa: E402
+113 | |
+114 | | from environments.shared.config import load_stage_config  # noqa: E402
+115 | | from environments.shared.model_id import ModelId  # noqa: E402
+116 | | from environments.shared.policy_loading import load_sb3_model  # noqa: E402
+117 | | from environments.shared.species_registry import get_species_config  # noqa: E402
+118 | | from environments.shared.task_fingerprint import MODEL_TASK_LINEAGE_ATTRIBUTE  # noqa: E402
+    | |_____________________________________________________________________________^
+119 |
+120 |   RESULT["environments_file"] = environments.__file__
+    |
+help: Organize imports
+    |
+108 |
+    - import environments  # noqa: E402
+109 | from stable_baselines3 import PPO  # noqa: E402
+110 | from stable_baselines3.common.callbacks import CheckpointCallback  # noqa: E402
+111 | from stable_baselines3.common.logger import Logger  # noqa: E402
+112 |
+113 + import environments  # noqa: E402
+114 | from environments.shared.config import load_stage_config  # noqa: E402
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> from_e2e/make_final.py:42:1
+   |
+42 | / import environments  # noqa: E402
+43 | | from stable_baselines3 import PPO  # noqa: E402
+44 | |
+45 | | from environments.shared.policy_loading import load_sb3_model  # noqa: E402
+   | |_____________________________________________________________^
+46 |
+47 |   OUT["environments_file"] = environments.__file__
+   |
+help: Organize imports
+   |
+41 |
+   - import environments  # noqa: E402
+42 | from stable_baselines3 import PPO  # noqa: E402
+43 |
+44 + import environments  # noqa: E402
+45 | from environments.shared.policy_loading import load_sb3_model  # noqa: E402
+   |
+
+Found 3 errors.
+[*] 3 fixable with the `--fix` option.

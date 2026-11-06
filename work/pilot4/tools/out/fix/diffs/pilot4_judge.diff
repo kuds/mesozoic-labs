@@ -1,0 +1,189 @@
+--- TOOLS-stage/pilot4_judge.py
++++ fix-stage/pilot4_judge.py
+@@ -35,6 +35,13 @@
+     periodic stage2_<steps>_steps checkpoint is refused. The budget of a resumed run is its recorded run.timesteps
+     plus the step it resumed from;
+   * its hyperparameters_sha256 and task_fingerprint.task_sha256 equal the ones this tree derives for the stage;
++    (fix stage) at the pilot budget the tree's derivations must also be the text's own, HYPERPARAMETERS_SHA256
++    fbc94bef... and TASK_SHA256 914a1cae..., and its committed [env.command_config] the text's COMMAND_TABLE, so a
++    record and a tree that moved together are refused; --expect-head defaults to PILOT_HEAD (0e6a57b), checked after
++    the branch rule;
++  * (fix stage) the recorded env kwargs equal the env this tree builds: env_kwargs_drift, the probe's own drift
++    record (every recorded or committed [env] key against {constructor defaults, **committed env_kwargs}), must be
++    empty; after the probe its own meta.env_kwargs_drift_vs_recorded must be empty too (the probe only warns);
+   * plant_identity.json's physics and policy-interface digests equal the tree's;
+   * entry_problems (in place of pilot 3's warm-start checks): no run.critic_phase_dropped record, no warm_start_log_std
+     record (run or curriculum), curriculum warmup_timesteps 0, ramp_start_value 2.0, initialize_from_own_checkpoint
+@@ -103,6 +110,15 @@
+ R6_KEYS = {"walk_support_gate_bw": 0.04, "airborne_substep_weight": 1.0, "forward_vel_max": 1.5,
+            "walk_touchdown_weight": 0.1}
+ CADENCE = {"eval_freq": 65536, "eval_episodes": 10, "checkpoint_freq": 250000, "max_checkpoints": 0}
++#: The text's own values (v3 "Run handling", first-hour list; "What is trained"), fix stage: at the pilot budget the
++#: judging tree must derive these, so a record and a tree that moved together are refused; --expect-head defaults to
++#: the head the runs record ("Code").
++PILOT_HEAD = "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
++HYPERPARAMETERS_SHA256 = "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
++TASK_SHA256 = "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
++COMMAND_TABLE = {"cruise_speed": 1.5, "stop_probability": 0.0, "turn_increment_max": 0.0, "straight_probability": 1.0,
++                 "speed_scale": 1.5, "lateral_speed_scale": 1.0, "yaw_rate_scale": 0.6, "yaw_gain": 1.5,
++                 "yaw_rate_max": 0.3, "turn_slowdown": True, "minimum_turn_speed_fraction": 0.25}
+ BRANCH_PREFIX = "claude/pilot-walk-"
+ RUN_ID_RE = re.compile(r"pilot4_walk_s(\d+)(_b)?")
+ PROBE_ARGS = ["--species", "tyrannosaurus_rex", "--stage", "locomotion", "--episodes", "40", "--seed-scheme", "panel",
+@@ -369,6 +385,45 @@
+     return problems
+ 
+ 
++def env_kwargs_drift(recorded: object, env_kwargs: dict, defaults: dict) -> dict:
++    """The gait probe's own drift record (gait_probe.py lines 1651-1668), computed before the probe: for every key of
++    the recorded env kwargs (stage_config.json reward_weights) or of this tree's committed [env], the value the env
++    constructor receives here ({constructor defaults, **env_kwargs}, a tuple read as a list) against the recorded one,
++    compared as the probe compares them (Python ==); {} when the run trained in this tree's env."""
++    rec = recorded if isinstance(recorded, dict) else {}
++    effective = {**defaults, **env_kwargs}
++    drift = {}
++    for k in sorted(set(rec) | set(env_kwargs)):
++        a = effective.get(k, "<absent>")
++        b = rec.get(k, "<absent>")
++        a_cmp = list(a) if isinstance(a, tuple) else a
++        if a_cmp != b:
++            drift[k] = {"toml_main": a_cmp, "recorded_run": b}
++    return drift
++
++
++def drift_problem(drift: object) -> str | None:
++    """None for an empty drift record; else the refusal (fix stage: the probe only warns)."""
++    if not drift:
++        return None
++    return (f"the run's recorded env kwargs (stage_config.json reward_weights) differ from the env this tree builds "
++            f"(constructor defaults and the committed [env]), so the probe would judge in another env than training's: "
++            f"{json.dumps(drift, sort_keys=True, default=str)}")
++
++
++def anchor_problems(hp_here: str, task_here: str, committed_table: object) -> list[str]:
++    """Fix stage: the judging tree's own derivations against the text's values (checked at the pilot budget)."""
++    problems = []
++    if hp_here != HYPERPARAMETERS_SHA256:
++        problems.append(f"this tree's recipe digest {hp_here} is not v3's {HYPERPARAMETERS_SHA256}")
++    if task_here != TASK_SHA256:
++        problems.append(f"this tree's task digest {task_here} is not v3's {TASK_SHA256}")
++    if not same_json(committed_table, COMMAND_TABLE):
++        problems.append("this tree's committed [env.command_config] is not v3's table: "
++                        + "; ".join(table_differences(committed_table, COMMAND_TABLE)))
++    return problems
++
++
+ def cadence_problems(sc: dict) -> list[str]:
+     """The recorded cadence ("Run handling"): eval_freq 65536, eval_episodes 10, checkpoint_freq 250000,
+     max_checkpoints 0."""
+@@ -400,12 +455,14 @@
+ def binding_problems(sc: dict, *, seed: int, want_parent: str, expect_budget: int, ramp: int, warmup: int,
+                      ramp_start: object, forward_weight: object, hp_here: str, task_here: str,
+                      committed_table: object, lineage: object, lineage_note: str | None = None,
+-                     report_off_schedule: bool) -> tuple[list[str], dict]:
++                     report_off_schedule: bool, kwargs_drift: dict | None = None) -> tuple[list[str], dict]:
+     """Every stage_config.json check that needs no tree (pilot 3's kept and pilot 4's), and what they read.
+ 
+     ramp, warmup and ramp_start are this tree's curriculum ramp_timesteps, warmup_timesteps and ramp_start_value,
+     forward_weight its [env] forward_vel_weight; hp_here and task_here the digests it derives; committed_table its
+-    [env.command_config]; lineage the judged zip's record (lineage_note: why it could not be read).
++    [env.command_config]; lineage the judged zip's record (lineage_note: why it could not be read); kwargs_drift
++    env_kwargs_drift's record (None: not computed). At the pilot budget the tree's digests and table must also be the
++    text's (anchor_problems), as the cadence is checked there.
+     Returns (problems, info) with info = {"budget", "resume_step", "off_schedule", "resumed", "cadence_checked"}."""
+     run_block = sc.get("run") or {}
+     problems = []
+@@ -437,9 +494,13 @@
+         problems.append(f"task_sha256 {recorded_task} != this tree's {task_here}")
+     problems += entry_problems(sc, lineage, lineage_note)
+     problems += env_problems(sc, committed_table)
++    why_drift = drift_problem(kwargs_drift)
++    if why_drift:
++        problems.append(why_drift)
+     cadence_checked = expect_budget == PILOT_BUDGET
+     if cadence_checked:
+         problems += cadence_problems(sc)
++        problems += anchor_problems(hp_here, task_here, committed_table)
+     return problems, {"budget": budget, "resume_step": resume_step, "off_schedule": off_schedule,
+                       "resumed": bool(resumed), "cadence_checked": cadence_checked}
+ 
+@@ -524,7 +585,8 @@
+     ap.add_argument("--parent-sha256", required=True,
+                     help="sha256 of the seed's own parent, its pilot-3 8M zip: "
+                          + ", ".join(f"s{s} sha256:{v}" for s, v in sorted(PARENT_SHA256.items())))
+-    ap.add_argument("--expect-head", default=None)
++    ap.add_argument("--expect-head", default=PILOT_HEAD,
++                    help=f"the tree's HEAD must start with this (default: the head the runs record, {PILOT_HEAD})")
+     ap.add_argument("--allow-commit-mismatch", action="store_true")
+     ap.add_argument("--report-off-schedule", action="store_true",
+                     help="judge an off-schedule resumed run anyway; binding.json marks it and the scorer skips it")
+@@ -545,19 +607,22 @@
+     dirty = git(tree, "status", "--porcelain", "--untracked-files=no")
+     if dirty:
+         return refuse(f"the tree {tree} has local edits")
+-    if a.expect_head and not head.startswith(a.expect_head):
+-        return refuse(f"tree HEAD {head} is not {a.expect_head}")
+     current = git(tree, "branch", "--show-current")
+     head_refs = git(tree, "for-each-ref", "--points-at", "HEAD", "--format=%(refname)", "refs/heads/").splitlines()
+     branch, branch_how = pilot_branch_from(current, head_refs)
+     if branch is None:
+         return refuse(branch_how)
++    if a.expect_head and not head.startswith(a.expect_head):
++        return refuse(f"tree HEAD {head} is not {a.expect_head}")
++
++    import inspect
+ 
+     import environments
+     from environments.shared.config import hyperparameters_sha256, load_stage_config
+     from environments.shared.curriculum import checkpoint_pair_problem
+     from environments.shared.plant_contract import current_plant_identity
+     from environments.shared.species_names import require_model_id
++    from environments.shared.species_registry import get_species_config
+     from environments.shared.task_fingerprint import stage_task_fingerprint
+ 
+     if not str(Path(environments.__file__).resolve()).startswith(str(tree) + "/"):
+@@ -589,6 +654,10 @@
+     hp_here = hyperparameters_sha256(config, "ppo")
+     task_here = stage_task_fingerprint(mid, 2, stage_config=config)["task_sha256"]
+     lineage, lineage_note = zip_lineage(ckpt)
++    env_class = get_species_config(mid).env_class
++    defaults = {name: prm.default for name, prm in inspect.signature(env_class.__init__).parameters.items()
++                if prm.default is not inspect.Parameter.empty}
++    kwargs_drift = env_kwargs_drift(sc.get("reward_weights"), dict(env_kwargs), defaults)
+     problems = []
+     why_run = run_id_problem(run.name, a.seed)
+     if why_run:
+@@ -597,7 +666,7 @@
+                                    ramp=ramp, warmup=warmup, ramp_start=ramp_start, forward_weight=forward_weight,
+                                    hp_here=hp_here, task_here=task_here, committed_table=committed_table,
+                                    lineage=lineage, lineage_note=lineage_note,
+-                                   report_off_schedule=a.report_off_schedule)
++                                   report_off_schedule=a.report_off_schedule, kwargs_drift=kwargs_drift)
+     problems += found
+     off_schedule = info["off_schedule"]
+     fallback = None
+@@ -651,6 +720,15 @@
+         return refuse(f"the gait probe exited {rc} (3 = checkpoint refused by the plant contract or loader)")
+     probe_json = tmp / f"tyrannosaurus_rex_{run_id}_locomotion.json"
+     shutil.copyfile(probe_json, tmp / "probe.json")
++    try:
++        probe_drift = json.loads(probe_json.read_text())["meta"]["env_kwargs_drift_vs_recorded"]
++    except (KeyError, TypeError, ValueError) as exc:
++        shutil.rmtree(tmp)
++        return refuse(f"the probe's JSON has no meta.env_kwargs_drift_vs_recorded ({type(exc).__name__}: {exc})")
++    why_drift = drift_problem(probe_drift)
++    if why_drift:  # fix stage: the probe only warns; the judge refuses (its own pre-probe check should have)
++        shutil.rmtree(tmp)
++        return refuse(f"{why_drift} (the probe's own record)")
+     cur_rec = sc.get("curriculum") or {}
+     rw = sc.get("reward_weights") or {}
+     binding = {"schema": "walking-pilot4-judge/v1", "tree": str(tree), "branch": branch, "branch_how": branch_how,
+@@ -671,6 +749,8 @@
+                                "prey_lateral_range": rw.get("prey_lateral_range"),
+                                **{k: rw.get(k) for k in (*PRICE_KEYS, *R6_KEYS)}},
+                "committed_command_config": committed_table,
++               "env_kwargs_drift": kwargs_drift, "probe_env_kwargs_drift": probe_drift,
++               "text_anchors_checked": info["cadence_checked"],
+                "task_sha256": task_here,
+                "n_envs": run_block.get("n_envs"),
+                "curriculum_cadence": {k: cur_rec.get(k) for k in CADENCE_KEYS},

@@ -1,0 +1,389 @@
+{
+ "read:recipe": {
+  "answer": "SHORT ANSWER: No, not in a way that is worth the L4 hours. Main at 77c63ad can run a two-seed T. rex stance certification attempt mechanically. The notebook, physics r10, policy interface r15, the six-heading gate and certification_seeds = 2 are all in place. But what it would train is main's committed stance recipe, not the LTSB recipe used in the r10 rounds. Main's recipe has never been trained on r10. On r9 the same reward failed the pad fore-aft bar in every run that was judged, and the cause sits in a reward term that r10 did not change. The only recipe with r10 evidence of passing, LTSB plus the phase critic, is on branches that were never merged. Physics r10 is already on main, and so is the phase critic (as a notebook switch). The stagger and CoP-band reward terms are not.\n\nLabels: [M] = measured (file:line, or RL = run log line, /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/run_log.txt); [I] = inferred. Repository paths are on my clone at 77c63ad, which has since been deleted.\n\n1. MAIN'S STANCE RECIPE TODAY\n- Gate [M]: kind stance_quality_heading/v1 (stance.toml l.531). The budget is 12,000,000 steps (l.532). The gate rolls 40 episodes on seeds 3042-3081 at each heading (l.685) and needs a lower confidence bound of at least 0.80 (l.689). The pad fore-aft bar is 0.80 (l.772), with at most 1 hop-or-fall episode (l.823). The rails are 2260 (l.843) and a 0.60 statue ratio (l.940). certification_seeds = 2 (l.954), collapse reference 3766.6 (l.1037), statue constants measured on physics revision 10 (l.1060). A hop watch stops the run at 7M if the policy is still hopping (l.1078-1082).\n- Reward [M]: the leg home-pose term has weight 0.5 and tolerance 0.10 (l.68, l.81) on the default keyframe reference (base_env.py l.279). Lateral lean defaults to weight 0 (base_env.py l.277). Stance width uses the settled reference, gated at step 200 (l.165, l.188). There is no stagger or CoP-band key, and no code for either term on main (git grep finds nothing).\n- PPO [M]: stock PPO with no symmetry key; learning rate 3e-5, starting log_std -1.5 (l.391, l.466).\n- Phase critic [M]: no critic_phase key in stance.toml. The notebook switch CRITIC_PHASE defaults to False (sb3_training.ipynb l.224). Setting it to True writes critic_phase = true into every node of the chain (l.428-433), which changes hyperparameters_sha256 (critic_phase.py l.52).\n- Plant and digests [M]: physics revision 10, interface revision 15 (plant_versions.toml l.607-611; digest_snapshot.generated.txt l.201-204). Stance digests: task 533fff20..., gate d26c34e6..., PPO 9d1598a6... (l.382-384). The stage manifest says \"no r10 seed yet (bar 2)\" (stages.toml l.34).\n- Evaluation and certification [M]:\n  - Main evaluates every 50,000 steps (notebook l.694), 40 episodes each time (train_base.py l.190).\n  - The in-training manager refuses this gate kind, so every run trains its full budget (stance.toml l.947-953).\n  - After the stage, the certificate is rolled on the handoff checkpoint, robust_best_model first (curriculum/checkpoints.py l.108-122). That checkpoint is chosen by best mean minus 1.0 x std of evaluation reward, with no warm-up (checkpoints.py l.28-86).\n\n2. HOW LTSB DIFFERS [M: git diff 06b1a8e..8737cd3, plus the branch's stance.toml header l.1-20]\n- Reward and PPO changes:\n  - Leg home-pose term at weight 1.0, tolerance 0.05, settled reference; lateral lean 0.25 with tolerance 0.015 m.\n  - Mirror-symmetric PPO (kappa 0.3, sigma floor 0.01, mirrored critic).\n  - Stagger penalty 0.30 with tolerance 0.045 m; CoP band at weight 0.30.\n  - Collapse reference 4470.4 (the statue scores 703.8 more under LTSB).\n- Screen-only cadence: an evaluation every 131,072 steps of 10 episodes; a checkpoint every 262,144 steps, all kept.\n- Digests: task 1e5964b6..., PPO 054ab483...; the gate digest is unchanged.\n- Code not on main: the stagger term (60c0c1f), the band term (740fc3f), the floor_contact module and the cadence keys (176af89); 22 files, +3,425 / -776 lines.\n- The phase-critic branch (1dfe232) adds only the critic-phase code and the notebook switch on top of LTSB; it does not touch stance.toml.\n- Main's later port of the phase critic differs from the branch's version (critic_phase.py and critic_phase_ppo.py, +168 / -19 lines).\n\n3. HISTORY\nCorrection to the task's framing [M]: the stance5, stance6 and stance7 rounds, and the phase-critic round's OFF runs, all trained branch recipes (LTSB), not main's. The OFF runs are byte-for-byte copies of stance6 (RL 970-971), so they add no new sample.\n\nMain's own recipe:\n- r10 [M]: never trained. The records say so as of 2026-10-25 (NEXT_STEPS.md l.301-303; KNOWN_ISSUES.md l.335), and every T. rex stance launch since then names a branch (RL 666, 671-672, 885-887, 907, 911, 923).\n- r9, same reward:\n  - Run A 20261011_165957 [M]: 12M steps, 17 h 23 min. Its certificate checkpoint (robust_best, at 3.2M) was clean on only 1 of 40 episodes, failing the pad CoP bar on 39 of 40 (TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l.303, l.336-344).\n  - Short screens [M]: the 1M control put the pad on its toe edge on 5 of 5 seeds (l.496). The 3M control had 39, 37 and 37 of 40 episodes over the bar (l.498).\n  - Diagnosis [M]: the committed reward pays for a forward lean of about 23 mm through its keyframe-centred leg term (KNOWN_ISSUES.md l.191-195). Run A's edge was not caused by the tail (TREX_TAIL_SATURATION_HABIT_2026_10.md l.565).\n- r8 [M]:\n  - 20261006_185343 was clean on 0/40 and 20261006_185704 on 13/40 (NEXT_STEPS.md l.256-257).\n  - The D-D27 task runs: 0/40, 36/40, and 39/40 for seed 52. Seed 52 then scored 32/40 on fresh seeds and was ruled research-only (KNOWN_ISSUES.md ~l.143-152).\n- Tail habit: never measured on main's recipe (critic_phase.py l.12-13) [M].\n\nLTSB and the other branch recipes:\n- r9 [M]: stance3 0 of 3 held, stance4 0 of 3, stance5 2 of 5 (tail-tip actuator pinned on s42 and s80) (KNOWN_ISSUES.md Updates 10 and 12; NEXT_STEPS.md l.527-552).\n- stance6, r10, no phase critic [M]:\n  - s42 pinned the tail actuator (RAIL) and failed the gate at its final checkpoint; s60 parked its tail; s80 had no tail habit but a saturated neck actuator (RL 711).\n  - s80's certificate at 6.29M passed only 5 of 40 (stance6_results/review/REVIEW.txt l.437-446).\n  - The K1-K4 checks: only s60 holds (RL 991).\n- stance7, r10, with the phase critic [M]:\n  - No tail rail or parked tail in 3 of 3 runs, and the gate certificate 40/40 at the final checkpoint in 3 of 3, \"measured on a screen task; not certification\" (RL 968).\n  - K1-K4 hold in 3 of 3 (RL 991).\n  - The pre-registered test read NOT SEPARATED (RL 968).\n  - The do-nothing statue passes the same gate, and the runs beat its 4470.4 reward by only +8.9 to +17.2 (ANSWER.md l.6, l.17).\n- The notebook's own end-of-stage verdict in stance6 [M]: it judged robust_best checkpoints at 0.9-2.0M and passed all three runs, including s42, whose final checkpoint fails (REVIEW.txt l.440-448; check1/NOTES.txt l.94-96).\n\n4. WHAT TWO SEEDS ON MAIN TODAY WOULD LIKELY GIVE [I]\n- The certificate most likely fails on the pad fore-aft bar for most seeds; 2 of 2 passing is unlikely. Reasons:\n  - The same reward failed every judged r9 run.\n  - The cause is a reward term.\n  - r10 changed only the tail-spring preloads; masses, geometry and actuators are the same (plant_versions.toml l.550-559 [M]).\n- Points that cut the other way:\n  - On r10 the statue's pads sit nearer their centre (worst CoP 0.322, against 0.475 on r9; plant_versions.toml l.583-584 [M]). Whether trained policies follow is untested.\n  - The certificate judges robust_best. In the r9 1M probes it was a near-statue checkpoint at 50k-350k steps (34-39/40 clean); in Run A it was the edge policy (stance record l.449-451 [M]). So an early near-statue checkpoint could pass, but it would certify standing, not quality: the statue itself is clean on 40/40 at every heading (stance.toml l.652-653 [M]).\n- Turning CRITIC_PHASE on is untested on main's recipe. It targets the tail habit, not the forward lean, so it is not expected to fix the known failure.\n\n5. WHAT HAS TO LAND ON MAIN FIRST\n- (a) A recipe with r10 evidence, meaning the LTSB terms:\n  - Config only, since the code is already on main: the settled leg reference at 1.0/0.05, lateral lean 0.25/0.015, and mirror-symmetric PPO.\n  - New code: the stagger and CoP-band terms and the floor_contact module.\n  - Re-measured statue constants: the collapse reference about 4470.4 (measured on the branch), and the reward rail re-derived as 0.60 x statue, about 2680 [I]. The branch kept 2260.\n  - A regenerated digest snapshot.\n  - A recovery re-measure, because recovery inherits the stance [env] and [ppo] tables (stance.toml l.5, l.390 [M]).\n- (b) The phase critic on for the stance:\n  - Either set CRITIC_PHASE = True on both seeds (and again on any resume), or commit critic_phase = true in stance.toml. Committing it would also switch it on in recovery, which reads a different settle step (S = 140) [I].\n  - Evidence, on LTSB only: 3 of 3 runs free of the habit against 1 of 3 without, and K1-K4 holding 3 of 3 against 1 of 3. Not confirmatory.\n- (c) Physics r10: already on main, nothing to land [M].\n- (d) Worth ruling on before any attempt:\n  - The certificate judges the reward-selected robust_best checkpoint, which cannot see a habit that forms late in training.\n  - Whether a screen run could ever count toward certification if its configuration were later committed byte-for-byte is an open question for you (stance record l.1692-1695 [M]; the recommendation there was no).\n- A cheap check first, if you would rather keep main's recipe [I]: a 1M-step CPU probe of main's recipe on r10. The r9 equivalent cost about 39 min per run on 4 CPUs (run_a/report.md l.190 [M]), and it would show whether the toe edge comes back.\n\n6. L4 HOURS PER SEED\n- Main's recipe at main's evaluation schedule: about 17-18 L4-hours per seed, about 35 for two [I]. The basis [M]:\n  - The two r8 runs of the then-committed recipe took 14 h 55 min and 15 h 46 min for 11.0M steps (NEXT_STEPS.md l.256-257); the stance.toml note gives L4 timing for them (l.1076-1077).\n  - Run A took 17 h 23 min for 12M; its hardware is not recorded in what I read.\n  - The end-of-stage certificate and bundle took about 47 min after training (RL 693, 697).\n- LTSB on the screen schedule, measured from launch to the run's manifest file:\n  - stance6: 14.9 h and 15.0 h (RL 666, 693, 697) [M].\n  - PHASE runs: 14.5, 14.6 and 15.2 h (RL 885-887, 912, 917, 929) [M].\n  - OFF runs: 14.9, 15.0 and 14.7 h, 44.6 L4-hours for three (PC_REPORT.md l.280) [M].\n  - So the phase critic adds no measurable time [M].\n- LTSB on main's evaluation schedule would likely take about 17-18 h [I]. Main evaluates 40 episodes every 50k steps, about 9.6M evaluation steps, against the screen's 91 x 10 episodes.\n- The earlier review estimated 30-60 L4-hours and about a week for certifying on main (handoff final/NEXT_STEPS.md l.177; ANSWER.md l.43) [M].\n\nMy lane folder holds only CMDLOG.txt, r.sh and an empty tmp/: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/stance_cert/recipe/. The clone was deleted. No Python was run and nothing was trained.",
+  "findings": [
+   {
+    "claim": "Main's T. rex stance gate is stance_quality_heading/v1 over a 12M budget: 40 episodes per heading, a lower confidence bound of at least 0.80, a pad fore-aft bar of 0.80, at most 1 hop-or-fall episode, certification_seeds 2.",
+    "label": "measured",
+    "evidence": "configs/tyrannosaurus_rex/anatomical/stance.toml l.531, 532, 685, 689, 772, 823, 954 at 77c63ad"
+   },
+   {
+    "claim": "Main is on physics revision 10 and policy interface revision 15. The stance digests are task 533fff20, gate d26c34e6, PPO hyperparameters 9d1598a6.",
+    "label": "measured",
+    "evidence": "configs/plant_versions.toml l.607-611; configs/digest_snapshot.generated.txt l.201-204, l.382-384; stance.toml l.1060"
+   },
+   {
+    "claim": "Main's stance reward has no stagger or CoP-band key, and neither term exists in main's code. Lateral lean defaults to 0 and the leg term uses the keyframe reference at 0.5/0.10.",
+    "label": "measured",
+    "evidence": "git grep stance_stagger_weight/stance_cop_band_weight in environments, configs and notebooks at 77c63ad (only a reporting mention of the band); base_env.py l.277-279; stance.toml l.68, l.81"
+   },
+   {
+    "claim": "The phase critic is off by default on main. The notebook switch CRITIC_PHASE = True writes critic_phase = true into every chain node and changes hyperparameters_sha256.",
+    "label": "measured",
+    "evidence": "notebooks/sb3_training.ipynb l.224, l.428-433; environments/shared/critic_phase.py l.1, l.52"
+   },
+   {
+    "claim": "Main's certificate judges the handoff checkpoint, robust_best_model first, chosen by the best mean minus 1.0 x std of evaluation reward with no warm-up. The in-training manager refuses the gate kind, so the stage trains its full budget.",
+    "label": "measured",
+    "evidence": "environments/shared/curriculum/checkpoints.py l.28-86, l.108-122; stance.toml l.947-953"
+   },
+   {
+    "claim": "LTSB is main's stance plus: leg term 1.0/0.05 on the settled reference, lean 0.25/0.015, mirror-symmetric PPO, stagger 0.30/0.045, CoP band 0.30, screen-only cadence, collapse reference 4470.4. Its task digest is 1e5964b6 and its PPO digest 054ab483. The phase-critic branch adds only the critic-phase code and the notebook switch.",
+    "label": "measured",
+    "evidence": "git diff 06b1a8e 8737cd3 -- stance.toml and digest snapshot; git diff --stat 8737cd3 1dfe232"
+   },
+   {
+    "claim": "No run of main's committed stance recipe exists on physics r10. Every r10 T. rex stance run was a branch screen.",
+    "label": "measured",
+    "evidence": "NEXT_STEPS.md l.301-303; KNOWN_ISSUES.md l.335; RL 666, 671-672 (8737cd3d), 885-887, 907, 911, 923 (1dfe2327)"
+   },
+   {
+    "claim": "On r9, main's reward failed the gate at 12M: Run A was clean on 1/40 episodes, with the pad CoP bar failing on 39/40, judged at robust_best (3.2M). The 1M control reached the toe edge on 5/5 seeds; the 3M control had 39/37/37 of 40 over the bar.",
+    "label": "measured",
+    "evidence": "docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l.303, l.336-344, l.496, l.498"
+   },
+   {
+    "claim": "The committed stance reward pays for a forward lean of about 23 mm through its keyframe-centred leg-pose term.",
+    "label": "measured",
+    "evidence": "docs/KNOWN_ISSUES.md l.191-195 (Update 9, offline diagnosis on r9)"
+   },
+   {
+    "claim": "Physics r10 changed only the tail-spring preloads; actuators, masses and geometry are unchanged. The r10 statue's worst pad CoP is 0.322, against 0.475 on r9.",
+    "label": "measured",
+    "evidence": "configs/plant_versions.toml l.550-559, l.583-584"
+   },
+   {
+    "claim": "Whether main's committed recipe forms the tail habit has never been measured.",
+    "label": "measured",
+    "evidence": "environments/shared/critic_phase.py l.12-13"
+   },
+   {
+    "claim": "stance6 (LTSB, r10, no phase critic): s42 pinned the tail actuator (RAIL) and failed the gate at its final checkpoint, s60 parked its tail, s80 had no tail habit but a neck habit. K1-K4: only s60 holds. The stance7 OFF runs are byte-for-byte copies of stance6.",
+    "label": "measured",
+    "evidence": "RL 711, 968, 970-971, 991"
+   },
+   {
+    "claim": "stance7 PHASE (LTSB plus phase critic, r10): no tail rail or parked tail in 3/3, gate certificate 40/40 at the final checkpoint in 3/3 (a screen measurement, not certification), K1-K4 hold in 3/3. The statue also passes, and the runs beat its reward by only +8.9 to +17.2.",
+    "label": "measured",
+    "evidence": "RL 968, 991; /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/handoff/final/stance_solved/synth/ANSWER.md l.6, l.17"
+   },
+   {
+    "claim": "In stance6, the notebook's own verdict judged robust_best checkpoints at 0.9-2.0M and passed all three runs, including s42, whose final checkpoint fails.",
+    "label": "measured",
+    "evidence": "main docs/investigations/stance_2026_10/stance6_results/review/REVIEW.txt l.437-448, l.746-748; check1/NOTES.txt l.94-96"
+   },
+   {
+    "claim": "Two seeds of main's recipe launched today would most likely fail the six-heading certificate on the pad fore-aft bar; 2 of 2 is unlikely. A pass is possible only through an early near-statue robust_best checkpoint, which would certify standing, not quality.",
+    "label": "inferred",
+    "evidence": "from the r9 record (Run A; the 1M and 3M controls), the reward diagnosis, r10 changing only the tail, robust_best selection (stance record l.449-451), and the statue being clean on 40/40 at every heading (stance.toml l.652-653)"
+   },
+   {
+    "claim": "LTSB runs on the screen schedule took 14.5-15.2 L4-hours per seed from launch to manifest. The phase critic adds no measurable time.",
+    "label": "measured",
+    "evidence": "RL 666, 693, 697, 885-887, 912, 917, 929, 907, 911, 923, 941, 943, 945; handoff final/PC_REPORT.md l.280 (OFF arm 44.6 L4-hours)"
+   },
+   {
+    "claim": "Main's recipe at main's evaluation schedule needs about 17-18 L4-hours per seed, about 35 for two.",
+    "label": "inferred",
+    "evidence": "r8 runs of the committed recipe: 14h55m and 15h46m per 11.0M steps (NEXT_STEPS.md l.256-257; L4 timing in stance.toml l.1076-1077); Run A 17h23m per 12M; about 47 min end-of-stage after training (RL 693, 697); 40-episode evaluations every 50k steps (notebook l.694; train_base.py l.190)"
+   },
+   {
+    "claim": "Landing LTSB on main needs the stagger and band code plus the floor_contact module, re-derived statue constants and rails, a regenerated digest snapshot, and a recovery re-measure, because recovery inherits the stance [env] and [ppo] tables.",
+    "label": "inferred",
+    "evidence": "branch diffstat of 22 files, +3,425/-776 (git diff --stat 06b1a8e 8737cd3); stance.toml l.5, l.390, l.858-861"
+   },
+   {
+    "claim": "Whether a screen run could count toward certification_seeds if its configuration were later committed byte-for-byte is unruled, an open question for the maintainer.",
+    "label": "measured",
+    "evidence": "TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l.1689-1695"
+   },
+   {
+    "claim": "Replicate counting requires sibling runs to share the same hyperparameters digest, so a CRITIC_PHASE certification pair needs the switch on for both seeds.",
+    "label": "measured",
+    "evidence": "environments/shared/replication.py l.199-204; BEHAVIOR_RECIPES_PLAN.md D-B16 row (l.1135)"
+   }
+  ],
+  "gaps": [
+   "Run A's runtime hardware was not found in main's docs, so its 17h23m is not confirmed as L4 time.",
+   "The notebook's own end-of-stage verdicts (robust_best) for the three stance7 PHASE runs were not read.",
+   "No run of main's recipe exists on r10. Everything said about main's recipe on r10 is extrapolated from the r9 and r8 records.",
+   "Nothing was executed (no Python, no notebook smoke). Mechanical readiness of the notebook path for BEHAVIOR='stance' on T. rex is read from code and config, not run.",
+   "I did not check whether main's port of the phase critic (PR #658) behaves identically, with the switch on, to the branch code that trained stance7.",
+   "I did not establish whether publication or catalog code requires the committed hyperparameters digest. A notebook-switched CRITIC_PHASE pair would share the task and gate digests with main but not the committed PPO digest.",
+   "The ~2680 rail value for a landed LTSB recipe is computed as 0.60 x 4470.4, not measured.",
+   "Main's stance.toml history before 2026-10-12 was not walked: git log hit an object missing from the shared store."
+  ],
+  "problems": [
+   "The computed task described the stance5, stance6 and stance7 rounds and the stance7 OFF runs as main's own recipe. They are branch LTSB recipes (stance6 and the OFF runs are byte-for-byte identical). Main's committed recipe has no r10 run, and its relevant history is Run A, the 1M/3M screen controls on r9, and the r8 runs.",
+   "Command slip: one Bash call outside the logger accidentally invoked the run-log path as a command. It was refused (Permission denied, exit 126), nothing ran, and it is recorded in CMDLOG.txt.",
+   "git log --first-parent on stance.toml printed 'Could not read 584170f7' (an object absent from the shared store); only the output above that point was used.",
+   "No refusals were hit. CMDLOG: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/stance_cert/recipe/CMDLOG.txt (81 logged commands plus manual entries). The clone was deleted."
+  ]
+ },
+ "read:cert": {
+  "answer": "SHORT ANSWER. The certification machinery on main is fully built and wired: one notebook run with BEHAVIOR=\"stance\" on the T. rex trains the stance, rolls the six-heading certificate, writes gate_verdict.json and records a seed-replication count in the result bundle. But main is NOT set up to certify the recipe the walking pilots' parent came from (LTSB + phase critic). Main would only certify its own committed stance recipe. That recipe has never trained on physics r10, and its one recorded r9 run failed the gate. The \"band\" is not a missing piece of the certification path itself. It is a missing piece of the recipe (the reward), and that is why branch certificates do not count on main.\n\n1. WHAT \"CERTIFIED\" MEANS ON MAIN (measured unless marked)\n- Gate. The T. rex stance declares gate_kind = \"stance_quality_heading/v1\", the six-heading certificate of D-D32 (configs/tyrannosaurus_rex/anatomical/stance.toml:531; BEHAVIOR_RECIPES_PLAN.md:1316).\n  - Seeds 3042-3081 are rolled at -90, -45, 0, 45, 90 and 180 degrees, each against the statue rolled at that heading.\n  - Every heading must pass the stance_quality/v2 decision (D-D23, BEHAVIOR_RECIPES_PLAN.md:1307).\n  - The bound on seeds clean at every heading must reach 0.80 at 40 seeds, so 37/40 passes and 36/40 fails (stance.toml:685-692; GQ-7 at GAIT_QUALITY_PLAN_2026_09.md:189).\n- Per run. A node is certified when its own gate_verdict.json passed and every warm_start_from ancestor passed (docs/RESULT_BUNDLES.md:23-26).\n  - The verdict comes only from stance_heading_report.json bound to the handoff pair and re-derived from its rows (reporting/gates.py:1724-1729).\n  - There is no fallback to the yaw-zero panel.\n- Two-seed bar. certification_seeds = 2 (stance.toml:954-965; D-B9 and BEHAVIOR_RECIPES_PLAN.md:604-662).\n  - The bundle records deliverables.stance = {certified, replication {count, runs}, certification_seeds, provisional = count < 2} (reporting/bundles.py:621-631).\n  - A replicate is a sibling run in the same logs/tyrannosaurus_rex/anatomical/ppo/ folder, on a different seed, with a passed verdict and equal task_sha256, gate_sha256, plant identity and hyperparameters_sha256 (replication.py:3-15; RESULT_BUNDLES.md:294-332).\n  - Precedent: the r13 stance was counted \"certified true, provisional false, replication count 2\" (NEXT_STEPS.md:288-293).\n- Policy rules in the docs:\n  - Two seeds, each judged on 3042-3081 and re-judged on the fresh seeds 7042-7081, before any recovery, walk or hunt (D-D27 at BEHAVIOR_RECIPES_PLAN.md:1311; NEXT_STEPS.md:355-359 and 411-414; HEADING_INVARIANCE_DESIGN_2026_10.md:540-543).\n  - A certified T. rex stance on two seeds before any T. rex walk (GAIT_QUALITY_PLAN_2026_09.md:700, the section 12 note on GQ-17).\n  - Screens certify nothing (NEXT_STEPS.md:626-628, among others).\n  - Current state: \"no r10 seed yet (bar 2)\" (configs/tyrannosaurus_rex/anatomical/stages.toml:34).\n- What is not the stance certificate:\n  - behavior_certification.py is the direction/terrain skill certificate. It is \"distinct from canonical curriculum certification\" (behavior_certification.py:3) and uses configs/behavior_certification.toml.\n  - A row in results/offline_judgements.csv \"certifies no run\" (results/README.md:94), and it has no r10 rows.\n  - There is no records/ directory and no registry of certified checkpoints under configs/.\n\n2. THE PATH ON MAIN TODAY (sb3_training.ipynb)\n- Settings:\n  - REPO_REF \"main\" (ipynb:49).\n  - SPECIES \"tyrannosaurus_rex\" (the default is velociraptor, ipynb:175); EMBODIMENT \"anatomical\"; ALGORITHM \"ppo\".\n  - BEHAVIOR \"stance\" (the default is \"hunt\", ipynb:199). This resolves to the single root node stance; I ran this through the code.\n  - A different SEED per run (ipynb:188), a new RUN_ID per run (ipynb:203), QUICK_TEST False (ipynb:190; quick tests are never replicates), USE_GOOGLE_DRIVE True.\n  - TRUNK_FROM does not matter: the target node is never reused across runs.\n  - CRITIC_PHASE False, which is main's committed recipe (ipynb:224).\n  - K3_PANEL is report-only and enters no digest.\n  - There is no CERTIFY flag: grep for CERTIFY in the notebook finds nothing. Every trained node is judged automatically.\n- What the run does:\n  - Trains 12,000,000 steps (stance.toml:532). The hop watch stops a seed still hopping at 7M; such a seed is restarted on a new seed.\n  - Then generate_stage_artifacts (ipynb:1428) rolls the certificate on the selected handoff pair (stage_artifacts.py:281-293 and 446-505), about 13 minutes.\n  - It writes 01_stance/stance_heading_report.{txt,json}, stance_heading_panel_selected.csv and gate_verdict.json.\n  - Then save_run_bundle (ipynb:1447) writes provenance.json, summary.json, collected_results.csv, with artifact_manifest.json last, plus the replication record.\n- I ran 140 tests of the replication and heading-gate code on the clone (test_replication, test_stance_heading_gate, test_gate_dispatch_fail_closed, test_stance_heading_judge): all passed, rc 0.\n- After the runs: a second seed run in the same folder and the 7042 fresh audit with stance_gate_report.py --seed 7042 --out-dir <scratch> (stance_gate_report.py:44-52). Then, by convention (inferred, nothing in code requires it), a docs PR updating NEXT_STEPS section 2, stages.toml:34 and KNOWN_ISSUES, plus offline_judgements rows.\n\n3. HOW THE BAND RELATES\n- The gate is the same on main and on the branch:\n  - The pilots' parent runs' notebook verdicts record gate_sha256 d26c34e6, the same as main's (configs/digest_snapshot.generated.txt:383; I recomputed it from the code).\n  - They pass under stance_quality_heading/v1 on robust_best_model.zip (work/fetch/stance7_r10LTSBpc_s{42,60,80}/01_stance/gate_verdict.json).\n- The task is not the same: those verdicts record task_sha256 1e5964b6, main's is 533fff20 (digest_snapshot.generated.txt:382; recomputed).\n  - The branch recipe sets stagger 0.3, a CoP band of 0.3, lean 0.25, the settled leg reference, leg_home_pose_weight 1.0 and tolerance 0.05, mirror_kl and critic_phase (their stage_config.json).\n  - Main's recipe has leg_home_pose_weight 0.5 and tolerance 0.10 and none of the others.\n  - On main, 'stance_stagger' appears nowhere, and 'stance_cop_band' appears only in a training-history reader (reporting/training_history.py) and its test.\n  - The notebook copies no environment keys from anywhere but the TOMLs (ipynb:23).\n- Consequence: reuse rule 3 (ancestors.py:39-42) refuses those checkpoints on main. That is what the run log means by \"not gate evidence: the band is not on main\".",
+  "findings": [
+   {
+    "claim": "Main's T. rex stance certifies under the six-heading certificate stance_quality_heading/v1. Seeds 3042-3081 are rolled at six headings against the statue, with a bar of 0.80 on the bound at 40 seeds (37/40 passes, 36/40 fails).",
+    "label": "measured",
+    "evidence": "configs/tyrannosaurus_rex/anatomical/stance.toml:531, 662-692; docs/BEHAVIOR_RECIPES_PLAN.md:1316 (D-D32); docs/GAIT_QUALITY_PLAN_2026_09.md:189 (GQ-7 (a))"
+   },
+   {
+    "claim": "A node counts as certified when its own gate_verdict.json passed and every warm_start_from ancestor passed. The verdict comes only from stance_heading_report.json bound to the handoff pair and re-derived from its rows; there is no fallback to the yaw-zero panel or to the reward.",
+    "label": "measured",
+    "evidence": "docs/RESULT_BUNDLES.md:23-26; environments/shared/reporting/gates.py:59-66, 1724-1729; result_bundle/gate_verdict.py:307-319"
+   },
+   {
+    "claim": "The two-seed bar is a publication label, not a gate threshold. certification_seeds = 2, and the bundle sets provisional = replication.count < 2. A replicate is a sibling run in the same logs/<species>/<embodiment>/ppo/ folder, on a different seed, with a passed verdict and equal task_sha256, gate_sha256, plant identity and hyperparameters_sha256.",
+    "label": "measured",
+    "evidence": "stance.toml:954-965; reporting/bundles.py:621-631; replication.py:3-15; docs/RESULT_BUNDLES.md:294-332; BEHAVIOR_RECIPES_PLAN.md:604-662 (D-B9/B10/B11/B16/B17)"
+   },
+   {
+    "claim": "The docs require two seeds, each judged on 3042-3081 and re-judged on the fresh seeds 7042-7081, before any recovery, walk or hunt, and a certified two-seed stance before any T. rex walk. There is no r10 seed yet.",
+    "label": "measured",
+    "evidence": "BEHAVIOR_RECIPES_PLAN.md:1311 (D-D27); NEXT_STEPS.md:355-359, 411-414; HEADING_INVARIANCE_DESIGN_2026_10.md:540-543; GAIT_QUALITY_PLAN_2026_09.md:700-701; configs/tyrannosaurus_rex/anatomical/stages.toml:34"
+   },
+   {
+    "claim": "The notebook has no CERTIFY flag; certification happens automatically after training. The settings for a T. rex stance certification run are SPECIES tyrannosaurus_rex, EMBODIMENT anatomical, BEHAVIOR stance, a distinct SEED and a new RUN_ID per run, QUICK_TEST False, Drive on, and CRITIC_PHASE False for main's committed recipe. BEHAVIOR 'stance' resolves to the single root node 'stance'.",
+    "label": "measured",
+    "evidence": "grep for CERTIFY in notebooks/sb3_training.ipynb: no match; ipynb:49, 175, 188, 190, 199, 203, 224; tools/digests.py run on the clone: chain ['stance'], deliverable True"
+   },
+   {
+    "claim": "After training, generate_stage_artifacts rolls the six-heading certificate (12 panels) on the selected handoff pair and writes stance_heading_report.{txt,json}, stance_heading_panel_selected.csv and gate_verdict.json. save_run_bundle then writes provenance.json, summary.json, collected_results.csv and, last, artifact_manifest.json, with the replication record.",
+    "label": "measured",
+    "evidence": "ipynb:1428, 1447 (cell 20); reporting/stage_artifacts.py:276-293, 446-505; curriculum/stance_heading_gate.py:128-130; result_bundle/constants.py:11-12"
+   },
+   {
+    "claim": "The certified handoff is robust_best_model, else best_model, and never the final checkpoint. The branch runs' own notebook verdicts judged robust_best_model.zip, while the walking pilots used the final.",
+    "label": "measured",
+    "evidence": "environments/shared/curriculum/checkpoints.py:117; work/fetch/stance7_r10LTSBpc_s{42,60,80}/01_stance/gate_verdict.json \"checkpoint\": \"models/robust_best_model.zip\"; run_log.txt:968"
+   },
+   {
+    "claim": "The gate is identical on main and on the parent's branch, but the task differs. Both record gate_sha256 d26c34e6; the branch records task_sha256 1e5964b6 against main's 533fff20. So reuse rule 3 refuses the branch checkpoints on main, and they cannot be replicates of a main-recipe run.",
+    "label": "measured",
+    "evidence": "configs/digest_snapshot.generated.txt:382-383, recomputed with tools/digests.py and tools/gate_digest.py; the three branch gate_verdict.json files; environments/shared/ancestors.py:39-42"
+   },
+   {
+    "claim": "The band, and also the stagger term, have no reward code on main. git grep at 77c63ade finds 'stance_stagger' nowhere in environments, configs or notebooks, and 'stance_cop_band' only in reporting/training_history.py, which reads logged columns, and its test. The T. rex env constructor has no catch-all keyword argument.",
+    "label": "measured",
+    "evidence": "git grep -c at 77c63ade7bcdc4bbfeb84dcf76f6bdf6d0363b02; environments/tyrannosaurus_rex/base_env.py:212-331 (no ** in the signature)"
+   },
+   {
+    "claim": "The branch parent recipe sets leg_home_pose_weight 1.0 with tolerance 0.05, lateral_lean 0.25/0.015, the settled leg reference, stagger 0.3/0.045, the CoP band at 0.3, symmetry mirror_kl and critic_phase true. Main's stance.toml sets leg_home_pose_weight 0.5 with tolerance 0.10 and none of the others. Lean, the settled reference, mirror_kl and the critic phase exist on main only as options that are off by default.",
+    "label": "measured",
+    "evidence": "work/fetch/stance7_r10LTSBpc_s42/01_stance/stage_config.json (reward_weights, hyperparameters, git_commit 1dfe2327); stance.toml:68, 81; tools/digests.py output; base_env.py:193-196; environments/shared/critic_phase.py:1"
+   },
+   {
+    "claim": "The notebook cannot reproduce the branch recipe: environment settings and hyperparameters come only from the stage TOMLs, and the only recipe switch in the notebook is CRITIC_PHASE.",
+    "label": "measured",
+    "evidence": "ipynb:23 (\"this notebook does not copy them\"); cell 6 (CRITIC_PHASE only); cell 9"
+   },
+   {
+    "claim": "CRITIC_PHASE changes hyperparameters_sha256 (9d1598a6 to 1a83fd10), so both certifying seeds must use the same CRITIC_PHASE setting to count as replicates.",
+    "label": "measured",
+    "evidence": "tools/digests.py on the clone; replication.py:3-15"
+   },
+   {
+    "claim": "Main's committed recipe has never trained on physics r10. Its recorded r9 run (Run A, seed 56) failed with 1/40 clean (max_sole_cop_fore_aft failed 39/40), and KNOWN_ISSUES calls the base T. rex stance reward CoP-indifferent. A main-recipe certification attempt therefore has a poor prior.",
+    "label": "measured (record) / inferred (prior)",
+    "evidence": "NEXT_STEPS.md:296-303; stages.toml:34; docs/investigations/stance_2026_10/run_a/report.md:7-11; docs/KNOWN_ISSUES.md:26-35"
+   },
+   {
+    "claim": "The fresh 7042-7081 audit is a manual command-line step and is not checked in code. The judge refuses it as gate evidence, and reuse never checks it.",
+    "label": "measured",
+    "evidence": "environments/shared/ancestors.py:87-88; scripts/stance_gate_report.py:44-52, 381; NEXT_STEPS.md:411-414; results/README.md:83-94"
+   },
+   {
+    "claim": "Reuse does not refuse a single-seed (provisional) stance; it reuses it and labels it provisional. The two-seed rule before a walk is policy in the docs, not code.",
+    "label": "measured",
+    "evidence": "environments/shared/ancestors.py:839-844, 1164; GAIT_QUALITY_PLAN_2026_09.md:700"
+   },
+   {
+    "claim": "Re-entering the first seed's run does not rewrite its bundle. The chain loop's REUSE branch exits with continue before save_run_bundle, so recounting replication for the earlier run needs a manual save_run_bundle call. Two seeds trained at the same time may each record count 1; one run recording count 2 is enough.",
+    "label": "inferred (from code reading)",
+    "evidence": "ipynb:1303 (continue) vs 1447 (save_run_bundle); ipynb:835 docstring \"Re-run this cell once a replicate finishes\""
+   },
+   {
+    "claim": "The certification code on main passes its tests: 140 tests of replication, the heading gate, fail-closed dispatch and the heading judge passed on the clone at 77c63ade.",
+    "label": "measured",
+    "evidence": "tmp/pytest1.out (rc 0; 72+68 passed); tests contain no learn() or train() calls"
+   },
+   {
+    "claim": "Neither the GQ-3 (a) hold nor the GQ-17 order blocks a stance certification run. GQ-3 (a) names walker, hunt/follow and recovery sessions, not a T. rex stance; the order of retrains is the maintainer's.",
+    "label": "inferred",
+    "evidence": "GAIT_QUALITY_PLAN_2026_09.md:185 (GQ-3), 199 (GQ-17), 700-701"
+   },
+   {
+    "claim": "Walking after certification still lacks the pieces the gait plan asks for: there is no gait_rewards.py and no locomotion_gait/v1 gate kind on main.",
+    "label": "measured",
+    "evidence": "git ls-tree at 77c63ade: 0 gait_rewards.py; gate_schema.py has no locomotion_gait/v1"
+   }
+  ],
+  "gaps": [
+   "Recipe gap: the stagger and CoP band reward terms have no code on main, and main's stance.toml does not set lean, the settled leg reference, T's leg_home_pose_weight 1.0 / tolerance 0.05, or mirror_kl. Certifying the parent's recipe (LTSB, with or without the phase critic) on main needs a code and config PR plus a decision record first. That PR would move task_sha256 and hyperparameters_sha256 and the golden digests in configs/digest_snapshot.generated.txt, and re-measure the statue-derived constants. None of that exists on main.",
+   "Main's committed recipe can be certified as it stands, with no code change, but it has zero r10 runs and a failed r9 record (Run A: 1/40 clean, fore-aft pad bar). The maintainer has to choose a recipe; nothing on main makes that choice.",
+   "No path on main certifies a chosen checkpoint such as the final. The notebook, the judge, backfill and reuse all bind to robust_best_model, else best_model (checkpoints.py:117). The pilots used a final checkpoint.",
+   "The fresh-seed audit on 7042-7081 is required by the docs but is manual: a stance_gate_report.py run with --out-dir, plus a results/offline_judgements.csv row by PR. No code checks it before reuse.",
+   "The two-seed bar is a label only: code reuses a provisional stance. Recounting replication for the earlier run needs a manual save_run_bundle call, because the chain loop's REUSE branch skips publication.",
+   "There is no records step in code. NEXT_STEPS section 2, the stages.toml:34 comment, the KNOWN_ISSUES line \"no T-Rex stance is certified\" and any promotion into results/ are updated by a docs PR by convention (inferred). GQ-12's optional third seed stays unscheduled.",
+   "Not tested here: an actual notebook run end to end, Drive behaviour, and whether main's recipe trains on an L4 within the 24 h cap (inferred: 12M steps took 12.1-14.4 h on the branch, run_log.txt:613). The in-run screen of the floor-truth gate is not built; that is by design, since the certificate is post-stage only (stance.toml:947-953)."
+  ],
+  "problems": [
+   "One read-only command exited with status 1. git log on the shared clone could not traverse parents past a752d5b0 (shallow source history), and the grep -c that followed it found 0 matches for '#655'. This is logged in CMDLOG.txt. It was not a refusal and nothing was retried.",
+   "Nothing was refused. No training, no network, no push, commit or remote change. The clone at stance_cert/cert/main was deleted at the end; CMDLOG.txt, tools/ and small text outputs remain under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/stance_cert/cert/.",
+   "The branch verdict and stage_config files I compared against were read from the earlier fetch folder /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/fetch/stance7_r10LTSBpc_s{42,60,80}/01_stance/, read-only. I could not read those runs' summary.json or their replication records, because they are not in the fetch."
+  ]
+ },
+ "verify": {
+  "verdict": "READY WITH CAVEATS",
+  "answer": "READY WITH CAVEATS. The certification machinery on main works. The problem is the recipe. A run launched today would certify main's own committed stance recipe, not the LTSB + phase-critic recipe behind the walking pilots' parent, and on the record that run would most likely fail [inferred]. [M] = measured, [I] = inferred; evidence is in the findings.\n\n(1) WHAT A RUN IS TODAY [M]\n- Notebook settings in sb3_training.ipynb:\n  - REPO_REF: set it to the commit SHA you launch from (the field takes a commit, ipynb:80-81), so both seeds share every digest.\n  - SPECIES tyrannosaurus_rex, EMBODIMENT anatomical, ALGORITHM ppo.\n  - BEHAVIOR \"stance\". NEXT_STEPS still says \"stand\", which the notebook refuses.\n  - QUICK_TEST False, Drive on.\n  - CRITIC_PHASE the same on both seeds: False is main's recipe (digest 9d1598a6), True gives 1a83fd10.\n  - A different SEED and a new, explicit RUN_ID for each seed. RUN_ID \"\" re-enters the last run when only SEED changes.\n- There is no certify switch. Each run trains 12M steps (the hop watch can stop a seed at 7M), then rolls the six-heading certificate on robust_best_model (about 13 min) and writes gate_verdict.json and the result bundle. The second seed's bundle records replication 2, which clears the provisional label.\n- After both runs, by hand:\n  - Run the fresh-seed audit on each handoff: stance_gate_report.py --seed 7042 --out-dir <scratch>. D-D27 requires it; seed 52 once passed 39/40 on the main seeds, then got 32/40 on the fresh ones and was ruled research-only.\n  - Open a docs PR updating stages.toml:34, NEXT_STEPS, KNOWN_ISSUES and offline_judgements.\n- I re-ran 227 tests at 77c63ad (gate, replication, reuse and critic-phase code): all pass.\n\n(2) WHAT WOULD MAKE IT FAIL OR MISLEAD, RANKED\n- (a) Main's recipe has never trained on physics r10, and its r9 record is bad [M]. Its [env]/[ppo] tables match the 2026-10-12 ones except one re-measured threshold.\n  - On r9 that reward put the pad on its toe edge in 5/5 seeds at 1M, and 37-39 of 40 episodes were over the bar at 3M.\n  - Run A (r9, the older observation interface r13) was clean on 1/40 at 12M.\n  - The cause is a reward term, and r10 changed only the tail springs.\n- (b) The recipe with r10 evidence cannot run on main [M]: the stagger and CoP-band reward code is not there (task digest 533fff20 on main against 1e5964b6 on the branch).\n- (c) A pass can be shallow [M]. The certificate judges robust_best, which has no warm-up. In stance6 it picked checkpoints at 0.9-2.0M and passed s42, whose final checkpoint fails. The zero-action statue also passes 40/40.\n- (d) Operational traps:\n  - Seeds with a different CRITIC_PHASE or code revision do not count as replicates [M].\n  - Two seeds that finish together each record a count of 1; one bundle then has to be re-saved by hand [I].\n\n(3) SHORTEST PATH TO A RUN WORTH LAUNCHING\n- A. Main's recipe, no code PR:\n  - You approve a 1M-step CPU probe of the recipe on r10, about 40 min per seed (the plan's estimate).\n  - Only if the pad stays off its toe edge, launch two L4 seeds: about 17-18 L4-hours each, about 35 in all [I].\n  - Then the two fresh-seed audits and the docs PR.\n- B. LTSB + phase critic:\n  - A code PR: port the stagger and CoP-band terms and the floor_contact module (the branch diff is 22 files, +3,425/-776); add the stance.toml keys and mirror_kl; re-measure the collapse reference and rail; regenerate the digest snapshot; re-measure recovery; write a decision record.\n  - Your approval, then two seeds at 15-18 L4-hours each, with CRITIC_PHASE True on both.\n  - Rule on the three screen runs first. Main's code re-derives their task and recipe digests exactly, their plant identity matches main's in every field, and they sit in the same Drive folder. A byte-identical landing would let the code count s42/s60/s80 automatically [I]. The stance record recommends they do not count.\n\n(4) STILL UNCERTAIN\n- Whether r10's better-centred statue pads (worst CoP 0.322 against 0.475 on r9) change the outcome for main's recipe.\n- How long main's evaluation cadence takes on an L4.\n- Whether GitHub main has moved past 77c63ad (no network here).\n- Whether the phase critic helps main's recipe (never tested).\n- Whether a 1M probe predicts the result at 12M.",
+  "findings": [
+   {
+    "claim": "Main's T. rex stance is judged by stance_quality_heading/v1 over a 12M-step budget: 40 seeds per heading, a grouped lower bound of at least 0.80 (37/40 passes, 36/40 fails), a pad fore-aft bar of 0.80, at most one hop-or-fall episode, rails of 2260 and 0.60 x statue, and certification_seeds = 2.",
+    "label": "measured",
+    "evidence": "stance.toml l.531, 532, 685, 689, 772, 823, 843, 940, 954 (re-read at 77c63ad); my dig.py via the runner printed gate_kind, timesteps 12000000, min_eval_episodes 40, certification_seeds 2",
+    "lane_claim_status": "confirmed (both lanes)"
+   },
+   {
+    "claim": "BEHAVIOR 'stance' resolves to the single node 'stance' (deliverable). Main's digests: task 533fff20, gate d26c34e6, PPO 9d1598a6. CRITIC_PHASE True changes only the PPO digest, to 1a83fd10; the task digest stays the same.",
+    "label": "measured",
+    "evidence": "tools/dig.py on the clone (MANIFEST.resolve_behavior/chain_for, stage_task_fingerprint, gate_config_sha256, hyperparameters_sha256); matches configs/digest_snapshot.generated.txt l.382-384",
+    "lane_claim_status": "confirmed (cert lane)"
+   },
+   {
+    "claim": "The notebook has no certify flag. After TRAIN, generate_stage_artifacts rolls the six-heading certificate on the selected handoff pair and writes the verdict, then save_run_bundle writes the bundle with discovered replicates. The target node is reused only from this run's own directory (D-A18), so TRUNK_FROM does not matter for BEHAVIOR 'stance'.",
+    "label": "measured",
+    "evidence": "sb3_training.ipynb l.1228-1229 (target candidates = [RUN_DIR]), l.1303 (REUSE continue), l.1428 (generate_stage_artifacts), l.1447 (save_run_bundle); reporting/stage_artifacts.py l.276-293, 446-470",
+    "lane_claim_status": "confirmed (cert lane)"
+   },
+   {
+    "claim": "RUN_ID '' re-enters the run the storage cell resolved last; a fresh run starts only on the first pass or after SPECIES, EMBODIMENT, ALGORITHM or QUICK_TEST changes. Changing SEED alone in the same runtime would therefore re-enter the first seed's run, where the certified target is reused and nothing trains. REPO_REF accepts a commit, so it can be pinned.",
+    "label": "measured",
+    "evidence": "sb3_training.ipynb l.203 (RUN_ID comment), l.80-81 ('REPO_REF must name a branch, tag, or commit'), l.87",
+    "lane_claim_status": "new (sharpens the cert lane's 'new RUN_ID per run')"
+   },
+   {
+    "claim": "The certified handoff is robust_best_model (else best_model), scored as mean - 1.0 x std of each evaluation with no warm-up. Main evaluates 40 episodes every 50,000 steps.",
+    "label": "measured",
+    "evidence": "curriculum/checkpoints.py l.28-86 (score = mean - risk_coef*std, default 1.0) and l.108-122; train_base.py l.1060-1062 (no risk_coef passed); train_base.py l.190; ipynb l.694 eval_freq=50_000",
+    "lane_claim_status": "confirmed (both lanes)"
+   },
+   {
+    "claim": "In stance6 the notebook's own verdict judged robust_best pairs at 0.9-2.0M and passed all three runs, including s42, whose final checkpoint fails (hop 2 > 1). The r10 statue is clean on 40/40 at every heading.",
+    "label": "measured",
+    "evidence": "docs/investigations/stance_2026_10/stance6_results/review/REVIEW.txt l.437-448; stance.toml l.652-653",
+    "lane_claim_status": "confirmed (recipe lane)"
+   },
+   {
+    "claim": "Replication: a replicate is a sibling run under the same logs/<species>/<embodiment>/ppo/ folder, on a different seed, with a passed, reusable verdict and equal task, gate, plant and recipe digests. The bundle records count = this run plus replicates, with provisional = count < certification_seeds. Reuse labels a provisional ancestor and never refuses it.",
+    "label": "measured",
+    "evidence": "replication.py l.3-15, l.155-225; reporting/bundles.py l.621-631; ancestors.py l.839-844 and the docstring at ~l.1164 ('a provisional ancestor is reused and labelled, never refused')",
+    "lane_claim_status": "confirmed (cert lane)"
+   },
+   {
+    "claim": "The fresh 7042-7081 audit is a recorded manual step. The judge refuses that grid as gate evidence, and reuse never checks it. Policy still requires it: D-D27 seed 52 passed 39/40, was clean on 32/40 of the fresh seeds, and was ruled research-only.",
+    "label": "measured",
+    "evidence": "environments/shared/scripts/stance_gate_report.py l.40-52, 377-382; ancestors.py l.87-88; NEXT_STEPS.md l.409-415; KNOWN_ISSUES.md l.144-152",
+    "lane_claim_status": "confirmed (cert lane; path corrected to environments/shared/scripts/)"
+   },
+   {
+    "claim": "The gate, task, critic-phase and replication code on main passes its tests: 227 tests in test_replication, test_stance_heading_gate, test_gate_dispatch_fail_closed, test_critic_phase and test_ancestors passed, rc 0, with no learn() or train() calls in those files.",
+    "label": "measured",
+    "evidence": "tools/run_pytest.py via the runner at 77c63ad; output in /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/stance_cert/verify/tmp/pytest.out (227 dots, rc 0); grep -c for learn/train calls = 0",
+    "lane_claim_status": "confirmed (cert lane ran 140)"
+   },
+   {
+    "claim": "No stagger or CoP-band reward code exists on main. 'stance_stagger' has no match in environments, configs, notebooks or scripts; 'stance_cop_band' appears only in reporting/training_history.py and its test; no floor_contact module is tracked. The T. rex env constructor has no **kwargs.",
+    "label": "measured",
+    "evidence": "git grep at 77c63ad; git ls-files | grep floor_contact (none); environments/tyrannosaurus_rex/base_env.py l.212-331",
+    "lane_claim_status": "confirmed (both lanes)"
+   },
+   {
+    "claim": "LTSB differs from main's stance.toml by exactly eight [env] keys (leg_home_pose 1.0/0.05 on the settled reference, lateral lean 0.25/0.015, stagger 0.30/0.045, CoP band 0.30) and four [ppo] symmetry keys (mirror_kl), plus the screen cadence and a collapse reference of 4470.4. The phase-critic branch 1dfe232 adds no config change. Neither branch commit is an ancestor of main.",
+    "label": "measured",
+    "evidence": "tools/tomldiff.py on git show 8737cd3:stance.toml vs main; collapse_peak_floor_reference l.1098 of the LTSB file; git diff --stat 8737cd3 1dfe232 (no configs/); git merge-base --is-ancestor (both not in main); diffstat 06b1a8e..8737cd3 22 files +3425/-776",
+    "lane_claim_status": "confirmed (recipe lane)"
+   },
+   {
+    "claim": "The pilots' parent runs (stance7_r10LTSBpc_s42/s60/s80) hold passed verdicts under stance_quality_heading/v1 on models/robust_best_model.zip, with task 1e5964b6 and gate d26c34e6. Their stage_config records git_commit 1dfe2327, mirror_kl, critic_phase true, eval_freq 131072 and recipe digest c64211e8.",
+    "label": "measured",
+    "evidence": "tools/verdicts.py and sc_keys.py on /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/fetch/stance7_r10LTSBpc_s{42,60,80}/01_stance/{gate_verdict,stage_config}.json",
+    "lane_claim_status": "confirmed (cert lane)"
+   },
+   {
+    "claim": "Main's code re-derives the screen runs' exact digests from their recorded config: task 1e5964b6 from the recorded env, and recipe c64211e8 from the recorded blocks with the recorded field removed. The screen cadence keys enter neither digest; without critic_phase the recipe digest is 054ab483. The runs' plant identity equals main's in every field, source closure included.",
+    "label": "measured",
+    "evidence": "tools/branchdig.py (task), tools/cadence_dig2.py (recipe derived after popping run.hyperparameters_sha256), tools/plantcmp.py (all fields SAME)",
+    "lane_claim_status": "new (the recipe lane's 054ab483 is confirmed as LTSB without the phase critic)"
+   },
+   {
+    "claim": "The branch screen runs live in the same Drive folder a main certification run uses (/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/). So if LTSB + phase critic were landed byte-identically, replication discovery and ancestor reuse would count stance7 PC s42/s60/s80 automatically. The question 'can a screen count' would then be settled by code, unless the maintainer rules first or the landing moves a digest.",
+    "label": "inferred (from replication.py and ancestors.py rules plus the measured digest and plant equality; the folder is measured for the OFF runs, assumed for the PC runs)",
+    "evidence": "run_log.txt l.925-927 (run directory paths); replication.py l.155-225; ancestors.py l.39-42; TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l.1689-1695 (unruled; recommendation no)",
+    "lane_claim_status": "new"
+   },
+   {
+    "claim": "Main's stance [env]/[ppo] tables equal those of 2026-10-12 (72505d0) and of Run A's commit cdffea8, except nosedive_termination_threshold 0.493 -> 0.503. Run A, however, trained on policy interface r13 (64-wide, before the heading-free change) under stance_quality/v2; every later run, the 1M and 3M controls included, used interface r15.",
+    "label": "measured",
+    "evidence": "tools/tomldiff.py on git show cdffea8:configs/trex/stance.toml and 72505d0 vs main; cdffea8 plant_versions [plants.trex] policy_interface_revision 13; TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l.263-266; git merge-base: 69734c0 is not an ancestor of cdffea8",
+    "lane_claim_status": "corrects recipe lane: 'same reward' holds at the config level, but Run A is not on main's observation interface"
+   },
+   {
+    "claim": "On r9 the committed reward failed every judged run. Run A: 1/40 clean at robust_best 3.2M, pad CoP failing 39/40. The 1M control reached the toe edge on 5/5 seeds (CoP > 0.8 on 21/19/28/30/12 of 40). The 3M control had 39/37/37 of 40 over the bar. The cause is diagnosed as the keyframe-centred leg term paying for a forward lean of about 23 mm.",
+    "label": "measured",
+    "evidence": "TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l.303, 336-344, 449-451, 496, 498; KNOWN_ISSUES.md l.26-35, 191-195; run_a/report.md l.7-11",
+    "lane_claim_status": "confirmed (recipe lane)"
+   },
+   {
+    "claim": "Physics r10 changed only the tail pitch spring preloads. The r10 statue's worst pad fore-aft CoP is 0.322, against 0.475 on r9. No T. rex stance on main's recipe has trained on r10; every r10 T. rex stance launch named a branch REPO_REF.",
+    "label": "measured",
+    "evidence": "configs/plant_versions.toml l.550-559, 583-584; NEXT_STEPS.md l.300-303; stages.toml l.34; run_log.txt l.666, 671-672, 885-887, 907, 911, 923",
+    "lane_claim_status": "confirmed (recipe lane)"
+   },
+   {
+    "claim": "stance7 PHASE: the certificate passed 40/40 at the final checkpoint in 3/3 runs, labelled 'measured on a screen task; not certification'; the pre-registered test read NOT SEPARATED. The OFF runs bitwise reproduce stance6. The review concluded 'not certified on main (0 of 2, branch recipe)'.",
+    "label": "measured",
+    "evidence": "run_log.txt l.968, 970-971, 978, 991",
+    "lane_claim_status": "confirmed (both lanes)"
+   },
+   {
+    "claim": "LTSB runs took 14.5-15.2 h from launch to manifest on an L4 (PHASE: 14.5, 14.6, 15.2 h). The certificate and bundle after training took about 47 min. The r8 runs of the then-committed recipe at main's cadence took 14h55m and 15h46m for 11.0M steps, so main's recipe likely needs about 17-18 L4-hours per seed.",
+    "label": "measured (LTSB, r8 timings) / inferred (the 17-18 h for main's recipe)",
+    "evidence": "run_log.txt l.885-887 with 912, 917, 929; l.693, 697; NEXT_STEPS.md l.256-257",
+    "lane_claim_status": "confirmed (recipe lane)"
+   },
+   {
+    "claim": "Recovery inherits the stance [env] and [ppo] tables, so landing LTSB moves recovery's task and needs a recovery re-measure.",
+    "label": "measured",
+    "evidence": "stance.toml l.5, l.390",
+    "lane_claim_status": "confirmed (recipe lane)"
+   },
+   {
+    "claim": "Neither GQ-3 (a) nor GQ-17 blocks a stance certification run. GQ-3 (a) bars walker, hunt/follow and recovery sessions; GQ-17 says the T. rex 'needs a stance retrain (two seeds at today's certification_seeds) before any trex walk', and leaves the order to the maintainer.",
+    "label": "measured (text) / inferred (does not block)",
+    "evidence": "GAIT_QUALITY_PLAN_2026_09.md l.185, 199, 700",
+    "lane_claim_status": "confirmed (cert lane)"
+   },
+   {
+    "claim": "NEXT_STEPS still tells the next T. rex session to use BEHAVIOR=\"stand\", but the notebook refuses 'stand' since D-D38. Following the doc literally would fail at the resolve step.",
+    "label": "measured",
+    "evidence": "NEXT_STEPS.md l.353-360; sb3_training.ipynb BEHAVIOR comment above l.199 ('\"stand\", its label until D-D38, is refused')",
+    "lane_claim_status": "new"
+   },
+   {
+    "claim": "The Option E cost in the handoff, 'certify on main', was estimated at 30-60 L4-hours and about a week, plus a recipe choice.",
+    "label": "measured (as recorded; the estimate itself is inferred)",
+    "evidence": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/handoff/final/NEXT_STEPS.md (row E of the cost table); handoff/final/stance_solved/synth/ANSWER.md ('What would change this')",
+    "lane_claim_status": "confirmed (recipe lane)"
+   }
+  ],
+  "problems": [
+   "Rule slip: one Python call (tools/verdicts.py, venv python with -I) ran directly rather than through tools/run_py.py. The script imports no repository code (json, glob and os only) and stopped on a missing file before printing anything. It is logged as a note in CMDLOG.txt; every later Python call went through the runner, which confirmed that 'environments' resolved to my clone.",
+   "Self-correction 1: my first claim that main 're-derives' the branch recipe digest only echoed the recorded field, because recorded_hyperparameters_sha256 returns run.hyperparameters_sha256 when it is present. I re-ran the check with that field removed (cadence_dig2.py), and main does derive c64211e8. The correction is logged in CMDLOG.txt.",
+   "Self-correction 2: one tomldiff output had its column labels swapped by my sed. I re-ran it with the correct labels; it is logged.",
+   "Several read-only commands exited non-zero: a relative path inside main/ (tmp/ did not exist there), a wrong path for stance_gate_report.py (it is under environments/shared/scripts/), grep -c with 0 matches, and git log / git branch --contains reporting objects missing from the shared store (584170f7, 877122cf, 070f954e). Only the output printed before each error was used. All are in CMDLOG.txt.",
+   "Not done: no notebook run end to end, no training of any kind, no network. So I could not check whether GitHub main has moved past 77c63ad, and I did not read the stance7 PC runs' stance_heading_report.json or summary.json (they are not in the fetch).",
+   "Nothing was refused. The clone was deleted at the end. CMDLOG.txt, the tools/ scripts and small outputs remain in /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/stance_cert/verify/."
+  ]
+ }
+}

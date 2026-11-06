@@ -1,0 +1,16 @@
+pilot4_straight baseline s42: tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree at 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8; environments /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree/environments/__init__.py; blocked 33 training entry points; env {'command_mode': 'heading', 'prey_lateral_range': (0.0, 0.0), 'walk_heading_price_weight': 0.2, 'walk_heading_price_scale_rad': 0.5, 'observation_dim': 63, 'pilot4_env': True}; assert_command_blind {'equivalence_probe_seed': 3042, 'equivalence_probe_observations': 64, 'max_action_delta': 0.0, 'max_value_delta': 0.0, 'max_probe_vector_action_delta': 0.0, 'max_probe_vector_value_delta': 0.0, 'prepared': ['mlp_extractor.policy_net.0.weight', 'mlp_extractor.value_net.0.weight']}
+  panel ep  0 (reset 3042): T=1000 yaw=-27.02052941260774 D=18.036960154895958 W0=22.761068528334444 
+  c reset 3042 +15: T=1000 counting=True r=3.0369601548987077 share=1.8307577676068831e-13
+  c reset 3042 -15: T=1000 counting=True r=33.036960154900086 share=-2.7489122089718876e-13
+  prey_in_place reset 3042 +15: T=1000 counting=True r=1.706469264073194 share=-0.08869939272151783
+  prey_in_place reset 3042 -15: T=1000 counting=True r=31.617380410893862 share=0.09463864960014001
+  turned_at_reset reset 3042 +15: T=1000 counting=True r=11.087469517645657 share=0.4226274965400937
+  turned_at_reset reset 3042 -15: T=1000 counting=True r=21.75678932362348 share=-0.6122447526247028
+(a) end heading: NOT READ | n 1 | median -27.0 p95|yaw| 27.0 (bars |median| <= 5.0, p95 <= 15.0)
+(b) weave: NOT READ | n 1 | D p95 18.0 W0 p95 22.8 (bars 11.5, 18.5) | report: D median 18.0, R median 22.8 p95 22.8, W0-D 4.7..4.7, crab median 5.4 deg, end cross-track median 0.31 m
+(c) recovery: NOT READ | counting 2 of 2 (ended before the nudge 0, not yet passed 0) | median r - p95 r - | within 11.5: 1, within 5: 1 | fell after 0, moved < 0.35 m 0 | share removed median +15 0.00 -15 -0.00 | prey not yet passed at 6.5 s in 0 of 2; 2 counting, fewer than 30
+STRAIGHT: NOT READ
+  report only, prey_in_place: counting 2 of 2 | median r 16.7 p95 30.1 | within 11.5 1 | share pooled 0.00 (+ -0.09, - 0.09)
+  report only, turned_at_reset: counting 2 of 2 | median r 16.4 p95 21.2 | within 11.5 1 | share pooled -0.09 (+ 0.42, - -0.61)
+  checks: prefix 4/4 equal; state-651 observation beyond 0.001 only in obs[60:63] 2/2 (channels seen [60, 62]); turned twin 2/2 (max dev 9.091394304050482e-12); zero nudge 0/0
+wrote /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/smoke/b.json

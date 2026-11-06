@@ -1,0 +1,96 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
+rootdir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol
+configfile: scripts/pytest.ini
+plugins: platformdirs-4.14.3, anyio-4.16.0, cov-7.1.0
+collecting ... collected 74 items
+
+::test_a_constant_heading_has_no_deviation PASSED                        [  1%]
+::test_a_drift_of_r_deg_per_s_reads_d_9_5_r_at_state_950[1.0] PASSED     [  2%]
+::test_a_drift_of_r_deg_per_s_reads_d_9_5_r_at_state_950[-1.3] PASSED    [  4%]
+::test_a_drift_of_r_deg_per_s_reads_d_9_5_r_at_state_950[0.5] PASSED     [  5%]
+::test_the_gain_of_the_101_state_mean PASSED                             [  6%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[10.0-2.0] PASSED             [  8%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[10.0-3.0] PASSED             [  9%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[10.0-4.0] PASSED             [ 10%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[10.0-6.0] PASSED             [ 12%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[10.0-8.0] PASSED             [ 13%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[25.0-2.0] PASSED             [ 14%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[25.0-3.0] PASSED             [ 16%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[25.0-4.0] PASSED             [ 17%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[25.0-6.0] PASSED             [ 18%]
+::test_a_sine_weave_reads_d_g_a_and_r_2_g_a[25.0-8.0] PASSED             [ 20%]
+::test_a_1_01_s_weave_reads_d_0_and_w0_a[5.0] PASSED                     [ 21%]
+::test_a_1_01_s_weave_reads_d_0_and_w0_a[18.5] PASSED                    [ 22%]
+::test_a_1_01_s_weave_reads_d_0_and_w0_a[40.0] PASSED                    [ 24%]
+::test_the_window_edges PASSED                                           [ 25%]
+::test_the_wrap_past_180_deg PASSED                                      [ 27%]
+::test_a_fall_has_no_d PASSED                                            [ 28%]
+::test_the_crab_and_cross_track_report PASSED                            [ 29%]
+::test_one_inf_of_40_passes_a_p95_bar_and_two_fail_it PASSED             [ 31%]
+::test_n_30_with_2_inf_reads_inf_where_numpy_returns_nan PASSED          [ 32%]
+::test_an_integer_position_with_an_inf_above_reads_inf PASSED            [ 33%]
+::test_the_median_is_the_50th_percentile_and_inf_sorts_last PASSED       [ 35%]
+::test_a_bars_at_their_edges PASSED                                      [ 36%]
+::test_b_bars_at_their_edges PASSED                                      [ 37%]
+::test_c_bars_at_their_edges_and_not_read_below_30 PASSED                [ 39%]
+::test_straight_needs_three_passes_and_a_not_read_c_is_not_a_pass PASSED [ 40%]
+::test_the_pass_check_at_state_650 PASSED                                [ 41%]
+::test_r_is_the_m950_error_and_inf_after_a_fall_or_without_movement PASSED [ 43%]
+::test_r_reads_m950_states_900_to_1000_only PASSED                       [ 44%]
+::test_the_share_removed_against_the_unturned_twin PASSED                [ 45%]
+::test_the_reset_variant_reads_m500_and_counts_every_episode PASSED      [ 47%]
+::test_a_0_deg_turn_writes_every_value_back_unchanged[True] PASSED       [ 48%]
+::test_a_0_deg_turn_writes_every_value_back_unchanged[False] PASSED      [ 50%]
+::test_the_turn_rotates_heading_velocity_and_prey_about_the_root[15.0] PASSED [ 51%]
+::test_the_turn_rotates_heading_velocity_and_prey_about_the_root[-15.0] PASSED [ 52%]
+::test_the_turn_rotates_heading_velocity_and_prey_about_the_root[90.0] PASSED [ 54%]
+::test_a_pilot3_cell_is_refused_without_validation_and_read_with_it PASSED [ 55%]
+::test_seed_problems_accepts_a_pilot4_cell_and_lists_every_problem PASSED [ 56%]
+::test_a_cell_from_another_run_is_refused PASSED                         [ 58%]
+::test_a_probe_json_that_is_not_the_fixed_panel_is_refused PASSED        [ 59%]
+::test_a_probe_json_with_an_env_kwargs_drift_is_refused PASSED           [ 60%]
+::test_the_crab_note_of_the_look_s_figure PASSED                         [ 62%]
+::test_the_training_guard_blocks_backward_step_and_learn PASSED          [ 63%]
+::test_baseline_refuses_another_seed_s_parent_and_a_changed_pair PASSED  [ 64%]
+::test_the_env_must_be_the_pilot4_env_unless_validation PASSED           [ 66%]
+::test_every_mode_refuses_an_existing_output PASSED                      [ 67%]
+::test_seed_main_refuses_before_loading_anything[over0- M environments/shared/base_env.py-local edits] PASSED [ 68%]
+::test_seed_main_refuses_before_loading_anything[over1--off-schedule] PASSED [ 70%]
+::test_seed_main_refuses_before_loading_anything[over2--validation-only] PASSED [ 71%]
+::test_seed_main_refuses_before_loading_anything[over3--judged at OTHER] PASSED [ 72%]
+::test_seed_main_refuses_a_cell_from_another_run PASSED                  [ 74%]
+::test_the_record_is_strict_json_with_inf_as_a_string PASSED             [ 75%]
+::test_the_constants_are_v3_s PASSED                                     [ 77%]
+::test_the_tool_s_yaw_is_the_probe_s_yaw PASSED                          [ 78%]
+::test_tree_baseline_reports_the_crab_and_the_cross_track PASSED         [ 79%]
+::test_tree_baseline_states_0_650_of_every_nudged_episode_equal_the_panel_episode PASSED [ 81%]
+::test_tree_baseline_a_0_deg_nudge_reproduces_the_panel_episode_exactly PASSED [ 82%]
+::test_tree_baseline_the_command_blind_walker_keeps_the_offset_exactly PASSED [ 83%]
+::test_tree_baseline_the_state_651_observation_shows_the_offset_only_in_the_command_inputs PASSED [ 85%]
+::test_tree_baseline_the_pass_check_and_the_reading PASSED               [ 86%]
+::test_tree_baseline_the_prepared_walker_acts_as_the_command_blind_parent PASSED [ 87%]
+::test_valrec_pilot3_cells_reproduce_yaw_change_deg_and_the_draft_s_rows[42] PASSED [ 89%]
+::test_valrec_pilot3_cells_reproduce_yaw_change_deg_and_the_draft_s_rows[52] PASSED [ 90%]
+::test_valrec_pilot3_cells_reproduce_yaw_change_deg_and_the_draft_s_rows[60] PASSED [ 91%]
+::test_valrec_entry_baseline_reproduces_v3_s_entry_rows_and_c[42] PASSED [ 93%]
+::test_valrec_entry_baseline_reproduces_v3_s_entry_rows_and_c[52] PASSED [ 94%]
+::test_valrec_entry_baseline_reproduces_v3_s_entry_rows_and_c[60] PASSED [ 95%]
+::test_valrec_entry_baseline_reports_the_crab_and_reproduces_v3_s_course_numbers[42] PASSED [ 97%]
+::test_valrec_entry_baseline_reports_the_crab_and_reproduces_v3_s_course_numbers[52] PASSED [ 98%]
+::test_valrec_entry_baseline_reports_the_crab_and_reproduces_v3_s_course_numbers[60] PASSED [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_pilot4_straight.xml -
+============================= slowest 10 durations =============================
+42.88s setup    ::test_tree_baseline_reports_the_crab_and_the_cross_track
+2.65s call     ::test_the_training_guard_blocks_backward_step_and_learn
+0.79s call     ::test_every_mode_refuses_an_existing_output
+0.04s call     ::test_the_tool_s_yaw_is_the_probe_s_yaw
+0.01s call     ::test_the_window_edges
+0.01s call     ::test_the_crab_and_cross_track_report
+0.01s call     ::test_a_pilot3_cell_is_refused_without_validation_and_read_with_it
+0.01s call     ::test_a_0_deg_turn_writes_every_value_back_unchanged[True]
+0.01s call     ::test_the_wrap_past_180_deg
+0.01s call     ::test_valrec_pilot3_cells_reproduce_yaw_change_deg_and_the_draft_s_rows[42]
+============================= 74 passed in 46.80s ==============================
+{"pytest_args": ["-p", "no:cacheprovider", "-c", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/scripts/pytest.ini", "--rootdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol", "--confcutdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests", "--basetemp", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/pt_test_pilot4_straight", "-v", "-rfEs", "--durations=10", "--junitxml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_pilot4_straight.xml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests/test_pilot4_straight.py"], "exit_status": 0, "elapsed_s": 47.07, "environments_imported_in_pytest_process": false, "environments_file_in_pytest_process": null, "python": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python", "dont_write_bytecode": true}

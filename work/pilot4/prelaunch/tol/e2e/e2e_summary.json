@@ -1,0 +1,1486 @@
+{
+ "checks": [
+  {
+   "name": "s42 set-up path: the notebook's manual cell reached learn() (stopped there, nothing trained), no guard hit",
+   "ok": true,
+   "detail": "{\"learn_called\": [{\"class\": \"stable_baselines3.ppo.ppo.PPO\", \"total_timesteps\": 2000000, \"reset_num_timesteps\": true}], \"entry_lines_missing\": []}"
+  },
+  {
+   "name": "s42 edge: lineage initialize_next_stage, parent stage 2, command columns zeroed (in memory and in each saved zip)",
+   "ok": true,
+   "detail": "[\"mlp_extractor.policy_net.0.weight\", \"mlp_extractor.value_net.0.weight\"]"
+  },
+  {
+   "name": "s42 edge: the saved 2,000,000 pair acts bit-identically to pilot 3's 8M pair on command-zeroed observations (1,000 steps) and to the in-memory model",
+   "ok": true,
+   "detail": "{\"reset_seed\": 3042, \"steps\": 1000, \"terminated\": false, \"truncated\": true, \"max_abs_action_delta\": 0.0, \"max_abs_action_delta_vs_in_memory\": 0.0}"
+  },
+  {
+   "name": "s52 set-up path: the notebook's manual cell reached learn() (stopped there, nothing trained), no guard hit",
+   "ok": true,
+   "detail": "{\"learn_called\": [{\"class\": \"stable_baselines3.ppo.ppo.PPO\", \"total_timesteps\": 2000000, \"reset_num_timesteps\": true}], \"entry_lines_missing\": []}"
+  },
+  {
+   "name": "s52 edge: lineage initialize_next_stage, parent stage 2, command columns zeroed (in memory and in each saved zip)",
+   "ok": true,
+   "detail": "[\"mlp_extractor.policy_net.0.weight\", \"mlp_extractor.value_net.0.weight\"]"
+  },
+  {
+   "name": "s52 edge: the saved 2,000,000 pair acts bit-identically to pilot 3's 8M pair on command-zeroed observations (1,000 steps) and to the in-memory model",
+   "ok": true,
+   "detail": "{\"reset_seed\": 3042, \"steps\": 1000, \"terminated\": false, \"truncated\": true, \"max_abs_action_delta\": 0.0, \"max_abs_action_delta_vs_in_memory\": 0.0}"
+  },
+  {
+   "name": "s60 set-up path: the notebook's manual cell reached learn() (stopped there, nothing trained), no guard hit",
+   "ok": true,
+   "detail": "{\"learn_called\": [{\"class\": \"stable_baselines3.ppo.ppo.PPO\", \"total_timesteps\": 2000000, \"reset_num_timesteps\": true}], \"entry_lines_missing\": []}"
+  },
+  {
+   "name": "s60 edge: lineage initialize_next_stage, parent stage 2, command columns zeroed (in memory and in each saved zip)",
+   "ok": true,
+   "detail": "[\"mlp_extractor.policy_net.0.weight\", \"mlp_extractor.value_net.0.weight\"]"
+  },
+  {
+   "name": "s60 edge: the saved 2,000,000 pair acts bit-identically to pilot 3's 8M pair on command-zeroed observations (1,000 steps) and to the in-memory model",
+   "ok": true,
+   "detail": "{\"reset_seed\": 3042, \"steps\": 1000, \"terminated\": false, \"truncated\": true, \"max_abs_action_delta\": 0.0, \"max_abs_action_delta_vs_in_memory\": 0.0}"
+  },
+  {
+   "name": "edge weights (saved 2,000,000 zip against the parent's 8M zip): only columns 60-62 of the policy's and the value's first layers changed (1,536 entries each, now 0); log_std bitwise; Adam moments unchanged and step counts kept; task 782d95b6... -> 914a1cae...",
+   "ok": true,
+   "detail": "{\"42\": {\"adam_steps\": [[742878.0, 742878.0]], \"log_std_mean\": -1.9380897283554077, \"ent_coef\": [0.001, 0.005]}, \"52\": {\"adam_steps\": [[744057.0, 744057.0]], \"log_std_mean\": -1.9424948692321777, \"ent_coef\": [0.001, 0.005]}, \"60\": {\"adam_steps\": [[742882.0, 742882.0]], \"log_std_mean\": -1.9591017961502075, \"ent_coef\": [0.001, 0.005]}}"
+  },
+  {
+   "name": "edge sidecars: obs_rms columns 0-59 bit-equal to the parent's, the command slice 60-62 reseeded to mean 0 / var 1 (parent var ~3e-12), ret_rms fresh (mean 0, var 1, count 1e-4)",
+   "ok": true,
+   "detail": "{\"42\": {\"var_60_63\": [[1.0, 1.0, 1.0], [3.124748848300523e-12, 3.124748848300523e-12, 3.124748848300523e-12]], \"ret_rms\": [[0.0, 1.0, 0.0001], [401.0106260184962, 38646.19242348458, 8000000.0001]]}, \"52\": {\"var_60_63\": [[1.0, 1.0, 1.0], [3.124748848300523e-12, 3.124748848300523e-12, 3.124748848300523e-12]], \"ret_rms\": [[0.0, 1.0, 0.0001], [403.93803082386506, 38950.486110523205, 8000000.0001]]}, \"60\": {\"var_60_63\": [[1.0, 1.0, 1.0], [3.124748848300523e-12, 3.124748848300523e-12, 3.124748848300523e-12]], \"ret_rms\": [[0.0, 1.0, 0.0001], [386.0738830832325, 37743.57755738444, 8000000.0001]]}}"
+  },
+  {
+   "name": "the set-up path's records at 0e6a57b equal the setup check's at 0bcb0cf but for git_commit, run.label and run.load_path (plant_identity.json and task_fingerprint.json equal)",
+   "ok": true,
+   "detail": "{\"s42/stage_config.json\": [\"git_commit\", \"run.label\", \"run.load_path\"], \"s42/plant_identity.json\": [], \"s42/task_fingerprint.json\": [], \"s52/stage_config.json\": [\"git_commit\", \"run.label\", \"run.load_path\"], \"s52/plant_identity.json\": [], \"s52/task_fingerprint.json\": [], \"s60/stage_config.json\": [\"git_commit\", \"run.label\", \"run.load_path\"], \"s60/plant_identity.json\": [], \"s60/task_fingerprint.json\": []}"
+  },
+  {
+   "name": "judge --check-only: exit 0 on all 12 cells",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "judge --check-only wrote nothing (OUT absent afterwards)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "judge: exit 0 on all 12 cells",
+   "ok": true,
+   "detail": "{\"s42_500000\": [0, 172], \"s42_1000000\": [0, 185], \"s42_1500000\": [0, 140], \"s42_2000000\": [0, 96], \"s52_500000\": [0, 173], \"s52_1000000\": [0, 184], \"s52_1500000\": [0, 138], \"s52_2000000\": [0, 96], \"s60_500000\": [0, 176], \"s60_1000000\": [0, 186], \"s60_1500000\": [0, 137], \"s60_2000000\": [0, 98]}"
+  },
+  {
+   "name": "binding.json on all 12 cells: schema v1, seed, steps, head, no fallback, on schedule, not validation-only, cadence checked, task 914a1cae, recipe fbc94bef, the seed's parent, n_envs 4, the lineage, the heading command with the committed table, prey [0, 0], price 0.2 / 0.5, pair sha256s",
+   "ok": true,
+   "detail": "[true, true, true, true, true, true, true, true, true, true, true, true]"
+  },
+  {
+   "name": "probe.json on all 12 cells: 40 panel episodes from 3042, settle 100, no env-kwargs drift from the record, interface r15, the judged checkpoint",
+   "ok": true,
+   "detail": "[true, true, true, true, true, true, true, true, true, true, true, true]"
+  },
+  {
+   "name": "the probe's 40 episode rows are identical across a seed's four stand-in cells (one set of weights)",
+   "ok": true,
+   "detail": "{\"42\": true, \"52\": true, \"60\": true}"
+  },
+  {
+   "name": "a second judgement of a cell is refused (exit 2)",
+   "ok": true,
+   "detail": "refusing (nothing written): /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/e2e/OUT/s42/2000000 exists (one judgement per checkpoint, never overwritten)"
+  },
+  {
+   "name": "tamper_wrong_parent_cli: refused, exit 2, the reason names 'parent'",
+   "ok": true,
+   "detail": "refusing (nothing written): --parent-sha256 sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00 is not s42's own 8M parent sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4 (it is s52's); parent_checkpoint_sha256 sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4 is not the chosen parent sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00"
+  },
+  {
+   "name": "tamper_parent_record: refused, exit 2, the reason names 'parent'",
+   "ok": true,
+   "detail": "refusing (nothing written): parent_checkpoint_sha256 sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00 is not the chosen parent sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4"
+  },
+  {
+   "name": "tamper_command_table: refused, exit 2, the reason names 'command'",
+   "ok": true,
+   "detail": "refusing (nothing written): reward_weights.command_config is not the committed [env.command_config] table key for key: yaw_gain = 2.0 (float), committed 1.5 (float); the run's recorded env kwargs (stage_config.json reward_weights) differ from the env this tree builds (constructor defaults and the committed [env]), so the probe would judge in another env than training's: {\"command_config\": {\"recorded_run\": {\"cruise_speed\": 1.5, \"lateral_speed_scale\": 1.0, \"minimum_turn_speed_fraction\": 0.25, \"speed_scale\": 1.5, \"stop_probability\": 0.0, \"straight_probability\": 1.0, \"turn_increment_max\": 0.0, \"tu"
+  },
+  {
+   "name": "tamper_raw_parent: refused, exit 2, the reason names 'lineage'",
+   "ok": true,
+   "detail": "refusing (nothing written): the judged zip's lineage parent_stage is 1, not 2; the judged zip's lineage records no zeroed_command_parameters (the edge zeroed no command columns)"
+  },
+  {
+   "name": "setup_check_record_verbatim: refused, exit 2, the reason names 'git_commit'",
+   "ok": true,
+   "detail": "refusing (nothing written): git_commit 0bcb0cf941ba6d9d44cc4020e8dff59f773085a9 != tree HEAD 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+  },
+  {
+   "name": "dirty_judge: refused, exit 2, the reason names 'edit'",
+   "ok": true,
+   "detail": "refusing (nothing written): the tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone has local edits"
+  },
+  {
+   "name": "dirty_straight: refused, exit 2, the reason names 'edit'",
+   "ok": true,
+   "detail": "refusing (nothing written): this tree has local edits (git status --porcelain --untracked-files=no is not empty)"
+  },
+  {
+   "name": "dirty_habit: refused, exit 2, the reason names 'edit'",
+   "ok": true,
+   "detail": "refusing (nothing written): this tree has local edits (git status --porcelain --untracked-files=no is not empty)"
+  },
+  {
+   "name": "every tampered and dirty case wrote nothing",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "the setup check's own 0bcb0cf record passes every other check under --allow-commit-mismatch --check-only",
+   "ok": true,
+   "detail": "ing rolled or written); would judge /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tampered/setup_check_record/pilot4_walk_s42/03_locomotion/models/stage2_2000000_steps.zip into /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tampered/OUT_setup_check_record/s42/2000000"
+  },
+  {
+   "name": "the dirty clone was restored clean",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "final-model fallback (s42 copy with no 2,000,000 pair, a final pair re-saved by SB3 at num_timesteps 2,015,232, lineage kept): --final-fallback --check-only accepts it, exit 0",
+   "ok": true,
+   "detail": "dc9/scratchpad/work/pilot4/prelaunch/tol/tampered/final_fallback/pilot4_walk_s42/03_locomotion/models/stage2_final.zip into /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tampered/OUT_final_fallback/s42/2000000  [final-model fallback]"
+  },
+  {
+   "name": "the same copy without --final-fallback is refused (the 2,000,000 pair is missing), exit 2",
+   "ok": true,
+   "detail": "refusing (nothing written): checkpoint missing or incomplete run copy: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tampered/final_fallback/pilot4_walk_s42/03_locomotion/models/stage2_2000000_steps.zip"
+  },
+  {
+   "name": "a final zip at num_timesteps 2,000,000 (not the uninterrupted end) is refused under --final-fallback, exit 2",
+   "ok": true,
+   "detail": "refusing (nothing written): stage2_final.zip records num_timesteps 2,000,000, not the uninterrupted end 2,015,232 of the 2,000,000-step budget (whole rollouts of 16,384)"
+  },
+  {
+   "name": "the final-fallback checks wrote nothing",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "straight seed mode: a record for all 12 cells, exit 0",
+   "ok": true,
+   "detail": "{\"s42_500000\": [0, 335], \"s42_1000000\": [0, 337], \"s42_1500000\": [0, 340], \"s42_2000000\": [0, 389], \"s52_500000\": [0, 328], \"s52_1000000\": [0, 333], \"s52_1500000\": [0, 333], \"s52_2000000\": [0, 381], \"s60_500000\": [0, 340], \"s60_1000000\": [0, 348], \"s60_1500000\": [0, 347], \"s60_2000000\": [0, 394]}"
+  },
+  {
+   "name": "each straightness record is the record of its cell (binding and probe sha256, checkpoint), seed mode, not validation, not partial, every re-rolled episode equal to probe.json's, yaw reproduced to 1e-12",
+   "ok": true,
+   "detail": "[true, true, true, true, true, true, true, true, true, true, true, true]"
+  },
+  {
+   "name": "(a) FAIL, (b) FAIL, (c) FAIL, STRAIGHT FAIL on every cell (v3's entry baseline: all fail)",
+   "ok": true,
+   "detail": "{\"s42_500000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s42_1000000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s42_1500000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s42_2000000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s52_500000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s52_1000000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s52_1500000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s52_2000000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s60_500000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s60_1000000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s60_1500000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"], \"s60_2000000\": [\"FAIL\", \"FAIL\", \"FAIL\", \"FAIL\"]}"
+  },
+  {
+   "name": "seed mode on the stand-in 2,000,000 cells equals the straightness lane's baseline mode (v3's entry baseline) on (a), (b), (c), every panel row's yaw, D, W0, R, and every recovery episode's r",
+   "ok": true,
+   "detail": "{\"42\": {\"parts_equal\": {\"a\": true, \"b\": true, \"c\": true}, \"parts_unequal_keys\": {\"a\": [], \"b\": [], \"c\": []}, \"panel_rows_equal\": true, \"recovery_r_equal\": true, \"a\": [-25.28391022912544, 31.734622025581338], \"b\": [25.20875958984466, 30.048740339989035], \"c\": [40, 22.78941611348764, 40.20875958986929, 18, 12]}, \"52\": {\"parts_equal\": {\"a\": true, \"b\": true, \"c\": true}, \"parts_unequal_keys\": {\"a\": [], \"b\": [], \"c\": []}, \"panel_rows_equal\": true, \"recovery_r_equal\": true, \"a\": [-47.757263124592484, 54.64675690341381], \"b\": [44.75335359526913, 49.356617710645224], \"c\": [38, 34.77499604375486, 55.42247406027411, 2, 0]}, \"60\": {\"parts_equal\": {\"a\": true, \"b\": true, \"c\": true}, \"parts_unequal_keys\": {\"a\": [], \"b\": [], \"c\": []}, \"panel_rows_equal\": true, \"recovery_r_equal\": true, \"a\": [-28.930296631402804, 47.62757675954563], \"b\": [48.96132060159667, 55.330302326832324], \"c\": [40, 29.108908594323655, 52.666087254916654, 3, 1]}}"
+  },
+  {
+   "name": "the four checkpoints of a seed give the same parts (one set of weights)",
+   "ok": true,
+   "detail": "{\"42\": true, \"52\": true, \"60\": true}"
+  },
+  {
+   "name": "score_no_review_no_look: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "score_review: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "score_review_look_straight: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "score_review_look_not_straight: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "score_review_look_straight_habit: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "score_review_no_straight: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "pilot 3's rule at 2,000,000: WALKS on every seed (s42 WALK 40; s52 WALK 39 + FALL 1; s60 WALK 40)",
+   "ok": true,
+   "detail": "{\"42\": {\"counts\": {\"WALK\": 40, \"HOP\": 0, \"STILL\": 0, \"FALL\": 0, \"OTHER\": 0}, \"outcome\": \"WALKS\"}, \"52\": {\"counts\": {\"WALK\": 39, \"HOP\": 0, \"STILL\": 0, \"FALL\": 1, \"OTHER\": 0}, \"outcome\": \"WALKS\"}, \"60\": {\"counts\": {\"WALK\": 40, \"HOP\": 0, \"STILL\": 0, \"FALL\": 0, \"OTHER\": 0}, \"outcome\": \"WALKS\"}}"
+  },
+  {
+   "name": "no video review: every seed pending, the pilot outcome PENDING_REVIEW",
+   "ok": true,
+   "detail": "[{\"42\": [\"pending\", null], \"52\": [\"pending\", null], \"60\": [\"pending\", null]}, \"PENDING_REVIEW\"]"
+  },
+  {
+   "name": "score_review: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN",
+   "ok": true,
+   "detail": "[{\"42\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"52\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"60\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"]}, \"CURVED WALKS\", {\"outcome\": \"WALKS\", \"basis\": \"3 of 3 launched seeds\", \"missing\": []}]"
+  },
+  {
+   "name": "score_review_look_straight: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN",
+   "ok": true,
+   "detail": "[{\"42\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"52\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"60\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"]}, \"CURVED WALKS\", {\"outcome\": \"WALKS\", \"basis\": \"3 of 3 launched seeds\", \"missing\": []}]"
+  },
+  {
+   "name": "score_review_look_not_straight: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN",
+   "ok": true,
+   "detail": "[{\"42\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"52\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"60\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"]}, \"CURVED WALKS\", {\"outcome\": \"WALKS\", \"basis\": \"3 of 3 launched seeds\", \"missing\": []}]"
+  },
+  {
+   "name": "score_review_look_straight_habit: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN",
+   "ok": true,
+   "detail": "[{\"42\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"52\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"], \"60\": [\"CURVED WALKS\", \"(a) FAIL, (b) FAIL\"]}, \"CURVED WALKS\", {\"outcome\": \"WALKS\", \"basis\": \"3 of 3 launched seeds\", \"missing\": []}]"
+  },
+  {
+   "name": "no look is required ((a) and (b) fail), and the look 'straight' cannot rescue a failed part",
+   "ok": true,
+   "detail": "{\"42\": null, \"52\": null, \"60\": null}"
+  },
+  {
+   "name": "without the straightness records the video-agreed WALKS seeds are pending (awaiting the record)",
+   "ok": true,
+   "detail": "{\"42\": [\"pending\", null], \"52\": [\"pending\", null], \"60\": [\"pending\", null]}"
+  },
+  {
+   "name": "habit seed mode on every 2,000,000 cell: exit 0, a report-only record naming the cell's checkpoint, 30 evaluations in the window",
+   "ok": true,
+   "detail": "{\"42\": \"NO HABIT\", \"52\": \"NO HABIT\", \"60\": \"NO HABIT\"}"
+  },
+  {
+   "name": "habit ledger mode on every stand-in ledger: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "noise readout on every run: exit 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "noise: exp(log_std) at the four stand-in checkpoints equals the seed's parent (the edge keeps log_std); the TensorBoard and forward parts read 'not run' (no event file, no gate_progress.npz in a stand-in run)",
+   "ok": true,
+   "detail": "{\"42\": {\"steps\": [500000, 1000000, 1500000, 2000000], \"equal_parent\": [true, true, true, true], \"mean\": [0.14665701759809271, 0.14665701759809271, 0.14665701759809271, 0.14665701759809271], \"parent\": {\"mean\": 0.14665701759809271, \"min\": 0.10631248123897372, \"max\": 0.18167976718752318}, \"tensorboard\": \"no event file under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s42/03_locomotion/tensorboard\", \"forward\": \"no /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s42/03_locomotion/gate_progress.npz\", \"seed_from_run_id\": 42}, \"52\": {\"steps\": [500000, 1000000, 1500000, 2000000], \"equal_parent\": [true, true, true, true], \"mean\": [0.1460313846708207, 0.1460313846708207, 0.1460313846708207, 0.1460313846708207], \"parent\": {\"mean\": 0.1460313846708207, \"min\": 0.10611695806782012, \"max\": 0.18163541718965057}, \"tensorboard\": \"no event file under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s52/03_locomotion/tensorboard\", \"forward\": \"no /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s52/03_locomotion/gate_progress.npz\", \"seed_from_run_id\": 52}, \"60\": {\"steps\": [500000, 1000000, 1500000, 2000000], \"equal_parent\": [true, true, true, true], \"mean\": [0.14507681139782455, 0.14507681139782455, 0.14507681139782455, 0.14507681139782455], \"parent\": {\"mean\": 0.14507681139782455, \"min\": 0.09555350251971369, \"max\": 0.18984233446899185}, \"tensorboard\": \"no event file under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s60/03_locomotion/tensorboard\", \"forward\": \"no /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s60/03_locomotion/gate_progress.npz\", \"seed_from_run_id\": 60}}"
+  },
+  {
+   "name": "mirror on every 2,000,000 cell: exit 0",
+   "ok": true,
+   "detail": "{\"42\": [0, 100], \"52\": [0, 67], \"60\": [0, 69]}"
+  },
+  {
+   "name": "mech on every 2,000,000 cell: exit 0",
+   "ok": true,
+   "detail": "{\"42\": [0, 106], \"52\": [0, 88], \"60\": [0, 90]}"
+  },
+  {
+   "name": "mirror on the cells equals the readouts lane's --parent records (handedness, flips, mirror-KL, actuators), every pi episode equal to probe.json's",
+   "ok": true,
+   "detail": "{\"42\": {\"summary_equal\": true, \"mirror_kl_equal\": true, \"actuators_equal\": true, \"handedness_deg\": {\"n\": 10, \"min\": -34.48304870364373, \"median\": -26.11029726009077, \"max\": -19.052761394064333}, \"all_pi_episodes_match_probe\": true}, \"52\": {\"summary_equal\": true, \"mirror_kl_equal\": true, \"actuators_equal\": true, \"handedness_deg\": {\"n\": 9, \"min\": -52.106123434875954, \"median\": -43.99719403750241, \"max\": -37.464189464948554}, \"all_pi_episodes_match_probe\": true}, \"60\": {\"summary_equal\": true, \"mirror_kl_equal\": true, \"actuators_equal\": true, \"handedness_deg\": {\"n\": 10, \"min\": -46.62179302371689, \"median\": -34.57411212464239, \"max\": -22.502704430223137}, \"all_pi_episodes_match_probe\": true}}"
+  },
+  {
+   "name": "mech on the cells equals the readouts lane's --parent records (aggregates, leg power), every episode equal to probe.json's",
+   "ok": true,
+   "detail": "{\"42\": {\"aggregate_equal\": true, \"leg_power_equal\": true, \"all_episodes_match_probe\": true, \"ledger_asymmetry\": {\"read\": true, \"from_timesteps\": 1638400, \"to_timesteps\": 1966080, \"max_over_min\": 2.0580240688964633}}, \"52\": {\"aggregate_equal\": true, \"leg_power_equal\": true, \"all_episodes_match_probe\": true, \"ledger_asymmetry\": {\"read\": true, \"from_timesteps\": 1638400, \"to_timesteps\": 1966080, \"max_over_min\": 1.9746701093705907}}, \"60\": {\"aggregate_equal\": true, \"leg_power_equal\": true, \"all_episodes_match_probe\": true, \"ledger_asymmetry\": {\"read\": true, \"from_timesteps\": 1638400, \"to_timesteps\": 1966080, \"max_over_min\": 1.7950351928736992}}}"
+  },
+  {
+   "name": "video tool: its cell checks pass (no refusal) and it reads the scorer's listing; it stops at the renderer (MUJOCO_GL=disable), so the render path is NOT RUN here",
+   "ok": true,
+   "detail": "AttributeError: module 'mujoco.rendering.classic.gl_context' has no attribute 'GLContext'"
+  },
+  {
+   "name": "the shared tree is clean after phase A",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "the shared tree is clean after phase B",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "the shared tree is clean after phase C",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "numbers": {
+  "records_vs_setup_check": {
+   "s42/stage_config.json": [
+    "git_commit",
+    "run.label",
+    "run.load_path"
+   ],
+   "s42/plant_identity.json": [],
+   "s42/task_fingerprint.json": [],
+   "s52/stage_config.json": [
+    "git_commit",
+    "run.label",
+    "run.load_path"
+   ],
+   "s52/plant_identity.json": [],
+   "s52/task_fingerprint.json": [],
+   "s60/stage_config.json": [
+    "git_commit",
+    "run.label",
+    "run.load_path"
+   ],
+   "s60/plant_identity.json": [],
+   "s60/task_fingerprint.json": []
+  },
+  "leg_length_m": [
+   0.8765999999999999
+  ],
+  "refusals": {
+   "tamper_wrong_parent_cli_expect2": [
+    "refusing (nothing written): --parent-sha256 sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00 is not s42's own 8M parent sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4 (it is s52's); parent_checkpoint_sha256 sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4 is not the chosen parent sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00"
+   ],
+   "tamper_parent_record_expect2": [
+    "refusing (nothing written): parent_checkpoint_sha256 sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00 is not the chosen parent sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4"
+   ],
+   "tamper_command_table_expect2": [
+    "refusing (nothing written): reward_weights.command_config is not the committed [env.command_config] table key for key: yaw_gain = 2.0 (float), committed 1.5 (float); the run's recorded env kwargs (stage_config.json reward_weights) differ from the env this tree builds (constructor defaults and the committed [env]), so the probe would judge in another env than training's: {\"command_config\": {\"recorded_run\": {\"cruise_speed\": 1.5, \"lateral_speed_scale\": 1.0, \"minimum_turn_speed_fraction\": 0.25, \"speed_scale\": 1.5, \"stop_probability\": 0.0, \"straight_probability\": 1.0, \"turn_increment_max\": 0.0, \"turn_slowdown\": true, \"yaw_gain\": 2.0, \"yaw_rate_max\": 0.3, \"yaw_rate_scale\": 0.6}, \"toml_main\": {\"cruise_speed\": 1.5, \"lateral_speed_scale\": 1.0, \"minimum_turn_speed_fraction\": 0.25, \"speed_scale\": 1.5, \"stop_probability\": 0.0, \"straight_probability\": 1.0, \"turn_increment_max\": 0.0, \"turn_slowdown\": true, \"yaw_gain\": 1.5, \"yaw_rate_max\": 0.3, \"yaw_rate_scale\": 0.6}}}"
+   ],
+   "tamper_raw_parent_expect2": [
+    "refusing (nothing written): the judged zip's lineage parent_stage is 1, not 2; the judged zip's lineage records no zeroed_command_parameters (the edge zeroed no command columns)"
+   ],
+   "setup_check_record_verbatim_expect2": [
+    "refusing (nothing written): git_commit 0bcb0cf941ba6d9d44cc4020e8dff59f773085a9 != tree HEAD 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+   ],
+   "dirty_judge_expect2": [
+    "refusing (nothing written): the tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone has local edits"
+   ],
+   "dirty_straight_expect2": [
+    "refusing (nothing written): this tree has local edits (git status --porcelain --untracked-files=no is not empty)"
+   ],
+   "dirty_habit_expect2": [
+    "refusing (nothing written): this tree has local edits (git status --porcelain --untracked-files=no is not empty)"
+   ]
+  },
+  "straight_verdicts": {
+   "s42_500000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s42_1000000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s42_1500000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s42_2000000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s52_500000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s52_1000000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s52_1500000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s52_2000000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s60_500000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s60_1000000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s60_1500000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ],
+   "s60_2000000": [
+    "FAIL",
+    "FAIL",
+    "FAIL",
+    "FAIL"
+   ]
+  },
+  "straight_vs_baseline": {
+   "42": {
+    "parts_equal": {
+     "a": true,
+     "b": true,
+     "c": true
+    },
+    "parts_unequal_keys": {
+     "a": [],
+     "b": [],
+     "c": []
+    },
+    "panel_rows_equal": true,
+    "recovery_r_equal": true,
+    "a": [
+     -25.28391022912544,
+     31.734622025581338
+    ],
+    "b": [
+     25.20875958984466,
+     30.048740339989035
+    ],
+    "c": [
+     40,
+     22.78941611348764,
+     40.20875958986929,
+     18,
+     12
+    ]
+   },
+   "52": {
+    "parts_equal": {
+     "a": true,
+     "b": true,
+     "c": true
+    },
+    "parts_unequal_keys": {
+     "a": [],
+     "b": [],
+     "c": []
+    },
+    "panel_rows_equal": true,
+    "recovery_r_equal": true,
+    "a": [
+     -47.757263124592484,
+     54.64675690341381
+    ],
+    "b": [
+     44.75335359526913,
+     49.356617710645224
+    ],
+    "c": [
+     38,
+     34.77499604375486,
+     55.42247406027411,
+     2,
+     0
+    ]
+   },
+   "60": {
+    "parts_equal": {
+     "a": true,
+     "b": true,
+     "c": true
+    },
+    "parts_unequal_keys": {
+     "a": [],
+     "b": [],
+     "c": []
+    },
+    "panel_rows_equal": true,
+    "recovery_r_equal": true,
+    "a": [
+     -28.930296631402804,
+     47.62757675954563
+    ],
+    "b": [
+     48.96132060159667,
+     55.330302326832324
+    ],
+    "c": [
+     40,
+     29.108908594323655,
+     52.666087254916654,
+     3,
+     1
+    ]
+   }
+  },
+  "labels_2M": {
+   "42": {
+    "counts": {
+     "WALK": 40,
+     "HOP": 0,
+     "STILL": 0,
+     "FALL": 0,
+     "OTHER": 0
+    },
+    "outcome": "WALKS"
+   },
+   "52": {
+    "counts": {
+     "WALK": 39,
+     "HOP": 0,
+     "STILL": 0,
+     "FALL": 1,
+     "OTHER": 0
+    },
+    "outcome": "WALKS"
+   },
+   "60": {
+    "counts": {
+     "WALK": 40,
+     "HOP": 0,
+     "STILL": 0,
+     "FALL": 0,
+     "OTHER": 0
+    },
+    "outcome": "WALKS"
+   }
+  },
+  "seed_outcomes": {
+   "score_no_review_no_look": {
+    "42": [
+     "pending",
+     null
+    ],
+    "52": [
+     "pending",
+     null
+    ],
+    "60": [
+     "pending",
+     null
+    ]
+   },
+   "score_review": {
+    "42": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "52": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "60": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ]
+   },
+   "score_review_look_straight": {
+    "42": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "52": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "60": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ]
+   },
+   "score_review_look_not_straight": {
+    "42": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "52": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "60": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ]
+   },
+   "score_review_look_straight_habit": {
+    "42": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "52": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ],
+    "60": [
+     "CURVED WALKS",
+     "(a) FAIL, (b) FAIL"
+    ]
+   },
+   "score_review_no_straight": {
+    "42": [
+     "pending",
+     null
+    ],
+    "52": [
+     "pending",
+     null
+    ],
+    "60": [
+     "pending",
+     null
+    ]
+   }
+  },
+  "pilot_outcomes": {
+   "score_no_review_no_look": "PENDING_REVIEW",
+   "score_review": "CURVED WALKS",
+   "score_review_look_straight": "CURVED WALKS",
+   "score_review_look_not_straight": "CURVED WALKS",
+   "score_review_look_straight_habit": "CURVED WALKS",
+   "score_review_no_straight": "PENDING_REVIEW"
+  },
+  "gait_reading": {
+   "score_no_review_no_look": {
+    "by_rule": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": []
+    },
+    "reviewed": {
+     "outcome": "PENDING_VIDEO_REVIEW",
+     "final": false,
+     "pending_video_review": [
+      42,
+      52,
+      60
+     ],
+     "possible_outcomes": [
+      "MIXED",
+      "WALKS"
+     ],
+     "basis": "WALKS by the rule for ['s42', 's52', 's60'], not yet confirmed on video; the outcome is one of ['MIXED', 'WALKS']",
+     "missing": []
+    },
+    "final_reading": {
+     "applies": false,
+     "why": "the pilot outcome is not INCOMPLETE"
+    }
+   },
+   "score_review": {
+    "by_rule": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": []
+    },
+    "reviewed": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": [],
+     "final": true,
+     "pending_video_review": []
+    },
+    "final_reading": {
+     "applies": false,
+     "why": "the pilot outcome is not INCOMPLETE"
+    }
+   },
+   "score_review_look_straight": {
+    "by_rule": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": []
+    },
+    "reviewed": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": [],
+     "final": true,
+     "pending_video_review": []
+    },
+    "final_reading": {
+     "applies": false,
+     "why": "the pilot outcome is not INCOMPLETE"
+    }
+   },
+   "score_review_look_not_straight": {
+    "by_rule": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": []
+    },
+    "reviewed": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": [],
+     "final": true,
+     "pending_video_review": []
+    },
+    "final_reading": {
+     "applies": false,
+     "why": "the pilot outcome is not INCOMPLETE"
+    }
+   },
+   "score_review_look_straight_habit": {
+    "by_rule": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": []
+    },
+    "reviewed": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": [],
+     "final": true,
+     "pending_video_review": []
+    },
+    "final_reading": {
+     "applies": false,
+     "why": "the pilot outcome is not INCOMPLETE"
+    }
+   },
+   "score_review_no_straight": {
+    "by_rule": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": []
+    },
+    "reviewed": {
+     "outcome": "WALKS",
+     "basis": "3 of 3 launched seeds",
+     "missing": [],
+     "final": true,
+     "pending_video_review": []
+    },
+    "final_reading": {
+     "applies": false,
+     "why": "the pilot outcome is not INCOMPLETE"
+    }
+   }
+  },
+  "existence": {
+   "score_no_review_no_look": "NONE SEEN",
+   "score_review": "NONE SEEN",
+   "score_review_look_straight": "NONE SEEN",
+   "score_review_look_not_straight": "NONE SEEN",
+   "score_review_look_straight_habit": "NONE SEEN",
+   "score_review_no_straight": "PENDING"
+  },
+  "report_only_count": {
+   "score_no_review_no_look": 0,
+   "score_review": 0,
+   "score_review_look_straight": 0,
+   "score_review_look_not_straight": 0,
+   "score_review_look_straight_habit": 0,
+   "score_review_no_straight": 0
+  },
+  "habit": {
+   "42": {
+    "reading": "NO HABIT",
+    "trace_full_horizon": 20
+   },
+   "52": {
+    "reading": "NO HABIT",
+    "trace_full_horizon": 19
+   },
+   "60": {
+    "reading": "NO HABIT",
+    "trace_full_horizon": 20
+   }
+  },
+  "noise": {
+   "42": {
+    "steps": [
+     500000,
+     1000000,
+     1500000,
+     2000000
+    ],
+    "equal_parent": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "mean": [
+     0.14665701759809271,
+     0.14665701759809271,
+     0.14665701759809271,
+     0.14665701759809271
+    ],
+    "parent": {
+     "mean": 0.14665701759809271,
+     "min": 0.10631248123897372,
+     "max": 0.18167976718752318
+    },
+    "tensorboard": "no event file under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s42/03_locomotion/tensorboard",
+    "forward": "no /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s42/03_locomotion/gate_progress.npz",
+    "seed_from_run_id": 42
+   },
+   "52": {
+    "steps": [
+     500000,
+     1000000,
+     1500000,
+     2000000
+    ],
+    "equal_parent": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "mean": [
+     0.1460313846708207,
+     0.1460313846708207,
+     0.1460313846708207,
+     0.1460313846708207
+    ],
+    "parent": {
+     "mean": 0.1460313846708207,
+     "min": 0.10611695806782012,
+     "max": 0.18163541718965057
+    },
+    "tensorboard": "no event file under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s52/03_locomotion/tensorboard",
+    "forward": "no /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s52/03_locomotion/gate_progress.npz",
+    "seed_from_run_id": 52
+   },
+   "60": {
+    "steps": [
+     500000,
+     1000000,
+     1500000,
+     2000000
+    ],
+    "equal_parent": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "mean": [
+     0.14507681139782455,
+     0.14507681139782455,
+     0.14507681139782455,
+     0.14507681139782455
+    ],
+    "parent": {
+     "mean": 0.14507681139782455,
+     "min": 0.09555350251971369,
+     "max": 0.18984233446899185
+    },
+    "tensorboard": "no event file under /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s60/03_locomotion/tensorboard",
+    "forward": "no /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s60/03_locomotion/gate_progress.npz",
+    "seed_from_run_id": 60
+   }
+  },
+  "mirror_vs_parent": {
+   "42": {
+    "summary_equal": true,
+    "mirror_kl_equal": true,
+    "actuators_equal": true,
+    "handedness_deg": {
+     "n": 10,
+     "min": -34.48304870364373,
+     "median": -26.11029726009077,
+     "max": -19.052761394064333
+    },
+    "all_pi_episodes_match_probe": true
+   },
+   "52": {
+    "summary_equal": true,
+    "mirror_kl_equal": true,
+    "actuators_equal": true,
+    "handedness_deg": {
+     "n": 9,
+     "min": -52.106123434875954,
+     "median": -43.99719403750241,
+     "max": -37.464189464948554
+    },
+    "all_pi_episodes_match_probe": true
+   },
+   "60": {
+    "summary_equal": true,
+    "mirror_kl_equal": true,
+    "actuators_equal": true,
+    "handedness_deg": {
+     "n": 10,
+     "min": -46.62179302371689,
+     "median": -34.57411212464239,
+     "max": -22.502704430223137
+    },
+    "all_pi_episodes_match_probe": true
+   }
+  },
+  "mech_vs_parent": {
+   "42": {
+    "aggregate_equal": true,
+    "leg_power_equal": true,
+    "all_episodes_match_probe": true,
+    "ledger_asymmetry": {
+     "read": true,
+     "from_timesteps": 1638400,
+     "to_timesteps": 1966080,
+     "max_over_min": 2.0580240688964633
+    }
+   },
+   "52": {
+    "aggregate_equal": true,
+    "leg_power_equal": true,
+    "all_episodes_match_probe": true,
+    "ledger_asymmetry": {
+     "read": true,
+     "from_timesteps": 1638400,
+     "to_timesteps": 1966080,
+     "max_over_min": 1.9746701093705907
+    }
+   },
+   "60": {
+    "aggregate_equal": true,
+    "leg_power_equal": true,
+    "all_episodes_match_probe": true,
+    "ledger_asymmetry": {
+     "read": true,
+     "from_timesteps": 1638400,
+     "to_timesteps": 1966080,
+     "max_over_min": 1.7950351928736992
+    }
+   }
+  }
+ },
+ "status": {
+  "clone": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "pairs_copy_s42": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "pairs_copy_s52": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "pairs_copy_s60": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_params": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "runner_not_quick_test_expect2": {
+   "rc": 2,
+   "elapsed_s": 0
+  },
+  "runner_not_quick_test_ran_no_cell": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "edge_pairs_s42": {
+   "rc": 0,
+   "elapsed_s": 127
+  },
+  "edge_pairs_s52": {
+   "rc": 0,
+   "elapsed_s": 122
+  },
+  "edge_pairs_s60": {
+   "rc": 0,
+   "elapsed_s": 115
+  },
+  "clone_clean_after_setup": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "cmp_records": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_runs": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "make_tampered_fix": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_final": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "sidecar_facts": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "weights_facts": {
+   "rc": 0,
+   "elapsed_s": 2
+  },
+  "dedupe_models": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tree_clean_after_phase_0": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "remove_setup_model_duplicates": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "judge_check_s42_500000": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "judge_check_s42_1000000": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "judge_check_s42_1500000": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "judge_check_s42_2000000": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "judge_check_s52_500000": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "judge_check_s52_1000000": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "judge_check_s52_1500000": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "judge_check_s52_2000000": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "judge_check_s60_500000": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "judge_check_s60_1000000": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "judge_check_s60_1500000": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "judge_check_s60_2000000": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "out_absent_after_check_only": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "judge_s42_500000": {
+   "rc": 0,
+   "elapsed_s": 172
+  },
+  "judge_s52_500000": {
+   "rc": 0,
+   "elapsed_s": 173
+  },
+  "judge_s60_500000": {
+   "rc": 0,
+   "elapsed_s": 176
+  },
+  "judge_s52_1000000": {
+   "rc": 0,
+   "elapsed_s": 184
+  },
+  "judge_s42_1000000": {
+   "rc": 0,
+   "elapsed_s": 185
+  },
+  "judge_s60_1000000": {
+   "rc": 0,
+   "elapsed_s": 186
+  },
+  "judge_s52_1500000": {
+   "rc": 0,
+   "elapsed_s": 138
+  },
+  "judge_s42_1500000": {
+   "rc": 0,
+   "elapsed_s": 140
+  },
+  "judge_s60_1500000": {
+   "rc": 0,
+   "elapsed_s": 137
+  },
+  "judge_s52_2000000": {
+   "rc": 0,
+   "elapsed_s": 96
+  },
+  "judge_s42_2000000": {
+   "rc": 0,
+   "elapsed_s": 96
+  },
+  "judge_s60_2000000": {
+   "rc": 0,
+   "elapsed_s": 98
+  },
+  "judge_again_s42_2000000_expect2": {
+   "rc": 2,
+   "elapsed_s": 3
+  },
+  "tamper_wrong_parent_cli_expect2": {
+   "rc": 2,
+   "elapsed_s": 4
+  },
+  "tamper_parent_record_expect2": {
+   "rc": 2,
+   "elapsed_s": 3
+  },
+  "tamper_command_table_expect2": {
+   "rc": 2,
+   "elapsed_s": 3
+  },
+  "tamper_raw_parent_expect2": {
+   "rc": 2,
+   "elapsed_s": 4
+  },
+  "setup_check_record_verbatim_expect2": {
+   "rc": 2,
+   "elapsed_s": 3
+  },
+  "setup_check_record_allow_mismatch_check_only_expect0": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "tamper_out_absent_wrong_parent_cli": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tamper_out_absent_parent_record": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tamper_out_absent_command_table": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tamper_out_absent_raw_parent": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tamper_out_absent_setup_check_record": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "dirty_make": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "dirty_judge_expect2": {
+   "rc": 2,
+   "elapsed_s": 0
+  },
+  "dirty_straight_expect2": {
+   "rc": 2,
+   "elapsed_s": 1
+  },
+  "dirty_habit_expect2": {
+   "rc": 2,
+   "elapsed_s": 0
+  },
+  "dirty_outputs_absent": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "dirty_restore": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "tree_clean_after_phase_a": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "judge_default_head_check_only_expect0": {
+   "rc": 0,
+   "elapsed_s": 3
+  },
+  "clone_to_parent": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "judge_default_head_at_parent_expect2": {
+   "rc": 2,
+   "elapsed_s": 0
+  },
+  "clone_restore_head": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tamper_env_drift_expect2": {
+   "rc": 2,
+   "elapsed_s": 4
+  },
+  "fix_outputs_absent": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tree_clean_after_phase_a_fix": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "final_fallback_check_only_expect0": {
+   "rc": 0,
+   "elapsed_s": 4
+  },
+  "final_fallback_without_flag_expect2": {
+   "rc": 2,
+   "elapsed_s": 2
+  },
+  "final_fallback_short_expect2": {
+   "rc": 2,
+   "elapsed_s": 4
+  },
+  "final_fallback_out_absent": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "probe_on_drift": {
+   "rc": 0,
+   "elapsed_s": 8
+  },
+  "probe_on_drift_warned": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tree_clean_after_probe_on_drift": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "habit_seed_s42": {
+   "rc": 0,
+   "elapsed_s": 63
+  },
+  "mirror_s42_2000000": {
+   "rc": 0,
+   "elapsed_s": 100
+  },
+  "mech_s42_2000000": {
+   "rc": 0,
+   "elapsed_s": 106
+  },
+  "habit_seed_s52": {
+   "rc": 0,
+   "elapsed_s": 44
+  },
+  "mirror_s52_2000000": {
+   "rc": 0,
+   "elapsed_s": 67
+  },
+  "straight_s52_2000000": {
+   "rc": 0,
+   "elapsed_s": 381
+  },
+  "straight_s42_2000000": {
+   "rc": 0,
+   "elapsed_s": 389
+  },
+  "straight_s60_2000000": {
+   "rc": 0,
+   "elapsed_s": 394
+  },
+  "habit_seed_s60": {
+   "rc": 0,
+   "elapsed_s": 44
+  },
+  "mirror_s60_2000000": {
+   "rc": 0,
+   "elapsed_s": 69
+  },
+  "mech_s52_2000000": {
+   "rc": 0,
+   "elapsed_s": 88
+  },
+  "mech_s60_2000000": {
+   "rc": 0,
+   "elapsed_s": 90
+  },
+  "straight_s42_500000": {
+   "rc": 0,
+   "elapsed_s": 335
+  },
+  "straight_s52_500000": {
+   "rc": 0,
+   "elapsed_s": 328
+  },
+  "straight_s60_500000": {
+   "rc": 0,
+   "elapsed_s": 340
+  },
+  "straight_s42_1000000": {
+   "rc": 0,
+   "elapsed_s": 337
+  },
+  "straight_s52_1000000": {
+   "rc": 0,
+   "elapsed_s": 333
+  },
+  "straight_s60_1000000": {
+   "rc": 0,
+   "elapsed_s": 348
+  },
+  "habit_ledger_s42": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "noise_s42": {
+   "rc": 0,
+   "elapsed_s": 2
+  },
+  "habit_ledger_s52": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "noise_s52": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "habit_ledger_s60": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "noise_s60": {
+   "rc": 0,
+   "elapsed_s": 2
+  },
+  "straight_s42_1500000": {
+   "rc": 0,
+   "elapsed_s": 340
+  },
+  "straight_s52_1500000": {
+   "rc": 0,
+   "elapsed_s": 333
+  },
+  "straight_s60_1500000": {
+   "rc": 0,
+   "elapsed_s": 347
+  },
+  "tree_clean_after_phase_b": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_input_review": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_input_look_straight": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_input_look_not_straight": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "score_no_review_no_look": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "score_review": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "score_review_look_straight": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "score_review_look_not_straight": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "score_review_look_straight_habit": {
+   "rc": 0,
+   "elapsed_s": 1
+  },
+  "score_without_straight_records": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "video_s42_2000000_from_score": {
+   "rc": 1,
+   "elapsed_s": 5
+  },
+  "tree_clean_after_phase_c": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "make_fix_inputs": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "straight_drift_cell_expect2": {
+   "rc": 2,
+   "elapsed_s": 1
+  },
+  "straight_drift_output_absent": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "score_drift_cells": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "score_forged_record": {
+   "rc": 0,
+   "elapsed_s": 0
+  },
+  "tree_clean_after_phase_d": {
+   "rc": 0,
+   "elapsed_s": 0
+  }
+ },
+ "not_run": {
+  "video_render": {
+   "why": "MUJOCO_GL=disable is binding in this lane: mujoco.Renderer has no OpenGL context, so no frame is rendered and no episode is re-rolled for video (pilot 3's e2e rendered under xvfb-run with MUJOCO_GL=glfw)",
+   "rc": [
+    1,
+    5
+   ],
+   "refused_before_renderer": false,
+   "last_line": "AttributeError: module 'mujoco.rendering.classic.gl_context' has no attribute 'GLContext'"
+  }
+ },
+ "failed": 0,
+ "failed_names": []
+}

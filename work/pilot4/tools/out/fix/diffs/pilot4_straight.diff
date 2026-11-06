@@ -1,0 +1,104 @@
+--- TOOLS-stage/pilot4_straight.py
++++ fix-stage/pilot4_straight.py
+@@ -46,7 +46,9 @@
+             --untracked-files=no); an off-schedule cell; a validation-only cell without --validation; a cell from
+             another run (binding "run" is not --run, the run folder is not pilot4_walk_s<seed>[_b], the pair is not in
+             --run/03_locomotion/models/, or a sha256 no longer matches); a probe.json that is not the fixed panel
+-            (panel, 3042, 40 episodes, settle 100) or names another checkpoint; this tree's locomotion env kwargs or
++            (panel, 3042, 40 episodes, settle 100) or names another checkpoint, or whose own env-kwargs drift record
++            (meta.env_kwargs_drift_vs_recorded: the run's recorded env kwargs against the tree's) is not empty (fix
++            stage); this tree's locomotion env kwargs or
+             gate settle differ from probe.json's; an env that is not the pilot-4 env (command_mode heading, prey
+             [0, 0], price 0.2 / 0.5 rad), unless --validation. --validation reads a validation-only cell, a run named
+             pilot<N>_walk_s<seed>[_b] and a command-free env, for checks only: the record says validation true.
+@@ -70,7 +72,9 @@
+ env (the env keys read, pilot4_env), psi_cmd (source, values, the info check), panel (episodes: per episode T, full,
+ used, matches_probe, differing_keys, yaw_change_deg, yaw_from_psi_deg, D_deg, D_k, W0_deg, W0_state, R_deg,
+ last_mean_error_deg, crab_median_deg, end_cross_track_m, window_displacement_m, yaw_per_10m_deg, label), parts
+-(a, b, c: verdict PASS / FAIL / NOT READ with its values and counts, b with R and the last mean's error as report;
++(a, b, c: verdict PASS / FAIL / NOT READ with its values and counts, b with R and the last mean's error as report,
++and, fix stage, report_crab_median_deg and report_end_cross_track_median_m, the medians over the same full-length
++episodes of crab_median_deg and end_cross_track_m, also printed and written on the path panel of the look's figure;
+ straight PASS / FAIL), recovery (episodes: reset_seed, variant, angle_deg, T, reached_nudge, passed_prey_at_650,
+ pelvis_minus_prey_x_650_m, counting, moved_650_1000_m, m_read_error_deg, r_deg, r_reason, share_removed,
+ twin_m_read_error_deg, heading_minus_twin_at_1000_deg, obs651_channels_beyond_tol_vs_twin, obs60_63_at_651;
+@@ -478,6 +482,10 @@
+         problems.append(f"probe.json's gait window starts at {meta.get('settle_steps_gait_window')}, not {SETTLE}")
+     if meta.get("checkpoint_sha256") != binding.get("checkpoint_sha256"):
+         problems.append("probe.json names another checkpoint than binding.json")
++    drift = meta.get("env_kwargs_drift_vs_recorded")
++    if drift:  # fix stage: the probe only warns when the run's recorded env kwargs differ from the tree's
++        problems.append(f"probe.json's env-kwargs drift record is not empty: the run's recorded env kwargs differ from "
++                        f"the env the cell was judged in ({json.dumps(drift, sort_keys=True, default=str)})")
+     return problems
+ 
+ 
+@@ -814,9 +822,10 @@
+     return bad
+ 
+ 
+-def make_plot(path: Path, title: str, panel: list, recovery: list) -> None:
++def make_plot(path: Path, title: str, panel: list, recovery: list, panel_note: "str | None" = None) -> None:
+     """The straightness look's figure: top-down pelvis paths with the commanded line (the world x axis), and the
+-    heading error psi - psi_cmd against time, for every panel and recovery episode."""
++    heading error psi - psi_cmd against time, for every panel and recovery episode. panel_note (fix stage, report
++    only): the panel's median crab and end cross-track, added to the path panel's title."""
+     import matplotlib
+ 
+     matplotlib.use("Agg")
+@@ -841,7 +850,8 @@
+         if not ep["full"]:
+             ax.plot(xy[-1, 0], xy[-1, 1], marker="x", color=ink, markersize=8)
+     ax.set_aspect("equal", adjustable="datalim")
+-    ax.set_title(f"panel: {len(panel)} pelvis paths, top-down (x marks a fall)", color=ink, fontsize=11, loc="left")
++    ax.set_title(f"panel: {len(panel)} pelvis paths, top-down (x marks a fall)"
++                 + (f"\n{panel_note}" if panel_note else ""), color=ink, fontsize=11, loc="left")
+     ax.set_xlabel("world x (m)", color=ink2)
+     ax.set_ylabel("world y (m)", color=ink2)
+     ax.legend(loc="lower left", fontsize=8, frameon=False, labelcolor=ink2)
+@@ -967,6 +977,10 @@
+     parts_a = part_a([e["yaw_change_deg"] for e in used_full])
+     parts_b = part_b([e["D_deg"] for e in used_full], [e["W0_deg"] for e in used_full],
+                      [e["R_deg"] for e in used_full], [e["last_mean_error_deg"] for e in used_full])
++    # fix stage, report only (v3 "Course against heading"; the look is the only guard against a crab): the medians
++    # over the same full-length episodes of the per-episode 1-s crab and the end cross-track
++    parts_b["report_crab_median_deg"] = percentile([e["crab_median_deg"] for e in used_full], 50)
++    parts_b["report_end_cross_track_median_m"] = percentile([e["end_cross_track_m"] for e in used_full], 50)
+     parts_a["n_full_of_panel"] = f"{sum(e['full'] for e in panel_out)} of {len(panel_out)}"
+     parts_a["note_36"] = (None if sum(e["full"] for e in panel_out) >= FULL_MIN_ON_WALKS or limit is not None
+                           else f"fewer than {FULL_MIN_ON_WALKS} full-length episodes: the seed cannot be WALKS")
+@@ -1125,13 +1139,22 @@
+         "YAW_REPRO_TOL_DEG", "INFO_HEADING_TOL_RAD")}
+ 
+ 
++def crab_note(b: dict) -> "str | None":
++    """The path panel's report-only line: the median 1-s crab (course minus heading) and end cross-track over the
++    full-length episodes (None when (b) read none)."""
++    crab, cross = b.get("report_crab_median_deg"), b.get("report_end_cross_track_median_m")
++    if crab is None or cross is None:
++        return None
++    return f"report only: median crab {crab:+.1f} deg (course minus heading), median end cross-track {cross:+.2f} m"
++
++
+ def write_outputs(a, record: dict, plots: list, title: str, episodes_for_traces: "list | None") -> None:
+     files = {}
+     if a.plot:
+         mpl_dir = tempfile.mkdtemp(prefix="mpl_")
+         os.environ.setdefault("MPLCONFIGDIR", mpl_dir)
+         try:
+-            make_plot(Path(a.plot), title, plots[0], plots[1])
++            make_plot(Path(a.plot), title, plots[0], plots[1], panel_note=crab_note(record["parts"]["b"]))
+         finally:
+             shutil.rmtree(mpl_dir, ignore_errors=True)
+         files["plot"] = {"path": str(a.plot), "sha256": sha256_file(a.plot)}
+@@ -1165,7 +1188,9 @@
+              f"{f(b.get('W0_p95_deg'))}"
+              f" (bars {B_D_P95_MAX_DEG}, {B_W0_P95_MAX_DEG}) | report: D median {f(b.get('D_median_deg'))}, R median "
+              f"{f(b.get('report_R_median_deg'))} p95 {f(b.get('report_R_p95_deg'))}, W0-D "
+-             f"{f(b.get('W0_minus_D_min_deg'))}..{f(b.get('W0_minus_D_max_deg'))}",
++             f"{f(b.get('W0_minus_D_min_deg'))}..{f(b.get('W0_minus_D_max_deg'))}, crab median "
++             f"{f(b.get('report_crab_median_deg'))} deg, end cross-track median "
++             f"{f(b.get('report_end_cross_track_median_m'), 2)} m",
+              f"(c) recovery: {c['verdict']} | counting {c['n_counting']} of {c['n_episodes']} (ended before the nudge "
+              f"{c['left_out_ended_before_nudge']}, not yet passed {c['left_out_not_yet_passed']}) | median r "
+              f"{f(c.get('median_r_deg'))} p95 r {f(c.get('p95_r_deg'))} | within 11.5: {c['within_11_5']}, within 5: "

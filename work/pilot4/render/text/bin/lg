@@ -1,0 +1,11 @@
+#!/bin/bash
+# lg: run one shell command string, log it and its exit status to CMDLOG.txt
+T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/render/text
+export TMPDIR=$T/tmp
+export PYTHONDONTWRITEBYTECODE=1
+cmd="$1"
+printf '[%s] [cmd] %s\n' "$(date -u +%FT%TZ)" "$cmd" >> $T/CMDLOG.txt
+bash -c "$cmd"
+st=$?
+printf '[%s] [exit %d]\n' "$(date -u +%FT%TZ)" "$st" >> $T/CMDLOG.txt
+exit $st

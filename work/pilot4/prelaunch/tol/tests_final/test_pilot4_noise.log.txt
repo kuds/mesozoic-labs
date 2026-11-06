@@ -1,0 +1,47 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
+rootdir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol
+configfile: scripts/pytest.ini
+plugins: platformdirs-4.14.3, anyio-4.16.0, cov-7.1.0
+collecting ... collected 26 items
+
+::test_crc32c_known_vector PASSED                                        [  3%]
+::test_records_and_scalars_round_trip PASSED                             [  7%]
+::test_a_cut_or_damaged_file_keeps_the_records_before_the_damage PASSED  [ 11%]
+::test_the_tool_plan_s_constants PASSED                                  [ 15%]
+::test_the_seed_is_read_from_the_run_id[pilot4_walk_s42-42] PASSED       [ 19%]
+::test_the_seed_is_read_from_the_run_id[pilot4_walk_s52_b-52] PASSED     [ 23%]
+::test_the_seed_is_read_from_the_run_id[pilot4_walk_s60-60] PASSED       [ 26%]
+::test_the_seed_is_read_from_the_run_id[pilot4_walk_s7-None] PASSED      [ 30%]
+::test_the_seed_is_read_from_the_run_id[pilot3_walk_s42-None] PASSED     [ 34%]
+::test_the_seed_is_read_from_the_run_id[pilot4_walk_s42_c-None] PASSED   [ 38%]
+::test_the_seed_is_read_from_the_run_id[xpilot4_walk_s42-None] PASSED    [ 42%]
+::test_the_seed_is_read_from_the_run_id[run-None] PASSED                 [ 46%]
+::test_the_three_parts_on_a_synthetic_run PASSED                         [ 50%]
+::test_a_run_that_is_not_a_pilot_4_run_id_is_compared_with_every_parent PASSED [ 53%]
+::test_a_run_whose_first_65536_steps_logged_nothing_says_so PASSED       [ 57%]
+::test_missing_parts_print_not_run PASSED                                [ 61%]
+::test_a_damaged_input_prints_not_run_and_the_other_parts_still_print PASSED [ 65%]
+::test_an_existing_json_target_is_never_overwritten PASSED               [ 69%]
+::test_a_resume_that_repeats_steps_is_noted PASSED                       [ 73%]
+::test_the_parent_references_are_the_parent_zips_own[42] PASSED          [ 76%]
+::test_the_parent_references_are_the_parent_zips_own[52] PASSED          [ 80%]
+::test_the_parent_references_are_the_parent_zips_own[60] PASSED          [ 84%]
+::test_the_forward_references_are_pilot_3_s_own_evaluation_at_8m[42] PASSED [ 88%]
+::test_the_forward_references_are_pilot_3_s_own_evaluation_at_8m[52] PASSED [ 92%]
+::test_the_forward_references_are_pilot_3_s_own_evaluation_at_8m[60] PASSED [ 96%]
+::test_the_reader_on_pilot_3_s_smoke_run PASSED                          [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_pilot4_noise.xml -
+============================= slowest 10 durations =============================
+1.05s call     ::test_the_three_parts_on_a_synthetic_run
+0.09s call     ::test_the_reader_on_pilot_3_s_smoke_run
+0.01s call     ::test_the_forward_references_are_pilot_3_s_own_evaluation_at_8m[52]
+0.01s call     ::test_the_parent_references_are_the_parent_zips_own[42]
+0.01s call     ::test_the_parent_references_are_the_parent_zips_own[60]
+0.01s call     ::test_the_parent_references_are_the_parent_zips_own[52]
+0.01s call     ::test_a_damaged_input_prints_not_run_and_the_other_parts_still_print
+
+(3 durations < 0.005s hidden.  Use -vv to show these durations.)
+============================== 26 passed in 1.33s ==============================
+{"pytest_args": ["-p", "no:cacheprovider", "-c", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/scripts/pytest.ini", "--rootdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol", "--confcutdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests", "--basetemp", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/pt_test_pilot4_noise", "-v", "-rfEs", "--durations=10", "--junitxml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_pilot4_noise.xml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests/test_pilot4_noise.py"], "exit_status": 0, "elapsed_s": 1.74, "environments_imported_in_pytest_process": false, "environments_file_in_pytest_process": null, "python": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python", "dont_write_bytecode": true}

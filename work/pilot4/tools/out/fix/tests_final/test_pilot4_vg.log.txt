@@ -1,0 +1,57 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
+rootdir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix
+configfile: scripts/pytest.ini
+plugins: platformdirs-4.14.3, anyio-4.16.0, cov-7.1.0
+collecting ... collected 34 items
+
+::test_bucket_edges_are_the_criteria_s[0-0] PASSED                       [  2%]
+::test_bucket_edges_are_the_criteria_s[99-0] PASSED                      [  5%]
+::test_bucket_edges_are_the_criteria_s[100-1] PASSED                     [  8%]
+::test_bucket_edges_are_the_criteria_s[199-1] PASSED                     [ 11%]
+::test_bucket_edges_are_the_criteria_s[200-2] PASSED                     [ 14%]
+::test_bucket_edges_are_the_criteria_s[499-2] PASSED                     [ 17%]
+::test_bucket_edges_are_the_criteria_s[500-3] PASSED                     [ 20%]
+::test_bucket_edges_are_the_criteria_s[799-3] PASSED                     [ 23%]
+::test_bucket_edges_are_the_criteria_s[800-4] PASSED                     [ 26%]
+::test_bucket_edges_are_the_criteria_s[999-4] PASSED                     [ 29%]
+::test_bucket_edges_are_the_criteria_s[1000-4] PASSED                    [ 32%]
+::test_bucket_of_refuses_a_counter_outside_the_episode[-1] PASSED        [ 35%]
+::test_bucket_of_refuses_a_counter_outside_the_episode[1001] PASSED      [ 38%]
+::test_bucket_of_refuses_a_counter_outside_the_episode[1.5] PASSED       [ 41%]
+::test_bucket_of_refuses_a_counter_outside_the_episode[True] PASSED      [ 44%]
+::test_returns_to_go_with_and_without_the_time_limit_bootstrap PASSED    [ 47%]
+::test_bucket_stats_weight_episodes_equally_and_skip_buckets_an_episode_never_reaches PASSED [ 50%]
+::test_a_step_localised_bucket_is_flagged_and_flat_buckets_are_not PASSED [ 52%]
+::test_the_truncation_bucket_can_be_flagged_against_its_one_neighbour PASSED [ 55%]
+::test_a_shift_that_spans_two_inner_buckets_flags_neither_of_them PASSED [ 58%]
+::test_a_comparison_with_fewer_than_2_episodes_is_n_a_and_flags_nothing PASSED [ 61%]
+::test_episode_problems_catch_a_broken_counter_and_an_early_truncation PASSED [ 64%]
+::test_main_refuses_without_a_pair_and_writes_nothing PASSED             [ 67%]
+::test_the_frozen_settings PASSED                                        [ 70%]
+::test_the_se_is_sd_over_root_n_and_the_flag_needs_more_than_4_se PASSED [ 73%]
+::test_g_bootstraps_after_a_truncation_only PASSED                       [ 76%]
+::test_seed_all_seeds_the_envs_torch_and_numpy PASSED                    [ 79%]
+::test_cell_refuses_a_dirty_tree_a_changed_or_missing_file_and_another_head PASSED [ 82%]
+::test_main_never_overwrites_an_existing_json PASSED                     [ 85%]
+::test_a_short_measurement_of_the_smoke_s_pair PASSED                    [ 88%]
+::test_a_cell_judged_at_another_head_is_refused_and_nothing_is_written PASSED [ 91%]
+::test_the_tool_is_a_byte_copy_of_pilot_3_s_pinned_file PASSED           [ 94%]
+::test_the_short_measurement_reads_the_pilot_4_tree PASSED               [ 97%]
+::test_g_is_the_pilot_4_env_s_reward_price_included PASSED               [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tests_final/test_pilot4_vg.xml -
+============================= slowest 10 durations =============================
+9.85s call     ::test_a_short_measurement_of_the_smoke_s_pair
+8.90s call     ::test_the_short_measurement_reads_the_pilot_4_tree
+7.22s call     ::test_g_is_the_pilot_4_env_s_reward_price_included
+0.99s call     ::test_seed_all_seeds_the_envs_torch_and_numpy
+0.17s call     ::test_a_cell_judged_at_another_head_is_refused_and_nothing_is_written
+0.07s call     ::test_a_step_localised_bucket_is_flagged_and_flat_buckets_are_not
+0.03s call     ::test_the_truncation_bucket_can_be_flagged_against_its_one_neighbour
+0.03s call     ::test_a_shift_that_spans_two_inner_buckets_flags_neither_of_them
+0.01s call     ::test_the_se_is_sd_over_root_n_and_the_flag_needs_more_than_4_se
+
+(1 durations < 0.005s hidden.  Use -vv to show these durations.)
+============================= 34 passed in 27.44s ==============================
+{"pytest_args": ["-p", "no:cacheprovider", "-c", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/scripts/pytest.ini", "--rootdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix", "--confcutdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests", "--basetemp", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pt_test_pilot4_vg", "-v", "-rfEs", "--durations=10", "--junitxml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tests_final/test_pilot4_vg.xml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests/test_pilot4_vg.py"], "exit_status": 0, "elapsed_s": 27.78, "environments_imported_in_pytest_process": false, "environments_file_in_pytest_process": null, "python": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python", "dont_write_bytecode": true}

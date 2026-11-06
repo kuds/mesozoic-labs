@@ -1,0 +1,660 @@
+[2026-11-06T12:52:32Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:52:32Z] [note] lib.sh written with the file tool before this first shell call; earlier tool use: a Glob listing of prelaunch/ and a Read of smoke/lib.sh (read-only, not shell)
+[2026-11-06T12:52:32Z] $ date -u +%Y-%m-%dT%H:%M:%SZ
+[exit 0]
+[2026-11-06T12:52:32Z] $ ls -la $PL
+[exit 0]
+[2026-11-06T12:52:32Z] $ df -h $S | tail -1
+[exit 0 0]
+[2026-11-06T12:52:32Z] $ false | true
+[exit 1 0]
+[2026-11-06T12:52:37Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:52:37Z] [note] previous shell call ended with an unlogged read-only tail of this CMDLOG
+[2026-11-06T12:52:37Z] $ wc -l $S/pilot4/postfix/fix/criteria_pilot4_draft_v3.txt
+[exit 0]
+[2026-11-06T12:52:37Z] $ sha256sum $S/pilot4/postfix/fix/criteria_pilot4_draft_v3.txt
+[exit 0]
+[2026-11-06T12:52:37Z] $ sed -n 640,700p $S/pilot4/postfix/fix/criteria_pilot4_draft_v3.txt
+[exit 0]
+[2026-11-06T12:53:10Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:53:10Z] $ wc -l $S/run_log.txt
+[exit 0]
+[2026-11-06T12:53:10Z] $ grep -n -E "^\(3[0-9]\)|decision \(3[1-6]\)|\(3[1-6]\) " $S/run_log.txt | tail -40
+[exit 0 0]
+[2026-11-06T12:53:15Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:53:15Z] $ sed -n 1085,1097p $S/run_log.txt
+[exit 0]
+[2026-11-06T12:53:35Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:53:35Z] $ date -u +%Y-%m-%dT%H:%M:%SZ > $K/logs/start_time.txt
+[exit 0]
+[2026-11-06T12:53:35Z] $ touch -d "$(cat $K/logs/start_time.txt)" $K/data/lane_start_marker
+[exit 0]
+[2026-11-06T12:53:35Z] $ cd $P4 && sha256sum -c SHA256SUMS.txt > $K/logs/sums_check_now.txt 2> $K/logs/sums_check_now.err; echo rc=$? >> $K/logs/sums_check_now.txt
+[exit 0]
+[2026-11-06T12:53:37Z] $ grep -c ": OK$" $K/logs/sums_check_now.txt
+[exit 0]
+[2026-11-06T12:53:37Z] $ grep -v ": OK$" $K/logs/sums_check_now.txt | head -20
+[exit 0 0]
+[2026-11-06T12:53:37Z] $ cat $K/logs/sums_check_now.err | head
+[exit 0 0]
+[2026-11-06T12:53:37Z] $ sha256sum $P4/SHA256SUMS.txt $T/SHA256SUMS_before.txt
+[exit 0]
+[2026-11-06T12:53:37Z] $ head -8 $P4/SHA256SUMS.txt
+[exit 0]
+[2026-11-06T12:54:00Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:00Z] [note] wrote scripts/diff_lists.py with the file tool
+[2026-11-06T12:54:00Z] $ $PY -I $K/scripts/diff_lists.py $PL/tol/SHA256SUMS_before.txt $P4/SHA256SUMS.txt $P4 $K/data/list_diff.json > $K/logs/list_diff.txt 2> $K/logs/list_diff.err
+[exit 0]
+[2026-11-06T12:54:01Z] $ cat $K/logs/list_diff.txt $K/logs/list_diff.err
+[exit 0]
+[2026-11-06T12:54:07Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:07Z] $ $PY -I -c "import json,collections,sys; d=json.load(open(sys.argv[1])); c=collections.Counter(\"/\".join(p.split(\"/\")[:2]) for p in d[\"files_under_tools_not_in_after_list\"]); print(\"\n\".join(f\"{v:5d} {k}\" for k,v in sorted(c.items())))" $K/data/list_diff.json
+[exit 0]
+[2026-11-06T12:54:07Z] $ ls $P4
+[exit 0]
+[2026-11-06T12:54:15Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:15Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(\"\n\".join(p for p in d[\"files_under_tools_not_in_after_list\"] if p.startswith(\"out/fix\") or p.count(\"/\")<2))" $K/data/list_diff.json
+[exit 0]
+[2026-11-06T12:54:15Z] $ grep -n "text_corrections" $P4/SHA256SUMS.txt | head
+[exit 0 0]
+[2026-11-06T12:54:15Z] $ sha256sum $P4/out/fix/text_corrections.txt
+[exit 0]
+[2026-11-06T12:54:15Z] $ find $P4 -path $P4/tree -prune -o -type f -newer $P4/out/fix/text_corrections.txt -printf "%TY-%Tm-%Td %TH:%TM:%TS %p\n" | sed "s|$S|SP|" | sort | tail -30
+[exit 0 0 0 0]
+[2026-11-06T12:54:24Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:24Z] $ sha256sum $O/pilot4_straight.py $O/pilot4_score.py $O/tests__test_pilot4_straight.py $O/test_pilot4_score.py | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T12:54:24Z] $ diff $O/pilot4_straight.py $P4/pilot4_straight.py > $K/logs/diff_straight.txt
+[exit 1]
+[2026-11-06T12:54:24Z] $ diff $O/pilot4_score.py $P4/pilot4_score.py > $K/logs/diff_score.txt
+[exit 1]
+[2026-11-06T12:54:24Z] $ diff $O/tests__test_pilot4_straight.py $P4/tests/test_pilot4_straight.py > $K/logs/diff_test_straight.txt
+[exit 1]
+[2026-11-06T12:54:24Z] $ diff $O/test_pilot4_score.py $P4/test_pilot4_score.py > $K/logs/diff_test_score.txt
+[exit 1]
+[2026-11-06T12:54:24Z] $ cat $K/logs/diff_straight.txt $K/logs/diff_score.txt
+[exit 0]
+[2026-11-06T12:54:29Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:29Z] $ cat $K/logs/diff_test_straight.txt $K/logs/diff_test_score.txt
+[exit 0]
+[2026-11-06T12:54:37Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:37Z] $ grep -rn --include=*.py -E "1e-5|1e-05|0\.00001|TWIN_HEADING" $P4 --exclude-dir=tree --exclude-dir=out --exclude-dir=src | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T12:54:43Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:43Z] $ sed -n 1040,1085p $P4/pilot4_straight.py
+[exit 0]
+[2026-11-06T12:54:43Z] $ grep -n -E "twin_ok|twin\[.bad.\]|\"bad\"|exit_code|return 1|sys.exit" $P4/pilot4_straight.py | head -30
+[exit 0 0]
+[2026-11-06T12:54:52Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:54:52Z] $ ls -la $V
+[exit 0]
+[2026-11-06T12:54:52Z] $ $PY -I -c "import json,sys
+d=json.load(open(sys.argv[1]))
+def show(o,pre=\"\",depth=0):
+    if isinstance(o,dict):
+        for k,v in o.items():
+            if isinstance(v,(dict,list)) and depth<3: print(pre+k, type(v).__name__, len(v)); show(v,pre+\"  \",depth+1)
+            elif not isinstance(v,(dict,list)): print(pre+k, repr(v)[:100])
+            else: print(pre+k, type(v).__name__, len(v))
+    elif isinstance(o,list) and o and depth<3:
+        print(pre+\"[0]\"); show(o[0],pre+\"  \",depth+1)
+show(d)" $V/baseline_s42.json > $K/logs/baseline_s42_structure.txt
+[exit 0]
+[2026-11-06T12:54:52Z] $ wc -l $K/logs/baseline_s42_structure.txt
+[exit 0]
+[2026-11-06T12:55:05Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:55:05Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d[\"labels\"][\"labels\"][0])[:1500]); print(d[\"constants\"][\"RECOVERY_SEEDS\"], d[\"constants\"][\"NUDGE_ANGLES_DEG\"])" $V/baseline_s42.json
+[exit 0]
+[2026-11-06T12:55:05Z] $ $PY -I -c "import numpy as np,sys; z=np.load(sys.argv[1], allow_pickle=False); [print(k, z[k].shape, z[k].dtype) for k in z.files]" $V/baseline_s42.npz
+[exit 0]
+[2026-11-06T12:55:16Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:55:16Z] $ sha256sum $P3/frozen_candidate2/criteria_pilot3.txt | cut -c1-64
+[exit 0 0]
+[2026-11-06T12:55:16Z] $ sed -n 537,556p $P3/frozen_candidate2/criteria_pilot3.txt
+[exit 0]
+[2026-11-06T12:55:16Z] $ sed -n 613,622p $P3/frozen_candidate2/criteria_pilot3.txt
+[exit 0]
+[2026-11-06T12:55:26Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:55:26Z] $ ls -la $PL/tol/val
+[exit 0]
+[2026-11-06T12:55:26Z] $ head -c 3000 $PL/tol/val/final_baseline_s52.log
+[exit 0]
+[2026-11-06T12:55:39Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:55:39Z] $ find $PL/tol/e2e -name probe.json | sed "s|$S|SP|" | head -20
+[exit 0 0 0]
+[2026-11-06T12:55:39Z] $ du -sh $PL/tol $PL/setup $PL/smoke
+[exit 0]
+[2026-11-06T12:55:48Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:55:48Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(list(d.keys())); e=d.get(\"episodes\") or d.get(\"panel\"); print(type(e)); ep=e[0] if isinstance(e,list) else e; print(json.dumps(ep)[:2500])" $PL/tol/e2e/OUT/s52/2000000/probe.json
+[exit 0]
+[2026-11-06T12:55:54Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:55:54Z] $ grep -n -E "^def |^[A-Z_]+ = " $P3/tools/pilot3_score.py | head -60
+[exit 0 0]
+[2026-11-06T12:56:00Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:56:00Z] $ sed -n 125,180p $P3/tools/pilot3_score.py
+[exit 0]
+[2026-11-06T12:56:07Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:56:07Z] $ sed -n 1,40p $PL/tol/scripts/from_e2e/make_runs.py
+[exit 0]
+[2026-11-06T12:56:07Z] $ ls $PL/tol/e2e $PL/tol/e2e/OUT/s42/2000000
+[exit 0]
+[2026-11-06T12:57:07Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:57:07Z] [note] wrote scripts/recompute_baseline.py with the file tool
+[2026-11-06T12:57:07Z] $ $PY -I $K/scripts/recompute_baseline.py $PL/tol/val_final $PL/tol/e2e/OUT $K/data/recompute_baseline.json > $K/logs/recompute_baseline.txt 2> $K/logs/recompute_baseline.err
+[exit 0]
+[2026-11-06T12:57:07Z] $ cat $K/logs/recompute_baseline.txt $K/logs/recompute_baseline.err
+[exit 0]
+[2026-11-06T12:57:21Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:57:21Z] $ $PY -I -c "
+import json,sys,hashlib,os
+for s in (42,52,60):
+    d=json.load(open(sys.argv[1]+f\"/p3val_s{s}.json\"))
+    p=d[\"probe\"]; ok=os.path.isfile(p)
+    sha=\"sha256:\"+hashlib.sha256(open(p,\"rb\").read()).hexdigest() if ok else None
+    pr=json.load(open(p)); pe={int(e[\"reset_seed\"]):e for e in pr[\"episodes\"]}
+    mx=max(abs(float(pe[int(e[\"reset_seed\"])][\"yaw_change_deg\"])-float(e[\"yaw_change_deg\"])) for e in d[\"panel\"][\"episodes\"] if e[\"yaw_change_deg\"] is not None)
+    print(s, d[\"mode\"], d[\"validation\"], d[\"tool_sha256\"][:20], \"probe_rel\", p.split(\"/work/\")[1], \"sha_match\", sha==d[\"probe_sha256\"], \"all_match\", d[\"panel\"][\"all_rolled_match\"], \"n_full\", d[\"panel\"][\"n_full\"], \"yaw_repro\", d[\"panel\"][\"yaw_repro_max_abs_diff_deg\"], \"my_yaw_diff_vs_p3_probe\", mx, \"parts\", [d[\"parts\"][k][\"verdict\"] for k in \"abc\"], d[\"head\"][:8], d[\"steps\"])
+" $PL/tol/val_final
+[exit 1]
+[2026-11-06T12:57:28Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:57:28Z] [note] previous python one-liner (p3val vs pilot-3 probe) exited 1 at json.load of the probe path; it was not run through L, so this note records it
+[2026-11-06T12:57:28Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[\"probe\"].split(\"/work/\")[1], d[\"probe_sha256\"], d.get(\"checkpoint\",\"\").split(\"/work/\")[-1])" $PL/tol/val_final/p3val_s42.json
+[exit 0]
+[2026-11-06T12:57:37Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:57:37Z] [note] correction to the previous note: the failing one-liner WAS run through L and its [exit 1] is logged above; the cause was that the record field "probe" names gait_probe.py, not a probe.json
+[2026-11-06T12:57:37Z] $ tail -4 $K/CMDLOG.txt | cut -c1-80
+[exit 0 0]
+[2026-11-06T12:57:37Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print({k:(v if not isinstance(v,(dict,list)) else type(v).__name__) for k,v in d.items()})" $PL/tol/val_final/p3val_s42.json | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T12:57:45Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:57:45Z] $ $PY -I -c "
+import json,sys,hashlib,os
+for s in (42,52,60):
+    d=json.load(open(sys.argv[1]+f\"/p3val_s{s}.json\"))
+    p=d[\"cell\"]+\"/probe.json\"
+    sha=\"sha256:\"+hashlib.sha256(open(p,\"rb\").read()).hexdigest()
+    pr=json.load(open(p)); pe={int(e[\"reset_seed\"]):e for e in pr[\"episodes\"]}
+    eps=d[\"panel\"][\"episodes\"]
+    mx=max(abs(float(pe[int(e[\"reset_seed\"])][\"yaw_change_deg\"])-float(e[\"yaw_change_deg\"])) for e in eps if e[\"yaw_change_deg\"] is not None)
+    print(s, d[\"mode\"], \"validation\", d[\"validation\"], \"probe_json_sha_match\", sha==d[\"probe_json_sha256\"], \"all_match\", d[\"panel\"][\"all_rolled_match\"], \"n_eps\", len(eps), \"n_full\", d[\"panel\"][\"n_full\"], \"yaw_repro\", d[\"panel\"][\"yaw_repro_max_abs_diff_deg\"], \"my_yaw_diff_vs_p3_probe\", mx, \"parts\", [d[\"parts\"][k][\"verdict\"] for k in \"abc\"], d[\"head\"][:8], d[\"steps\"])
+" $PL/tol/val_final
+[exit 0]
+[2026-11-06T12:57:56Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:57:56Z] $ find $S/pilot4/postfix/code -name "setup_check*.json" -o -name "setup_summary.json" | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T12:57:56Z] $ ls $PL/setup/runs/s42 $PL/setup/data
+[exit 0]
+[2026-11-06T12:57:56Z] $ sed -n 1,60p $PL/setup/scripts/compare_head.py
+[exit 0]
+[2026-11-06T12:58:26Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:58:26Z] [note] wrote scripts/deep_diff_setup.py with the file tool
+[2026-11-06T12:58:26Z] $ $PY -I $K/scripts/deep_diff_setup.py $PL/setup/runs $S/pilot4/postfix/code/runs $K/data/deep_diff_setup.json > $K/logs/deep_diff_setup.txt 2> $K/logs/deep_diff_setup.err
+[exit 0]
+[2026-11-06T12:58:28Z] $ cat $K/logs/deep_diff_setup.txt $K/logs/deep_diff_setup.err | sed "s|$S|SP|g" | cut -c1-400
+[exit 0 0 0]
+[2026-11-06T12:58:33Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:58:33Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1]))[\"42\"]; [print(\"OTHER\", o[0], \"|\", o[1][:90], \"|\", o[2][:90]) for o in d[\"other\"]]; print(\"ONLY_HEAD\", d[\"only_head\"]); print(d[\"files\"])" $K/data/deep_diff_setup.json | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T12:58:41Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:58:41Z] $ $PY -I -c "
+import json,sys
+for s in (42,52,60):
+    a=json.load(open(sys.argv[1]+f\"/s{s}/setup_check.json\")); b=json.load(open(sys.argv[2]+f\"/s{s}/setup_check.json\"))
+    ga,gb=a[\"stops\"][\"guards\"],b[\"stops\"][\"guards\"]
+    print(s, len(ga), len(gb), sorted(ga)==sorted(gb), a[\"stops\"].get(\"guard_hits\", a[\"stops\"].get(\"hits\")), {k:v for k,v in a[\"stops\"].items() if k not in (\"guards\",)} )
+" $PL/setup/runs $S/pilot4/postfix/code/runs | sed "s|$S|SP|g" | cut -c1-600
+[exit 0 0 0]
+[2026-11-06T12:58:50Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:58:50Z] $ $PY -I -c "
+import json,sys
+for s in (42,52,60):
+    a=json.load(open(sys.argv[1]+f\"/s{s}/setup_check.json\"))
+    rr=a[\"runner\"].get(\"record\",{})
+    print(s, \"exit\", a[\"runner\"][\"exit\"], {k:rr.get(k) for k in (\"guard_hits\",\"learn_calls\",\"stopped_at\",\"exit\",\"tool_sha256\",\"quick_test\",\"phase\",\"stop_at_learn\") if k in rr}, sorted(rr.keys())[:40])
+    c=a[\"capture\"]; print(\"   capture keys\", sorted(c.keys()), {k:c[\"at_learn\"].get(k) for k in (\"total_timesteps\",\"reset_num_timesteps\",\"num_timesteps\") if k in c[\"at_learn\"]}, sorted(c[\"at_learn\"].keys())[:30])
+" $PL/setup/runs | sed "s|$S|SP|g" | cut -c1-900
+[exit 0 0 0]
+[2026-11-06T12:58:50Z] $ grep -n -E "def |learn|raise" $PL/setup/scripts/block_runner4.py.txt | head -40
+[exit 0 0]
+[2026-11-06T12:59:00Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:59:00Z] $ $PY -I -c "
+import json,sys
+def walk(a,b,p,o):
+    if isinstance(a,dict) and isinstance(b,dict):
+        for k in set(a)|set(b):
+            if k not in a or k not in b: o.append((p+\".\"+k,\"one-sided\"))
+            else: walk(a[k],b[k],p+\".\"+k,o)
+    elif isinstance(a,list) and isinstance(b,list) and len(a)==len(b):
+        for i,(x,y) in enumerate(zip(a,b)): walk(x,y,p+f\"[{i}]\",o)
+    elif a!=b or type(a)!=type(b): o.append((p,str(a)[-60:],str(b)[-60:]))
+for s in (42,52,60):
+    for f in (\"p3_side.json\",\"params.json\"):
+        o=[]; walk(json.load(open(sys.argv[1]+f\"/s{s}/{f}\")), json.load(open(sys.argv[2]+f\"/s{s}/{f}\")),\"\",o); print(s,f,len(o),[x[0] for x in o])
+" $PL/setup/runs $S/pilot4/postfix/code/runs
+[exit 0]
+[2026-11-06T12:59:09Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:59:09Z] $ $PY -I -c "
+import json,sys
+a=json.load(open(sys.argv[1]+\"/s42/params.json\")); b=json.load(open(sys.argv[2]+\"/s42/params.json\"))
+for k in (\"expect_hyperparameters_sha256\",\"expect_head\",\"guard_line\"): print(k, \"| head:\", a.get(k), \"| 7700:\", b.get(k))
+print(\"manual head\", a[\"manual\"]); print(\"manual 7700\", b[\"manual\"]); print(\"cfg head\", a[\"config\"]); print(\"cfg 7700\", b[\"config\"])
+" $PL/setup/runs $S/pilot4/postfix/code/runs | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T12:59:18Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:59:18Z] $ ls $M $M/nb $M/runs/launch/pilot4_walk_s42 $M/runs/launch/pilot4_walk_s42/03_locomotion $M/runs/launch/pilot4_walk_s42/03_locomotion/models
+[exit 0]
+[2026-11-06T12:59:18Z] $ wc -l $M/CMDLOG.txt $PL/tol/CMDLOG.txt $PL/setup/CMDLOG.txt
+[exit 0]
+[2026-11-06T12:59:25Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:59:25Z] $ grep -n -v "^\[exit 0\]$" $PL/smoke/CMDLOG.txt | grep -v "prefix of a new shell call" | cut -c1-260 > $K/logs/smoke_cmdlog_skim.txt
+[exit 0 0 0]
+[2026-11-06T12:59:25Z] $ wc -l $K/logs/smoke_cmdlog_skim.txt
+[exit 0]
+[2026-11-06T12:59:43Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:59:43Z] $ sed -n "220,640p" $K/logs/smoke_cmdlog_skim.txt | sed "s|$S|SP|g" | grep -v "^[0-9]*:\[.*job [A-Za-z0-9_]*\] exit: 0 " | cut -c1-200 > $K/logs/smoke_cmdlog_skim2.txt
+[exit 0 0 0 0]
+[2026-11-06T12:59:43Z] $ wc -l $K/logs/smoke_cmdlog_skim2.txt
+[exit 0]
+[2026-11-06T12:59:59Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T12:59:59Z] $ grep -n -E 'nb_pilot_runner|runner_snapshot|edge_pairs|p4_head_setup|block_runner|train_curriculum|train_base|\.learn\(|stop-at-learn|--phase|run_curriculum|pytest' /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/CMDLOG.txt | grep -v -E '^[0-9]+:\[[^]]*\] \$ (sed|cat|grep|head|tail|ls|wc|cut) ' | sed "s|$S|SP|g" | cut -c1-330 > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/verify/logs/runner_calls_tol.txt
+[exit 0 0 0 0]
+[2026-11-06T12:59:59Z] $ grep -n -E 'nb_pilot_runner|runner_snapshot|edge_pairs|p4_head_setup|block_runner|train_curriculum|train_base|\.learn\(|stop-at-learn|--phase|run_curriculum|pytest' /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/CMDLOG.txt | grep -v -E '^[0-9]+:\[[^]]*\] \$ (sed|cat|grep|head|tail|ls|wc|cut) ' | sed "s|$S|SP|g" | cut -c1-330 > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/verify/logs/runner_calls_setup.txt
+[exit 0 0 0 0]
+[2026-11-06T12:59:59Z] $ grep -n -E 'nb_pilot_runner|runner_snapshot|edge_pairs|p4_head_setup|block_runner|train_curriculum|train_base|\.learn\(|stop-at-learn|--phase|run_curriculum|pytest' /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/CMDLOG.txt | grep -v -E '^[0-9]+:\[[^]]*\] \$ (sed|cat|grep|head|tail|ls|wc|cut) ' | sed "s|$S|SP|g" | cut -c1-330 > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/verify/logs/runner_calls_smoke.txt
+[exit 0 0 0 0]
+[2026-11-06T12:59:59Z] $ wc -l $K/logs/runner_calls_*.txt
+[exit 0]
+[2026-11-06T13:00:06Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:00:06Z] $ cat $K/logs/runner_calls_smoke.txt $K/logs/runner_calls_tol.txt $K/logs/runner_calls_setup.txt
+[exit 0]
+[2026-11-06T13:00:24Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:00:24Z] $ $PY -I -c "
+import json,sys
+r=json.load(open(sys.argv[1])); print(\"not_quick_test:\", {k:r.get(k) for k in (\"exit\",\"refused\",\"learn_called\",\"guard_hits\")})
+for s in (42,52,60):
+    d=json.load(open(sys.argv[2]+f\"/s{s}/edge_pairs.json\")); rr=d[\"runner_record\"]
+    print(s, \"runner_exit\", d.get(\"runner_exit\"), \"stopped_at_learn\", rr.get(\"manual_cell_stopped_at_learn\"), \"learn_called\", rr.get(\"learn_called\"), \"guard_hits\", rr.get(\"guard_hits\"), \"after_save\", d.get(\"guard_hits_after_save\"))
+for n in (\"launch_s42\",\"resume\"):
+    r=json.load(open(sys.argv[3]+f\"/{n}/record.json\")); print(n, {k:r.get(k) for k in (\"exit\",\"learn_called\",\"guard_hits\",\"refused\",\"override\")})
+" $PL/tol/e2e/runner_not_quick_test/record.json $PL/tol/setup $PL/smoke/nb | sed "s|$S|SP|g" | cut -c1-900
+[exit 0 0 0]
+[2026-11-06T13:00:34Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:00:34Z] $ $PY -I -c "
+import json,sys
+for n in (\"launch_s42\",\"resume\"):
+    r=json.load(open(sys.argv[1]+f\"/{n}/record.json\"))
+    print(n, sorted(r.keys()))
+    for c in r.get(\"cells\",[]): print(\"   \", {k:(str(v)[:120]) for k,v in c.items() if k in (\"index\",\"cell\",\"seconds\",\"exception\",\"message\",\"phase\",\"role\")})
+    m=r.get(\"manual_cell\") or {}; print(\"   manual\", {k:str(v)[:150] for k,v in m.items()})
+    print(\"   run_all\", str(r.get(\"run_all\"))[:600])
+" $PL/smoke/nb | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T13:01:01Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:01:01Z] [note] wrote scripts/train_amount.py with the file tool
+[2026-11-06T13:01:01Z] $ $PY -I $K/scripts/train_amount.py $PL/smoke/runs/launch/pilot4_walk_s42 $PL/smoke/runs/resume/pilot4_walk_s42 $P3/runs/final/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip $K/data/train_amount.json > $K/logs/train_amount.txt 2> $K/logs/train_amount.err
+[exit 0]
+[2026-11-06T13:01:02Z] $ cut -c1-420 $K/logs/train_amount.txt; tail -3 $K/logs/train_amount.err
+[exit 0]
+[2026-11-06T13:01:28Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:01:28Z] $ grep -n -E "^(Running locally|Repository ref|Quick test mode|Behavior recipe|In-run K3 panel|Critic phase|Run directory|Node locomotion|Timesteps:|VecNormalize loaded from|Eval num_timesteps)" $PL/smoke/nb/launch_s42/runner.stdout.log | sed "s|$S|SP|g" | cut -c1-260
+[exit 0 0 0]
+[2026-11-06T13:01:28Z] $ grep -c -i "warm start" $PL/smoke/nb/launch_s42/runner.stdout.log $PL/smoke/nb/launch_s42/runner.stderr.log $PL/smoke/nb/resume/runner.stdout.log $PL/smoke/nb/resume/runner.stderr.log
+[exit 1]
+[2026-11-06T13:01:28Z] $ grep -c -i -E "critic.phase.*drop|dropped.*critic" $PL/smoke/nb/launch_s42/runner.stdout.log $PL/smoke/nb/launch_s42/runner.stderr.log
+[exit 1]
+[2026-11-06T13:01:28Z] $ grep -n -i -E "chain loop skipped|##### nb_pilot_runner4" $PL/smoke/nb/launch_s42/runner.stdout.log | cut -c1-220
+[exit 0 0]
+[2026-11-06T13:01:36Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:01:36Z] $ find $S -iname "*colab*" -not -path "*/tree/*" -not -path "*/venv*" | sed "s|$S|SP|" | head -20
+[exit 141 141 0]
+[2026-11-06T13:02:40Z] $ grep -n -i -E "expected_entry|ENTRY_LINES|forbidden" $P4/nb_pilot_runner4.py | head -20
+[exit 0 0]
+[2026-11-06T13:02:48Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:02:48Z] $ find $S/.. -maxdepth 6 -iname "COLAB_STEPS_PILOT*" -not -path "*/venv*" 2>> $K/logs/find_err.txt | sed "s|$S|SP|" | head
+[exit 0 0 0]
+[2026-11-06T13:03:30Z] $ ls $S/pilot4 $S/pilot4/prelaunch/text 2>&1 | head -40
+[exit 0 0]
+[2026-11-06T13:03:39Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:03:39Z] $ wc -l $P3/colab/COLAB_STEPS_PILOT3.txt
+[exit 0]
+[2026-11-06T13:03:39Z] $ grep -n -E "Repository ref|Run directory|Critic phase|K3 panel|Behavior|BEHAVIOR|Node locomotion|Timesteps|VecNormalize loaded|Warm start|Eval num_timesteps|Quick test|QUICK_TEST|guard|RuntimeError" $P3/colab/COLAB_STEPS_PILOT3.txt | cut -c1-240 | head -50
+[exit 0 0 0]
+[2026-11-06T13:03:49Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:03:49Z] $ grep -n -E "^Behavior .walk.|deliverable|chain:|Observation space|Action space|^RuntimeError|Walking pilot 4" $PL/smoke/nb/launch_s42/runner.stdout.log $PL/smoke/nb/resume/runner.stdout.log | sed "s|$S|SP|g" | cut -c1-260
+[exit 0 0 0]
+[2026-11-06T13:03:49Z] $ grep -n -E "^(Repository ref|Run directory|Critic phase|In-run K3|Resuming|Newest intact|Matched VecNormalize|Checkpoint steps|Timesteps:|VecNormalize loaded|Eval num)" $PL/smoke/nb/resume/runner.stdout.log | sed "s|$S|SP|g" | cut -c1-260
+[exit 0 0 0]
+[2026-11-06T13:04:09Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:04:09Z] [note] wrote scripts/json_leaf_diff.py with the file tool
+[2026-11-06T13:04:09Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/nb/resume_stage_config_before.json $PL/smoke/nb/resume_stage_config_after.json resume_before_vs_after | sed "s|$S|SP|g" > $K/logs/diff_resume_stage_config.txt
+[exit 0 0]
+[2026-11-06T13:04:09Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/runs/resume/pilot4_walk_s42/03_locomotion/stage_config.json launch_vs_resumed | sed "s|$S|SP|g" > $K/logs/diff_launch_vs_resumed_stage_config.txt
+[exit 0 0]
+[2026-11-06T13:04:09Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/setup/runs/s42/stage/stage_config.json $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json setup_entry_vs_smoke_launch | sed "s|$S|SP|g" > $K/logs/diff_setup_vs_smoke_stage_config.txt
+[exit 0 0]
+[2026-11-06T13:04:09Z] $ cat $K/logs/diff_resume_stage_config.txt $K/logs/diff_launch_vs_resumed_stage_config.txt $K/logs/diff_setup_vs_smoke_stage_config.txt | cut -c1-330
+[exit 0 0]
+[2026-11-06T13:04:42Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:04:42Z] [note] wrote scripts/first_hour_check.py with the file tool
+[2026-11-06T13:04:42Z] $ $PY -I $K/scripts/first_hour_check.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json 42 32768 32768 50000 > $K/logs/first_hour_smoke_launch.txt
+[exit 0]
+[2026-11-06T13:04:42Z] $ $PY -I $K/scripts/first_hour_check.py $PL/smoke/runs/resume/pilot4_walk_s42/03_locomotion/stage_config.json 42 32768 32768 17232 > $K/logs/first_hour_smoke_resume.txt
+[exit 0]
+[2026-11-06T13:04:42Z] $ $PY -I $K/scripts/first_hour_check.py $PL/setup/runs/s42/stage/stage_config.json 42 65536 250000 2000000 > $K/logs/first_hour_setup_s42.txt
+[exit 0]
+[2026-11-06T13:04:42Z] $ $PY -I $K/scripts/first_hour_check.py $PL/setup/runs/s52/stage/stage_config.json 52 65536 250000 2000000 > $K/logs/first_hour_setup_s52.txt
+[exit 0]
+[2026-11-06T13:04:42Z] $ $PY -I $K/scripts/first_hour_check.py $PL/setup/runs/s60/stage/stage_config.json 60 65536 250000 2000000 > $K/logs/first_hour_setup_s60.txt
+[exit 0]
+[2026-11-06T13:04:42Z] $ tail -n1 $K/logs/first_hour_*.txt
+[exit 0]
+[2026-11-06T13:04:42Z] $ sha256sum $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/models/stage2_32768_steps.zip | cut -c1-64
+[exit 0 0]
+[2026-11-06T13:04:50Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:04:50Z] $ cat $PL/smoke/judge/status.txt
+[exit 0]
+[2026-11-06T13:04:50Z] $ ls $PL/smoke/judge $PL/smoke/judge/copies $PL/smoke/judge/logs
+[exit 0]
+[2026-11-06T13:04:50Z] $ find $PL/smoke/judge/OUT $PL/smoke/judge/OUT_resume -type f -printf "%TT %P\n" | sort | cut -c1-200
+[exit 0 0 0]
+[2026-11-06T13:05:06Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:05:06Z] $ for f in A5_judge_again_65536 A6_pilot_budget A8_fallback_wrong R1_parent_cli_s52 R_parent_sha_record R_command_table R_env_kwarg_drift R_other_head R_n_envs_2 R_warm_start_log_std R_critic_dropped R_parent_task R_no_lineage R_wrong_run_id D2_dirty_judge B3_resumed_final_fallback B4_resume_nonperiodic; do echo "== $f: $(grep -c "" $PL/smoke/judge/logs/$f.log) lines"; grep -i -E "refus|problem|not |differ|exists|local edits" $PL/smoke/judge/logs/$f.log | tail -2 | sed "s|$S|SP|g" | cut -c1-420; done > $K/logs/refusal_messages.txt
+[exit 0 0 0 0]
+[2026-11-06T13:05:06Z] $ cat $K/logs/refusal_messages.txt
+[exit 0]
+[2026-11-06T13:05:30Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:05:30Z] [note] wrote scripts/probe_cells.py with the file tool
+[2026-11-06T13:05:30Z] $ $PY -I $K/scripts/probe_cells.py $PL/smoke/judge/OUT/s42/32768 $PL/smoke/judge/OUT/s42/65536 $PL/smoke/judge/OUT/s42/50000 $PL/smoke/judge/OUT_resume/s42/65536 > $K/logs/probe_cells.txt 2>&1
+[exit 0]
+[2026-11-06T13:05:30Z] $ sed "s|$S|SP|g" $K/logs/probe_cells.txt | cut -c1-700
+[exit 0 0]
+[2026-11-06T13:05:40Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:05:40Z] $ grep -n -E "def test_a_resumed_copy_keeps_the_zip_s_lineage|def test_a_smoke_resume_at_32_768_is_on_schedule" $P4/tests/test_pilot4_judge.py
+[exit 0]
+[2026-11-06T13:05:40Z] $ ls $PL/tol/tests_final
+[exit 0]
+[2026-11-06T13:05:40Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print({k:v for k,v in d.items() if not isinstance(v,(dict,list))}); f=d.get(\"files\",{}); [print(k, {kk:vv for kk,vv in v.items() if kk in (\"tests\",\"failures\",\"errors\",\"skipped\")}) for k,v in f.items()]" $PL/tol/tests_final/summary.json | sed "s|$S|SP|g" | cut -c1-300
+[exit 0 0 0]
+[2026-11-06T13:05:49Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:05:49Z] $ $PY -I -c "
+import sys, glob, xml.etree.ElementTree as ET
+tot=f=e=s=0
+for p in sorted(glob.glob(sys.argv[1]+\"/*.xml\")):
+    r=ET.parse(p).getroot(); cases=r.findall(\".//testcase\")
+    nf=sum(1 for c in cases if c.find(\"failure\") is not None); ne=sum(1 for c in cases if c.find(\"error\") is not None); ns=sum(1 for c in cases if c.find(\"skipped\") is not None)
+    tot+=len(cases); f+=nf; e+=ne; s+=ns; print(p.rsplit(\"/\",1)[1], len(cases), nf, ne, ns)
+print(\"total\", tot, \"failed\", f, \"errors\", e, \"skipped\", s)
+" $PL/tol/tests_final
+[exit 0]
+[2026-11-06T13:05:49Z] $ tail -3 $PL/tol/tests_final/test_pilot4_score.tree.log.txt $PL/tol/tests_final/test_pilot4_score.pure.log.txt | cut -c1-200
+[exit 1 0]
+[2026-11-06T13:05:49Z] $ cat $PL/tol/tests_final/rcs.txt | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:05:49Z] $ sed -n 1,30p $PL/tol/scripts/run_pytest.py
+[exit 0]
+[2026-11-06T13:06:02Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:06:02Z] [note] previous call: the tail -3 on two score logs failed (tail option error, exit logged as 0 by the pipeline cut); re-run below
+[2026-11-06T13:06:02Z] $ tail -n 3 $PL/tol/tests_final/test_pilot4_score.tree.log.txt | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:06:02Z] $ tail -n 3 $PL/tol/tests_final/test_pilot4_score.pure.log.txt | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:06:13Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:06:13Z] $ ls $P3/tools | head -30
+[exit 0 0]
+[2026-11-06T13:06:13Z] $ cd $P3/tools && sha256sum -c SHA256SUMS.txt > $K/logs/p3_sums_check.txt 2> $K/logs/p3_sums_check.err; echo rc=$? >> $K/logs/p3_sums_check.txt
+[exit 0]
+[2026-11-06T13:06:14Z] $ grep -c ": OK$" $K/logs/p3_sums_check.txt
+[exit 0]
+[2026-11-06T13:06:14Z] $ grep -v ": OK$" $K/logs/p3_sums_check.txt | head; wc -c < $K/logs/p3_sums_check.err
+[exit 0]
+[2026-11-06T13:06:14Z] $ sha256sum $P3/tools/SHA256SUMS.txt | cut -c1-64
+[exit 0 0]
+[2026-11-06T13:06:35Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:06:35Z] $ touch -d "2026-11-06 11:23:00 UTC" $K/data/marker_workflow_start
+[exit 0]
+[2026-11-06T13:06:35Z] $ find $P3/tools $P3/runs/final $P3/judging -newer $K/data/marker_workflow_start -printf "%TY-%Tm-%Td %TT %y %p\n" 2>> $K/logs/find_err.txt | sed "s|$S|SP|" | sort > $K/logs/p3_newer_than_1123.txt
+[exit 0 0 0]
+[2026-11-06T13:06:35Z] $ cat $K/logs/p3_newer_than_1123.txt | head -20; wc -l < $K/logs/p3_newer_than_1123.txt
+[exit 0]
+[2026-11-06T13:06:35Z] $ find $P4 -newer $K/data/marker_workflow_start -printf "%TY-%Tm-%Td %TT %y %p\n" 2>> $K/logs/find_err.txt | sed "s|$S|SP|" | sort > $K/logs/p4tools_newer_than_1123.txt
+[exit 0 0 0]
+[2026-11-06T13:06:35Z] $ cat $K/logs/p4tools_newer_than_1123.txt | head -30; wc -l < $K/logs/p4tools_newer_than_1123.txt
+[exit 0]
+[2026-11-06T13:06:35Z] $ wc -c < $K/logs/find_err.txt
+[exit 0]
+[2026-11-06T13:06:45Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:06:45Z] $ grep -n -E "git .*status|GIT_OPTIONAL_LOCKS" $PL/tol/CMDLOG.txt | head -12 | sed "s|$S|SP|g" | cut -c1-260
+[exit 141 0 0 0]
+[2026-11-06T13:06:45Z] $ grep -n -E "git .*status|GIT_OPTIONAL_LOCKS" $PL/setup/CMDLOG.txt | head -12 | sed "s|$S|SP|g" | cut -c1-260
+[exit 0 0 0 0]
+[2026-11-06T13:06:45Z] $ grep -n -E "11:3[01]:" $PL/tol/CMDLOG.txt | head -20 | sed "s|$S|SP|g" | cut -c1-200
+[exit 0 0 0 0]
+[2026-11-06T13:07:02Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:07:02Z] $ echo GIT_OPTIONAL_LOCKS=$GIT_OPTIONAL_LOCKS
+[exit 0]
+[2026-11-06T13:07:02Z] $ stat -c "%y %n" $P4/tree/.git/index $P4/tree/.git $P3/tools/tree/.git/index | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T13:07:02Z] $ git -C $P4/tree rev-parse HEAD
+[exit 0]
+[2026-11-06T13:07:02Z] $ git -C $P4/tree status --porcelain --ignored --untracked-files=all | wc -l
+[exit 0 0]
+[2026-11-06T13:07:02Z] $ git -C $P4/tree rev-parse --abbrev-ref HEAD | sed "s|^[a-z]*/|<prefix>/|"
+[exit 0 0]
+[2026-11-06T13:07:02Z] $ git -C $P4/tree log --oneline -1 --format=%H%n%s | head -2
+[exit 0 0]
+[2026-11-06T13:07:02Z] $ git -C $P4/tree rev-list --count 31d02e42d148511e50f9cba9a598d9a9d36c23af..HEAD
+[exit 0]
+[2026-11-06T13:07:02Z] $ git -C $P4/tree config --get-all remote.origin.pushurl | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T13:07:02Z] $ stat -c "%y %n" $P4/tree/.git/index $P4/tree/.git | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T13:07:11Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:07:11Z] $ ls $P3/runs/final; ls $P3/runs | head
+[exit 0 0]
+[2026-11-06T13:07:11Z] $ cd $P3/runs/final && sha256sum pilot3_walk_s*/03_locomotion/models/stage2_8000000_steps.zip pilot3_walk_s*/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl > $K/data/parent_pairs_sha256_now.txt
+[exit 0]
+[2026-11-06T13:07:11Z] $ cat $K/data/parent_pairs_sha256_now.txt
+[exit 0]
+[2026-11-06T13:07:11Z] $ find $P3/runs -maxdepth 2 -iname "*sha256*" | sed "s|$S|SP|" | head
+[exit 0 0 0]
+[2026-11-06T13:07:19Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:07:19Z] $ ls -la $P3/runs/final/manifests | head; head -3 $P3/runs/final/blobmap_s42.tsv | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:08:05Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:08:05Z] [note] wrote scripts/scan_cmdlog.py with the file tool
+[2026-11-06T13:08:05Z] $ $PY -I $K/scripts/scan_cmdlog.py $PL/tol/CMDLOG.txt $PL/tol ${S%/work} $K/data/scan_tol.json > $K/logs/scan_tol.txt 2>&1
+[exit 0]
+[2026-11-06T13:08:05Z] $ $PY -I $K/scripts/scan_cmdlog.py $PL/setup/CMDLOG.txt $PL/setup ${S%/work} $K/data/scan_setup.json > $K/logs/scan_setup.txt 2>&1
+[exit 0]
+[2026-11-06T13:08:05Z] $ $PY -I $K/scripts/scan_cmdlog.py $PL/smoke/CMDLOG.txt $PL/smoke ${S%/work} $K/data/scan_smoke.json > $K/logs/scan_smoke.txt 2>&1
+[exit 0]
+[2026-11-06T13:08:05Z] $ head -c 6000 $K/logs/scan_tol.txt
+[exit 0]
+[2026-11-06T13:08:12Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:08:12Z] $ head -c 7000 $K/logs/scan_setup.txt
+[exit 0]
+[2026-11-06T13:08:25Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:08:25Z] $ head -c 9000 $K/logs/scan_smoke.txt
+[exit 0]
+[2026-11-06T13:08:35Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:08:35Z] $ grep -r -l -F "${S%/work}" $PL/tol/scripts $PL/tol/lib.sh $PL/tol/run.sh 2>> $K/logs/grep_err.txt | sed "s|$S|SP|" > $K/logs/literal_path_in_scripts_tol.txt
+[exit 2 0]
+[2026-11-06T13:08:35Z] $ grep -r -l -F "${S%/work}" $PL/setup/scripts $PL/setup/lib.sh $PL/setup/run.sh 2>> $K/logs/grep_err.txt | sed "s|$S|SP|" > $K/logs/literal_path_in_scripts_setup.txt
+[exit 2 0]
+[2026-11-06T13:08:35Z] $ grep -r -l -F "${S%/work}" $PL/smoke/scripts $PL/smoke/lib.sh $PL/smoke/run.sh 2>> $K/logs/grep_err.txt | sed "s|$S|SP|" > $K/logs/literal_path_in_scripts_smoke.txt
+[exit 2 0]
+[2026-11-06T13:08:35Z] $ wc -l $K/logs/literal_path_in_scripts_*.txt; cat $K/logs/literal_path_in_scripts_*.txt
+[exit 0]
+[2026-11-06T13:08:35Z] $ grep -r -l -F "${S%/work}" $K/scripts $K/lib.sh | wc -l
+[exit 1 0]
+[2026-11-06T13:08:52Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:08:52Z] $ cmp $PL/setup/data/digest_generated_0e6a57b.txt $PL/setup/data/golden_committed_0e6a57b.txt; echo cmp_rc=$?
+[exit 0]
+[2026-11-06T13:08:52Z] $ git -C $P4/tree show 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8:configs/digest_snapshot.generated.txt | cmp - $PL/setup/data/golden_committed_0e6a57b.txt; echo cmp_head_rc=$?
+[exit 0]
+[2026-11-06T13:08:52Z] $ git -C $P4/tree show 31d02e42d148511e50f9cba9a598d9a9d36c23af:configs/digest_snapshot.generated.txt | cmp - $PL/setup/data/golden_31d02e42.txt; echo cmp_p3_rc=$?
+[exit 0]
+[2026-11-06T13:08:52Z] $ diff $PL/setup/data/golden_31d02e42.txt $PL/setup/data/digest_generated_0e6a57b.txt > $K/logs/my_digest_diff.txt; echo diff_rc=$?
+[exit 0]
+[2026-11-06T13:08:52Z] $ grep -c "^<" $K/logs/my_digest_diff.txt; grep -c "^>" $K/logs/my_digest_diff.txt; wc -l < $PL/setup/data/digest_generated_0e6a57b.txt; grep -c -i error $PL/setup/data/digest_generated_0e6a57b.txt
+[exit 1]
+[2026-11-06T13:08:52Z] $ grep "^>" $K/logs/my_digest_diff.txt | cut -c1-150
+[exit 0 0]
+[2026-11-06T13:09:00Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:09:00Z] $ for p in 0 1 2; do tail -n 3 $PL/setup/logs/pt_p$p.txt | cut -c1-200; done
+[exit 0 0]
+[2026-11-06T13:09:00Z] $ grep -h -E "^FAILED " $PL/setup/logs/pt_p0.txt $PL/setup/logs/pt_p1.txt $PL/setup/logs/pt_p2.txt | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:09:00Z] $ grep -h -c -E "TrainingBlocked|guard hit" $PL/setup/logs/pt_p0.txt $PL/setup/logs/pt_p1.txt $PL/setup/logs/pt_p2.txt
+[exit 1]
+[2026-11-06T13:09:00Z] $ grep -h -E "^XFAIL" $PL/setup/logs/pt_p2.txt | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:09:00Z] $ for f in notebook_cells plant_contract_check species_catalog_check digest_check_0e6a57b; do tail -n 2 $PL/setup/logs/$f.txt | cut -c1-200; done
+[exit 0 0]
+[2026-11-06T13:09:16Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:09:16Z] $ diff $P3/tools/pilot3_video.py $P4/pilot4_video.py > $K/logs/diff_video_p3_p4.txt; echo rc=$?
+[exit 0]
+[2026-11-06T13:09:16Z] $ grep -c "^[<>]" $K/logs/diff_video_p3_p4.txt; wc -l $P3/tools/pilot3_video.py $P4/pilot4_video.py | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T13:09:16Z] $ grep "^[<>]" $K/logs/diff_video_p3_p4.txt | grep -i -E "render|Renderer|mujoco|frame|camera|mediapy|imageio" | cut -c1-200 | head -20
+[exit 0 0 0 0]
+[2026-11-06T13:09:29Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:09:29Z] $ $PY -I -c "
+import json,sys
+for s in (42,52,60):
+    d=json.load(open(sys.argv[1]+f\"/baseline_s{s}.json\"))
+    p=d[\"recovery\"][\"prey_in_place\"][\"summary\"]; t=d[\"recovery\"][\"turned_at_reset\"][\"summary\"]
+    print(s, \"prey_in_place med/p95/within\", round(p[\"median_r_deg\"],1), round(p[\"p95_r_deg\"],1), p[\"within_11_5\"], p[\"n_counting\"], \"| turned_at_reset med/p95/within\", round(t[\"median_r_deg\"],1), t[\"p95_r_deg\"] if t[\"p95_r_deg\"] is None else round(t[\"p95_r_deg\"],1), t[\"within_11_5\"], t[\"n_counting\"], t[\"infinite\"], \"| crab\", round(d[\"parts\"][\"b\"][\"report_crab_median_deg\"],1), \"xtrack\", round(d[\"parts\"][\"b\"][\"report_end_cross_track_median_m\"],2))
+" $PL/tol/val_final
+[exit 1]
+[2026-11-06T13:09:29Z] $ grep -n -E "^C12|^C5|^C6|^C9|^ *C12a|^ *C12b" $P4/out/fix/text_corrections.txt | cut -c1-200 | head -20
+[exit 0 0 0]
+[2026-11-06T13:09:37Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:09:37Z] [note] previous one-liner exited 1 at s52 (p95_r_deg stored as the string inf); re-run with a str-safe round
+[2026-11-06T13:09:37Z] $ $PY -I -c "
+import json,sys
+r=lambda x,n=1: x if isinstance(x,str) or x is None else round(x,n)
+for s in (42,52,60):
+    d=json.load(open(sys.argv[1]+f\"/baseline_s{s}.json\"))
+    p=d[\"recovery\"][\"prey_in_place\"][\"summary\"]; t=d[\"recovery\"][\"turned_at_reset\"][\"summary\"]
+    print(s, \"prey_in_place med/p95/within/n\", r(p[\"median_r_deg\"]), r(p[\"p95_r_deg\"]), p[\"within_11_5\"], p[\"n_counting\"], \"| turned_at_reset med/p95/within/n/inf\", r(t[\"median_r_deg\"]), r(t[\"p95_r_deg\"]), t[\"within_11_5\"], t[\"n_counting\"], t[\"infinite\"], \"| crab\", r(d[\"parts\"][\"b\"][\"report_crab_median_deg\"]), \"xtrack\", r(d[\"parts\"][\"b\"][\"report_end_cross_track_median_m\"],2))
+" $PL/tol/val_final
+[exit 0]
+[2026-11-06T13:09:37Z] $ sed -n 215,250p $P4/out/fix/text_corrections.txt | cut -c1-240
+[exit 0 0]
+[2026-11-06T13:09:51Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:09:51Z] $ $PY -I -c "
+import json,sys
+for s in (42,52,60):
+    d=json.load(open(sys.argv[1]+f\"/baseline_s{s}.json\")); c=d[\"parts\"][\"c\"]; ch=d[\"checks\"]
+    print(s, \"fell_after_nudge\", c[\"fell_after_nudge\"], \"moved_too_little\", c[\"moved_too_little\"], \"left_out_before\", c[\"left_out_ended_before_nudge\"], \"not_passed\", c[\"left_out_not_yet_passed\"], \"share\", c[\"share_removed_median\"], \"| prefix\", ch[\"prefix\"][\"equal\"], \"/\", ch[\"prefix\"][\"episodes\"], \"obs651\", ch[\"obs651\"][\"only_command_channels\"], \"/\", ch[\"obs651\"][\"episodes\"], ch[\"obs651\"][\"channels_seen\"], \"zero\", ch[\"zero_nudge\"][\"equal\"], \"/\", ch[\"zero_nudge\"][\"episodes\"], \"act651\", ch[\"turned_twin\"][\"max_action_diff_after_651\"], \"dA_blind\", ch[\"action_delta_vs_blind\"][\"max\"], \"pip_fell\", sum(1 for e in d[\"recovery\"][\"prey_in_place\"][\"episodes\"] if e.get(\"r_reason\") not in (None,)), \"min_pass_m\", round(min(e[\"pelvis_minus_prey_x_650_m\"] for e in d[\"recovery\"][\"episodes\"] if e[\"pelvis_minus_prey_x_650_m\"] is not None),2))
+" $PL/tol/val_final
+[exit 0]
+[2026-11-06T13:10:05Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:10:05Z] $ ls $PL/setup/runs/s42/nb
+[exit 0]
+[2026-11-06T13:10:05Z] $ grep -n -E "^(Running locally|Quick test mode|Behavior recipe|In-run K3 panel|Critic phase|Run directory|Node locomotion|Timesteps:|VecNormalize loaded from|Behavior .walk.|Warm start)" $PL/setup/runs/s42/nb/runner.stdout.log | sed "s|$S|SP|g" | cut -c1-240
+[exit 0 0 0]
+[2026-11-06T13:10:13Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:10:13Z] $ cat $PL/smoke/scripts/runner_snapshot.py
+[exit 0]
+[2026-11-06T13:10:28Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:10:28Z] $ $PY -I -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+for k,v in (d.items() if isinstance(d,dict) else enumerate(d)):
+    print(k, json.dumps(v.get(\"change\") if isinstance(v,dict) else v)[:260])
+" $PL/smoke/judge/copies/copies.json | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T13:10:28Z] $ grep -n -E "job R_|job A6|job A8|job B3|job B4|job D2|job A5" $PL/smoke/CMDLOG.txt | grep "\\$ " | sed "s|$S|SP|g" | sed -E "s|.*(pilot4_judge.py)|\\1|" | cut -c1-330
+[exit 0 0 0 0 0]
+[2026-11-06T13:10:36Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/n_envs_2/pilot4_walk_s42/03_locomotion/stage_config.json n_envs_2 | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/parent_sha_record/pilot4_walk_s42/03_locomotion/stage_config.json parent_sha_record | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/command_table/pilot4_walk_s42/03_locomotion/stage_config.json command_table | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/env_kwarg_drift/pilot4_walk_s42/03_locomotion/stage_config.json env_kwarg_drift | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/other_head/pilot4_walk_s42/03_locomotion/stage_config.json other_head | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/warm_start_log_std/pilot4_walk_s42/03_locomotion/stage_config.json warm_start_log_std | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/critic_dropped/pilot4_walk_s42/03_locomotion/stage_config.json critic_dropped | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ $PY -I $K/scripts/json_leaf_diff.py $PL/smoke/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json $PL/smoke/judge/copies/parent_task/pilot4_walk_s42/03_locomotion/stage_config.json parent_task | cut -c1-200 >> $K/logs/tampered_copy_diffs.txt
+[exit 0 0]
+[2026-11-06T13:10:36Z] $ cat $K/logs/tampered_copy_diffs.txt
+[exit 0]
+[2026-11-06T13:10:36Z] $ $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(type(d), list(d)[:10]); print(json.dumps(d)[:1500])" $PL/smoke/judge/copies/copies.json | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T13:10:46Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:10:46Z] $ $PY -I -c "
+import json,sys
+d=json.load(open(sys.argv[1]))[\"zips\"]
+ref=d[\"launch/stage2_65536_steps.zip\"][\"lineage\"]
+print(json.dumps(ref))
+for k,v in d.items():
+    if k.startswith(\"parent\"): continue
+    print(k, v[\"lineage\"]==ref)
+" $K/data/train_amount.json
+[exit 0]
+[2026-11-06T13:10:55Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:10:55Z] $ grep -r -l -E "93d5c558|5365e86d|ad1ef825|37b5cf08" $P4 --exclude-dir=tree --exclude-dir=out --exclude-dir=src | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T13:10:55Z] $ grep -c -E "93d5c558" $P4/out/fix/text_corrections.txt
+[exit 0]
+[2026-11-06T13:10:55Z] $ grep -n -E "93d5c558" $P4/out/fix/text_corrections.txt | cut -c1-200
+[exit 0 0]
+[2026-11-06T13:11:07Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:11:07Z] $ sed -n 205,240p $PL/tol/CMDLOG.txt | sed "s|$S|SP|g" | cut -c1-220
+[exit 0 0 0]
+[2026-11-06T13:11:07Z] $ sed -n 30,55p $PL/setup/CMDLOG.txt | sed "s|$S|SP|g" | cut -c1-220
+[exit 0 0 0]
+[2026-11-06T13:11:35Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:11:35Z] $ sed -n 1036,1075p $P3/frozen_candidate2/criteria_pilot3.txt
+[exit 0]
+[2026-11-06T13:11:41Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:11:41Z] $ sed -n 1075,1110p $P3/frozen_candidate2/criteria_pilot3.txt
+[exit 0]
+[2026-11-06T13:12:02Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:12:02Z] $ wc -l $PL/text/CMDLOG.txt
+[exit 0]
+[2026-11-06T13:12:02Z] $ grep -n -E 'nb_pilot_runner|runner_snapshot|edge_pairs|learn|train_curriculum|stop-at-learn|pytest|iso\.py' $PL/text/CMDLOG.txt | sed "s|$S|SP|g" | cut -c1-200 | head -20
+[exit 0 0 0 0]
+[2026-11-06T13:12:02Z] $ $PY -I $K/scripts/scan_cmdlog.py $PL/text/CMDLOG.txt $PL/text ${S%/work} $K/data/scan_text.json > $K/logs/scan_text.txt 2>&1
+[exit 0]
+[2026-11-06T13:12:02Z] $ head -c 3000 $K/logs/scan_text.txt
+[exit 0]
+[2026-11-06T13:12:14Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:12:14Z] $ $PY -I -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+print(sorted(d.keys()))
+for k in (\"weights\",\"vecnormalize\",\"start_actions\",\"optimizer\"):
+    v=d.get(k); print(k, json.dumps(v)[:700] if v is not None else None)
+" $PL/setup/runs/s42/setup_check.json | sed "s|$S|SP|g"
+[exit 0 0]
+[2026-11-06T13:12:46Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/verify; . $K/lib.sh   [prefix of a new shell call]
+[2026-11-06T13:12:46Z] [note] tool use outside the shell in this lane (read-only unless noted): Read of v3, smoke lib.sh, my own logs; Glob of prelaunch/; Write of lib.sh and scripts/diff_lists.py, recompute_baseline.py, deep_diff_setup.py, train_amount.py, json_leaf_diff.py, first_hour_check.py, probe_cells.py, scan_cmdlog.py (all in this folder)
+[2026-11-06T13:12:46Z] $ find $K -name "__pycache__" -o -name "*.pyc" | wc -l
+[exit 0 0]
+[2026-11-06T13:12:46Z] $ cd $P4 && sha256sum -c --quiet SHA256SUMS.txt > $K/logs/sums_check_end.txt 2>&1; echo rc=$? >> $K/logs/sums_check_end.txt
+[exit 0]
+[2026-11-06T13:12:46Z] $ cat $K/logs/sums_check_end.txt
+[exit 0]
+[2026-11-06T13:12:46Z] $ git -C $P4/tree status --porcelain --ignored --untracked-files=all | wc -l
+[exit 0 0]
+[2026-11-06T13:12:46Z] $ stat -c "%y %n" $P4/tree/.git/index $P3/tools/tree/.git/index | sed "s|$S|SP|"
+[exit 0 0]
+[2026-11-06T13:12:46Z] $ find $P3/tools $P3/runs/final $P3/judging $P4 -newer $K/data/lane_start_marker -not -path "$K/*" 2>> $K/logs/find_err.txt | sed "s|$S|SP|" | wc -l
+[exit 0 0 0]
+[2026-11-06T13:12:46Z] $ du -sh $K/tmp $K
+[exit 0]
+[2026-11-06T13:12:46Z] $ rm -rf $K/tmp
+[exit 0]
+[2026-11-06T13:12:46Z] $ du -sh $K
+[exit 0]
+[2026-11-06T13:12:47Z] $ df -h $S | tail -1 | awk "{print \$4}"
+[exit 0 0 0]

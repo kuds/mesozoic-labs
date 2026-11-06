@@ -1,0 +1,58 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> pilot4_habit.py:293:5
+    |
+291 |   def roll_trace(checkpoint: str, vecnorm: str, seeds=TRACE_SEEDS) -> list[dict]:
+292 |       """Roll the trace with the tree's own episode-trace library (needs `environments`, from the tree)."""
+293 | /     import gymnasium as gym
+294 | |     import numpy as np
+295 | |     from environments.shared.config import load_stage_config
+296 | |     from environments.shared.plant_contract import (
+297 | |         current_plant_identity,
+298 | |         validate_environment_plant,
+299 | |     )
+300 | |     from environments.shared.reporting.episode_trace import (
+301 | |         ActuatorLayout,
+302 | |         load_trace_policy,
+303 | |         trace_episode,
+304 | |     )
+305 | |     from environments.shared.species_names import require_model_id
+306 | |     from environments.shared.species_registry import env_class as model_env_class
+    | |_________________________________________________________________________________^
+307 |
+308 |       mid = require_model_id("tyrannosaurus_rex", "anatomical")
+    |
+help: Organize imports
+    |
+294 |     import numpy as np
+295 +
+296 |     from environments.shared.config import load_stage_config
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> pilot4_video.py:303:5
+    |
+301 |       install_probe_shims()
+302 |       probe, probe_path = load_probe(tree)
+303 | /     import gymnasium as gym
+304 | |     import mujoco
+305 | |     from environments.shared.config import load_stage_config
+306 | |     from environments.shared.curriculum.stance_gate import StanceGateThresholds
+307 | |     from environments.shared.plant_contract import (
+308 | |         current_plant_identity,
+309 | |         validate_environment_plant,
+310 | |     )
+311 | |     from environments.shared.policy_loading import load_sb3_checkpoint
+312 | |     from environments.shared.species_registry import SPECIES_FACTORIES
+    | |______________________________________________________________________^
+313 |
+314 |       stage_cfg = load_stage_config(SPECIES, STAGE)
+    |
+help: Organize imports
+    |
+304 |     import mujoco
+305 +
+306 |     from environments.shared.config import load_stage_config
+    |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.

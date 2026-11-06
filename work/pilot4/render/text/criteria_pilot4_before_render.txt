@@ -1,0 +1,1334 @@
+T. rex walking pilot 4: fixed criteria (FROZEN CANDIDATE, 2026-11-06: written before any step of a pilot-4 run is
+trained, the only training since draft v3 being decision (36)'s throwaway QUICK_TEST CPU notebook smoke (65,536 steps)
+and its RESUME test (32,768 -> 65,536); built from draft v3 with the maintainer's decisions (31)-(36), the tools' fix
+stage's 18 text corrections, the pre-launch checks' measurements and the pre-launch fix stage's edits, see "Changes
+from v3" at the end, then "Changes in v3" and "Changes in v2"; not yet approved or frozen)
+
+Status. A candidate for the freeze, modelled on walking pilot 3's approved criteria ("P3": SP/work/pilot3/
+frozen_candidate2/criteria_pilot3.txt, sha256 853f49d6b7846e29e820de5e6572d36fc9f6b2c20b83c178e46f9a62eb291df4
+[measured: sha256sum; the run log's line 1037 records the approval with that sha256, and line 1039, the durable
+copy, names it again]); [P3 Lnnn] cites its line nnn. Every pilot-3 rule is kept unless this text gives the evidence
+for a change. The maintainer took every item Q1-Q27 of draft v3 as proposed and decided (35) and (36) ("Decisions
+taken"); no bar, seed, budget, cadence or outcome rule differs from v3's, and the one value that does is the
+straightness tool's turned-twin tolerance, a check in its tests, 1e-5 -> 1e-4 deg (decision (35)). Every pre-launch
+check is filled from measured evidence or written as not run yet; open, in this order ("Pre-launch checks"): the
+maintainer's approval of this text (its sha256 recorded with the approval; it covers the smoke RESUME's departure from
+pilot 3's procedure named there) and of the fourteen local commits (Q18), the OK to push, the push and the pushed head
+checked on the GitHub remote by its URL, the durable copy of the pinned tools, the video tool's first render (or its
+waiver), the Colab steps, and the launch approval. No seed is launched before all of them [P3 L15-16].
+  Branch pilot-walk-r10-p4: local, never merged, no pull request, not pushed [measured as recorded: RL 1090, "local,
+  push URL disabled", and RL 1097, "No push"; measured: the push URL of SP/work/pilot4/tools/tree reads
+  DISABLED-ask-the-maintainer, prelaunch/fix/logs/tree_remote.txt; the remote itself not read, no network]; head
+  0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8, the commit the runs must record ("Code") [measured: the setup lane's clean
+  clone of SP/work/pilot4/tools/tree, SP/work/pilot4/prelaunch/setup/logs/]. The pilot-4 tools: SP/work/pilot4/tools/,
+  pinned by its SHA256SUMS.txt, sha256 0f42f29f45092ad87004519783af5175bcb1b7a7c61dcccd4985b682554cc448 (1152 entries;
+  it replaces the tools' fix stage's c2a86878..., kept as SP/work/pilot4/prelaunch/tol/SHA256SUMS_before.txt),
+  sha256sum -c 1152 OK [measured: sha256sum of the list; SP/work/pilot4/prelaunch/smoke/pin/sha256sums_check_end.txt;
+  again at the pre-launch fix stage, SP/work/pilot4/prelaunch/fix/logs/tools_sums_check.txt]. The pre-launch lanes'
+  evidence: every file of SP/work/pilot4/prelaunch/setup/, smoke/, text/, verify/, text_review/ and fix/data/ is
+  pinned by SP/work/pilot4/prelaunch/fix/pin/SHA256SUMS_lanes.txt, sha256
+  d49528a10775c11832fd8f6f519b2cac93de826e71c396e3365e2ecdc537a8e2 (614 entries; tol/ is pinned by the tools' list),
+  sha256sum -c 614 OK from SP/work/pilot4/prelaunch [measured: prelaunch/fix/pin/lanes_check.txt].
+SP = the session scratchpad, as in pilot 3's text; RL nnnn = line nnnn of SP/work/run_log.txt. [measured: source] =
+read or computed from the named file; [measured as recorded: source] = a number an earlier stage measured and
+recorded there, not re-run here; [inferred: basis] = reasoning; rules carry no label. Branch names are written
+without their agent prefix [P3 L18-19]. Numbers the first draft measured itself ("this draft" in the text below)
+are in SP/work/pilot4/build/draft/out/ (scripts in draft/scripts/; nothing trained: deterministic rollouts and
+offline arithmetic on CPU). Numbers the text review measured are in SP/work/pilot4/build/review_text/out/ (cited as
+review_text/out/<file>); the fix stage's runs are in SP/work/pilot4/build/fix/logs/ (cited as fix/logs/<file>).
+Numbers the postfix verifications measured are in SP/work/pilot4/postfix/text/out/ and SP/work/pilot4/postfix/code/
+logs/ (cited as postfix/text/out/<file> and postfix/code/logs/<file>); the postfix fix stage's runs are in
+SP/work/pilot4/postfix/fix/logs/ (cited as postfix/fix/logs/<file>). The pilot-4 tools' own stages (build, reviews,
+the tools' fix stage) are in SP/work/pilot4/tools/out/. The pre-launch lanes' measurements are in
+SP/work/pilot4/prelaunch/setup/, tol/ (the tolerance stage) and smoke/ (cited as setup/<file>, tol/<file> and
+smoke/<file>); the arithmetic this text did on their records is in SP/work/pilot4/prelaunch/text/
+(scripts/extract_facts.py, data/facts_text.json; cited as text/<file>); the pre-launch fix stage's checks are in
+SP/work/pilot4/prelaunch/fix/ (cited as prelaunch/fix/<file>, so as not to be read as the fix stage's fix/logs/
+above).
+
+Where pilot 3 ended [measured as recorded: RL 1067, 1069, 1070, 1071]
+  PILOT OUTCOME WALKS, 3 of 3 seeds (42, 52, 60), each video-agreed; Q4 YES (no seed reads a tail or neck habit).
+  At 8M: WALK 40/40, 39/40 (1 FALL), 40/40; displacement speed 2.719 / 2.500 / 2.225 m/s (forward 2.701 / 2.423 /
+  2.205); alternation 1.00, flight 0.00; duty L/R 0.48/0.57, 0.51/0.53, 0.45/0.65. The maintainer's notes: s42 "a bit
+  of a limp", s52 and s60 "does not walk in a straight line"; in chat "some weave or veer off to the left". Post hoc
+  (not pre-registered): every panel episode of every seed turns the same way, yaw_change_deg min/median/max s42
+  -41/-25/-15, s52 -61/-48/-35, s60 -65/-24/-2 per 10 s; on the azimuth-135 tracking camera a world right turn moves
+  screen-left, which probably explains "left" [inferred by two veer lanes; the axis algebra checked; RL 1073].
+
+Maintainer decisions behind this pilot [measured: RL 1072-1082]
+  (19) 2026-11-05 18:46 UTC "Diagnose the veer": CPU only, no training (the VEER DIAGNOSIS, RL 1073).
+  (20) 20:35 UTC "Draft pilot 4: beacon + heading"; stopped by (21) (its partial files kept in SP/work/pilot4/draft/).
+  (21) 21:03 UTC "Redirect, after a CPU check": the follow-direction mechanic (the COMMAND-ROUTE CHECK, RL 1077).
+  (23) 22:12 UTC "Hybrid: walking + straight cmd": keep pilot 3's walking stage and R6, feed a "point straight"
+       command through the reserved command inputs, add a heading price (the HYBRID CHECK, RL 1081).
+  (25) 23:40 UTC structure "A: keep the walking stage": 03_locomotion, stage 2; the self-load rule limited to this one
+       stage. (26) entry "Switch off": no warm-up, forward weight 2.0 from the start, each walker keeps its own
+       log_std (about -1.94). (27) heading price 0.2, scale 0.5 rad. (28) command speed input 1.5 m/s, top of scale.
+       Carried defaults from the checks: prey_lateral_range [0, 0]; the 11 behaviour recipes do not inherit the new
+       [env] keys; the price is computed from the current pelvis yaw against the command's desired heading.
+  Decisions (22), (24), (29) and (30) concern the gait-report module (PR #659); none of them is part of this pilot,
+  and no outcome here reads that module's flags (its numbers appear only as report-only references).
+  (31)-(36), 2026-11-06, on draft v3 and before the freeze: "Decisions taken" below [measured: RL 1093,
+  1096].
+
+The question, and what an answer can and cannot claim
+  Question: does a visible heading (the reserved command inputs obs[60:63] carrying a fixed straight command whose
+  desired heading is the spawn heading) plus a heading price make pilot 3's walking gait straight in a 2,000,000-step
+  fine-tune of each seed's own 8M checkpoint, without losing the gait?
+  The claim a STRAIGHT WALKS pilot outcome supports: on at least 2 of the 3 seeds the fine-tuned walker is WALKS by
+  pilot 3's unchanged rule and video, and STRAIGHT by the three pre-registered parts below (end heading, weave,
+  recovery from a 15-degree offset that only the command inputs show), all on the pilot-4 env's panels.
+  What it cannot show:
+  - A rate. Three seeds give existence, not a rate [P3 L901-903]; the existence reading is pre-registered for that.
+  - Anything from scratch. It is a fine-tune of walkers that already walk, from a parent trained without the command
+    or the price; whether the stance parent with the command and price from the start would walk straight is open.
+  - Which change did it. The command, the price and the prey on the spawn line are applied together; there is no
+    ablation arm.
+  - The beacon route. The prey is not held ahead (the beacon of decision (20) is not built); the heading reaches the
+    policy through obs[60:63] (obs[62] linear in the error within 11.46 deg and +-0.5, the sign only, beyond it;
+    obs[60] the cosine, the size only) and, before the prey is passed, through the prey block. Nor the
+    follow_direction behaviour route: its tracking reward, turns and 2,500-step episodes are not used, and a
+    pilot-4 checkpoint cannot be prepared for it today [measured as recorded: hybrid check screen lane finding 17,
+    prepare_behavior_checkpoint refuses a nonzero command-slice mean].
+  - Turning commands, other commanded speeds, a commanded heading other than the spawn heading, terrain.
+  - Straightness in pilot 3's env (report only); certification. Nothing trained is certified, published or reused;
+    main and its digests are unchanged [P3 L1424-1425].
+
+Changes against pilot 3, and why (everything not listed is pilot 3's rule, unchanged)
+  D1  Parent: each seed's own pilot-3 periodic pair at 8,000,000 (not the stance parent), decision (25) ("Parent").
+  D2  Code: pilot 3's head 31d02e42 plus fourteen pilot-only commits (seven built, four review fixes, three postfix
+      fixes), never merged ("Code").
+  D3  A live straight command on the reserved inputs ([env] command_mode "heading" and one [env.command_config]
+      table), decisions (23) and (28). Why: the policies sense yaw rate but not heading, except through the prey block
+      while the prey is ahead [measured as recorded: VEER DIAGNOSIS, RL 1073, finding (4)].
+  D4  prey_lateral_range [0.0, 0.0] (carried default): R6's forward and heading reference (the prey line), the command
+      and the price then share one heading exactly [measured as recorded: hybrid check config lane finding 14].
+  D5  The heading price r_H = -0.2 x min(|theta| / 0.5 rad, 1), decision (27). Why: R6 pays a straight copy of each
+      8M walk only +9.6 per episode over its curve (median, 0.32% of return, prey-line reference) [measured as
+      recorded: veer reproduce verifier, d_margins.txt], and +8.0 (0.26%) against the spawn heading with the prey on
+      the line; with the price, on that same reference, the margin is +69.8 (2.31%) [measured as recorded: hybrid
+      check screen lane finding 7].
+  D6  Entry shaping off: warmup_timesteps 0, ramp_start_value 2.0 (a constant forward weight 2.0), no
+      warm_start_log_std (each walker keeps its own log_std); no critic-phase drop (the 8M pairs have no phase input).
+      Decision (26). Why: the walkers were trained at forward weight 2.0 from 2M on, and the warm-up and the reset
+      would perturb a working gait [inferred: hybrid check verifier finding 7 lists what a self-load would inherit].
+  D7  Budget 2,000,000 (decision (25)); cadence, decision (33): an evaluation every 65,536 steps, checkpoints
+      every 250,000.
+  D8  collapse_peak_floor_reference 1092.6 -> 1064.0, re-measured with the price on ("What is trained").
+  D9  Judging: pilot 3's probe and WALKS rule unchanged, run in the pilot-4 env, PLUS a pre-registered STRAIGHT rule
+      (new: end heading; weave with a zig-zag guard; recovery from a nudge after the prey pass, the prey turned with
+      the walker); seed and
+      pilot outcomes extended (STRAIGHT WALKS, STRAIGHT NO RECOVERY, CURVED WALKS, NOT WALKS); the video review
+      gains a straightness look; an entry baseline holds the launch.
+  D10 The habit readout becomes report only (it picked pilot 3's Q4 branch; pilot 4 has no Q4 question).
+  D11 Run IDs pilot4_walk_s<seed>; the resume rule follows from D6 (the shaping is inert, so no resume is
+      off-schedule).
+
+Parent and entry (decisions (25) and (26))
+  Each seed is fine-tuned from its own pilot-3 periodic pair at 8,000,000 steps, never from another seed's. The pairs,
+  as the verified read-only run copies hold them (SP/work/pilot3/runs/final/pilot3_walk_s<seed>/03_locomotion/models/;
+  the fetch was blob-verified, 48/48 files per run [measured as recorded: RL 1065, 1067]) [measured: sha256sum and
+  stat, SP/work/pilot4/build/code/logs/parent_pairs_sha256.txt; the Drive ids as the build stage recorded them]:
+    s42 stage2_8000000_steps.zip  4,034,574 B sha256 41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4
+                                  Drive id 1EcAzHA6LFy1njVIA5r2wLqNOIgR1b0tM
+        stage2_vecnormalize_8000000_steps.pkl 4,903 B b9e6dee894e549ca4e844f7ef3c162e0f52609eacede7b1790e5d649e77d9cce
+                                  Drive id 1jUcgWpxyR4ELIO6FX41rsjcFSloPA2sh
+    s52 stage2_8000000_steps.zip  4,034,570 B sha256 2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00
+                                  Drive id 1tZaPbxP4n7EV9BYMMzfFRZHQNSXNVMsH
+        stage2_vecnormalize_8000000_steps.pkl 4,903 B cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a
+                                  Drive id 1gD1d5eIg42uCTm1aiL1TaIKMFAZWqAQi
+    s60 stage2_8000000_steps.zip  4,034,566 B sha256 2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2
+                                  Drive id 1N_1Pu58LarOa8qu4QVQMDIrKlYoeeFmh
+        stage2_vecnormalize_8000000_steps.pkl 4,903 B 56e58a536d08198fdafbde3310e05116ff65e7cd471f536016858f87f9c32dc9
+                                  Drive id 1PxHT5pB2_UguvRpttGo7SSLXtabntIQF
+  The zip's sha256 is what each run must record as run.parent_checkpoint_sha256 and what the pilot-4 judge binds, per
+  seed. Each zip records [measured as recorded: the stopped beacon draft's read of the JSON data members, SP/work/
+  pilot4/draft/out/facts.txt]: num_timesteps 8,000,000; task stage 2, task_sha256 782d95b6... (pilot 3's command-free
+  task); interface ffbf6631...; lineage initialize_next_stage from stage 1; log_std mean -1.9381 / -1.9425 / -1.9591
+  (exp: mean 0.1467 / 0.1460 / 0.1451, min 0.1063 / 0.1061 / 0.0956, max 0.1817 / 0.1816 / 0.1898); the sidecars'
+  obs_rms count 32,002,572 and ret_rms var 3.865e4 / 3.895e4 / 3.774e4.
+  The edge. The committed stage accepts each pair under initialize_next_stage only through the pilot-only key
+  [curriculum] initialize_from_own_checkpoint = true, refuses it with the key cleared, and the pair records task
+  782d95b6..., not the stage's 914a1cae... [measured as recorded: the build stage, SP/work/pilot4/build/code/logs/
+  parent_edge.json]. Since commit 8 (4500774) the key admits only a command-free checkpoint of the stage itself: a
+  command-trained one (any pilot-4 checkpoint) is refused under initialize_next_stage and can only be resumed
+  (resume_same_stage, which the edge check does not read: train_base.py line 2105 at 7700f28 and 0e6a57b)
+  [measured: fix stage tests; code reading]; the three 8M pairs carry no command section (task 782d95b6...)
+  [measured as recorded: the setup check].
+  What train()'s pre-learning path then does, measured in the hybrid check's clones with the edits
+  applied locally and the entry shaping still on [measured as recorded: hybrid check config lane finding 8 and the
+  verifier's (b)]:
+  - zeroes columns 60-62 of mlp_extractor.policy_net.0.weight and value_net.0.weight (1,536 entries each; the
+    parents' columns held their untrained initial values, L2 sqrt 2) and their Adam moments (already 0); every other
+    tensor is kept bitwise but log_std (which that run reset to -2.0; decision (26) keeps it [inferred: no
+    warm_start_log_std key]), as are the Adam moments and step counts (742,878 / 744,057 / 742,882); the lineage
+    records zeroed_command_parameters and the parent task 782d95b6...;
+  - reseeds obs_rms[60:63] (var 3.12e-12 -> 1.0, mean 0) on both envs and carries every other channel and the count;
+  - resets ret_rms (var 1, count 1e-4, against the parents' 3.8e4-3.9e4): a transient in the first rollout, about 1.1
+    times the parent's scale over it and far above it only for its first ~100 steps [measured as recorded: hybrid
+    verifier finding 5, an offline replay; inferred: transient];
+  - leaves the deterministic policy unchanged: on zero commands and, prepared, on live ones (action and value delta
+    0.0 over 6,000 steps) [measured as recorded: config lane finding 10]; this draft's own rollouts of the prepared
+    walkers in the committed pilot-4 env reproduce the hybrid check's records (out/recov/, dA 0.0 on every step);
+  - restarts the [ppo] schedules: learn(reset_num_timesteps=True) restarts the step counter and the checkpoint
+    numbering; ent_coef 0.005 from the TOML (the archive held 0.001) decaying toward 0.001 over 4,000,000; the
+    learning rate LinearSchedule 5e-5 -> 1e-5 over the 2,000,000 [measured as recorded: config lane finding 8]. Both
+    start 5 times pilot 3's values at its 8M end (Q17 below).
+  The committed config (decision (26): warmup_timesteps 0, ramp_start_value 2.0, no warm_start_log_std) was run up to
+  learn() by a parallel setup check, through the notebook's own path (Run all stopped by pilot 2's guard at cell 20,
+  then the manual cell 22) on byte copies of each pair, learn() blocked before any update, nothing trained [measured
+  as recorded: SP/work/pilot4/build/check/SUMMARY_table.txt and SUMMARY.json; re-run at 7700f28, below]:
+  only columns 60-62 of the two first layers changed (1,536 entries each, now 0); log_std kept bitwise (mean -1.9381
+  / -1.9425 / -1.9591); the Adam moments and step counts kept; obs_rms[60:63] var 3.12e-12 -> 1.0 with channels 0-59
+  bitwise; ret_rms reset (count 1e-4); at learn(): total_timesteps 2,000,000 with reset_num_timesteps true, ent_coef
+  0.005, clip 0.2, the schedule 5e-5 -> 1e-5 (the optimizer holds 1.0023e-5 until the first update), forward weight
+  2.0, the price 0.2, command_mode heading and prey [0, 0] on all 4 envs; the warm-up's clip and entropy (0.02) are
+  attached at the start and restored to 0.2 and 0.005 after the first vectorized step (4 timesteps), before any
+  update; entropy reads 0.003 at 2,000,000 in its schedule simulation; stage_config.json's run block records
+  load_mode initialize_next_stage, the seed's parent sha256, parent_task_sha256 782d95b6... and hyperparameters_sha256
+  fbc94bef...; the model's lineage attribute records parent stage 2, child task 914a1cae... and
+  zeroed_command_parameters; the prepared walker's actions equal pilot 3's on command-zeroed observations (delta 0.0
+  over 1,000 steps), while the unprepared parent on live observations would move them by up to 0.59-0.76.
+  The postfix code verification re-ran this check at 7700f28 on all three pairs (the notebook cells through the
+  pinned runner, learn() replaced by a raise, nothing trained): every number bit-equal to the 0bcb0cf record
+  (rollout, start actions, VecNormalize, log_std, extra episodes), the recorded git_commit 7700f28, the recorded task
+  914a1cae... and PPO hyperparameters fbc94bef... equal to the tree's own derivation, the pairs unchanged [measured
+  as recorded: postfix/code/logs/setup_summary.json]. The setup lane re-ran it at the head 0e6a57b (commits
+  12-14 included) on all three pairs: of 146 leaves per seed only two module paths and git_commit differ
+  from the 7700f28 record ("Pre-launch checks").
+
+Code
+  Pilot 3's head 31d02e42d148511e50f9cba9a598d9a9d36c23af (the commit pilot 3's runs recorded [measured as recorded:
+  RL 1060]) plus the local branch pilot-walk-r10-p4, never merged, no pull request, not pushed, head
+  0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 [measured: git log of SP/wt_p4, clean tree, push URL still disabled; the
+  first draft read 0bcb0cf, commit 7; v2 read 7700f28, commit 11]. Its commits, oldest first [measured: git log
+  31d02e42..HEAD; commits 1-7 as the build stage reported them, 8-11 as the fix stage made them, 12-14 as the
+  postfix fix stage made them]:
+    1. 24d36a0b456ba75ceda37c5fa19163d66c9debc4 edit (1): BaseDinoEnv.__init__ builds DirectionCommandConfig from a
+       dict command_config (environments/shared/base_env.py, tests).
+    2. 77e919ac029023b7eedb492bf9aee7ab28241070 edit (2): derive_stage_task_fingerprint derives the command manifest
+       from [env] command_config when the mode is live and no manifest is passed (task_fingerprint.py, tests).
+    3. 41010383363374b8ae9aa6c8a6157d21377c384c edit (3): validate_declared_parent accepts the node's own earlier
+       checkpoint only when that node's [curriculum] declares initialize_from_own_checkpoint, a pilot-only key that
+       only this config sets (curriculum/gate_schema.py, task_fingerprint.py, train_base.py, tests).
+    4. e6511d4953df5b1e19146e1fa1ae0f5db75edb6c edit (4): train_behaviors.LOCOMOTION_ONLY_ENV_KEYS, keyed to T. rex
+       anatomical only, drops command_mode, command_config, prey_lateral_range and the two price keys from the [env]
+       the recipes inherit (an unkeyed drop would have moved 22 of compsognathus' and dibothrosuchus' 33 recipe
+       tasks [measured as recorded: build stage, scripts/measure_global_drop.py]).
+    5. 574c485882610dcf9c4d7956dea741c2f099097f and 6. 3d4dd7c68f5269f5abb1199034f135c78fcf0bda edit (5): the
+       default-off price keys walk_heading_price_weight (0.0) and walk_heading_price_scale_rad (0.5) in one
+       OPT_IN_TASK_KWARGS entry, the term, and test_anatomical_walk_heading_price.py (13 test functions at commit 7,
+       15 at commit 10 [measured: grep]; 27 cases passed at 3d4dd7c, and 4 of 5 one-place mutants were killed
+       before 6 added the test that kills the fifth, "added while off" [measured as recorded: build stage]).
+    7. 0bcb0cf941ba6d9d44cc4020e8dff59f773085a9 the pilot-4 locomotion.toml, the regenerated digest snapshot, the
+       species catalog files (2M), and the pinned tests updated in 7 files.
+    8. 4500774 (review fix) validate_declared_parent: initialize_from_own_checkpoint admits only a command-free
+       earlier checkpoint of the node; a command-trained one is refused (it is resumed instead), because
+       initialize_next_stage would reseed its learned command statistics and reset ret_rms (docstrings, the
+       gate_schema and TOML comments, tests).
+    9. 8a54d1c (review fix) direction_commands.direction_command_config_from_table (a table field that should be a
+       number and is not, a string or a bool, is a TypeError, not coerced) and check_command_mode_config (the env's
+       "heading" rule, moved out of BaseDinoEnv.__init__ word for word), used by the env and by the fingerprint's
+       derivation (tests); commits 12 and 13 close the two gaps it left (an int, an unknown mode).
+   10. 716926f (review fix) the price's two keys must be numbers (a bool or a string is refused by name); a test of
+       the price at weight / scale 0.1 / 0.25 and 0.35 / 1.0 beside 0.2 / 0.5.
+   11. 7700f28 (review fix) a test that a recipe's own [env] keeps a key the locomotion drop leaves behind; two TOML
+       comments corrected (the 0-step warm-up's clamp at training start; checkpoint_freq now points to this text for
+       the judged checkpoints, which this text governs).
+   12. fc47118 (postfix fix) direction_command_config_from_table: every number of the table, speed_range's two bounds
+       included, must be written as a float (4.0, not 4; not a string, not a bool), else a TypeError naming the
+       field, because the env section hashes 4 and 4.0 as two tasks with one command (the postfix code verification
+       measured switch_interval_s = 4 hashed as sha256:113f2e6d... against the committed 914a1cae..., and speed_range
+       ["0.5", "1.0"] and [true, true] built and hashed too [measured as recorded: postfix/code/logs/
+       probe_residual_7700f28.json, probe_intfloat_7700f28.txt]); seven refusal cases added, the test that accepted
+       ints turned into a float-table test (tests).
+   13. 3713242 (postfix fix) derive_stage_task_fingerprint checks a live table in BaseDinoEnv.__init__'s order with
+       its three helpers, the env's mode validator first (command_frame.validate_command_mode, under the derivation's
+       backend), so an unknown mode such as 'sideways' is a TaskFingerprintError rather than hashed (it was hashed,
+       sha256:ef0722c1..., while the env refused it [measured as recorded: postfix/code/logs/
+       probe_residual_7700f28.json]); the docstrings now say what holds: no table under a live mode that the env
+       refuses is hashed, and a table under "none" (which the env refuses) is carved out as before (tests).
+   14. 0e6a57b (postfix fix) the derivation reads the live mode by key, so mypy passes; no behaviour change.
+  Mutation check of the fixes on a scratch clone [measured: fix/logs/pt_new_tests_on_0bcb0cf.txt, mut_E5a.txt,
+  mut_E5b.txt, mut_E4c.txt]: the new code-fix tests fail at commit 7 (18 cases), and the code review's three
+  surviving mutants (the price's scale or weight hard-coded; the drop applied to the merged [env]) are now killed.
+  The postfix code verification killed 18 of 18 one-place mutants of commits 8-11 [measured as recorded:
+  postfix/code/logs/mutants.json]. Of commits 12-13, 7 of 7 one-place mutants (an int accepted; speed_range's bound
+  check removed; an int bound accepted; speed_range skipped; the derivation's mode validator removed, its backend
+  hard-wired, its refusal not wrapped) are killed by test_walk_pilot4_command_route.py, on a scratch clone restored
+  clean after each [measured: postfix/fix/logs/mutants.json].
+  Digest lines that moved, all at commit 7 and all T. rex anatomical locomotion's (digest_snapshot --check: exactly
+  8 lines, 0 ERROR lines, 649 lines) [measured as recorded: build stage, logs/digest_golden.diff, read here]:
+  task_sha256 782d95b6... -> 914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a;
+  hyperparameters_sha256.PPO 85881fc4... -> fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62; .SAC
+  05cce74d... -> 49fa0f8e...; stage_config_view_sha256.PPO c0f35553... -> 5761bf83..., .SAC cb47b068... ->
+  4e8a314f...; the reward summary, shape_sha256 22fb62f8... -> 5c10293b... and rounded_values_sha256 64108560... ->
+  fb4b9eea.... Unchanged: gate 02602cb0..., the reward poses line, the 11 T. rex behaviour recipe task lines, every
+  plant and policy line and every other model. Putting pilot 3's three shaping lines back restores 85881fc4... (a
+  test) [measured as recorded: build]. Commits 8-11 move no digest line (--check current after each, 649 lines, 0
+  errors) [measured: fix/logs/digest_check_a.txt to digest_check_d.txt], nor do commits 12-14 (--check current after
+  12 and 13 and at 14, 649 lines, 0 errors; the locomotion task line still 914a1cae... [measured: postfix/fix/logs/
+  digest_check_1.txt, digest_check_2.txt, digest_check_final.txt]).
+  Tests at 0e6a57b through the guarded runner (it blocks learn/train/optimizer.step/backward), the build stage's 57
+  files with its 219 deselected training-test ids (build/code/logs/deselect_final2.txt): 2713 passed (2705 at 7700f28
+  [measured: fix/logs/pt_final_f0.txt to f2.txt] plus 8 new cases), 4 xfailed, 393 deselected (they train), 4
+  failed, 0 guard hits [measured: postfix/fix/logs/pt_full_f0.txt to f2.txt]. The same 4 ids fail at the head and at
+  31d02e42, against main's expected recipe digests fde660ac.../49ef875a... (actual fbc94bef.../49fa0f8e... at the
+  head, 85881fc4.../05cce74d... at 31d02e42); at 31d02e42 two more tests in the same files fail because pilot 3
+  declares warm_start_log_std -2.0, and both pass at the head [measured as recorded: postfix/code/logs/
+  pt_known_31d02e42.txt; measured at 0e6a57b: postfix/fix/logs/pt_main_final.txt]. ruff check and ruff format
+  --check on environments/ (434 files), mypy environments/ --ignore-missing-imports (430 files, no issues), digest
+  --check and the catalog test pass at 0e6a57b [measured: postfix/fix/logs/ruff_check_final.txt,
+  ruff_format_final.txt, mypy_final.txt, digest_check_final.txt]. The runs must record the head as git_commit; if it
+  moves before launch, this file is amended first [P3 L184-186]. Hold: once pushed, nothing more is pushed to the
+  branch until every seed, resumes and _b restarts included, is judged [P3 L185-186].
+
+What is trained
+  Pilot 3's production T. rex locomotion stage (stock PPO, main's [ppo], the reward_and_length/v1 gate recorded and
+  never enforced, R6 exactly as pilot 3 [P3 L188-248]) with these [env] and [curriculum] differences (configs/
+  tyrannosaurus_rex/anatomical/locomotion.toml at 0bcb0cf, lines 52-82 and 135-158, 168-203, 237-248; commits 8 and
+  11 reword comments there and change no value, commits 12-14 do not touch it [measured]):
+    command_mode = "heading"                   the desired heading is the root heading at reset, the spawn heading
+                                               (0.0 rad exactly on every panel reset [measured as recorded: hybrid
+                                               check, 420 of 420 episodes]); a yaw-rate request clip(1.5 err, +-0.3)
+    [env.command_config], written once:        rad/s reaches obs[62] = request / 0.6, signed and linear for |err| <=
+      cruise_speed 1.5, stop_probability 0.0,  0.2 rad (11.46 deg); obs[60] = (1.5 / 1.5) x max(0.25, cos err) and
+      turn_increment_max 0.0,                  obs[61] = 0 [measured as recorded: hybrid check screen lane finding 5,
+      straight_probability 1.0, speed_scale    to 8e-7 deg]. Fields not written take the dataclass defaults:
+      1.5, lateral_speed_scale 1.0,            speed_range none, switch_interval_s 4.0, switch_jitter_s 0.0 (a switch
+      yaw_rate_scale 0.6, yaw_gain 1.5,        only re-draws a straight request). The task digest hashes the table
+      yaw_rate_max 0.3, turn_slowdown true,    as written, so it is never rewritten [measured as recorded: hybrid
+      minimum_turn_speed_fraction 0.25         verifier finding 1]; every number in it is a float, as commit 12
+                                               requires (an int, a string or a bool is refused).
+    prey_lateral_range = [0.0, 0.0]            the prey 8-12 m straight ahead on the spawn line; the reset's draw is
+                                               still consumed, so reset poses equal pilot 3's [measured as recorded:
+                                               config lane finding 14]
+    walk_heading_price_weight = 0.2,           r_H = -0.2 x min(|theta| / 0.5, 1) per control step, theta =
+    walk_heading_price_scale_rad = 0.5         wrap(yaw of the CURRENT pelvis quaternion - the command state's
+                                               desired_heading) in [-pi, pi); 0 on a stop or with no command state; a
+                                               positive weight with command_mode "none" is refused; added last to the
+                                               step's total, info keys walk_heading_error_rad and
+                                               reward_walk_heading_price only while on [measured: tyrannosaurus_rex/
+                                               base_env.py lines 229-245, 615-623, 1476-1494, 1589-1590 at 0bcb0cf]
+    [curriculum] timesteps 2000000, eval_freq 65536 (decision (33)), eval_episodes 10, checkpoint_freq 250000
+      (decision (33)), max_checkpoints 0, initialize_from_own_checkpoint true, warmup_timesteps 0,
+      ramp_start_value 2.0 (ramp_timesteps 2,000,000 stays, inert), no warm_start_log_std;
+      collapse_peak_floor_reference 1064.0,
+      collapse_peak_floor_fraction 0.45 (floor 478.8), collapse_min_evals 20, collapse_patience 10,
+      collapse_drop_fraction 0.5. The committed comments on eval_freq and checkpoint_freq (locomotion.toml lines 138
+      and 144 at 0e6a57b) still read "PROPOSED, not yet decided": the last commit to touch the file, 7700f28 (commit
+      11, 03:11 UTC), came before decision (33) (05:27 UTC, RL 1093), and no commit is made for a comment, which
+      changes no value or digest [measured: the file and its git log at 0e6a57b, read only,
+      prelaunch/fix/logs/toml_comments_git_log.txt and toml_git_log_newest3.txt; inferred: the digests read parsed
+      values, not comments].
+  The price's size: 0.4 per rad per step below the 0.5-rad saturation, about 0.007 per degree; a walk 10 deg off for
+  a whole episode pays about -70, against R6 returns of about 3,080 [inferred: the formula]. Under the screen it
+  costs the curved 8M walks -69.4 per episode and their straightened copies -7.9 [measured as recorded: hybrid
+  verifier (c)].
+  The statue pays it too, because it yaws up to 14 deg in 10 s: the zero-action statue in this [env] earns 1064.02 +/-
+  24.62 (40/40 full horizon, seeds 3042-3081; price -29.3 per episode on average, median -23.1, worst -86.9; price off
+  1093.37 +/- 4.01; pilot 3's [env] 1091.07 +/- 5.83), hence the reference 1064.0 [measured as recorded: build stage,
+  zero_action_baseline.py --stage 2 --episodes 40; locomotion.toml lines 194-202 at 0bcb0cf, 197-205 at 7700f28
+  and 0e6a57b].
+  Unchanged: R6 term by term (the live mode adds no reward term; rewards, info and state bitwise equal to a
+  command-free twin over 6,000 steps [measured as recorded: config lane finding 3]); physics r10 (6a47a0eb...),
+  interface r15 (ffbf6631...: the command slice already exists in r15); [ppo]: learning_rate 5e-5 -> 1e-5, n_steps
+  4096, batch 256, n_epochs 10, gamma 0.995, gae_lambda 0.95, clip 0.2, ent_coef 0.005 -> 0.001 over 4,000,000,
+  target_kl 0.05, net [512, 256]; N_ENVS 4; the gate (02602cb0...).
+
+Budget and cadence (decision (25); the cadence decision (33))
+  2,000,000 per seed: rollouts of 4 x 4096 = 16,384, so training ends at 123 rollouts, 2,015,232 steps [inferred: SB3
+  trains while num_timesteps < total, P3 L386-387]. Checkpoints every 250,000: 8 pairs, the last at 2,000,000, saved
+  during the last rollout before its update [inferred: P3 L387-388]; max_checkpoints 0 keeps all 8 (about 4.03 MB
+  each). Evaluations: 10 episodes every 65,536 steps, 30 in all, the last at 1,966,080 [inferred: one per 65,536];
+  pilot 3's 131,072 would give 15. Why 65,536: the collapse backstop arms only after collapse_min_evals 20; at
+  131,072 it could never arm within 2M; at 65,536 its earliest stop is the 29th evaluation, 1,900,544 [inferred:
+  pilot 3's earliest stop 3,801,088 = 29 x 131,072, P3 L624-625], so it can still almost never fire; the denser
+  ledger also gives the report-only habit readout 30 rows instead of 15. Why 250,000: the deciding pair at the budget,
+  a trajectory pair at each quarter, and pairs to resume from (D11). Cost of the denser evaluation: 15 more
+  evaluations of 10 x 1,000 deterministic steps, a few minutes per seed [inferred].
+  L4 time. Pilot 3 trained 8,011,776 steps in 6h 38m 5s to 6h 41m 0s per seed (stage_summary.txt), about 333-335
+  steps/s overall including 61 evaluations [measured: the run copies' stage_summary.txt]; RL 1062 estimated about
+  320 steps/s from the pair times. At 320-335 steps/s, 2,015,232 steps take 1.67-1.75 h, plus the 15 extra
+  evaluations, the final evaluation and videos (about 4 min in pilot 3 [measured as recorded: RL 1063]) and set-up:
+  about 1.9-2.1 h per seed, about 6 L4-hours for the three [inferred]. Allow 3 h per runtime.
+  Futility stop: none; every seed trains to the budget; no judgement stops a run [P3 L410-411, L707-708].
+
+Seeds and runs
+  Seeds 42, 52 and 60, each from its own parent, one Colab L4 runtime each; Run IDs pilot4_walk_s42, pilot4_walk_s52,
+  pilot4_walk_s60; a restart is pilot4_walk_s<seed>_b. Pilot 3's run folders are never written to; they are read
+  only for each seed's parent pair (Q4). All three are launched whatever an earlier seed shows; the scored
+  set is fixed (--seeds 42,52,60); if fewer than three slots are free, the order is 42, 52, 60 and nothing about a
+  later launch depends on an earlier seed's readouts [P3 L377-383]. Whether s42 stays despite its limp: Q6
+  below (decided: it stays, decision (33)).
+
+How it is judged (pilot 3's rule, unchanged, in the pilot-4 env)
+  The frozen gait probe, pilot 1's adapter and every label, guard, threshold and outcome rule of pilot 3 [P3
+  L413-436, L537-556, L615-643]: 40 deterministic panel episodes on resets 3042-3081, gait window from 1 s (settle
+  100), the floor-truth contact channel, on a clean clone of the pilot-4 branch at the head the runs recorded, at each
+  judged checkpoint with its sidecar. The probe builds the env from the tree's committed locomotion.toml, so on this
+  branch it judges under the same live straight command, prey line and price as training [measured as recorded:
+  hybrid config lane finding 17, the probe builds env_class(**load_stage_config(...)['env_kwargs']); with edit (1) it
+  builds]. No label reads a reward [P3 L420-423]. The probe is not re-frozen; no label changes.
+  Judged checkpoints: 500,000, 1,000,000 and 1,500,000 (scored and reported as the trajectory; they do not decide) and
+  2,000,000 (decides), each an intact pair (stage2_<steps>_steps.zip with stage2_vecnormalize_<steps>_steps.pkl)
+  [P3 L424-427]. Final-model fallback: when the deciding pair is missing or broken while the final pair is intact and
+  records the uninterrupted end, num_timesteps 2,015,232, the seed is decided at the final pair and reported so [P3
+  L428-432, the numbers adapted].
+  Gait reading (pilot 3's seed and pilot outcomes, word for word, read in the pilot-4 env): WALKS / HOPS / FALLS /
+  STILL / MIXED per seed [P3 L615-620], then the video review [P3 L585-613], then pilot 3's pilot outcome [P3
+  L644-653]. It answers "without losing the gait"; it is printed beside the pilot outcome below and never replaces it.
+
+STRAIGHT (new, pre-registered; read only on a seed that is WALKS by the rule; every bar is a choice, Q1)
+  Terms. psi(t): the unwrapped pelvis yaw from the probe's recorded quaternion (the formula of gait_probe.py lines
+  243-248, the one yaw_change_deg reads), states 0..T. psi_cmd: the commanded heading, the command state's
+  desired_heading (the spawn heading, 0 on every reset). The 1-s mean heading m_k: the mean of psi over states
+  k-50..k+50 (101 states), for k = 151..T-50, so every mean lies inside the gait window. These are computed on the
+  judged episodes themselves: the straightness tool re-rolls the panel through the probe's own rollout and uses an
+  episode only if every re-rolled metric equals probe.json's (pilot3_video.py's rule [P3 L602-606]).
+  Percentiles: the p-th percentile of n values is numpy.percentile's default (linear interpolation between the order
+  statistics, at position p/100 x (n - 1) of the sorted values); the median is the 50th. An r = inf (part (c)) sorts
+  last; a median or percentile whose interpolation uses an inf reads inf (numpy returns nan when both neighbours are
+  inf, and also when only the upper one is and the interpolation fraction is 0.5 or more, as at n = 30 with 2 inf
+  [measured: postfix/text/out/pct_inf.txt]; the tool maps any nan to inf, also at an integer position with an inf
+  above it, e.g. the median of 31 values with 15 inf, where p95 is inf too, so no (c) verdict changes); inf fails
+  every bar, so with 40 values one inf passes a p95 bar and two fail it [measured: review_text/out/review_calc.txt
+  P4].
+  (a) and (b) are read on the full-length (1,000-step) panel episodes: at least 36 of 40 on a WALKS seed, which has at
+      most 4 falls [P3 L616].
+  (a) End heading: the probe's own yaw_change_deg (psi[T] - psi[101], probe.json): |median of the signed values| <=
+      5.0 deg AND the 95th percentile of |yaw_change_deg| <= 15.0 deg.
+  (b) Weave: D = max over k of |m_k - psi_cmd| (the largest deviation of the 1-s mean heading from the commanded
+      heading inside the window) and W0 = max over states 101..T of |psi - psi_cmd| (the instantaneous maximum).
+      Pass: the 95th percentile of D <= 11.5 deg AND the 95th percentile of W0 <= 18.5 deg. W0 is the zig-zag guard:
+      W0 - D is 1.6-6.8 deg on every one of the 197 recorded full-length walker episodes (pilot 3's env, the pilot-4
+      entry, the far prey and the beacon: 59 + 59 + 20 + 59) and 0.6-5.9 deg on 200 hand-built ones [measured:
+      review_text/out/review_misc.txt M2]. Printed beside it, report only: the range R = max m_k - min m_k (median
+      and p95) and the last 1-s mean's signed error.
+  (c) Recovery, on a recovery panel of 40 episodes: reset seeds 3042-3061 (the panel's first 20, as pilot 3's habit
+      trace [P3 L829]), each rolled twice, nudged once by +15 deg and once by -15 deg (a rotation about the world
+      vertical through the root; + is counter-clockwise seen from above, so psi increases by the angle). The nudge:
+      after state 650 (6.5 s) is recorded and the action of step 651 has been computed from its observation, only if
+      step 650 neither terminated nor truncated the episode: the root quaternion q <- q_z(angle) x q, the root linear
+      velocity qvel[0:3] (world frame) rotated by the same angle, the root angular velocity qvel[3:6] (body frame in
+      MuJoCo) left as it is, and the prey (the mocap body, data.mocap_pos[0]) rotated by the same angle about the
+      same vertical axis through the root (the free joint's position qpos[0:2]); the commanded heading is not moved.
+      No mj_forward and no observation rebuild: step 651's env.step integrates from the turned state and refreshes
+      the command as it always does (env._command = env._update_command(), shared base_env.py line 1387 at 7700f28
+      and 0e6a57b), so the observation of state 651 is the first to show the offset. obs[60:63] is then the only
+      input that shows it: every other channel reads as the un-nudged walker's would, turned with it (on 15 of 15
+      entry episodes the state-651 observation differed from the un-nudged one beyond 1e-3 only in obs[60] and
+      obs[62]) [measured: postfix/text/out/nudge_summary.txt]; so it did on all 118 nudged episodes of the entry
+      baseline, channels 60 and 62 only [measured: tolerance stage, tol/val_final/baseline_s42.json, _s52, _s60]. (An
+      mj_forward and a rebuilt observation at state 650 would change obs channels 45-47, 51-55 and 56-59 besides
+      obs[60] and obs[62] even for a 0-deg turn, and move the heading by 0.5-6.9 deg within 10 s [measured:
+      postfix/text/out/nudge_summary.txt].) States 0..650 of a nudged episode must equal its panel episode's bitwise,
+      or the tool refuses. An episode COUNTS when its pelvis
+      has passed the prey by the nudge (pelvis x at state 650 above the prey's x at state 650, before the turn, the
+      hybrid screen's pass rule; the commanded line is the world x axis, the spawn heading being 0.0 on every panel
+      reset). One that ends before the nudge (a panel fall, which WALKS already counts) or passes later is left out;
+      both counts are printed. Residual r = |m_950 - psi_cmd|, the 1-s mean heading error over states 900-1000
+      (2.5-3.5 s after the nudge). A counting episode reads r = inf if it ends before state 1,000, or if the
+      horizontal distance between its pelvis positions at states 650 and 1000 is below 0.35 m (pilot 3's STILL bar,
+      0.10 m/s [P3 L540]). With fewer than 30 counting episodes, (c) is NOT READ ("prey not yet passed at 6.5 s in n
+      of 40").
+      Pass: median r <= 5.0 deg AND p95 r <= 11.5 deg. Printed beside it, report only: the share of the offset
+      removed against the same reset's un-nudged episode, 1 - (e_nudged - e_twin) / offset, per sign; the left-out
+      counts; the same nudge with the prey left in place; the variant turned at the reset (read at 5 s, states
+      450-550).
+  STRAIGHT = (a) and (b) and (c); a (c) that is NOT READ is not a pass. (c)'s episodes are rolled in the same
+  pilot-4 env with the same loader and deterministic actions; a recovery episode is never a panel episode and
+  changes no label.
+  Why these bars (each a choice; the evidence, measured unless marked, is in the tables at the end):
+  - (a) 15 deg is below the heading-free hand-built walks' 16.7 (slower: 0.21-1.0 m/s over about 5.7 m) and below
+    every pilot-3 seed (37 / 52 / 55) and every walker under the beacon without retraining (26 / 23 / 21); at 2.2-2.7
+    m/s over the 9-s window it allows about 6-8 deg per 10 m [inferred]. 5 deg on the median is the size of the
+    hand-built walks' lead-foot bias (-4.7) [measured as recorded: veer screen; reproduced in out/
+    straight_offline.txt]. The 17 deg of the stopped beacon draft was "a choice, not a natural level" [measured as
+    recorded: veer reading verifier finding 5]; so is 15.
+  - (b) 11.5 deg is 0.2 rad, the half-width of obs[62]'s linear range. Inside it obs[62] = 2.5 x the error (sign
+    and size). Beyond it obs[62] holds +-0.5, the sign only, and obs[60]'s cosine gives the size without the sign
+    [measured as recorded: hybrid screen lane finding 5; measured: |obs[62]| = 0.5 with the error's sign on all
+    17,844 entry steps beyond 0.2 rad, review_text/out/check_sat_sign.txt]. Inside the band the walker sees how far
+    off it is, not only which way. The 1-s mean removes the stride's yaw oscillation (rms
+    20-27 deg/s at 2-5 Hz; heading about its 1-s mean 0.9-1.5 deg sd [measured as recorded: veer reward lane finding
+    11]). Pilot 3's walkers give D p95 27-45 at entry (32-52 as judged), the beacon 16-28, the hand-built walks
+    17.9, s42 under a far prey (30 m, never passed) 12.4 [measured: out/straight_offline.txt]. Why D and not R: D is
+    what pointing at the command means. It catches a curve, a constant offset and any excursion of the 1-s mean
+    heading beyond 11.5 deg (a turn and a turn back included), while R misses an offset (Q2). D does not
+    catch a weave whose 1-s mean stays inside the band (up to 23 deg peak to peak about the line passes). The
+    101-state mean scales a heading oscillation of period P by sin(1.01 pi/P) / (101 sin(0.01 pi/P)) (0.63 at 2 s,
+    0.90 at 4 s, 0 at 1.01 s), so a 1-Hz zig-zag of any size passes (a) and D [measured: review_text/out/
+    review_calc.txt P3, review_misc.txt M4]; W0 guards it, capping such a zig-zag at 18.5 deg [inferred: W0 of a
+    sine is its amplitude]. 18.5 = 11.5 + 7: on the 197 recorded episodes W0 exceeds D by at most 6.8 deg (above), and
+    on the whole 40-episode entry panel by at most 7.06 deg (s42 reset 3078; 6.21 s52, 6.77 s60; 6.97 on the smoke's
+    65,536 cell) [measured: tol/val_final/baseline_s42.json, _s52, _s60; smoke/readouts/straight/s42_65536.json;
+    prelaunch/fix/data/check_records.json], so the guard costs these gaits almost nothing that D does not (Q20). What
+    (a) and (b) still admit after the guard (short-period zig-zags, a turn and a turn back, any crab) is listed under
+    Known limits; only the straightness look sees it (Q27).
+  - (c) After the pass the prey block still carries the heading. With the prey on the line, the reversed prey
+    bearing wrap(atan2(obs57, obs56) - pi) tracks the command's heading error (correlation 0.978 / 0.989 / 0.991,
+    median per seed) and differs from it only by the cross-track parallax (0.1-0.6 deg rms once that is removed),
+    on the entry records more than 3 m past the prey [measured: postfix/text/out/postpass_cue.txt]. Hybrid screen
+    lane finding 13 did not compute its "no heading cue after the pass": its summ_roll.py (lines 80-87) reads the cue
+    only while the prey is more than 3 m ahead [measured as recorded: postfix text verification, code reading]. A
+    nudge that left the prey in place would turn that bearing by the nudge angle (-14.5 to -15.0 deg for +15 deg on
+    15 of 15 entry episodes [measured: postfix/text/out/nudge_summary.txt]), and a walker could return by the prey
+    behind it. So the nudge turns the prey with the walker. The policy is memoryless and obs[60:63] is then the only
+    input that shows the offset, so a walker that returns has used the command. Only nudges after the pass count, so
+    that (c) does not pit the command against a prey still ahead, the cue the entry walkers steer by. At entry every
+    one of the 59 full panel episodes on resets 3042-3061 had passed the prey by state 650, the pelvis 0.32-7.10 m
+    beyond it [measured: review_text/out/review_misc.txt M5]. R6 pays no forward speed above 1.5 m/s, and a walker
+    slowed to 2.0 / 1.8 / 1.5 m/s would pass after 6.5 s in about 9 / 27 / 53 of those 59 [inferred: a constant
+    start-up offset of 0.54-0.71 s fitted on the records, review_text/out/review_calc.txt P1]. A slower walker meets
+    more nudges before its pass; those are left out, and with fewer than 30 counting (c) is NOT READ (Q19). When the
+    prey turns with them, the command-blind walkers pilot 4 starts from keep the offset (heading within 2.73e-5 deg of
+    the un-nudged episode plus the angle at 10 s on 118 of 118 nudged entry episodes, actions within 3.90e-6; states
+    0..650 equal 80/80 / 76/76 / 80/80; the state-651 observation beyond 1e-3 only in obs[60:63] on 40/40 / 38/38 /
+    40/40): median r 22.8 / 34.8 / 29.1 deg, p95 40.2 / 55.4 / 52.7, within 11.5 deg on 18/40, 2/38 and 3/40, share
+    removed 0, so (c) fails on all three [measured: pilot4_straight.py baseline mode on every nudge, tolerance
+    stage, SP/work/pilot4/prelaunch/tol/val_final/baseline_s42.json, _s52, _s60; reproduced by an independent
+    rollout within 6.1e-8 deg, SP/work/pilot4/tools/out/review_validity/data/cmp_s*.json]. With
+    the prey left in place, under the first draft's mechanics (mj_forward and a rebuilt observation at state 650),
+    they read median r 21.6 / 34.9 / 28.2 deg (under the fixed mechanics 21.3 / 34.7 / 28.5 [measured: tolerance
+    stage, SP/work/pilot4/prelaunch/tol/val_final/baseline_s42.json, _s52, _s60]), share removed -0.11 to
+    +0.05 (medians per seed and sign), and the nudge made no walker fall (118 nudged episodes, all counting
+    under the pass rule; s52's two left out are the panel fall at reset 3050, 90 steps) [measured:
+    out/recov_rule.txt, out/recov_summary.txt]. A turn at the reset
+    instead is not discriminating: s60 passes it as it is (read at 5 s, first draft's mechanics: median 1.8, p95 6.8,
+    40 of 40 within the band, share removed 0.91; under the fixed mechanics, the turn after state 0 with the prey left
+    in place, median r 12.9 / 6.0 / 1.4, within 11.5 deg 17 / 30 / 40 of 40 [measured: tolerance stage,
+    SP/work/pilot4/prelaunch/tol/val_final/baseline_s42.json, _s52, _s60]) by steering at the prey ahead [measured:
+    out/recov_summary.txt]; so it is report only.
+    15 deg puts the walker past obs[62]'s linear
+    range (11.46 deg), so the first correction rests on the saturated obs[62] (the sign) and obs[60]'s cosine (the
+    size); a walker that followed the command's own law (yaw-rate request clip(1.5 err, +-0.3) rad/s) would be
+    under 1 deg within about 2 s [inferred: the law, integrated]; the read time and both bars are choices.
+
+Seed outcome (first that applies; read at the deciding checkpoint)
+  NOT WALKS (<label>)    pilot 3's seed outcome is not WALKS (HOPS, FALLS, STILL or MIXED), or it is WALKS by the
+                         rule and the video review disagrees (pilot 3's MIXED, "WALKS by the rule, not on video")
+  CURVED WALKS           WALKS and video-agreed, and (a) or (b) fails, or (a) and (b) pass and the straightness
+                         look disagrees ("straight by the rule, not on video")
+  STRAIGHT NO RECOVERY   WALKS and video-agreed, (a) and (b) pass, the look agrees, and (c) fails or is NOT READ
+                         (printed which)
+  STRAIGHT WALKS         WALKS and video-agreed, (a), (b) and (c) pass, and the look agrees
+  A WALKS seed whose video review, straightness record or (when (a) and (b) pass) look is still missing and could
+  change its outcome is "pending" (its possible outcomes are printed). The three parts are printed for every WALKS
+  seed, with their values, whether they pass or not; for a seed that is not WALKS they are printed report only.
+  Exceptions [P3 L622-642, adapted]: a collapse-stopped seed is read from its newest intact pair (earliest possible
+  stop 1,900,544 [inferred above]); the final-model fallback; a run not trained as fixed (its stage_config.json lacks
+  the records under "Run handling") is refused before the probe and handled as a launch fault; a missing seed has no
+  outcome and is CLOSED when nothing can still score it. Off-schedule: none (D11).
+
+Pilot outcome (pilot 3's rule over the seed outcomes above)
+  pilot4_score.py --seeds 42,52,60: the seed outcome at least 2 launched seeds share (NOT WALKS shares across its
+  sub-labels, which are printed); MIXED when every launched seed has an outcome and no two share one; INCOMPLETE
+  while a missing seed could still decide it; PENDING_REVIEW while a WALKS seed's video review, straightness record or
+  straightness look is pending and could change it [P3 L644-647]. Trajectory checkpoints do not decide. The final
+  reading once no restart remains, pilot 3's [P3 L648-653]. Printed beside it, never instead of it: the gait reading
+  (pilot 3's pilot outcome in this env); the count of seeds that are WALKS, video-agreed, pass (a) and (b) and whose
+  look agrees (report only; Q23); and the existence reading: STRAIGHT WALK EXISTS when at least one seed is STRAIGHT
+  WALKS, whatever the pilot outcome; else PENDING while a review, record or look that could make one is pending; else
+  NONE SEEN; final only when every launched seed is scored or CLOSED [P3 L716-725, adapted].
+
+Video review (pilot 3's rule [P3 L585-613], new paths, plus a straightness look)
+  Required for every seed that is WALKS by the rule. (a) The notebook's final replay MyDrive/mesozoic-labs/logs/
+  tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s<seed>/03_locomotion/replays/
+  tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4: stage2_final (the 2,000,000 pair's policy plus the last update),
+  one deterministic 1,000-step episode at the notebook's reset seed, the training seed + 2000 + stage 2: 2044, 2054,
+  2062 [inferred: the same code, P3 L595-600]. (b) The panel episodes the scorer lists at the deciding checkpoint,
+  rendered by the video tool. "Agree" only if (a) shows a walk and at most (WALK count - 30) of the WALK episodes in
+  (b) are not walks [P3 L607-612]; a disagree makes the seed NOT WALKS (MIXED).
+  Straightness look (new; for every seed that is WALKS, video-agreed and passes (a) and (b), whatever (c) reads;
+  Q21): the maintainer looks at (a) and at a top-down plot of every panel and recovery episode's pelvis path
+  with the commanded line drawn, plus the heading-against-time curves (made by the straightness tool from the judged
+  episodes), and records "straight" or "not straight" per seed as JSON ({"42": "straight", ...}), passed to the
+  scorer. "Not straight" when the pelvis paths curve, weave visibly or run off the commanded line at an angle (a
+  crab), or when the heading curves zig-zag beyond the stride's own oscillation (Q27). "Not straight" makes the seed
+  CURVED WALKS; the look never makes a seed pass (a) or (b) that fails them.
+  The tracking camera of (a) looks from azimuth 135, where a world right turn moves screen-left [measured as
+  recorded: veer reward lane finding 15]; the top-down plot has no such ambiguity.
+  Report only: the maintainer notes the limp (s42) and any weave seen in (a).
+
+Run handling (pilot 3's [P3 L655-708], adapted)
+  Launch, per seed: each launch line seen before the runtime is left, else the cell is stopped, the RUN_ID retired and
+  the seed restarted under _b [P3 L656-669]: the "Repository ref ... commit: <head>" line; "Run directory:
+  .../pilot4_walk_s<seed> (new run: ...)"; "Critic phase: off"; "In-run K3 panel: off"; "Behavior recipe: walk" and
+  "Behavior 'walk' -> deliverable 'locomotion'; chain: stance -> locomotion"; Run all stopped at the chain-loop cell
+  by the guard line the Colab steps type, the smoke's word for word (pilot 2's mechanism, pilot 4's words: raise
+  RuntimeError("Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself --
+  unless you are resuming: then stop here.")), then the manual cell alone; "Node locomotion (stage 2): ..." and
+  "Timesteps: 2,000,000"; "VecNormalize loaded from: .../stage2_vecnormalize_8000000_steps.pkl" (the seed's own;
+  MANUAL_VECNORM_PATH set explicitly, because the default MANUAL_LOAD_PATH + "_vecnorm.pkl" [P3 L193-194] does not
+  name a periodic sidecar [inferred: the file names]); no "Warm start: policy log_std set" line and no critic-phase
+  drop line [inferred: no warm_start_log_std, no phase input; measured: the CPU smoke printed neither]; a first "Eval
+  num_timesteps=65536" line, noted beside the R6+price statue 1064.02 and the walkers' entry returns (R6 medians 3,113
+  / 3,059 / 3,079 with the prey on the line [measured as recorded: hybrid screen lane finding 14], less the price on
+  their curves: -27.6 to -61.4 (s42), -56.2 to -79.3 (s52) and -71.1 to -97.6 (s60) per episode on resets 3042-3046
+  [measured as recorded: setup check, SUMMARY.json]); it stops nothing. Where each line was shown before launch
+  [measured]: the Colab values ("Quick test mode: False", "Run directory: .../ppo/pilot4_walk_s<seed> (new run: ...)",
+  "Timesteps: 2,000,000", the seed's own 8M sidecar) and the Behavior, K3, critic-phase and Node lines in
+  setup/runs/s<seed>/nb/runner.stdout.log (lines 15-18, 23, 34, 84, 86 and 88; learn() stopped); the guard, the manual
+  cell alone and no Warm start or critic-phase drop line in the smoke (smoke/nb/params_s42.json,
+  nb/launch_s42/runner.stdout.log). Only Colab's branch of the setup cell prints the "Repository ref ..." line, and
+  only a run at the committed cadence prints a first "Eval num_timesteps=65536", so both are first read at the Colab
+  launch.
+  Within the first hour, read-only on Drive: stage_config.json records initialize_next_stage, the seed's parent
+  sha256 (the table above), run.parent_task_sha256 782d95b6... (the setup check's record names these keys), no
+  warm_start_log_std record, no critic_phase_dropped record, run.n_envs 4, curriculum eval_freq 65536, eval_episodes
+  10, checkpoint_freq 250000, max_checkpoints 0, warmup_timesteps 0, ramp_start_value 2.0,
+  initialize_from_own_checkpoint true, git_commit = the head, hyperparameters_sha256
+  sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62, task_sha256
+  sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a, env command_mode heading with the
+  committed table, prey_lateral_range [0, 0], walk_heading_price_weight 0.2 and _scale_rad 0.5, R6's four keys, no
+  other env kwarg different from the committed TOML (stage_config.json's reward_weights against the env the tree
+  builds: the judge refuses a run whose record differs, as the probe's own drift record would show), the
+  seed. A run whose record differs is a launch fault (stopped, restarted under _b), not a readout [P3 L670-681]. The
+  model's lineage attribute (zeroed_command_parameters) is checked by the judge on the judged zip; the archive keeps
+  it in the zip's JSON "data" member, key mesozoic_task_lineage, in every zip the smoke wrote (the periodic pairs,
+  final, best and robust best) [measured: the notebook smoke, "Pre-launch checks"], so in every zip a run writes
+  [inferred: the same save path]. Also in the first hour: provenance.json records the torch, CUDA, cuDNN and driver
+  versions; TensorBoard events under the child's own folder by the first 250,000-step sync (report only) [P3 L679-681,
+  the sync step adapted].
+  If Colab disconnects, the newest intact periodic pair decides [P3 L682-695], with one change (D11): pilot 3 resumed
+  only from 2,000,000 on because a RESUME attaches no warm-up or ramp [P3 L634-635, L688]; here both are inert
+  (warm-up 0, ramp 2.0 -> 2.0), so a RESUME (same RUN_ID, the notebook's RESUME cell) is allowed from any intact
+  periodic pair (250,000 or later; at the fixed cadence there is no earlier pair, so the judge does not check the
+  floor) and is never off-schedule; the RESUME cell's own refusal stays: a run whose final
+  pair exists but is broken while its newest intact pair is more than 100,000 steps short of 2,000,000 (for example
+  a broken final pair over an intact 1,750,000 pair) is RESTARTED under _b [P3 L690-694]; a resume keeps ret_rms
+  and does not reseed the command slice (resume_same_stage) [measured by code reading: train_base.py lines 721-724
+  at 0bcb0cf, 7700f28 and 0e6a57b]. A pilot-4 pair is never loaded under initialize_next_stage: since commit 8 the
+  branch refuses a command-trained checkpoint of the stage itself there. Below 250,000, or with no intact pair:
+  RESTART from the seed's parent under _b. At most one restart per seed for any reason; a seed that would need a
+  second is CLOSED; resumes are not counted [P3 L696-699]. Retired cells are moved, never deleted, and
+  one run per seed is scored [P3 L700-706]. No run is stopped, changed, extended, resumed early or restarted because
+  of a readout, an interim judgement, an alarm or a gate verdict; fails stay fails [P3 L707-708].
+
+What each outcome means (the maintainer decides what follows)
+  An outcome says what a 2,000,000-step fine-tune of these three walkers does under R6 with the live straight command,
+  the prey on the spawn line and the price 0.2, judged in that env. Pilot 3 differs in parent, entry, command, prey
+  line, price and budget, so no difference from pilot 3 is attributed to any one of them.
+  STRAIGHT WALKS  A visible straight command plus the price straightens the gait without losing it on 2 or 3 seeds,
+         including a return from a 15-degree offset that only the command inputs showed (the prey turned with the
+         walker), so the walkers use the command as heading feedback. Next (the
+         maintainer's): a route that keeps the command (turning commands, follow_direction, which needs a live-parent
+         path first [hybrid screen lane finding 17]), or the same recipe from the stance parent.
+  STRAIGHT NO RECOVERY  Straight from a straight start, but a return after an offset is not shown (it failed, or could
+         not be read because the walker had not passed the prey by 6.5 s; printed which). The gait straightened, but
+         the recovery test does not show that the command is used as feedback. A gait whose own drift happens to be
+         small could pass (a) and (b) without the command [inferred]; the heading-free hand-built walks do not (yaw
+         p95 16.7, D p95 17.9 deg, the evidence table). Next: offsets during training (random headings or turns)
+         before any turning route.
+  CURVED WALKS  The gait survived but the fine-tune did not straighten it to the bars by 2M. The STRAIGHT parts, the
+         price per episode, the obs[62] saturation share and the trajectory checkpoints say whether it is moving
+         (budget), stuck (the price too weak against R6's other terms, or the walker not using obs[62] and obs[60]
+         beyond obs[62]'s linear range), or curving after the prey pass (the post-pass regime) [inferred]; none
+         decides.
+  NOT WALKS  The fine-tune lost the gait (FALLS, HOPS, STILL or MIXED, as labelled). Candidates: the restarted [ppo]
+         schedules (learning rate and entropy 5 times pilot 3's end values), the fresh ret_rms, the price; the
+         trajectory checkpoints say when [inferred].
+  MIXED  The maintainer reads the seeds. INCOMPLETE, PENDING_REVIEW: not outcomes; finish the runs and reviews.
+
+The locomotion gate (recorded, not a criterion)
+  reward_and_length/v1, recorded by the manual cell, never enforced; gate digest 02602cb0... unchanged [P3 L789-795].
+
+Report only (never part of an outcome; each tool pinned by sha256 before launch; a readout whose tool cannot read
+its input is reported as not run)
+  - Speed against pilot 3's 8M (displacement 2.719 / 2.500 / 2.225 m/s, forward 2.701 / 2.423 / 2.205 [measured as
+    recorded: RL 1067]) and pilot 3's report-only list [P3 L852-855]: alternation, simultaneous fraction, lead swaps,
+    flight, hip lag, single support, stride frequency, duty, swing, stride length over L, classes, guards, falls.
+  - The gait mechanics behind the limp and asymmetry, at 8M and at each judged checkpoint: left and right knee
+    flexion per stride, landing peak force (body weights), fore-aft foot placement, duty L-R, roll mean, the
+    left/right asymmetry ratio; pilot 3's 8M values for comparison: s42 knee 12 vs 28 deg per stride, right landing
+    3.1 BW vs left 1.6, left foot 0.24 m behind; s52 early scuff in 56% of right swings (the per-episode median;
+    384/702 = 54.7% pooled); s60 a 29-deg reversal and a 3.8-deg right lean; asymmetry 2.06x / 1.97x / 1.80x (the
+    gait ledger's leg work: the median over the last 6 evaluations' full-horizon episodes of r_leg_work_abs_j /
+    l_leg_work_abs_j; the panel's leg power reads 2.38 / 2.03 / 2.24); duty L-R median -0.09 / -0.01 / -0.19
+    [measured as recorded: RL 1079, 1084, 1071].
+  - The habit readout (pilot 3's definitions [P3 L797-847], on this run's ledger, 30 evaluations from 65,536; the
+    trace at the deciding checkpoint); it picks nothing.
+  - Mirror-equivariance: the mirrored policy pi_m = M_a pi(M_o o) on 10 panel resets (does the turn flip?), its
+    handedness (yaw(pi) - yaw(pi_m)) / 2 against pilot 3's -26 / -47 / -33 deg, and the mirror-KL loss on the walker's
+    own states (resets 3042-3061) against pilot 3's 42-79 (the checkpoints' own statistics: 78.508 / 41.671 / 54.005;
+    symmetrised 70.724 / 41.119 / 54.832) [measured as recorded: VEER DIAGNOSIS findings (2) and (5); the screen
+    lane's lk_check.txt].
+  - Behaviour in pilot 3's env: the probe on a clean clone at 31d02e42 with the deciding pair (there obs[60:63] read
+    0, which a pilot-4 walker never saw in training), labels and yaw; and the pilot-4 walker with the prey drawn as
+    in pilot 3 (prey_lateral_range [-2, 2]) in the pilot-4 env.
+  - The command channel: the share of steps with obs[62] saturated (pilot 3's walkers with the prey drawn as in
+    pilot 3: 14% / 30% / 43% [measured as recorded: hybrid screen lane finding 5]; at entry with the prey on the
+    line 18.6% / 29.5% / 42.5% of all steps pooled over resets 3042-3061, against 23.0% / 31.1% / 46.4% pooled with
+    the prey drawn [measured: review_text/out/review_misc.txt M1]), the price per episode, R6's heading term, the
+    prey cue's agreement with the command before the pass, prey-sphere contacts and the closest head-to-prey gap.
+  - Noise and value: exp(log_std) per checkpoint against each parent's (mean 0.1467 / 0.1460 / 0.1451); train/std,
+    value_loss and explained_variance over the first 65,536 steps (the fresh ret_rms); the forward term per
+    evaluation on R6's scale.
+  - Pilot 3's hidden-clock audit (V - G by step bucket [P3 L865-898]); with no ramp, V and G share one reward at
+    every checkpoint.
+  - The STRAIGHT parts at every trajectory checkpoint, and R and the per-distance yaw (deg per 10 m).
+  - Course against heading: per episode, the median 1-s course angle (pelvis displacement direction) minus the 1-s
+    mean heading, and the end cross-track from the commanded line (entry, resets 3042-3061: +4.7 / -1.5 / +2.3
+    deg and -0.21 / -3.92 / -2.81 m median [measured: review_text/out/review_calc.txt P5; the tolerance stage's
+    records give the same on those resets, and +4.8 / -1.4 / +2.3 deg and +0.39 / -4.06 / -2.97 m over the
+    whole panel's full-length episodes, the figures the straightness tool reports (TOOL PLAN), text/data/
+    facts_text.json]).
+
+Known limits of this pilot
+  - Three seeds give existence, not a rate; one recipe, one price, one budget; the 2-of-3 outcome is pilot 3's rule,
+    kept for comparability [P3 L901-903].
+  - A fine-tune, not from scratch: each walker brings its 8M gait, its curve and (s42) its limp; the command columns
+    start at zero and learn only in 2M steps.
+  - The [ppo] schedules restart at learning rate 5e-5 and entropy 0.005, five times pilot 3's end values, on a gait
+    tuned at 1e-5 and 0.001 (Q17).
+  - The price was screened offline on recorded trajectories rotated, not on simulated straight walks: what PPO does
+    with it is unmeasured [measured as recorded: hybrid screen lane problem 3]. It prices heading, not course, so a
+    constant crab angle stays nearly free (s42 crabs about 3.7 deg) [measured as recorded: veer screen candidate H];
+    in the pilot-4 env at entry s42's panel median crab is +4.8 deg ("Report only").
+  - The STRAIGHT rule reads heading, not course: a walker straight in heading can crab off the commanded line (the
+    course numbers are report only).
+  - (a) and (b) still admit a heading zig-zag of period 0.5-1.5 s up to 16.5-18.5 deg amplitude (the W0 cap, less
+    the stride's own oscillation), of 2-2.5 s up to 6-7.5 deg, of 3 s up to 13.5 deg and of 4-5 s up to 8.5-12 deg
+    (a lateral path amplitude of about 0.06-0.42 m at 2.5 m/s), and a turn and back of up to 18.5 deg over 0.25-0.5 s
+    each way, 15 deg over 1 s and 12.5-13 deg over 2-3 s [measured: postfix/text/out/zigzag_w0.txt, synthetic traces
+    through (a), D and W0, 40 random phases]. A constant crab of any angle passes (a), (b) and (c) [inferred: every
+    part reads heading]. Only the straightness look sees these (its criterion: Q27).
+  - Likewise (c) reads one 1-s mean (states 900-1000): a weave or an overshoot after the nudge that is back by 9 s
+    passes it (a synthetic 1.01-s, 20-deg zig-zag after the nudge reads median r 0.2 deg [measured as recorded:
+    SP/work/pilot4/tools/out/review_validity/logs/adversarial.txt]); only the look's recovery heading curves see it
+    (draft v3's Q25 named the alternative, the worst of m_900..m_950; decision (31) kept m_950).
+  - obs[62] is linear in the error only within 11.46 deg; beyond it obs[62] holds +-0.5 (the sign) and obs[60] the
+    cosine (the size, unsigned), so the recovery offset (15 deg) starts outside the linear range. The price
+    saturates at 28.6 deg. The policy is memoryless.
+  - The recovery nudge is a teleport of the whole animal and of the prey (pose and velocity turned in one step), not a
+    push. Under the first draft's mechanics (the prey left in place, mj_forward) it made none of 118 nudged baseline
+    episodes fall [measured: out/recov_rule.txt]; under the fixed mechanics with the prey turned, 118 of 118 nudged
+    entry episodes ran to 1,000 steps [measured: tolerance stage, tol/val_final/baseline_s42.json, _s52, _s60;
+    prelaunch/fix/data/nudged_episode_facts.txt]. A trained walker may react to it differently from a disturbance it
+    can feel coming [inferred]. That obs[60:63] alone shows the offset was measured on 15 entry episodes (resets
+    3042-3046) at a 1e-3 tolerance [measured: postfix/text/out/nudge_summary.txt], and by the tool's baseline mode on
+    all 118 (obs[60] and obs[62] only) [measured: tolerance stage, same records].
+  - The prey is still present on the spawn line: before the pass (about 4-6.5 s) the prey block is a second heading
+    cue, and after it the prey behind still carries the heading, plus a parallax [measured: postfix/text/out/
+    postpass_cue.txt], which is why (c) turns the prey with the walker; the post-pass regime that drives much of the
+    late turn survives every config-only setting [measured as recorded: hybrid screen lane findings 13-15]. A
+    straighter walker passes about 0.1 m over the prey sphere (contact enabled with head_bite; bite_bonus 0, so a
+    contact would not end the episode) [measured as
+    recorded: hybrid verifier finding 4; inferred: no termination].
+  - The training episode sequence differs from pilot 3's: a live mode draws one extra number at every reset, so every
+    auto-reset's prey and pose are one draw later (the distribution is unchanged) [measured as recorded: hybrid
+    verifier finding 3]; seeded panel resets are unchanged.
+  - ret_rms is reset at the edge (a first-rollout transient).
+  - The statue pays the price, so the collapse reference moved (1064.0); the backstop arms at the 20th evaluation
+    (1,310,720) and can stop a run no earlier than the 29th (1,900,544), so it can hardly fire within 2M.
+  - The hand-built references are slower and shorter walks than the 8M walkers; the bars are choices.
+  - The tracking-camera video can show a right turn as left; the straightness look uses a top-down plot.
+  - Pilot 3's known limits of the WALK label hold [P3 L924-929].
+  - (c) counts only nudges after the prey pass: a fine-tuned walker slower than about 2 m/s may leave it NOT READ.
+  - The bitwise equalities of the setup check and of this draft's rollouts hold in the CPU venv (torch 2.13.0+cpu,
+    gymnasium 1.4.0, numpy 2.5.4, MuJoCo 3.10.0, SB3 2.9.0); pilot 3 trained under torch 2.11.0+cu130, gymnasium
+    1.3.0, numpy 2.4.6 [measured as recorded: setup check].
+
+Pre-launch checks (none trains a step of a pilot-4 run; the only training is the third item's throwaway QUICK_TEST
+smoke and its RESUME; each filled from measured evidence, or written as not run yet; the lanes' folders are cited as
+setup/, tol/, smoke/, text/ and prelaunch/fix/ ("Status"), each with a CMDLOG.txt of its commands and their exit
+statuses)
+  - The pushed head equals the local head; a clean tree; digest_snapshot, species_catalog, plant_contract and
+    notebook_cells current; the moved digest lines exactly the 8 above; the T. rex suite and the hybrid check's
+    targets pass but for the known 4, each id named with its cause (the build stage's run is the model).
+    Done at the head but for the push (the setup lane, 2026-11-06: a clean --shared clone of the read-only
+    SP/work/pilot4/tools/tree; the CPU venv of "Known limits"; nothing trained) [measured: setup/logs/, setup/data/]:
+    - HEAD 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 on pilot-walk-r10-p4, 14 commits in 31d02e42..HEAD; git status
+      --porcelain --ignored --untracked-files=all empty before and after every check (status_checks_start.txt,
+      status_checks_end.txt).
+    - notebook_cells.py: "all notebook code cells parse"; plant_contract --check: "Plant manifest is current";
+      species_catalog --check: "Species catalog is current"; digest_snapshot --block-optional-backends --check:
+      "649 lines, 0 errors", "Digest snapshot is current"; a digest written outside the tree is byte-identical to the
+      committed golden (notebook_cells.txt, plant_contract_check.txt, species_catalog_check.txt,
+      digest_check_0e6a57b.txt, digest_write_0e6a57b.txt).
+    - Against 31d02e42's golden exactly 8 lines moved (8 removed, 8 added), the 8 listed under "Code"; the diff is
+      byte-identical to the postfix code verification's at 7700f28 (setup/logs/
+      golden_diff_31d02e42_vs_generated_0e6a57b.txt against postfix/code/logs/
+      golden_diff_31d02e42_vs_generated_7700f28.txt) [measured: grep -c and cmp, text/CMDLOG.txt].
+    - The build stage's 57 target files (the hybrid check's targets, the whole T. rex suite and
+      test_repository_root.py [measured as recorded: SP/work/pilot4/build/ALL_RESULTS.json, "tests"]: 8 T. rex files
+      and 49 shared files; setup/data/targets_final.txt) under its guarded runner
+      (build/code/scripts/guarded_pytest.py: "blocked 34 entry points") with its 219 deselected training-test ids
+      (build/code/logs/deselect_final2.txt): 2713 passed, 4 failed, 4 xfailed, 393 deselected, 0 guard hits (pt_p0.txt
+      to pt_p2.txt), the model run's counts at 0e6a57b (postfix/fix/logs/pt_full_f0.txt to f2.txt). The 4 failures pin
+      main's recipe digests, which the pilot-only locomotion.toml moves (expected fde660ac... and 49ef875a..., found
+      fbc94bef... and 49fa0f8e...; "Code"):
+        environments/shared/tests/test_critic_phase.py::
+          test_the_tyrannosaurus_rex_recipe_digests_are_main_s[locomotion-PPO] and [locomotion-SAC],
+          test_the_recipe_digest_records_a_warm_start_log_std_when_a_stage_declares_one;
+        environments/shared/tests/test_curriculum_warm_start_log_std.py::
+          TestSchema::test_the_recipe_digest_covers_it.
+      The 4 xfails are the strict physics-r10 calibration targets of environments/tyrannosaurus_rex/tests/
+      test_com_stance_quality.py::TestComStanceQuality: test_target_turn_from_spawn, test_target_still_from_3s,
+      test_target_settled_by_2s, test_target_foot_slip_after_landing.
+    - Not re-run here: ruff, mypy and CI's wheel and baseline steps (ruff and mypy passed at 0e6a57b, "Code").
+    Not run yet (required before launch, after the freeze): the pushed head equals the local head. The branch is not
+    pushed (Q18); after the push, git ls-remote https://github.com/kuds/mesozoic-labs.git
+    refs/heads/<prefix>/pilot-walk-r10-p4 must print 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8, recorded in the run log
+    (the repository [measured as recorded: RL 1085, its pull-request link]). Read the remote by its URL: the origin of
+    SP/work/pilot4/tools/tree is the local SP/wt_p4 (and a clone of the tree has the tree as origin), where the branch
+    already reads 0e6a57b, so git ls-remote origin there proves nothing [measured: prelaunch/fix/logs/tree_remote.txt,
+    read only; inferred: a clone's origin].
+  - train()'s full pre-learning path with the committed config, per pair, without learn(): run by the parallel setup
+    check at commit 7 ("Parent and entry"), re-run by the postfix code verification at commit 11 (7700f28) with every
+    number bit-equal [measured as recorded: postfix/code/logs/setup_summary.json], and re-run on all three pairs at
+    the head the runs will record before launch (commits 8-14 change only checks that the three pairs and the
+    committed table pass, and tests [inferred: the diffs; the digest's reward lines, which roll the env, did not
+    move]); the exact stage_config.json and lineage key paths the judge binds are copied from it.
+    Done at the head on all three pairs (the setup lane: the pinned nb_pilot_runner4.py 33fd52cc... through iso.py
+    5da55763... with --stop-at-learn, in a second clean clone, on byte copies of the 8M pairs, their sha256 equal to
+    the table under "Parent and entry" before and after; the notebook's own cells, Run all stopped by the guard at
+    cell 20, then the manual cell 22; learn() stopped before any update, the training primitives guarded, 0 guard
+    hits; nothing trained) [measured: setup/data/facts_head.json and compare_head_vs_7700f28.json; setup/runs/
+    s<seed>/setup_check.json, judge_bound_keys.json and stage/]. Per seed 42 / 52 / 60:
+    - Runner exit 0; learn() called once (PPO, total_timesteps 2,000,000, reset_num_timesteps true); every entry line
+      present ("Quick test mode: False", "Timesteps: 2,000,000", "VecNormalize loaded from:
+      .../stage2_vecnormalize_8000000_steps.pkl", the seed's own), no forbidden and no Warm start line; each pair
+      accepted under initialize_next_stage.
+    - Of 13 tensors only mlp_extractor.policy_net.0.weight and value_net.0.weight changed, 1,536 entries each
+      (columns 60-62), now 0.0; columns 0-59 bit-equal; log_std bit-equal to the parent (mean -1.9381 / -1.9425 /
+      -1.9591); Adam moments unchanged, step counts 742,878 / 744,057 / 742,882; the optimizer holds 1.002304e-05.
+    - VecNormalize: obs_rms[0:60] bit-equal to the parent's; obs_rms[60:63] mean 0 and var 1 (the parent's var
+      3.12e-12); ret_rms reset (mean 0, var 1, count 1e-4).
+    - At learn(): ent_coef 0.005, clip 0.2, the learning-rate schedule 5e-5 -> 1e-5, n_envs 4, n_steps 4096, batch
+      256, 10 epochs, gamma 0.995, gae_lambda 0.95, target_kl 0.05; on all 4 envs forward weight 2.0, the price 0.2 /
+      0.5, command_mode heading, prey [0, 0]. In pilot 3's exact [env], over 1,000 steps from reset 3042, the start
+      actions equal pilot 3's 8M walker's (action, mean and value delta 0.0, no nonzero command input).
+    - stage_config.json: git_commit 0e6a57bb..., task_sha256 914a1cae... and hyperparameters_sha256 fbc94bef...,
+      each equal to the tree's own derivation; load_mode initialize_next_stage, the seed's parent sha256,
+      parent_task_sha256 782d95b6...; no critic_phase_dropped and no warm_start_log_std record. The lineage, read
+      from the JSON data member of a zip SB3's save() wrote at learn(): initialize_next_stage, parent stage 2,
+      zeroed_command_parameters.
+    - Against the 7700f28 re-run (postfix/code/logs/setup_summary.json): of 146 leaves per seed only 3 differ, none
+      a number (two module paths and git_commit).
+    - The pinned judge's own check functions (pilot4_judge.py 648dd557...) accept each recorded stage_config.json,
+      plant_identity.json and lineage at the pilot budget 2,000,000 (binding problems: none); across the seeds the
+      judge-bound keys differ only in run.seed and run.parent_checkpoint_sha256.
+  - The notebook smoke on CPU with a smoke runner rebuilt for pilot 4 (QUICK_TEST, the cadence override to 32,768 in
+    memory, RUN_ID pilot4_walk_s42 under the quick-test tree; the only training permitted then is the pre-registered
+    65,536-step CPU smoke, as in pilot 3 [P3 L1040-1049]), the RESUME test from its 32,768 pair, and the judge's
+    validation steps on its copies (refusals included). Locally the setup cell prints "Running locally; using this
+    checkout." in place of the Colab "Repository ref ... commit:" line (the runner checks the clone's HEAD instead),
+    the manual cell prints "Timesteps: 50,000" under QUICK_TEST, and the first evaluation line reads
+    "Eval num_timesteps=32768" under the override [measured as recorded: the readouts lane, learn() stopped]. The
+    RESUME test also shows that the resumed run's
+    stage_config.json keeps load_mode initialize_next_stage, the parent sha256, run.parent_task_sha256 782d95b6...
+    and the env and curriculum keys the judge binds, and that the resumed 65,536 zip's JSON data keeps the lineage
+    record with zeroed_command_parameters (a same-stage resume attaches no new lineage: train_base.py lines 904-970,
+    by code reading); the judge's unit tests include such a resumed copy.
+    Done, the notebook smoke (decision (36); the smoke lane, 2026-11-06; this local CPU machine, 4 CPUs, not Colab;
+    the CPU venv of "Known limits"; MUJOCO_GL=disable, OMP_NUM_THREADS=1, nice -n 10; a fresh --shared clone at
+    0e6a57b, clean before and after; read-only byte copies of s42's 8M pair; the pinned runner nb_pilot_runner4.py
+    33fd52cc..., run through smoke/scripts/runner_snapshot.py, which loads it unchanged and only copies the run folder
+    at the 32,768 pair (the RESUME test below); QUICK_TEST, RUN_ID pilot4_walk_s42 under ppo_quick_test/; trained:
+    65,536 steps here and 32,768 (32,768 -> 65,536) in the RESUME, nothing else) [measured: smoke/nb/params_s42.json,
+    nb/launch_s42/record.json and runner.stdout.log, out/smoke_evidence_launch_s42.json, out/timing.json,
+    runs/launch/pilot4_walk_s42/]:
+    - 12:27:59-12:34:52 UTC, exit 0; cells setup 3, config 6, resume 18, chain 20, manual 22, disconnect 32; Run all
+      stopped at the guard in cell 20, then the manual cell 22 alone, then cell 32.
+    - The cadence override, in memory, on stage 2: eval_freq and checkpoint_freq 65,536 / 250,000 -> 32,768 /
+      32,768, eval_episodes 10 and max_checkpoints 0 unchanged; hyperparameters_sha256 fbc94bef... before and after;
+      stage_config.json's curriculum block reads 32,768 (the proof it took).
+    - The entry lines (stdout line numbers): 3 "Running locally; using this checkout. REPO_REF selects only the Colab
+      checkout."; 15 "Quick test mode: True"; 16 "Behavior recipe: walk"; 17 "In-run K3 panel: off"; 18 "Critic
+      phase: off"; 23 "Run directory: .../ppo_quick_test/pilot4_walk_s42 (new run: RUN_ID names no existing run)";
+      85 "Node locomotion (stage 2): Locomotion (ppo)"; 87 "Timesteps: 50,000"; 89 "VecNormalize loaded from:
+      .../pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"; 91 "Eval num_timesteps=32768,
+      episode_reward=3039.26 +/- 33.09"; 96 the same at 65536, 3046.73 +/- 45.36. No "Warm start" line on stdout or
+      stderr and no critic-phase drop line. The manual node's gate verdict PASS (reward_and_length/v1; recorded, not
+      a criterion) and "Result bundle not rewritten for the manual node: ..." are printed.
+    - learn() trained 65,536 steps in 170.1 s, 385.2 steps/s (SB3's time/fps 384), the in-training evaluations
+      included.
+    - stage_config.json equals the setup lane's 2,000,000-step entry on every key the judge binds but three:
+      run.timesteps 50,000 (QUICK_TEST), curriculum eval_freq and checkpoint_freq 32,768 (the override);
+      plant_identity.json physics r10 (6a47a0eb...), policy interface r15 (ffbf6631...), observation_dim 63.
+    - The lineage: in the zip's JSON "data" member, key mesozoic_task_lineage (mode initialize_next_stage,
+      parent_task_sha256 782d95b6..., child_task_sha256 914a1cae..., parent stage 2, zeroed_command_parameters
+      [mlp_extractor.policy_net.0.weight, mlp_extractor.value_net.0.weight]), in every zip: stage2_32768_steps,
+      stage2_65536_steps, stage2_final, best_model and robust_best_model.
+    - TensorBoard events under the child's own 03_locomotion/tensorboard/PPO_1 (241 scalar tags); the ledger
+      03_locomotion/eval_episodes.csv, 192 columns, 10 rows per evaluation, every column pilot4_habit.py reads.
+      Report only: train/std 0.1467-0.1469; value_loss 0.118 -> 0.0003; explained variance -0.073 -> 0.059.
+    - Not checkable locally, so read at the Colab launch: the "Repository ref: ...; commit: ..." line (only Colab's
+      branch of cell 3 prints it; locally stage_config.json's git_commit and provenance.json's repository_commit
+      0e6a57bb..., repository_dirty false, show the commit), the /tmp/tb_buffer branch, and real CUDA, cuDNN and
+      driver values (null on CPU). The final replay was not rendered ("Video recording failed." under
+      MUJOCO_GL=disable; neither EGL nor OSMesa works on this machine), so its reset seed is not checked here.
+    Done, the RESUME test, with one departure from pilot 3's procedure for the maintainer to confirm [measured:
+    smoke/scripts/runner_snapshot.py, snap/snapshot.json, nb/resume/record.json and runner.stdout.log,
+    nb/resume_stage_config_before.json and _after.json, out/compare_resume.json, runs/resume/pilot4_walk_s42/]:
+    pilot 3 resumed a second launch stopped after its 32,768 pair [P3 L1105-1115]; here the RESUME started from the
+    smoke's own 32,768 pair, because the pre-launch workflow allowed no training but the 65,536-step smoke and its
+    RESUME (the coordinator's scope for decision (36), RL 1097; decision (36) itself, RL 1096, names no resume route):
+    a wrapper that loads the pinned runner unchanged copied the run folder inside SB3's CheckpointCallback._on_step
+    right after that pair was saved (where the runner's --stop-after-pair exits), a copy with no 65,536 or final pair
+    whose 32,768 pair is byte-equal to the launch's, and the RESUME ran on it under the same RUN_ID.
+    - 12:35:28-12:38:56 UTC, exit 0, the notebook's RESUME cell (RESUME_STAGE 'locomotion'): "Newest intact periodic
+      checkpoint: .../stage2_32768_steps.zip", "Checkpoint steps: 32,768 of 50,000", "remaining budget: 17,232",
+      "Timesteps: 17,232", no Warm start line; it trained 32,768 -> 65,536 at 362 steps/s.
+    - stage_config.json changed only in run.resume_load_path, run.resume_checkpoint_sha256 (the 32,768 zip's,
+      4ab2de8b...), run.timesteps 50,000 -> 17,232 and run.duration_seconds; it kept load_mode
+      initialize_next_stage, the parent sha256 41fc0b0c..., run.parent_task_sha256 782d95b6..., the seed, n_envs,
+      hyperparameters_sha256, git_commit, task_sha256 and every curriculum and env key; no warm_start_log_std or
+      critic_phase_dropped record appeared.
+    - The resumed 65,536 zip (and its final, best and robust best) keeps the lineage record, equal to the launch's.
+    - Report only: not bitwise the unbroken run (at 65,536 the policy, optimizer and sidecar differ; Eval 3056.29
+      against 3046.73), as in pilot 3 [P3 L933-941].
+    Done, the judge's validation steps on copies of the smoke's runs (the pinned pilot4_judge.py 648dd557... through
+    iso.py 5da55763..., on a second clean clone at the head, clean before and after; each step with its expected
+    exit) [measured: smoke/judge/status.txt, judge_summary.txt, logs/, copies/copies.json, OUT/, OUT_resume/]:
+    - Accepted, exit 0, validation only (run budget 50,000; cadence and text anchors recorded as not checked):
+      --check-only at 32,768 and at 65,536 (nothing written); judged the launch's 65,536 and 32,768 pairs; the final
+      pair through --final-fallback --steps 50000 (the 50,000 pair missing, the final's num_timesteps 65,536 equal to
+      the computed uninterrupted end of 50,000 in whole rollouts of 16,384); the resumed run's --check-only and its
+      65,536 pair on schedule (resume step 32,768, budget 17,232 + 32,768 = 50,000, shaping inert).
+    - Refused, exit 2, nothing written, 17 steps: a parent sha256 not s42's, in the run record and on the command
+      line (s52's); a rewritten command table (yaw_gain 1.5 -> 1.0); a drifted env kwarg (forward_vel_weight 2.0 ->
+      3.0); a dirty tree; a second judgement of 65,536; the pilot budget without --expect-budget (budget 50,000,
+      cadence 32,768); a final zip rewritten to 49,152; git_commit 31d02e42 against the head; run.n_envs 2;
+      run.warm_start_log_std -2.0; a run.critic_phase_dropped record; run.parent_task_sha256 914a1cae...; the
+      lineage removed from the zip; a folder named pilot3_walk_s42; --final-fallback on the resumed run; a resume
+      path naming stage2_final. The lane's own check that no refusal wrote an OUT folder was miswritten once and
+      re-run correctly: none did.
+    - Not reachable by a smoke: an on-schedule cell at the pilot budget; the judge's unit tests cover it (282 of 282
+      at the tolerance stage, among them resumed copies that keep the zip's lineage), and the tolerance stage's
+      end-to-end judged such cells on stand-in runs built by the real set-up path
+      (tol/e2e/OUT/s<seed>/2000000/binding.json: validation_only false, cadence and text anchors checked, expected
+      budget 2,000,000, head 0e6a57b) [measured: prelaunch/fix/logs/e2e_bindings.txt].
+  - The straightness tool's baseline mode (each parent pair prepared in memory as the edge prepares it, as this
+    draft's recov.py does) reproduces the entry rows and the recovery baseline at the end of this text (its (c) row,
+    as decided, was computed from recorded un-nudged rollouts, so the tool's run is its first direct measurement on
+    all 40 episodes per seed); the probe
+    itself is checked on the notebook smoke's pilot-4 pair (labels as expected, L 0.8766 m, plant r10 / r15), since
+    an unprepared parent cannot be judged in the live env (its untrained command columns would move its actions by
+    up to 0.59-0.76 [measured as recorded: the setup check]).
+    Done. The tool's baseline mode (the tolerance stage, the entry baseline below) reproduces the entry rows of the
+    evidence table (resets 3042-3061) to the table's 0.1 deg in every column of every seed (yaw median and p95
+    |yaw|; D p95, median and max; R median and p95; W0 p95), and the recovery table's (c) row is its own (c)
+    [measured: text/scripts/extract_facts.py on tol/val_final/baseline_s42.json, _s52, _s60; text/data/
+    facts_text.json]. The probe on the smoke's pilot-4 pairs (each judged cell above): pilot 3's labels WALK 40/40
+    in every cell (WALKS), every episode 1,000 steps, "L=0.8766 m", physics r10 (6a47a0eb...), policy interface r15
+    (ffbf6631...), env_kwargs_drift_vs_recorded {} [measured: smoke/judge/OUT/s42/32768, 65536 and 50000, and
+    OUT_resume/s42/65536 (probe.json, binding.json); smoke/judge/logs/A3_judge_65536.log]. The readouts on the
+    smoke's validation cell (65,536) [measured: smoke/readouts/]:
+    - pilot4_straight.py (870bab61...) seed mode with --validation: 40/40 re-rolled episodes equal probe.json; (a)
+      median -27.8, p95 |yaw| 34.3; (b) p95 D 28.1, p95 W0 33.6; (c) 40 counting, median r 24.3, p95 r 42.5; each
+      FAIL, STRAIGHT FAIL, near s42's entry baseline below; states 0..650 equal 80/80, the state-651 observation
+      beyond 1e-3 only in obs[60:63] on 40/40; psi_cmd 0.0 deg (the info check within 4.4e-16 rad). Refused without
+      --validation (a validation-only cell).
+    - pilot4_score.py (98fd9e4a...): as is, no smoke cell is scored ("validation-only judge (run budget 50000)");
+      with --validation --primary 65536 and that record, WALKS by the rule, the video review pending, PILOT OUTCOME
+      PENDING_REVIEW (possible CURVED WALKS or NOT WALKS), marked as validation.
+    - pilot4_habit.py (36465e8c...): the ledgers 0 alarms over 2 evaluations; the seed mode with --validation NO
+      HABIT (20 of 20 full-horizon trace episodes), refused without it. pilot4_noise.py (8905669b...) on both runs:
+      exp(log_std) mean 0.1467 at 32,768 and 0.1469 at 65,536; the forward term 1941.078 and 1944.641 per evaluation
+      against pilot 3's own 1943.495 at 8M.
+    - Not run: pilot4_video.py (0c904fc4...) stopped at import under MUJOCO_GL=egl and osmesa (no libEGL and no
+      libOSMesa on this machine), so the panel videos and the video tool's re-roll check wait for a machine that
+      renders (pilot 3's smoke used a private Xvfb with glfw [P3 L1058-1059], which writes outside the lane's
+      folders). The notebook's final replay was not rendered either (the smoke item above), so the replay's reset seed
+      (2044 / 2054 / 2062, "Video review") stays inferred. Before launch either a machine that renders shows both, or
+      the maintainer accepts in writing that the first renders are the Colab replays and the judging run's (the
+      pending list). pilot4_mirror.py, pilot4_mech.py and pilot3_vg.py were not run on the smoke.
+  - Entry baseline (in place of pilot 3's parent baseline [P3 L568-572], which a command-free 8M parent cannot give
+    in the live env unprepared): each seed's 8M pair, prepared in memory as the edge prepares it (the straightness
+    tool's baseline mode), rolled on the whole 40-episode panel (resets 3042-3081) in the committed pilot-4 env
+    through the probe's own rollout_episode and analyze_episode, labelled by pilot 3's rule. Expected WALKS on each
+    seed (pilot 3's 8M cells read WALK 40/40, 39/40 with 1 FALL, 40/40 in pilot 3's env [measured as recorded: RL
+    1067]). If a seed reads anything other than WALKS, the launch is held and the maintainer decides (Q24).
+    The same run prints (a), (b) and (c) at entry (expected to fail).
+    Done (the tolerance stage, decision (35): the pinned pilot4_straight.py 870bab61... in baseline mode, each pair
+    prepared in memory with an action and value delta of 0.0 against the command-blind parent, in the committed
+    pilot-4 env at 0e6a57b, labelled by pilot 3's pinned pilot3_score.py 286ce04a...; every run exit 0; nothing
+    trained) [measured: tol/val_final/baseline_s42.json, _s52, _s60; tol/val/status.txt; tol/logs/facts_tol.json]:
+    - Labels: s42 WALK 40; s52 WALK 39 and FALL 1 (reset 3050, 90 steps); s60 WALK 40. WALKS on each seed: the
+      launch is not held (Q24).
+    - (a) median -25.3 / -47.8 / -28.9 deg, p95 |yaw| 31.7 / 54.6 / 47.6 (n 40 / 39 / 40); (b) p95 D 25.2 / 44.8 /
+      49.0, p95 W0 30.0 / 49.4 / 55.3; (c) counting 40 / 38 / 40, median r 22.8 / 34.8 / 29.1, p95 r 40.2 / 55.4 /
+      52.7, within 11.5 deg 18/40, 2/38, 3/40, within 5 deg 12/40, 0/38, 1/40, share removed 0: each FAIL, and
+      STRAIGHT FAIL on all three, as expected.
+    - The mechanics on every nudge: states 0..650 equal 80/80, 76/76, 80/80; the state-651 observation beyond 1e-3
+      only in obs[60] and obs[62] on 40/40, 38/38, 40/40; a 0-deg nudge reproduces the panel episode 20/20 per seed;
+      the turned twin within 2.73e-5 / 2.53e-6 / 3.71e-6 deg, none flagged at 1e-4; actions after state 651 within
+      3.90e-6 / 1.03e-6 / 9.54e-7.
+    - Every value of the six records equals the tools' fix stage's (SP/work/pilot4/tools/out/fix/val_final/) but the
+      tool sha256, the constant, s42's flagged list (3 -> 0) and file paths [measured: tol/logs/
+      cmp_tol_records.json].
+  - Every tool built, unit-tested, validated on pilot 3's judged cells (pilot 3's yaw_change_deg reproduced) and
+    pinned by sha256 before launch, with a durable copy outside the scratchpad [P3 L1401-1403].
+    Done but for the durable copy and pilot4_video.py's first render (not run: the fourth item above; the tool is
+    unit-tested, 15 cases, and differs from pilot 3's validated pilot3_video.py only in docstrings, its usage example,
+    its record's schema name and an artifact label, 24 diff lines, no rendering line [measured: diff,
+    prelaunch/fix/data/diff_video_p3_p4.txt]) (the tolerance stage's final run, 11:51-11:57 UTC, the files unchanged
+    during it; the tests' tree tools/tree clean at 0e6a57b; nothing trains in the tests) [measured:
+    tol/tests_final/summary.json and rcs.txt; tol/val_final/p3val_s42.json, _s52, _s60; tol/e2e/e2e_summary.json and
+    e2e_fix_checks.json; tol/pin/sha256sums_check.txt and before_list_check.txt]:
+    - 567 pytest cases in the nine test files, 0 failed, 0 skipped (judge 282, straight 74, habit 65, vg 34, runner
+      33, noise 26, mirror 19, mech 19, video 15); test_pilot4_score.py 480/480 through iso.py with the tree (pure
+      mode 428/428, 1 skipped).
+    - On pilot 3's judged 8M cells: every re-rolled episode (40 per seed) equals probe.json, yaw_change_deg
+      reproduced with a difference of 0.0; (a), (b) and (c) FAIL on all three.
+    - The end-to-end on stand-in runs built by the real set-up path (learn() stopped): 65 of 65 and 18 of 18 checks.
+    - Pinned by SP/work/pilot4/tools/SHA256SUMS.txt (1152 entries), sha256
+      0f42f29f45092ad87004519783af5175bcb1b7a7c61dcccd4985b682554cc448; sha256sum -c from the tools folder 1152 OK at
+      the tolerance stage and at the smoke's start and end (smoke/pin/sha256sums_check_start.txt and _end.txt); the
+      tools' fix stage's list (c2a86878..., 605 entries) still verifies 601, the 4 edited files failing, by design.
+      The tools: pilot4_judge.py 648dd557..., pilot4_score.py 98fd9e4a..., pilot4_straight.py 870bab61...,
+      pilot4_video.py 0c904fc4..., pilot4_habit.py 36465e8c..., pilot4_noise.py 8905669b..., pilot4_mirror.py
+      862b25b9..., pilot4_mech.py 5d9e21e7..., pilot3_vg.py a58d5f4f... and iso.py 5da55763... (byte copies of
+      pilot 3's), and the smoke runner nb_pilot_runner4.py 33fd52cc....
+    Not run yet (required before launch, after the freeze): the durable copy outside the session scratchpad [P3
+    L1401-1403]: the pinned files, byte-identical, checked by sha256sum -c against SHA256SUMS.txt. The list names the
+    tolerance stage's evidence as ../prelaunch/tol/... (547 of its 1152 entries [measured:
+    prelaunch/fix/logs/tools_list_counts.txt]) and test_pilot4_score.py reads ../prelaunch/tol/val_final by default,
+    so the copy holds SP/work/pilot4/tools/ and SP/work/pilot4/prelaunch/tol/ at the same relative positions (or the
+    test is given PILOT4_STRAIGHT_VAL), and sha256sum -c SHA256SUMS.txt run from the copy's tools folder must give
+    1152 OK; where the copy also keeps the lanes' evidence, sha256sum -c fix/pin/SHA256SUMS_lanes.txt run from the
+    copy's prelaunch folder must give 614 OK.
+  - The Colab steps for pilot 4 (pilot 3's COLAB_STEPS_PILOT3.txt as the model), reviewed against this text; the
+    parent-file route (Q4).
+    Not run yet (required before launch, after the freeze: pilot 3's steps were written from its frozen text after its
+    approval and checked line by line against it [measured as recorded: RL 1037, 1040, 1041]). The steps give, for
+    each seed: the parent-file route of Q4 (the five MANUAL lines of Q5 as the smoke typed them: MANUAL_NODE
+    "locomotion", MANUAL_LOAD_MODE "initialize_next_stage", MANUAL_TIMESTEPS None, and MANUAL_LOAD_PATH the seed's own
+    8M stem on Drive, MANUAL_VECNORM_PATH its explicit sidecar, the recorded sha256 equal to the table under "Parent
+    and entry"); the guard line typed as the chain-loop cell's first line (the smoke's: raise RuntimeError("Walking
+    pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming:
+    then stop here.") [measured: smoke/nb/params_s42.json]); REPO_REF at the pushed head; QUICK_TEST False; SEED
+    <seed>, N_ENVS 4, RUN_ID pilot4_walk_s<seed>, BEHAVIOR "walk", CRITIC_PHASE False, K3_PANEL False
+    (smoke/nb/params_s42.json); the launch lines and first-hour checks under "Run handling"; the RESUME and _b rules.
+    Their test: a line-by-line check against the frozen text before any Colab launch, as pilot 3's had.
+  Pending, in this order: the maintainer's approval of this text (its sha256; with it the smoke RESUME's departure
+  above) and of the fourteen local commits; the OK to push, then the push with an explicit refspec to the same-named
+  remote branch, never a bare git push [P3 L1397-1400], after which git ls-remote
+  https://github.com/kuds/mesozoic-labs.git refs/heads/<prefix>/pilot-walk-r10-p4 must print
+  0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 (by its URL, not origin: the first item), and nothing more is pushed to it
+  until every seed is judged ("Code"); the durable copy of the pinned tools; the video tool's first render and the
+  notebook replay's reset seed (2044 for s42) on a machine that renders, or the maintainer's written acceptance that
+  the first renders are the Colab replays and the judging run's; the Colab steps (COLAB_STEPS_PILOT4.txt from pilot
+  3's COLAB_STEPS_PILOT3.txt, written from this text once frozen), reviewed against this text; the maintainer's launch
+  approval.
+
+TOOL PLAN (what the pilot-4 tools change against pilot 3's pinned tools in SP/work/pilot3/tools/; each new tool and
+test pinned in a new SHA256SUMS.txt before launch, done: sha256 0f42f29f..., "Pre-launch checks"; none on the
+branch)
+  pilot4_judge.py from pilot3_judge.py (df5ea214...):
+    - PILOT_BUDGET 2,000,000; the uninterrupted end 2,015,232; --expect-budget default; the RUN_ID pattern.
+    - The parent: a per-seed table of the three 8M zip sha256s (above); --parent-sha256 must equal the --seed's entry;
+      PILOT_PARENT_SHA256, PARENT_IN_TREE and the critic-phase record read are removed (nothing to read in the tree).
+    - warm_start_problems becomes entry_problems: refuse a run.critic_phase_dropped record, a warm_start_log_std
+      record (run or curriculum), curriculum warmup_timesteps other than 0, ramp_start_value other than 2.0,
+      initialize_from_own_checkpoint other than true, run.n_envs other than 4, a critic_phase key; require
+      run.parent_task_sha256 782d95b6... and, from the judged zip (read as JSON, never unpickled, as pilot 3's judge
+      read the critic-phase record), the lineage record: initialize_next_stage, parent stage 2,
+      zeroed_command_parameters.
+    - New env binding: the recorded env kwargs (stage_config.json's reward_weights) carry command_mode "heading" and
+      the committed command table key for key (same keys, same values of the same JSON types), prey_lateral_range
+      [0, 0], the price 0.2 / 0.5 and R6's four keys, and equal, key for key, the env the judging tree builds (its
+      constructor defaults and committed [env]: the gait probe's own drift record, computed by the judge before the
+      probe and read again from the probe's JSON after it, must be empty); the recorded task_sha256 equals the one
+      the tree derives (914a1cae... at 0bcb0cf, 7700f28 and 0e6a57b), as hyperparameters_sha256 already does
+      (fbc94bef...), and at the pilot budget the tree's two derivations and its committed table must also be this
+      text's own (the full digests under Run handling, the table under What is trained), so a record and a tree
+      that moved together are refused.
+    - resume_check: no resume is off-schedule when warmup_timesteps is 0 and ramp_start_value equals the [env]
+      forward_vel_weight (2.0); a resumed run's budget stays the recorded timesteps plus the resume step.
+    - Kept: the clean tree on a pilot-walk-* head (checked out, or detached at the tip of the local pilot-walk-*
+      branch; --expect-head, default the head the runs record, 0e6a57b), stage 2, initialize_next_stage, the seed,
+      git_commit = HEAD, the plant digests, intact pairs, --final-fallback, --check-only, one run per seed in OUT,
+      the probe's fixed arguments. Added: the cadence 65536 / 10 / 250000 / 0 (Run handling), checked when the
+      budget is the pilot's 2,000,000 (a validation-only smoke copy records it unchecked: the smoke overrides it in
+      memory). Unit tests: pilot 3's adapted, plus refusals of pilot 3's stance parent, another seed's 8M parent, a
+      -2.0 record, a 0.2 ramp, prey [-2, 2], the price off, a rewritten command table, an env-kwargs drift, and a
+      tree whose digests or table moved with the record.
+  pilot4_score.py from pilot3_score.py (286ce04a...):
+    - CHECKPOINTS (500,000, 1,000,000, 1,500,000, 2,000,000), PRIMARY 2,000,000; pilot 3's label_episode,
+      seed_outcome, pilot_outcome, reviewed_outcome and pilot_outcome_reviewed byte-identical (the gait reading).
+    - New, in new functions with tests: --straight (the straightness tool's JSON per seed) and --straight-review (the
+      look's JSON); the four seed outcomes; the pilot outcome over them; the report-only count of seeds passing (a),
+      (b) and the look; the existence reading; PENDING_REVIEW;
+      (c)'s NOT READ printed with its counts. A straightness record is read only when it is the seed-mode record of
+      that very cell (the sha256s of its binding.json and probe.json, its checkpoint and sidecar sha256s, head and
+      final-model flag), written by the pinned pilot4_straight.py (its sha256 in SHA256SUMS.txt) with this text's
+      bars and windows (the record's constants), and only when each part's verdict follows from the record's own
+      values under those bars; otherwise the seed waits for a record. A cell whose probe.json records an env-kwargs
+      drift is not scored.
+    - The Q4 habit branch removed: --habit is printed report only.
+    - Report only: speed and gait metrics beside pilot 3's 8M medians (constants with their source).
+  pilot4_straight.py (new):
+    - Seed mode on a judged cell (binding.json, probe.json), a clean tree at the cell's head, the run copy's pair; it
+      refuses a dirty tree, an off-schedule or validation-only cell (validation under --validation), a cell from
+      another run, and an existing --json file (pilot3_habit.py's refusals).
+    - Part A: re-roll the 40 panel episodes through the probe's own rollout_episode / analyze_episode
+      (pilot3_video.py's loader and shims), require every re-rolled metric equal to probe.json's, then from the
+      recorded quaternions psi, yaw (equal to yaw_change_deg), m_k, D, W0, R and the last mean's error; read
+      psi_cmd from the command state and check it against info walk_heading_error_rad.
+    - Part B: the recovery panel as fixed in (c) (reset seeds, offset, read point, counting rule). The turn exactly
+      as fixed there: after state 650 is recorded and the action of step 651 computed, the root quaternion and linear
+      velocity turned and the prey (mocap_pos[0]) turned about the same vertical axis; no mj_forward, no rebuild;
+      step 651's env.step refreshes the command. Not recov.py's turn: its bare env._update_command() left obs[60:63]
+      one step stale (the observation reads env._command, tyrannosaurus_rex/base_env.py line 1103 at 7700f28 and
+      0e6a57b) [measured: review_text/out/check_turn_obs.txt], and its mj_forward and rebuild move other channels
+      too, so the probe records the turned state as state 650 [measured: postfix/text/out/cmp_prefix.txt].
+      Deterministic. Per episode: the pass at state 650, the net pelvis displacement between states 650 and 1000,
+      the residual, the fall, the share removed against the unturned twin, and the prey-in-place variant (report
+      only). Tests: states 0..650 equal the panel episode's bitwise; a 0-deg nudge reproduces the panel episode
+      bitwise; with the command columns zeroed (the entry baseline), the nudged episode equals the panel episode
+      turned by the angle (heading + angle to 1e-4 deg at 10 s; on the 118 nudged entry episodes the largest deviation
+      is 2.73e-5 deg, so none is flagged: s42 0 of 40, s52 0 of 38, s60 0 of 40, every baseline run exits 0; v3's
+      1e-5, set from 15 episodes, flagged 3 s42 episodes at 2.73e-5, 1.94e-5 and 1.08e-5 deg and was loosened by
+      maintainer decision (35) [measured: tolerance stage, SP/work/pilot4/prelaunch/tol/val_final/baseline_s42.json,
+      _s52, _s60]) and the state-651 observation differs from the un-nudged one only in obs[60:63]; the pass check at
+      state 650; NOT READ below 30 counting episodes.
+    - The parts' verdicts with their bars as named constants; the top-down path plot and heading curves for the look;
+      report only, the medians over the full-length panel episodes of the 1-s crab (course minus heading) and of the
+      end cross-track, in the record, the printout and on the path plot (entry: +4.8 / -1.4 / +2.3 deg and +0.39 /
+      -4.06 / -2.97 m [measured: tolerance stage, SP/work/pilot4/prelaunch/tol/val_final/baseline_s42.json,
+      _s52, _s60]).
+      Seed mode also refuses a cell whose probe.json records an env-kwargs drift.
+    - Tests: synthetic psi traces (constant -> D = 0; a drift of r deg/s from 0 -> D = 9.5 r, its value at state
+      950; a sine weave of amplitude A and period P <= 8 s -> D = g A and R = 2 g A, g = sin(1.01 pi/P) / (101
+      sin(0.01 pi/P)) (0.630 at 2 s, 0.898 at 4 s); a 1.01-s weave -> D = 0 and W0 = A; the window edges; wrap past
+      +-180 deg; a fall -> no D) [measured: review_text/out/review_misc.txt M4]; the percentile rule with inf entries
+      (1 and 2 inf of 40; n 30 with 2 inf); the bars at their edges; the refusals; a validation run
+      on pilot 3's 8M cells reproducing yaw_change_deg to 1e-12 and this draft's numbers on a pilot-3 tree; a run on
+      the edge-prepared parents in the pilot-4 env reproducing the entry baseline.
+  pilot4_video.py from pilot3_video.py (43f72bfa...): the tool names in its docstrings and usage example, its record's
+    schema name and an artifact label (24 diff lines, no rendering line [measured:
+    prelaunch/fix/data/diff_video_p3_p4.txt]); renders unchanged.
+  pilot4_habit.py from pilot3_habit.py (56f1c78d...): EVAL_EVERY 65,536 (the window's first evaluation and spacing;
+    the coverage rule with it), TD_BLOCK 500,000, the ledger and RUN_ID paths, report-only wording; definitions
+    unchanged; its validation on the six PC ledgers re-run unchanged.
+  pilot4_noise.py from pilot3_noise.py (c191c72a...): the warm-start reference becomes each parent's exp(log_std)
+    (mean, min, max per seed, the seed read from the RUN_ID), no warm-up section (WARMUP_STEPS 0) but a section over
+    the first 65,536 steps (the fresh ret_rms, as Report only asks), BLOCK 250,000, and the forward references pilot
+    3's own last evaluation at or before 8M (7,995,392) on R6's scale (1943.495 / 1912.660 / 1897.846).
+  pilot3_vg.py (a58d5f4f...): code unchanged, re-pinned; G is the pilot-4 env's reward (price included).
+  New report-only readouts: pilot4_mirror.py (pi against pi_m on 10 panel resets; the mirror-KL loss on own states,
+    the veer policy lane's method), pilot4_mech.py (the limp and asymmetry numbers, the gait-report plan lanes'
+    definitions), and the probe on a 31d02e42 clone for pilot 3's env (no new code).
+  Unchanged and not re-frozen: gait_probe.py, gait_probe_pilot.py, fixtures/gait_cases.json, every label, guard and
+    threshold [P3 L581-583]. iso.py: code unchanged, re-pinned in the new SHA256SUMS.txt, as pilot 3 re-froze it
+    [P3 L581].
+  The smoke runner: nb_pilot_runner4.py from nb_pilot_runner3.py (7f533128...): the pilot-4 cells, the local parent
+    pair, MANUAL_VECNORM_PATH explicit, the cadence override 65,536 / 250,000 -> 32,768 in memory, the expected entry
+    lines as measured; it refuses, before any cell, a launch or a resume whose config QUICK_TEST is not true unless
+    --stop-at-learn (learn() stopped: nothing trains) or --plan-only (nothing runs), so the only training it can run
+    is the pre-registered QUICK_TEST CPU smoke.
+
+Decisions taken (2026-11-06; items Q1-Q27 as draft v3 listed them, each with the maintainer's choice; the run log's
+maintainer decisions keep their parenthesized numbers) [measured: RL 1093, 05:27 UTC, "MAINTAINER DECISIONS
+(AskUserQuestion, on draft v3 Q1-Q27)"; RL 1096, 11:21 UTC, "MAINTAINER DECISIONS (AskUserQuestion)"]. The
+alternatives v3 listed beside each proposal were not chosen and are not carried here (v3 keeps them).
+  (31) Straightness rule, "Accept as proposed (Recommended)": Q1-Q3, Q9, Q19, Q20, Q22 and Q25.
+  (32) Judging and outcome, "Accept as proposed (Recommended)": Q8, Q10, Q21, Q23 and Q27.
+  (33) Running, "Accept as proposed (Recommended)": Q4-Q7, Q11 and Q12.
+  (34) Code defaults and next step, "Accept, build tools next (Recommended)": Q13-Q18, Q24 and Q26; next the
+       pilot-4 judge, scorer and straightness tool on CPU, reviewed; the QUICK_TEST smoke, the freeze, the push and
+       the launch each wait for the maintainer.
+  (35) The turned-twin tolerance, "Loosen to 1e-4 deg (Recommended)": the tools' fix stage's C6, alternative (a):
+       pilot4_straight.TWIN_HEADING_TOL_DEG 1e-4, the scorer's constants and tool sha256 following, the three
+       baselines re-run, the tools re-pinned (done by the tolerance stage, "Pre-launch checks"; the Part B test in
+       the TOOL PLAN reads 1e-4).
+  (36) "Smoke, then final text (Recommended)": the QUICK_TEST notebook smoke on CPU with the pinned tools (it trains
+       a throwaway model; approved), the judge, score and resume checks on its output, then the 18 text corrections
+       and the tolerance applied to make this text; the push and the Colab launch still wait.
+  Q1. The STRAIGHT bars, (31): (a) |median| <= 5 deg and p95 <= 15 deg; (b) p95 D <= 11.5 deg, with Q20's guard;
+     (c) median r <= 5 deg and p95 r <= 11.5 deg ("STRAIGHT").
+  Q2. The weave measure, (31): D, the deviation of the 1-s mean heading from the commanded heading; R report only.
+  Q3. The recovery design, (31): the mid-walk nudge after the prey pass, +-15 deg at state 650, the prey turned with
+     the walker (Q19), read over states 900-1000; the turn at reset report only; episodes that end before the nudge
+     are left out (the pass rule: Q19).
+  Q4. The parent-file route, (33): Colab reads each seed's pair from Drive by path (pilot3_walk_s<seed>/
+     03_locomotion/models/), the run records the sha256 it loaded and the judge refuses any other; no branch change.
+  Q5. The Colab path, (33): the notebook's manual cell (MANUAL_NODE "locomotion", MANUAL_LOAD_MODE
+     "initialize_next_stage", MANUAL_LOAD_PATH the 8M stem, MANUAL_VECNORM_PATH explicit, MANUAL_TIMESTEPS None),
+     pilot 3's route.
+  Q6. Whether s42 stays, (33): it stays (the scored set fixed before results; the limp is a report-only readout).
+  Q7. The cadence, (33): eval_freq 65,536 and checkpoint_freq 250,000, as committed in the TOML; the judged
+     checkpoints 0.5 / 1.0 / 1.5M (trajectory) and 2M (deciding).
+  Q8. The judge env, (32): the pilot-4 env only; pilot 3's env report only.
+  Q9. The recovery test's place, (31): part of STRAIGHT.
+  Q10. The straightness look, (32): veto power (a "not straight" makes CURVED WALKS).
+  Q11. The resume rule (D11), (33): RESUME from any intact periodic pair from 250,000 on.
+  Q12. The collapse reference, (33): 1064.0 (floor 478.8), measured with the price on.
+  Q13. The command table's switch_interval_s 4.0 and switch_jitter_s 0.0 (dataclass defaults, in the task digest),
+      (34): kept as committed; the table is not rewritten.
+  Q14. The behaviour recipes inherit nothing of pilot 4, (34): as built (recorded for completeness).
+  Q15. The species catalog shows 2M on this pilot-only branch, (34): accepted.
+  Q16. The four known failing tests, (34): unedited; on the branch's test runs deselected by id, or run and named by
+      id with their cause (pilot 3's convention [P3 L44, L977]); the stale name of
+      test_every_committed_stage_is_command_mode_none_in_phase_c (test_sb3_notebook_pins.py) stays, its docstring
+      stating the pilot-4 exception.
+  Q17. The [ppo] schedules, (34): production's schedule as committed (learning rate 5e-5 -> 1e-5 over 2M, entropy
+      0.005 decaying toward 0.001 over 4M); no [ppo] change.
+  Q18. The approvals, (34): the order as proposed; the approvals themselves are still open: this text once frozen
+      (its sha256), the fourteen local commits (seven built, four review fixes, three postfix fixes), the OK to push
+      and the launch ("Status", "Pre-launch checks").
+  Q19. (c)'s prey and counting rule, (31): the prey turned with the walker at the nudge; only nudges after the
+      episode's prey pass count; NOT READ below 30 counting episodes.
+  Q20. The zig-zag guard, (31): p95 W0 <= 18.5 deg.
+  Q21. The straightness look's scope, (32): every seed that is WALKS, video-agreed and passes (a) and (b).
+  Q22. The episodes (a) and (b) read, (31): every full-length panel episode whatever its label (a STILL, OTHER or HOP
+      full-length episode of a WALKS seed, up to 10 [P3 L616], counts in (a) and (b): a standing one helps the bars, a
+      circling one hurts).
+  Q23. The pilot outcome, (32): pilot 3's 2-of-3 rule over the exact seed outcomes, with the count of seeds passing
+      (a), (b) and the look printed beside it, report only.
+  Q24. The entry-baseline hold, (34): hold unless every prepared parent reads WALKS in the pilot-4 env (each did:
+      "Pre-launch checks").
+  Q25. The movement condition and the read window, (31): a net horizontal pelvis displacement of at least 0.35 m
+      between states 650 and 1000; the single read window m_950. The nudge mechanics are fixed in (c), not a choice.
+  Q26. The training diagnostics, (34): no change: DiagnosticsCallback's key lists hold neither
+      reward_walk_heading_price nor walk_heading_error_rad, so TensorBoard and the metrics breakdown show neither
+      [inferred: the code review, diagnostics.py lines 223 and 261]; the judged readouts (STRAIGHT, the price per
+      episode) carry the price and the heading error.
+  Q27. The straightness look's criterion, (32): path and heading, so that a visible weave, zig-zag or crab off the
+      commanded line reads "not straight".
+
+Evidence for the bars (measured unless marked)
+  Straightness metrics on recorded trajectories [measured: SP/work/pilot4/build/draft/out/straight_offline.txt, from
+  the hybrid check's and the veer screen's per-step records and the overnight SCREEN's hand-built records; reset
+  seeds 3042-3061 (hand-built: 3042-3081); D, R over full-length episodes only]:
+    condition                           seed   n full | yaw med p95|yaw| | D p95 D med D max | R med R p95 | W0 p95
+    pilot 3 as judged (the live command  s42  20  20 |  -24.3    36.9  |  32.2  16.9  41.7 |  23.3  33.1 |  37.2
+      ignored, prey drawn; bitwise       s52  20  19 |  -46.6    52.2  |  44.0  34.9  45.0 |  41.0  44.4 |  49.4
+      pilot 3's episodes)                s60  20  20 |  -22.9    55.1  |  52.2  26.0  60.8 |  37.1  47.9 |  58.1
+    pilot-4 entry (edge-prepared         s42  20  20 |  -25.3    31.9  |  27.2  17.0  35.9 |  22.4  26.6 |  31.3
+      walker, prey on the spawn line)    s52  20  19 |  -46.6    53.9  |  44.8  32.8  45.6 |  39.0  44.8 |  49.4
+                                         s60  20  20 |  -29.6    45.6  |  43.1  31.3  45.2 |  38.3  45.2 |  48.4
+    beacon, no retraining (veer screen   s42  20  20 |  -21.8    26.2  |  22.2  16.7  24.5 |  22.5  24.6 |  25.4
+      carrot0: prey held 10 m ahead)     s52  20  19 |  -18.1    23.2  |  15.5   9.9  15.6 |  14.5  17.5 |  17.6
+                                         s60  20  20 |  +15.5    20.7  |  28.2  20.1  31.5 |  26.7  31.6 |  30.6
+    prey held far (30 m, never passed)   s42  20  20 |   -2.7     7.1  |  12.4   9.5  12.6 |  14.5  17.2 |  16.8
+    hand-built walks, heading-free       all 200 200 |   -4.7    16.7  |  17.9   8.5  36.7 |   6.2  17.3 |  20.4
+      (FINAL3, V01, V05, V24, V18, V35 at 0.21-1.0 m/s)
+    yaw = the probe's window yaw change over every episode longer than 110 steps (so it counts s52's fall at reset
+    3050 with the prey drawn, 114 steps, which part (a) as decided leaves out; with the prey on the line that episode
+    falls at 90 steps and is not counted); D, R, W0 over full-length episodes only; all in deg. The yaw column
+    reproduces pilot 3's judged p95 37 / 52 / 55 and the hand-built 16.7 [measured: straight_offline.txt; the veer
+    reproduce verifier's 36.9 / 52.2 / 55.1]. The commanded heading is 0.0 rad on every hybrid record (checked).
+    W0 - D per episode is 1.6-6.8 deg on every walker row and 0.6-5.9 on the hand-built walks [measured:
+    review_text/out/review_misc.txt M2]. Against the decided W0 bar (18.5) every row fails but the beacon's s52
+    (17.6) and the far prey (16.8), both of which fail D.
+    The hybrid check's "weave" (the range of a 1-s moving mean over states 101..T, its window shrinking at the
+    edges) read median 26.3 / 44.3 / 39.5 and max 43.4 / 51.9 / 55.2 on pilot 3's walkers [measured as recorded:
+    hybrid screen lane finding 4]; R here uses whole 101-state means only, so it reads lower on the same episodes.
+  Recovery baseline: the edge-prepared pilot-3 walkers in the committed pilot-4 env, deterministic, no training
+  [measured: SP/work/pilot4/build/draft/out/recov_rule.txt and recov_summary.txt; recov.py, run on this draft's
+  --shared clone at 0bcb0cf (left clean), the verified pilot-3 run copies read only, 300 episodes]. Without a nudge
+  these rollouts reproduce the hybrid check's records (every 1-s mean of the 59 full episodes equal at the 1e-4 deg
+  rounding of my records, and every episode length [measured: cmp_none.py]) and the entry rows above; the prepared
+  walker's action equals the command-blind
+  original's on the command-zeroed observation on every step (dA 0.0).
+    (c), prey left in place (report only; the first draft's mechanics):
+    nudge +-15 deg at 6.5 s, read 9.0-10.0 s                   report only: turned +-15 deg at reset, read 4.5-5.5 s
+    seed reach fell r med r p95 <=11.5 share +15/-15  (c)       r med r p95 <=11.5 share
+    s42    40    0  21.6  40.2  18/40  -0.03/+0.05  FAIL        15.3  26.4  14/40  +0.03
+    s52    38    0  34.9  55.1   2/38  -0.04/-0.02  FAIL         6.5   inf  30/40  +0.56  (2 falls, reset 3050)
+    s60    40    0  28.2  54.3   3/40  -0.11/-0.08  FAIL         1.8   6.8  40/40  +0.91  (passes the bars)
+    (c) as decided, prey turned with the walker (the fixed mechanics): r median 22.8 / 34.8 / 29.1, p95 40.2 / 55.4 /
+      52.7, within 11.5 on 18/40, 2/38, 3/40, share 0: FAIL on all three [measured: pilot4_straight.py baseline mode
+      on every nudge, tolerance stage, SP/work/pilot4/prelaunch/tol/val_final/baseline_s42.json, _s52, _s60; the
+      command-blind walker keeps the offset on 118 of 118 nudged entry episodes]
+    reach = episodes that reached the nudge, every one past the prey by then, so all count under (c)'s rule [measured:
+    review_text/out/review_misc.txt M5] (s52's reset 3050 falls at 90 steps in both); fell = falls after it; r in
+    deg; share = the median share of the offset removed against the un-nudged twin (the turned-at-reset column pools
+    both signs; its two s52 falls, reset 3050 at 109 and 116 steps, count as r = inf there). Read at 9.5 s instead,
+    the turn at reset fails everywhere (median r 27.7 / 43.5 / 31.0): the curve takes over [measured:
+    recov_summary.txt].
+  Other references [measured as recorded]: a mirror-symmetric hand-built walker with no heading feedback drifts about
+  23 deg per 10 s at 1.5 m/s, its direction set by the lead foot (left lead: median -23.5, right lead +22.6) [veer
+  plant lane, reproduced by the veer reproduce verifier]; the stride yaw oscillation rms 20-27 deg/s at 2-5 Hz [veer
+  reward lane finding 11]; under the beacon with a +-10 deg start rotation and no retraining, the walkers removed
+  +0.23..+0.83 of the offset by 10 s (medians per seed and sign) [the stopped beacon draft, SP/work/pilot4/draft/out/
+  straightness_inputs.txt].
+
+Changes in v2 (against the first draft, SP/work/pilot4/build/draft/criteria_pilot4_draft.txt, sha256 87415f91...;
+the first draft is kept unchanged)
+  Text review, blocking: (c) counts only nudges given after the episode's prey pass, reads NOT READ below 30, adds a
+  movement condition, and spells out the nudge (the rotation, the velocities, the command refresh, the identical
+  states 0..650); its rationale gives the prey-pass evidence (Q19 and Q25).
+  Text review, should-fix: obs[62]'s saturation keeps the sign (the "blind past 11.46 deg" wording replaced in five
+  places); the tool plan's turn sets env._command (recov.py's bare refresh left obs[60:63] one step stale); the W0
+  zig-zag guard in (b) and the corrected D-vs-R rationale (Q20); the percentile rule; the straightness look
+  for every seed passing (a) and (b) (Q21); STRAIGHT NO RECOVERY's meaning; the entry-baseline hold
+  (Q24); Q19-Q25.
+  Text review, minor: the entry price per seed from the setup check; the saturation shares with their condition;
+  D5's two references; the synthetic-test expectations; the backstop arms, and can hardly fire; the RESUME check's
+  records; the first-hour provenance and TensorBoard checks; pilot 3's run folders are read for the parents; course
+  against heading (report only) and the venv limit; the TOML's checkpoint comment (fixed on the branch, commit 11).
+  Code review: commits 8-11 ("Code"); Q26 (the diagnostics keys) added; Q16 (the four known failing tests stay
+  unedited) and Q17 (the [ppo] schedules restart) kept as they were.
+
+Changes in v3 (against v2, SP/work/pilot4/build/fix/criteria_pilot4_draft_v2.txt, sha256 cee7cfc2...a581; v2 is kept
+unchanged)
+  Postfix text verification, blocking: (c) turns the prey with the walker at the nudge, because after the pass the
+  prey behind still carries the heading (hybrid screen lane finding 13 never computed its post-pass claim); the (c)
+  rationale, the entry baseline under the prey-turned nudge (FAIL on all three), the prey-in-place variant made
+  report only, STRAIGHT WALKS' meaning, Q3, Q19 and the recovery table follow.
+  Postfix text verification, should-fix: the nudge is applied after step 651's action is chosen, with no mj_forward
+  and no rebuild (v2's mechanics turned the recorded state 650 itself, so its own prefix rule would refuse every
+  episode, and moved other channels even at 0 deg), and Part B's tests match it; Known limits list what (a) and (b)
+  still admit after the W0 guard (short-period zig-zags, a turn and back, a crab); the look has a criterion, and Q27
+  asks for it.
+  Postfix text verification, minor: the percentile rule's nan case; Q23's report-only count written into the pilot
+  outcome and the scorer plan; iso.py re-pinned as pilot 3 re-froze it; the hold includes resumes and _b restarts,
+  and the RESUME cell's refusal stays; the approval at run-log line 1037; the open list renamed Q1-Q27; Q16's
+  alternative and the stale test name; the statue's TOML lines at each commit; the setup check re-run at the head
+  before launch; the movement condition as a net displacement.
+  Postfix code verification: commits 12-14 ("Code": a table number must be written as a float, speed_range's bounds
+  included; the derivation applies the env's mode validator, and its docstring says what holds; a mypy fix); the
+  known-failing-tests sentence gives the digests at both commits and pilot 3's two extra failures; the head, tests,
+  digest and Q18 read 0e6a57b and fourteen commits; the setup check's re-run at 7700f28 is recorded.
+
+Changes from v3 (against draft v3, SP/work/pilot4/postfix/fix/criteria_pilot4_draft_v3.txt, sha256 1c52644d...c19d; v3
+is kept unchanged; this text is made from it by SP/work/pilot4/prelaunch/text/scripts/make_final.py, which checks
+every replaced text before replacing it, then edited by the pre-launch fix stage's
+SP/work/pilot4/prelaunch/fix/scripts/apply_fix.py, which checks every replaced text the same way: the last bullet)
+  - The tools' fix stage's 18 text corrections (SP/work/pilot4/tools/out/fix/text_corrections.txt, sha256
+    78f17142...): C1-C5, C7, C8 (inserted), C9a, C9b and C10-C16 with their NEW text verbatim but for the citations
+    and wording the next bullets name, and C6 in its alternative (a) form, decision (35): the turned-twin tolerance
+    1e-4 deg, with the tolerance stage's measurement. Every OLD text matched v3; none changes a bar, a seed, a budget
+    or an outcome rule. The file itself is a pinned record and is not edited: its line 5 still names the earlier
+    pilot4_straight.py sha256 93d5c558..., and its C6 NEW text still keeps 1e-5, both superseded here (decision (35);
+    the tool sha256 870bab61...) [measured: prelaunch/fix/logs/text_corrections_line5.txt].
+  - C5, C9a, C9b, C12a and C12b cite the tolerance stage's records (SP/work/pilot4/prelaunch/tol/val_final/) in
+    place of the tools' fix stage's (SP/work/pilot4/tools/out/fix/val_final/), which the re-pinned scorer refuses
+    (their tool sha256 is the earlier tool's [measured: tol/logs/scorer_vs_fixstage_records.txt]); every number is
+    the same [measured: tol/logs/cmp_tol_records.json; text/data/facts_text.json]; C9a's, C12a's and C5's passages
+    are re-wrapped to keep the width.
+  - Title and Status: a frozen candidate; the head 0e6a57b, the tools' SHA256SUMS.txt sha256, what stays open; the
+    pre-launch lanes' folders; "this draft" names the first draft, as in v3.
+  - "Maintainer decisions behind this pilot" points to (31)-(36).
+  - "Remaining maintainer decisions" becomes "Decisions taken": (31)-(36) and each of Q1-Q27 with its choice and
+    decision number; the alternatives not chosen are not carried (v3 keeps them).
+  - Settled wording, no value changed: D7, the [curriculum] block (eval_freq and checkpoint_freq), the budget
+    heading, the s42 line, the yaw note and the W0 note of the evidence table, the recovery table's (c) row and the
+    baseline item of the pre-launch checks say decided where v3 said proposed.
+  - Filled from the pre-launch lanes: "Parent and entry" (the setup check re-run at the head); "Run handling" (the
+    smoke printed no Warm start or critic-phase drop line; where the archive keeps the lineage); the course line of
+    "Report only" (which resets its numbers cover); every item of "Pre-launch checks" (done, with numbers and
+    sources, or not run yet), and the pending list after them.
+  - TOOL PLAN's heading records the pin.
+  - The pre-launch fix stage (SP/work/pilot4/prelaunch/fix/; the text before it kept as
+    prelaunch/fix/criteria_pilot4_before_fix.txt, sha256 ea25b881...; prelaunch/fix/scripts/apply_fix.py checks every
+    replaced text), on the evidence verification's and the text review's findings; no bar, seed, budget, cadence or
+    outcome rule and no tool changed (the tools' SHA256SUMS.txt is still 0f42f29f..., sha256sum -c 1152 OK [measured:
+    prelaunch/fix/logs/tools_sums_check.txt]): the title and the "Pre-launch checks" heading count the smoke's RESUME
+    as training too; Status opens the video tool's first render, reads the remote by its URL and pins the lanes'
+    evidence (prelaunch/fix/pin/SHA256SUMS_lanes.txt); the launch lines name both Behavior lines and the smoke's guard
+    line word for word, and where each line was shown; the push check reads the GitHub remote by its URL (tools/tree's
+    origin is local); the RESUME departure's reason is the workflow's scope, not decision (36); the tools item and the
+    pending list carry the video tool's first render or its waiver, and the TOOL PLAN the video tool's measured diff
+    against pilot 3's; the Colab-steps item names Q5's five MANUAL lines and the config values; the durable copy and
+    the Colab steps are written as required after the freeze, each with its test; the W0 - D rationale gives the whole
+    panel's 7.06 deg; the nudge sentences cite all 118 nudged entry episodes and the entry crab; Q22 and Q26 keep the
+    consequences v3 named, and the C8 limit points to v3's Q25; PENDING_REVIEW and the existence reading name the
+    straightness record; the test-target, end-to-end, smoke-runner and lineage sentences are made exact; the TOML's
+    "PROPOSED" comments are noted under "What is trained".

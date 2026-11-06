@@ -1,0 +1,148 @@
+--- TOOLS-stage/tests/test_pilot4_straight.py
++++ fix-stage/tests/test_pilot4_straight.py
+@@ -25,6 +25,7 @@
+ import os
+ import subprocess
+ import sys
++import textwrap
+ from pathlib import Path
+ 
+ import numpy as np
+@@ -297,6 +298,20 @@
+     assert ps.C_MIN_NET_MOVE_M == 0.35
+ 
+ 
++def test_r_reads_m950_states_900_to_1000_only():
++    """Fix stage (review: a read at m_900 survived the pure tests): only states 900..1000 hold the error, and the
++    states just outside the window hold another; r is the window's error exactly."""
++    ep = recovery_ep()
++    psi = np.zeros(1001)
++    psi[900:] = 4.0       # only m_950's window holds this error
++    psi[899] = 101.0      # the state just before the window
++    psi[651:899] = -50.0  # the rest after the nudge
++    ep["psi_rad"] = np.radians(psi)
++    r = ps.recovery_reading(ep, None, 15.0)
++    assert r["r_deg"] == pytest.approx(4.0, abs=1e-12) and r["m_read_error_deg"] == pytest.approx(4.0, abs=1e-12)
++    assert ps.READ_K == 950 and ps.MEAN_HALF == 50
++
++
+ def test_the_share_removed_against_the_unturned_twin():
+     twin = recovery_ep(err_after=-10.0)
+     keep = ps.recovery_reading(recovery_ep(err_after=5.0), twin, 15.0)  # kept the offset: e_n = e_t + 15
+@@ -461,6 +476,57 @@
+     assert any("not 40" in p for p in ps.seed_problems(binding, meta, 39, seed=42, run=run, head="H", dirty=""))
+ 
+ 
++def test_a_probe_json_with_an_env_kwargs_drift_is_refused(tmp_path):
++    """Fix stage (review: a run whose recorded env kwargs differ from the tree's was read): probe.json's own drift
++    record must be empty (or absent, in a probe.json written without the run's record); also under --validation."""
++    run, binding, meta = synthetic_binding(tmp_path)
++    assert ps.seed_problems(binding, dict(meta, env_kwargs_drift_vs_recorded={}), 40, seed=42, run=run, head="H",
++                            dirty="") == []
++    drift = {"forward_vel_weight": {"toml_main": 2.0, "recorded_run": 3.0}}
++    for validation in (False, True):
++        problems = ps.seed_problems(binding, dict(meta, env_kwargs_drift_vs_recorded=drift), 40, seed=42, run=run,
++                                    head="H", dirty="", validation=validation)
++        assert problems == ["probe.json's env-kwargs drift record is not empty: the run's recorded env kwargs differ "
++                            "from the env the cell was judged in ({\"forward_vel_weight\": {\"recorded_run\": 3.0, "
++                            "\"toml_main\": 2.0}})"], problems
++
++
++def test_the_crab_note_of_the_look_s_figure():
++    assert ps.crab_note({"report_crab_median_deg": 3.04, "report_end_cross_track_median_m": -1.2}) == (
++        "report only: median crab +3.0 deg (course minus heading), median end cross-track -1.20 m")
++    assert ps.crab_note({"verdict": "NOT READ", "n": 0}) is None
++
++
++def test_the_training_guard_blocks_backward_step_and_learn():
++    """Fix stage (review: dropping a guard went unnoticed): the guard, installed in a fresh interpreter, lists and
++    blocks the optimizer steps, backward and SB3's learn and train."""
++    code = textwrap.dedent(f'''\
++        import sys
++        sys.path.insert(0, {str(TOOLS)!r})
++        import pilot4_straight as ps
++        patched = set(ps.install_no_training_guard())
++        need = {{"torch.Tensor.backward", "torch.autograd.backward", "torch.optim.Adam.step", "torch.optim.SGD.step",
++                "BaseAlgorithm.learn", "OnPolicyAlgorithm.learn", "PPO.learn", "PPO.train"}}
++        missing = sorted(need - patched)
++        import torch
++        from stable_baselines3 import PPO
++        blocked = []
++        for name, fn, entry in (
++                ("backward", lambda: torch.zeros(1, requires_grad=True).sum().backward(), "torch.Tensor.backward"),
++                ("adam", lambda: torch.optim.Adam([torch.zeros(1, requires_grad=True)]).step(), "torch.optim.Adam.step"),
++                ("learn", lambda: PPO.learn(None, total_timesteps=1), "PPO.learn"),
++                ("train", lambda: PPO.train(None), "PPO.train")):
++            try:
++                fn()
++            except RuntimeError as exc:  # each entry point's own guard, not one further down (autograd.backward)
++                blocked.append(name if str(exc).endswith("training entry point blocked: " + entry) else name + "?")
++        print(missing, blocked)
++        sys.exit(0 if not missing and blocked == ["backward", "adam", "learn", "train"] else 1)
++        ''')
++    r = subprocess.run([sys.executable, "-I", "-B", "-c", code], capture_output=True, text=True, timeout=300)
++    assert r.returncode == 0, r.stdout + r.stderr
++
++
+ def test_baseline_refuses_another_seed_s_parent_and_a_changed_pair():
+     z42, p42 = ps.PARENT_PAIRS[42]
+     z52, p52 = ps.PARENT_PAIRS[52]
+@@ -597,6 +663,15 @@
+     return json.loads(out.read_text())
+ 
+ 
++def test_tree_baseline_reports_the_crab_and_the_cross_track(baseline_two_resets):
++    """Fix stage, report only: (b) carries the medians of the per-episode crab and end cross-track over the episodes
++    (a) and (b) read."""
++    b = baseline_two_resets["parts"]["b"]
++    used = [e for e in baseline_two_resets["panel"]["episodes"] if e["used"] and e["full"]]
++    assert used and b["report_crab_median_deg"] == ps.percentile([e["crab_median_deg"] for e in used], 50)
++    assert b["report_end_cross_track_median_m"] == ps.percentile([e["end_cross_track_m"] for e in used], 50)
++
++
+ def test_tree_baseline_states_0_650_of_every_nudged_episode_equal_the_panel_episode(baseline_two_resets):
+     ch = baseline_two_resets["checks"]["prefix"]
+     assert ch["episodes"] == 8 and ch["equal"] == 8 and ch["refused"] == []  # 2 resets x (c, prey in place) x 2 signs
+@@ -654,9 +729,14 @@
+ 
+ 
+ def val_record(name):
++    """A validation record, which must have been written by this very tool (fix stage: a record test otherwise keeps
++    passing after any edit of pilot4_straight.py)."""
+     if VAL is None or not (VAL / name).is_file():
+         pytest.skip(f"no validation record {name} (STRAIGHT_VAL)")
+-    return json.loads((VAL / name).read_text())
++    rec = json.loads((VAL / name).read_text())
++    want = ps.sha256_file(TOOLS / "pilot4_straight.py")
++    assert rec["tool_sha256"] == want, f"{name} was written by {rec['tool_sha256']}, not this tool ({want}): re-run it"
++    return rec
+ 
+ 
+ def first20(rec):
+@@ -730,3 +810,26 @@
+     assert tw["max_abs_dev_deg"] < 1e-4 and len(tw["bad"]) == {42: 3, 52: 0, 60: 0}[seed]
+     assert ch["action_delta_vs_blind"]["max"] == 0.0
+     assert rec["labels"]["seed_outcome"] == "WALKS"
++
++
++# v3 "Report only", course against heading (review_text P5: the first 20 resets' full-length episodes): the per-episode
++# median crab min / median / max (deg) and the end cross-track min / median / max (m)
++P5 = {42: ((3.9, 4.7, 5.7), (-6.21, -0.21, 2.75)), 52: ((-1.8, -1.5, -0.7), (-7.54, -3.92, -0.79)),
++      60: ((1.7, 2.3, 3.0), (-4.84, -2.81, -1.41))}
++
++
++@pytest.mark.parametrize("seed", SEEDS)
++def test_valrec_entry_baseline_reports_the_crab_and_reproduces_v3_s_course_numbers(seed):
++    """Fix stage: (b)'s report-only crab and cross-track medians are over the episodes (a) and (b) read (all 40
++    resets); over the first 20 resets' full-length episodes the per-episode values reproduce v3's P5 numbers."""
++    rec = val_record(f"baseline_s{seed}.json")
++    used = [e for e in rec["panel"]["episodes"] if e["used"] and e["full"]]
++    b = rec["parts"]["b"]
++    assert b["report_crab_median_deg"] == ps.percentile([e["crab_median_deg"] for e in used], 50)
++    assert b["report_end_cross_track_median_m"] == ps.percentile([e["end_cross_track_m"] for e in used], 50)
++    f20 = [e for e in first20(rec) if e["full"]]
++    crab = sorted(e["crab_median_deg"] for e in f20)
++    cross = sorted(e["end_cross_track_m"] for e in f20)
++    want_crab, want_cross = P5[seed]
++    assert (r1(crab[0]), r1(float(np.median(crab))), r1(crab[-1])) == want_crab
++    assert tuple(round(float(x), 2) for x in (cross[0], np.median(cross), cross[-1])) == want_cross

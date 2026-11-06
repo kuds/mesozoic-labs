@@ -1,0 +1,700 @@
+============================== 3
+# Install dependencies (Colab auto-detected; no-op locally)
+import importlib
+import os
+import sys
+
+REPO_REF = "main"  # @param {"type":"string"}
+
+IN_COLAB = "COLAB_GPU" in os.environ or "COLAB_RELEASE_TAG" in os.environ or os.path.exists("/content")
+
+if IN_COLAB:
+    # Configure headless rendering for MuJoCo (must happen before mujoco import)
+    os.environ["MUJOCO_GL"] = "egl"
+    NVIDIA_ICD_CONFIG_PATH = "/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
+    if not os.path.exists(NVIDIA_ICD_CONFIG_PATH):
+        os.makedirs(os.path.dirname(NVIDIA_ICD_CONFIG_PATH), exist_ok=True)
+        with open(NVIDIA_ICD_CONFIG_PATH, "w") as f:
+            f.write('{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}')
+
+    # Legacy gym (and its shim packages) segfaults under NumPy 2.x on some
+    # Colab images; purge it BEFORE the first stable_baselines3 import so
+    # nothing can resolve to it. No-op when the packages are absent.
+    get_ipython().system("pip uninstall -y -q gym gym-notices shimmy")
+
+    # Install packages only if not already present. Every requirement is
+    # QUOTED — an unquoted gymnasium>=0.29.0 made the shell treat ">" as a
+    # redirect, installing an unpinned "gymnasium" and writing a junk file
+    # named "=0.29.0" — and pinned to the exact tested set (the repo's
+    # venv/CI versions) instead of open ranges.
+    if any(importlib.util.find_spec(name) is None for name in ("mujoco", "gymnasium", "stable_baselines3", "mediapy", "matplotlib", "scipy", "imageio_ffmpeg")):
+        get_ipython().system(
+            'pip install -q "mujoco==3.10.0" "gymnasium==1.3.0" "stable-baselines3[extra]==2.9.0" mediapy matplotlib "scipy>=1.10.0" "imageio-ffmpeg>=0.5.1"'
+        )
+    import pathlib
+    import subprocess
+
+    repo_dir = pathlib.Path("/content/mesozoic-labs")
+    if not REPO_REF.strip() or REPO_REF.startswith("-"):
+        raise ValueError("REPO_REF must name a branch, tag, or commit.")
+    fresh_checkout = not repo_dir.exists()
+    if fresh_checkout:
+        subprocess.run(["git", "clone", "--no-checkout", "https://github.com/kuds/mesozoic-labs.git", str(repo_dir)], check=True)
+    if not (repo_dir / ".git").exists():
+        raise RuntimeError(f"{repo_dir} is not a Git checkout; use a fresh runtime or a different directory.")
+    subprocess.run(["git", "fetch", "origin", REPO_REF], cwd=repo_dir, check=True)
+    requested_commit = subprocess.check_output(["git", "rev-parse", "FETCH_HEAD^{commit}"], cwd=repo_dir, text=True).strip()
+    current_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo_dir, text=True).strip()
+    if fresh_checkout or not (repo_dir / ".git" / "index").exists() or current_commit != requested_commit:
+        if any(name == "environments" or name.startswith("environments.") for name in sys.modules):
+            raise RuntimeError("REPO_REF changed after repository modules were imported. Restart the runtime, then rerun setup.")
+        if (repo_dir / ".git" / "index").exists() and subprocess.check_output(["git", "status", "--porcelain"], cwd=repo_dir, text=True).strip():
+            raise RuntimeError("The checkout has local edits. Save them before changing REPO_REF, or use a fresh runtime; no edits were discarded.")
+        subprocess.run(["git", "checkout", "--detach", requested_commit], cwd=repo_dir, check=True)
+    print(f"Repository ref: {REPO_REF}; commit: {requested_commit}")
+    if importlib.util.find_spec("environments") is None:
+        get_ipython().system("pip install -q -e /content/mesozoic-labs")
+    print("Colab setup complete (EGL rendering enabled).")
+else:
+    print("Running locally; using this checkout. REPO_REF selects only the Colab checkout.")
+============================== 6
+# ===== SPECIES SELECTION =====
+from environments.shared.species_names import model_display_name, require_model_id
+from environments.shared.species_registry import get_species_config
+from environments.shared.stage_manifest import stage_display_name
+
+SPECIES = "velociraptor_mongoliensis"  # @param ["velociraptor_mongoliensis", "tyrannosaurus_rex", "brachiosaurus_altithorax", "dibothrosuchus_elaphros", "compsognathus_longipes"]
+EMBODIMENT = "anatomical"  # @param ["anatomical", "robot"]
+
+# The model is the pair, named by its exact manifest IDs (decision D-D33); a pair
+# the manifest does not list is refused here, before any log directory or
+# provenance record exists.
+MODEL_ID = require_model_id(SPECIES, EMBODIMENT)
+SPECIES_CFG = get_species_config(MODEL_ID)
+MODEL_DISPLAY_NAME = model_display_name(MODEL_ID)
+
+# ===== Training settings =====
+ALGORITHM = "ppo"  # "ppo" or "sac"
+N_ENVS = 4  # Number of parallel environments
+SEED = 42  # Random seed for reproducibility
+VERBOSE = 0  # 0=quiet, 1=progress bar, 2=debug
+QUICK_TEST = False  # True = tiny run to verify setup works (50k steps a node, under <algo>_quick_test/: never a trunk)
+USE_GOOGLE_DRIVE = True  # Mount Google Drive to save results
+AUTO_DISCONNECT = True  # Disconnect the Colab runtime when training halts (gate failure or completion)
+
+# ===== Behavior recipe (BEHAVIOR_RECIPES_PLAN §4.7) =====
+# BEHAVIOR: a recipe label or a deliverable's stage id (free input), resolved through the model's stage manifest (D-D35, D-D38):
+#   "stance"  the stance stage alone, on every model ("stand", its label until D-D38, is refused)
+#   "recover" stance -> push recovery (T. rex and both Compsognathus models only)
+#   "walk"    stance -> locomotion;  "hunt"  stance -> locomotion -> the species task
+BEHAVIOR = "hunt"  # @param ["stance", "recover", "walk", "hunt"] {"allow-input":true}
+TRUNK_FROM = "auto"  # "auto" (D-A25): the run under this model/algorithm log directory whose certified ancestors cover the most of the chain, the greatest run directory name on a tie (the newest timestamp id), chosen in the resolve cell and printed; a run id or absolute path pins one; "" trains every node here
+RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
+RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+
+# ===== In-run K3 noise panel (report only; off by default) =====
+# K3_PANEL = True rolls the stance5 replication judge's two K3 noise tests on the live policy (20 spawns each: its
+# own sigma, and the joint-space sigma below) every 1,048,576 steps and at the end of the stance node, into
+# k3_panel.csv and k3_panel.json in the stage directory (environments/shared/k3_panel.py). Training waits while a
+# panel runs (about 1.5-2 min each, 12 per 12M-step run); no gate, verdict, checkpoint choice or digest reads it,
+# and the offline judge's K3 stays the K3 of record. Other nodes train without it.
+K3_PANEL = False
+K3_PANEL_SIGMA_FILE = ""  # the joint-space sigma's JSON file (e.g. the stance5 replication's sigma_s70_s80.json); "" = own-sigma test only
+K3_PANEL_SIGMA_KEY = ""  # its key: a dotted path ("control_sigma.80") or a seed ("60": source_vectors.60, else control_sigma.60)
+
+# ===== Critic phase ([ppo] critic_phase; off by default) =====
+# CRITIC_PHASE = True gives PPO's critic, and never the actor, three more inputs: the episode phase of the env's own
+# step counter k (ramp min(k, S) / S, settled k >= S and discount gamma^max(0, S - k), S = the env's
+# stance_width_settle_steps, 200 on the stance; environments/shared/critic_phase.py). The actor, the observation,
+# the VecNormalize sidecar and every evaluation stay as they are. The resolve cell writes [ppo] critic_phase = true
+# into each node of the chain, so stage_config.json and hyperparameters_sha256 record it; a resume (section 5) must
+# set it again. The trainer refuses a checkpoint whose critic reads another phase, or none, except at a warm start
+# into a node without the option, where the parent's three phase inputs are dropped from the critic (the actor is
+# unchanged): leave CRITIC_PHASE = False to warm-start such a node from a phase-critic parent.
+CRITIC_PHASE = False
+
+print(f"Model: {MODEL_DISPLAY_NAME}")
+print(f"Algorithm: {ALGORITHM.upper()}")
+print(f"Quick test mode: {QUICK_TEST}")
+print(f"Behavior recipe: {BEHAVIOR}")
+print(f"In-run K3 panel: {'on' if K3_PANEL else 'off'}")
+print(f"Critic phase: {'on' if CRITIC_PHASE else 'off'}")
+============================== 18
+# ===== RESUME AN INTERRUPTED STAGE — opt-in escape hatch =====
+RESUME_STAGE = None  # None = skip; the node's id ("locomotion", "recovery") or its stageN number (2) to resume
+
+if RESUME_STAGE is not None:
+    import inspect
+
+    from environments.shared.curriculum import checkpoint_pair_problem, newest_intact_periodic_pair
+    from environments.shared.result_bundle import (
+        read_gate_verdict,
+        refuse_trunk_other_than_recorded,
+        refuse_write_into_complete_run,
+    )
+    from environments.shared.stage_manifest import stage_dirname, stage_label
+
+    # An id or a number, as in the manual cell: STAGE_CONFIGS, the checkpoint
+    # names and the chain loop use the stage's reference, its number when it has one.
+    entry_res = MANIFEST.resolve(RESUME_STAGE)
+    if entry_res not in CHAIN:
+        raise RuntimeError(
+            f"RESUME_STAGE={RESUME_STAGE!r} is {entry_res.id!r}, which is not on the chain of behavior "
+            f"{BEHAVIOR!r} ({[node.id for node in CHAIN]}): the chain loop would never judge it. Set SPECIES, "
+            "EMBODIMENT, BEHAVIOR and SEED as the interrupted session had them and re-run sections 2-3."
+        )
+    # RETRAIN_FROM trains every node it covers from its parent instead of judging it, and D-A20
+    # refuses that node's occupied directory: a node resumed under it could never be judged.
+    retrain_res = globals().get("RETRAIN_NODE")
+    if retrain_res is not None and (entry_res == retrain_res or retrain_res in MANIFEST.ancestors(entry_res.id)):
+        raise RuntimeError(
+            f"RESUME_STAGE={RESUME_STAGE!r} is {entry_res.id!r}, which RETRAIN_FROM (it resolved to "
+            f"{retrain_res.id!r}) covers: the chain loop would train it again from its parent instead of judging "
+            'the resumed node, and refuses its occupied directory. Set RETRAIN_FROM = "" and re-run sections 2-3: '
+            "the loop then judges the resumed node before it consults any trunk."
+        )
+    stage_res = entry_res.reference
+    budget_res = node_budget(stage_res)
+    label_res = stage_label(stage_res)
+    stage_dir_res = RUN_DIR / stage_dirname(MODEL_ID, stage_res)
+    model_dir_res = stage_dir_res / "models"
+
+    # A node that holds a verdict or an intact final pair has nothing to resume, whatever its
+    # periodic checkpoints say (an early stop, or an N_ENVS that does not divide the
+    # checkpoint cadence, leaves the newest one short of the budget): the chain loop
+    # reuses or refuses a judged node and judges a finished one with its JUDGE branch. A
+    # final pair a reclaim cut short during the final save (on a mount, the placeholder or the
+    # published zip without its sidecar; elsewhere, a truncated file) is resumed over when the budget was spent (below).
+    verdict_res = read_gate_verdict(stage_dir_res)
+    final_pair_res = [model_dir_res / f"{label_res}_final{suffix}" for suffix in (".zip", "_vecnorm.pkl")]
+    final_problem_res = checkpoint_pair_problem(*final_pair_res) if final_pair_res[0].exists() else None
+    if verdict_res is not None or (final_pair_res[0].exists() and final_problem_res is None):
+        held_res = "a gate verdict" if verdict_res is not None else f"its final pair {final_pair_res[0].name}"
+        print(
+            f"Nothing to resume: {entry_res.id!r} already holds {held_res} in {stage_dir_res}; a finished node "
+            "is never retrained. The chain loop (section 6) reuses or refuses a judged node and judges a finished "
+            "one with its JUDGE branch; training it further is a new attempt, in a fresh RUN_ID."
+        )
+    else:
+        print(f"Resuming {entry_res.id!r} (stage {stage_res!r}) from {model_dir_res}")
+
+        # The newest periodic pair (SB3's {prefix}_{steps}_steps.zip and its matched
+        # {prefix}_vecnormalize_{steps}_steps.pkl) that passes checkpoint_pair_problem, walked newest step
+        # first: the newest pair is exactly the one an ungraceful runtime reclaim may have left truncated or
+        # orphaned mid-write, so a bad newest candidate falls back to the next older step-point instead of
+        # killing the resume. The library walks; the warnings, the two refusals and the report are this cell's.
+        pair_res, skipped_res = newest_intact_periodic_pair(model_dir_res, label_res)
+        for reason in skipped_res:
+            print(f"WARNING: skipping {reason}")
+        if pair_res is None and not skipped_res:
+            raise RuntimeError(
+                f"No periodic checkpoint {label_res}_*_steps.zip in {model_dir_res} — "
+                "check that RUN_ID in the configuration cell names the interrupted run, and run the storage "
+                f"cell (section 3) after changing it; and that RESUME_STAGE names its node (it resolved to "
+                f"{entry_res.id!r}: a number is the N of the stageN_* checkpoint names, not the resolve table's # "
+                "or the NN_ prefix)."
+            )
+        if pair_res is None:
+            raise FileNotFoundError(
+                f"No intact periodic checkpoint pair {label_res}_<steps>_steps.zip + "
+                f"{label_res}_vecnormalize_<steps>_steps.pkl in {model_dir_res}. Skipped: "
+                + "; ".join(skipped_res)
+                + ". Deleting a corrupt newest pair by hand is no longer needed — this "
+                "cell already fell back through every older step-point."
+            )
+        steps_res, ckpt_res, vecnorm_ckpt_res = pair_res
+        remaining_res = max(budget_res - steps_res, 0)
+        print(f"Newest intact periodic checkpoint: {ckpt_res}")
+        print(f"Matched VecNormalize:              {vecnorm_ckpt_res}")
+        if skipped_res:
+            print(f"({len(skipped_res)} newer candidate(s) skipped as incomplete/corrupt — see warnings above)")
+        print(f"Checkpoint steps: {steps_res:,} of {budget_res:,} — remaining budget: {remaining_res:,}")
+
+        # A broken final pair means learn() returned and the final save began. Within one checkpoint cadence
+        # of the budget that is a finished budget whose final save a reclaim cut short: the resume below
+        # trains what is left and its final save replaces the pair. Further short it was an early stop, and
+        # training such a node further is a new attempt (D-D16).
+        cadence_res = inspect.signature(train_stage).parameters["save_freq"].default
+        if final_problem_res is not None and remaining_res > cadence_res:
+            raise RuntimeError(
+                f"The final pair of {entry_res.id!r} is incomplete ({final_problem_res}), and its training ended "
+                f"{remaining_res:,} steps short of the {budget_res:,}-step budget, beyond the {cadence_res:,}-step "
+                "checkpoint cadence: an early stop whose final save was cut short, not an interruption. Training "
+                "it further is a new attempt: train the node again in a fresh RUN_ID, with TRUNK_FROM naming this "
+                "run for its certified ancestors."
+            )
+        if final_problem_res is not None and remaining_res > 0:
+            print(
+                f"WARNING: the final pair of {entry_res.id!r} is incomplete ({final_problem_res}): the runtime "
+                "stopped during the final save, so the node resumes from its newest intact periodic pair, and "
+                "that resume's final save replaces the broken pair."
+            )
+        if remaining_res == 0:
+            # The final save follows the last periodic one; a runtime stopped between the two, or
+            # during the final save, leaves a spent budget with no intact final pair, which the
+            # chain loop's JUDGE branch needs.
+            lost_res = "was never saved" if final_problem_res is None else f"is incomplete ({final_problem_res})"
+            raise RuntimeError(
+                f"{ckpt_res.name} already covers the {budget_res:,}-step budget of {entry_res.id!r}, but its final "
+                f"pair {final_pair_res[0].name} {lost_res} (the runtime stopped before the final save completed), so "
+                "the chain loop's JUDGE branch cannot judge it and there is nothing left to train: train the node "
+                "again in a fresh RUN_ID, with TRUNK_FROM naming this run for its certified ancestors."
+            )
+        else:
+            # A complete bundle is immutable: nothing is resumed into it (this refusal writes nothing).
+            refuse_write_into_complete_run(RUN_DIR, what=f"Resuming {stage_res!r}")
+            # Nor a node the run holds as an ancestors/ record, nor under another trunk than trunk_run.json records
+            # (decision 4 (a); docs/KNOWN_ISSUES.md for cells run out of order): this refusal writes nothing either.
+            refuse_trunk_other_than_recorded(
+                RUN_DIR,
+                trunk_dir=globals().get("TRUNK_DIR"),
+                log_dir=MODEL_ID.path(LOG_BASE) / ALGORITHM.lower(),
+                what=f"Resuming {stage_res!r}",
+                resumed=entry_res,
+            )
+            model_res, path_res, final_path_res, dir_res, vecnorm_res, results_res = train_stage(
+                stage=stage_res,
+                timesteps=remaining_res,
+                load_path=str(ckpt_res),
+                run_dir=RUN_DIR,
+                vecnorm_path=str(vecnorm_ckpt_res),
+                task_load_mode="resume_same_stage",
+                label=RUN_LABEL or None,
+                evaluate=False,  # the chain loop's JUDGE branch evaluates the node from disk
+            )
+============================== 20
+# ===== BEHAVIOR CHAIN LOOP =====
+from environments.shared.stage_manifest import stage_display_name
+
+# Walks BEHAVIOR's chain root-first (BEHAVIOR_RECIPES_PLAN §4.7, decision D5)
+# and, per node, does exactly one of:
+#   (1) REUSE — a certified checkpoint already exists in RUN_DIR (a same-run
+#       re-run) or, for an ancestor, in TRUNK_FROM's run (§4.2: passed verdict,
+#       same task digest and plant, chained by digest onto the parent resolved
+#       here — D-A17). TRUNK_FROM = "auto" (D-A25) selects TRUNK_DIR in the
+#       resolve cell: the sibling run covering the most of the chain. A cross-run
+#       ancestor is recorded under ancestors/ and its handoff is loaded from the
+#       run that certified it (A10); the target node is never reused across runs (D-A18).
+#       A node RUN_DIR holds trained but unjudged (and not as an ancestors/ record) never comes from
+#       the trunk (decision 6 (b)): JUDGE below takes it, the RESUME cell does, or rule 4 refuses it.
+#   (2) JUDGE — trained (an intact final pair; the RESUME cell spent
+#       its budget, or the command-line widen tool wrote a widened root) but never
+#       judged: evaluate, then gate it like a trained node.
+#   (3) TRAIN — otherwise, from the parent's handoff along the declared edge
+#       ("initialize_next_stage"); a root loads nothing.
+# A frozen-null gate kind (recovery) freezes its resolution BEFORE the node
+# trains and rolls the policy panel after. Every trained or judged node writes
+# its artifacts and the run bundle BEFORE the verdict is enforced — a failed
+# gate still publishes every certified deliverable above it — then releases
+# the runtime and raises. RETRAIN_FROM (D-A19) removes reuse for the named node
+# and its descendants; a recorded stage directory refuses to be overwritten
+# (D-A20), so every variant is a new run.
+from environments.shared.ancestors import AncestorReuseError, find_certified_ancestor, record_ancestor
+from environments.shared.config import ignored_hyperparameter_edits
+from environments.shared.curriculum import FROZEN_NULL_GATE_KINDS, checkpoint_pair_problem
+from environments.shared.harnesses.freeze_recovery_gate import (
+    freeze_recovery_gate,
+    roll_policy_panel,
+    validate_recovery_resolution,
+)
+from environments.shared.recovery_evaluation import write_recovery_evidence
+from environments.shared.result_bundle import (
+    ANCESTOR_RECORD_NAME,
+    ANCESTORS_DIRNAME,
+    read_gate_verdict,
+    refuse_judging_off_the_resolved_parent,
+    refuse_write_into_complete_run,
+    sha256_file,
+    unjudged_stage_dir,
+)
+from environments.shared.task_fingerprint import stage_task_fingerprint
+
+print(f"Behavior {BEHAVIOR!r} -> {TARGET_NODE.id}; chain: {' -> '.join(node.id for node in CHAIN)}")
+if globals().get("AUTO_TRUNK", False):
+    # D-A25: under TRUNK_FROM = "auto" the trunk is the resolve cell's selection for THIS
+    # log directory — never a TRUNK_DIR the storage cell reset on a rerun (it starts at
+    # None and only a pinned TRUNK_FROM fills it there).
+    _selection = globals().get("TRUNK_SELECTION")
+    if _selection is None or _selection.log_dir != MODEL_ID.path(LOG_BASE) / ALGORITHM.lower():
+        raise RuntimeError(
+            "TRUNK_FROM = 'auto' but the resolve cell has not selected a trunk for this log directory in this "
+            "kernel; re-run the resolve cell (section 3) before the chain loop"
+        )
+    TRUNK_DIR = _selection.run_dir
+for NODE in CHAIN:
+    stage = NODE.reference
+    config = STAGE_CONFIGS[stage]
+    stage_dir = Path(RUN_DIR) / stage_dirname(MODEL_ID, stage)
+    gate_kind = config.get("curriculum_kwargs", {}).get("gate_kind")
+    budget = node_budget(stage)
+    print(f"\n{'#' * 60}\n# Node {NODE.id} (stage {stage}): {stage_display_name(stage, config['name'])} — gate {gate_kind}\n{'#' * 60}")
+
+    # The parent resolves first: a node is satisfied — by a checkpoint from
+    # anywhere — only on top of its declared parent's certified handoff.
+    parent = MANIFEST.parent_of(NODE.id)
+    if parent is not None and parent.id not in NODE_HANDOFF:
+        raise RuntimeError(
+            f"{NODE.id!r} warm-starts from {parent.id!r}, which is not certified in this session (NODE_HANDOFF). "
+            "Re-run this cell from the top of the chain; a parent that failed its gate stops the chain there."
+        )
+    parent_handoff = NODE_HANDOFF[parent.id] if parent is not None else None
+    task_sha256 = stage_task_fingerprint(MODEL_ID, stage, stage_config=config, plant_identity=PLANT_IDENTITY)["task_sha256"]
+
+    # D-A19: RETRAIN_FROM covers the named node and every descendant — no reuse
+    # candidates at all, they train here. D-A18: the target is only ever reused
+    # from THIS run (an earlier run's target is that run's deliverable);
+    # ancestors also look in TRUNK_DIR. RUN_DIR is tried first; only the
+    # trunk candidate may follow ancestor records (D-A23). Decision 6 (b)
+    # (ROW-4/6, amending D-A17 and D-C13): an ancestor RUN_DIR holds trained but unjudged is never taken from
+    # the trunk; it is judged here, or refused as an interrupted node or (rule 4) as trained on another parent.
+    # One the run holds as an ancestors/ record still consults the trunk (a root widened beside it is refused).
+    covered = RETRAIN_NODE is not None and (NODE.id == RETRAIN_NODE.id or RETRAIN_NODE in MANIFEST.ancestors(NODE.id))
+    if covered:
+        candidates = []
+        print(f"Not reusing {NODE.id!r}: RETRAIN_FROM={RETRAIN_FROM!r} covers it. Training it here.")
+    elif NODE.id == TARGET_NODE.id:
+        candidates = [RUN_DIR]
+    else:
+        unjudged = unjudged_stage_dir(RUN_DIR, model_id=MODEL_ID, entry=NODE)
+        if unjudged is not None and TRUNK_DIR is not None:
+            refuse_judging_off_the_resolved_parent(
+                unjudged,
+                entry=NODE,
+                parent_model_sha256=parent_handoff["model_sha256"] if parent_handoff is not None else None,
+            )
+            print(f"Not consulting the trunk for {NODE.id!r}: {unjudged} holds checkpoints this run trained but never judged.")
+        candidates = [RUN_DIR] + ([TRUNK_DIR] if TRUNK_DIR is not None and unjudged is None else [])
+
+    # (1) REUSE — every refusal is printed with its reason, never silent.
+    ancestor = None
+    for candidate in candidates:
+        try:
+            ancestor = find_certified_ancestor(
+                candidate,
+                model_id=MODEL_ID,
+                entry=NODE,
+                current_task_sha256=task_sha256,
+                plant_identity=PLANT_IDENTITY,
+                # D-A22 (rule 7): the block this session would judge the node under —
+                # the one save_stage_config records as 'curriculum'.
+                current_gate_config=config.get("curriculum_kwargs", {}),
+                parent_model_sha256=parent_handoff["model_sha256"] if parent_handoff is not None else None,
+                # D-A23: a trunk that itself reused a node resolves it through its
+                # ancestors/ record to the run that certified it. Never for RUN_DIR:
+                # this run's own record marks a cross-run reuse, not a node of ours.
+                follow_records=candidate is not RUN_DIR,
+            )
+            break
+        except AncestorReuseError as exc:
+            print(f"Not reusing {NODE.id!r} from {candidate}: {exc}")
+    if ancestor is not None:
+        same_run = candidate == RUN_DIR
+        # D-A21: reuse carries the ancestor's recipe. An edit to this node's
+        # algorithm block or shaping keys since the ancestor was trained is
+        # IGNORED — say so, and say how to train it here. Never a refusal.
+        ignored_edits = ignored_hyperparameter_edits(config, ALGORITHM, ancestor.stage_dir)
+        if ignored_edits:
+            print(
+                f"WARNING: reusing certified {NODE.id!r} from run {ancestor.run_id} ignores this run's hyperparameter "
+                f"edit: {', '.join(ignored_edits)} differ from the ancestor's recorded stage_config.json, and reuse "
+                f"trains nothing. Set RETRAIN_FROM = {NODE.id!r} to train {NODE.id!r} here under the edited configuration."
+            )
+        if same_run:
+            # This run's own certified node (a re-run of this cell in the same
+            # RUN_DIR): its results re-enter the bundle from the verdict.
+            stage_result = ancestor.verdict.get("stage_result")
+            if not isinstance(stage_result, dict):
+                raise RuntimeError(f"{ancestor.stage_dir / 'gate_verdict.json'} records no stage_result to re-enter the bundle with")
+            NODE_RESULTS[NODE.id] = dict(stage_result)
+            completed_stages.append((stage, ancestor.stage_dir))
+            print(f"Reusing this run's certified {NODE.id!r}: {ancestor.handoff_name} ({ancestor.model_stem})")
+        else:
+            # A cross-run ancestor is recorded under ancestors/ with its original
+            # provenance (small JSON records, never the checkpoint pair); the
+            # handoff loads it from the run that certified it (A10). A complete
+            # bundle is immutable: a record it does not hold yet is refused.
+            if not (Path(RUN_DIR) / ANCESTORS_DIRNAME / NODE.id / ANCESTOR_RECORD_NAME).is_file():
+                refuse_write_into_complete_run(RUN_DIR, what=f"Recording {NODE.id!r} from run {ancestor.run_id}")
+            record_ancestor(RUN_DIR, ancestor)
+            print(f"Reusing certified {NODE.id!r} from run {ancestor.run_id}: {ancestor.handoff_name} ({ancestor.model_stem})")
+        NODE_HANDOFF[NODE.id] = {
+            "model": ancestor.model_stem,
+            "vecnorm": str(ancestor.normalization_path),
+            "stage_dir": ancestor.stage_dir,
+            "run_dir": ancestor.source_run_dir,
+            "run_id": None if same_run else ancestor.run_id,
+            "model_sha256": ancestor.model_sha256,
+            "normalization_sha256": ancestor.normalization_sha256,
+            "reused": True,
+        }
+        continue
+
+    # What the stage directory already holds decides between JUDGE and TRAIN.
+    # An existing verdict the reuse rule refused is never retrained over.
+    model_dir = stage_dir / "models"
+    final_stem = model_dir / f"{stage_label(stage)}_final"
+    final_vecnorm = f"{final_stem}_vecnorm.pkl"
+    verdict = read_gate_verdict(stage_dir)
+    if verdict is not None and not covered:
+        if not verdict["passed"]:
+            raise RuntimeError(
+                f"{NODE.id!r} already holds a FAILED gate verdict in {stage_dir}: " + "; ".join(verdict["failures"])
+                + ". A failed node is never silently retrained: start a new run (a fresh RUN_ID, an id no run uses: "
+                'RUN_ID = "" re-enters this run through the memo) for a new attempt.'
+            )
+        raise RuntimeError(
+            f"{NODE.id!r} holds a passed gate verdict in {stage_dir} that the reuse rule refused (the reason is "
+            "printed above): its task, plant, gate or parent no longer matches this session. A changed task is a new "
+            'run — mint a fresh RUN_ID (an id no run uses: RUN_ID = "" re-enters this run through the memo). A changed '
+            "gate is a re-judge, never a retrain: remove that directory's gate_verdict.json so this cell's JUDGE branch "
+            "re-judges its checkpoints under this session's gate, or run scripts/backfill_gate_verdict.py --force "
+            "[--gate current] on it (never in a run whose result bundle is complete, which is immutable)."
+        )
+    # A complete bundle is immutable (docs/RESULT_BUNDLES.md). The resolve cell refused every session it could
+    # predict would judge or train into one; this catches the rest (a node held only as an ancestors/ record that
+    # TRUNK_DIR no longer certifies) before the node's first write.
+    refuse_write_into_complete_run(RUN_DIR, what=f"Judging or training {NODE.id!r}")
+    # Only an intact final pair is a finished node: one a reclaim cut short during the final save is
+    # an interrupted node, which the RESUME cell resumes over (the same check as its periodic walk).
+    final_problem = None
+    if not covered and verdict is None and Path(f"{final_stem}.zip").exists():
+        final_problem = checkpoint_pair_problem(Path(f"{final_stem}.zip"), Path(final_vecnorm))
+    if (
+        not covered
+        and verdict is None
+        and Path(f"{final_stem}.zip").exists()
+        and Path(final_vecnorm).exists()
+        and final_problem is None
+    ):
+        # (2) JUDGE
+        print(f"Judging {NODE.id!r}: {stage_dir} holds trained checkpoints but no gate verdict.")
+        model, handoff_stem, final_model_path, handoff_vecnorm, results = evaluate_stage_checkpoints(
+            SPECIES_CFG,
+            STAGE_CONFIGS[stage],
+            stage,
+            ALGORITHM,
+            stage_dir,
+            final_path=final_stem,
+            final_vecnorm_path=final_vecnorm,
+            timesteps=budget,
+            duration_seconds=read_stage_duration(stage_dir) or 0.0,
+            plant_identity=PLANT_IDENTITY,
+            evaluation_seed=EVALUATION_SEED,
+        )
+    elif not covered and verdict is None and any(model_dir.glob("*.zip")):
+        raise RuntimeError(
+            f"{stage_dir} holds checkpoints but no completed stage "
+            f"({final_problem or final_stem.name + '.zip is missing'}): an interrupted node. Set RESUME_STAGE = "
+            f"{stage!r} in the RESUME cell (section 5) and run all again: it finishes the budget (resuming over a "
+            "final pair cut short at the end of it), then this loop judges the node (a budget its periodic checkpoints already spent "
+            "without an intact final pair is refused there: that node trains again in a fresh RUN_ID). It is never "
+            "retrained from scratch over them."
+        )
+    else:
+        # (3) TRAIN
+        if parent_handoff is not None:
+            load_path, vecnorm_path, task_load_mode = parent_handoff["model"], parent_handoff["vecnorm"], "initialize_next_stage"
+        else:
+            load_path, vecnorm_path, task_load_mode = None, None, "resume_same_stage"
+        # PRE-REGISTRATION for a frozen-null gate kind (recovery): thresholds and
+        # null panels freeze BEFORE the policy trains, so it is never judged
+        # against a moving target. The brace null is the parent's handoff held
+        # at its post-settle mean action, so a root has nothing to freeze from.
+        if gate_kind in FROZEN_NULL_GATE_KINDS and parent_handoff is None:
+            raise RuntimeError(
+                f"{NODE.id!r} is judged by the frozen-null gate {gate_kind}, whose brace null needs a parent "
+                "checkpoint, but it is a root of the manifest"
+            )
+        if gate_kind in FROZEN_NULL_GATE_KINDS and not (stage_dir / "gate_resolution.json").exists():
+            print(f"Freezing the {gate_kind} resolution for {NODE.id!r} (statue + brace null panels)...")
+            freeze_recovery_gate(
+                stage_dir,
+                model_id=MODEL_ID,
+                stage=stage,
+                policy_zip=f"{parent_handoff['model']}.zip",
+                vecnorm=parent_handoff["vecnorm"],
+                algorithm=ALGORITHM,
+            )
+        if gate_kind in FROZEN_NULL_GATE_KINDS:
+            # Refuse stale calibrations or abbreviated rehearsal panels before
+            # spending the training budget.
+            validate_recovery_resolution(
+                stage_dir,
+                model_id=MODEL_ID,
+                stage=stage,
+                policy_zip=f"{parent_handoff['model']}.zip",
+                vecnorm=parent_handoff["vecnorm"],
+                algorithm=ALGORITHM,
+            )
+        model, handoff_stem, final_model_path, _stage_dir, handoff_vecnorm, results = train_stage(
+            stage=stage,
+            timesteps=budget,
+            run_dir=RUN_DIR,
+            load_path=load_path,
+            vecnorm_path=vecnorm_path,
+            task_load_mode=task_load_mode,
+            parent_run_id=parent_handoff["run_id"] if parent_handoff is not None else None,
+            label=RUN_LABEL or None,
+        )
+
+    # A frozen-null kind rolls the trained policy over EXACTLY the frozen panel:
+    # same seeds, same push schedules, same calibrated judge as the frozen
+    # nulls. A missing, tampered or stale-task resolution refuses here.
+    panel_successes = None
+    if gate_kind in FROZEN_NULL_GATE_KINDS:
+        panel_evidence = roll_policy_panel(
+            stage_dir, f"{handoff_stem}.zip", handoff_vecnorm, model_id=MODEL_ID, stage=stage, algorithm=ALGORITHM
+        )
+        write_recovery_evidence(stage_dir, panel_evidence)
+        panel_successes = panel_evidence.successes_by_seed()
+        print(f"Policy panel on the frozen seeds: {sum(panel_successes.values())}/{len(panel_successes)} episodes recovered")
+
+    # Artifacts: summary, videos, graphs — and the gate verdict, judged through
+    # the one shared reporting.gates.evaluate_stage_gate, recorded onto the
+    # results dict and written to gate_verdict.json (what reuse reads later).
+    results = generate_stage_artifacts(
+        species_cfg=SPECIES_CFG,
+        stage_config=config,
+        stage=stage,
+        algorithm=ALGORITHM,
+        stage_dir=stage_dir,
+        seed=SEED,
+        stage_results=results,
+        recovery_successes_by_seed=panel_successes,
+    )
+    NODE_RESULTS[NODE.id] = results
+    completed_stages.append((stage, stage_dir))
+    display_stage_videos(stage_dir)
+    plot_training_curves([(stage, stage_dir)], STAGE_CONFIGS, ALGORITHM)
+    plot_diagnostics_graphs([(stage, stage_dir)], STAGE_CONFIGS, ALGORITHM)
+
+    # Summary and bundle BEFORE the gate check, so every certified deliverable
+    # above a failure is published (result schema v4: the bundle is `partial`).
+    write_training_summary(RUN_DIR, chain_results())
+    save_run_bundle(chain_results(), model_id=MODEL_ID)
+
+    # Enforce the recorded verdict. halt releases the runtime, then raises: the raise
+    # stops "Run all", so the auto-disconnect cell at the end would never execute.
+    if not results["publication_gate_passed"]:
+        _gate_msg = f"{NODE.id} failed its curriculum gate: " + "; ".join(results["gate_failures"]) + "."
+        halt(_gate_msg, in_colab=IN_COLAB, auto=AUTO_DISCONNECT, flush_drive=USE_GOOGLE_DRIVE)
+    print(f"{NODE.id}: gate PASSED ({gate_kind}); handoff {handoff_stem}.zip")
+    NODE_HANDOFF[NODE.id] = {
+        "model": handoff_stem,
+        "vecnorm": handoff_vecnorm,
+        "stage_dir": stage_dir,
+        "run_dir": RUN_DIR,
+        "run_id": None,
+        "model_sha256": sha256_file(f"{handoff_stem}.zip"),
+        "normalization_sha256": sha256_file(handoff_vecnorm),
+        "reused": False,
+    }
+============================== 22
+# ===== MANUAL SINGLE NODE — debugging escape hatch =====
+MANUAL_NODE = None  # None = skip; a stage reference (2 or "recovery") to train ONE node outside the chain
+MANUAL_LOAD_PATH = None  # checkpoint stem to load (None = from scratch); its sidecar goes in MANUAL_VECNORM_PATH
+MANUAL_VECNORM_PATH = None
+MANUAL_LOAD_MODE = "initialize_next_stage"  # the load's declared edge: a parent's handoff, or "resume_same_stage"
+MANUAL_TIMESTEPS = None  # None = the node's TOML budget (QUICK_TEST shortens it)
+
+if MANUAL_NODE is not None:
+    from environments.shared.curriculum import FROZEN_NULL_GATE_KINDS
+    from environments.shared.harnesses.freeze_recovery_gate import (
+        freeze_recovery_gate,
+        roll_policy_panel,
+        validate_recovery_resolution,
+    )
+    from environments.shared.recovery_evaluation import write_recovery_evidence
+    from environments.shared.result_bundle import ResultBundleError, refuse_write_into_complete_run
+
+    _manual_entry = MANIFEST.resolve(MANUAL_NODE)
+    # A complete bundle is immutable: refused here, before the freeze or the training below writes anything.
+    refuse_write_into_complete_run(RUN_DIR, what=f"The manual node {_manual_entry.id!r}")
+    _manual_stage = _manual_entry.reference
+    _manual_config = STAGE_CONFIGS[_manual_stage]
+    _manual_dir = Path(RUN_DIR) / stage_dirname(MODEL_ID, _manual_stage)
+    _manual_gate_kind = _manual_config.get("curriculum_kwargs", {}).get("gate_kind")
+    _manual_budget = MANUAL_TIMESTEPS or node_budget(_manual_stage)
+    _manual_policy_zip = f"{MANUAL_LOAD_PATH}.zip" if MANUAL_LOAD_PATH else None
+
+    # A frozen-null kind (recovery) pre-registers its gate before training,
+    # exactly as the chain loop does.
+    if _manual_gate_kind in FROZEN_NULL_GATE_KINDS and not (_manual_dir / "gate_resolution.json").exists():
+        print(f"Freezing the {_manual_gate_kind} resolution for {_manual_entry.id!r}...")
+        freeze_recovery_gate(
+            _manual_dir,
+            model_id=MODEL_ID,
+            stage=_manual_stage,
+            policy_zip=_manual_policy_zip,
+            vecnorm=MANUAL_VECNORM_PATH,
+            algorithm=ALGORITHM,
+        )
+    if _manual_gate_kind in FROZEN_NULL_GATE_KINDS:
+        validate_recovery_resolution(
+            _manual_dir,
+            model_id=MODEL_ID,
+            stage=_manual_stage,
+            policy_zip=_manual_policy_zip,
+            vecnorm=MANUAL_VECNORM_PATH,
+            algorithm=ALGORITHM,
+        )
+
+    _manual_model, _manual_handoff, _manual_final, _manual_dir, _manual_vecnorm, _manual_results = train_stage(
+        stage=_manual_stage,
+        timesteps=_manual_budget,
+        run_dir=RUN_DIR,
+        load_path=MANUAL_LOAD_PATH,
+        vecnorm_path=MANUAL_VECNORM_PATH,
+        task_load_mode=MANUAL_LOAD_MODE if MANUAL_LOAD_PATH else "resume_same_stage",
+        label=RUN_LABEL or None,
+    )
+
+    _manual_panel = None
+    if _manual_gate_kind in FROZEN_NULL_GATE_KINDS:
+        _manual_evidence = roll_policy_panel(
+            _manual_dir,
+            f"{_manual_handoff}.zip",
+            _manual_vecnorm,
+            model_id=MODEL_ID,
+            stage=_manual_stage,
+            algorithm=ALGORITHM,
+        )
+        write_recovery_evidence(_manual_dir, _manual_evidence)
+        _manual_panel = _manual_evidence.successes_by_seed()
+
+    _manual_results = generate_stage_artifacts(
+        species_cfg=SPECIES_CFG,
+        stage_config=_manual_config,
+        stage=_manual_stage,
+        algorithm=ALGORITHM,
+        stage_dir=_manual_dir,
+        seed=SEED,
+        stage_results=_manual_results,
+        recovery_successes_by_seed=_manual_panel,
+    )
+    NODE_RESULTS[_manual_entry.id] = _manual_results
+    completed_stages.append((_manual_stage, _manual_dir))
+    display_stage_videos(_manual_dir)
+
+    # Recorded, never enforced: this cell is a probe, not a chain step, so no
+    # raise and no disconnect — and it never feeds NODE_HANDOFF.
+    if _manual_results["publication_gate_passed"]:
+        print(f"{_manual_entry.id}: gate verdict PASS ({_manual_gate_kind})")
+    else:
+        print(f"{_manual_entry.id}: gate verdict FAIL ({_manual_gate_kind}) —", "; ".join(_manual_results["gate_failures"]))
+
+    try:
+        write_training_summary(RUN_DIR, chain_results())
+        save_run_bundle(chain_results(), model_id=MODEL_ID)
+    except ResultBundleError as exc:
+        # Never swallowed silently (D-A11): a manual node that the bundle
+        # cannot place (e.g. its parent is not in this run) is reported.
+        print(f"Result bundle not rewritten for the manual node: {exc}")
+============================== 32
+disconnect_runtime(
+    f"Training finished — behavior {BEHAVIOR!r} ({TARGET_NODE.id}) chain complete.",
+    in_colab=IN_COLAB,
+    auto=AUTO_DISCONNECT,
+    flush_drive=USE_GOOGLE_DRIVE,
+)

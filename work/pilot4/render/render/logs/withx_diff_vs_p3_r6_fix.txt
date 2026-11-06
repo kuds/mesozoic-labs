@@ -1,0 +1,8 @@
+2a3
+> # Copied from SP/work/pilot3/r6_fix/bin/withx with only the stderr log path changed to this folder.
+4,5c5,6
+< S=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/r6_fix
+< coproc XV { exec Xvfb :97 -displayfd 1 -nolock -nolisten tcp -nolisten unix -screen 0 1024x768x24 2>>"$S/out/xvfb.stderr.log"; }
+---
+> S=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/render/render
+> coproc XV { exec Xvfb :97 -displayfd 1 -nolock -nolisten tcp -nolisten unix -screen 0 1024x768x24 2>>"$S/logs/xvfb.stderr.log"; }

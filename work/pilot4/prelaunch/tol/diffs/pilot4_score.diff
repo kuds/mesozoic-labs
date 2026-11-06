@@ -1,0 +1,22 @@
+--- a/pilot4_score.py
++++ b/pilot4_score.py
+@@ -552,15 +552,16 @@
+ STRAIGHT_SCHEMA = "walking-pilot4-straight/v1"  # pilot4_straight.py's record
+ #: Fix stage: a record is read only when the pinned pilot4_straight.py wrote it (its sha256 in SHA256SUMS.txt) with
+ #: v3's bars and windows (its constants(), written into every record; tuples as JSON lists), and only when each part's
+-#: verdict follows from the record's own values under those bars.
+-STRAIGHT_TOOL_SHA256 = "sha256:93d5c558ebffb80036f0f054e918629c17af07d0a18e03ac844532ec2d487848"
++#: verdict follows from the record's own values under those bars. Tolerance stage: TWIN_HEADING_TOL_DEG 1e-4 deg
++#: (maintainer decision (35)), so the tool's sha256 below moved with it.
++STRAIGHT_TOOL_SHA256 = "sha256:870bab61119ba17a8e087c7f322c38e57d7593a308bba43168fffdeea70cdb38"
+ STRAIGHT_CONSTANTS = {
+     "HORIZON": 1000, "PANEL_EPISODES": 40, "PANEL_SEED_BASE": 3042, "SETTLE": 100, "WINDOW_FIRST_STATE": 101,
+     "MEAN_HALF": 50, "K_FIRST": 151, "A_MEDIAN_ABS_MAX_DEG": 5.0, "A_P95_ABS_MAX_DEG": 15.0, "B_D_P95_MAX_DEG": 11.5,
+     "B_W0_P95_MAX_DEG": 18.5, "C_MEDIAN_MAX_DEG": 5.0, "C_P95_MAX_DEG": 11.5, "C_MIN_COUNTING": 30,
+     "C_MIN_NET_MOVE_M": 0.35, "PCT": 95, "RECOVERY_SEEDS": list(range(3042, 3062)), "NUDGE_ANGLES_DEG": [15.0, -15.0],
+     "NUDGE_STATE": 650, "READ_K": 950, "RESET_TURN_STATE": 0, "RESET_READ_K": 500, "OBS651_TOL": 0.001,
+-    "TWIN_HEADING_TOL_DEG": 1e-05, "YAW_REPRO_TOL_DEG": 1e-12, "INFO_HEADING_TOL_RAD": 1e-09}
++    "TWIN_HEADING_TOL_DEG": 0.0001, "YAW_REPRO_TOL_DEG": 1e-12, "INFO_HEADING_TOL_RAD": 1e-09}
+ PART_VERDICTS = ("PASS", "FAIL", "NOT READ")
+ LOOK_VERDICTS = ("straight", "not straight")
+ SEED_OUTCOMES = ("STRAIGHT WALKS", "STRAIGHT NO RECOVERY", "CURVED WALKS", "NOT WALKS")

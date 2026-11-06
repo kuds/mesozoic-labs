@@ -1,0 +1,175 @@
+--- TOOLS-stage/pilot4_score.py
++++ fix-stage/pilot4_score.py
+@@ -50,7 +50,11 @@
+ --validation), its seed and steps, binding_sha256 and probe_json_sha256 equal to the sha256 of the cell's binding.json
+ and probe.json, its checkpoint and sidecar sha256s, head and final_fallback equal to the binding's, every panel
+ episode re-rolled equal to probe.json (panel.all_rolled_match), and verdicts that are PASS / FAIL / NOT READ with
+-STRAIGHT PASS exactly when all three are. Otherwise its problems are printed and the seed has no STRAIGHT reading.
++STRAIGHT PASS exactly when all three are; and (fix stage) written by the pinned pilot4_straight.py (tool_sha256 equal
++to STRAIGHT_TOOL_SHA256) with v3's bars and windows (constants equal to STRAIGHT_CONSTANTS), each part's verdict
++following from the record's own values under those bars (recomputed_verdicts). Otherwise its problems are printed and
++the seed has no STRAIGHT reading. (Fix stage) a cell whose probe.json records an env-kwargs drift (the run's recorded
++env kwargs against the judging tree's) is not scored (score_cell).
+ Records at the trajectory checkpoints (500,000-1,500,000) are printed, report only.
+ 
+ Seed outcome (v3, first that applies, at the deciding checkpoint):
+@@ -356,6 +360,26 @@
+     return out
+ 
+ 
++def pilot4_cell_problems(doc: dict) -> list:
++    """Fix stage: pilot 4's checks on a judged cell beyond pilot 3's (score_panel is kept as pilot 3's): the probe's
++    own env-kwargs drift record (the run's recorded env kwargs against the tree's) must be empty."""
++    drift = (doc.get("meta") or {}).get("env_kwargs_drift_vs_recorded")
++    if drift:
++        return [f"env kwargs drift: the run's recorded env kwargs differ from the env it was judged in "
++                f"({json.dumps(drift, sort_keys=True, default=str)})"]
++    return []
++
++
++def score_cell(doc: dict, binding: dict | None = None, validation: bool = False) -> dict:
++    """score_panel (pilot 3's) plus pilot4_cell_problems: a problem leaves the cell unscored (outcome None)."""
++    out = score_panel(doc, binding, validation)
++    extra = pilot4_cell_problems(doc)
++    if extra:
++        out["problems"] += extra
++        out["outcome"] = None
++    return out
++
++
+ def seed_result(cells: dict, primary: int) -> dict:
+     """cells: steps (int) -> scored cell or None. The seed's outcome, how it was reached, and the checkpoint read."""
+     prim = cells.get(primary)
+@@ -526,6 +550,17 @@
+ # ---------------------------------------------------------------- walking pilot 4: STRAIGHT, seed and pilot outcomes
+ 
+ STRAIGHT_SCHEMA = "walking-pilot4-straight/v1"  # pilot4_straight.py's record
++#: Fix stage: a record is read only when the pinned pilot4_straight.py wrote it (its sha256 in SHA256SUMS.txt) with
++#: v3's bars and windows (its constants(), written into every record; tuples as JSON lists), and only when each part's
++#: verdict follows from the record's own values under those bars.
++STRAIGHT_TOOL_SHA256 = "sha256:93d5c558ebffb80036f0f054e918629c17af07d0a18e03ac844532ec2d487848"
++STRAIGHT_CONSTANTS = {
++    "HORIZON": 1000, "PANEL_EPISODES": 40, "PANEL_SEED_BASE": 3042, "SETTLE": 100, "WINDOW_FIRST_STATE": 101,
++    "MEAN_HALF": 50, "K_FIRST": 151, "A_MEDIAN_ABS_MAX_DEG": 5.0, "A_P95_ABS_MAX_DEG": 15.0, "B_D_P95_MAX_DEG": 11.5,
++    "B_W0_P95_MAX_DEG": 18.5, "C_MEDIAN_MAX_DEG": 5.0, "C_P95_MAX_DEG": 11.5, "C_MIN_COUNTING": 30,
++    "C_MIN_NET_MOVE_M": 0.35, "PCT": 95, "RECOVERY_SEEDS": list(range(3042, 3062)), "NUDGE_ANGLES_DEG": [15.0, -15.0],
++    "NUDGE_STATE": 650, "READ_K": 950, "RESET_TURN_STATE": 0, "RESET_READ_K": 500, "OBS651_TOL": 0.001,
++    "TWIN_HEADING_TOL_DEG": 1e-05, "YAW_REPRO_TOL_DEG": 1e-12, "INFO_HEADING_TOL_RAD": 1e-09}
+ PART_VERDICTS = ("PASS", "FAIL", "NOT READ")
+ LOOK_VERDICTS = ("straight", "not straight")
+ SEED_OUTCOMES = ("STRAIGHT WALKS", "STRAIGHT NO RECOVERY", "CURVED WALKS", "NOT WALKS")
+@@ -611,10 +646,23 @@
+     if panel.get("all_rolled_match") is not True:
+         p.append(f"the re-rolled panel does not equal probe.json (all_rolled_match {panel.get('all_rolled_match')!r}, "
+                  f"episodes {panel.get('mismatched')})")
++    if rec.get("tool_sha256") != STRAIGHT_TOOL_SHA256:
++        p.append(f"tool_sha256 {rec.get('tool_sha256')} is not the pinned pilot4_straight.py {STRAIGHT_TOOL_SHA256}")
++    const = rec.get("constants")
++    if not isinstance(const, dict) or const != STRAIGHT_CONSTANTS:
++        off = ({k: const.get(k, "<absent>") for k in sorted(set(STRAIGHT_CONSTANTS) | set(const))
++                if const.get(k, "<absent>") != STRAIGHT_CONSTANTS.get(k, "<absent>")}
++               if isinstance(const, dict) else const)
++        p.append(f"constants {off} are not v3's bars and windows (the pinned tool's STRAIGHT_CONSTANTS)")
+     parts = rec.get("parts") if isinstance(rec.get("parts"), dict) else {}
+     verdicts = {k: parts[k].get("verdict") if isinstance(parts.get(k), dict) else None for k in ("a", "b", "c")}
+     bad = {k: v for k, v in verdicts.items() if v not in PART_VERDICTS}
+     want = "PASS" if all(v == "PASS" for v in verdicts.values()) else "FAIL"
++    redo = recomputed_verdicts(parts)
++    wrong = {k: f"{verdicts[k]}, its values read {redo[k]}" for k in ("a", "b", "c")
++             if k not in bad and redo.get(k) != verdicts[k]}
++    if wrong:
++        p.append(f"part verdicts that do not follow from the record's own values under v3's bars: {wrong}")
+     if bad:
+         p.append(f"part verdicts {bad} are not PASS / FAIL / NOT READ")
+     elif parts.get("straight") != want:
+@@ -622,6 +670,52 @@
+     return p
+ 
+ 
++def _record_number(x: object) -> "float | None":
++    """A record's value as a number: the strict-JSON "inf" string as inf; None, a bool or anything else as None."""
++    if x == "inf":
++        return math.inf
++    if isinstance(x, bool) or not isinstance(x, (int, float)):
++        return None
++    return float(x)
++
++
++def _at_most(x: "float | None", bar: float) -> bool:
++    """pilot4_straight._le: a finite value at or below the bar (inf, None and nan fail)."""
++    return x is not None and math.isfinite(x) and x <= bar
++
++
++def recomputed_verdicts(parts: dict) -> dict:
++    """Fix stage: each part's verdict as pilot4_straight.py reads it from the values it records (part_a, part_b,
++    part_c), under STRAIGHT_CONSTANTS' bars: (a) and (b) NOT READ with no episode (n 0), (c) NOT READ below
++    C_MIN_COUNTING counting episodes; else PASS when every bar holds ("<=", inf fails), else FAIL."""
++    k = STRAIGHT_CONSTANTS
++    out = {}
++    a = parts.get("a") if isinstance(parts.get("a"), dict) else {}
++    if not a.get("n"):
++        out["a"] = "NOT READ"
++    else:
++        med = _record_number(a.get("median_signed_deg"))
++        ok = (_at_most(None if med is None else abs(med), k["A_MEDIAN_ABS_MAX_DEG"])
++              and _at_most(_record_number(a.get("p95_abs_deg")), k["A_P95_ABS_MAX_DEG"]))
++        out["a"] = "PASS" if ok else "FAIL"
++    b = parts.get("b") if isinstance(parts.get("b"), dict) else {}
++    if not b.get("n"):
++        out["b"] = "NOT READ"
++    else:
++        ok = (_at_most(_record_number(b.get("D_p95_deg")), k["B_D_P95_MAX_DEG"])
++              and _at_most(_record_number(b.get("W0_p95_deg")), k["B_W0_P95_MAX_DEG"]))
++        out["b"] = "PASS" if ok else "FAIL"
++    c = parts.get("c") if isinstance(parts.get("c"), dict) else {}
++    n_counting = c.get("n_counting")
++    if isinstance(n_counting, bool) or not isinstance(n_counting, int) or n_counting < k["C_MIN_COUNTING"]:
++        out["c"] = "NOT READ"
++    else:
++        ok = (_at_most(_record_number(c.get("median_r_deg")), k["C_MEDIAN_MAX_DEG"])
++              and _at_most(_record_number(c.get("p95_r_deg")), k["C_P95_MAX_DEG"]))
++        out["c"] = "PASS" if ok else "FAIL"
++    return out
++
++
+ def straight_summary(rec: dict) -> dict:
+     """The values the scorer prints from a readable record (each part's verdict, values and counts)."""
+     parts = rec["parts"]
+@@ -633,7 +727,8 @@
+                                    "n_full_of_panel", "note_36")),
+             "b": keep(parts["b"], ("verdict", "why", "n", "D_p95_deg", "W0_p95_deg", "D_median_deg", "D_max_deg",
+                                    "W0_minus_D_min_deg", "W0_minus_D_max_deg", "report_R_median_deg",
+-                                   "report_R_p95_deg", "report_last_mean_error_median_deg")),
++                                   "report_R_p95_deg", "report_last_mean_error_median_deg", "report_crab_median_deg",
++                                   "report_end_cross_track_median_m")),
+             "c": keep(parts["c"], ("verdict", "why", "n_episodes", "n_counting", "left_out_ended_before_nudge",
+                                    "left_out_not_yet_passed", "median_r_deg", "p95_r_deg", "within_11_5", "within_5",
+                                    "fell_after_nudge", "moved_too_little", "share_removed_median")),
+@@ -668,7 +763,8 @@
+         f": {b.get('why')}" if b.get("verdict") == "NOT READ" else
+         f": D p95 {_fmt(b.get('D_p95_deg'))}, W0 p95 {_fmt(b.get('W0_p95_deg'))} deg (n {b.get('n')}; report only: R "
+         f"median {_fmt(b.get('report_R_median_deg'))}, p95 {_fmt(b.get('report_R_p95_deg'))}, last mean error median "
+-        f"{_fmt(b.get('report_last_mean_error_median_deg'))})")
++        f"{_fmt(b.get('report_last_mean_error_median_deg'))}, crab median {_fmt(b.get('report_crab_median_deg'))} deg, "
++        f"end cross-track median {_fmt(b.get('report_end_cross_track_median_m'), 2)} m)")
+     tc = f"(c) {c.get('verdict')}: " + (
+         f"{c.get('why')}; " if c.get("verdict") == "NOT READ" else
+         f"median r {_fmt(c.get('median_r_deg'))}, p95 r {_fmt(c.get('p95_r_deg'))} deg, within 11.5 deg "
+@@ -966,7 +1062,7 @@
+                 continue
+             b = p.with_name("binding.json")
+             binding = json.loads(b.read_text()) if b.is_file() else None
+-            cells[steps] = score_panel(json.loads(p.read_text()), binding, a.validation)
++            cells[steps] = score_cell(json.loads(p.read_text()), binding, a.validation)
+         mixed = one_run_problem(cells)
+         if mixed:
+             for c in cells.values():
+@@ -1021,7 +1117,7 @@
+     reports = {}
+     for p in sorted((out / "off_schedule").glob("*/s*/*/probe.json")):
+         b = p.with_name("binding.json")
+-        cell = score_panel(json.loads(p.read_text()), json.loads(b.read_text()) if b.is_file() else None, a.validation)
++        cell = score_cell(json.loads(p.read_text()), json.loads(b.read_text()) if b.is_file() else None, a.validation)
+         reports[str(p.parent.relative_to(out))] = {"counts": cell["counts"], "outcome": cell["outcome"],
+                                                    "problems": cell["problems"]}
+     result["off_schedule_reports"] = reports

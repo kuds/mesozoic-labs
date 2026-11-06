@@ -1,0 +1,1749 @@
+{
+ "criteria": {
+  "still_speed_mps": 0.1,
+  "walk": {
+   "min_alternation": 0.6,
+   "min_lead_swaps_per_stride": 1.0,
+   "max_flight": 0.2,
+   "hip_lag_key": "jointlag_frac_hip_pitch",
+   "hip_lag_band": [
+    0.35,
+    0.65
+   ],
+   "stride_key": "floor_stride_frequency_hz",
+   "max_stride_frequency_hz": 5.0,
+   "duty_keys": [
+    "floor_duty_L",
+    "floor_duty_R"
+   ],
+   "max_foot_duty": 0.8
+  },
+  "hop_min_simultaneous": 0.5,
+  "hop_min_touchdowns_per_s": 0.5,
+  "episodes": 40,
+  "seed": {
+   "walks": [
+    30,
+    4
+   ],
+   "hops": 20,
+   "falls": 5,
+   "still": 20
+  },
+  "video_review": {
+   "required_for": "WALKS",
+   "watch": "every WALK episode, and every episode that is not STILL with a foot's floor duty > 0.8",
+   "notebook_replay": "MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/03_locomotion/replays/tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4"
+  },
+  "straight": {
+   "record_schema": "walking-pilot4-straight/v1",
+   "part_verdicts": [
+    "PASS",
+    "FAIL",
+    "NOT READ"
+   ],
+   "look_verdicts": [
+    "straight",
+    "not straight"
+   ],
+   "seed_outcomes": [
+    "STRAIGHT WALKS",
+    "STRAIGHT NO RECOVERY",
+    "CURVED WALKS",
+    "NOT WALKS"
+   ],
+   "look_required_for": "WALKS, video-agreed, (a) and (b) PASS"
+  }
+ },
+ "primary": 2000000,
+ "validation": false,
+ "launched_seeds": [
+  42
+ ],
+ "undeclared_seed_dirs_ignored": [],
+ "seeds": {
+  "42": {
+   "32768": {
+    "counts": {
+     "WALK": 40,
+     "HOP": 0,
+     "STILL": 0,
+     "FALL": 0,
+     "OTHER": 0
+    },
+    "outcome": null,
+    "problems": [
+     "validation-only judge (run budget 50000)"
+    ],
+    "labels": [
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK"
+    ],
+    "other_passing_contact_bar": {
+     "hip_lag": 0,
+     "stride": 0,
+     "duty": 0,
+     "hip_lag+stride": 0,
+     "hip_lag+duty": 0,
+     "stride+duty": 0,
+     "hip_lag+stride+duty": 0
+    },
+    "video_watch": [
+     {
+      "episode": 0,
+      "reset_seed": 3042,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6933,
+      "why": "WALK"
+     },
+     {
+      "episode": 1,
+      "reset_seed": 3043,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.1681,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.713,
+      "why": "WALK"
+     },
+     {
+      "episode": 2,
+      "reset_seed": 3044,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1655,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7269,
+      "why": "WALK"
+     },
+     {
+      "episode": 3,
+      "reset_seed": 3045,
+      "label": "WALK",
+      "foot_duty_max": 0.5822,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6486,
+      "why": "WALK"
+     },
+     {
+      "episode": 4,
+      "reset_seed": 3046,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6475,
+      "why": "WALK"
+     },
+     {
+      "episode": 5,
+      "reset_seed": 3047,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1652,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7149,
+      "why": "WALK"
+     },
+     {
+      "episode": 6,
+      "reset_seed": 3048,
+      "label": "WALK",
+      "foot_duty_max": 0.5833,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6969,
+      "why": "WALK"
+     },
+     {
+      "episode": 7,
+      "reset_seed": 3049,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6933,
+      "why": "WALK"
+     },
+     {
+      "episode": 8,
+      "reset_seed": 3050,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1719,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7024,
+      "why": "WALK"
+     },
+     {
+      "episode": 9,
+      "reset_seed": 3051,
+      "label": "WALK",
+      "foot_duty_max": 0.5811,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6795,
+      "why": "WALK"
+     },
+     {
+      "episode": 10,
+      "reset_seed": 3052,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.1657,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7211,
+      "why": "WALK"
+     },
+     {
+      "episode": 11,
+      "reset_seed": 3053,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.4796,
+      "why": "WALK"
+     },
+     {
+      "episode": 12,
+      "reset_seed": 3054,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7136,
+      "why": "WALK"
+     },
+     {
+      "episode": 13,
+      "reset_seed": 3055,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1636,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7023,
+      "why": "WALK"
+     },
+     {
+      "episode": 14,
+      "reset_seed": 3056,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1662,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7222,
+      "why": "WALK"
+     },
+     {
+      "episode": 15,
+      "reset_seed": 3057,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1641,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7188,
+      "why": "WALK"
+     },
+     {
+      "episode": 16,
+      "reset_seed": 3058,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1648,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7249,
+      "why": "WALK"
+     },
+     {
+      "episode": 17,
+      "reset_seed": 3059,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7046,
+      "why": "WALK"
+     },
+     {
+      "episode": 18,
+      "reset_seed": 3060,
+      "label": "WALK",
+      "foot_duty_max": 0.5844,
+      "foot_swing_min_s": 0.1686,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.68,
+      "why": "WALK"
+     },
+     {
+      "episode": 19,
+      "reset_seed": 3061,
+      "label": "WALK",
+      "foot_duty_max": 0.5822,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6683,
+      "why": "WALK"
+     },
+     {
+      "episode": 20,
+      "reset_seed": 3062,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1671,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7269,
+      "why": "WALK"
+     },
+     {
+      "episode": 21,
+      "reset_seed": 3063,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6425,
+      "why": "WALK"
+     },
+     {
+      "episode": 22,
+      "reset_seed": 3064,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1636,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7111,
+      "why": "WALK"
+     },
+     {
+      "episode": 23,
+      "reset_seed": 3065,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1645,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6968,
+      "why": "WALK"
+     },
+     {
+      "episode": 24,
+      "reset_seed": 3066,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7039,
+      "why": "WALK"
+     },
+     {
+      "episode": 25,
+      "reset_seed": 3067,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.1686,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7211,
+      "why": "WALK"
+     },
+     {
+      "episode": 26,
+      "reset_seed": 3068,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1648,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7439,
+      "why": "WALK"
+     },
+     {
+      "episode": 27,
+      "reset_seed": 3069,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1623,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7096,
+      "why": "WALK"
+     },
+     {
+      "episode": 28,
+      "reset_seed": 3070,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.1662,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7126,
+      "why": "WALK"
+     },
+     {
+      "episode": 29,
+      "reset_seed": 3071,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.1671,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7192,
+      "why": "WALK"
+     },
+     {
+      "episode": 30,
+      "reset_seed": 3072,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1652,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7102,
+      "why": "WALK"
+     },
+     {
+      "episode": 31,
+      "reset_seed": 3073,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1727,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6561,
+      "why": "WALK"
+     },
+     {
+      "episode": 32,
+      "reset_seed": 3074,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1643,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7381,
+      "why": "WALK"
+     },
+     {
+      "episode": 33,
+      "reset_seed": 3075,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.165,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7261,
+      "why": "WALK"
+     },
+     {
+      "episode": 34,
+      "reset_seed": 3076,
+      "label": "WALK",
+      "foot_duty_max": 0.5844,
+      "foot_swing_min_s": 0.1657,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6806,
+      "why": "WALK"
+     },
+     {
+      "episode": 35,
+      "reset_seed": 3077,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.1623,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6787,
+      "why": "WALK"
+     },
+     {
+      "episode": 36,
+      "reset_seed": 3078,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1667,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6932,
+      "why": "WALK"
+     },
+     {
+      "episode": 37,
+      "reset_seed": 3079,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1667,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7007,
+      "why": "WALK"
+     },
+     {
+      "episode": 38,
+      "reset_seed": 3080,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1652,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6937,
+      "why": "WALK"
+     },
+     {
+      "episode": 39,
+      "reset_seed": 3081,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1614,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7189,
+      "why": "WALK"
+     }
+    ],
+    "still_with_foot_duty_over_0_8": 0,
+    "walk_with_short_swing": 0,
+    "probe_classes": {
+     "walk": 40
+    },
+    "medians": {
+     "speed_displacement_mps": 2.712204428521976,
+     "floor_touchdowns_per_s_all_feet": 4.888888888888889,
+     "floor_alternation_index": 1.0,
+     "floor_simultaneous_fraction": 0.0,
+     "floor_lead_swaps_per_stride": 1.9433120690438386,
+     "floor_flight_fraction": 0.0,
+     "floor_single_support_fraction": 0.94,
+     "floor_stride_frequency_hz": 2.4896589237290185,
+     "floor_stride_length_over_L": 1.236379200325898,
+     "left_leads_fraction": 0.3322222222222222,
+     "froude": 0.8504156007759827,
+     "jointlag_frac_hip_pitch": 0.45,
+     "floor_duty_L": 0.48277777777777775,
+     "floor_duty_R": 0.5777777777777777,
+     "floor_swing_mean_s_L": 0.21181818181818185,
+     "floor_swing_mean_s_R": 0.16666666666666666,
+     "speed_forward_vel_mps": 2.7042749352373567,
+     "yaw_change_deg": -26.478097670955744
+    },
+    "mean_reward": 3070.603642575121,
+    "run_end": {
+     "periodic_steps": [
+      32768,
+      65536
+     ],
+     "newest_periodic_steps": 65536,
+     "intact_periodic_steps": [
+      32768,
+      65536
+     ],
+     "newest_intact_periodic_steps": 65536,
+     "broken_periodic": {},
+     "final_num_timesteps": 65536,
+     "final_source": "stage2_final.zip num_timesteps",
+     "budget": 50000,
+     "stopped_early": false
+    },
+    "run": "pilot4_walk_s42",
+    "final_fallback": false,
+    "still_report": {
+     "n": 0,
+     "episodes": [],
+     "stepping_at_0_5_touchdowns_per_s": 0,
+     "median_touchdowns_per_s": NaN,
+     "median_alternation": NaN,
+     "median_abs_yaw_change_deg": NaN
+    },
+    "checkpoint_sha256": "sha256:4ab2de8b49650a4b131f2b3bb57199bf1f25b4dc55beb71bfd9ff8d9b7f5658e",
+    "vecnorm_sha256": "sha256:8406581a8d4546c920dc6f09aee1a69c12d011a0d875a1527e17b550e6781617"
+   },
+   "50000": {
+    "counts": {
+     "WALK": 40,
+     "HOP": 0,
+     "STILL": 0,
+     "FALL": 0,
+     "OTHER": 0
+    },
+    "outcome": null,
+    "problems": [
+     "validation-only judge (run budget 50000)"
+    ],
+    "labels": [
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK"
+    ],
+    "other_passing_contact_bar": {
+     "hip_lag": 0,
+     "stride": 0,
+     "duty": 0,
+     "hip_lag+stride": 0,
+     "hip_lag+duty": 0,
+     "stride+duty": 0,
+     "hip_lag+stride+duty": 0
+    },
+    "video_watch": [
+     {
+      "episode": 0,
+      "reset_seed": 3042,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.17,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6685,
+      "why": "WALK"
+     },
+     {
+      "episode": 1,
+      "reset_seed": 3043,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1724,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6654,
+      "why": "WALK"
+     },
+     {
+      "episode": 2,
+      "reset_seed": 3044,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6966,
+      "why": "WALK"
+     },
+     {
+      "episode": 3,
+      "reset_seed": 3045,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1724,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6172,
+      "why": "WALK"
+     },
+     {
+      "episode": 4,
+      "reset_seed": 3046,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.1733,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6346,
+      "why": "WALK"
+     },
+     {
+      "episode": 5,
+      "reset_seed": 3047,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6797,
+      "why": "WALK"
+     },
+     {
+      "episode": 6,
+      "reset_seed": 3048,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1724,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6785,
+      "why": "WALK"
+     },
+     {
+      "episode": 7,
+      "reset_seed": 3049,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.175,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6395,
+      "why": "WALK"
+     },
+     {
+      "episode": 8,
+      "reset_seed": 3050,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.171,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6968,
+      "why": "WALK"
+     },
+     {
+      "episode": 9,
+      "reset_seed": 3051,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1733,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.5964,
+      "why": "WALK"
+     },
+     {
+      "episode": 10,
+      "reset_seed": 3052,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6943,
+      "why": "WALK"
+     },
+     {
+      "episode": 11,
+      "reset_seed": 3053,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1775,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.4824,
+      "why": "WALK"
+     },
+     {
+      "episode": 12,
+      "reset_seed": 3054,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1755,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6177,
+      "why": "WALK"
+     },
+     {
+      "episode": 13,
+      "reset_seed": 3055,
+      "label": "WALK",
+      "foot_duty_max": 0.5811,
+      "foot_swing_min_s": 0.1633,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7393,
+      "why": "WALK"
+     },
+     {
+      "episode": 14,
+      "reset_seed": 3056,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.171,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6994,
+      "why": "WALK"
+     },
+     {
+      "episode": 15,
+      "reset_seed": 3057,
+      "label": "WALK",
+      "foot_duty_max": 0.5811,
+      "foot_swing_min_s": 0.1667,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7379,
+      "why": "WALK"
+     },
+     {
+      "episode": 16,
+      "reset_seed": 3058,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6709,
+      "why": "WALK"
+     },
+     {
+      "episode": 17,
+      "reset_seed": 3059,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.1755,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6284,
+      "why": "WALK"
+     },
+     {
+      "episode": 18,
+      "reset_seed": 3060,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.174,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.637,
+      "why": "WALK"
+     },
+     {
+      "episode": 19,
+      "reset_seed": 3061,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1745,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.5483,
+      "why": "WALK"
+     },
+     {
+      "episode": 20,
+      "reset_seed": 3062,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1719,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6598,
+      "why": "WALK"
+     },
+     {
+      "episode": 21,
+      "reset_seed": 3063,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1743,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6636,
+      "why": "WALK"
+     },
+     {
+      "episode": 22,
+      "reset_seed": 3064,
+      "label": "WALK",
+      "foot_duty_max": 0.5833,
+      "foot_swing_min_s": 0.1643,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7282,
+      "why": "WALK"
+     },
+     {
+      "episode": 23,
+      "reset_seed": 3065,
+      "label": "WALK",
+      "foot_duty_max": 0.5833,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7218,
+      "why": "WALK"
+     },
+     {
+      "episode": 24,
+      "reset_seed": 3066,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.171,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6512,
+      "why": "WALK"
+     },
+     {
+      "episode": 25,
+      "reset_seed": 3067,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.1738,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6663,
+      "why": "WALK"
+     },
+     {
+      "episode": 26,
+      "reset_seed": 3068,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7254,
+      "why": "WALK"
+     },
+     {
+      "episode": 27,
+      "reset_seed": 3069,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7261,
+      "why": "WALK"
+     },
+     {
+      "episode": 28,
+      "reset_seed": 3070,
+      "label": "WALK",
+      "foot_duty_max": 0.5689,
+      "foot_swing_min_s": 0.1724,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6585,
+      "why": "WALK"
+     },
+     {
+      "episode": 29,
+      "reset_seed": 3071,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1724,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6601,
+      "why": "WALK"
+     },
+     {
+      "episode": 30,
+      "reset_seed": 3072,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6837,
+      "why": "WALK"
+     },
+     {
+      "episode": 31,
+      "reset_seed": 3073,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1736,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6559,
+      "why": "WALK"
+     },
+     {
+      "episode": 32,
+      "reset_seed": 3074,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7203,
+      "why": "WALK"
+     },
+     {
+      "episode": 33,
+      "reset_seed": 3075,
+      "label": "WALK",
+      "foot_duty_max": 0.5822,
+      "foot_swing_min_s": 0.17,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6693,
+      "why": "WALK"
+     },
+     {
+      "episode": 34,
+      "reset_seed": 3076,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6365,
+      "why": "WALK"
+     },
+     {
+      "episode": 35,
+      "reset_seed": 3077,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7066,
+      "why": "WALK"
+     },
+     {
+      "episode": 36,
+      "reset_seed": 3078,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6291,
+      "why": "WALK"
+     },
+     {
+      "episode": 37,
+      "reset_seed": 3079,
+      "label": "WALK",
+      "foot_duty_max": 0.5822,
+      "foot_swing_min_s": 0.1695,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7013,
+      "why": "WALK"
+     },
+     {
+      "episode": 38,
+      "reset_seed": 3080,
+      "label": "WALK",
+      "foot_duty_max": 0.5856,
+      "foot_swing_min_s": 0.1681,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7078,
+      "why": "WALK"
+     },
+     {
+      "episode": 39,
+      "reset_seed": 3081,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.1667,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.745,
+      "why": "WALK"
+     }
+    ],
+    "still_with_foot_duty_over_0_8": 0,
+    "walk_with_short_swing": 0,
+    "probe_classes": {
+     "walk": 40
+    },
+    "medians": {
+     "speed_displacement_mps": 2.7076933083764962,
+     "floor_touchdowns_per_s_all_feet": 4.777777777777778,
+     "floor_alternation_index": 1.0,
+     "floor_simultaneous_fraction": 0.0,
+     "floor_lead_swaps_per_stride": 1.9382590272480182,
+     "floor_flight_fraction": 0.0,
+     "floor_single_support_fraction": 0.94,
+     "floor_stride_frequency_hz": 2.4284469152105768,
+     "floor_stride_length_over_L": 1.2552762400933397,
+     "left_leads_fraction": 0.35777777777777775,
+     "froude": 0.8283157709388735,
+     "jointlag_frac_hip_pitch": 0.4634146341463415,
+     "floor_duty_L": 0.48277777777777775,
+     "floor_duty_R": 0.5755555555555556,
+     "floor_swing_mean_s_L": 0.21714285714285717,
+     "floor_swing_mean_s_R": 0.17142857142857143,
+     "speed_forward_vel_mps": 2.6689054963023287,
+     "yaw_change_deg": -38.96131790321125
+    },
+    "mean_reward": 3020.6857227632627,
+    "run_end": {
+     "periodic_steps": [
+      32768,
+      65536
+     ],
+     "newest_periodic_steps": 65536,
+     "intact_periodic_steps": [
+      32768,
+      65536
+     ],
+     "newest_intact_periodic_steps": 65536,
+     "broken_periodic": {},
+     "final_num_timesteps": 65536,
+     "final_source": "stage2_final.zip num_timesteps",
+     "budget": 50000,
+     "stopped_early": false
+    },
+    "run": "pilot4_walk_s42",
+    "final_fallback": true,
+    "still_report": {
+     "n": 0,
+     "episodes": [],
+     "stepping_at_0_5_touchdowns_per_s": 0,
+     "median_touchdowns_per_s": NaN,
+     "median_alternation": NaN,
+     "median_abs_yaw_change_deg": NaN
+    },
+    "checkpoint_sha256": "sha256:ad7ea86b7b61f41a925ebaa5160ae22eae5baaad3645f3deacdae2c5507b6011",
+    "vecnorm_sha256": "sha256:aebded4b3b8027a56fc51b67f9070a73443a91daaac5acf8927ac4df0dfa9bdd"
+   },
+   "65536": {
+    "counts": {
+     "WALK": 40,
+     "HOP": 0,
+     "STILL": 0,
+     "FALL": 0,
+     "OTHER": 0
+    },
+    "outcome": null,
+    "problems": [
+     "validation-only judge (run budget 50000)"
+    ],
+    "labels": [
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK",
+     "WALK"
+    ],
+    "other_passing_contact_bar": {
+     "hip_lag": 0,
+     "stride": 0,
+     "duty": 0,
+     "hip_lag+stride": 0,
+     "hip_lag+duty": 0,
+     "stride+duty": 0,
+     "hip_lag+stride+duty": 0
+    },
+    "video_watch": [
+     {
+      "episode": 0,
+      "reset_seed": 3042,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1681,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6905,
+      "why": "WALK"
+     },
+     {
+      "episode": 1,
+      "reset_seed": 3043,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7137,
+      "why": "WALK"
+     },
+     {
+      "episode": 2,
+      "reset_seed": 3044,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1662,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7252,
+      "why": "WALK"
+     },
+     {
+      "episode": 3,
+      "reset_seed": 3045,
+      "label": "WALK",
+      "foot_duty_max": 0.5767,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6864,
+      "why": "WALK"
+     },
+     {
+      "episode": 4,
+      "reset_seed": 3046,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.17,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6573,
+      "why": "WALK"
+     },
+     {
+      "episode": 5,
+      "reset_seed": 3047,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.1695,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.702,
+      "why": "WALK"
+     },
+     {
+      "episode": 6,
+      "reset_seed": 3048,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.721,
+      "why": "WALK"
+     },
+     {
+      "episode": 7,
+      "reset_seed": 3049,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1719,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6744,
+      "why": "WALK"
+     },
+     {
+      "episode": 8,
+      "reset_seed": 3050,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1686,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7073,
+      "why": "WALK"
+     },
+     {
+      "episode": 9,
+      "reset_seed": 3051,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.171,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6722,
+      "why": "WALK"
+     },
+     {
+      "episode": 10,
+      "reset_seed": 3052,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1671,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7161,
+      "why": "WALK"
+     },
+     {
+      "episode": 11,
+      "reset_seed": 3053,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1743,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.556,
+      "why": "WALK"
+     },
+     {
+      "episode": 12,
+      "reset_seed": 3054,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7155,
+      "why": "WALK"
+     },
+     {
+      "episode": 13,
+      "reset_seed": 3055,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1638,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7031,
+      "why": "WALK"
+     },
+     {
+      "episode": 14,
+      "reset_seed": 3056,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7205,
+      "why": "WALK"
+     },
+     {
+      "episode": 15,
+      "reset_seed": 3057,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.1664,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7059,
+      "why": "WALK"
+     },
+     {
+      "episode": 16,
+      "reset_seed": 3058,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1705,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7157,
+      "why": "WALK"
+     },
+     {
+      "episode": 17,
+      "reset_seed": 3059,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1719,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6792,
+      "why": "WALK"
+     },
+     {
+      "episode": 18,
+      "reset_seed": 3060,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1729,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.69,
+      "why": "WALK"
+     },
+     {
+      "episode": 19,
+      "reset_seed": 3061,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1714,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6466,
+      "why": "WALK"
+     },
+     {
+      "episode": 20,
+      "reset_seed": 3062,
+      "label": "WALK",
+      "foot_duty_max": 0.5822,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7176,
+      "why": "WALK"
+     },
+     {
+      "episode": 21,
+      "reset_seed": 3063,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1724,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6705,
+      "why": "WALK"
+     },
+     {
+      "episode": 22,
+      "reset_seed": 3064,
+      "label": "WALK",
+      "foot_duty_max": 0.57,
+      "foot_swing_min_s": 0.1659,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7107,
+      "why": "WALK"
+     },
+     {
+      "episode": 23,
+      "reset_seed": 3065,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1655,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6895,
+      "why": "WALK"
+     },
+     {
+      "episode": 24,
+      "reset_seed": 3066,
+      "label": "WALK",
+      "foot_duty_max": 0.5811,
+      "foot_swing_min_s": 0.1671,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7034,
+      "why": "WALK"
+     },
+     {
+      "episode": 25,
+      "reset_seed": 3067,
+      "label": "WALK",
+      "foot_duty_max": 0.58,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7169,
+      "why": "WALK"
+     },
+     {
+      "episode": 26,
+      "reset_seed": 3068,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.1645,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.735,
+      "why": "WALK"
+     },
+     {
+      "episode": 27,
+      "reset_seed": 3069,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1657,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7264,
+      "why": "WALK"
+     },
+     {
+      "episode": 28,
+      "reset_seed": 3070,
+      "label": "WALK",
+      "foot_duty_max": 0.5778,
+      "foot_swing_min_s": 0.1686,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7181,
+      "why": "WALK"
+     },
+     {
+      "episode": 29,
+      "reset_seed": 3071,
+      "label": "WALK",
+      "foot_duty_max": 0.5744,
+      "foot_swing_min_s": 0.169,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7162,
+      "why": "WALK"
+     },
+     {
+      "episode": 30,
+      "reset_seed": 3072,
+      "label": "WALK",
+      "foot_duty_max": 0.5756,
+      "foot_swing_min_s": 0.1667,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7104,
+      "why": "WALK"
+     },
+     {
+      "episode": 31,
+      "reset_seed": 3073,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1755,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6303,
+      "why": "WALK"
+     },
+     {
+      "episode": 32,
+      "reset_seed": 3074,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1652,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7344,
+      "why": "WALK"
+     },
+     {
+      "episode": 33,
+      "reset_seed": 3075,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1676,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7037,
+      "why": "WALK"
+     },
+     {
+      "episode": 34,
+      "reset_seed": 3076,
+      "label": "WALK",
+      "foot_duty_max": 0.5789,
+      "foot_swing_min_s": 0.1695,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6729,
+      "why": "WALK"
+     },
+     {
+      "episode": 35,
+      "reset_seed": 3077,
+      "label": "WALK",
+      "foot_duty_max": 0.5722,
+      "foot_swing_min_s": 0.1645,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.6796,
+      "why": "WALK"
+     },
+     {
+      "episode": 36,
+      "reset_seed": 3078,
+      "label": "WALK",
+      "foot_duty_max": 0.5711,
+      "foot_swing_min_s": 0.1695,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7063,
+      "why": "WALK"
+     },
+     {
+      "episode": 37,
+      "reset_seed": 3079,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1667,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7067,
+      "why": "WALK"
+     },
+     {
+      "episode": 38,
+      "reset_seed": 3080,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1652,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7022,
+      "why": "WALK"
+     },
+     {
+      "episode": 39,
+      "reset_seed": 3081,
+      "label": "WALK",
+      "foot_duty_max": 0.5733,
+      "foot_swing_min_s": 0.1636,
+      "short_swing": false,
+      "speed_forward_vel_mps": 2.7175,
+      "why": "WALK"
+     }
+    ],
+    "still_with_foot_duty_over_0_8": 0,
+    "walk_with_short_swing": 0,
+    "probe_classes": {
+     "walk": 40
+    },
+    "medians": {
+     "speed_displacement_mps": 2.707665694270638,
+     "floor_touchdowns_per_s_all_feet": 4.888888888888889,
+     "floor_alternation_index": 1.0,
+     "floor_simultaneous_fraction": 0.0,
+     "floor_lead_swaps_per_stride": 1.9433190392304498,
+     "floor_flight_fraction": 0.0,
+     "floor_single_support_fraction": 0.9411111111111111,
+     "floor_stride_frequency_hz": 2.480097446511302,
+     "floor_stride_length_over_L": 1.240951244410502,
+     "left_leads_fraction": 0.3305555555555556,
+     "froude": 0.8515591451447581,
+     "jointlag_frac_hip_pitch": 0.45,
+     "floor_duty_L": 0.4822222222222222,
+     "floor_duty_R": 0.5744444444444444,
+     "floor_swing_mean_s_L": 0.2120454545454546,
+     "floor_swing_mean_s_R": 0.16904761904761903,
+     "speed_forward_vel_mps": 2.7060925392245707,
+     "yaw_change_deg": -27.83972413251125
+    },
+    "mean_reward": 3067.165692774711,
+    "run_end": {
+     "periodic_steps": [
+      32768,
+      65536
+     ],
+     "newest_periodic_steps": 65536,
+     "intact_periodic_steps": [
+      32768,
+      65536
+     ],
+     "newest_intact_periodic_steps": 65536,
+     "broken_periodic": {},
+     "final_num_timesteps": 65536,
+     "final_source": "stage2_final.zip num_timesteps",
+     "budget": 50000,
+     "stopped_early": false
+    },
+    "run": "pilot4_walk_s42",
+    "final_fallback": false,
+    "still_report": {
+     "n": 0,
+     "episodes": [],
+     "stepping_at_0_5_touchdowns_per_s": 0,
+     "median_touchdowns_per_s": NaN,
+     "median_alternation": NaN,
+     "median_abs_yaw_change_deg": NaN
+    },
+    "checkpoint_sha256": "sha256:f0ee303a0bd4b9c8d58a56a4c2a8904ef2c8b2a9a56969aa157a28a64f53b1b9",
+    "vecnorm_sha256": "sha256:aebded4b3b8027a56fc51b67f9070a73443a91daaac5acf8927ac4df0dfa9bdd"
+   },
+   "500000": null,
+   "1000000": null,
+   "1500000": null,
+   "2000000": null
+  }
+ },
+ "per_seed": {
+  "42": {
+   "outcome": null,
+   "steps": null,
+   "basis": "missing (judged so far: 32,768, 50,000, 65,536)",
+   "video_review": "not needed",
+   "outcome_after_video_review": null
+  }
+ },
+ "per_seed_primary": {
+  "42": null
+ },
+ "per_seed_reviewed": {
+  "42": null
+ },
+ "video_review_file": null,
+ "video_review_verdicts": {},
+ "video_review_required": {
+  "42": null
+ },
+ "straight_files": [],
+ "straight_review_file": null,
+ "straight_review_verdicts": {},
+ "straight": {
+  "42": {}
+ },
+ "straightness_look_required": {
+  "42": null
+ },
+ "seed_outcomes": {
+  "42": {
+   "outcome": null,
+   "label": "missing",
+   "possible": [
+    null
+   ],
+   "awaited": [],
+   "steps": null,
+   "parts": null,
+   "video_review": null,
+   "look": null,
+   "straight_record": null,
+   "straight_record_problems": null
+  }
+ },
+ "straight_records_ignored": [],
+ "off_schedule_reports": {},
+ "retired_cells_never_scored": [],
+ "closed_seeds": [],
+ "gait_reading": {
+  "by_rule": {
+   "outcome": null,
+   "basis": "no launched seed of 1 has a scored outcome",
+   "missing": [
+    42
+   ]
+  },
+  "reviewed": {
+   "outcome": null,
+   "basis": "no launched seed of 1 has a scored outcome",
+   "missing": [
+    42
+   ],
+   "final": true,
+   "pending_video_review": []
+  },
+  "final_reading": {
+   "applies": false,
+   "why": "missing seeds not CLOSED: ['s42']"
+  }
+ },
+ "pilot": {
+  "outcome": null,
+  "basis": "no launched seed of 1 has a scored outcome",
+  "missing": [
+   42
+  ],
+  "final": true,
+  "pending": []
+ },
+ "final_reading": {
+  "applies": false,
+  "why": "missing seeds not CLOSED: ['s42']"
+ },
+ "report_only_count": {
+  "k": 0,
+  "launched": 1,
+  "seeds": [],
+  "could_still_count": [],
+  "text": "0 of 1 seeds are WALKS, video-agreed, pass (a) and (b) and the look agrees ([])"
+ },
+ "existence": {
+  "reading": "NONE SEEN",
+  "A": [],
+  "k": 0,
+  "launched": 1,
+  "pending": [],
+  "pending_could_be_straight_walks": [],
+  "open_missing": [
+   42
+  ],
+  "final": false
+ },
+ "habit_files": [],
+ "habit_report_only": {
+  "42": {
+   "reading": "NOT RUN",
+   "why": "no habit record for s42",
+   "habits": []
+  }
+ },
+ "p3_8m_reference": {
+  "42": null
+ }
+}

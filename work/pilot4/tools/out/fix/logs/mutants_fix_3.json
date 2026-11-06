@@ -1,0 +1,361 @@
+{
+ "mutants": [
+  {
+   "mutant": "F01 judge: no anchor check at the pilot budget",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_a_record_and_a_tree_that_moved_together_are_refused_at_the_pilot_budget",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 1 skipped, 278 deselected in 0.26s"
+   ]
+  },
+  {
+   "mutant": "F02 judge: the recipe anchor not compared",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_a_record_and_a_tree_that_moved_together_are_refused_at_the_pilot_budget",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 1 skipped, 278 deselected in 0.23s"
+   ]
+  },
+  {
+   "mutant": "F03 judge: the table anchor compared loosely (==)",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_anchor_problems_alone - AssertionErro...",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 2 passed, 1 skipped, 278 deselected in 0.22s"
+   ]
+  },
+  {
+   "mutant": "F04 judge: the drift record ignored",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_a_drift_record_refuses_and_an_empty_one_does_not",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 1 passed, 280 deselected in 0.23s"
+   ]
+  },
+  {
+   "mutant": "F05 judge: a tuple not read as a list in the drift",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_env_kwargs_drift_is_the_probe_s_comparison",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 280 deselected in 0.21s"
+   ]
+  },
+  {
+   "mutant": "F06 judge: the drift over the record's keys only",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_env_kwargs_drift_is_the_probe_s_comparison",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 280 deselected in 0.21s"
+   ]
+  },
+  {
+   "mutant": "F07 judge: no default --expect-head",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_the_default_expect_head_is_the_text_s_head",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 281 deselected in 8.80s"
+   ]
+  },
+  {
+   "mutant": "F08 judge: a null warm_start_log_std accepted",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_each_binding_record_is_refused_when_absent_or_different[<lambda>-run.warm_start_log_std is recorded (None)]",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 5 passed, 212 deselected in 0.23s"
+   ]
+  },
+  {
+   "mutant": "F09 judge: prey within 0.5 m accepted",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_judge.py::test_each_binding_record_is_refused_when_absent_or_different[<lambda>-prey_lateral_range is [0.0, 0.5], not [0.0, 0.0]]",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 61 passed, 212 deselected in 0.28s"
+   ]
+  },
+  {
+   "mutant": "S01 straight: the drift record not read",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_straight.py::test_a_probe_json_with_an_env_kwargs_drift_is_refused",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 3 passed, 70 deselected in 0.26s"
+   ]
+  },
+  {
+   "mutant": "S02 straight: r read at m_900",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_straight.py::test_r_is_the_m950_error_and_inf_after_a_fall_or_without_movement",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 72 deselected in 0.22s"
+   ]
+  },
+  {
+   "mutant": "S03 straight: the guard without Tensor.backward",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_straight.py::test_the_training_guard_blocks_backward_step_and_learn",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 73 deselected in 3.22s"
+   ]
+  },
+  {
+   "mutant": "S04 straight: the crab note's sign dropped",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_pilot4_straight.py::test_the_crab_note_of_the_look_s_figure",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 73 deselected in 0.27s"
+   ]
+  },
+  {
+   "mutant": "C01 score: the tool sha256 not checked",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "425/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C02 score: the constants not checked",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "423/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C03 score: verdicts not recomputed",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "420/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C04 score: (a)'s bar exclusive",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "427/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C05 score: (c) read below 30 counting",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "426/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C06 score: inf read as a pass",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "425/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C07 score: a drifted cell scored",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "426/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "C08 score: the pinned sha256 is not the tool's",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "    [(round(r[\"straight\"][s][\"8000000\"][\"summary\"][\"c\"][\"median_r_deg\"], 1),",
+    "            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^",
+    "TypeError: 'NoneType' object is not subscriptable"
+   ]
+  },
+  {
+   "mutant": "C09 score: a pending video with the look counted (Q23)",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "ok   p4: the judge lane's real pilot-4 binding (stand-in weights, every episode a FALL) reads NOT WALKS (FALLS): ([], 40, 'NOT WALKS', 'FALLS', 'NOT WALKS')",
+    "skip probe recomputation: numpy yes, tree not given",
+    "427/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "mutant": "R01 runner: the QUICK_TEST refusal removed",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_nb_pilot_runner4.py::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[False-launch]",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 24 deselected in 0.26s"
+   ]
+  },
+  {
+   "mutant": "R02 runner: a truthy QUICK_TEST accepted",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_nb_pilot_runner4.py::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[true-launch]",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 4 passed, 24 deselected in 0.60s"
+   ]
+  },
+  {
+   "mutant": "R03 runner: the refusal also blocks --stop-at-learn",
+   "applied": true,
+   "exit": 1,
+   "killed": true,
+   "tail": [
+    "FAILED tests/test_nb_pilot_runner4.py::test_the_quick_test_rule_leaves_stop_at_learn_and_plan_only_open",
+    "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    "1 failed, 8 passed, 24 deselected in 0.69s"
+   ]
+  }
+ ],
+ "unmutated": [
+  {
+   "cmd": "-k crab_note /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_straight.py",
+   "exit": 0,
+   "tail": [
+    "1 passed, 73 deselected in 0.21s"
+   ]
+  },
+  {
+   "cmd": "-k drift /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_straight.py",
+   "exit": 0,
+   "tail": [
+    "4 passed, 70 deselected in 0.23s"
+   ]
+  },
+  {
+   "cmd": "-k anchor or moved or text_anchors /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_judge.py",
+   "exit": 0,
+   "tail": [
+    "3 passed, 1 skipped, 278 deselected in 0.18s"
+   ]
+  },
+  {
+   "cmd": "-k training_guard /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_straight.py",
+   "exit": 0,
+   "tail": [
+    "1 passed, 73 deselected in 2.98s"
+   ]
+  },
+  {
+   "cmd": "-k drift /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_judge.py",
+   "exit": 0,
+   "tail": [
+    "2 passed, 280 deselected in 0.20s"
+   ]
+  },
+  {
+   "cmd": "-I -B /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/test_pilot4_score.py",
+   "exit": 0,
+   "tail": [
+    "428/428 passed, 1 skipped"
+   ]
+  },
+  {
+   "cmd": "-k quick_test /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_nb_pilot_runner4.py",
+   "exit": 0,
+   "tail": [
+    "9 passed, 24 deselected in 2.22s"
+   ]
+  },
+  {
+   "cmd": "-k anchor or moved /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_judge.py",
+   "exit": 0,
+   "tail": [
+    "3 passed, 1 skipped, 278 deselected in 0.17s"
+   ]
+  },
+  {
+   "cmd": "-k binding_record /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_judge.py",
+   "exit": 0,
+   "tail": [
+    "70 passed, 212 deselected in 0.22s"
+   ]
+  },
+  {
+   "cmd": "-k m950 or reads_m950 /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_straight.py",
+   "exit": 0,
+   "tail": [
+    "2 passed, 72 deselected in 0.21s"
+   ]
+  },
+  {
+   "cmd": "-k default_expect_head /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/mut3/tests/test_pilot4_judge.py",
+   "exit": 0,
+   "tail": [
+    "1 passed, 281 deselected in 8.37s"
+   ]
+  }
+ ],
+ "killed": 25,
+ "applied": 25,
+ "unmutated_all_pass": true
+}

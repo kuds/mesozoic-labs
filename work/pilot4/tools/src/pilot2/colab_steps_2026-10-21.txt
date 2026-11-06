@@ -1,0 +1,144 @@
+T. rex walking pilot 2: how to run it on Colab
+==============================================
+
+Pilot 1 again, with one change to its recipe: when the walking stage starts from the stance checkpoint, the
+policy's exploration noise is set to 0.22 on every actuator (exactly 0.2231, the stance stage's own starting noise).
+The stance checkpoint is NEW (your decision 7a (i) of 2026-10-20): stance3 Run 2's final (stance3_armLT_s60, 40/40
+clean, 0 noise falls), inside the branch; pilot 1 started from r9 arm L seed 60 at 6M. So pilot 2 now differs from
+pilot 1 in two things, the stance checkpoint and the noise. Same 4,194,304 steps, same seeds 42, 52 and 60, one
+Colab runtime each. The pass/fail rules were fixed before training and amended for the new checkpoint on
+2026-10-21, still before any pilot-2 training: foot/pilot2/criteria.txt (the text before the amendment:
+foot/pilot2/criteria_2026-10-18.txt).
+
+When to run: whenever a Colab slot is free beside the three stance5 runs (your "fourth slot"); it does not take a
+stance5 run's slot, so never stop a stance5 run for it. One seed at a time is fine, in any order: each run takes
+about 3h40 on L4 (allow 4h), the three runs need not overlap or start together, and the next seed starts when a slot
+is free again. Each seed has its own notebook copy (step 1) and its own RUN_ID (step 4).
+
+Branch: claude/pilot-walk-r9-b, commit 8c5478a6ca96309be820959efe00465893eb6010 (pilot 1's eaeef50f plus six
+commits: the noise reset, its "Warm start" line printed, a note on pilot 2 in the old stance checkpoint's
+SOURCE.txt, the new stance checkpoint with its SOURCE.txt, a closing note in the old checkpoint's SOURCE.txt, and two
+corrected sentences in the new checkpoint's SOURCE.txt), physics r9 (main's plant). It is on GitHub as a branch only
+(pushed 2026-10-18 at ba464855, and 2026-10-21 19:49 UTC at 8c5478a6, checked with git ls-remote): there is no
+pull request, and it is never merged.
+
+New run folders: pilot2_walk_s42, pilot2_walk_s52, pilot2_walk_s60. Do NOT reuse, open or delete pilot 1's
+pilot_walk_s42 / pilot_walk_s52 / pilot_walk_s60 folders (or any pilot_walk_s*_b): they are pilot 1's evidence, and
+a pilot-2 run must never write into them.
+
+This is the procedure that worked for pilot 1's relaunch: a guard line stops "Run all" just before the chain loop,
+then you run the manual cell by itself.
+
+FOR EACH SEED
+
+1. Open https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/pilot-walk-r9-b/notebooks/sb3_training.ipynb
+   (if Colab cannot open it, use .../blob/main/notebooks/sb3_training.ipynb: the same notebook, and REPO_REF in step 3
+   picks the branch's code)
+   and File > Save a copy in Drive, named for the seed (e.g. "walk pilot 2 s42"). Work in that copy. Do not reuse
+   a pilot-1 copy. (A pilot-2 copy you made from the steps of 2026-10-18 needs step 5's new lines.)
+
+2. Runtime > Change runtime type: L4 GPU (what pilot 1 ran on; it took 3h36-3h41 per seed).
+
+3. First code cell (section 1):  REPO_REF = "claude/pilot-walk-r9-b"
+
+4. Configuration cell (section 2, "# ===== SPECIES SELECTION ====="):
+     SPECIES = "tyrannosaurus_rex"     EMBODIMENT = "anatomical"     ALGORITHM = "ppo"     N_ENVS = 4
+     SEED = 42  (52 / 60)              QUICK_TEST = False            USE_GOOGLE_DRIVE = True
+     AUTO_DISCONNECT = True            BEHAVIOR = "walk"             TRUNK_FROM = ""  (empty, not "auto")
+     RETRAIN_FROM = ""
+     RUN_LABEL = "walking pilot 2 s42"   ("walking pilot 2 s52" / "walking pilot 2 s60")
+     RUN_ID = "pilot2_walk_s42"          ("pilot2_walk_s52" / "pilot2_walk_s60")
+   SEED and the number in RUN_ID must be the same (a new copy starts with SEED = 42: change it for s52 and s60).
+   Leave everything else as it is (RESUME_STAGE in section 5 stays None).
+
+5. Manual cell (section 7, "# ===== MANUAL SINGLE NODE — debugging escape hatch ====="): replace its five MANUAL_
+   lines with
+     MANUAL_NODE = "locomotion"
+     MANUAL_LOAD_PATH = "/content/mesozoic-labs/pilot_checkpoints/stance3_armLT_s60_final/stage1_final"
+     MANUAL_VECNORM_PATH = MANUAL_LOAD_PATH + "_vecnorm.pkl"
+     MANUAL_LOAD_MODE = "initialize_next_stage"
+     MANUAL_TIMESTEPS = None
+   (the same five lines for all three seeds. NOT pilot 1's lines: the folder is new, and the third line differs
+   because this checkpoint's files are stage1_final.zip and stage1_final_vecnorm.pkl. Pilot 1's third line would
+   name a file that does not exist, and the manual cell would stop with "VecNormalize sidecar not found" before it
+   trains or writes anything.)
+
+6. Chain-loop cell (section 6, "# ===== BEHAVIOR CHAIN LOOP ====="): click at the very start of its first line,
+   press Enter to make a new first line, and type this as the cell's FIRST line:
+     raise RuntimeError("Walking pilot: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming (step 10): then stop here.")
+   (one line, typed exactly). Leave the rest of the cell as it is. (Without this line, Run all would train a new 12M
+   stance in the chain loop.)
+
+7. Runtime > Run all; allow Google Drive access. About 3 minutes, nothing trains. It STOPS at the chain-loop cell
+   with the red error "RuntimeError: Walking pilot: chain loop skipped on purpose. Now run the manual cell
+   (section 7) by itself -- unless you are resuming (step 10): then stop here." That stop is expected. Check, above
+   it:
+     "Repository ref: claude/pilot-walk-r9-b; commit: 8c5478a6ca96309be820959efe00465893eb6010"
+     "Run directory: .../ppo/pilot2_walk_s42 (new run: RUN_ID names no existing run)"
+     "Behavior 'walk' -> deliverable 'locomotion'; chain: stance -> locomotion"
+   If the commit differs, or the run directory is not new, stop and tell me.
+   If it does NOT stop there (you see "Node stance (stage 1)", or training starts), use Runtime > Interrupt
+   execution at once and tell me. That RUN_ID is then not used again (the seed starts over under
+   pilot2_walk_s42_b / pilot2_walk_s52_b / pilot2_walk_s60_b), and nothing is deleted.
+
+8. Click into the manual cell (section 7) and run ONLY that cell: Ctrl+Enter (or its play button). Check, near the
+   start of its output:
+     "Node locomotion (stage 2): Locomotion (ppo)"   and   "Timesteps: 4,194,304"
+     "VecNormalize loaded from: /content/mesozoic-labs/pilot_checkpoints/stance3_armLT_s60_final/stage1_final_vecnorm.pkl"
+     "Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.064, min 0.009, max 0.125; Adam moments kept)"
+       (one line in the output, after the "====" line that follows "VecNormalize loaded from" and before the first
+       "Eval num_timesteps" line; a warning may come between them, e.g. "UserWarning: You are trying to run PPO on
+       the GPU ...": ignore it. This is the one change, printed as an ordinary line. If the "Warm start" line is
+       missing, or says anything else, stop the cell and tell me.
+       Pilot 1's checkpoint would print mean 0.095, min 0.018, max 0.164 here: that means the wrong checkpoint;
+       stop and tell me.)
+   then an "Eval num_timesteps=..." line every 131,072 steps (with pilot 1's checkpoint about 1,090 at first: still
+   standing; this checkpoint's first value is not known in advance).
+   Any error: stop and tell me. Then leave it: about 3h40 on L4 (pilot 1's time; allow 4h), then about 10 minutes
+   of evaluation and two videos (the final replay plays first; if no video plays, tell me). It ends with
+     "locomotion: gate verdict FAIL (reward_and_length/v1) — ... < 1.00 m/s"   (expected: too short for 1 m/s)
+     "Result bundle not rewritten for the manual node: ..."                  (expected: a pilot is never published)
+   Ignore a "never beaten the zero-action baseline" warning. If "Timesteps:" in the summary reads less than
+   4,194,304 (an early stop, never before 3,801,088), that is a result, not a failure: let it finish.
+
+9. At the end, run section 9 ("Auto-Disconnect", the last cell) by hand.
+
+IF COLAB DISCONNECTS
+10. In MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot2_walk_s42/03_locomotion/models/ find the
+    newest stage2_<steps>_steps.zip.
+    - stage2_4194304_steps.zip is there: nothing to do. (If stage2_final.zip is missing too, the run was cut off
+      before its final save; that seed has no final replay and I review it on the panel episodes alone.)
+    - 2097152 or later (2097152, 2621440, 3145728, 3670016): RESUME. Same copy (its edits from steps 3-6 are kept),
+      fresh runtime, check steps 2-4 (same RUN_ID), set RESUME_STAGE = "locomotion" in section 5, then
+      Runtime > Run all. The resume runs inside Run all, in section 5, and is done at "Final model saved to:
+      .../stage2_final.zip" (no videos); Run all then stops at the guard line, as before, whose message says to
+      stop here when resuming. A resume does NOT print the "Warm start" line and does not reset the noise (it
+      continues the run's own noise): that is correct. Do NOT run the manual cell afterwards. Run section 9.
+    - Below 2097152 (524288, 1048576, 1572864) or none: RESTART, do not resume (a resume that early skips the slow
+      start of the walking reward, and that run cannot be scored). Same copy, fresh runtime: step 2, then step 4
+      with
+        RUN_ID = "pilot2_walk_s42_b"  ("pilot2_walk_s52_b" / "pilot2_walk_s60_b")    RUN_LABEL = "walking pilot 2 s42 b"
+      (RESUME_STAGE in section 5 stays None), then steps 7-9. The edits from steps 3, 5 and 6 are kept: do not add
+      a second guard line. The restart prints the "Warm start" line again (it is a new warm start from the stance
+      checkpoint). Leave the interrupted run on Drive as it is.
+
+WHEN TO TELL ME
+11. When each one has started (with the commit the "Repository ref" line showed, and that the "Warm start" line
+    appeared), and when each one finishes, stops early, was resumed or restarted under "_b", or hits an error.
+    Nothing to send: I read the checkpoints, stage_config.json, telemetry and videos from your Drive myself.
+
+THE VIDEO REVIEW (only for a seed I score as WALKS)
+12. A seed's WALKS counts only after you watch its final replay (a resumed or cut-off seed has none: skip it)
+      MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot2_walk_s42/03_locomotion/replays/
+      tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4   (the first of the two videos the manual cell played)
+    and the scored episodes I render and send, in two groups (boxes L and R are filled while that foot is on the
+    floor; each comes with a quarter-speed copy):
+      WALK episodes: the rule called these walks; these are the ones you judge.
+      watch-only episodes: feet down more than 80% of the time; just look at what the policy does, they never
+      change the verdict.
+    A walk: the feet take turns. One foot stays planted while the other lifts clearly, swings forward and lands
+    ahead; then they swap.
+    Not a walk: both feet leave or land together (a hop, even if one lands a moment later); the feet barely lift,
+    the boxes blinking for a frame or two while the body slides or bounces (a shuffle); one foot always ahead.
+    Tell me "disagree" if the final replay is not a walk, or if more of the WALK episodes are not walks than the
+    number I send with them; otherwise "agree". Count only the WALK group.

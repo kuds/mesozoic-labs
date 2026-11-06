@@ -1,0 +1,55 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
+rootdir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol
+configfile: scripts/pytest.ini
+plugins: platformdirs-4.14.3, anyio-4.16.0, cov-7.1.0
+collecting ... collected 33 items
+
+::test_plan_only_on_the_head_notebook[launch] PASSED                     [  3%]
+::test_plan_only_on_the_head_notebook[resume] PASSED                     [  6%]
+::test_another_head_is_refused PASSED                                    [  9%]
+::test_cell_edits_refusals PASSED                                        [ 12%]
+::test_path_map_and_manual_values PASSED                                 [ 15%]
+::test_the_parent_pair_checks PASSED                                     [ 18%]
+::test_a_missing_parent_pair_is_refused PASSED                           [ 21%]
+::test_guard_message_and_constants PASSED                                [ 24%]
+::test_the_entry_line_check_reads_required_forbidden_and_the_first_eval PASSED [ 27%]
+::test_launch_stops_at_the_guard_then_runs_the_manual_cell_with_the_override PASSED [ 30%]
+::test_without_the_override_the_first_eval_must_be_65536 PASSED          [ 33%]
+::test_a_missing_or_forbidden_entry_line_fails_the_run PASSED            [ 36%]
+::test_an_override_that_moves_the_digest_or_meets_another_cadence_or_digest_is_refused PASSED [ 39%]
+::test_another_override_value_is_refused_before_any_cell PASSED          [ 42%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[False-launch] PASSED [ 45%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[False-resume] PASSED [ 48%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[None-launch] PASSED [ 51%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[None-resume] PASSED [ 54%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[true-launch] PASSED [ 57%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[true-resume] PASSED [ 60%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[1-launch] PASSED [ 63%]
+::test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell[1-resume] PASSED [ 66%]
+::test_the_quick_test_rule_leaves_stop_at_learn_and_plan_only_open PASSED [ 69%]
+::test_an_implicit_sidecar_or_another_seeds_pair_is_refused_before_any_cell PASSED [ 72%]
+::test_an_unexpected_error_stops_run_all_and_fails PASSED                [ 75%]
+::test_a_failing_manual_cell_fails_the_run PASSED                        [ 78%]
+::test_stop_at_learn_ends_the_manual_cell_at_learn_and_checks_the_entry_lines PASSED [ 81%]
+::test_stop_at_learn_counts_a_guard_hit_as_a_failure PASSED              [ 84%]
+::test_the_resume_phase_runs_the_resume_cell_inside_run_all_and_not_the_manual_cell PASSED [ 87%]
+::test_a_colab_host_is_refused PASSED                                    [ 90%]
+::test_stop_after_pair_must_land_on_the_cadence_and_not_with_stop_at_learn PASSED [ 93%]
+::test_environments_from_outside_the_clone_is_refused PASSED             [ 96%]
+::test_the_simulated_runtime_loss_exits_75_after_the_pair_with_a_record PASSED [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_nb_pilot_runner4.xml -
+============================= slowest 10 durations =============================
+1.78s call     ::test_stop_at_learn_counts_a_guard_hit_as_a_failure
+1.72s call     ::test_the_quick_test_rule_leaves_stop_at_learn_and_plan_only_open
+1.65s call     ::test_stop_at_learn_ends_the_manual_cell_at_learn_and_checks_the_entry_lines
+0.40s call     ::test_an_override_that_moves_the_digest_or_meets_another_cadence_or_digest_is_refused
+0.30s call     ::test_a_missing_or_forbidden_entry_line_fails_the_run
+0.25s call     ::test_plan_only_on_the_head_notebook[launch]
+0.20s call     ::test_stop_after_pair_must_land_on_the_cadence_and_not_with_stop_at_learn
+0.17s call     ::test_launch_stops_at_the_guard_then_runs_the_manual_cell_with_the_override
+0.16s call     ::test_without_the_override_the_first_eval_must_be_65536
+0.14s call     ::test_the_resume_phase_runs_the_resume_cell_inside_run_all_and_not_the_manual_cell
+============================== 33 passed in 8.32s ==============================
+{"pytest_args": ["-p", "no:cacheprovider", "-c", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/scripts/pytest.ini", "--rootdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol", "--confcutdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests", "--basetemp", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/pt_test_nb_pilot_runner4", "-v", "-rfEs", "--durations=10", "--junitxml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_nb_pilot_runner4.xml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests/test_nb_pilot_runner4.py"], "exit_status": 0, "elapsed_s": 8.58, "environments_imported_in_pytest_process": false, "environments_file_in_pytest_process": null, "python": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python", "dont_write_bytecode": true}

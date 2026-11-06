@@ -1,0 +1,1682 @@
+{
+ "seed": 52,
+ "tree": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup",
+ "errors": {},
+ "pair_sha256_before": {
+  "run_copy": [
+   "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a"
+  ],
+  "my_copy": [
+   "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a"
+  ]
+ },
+ "runner_file": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py",
+ "runner_sha256": "33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+ "stops": {
+  "learn_stops": [
+   "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+   "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+   "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+   "stable_baselines3.ppo.ppo.PPO.learn",
+   "stable_baselines3.sac.sac.SAC.learn",
+   "stable_baselines3.a2c.a2c.A2C.learn",
+   "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+  ],
+  "guards": [
+   "stable_baselines3.ppo.ppo.PPO.train",
+   "stable_baselines3.sac.sac.SAC.train",
+   "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts",
+   "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts",
+   "torch.optim.adam.Adam.step",
+   "torch.optim.sgd.SGD.step",
+   "torch.optim.optimizer.Optimizer.step",
+   "torch.Tensor.backward",
+   "environments.shared.mirror_kl_ppo.MirrorKLPPO.train",
+   "torch.autograd.backward"
+  ],
+  "prelaunch_capture_wraps": [
+   "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+   "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+   "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+   "stable_baselines3.ppo.ppo.PPO.learn",
+   "stable_baselines3.sac.sac.SAC.learn",
+   "stable_baselines3.a2c.a2c.A2C.learn",
+   "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+  ]
+ },
+ "runner": {
+  "exit": 0,
+  "roles": {
+   "setup": 3,
+   "config": 6,
+   "resume": 18,
+   "chain": 20,
+   "manual": 22,
+   "disconnect": 32
+  },
+  "run_all": {
+   "stopped_at": 20,
+   "stopped_by_the_guard": true
+  },
+  "cells": [
+   {
+    "cell": 3,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "cell": 4,
+    "ok": true,
+    "seconds": 0.4
+   },
+   {
+    "cell": 6,
+    "ok": true,
+    "seconds": 0.4
+   },
+   {
+    "cell": 8,
+    "ok": true,
+    "seconds": 1.9
+   },
+   {
+    "cell": 9,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "cell": 11,
+    "ok": true,
+    "seconds": 1.0
+   },
+   {
+    "cell": 13,
+    "ok": true,
+    "seconds": 100.3
+   },
+   {
+    "cell": 15,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "cell": 16,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "cell": 18,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "cell": 20,
+    "ok": false,
+    "seconds": 0.0,
+    "exception": "RuntimeError",
+    "message": "Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here."
+   },
+   {
+    "cell": 22,
+    "ok": false,
+    "seconds": 2.9,
+    "exception": "LearnBlocked",
+    "message": "learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)"
+   }
+  ],
+  "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "run_dir": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52",
+  "manual_cell": {
+   "cell": 22,
+   "ok": false,
+   "seconds": 2.9,
+   "exception": "LearnBlocked",
+   "message": "learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)"
+  },
+  "record": {
+   "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+   "manual_cell_stopped_at_learn": true,
+   "learn_called": [
+    {
+     "class": "stable_baselines3.ppo.ppo.PPO",
+     "total_timesteps": 2000000,
+     "reset_num_timesteps": true
+    }
+   ],
+   "guard_hits": [],
+   "learn_stops": {
+    "learn_stops": [
+     "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+     "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+     "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+     "stable_baselines3.ppo.ppo.PPO.learn",
+     "stable_baselines3.sac.sac.SAC.learn",
+     "stable_baselines3.a2c.a2c.A2C.learn",
+     "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+    ],
+    "guards": [
+     "stable_baselines3.ppo.ppo.PPO.train",
+     "stable_baselines3.sac.sac.SAC.train",
+     "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts",
+     "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts",
+     "torch.optim.adam.Adam.step",
+     "torch.optim.sgd.SGD.step",
+     "torch.optim.optimizer.Optimizer.step",
+     "torch.Tensor.backward",
+     "environments.shared.mirror_kl_ppo.MirrorKLPPO.train",
+     "torch.autograd.backward"
+    ],
+    "prelaunch_capture_wraps": [
+     "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+     "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+     "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+     "stable_baselines3.ppo.ppo.PPO.learn",
+     "stable_baselines3.sac.sac.SAC.learn",
+     "stable_baselines3.a2c.a2c.A2C.learn",
+     "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+    ]
+   },
+   "environments_resolves_to": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+   "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+   "entry_lines": {
+    "required": {
+     "setup (local)": "Running locally; using this checkout. REPO_REF selects only the Colab checkout.",
+     "quick test": "Quick test mode: False",
+     "behavior": "Behavior recipe: walk",
+     "K3 panel": "In-run K3 panel: off",
+     "critic phase": "Critic phase: off",
+     "run directory": "Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52 (new run: RUN_ID names no existing run)",
+     "node": "Node locomotion (stage 2): Locomotion (ppo)",
+     "timesteps": "Timesteps: 2,000,000",
+     "vecnormalize": "VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+    },
+    "missing": [],
+    "forbidden_present": [],
+    "other_warm_start_lines": [],
+    "first_eval_line": "not reached (learn() did not run)",
+    "first_eval_ok": null,
+    "ok": true
+   },
+   "parent_pair": {
+    "zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps.zip",
+    "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+    "zip_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+    "vecnorm_sha256": "sha256:cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a"
+   },
+   "locomotion_curriculum_at_end": {
+    "eval_freq": 65536,
+    "checkpoint_freq": 250000,
+    "eval_episodes": 10,
+    "max_checkpoints": 0,
+    "warm_start_log_std": null,
+    "warmup_timesteps": 0,
+    "ramp_start_value": 2.0,
+    "timesteps": 2000000,
+    "initialize_from_own_checkpoint": true
+   },
+   "notebook_sha256": "sha256:1eac05eef78af5000518e192c276b123815c41b707b60af2ae277236c9070d89",
+   "exit": 0,
+   "refused": null,
+   "expected_entry_lines": {
+    "required": [
+     [
+      "setup (local)",
+      "^Running locally; using this checkout\\."
+     ],
+     [
+      "quick test",
+      "^Quick test mode: False$"
+     ],
+     [
+      "behavior",
+      "^Behavior recipe: walk$"
+     ],
+     [
+      "K3 panel",
+      "^In-run K3 panel: off$"
+     ],
+     [
+      "critic phase",
+      "^Critic phase: off$"
+     ],
+     [
+      "run directory",
+      "^Run directory: .*/pilot4_walk_s52 \\(new run: RUN_ID names no existing run\\)$"
+     ],
+     [
+      "node",
+      "^Node locomotion \\(stage 2\\): Locomotion \\(ppo\\)$"
+     ],
+     [
+      "timesteps",
+      "^Timesteps:\\ 2,000,000$"
+     ],
+     [
+      "vecnormalize",
+      "^VecNormalize loaded from: /tmp/claude\\-0/\\-home\\-user\\-mesozoic\\-labs/aff94cce\\-91ba\\-5515\\-b81b\\-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps\\.pkl$"
+     ]
+    ],
+    "forbidden": [
+     "Warm start: policy log_std set",
+     "Warm start: dropped the critic's"
+    ]
+   },
+   "manual_values": {
+    "MANUAL_NODE": "locomotion",
+    "MANUAL_LOAD_PATH": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps",
+    "MANUAL_VECNORM_PATH": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+    "MANUAL_LOAD_MODE": "initialize_next_stage",
+    "MANUAL_TIMESTEPS": null
+   },
+   "clone_status_before": [],
+   "tool_sha256": "sha256:33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+   "run_dir": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52"
+  }
+ },
+ "learn_reached": true,
+ "manual_cell_stopped_by_learn_stop": true,
+ "guard_hits": [],
+ "capture": {
+  "patched_class": "stable_baselines3.ppo.ppo.PPO",
+  "at_learn": {
+   "model_class": "stable_baselines3.ppo.ppo.PPO",
+   "learn_kwargs": {
+    "total_timesteps": 2000000,
+    "callback": "<stable_baselines3.common.callbacks.CallbackList object at 0x7fb459fa4590>",
+    "progress_bar": false,
+    "reset_num_timesteps": true
+   },
+   "num_timesteps": 8000000,
+   "ent_coef": 0.005,
+   "clip_range_type": "FloatSchedule",
+   "clip_range(1.0)": 0.2,
+   "lr_schedule(1.0)": 5e-05,
+   "lr_schedule(0.0)": 1e-05,
+   "optimizer_lr": [
+    1.0023040000000002e-05
+   ],
+   "ent_coef_warmup_marker": false,
+   "train_env_forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "train_env_walk_heading_price_weight": [
+    0.2,
+    0.2,
+    0.2,
+    0.2
+   ],
+   "train_env_walk_heading_price_scale_rad": [
+    0.5,
+    0.5,
+    0.5,
+    0.5
+   ],
+   "train_env_command_mode": [
+    "heading",
+    "heading",
+    "heading",
+    "heading"
+   ],
+   "train_env_prey_lateral_range": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "vecnorm_training": true,
+   "vecnorm_obs_rms_count": 32002572.0001,
+   "device": "cpu",
+   "n_envs": 4,
+   "n_steps": 4096,
+   "batch_size": 256,
+   "n_epochs": 10,
+   "gamma": 0.995,
+   "gae_lambda": 0.95,
+   "target_kl": 0.05,
+   "seed": 52
+  },
+  "at_learn_error": null,
+  "stack_tail": "  File \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\", line 493, in run_cell\n    exec(compile(src, f\"<cell {idx}>\", \"exec\"), ns)\n  File \"<cell 22>\", line 50, in <module>\n  File \"<cell 15>\", line 139, in train_stage\n  File \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/shared/train_base.py\", line 2217, in train\n    trained = _train_stage_body(\n  File \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/shared/train_base.py\", line 1860, in _train_stage_body\n    model.learn(\n  File \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/scripts/p4_head_setup.py\", line 155, in learn\n    CAPTURE[\"stack\"] = traceback.format_stack(limit=12)\n"
+ },
+ "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+ "config_equals_load_all_stages": true,
+ "stage_dir": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/03_locomotion",
+ "stage_dir_listing": [
+  "plant_identity.json",
+  "stage_config.json",
+  "task_fingerprint.json"
+ ],
+ "stage_config": {
+  "top_level_keys": [
+   "algorithm",
+   "curriculum",
+   "description",
+   "embodiment",
+   "git_commit",
+   "hyperparameters",
+   "library_version",
+   "name",
+   "plant_identity",
+   "reward_weights",
+   "run",
+   "species",
+   "stage",
+   "task_fingerprint"
+  ],
+  "git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "run": {
+   "seed": 52,
+   "n_envs": 4,
+   "timesteps": 2000000,
+   "hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "label": "walking pilot 4 s52",
+   "load_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps.zip",
+   "load_mode": "initialize_next_stage",
+   "parent_checkpoint_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+  },
+  "task_fingerprint_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "task_fingerprint_has_command_section": true,
+  "task_fingerprint_command_config": {
+   "cruise_speed": 1.5,
+   "speed_range": null,
+   "stop_probability": 0.0,
+   "turn_increment_max": 0.0,
+   "straight_probability": 1.0,
+   "switch_interval_s": 4.0,
+   "switch_jitter_s": 0.0,
+   "speed_scale": 1.5,
+   "lateral_speed_scale": 1.0,
+   "yaw_rate_scale": 0.6,
+   "yaw_gain": 1.5,
+   "yaw_rate_max": 0.3,
+   "turn_slowdown": true,
+   "minimum_turn_speed_fraction": 0.25
+  },
+  "tree_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "hyperparameters_sha256_PPO_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+  "hyperparameters_sha256_SAC_tree": "sha256:49fa0f8e9d10f9a51a8be007fec66c8ac8c77092422c5209feeeafde0d4b8eb6",
+  "curriculum": {
+   "gate_schema_version": 1,
+   "gate_kind": "reward_and_length/v1",
+   "timesteps": 2000000,
+   "eval_freq": 65536,
+   "eval_episodes": 10,
+   "checkpoint_freq": 250000,
+   "max_checkpoints": 0,
+   "initialize_from_own_checkpoint": true,
+   "min_avg_reward": 100.0,
+   "collapse_peak_floor_reference": 1064.0,
+   "collapse_peak_floor_fraction": 0.45,
+   "statue_constants_physics_revision": 10,
+   "min_avg_episode_length": 750,
+   "min_avg_forward_vel": 1.0,
+   "required_consecutive": 3,
+   "collapse_min_evals": 20,
+   "collapse_patience": 10,
+   "collapse_drop_fraction": 0.5,
+   "warmup_timesteps": 0,
+   "warmup_clip_range": 0.02,
+   "warmup_ent_coef": 0.02,
+   "ramp_timesteps": 2000000,
+   "ramp_start_value": 2.0
+  },
+  "curriculum_changed_vs_pilot3": {
+   "checkpoint_freq": [
+    500000,
+    250000
+   ],
+   "collapse_peak_floor_reference": [
+    1092.6,
+    1064.0
+   ],
+   "eval_freq": [
+    131072,
+    65536
+   ],
+   "initialize_from_own_checkpoint": [
+    null,
+    true
+   ],
+   "ramp_start_value": [
+    0.2,
+    2.0
+   ],
+   "timesteps": [
+    8000000,
+    2000000
+   ],
+   "warm_start_log_std": [
+    -2.0,
+    null
+   ],
+   "warmup_timesteps": [
+    300000,
+    0
+   ]
+  },
+  "reward_weights_changed_vs_pilot3": {
+   "command_config": [
+    null,
+    {
+     "cruise_speed": 1.5,
+     "stop_probability": 0.0,
+     "turn_increment_max": 0.0,
+     "straight_probability": 1.0,
+     "speed_scale": 1.5,
+     "lateral_speed_scale": 1.0,
+     "yaw_rate_scale": 0.6,
+     "yaw_gain": 1.5,
+     "yaw_rate_max": 0.3,
+     "turn_slowdown": true,
+     "minimum_turn_speed_fraction": 0.25
+    }
+   ],
+   "command_mode": [
+    "none",
+    "heading"
+   ],
+   "prey_lateral_range": [
+    [
+     -2.0,
+     2.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "walk_heading_price_scale_rad": [
+    null,
+    0.5
+   ],
+   "walk_heading_price_weight": [
+    null,
+    0.2
+   ]
+  },
+  "reward_weights_price_and_command": {
+   "command_mode": "heading",
+   "command_config": {
+    "cruise_speed": 1.5,
+    "stop_probability": 0.0,
+    "turn_increment_max": 0.0,
+    "straight_probability": 1.0,
+    "speed_scale": 1.5,
+    "lateral_speed_scale": 1.0,
+    "yaw_rate_scale": 0.6,
+    "yaw_gain": 1.5,
+    "yaw_rate_max": 0.3,
+    "turn_slowdown": true,
+    "minimum_turn_speed_fraction": 0.25
+   },
+   "walk_heading_price_weight": 0.2,
+   "walk_heading_price_scale_rad": 0.5,
+   "prey_lateral_range": [
+    0.0,
+    0.0
+   ]
+  },
+  "hyperparameters_changed_vs_pilot3": {},
+  "run_changed_vs_pilot3": {
+   "critic_phase_dropped": [
+    {
+     "schema": "mesozoic.critic-phase/v1",
+     "features": [
+      "ramp",
+      "settled",
+      "discount"
+     ],
+     "settle_steps": 200,
+     "gamma": 0.98,
+     "width": 3,
+     "step_counter": "the env's _step_count when the observation was made (0 at reset)",
+     "input": "the critic's only: appended after the normalized observation, never normalized"
+    },
+    null
+   ],
+   "duration_seconds": [
+    23939.352273403998,
+    null
+   ],
+   "hyperparameters_sha256": [
+    "sha256:85881fc441355fc58f353a089d665c857b377aa1e7a9b6a5a5f89ef64271af4c",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+   ],
+   "label": [
+    "walking pilot 3 s52",
+    "walking pilot 4 s52"
+   ],
+   "load_path": [
+    "/content/mesozoic-labs/pilot_checkpoints/stance7_r10LTSBpc_s42_final/stage1_final.zip",
+    "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps.zip"
+   ],
+   "parent_checkpoint_sha256": [
+    "sha256:1c9d87c3d0f817b048de429bb80cdc89fcd2c83d5fbafd7f444af0b5474b9ff6",
+    "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00"
+   ],
+   "parent_task_sha256": [
+    "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+    "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+   ],
+   "timesteps": [
+    8000000,
+    2000000
+   ],
+   "warm_start_log_std": [
+    -2.0,
+    null
+   ]
+  },
+  "pilot3_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+ },
+ "weights": {
+  "n_tensors": 13,
+  "tensors_changed": {
+   "mlp_extractor.policy_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   }
+  },
+  "parent_command_column_l2": {
+   "mlp_extractor.policy_net.0.weight": [
+    1.4142132997512817,
+    1.41421377658844,
+    1.41421377658844
+   ],
+   "mlp_extractor.value_net.0.weight": [
+    1.4142132997512817,
+    1.4142135381698608,
+    1.4142135381698608
+   ]
+  },
+  "loaded_command_columns_max_abs": {
+   "mlp_extractor.policy_net.0.weight": 0.0,
+   "mlp_extractor.value_net.0.weight": 0.0
+  },
+  "columns_0_60_bit_equal": {
+   "mlp_extractor.policy_net.0.weight": true,
+   "mlp_extractor.value_net.0.weight": true
+  },
+  "log_std_bit_equal_parent": true,
+  "log_std": {
+   "mean": -1.9424948692321777,
+   "min": -2.243213415145874,
+   "max": -1.7057538032531738,
+   "values": [
+    -1.7906341552734375,
+    -1.7785708904266357,
+    -1.8321325778961182,
+    -2.0963408946990967,
+    -1.8901411294937134,
+    -2.243213415145874,
+    -2.235785722732544,
+    -2.039799451828003,
+    -1.8621224164962769,
+    -2.187506914138794,
+    -2.208834171295166,
+    -1.7774631977081299,
+    -1.7705219984054565,
+    -1.7186039686203003,
+    -1.7057538032531738
+   ]
+  }
+ },
+ "optimizer": {
+  "param_groups_lr_parent": [
+   1.0023040000000002e-05
+  ],
+  "param_groups_lr_loaded": [
+   1.0023040000000002e-05
+  ],
+  "step_pairs(parent,loaded)": [
+   [
+    744057.0,
+    744057.0
+   ]
+  ],
+  "params_with_changed_moments_or_listed": {
+   "log_std": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_sq_n_changed": 0,
+    "step_parent": 744057.0,
+    "step_loaded": 744057.0
+   },
+   "mlp_extractor.policy_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 744057.0,
+    "step_loaded": 744057.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 744057.0,
+    "step_loaded": 744057.0
+   }
+  },
+  "n_params": 13
+ },
+ "model_attributes": {
+  "num_timesteps_loaded": 8000000,
+  "num_timesteps_parent": 8000000,
+  "attached_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+  "lineage": {
+   "mode": "initialize_next_stage",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_species": "tyrannosaurus_rex",
+   "parent_embodiment": "anatomical",
+   "parent_stage": 2,
+   "zeroed_command_parameters": [
+    "mlp_extractor.policy_net.0.weight",
+    "mlp_extractor.value_net.0.weight"
+   ]
+  },
+  "parent_ent_coef_in_archive": 0.001,
+  "critic_phase_attribute": null,
+  "symmetry_attribute": null
+ },
+ "judge_binding": {
+  "judge_file": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_judge.py",
+  "judge_sha256": "648dd5570d0a6dc72f0792f392c95e93c0d024b8918be0e054ee36e05f3e08c0",
+  "stage_records_copied": {
+   "plant_identity.json": "sha256:e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9",
+   "stage_config.json": "sha256:5db8902adb14858a4a8b5e20fcb71393d3a8cf36a64e1c83ad0f758edc957bcf",
+   "task_fingerprint.json": "sha256:4b15d17b215bdd5a026378bc689b4a3e8692706f423d204fcd3d63ae9335bc2c"
+  },
+  "edge_zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/runs/s52/edge_model_at_learn.zip",
+  "edge_zip_sha256": "sha256:357ea96b1e361c639aca77296cd152bedf22b34d3b1dcaec3f3dacc472d0b706",
+  "edge_zip_data_num_timesteps": 8000000,
+  "lineage_zip_equals_in_memory": true,
+  "lineage_note": null,
+  "bound": {
+   "stage_config.json": {
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
+    "stage": 2,
+    "git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+    "run.load_mode": "initialize_next_stage",
+    "run.seed": 52,
+    "run.parent_checkpoint_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+    "run.timesteps": 2000000,
+    "run.resume_load_path": "<absent>",
+    "run.hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "run.n_envs": 4,
+    "run.parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "run.critic_phase_dropped": "<absent>",
+    "run.warm_start_log_std": "<absent>",
+    "task_fingerprint.task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "curriculum.warmup_timesteps": 0,
+    "curriculum.ramp_start_value": 2.0,
+    "curriculum.initialize_from_own_checkpoint": true,
+    "curriculum.warm_start_log_std": "<absent>",
+    "curriculum.eval_freq": 65536,
+    "curriculum.eval_episodes": 10,
+    "curriculum.checkpoint_freq": 250000,
+    "curriculum.max_checkpoints": 0,
+    "hyperparameters.critic_phase": "<absent>",
+    "reward_weights.command_mode": "heading",
+    "reward_weights.command_config": {
+     "cruise_speed": 1.5,
+     "stop_probability": 0.0,
+     "turn_increment_max": 0.0,
+     "straight_probability": 1.0,
+     "speed_scale": 1.5,
+     "lateral_speed_scale": 1.0,
+     "yaw_rate_scale": 0.6,
+     "yaw_gain": 1.5,
+     "yaw_rate_max": 0.3,
+     "turn_slowdown": true,
+     "minimum_turn_speed_fraction": 0.25
+    },
+    "reward_weights.prey_lateral_range": [
+     0.0,
+     0.0
+    ],
+    "reward_weights.walk_heading_price_weight": 0.2,
+    "reward_weights.walk_heading_price_scale_rad": 0.5,
+    "reward_weights.walk_support_gate_bw": 0.04,
+    "reward_weights.airborne_substep_weight": 1.0,
+    "reward_weights.forward_vel_max": 1.5,
+    "reward_weights.walk_touchdown_weight": 0.1
+   },
+   "plant_identity.json": {
+    "physics_revision": 10,
+    "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+    "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+   },
+   "zip data member mesozoic_task_lineage": {
+    "mode": "initialize_next_stage",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ],
+    "record": {
+     "mode": "initialize_next_stage",
+     "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+     "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "parent_species": "tyrannosaurus_rex",
+     "parent_embodiment": "anatomical",
+     "parent_stage": 2,
+     "zeroed_command_parameters": [
+      "mlp_extractor.policy_net.0.weight",
+      "mlp_extractor.value_net.0.weight"
+     ]
+    }
+   }
+  },
+  "anchors": {
+   "HYPERPARAMETERS_SHA256": [
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+   ],
+   "TASK_SHA256": [
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+   ],
+   "COMMAND_TABLE_vs_committed_same_json": true,
+   "COMMAND_TABLE_vs_recorded_same_json": true,
+   "PILOT_HEAD_vs_tree_head": [
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+   ],
+   "PARENT_TASK_SHA256_vs_recorded": [
+    "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+   ],
+   "PARENT_SHA256_seed_vs_recorded": [
+    "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+    "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00"
+   ],
+   "CADENCE_vs_recorded": {
+    "eval_freq": [
+     65536,
+     65536
+    ],
+    "eval_episodes": [
+     10,
+     10
+    ],
+    "checkpoint_freq": [
+     250000,
+     250000
+    ],
+    "max_checkpoints": [
+     0,
+     0
+    ]
+   },
+   "PRICE_and_R6_vs_recorded": {
+    "walk_heading_price_weight": [
+     0.2,
+     0.2
+    ],
+    "walk_heading_price_scale_rad": [
+     0.5,
+     0.5
+    ],
+    "walk_support_gate_bw": [
+     0.04,
+     0.04
+    ],
+    "airborne_substep_weight": [
+     1.0,
+     1.0
+    ],
+    "forward_vel_max": [
+     1.5,
+     1.5
+    ],
+    "walk_touchdown_weight": [
+     0.1,
+     0.1
+    ]
+   },
+   "PREY_LATERAL_RANGE_vs_recorded": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "COMMAND_MODE_vs_recorded": [
+    "heading",
+    "heading"
+   ],
+   "entry_constants_vs_recorded": {
+    "WARMUP_TIMESTEPS": [
+     0,
+     0
+    ],
+    "RAMP_START_VALUE": [
+     2.0,
+     2.0
+    ],
+    "N_ENVS": [
+     4,
+     4
+    ]
+   },
+   "LINEAGE_vs_zip": {
+    "mode": [
+     "initialize_next_stage",
+     "initialize_next_stage"
+    ],
+    "parent_stage": [
+     2,
+     2
+    ]
+   },
+   "PILOT_UNINTERRUPTED_END_vs_tree": [
+    2015232,
+    2015232,
+    16384
+   ],
+   "tree_shaping_inert": true
+  },
+  "binding_problems": [],
+  "binding_info": {
+   "budget": 2000000,
+   "resume_step": null,
+   "off_schedule": null,
+   "resumed": false,
+   "cadence_checked": true
+  },
+  "run_id_problem": null,
+  "run_name": "pilot4_walk_s52",
+  "commit_problem": null,
+  "tree_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "plant_problems": [],
+  "plant_tree": {
+   "physics_revision": 10,
+   "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+   "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+  },
+  "env_kwargs_drift": {},
+  "checks_separately": {
+   "entry_problems": [],
+   "env_problems": [],
+   "cadence_problems": [],
+   "anchor_problems": [],
+   "parent_problems": [],
+   "lineage_problems": [],
+   "drift_problem": null
+  },
+  "hyperparameters_sha256_ppo_lower_equals_PPO": true,
+  "accepted": true
+ },
+ "vecnormalize": {
+  "parent": {
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    3.124748848300523e-12,
+    3.124748848300523e-12,
+    3.124748848300523e-12
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 403.93803082386506,
+   "ret_rms_var": 38950.486110523205,
+   "ret_rms_count": 8000000.0001,
+   "clip_obs": 10.0,
+   "epsilon": 1e-08,
+   "gamma": 0.995
+  },
+  "train_env": {
+   "class": "VecNormalize",
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 0.0,
+   "ret_rms_var": 1.0,
+   "ret_rms_count": 0.0001,
+   "returns": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "training": true,
+   "norm_obs": true,
+   "norm_reward": true,
+   "clip_obs": 10.0,
+   "clip_reward": 50.0,
+   "epsilon": 1e-08,
+   "gamma": 0.995,
+   "num_envs": 4
+  },
+  "eval_env": {
+   "class": "VecNormalize",
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 0.0,
+   "ret_rms_var": 1.0,
+   "ret_rms_count": 0.0001,
+   "returns": [
+    0.0
+   ],
+   "training": false,
+   "norm_obs": true,
+   "norm_reward": false,
+   "clip_obs": 10.0,
+   "clip_reward": 50.0,
+   "epsilon": 1e-08,
+   "gamma": 0.995,
+   "num_envs": 1
+  }
+ },
+ "callbacks": {
+  "callback_list_class": "CallbackList",
+  "order": [
+   "StageAwareEvalCallback",
+   "StageGatePlateauCallback",
+   "PublishEvalArtifactsCallback",
+   "RobustBestModelCallback",
+   "CheckpointCallback",
+   "CheckpointRetentionCallback",
+   "DiagnosticsCallback",
+   "TrainingEpisodeLedgerCallback",
+   "PolicyProbeCallback",
+   "EvalCollapseEarlyStopCallback",
+   "BaselineProgressCallback",
+   "TrainingProgressCallback",
+   "EntCoefDecayCallback",
+   "StageWarmupCallback",
+   "RewardRampCallback"
+  ],
+  "attributes": [
+   {
+    "class": "StageAwareEvalCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 1,
+    "callback": null,
+    "n_eval_episodes": 10,
+    "eval_freq": 16384,
+    "best_mean_reward": -Infinity,
+    "last_mean_reward": -Infinity,
+    "deterministic": true,
+    "render": false,
+    "warn": true,
+    "best_model_save_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/03_locomotion/models",
+    "log_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/tmp/eval_stage2_h5cjyr2i/evaluations",
+    "evaluations_results": [],
+    "evaluations_timesteps": [],
+    "evaluations_length": [],
+    "_is_success_buffer": [],
+    "evaluations_successes": [],
+    "stage": 2,
+    "success_applicable": false,
+    "settle_steps": 0,
+    "horizon": 1000,
+    "control_dt": 0.01,
+    "screen_thresholds": null,
+    "evaluations_screen_v2": [],
+    "evaluations_actuator_force_frac": [],
+    "evaluations_reward_terms_split": [],
+    "_balance_layouts": [],
+    "_posture_layouts": [],
+    "_body_layouts": [],
+    "evaluations_foot_pad": [],
+    "evaluations_termination_causes": [],
+    "_current_eval_termination_causes": [],
+    "evaluations_leg_dc": [],
+    "_foot_setup": [],
+    "_rail_layouts": [],
+    "_pad_failed": false,
+    "evaluations_forward_velocities": [],
+    "evaluations_unsupported_duties": [],
+    "evaluations_bilateral_duties": [],
+    "evaluations_action_dc": [],
+    "evaluations_action_ac_rms": [],
+    "evaluations_action_delta": [],
+    "evaluations_action_jerk": [],
+    "evaluations_reward_terms": [],
+    "_current_eval_forward_velocities": [],
+    "_current_eval_unsupported_duties": [],
+    "_current_eval_bilateral_duties": [],
+    "_action_sum": null,
+    "_action_sq_sum": null,
+    "_action_delta_sum": 0.0,
+    "_action_jerk_sum": 0.0,
+    "_action_count": 0,
+    "_action_delta_count": 0,
+    "_action_jerk_count": 0,
+    "_reward_term_episodes": 0
+   },
+   {
+    "class": "StageGatePlateauCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "horizon": 1000,
+    "stage": 2,
+    "plateau_window": 5,
+    "min_relative_variation": 0.05,
+    "_last_seen_n_evals": 0,
+    "_plateau_active": false,
+    "_plateau_metric": null,
+    "control_dt": 0.01,
+    "_gate_progress_timesteps": [],
+    "_gate_progress_seeded": 0,
+    "_warned_gate_progress_unwritable": false
+   },
+   {
+    "class": "PublishEvalArtifactsCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "_last_published_n": 0
+   },
+   {
+    "class": "RobustBestModelCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "risk_coef": 1.0,
+    "staging_dir": null,
+    "best_score": -Infinity,
+    "_last_seen_n": 0
+   },
+   {
+    "class": "CheckpointCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "save_freq": 62500,
+    "save_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/03_locomotion/models",
+    "name_prefix": "stage2",
+    "save_replay_buffer": false,
+    "save_vecnormalize": true
+   },
+   {
+    "class": "CheckpointRetentionCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "name_prefix": "stage2",
+    "save_freq": 62500,
+    "max_checkpoints": 0,
+    "archive_every_timesteps": 0
+   },
+   {
+    "class": "DiagnosticsCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "action_saturation_threshold": 0.99,
+    "_step_actions": [],
+    "_history_timesteps": [],
+    "_history_heading_std": [],
+    "_history_term_timesteps": [],
+    "_rollout_episodes": 0,
+    "_history_rollout_episodes": [],
+    "_history_rollout_falls": [],
+    "_history_algo_timesteps": [],
+    "_history_action_abs_mean": [],
+    "_history_action_std": [],
+    "save_interval_seconds": 60.0,
+    "_last_save_time": null
+   },
+   {
+    "class": "TrainingEpisodeLedgerCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "settle_steps": 0,
+    "flush_every_calls": 62500,
+    "window_timesteps": 262144,
+    "_envs": null,
+    "_layouts": [],
+    "_buffers": [],
+    "_steps": [],
+    "_failed": [],
+    "_readers": [],
+    "_rollout_rows": [],
+    "_episodes_total": 0,
+    "_falls_total": 0
+   },
+   {
+    "class": "PolicyProbeCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "stage_horizon": 1000,
+    "flush_every_calls": 62500,
+    "bank": null,
+    "_rows": [],
+    "_prior_rows": [],
+    "_prior_bank": null,
+    "_frozen": null,
+    "_dirty": false
+   },
+   {
+    "class": "EvalCollapseEarlyStopCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "drop_fraction": 0.5,
+    "patience": 10,
+    "min_evals": 20,
+    "peak_floor": 478.8,
+    "smoothing_window": 5,
+    "peak_warmup_timesteps": 0.0,
+    "_peak_score": -Infinity,
+    "_consecutive_drops": 0,
+    "_last_seen_n_evals": 0,
+    "_warned_unreadable_timesteps": false,
+    "_announced_armed": false
+   },
+   {
+    "class": "BaselineProgressCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "baseline_reward": 3766.5554651985503,
+    "total_timesteps": 2000000,
+    "warn_after_budget_fraction": 0.35,
+    "duty_ceiling": null,
+    "_last_seen_n_evals": 0,
+    "_warned_below_baseline": false,
+    "_ever_beat_baseline": false
+   },
+   {
+    "class": "TrainingProgressCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "stage": 2,
+    "seed": 52,
+    "total_timesteps": 2000000,
+    "_last_seen_n_evals": 0,
+    "_warned_unwritable": false,
+    "_session_start": null
+   },
+   {
+    "class": "EntCoefDecayCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "end_value": 0.001,
+    "decay_timesteps": 4000000,
+    "_initial": null,
+    "_started": false
+   },
+   {
+    "class": "StageWarmupCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "warmup_timesteps": 0,
+    "warmup_clip_range": 0.02,
+    "warmup_ent_coef": 0.02,
+    "warmup_lr_scale": 0.1,
+    "_original_clip_range": null,
+    "_original_ent_coef": null,
+    "_original_lr_schedule": null,
+    "_is_sac": false,
+    "_warmup_done": false
+   },
+   {
+    "class": "RewardRampCallback",
+    "n_calls": 0,
+    "num_timesteps": 0,
+    "verbose": 0,
+    "attr_name": "forward_vel_weight",
+    "start_value": 2.0,
+    "end_value": 2.0,
+    "ramp_timesteps": 2000000,
+    "_last_set_value": null,
+    "_last_update_bucket": -1
+   }
+  ]
+ },
+ "start_actions_on_pilot3_observations": {
+  "env": "built tree, pilot 3's exact [env] (no command, no price, prey_lateral_range default)",
+  "episode_seed": 3042,
+  "steps": 1000,
+  "terminated": false,
+  "truncated": true,
+  "steps_with_nonzero_command_inputs": 0,
+  "max_abs_action_delta_new_vs_pilot3": 0.0,
+  "max_abs_mean_delta_new_vs_pilot3": 0.0,
+  "max_abs_value_delta_new_vs_pilot3": 0.0,
+  "pilot3_walker_metrics": {
+   "steps": 1000,
+   "yaw_change_deg": -33.33805336395111,
+   "swing_deg": 52.031538757456,
+   "max_abs_yaw_from_start_deg": 36.90936880379505,
+   "rms_yaw_from_start_deg": 14.568724472880668,
+   "detrended_swing_deg": 30.866777912187388,
+   "detrended_rms_deg": 6.763398788424767,
+   "forward_m": 22.745491393122286,
+   "lateral_m": -3.1627654290795726
+  },
+  "distance_traveled": 23.752974872726806
+ },
+ "rollout": {
+  "episode_seed": 3042,
+  "command_config_class": "DirectionCommandConfig",
+  "command_config": {
+   "cruise_speed": 1.5,
+   "speed_range": null,
+   "stop_probability": 0.0,
+   "turn_increment_max": 0.0,
+   "straight_probability": 1.0,
+   "switch_interval_s": 4.0,
+   "switch_jitter_s": 0.0,
+   "speed_scale": 1.5,
+   "lateral_speed_scale": 1.0,
+   "yaw_rate_scale": 0.6,
+   "yaw_gain": 1.5,
+   "yaw_rate_max": 0.3,
+   "turn_slowdown": true,
+   "minimum_turn_speed_fraction": 0.25
+  },
+  "reset_qpos_qvel_equal": true,
+  "reset_obs_0_60_equal": true,
+  "reset_obs_60_63": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "spawn_heading_rad": 0.0,
+  "desired_heading_at_reset": 0.0,
+  "heading_active": true,
+  "root_body_is_pelvis": true,
+  "prey_line_heading_deg": 0.0,
+  "price_weight_zero_twin": {
+   "obs_mismatch_steps": 0,
+   "state_mismatch_steps": 0,
+   "flag_mismatch_steps": 0,
+   "reward_identity_fail_steps": 0,
+   "reward_total_identity_fail_steps": 0,
+   "keys_only_on": [
+    "reward_walk_heading_price",
+    "walk_heading_error_rad"
+   ],
+   "keys_only_off": [],
+   "common_mismatch": {
+    "reward_total": 1000
+   },
+   "reset_obs_equal": true,
+   "n_common_info_keys": 92,
+   "r6_info_keys_common": [
+    "reward_walk_touchdown",
+    "walk_support",
+    "walk_touchdown_unit",
+    "walk_touchdowns_registered"
+   ],
+   "kwargs_differ_only_in": [
+    "walk_heading_price_weight"
+   ]
+  },
+  "obs_0_60_mismatch_steps": 0,
+  "state_mismatch_steps": 0,
+  "flag_mismatch_steps": 0,
+  "reward_identity_fail_steps": 0,
+  "reward_total_identity_fail_steps": 0,
+  "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+  "max_mean_delta_vs_pilot3_on_zeroed": 0.0,
+  "max_value_delta_vs_pilot3_on_zeroed": 0.0,
+  "max_action_delta_pilot3_unprepared_on_live": 0.7560487389564514,
+  "max_abs_obs62_minus_state_normalized": 0.0,
+  "max_abs_obs60_minus_state_normalized": 0.0,
+  "max_abs_obs61": 0.0,
+  "max_abs_obs62_minus_formula": 3.452480767940358e-08,
+  "max_abs_obs60_minus_formula": 5.956251347694064e-08,
+  "max_abs_state_error_plus_price_theta": 8.881784197001252e-16,
+  "max_abs_desired_heading_drift": 0.0,
+  "obs62_saturated_steps": 401,
+  "price_saturated_steps": 2,
+  "steps": 1000,
+  "terminated": false,
+  "truncated": true,
+  "info_keys_only_in_built_env": [
+   "reward_walk_heading_price",
+   "walk_heading_error_rad"
+  ],
+  "info_keys_only_in_twin": [],
+  "common_info_keys_with_any_mismatch": {
+   "reward_total": 1000
+  },
+  "n_common_info_keys": 92,
+  "price_sum": -79.2648337060844,
+  "price_mean_per_step": -0.0792648337060844,
+  "price_min_step": -0.2,
+  "return_built_env": 2968.3466954949636,
+  "return_twin": 3047.6115292010477,
+  "theta_deg": {
+   "end": -25.499823759878687,
+   "max_abs": 28.650307002063713,
+   "rms": 12.992204750187707,
+   "mean": 1.864201511568156
+  },
+  "obs62": {
+   "min": -0.5,
+   "max": 0.5,
+   "end": 0.5
+  },
+  "obs60": {
+   "min": 0.8775623440742493,
+   "max": 1.0,
+   "end": 0.9025866389274597
+  },
+  "metrics": {
+   "steps": 1000,
+   "yaw_change_deg": -25.4998237598787,
+   "swing_deg": 48.166415328453326,
+   "max_abs_yaw_from_start_deg": 28.65030700206377,
+   "rms_yaw_from_start_deg": 12.985713515832886,
+   "detrended_swing_deg": 31.78614886600613,
+   "detrended_rms_deg": 6.662774188734056,
+   "forward_m": 23.21006442072948,
+   "lateral_m": -0.7968805049534987
+  },
+  "distance_traveled": 23.91474989977251
+ },
+ "extra_episodes": {
+  "3043": {
+   "built_env_new_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -37.1036578213889,
+    "swing_deg": 48.49880824573363,
+    "max_abs_yaw_from_start_deg": 37.845202942530086,
+    "rms_yaw_from_start_deg": 13.814490073380211,
+    "detrended_swing_deg": 26.80048324385784,
+    "detrended_rms_deg": 6.368630776971567,
+    "forward_m": 23.288206554039164,
+    "lateral_m": -3.741284306444088,
+    "terminated": false,
+    "price_sum": -59.23092887887194
+   },
+   "pilot3_env_pilot3_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -29.65009965011223,
+    "swing_deg": 43.97142809297384,
+    "max_abs_yaw_from_start_deg": 29.65009965011223,
+    "rms_yaw_from_start_deg": 11.321739967104337,
+    "detrended_swing_deg": 28.81672582809698,
+    "detrended_rms_deg": 6.869951672555059,
+    "forward_m": 22.9563840080062,
+    "lateral_m": -1.1363690008918517,
+    "terminated": false,
+    "price_sum": 0.0
+   }
+  },
+  "3044": {
+   "built_env_new_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -35.46613277189212,
+    "swing_deg": 45.53352215120545,
+    "max_abs_yaw_from_start_deg": 37.504663270863546,
+    "rms_yaw_from_start_deg": 13.928255634076239,
+    "detrended_swing_deg": 25.554300132683657,
+    "detrended_rms_deg": 6.018219386964686,
+    "forward_m": 22.47174031591935,
+    "lateral_m": -4.244455689998211,
+    "terminated": false,
+    "price_sum": -60.5077453864418
+   },
+   "pilot3_env_pilot3_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -37.549558997444336,
+    "swing_deg": 50.40959178194746,
+    "max_abs_yaw_from_start_deg": 40.88959003203107,
+    "rms_yaw_from_start_deg": 15.306887614018589,
+    "detrended_swing_deg": 28.407972544473445,
+    "detrended_rms_deg": 6.771884336853775,
+    "forward_m": 21.933413992527946,
+    "lateral_m": -3.942996192224922,
+    "terminated": false,
+    "price_sum": 0.0
+   }
+  },
+  "3045": {
+   "built_env_new_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -37.45918110461474,
+    "swing_deg": 45.03186564815145,
+    "max_abs_yaw_from_start_deg": 40.361755686328635,
+    "rms_yaw_from_start_deg": 15.227863328756703,
+    "detrended_swing_deg": 29.076014575784168,
+    "detrended_rms_deg": 7.3034336572941045,
+    "forward_m": 22.238088454454108,
+    "lateral_m": -4.886683438203648,
+    "terminated": false,
+    "price_sum": -61.407264627321894
+   },
+   "pilot3_env_pilot3_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -46.39435135684083,
+    "swing_deg": 53.89080508867234,
+    "max_abs_yaw_from_start_deg": 49.28828187020156,
+    "rms_yaw_from_start_deg": 21.06454295817618,
+    "detrended_swing_deg": 25.064742093171947,
+    "detrended_rms_deg": 6.022375327824627,
+    "forward_m": 21.509877828743267,
+    "lateral_m": -7.705572921023322,
+    "terminated": false,
+    "price_sum": 0.0
+   }
+  },
+  "3046": {
+   "built_env_new_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -37.313862617410734,
+    "swing_deg": 44.83568782093705,
+    "max_abs_yaw_from_start_deg": 37.313862617410734,
+    "rms_yaw_from_start_deg": 13.529245777217112,
+    "detrended_swing_deg": 27.398458431400314,
+    "detrended_rms_deg": 6.608188224747073,
+    "forward_m": 23.267530922253343,
+    "lateral_m": -3.9222703735553317,
+    "terminated": false,
+    "price_sum": -56.1944495542764
+   },
+   "pilot3_env_pilot3_walker": {
+    "steps": 1000,
+    "yaw_change_deg": -43.64355189817814,
+    "swing_deg": 52.143531158031514,
+    "max_abs_yaw_from_start_deg": 43.64355189817814,
+    "rms_yaw_from_start_deg": 16.860795449163664,
+    "detrended_swing_deg": 28.14292195563254,
+    "detrended_rms_deg": 7.175387952220224,
+    "forward_m": 22.583292796237565,
+    "lateral_m": -4.743782526179027,
+    "terminated": false,
+    "price_sum": 0.0
+   }
+  }
+ },
+ "replays_written": {
+  "twin_steps": 1000,
+  "p3x_steps": 1000,
+  "p3x_builtactions_steps": 1000
+ },
+ "shaping_simulation": {
+  "order": [
+   "EntCoefDecayCallback",
+   "StageWarmupCallback",
+   "RewardRampCallback"
+  ],
+  "before_training_start": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.005,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_training_start": {
+   "clip_range(1.0)": 0.02,
+   "ent_coef": 0.02,
+   "warmup_marker": true,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_step_at_4": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.005,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_step_at_8": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.004999992,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_step_at_10000": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.0049900000000000005,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_step_at_1000000": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.004,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_step_at_2000000": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.003,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  "after_step_at_2015232": {
+   "clip_range(1.0)": 0.2,
+   "ent_coef": 0.002984768,
+   "warmup_marker": false,
+   "forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  }
+ },
+ "pair_sha256_after": {
+  "run_copy": [
+   "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a"
+  ],
+  "my_copy": [
+   "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a"
+  ]
+ },
+ "guard_hits_final": []
+}

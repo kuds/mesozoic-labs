@@ -1,0 +1,51 @@
+36,37c36,37
+<   stage's evidence (every file of SP/work/pilot4/render/render/ but its CMDLOG.txt and its clone tree/; its tmp/ is
+<   empty) is pinned by its SHA256SUMS_render.txt, sha256
+---
+>   stage's evidence (every file of SP/work/pilot4/render/render/ but its CMDLOG.txt, the manifest itself and its
+>   clone tree/; its tmp/ is empty) is pinned by its SHA256SUMS_render.txt, sha256
+40c40,45
+<   render_files_manifest.txt].
+---
+>   render_files_manifest.txt]. The render lane's CMDLOG.txt, which that manifest leaves out, is sha256
+>   bdd41284d53c29b180d1570214f9e7bf9eaa9e17f5489e9e10ff8f32aacd3e79 [measured]. This text's checks of the render
+>   stage (every file of SP/work/pilot4/render/text/ but its CMDLOG.txt, its empty tmp/ and the two dry-run copies of
+>   this text, out/criteria_pilot4_dryrun*.txt) are pinned by SP/work/pilot4/render/coord/SHA256SUMS_rtext.txt,
+>   sha256 87c5d91467ed683e57e80efa8e4910183bd8fb6aef345971348e78077c4855bb (16 entries), sha256sum -c 16 OK from
+>   render/text [measured: render/coord/rtext_check.txt].
+880c885
+<       checked (the next item's render record).
+---
+>       checked (the fourth item's render record).
+959,960c964,965
+<       [measured: the wrapper, render/render/logs/withx_diff_vs_p3_score.txt]; software GL, Mesa llvmpipe [measured as
+<       recorded: the render lane's gl_check.py run, its output not kept in a file].
+---
+>       [measured: the wrapper, render/render/logs/withx_diff_vs_p3_score.txt]; software GL, Mesa llvmpipe [inferred:
+>       the render lane's report of its gl_check.py run; the output is in no file].
+970c975,976
+<       file (25 fps, 40.0 s), each h264 640x480 with 1,000 frames, 49,527,598 bytes in all; camera tracking, distance
+---
+>       file (25 fps, 40.0 s), each h264 640x480 with 1,000 frames, the 80 mp4s 49,527,598 bytes in all; camera
+>       tracking, distance
+993,994c999,1001
+<       at each Xvfb start, nothing left there but README.compiled [measured: render/render/logs/final_checks.txt;
+<       inferred: Xvfb's keymap compiler]; the pinned tools' list 1152 OK before and after; the smoke's files
+---
+>       last at 15:12:19 UTC, when the last replay ended, nothing left there but README.compiled [measured:
+>       render/render/logs/final_checks.txt; inferred: Xvfb's keymap compiler, which reported 6 times in
+>       render/render/logs/xvfb.stderr.log]; the pinned tools' list 1152 OK before and after; the smoke's files
+1055c1062,1063
+<     SHA256SUMS_render.txt run from the copy's render/render folder must give 324 OK.
+---
+>     SHA256SUMS_render.txt run from the copy's render/render folder must give 324 OK, and sha256sum -c
+>     ../coord/SHA256SUMS_rtext.txt run from the copy's render/text folder must give 16 OK.
+1418c1426,1431
+<     (37)-(39); Status pins the render stage's evidence and the lanes' folders name its two.
+---
+>     (37)-(39); Status pins the render stage's evidence and the lanes' folders name its two; the durable-copy item
+>     gains two checks, sha256sum -c SHA256SUMS_render.txt 324 OK and SHA256SUMS_rtext.txt 16 OK where the copy
+>     keeps the render evidence. Then the render verify lane's seven fixes, applied by the coordinator with
+>     render/coord/apply_coord.py (the text before them kept as render/coord/criteria_pilot4_before_coord.txt,
+>     sha256 00350cf4...): the render CMDLOG's sha256 and the render/text pin in Status, the fourth-item pointer,
+>     the GL label, the mp4 byte total, the /var/lib/xkb wording and these two checks; no rule or value changed.

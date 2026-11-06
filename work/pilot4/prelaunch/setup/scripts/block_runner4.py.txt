@@ -1,0 +1,115 @@
+def _capture_wrapper(stop, cls_name):
+    """prelaunch/setup: record the model and its at-learn state, then call the pinned runner's own stop (it raises)."""
+
+    def learn(self, *args, **kwargs):
+        if "model" not in CAPTURE:
+            CAPTURE["model"] = self
+            CAPTURE["args"] = args
+            CAPTURE["kwargs"] = kwargs
+            CAPTURE["patched_class"] = cls_name
+            CAPTURE["stack"] = traceback.format_stack(limit=12)
+            try:
+                CAPTURE["at_learn"] = _snapshot_at_learn(self, kwargs)
+            except BaseException as exc:  # noqa: BLE001 - recorded, then the stop
+                CAPTURE["at_learn_error"] = f"{type(exc).__name__}: {exc}"
+        return stop(self, *args, **kwargs)  # the pinned runner's stop: raises its LearnBlocked
+
+    return learn
+
+
+def params_for(seed: int) -> dict:
+    """The Colab steps' params for one seed (the fix lane's make_params.py, this lane's path map)."""
+    models = f"{DRIVE}/pilot3_walk_s{seed}/03_locomotion/models"
+    return {
+        "repo_ref": "claude/pilot-walk-r10-p4",
+        "config": {
+            "SPECIES": "tyrannosaurus_rex", "EMBODIMENT": "anatomical", "ALGORITHM": "ppo", "N_ENVS": 4,
+            "SEED": seed, "QUICK_TEST": False, "USE_GOOGLE_DRIVE": False, "AUTO_DISCONNECT": False,
+            "BEHAVIOR": "walk", "TRUNK_FROM": "", "RETRAIN_FROM": "", "RUN_LABEL": f"walking pilot 4 s{seed}",
+            "RUN_ID": f"pilot4_walk_s{seed}", "K3_PANEL": False, "CRITIC_PHASE": False,
+        },
+        "manual": [
+            'MANUAL_NODE = "locomotion"',
+            f'MANUAL_LOAD_PATH = "{models}/stage2_8000000_steps"',
+            f'MANUAL_VECNORM_PATH = "{models}/stage2_vecnormalize_8000000_steps.pkl"',
+            'MANUAL_LOAD_MODE = "initialize_next_stage"',
+            "MANUAL_TIMESTEPS = None",
+        ],
+        "path_map": [[DRIVE, str(Path(C) / "pairs")]],
+        "guard_line": 'raise RuntimeError("Walking pilot 4: chain loop skipped on purpose. Now run the manual cell '
+                      '(section 7) by itself -- unless you are resuming: then stop here.")',
+        "resume_stage": "locomotion",
+        "expect_head": EXPECT_HEAD,
+        "expect_hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    }
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# 1-2. the pinned runner's stops (with the capture), then the notebook
+# ---------------------------------------------------------------------------------------------------------------
+import hashlib  # noqa: E402
+import importlib.util  # noqa: E402
+
+RESULT["pair_sha256_before"] = {"run_copy": [sha256(p) for p in run_pair(SEED)], "my_copy": [sha256(p) for p in my_pair(SEED)]}
+_runner_path = TOOLS / "nb_pilot_runner4.py"
+RESULT["runner_file"] = str(_runner_path)
+RESULT["runner_sha256"] = hashlib.sha256(_runner_path.read_bytes()).hexdigest()
+if RESULT["runner_sha256"] != RUNNER_SHA256:
+    save()
+    print(f"refusing: {_runner_path} is not the pinned runner ({RESULT['runner_sha256']})", flush=True)
+    sys.exit(2)
+_spec = importlib.util.spec_from_file_location("nb_pilot_runner4", _runner_path)
+runner = importlib.util.module_from_spec(_spec)
+sys.modules["nb_pilot_runner4"] = runner
+_spec.loader.exec_module(runner)
+GUARD_HITS = runner.GUARD_HITS  # the pinned runner's own hit list (every later read sees the runner's hits)
+_install = runner.install_learn_stops
+
+
+def install_with_capture() -> dict:
+    rec = _install()  # the pinned runner's own learn() stops and training guards
+    import stable_baselines3 as sb3
+    from stable_baselines3.common.base_class import BaseAlgorithm
+    from stable_baselines3.common.off_policy_algorithm import OffPolicyAlgorithm
+    from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
+
+    from environments.shared.mirror_kl_ppo import MirrorKLPPO
+
+    wrapped = []
+    for cls in (BaseAlgorithm, OnPolicyAlgorithm, OffPolicyAlgorithm, sb3.PPO, sb3.SAC, sb3.A2C, MirrorKLPPO):
+        if "learn" in cls.__dict__:
+            setattr(cls, "learn", _capture_wrapper(cls.__dict__["learn"], f"{cls.__module__}.{cls.__qualname__}"))
+            wrapped.append(f"{cls.__module__}.{cls.__qualname__}.learn")
+    rec["prelaunch_capture_wraps"] = wrapped
+    RESULT["stops"] = rec
+    return rec
+
+
+runner.install_learn_stops = install_with_capture
+params = params_for(SEED)
+(OUT / "params.json").write_text(json.dumps(params, indent=1))
+rc = runner.main(["--params", str(OUT / "params.json"), "--out", str(OUT / "nb"), "--clone", str(TREE),
+                  "--stop-at-learn"])
+sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
+cells = runner.RECORD.get("cells", [])
+manual_idx = (runner.RECORD.get("roles") or {}).get("manual")
+manual = [c for c in cells if c.get("cell") == manual_idx]
+RESULT["runner"] = {
+    "exit": rc, "roles": runner.RECORD.get("roles"), "run_all": runner.RECORD.get("run_all"),
+    "cells": cells, "clone_head": runner.RECORD.get("clone_head"), "run_dir": runner.RECORD.get("run_dir"),
+    "manual_cell": manual[-1] if manual else None,
+    "record": {k: runner.RECORD.get(k) for k in (
+        "clone_head", "manual_cell_stopped_at_learn", "learn_called", "guard_hits", "learn_stops",
+        "environments_resolves_to", "environments_imported_from", "entry_lines", "parent_pair",
+        "locomotion_curriculum_at_end", "notebook_sha256", "status", "exit", "problems", "refusal")},
+}
+RESULT["learn_reached"] = "model" in CAPTURE
+RESULT["manual_cell_stopped_by_learn_stop"] = bool(manual and manual[-1].get("exception") == "LearnBlocked")
+RESULT["guard_hits"] = list(GUARD_HITS)
+RESULT["capture"] = {k: CAPTURE.get(k) for k in ("patched_class", "at_learn", "at_learn_error")}
+RESULT["capture"]["stack_tail"] = "".join(CAPTURE.get("stack", [])[-6:])
+save()
+if "model" not in CAPTURE or rc != 0:
+    print(f"the set-up path did not end as expected (runner exit {rc}, learn reached {'model' in CAPTURE}); "
+          f"see setup_check.json", flush=True)
+    sys.exit(1)

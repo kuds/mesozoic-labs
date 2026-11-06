@@ -1,0 +1,22 @@
+12c12
+<   panel heading + angle within 1e-5 deg, the pass check at state 650, the prepared walker acts as the blind parent.
+---
+>   panel heading + angle within 1e-4 deg, the pass check at state 650, the prepared walker acts as the blind parent.
+624c624
+<     assert c["OBS651_TOL"] == 1e-3 and c["TWIN_HEADING_TOL_DEG"] == 1e-5 and c["YAW_REPRO_TOL_DEG"] == 1e-12
+---
+>     assert c["OBS651_TOL"] == 1e-3 and c["TWIN_HEADING_TOL_DEG"] == 1e-4 and c["YAW_REPRO_TOL_DEG"] == 1e-12
+805,807c805,807
+<     # v3's tolerance (1e-5 deg at 10 s) is applied literally: an episode beyond it is flagged (exit 1). Measured on the
+<     # 40-episode panels: s42 flags 3 of 40 (largest 2.7e-5 deg), s52 and s60 none (text issue: the 1e-5 came from
+<     # 15 episodes); every deviation stays far below the 15-deg offset, so the walker keeps the offset.
+---
+>     # The tolerance is 1e-4 deg at 10 s (maintainer decision (35); v3's 1e-5, from 15 episodes, flagged 3 of s42's 40
+>     # at 1.1e-5 to 2.7e-5 deg): no episode is flagged on any seed (exit 0), and every deviation stays far below the
+>     # 15-deg offset, so the walker keeps the offset.
+809,810c809,810
+<     assert tw["episodes"] == n and all(abs(b["dev_deg"]) > ps.TWIN_HEADING_TOL_DEG for b in tw["bad"])
+<     assert tw["max_abs_dev_deg"] < 1e-4 and len(tw["bad"]) == {42: 3, 52: 0, 60: 0}[seed]
+---
+>     assert ps.TWIN_HEADING_TOL_DEG == 1e-4
+>     assert tw["episodes"] == n and tw["bad"] == [] and tw["max_abs_dev_deg"] <= ps.TWIN_HEADING_TOL_DEG

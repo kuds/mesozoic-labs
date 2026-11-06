@@ -1,0 +1,240 @@
+{
+ "zips": {
+  "parent_s42_8M": {
+   "num_timesteps": 8000000,
+   "_n_updates": 12320,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+    "child_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 1,
+    "dropped_critic_phase": {
+     "schema": "mesozoic.critic-phase-drop/v1",
+     "source": {
+      "schema": "mesozoic.critic-phase/v1",
+      "features": [
+       "ramp",
+       "settled",
+       "discount"
+      ],
+      "settle_steps": 200,
+      "gamma": 0.98,
+      "width": 3,
+      "step_counter": "the env's _step_count when the observation was made (0 at reset)",
+      "input": "the critic's only: appended after the normalized observation, never normalized"
+     },
+     "parameter": "mlp_extractor.value_net.0.weight",
+     "columns": [
+      63,
+      64,
+      65
+     ],
+     "column_l2": [
+      0.8123188637413196,
+      0.40774873863295485,
+      0.827273517150802
+     ],
+     "column_max_abs": [
+      0.14280153810977936,
+      0.06008899584412575,
+      0.09984257817268372
+     ],
+     "optimizer_moments": [
+      "exp_avg",
+      "exp_avg_sq"
+     ]
+    }
+   }
+  },
+  "launch/best_model.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12342,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "launch/robust_best_model.zip": {
+   "num_timesteps": 32768,
+   "_n_updates": 12322,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "launch/stage2_32768_steps.zip": {
+   "num_timesteps": 32768,
+   "_n_updates": 12322,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "launch/stage2_65536_steps.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12342,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "launch/stage2_final.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12344,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "resume/best_model.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12332,
+   "_num_timesteps_at_start": 32768,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "resume/robust_best_model.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12332,
+   "_num_timesteps_at_start": 32768,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "resume/stage2_32768_steps.zip": {
+   "num_timesteps": 32768,
+   "_n_updates": 12322,
+   "_num_timesteps_at_start": 0,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "resume/stage2_65536_steps.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12332,
+   "_num_timesteps_at_start": 32768,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "resume/stage2_final.zip": {
+   "num_timesteps": 65536,
+   "_n_updates": 12334,
+   "_num_timesteps_at_start": 32768,
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  }
+ },
+ "tensorboard": {
+  "launch/03_locomotion/tensorboard/PPO_1/events.out.tfevents.1793968192.vm.21398.0": {
+   "n": 703,
+   "min_step": 16384,
+   "max_step": 65536
+  },
+  "resume/03_locomotion/tensorboard/PPO_1/events.out.tfevents.1793968192.vm.21398.0": {
+   "n": 117,
+   "min_step": 16384,
+   "max_step": 32768
+  },
+  "resume/03_locomotion/tensorboard/PPO_1/events.out.tfevents.1793968643.vm.22419.0": {
+   "n": 346,
+   "min_step": 49152,
+   "max_step": 65536
+  }
+ }
+}

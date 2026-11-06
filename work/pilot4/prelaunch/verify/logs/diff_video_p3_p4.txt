@@ -1,0 +1,41 @@
+1c1
+< """Render a judged cell's panel episodes for walking pilot 3's video review (criteria_pilot3.txt "Video review" (b)).
+---
+> """Render a judged cell's panel episodes for walking pilot 4's video review (criteria_pilot4 v3 "Video review" (b)).
+3c3,8
+< Scratch, never merged. Pilot 1's tools/pilot_video.py (sha256 c7079c1d...) is lost; this is a rebuild to its contract
+---
+> Scratch, never merged: walking pilot 3's pilot3_video.py (sha256 43f72bfa...) with pilot 4's names and paths (the
+> pilot-4 pre-registration's TOOL PLAN: "the RUN_ID and paths; renders unchanged"); every frame, mark, file and check
+> below is pilot 3's. The cells are pilot4_judge.py's, judged from run copies named pilot4_walk_s<seed>[_b], so the
+> re-rolled panel runs in the pilot-4 env the tree's committed locomotion.toml builds (the live straight command, the
+> prey on the spawn line, the heading price), which the probe recorded in probe.json.
+> Pilot 3's tool, in turn: pilot 1's tools/pilot_video.py (sha256 c7079c1d...) is lost; it is a rebuild to its contract
+11,12c16,17
+<     cd TREE && ISO_WT=TREE MUJOCO_GL=glfw xvfb-run -a python3 -I TOOLS/iso.py TOOLS/pilot3_video.py OUT/s42/8000000
+<         (--from-score SCORE.json | --episodes 3,17) --out VIDEOS/s42_8000000 [--standalone]
+---
+>     cd TREE && ISO_WT=TREE MUJOCO_GL=glfw xvfb-run -a python3 -I TOOLS/iso.py TOOLS/pilot4_video.py OUT/s42/2000000
+>         (--from-score SCORE.json | --episodes 3,17) --out VIDEOS/s42_2000000 [--standalone]
+14c19
+< * CELL is pilot3_judge.py's OUT/s<seed>/<steps>: binding.json names the checkpoint pair (sha256s re-checked) and the
+---
+> * CELL is pilot4_judge.py's OUT/s<seed>/<steps>: binding.json names the checkpoint pair (sha256s re-checked) and the
+16c21
+< * --from-score reads pilot3_score.py's --json: the cell's seed's "video_review_required" episodes at this cell's steps
+---
+> * --from-score reads pilot4_score.py's --json: the cell's seed's "video_review_required" episodes at this cell's steps
+48a54
+> SCHEMA = "walking-pilot4-video/v1"
+202c208
+<     """{episode: label} from pilot3_score.py's JSON for this seed at this cell's steps."""
+---
+>     """{episode: label} from pilot4_score.py's JSON for this seed at this cell's steps."""
+332c338
+<     validate_environment_plant(base, plant, artifact=f"{SPECIES} {STAGE} pilot3_video environment")
+---
+>     validate_environment_plant(base, plant, artifact=f"{SPECIES} {STAGE} pilot4_video environment")
+397c403
+<     record = {"schema": "walking-pilot3-video/v1", "cell": str(cell), "tree": str(tree), "head": head,
+---
+>     record = {"schema": SCHEMA, "cell": str(cell), "tree": str(tree), "head": head,

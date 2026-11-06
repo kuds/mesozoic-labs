@@ -1,0 +1,176 @@
+--- TOOLS-stage/test_pilot4_score.py
++++ fix-stage/test_pilot4_score.py
+@@ -12,7 +12,8 @@
+ Optional local evidence (a case that needs it is skipped and listed when it is absent):
+   PILOT3_SCORE          pilot 3's pinned pilot3_score.py (default: ../../pilot3/tools/pilot3_score.py from this file)
+   PILOT3_JUDGING        pilot 3's judging folder (OUT/, final_score/) (default: ../../pilot3/judging)
+-  PILOT4_STRAIGHT_VAL   the straightness lane's final records (p3val_s<seed>.json) (default: out/straight/val_final)
++  PILOT4_STRAIGHT_VAL   the straightness tool's validation records (p3val_s<seed>.json), re-run by the fix stage with
++                        the pinned tool (default: out/fix/val_final)
+   PILOT4_JUDGE_E2E      the judge lane's end-to-end OUT (a real pilot-4 binding) (default: out/judge/e2e/OUT)
+ With numpy importable and a pilot tree given (argument or PILOT_TREE), the synthetic fixture rows are recomputed from
+ the tree's frozen probe and must equal the fixture (pilot 3's check). Nothing here trains or imports the repository
+@@ -45,7 +46,7 @@
+ REAL = CASES["real_walker"]["rows"]
+ P3_SCORE = Path(os.environ.get("PILOT3_SCORE") or HERE.parent.parent / "pilot3" / "tools" / "pilot3_score.py")
+ P3_JUDGING = Path(os.environ.get("PILOT3_JUDGING") or HERE.parent.parent / "pilot3" / "judging")
+-STRAIGHT_VAL = Path(os.environ.get("PILOT4_STRAIGHT_VAL") or HERE / "out" / "straight" / "val_final")
++STRAIGHT_VAL = Path(os.environ.get("PILOT4_STRAIGHT_VAL") or HERE / "out" / "fix" / "val_final")
+ JUDGE_E2E = Path(os.environ.get("PILOT4_JUDGE_E2E") or HERE / "out" / "judge" / "e2e" / "OUT")
+ P3_SCORE_SHA256 = "286ce04a2c5f4e34b9f3e146431a14cbd40767050f83749f5968b9e270a97018"
+ 
+@@ -836,6 +837,9 @@
+ _c = CT({42: ("WALKS", "disagree", P_ALL, "straight"), 52: ("WALKS", "agree", None, None)})
+ check("p4: count: a video-disagreed seed is not counted; one with no record could still join",
+       (_c["k"], _c["could_still_count"], _c["launched"]), (0, [52], 2))
++_c = CT({42: ("WALKS", None, P_ALL, "straight")})
++check("p4: count: a pending video review is not counted even with the look 'straight' (it could join)",
++      (_c["k"], _c["seeds"], _c["could_still_count"]), (0, [], [42]))
+ LR = ps.look_required
+ check("p4: the look is required for WALKS, video-agreed, (a) and (b) PASS, whatever (c) reads",
+       [LR("WALKS", "agree", dict(P_ALL, c=c)) for c in _verd], ["REQUIRED"] * 3)
+@@ -880,11 +884,18 @@
+ 
+ 
+ def straight_rec(cell: Path, a="PASS", b="PASS", c="PASS", n_counting=40, not_passed=0, ended=0, **over) -> dict:
++    """A seed-mode record of the cell whose values give its verdicts (fix stage: the scorer recomputes them), written
++    by the pinned tool (tool_sha256) with v3's constants."""
+     binding = json.loads((cell / "binding.json").read_text())
+     pa = {"verdict": a, "n": 40, "median_signed_deg": -1.2 if a == "PASS" else -24.7,
+           "p95_abs_deg": 9.5 if a == "PASS" else 35.2, "bars": {"median_abs_max_deg": 5.0, "p95_abs_max_deg": 15.0}}
++    if a == "NOT READ":
++        pa = {"verdict": a, "why": "no full-length panel episode", "n": 0}
+     pb = {"verdict": b, "n": 40, "D_p95_deg": 8.1 if b == "PASS" else 30.3, "W0_p95_deg": 14.0 if b == "PASS" else 35.3,
+-          "report_R_median_deg": 6.0, "report_R_p95_deg": 9.0, "report_last_mean_error_median_deg": -0.5}
++          "report_R_median_deg": 6.0, "report_R_p95_deg": 9.0, "report_last_mean_error_median_deg": -0.5,
++          "report_crab_median_deg": 3.0, "report_end_cross_track_median_m": -1.25}
++    if b == "NOT READ":
++        pb = {"verdict": b, "why": "no full-length panel episode", "n": 0}
+     pc = {"n_episodes": 40, "n_counting": n_counting, "left_out_ended_before_nudge": ended,
+           "left_out_not_yet_passed": not_passed, "within_11_5": 38, "within_5": 30, "fell_after_nudge": 0,
+           "moved_too_little": 0, "share_removed_median": {"plus": 0.9, "minus": 0.88}, "verdict": c}
+@@ -894,7 +905,8 @@
+     else:
+         pc.update(median_r_deg=2.0 if c == "PASS" else 22.8, p95_r_deg=9.0 if c == "PASS" else "inf")
+     rec = {"schema": ps.STRAIGHT_SCHEMA, "mode": "seed", "validation": False, "validation_only_cell": False,
+-           "partial": False, "tool_sha256": "sha256:" + "ab" * 32, "head": binding.get("head"),
++           "partial": False, "tool_sha256": ps.STRAIGHT_TOOL_SHA256,
++           "constants": json.loads(json.dumps(ps.STRAIGHT_CONSTANTS)), "head": binding.get("head"),
+            "seed": binding.get("seed"), "steps": int(cell.name), "run": binding.get("run"), "cell": str(cell),
+            "binding_sha256": sha_file(cell / "binding.json"), "probe_json_sha256": sha_file(cell / "probe.json"),
+            "final_fallback": bool(binding.get("final_fallback")), "checkpoint_sha256": binding.get("checkpoint_sha256"),
+@@ -940,10 +952,30 @@
+         "a verdict that is not PASS/FAIL/NOT READ": dict(good, parts=dict(good["parts"], b=dict(good["parts"]["b"],
+                                                                                               verdict="pass"))),
+         "a missing part": dict(good, parts={k: v for k, v in good["parts"].items() if k != "c"}),
+-        "STRAIGHT PASS with (c) NOT READ": dict(good, parts=dict(good["parts"], c=dict(good["parts"]["c"],
+-                                                                                     verdict="NOT READ"))),
++        "STRAIGHT PASS with (c) NOT READ": dict(good, parts=dict(good["parts"], c=straight_rec(
++            cdir, c="NOT READ", n_counting=26, not_passed=14)["parts"]["c"])),
+         "STRAIGHT FAIL with every part PASS": dict(good, parts=dict(good["parts"], straight="FAIL")),
+         "STRAIGHT NOT READ": dict(good, parts=dict(good["parts"], straight="NOT READ")),
++        # fix stage (reviews: the scorer trusted a record's verdicts, its tool and its bars)
++        "another tool": dict(good, tool_sha256="sha256:" + "0" * 64),
++        "no tool sha256": {k: v for k, v in good.items() if k != "tool_sha256"},
++        "a looser (b) bar": dict(good, constants=dict(good["constants"], B_D_P95_MAX_DEG=15.0)),
++        "a later read point": dict(good, constants=dict(good["constants"], READ_K=900)),
++        "a constant added": dict(good, constants=dict(good["constants"], EXTRA=1)),
++        "no constants": {k: v for k, v in good.items() if k != "constants"},
++        "(a) PASS whose median fails": dict(good, parts=dict(good["parts"], a=dict(good["parts"]["a"],
++                                                                                   median_signed_deg=7.0))),
++        "(a) PASS whose p95 is inf": dict(good, parts=dict(good["parts"], a=dict(good["parts"]["a"], p95_abs_deg="inf"))),
++        "(b) PASS whose W0 p95 fails": dict(good, parts=dict(good["parts"], b=dict(good["parts"]["b"],
++                                                                                   W0_p95_deg=18.6))),
++        "(c) PASS with 29 counting": dict(good, parts=dict(good["parts"], c=dict(good["parts"]["c"], n_counting=29))),
++        "(c) PASS whose p95 r is inf": dict(good, parts=dict(good["parts"], c=dict(good["parts"]["c"],
++                                                                                   p95_r_deg="inf"))),
++        "(a) FAIL whose values pass": dict(good, parts=dict(good["parts"], a=dict(good["parts"]["a"], verdict="FAIL"),
++                                                             straight="FAIL")),
++        "(b) NOT READ with 40 episodes": dict(good, parts=dict(good["parts"], b=dict(good["parts"]["b"],
++                                                                                     verdict="NOT READ"),
++                                                               straight="FAIL")),
+     }
+     for _name, _rec in _bad.items():
+         _p = RP(_rec, 42, ps.PRIMARY, cdir)
+@@ -952,6 +984,37 @@
+                                                                     validation=True), [])
+     check("p4: a record for a cell that does not exist is refused",
+           any("no judged cell" in x for x in RP(good, 42, ps.PRIMARY, root / "s42" / "1500000")), True)
++    # fix stage: the validity review's forged record (the entry walkers' FAIL values with PASS verdicts, another tool,
++    # looser bars) is refused for each of the three
++    _forged = dict(good, tool_sha256="sha256:" + "0" * 64,
++                   constants=dict(good["constants"], A_P95_ABS_MAX_DEG=40.0, B_D_P95_MAX_DEG=30.0,
++                                  B_W0_P95_MAX_DEG=35.0, C_MEDIAN_MAX_DEG=25.0, C_P95_MAX_DEG=45.0),
++                   parts={"a": dict(good["parts"]["a"], median_signed_deg=-25.3, p95_abs_deg=31.7),
++                          "b": dict(good["parts"]["b"], D_p95_deg=25.2, W0_p95_deg=30.0),
++                          "c": dict(good["parts"]["c"], median_r_deg=22.8, p95_r_deg=40.2), "straight": "PASS"})
++    _fp = RP(_forged, 42, ps.PRIMARY, cdir)
++    check("p4: the review's forged record is refused for its tool, its bars and its verdicts",
++          (len(_fp), [x.split(" ")[0] for x in _fp]), (3, ["tool_sha256", "constants", "part"]))
++    check("p4: the forged record's verdicts read FAIL from its own values",
++          ps.recomputed_verdicts(_forged["parts"]), {"a": "FAIL", "b": "FAIL", "c": "FAIL"})
++    _RV = ps.recomputed_verdicts
++    _pa, _pb, _pc = good["parts"]["a"], good["parts"]["b"], good["parts"]["c"]
++    check("p4: recomputed verdicts at the bars (inclusive; inf and None fail; NOT READ by n and by 30 counting)",
++          [_RV({"a": dict(_pa, median_signed_deg=m, p95_abs_deg=p), "b": _pb, "c": _pc})["a"]
++           for m, p in ((5.0, 15.0), (-5.0, 15.0), (5.0000001, 15.0), (0.0, 15.0000001), (0.0, "inf"), (None, 1.0))]
++          + [_RV({"a": _pa, "b": dict(_pb, D_p95_deg=d, W0_p95_deg=w), "c": _pc})["b"]
++             for d, w in ((11.5, 18.5), (11.5000001, 1.0), (1.0, 18.5000001), ("inf", 1.0))]
++          + [_RV({"a": _pa, "b": _pb, "c": dict(_pc, n_counting=n, median_r_deg=m, p95_r_deg=p)})["c"]
++             for n, m, p in ((30, 5.0, 11.5), (29, 0.0, 0.0), (30, 5.0000001, 1.0), (40, 1.0, "inf"), (True, 0, 0))]
++          + [_RV({"a": {"n": 0}, "b": {"n": 0}, "c": {}})[k] for k in ("a", "b", "c")],
++          ["PASS", "PASS", "FAIL", "FAIL", "FAIL", "FAIL", "PASS", "FAIL", "FAIL", "FAIL",
++           "PASS", "NOT READ", "FAIL", "FAIL", "NOT READ", "NOT READ", "NOT READ", "NOT READ"])
++    _tool = HERE / "pilot4_straight.py"
++    if _tool.is_file():
++        check("p4: STRAIGHT_TOOL_SHA256 is the sha256 of the pilot4_straight.py beside this scorer",
++              ps.STRAIGHT_TOOL_SHA256, sha_file(_tool))
++    else:
++        skip("p4: STRAIGHT_TOOL_SHA256 is the sha256 of pilot4_straight.py", f"no {_tool}")
+     check("p4: the summary keeps (c)'s counts and the plot",
+           (lambda sm: (sm["c"]["n_counting"], sm["c"]["left_out_not_yet_passed"], sm["plot"]["path"], sm["straight"]))(
+               ps.straight_summary(good)), (40, 0, "/straight/s42.png", "PASS"))
+@@ -1176,6 +1239,30 @@
+            r["straight"]["42"]["1750000"]["deciding"], r["straight"]["42"]["1500000"]["deciding"]),
+           ("STRAIGHT NO RECOVERY", 1750000, True, False))
+ 
++# fix stage: a cell whose probe.json records an env-kwargs drift is not scored (the probe only warns; review finding)
++_drift = {"forward_vel_weight": {"toml_main": 2.0, "recorded_run": 3.0}}
++check("p4: pilot4_cell_problems: an empty or absent drift record is no problem, a drift is",
++      (ps.pilot4_cell_problems({"meta": dict(META, env_kwargs_drift_vs_recorded={})}),
++       ps.pilot4_cell_problems({"meta": META}), ps.pilot4_cell_problems({})),
++      ([], [], []))
++_sc = ps.score_cell({"meta": dict(META, env_kwargs_drift_vs_recorded=_drift), "episodes": [WALK] * 40}, OK)
++check("p4: score_cell: a drifted cell has no outcome and names the drift",
++      (_sc["outcome"], _sc["problems"]),
++      (None, ['env kwargs drift: the run\'s recorded env kwargs differ from the env it was judged in '
++              '({"forward_vel_weight": {"recorded_run": 3.0, "toml_main": 2.0}})']))
++check("p4: score_cell: an undrifted cell scores as score_panel does",
++      ps.score_cell({"meta": dict(META, env_kwargs_drift_vs_recorded={}), "episodes": [WALK] * 40}, OK),
++      ps.score_panel({"meta": dict(META, env_kwargs_drift_vs_recorded={}), "episodes": [WALK] * 40}, OK))
++with tempfile.TemporaryDirectory() as tmp:
++    root = Path(tmp)
++    write_cell(root, 42, ps.PRIMARY, [WALK] * 40, binding4(42), dict(META, env_kwargs_drift_vs_recorded=_drift))
++    write_cell(root, 52, ps.PRIMARY, [WALK] * 40, binding4(52), dict(META, env_kwargs_drift_vs_recorded={}))
++    _, text, r = run_main([tmp, "--seeds", "42,52", "--json", str(root / "d.json")])
++    check("p4: e2e, a drifted cell's seed has no gait outcome (missing); the other is scored",
++          (r["per_seed_primary"]["42"], r["per_seed_primary"]["52"], r["seed_outcomes"]["42"]["outcome"],
++           "env kwargs drift" in " ".join(r["seeds"]["42"][str(ps.PRIMARY)]["problems"])),
++          (None, "WALKS", None, True))
++
+ # ---- habit_report (report only)
+ HR = ps.habit_report
+ _h = {"reading": "NO HABIT", "habits": [], "not_run": [], "deciding_checkpoint": {"checkpoint_sha256": "sha256:aa"}}
+@@ -1256,6 +1343,12 @@
+         check("p4: real cells: the 8M medians equal the P3_8M constants (the report-only comparison wired)",
+               [all(v["pilot4"] == v["pilot3_8m"] for v in r["p3_8m_reference"][s]["medians"].values())
+                for s in ("42", "52", "60")], [True] * 3)
++        check("p4: real cells: the records carry the pinned tool's sha256 and v3's constants (fix stage)",
++              [(json.loads(p.read_text())["tool_sha256"] == ps.STRAIGHT_TOOL_SHA256,
++                json.loads(p.read_text())["constants"] == ps.STRAIGHT_CONSTANTS,
++                ps.recomputed_verdicts(json.loads(p.read_text())["parts"])
++                == {k: json.loads(p.read_text())["parts"][k]["verdict"] for k in ("a", "b", "c")}) for p in _recs],
++              [(True, True, True)] * 3)
+         check("p4: real cells: exit 0 and the validation mark printed",
+               (rc, "[--validation: validation judges and records accepted; never for the verdict]" in text,
+                "PILOT OUTCOME: CURVED WALKS (3 of 3 launched seeds)  [validation]" in text), (0, True, True))

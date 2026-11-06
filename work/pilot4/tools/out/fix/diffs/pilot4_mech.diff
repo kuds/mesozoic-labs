@@ -1,0 +1,15 @@
+--- TOOLS-stage/pilot4_mech.py
++++ fix-stage/pilot4_mech.py
+@@ -241,10 +241,10 @@
+     root = np.asarray(E["root_pos"], float)[1:][W]
+     quat = np.asarray(E["quat"], float)[1:][W]
+     pos = np.asarray(E["foot_pos"], float)[1:][W]
+-    fh = np.asarray(E["foot_h"], float)[1:][W]
++    fh = np.asarray(E["foot_h"], float)[1:][W]  # noqa: F841 - survey_analyze line; its use there (clearance, impulse) is not ported
+     frac = np.asarray(E["floor_contact_substep_frac"], float)[W]
+     fmax = np.asarray(E["ffoot_max"], float)[W]
+-    fmean = np.asarray(E["ffoot_mean"], float)[W]
++    fmean = np.asarray(E["ffoot_mean"], float)[W]  # noqa: F841 - survey_analyze line; its use there (clearance, impulse) is not ported
+     yaw = np.degrees(np.unwrap(np.array([quat_euler(q)[2] for q in quat])))
+     psi = moving_avg(yaw, int(round(1.0 / dt)))
+     h0 = np.array([math.cos(math.radians(psi[0])), math.sin(math.radians(psi[0]))])

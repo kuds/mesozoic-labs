@@ -1,0 +1,639 @@
+== smoke/readouts/straight/s42_65536.json
+  schema (str) = 'walking-pilot4-straight/v1'
+  mode (str) = 'seed'
+  validation (bool) = True
+  validation_only_cell (bool) = True
+  partial (bool) = False
+  tool_sha256 (str) = 'sha256:870bab61119ba17a8e087c7f322c38e57d7593a308bba43168fffdeea70cdb38'
+  probe (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  probe_sha256 (str) = 'sha256:61651b160eafe0ac50c613d97d5bad2ad6bd866e90cb2b065a256effe236d3a2'
+  tree (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  head (str) = '0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8'
+  environments_file (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  torch_threads (int) = 1
+  training_entry_points_blocked (int) = 33
+  seed (int) = 42
+  steps (int) = 65536
+  run (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  run_name (str) = 'pilot4_walk_s42'
+  cell (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  binding_schema (str) = 'walking-pilot4-judge/v1'
+  binding_sha256 (str) = 'sha256:bcf044a7a069aec0306df0b1d36e1a7e8c351a9239694e1316921bd395c435a0'
+  probe_json_sha256 (str) = 'sha256:96a46eb98c038e453dc483836adf0074b55ac49fb3c62576a3506b7a4d5c681a'
+  final_fallback (bool) = False
+  checkpoint (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  checkpoint_sha256 (str) = 'sha256:f0ee303a0bd4b9c8d58a56a4c2a8904ef2c8b2a9a56969aa157a28a64f53b1b9'
+  vecnorm (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  vecnorm_sha256 (str) = 'sha256:aebded4b3b8027a56fc51b67f9070a73443a91daaac5acf8927ac4df0dfa9bdd'
+  constants (dict)
+    HORIZON (int) = 1000
+    PANEL_EPISODES (int) = 40
+    PANEL_SEED_BASE (int) = 3042
+    SETTLE (int) = 100
+    WINDOW_FIRST_STATE (int) = 101
+    MEAN_HALF (int) = 50
+    K_FIRST (int) = 151
+    A_MEDIAN_ABS_MAX_DEG (float) = 5.0
+    A_P95_ABS_MAX_DEG (float) = 15.0
+    B_D_P95_MAX_DEG (float) = 11.5
+    B_W0_P95_MAX_DEG (float) = 18.5
+    C_MEDIAN_MAX_DEG (float) = 5.0
+    C_P95_MAX_DEG (float) = 11.5
+    C_MIN_COUNTING (int) = 30
+    C_MIN_NET_MOVE_M (float) = 0.35
+    PCT (int) = 95
+    RECOVERY_SEEDS (list) [len 20]
+    NUDGE_ANGLES_DEG (list) [len 2] = [15.0, -15.0]
+    NUDGE_STATE (int) = 650
+    READ_K (int) = 950
+    RESET_TURN_STATE (int) = 0
+    RESET_READ_K (int) = 500
+    OBS651_TOL (float) = 0.001
+    TWIN_HEADING_TOL_DEG (float) = 0.0001
+    YAW_REPRO_TOL_DEG (float) = 1e-12
+    INFO_HEADING_TOL_RAD (float) = 1e-09
+  env (dict)
+    command_mode (str) = 'heading'
+    prey_lateral_range (list) [len 2] = [0.0, 0.0]
+    walk_heading_price_weight (float) = 0.2
+    walk_heading_price_scale_rad (float) = 0.5
+    observation_dim (int) = 63
+    pilot4_env (bool) = True
+  panel (dict)
+    episodes (list) [len 40]
+    all_rolled_match (bool) = True
+    mismatched (list) [len 0] = []
+    n_full (int) = 40
+    n_used_full (int) = 40
+    yaw_repro_max_abs_diff_deg (float) = 0.0
+  parts (dict)
+    a (dict)
+    b (dict)
+    c (dict)
+    straight (str) = 'FAIL'
+  recovery (dict)
+    episodes (list) [len 40]
+    prey_in_place (dict)
+    turned_at_reset (dict)
+  checks (dict)
+    prefix (dict)
+    obs651 (dict)
+    turned_twin (dict)
+    zero_nudge (dict)
+  psi_cmd (dict)
+    source (list) [len 1] = ['command_state.desired_heading']
+    values_deg (list) [len 1] = [0.0]
+    info_check_max_abs_diff_rad (float) = 4.440892098500626e-16
+    info_check_available (bool) = True
+  files (dict)
+    plot (dict)
+    traces (dict)
+== smoke/readouts/score/score_validation_65536.json
+  criteria (dict)
+    still_speed_mps (float) = 0.1
+    walk (dict)
+    hop_min_simultaneous (float) = 0.5
+    hop_min_touchdowns_per_s (float) = 0.5
+    episodes (int) = 40
+    seed (dict)
+    video_review (dict)
+    straight (dict)
+  primary (int) = 65536
+  validation (bool) = True
+  launched_seeds (list) [len 1] = [42]
+  undeclared_seed_dirs_ignored (list) [len 0] = []
+  seeds (dict)
+    42 (dict)
+  per_seed (dict)
+    42 (dict)
+  per_seed_primary (dict)
+    42 (str) = 'WALKS'
+  per_seed_reviewed (dict)
+    42 (str) = 'WALKS'
+  video_review_file (NoneType) = None
+  video_review_verdicts (dict)
+  video_review_required (dict)
+    42 (dict)
+  straight_files (list) [len 1]
+  straight_review_file (NoneType) = None
+  straight_review_verdicts (dict)
+  straight (dict)
+    42 (dict)
+  straightness_look_required (dict)
+    42 (NoneType) = None
+  seed_outcomes (dict)
+    42 (dict)
+  straight_records_ignored (list) [len 0] = []
+  off_schedule_reports (dict)
+  retired_cells_never_scored (list) [len 0] = []
+  closed_seeds (list) [len 0] = []
+  gait_reading (dict)
+    by_rule (dict)
+    reviewed (dict)
+    final_reading (dict)
+  pilot (dict)
+    outcome (str) = 'PENDING_REVIEW'
+    final (bool) = False
+    pending (list) [len 1] = [42]
+    possible_outcomes (list) [len 2] = ['CURVED WALKS', 'NOT WALKS']
+    basis (str) = "['s42'] pending (video review, straightness record or look); the outcome is one of ['CURVED WALKS',
+    missing (list) [len 0] = []
+  final_reading (dict)
+    applies (bool) = False
+    why (str) = 'the pilot outcome is not INCOMPLETE'
+  report_only_count (dict)
+    k (int) = 0
+    launched (int) = 1
+    seeds (list) [len 0] = []
+    could_still_count (list) [len 0] = []
+    text (str) = '0 of 1 seeds are WALKS, video-agreed, pass (a) and (b) and the look agrees ([])'
+  existence (dict)
+    reading (str) = 'NONE SEEN'
+    A (list) [len 0] = []
+    k (int) = 0
+    launched (int) = 1
+    pending (list) [len 1] = [42]
+    pending_could_be_straight_walks (list) [len 0] = []
+    open_missing (list) [len 0] = []
+    final (bool) = False
+  habit_files (list) [len 1]
+  habit_report_only (dict)
+    42 (dict)
+  p3_8m_reference (dict)
+    42 (dict)
+== smoke/judge/OUT/s42/65536/probe.json
+  schema (str) = 'gait_probe/v1'
+  meta (dict)
+    species (str) = 'tyrannosaurus_rex'
+    stage (str) = 'locomotion'
+    stage_arg (str) = 'locomotion'
+    run_id (str) = 's42_65536'
+    gate_kind (str) = 'reward_and_length/v1'
+    checkpoint (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    checkpoint_sha256 (str) = 'sha256:f0ee303a0bd4b9c8d58a56a4c2a8904ef2c8b2a9a56969aa157a28a64f53b1b9'
+    vecnorm (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    vecnorm_sha256 (str) = 'sha256:aebded4b3b8027a56fc51b67f9070a73443a91daaac5acf8927ac4df0dfa9bdd'
+    plant_identity_policy_interface_revision (int) = 15
+    seed_scheme (str) = 'panel'
+    seed_base (int) = 3042
+    episodes (int) = 40
+    dt (float) = 0.01
+    settle_steps_gait_window (int) = 100
+    settle_steps_gate (int) = 0
+    contact_threshold_n (float) = 0.1
+    loaded_threshold_n (float) = 84.09132000000001
+    debounce_min_run_steps (int) = 2
+    touchdown_merge_steps (int) = 2
+    env_kwargs (dict)
+    env_kwargs_drift_vs_recorded (dict)
+    robot (dict)
+    environments_file (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    representative_episode (int) = 5
+    elapsed_s (float) = 80.82660746574402
+  sanity (dict)
+    replayed (dict)
+    comparisons (list) [len 0] = []
+  gate_style_stance_panel (dict)
+    n_episodes (int) = 40
+    full_horizon_fraction (float) = 1.0
+    mean_unsupported_duty (float) = 0.0056
+    unsupported_duty_ucb (float) = 0.006187396017364252
+    bilateral_support_duty (float) = 0.035350000000000006
+    single_support_duty (float) = 0.9590499999999998
+  summary (dict)
+    episode (dict)
+    reset_seed (dict)
+    reward (dict)
+    length (dict)
+    mean_forward_velocity_full (dict)
+    distance_traveled (dict)
+    terminated (dict)
+    gate_unsupported_duty (dict)
+    gate_bilateral_support_duty (dict)
+    gate_single_support_duty (dict)
+    sum_reward_forward (dict)
+    sum_reward_backward (dict)
+    sum_reward_drift (dict)
+    sum_reward_bilateral_support (dict)
+    sum_reward_foot_load_balance (dict)
+    sum_reward_alive (dict)
+    sum_reward_energy (dict)
+    sum_reward_tail (dict)
+    sum_reward_bite (dict)
+    sum_reward_approach (dict)
+    sum_reward_head_proximity (dict)
+    sum_reward_head_clearance (dict)
+    sum_reward_neck_posture (dict)
+    sum_reward_tail_home_pose (dict)
+    sum_reward_posture (dict)
+    sum_reward_nosedive (dict)
+    sum_reward_height (dict)
+    sum_reward_leg_home_pose (dict)
+    sum_reward_foot_flatness (dict)
+    sum_reward_stance_width (dict)
+    sum_reward_gait (dict)
+    sum_reward_floor_impact (dict)
+    sum_reward_airborne_substeps (dict)
+    sum_reward_walk_touchdown (dict)
+    sum_reward_walk_heading_price (dict)
+    sum_reward_action_jerk (dict)
+    sum_reward_smoothness (dict)
+    sum_reward_action_saturation (dict)
+    sum_reward_heading (dict)
+    sum_reward_lateral (dict)
+    sum_reward_spin (dict)
+    sum_reward_speed (dict)
+    sum_reward_idle (dict)
+    floor_flight_fraction_full_episode (dict)
+    paid_in_floor_flight_reward_forward (dict)
+    paid_in_floor_flight_reward_backward (dict)
+    paid_in_floor_flight_reward_drift (dict)
+    paid_in_floor_flight_reward_bilateral_support (dict)
+    paid_in_floor_flight_reward_foot_load_balance (dict)
+    paid_in_floor_flight_reward_alive (dict)
+    paid_in_floor_flight_reward_energy (dict)
+    paid_in_floor_flight_reward_tail (dict)
+    paid_in_floor_flight_reward_bite (dict)
+    paid_in_floor_flight_reward_approach (dict)
+    paid_in_floor_flight_reward_head_proximity (dict)
+    paid_in_floor_flight_reward_head_clearance (dict)
+    paid_in_floor_flight_reward_neck_posture (dict)
+    paid_in_floor_flight_reward_tail_home_pose (dict)
+    paid_in_floor_flight_reward_posture (dict)
+    paid_in_floor_flight_reward_nosedive (dict)
+    paid_in_floor_flight_reward_height (dict)
+    paid_in_floor_flight_reward_leg_home_pose (dict)
+    paid_in_floor_flight_reward_foot_flatness (dict)
+    paid_in_floor_flight_reward_stance_width (dict)
+    paid_in_floor_flight_reward_gait (dict)
+    paid_in_floor_flight_reward_floor_impact (dict)
+    paid_in_floor_flight_reward_airborne_substeps (dict)
+    paid_in_floor_flight_reward_walk_touchdown (dict)
+    paid_in_floor_flight_reward_walk_heading_price (dict)
+    paid_in_floor_flight_reward_action_jerk (dict)
+    paid_in_floor_flight_reward_smoothness (dict)
+    paid_in_floor_flight_reward_action_saturation (dict)
+    paid_in_floor_flight_reward_heading (dict)
+    paid_in_floor_flight_reward_lateral (dict)
+    paid_in_floor_flight_reward_spin (dict)
+    paid_in_floor_flight_reward_speed (dict)
+    paid_in_floor_flight_reward_idle (dict)
+    env_support_flag_fraction_touch_full (dict)
+    env_support_flag_fraction_floor_counterfactual_full (dict)
+    horizontal_drift_m (dict)
+    window_steps (dict)
+    env_support_flag_fraction (dict)
+    floor_force_total_mean_bw (dict)
+    touch_force_total_mean_bw (dict)
+    foot_foot_contact_substep_frac (dict)
+    touch_mean_force_bw_R (dict)
+    floor_mean_force_bw_R (dict)
+    nonfloor_contact_mean_force_bw_R (dict)
+    floor_load_share_R (dict)
+    floor_duty_strict_allsubsteps_R (dict)
+    floor_duty_loaded10bw_R (dict)
+    phantom_support_fraction_R (dict)
+    touch_missed_floor_fraction_R (dict)
+    touch_floor_agreement_R (dict)
+    touch_mean_force_bw_L (dict)
+    floor_mean_force_bw_L (dict)
+    nonfloor_contact_mean_force_bw_L (dict)
+    floor_load_share_L (dict)
+    floor_duty_strict_allsubsteps_L (dict)
+    floor_duty_loaded10bw_L (dict)
+    phantom_support_fraction_L (dict)
+    touch_missed_floor_fraction_L (dict)
+    touch_floor_agreement_L (dict)
+    heading_alignment_mean (dict)
+    x_rel_mean_m_R (dict)
+    x_rel_excursion_m_R (dict)
+    y_rel_mean_m_R (dict)
+    forward_travel_m_R (dict)
+    backward_travel_m_R (dict)
+    path_length_m_R (dict)
+    foot_height_median_m_R (dict)
+    foot_height_p95_m_R (dict)
+    x_rel_mean_m_L (dict)
+    x_rel_excursion_m_L (dict)
+    y_rel_mean_m_L (dict)
+    forward_travel_m_L (dict)
+    backward_travel_m_L (dict)
+    path_length_m_L (dict)
+    foot_height_median_m_L (dict)
+    foot_height_p95_m_L (dict)
+    forward_travel_share_R (dict)
+    forward_travel_share_L (dict)
+    lateral_foot_separation_mean_m (dict)
+    lateral_foot_separation_min_m (dict)
+    left_leads_fraction (dict)
+    lead_mean_m (dict)
+    lead_amplitude_m (dict)
+    stagger_index (dict)
+    lead_swaps_per_s (dict)
+    pelvis_z_mean_m (dict)
+    pelvis_z_amplitude_m (dict)
+    pelvis_z_std_m (dict)
+    pelvis_z_dominant_hz (dict)
+    pelvis_z_dominant_power_frac (dict)
+    pitch_mean_deg (dict)
+    pitch_std_deg (dict)
+    roll_mean_deg (dict)
+    roll_std_deg (dict)
+    yaw_change_deg (dict)
+    window_displacement_m (dict)
+    speed_forward_vel_mps (dict)
+    speed_displacement_mps (dict)
+    froude (dict)
+    speed_over_sqrt_gL (dict)
+    touch_duty_R (dict)
+    touch_duty_L (dict)
+    touch_support_frac_0 (dict)
+    touch_support_frac_1 (dict)
+    touch_support_frac_2 (dict)
+    touch_flight_fraction (dict)
+    touch_single_support_fraction (dict)
+    touch_double_support_fraction (dict)
+    touch_duty_asymmetry_L_minus_R (dict)
+    touch_duty_asymmetry_norm (dict)
+    touch_trans_both->left_only_per_s (dict)
+    touch_trans_p_both->left_only (dict)
+    touch_trans_both->right_only_per_s (dict)
+    touch_trans_p_both->right_only (dict)
+    touch_trans_both->none_per_s (dict)
+    touch_trans_p_both->none (dict)
+    touch_trans_left_only->both_per_s (dict)
+    touch_trans_p_left_only->both (dict)
+    touch_trans_left_only->right_only_per_s (dict)
+    touch_trans_p_left_only->right_only (dict)
+    touch_trans_left_only->none_per_s (dict)
+    touch_trans_p_left_only->none (dict)
+    touch_trans_right_only->both_per_s (dict)
+    touch_trans_p_right_only->both (dict)
+    touch_trans_right_only->left_only_per_s (dict)
+    touch_trans_p_right_only->left_only (dict)
+    touch_trans_right_only->none_per_s (dict)
+    touch_trans_p_right_only->none (dict)
+    touch_trans_none->both_per_s (dict)
+    touch_trans_p_none->both (dict)
+    touch_trans_none->left_only_per_s (dict)
+    touch_trans_p_none->left_only (dict)
+    touch_trans_none->right_only_per_s (dict)
+    touch_trans_p_none->right_only (dict)
+    touch_touchdowns_R (dict)
+    touch_swings_per_s_R (dict)
+    touch_stride_mean_s_R (dict)
+    touch_swing_mean_s_R (dict)
+    touch_stance_mean_s_R (dict)
+    touch_swing_clearance_mean_m_R (dict)
+    touch_swing_clearance_max_m_R (dict)
+    touch_slip_speed_in_contact_mps_R (dict)
+    touch_foot_speed_off_ground_mps_R (dict)
+    touch_in_contact_forward_travel_fraction_R (dict)
+    touch_touchdowns_L (dict)
+    touch_swings_per_s_L (dict)
+    touch_stride_mean_s_L (dict)
+    touch_swing_mean_s_L (dict)
+    touch_stance_mean_s_L (dict)
+    touch_swing_clearance_mean_m_L (dict)
+    touch_swing_clearance_max_m_L (dict)
+    touch_slip_speed_in_contact_mps_L (dict)
+    touch_foot_speed_off_ground_mps_L (dict)
+    touch_in_contact_forward_travel_fraction_L (dict)
+    touch_stride_duration_mean_s (dict)
+    touch_stride_duration_median_s (dict)
+    touch_stride_frequency_hz (dict)
+    touch_touchdowns_per_s_all_feet (dict)
+    touch_in_contact_forward_travel_fraction_mean (dict)
+    touch_n_touchdown_events (dict)
+    touch_alternation_index (dict)
+    touch_same_foot_repeat_fraction (dict)
+    touch_simultaneous_fraction (dict)
+    touch_pairs_involving_simultaneous_fraction (dict)
+    touch_step_duration_mean_s (dict)
+    touch_step_duration_median_s (dict)
+    touch_lead_swaps_per_stride (dict)
+    touch_stride_length_m (dict)
+    touch_stride_length_over_L (dict)
+    touch_pelvis_z_freq_over_stride_freq (dict)
+    floor_duty_R (dict)
+    floor_duty_L (dict)
+    floor_support_frac_0 (dict)
+    floor_support_frac_1 (dict)
+    floor_support_frac_2 (dict)
+    floor_flight_fraction (dict)
+    floor_single_support_fraction (dict)
+    floor_double_support_fraction (dict)
+    floor_duty_asymmetry_L_minus_R (dict)
+    floor_duty_asymmetry_norm (dict)
+    floor_trans_both->left_only_per_s (dict)
+    floor_trans_p_both->left_only (dict)
+    floor_trans_both->right_only_per_s (dict)
+    floor_trans_p_both->right_only (dict)
+    floor_trans_both->none_per_s (dict)
+    floor_trans_p_both->none (dict)
+    floor_trans_left_only->both_per_s (dict)
+    floor_trans_p_left_only->both (dict)
+    floor_trans_left_only->right_only_per_s (dict)
+    floor_trans_p_left_only->right_only (dict)
+    floor_trans_left_only->none_per_s (dict)
+    floor_trans_p_left_only->none (dict)
+    floor_trans_right_only->both_per_s (dict)
+    floor_trans_p_right_only->both (dict)
+    floor_trans_right_only->left_only_per_s (dict)
+    floor_trans_p_right_only->left_only (dict)
+    floor_trans_right_only->none_per_s (dict)
+    floor_trans_p_right_only->none (dict)
+    floor_trans_none->both_per_s (dict)
+    floor_trans_p_none->both (dict)
+    floor_trans_none->left_only_per_s (dict)
+    floor_trans_p_none->left_only (dict)
+    floor_trans_none->right_only_per_s (dict)
+    floor_trans_p_none->right_only (dict)
+    floor_touchdowns_R (dict)
+    floor_swings_per_s_R (dict)
+    floor_stride_mean_s_R (dict)
+    floor_swing_mean_s_R (dict)
+    floor_stance_mean_s_R (dict)
+    floor_swing_clearance_mean_m_R (dict)
+    floor_swing_clearance_max_m_R (dict)
+    floor_slip_speed_in_contact_mps_R (dict)
+    floor_foot_speed_off_ground_mps_R (dict)
+    floor_in_contact_forward_travel_fraction_R (dict)
+    floor_touchdowns_L (dict)
+    floor_swings_per_s_L (dict)
+    floor_stride_mean_s_L (dict)
+    floor_swing_mean_s_L (dict)
+    floor_stance_mean_s_L (dict)
+    floor_swing_clearance_mean_m_L (dict)
+    floor_swing_clearance_max_m_L (dict)
+    floor_slip_speed_in_contact_mps_L (dict)
+    floor_foot_speed_off_ground_mps_L (dict)
+    floor_in_contact_forward_travel_fraction_L (dict)
+    floor_stride_duration_mean_s (dict)
+    floor_stride_duration_median_s (dict)
+    floor_stride_frequency_hz (dict)
+    floor_touchdowns_per_s_all_feet (dict)
+    floor_in_contact_forward_travel_fraction_mean (dict)
+    floor_n_touchdown_events (dict)
+    floor_alternation_index (dict)
+    floor_same_foot_repeat_fraction (dict)
+    floor_simultaneous_fraction (dict)
+    floor_pairs_involving_simultaneous_fraction (dict)
+    floor_step_duration_mean_s (dict)
+    floor_step_duration_median_s (dict)
+    floor_lead_swaps_per_stride (dict)
+    floor_stride_length_m (dict)
+    floor_stride_length_over_L (dict)
+    floor_pelvis_z_freq_over_stride_freq (dict)
+    joint_lag_period_steps (dict)
+    jointlag_frac_ankle (dict)
+    jointlag_antiphase_index_ankle (dict)
+    jointlag_corr_best_ankle (dict)
+    jointlag_corr_lag0_ankle (dict)
+    joint_std_deg_a_ankle (dict)
+    joint_std_deg_b_ankle (dict)
+    joint_mean_deg_a_ankle (dict)
+    joint_mean_deg_b_ankle (dict)
+    joint_dominant_hz_a_ankle (dict)
+    jointlag_frac_hip_pitch (dict)
+    jointlag_antiphase_index_hip_pitch (dict)
+    jointlag_corr_best_hip_pitch (dict)
+    jointlag_corr_lag0_hip_pitch (dict)
+    joint_std_deg_a_hip_pitch (dict)
+    joint_std_deg_b_hip_pitch (dict)
+    joint_mean_deg_a_hip_pitch (dict)
+    joint_mean_deg_b_hip_pitch (dict)
+    joint_dominant_hz_a_hip_pitch (dict)
+    jointlag_frac_hip_roll (dict)
+    jointlag_antiphase_index_hip_roll (dict)
+    jointlag_corr_best_hip_roll (dict)
+    jointlag_corr_lag0_hip_roll (dict)
+    joint_std_deg_a_hip_roll (dict)
+    joint_std_deg_b_hip_roll (dict)
+    joint_mean_deg_a_hip_roll (dict)
+    joint_mean_deg_b_hip_roll (dict)
+    joint_dominant_hz_a_hip_roll (dict)
+    jointlag_frac_knee (dict)
+    jointlag_antiphase_index_knee (dict)
+    jointlag_corr_best_knee (dict)
+    jointlag_corr_lag0_knee (dict)
+    joint_std_deg_a_knee (dict)
+    joint_std_deg_b_knee (dict)
+    joint_mean_deg_a_knee (dict)
+    joint_mean_deg_b_knee (dict)
+    joint_dominant_hz_a_knee (dict)
+    jointlag_frac_toe_d2_joint (dict)
+    jointlag_antiphase_index_toe_d2_joint (dict)
+    jointlag_corr_best_toe_d2_joint (dict)
+    jointlag_corr_lag0_toe_d2_joint (dict)
+    joint_std_deg_a_toe_d2_joint (dict)
+    joint_std_deg_b_toe_d2_joint (dict)
+    joint_mean_deg_a_toe_d2_joint (dict)
+    joint_mean_deg_b_toe_d2_joint (dict)
+    joint_dominant_hz_a_toe_d2_joint (dict)
+    jointlag_frac_toe_d3_joint (dict)
+    jointlag_antiphase_index_toe_d3_joint (dict)
+    jointlag_corr_best_toe_d3_joint (dict)
+    jointlag_corr_lag0_toe_d3_joint (dict)
+    joint_std_deg_a_toe_d3_joint (dict)
+    joint_std_deg_b_toe_d3_joint (dict)
+    joint_mean_deg_a_toe_d3_joint (dict)
+    joint_mean_deg_b_toe_d3_joint (dict)
+    joint_dominant_hz_a_toe_d3_joint (dict)
+    jointlag_frac_toe_d4_joint (dict)
+    jointlag_antiphase_index_toe_d4_joint (dict)
+    jointlag_corr_best_toe_d4_joint (dict)
+    jointlag_corr_lag0_toe_d4_joint (dict)
+    joint_std_deg_a_toe_d4_joint (dict)
+    joint_std_deg_b_toe_d4_joint (dict)
+    joint_mean_deg_a_toe_d4_joint (dict)
+    joint_mean_deg_b_toe_d4_joint (dict)
+    joint_dominant_hz_a_toe_d4_joint (dict)
+    floor_gait_class_counts (dict)
+    joint_lag_period_source_counts (dict)
+    termination_reason_counts (dict)
+    touch_gait_class_counts (dict)
+  episodes (list) [len 40]
+  files (dict)
+    trace_npz (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    plots (list) [len 2]
+    contact_sheet (NoneType) = None
+== smoke/readouts/habit/s42_65536_seed.json
+  schema (str) = 'walking-pilot4-habit/v1'
+  mode (str) = 'seed'
+  report_only (bool) = True
+  tool_sha256 (str) = 'sha256:36465e8ceff9a63957b246d06ad387d4da2fdc40599597c6ac4dbb9188ec9bd8'
+  seed (int) = 42
+  tree (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  head (str) = '0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8'
+  ledger (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  ledger_sha256 (str) = 'sha256:f1b92341f1762abf6cb03a7749a075ccafbf199ed2b651fc6379d9364db37504'
+  run (str) = 'pilot4_walk_s42'
+  validation_only (bool) = True
+  deciding_checkpoint (dict)
+    steps (int) = 65536
+    checkpoint (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    checkpoint_sha256 (str) = 'sha256:f0ee303a0bd4b9c8d58a56a4c2a8904ef2c8b2a9a56969aa157a28a64f53b1b9'
+    vecnorm_sha256 (str) = 'sha256:aebded4b3b8027a56fc51b67f9070a73443a91daaac5acf8927ac4df0dfa9bdd'
+    final_fallback (bool) = False
+  window_check (dict)
+    grid (int) = 32768
+    deciding_steps (int) = 65536
+    first (int) = 32768
+    last (int) = 65536
+    problems (list) [len 0] = []
+  reading (str) = 'NO HABIT'
+  habits (list) [len 0] = []
+  not_run (list) [len 0] = []
+  tail_habit (bool) = False
+  neck_habit (bool) = False
+  ledger_reading (dict)
+    columns_missing (list) [len 0] = []
+    read (bool) = True
+    after_window (list) [len 0] = []
+    evaluations (list) [len 2]
+    superseded_row_sets (dict)
+    incomplete_evaluations (list) [len 0] = []
+    grid_gaps (list) [len 1] = [[32768, 65536]]
+    groups (dict)
+    window (dict)
+    td (dict)
+  trace (dict)
+    episodes (list) [len 20]
+    full_horizon (int) = 20
+    cmd_formed (bool) = True
+    cmd (dict)
+    park (list) [len 0] = []
+    driven (list) [len 0] = []
+    episodes_over_bar (dict)
+    settles (dict)
+    head_tip_z_mean (float) = 1.090361513139225
+    neck_pitch_mean (float) = 8.002977950025869
+    head_pitch_mean (float) = 28.11073147504099
+  retired_ledgers_printed_never_read (list) [len 0] = []
+== smoke/readouts/noise/launch.json
+  schema (str) = 'walking-pilot4-noise/v1'
+  report_only (bool) = True
+  tool_sha256 (str) = 'sha256:8905669b11019b148c21e0bc752b0acc7622ea0ebc220a1d1dcba296f96fb873'
+  run (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+  checkpoints (dict)
+    periodic (list) [len 2]
+    final (dict)
+  tensorboard (dict)
+    files (list) [len 1]
+    tags_found (int) = 241
+    train/std (dict)
+    train/value_loss (dict)
+    train/explained_variance (dict)
+  forward (dict)
+    file (str) = '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    sha256 (str) = 'sha256:f758b91c27edb63a443f5ff3e666703eb4d73175bb4eb3edc52184080d56299e'
+    rows (list) [len 2]
+  references (dict)
+    seed (int) = 42
+    parent_std (dict)
+    parent_sha256 (dict)
+    forward_pilot3_8M (dict)
+    warmup_steps (int) = 0
+    first_steps (int) = 65536
+    block (int) = 250000

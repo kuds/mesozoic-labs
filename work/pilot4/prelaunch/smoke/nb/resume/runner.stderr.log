@@ -1,0 +1,7 @@
+BaselineProgress: 65536 of 50000 steps (131% of budget) and the policy has never beaten the zero-action baseline — latest eval 3056.3 vs 3766.6 (81.1%). On a stage whose reward optimum IS the do-nothing policy this means the run is in a worse-than-trivial local optimum, not merely early. Run 20260804_143747 spent its whole 10M budget in exactly this state and failed its gate (issue #486).
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py", line 493, in run_cell
+    exec(compile(src, f"<cell {idx}>", "exec"), ns)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<cell 20>", line 1, in <module>
+RuntimeError: Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.

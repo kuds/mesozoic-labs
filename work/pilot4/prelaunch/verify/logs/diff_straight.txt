@@ -1,0 +1,10 @@
+62c62
+<             1e-3), the command-blind turned twin (heading at state 1000 = the twin's + angle within 1e-5 deg), and
+---
+>             1e-3), the command-blind turned twin (heading at state 1000 = the twin's + angle within 1e-4 deg), and
+137c137,139
+< TWIN_HEADING_TOL_DEG = 1e-5   # command-blind walker: heading at state 1000 = the twin's + angle within this
+---
+> TWIN_HEADING_TOL_DEG = 1e-4   # command-blind walker: heading at state 1000 = the twin's + angle within this
+> #                               (maintainer decision (35): 1e-4 deg; v3's 1e-5, from 15 episodes, flagged 3 of
+> #                               s42's 40 nudged entry episodes at 1.1e-5 to 2.7e-5 deg)

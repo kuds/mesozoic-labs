@@ -1,0 +1,10 @@
+15,16c15,16
+<   PILOT4_STRAIGHT_VAL   the straightness tool's validation records (p3val_s<seed>.json), re-run by the fix stage with
+<                         the pinned tool (default: out/fix/val_final)
+---
+>   PILOT4_STRAIGHT_VAL   the straightness tool's validation records (p3val_s<seed>.json), re-run by the tolerance stage
+>                         with the pinned tool (default: ../prelaunch/tol/val_final from this file's folder)
+49c49
+< STRAIGHT_VAL = Path(os.environ.get("PILOT4_STRAIGHT_VAL") or HERE / "out" / "fix" / "val_final")
+---
+> STRAIGHT_VAL = Path(os.environ.get("PILOT4_STRAIGHT_VAL") or HERE.parent / "prelaunch" / "tol" / "val_final")

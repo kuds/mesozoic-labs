@@ -1,0 +1,22 @@
+--- a/test_pilot4_score.py
++++ b/test_pilot4_score.py
+@@ -12,8 +12,8 @@
+ Optional local evidence (a case that needs it is skipped and listed when it is absent):
+   PILOT3_SCORE          pilot 3's pinned pilot3_score.py (default: ../../pilot3/tools/pilot3_score.py from this file)
+   PILOT3_JUDGING        pilot 3's judging folder (OUT/, final_score/) (default: ../../pilot3/judging)
+-  PILOT4_STRAIGHT_VAL   the straightness tool's validation records (p3val_s<seed>.json), re-run by the fix stage with
+-                        the pinned tool (default: out/fix/val_final)
++  PILOT4_STRAIGHT_VAL   the straightness tool's validation records (p3val_s<seed>.json), re-run by the tolerance stage
++                        with the pinned tool (default: ../prelaunch/tol/val_final from this file's folder)
+   PILOT4_JUDGE_E2E      the judge lane's end-to-end OUT (a real pilot-4 binding) (default: out/judge/e2e/OUT)
+ With numpy importable and a pilot tree given (argument or PILOT_TREE), the synthetic fixture rows are recomputed from
+ the tree's frozen probe and must equal the fixture (pilot 3's check). Nothing here trains or imports the repository
+@@ -46,7 +46,7 @@
+ REAL = CASES["real_walker"]["rows"]
+ P3_SCORE = Path(os.environ.get("PILOT3_SCORE") or HERE.parent.parent / "pilot3" / "tools" / "pilot3_score.py")
+ P3_JUDGING = Path(os.environ.get("PILOT3_JUDGING") or HERE.parent.parent / "pilot3" / "judging")
+-STRAIGHT_VAL = Path(os.environ.get("PILOT4_STRAIGHT_VAL") or HERE / "out" / "fix" / "val_final")
++STRAIGHT_VAL = Path(os.environ.get("PILOT4_STRAIGHT_VAL") or HERE.parent / "prelaunch" / "tol" / "val_final")
+ JUDGE_E2E = Path(os.environ.get("PILOT4_JUDGE_E2E") or HERE / "out" / "judge" / "e2e" / "OUT")
+ P3_SCORE_SHA256 = "286ce04a2c5f4e34b9f3e146431a14cbd40767050f83749f5968b9e270a97018"
+ 

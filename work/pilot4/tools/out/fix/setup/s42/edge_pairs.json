@@ -1,0 +1,220 @@
+{
+ "seed": 42,
+ "params": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/setup/params_s42.json",
+ "clone": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone",
+ "runner_sha256": "sha256:33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+ "runner_exit": 0,
+ "runner_record": {
+  "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "roles": {
+   "setup": 3,
+   "config": 6,
+   "resume": 18,
+   "chain": 20,
+   "manual": 22,
+   "disconnect": 32
+  },
+  "run_all": {
+   "stopped_at": 20,
+   "stopped_by_the_guard": true
+  },
+  "manual_cell_stopped_at_learn": true,
+  "learn_called": [
+   {
+    "class": "stable_baselines3.ppo.ppo.PPO",
+    "total_timesteps": 2000000,
+    "reset_num_timesteps": true
+   }
+  ],
+  "guard_hits": [],
+  "learn_stops": {
+   "learn_stops": [
+    "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+    "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+    "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+    "stable_baselines3.ppo.ppo.PPO.learn",
+    "stable_baselines3.sac.sac.SAC.learn",
+    "stable_baselines3.a2c.a2c.A2C.learn",
+    "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+   ],
+   "guards": [
+    "stable_baselines3.ppo.ppo.PPO.train",
+    "stable_baselines3.sac.sac.SAC.train",
+    "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts",
+    "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts",
+    "torch.optim.adam.Adam.step",
+    "torch.optim.sgd.SGD.step",
+    "torch.optim.optimizer.Optimizer.step",
+    "torch.Tensor.backward",
+    "environments.shared.mirror_kl_ppo.MirrorKLPPO.train",
+    "torch.autograd.backward"
+   ],
+   "e2e_capture_wraps": [
+    "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+    "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+    "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+    "stable_baselines3.ppo.ppo.PPO.learn",
+    "stable_baselines3.sac.sac.SAC.learn",
+    "stable_baselines3.a2c.a2c.A2C.learn",
+    "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+   ]
+  },
+  "environments_resolves_to": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/environments/__init__.py",
+  "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/environments/__init__.py",
+  "run_dir": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s42",
+  "entry_lines": {
+   "required": {
+    "setup (local)": "Running locally; using this checkout. REPO_REF selects only the Colab checkout.",
+    "quick test": "Quick test mode: False",
+    "behavior": "Behavior recipe: walk",
+    "K3 panel": "In-run K3 panel: off",
+    "critic phase": "Critic phase: off",
+    "run directory": "Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s42 (new run: RUN_ID names no existing run)",
+    "node": "Node locomotion (stage 2): Locomotion (ppo)",
+    "timesteps": "Timesteps: 2,000,000",
+    "vecnormalize": "VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+   },
+   "missing": [],
+   "forbidden_present": [],
+   "other_warm_start_lines": [],
+   "first_eval_line": "not reached (learn() did not run)",
+   "first_eval_ok": null,
+   "ok": true
+  },
+  "parent_pair": {
+   "zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip",
+   "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+   "zip_sha256": "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+   "vecnorm_sha256": "sha256:b9e6dee894e549ca4e844f7ef3c162e0f52609eacede7b1790e5d649e77d9cce"
+  },
+  "locomotion_curriculum_at_end": {
+   "eval_freq": 65536,
+   "checkpoint_freq": 250000,
+   "eval_episodes": 10,
+   "max_checkpoints": 0,
+   "warm_start_log_std": null,
+   "warmup_timesteps": 0,
+   "ramp_start_value": 2.0,
+   "timesteps": 2000000,
+   "initialize_from_own_checkpoint": true
+  },
+  "notebook_sha256": "sha256:1eac05eef78af5000518e192c276b123815c41b707b60af2ae277236c9070d89"
+ },
+ "captured": true,
+ "environments_file": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/environments/__init__.py",
+ "model_class": "stable_baselines3.ppo.ppo.PPO",
+ "lineage_in_memory": {
+  "mode": "initialize_next_stage",
+  "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+  "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "parent_species": "tyrannosaurus_rex",
+  "parent_embodiment": "anatomical",
+  "parent_stage": 2,
+  "zeroed_command_parameters": [
+   "mlp_extractor.policy_net.0.weight",
+   "mlp_extractor.value_net.0.weight"
+  ]
+ },
+ "num_timesteps_at_learn": 8000000,
+ "learn_kwargs": {
+  "total_timesteps": 2000000,
+  "callback": "<stable_baselines3.common.callbacks.CallbackList object at 0x7f4d4db2c590>",
+  "progress_bar": false,
+  "reset_num_timesteps": true
+ },
+ "stage_dir": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s42/03_locomotion",
+ "stage_records": {
+  "plant_identity.json": "sha256:e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9",
+  "stage_config.json": "sha256:2f39b1e5c2e703bee878b4e961887d83798b0bb97a6cae8f11abf5de6fb24302",
+  "task_fingerprint.json": "sha256:4b15d17b215bdd5a026378bc689b4a3e8692706f423d204fcd3d63ae9335bc2c"
+ },
+ "saved": {
+  "500000": {
+   "zip": "sha256:de283e042be54a442ae65b09bceeb38a74c3ae1d5a247dd35d275ddd820aa738",
+   "vecnorm": "sha256:c314400f33ebf5fe65faec056186704490c434333ebe9ab1ca9c4c881d753351",
+   "data_num_timesteps": 500000,
+   "data_lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "1000000": {
+   "zip": "sha256:2b4ef630cb3dd706c4ff15b739a84ead63ee896ab982324c4a6f78488d19f2e1",
+   "vecnorm": "sha256:c314400f33ebf5fe65faec056186704490c434333ebe9ab1ca9c4c881d753351",
+   "data_num_timesteps": 1000000,
+   "data_lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "1500000": {
+   "zip": "sha256:357b5ae5cb826f064d815a43bde96c57883f3cdf120183b2f03bf31ef825d4e3",
+   "vecnorm": "sha256:c314400f33ebf5fe65faec056186704490c434333ebe9ab1ca9c4c881d753351",
+   "data_num_timesteps": 1500000,
+   "data_lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  },
+  "2000000": {
+   "zip": "sha256:dbd9707baaf3de3c7b4e128fe989d44639cfb3985c7931bb68ba982dea9d4cec",
+   "vecnorm": "sha256:c314400f33ebf5fe65faec056186704490c434333ebe9ab1ca9c4c881d753351",
+   "data_num_timesteps": 2000000,
+   "data_lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   }
+  }
+ },
+ "guard_hits_after_save": [],
+ "env_kwargs_check": {
+  "command_mode": "heading",
+  "prey_lateral_range": [
+   0.0,
+   0.0
+  ],
+  "walk_heading_price_weight": 0.2,
+  "walk_heading_price_scale_rad": 0.5
+ },
+ "reloaded_2M_vs_original_8M_on_zeroed_obs": {
+  "reset_seed": 3042,
+  "steps": 1000,
+  "terminated": false,
+  "truncated": true,
+  "max_abs_action_delta": 0.0,
+  "max_abs_action_delta_vs_in_memory": 0.0
+ },
+ "guard_hits_final": []
+}

@@ -1,0 +1,91 @@
+
+##### nb_pilot_runner4: cell 3 start 11:37:09 UTC
+Running locally; using this checkout. REPO_REF selects only the Colab checkout.
+##### nb_pilot_runner4: cell 3 ok (0.0 s)
+
+##### nb_pilot_runner4: cell 4 start 11:37:09 UTC
+MuJoCo version: 3.10.0
+Gymnasium version: 1.4.0
+Repo root: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone
+##### nb_pilot_runner4: cell 4 ok (0.4 s)
+
+##### nb_pilot_runner4: cell 6 start 11:37:09 UTC
+Model: Tyrannosaurus Rex (Anatomical)
+Algorithm: PPO
+Quick test mode: False
+Behavior recipe: walk
+In-run K3 panel: off
+Critic phase: off
+##### nb_pilot_runner4: cell 6 ok (0.4 s)
+
+##### nb_pilot_runner4: cell 8 start 11:37:10 UTC
+Logs will be saved to: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs
+Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52 (new run: RUN_ID names no existing run)
+Provenance:    /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/provenance.json
+##### nb_pilot_runner4: cell 8 ok (1.5 s)
+
+##### nb_pilot_runner4: cell 9 start 11:37:11 UTC
+Model: Tyrannosaurus Rex (Anatomical)
+Environment: TyrannosaurusRexAnatomicalEnv
+Observation space: (63,)
+Action space: (15,)
+Number of actuators: 15
+
+Behavior 'walk' -> deliverable 'locomotion'; chain: stance -> locomotion
+
+   #  id           name                           parent       recipe   deliverable  gate
+*  1  stance       Stance                         -            stance   yes          stance_quality_heading/v1
+   2  recovery     Recovery                       stance       recover  yes          recovery_quality/v1
+*  3  locomotion   Locomotion                     stance       walk     yes          reward_and_length/v1
+   4  behavior     Bite                           locomotion   hunt     yes          task_success/v1
+  (* = on this behavior's chain)
+Trunk record:  wrote TRUNK_FROM = "" to /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/trunk_run.json.
+##### nb_pilot_runner4: cell 9 ok (0.0 s)
+
+##### nb_pilot_runner4: cell 11 start 11:37:11 UTC
+SB3 archive load preflight: loading a throwaway model saved by this runtime (saved by Python 3.13; this runtime is Python 3.13; bytecode members: none) ... a kernel death HERE means this image cannot load SB3 archives
+SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.
+##### nb_pilot_runner4: cell 11 ok (1.3 s)
+
+##### nb_pilot_runner4: cell 13 start 11:37:12 UTC
+zero-action baseline — stage 1, 40 episodes, seed 3042
+
+model                                         reward  mean-std  standing  full-hz     gate  verdict
+---------------------------------------------------------------------------------------------------
+Tyrannosaurus Rex (Anatomical)                3766.6    3750.3    3766.6    100%     2260  OK — the statue passes the stance gate
+
+A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have
+learned to balance at all, and 'standing' to have learned more than 'do not fall'.
+A stance-gated stage is the exception: the statue is its quality ceiling and must PASS the stance gate.
+
+Saved: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs/tyrannosaurus_rex/anatomical/zero_action_baselines/20261106_113903.json
+Copied to run: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/zero_action_baseline.json
+##### nb_pilot_runner4: cell 13 ok (110.4 s)
+
+##### nb_pilot_runner4: cell 15 start 11:39:03 UTC
+Training infrastructure ready. Algorithm: ppo
+DiagnosticsCallback enabled: per-component rewards, obs/action stats,
+VecNormalize tracking, and termination reasons
+will log to TensorBoard.
+##### nb_pilot_runner4: cell 15 ok (0.0 s)
+
+##### nb_pilot_runner4: cell 16 start 11:39:03 UTC
+Visualization functions ready (shared library).
+##### nb_pilot_runner4: cell 16 ok (0.0 s)
+
+##### nb_pilot_runner4: cell 18 start 11:39:03 UTC
+##### nb_pilot_runner4: cell 18 ok (0.0 s)
+
+##### nb_pilot_runner4: cell 20 start 11:39:03 UTC
+##### nb_pilot_runner4: cell 20 RAISED RuntimeError (0.0 s)
+
+##### nb_pilot_runner4: cell 22 start 11:39:03 UTC
+============================================================
+Node locomotion (stage 2): Locomotion (ppo)
+Description: Learn forward walking/running
+Timesteps: 2,000,000
+Log dir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52/03_locomotion
+VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl
+============================================================
+##### nb_pilot_runner4: cell 22 RAISED LearnBlocked (2.8 s)
+nb_pilot_runner4: done, exit 0; record /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/setup/s52/nb/record.json

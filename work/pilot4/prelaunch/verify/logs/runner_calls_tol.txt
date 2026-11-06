@@ -1,0 +1,22 @@
+50:$ cat $F/run_val.sh $F/run_tests.sh $F/job.sh $F/run_pytest.py $F/pytest.ini
+119:$ grep -n -o "^\[[0-9T:Z-]* [a-z]* [A-Za-z0-9_]*\] \$ .\{0,160\}" $P4/out/fix/CMDLOG.txt | grep -v -e "job judge" -e "job straight_s" -e "job tamper" -e "job habit" -e "job mirror" -e "job mech" -e "job noise" -e "job score_" -e "job pairs_copy" -e "job edge_pairs" | sed -n 1,200p | cut -c1-260
+159:$ grep -n -i -e "flag" -e "1e-5" -e "1e-05" -e "2.7e-5" -e "2.73e" $P4/pilot4_straight.py $P4/pilot4_score.py $P4/test_pilot4_score.py $P4/tests/*.py $P4/nb_pilot_runner4.py $P4/pilot4_judge.py | cut -c1-230
+164:$ ls $S/pilot3/branch/venv_full/bin | grep -i -e ruff -e pytest -e mypy
+253:$ sed -n 30,60p $P4/out/fix/scripts/from_e2e/edge_pairs.py
+293:$ sed -n 1,29p $T/scripts/from_e2e/edge_pairs.py
+295:$ sed -n 60,200p $T/scripts/from_e2e/edge_pairs.py
+343:[2026-11-06T11:34:58Z job runner_not_quick_test_expect2] $ cd SP/pilot4/prelaunch/tol/tmp/clone && env -u PYTHONPATH OMP_NUM_THREADS=1 SP/pilot3/branch/venv_full/bin/python -I SP/pilot4/tools/nb_pilot_runner4.py --params SP/pilot4/prelaunch/tol/setup/params_s42.json --out SP/pilot4/prelaunch/tol/e2e/runner_not_quick_test --c
+344:    inner nonzero: status 2 from: env -u PYTHONPATH OMP_NUM_THREADS=1 SP/pilot3/branch/venv_full/bin/python -I SP/pilot4/tools/nb_pilot_runner4.py --params SP/pilot4/prelaunch/tol/setup/params_s42.json --out SP/pilot4/prelaunch/tol/e2e/runner_not_quick_test --clone SP/pilot4/prelaunch/tol/tmp/clone > SP/pilot4/prelaunch/tol/
+349:[2026-11-06T11:34:59Z job edge_pairs_s42] $ cd SP/pilot4/prelaunch/tol/tmp/clone && env -u PYTHONPATH ISO_WT=SP/pilot4/prelaunch/tol/tmp/clone OMP_NUM_THREADS=1 GIT_OPTIONAL_LOCKS=0 SP/pilot3/branch/venv_full/bin/python -I SP/pilot4/tools/iso.py SP/pilot4/prelaunch/tol/scripts/from_e2e/edge_pairs.py 42 SP/pilot4/prelaunch/to
+387:[2026-11-06T11:37:06Z job edge_pairs_s42] exit: 0 (127s)
+388:[2026-11-06T11:37:06Z job edge_pairs_s52] $ cd SP/pilot4/prelaunch/tol/tmp/clone && env -u PYTHONPATH ISO_WT=SP/pilot4/prelaunch/tol/tmp/clone OMP_NUM_THREADS=1 GIT_OPTIONAL_LOCKS=0 SP/pilot3/branch/venv_full/bin/python -I SP/pilot4/tools/iso.py SP/pilot4/prelaunch/tol/scripts/from_e2e/edge_pairs.py 52 SP/pilot4/prelaunch/to
+409:$ cd $P4/out/fix/scripts && for f in phase_0_setup.sh phase_a_judge.sh phase_b_readouts.sh phase_c_score.sh phase_d_fix.sh phase_ff.sh phase_bcd.sh run_tests.sh final_state.sh e2e_summary.py pytest.ini from_e2e/edge_pairs.py from_e2e/sidecar_facts.py from_e2e/weights_facts.py from_e2e/make_params.py; do diff -u --label fix/$
+450:$ cd $T && env -u PYTHONPATH OMP_NUM_THREADS=1 $PY -I -B -m pytest -p no:cacheprovider -c $T/scripts/pytest.ini --rootdir $T --confcutdir $P4/tests --basetemp $T/tmp/pt_quick -q -k "constants or strict_json" $P4/tests/test_pilot4_straight.py > $T/logs/pt_quick_constants.txt 2>&1
+466:[2026-11-06T11:39:09Z job edge_pairs_s52] exit: 0 (122s)
+467:[2026-11-06T11:39:09Z job edge_pairs_s60] $ cd SP/pilot4/prelaunch/tol/tmp/clone && env -u PYTHONPATH ISO_WT=SP/pilot4/prelaunch/tol/tmp/clone OMP_NUM_THREADS=1 GIT_OPTIONAL_LOCKS=0 SP/pilot3/branch/venv_full/bin/python -I SP/pilot4/tools/iso.py SP/pilot4/prelaunch/tol/scripts/from_e2e/edge_pairs.py 60 SP/pilot4/prelaunch/to
+520:$ tail -c 600 $T/e2e/logs/edge_pairs_s60.stdout.txt
+522:$ cat $T/e2e/logs/edge_pairs_s42.stderr.txt | tail -5
+524:[2026-11-06T11:41:04Z job edge_pairs_s60] exit: 0 (115s)
+616:$ $PY -I -B -c "import json,sys; [print(s, d[\"runner_exit\"], d[\"runner_record\"][\"manual_cell_stopped_at_learn\"], d[\"runner_record\"][\"guard_hits\"], d.get(\"guard_hits_after_save\"), {k: v for k, v in d.items() if k.startswith(\"max_\") or k.startswith(\"d_\") or k in (\"action_check\", \"episode_check\")}) for s in 
+625:$ $PY -I -B -c "import json,sys; d=json.load(open(sys.argv[1])); print({k: v for k, v in d.items() if k not in (\"runner_record\", \"saved\", \"stage_records\", \"learn_kwargs\", \"lineage_in_memory\")})" $T/setup/s42/edge_pairs.json | cut -c1-1500 | sed "s|$S|\$S|g"
+1444:$ $PY -I -B -c "import json,sys; d=json.load(open(sys.argv[1])); t=0; [print(k, v[\"tests\"], v[\"failures\"], v[\"errors\"], v[\"skipped\"], v[\"wrapper\"][\"exit_status\"], v[\"wrapper\"][\"environments_imported_in_pytest_process\"], v.get(\"summary_line\")) for k, v in d[\"files\"].items()]; print(sum(v[\"tests\"] for v 

@@ -1,0 +1,252 @@
+schema 'walking-pilot4-straight/v1'
+mode 'baseline'
+validation False
+partial False
+tool_sha256 'sha256:870bab61119ba17a8e087c7f322c38e57d7593a308bba43168fffdeea70cdb38'
+probe '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+probe_sha256 'sha256:61651b160eafe0ac50c613d97d5bad2ad6bd866e90cb2b065a256effe236d3a2'
+tree '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+head '0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8'
+environments_file '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+torch_threads 1
+training_entry_points_blocked 33
+seed 42
+steps 8000000
+checkpoint '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/
+checkpoint_sha256 'sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4'
+vecnorm '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/
+vecnorm_sha256 'sha256:b9e6dee894e549ca4e844f7ef3c162e0f52609eacede7b1790e5d649e77d9cce'
+preparation dict 2
+  reseed_command_slice True
+  assert_command_blind dict 7
+    equivalence_probe_seed 3042
+    equivalence_probe_observations 64
+    max_action_delta 0.0
+    max_value_delta 0.0
+    max_probe_vector_action_delta 0.0
+    max_probe_vector_value_delta 0.0
+    prepared list 2
+constants dict 26
+  HORIZON 1000
+  PANEL_EPISODES 40
+  PANEL_SEED_BASE 3042
+  SETTLE 100
+  WINDOW_FIRST_STATE 101
+  MEAN_HALF 50
+  K_FIRST 151
+  A_MEDIAN_ABS_MAX_DEG 5.0
+  A_P95_ABS_MAX_DEG 15.0
+  B_D_P95_MAX_DEG 11.5
+  B_W0_P95_MAX_DEG 18.5
+  C_MEDIAN_MAX_DEG 5.0
+  C_P95_MAX_DEG 11.5
+  C_MIN_COUNTING 30
+  C_MIN_NET_MOVE_M 0.35
+  PCT 95
+  RECOVERY_SEEDS list 20
+    [0]
+  NUDGE_ANGLES_DEG list 2
+    [0]
+  NUDGE_STATE 650
+  READ_K 950
+  RESET_TURN_STATE 0
+  RESET_READ_K 500
+  OBS651_TOL 0.001
+  TWIN_HEADING_TOL_DEG 0.0001
+  YAW_REPRO_TOL_DEG 1e-12
+  INFO_HEADING_TOL_RAD 1e-09
+env dict 6
+  command_mode 'heading'
+  prey_lateral_range list 2
+    [0]
+  walk_heading_price_weight 0.2
+  walk_heading_price_scale_rad 0.5
+  observation_dim 63
+  pilot4_env True
+labels dict 5
+  scorer '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/
+  scorer_sha256 'sha256:286ce04a2c5f4e34b9f3e146431a14cbd40767050f83749f5968b9e270a97018'
+  labels list 40
+    [0]
+  counts dict 5
+    WALK 40
+    HOP 0
+    STILL 0
+    FALL 0
+    OTHER 0
+  seed_outcome 'WALKS'
+panel dict 6
+  episodes list 40
+    [0]
+      episode 0
+      reset_seed 3042
+      T 1000
+      full True
+      matches_probe True
+      differing_keys list 0
+      used True
+      yaw_change_deg -27.02052941260774
+      yaw_from_psi_deg -27.02052941260774
+      yaw_abs_diff_deg 0.0
+      psi_cmd_deg 0.0
+      psi_cmd_source 'command_state.desired_heading'
+      info_heading_max_abs_diff_rad 4.440892098500626e-16
+      spawn_heading_deg 0.0
+      D_deg 18.036960154895958
+      D_k 950
+      D_signed_deg -18.036960154895958
+      W0_deg 22.761068528334444
+      W0_state 1000
+      R_deg 22.761331819921065
+      last_mean_error_deg -18.036960154895958
+      crab_median_deg 5.353870153743813
+      end_cross_track_m 0.3137190540523045
+      window_displacement_m 24.23179836537659
+      yaw_per_10m_deg -11.150855997223799
+      floor_gait_class 'walk'
+      max_action_delta_vs_blind 0.0
+      label 'WALK'
+  all_rolled_match True
+  mismatched list 0
+  n_full 40
+  n_used_full 40
+  yaw_repro_max_abs_diff_deg 0.0
+parts dict 4
+  a dict 9
+    verdict 'FAIL'
+    n 40
+    median_signed_deg -25.28391022912544
+    p95_abs_deg 31.734622025581338
+    min_deg -36.83099454298211
+    max_deg -18.293601382353028
+    bars dict 2
+      median_abs_max_deg 5.0
+      p95_abs_max_deg 15.0
+    n_full_of_panel '40 of 40'
+    note_36 None
+  b dict 15
+    verdict 'FAIL'
+    n 40
+    D_p95_deg 25.20875958984466
+    W0_p95_deg 30.048740339989035
+    D_median_deg 14.874956606813473
+    D_max_deg 35.906274994946344
+    W0_median_deg 20.608026659469594
+    W0_minus_D_min_deg 3.5820456497636464
+    W0_minus_D_max_deg 7.058565872879356
+    bars dict 2
+      D_p95_max_deg 11.5
+      W0_p95_max_deg 18.5
+    report_R_median_deg 22.359182465740496
+    report_R_p95_deg 26.240917930740373
+    report_last_mean_error_median_deg -14.874956606813473
+    report_crab_median_deg 4.809475828168779
+    report_end_cross_track_median_m 0.38687590386717374
+  c dict 13
+    n_episodes 40
+    n_counting 40
+    left_out_ended_before_nudge 0
+    left_out_not_yet_passed 0
+    bars dict 4
+      median_max_deg 5.0
+      p95_max_deg 11.5
+      min_counting 30
+      min_net_move_m 0.35
+    fell_after_nudge 0
+    moved_too_little 0
+    within_11_5 18
+    within_5 12
+    share_removed_median dict 2
+      plus 2.592925874012053e-13
+      minus -2.7677860003905153e-13
+    verdict 'FAIL'
+    median_r_deg 22.78941611348764
+    p95_r_deg 40.20875958986929
+  straight 'FAIL'
+recovery dict 3
+  episodes list 40
+    [0]
+      T 1000
+      angle_deg 15.0
+      reached_nudge True
+      passed_prey_at_650 True
+      pelvis_minus_prey_x_650_m 7.100294770514466
+      counting True
+      moved_650_1000_m 9.42868952802309
+      m_read_error_deg -3.0369601548987077
+      r_deg 3.0369601548987077
+      r_reason None
+      share_removed 1.8307577676068831e-13
+      twin_m_read_error_deg -18.03696015489596
+      reset_seed 3042
+      variant 'c'
+      psi_cmd_deg 0.0
+      turned_at 650
+      obs651_channels_beyond_tol_vs_twin list 2
+      heading_minus_twin_at_1000_deg 14.999999999993808
+      obs60_63_at_651 list 3
+      max_action_delta_vs_blind 0.0
+  prey_in_place dict 2
+    summary dict 9
+      n_episodes 40
+      n_counting 40
+      median_r_deg 21.331218103179026
+      p95_r_deg 40.01918976874465
+      within_11_5 18
+      infinite 0
+      share_removed_median_pooled -0.00144120889357513
+      share_removed_median_plus -0.008043399141308472
+      share_removed_median_minus 0.019098985111864253
+    episodes list 40
+  turned_at_reset dict 4
+    summary dict 9
+      n_episodes 40
+      n_counting 40
+      median_r_deg 12.935494232640323
+      p95_r_deg 26.96952695460987
+      within_11_5 17
+      infinite 0
+      share_removed_median_pooled -0.007350261388538781
+      share_removed_median_plus 0.403527572366703
+      share_removed_median_minus -0.33216977054784746
+    episodes list 40
+    read_k 500
+    mechanics 'the (c) turn applied after state 0 (the action of step 1 chosen), prey left in place, every episode
+checks dict 5
+  prefix dict 3
+    episodes 80
+    equal 80
+    refused list 0
+  obs651 dict 4
+    episodes 40
+    only_command_channels 40
+    channels_seen list 2
+    bad list 0
+  turned_twin dict 5
+    applies True
+    episodes 40
+    max_abs_dev_deg 2.7262955111240217e-05
+    bad list 0
+    max_action_diff_after_651 3.904104232788086e-06
+  zero_nudge dict 4
+    run True
+    episodes 20
+    equal 20
+    bad list 0
+  action_delta_vs_blind dict 2
+    max 0.0
+    rule "the prepared walker's action minus the unprepared parent's on the command-zeroed observation, every
+psi_cmd dict 4
+  source list 1
+    [0]
+  values_deg list 1
+    [0]
+  info_check_max_abs_diff_rad 4.440892098500626e-16
+  info_check_available True
+files dict 2
+  plot dict 2
+    path '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    sha256 'sha256:a4154ce7f43aaa3be583ba17e1ac1b1d9a6db5922072aba255a50173c5475f17'
+  traces dict 2
+    path '/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/
+    sha256 'sha256:fdffe2aa1032a4f8b7de2e2feff04dbec47916443310a036f0ee7e3b06866788'

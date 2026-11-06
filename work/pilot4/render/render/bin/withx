@@ -1,0 +1,13 @@
+#!/bin/bash
+# Run a command with a private Xvfb display (MuJoCo's glfw backend needs one; no EGL or OSMesa here).
+# Copied from SP/work/pilot3/r6_fix/bin/withx with only the stderr log path changed to this folder.
+# Xvfb: no lock file, no unix-socket file and no TCP listener (abstract socket only), no auth file.
+S=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/render/render
+coproc XV { exec Xvfb :97 -displayfd 1 -nolock -nolisten tcp -nolisten unix -screen 0 1024x768x24 2>>"$S/logs/xvfb.stderr.log"; }
+XPID=$XV_PID
+read -r -t 30 DNUM <&"${XV[0]}" || { echo "withx: Xvfb did not start" >&2; kill $XPID; exit 3; }
+export DISPLAY=":$DNUM" MUJOCO_GL=glfw MESA_SHADER_CACHE_DISABLE=true
+"$@"
+RC=$?
+kill $XPID; wait $XPID
+exit $RC

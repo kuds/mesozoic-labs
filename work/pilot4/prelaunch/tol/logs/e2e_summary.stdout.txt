@@ -1,0 +1,66 @@
+ok   s42 set-up path: the notebook's manual cell reached learn() (stopped there, nothing trained), no guard hit
+ok   s42 edge: lineage initialize_next_stage, parent stage 2, command columns zeroed (in memory and in each saved zip)
+ok   s42 edge: the saved 2,000,000 pair acts bit-identically to pilot 3's 8M pair on command-zeroed observations (1,000 steps) and to the in-memory model
+ok   s52 set-up path: the notebook's manual cell reached learn() (stopped there, nothing trained), no guard hit
+ok   s52 edge: lineage initialize_next_stage, parent stage 2, command columns zeroed (in memory and in each saved zip)
+ok   s52 edge: the saved 2,000,000 pair acts bit-identically to pilot 3's 8M pair on command-zeroed observations (1,000 steps) and to the in-memory model
+ok   s60 set-up path: the notebook's manual cell reached learn() (stopped there, nothing trained), no guard hit
+ok   s60 edge: lineage initialize_next_stage, parent stage 2, command columns zeroed (in memory and in each saved zip)
+ok   s60 edge: the saved 2,000,000 pair acts bit-identically to pilot 3's 8M pair on command-zeroed observations (1,000 steps) and to the in-memory model
+ok   edge weights (saved 2,000,000 zip against the parent's 8M zip): only columns 60-62 of the policy's and the value's first layers changed (1,536 entries each, now 0); log_std bitwise; Adam moments unchanged and step counts kept; task 782d95b6... -> 914a1cae...
+ok   edge sidecars: obs_rms columns 0-59 bit-equal to the parent's, the command slice 60-62 reseeded to mean 0 / var 1 (parent var ~3e-12), ret_rms fresh (mean 0, var 1, count 1e-4)
+ok   the set-up path's records at 0e6a57b equal the setup check's at 0bcb0cf but for git_commit, run.label and run.load_path (plant_identity.json and task_fingerprint.json equal)
+ok   judge --check-only: exit 0 on all 12 cells
+ok   judge --check-only wrote nothing (OUT absent afterwards)
+ok   judge: exit 0 on all 12 cells
+ok   binding.json on all 12 cells: schema v1, seed, steps, head, no fallback, on schedule, not validation-only, cadence checked, task 914a1cae, recipe fbc94bef, the seed's parent, n_envs 4, the lineage, the heading command with the committed table, prey [0, 0], price 0.2 / 0.5, pair sha256s
+ok   probe.json on all 12 cells: 40 panel episodes from 3042, settle 100, no env-kwargs drift from the record, interface r15, the judged checkpoint
+ok   the probe's 40 episode rows are identical across a seed's four stand-in cells (one set of weights)
+ok   a second judgement of a cell is refused (exit 2)
+ok   tamper_wrong_parent_cli: refused, exit 2, the reason names 'parent'
+ok   tamper_parent_record: refused, exit 2, the reason names 'parent'
+ok   tamper_command_table: refused, exit 2, the reason names 'command'
+ok   tamper_raw_parent: refused, exit 2, the reason names 'lineage'
+ok   setup_check_record_verbatim: refused, exit 2, the reason names 'git_commit'
+ok   dirty_judge: refused, exit 2, the reason names 'edit'
+ok   dirty_straight: refused, exit 2, the reason names 'edit'
+ok   dirty_habit: refused, exit 2, the reason names 'edit'
+ok   every tampered and dirty case wrote nothing
+ok   the setup check's own 0bcb0cf record passes every other check under --allow-commit-mismatch --check-only
+ok   the dirty clone was restored clean
+ok   final-model fallback (s42 copy with no 2,000,000 pair, a final pair re-saved by SB3 at num_timesteps 2,015,232, lineage kept): --final-fallback --check-only accepts it, exit 0
+ok   the same copy without --final-fallback is refused (the 2,000,000 pair is missing), exit 2
+ok   a final zip at num_timesteps 2,000,000 (not the uninterrupted end) is refused under --final-fallback, exit 2
+ok   the final-fallback checks wrote nothing
+ok   straight seed mode: a record for all 12 cells, exit 0
+ok   each straightness record is the record of its cell (binding and probe sha256, checkpoint), seed mode, not validation, not partial, every re-rolled episode equal to probe.json's, yaw reproduced to 1e-12
+ok   (a) FAIL, (b) FAIL, (c) FAIL, STRAIGHT FAIL on every cell (v3's entry baseline: all fail)
+ok   seed mode on the stand-in 2,000,000 cells equals the straightness lane's baseline mode (v3's entry baseline) on (a), (b), (c), every panel row's yaw, D, W0, R, and every recovery episode's r
+ok   the four checkpoints of a seed give the same parts (one set of weights)
+ok   score_no_review_no_look: exit 0
+ok   score_review: exit 0
+ok   score_review_look_straight: exit 0
+ok   score_review_look_not_straight: exit 0
+ok   score_review_look_straight_habit: exit 0
+ok   score_review_no_straight: exit 0
+ok   pilot 3's rule at 2,000,000: WALKS on every seed (s42 WALK 40; s52 WALK 39 + FALL 1; s60 WALK 40)
+ok   no video review: every seed pending, the pilot outcome PENDING_REVIEW
+ok   score_review: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN
+ok   score_review_look_straight: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN
+ok   score_review_look_not_straight: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN
+ok   score_review_look_straight_habit: CURVED WALKS on every seed, pilot outcome CURVED WALKS, gait reading WALKS, existence NONE SEEN
+ok   no look is required ((a) and (b) fail), and the look 'straight' cannot rescue a failed part
+ok   without the straightness records the video-agreed WALKS seeds are pending (awaiting the record)
+ok   habit seed mode on every 2,000,000 cell: exit 0, a report-only record naming the cell's checkpoint, 30 evaluations in the window
+ok   habit ledger mode on every stand-in ledger: exit 0
+ok   noise readout on every run: exit 0
+ok   noise: exp(log_std) at the four stand-in checkpoints equals the seed's parent (the edge keeps log_std); the TensorBoard and forward parts read 'not run' (no event file, no gate_progress.npz in a stand-in run)
+ok   mirror on every 2,000,000 cell: exit 0
+ok   mech on every 2,000,000 cell: exit 0
+ok   mirror on the cells equals the readouts lane's --parent records (handedness, flips, mirror-KL, actuators), every pi episode equal to probe.json's
+ok   mech on the cells equals the readouts lane's --parent records (aggregates, leg power), every episode equal to probe.json's
+ok   video tool: its cell checks pass (no refusal) and it reads the scorer's listing; it stops at the renderer (MUJOCO_GL=disable), so the render path is NOT RUN here
+ok   the shared tree is clean after phase A
+ok   the shared tree is clean after phase B
+ok   the shared tree is clean after phase C
+65/65 checks true

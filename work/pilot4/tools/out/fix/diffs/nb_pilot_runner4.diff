@@ -1,0 +1,25 @@
+--- TOOLS-stage/nb_pilot_runner4.py
++++ fix-stage/nb_pilot_runner4.py
+@@ -46,6 +46,10 @@
+                        anywhere but the clone. params "expect_head" (optional): the clone's HEAD must equal it, and
+                        its tracked files must be unmodified (git status --porcelain --untracked-files=no), else
+                        refused.
++  QUICK_TEST only      (fix stage) Unless --stop-at-learn or --plan-only is given, params config QUICK_TEST must be
++                       true (the JSON literal), else the runner refuses (exit 2) before reading the notebook: the only
++                       training v3 permits before launch is the QUICK_TEST CPU smoke ("Pre-launch checks"), so no
++                       launch or resume of the full 2,000,000-step stage can run here.
+ Kept from pilot 3: --phase resume (the RESUME cell: RESUME_STAGE = <params resume_stage>, then Run all, which the
+ guard stops after the RESUME cell trained; then section 9's cell; the manual cell is not run), --stop-after-pair N
+ (os._exit(75) once the periodic pair at N is on disk, no final save), --plan-only (cells_edited.json, nothing runs),
+@@ -549,6 +553,11 @@
+         if a.stop_at_learn and a.phase != "launch":
+             raise RunnerRefusal("--stop-at-learn checks the launch's entry (the manual cell); the resume phase needs "
+                                 "the smoke's own pair and trains")
++        quick_test = (params.get("config") or {}).get("QUICK_TEST")
++        if quick_test is not True and not a.stop_at_learn and not a.plan_only:
++            raise RunnerRefusal(f"config QUICK_TEST is {quick_test!r}, not true, and neither --stop-at-learn nor "
++                                "--plan-only is given: this runner trains only the pre-registered QUICK_TEST CPU smoke "
++                                "(v3 'Pre-launch checks')")
+         nb = json.loads(nb_path.read_text())
+         RECORD["notebook_sha256"] = sha256_file(nb_path)
+         try:

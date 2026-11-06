@@ -1,0 +1,153 @@
+{
+ "schema": "walking-pilot4-judge/v1",
+ "tree": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree",
+ "branch": "claude/pilot-walk-r10-p4",
+ "branch_how": "detached HEAD at the tip of the local branch",
+ "head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+ "run": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/runs/pilot4_walk_s52",
+ "run_id": "pilot4_walk_s52",
+ "seed": 52,
+ "steps": 1500000,
+ "checkpoint": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/runs/pilot4_walk_s52/03_locomotion/models/stage2_1500000_steps.zip",
+ "checkpoint_sha256": "sha256:7703879710c9efff1352da50bb355e5bf755463cb0849926ddd10744de80c301",
+ "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/runs/pilot4_walk_s52/03_locomotion/models/stage2_vecnormalize_1500000_steps.pkl",
+ "vecnorm_sha256": "sha256:5dfff6258539456fa48ba02738743516c399b16f662be12649027f9d2bc0a4ae",
+ "stage_config_run": {
+  "seed": 52,
+  "n_envs": 4,
+  "timesteps": 2000000,
+  "hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+  "label": "walking pilot 4 s52",
+  "load_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps.zip",
+  "load_mode": "initialize_next_stage",
+  "parent_checkpoint_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+  "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+ },
+ "stage_config_git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+ "commit_note": null,
+ "parent_checkpoint_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+ "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+ "entry": {
+  "warmup_timesteps": 0,
+  "ramp_start_value": 2.0,
+  "initialize_from_own_checkpoint": true,
+  "critic_phase_dropped_recorded": false,
+  "warm_start_log_std_recorded": false
+ },
+ "lineage": {
+  "mode": "initialize_next_stage",
+  "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+  "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "parent_species": "tyrannosaurus_rex",
+  "parent_embodiment": "anatomical",
+  "parent_stage": 2,
+  "zeroed_command_parameters": [
+   "mlp_extractor.policy_net.0.weight",
+   "mlp_extractor.value_net.0.weight"
+  ]
+ },
+ "env_binding": {
+  "command_mode": "heading",
+  "command_config": {
+   "cruise_speed": 1.5,
+   "stop_probability": 0.0,
+   "turn_increment_max": 0.0,
+   "straight_probability": 1.0,
+   "speed_scale": 1.5,
+   "lateral_speed_scale": 1.0,
+   "yaw_rate_scale": 0.6,
+   "yaw_gain": 1.5,
+   "yaw_rate_max": 0.3,
+   "turn_slowdown": true,
+   "minimum_turn_speed_fraction": 0.25
+  },
+  "prey_lateral_range": [
+   0.0,
+   0.0
+  ],
+  "walk_heading_price_weight": 0.2,
+  "walk_heading_price_scale_rad": 0.5,
+  "walk_support_gate_bw": 0.04,
+  "airborne_substep_weight": 1.0,
+  "forward_vel_max": 1.5,
+  "walk_touchdown_weight": 0.1
+ },
+ "committed_command_config": {
+  "cruise_speed": 1.5,
+  "stop_probability": 0.0,
+  "turn_increment_max": 0.0,
+  "straight_probability": 1.0,
+  "speed_scale": 1.5,
+  "lateral_speed_scale": 1.0,
+  "yaw_rate_scale": 0.6,
+  "yaw_gain": 1.5,
+  "yaw_rate_max": 0.3,
+  "turn_slowdown": true,
+  "minimum_turn_speed_fraction": 0.25
+ },
+ "env_kwargs_drift": {},
+ "probe_env_kwargs_drift": {},
+ "text_anchors_checked": true,
+ "task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+ "n_envs": 4,
+ "curriculum_cadence": {
+  "eval_freq": 65536,
+  "eval_episodes": 10,
+  "checkpoint_freq": 250000,
+  "max_checkpoints": 0
+ },
+ "cadence_checked": true,
+ "hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+ "plant": {
+  "physics_revision": 10,
+  "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+  "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+ },
+ "ramp_timesteps": 2000000,
+ "warmup_timesteps": 0,
+ "ramp_start_value": 2.0,
+ "forward_vel_weight": 2.0,
+ "shaping_inert": true,
+ "resume_step": null,
+ "off_schedule": false,
+ "off_schedule_reason": null,
+ "final_fallback": false,
+ "final_fallback_record": null,
+ "run_end": {
+  "periodic_steps": [
+   500000,
+   1000000,
+   1500000,
+   2000000
+  ],
+  "newest_periodic_steps": 2000000,
+  "intact_periodic_steps": [
+   500000,
+   1000000,
+   1500000,
+   2000000
+  ],
+  "newest_intact_periodic_steps": 2000000,
+  "broken_periodic": {},
+  "final_num_timesteps": null,
+  "final_source": null,
+  "budget": 2000000,
+  "stopped_early": null
+ },
+ "probe_args": [
+  "--species",
+  "tyrannosaurus_rex",
+  "--stage",
+  "locomotion",
+  "--episodes",
+  "40",
+  "--seed-scheme",
+  "panel",
+  "--seed-base",
+  "3042",
+  "--settle-steps",
+  "100"
+ ],
+ "expected_budget": 2000000,
+ "validation_only": false
+}

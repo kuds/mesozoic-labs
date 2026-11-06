@@ -1,0 +1,559 @@
+{
+ "schema": "walking-pilot4-mirror/v1",
+ "report_only": "report only (criteria_pilot4 v3 'Report only'): no outcome, label, bar, gate or run decision reads this; it certifies nothing",
+ "tool_sha256": "sha256:862b25b99502217735cb6b13dbd0f54ae79a952e26a2f9934816097e09713b6f",
+ "tree": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree",
+ "head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+ "environments_file": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree/environments/__init__.py",
+ "probe": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree/docs/investigations/gait_2026_09/gait_probe.py",
+ "probe_sha256": "sha256:61651b160eafe0ac50c613d97d5bad2ad6bd866e90cb2b065a256effe236d3a2",
+ "mode": "cell",
+ "cell": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/e2e/OUT/s60/2000000",
+ "binding_schema": "walking-pilot4-judge/v1",
+ "validation": false,
+ "seed": 60,
+ "steps": 2000000,
+ "checkpoint": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s60/03_locomotion/models/stage2_2000000_steps.zip",
+ "checkpoint_sha256": "sha256:152b9c8cf592598b875b0b4c0ea8ac27883196188c47ea1c3ff755d83d92f25f",
+ "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/runs/pilot4_walk_s60/03_locomotion/models/stage2_vecnormalize_2000000_steps.pkl",
+ "vecnorm_sha256": "sha256:33058082a1ba06d4e6b27c43ebff3e898f034e1d07b72deeb2ddf90310cb9cca",
+ "env_command_mode": "heading",
+ "env_prey_lateral_range": [
+  0.0,
+  0.0
+ ],
+ "horizon": 1000,
+ "settle_steps_gait_window": 100,
+ "settle_steps_gate": 0,
+ "edge_prepared": false,
+ "edge_check_max_action_delta": null,
+ "mirror_map": {
+  "path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tree/configs/tyrannosaurus_rex/anatomical/mirror_map.json",
+  "sha256": "76272aa04bdf542f876e5f82fc38a437d02eda94744c826974bed7dc77e11b91",
+  "obs_dim": 63,
+  "action_dim": 15,
+  "equals_build_env_mirror": true,
+  "build_env_mirror_note": null
+ },
+ "panel_seed_base": 3042,
+ "mirror_episodes": 10,
+ "lk_episodes": 20,
+ "pi_episodes_match_probe": [
+  {
+   "episode": 0,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 1,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 2,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 3,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 4,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 5,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 6,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 7,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 8,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 9,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 10,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 11,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 12,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 13,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 14,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 15,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 16,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 17,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 18,
+   "matches_probe": true,
+   "differing_keys": []
+  },
+  {
+   "episode": 19,
+   "matches_probe": true,
+   "differing_keys": []
+  }
+ ],
+ "all_pi_episodes_match_probe": true,
+ "pi_episodes": [
+  {
+   "reset_seed": 3042,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -33.64199877152816
+  },
+  {
+   "reset_seed": 3043,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -16.50730500637034
+  },
+  {
+   "reset_seed": 3044,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -26.35994921942821
+  },
+  {
+   "reset_seed": 3045,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -46.28670840731709
+  },
+  {
+   "reset_seed": 3046,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -35.86273418030161
+  },
+  {
+   "reset_seed": 3047,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -31.201310309767585
+  },
+  {
+   "reset_seed": 3048,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -27.107406691152846
+  },
+  {
+   "reset_seed": 3049,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -45.558579183745536
+  },
+  {
+   "reset_seed": 3050,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -21.89621194808445
+  },
+  {
+   "reset_seed": 3051,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -25.789247868169053
+  },
+  {
+   "reset_seed": 3052,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -35.38572782405684
+  },
+  {
+   "reset_seed": 3053,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -44.073391044996875
+  },
+  {
+   "reset_seed": 3054,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -3.2821092797013045
+  },
+  {
+   "reset_seed": 3055,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -24.11575439805748
+  },
+  {
+   "reset_seed": 3056,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -25.33928407644009
+  },
+  {
+   "reset_seed": 3057,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -14.802245994457298
+  },
+  {
+   "reset_seed": 3058,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -30.577719424483217
+  },
+  {
+   "reset_seed": 3059,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -31.97584332804258
+  },
+  {
+   "reset_seed": 3060,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -28.61000519265553
+  },
+  {
+   "reset_seed": 3061,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": -36.03719975743758
+  }
+ ],
+ "pim_episodes": [
+  {
+   "reset_seed": 3042,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 51.71239615006288
+  },
+  {
+   "reset_seed": 3043,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 28.498103854075932
+  },
+  {
+   "reset_seed": 3044,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 31.35906847598666
+  },
+  {
+   "reset_seed": 3045,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 46.95687764011668
+  },
+  {
+   "reset_seed": 3046,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 37.548380572507504
+  },
+  {
+   "reset_seed": 3047,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 38.06192897321187
+  },
+  {
+   "reset_seed": 3048,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 41.92580252443726
+  },
+  {
+   "reset_seed": 3049,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 26.198406330549858
+  },
+  {
+   "reset_seed": 3050,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 27.739421842567094
+  },
+  {
+   "reset_seed": 3051,
+   "length": 1000,
+   "terminated": false,
+   "yaw_change_deg": 22.892191246434237
+  }
+ ],
+ "pairs": [
+  {
+   "reset_seed": 3042,
+   "yaw_pi_deg": -33.64199877152816,
+   "yaw_pim_deg": 51.71239615006288,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -42.67719746079552,
+   "scene_part_deg": 9.03519868926736
+  },
+  {
+   "reset_seed": 3043,
+   "yaw_pi_deg": -16.50730500637034,
+   "yaw_pim_deg": 28.498103854075932,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -22.502704430223137,
+   "scene_part_deg": 5.9953994238527955
+  },
+  {
+   "reset_seed": 3044,
+   "yaw_pi_deg": -26.35994921942821,
+   "yaw_pim_deg": 31.35906847598666,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -28.859508847707435,
+   "scene_part_deg": 2.4995596282792256
+  },
+  {
+   "reset_seed": 3045,
+   "yaw_pi_deg": -46.28670840731709,
+   "yaw_pim_deg": 46.95687764011668,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -46.62179302371689,
+   "scene_part_deg": 0.3350846163997936
+  },
+  {
+   "reset_seed": 3046,
+   "yaw_pi_deg": -35.86273418030161,
+   "yaw_pim_deg": 37.548380572507504,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -36.705557376404556,
+   "scene_part_deg": 0.8428231961029482
+  },
+  {
+   "reset_seed": 3047,
+   "yaw_pi_deg": -31.201310309767585,
+   "yaw_pim_deg": 38.06192897321187,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -34.63161964148973,
+   "scene_part_deg": 3.4303093317221425
+  },
+  {
+   "reset_seed": 3048,
+   "yaw_pi_deg": -27.107406691152846,
+   "yaw_pim_deg": 41.92580252443726,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -34.51660460779505,
+   "scene_part_deg": 7.409197916642206
+  },
+  {
+   "reset_seed": 3049,
+   "yaw_pi_deg": -45.558579183745536,
+   "yaw_pim_deg": 26.198406330549858,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -35.8784927571477,
+   "scene_part_deg": -9.680086426597839
+  },
+  {
+   "reset_seed": 3050,
+   "yaw_pi_deg": -21.89621194808445,
+   "yaw_pim_deg": 27.739421842567094,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -24.81781689532577,
+   "scene_part_deg": 2.921604947241322
+  },
+  {
+   "reset_seed": 3051,
+   "yaw_pi_deg": -25.789247868169053,
+   "yaw_pim_deg": 22.892191246434237,
+   "length_pi": 1000,
+   "length_pim": 1000,
+   "both_full": true,
+   "flipped": true,
+   "handedness_deg": -24.340719557301647,
+   "scene_part_deg": -1.4485283108674079
+  }
+ ],
+ "summary": {
+  "episodes": 10,
+  "comparable": 10,
+  "both_full": 10,
+  "flipped": 10,
+  "pi_right": 10,
+  "pi_left": 0,
+  "pim_right": 0,
+  "pim_left": 10,
+  "yaw_pi_deg": {
+   "n": 10,
+   "min": -46.28670840731709,
+   "median": -29.154358500460216,
+   "max": -16.50730500637034
+  },
+  "yaw_pim_deg": {
+   "n": 10,
+   "min": 22.892191246434237,
+   "median": 34.45372452424708,
+   "max": 51.71239615006288
+  },
+  "handedness_deg": {
+   "n": 10,
+   "min": -46.62179302371689,
+   "median": -34.57411212464239,
+   "max": -22.502704430223137
+  },
+  "scene_part_deg": {
+   "n": 10,
+   "min": -9.680086426597839,
+   "median": 2.710582287760274,
+   "max": 9.03519868926736
+  },
+  "pi_falls": 0,
+  "pim_falls": 0
+ },
+ "actuator_mean_pi_minus_pim_steps_from_100": {
+  "neck_pitch_act": -0.04804419152252376,
+  "neck_yaw_act": -0.13611725602417976,
+  "head_pitch_act": -0.07225463796831254,
+  "r_hip_pitch_act": 0.18421981757382552,
+  "r_hip_roll_act": -0.2533526302007958,
+  "r_knee_act": -0.011112666796634179,
+  "r_ankle_act": -0.18782299960259763,
+  "l_hip_pitch_act": -0.14986334546034535,
+  "l_hip_roll_act": -0.09859054261456349,
+  "l_knee_act": -0.04162390806784647,
+  "l_ankle_act": 0.045030522377747635,
+  "tail_1_pitch_act": -0.025559005692213154,
+  "tail_1_yaw_act": 0.22759450739267698,
+  "tail_2_pitch_act": -0.0731395825913383,
+  "tail_3_pitch_act": 0.06754045725091257
+ },
+ "mirstate": {
+  "run": false
+ },
+ "mirror_kl": {
+  "states": 20000,
+  "episodes": 20,
+  "sigma_floor": 0.01,
+  "kappa": 0.3,
+  "log_std": {
+   "min": -2.348068952560425,
+   "mean": -1.9591017961502075,
+   "max": -1.661561369895935
+  },
+  "own_statistics": {
+   "L_K": 54.06338119506836,
+   "kappa_L_K": 16.219014358520507,
+   "asymmetry": 0.3824801445007324,
+   "numpy_cross_check_L_K": 54.06337969895226,
+   "numpy_cross_check_asymmetry": 0.38248012605623083
+  },
+  "symmetrised_statistics": {
+   "L_K": 54.8031120300293,
+   "kappa_L_K": 16.440933609008788,
+   "asymmetry": 0.37574219703674316,
+   "numpy_cross_check_L_K": 54.803109667670284,
+   "numpy_cross_check_asymmetry": 0.37574217018889905
+  }
+ },
+ "pilot3_reference": {
+  "source_handedness": "veer/policy/out/AGGREGATE3.txt B1, 8M, median of (yaw_pi - yaw_pim)/2 over full episodes",
+  "handedness_median_deg": {
+   "42": -26.1,
+   "52": -47.2,
+   "60": -32.5
+  },
+  "source_pim_yaw": "veer/policy/out/AGGREGATE.txt T6, 8M, pi_m yaw min/median/max (deg), 10 resets",
+  "pim_yaw_min_med_max_deg": {
+   "42": [
+    19,
+    24,
+    43
+   ],
+   "52": [
+    36,
+    48,
+    52
+   ],
+   "60": [
+    23,
+    42,
+    57
+   ]
+  },
+  "source_lk": "veer/screen/out/lk_check.txt (own statistics / symmetrised statistics)",
+  "lk_own": {
+   "42": 78.508,
+   "52": 41.671,
+   "60": 54.005
+  },
+  "lk_symmetrised": {
+   "42": 70.724,
+   "52": 41.119,
+   "60": 54.832
+  },
+  "lk_stance_parent_on_its_standing": 0.049
+ }
+}

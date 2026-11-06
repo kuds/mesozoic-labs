@@ -1,0 +1,171 @@
+{
+ "schema": "walking-pilot4-noise/v1",
+ "report_only": true,
+ "tool_sha256": "sha256:8905669b11019b148c21e0bc752b0acc7622ea0ebc220a1d1dcba296f96fb873",
+ "run": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/runs/resume/pilot4_walk_s42",
+ "checkpoints": {
+  "periodic": [
+   {
+    "steps": 32768,
+    "file": "stage2_32768_steps.zip",
+    "mean": 0.14669007206242293,
+    "min": 0.10637180946450737,
+    "max": 0.18178995274744927,
+    "n": 15
+   },
+   {
+    "steps": 65536,
+    "file": "stage2_65536_steps.zip",
+    "mean": 0.14679587197194627,
+    "min": 0.10639336851228519,
+    "max": 0.1821542609308258,
+    "n": 15
+   }
+  ],
+  "final": {
+   "file": "stage2_final.zip",
+   "mean": 0.14679299452403807,
+   "min": 0.10639349534313952,
+   "max": 0.18215615010038524,
+   "n": 15
+  }
+ },
+ "tensorboard": {
+  "files": [
+   {
+    "path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/runs/resume/pilot4_walk_s42/03_locomotion/tensorboard/PPO_1/events.out.tfevents.1793968192.vm.21398.0",
+    "records": 118,
+    "stopped": null
+   },
+   {
+    "path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/runs/resume/pilot4_walk_s42/03_locomotion/tensorboard/PPO_1/events.out.tfevents.1793968643.vm.22419.0",
+    "records": 347,
+    "stopped": null
+   }
+  ],
+  "tags_found": 241,
+  "train/std": {
+   "n": 2,
+   "first_steps": [
+    [
+     32768,
+     0.14669007062911987
+    ],
+    [
+     65536,
+     0.14679589867591858
+    ]
+   ],
+   "first": [
+    32768,
+    0.14669007062911987
+   ],
+   "last": [
+    65536,
+    0.14679589867591858
+   ],
+   "blocks": [
+    {
+     "from": 0,
+     "to": 250000,
+     "n": 2,
+     "mean": 0.14674298465251923,
+     "min": 0.14669007062911987,
+     "max": 0.14679589867591858
+    }
+   ],
+   "all": [
+    [
+     32768,
+     0.14669007062911987
+    ],
+    [
+     65536,
+     0.14679589867591858
+    ]
+   ],
+   "steps_not_increasing": false
+  },
+  "train/value_loss": {
+   "n": 2,
+   "first_steps": [
+    [
+     32768,
+     0.11808076500892639
+    ],
+    [
+     65536,
+     0.0005276775336824358
+    ]
+   ],
+   "first": [
+    32768,
+    0.11808076500892639
+   ],
+   "last": [
+    65536,
+    0.0005276775336824358
+   ]
+  },
+  "train/explained_variance": {
+   "n": 2,
+   "first_steps": [
+    [
+     32768,
+     -0.073455810546875
+    ],
+    [
+     65536,
+     -0.2538853883743286
+    ]
+   ],
+   "first": [
+    32768,
+    -0.073455810546875
+   ],
+   "last": [
+    65536,
+    -0.2538853883743286
+   ]
+  }
+ },
+ "forward": {
+  "file": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/runs/resume/pilot4_walk_s42/03_locomotion/gate_progress.npz",
+  "sha256": "sha256:7548e216eb2f95f0b229f4d9c0d9123acf619fdb789b0c507c46d3e4576bd944",
+  "rows": [
+   {
+    "timesteps": 32768,
+    "term_forward": 1941.0778331685892,
+    "full_horizon_term_forward": 1941.0778331685906
+   },
+   {
+    "timesteps": 65536,
+    "term_forward": 1941.2393261230798,
+    "full_horizon_term_forward": 1941.2393261230804
+   }
+  ]
+ },
+ "references": {
+  "seed": 42,
+  "parent_std": {
+   "42": {
+    "mean": 0.14665701759809271,
+    "min": 0.10631248123897372,
+    "max": 0.18167976718752318
+   }
+  },
+  "parent_sha256": {
+   "42": "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4"
+  },
+  "forward_pilot3_8M": {
+   "42": {
+    "steps": 7995392,
+    "term_forward": 1943.4951736510022,
+    "full_horizon_term_forward": 1943.4951736510025
+   }
+  },
+  "warmup_steps": 0,
+  "first_steps": 65536,
+  "block": 250000
+ }
+}

@@ -1,0 +1,2296 @@
+{
+ "summary": {
+  "42": {
+   "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+   "errors": {},
+   "guard_hits_final": [],
+   "learn_reached": true,
+   "manual_cell_stopped_by_learn_stop": true,
+   "pairs_unchanged": true,
+   "git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+   "load_mode": "initialize_next_stage",
+   "lineage_mode": "initialize_next_stage",
+   "zeroed_command_parameters": [
+    "mlp_extractor.policy_net.0.weight",
+    "mlp_extractor.value_net.0.weight"
+   ],
+   "task_recorded": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "task_tree": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_task": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "hp_ppo_recorded": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "hp_ppo_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "tensors_changed": {
+    "mlp_extractor.policy_net.0.weight": [
+     1536,
+     [
+      60,
+      61,
+      62
+     ],
+     0.0
+    ],
+    "mlp_extractor.value_net.0.weight": [
+     1536,
+     [
+      60,
+      61,
+      62
+     ],
+     0.0
+    ]
+   },
+   "columns_0_60_bit_equal": {
+    "mlp_extractor.policy_net.0.weight": true,
+    "mlp_extractor.value_net.0.weight": true
+   },
+   "log_std_bit_equal_parent": true,
+   "obs_rms_train": {
+    "mean_0_60_bit_equal_parent": true,
+    "var_0_60_bit_equal_parent": true,
+    "mean_60_63": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var_60_63": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "ret_rms_count": 0.0001
+   },
+   "obs_rms_eval": {
+    "mean_0_60_bit_equal_parent": true,
+    "var_0_60_bit_equal_parent": true,
+    "mean_60_63": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var_60_63": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "start_actions": {
+    "steps": 1000,
+    "steps_with_nonzero_command_inputs": 0,
+    "max_abs_action_delta_new_vs_pilot3": 0.0,
+    "max_abs_mean_delta_new_vs_pilot3": 0.0,
+    "max_abs_value_delta_new_vs_pilot3": 0.0
+   },
+   "rollout": {
+    "steps": 1000,
+    "terminated": false,
+    "price_sum": -34.18652465995337,
+    "price_min_step": -0.1589022348365985,
+    "obs62": {
+     "min": -0.4830490052700043,
+     "max": 0.5,
+     "end": 0.5
+    },
+    "obs60": {
+     "min": 0.9221262335777283,
+     "max": 1.0,
+     "end": 0.9221262335777283
+    },
+    "theta_deg": {
+     "end": -22.76106852833444,
+     "max_abs": 22.76106852833444,
+     "rms": 7.364813688616745,
+     "mean": -2.313316771552778
+    },
+    "metrics": {
+     "steps": 1000,
+     "yaw_change_deg": -22.76106852833446,
+     "swing_deg": 33.831736345107295,
+     "max_abs_yaw_from_start_deg": 22.76106852833446,
+     "rms_yaw_from_start_deg": 7.3611340412780795,
+     "detrended_swing_deg": 17.775747460949624,
+     "detrended_rms_deg": 4.275999376097784,
+     "forward_m": 25.253850922709645,
+     "lateral_m": 0.31286342032014947
+    },
+    "obs62_saturated_steps": 127,
+    "price_saturated_steps": 0,
+    "return_built_env": 3068.926301100685,
+    "return_twin": 3103.1128257606388,
+    "obs_0_60_mismatch_steps": 0,
+    "state_mismatch_steps": 0,
+    "flag_mismatch_steps": 0,
+    "reward_identity_fail_steps": 0,
+    "reward_total_identity_fail_steps": 0,
+    "common_info_keys_with_any_mismatch": {
+     "reward_total": 1000
+    },
+    "info_keys_only_in_built_env": [
+     "reward_walk_heading_price",
+     "walk_heading_error_rad"
+    ],
+    "info_keys_only_in_twin": [],
+    "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+    "max_value_delta_vs_pilot3_on_zeroed": 0.0
+   },
+   "price_weight_zero_twin": {
+    "obs_mismatch_steps": 0,
+    "state_mismatch_steps": 0,
+    "flag_mismatch_steps": 0,
+    "reward_identity_fail_steps": 0,
+    "reward_total_identity_fail_steps": 0,
+    "keys_only_on": [
+     "reward_walk_heading_price",
+     "walk_heading_error_rad"
+    ],
+    "keys_only_off": [],
+    "common_mismatch": {
+     "reward_total": 1000
+    },
+    "reset_obs_equal": true,
+    "n_common_info_keys": 92,
+    "r6_info_keys_common": [
+     "reward_walk_touchdown",
+     "walk_support",
+     "walk_touchdown_unit",
+     "walk_touchdowns_registered"
+    ],
+    "kwargs_differ_only_in": [
+     "walk_heading_price_weight"
+    ]
+   },
+   "same_as_7700f28_check": {
+    "rollout": {
+     "steps": true,
+     "terminated": true,
+     "price_sum": true,
+     "price_min_step": true,
+     "obs62": true,
+     "obs60": true,
+     "theta_deg": true,
+     "metrics": true,
+     "obs62_saturated_steps": true,
+     "price_saturated_steps": true,
+     "return_built_env": true,
+     "return_twin": true,
+     "obs_0_60_mismatch_steps": true,
+     "state_mismatch_steps": true,
+     "flag_mismatch_steps": true,
+     "reward_identity_fail_steps": true,
+     "reward_total_identity_fail_steps": true,
+     "common_info_keys_with_any_mismatch": true,
+     "info_keys_only_in_built_env": true,
+     "info_keys_only_in_twin": true,
+     "max_action_delta_vs_pilot3_on_zeroed": true,
+     "max_value_delta_vs_pilot3_on_zeroed": true
+    },
+    "start_actions": true,
+    "vecnormalize": true,
+    "weights_log_std": true,
+    "extra_episodes": true
+   },
+   "p3_side": {
+    "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py",
+    "pilot3_env_kwargs_equal_built_p3x": true,
+    "pilot3_env_kwargs_diff": {},
+    "twin_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "p3x_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "p3x_builtactions_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "pilot3_closed_loop_actions_bit_equal": true
+   }
+  },
+  "52": {
+   "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+   "errors": {},
+   "guard_hits_final": [],
+   "learn_reached": true,
+   "manual_cell_stopped_by_learn_stop": true,
+   "pairs_unchanged": true,
+   "git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+   "load_mode": "initialize_next_stage",
+   "lineage_mode": "initialize_next_stage",
+   "zeroed_command_parameters": [
+    "mlp_extractor.policy_net.0.weight",
+    "mlp_extractor.value_net.0.weight"
+   ],
+   "task_recorded": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "task_tree": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_task": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "hp_ppo_recorded": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "hp_ppo_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "tensors_changed": {
+    "mlp_extractor.policy_net.0.weight": [
+     1536,
+     [
+      60,
+      61,
+      62
+     ],
+     0.0
+    ],
+    "mlp_extractor.value_net.0.weight": [
+     1536,
+     [
+      60,
+      61,
+      62
+     ],
+     0.0
+    ]
+   },
+   "columns_0_60_bit_equal": {
+    "mlp_extractor.policy_net.0.weight": true,
+    "mlp_extractor.value_net.0.weight": true
+   },
+   "log_std_bit_equal_parent": true,
+   "obs_rms_train": {
+    "mean_0_60_bit_equal_parent": true,
+    "var_0_60_bit_equal_parent": true,
+    "mean_60_63": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var_60_63": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "ret_rms_count": 0.0001
+   },
+   "obs_rms_eval": {
+    "mean_0_60_bit_equal_parent": true,
+    "var_0_60_bit_equal_parent": true,
+    "mean_60_63": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var_60_63": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "start_actions": {
+    "steps": 1000,
+    "steps_with_nonzero_command_inputs": 0,
+    "max_abs_action_delta_new_vs_pilot3": 0.0,
+    "max_abs_mean_delta_new_vs_pilot3": 0.0,
+    "max_abs_value_delta_new_vs_pilot3": 0.0
+   },
+   "rollout": {
+    "steps": 1000,
+    "terminated": false,
+    "price_sum": -79.2648337060844,
+    "price_min_step": -0.2,
+    "obs62": {
+     "min": -0.5,
+     "max": 0.5,
+     "end": 0.5
+    },
+    "obs60": {
+     "min": 0.8775623440742493,
+     "max": 1.0,
+     "end": 0.9025866389274597
+    },
+    "theta_deg": {
+     "end": -25.499823759878687,
+     "max_abs": 28.650307002063713,
+     "rms": 12.992204750187707,
+     "mean": 1.864201511568156
+    },
+    "metrics": {
+     "steps": 1000,
+     "yaw_change_deg": -25.4998237598787,
+     "swing_deg": 48.166415328453326,
+     "max_abs_yaw_from_start_deg": 28.65030700206377,
+     "rms_yaw_from_start_deg": 12.985713515832886,
+     "detrended_swing_deg": 31.78614886600613,
+     "detrended_rms_deg": 6.662774188734056,
+     "forward_m": 23.21006442072948,
+     "lateral_m": -0.7968805049534987
+    },
+    "obs62_saturated_steps": 401,
+    "price_saturated_steps": 2,
+    "return_built_env": 2968.3466954949636,
+    "return_twin": 3047.6115292010477,
+    "obs_0_60_mismatch_steps": 0,
+    "state_mismatch_steps": 0,
+    "flag_mismatch_steps": 0,
+    "reward_identity_fail_steps": 0,
+    "reward_total_identity_fail_steps": 0,
+    "common_info_keys_with_any_mismatch": {
+     "reward_total": 1000
+    },
+    "info_keys_only_in_built_env": [
+     "reward_walk_heading_price",
+     "walk_heading_error_rad"
+    ],
+    "info_keys_only_in_twin": [],
+    "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+    "max_value_delta_vs_pilot3_on_zeroed": 0.0
+   },
+   "price_weight_zero_twin": {
+    "obs_mismatch_steps": 0,
+    "state_mismatch_steps": 0,
+    "flag_mismatch_steps": 0,
+    "reward_identity_fail_steps": 0,
+    "reward_total_identity_fail_steps": 0,
+    "keys_only_on": [
+     "reward_walk_heading_price",
+     "walk_heading_error_rad"
+    ],
+    "keys_only_off": [],
+    "common_mismatch": {
+     "reward_total": 1000
+    },
+    "reset_obs_equal": true,
+    "n_common_info_keys": 92,
+    "r6_info_keys_common": [
+     "reward_walk_touchdown",
+     "walk_support",
+     "walk_touchdown_unit",
+     "walk_touchdowns_registered"
+    ],
+    "kwargs_differ_only_in": [
+     "walk_heading_price_weight"
+    ]
+   },
+   "same_as_7700f28_check": {
+    "rollout": {
+     "steps": true,
+     "terminated": true,
+     "price_sum": true,
+     "price_min_step": true,
+     "obs62": true,
+     "obs60": true,
+     "theta_deg": true,
+     "metrics": true,
+     "obs62_saturated_steps": true,
+     "price_saturated_steps": true,
+     "return_built_env": true,
+     "return_twin": true,
+     "obs_0_60_mismatch_steps": true,
+     "state_mismatch_steps": true,
+     "flag_mismatch_steps": true,
+     "reward_identity_fail_steps": true,
+     "reward_total_identity_fail_steps": true,
+     "common_info_keys_with_any_mismatch": true,
+     "info_keys_only_in_built_env": true,
+     "info_keys_only_in_twin": true,
+     "max_action_delta_vs_pilot3_on_zeroed": true,
+     "max_value_delta_vs_pilot3_on_zeroed": true
+    },
+    "start_actions": true,
+    "vecnormalize": true,
+    "weights_log_std": true,
+    "extra_episodes": true
+   },
+   "p3_side": {
+    "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py",
+    "pilot3_env_kwargs_equal_built_p3x": true,
+    "pilot3_env_kwargs_diff": {},
+    "twin_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "p3x_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "p3x_builtactions_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "pilot3_closed_loop_actions_bit_equal": true
+   }
+  },
+  "60": {
+   "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+   "errors": {},
+   "guard_hits_final": [],
+   "learn_reached": true,
+   "manual_cell_stopped_by_learn_stop": true,
+   "pairs_unchanged": true,
+   "git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+   "load_mode": "initialize_next_stage",
+   "lineage_mode": "initialize_next_stage",
+   "zeroed_command_parameters": [
+    "mlp_extractor.policy_net.0.weight",
+    "mlp_extractor.value_net.0.weight"
+   ],
+   "task_recorded": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "task_tree": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_task": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "hp_ppo_recorded": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "hp_ppo_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "tensors_changed": {
+    "mlp_extractor.policy_net.0.weight": [
+     1536,
+     [
+      60,
+      61,
+      62
+     ],
+     0.0
+    ],
+    "mlp_extractor.value_net.0.weight": [
+     1536,
+     [
+      60,
+      61,
+      62
+     ],
+     0.0
+    ]
+   },
+   "columns_0_60_bit_equal": {
+    "mlp_extractor.policy_net.0.weight": true,
+    "mlp_extractor.value_net.0.weight": true
+   },
+   "log_std_bit_equal_parent": true,
+   "obs_rms_train": {
+    "mean_0_60_bit_equal_parent": true,
+    "var_0_60_bit_equal_parent": true,
+    "mean_60_63": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var_60_63": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "ret_rms_count": 0.0001
+   },
+   "obs_rms_eval": {
+    "mean_0_60_bit_equal_parent": true,
+    "var_0_60_bit_equal_parent": true,
+    "mean_60_63": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "var_60_63": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "start_actions": {
+    "steps": 1000,
+    "steps_with_nonzero_command_inputs": 0,
+    "max_abs_action_delta_new_vs_pilot3": 0.0,
+    "max_abs_mean_delta_new_vs_pilot3": 0.0,
+    "max_abs_value_delta_new_vs_pilot3": 0.0
+   },
+   "rollout": {
+    "steps": 1000,
+    "terminated": false,
+    "price_sum": -97.62657082513523,
+    "price_min_step": -0.2,
+    "obs62": {
+     "min": -0.21234522759914398,
+     "max": 0.5,
+     "end": 0.5
+    },
+    "obs60": {
+     "min": 0.7268728613853455,
+     "max": 1.0,
+     "end": 0.7348200678825378
+    },
+    "theta_deg": {
+     "end": -42.70798931144658,
+     "max_abs": 43.37513218229898,
+     "rms": 19.05379745876374,
+     "mean": -14.052831344348967
+    },
+    "metrics": {
+     "steps": 1000,
+     "yaw_change_deg": -42.707989311446624,
+     "swing_deg": 48.24172600479162,
+     "max_abs_yaw_from_start_deg": 43.37513218229903,
+     "rms_yaw_from_start_deg": 19.0442776992593,
+     "detrended_swing_deg": 41.77131882211371,
+     "detrended_rms_deg": 12.068557714236494,
+     "forward_m": 20.4362274323387,
+     "lateral_m": -4.842465326317687
+    },
+    "obs62_saturated_steps": 530,
+    "price_saturated_steps": 134,
+    "return_built_env": 2947.696874593348,
+    "return_twin": 3045.323445418483,
+    "obs_0_60_mismatch_steps": 0,
+    "state_mismatch_steps": 0,
+    "flag_mismatch_steps": 0,
+    "reward_identity_fail_steps": 0,
+    "reward_total_identity_fail_steps": 0,
+    "common_info_keys_with_any_mismatch": {
+     "reward_total": 1000
+    },
+    "info_keys_only_in_built_env": [
+     "reward_walk_heading_price",
+     "walk_heading_error_rad"
+    ],
+    "info_keys_only_in_twin": [],
+    "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+    "max_value_delta_vs_pilot3_on_zeroed": 0.0
+   },
+   "price_weight_zero_twin": {
+    "obs_mismatch_steps": 0,
+    "state_mismatch_steps": 0,
+    "flag_mismatch_steps": 0,
+    "reward_identity_fail_steps": 0,
+    "reward_total_identity_fail_steps": 0,
+    "keys_only_on": [
+     "reward_walk_heading_price",
+     "walk_heading_error_rad"
+    ],
+    "keys_only_off": [],
+    "common_mismatch": {
+     "reward_total": 1000
+    },
+    "reset_obs_equal": true,
+    "n_common_info_keys": 92,
+    "r6_info_keys_common": [
+     "reward_walk_touchdown",
+     "walk_support",
+     "walk_touchdown_unit",
+     "walk_touchdowns_registered"
+    ],
+    "kwargs_differ_only_in": [
+     "walk_heading_price_weight"
+    ]
+   },
+   "same_as_7700f28_check": {
+    "rollout": {
+     "steps": true,
+     "terminated": true,
+     "price_sum": true,
+     "price_min_step": true,
+     "obs62": true,
+     "obs60": true,
+     "theta_deg": true,
+     "metrics": true,
+     "obs62_saturated_steps": true,
+     "price_saturated_steps": true,
+     "return_built_env": true,
+     "return_twin": true,
+     "obs_0_60_mismatch_steps": true,
+     "state_mismatch_steps": true,
+     "flag_mismatch_steps": true,
+     "reward_identity_fail_steps": true,
+     "reward_total_identity_fail_steps": true,
+     "common_info_keys_with_any_mismatch": true,
+     "info_keys_only_in_built_env": true,
+     "info_keys_only_in_twin": true,
+     "max_action_delta_vs_pilot3_on_zeroed": true,
+     "max_value_delta_vs_pilot3_on_zeroed": true
+    },
+    "start_actions": true,
+    "vecnormalize": true,
+    "weights_log_std": true,
+    "extra_episodes": true
+   },
+   "p3_side": {
+    "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py",
+    "pilot3_env_kwargs_equal_built_p3x": true,
+    "pilot3_env_kwargs_diff": {},
+    "twin_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "p3x_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "p3x_builtactions_replay_vs_built_tree": {
+     "steps": [
+      1000,
+      1000
+     ],
+     "obs_mismatch_rows": 0,
+     "reward_mismatch_rows": 0,
+     "terminated_mismatch_rows": 0,
+     "truncated_mismatch_rows": 0,
+     "qpos_mismatch_rows": 0,
+     "qvel_mismatch_rows": 0,
+     "heading_mismatch_rows": 0,
+     "xy_mismatch_rows": 0,
+     "info_key_set_mismatch_rows": 0,
+     "info_value_mismatch_counts": {},
+     "n_info_keys": 91,
+     "bit_identical": true
+    },
+    "pilot3_closed_loop_actions_bit_equal": true
+   }
+  }
+ },
+ "vs_setup_summary_7700f28": {
+  "42": {
+   "leaves_compared": 146,
+   "differing_leaves": [
+    [
+     "environments_imported_from",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py"
+    ],
+    [
+     "git_commit",
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+     "7700f288a9d761dd0c5af5df811b0e302306f5b8"
+    ],
+    [
+     "p3_side.environments_imported_from",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py"
+    ]
+   ],
+   "postfix_same_as_0bcb0cf_all_true": true,
+   "head_same_as_7700f28_all_true": true
+  },
+  "52": {
+   "leaves_compared": 146,
+   "differing_leaves": [
+    [
+     "environments_imported_from",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py"
+    ],
+    [
+     "git_commit",
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+     "7700f288a9d761dd0c5af5df811b0e302306f5b8"
+    ],
+    [
+     "p3_side.environments_imported_from",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py"
+    ]
+   ],
+   "postfix_same_as_0bcb0cf_all_true": true,
+   "head_same_as_7700f28_all_true": true
+  },
+  "60": {
+   "leaves_compared": 146,
+   "differing_leaves": [
+    [
+     "environments_imported_from",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py"
+    ],
+    [
+     "git_commit",
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+     "7700f288a9d761dd0c5af5df811b0e302306f5b8"
+    ],
+    [
+     "p3_side.environments_imported_from",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py",
+     "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py"
+    ]
+   ],
+   "postfix_same_as_0bcb0cf_all_true": true,
+   "head_same_as_7700f28_all_true": true
+  }
+ },
+ "deep_diff_setup_check": {
+  "42": {
+   "leaves_in_head_record": 1173,
+   "leaves_in_7700f28_record": 927,
+   "sections_with_differences": {
+    "callbacks": 3,
+    "capture": 2,
+    "environments_imported_from": 1,
+    "judge_binding": 1,
+    "runner": 12,
+    "runner_file": 1,
+    "runner_sha256": 1,
+    "stage_config": 5,
+    "stage_dir": 1,
+    "stops": 8,
+    "tree": 1
+   },
+   "sections_identical": [
+    "config_equals_load_all_stages",
+    "errors",
+    "extra_episodes",
+    "guard_hits",
+    "guard_hits_final",
+    "learn_reached",
+    "manual_cell_stopped_by_learn_stop",
+    "model_attributes",
+    "optimizer",
+    "pair_sha256_after",
+    "pair_sha256_before",
+    "replays_written",
+    "rollout",
+    "seed",
+    "shaping_simulation",
+    "stage_dir_listing",
+    "start_actions_on_pilot3_observations",
+    "vecnormalize",
+    "weights"
+   ],
+   "differences": {
+    "callbacks": [
+     [
+      "callbacks.attributes[0].best_model_save_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ],
+     [
+      "callbacks.attributes[0].log_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/tmp/eval_stage2_dil2p_hb/evaluations\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tmp/eval_stage2_h7fjd0hg/evaluations\""
+     ],
+     [
+      "callbacks.attributes[4].save_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "capture": [
+     [
+      "capture.at_learn.learn_kwargs.callback",
+      "\"<stable_baselines3.common.callbacks.CallbackList object at 0x7f26f09c4590>\"",
+      "\"<stable_baselines3.common.callbacks.CallbackList object at 0x7f968a223cb0>\""
+     ],
+     [
+      "capture.stack_tail",
+      "\"  File \\\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\\\", line 493, in run_cell\\...",
+      "\"  File \\\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tools/nb_pilot_runner3.py\\\", line 250,..."
+     ]
+    ],
+    "environments_imported_from": [
+     [
+      "environments_imported_from",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py\""
+     ]
+    ],
+    "judge_binding": [
+     [
+      "judge_binding",
+      "{\"judge_file\": \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_judge.py\", \"judge_sha256\": \"648d...",
+      "\"<absent>\""
+     ]
+    ],
+    "runner": [
+     [
+      "runner.cells[2].seconds",
+      "0.4",
+      "0.3"
+     ],
+     [
+      "runner.cells[3].seconds",
+      "1.8",
+      "1.1"
+     ],
+     [
+      "runner.cells[6].seconds",
+      "105.8",
+      "101.6"
+     ],
+     [
+      "runner.cells[10].message",
+      "\"Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.\"",
+      "\"Walking pilot 4 setup check: chain loop skipped on purpose; the manual cell runs next.\""
+     ],
+     [
+      "runner.cells[11].message",
+      "\"learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)\"",
+      "\"learn() stopped by the pilot-4 setup check (PPO.learn, nothing trained)\""
+     ],
+     [
+      "runner.cells[11].seconds",
+      "2.9",
+      "2.8"
+     ],
+     [
+      "runner.clone_head",
+      "\"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\"",
+      "\"7700f288a9d761dd0c5af5df811b0e302306f5b8\""
+     ],
+     [
+      "runner.exit",
+      "0",
+      "1"
+     ],
+     [
+      "runner.manual_cell.message",
+      "\"learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)\"",
+      "\"learn() stopped by the pilot-4 setup check (PPO.learn, nothing trained)\""
+     ],
+     [
+      "runner.manual_cell.seconds",
+      "2.9",
+      "2.8"
+     ],
+     [
+      "runner.record",
+      "{\"clone_head\": \"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\", \"manual_cell_stopped_at_learn\": true, \"learn_called\": [{\"class\": \"stable_baselines3.ppo.ppo.PPO\", \"to...",
+      "\"<absent>\""
+     ],
+     [
+      "runner.run_dir",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "runner_file": [
+     [
+      "runner_file",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\"",
+      "\"<absent>\""
+     ]
+    ],
+    "runner_sha256": [
+     [
+      "runner_sha256",
+      "\"33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd\"",
+      "\"<absent>\""
+     ]
+    ],
+    "stage_config": [
+     [
+      "stage_config.git_commit",
+      "\"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\"",
+      "\"7700f288a9d761dd0c5af5df811b0e302306f5b8\""
+     ],
+     [
+      "stage_config.run.label",
+      "\"walking pilot 4 s42\"",
+      "\"walking pilot 4 setup check s42\""
+     ],
+     [
+      "stage_config.run.load_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/pairs/s42/models/stage2_8000000_steps.zip\""
+     ],
+     [
+      "stage_config.run_changed_vs_pilot3.label[1]",
+      "\"walking pilot 4 s42\"",
+      "\"walking pilot 4 setup check s42\""
+     ],
+     [
+      "stage_config.run_changed_vs_pilot3.load_path[1]",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/pairs/s42/models/stage2_8000000_steps.zip\""
+     ]
+    ],
+    "stage_dir": [
+     [
+      "stage_dir",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "stops": [
+     [
+      "stops.guards[2]",
+      "\"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts\"",
+      "\"environments.shared.mirror_kl_ppo.MirrorKLPPO.train\""
+     ],
+     [
+      "stops.guards[3]",
+      "\"stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts\"",
+      "\"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts\""
+     ],
+     [
+      "stops.guards[4]",
+      "\"torch.optim.adam.Adam.step\"",
+      "\"stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts\""
+     ],
+     [
+      "stops.guards[5]",
+      "\"torch.optim.sgd.SGD.step\"",
+      "\"torch.optim.adam.Adam.step\""
+     ],
+     [
+      "stops.guards[6]",
+      "\"torch.optim.optimizer.Optimizer.step\"",
+      "\"torch.optim.sgd.SGD.step\""
+     ],
+     [
+      "stops.guards[7]",
+      "\"torch.Tensor.backward\"",
+      "\"torch.optim.optimizer.Optimizer.step\""
+     ],
+     [
+      "stops.guards[8]",
+      "\"environments.shared.mirror_kl_ppo.MirrorKLPPO.train\"",
+      "\"torch.Tensor.backward\""
+     ],
+     [
+      "stops.prelaunch_capture_wraps",
+      "[\"stable_baselines3.common.base_class.BaseAlgorithm.learn\", \"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn\", \"stable_baselines3.common.of...",
+      "\"<absent>\""
+     ]
+    ],
+    "tree": [
+     [
+      "tree",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree\""
+     ]
+    ]
+   }
+  },
+  "52": {
+   "leaves_in_head_record": 1173,
+   "leaves_in_7700f28_record": 927,
+   "sections_with_differences": {
+    "callbacks": 3,
+    "capture": 2,
+    "environments_imported_from": 1,
+    "judge_binding": 1,
+    "runner": 13,
+    "runner_file": 1,
+    "runner_sha256": 1,
+    "stage_config": 5,
+    "stage_dir": 1,
+    "stops": 8,
+    "tree": 1
+   },
+   "sections_identical": [
+    "config_equals_load_all_stages",
+    "errors",
+    "extra_episodes",
+    "guard_hits",
+    "guard_hits_final",
+    "learn_reached",
+    "manual_cell_stopped_by_learn_stop",
+    "model_attributes",
+    "optimizer",
+    "pair_sha256_after",
+    "pair_sha256_before",
+    "replays_written",
+    "rollout",
+    "seed",
+    "shaping_simulation",
+    "stage_dir_listing",
+    "start_actions_on_pilot3_observations",
+    "vecnormalize",
+    "weights"
+   ],
+   "differences": {
+    "callbacks": [
+     [
+      "callbacks.attributes[0].best_model_save_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ],
+     [
+      "callbacks.attributes[0].log_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/tmp/eval_stage2_h5cjyr2i/evaluations\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tmp/eval_stage2_tqkgrzgz/evaluations\""
+     ],
+     [
+      "callbacks.attributes[4].save_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "capture": [
+     [
+      "capture.at_learn.learn_kwargs.callback",
+      "\"<stable_baselines3.common.callbacks.CallbackList object at 0x7fb459fa4590>\"",
+      "\"<stable_baselines3.common.callbacks.CallbackList object at 0x7fa6a5f9fcb0>\""
+     ],
+     [
+      "capture.stack_tail",
+      "\"  File \\\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\\\", line 493, in run_cell\\...",
+      "\"  File \\\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tools/nb_pilot_runner3.py\\\", line 250,..."
+     ]
+    ],
+    "environments_imported_from": [
+     [
+      "environments_imported_from",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py\""
+     ]
+    ],
+    "judge_binding": [
+     [
+      "judge_binding",
+      "{\"judge_file\": \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_judge.py\", \"judge_sha256\": \"648d...",
+      "\"<absent>\""
+     ]
+    ],
+    "runner": [
+     [
+      "runner.cells[1].seconds",
+      "0.4",
+      "0.3"
+     ],
+     [
+      "runner.cells[3].seconds",
+      "1.9",
+      "1.0"
+     ],
+     [
+      "runner.cells[5].seconds",
+      "1.0",
+      "0.9"
+     ],
+     [
+      "runner.cells[6].seconds",
+      "100.3",
+      "97.8"
+     ],
+     [
+      "runner.cells[10].message",
+      "\"Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.\"",
+      "\"Walking pilot 4 setup check: chain loop skipped on purpose; the manual cell runs next.\""
+     ],
+     [
+      "runner.cells[11].message",
+      "\"learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)\"",
+      "\"learn() stopped by the pilot-4 setup check (PPO.learn, nothing trained)\""
+     ],
+     [
+      "runner.cells[11].seconds",
+      "2.9",
+      "2.7"
+     ],
+     [
+      "runner.clone_head",
+      "\"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\"",
+      "\"7700f288a9d761dd0c5af5df811b0e302306f5b8\""
+     ],
+     [
+      "runner.exit",
+      "0",
+      "1"
+     ],
+     [
+      "runner.manual_cell.message",
+      "\"learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)\"",
+      "\"learn() stopped by the pilot-4 setup check (PPO.learn, nothing trained)\""
+     ],
+     [
+      "runner.manual_cell.seconds",
+      "2.9",
+      "2.7"
+     ],
+     [
+      "runner.record",
+      "{\"clone_head\": \"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\", \"manual_cell_stopped_at_learn\": true, \"learn_called\": [{\"class\": \"stable_baselines3.ppo.ppo.PPO\", \"to...",
+      "\"<absent>\""
+     ],
+     [
+      "runner.run_dir",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "runner_file": [
+     [
+      "runner_file",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\"",
+      "\"<absent>\""
+     ]
+    ],
+    "runner_sha256": [
+     [
+      "runner_sha256",
+      "\"33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd\"",
+      "\"<absent>\""
+     ]
+    ],
+    "stage_config": [
+     [
+      "stage_config.git_commit",
+      "\"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\"",
+      "\"7700f288a9d761dd0c5af5df811b0e302306f5b8\""
+     ],
+     [
+      "stage_config.run.label",
+      "\"walking pilot 4 s52\"",
+      "\"walking pilot 4 setup check s52\""
+     ],
+     [
+      "stage_config.run.load_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/pairs/s52/models/stage2_8000000_steps.zip\""
+     ],
+     [
+      "stage_config.run_changed_vs_pilot3.label[1]",
+      "\"walking pilot 4 s52\"",
+      "\"walking pilot 4 setup check s52\""
+     ],
+     [
+      "stage_config.run_changed_vs_pilot3.load_path[1]",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/pairs/s52/models/stage2_8000000_steps.zip\""
+     ]
+    ],
+    "stage_dir": [
+     [
+      "stage_dir",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "stops": [
+     [
+      "stops.guards[2]",
+      "\"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts\"",
+      "\"environments.shared.mirror_kl_ppo.MirrorKLPPO.train\""
+     ],
+     [
+      "stops.guards[3]",
+      "\"stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts\"",
+      "\"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts\""
+     ],
+     [
+      "stops.guards[4]",
+      "\"torch.optim.adam.Adam.step\"",
+      "\"stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts\""
+     ],
+     [
+      "stops.guards[5]",
+      "\"torch.optim.sgd.SGD.step\"",
+      "\"torch.optim.adam.Adam.step\""
+     ],
+     [
+      "stops.guards[6]",
+      "\"torch.optim.optimizer.Optimizer.step\"",
+      "\"torch.optim.sgd.SGD.step\""
+     ],
+     [
+      "stops.guards[7]",
+      "\"torch.Tensor.backward\"",
+      "\"torch.optim.optimizer.Optimizer.step\""
+     ],
+     [
+      "stops.guards[8]",
+      "\"environments.shared.mirror_kl_ppo.MirrorKLPPO.train\"",
+      "\"torch.Tensor.backward\""
+     ],
+     [
+      "stops.prelaunch_capture_wraps",
+      "[\"stable_baselines3.common.base_class.BaseAlgorithm.learn\", \"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn\", \"stable_baselines3.common.of...",
+      "\"<absent>\""
+     ]
+    ],
+    "tree": [
+     [
+      "tree",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree\""
+     ]
+    ]
+   }
+  },
+  "60": {
+   "leaves_in_head_record": 1173,
+   "leaves_in_7700f28_record": 927,
+   "sections_with_differences": {
+    "callbacks": 3,
+    "capture": 2,
+    "environments_imported_from": 1,
+    "judge_binding": 1,
+    "runner": 12,
+    "runner_file": 1,
+    "runner_sha256": 1,
+    "stage_config": 5,
+    "stage_dir": 1,
+    "stops": 8,
+    "tree": 1
+   },
+   "sections_identical": [
+    "config_equals_load_all_stages",
+    "errors",
+    "extra_episodes",
+    "guard_hits",
+    "guard_hits_final",
+    "learn_reached",
+    "manual_cell_stopped_by_learn_stop",
+    "model_attributes",
+    "optimizer",
+    "pair_sha256_after",
+    "pair_sha256_before",
+    "replays_written",
+    "rollout",
+    "seed",
+    "shaping_simulation",
+    "stage_dir_listing",
+    "start_actions_on_pilot3_observations",
+    "vecnormalize",
+    "weights"
+   ],
+   "differences": {
+    "callbacks": [
+     [
+      "callbacks.attributes[0].best_model_save_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ],
+     [
+      "callbacks.attributes[0].log_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/tmp/eval_stage2_lz2bjwl0/evaluations\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tmp/eval_stage2_9w1if9iy/evaluations\""
+     ],
+     [
+      "callbacks.attributes[4].save_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "capture": [
+     [
+      "capture.at_learn.learn_kwargs.callback",
+      "\"<stable_baselines3.common.callbacks.CallbackList object at 0x7fab767dc590>\"",
+      "\"<stable_baselines3.common.callbacks.CallbackList object at 0x7ff96c753cb0>\""
+     ],
+     [
+      "capture.stack_tail",
+      "\"  File \\\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\\\", line 493, in run_cell\\...",
+      "\"  File \\\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tools/nb_pilot_runner3.py\\\", line 250,..."
+     ]
+    ],
+    "environments_imported_from": [
+     [
+      "environments_imported_from",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py\""
+     ]
+    ],
+    "judge_binding": [
+     [
+      "judge_binding",
+      "{\"judge_file\": \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_judge.py\", \"judge_sha256\": \"648d...",
+      "\"<absent>\""
+     ]
+    ],
+    "runner": [
+     [
+      "runner.cells[3].seconds",
+      "1.9",
+      "1.2"
+     ],
+     [
+      "runner.cells[5].seconds",
+      "1.1",
+      "0.9"
+     ],
+     [
+      "runner.cells[6].seconds",
+      "109.3",
+      "95.3"
+     ],
+     [
+      "runner.cells[10].message",
+      "\"Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.\"",
+      "\"Walking pilot 4 setup check: chain loop skipped on purpose; the manual cell runs next.\""
+     ],
+     [
+      "runner.cells[11].message",
+      "\"learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)\"",
+      "\"learn() stopped by the pilot-4 setup check (PPO.learn, nothing trained)\""
+     ],
+     [
+      "runner.cells[11].seconds",
+      "3.0",
+      "2.6"
+     ],
+     [
+      "runner.clone_head",
+      "\"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\"",
+      "\"7700f288a9d761dd0c5af5df811b0e302306f5b8\""
+     ],
+     [
+      "runner.exit",
+      "0",
+      "1"
+     ],
+     [
+      "runner.manual_cell.message",
+      "\"learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)\"",
+      "\"learn() stopped by the pilot-4 setup check (PPO.learn, nothing trained)\""
+     ],
+     [
+      "runner.manual_cell.seconds",
+      "3.0",
+      "2.6"
+     ],
+     [
+      "runner.record",
+      "{\"clone_head\": \"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\", \"manual_cell_stopped_at_learn\": true, \"learn_called\": [{\"class\": \"stable_baselines3.ppo.ppo.PPO\", \"to...",
+      "\"<absent>\""
+     ],
+     [
+      "runner.run_dir",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "runner_file": [
+     [
+      "runner_file",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py\"",
+      "\"<absent>\""
+     ]
+    ],
+    "runner_sha256": [
+     [
+      "runner_sha256",
+      "\"33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd\"",
+      "\"<absent>\""
+     ]
+    ],
+    "stage_config": [
+     [
+      "stage_config.git_commit",
+      "\"0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8\"",
+      "\"7700f288a9d761dd0c5af5df811b0e302306f5b8\""
+     ],
+     [
+      "stage_config.run.label",
+      "\"walking pilot 4 s60\"",
+      "\"walking pilot 4 setup check s60\""
+     ],
+     [
+      "stage_config.run.load_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/pairs/s60/models/stage2_8000000_steps.zip\""
+     ],
+     [
+      "stage_config.run_changed_vs_pilot3.label[1]",
+      "\"walking pilot 4 s60\"",
+      "\"walking pilot 4 setup check s60\""
+     ],
+     [
+      "stage_config.run_changed_vs_pilot3.load_path[1]",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/pairs/s60/models/stage2_8000000_steps.zip\""
+     ]
+    ],
+    "stage_dir": [
+     [
+      "stage_dir",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomic...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/logs/tyrannosaurus_rex/anatomical/ppo/pilo..."
+     ]
+    ],
+    "stops": [
+     [
+      "stops.guards[2]",
+      "\"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts\"",
+      "\"environments.shared.mirror_kl_ppo.MirrorKLPPO.train\""
+     ],
+     [
+      "stops.guards[3]",
+      "\"stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts\"",
+      "\"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts\""
+     ],
+     [
+      "stops.guards[4]",
+      "\"torch.optim.adam.Adam.step\"",
+      "\"stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts\""
+     ],
+     [
+      "stops.guards[5]",
+      "\"torch.optim.sgd.SGD.step\"",
+      "\"torch.optim.adam.Adam.step\""
+     ],
+     [
+      "stops.guards[6]",
+      "\"torch.optim.optimizer.Optimizer.step\"",
+      "\"torch.optim.sgd.SGD.step\""
+     ],
+     [
+      "stops.guards[7]",
+      "\"torch.Tensor.backward\"",
+      "\"torch.optim.optimizer.Optimizer.step\""
+     ],
+     [
+      "stops.guards[8]",
+      "\"environments.shared.mirror_kl_ppo.MirrorKLPPO.train\"",
+      "\"torch.Tensor.backward\""
+     ],
+     [
+      "stops.prelaunch_capture_wraps",
+      "[\"stable_baselines3.common.base_class.BaseAlgorithm.learn\", \"stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn\", \"stable_baselines3.common.of...",
+      "\"<absent>\""
+     ]
+    ],
+    "tree": [
+     [
+      "tree",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup\"",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree\""
+     ]
+    ]
+   }
+  }
+ },
+ "deep_diff_p3_side": {
+  "42": [
+   [
+    "environments_imported_from",
+    "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py\"",
+    "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py\""
+   ]
+  ],
+  "52": [
+   [
+    "environments_imported_from",
+    "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py\"",
+    "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py\""
+   ]
+  ],
+  "60": [
+   [
+    "environments_imported_from",
+    "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/p3/environments/__init__.py\"",
+    "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/code/tree/environments/__init__.py\""
+   ]
+  ]
+ },
+ "arrays": {
+  "42": {
+   "actions_built_rollout.npy": {
+    "shape": [
+     1000,
+     15
+    ],
+    "dtype": "float32",
+    "bit_equal": true
+   },
+   "actions_p3x_closed_loop.npy": {
+    "shape": [
+     1000,
+     15
+    ],
+    "dtype": "float32",
+    "bit_equal": true
+   },
+   "rollout_series.npz": {
+    "price": true,
+    "theta": true,
+    "heading": true,
+    "xy": true,
+    "reward_built": true,
+    "reward_twin": true,
+    "obs_60_63": true
+   },
+   "rollout_series.npz_keys_equal": true
+  },
+  "52": {
+   "actions_built_rollout.npy": {
+    "shape": [
+     1000,
+     15
+    ],
+    "dtype": "float32",
+    "bit_equal": true
+   },
+   "actions_p3x_closed_loop.npy": {
+    "shape": [
+     1000,
+     15
+    ],
+    "dtype": "float32",
+    "bit_equal": true
+   },
+   "rollout_series.npz": {
+    "price": true,
+    "theta": true,
+    "heading": true,
+    "xy": true,
+    "reward_built": true,
+    "reward_twin": true,
+    "obs_60_63": true
+   },
+   "rollout_series.npz_keys_equal": true
+  },
+  "60": {
+   "actions_built_rollout.npy": {
+    "shape": [
+     1000,
+     15
+    ],
+    "dtype": "float32",
+    "bit_equal": true
+   },
+   "actions_p3x_closed_loop.npy": {
+    "shape": [
+     1000,
+     15
+    ],
+    "dtype": "float32",
+    "bit_equal": true
+   },
+   "rollout_series.npz": {
+    "price": true,
+    "theta": true,
+    "heading": true,
+    "xy": true,
+    "reward_built": true,
+    "reward_twin": true,
+    "obs_60_63": true
+   },
+   "rollout_series.npz_keys_equal": true
+  }
+ },
+ "files_sha256": {
+  "42": {
+   "kwargs.json": {
+    "head": "6f3f4379f2f26b3c66003dd41346e1808f8ff1fc89f139905ce3c371eb7e6064",
+    "7700f28": "6f3f4379f2f26b3c66003dd41346e1808f8ff1fc89f139905ce3c371eb7e6064",
+    "equal": true
+   },
+   "replay_twin_built_tree.json": {
+    "head": "96681a6dc7960e01611ec80220354017785d9a794413cc1439c380f7cbf3f7e4",
+    "7700f28": "96681a6dc7960e01611ec80220354017785d9a794413cc1439c380f7cbf3f7e4",
+    "equal": true
+   },
+   "replay_p3x_built_tree.json": {
+    "head": "e5fa8223b6fd107d4b54b6947bb525f07a3fe024bb7c6638c2ead395629bbe86",
+    "7700f28": "e5fa8223b6fd107d4b54b6947bb525f07a3fe024bb7c6638c2ead395629bbe86",
+    "equal": true
+   },
+   "replay_p3x_builtactions_built_tree.json": {
+    "head": "2d3bfbc85971611fcc7dbf583b061949dc7ba145a01edf43365a3df2b316dd59",
+    "7700f28": "2d3bfbc85971611fcc7dbf583b061949dc7ba145a01edf43365a3df2b316dd59",
+    "equal": true
+   },
+   "actions_built_rollout.npy": {
+    "head": "07a085ed2cf67cf788a0aefad209b63e05929287ddf9a86e3613ad813a4149f2",
+    "7700f28": "07a085ed2cf67cf788a0aefad209b63e05929287ddf9a86e3613ad813a4149f2",
+    "equal": true
+   },
+   "actions_p3x_closed_loop.npy": {
+    "head": "c23ee216a9409dd892e35d0450beca12d53f589588585454f60cd8b0dc754b26",
+    "7700f28": "c23ee216a9409dd892e35d0450beca12d53f589588585454f60cd8b0dc754b26",
+    "equal": true
+   },
+   "rollout_series.npz": {
+    "head": "d99f3399372ad9fc74bbc1eaeaccadb970d13ee1c7b431fda8db75ac67c16d27",
+    "7700f28": "d99f3399372ad9fc74bbc1eaeaccadb970d13ee1c7b431fda8db75ac67c16d27",
+    "equal": true
+   }
+  },
+  "52": {
+   "kwargs.json": {
+    "head": "6f3f4379f2f26b3c66003dd41346e1808f8ff1fc89f139905ce3c371eb7e6064",
+    "7700f28": "6f3f4379f2f26b3c66003dd41346e1808f8ff1fc89f139905ce3c371eb7e6064",
+    "equal": true
+   },
+   "replay_twin_built_tree.json": {
+    "head": "665bb6fc570a475cef3c2e587431359b0b577d645820844316653d61f59791c2",
+    "7700f28": "665bb6fc570a475cef3c2e587431359b0b577d645820844316653d61f59791c2",
+    "equal": true
+   },
+   "replay_p3x_built_tree.json": {
+    "head": "c62d8f83058a50711f901304f56a7ec6412a9035bb2d257ae4db31fee9adfc3c",
+    "7700f28": "c62d8f83058a50711f901304f56a7ec6412a9035bb2d257ae4db31fee9adfc3c",
+    "equal": true
+   },
+   "replay_p3x_builtactions_built_tree.json": {
+    "head": "240d1af925a4583ad04517a2b3a3ed9ccaeaf9a8dc1d90f99f4c5044a820ca34",
+    "7700f28": "240d1af925a4583ad04517a2b3a3ed9ccaeaf9a8dc1d90f99f4c5044a820ca34",
+    "equal": true
+   },
+   "actions_built_rollout.npy": {
+    "head": "82966a37c4e550e4e0ee3b8769aef30e8acdc065363a54903e212e5d0fd7e6f3",
+    "7700f28": "82966a37c4e550e4e0ee3b8769aef30e8acdc065363a54903e212e5d0fd7e6f3",
+    "equal": true
+   },
+   "actions_p3x_closed_loop.npy": {
+    "head": "d191f110853eae5b8f5755eec38e8e90c226fd2d0640cf4d0a5d4208d2beac11",
+    "7700f28": "d191f110853eae5b8f5755eec38e8e90c226fd2d0640cf4d0a5d4208d2beac11",
+    "equal": true
+   },
+   "rollout_series.npz": {
+    "head": "5c37c22c0a945a44ae438327ae669e8411f5b21459268b91d7dd1e9d65d98922",
+    "7700f28": "5c37c22c0a945a44ae438327ae669e8411f5b21459268b91d7dd1e9d65d98922",
+    "equal": true
+   }
+  },
+  "60": {
+   "kwargs.json": {
+    "head": "6f3f4379f2f26b3c66003dd41346e1808f8ff1fc89f139905ce3c371eb7e6064",
+    "7700f28": "6f3f4379f2f26b3c66003dd41346e1808f8ff1fc89f139905ce3c371eb7e6064",
+    "equal": true
+   },
+   "replay_twin_built_tree.json": {
+    "head": "ccbda6e4fccc260242858c640fa21bf758579e2242e954786e6c932d2d329009",
+    "7700f28": "ccbda6e4fccc260242858c640fa21bf758579e2242e954786e6c932d2d329009",
+    "equal": true
+   },
+   "replay_p3x_built_tree.json": {
+    "head": "3c92f1eb24fff48ee6f1adbed03a7a50a837e48bb50dec062fa98701625c2192",
+    "7700f28": "3c92f1eb24fff48ee6f1adbed03a7a50a837e48bb50dec062fa98701625c2192",
+    "equal": true
+   },
+   "replay_p3x_builtactions_built_tree.json": {
+    "head": "d654db1b11295d022535db940021684c049d3806543fb08d285d4fb719f11042",
+    "7700f28": "d654db1b11295d022535db940021684c049d3806543fb08d285d4fb719f11042",
+    "equal": true
+   },
+   "actions_built_rollout.npy": {
+    "head": "de3ffe214dbbe3a7dcf9fb3e0b60f3d3b08d1113f345ed4ae2343ed0677d8abf",
+    "7700f28": "de3ffe214dbbe3a7dcf9fb3e0b60f3d3b08d1113f345ed4ae2343ed0677d8abf",
+    "equal": true
+   },
+   "actions_p3x_closed_loop.npy": {
+    "head": "54f966826826e0301a64a1add3a36b2aaf39c6d65a89b1187077a25e132dc7d0",
+    "7700f28": "54f966826826e0301a64a1add3a36b2aaf39c6d65a89b1187077a25e132dc7d0",
+    "equal": true
+   },
+   "rollout_series.npz": {
+    "head": "f484fece530cf79a65362f55c2fcc797ce3528c24ee0191aa680aff5328ffdba",
+    "7700f28": "f484fece530cf79a65362f55c2fcc797ce3528c24ee0191aa680aff5328ffdba",
+    "equal": true
+   }
+  }
+ },
+ "stage_records_vs_fix_lane_0e6a57b": {
+  "42": {
+   "stage_config.json": {
+    "leaves": 288,
+    "differing_leaves": [
+     [
+      "run.load_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models..."
+     ]
+    ],
+    "bytes_equal": false
+   },
+   "plant_identity.json": {
+    "leaves": 16,
+    "differing_leaves": [],
+    "bytes_equal": true
+   },
+   "task_fingerprint.json": {
+    "leaves": 128,
+    "differing_leaves": [],
+    "bytes_equal": true
+   }
+  },
+  "52": {
+   "stage_config.json": {
+    "leaves": 288,
+    "differing_leaves": [
+     [
+      "run.load_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s52/03_locomotion/models..."
+     ]
+    ],
+    "bytes_equal": false
+   },
+   "plant_identity.json": {
+    "leaves": 16,
+    "differing_leaves": [],
+    "bytes_equal": true
+   },
+   "task_fingerprint.json": {
+    "leaves": 128,
+    "differing_leaves": [],
+    "bytes_equal": true
+   }
+  },
+  "60": {
+   "stage_config.json": {
+    "leaves": 288,
+    "differing_leaves": [
+     [
+      "run.load_path",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/s...",
+      "\"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s60/03_locomotion/models..."
+     ]
+    ],
+    "bytes_equal": false
+   },
+   "plant_identity.json": {
+    "leaves": 16,
+    "differing_leaves": [],
+    "bytes_equal": true
+   },
+   "task_fingerprint.json": {
+    "leaves": 128,
+    "differing_leaves": [],
+    "bytes_equal": true
+   }
+  }
+ },
+ "judge": {
+  "42": {
+   "accepted": true,
+   "binding_problems": [],
+   "binding_info": {
+    "budget": 2000000,
+    "resume_step": null,
+    "off_schedule": null,
+    "resumed": false,
+    "cadence_checked": true
+   },
+   "run_id_problem": null,
+   "commit_problem": null,
+   "plant_problems": [],
+   "env_kwargs_drift": {},
+   "checks_separately": {
+    "entry_problems": [],
+    "env_problems": [],
+    "cadence_problems": [],
+    "anchor_problems": [],
+    "parent_problems": [],
+    "lineage_problems": [],
+    "drift_problem": null
+   },
+   "lineage_zip_equals_in_memory": true,
+   "edge_zip_data_num_timesteps": 8000000,
+   "judge_sha256": "648dd5570d0a6dc72f0792f392c95e93c0d024b8918be0e054ee36e05f3e08c0",
+   "anchors": {
+    "HYPERPARAMETERS_SHA256": [
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+    ],
+    "TASK_SHA256": [
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+    ],
+    "COMMAND_TABLE_vs_committed_same_json": true,
+    "COMMAND_TABLE_vs_recorded_same_json": true,
+    "PILOT_HEAD_vs_tree_head": [
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+    ],
+    "PARENT_TASK_SHA256_vs_recorded": [
+     "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+     "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+    ],
+    "PARENT_SHA256_seed_vs_recorded": [
+     "41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+     "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4"
+    ],
+    "CADENCE_vs_recorded": {
+     "eval_freq": [
+      65536,
+      65536
+     ],
+     "eval_episodes": [
+      10,
+      10
+     ],
+     "checkpoint_freq": [
+      250000,
+      250000
+     ],
+     "max_checkpoints": [
+      0,
+      0
+     ]
+    },
+    "PRICE_and_R6_vs_recorded": {
+     "walk_heading_price_weight": [
+      0.2,
+      0.2
+     ],
+     "walk_heading_price_scale_rad": [
+      0.5,
+      0.5
+     ],
+     "walk_support_gate_bw": [
+      0.04,
+      0.04
+     ],
+     "airborne_substep_weight": [
+      1.0,
+      1.0
+     ],
+     "forward_vel_max": [
+      1.5,
+      1.5
+     ],
+     "walk_touchdown_weight": [
+      0.1,
+      0.1
+     ]
+    },
+    "PREY_LATERAL_RANGE_vs_recorded": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "COMMAND_MODE_vs_recorded": [
+     "heading",
+     "heading"
+    ],
+    "entry_constants_vs_recorded": {
+     "WARMUP_TIMESTEPS": [
+      0,
+      0
+     ],
+     "RAMP_START_VALUE": [
+      2.0,
+      2.0
+     ],
+     "N_ENVS": [
+      4,
+      4
+     ]
+    },
+    "LINEAGE_vs_zip": {
+     "mode": [
+      "initialize_next_stage",
+      "initialize_next_stage"
+     ],
+     "parent_stage": [
+      2,
+      2
+     ]
+    },
+    "PILOT_UNINTERRUPTED_END_vs_tree": [
+     2015232,
+     2015232,
+     16384
+    ],
+    "tree_shaping_inert": true
+   }
+  },
+  "52": {
+   "accepted": true,
+   "binding_problems": [],
+   "binding_info": {
+    "budget": 2000000,
+    "resume_step": null,
+    "off_schedule": null,
+    "resumed": false,
+    "cadence_checked": true
+   },
+   "run_id_problem": null,
+   "commit_problem": null,
+   "plant_problems": [],
+   "env_kwargs_drift": {},
+   "checks_separately": {
+    "entry_problems": [],
+    "env_problems": [],
+    "cadence_problems": [],
+    "anchor_problems": [],
+    "parent_problems": [],
+    "lineage_problems": [],
+    "drift_problem": null
+   },
+   "lineage_zip_equals_in_memory": true,
+   "edge_zip_data_num_timesteps": 8000000,
+   "judge_sha256": "648dd5570d0a6dc72f0792f392c95e93c0d024b8918be0e054ee36e05f3e08c0",
+   "anchors": {
+    "HYPERPARAMETERS_SHA256": [
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+    ],
+    "TASK_SHA256": [
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+    ],
+    "COMMAND_TABLE_vs_committed_same_json": true,
+    "COMMAND_TABLE_vs_recorded_same_json": true,
+    "PILOT_HEAD_vs_tree_head": [
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+    ],
+    "PARENT_TASK_SHA256_vs_recorded": [
+     "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+     "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+    ],
+    "PARENT_SHA256_seed_vs_recorded": [
+     "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+     "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00"
+    ],
+    "CADENCE_vs_recorded": {
+     "eval_freq": [
+      65536,
+      65536
+     ],
+     "eval_episodes": [
+      10,
+      10
+     ],
+     "checkpoint_freq": [
+      250000,
+      250000
+     ],
+     "max_checkpoints": [
+      0,
+      0
+     ]
+    },
+    "PRICE_and_R6_vs_recorded": {
+     "walk_heading_price_weight": [
+      0.2,
+      0.2
+     ],
+     "walk_heading_price_scale_rad": [
+      0.5,
+      0.5
+     ],
+     "walk_support_gate_bw": [
+      0.04,
+      0.04
+     ],
+     "airborne_substep_weight": [
+      1.0,
+      1.0
+     ],
+     "forward_vel_max": [
+      1.5,
+      1.5
+     ],
+     "walk_touchdown_weight": [
+      0.1,
+      0.1
+     ]
+    },
+    "PREY_LATERAL_RANGE_vs_recorded": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "COMMAND_MODE_vs_recorded": [
+     "heading",
+     "heading"
+    ],
+    "entry_constants_vs_recorded": {
+     "WARMUP_TIMESTEPS": [
+      0,
+      0
+     ],
+     "RAMP_START_VALUE": [
+      2.0,
+      2.0
+     ],
+     "N_ENVS": [
+      4,
+      4
+     ]
+    },
+    "LINEAGE_vs_zip": {
+     "mode": [
+      "initialize_next_stage",
+      "initialize_next_stage"
+     ],
+     "parent_stage": [
+      2,
+      2
+     ]
+    },
+    "PILOT_UNINTERRUPTED_END_vs_tree": [
+     2015232,
+     2015232,
+     16384
+    ],
+    "tree_shaping_inert": true
+   }
+  },
+  "60": {
+   "accepted": true,
+   "binding_problems": [],
+   "binding_info": {
+    "budget": 2000000,
+    "resume_step": null,
+    "off_schedule": null,
+    "resumed": false,
+    "cadence_checked": true
+   },
+   "run_id_problem": null,
+   "commit_problem": null,
+   "plant_problems": [],
+   "env_kwargs_drift": {},
+   "checks_separately": {
+    "entry_problems": [],
+    "env_problems": [],
+    "cadence_problems": [],
+    "anchor_problems": [],
+    "parent_problems": [],
+    "lineage_problems": [],
+    "drift_problem": null
+   },
+   "lineage_zip_equals_in_memory": true,
+   "edge_zip_data_num_timesteps": 8000000,
+   "judge_sha256": "648dd5570d0a6dc72f0792f392c95e93c0d024b8918be0e054ee36e05f3e08c0",
+   "anchors": {
+    "HYPERPARAMETERS_SHA256": [
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+     "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+    ],
+    "TASK_SHA256": [
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+     "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+    ],
+    "COMMAND_TABLE_vs_committed_same_json": true,
+    "COMMAND_TABLE_vs_recorded_same_json": true,
+    "PILOT_HEAD_vs_tree_head": [
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+     "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+    ],
+    "PARENT_TASK_SHA256_vs_recorded": [
+     "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+     "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+    ],
+    "PARENT_SHA256_seed_vs_recorded": [
+     "2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2",
+     "sha256:2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2"
+    ],
+    "CADENCE_vs_recorded": {
+     "eval_freq": [
+      65536,
+      65536
+     ],
+     "eval_episodes": [
+      10,
+      10
+     ],
+     "checkpoint_freq": [
+      250000,
+      250000
+     ],
+     "max_checkpoints": [
+      0,
+      0
+     ]
+    },
+    "PRICE_and_R6_vs_recorded": {
+     "walk_heading_price_weight": [
+      0.2,
+      0.2
+     ],
+     "walk_heading_price_scale_rad": [
+      0.5,
+      0.5
+     ],
+     "walk_support_gate_bw": [
+      0.04,
+      0.04
+     ],
+     "airborne_substep_weight": [
+      1.0,
+      1.0
+     ],
+     "forward_vel_max": [
+      1.5,
+      1.5
+     ],
+     "walk_touchdown_weight": [
+      0.1,
+      0.1
+     ]
+    },
+    "PREY_LATERAL_RANGE_vs_recorded": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "COMMAND_MODE_vs_recorded": [
+     "heading",
+     "heading"
+    ],
+    "entry_constants_vs_recorded": {
+     "WARMUP_TIMESTEPS": [
+      0,
+      0
+     ],
+     "RAMP_START_VALUE": [
+      2.0,
+      2.0
+     ],
+     "N_ENVS": [
+      4,
+      4
+     ]
+    },
+    "LINEAGE_vs_zip": {
+     "mode": [
+      "initialize_next_stage",
+      "initialize_next_stage"
+     ],
+     "parent_stage": [
+      2,
+      2
+     ]
+    },
+    "PILOT_UNINTERRUPTED_END_vs_tree": [
+     2015232,
+     2015232,
+     16384
+    ],
+    "tree_shaping_inert": true
+   }
+  }
+ },
+ "judge_bound_keys_across_seeds": {
+  "s42_vs_s52": [
+   [
+    "stage_config.json.run.parent_checkpoint_sha256",
+    "\"sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4\"",
+    "\"sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00\""
+   ],
+   [
+    "stage_config.json.run.seed",
+    "42",
+    "52"
+   ]
+  ],
+  "s42_vs_s60": [
+   [
+    "stage_config.json.run.parent_checkpoint_sha256",
+    "\"sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4\"",
+    "\"sha256:2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2\""
+   ],
+   [
+    "stage_config.json.run.seed",
+    "42",
+    "60"
+   ]
+  ]
+ }
+}

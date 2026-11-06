@@ -1,0 +1,150 @@
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# prelaunch/setup: 3b'. what the judge binds, read from the records at learn() and checked by the pinned judge
+# ---------------------------------------------------------------------------------------------------------------
+ABSENT = "<absent>"
+
+
+def _get(block, key):
+    return block.get(key, ABSENT) if isinstance(block, dict) else ABSENT
+
+
+@section("judge_binding")
+def _judge_binding():
+    import inspect
+    import shutil
+    import subprocess
+
+    from environments.shared.plant_contract import current_plant_identity
+
+    jpath = TOOLS / "pilot4_judge.py"
+    jsha = hashlib.sha256(jpath.read_bytes()).hexdigest()
+    if jsha != JUDGE_SHA256:
+        raise RuntimeError(f"{jpath} is not the pinned judge ({jsha})")
+    jspec = importlib.util.spec_from_file_location("pilot4_judge", jpath)
+    judge = importlib.util.module_from_spec(jspec)
+    jspec.loader.exec_module(judge)
+
+    # the stage folder's records at learn(), copied byte for byte
+    dst = OUT / "stage"
+    dst.mkdir(exist_ok=True)
+    copied = {}
+    for p in sorted(stage_dir.rglob("*")):
+        if p.is_file():
+            rel = p.relative_to(stage_dir)
+            (dst / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, dst / rel)
+            copied[str(rel)] = "sha256:" + sha256(str(p))
+    sc = json.loads((stage_dir / "stage_config.json").read_text())
+    rec_plant = json.loads((stage_dir / "plant_identity.json").read_text())
+
+    # the lineage the way the judge reads it: the edge-prepared model written once by SB3's save() (no update),
+    # then the zip's JSON data member read by the judge's own zip_lineage (json and zipfile only)
+    zpath = OUT / "edge_model_at_learn.zip"
+    model.save(str(zpath))
+    lineage, lineage_note = judge.zip_lineage(zpath)
+    data = judge.read_zip_data(zpath)
+    in_memory = jsonable(getattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE, None))
+
+    # what judge.main derives from the tree, the same calls
+    cur = config.get("curriculum_kwargs", {})
+    env_kwargs = config.get("env_kwargs", {})
+    ramp, warmup = int(cur.get("ramp_timesteps", 0)), int(cur.get("warmup_timesteps", 0))
+    ramp_start, forward_weight = cur.get("ramp_start_value"), env_kwargs.get("forward_vel_weight")
+    committed_table = env_kwargs.get("command_config")
+    rollout = judge.N_ENVS * int(config.get("ppo_kwargs", {}).get("n_steps", 0))
+    hp_here = hyperparameters_sha256(config, "ppo")
+    task_here = stage_task_fingerprint(MID, 2, stage_config=config)["task_sha256"]
+    defaults = {name: prm.default for name, prm in inspect.signature(EnvClass.__init__).parameters.items()
+                if prm.default is not inspect.Parameter.empty}
+    kwargs_drift = judge.env_kwargs_drift(sc.get("reward_weights"), dict(env_kwargs), defaults)
+    want_parent = judge.PARENT_SHA256[SEED]
+    problems, info = judge.binding_problems(
+        sc, seed=SEED, want_parent=want_parent, expect_budget=judge.PILOT_BUDGET, ramp=ramp, warmup=warmup,
+        ramp_start=ramp_start, forward_weight=forward_weight, hp_here=hp_here, task_here=task_here,
+        committed_table=committed_table, lineage=lineage, lineage_note=lineage_note, report_off_schedule=False,
+        kwargs_drift=kwargs_drift)
+    run_name = Path(RESULT["runner"]["run_dir"]).name
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=TREE, text=True,
+                                   env=dict(os.environ, GIT_OPTIONAL_LOCKS="0")).strip()
+    plant = current_plant_identity(MID).to_dict()
+    plant_problems = [f"plant {k} {rec_plant.get(k)} != this tree's {plant.get(k)}"
+                      for k in ("physics_sha256", "policy_interface_sha256") if rec_plant.get(k) != plant.get(k)]
+
+    run_block = sc.get("run") or {}
+    cur_rec = sc.get("curriculum") or {}
+    rw = sc.get("reward_weights") or {}
+    hyper = sc.get("hyperparameters") or {}
+    fp = sc.get("task_fingerprint") or {}
+    bound = {
+        "stage_config.json": {
+            "species": _get(sc, "species"), "embodiment": _get(sc, "embodiment"), "stage": _get(sc, "stage"),
+            "git_commit": _get(sc, "git_commit"),
+            **{f"run.{k}": _get(run_block, k) for k in (
+                "load_mode", "seed", "parent_checkpoint_sha256", "timesteps", "resume_load_path",
+                "hyperparameters_sha256", "n_envs", "parent_task_sha256", "critic_phase_dropped",
+                "warm_start_log_std")},
+            "task_fingerprint.task_sha256": _get(fp, "task_sha256"),
+            **{f"curriculum.{k}": _get(cur_rec, k) for k in (
+                "warmup_timesteps", "ramp_start_value", "initialize_from_own_checkpoint", "warm_start_log_std",
+                *judge.CADENCE_KEYS)},
+            "hyperparameters.critic_phase": _get(hyper, "critic_phase"),
+            **{f"reward_weights.{k}": _get(rw, k) for k in (
+                "command_mode", "command_config", "prey_lateral_range", *judge.PRICE_KEYS, *judge.R6_KEYS)},
+        },
+        "plant_identity.json": {k: _get(rec_plant, k) for k in ("physics_revision", "physics_sha256",
+                                                               "policy_interface_sha256")},
+        "zip data member mesozoic_task_lineage": {
+            "mode": _get(lineage, "mode"), "parent_stage": _get(lineage, "parent_stage"),
+            "zeroed_command_parameters": _get(lineage, "zeroed_command_parameters"), "record": lineage},
+    }
+    anchors = {
+        "HYPERPARAMETERS_SHA256": [judge.HYPERPARAMETERS_SHA256, hp_here, run_block.get("hyperparameters_sha256")],
+        "TASK_SHA256": [judge.TASK_SHA256, task_here, fp.get("task_sha256")],
+        "COMMAND_TABLE_vs_committed_same_json": judge.same_json(committed_table, judge.COMMAND_TABLE),
+        "COMMAND_TABLE_vs_recorded_same_json": judge.same_json(rw.get("command_config"), judge.COMMAND_TABLE),
+        "PILOT_HEAD_vs_tree_head": [judge.PILOT_HEAD, head],
+        "PARENT_TASK_SHA256_vs_recorded": [judge.PARENT_TASK_SHA256, run_block.get("parent_task_sha256")],
+        "PARENT_SHA256_seed_vs_recorded": [want_parent, run_block.get("parent_checkpoint_sha256")],
+        "CADENCE_vs_recorded": {k: [v, cur_rec.get(k)] for k, v in judge.CADENCE.items()},
+        "PRICE_and_R6_vs_recorded": {k: [v, rw.get(k)] for k, v in {**judge.PRICE_KEYS, **judge.R6_KEYS}.items()},
+        "PREY_LATERAL_RANGE_vs_recorded": [list(judge.PREY_LATERAL_RANGE), rw.get("prey_lateral_range")],
+        "COMMAND_MODE_vs_recorded": [judge.COMMAND_MODE, rw.get("command_mode")],
+        "entry_constants_vs_recorded": {
+            "WARMUP_TIMESTEPS": [judge.WARMUP_TIMESTEPS, cur_rec.get("warmup_timesteps")],
+            "RAMP_START_VALUE": [judge.RAMP_START_VALUE, cur_rec.get("ramp_start_value")],
+            "N_ENVS": [judge.N_ENVS, run_block.get("n_envs")]},
+        "LINEAGE_vs_zip": {"mode": [judge.LINEAGE_MODE, _get(lineage, "mode")],
+                           "parent_stage": [judge.LINEAGE_PARENT_STAGE, _get(lineage, "parent_stage")]},
+        "PILOT_UNINTERRUPTED_END_vs_tree": [judge.PILOT_UNINTERRUPTED_END,
+                                            judge.uninterrupted_end(judge.PILOT_BUDGET, rollout), rollout],
+        "tree_shaping_inert": judge.shaping_inert(warmup, ramp_start, forward_weight),
+    }
+    out = {
+        "judge_file": str(jpath), "judge_sha256": jsha, "stage_records_copied": copied,
+        "edge_zip": str(zpath), "edge_zip_sha256": "sha256:" + sha256(str(zpath)),
+        "edge_zip_data_num_timesteps": data.get("num_timesteps"),
+        "lineage_zip_equals_in_memory": judge.same_json(lineage, in_memory), "lineage_note": lineage_note,
+        "bound": bound, "anchors": anchors,
+        "binding_problems": problems, "binding_info": info,
+        "run_id_problem": judge.run_id_problem(run_name, SEED), "run_name": run_name,
+        "commit_problem": judge.commit_problem(sc.get("git_commit"), head), "tree_head": head,
+        "plant_problems": plant_problems, "plant_tree": {k: plant.get(k) for k in (
+            "physics_revision", "physics_sha256", "policy_interface_sha256")},
+        "env_kwargs_drift": kwargs_drift,
+        "checks_separately": {
+            "entry_problems": judge.entry_problems(sc, lineage, lineage_note),
+            "env_problems": judge.env_problems(sc, committed_table),
+            "cadence_problems": judge.cadence_problems(sc),
+            "anchor_problems": judge.anchor_problems(hp_here, task_here, committed_table),
+            "parent_problems": judge.parent_problems(SEED, want_parent, run_block.get("parent_checkpoint_sha256")),
+            "lineage_problems": judge.lineage_problems(lineage),
+            "drift_problem": judge.drift_problem(kwargs_drift)},
+        "hyperparameters_sha256_ppo_lower_equals_PPO": hp_here == hyperparameters_sha256(config, "PPO"),
+    }
+    out["accepted"] = (not problems and out["run_id_problem"] is None and out["commit_problem"] is None
+                       and not plant_problems and not kwargs_drift and out["lineage_zip_equals_in_memory"])
+    (OUT / "judge_bound_keys.json").write_text(json.dumps(bound, indent=1, default=str) + "\n")
+    return out
+

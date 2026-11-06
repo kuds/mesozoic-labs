@@ -1,0 +1,50 @@
+guarded_pytest: environments from /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/checks/environments/__init__.py; blocked 34 entry points; 219 base ids to deselect
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 23%]
+........................................................................ [ 30%]
+........................................................................ [ 38%]
+........................................................................ [ 46%]
+........................................................................ [ 53%]
+........................................................................ [ 61%]
+........................................................................ [ 69%]
+........................................................................ [ 76%]
+....................................................................FF.. [ 84%]
+...F..................................F................................. [ 92%]
+........................................................................ [ 99%]
+..                                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_the_tyrannosaurus_rex_recipe_digests_are_main_s[locomotion-PPO] _____
+environments/shared/tests/test_critic_phase.py:138: in test_the_tyrannosaurus_rex_recipe_digests_are_main_s
+    assert (
+E   AssertionError: assert 'sha256:fbc94...a4477418eaa62' == 'sha256:fde66...b438a33f6980c'
+E     
+E     - sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c
+E     + sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62
+_____ test_the_tyrannosaurus_rex_recipe_digests_are_main_s[locomotion-SAC] _____
+environments/shared/tests/test_critic_phase.py:138: in test_the_tyrannosaurus_rex_recipe_digests_are_main_s
+    assert (
+E   AssertionError: assert 'sha256:49fa0...eafde0d4b8eb6' == 'sha256:49ef8...6469ab1d1a799'
+E     
+E     - sha256:49ef875a97a5105b442714fe18795a5a5277b765476f92b79616469ab1d1a799
+E     + sha256:49fa0f8e9d10f9a51a8be007fec66c8ac8c77092422c5209feeeafde0d4b8eb6
+_ test_the_recipe_digest_records_a_warm_start_log_std_when_a_stage_declares_one _
+environments/shared/tests/test_critic_phase.py:164: in test_the_recipe_digest_records_a_warm_start_log_std_when_a_stage_declares_one
+    assert hyperparameters_sha256(locomotion, "PPO") == MAIN_RECIPE_DIGESTS[("locomotion", "PPO")]
+E   AssertionError: assert 'sha256:fbc94...a4477418eaa62' == 'sha256:fde66...b438a33f6980c'
+E     
+E     - sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c
+E     + sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62
+_________________ TestSchema.test_the_recipe_digest_covers_it __________________
+environments/shared/tests/test_curriculum_warm_start_log_std.py:110: in test_the_recipe_digest_covers_it
+    assert hyperparameters_sha256(without, "PPO") == (
+E   AssertionError: assert 'sha256:fbc94...a4477418eaa62' == 'sha256:fde66...b438a33f6980c'
+E     
+E     - sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c
+E     + sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62
+=========================== short test summary info ============================
+FAILED environments/shared/tests/test_critic_phase.py::test_the_tyrannosaurus_rex_recipe_digests_are_main_s[locomotion-PPO]
+FAILED environments/shared/tests/test_critic_phase.py::test_the_tyrannosaurus_rex_recipe_digests_are_main_s[locomotion-SAC]
+FAILED environments/shared/tests/test_critic_phase.py::test_the_recipe_digest_records_a_warm_start_log_std_when_a_stage_declares_one
+FAILED environments/shared/tests/test_curriculum_warm_start_log_std.py::TestSchema::test_the_recipe_digest_covers_it
+4 failed, 934 passed, 145 deselected in 115.06s (0:01:55)

@@ -1,0 +1,45 @@
+--- TOOLS-stage/tests/test_nb_pilot_runner4.py
++++ fix-stage/tests/test_nb_pilot_runner4.py
+@@ -413,6 +413,42 @@
+     assert r.returncode == 2 and "32,768 only" in r.stdout
+ 
+ 
++@pytest.mark.parametrize("phase", ["launch", "resume"])
++@pytest.mark.parametrize("quick", [False, None, "true", 1])
++def test_a_run_that_is_not_the_quick_test_smoke_is_refused_before_any_cell(tmp_path, phase, quick):
++    """Fix stage (review finding: the runner could reach a full 2,000,000-step training run): without --stop-at-learn
++    or --plan-only, only a QUICK_TEST that is the JSON literal true runs; anything else is refused, no cell runs."""
++    clone = synthetic_clone(tmp_path, synthetic_notebook())
++    cfg = {"SPECIES": "tyrannosaurus_rex", "SEED": 42, "RUN_ID": "pilot4_walk_s42"}
++    if quick is not None:
++        cfg["QUICK_TEST"] = quick
++    out = tmp_path / "out"
++    r = run_runner("--params", str(params_file(tmp_path, config=cfg)), "--out", str(out), "--clone", str(clone),
++                   "--phase", phase)
++    assert r.returncode == 2 and f"config QUICK_TEST is {quick!r}, not true" in r.stdout, r.stdout + r.stderr
++    assert not (out / "runner.stdout.log").exists() and not (out / "cells_edited.json").exists()
++    rec = json.loads((out / "record.json").read_text())
++    assert rec["exit"] == 2 and rec["cells"] == [] and "QUICK_TEST" in rec["refused"]
++
++
++@needs_runs
++def test_the_quick_test_rule_leaves_stop_at_learn_and_plan_only_open(tmp_path):
++    """A non-QUICK_TEST launch may still be checked to learn() (it trains nothing) or planned (nothing runs)."""
++    body = textwrap.dedent('''\
++        from stable_baselines3 import PPO
++        PPO.learn(None, total_timesteps=2000000, reset_num_timesteps=True)
++        ''')
++    clone = synthetic_clone(tmp_path, synthetic_notebook(manual_body=body))
++    cfg = {"SPECIES": "tyrannosaurus_rex", "SEED": 42, "QUICK_TEST": False, "RUN_ID": "pilot4_walk_s42"}
++    r = run_runner("--params", str(params_file(tmp_path, config=cfg)), "--out", str(tmp_path / "o1"), "--clone",
++                   str(clone), "--plan-only")
++    assert r.returncode == 0, r.stdout + r.stderr
++    r = run_runner("--params", str(params_file(tmp_path, config=cfg)), "--out", str(tmp_path / "o2"), "--clone",
++                   str(clone), "--stop-at-learn")
++    rec = json.loads((tmp_path / "o2" / "record.json").read_text())
++    assert rec["manual_cell_stopped_at_learn"] and rec["guard_hits"] == [] and "refused" not in rec, r.stdout
++
++
+ @needs_runs
+ def test_an_implicit_sidecar_or_another_seeds_pair_is_refused_before_any_cell(tmp_path):
+     clone = synthetic_clone(tmp_path, synthetic_notebook())

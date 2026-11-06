@@ -1,0 +1,19 @@
+Walking pilot 4 score (/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/judge/OUT); launched seeds [42]; primary checkpoint 2,000,000
+  s42    32,768: NOT SCORED  {'WALK': 40, 'HOP': 0, 'STILL': 0, 'FALL': 0, 'OTHER': 0}  v 2.712 m/s (fwd 2.704), alt 1.00, sim 0.00, swaps 1.94, flight 0.00, hip lag 0.45, stride 2.49 Hz, duty L/R 0.48/0.58; OTHER passing the contact bar, by rejecting guards: {}  PROBLEMS: ['validation-only judge (run budget 50000)']
+  s42    50,000: NOT SCORED  {'WALK': 40, 'HOP': 0, 'STILL': 0, 'FALL': 0, 'OTHER': 0}  v 2.708 m/s (fwd 2.669), alt 1.00, sim 0.00, swaps 1.94, flight 0.00, hip lag 0.46, stride 2.43 Hz, duty L/R 0.48/0.58; OTHER passing the contact bar, by rejecting guards: {}  PROBLEMS: ['validation-only judge (run budget 50000)']  [final-model fallback]
+  s42    65,536: NOT SCORED  {'WALK': 40, 'HOP': 0, 'STILL': 0, 'FALL': 0, 'OTHER': 0}  v 2.708 m/s (fwd 2.706), alt 1.00, sim 0.00, swaps 1.94, flight 0.00, hip lag 0.45, stride 2.48 Hz, duty L/R 0.48/0.57; OTHER passing the contact bar, by rejecting guards: {}  PROBLEMS: ['validation-only judge (run budget 50000)']
+  s42   500,000: missing
+  s42 1,000,000: missing
+  s42 1,500,000: missing
+  s42 2,000,000: missing
+  s42 gait (pilot 3's seed outcome): none (missing (judged so far: 32,768, 50,000, 65,536)); video review: not needed
+  s42 SEED OUTCOME: none (missing)
+VIDEO REVIEW REQUIRED (criteria_pilot4 "Video review", pilot 3's rule): for every seed that is WALKS by the rule, even when its verdict cannot change the pilot outcome; a seed's WALKS counts only when the maintainer has watched these and agrees they show alternating single-leg steps; record the verdicts in a JSON file ({"42": "agree" | "disagree", ...}) and pass --video-review.
+  s42: no scored checkpoint yet, nothing to list
+STRAIGHTNESS LOOK REQUIRED (criteria_pilot4 "Video review"): for every seed that is WALKS, video-agreed and passes (a) and (b), whatever (c) reads: the notebook replay and the straightness tool's top-down paths and heading curves; record {"42": "straight" | "not straight", ...} and pass --straight-review; "not straight" makes the seed CURVED WALKS.
+  s42: not required
+PILOT OUTCOME: None (no launched seed of 1 has a scored outcome); missing or invalid: ['s42']
+GAIT READING (pilot 3's pilot outcome in this env; printed beside the pilot outcome, never instead of it): None (no launched seed of 1 has a scored outcome)
+REPORT ONLY (Q23): 0 of 1 seeds are WALKS, video-agreed, pass (a) and (b) and the look agrees ([])
+EXISTENCE: NONE SEEN (A = [], k = 0 of 1; pending [], of which could still be STRAIGHT WALKS [])  [not settled: ['s42'] still missing and not closed]  NOT FINAL
+REPORT ONLY habit (pilot4_habit.py; picks nothing): s42 NOT RUN (no habit record for s42)

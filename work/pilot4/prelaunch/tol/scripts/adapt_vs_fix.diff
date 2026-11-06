@@ -1,0 +1,268 @@
+--- fix/phase_0_setup.sh
++++ tol/phase_0_setup.sh
+@@ -1,14 +1,15 @@
+ #!/bin/bash
+-# Fix lane, phase 0 (the e2e lane's set-up commands, scripted): a clone of the shared tree at 0e6a57b, byte copies of
++# Tolerance lane (copied from the fix lane), phase 0 (the e2e lane's set-up commands, scripted): a clone of the shared tree at 0e6a57b, byte copies of
+ # the three 8M pairs, the smoke runner's params, the runner's new QUICK_TEST refusal on the real notebook, the REAL
+ # set-up path to learn() per seed (edge_pairs.py: the notebook's manual cell through the fixed nb_pilot_runner4.py
+ # --stop-at-learn, the edge-prepared model saved by SB3's CheckpointCallback), the stand-in runs and tampered copies,
+ # the final-model fallback copies, the sidecar and weight facts. Every command goes through job.sh. Nothing trains.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ T=$SP/work/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ PY=$SP/work/pilot3/branch/venv_full/bin/python
+ TREE=$T/tree
++BR=$(git -C "$T/tree" for-each-ref --format='%(refname:short)' 'refs/heads/*/pilot-walk-r10-p4')
+ C=$LANE/tmp/clone
+ S=$LANE/scripts
+ J="bash $S/job.sh"
+@@ -16,11 +17,11 @@
+ P3=$SP/work/pilot3/runs/final
+ FAKE=$SP/work/pilot4/build/check/judge/fake_runs
+ mkdir -p "$LG" "$LANE/setup"
+-$J clone "git clone --shared --branch claude/pilot-walk-r10-p4 $TREE $C > $LG/clone.log 2>&1 && test \"\$(git -C $C rev-parse HEAD)\" = 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 && test -z \"\$(git -C $C status --porcelain --ignored)\""
++$J clone "git clone --shared --branch $BR $TREE $C > $LG/clone.log 2>&1 && test \"\$(git -C $C rev-parse HEAD)\" = 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 && test -z \"\$(git -C $C status --porcelain --ignored)\""
+ for s in 42 52 60; do
+   $J "pairs_copy_s$s" "mkdir -p $LANE/tmp/pairs/pilot3_walk_s$s/03_locomotion/models && cp -p $P3/pilot3_walk_s$s/03_locomotion/models/stage2_8000000_steps.zip $P3/pilot3_walk_s$s/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl $LANE/tmp/pairs/pilot3_walk_s$s/03_locomotion/models/ && cmp $P3/pilot3_walk_s$s/03_locomotion/models/stage2_8000000_steps.zip $LANE/tmp/pairs/pilot3_walk_s$s/03_locomotion/models/stage2_8000000_steps.zip && cmp $P3/pilot3_walk_s$s/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl $LANE/tmp/pairs/pilot3_walk_s$s/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+ done
+-$J make_params "$PY -I -B $S/from_e2e/make_params.py $LANE > $LG/make_params.log 2>&1"
++$J make_params "$PY -I -B $S/from_e2e/make_params.py $LANE $BR > $LG/make_params.log 2>&1"
+ # the runner's new refusal on the real notebook: QUICK_TEST false, no --stop-at-learn, no --plan-only (must exit 2,
+ # before any cell, so nothing can train)
+ $J runner_not_quick_test_expect2 "cd $C && env -u PYTHONPATH OMP_NUM_THREADS=1 $PY -I $T/nb_pilot_runner4.py --params $LANE/setup/params_s42.json --out $LANE/e2e/runner_not_quick_test --clone $C > $LG/runner_not_quick_test.log 2>&1"
+--- fix/phase_a_judge.sh
++++ tol/phase_a_judge.sh
+@@ -1,12 +1,13 @@
+ #!/bin/bash
+-# e2e lane, phase A: pilot4_judge.py on the stand-in runs (--check-only first, then the 12 cells: 3 seeds in
++# Tolerance lane (copied from the fix lane, from the e2e lane), phase A: pilot4_judge.py on the stand-in runs (--check-only first, then the 12 cells: 3 seeds in
+ # parallel, each seed's 4 checkpoints in order), a second judgement refused, and the tampered cases (each must be
+ # refused, exit 2, nothing written). Every command goes through job.sh (CMDLOG.txt + e2e/status.txt). Nothing trains.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ T=$SP/work/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ PY=$SP/work/pilot3/branch/venv_full/bin/python
+ TREE=$T/tree
++BR=$(git -C "$T/tree" for-each-ref --format='%(refname:short)' 'refs/heads/*/pilot-walk-r10-p4')
+ HEAD=0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8
+ RUNS=$LANE/runs
+ OUT=$LANE/e2e/OUT
+@@ -60,9 +61,9 @@
+ # A6. the default --expect-head (PILOT_HEAD): the shared tree passes without --expect-head (check-only, a fresh OUT)
+ $J "judge_default_head_check_only_expect0" "$JUDGE $RUNS/pilot4_walk_s42 --seed 42 --steps 2000000 --parent-sha256 ${P[42]} --out $TP/OUT_default_head --check-only > $LG/judge_default_head_check_only.log 2>&1"
+ # A7. my clone moved to HEAD~1 on the pilot branch: refused for its head without --expect-head; then restored
+-$J "clone_to_parent" "git -C $C checkout -q -B claude/pilot-walk-r10-p4 $HEAD~1 && git -C $C rev-parse HEAD > $LG/clone_parent_head.txt"
++$J "clone_to_parent" "git -C $C checkout -q -B $BR $HEAD~1 && git -C $C rev-parse HEAD > $LG/clone_parent_head.txt"
+ $J "judge_default_head_at_parent_expect2" "cd $C && ISO_WT=$C $PY -I $T/iso.py $T/pilot4_judge.py $RUNS/pilot4_walk_s42 --seed 42 --steps 2000000 --parent-sha256 ${P[42]} --out $TP/OUT_default_head_parent --check-only > $LG/judge_default_head_at_parent.log 2>&1"
+-$J "clone_restore_head" "git -C $C checkout -q -B claude/pilot-walk-r10-p4 $HEAD && test \"\$(git -C $C rev-parse HEAD)\" = $HEAD && test -z \"\$(git -C $C status --porcelain --untracked-files=no)\""
++$J "clone_restore_head" "git -C $C checkout -q -B $BR $HEAD && test \"\$(git -C $C rev-parse HEAD)\" = $HEAD && test -z \"\$(git -C $C status --porcelain --untracked-files=no)\""
+ # A8. the validity review's drift case: reward_weights.forward_vel_weight 3.0 with the task digest as recorded; the
+ # judge (not --check-only) must refuse before the probe and write nothing
+ $J "tamper_env_drift_expect2" "$JUDGE $TP/env_drift/pilot4_walk_s42 --seed 42 --steps 2000000 --parent-sha256 ${P[42]} --out $TP/OUT_env_drift --expect-head $HEAD > $LG/tamper_env_drift.log 2>&1"
+--- fix/phase_b_readouts.sh
++++ tol/phase_b_readouts.sh
+@@ -1,11 +1,11 @@
+ #!/bin/bash
+-# e2e lane, phase B: on the judged stand-in cells, pilot4_straight.py seed mode on all 12 cells, pilot4_habit.py
++# Tolerance lane (copied from the fix lane, from the e2e lane), phase B: on the judged stand-in cells, pilot4_straight.py seed mode on all 12 cells, pilot4_habit.py
+ # (ledger mode on each stand-in ledger, seed mode on each 2,000,000 cell), pilot4_mirror.py and pilot4_mech.py on each
+ # 2,000,000 cell, and pilot4_noise.py on each run; at most 4 jobs at a time. Every command goes through job.sh
+ # (CMDLOG.txt + e2e/status.txt). Nothing trains.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ T=$SP/work/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ PY=$SP/work/pilot3/branch/venv_full/bin/python
+ TREE=$T/tree
+ RUNS=$LANE/runs
+--- fix/phase_c_score.sh
++++ tol/phase_c_score.sh
+@@ -1,12 +1,12 @@
+ #!/bin/bash
+-# e2e lane, phase C: pilot4_score.py over the three seeds' stand-in cells with the twelve straightness records, in
++# Tolerance lane (copied from the fix lane, from the e2e lane), phase C: pilot4_score.py over the three seeds' stand-in cells with the twelve straightness records, in
+ # four input states (no review and no look; a stand-in video review "agree" x3; that plus a stand-in look "straight"
+ # x3; that plus a look "not straight" x3) and once more with the habit records; then pilot4_video.py on s42's
+ # 2,000,000 cell from the scorer's listing (MUJOCO_GL=disable is binding here, so rendering is expected to fail).
+ # Every command goes through job.sh (CMDLOG.txt + e2e/status.txt). Nothing trains.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ T=$SP/work/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ PY=$SP/work/pilot3/branch/venv_full/bin/python
+ TREE=$T/tree
+ OUT=$LANE/e2e/OUT
+--- fix/phase_d_fix.sh
++++ tol/phase_d_fix.sh
+@@ -1,11 +1,11 @@
+ #!/bin/bash
+-# Fix lane, phase D: the fix stage's end-to-end refusals on the judged stand-in cells. A drifted copy of the cells:
++# Tolerance lane (copied from the fix lane), phase D: the fix stage's end-to-end refusals on the judged stand-in cells. A drifted copy of the cells:
+ # the straightness tool refuses it (exit 2, nothing written) and the scorer leaves s42 unscored; a forged
+ # straightness record (PASS over FAIL values, another tool, looser bars): the scorer refuses it, so s42 waits for a
+ # record. Every command goes through job.sh. Nothing trains.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ T=$SP/work/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ PY=$SP/work/pilot3/branch/venv_full/bin/python
+ TREE=$T/tree
+ E=$LANE/e2e
+--- fix/phase_ff.sh
++++ tol/phase_ff.sh
+@@ -1,10 +1,10 @@
+ #!/bin/bash
+-# Fix lane: the final-model fallback cases the e2e lane ran by hand after make_final.py (its CMDLOG lines 738-744),
++# Tolerance lane (copied from the fix lane): the final-model fallback cases the e2e lane ran by hand after make_final.py (its CMDLOG lines 738-744),
+ # scripted: --final-fallback --check-only accepted; the same copy without the flag refused; a final zip at 2,000,000
+ # refused; nothing written. Every command goes through job.sh. Nothing trains.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ T=$SP/work/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ PY=$SP/work/pilot3/branch/venv_full/bin/python
+ TREE=$T/tree
+ HEAD=0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8
+--- fix/phase_bcd.sh
++++ tol/phase_bcd.sh
+@@ -1,8 +1,10 @@
+ #!/bin/bash
+-# Fix lane: phases B (readouts), C (scorer, video) and D (the fix stage's refusals) in order, then both summaries.
+-F=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix
+-T=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools
+-PY=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
++# Tolerance lane (copied from the fix lane): phases B (readouts), C (scorer, video) and D (the fix stage's refusals) in
++# order, then both summaries.
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
++F=$SP/work/pilot4/prelaunch/tol
++T=$SP/work/pilot4/tools
++PY=$SP/work/pilot3/branch/venv_full/bin/python
+ bash $F/scripts/phase_b_readouts.sh > $F/logs/phase_b.stdout.txt 2> $F/logs/phase_b.stderr.txt; echo "phase_b rc=$?"
+ bash $F/scripts/phase_c_score.sh > $F/logs/phase_c.stdout.txt 2> $F/logs/phase_c.stderr.txt; echo "phase_c rc=$?"
+ bash $F/scripts/phase_d_fix.sh > $F/logs/phase_d.stdout.txt 2> $F/logs/phase_d.stderr.txt; echo "phase_d rc=$?"
+--- fix/run_tests.sh
++++ tol/run_tests.sh
+@@ -1,17 +1,17 @@
+ #!/bin/bash
+-# fix lane (copied from the e2e lane): every pilot-4 test file against the shared tree tools/tree (READ ONLY), one pytest run per file
++# tolerance lane (copied from the fix lane, from the e2e lane): every pilot-4 test file against the shared tree tools/tree (READ ONLY), one pytest run per file
+ # (plus test_pilot4_score.py through iso.py with the tree, and its pure mode), with sha256s of every file to be
+ # pinned before and after, the tree's status before and after, and the cache checks. Nothing trains.
+ # Each step's own exit status goes to $F/rcs.txt (and a STATUS line on stdout).
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ W=$SP/work
+ T=$W/pilot4/tools
+ P3=$W/pilot3/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ F=$LANE/tests_final
+ PY=$W/pilot3/branch/venv_full/bin/python
+ export TMPDIR=$LANE/tmp MUJOCO_GL=disable PYTHONDONTWRITEBYTECODE=1 GIT_OPTIONAL_LOCKS=0 OMP_NUM_THREADS=1
+-export PILOT4_TREE=$T/tree STRAIGHT_VAL=$T/out/fix/val_final
++export PILOT4_TREE=$T/tree STRAIGHT_VAL=$LANE/val_final
+ unset PYTHONPATH
+ mkdir -p "$F" "$TMPDIR"
+ RCS=$F/rcs.txt
+--- fix/final_state.sh
++++ tol/final_state.sh
+@@ -1,9 +1,9 @@
+ #!/bin/bash
+-# fix lane (copied from the e2e lane): the final state before pinning (read-only checks), written to logs/final_state.txt.
+-SP=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad
++# tolerance lane (copied from the fix lane, from the e2e lane): the final state before pinning (read-only checks), written to logs/final_state.txt.
++SP=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad)
+ W=$SP/work
+ T=$W/pilot4/tools
+-LANE=$T/out/fix
++LANE=$SP/work/pilot4/prelaunch/tol
+ F=$LANE/logs/final_state.txt
+ export GIT_OPTIONAL_LOCKS=0
+ {
+@@ -12,7 +12,7 @@
+   echo "tools/tree status entries (with ignored): $(git -C "$T/tree" status --porcelain --ignored | wc -l)"
+   echo "tools/tree branch containing HEAD (local): $(git -C "$T/tree" branch --contains HEAD --format='%(refname:short)' 2>&1 | tr '\n' ' ')"
+   echo "files under pilot 3's tools, run copies or judging newer than the start of the test run: $(find "$W/pilot3/tools" "$W/pilot3/runs/final" "$W/pilot3/judging" -newer "$LANE/tmp/marker_tests_final" | wc -l)"
+-  echo "files under the other pilot-4 lanes' folders newer than the start of the test run: $(find "$T/out" -path "$LANE" -prune -o -newer "$LANE/tmp/marker_tests_final" -type f -print | wc -l)"
++  echo "files under the pinned tools' evidence (tools/out) newer than the start of the test run: $(find "$T/out" -newer "$LANE/tmp/marker_tests_final" -type f -print | wc -l)"
+   echo "__pycache__/.pytest_cache/.pyc under the pilot-4 tools folder outside out/: $(find "$T" -path "$T/out" -prune -o \( -name __pycache__ -o -name .pytest_cache -o -name '*.pyc' \) -print | wc -l)"
+   echo "__pycache__/.pyc anywhere under my lane: $(find "$LANE" \( -name __pycache__ -o -name '*.pyc' \) | wc -l)"
+   echo "my clone removed: $(test -e "$LANE/tmp/clone" && echo no || echo yes)"
+--- fix/e2e_summary.py
++++ tol/e2e_summary.py
+@@ -19,8 +19,8 @@
+ E = LANE / "e2e"
+ OUT = E / "OUT"
+ LG = E / "logs"
+-TOOLS = LANE.parents[1]
+-STRAIGHT_VAL = TOOLS / "out" / "fix" / "val_final"
++TOOLS = LANE.parents[1] / "tools"  # tolerance lane: LANE is pilot4/prelaunch/tol
++STRAIGHT_VAL = LANE / "val_final"
+ READOUTS = TOOLS / "out" / "readouts" / "data"
+ SEEDS = (42, 52, 60)
+ STEPS = (500_000, 1_000_000, 1_500_000, 2_000_000)
+--- fix/pytest.ini
++++ tol/pytest.ini
+@@ -1,2 +1,2 @@
+ [pytest]
+-# fix lane: an empty, lane-local configuration, so pytest rootdir stays in the lane folder.
++# tolerance lane (copied from the fix lane): an empty, lane-local configuration, so pytest rootdir stays in the lane folder.
+--- fix/from_e2e/edge_pairs.py
++++ tol/from_e2e/edge_pairs.py
+@@ -35,8 +35,8 @@
+ 
+ import numpy as np
+ 
+-TOOLS = Path("/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools")
+-RUNS = Path("/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/runs/final")
++TOOLS = Path(__file__).resolve().parents[5] / ("pilot4/tools")
++RUNS = Path(__file__).resolve().parents[5] / ("pilot3/runs/final")
+ STEPS = (500_000, 1_000_000, 1_500_000, 2_000_000)
+ 
+ SEED = int(sys.argv[1])
+--- fix/from_e2e/sidecar_facts.py
++++ tol/from_e2e/sidecar_facts.py
+@@ -15,7 +15,7 @@
+ import environments  # noqa: F401 - the tree's, so the pickles' classes resolve there
+ 
+ LANE, OUT = Path(sys.argv[1]), Path(sys.argv[2])
+-RUNS = Path("/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/runs/final")
++RUNS = Path(__file__).resolve().parents[5] / ("pilot3/runs/final")
+ res = {"environments_file": environments.__file__}
+ for s in (42, 52, 60):
+     with open(LANE / "runs" / f"pilot4_walk_s{s}" / "03_locomotion" / "models" / "stage2_vecnormalize_2000000_steps.pkl",
+--- fix/from_e2e/weights_facts.py
++++ tol/from_e2e/weights_facts.py
+@@ -14,7 +14,7 @@
+ import torch
+ 
+ LANE, OUT = Path(sys.argv[1]), Path(sys.argv[2])
+-RUNS = Path("/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/runs/final")
++RUNS = Path(__file__).resolve().parents[5] / ("pilot3/runs/final")
+ 
+ 
+ def load(z: Path, member: str):
+--- fix/from_e2e/make_params.py
++++ tol/from_e2e/make_params.py
+@@ -5,10 +5,11 @@
+ from pathlib import Path
+ 
+ lane = Path(sys.argv[1])
++repo_ref = sys.argv[2]  # the pilot branch, read from the shared tree by the caller (tolerance lane)
+ drive = "/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo"
+ for seed in (42, 52, 60):
+     models = f"{drive}/pilot3_walk_s{seed}/03_locomotion/models"
+-    p = {"repo_ref": "claude/pilot-walk-r10-p4",
++    p = {"repo_ref": repo_ref,
+          "config": {"SPECIES": "tyrannosaurus_rex", "EMBODIMENT": "anatomical", "ALGORITHM": "ppo", "N_ENVS": 4,
+                     "SEED": seed, "QUICK_TEST": False, "USE_GOOGLE_DRIVE": False, "AUTO_DISCONNECT": False,
+                     "BEHAVIOR": "walk", "TRUNK_FROM": "", "RETRAIN_FROM": "", "RUN_LABEL": f"walking pilot 4 s{seed}",

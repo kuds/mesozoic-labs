@@ -1,0 +1,311 @@
+--- criteria_pilot4_before_render.txt	2026-11-06 13:53:49.389445026 +0000
++++ out/criteria_pilot4_dryrun.txt	2026-11-06 15:27:38.681253356 +0000
+@@ -1,21 +1,25 @@
+ T. rex walking pilot 4: fixed criteria (FROZEN CANDIDATE, 2026-11-06: written before any step of a pilot-4 run is
+ trained, the only training since draft v3 being decision (36)'s throwaway QUICK_TEST CPU notebook smoke (65,536 steps)
+-and its RESUME test (32,768 -> 65,536); built from draft v3 with the maintainer's decisions (31)-(36), the tools' fix
+-stage's 18 text corrections, the pre-launch checks' measurements and the pre-launch fix stage's edits, see "Changes
+-from v3" at the end, then "Changes in v3" and "Changes in v2"; not yet approved or frozen)
++and its RESUME test (32,768 -> 65,536); built from draft v3 with the maintainer's decisions (31)-(39), the tools' fix
++stage's 18 text corrections, the pre-launch checks' measurements, the pre-launch fix stage's edits and the render
++stage's record, see "Changes from v3" at the end, then "Changes in v3" and "Changes in v2"; not yet approved or
++frozen)
+ 
+ Status. A candidate for the freeze, modelled on walking pilot 3's approved criteria ("P3": SP/work/pilot3/
+ frozen_candidate2/criteria_pilot3.txt, sha256 853f49d6b7846e29e820de5e6572d36fc9f6b2c20b83c178e46f9a62eb291df4
+ [measured: sha256sum; the run log's line 1037 records the approval with that sha256, and line 1039, the durable
+ copy, names it again]); [P3 Lnnn] cites its line nnn. Every pilot-3 rule is kept unless this text gives the evidence
+-for a change. The maintainer took every item Q1-Q27 of draft v3 as proposed and decided (35) and (36) ("Decisions
++for a change. The maintainer took every item Q1-Q27 of draft v3 as proposed and decided (35)-(39) ("Decisions
+ taken"); no bar, seed, budget, cadence or outcome rule differs from v3's, and the one value that does is the
+ straightness tool's turned-twin tolerance, a check in its tests, 1e-5 -> 1e-4 deg (decision (35)). Every pre-launch
+-check is filled from measured evidence or written as not run yet; open, in this order ("Pre-launch checks"): the
+-maintainer's approval of this text (its sha256 recorded with the approval; it covers the smoke RESUME's departure from
+-pilot 3's procedure named there) and of the fourteen local commits (Q18), the OK to push, the push and the pushed head
+-checked on the GitHub remote by its URL, the durable copy of the pinned tools, the video tool's first render (or its
+-waiver), the Colab steps, and the launch approval. No seed is launched before all of them [P3 L15-16].
++check is filled from measured evidence or written as not run yet. Done since the pre-launch stages: the video tool's
++first render and the notebook replay, rendered on this machine with MuJoCo's glfw backend under a private Xvfb
++display, as pilot 3 rendered [P3 L1058-1059] (decision (37); "Pre-launch checks"); the smoke RESUME's departure from
++pilot 3's procedure, accepted (decision (38)). Open, in this order ("Pre-launch checks"): the maintainer's approval of
++this text (its sha256 recorded with the approval) and of the fourteen local commits (Q18); then, approved by
++decision (39) for after that approval and not done yet, the push with an explicit refspec, the pushed head checked on
++the GitHub remote by its URL, and the durable copy of the pinned tools and the evidence on an orphan branch; the
++Colab steps; and the launch approval. No seed is launched before all of them [P3 L15-16].
+   Branch pilot-walk-r10-p4: local, never merged, no pull request, not pushed [measured as recorded: RL 1090, "local,
+   push URL disabled", and RL 1097, "No push"; measured: the push URL of SP/work/pilot4/tools/tree reads
+   DISABLED-ask-the-maintainer, prelaunch/fix/logs/tree_remote.txt; the remote itself not read, no network]; head
+@@ -28,7 +32,12 @@
+   evidence: every file of SP/work/pilot4/prelaunch/setup/, smoke/, text/, verify/, text_review/ and fix/data/ is
+   pinned by SP/work/pilot4/prelaunch/fix/pin/SHA256SUMS_lanes.txt, sha256
+   d49528a10775c11832fd8f6f519b2cac93de826e71c396e3365e2ecdc537a8e2 (614 entries; tol/ is pinned by the tools' list),
+-  sha256sum -c 614 OK from SP/work/pilot4/prelaunch [measured: prelaunch/fix/pin/lanes_check.txt].
++  sha256sum -c 614 OK from SP/work/pilot4/prelaunch [measured: prelaunch/fix/pin/lanes_check.txt]. The render
++  stage's evidence (every file of SP/work/pilot4/render/render/ but its CMDLOG.txt and its clone tree/; its tmp/ is
++  empty) is pinned by its SHA256SUMS_render.txt, sha256
++  22e87a5b588f4acc64e62df5400225b9ceab719cb151e65d697b072e94a5afc1 (324 entries), sha256sum -c 324 OK from that
++  folder [measured: render/text/logs/render_manifest_check.txt, render_files_all.txt and
++  render_files_manifest.txt].
+ SP = the session scratchpad, as in pilot 3's text; RL nnnn = line nnnn of SP/work/run_log.txt. [measured: source] =
+ read or computed from the named file; [measured as recorded: source] = a number an earlier stage measured and
+ recorded there, not re-run here; [inferred: basis] = reasoning; rules carry no label. Branch names are written
+@@ -44,7 +53,8 @@
+ smoke/<file>); the arithmetic this text did on their records is in SP/work/pilot4/prelaunch/text/
+ (scripts/extract_facts.py, data/facts_text.json; cited as text/<file>); the pre-launch fix stage's checks are in
+ SP/work/pilot4/prelaunch/fix/ (cited as prelaunch/fix/<file>, so as not to be read as the fix stage's fix/logs/
+-above).
++above). The render stage's renders are in SP/work/pilot4/render/render/ and this text's checks of them in
++SP/work/pilot4/render/text/ (cited as render/render/<file> and render/text/<file>).
+ 
+ Where pilot 3 ended [measured as recorded: RL 1067, 1069, 1070, 1071]
+   PILOT OUTCOME WALKS, 3 of 3 seeds (42, 52, 60), each video-agreed; Q4 YES (no seed reads a tail or neck habit).
+@@ -68,8 +78,8 @@
+        [env] keys; the price is computed from the current pelvis yaw against the command's desired heading.
+   Decisions (22), (24), (29) and (30) concern the gait-report module (PR #659); none of them is part of this pilot,
+   and no outcome here reads that module's flags (its numbers appear only as report-only references).
+-  (31)-(36), 2026-11-06, on draft v3 and before the freeze: "Decisions taken" below [measured: RL 1093,
+-  1096].
++  (31)-(39), 2026-11-06, on draft v3 and before the freeze: "Decisions taken" below [measured: RL 1093,
++  1096, 1100].
+ 
+ The question, and what an answer can and cannot claim
+   Question: does a visible heading (the reserved command inputs obs[60:63] carrying a fixed straight command whose
+@@ -536,8 +546,10 @@
+   Required for every seed that is WALKS by the rule. (a) The notebook's final replay MyDrive/mesozoic-labs/logs/
+   tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s<seed>/03_locomotion/replays/
+   tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4: stage2_final (the 2,000,000 pair's policy plus the last update),
+-  one deterministic 1,000-step episode at the notebook's reset seed, the training seed + 2000 + stage 2: 2044, 2054,
+-  2062 [inferred: the same code, P3 L595-600]. (b) The panel episodes the scorer lists at the deciding checkpoint,
++  one deterministic 1,000-step episode at the notebook's reset seed, the training seed + 2000 + stage 2: 2044 for s42
++  [measured: the render stage's replay of the smoke's run, replay_seed(42, 2) = 2044 at both record_stage_video
++  calls, render/render/replay/run1/replay_record.json; "Pre-launch checks"], 2054 for s52 and 2062 for s60
++  [inferred: the same code, P3 L595-600]. (b) The panel episodes the scorer lists at the deciding checkpoint,
+   rendered by the video tool. "Agree" only if (a) shows a walk and at most (WALK count - 30) of the WALK episodes in
+   (b) are not walks [P3 L607-612]; a disagree makes the seed NOT WALKS (MIXED).
+   Straightness look (new; for every seed that is WALKS, video-agreed and passes (a) and (b), whatever (c) reads;
+@@ -732,8 +744,8 @@
+ 
+ Pre-launch checks (none trains a step of a pilot-4 run; the only training is the third item's throwaway QUICK_TEST
+ smoke and its RESUME; each filled from measured evidence, or written as not run yet; the lanes' folders are cited as
+-setup/, tol/, smoke/, text/ and prelaunch/fix/ ("Status"), each with a CMDLOG.txt of its commands and their exit
+-statuses)
++setup/, tol/, smoke/, text/, prelaunch/fix/, render/render/ and render/text/ ("Status"), each with a CMDLOG.txt of its
++commands and their exit statuses)
+   - The pushed head equals the local head; a clean tree; digest_snapshot, species_catalog, plant_contract and
+     notebook_cells current; the moved digest lines exactly the 8 above; the T. rex suite and the hybrid check's
+     targets pass but for the known 4, each id named with its cause (the build stage's run is the model).
+@@ -769,7 +781,8 @@
+       test_target_settled_by_2s, test_target_foot_slip_after_landing.
+     - Not re-run here: ruff, mypy and CI's wheel and baseline steps (ruff and mypy passed at 0e6a57b, "Code").
+     Not run yet (required before launch, after the freeze): the pushed head equals the local head. The branch is not
+-    pushed (Q18); after the push, git ls-remote https://github.com/kuds/mesozoic-labs.git
++    pushed (Q18); the push, with an explicit refspec, is approved for after the freeze approval (decision (39)) and
++    not done yet; after the push, git ls-remote https://github.com/kuds/mesozoic-labs.git
+     refs/heads/<prefix>/pilot-walk-r10-p4 must print 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8, recorded in the run log
+     (the repository [measured as recorded: RL 1085, its pull-request link]). Read the remote by its URL: the origin of
+     SP/work/pilot4/tools/tree is the local SP/wt_p4 (and a clone of the tree has the tree as origin), where the branch
+@@ -858,11 +871,17 @@
+     - Not checkable locally, so read at the Colab launch: the "Repository ref: ...; commit: ..." line (only Colab's
+       branch of cell 3 prints it; locally stage_config.json's git_commit and provenance.json's repository_commit
+       0e6a57bb..., repository_dirty false, show the commit), the /tmp/tb_buffer branch, and real CUDA, cuDNN and
+-      driver values (null on CPU). The final replay was not rendered ("Video recording failed." under
+-      MUJOCO_GL=disable; neither EGL nor OSMesa works on this machine), so its reset seed is not checked here.
+-    Done, the RESUME test, with one departure from pilot 3's procedure for the maintainer to confirm [measured:
+-    smoke/scripts/runner_snapshot.py, snap/snapshot.json, nb/resume/record.json and runner.stdout.log,
+-    nb/resume_stage_config_before.json and _after.json, out/compare_resume.json, runs/resume/pilot4_walk_s42/]:
++      driver values (null on CPU). The smoke rendered no replay: under MUJOCO_GL=disable its first
++      record_stage_video call (the selected checkpoint) raised, logged as "Video recording failed.", and the final
++      replay, in the same try, was not attempted [measured: smoke/nb/launch_s42.console.txt line 126, the traceback
++      at stage_artifacts.py line 2225; measured by code reading: environments/shared/reporting/stage_artifacts.py,
++      one try over both calls, lines 2174-2278 at 0e6a57b]. Neither EGL nor OSMesa works on this machine; glfw under a
++      private Xvfb display does, and both replays were rendered afterwards on a copy of this run, the reset seed
++      checked (the next item's render record).
++    Done, the RESUME test, with one departure from pilot 3's procedure, accepted by the maintainer on 2026-11-06
++    (decision (38), RL 1100: "Accept the copy (Recommended)") [measured: smoke/scripts/runner_snapshot.py,
++    snap/snapshot.json, nb/resume/record.json and runner.stdout.log, nb/resume_stage_config_before.json and
++    _after.json, out/compare_resume.json, runs/resume/pilot4_walk_s42/]:
+     pilot 3 resumed a second launch stopped after its 32,768 pair [P3 L1105-1115]; here the RESUME started from the
+     smoke's own 32,768 pair, because the pre-launch workflow allowed no training but the 65,536-step smoke and its
+     RESUME (the coordinator's scope for decision (36), RL 1097; decision (36) itself, RL 1096, names no resume route):
+@@ -929,13 +948,52 @@
+       HABIT (20 of 20 full-horizon trace episodes), refused without it. pilot4_noise.py (8905669b...) on both runs:
+       exp(log_std) mean 0.1467 at 32,768 and 0.1469 at 65,536; the forward term 1941.078 and 1944.641 per evaluation
+       against pilot 3's own 1943.495 at 8M.
+-    - Not run: pilot4_video.py (0c904fc4...) stopped at import under MUJOCO_GL=egl and osmesa (no libEGL and no
+-      libOSMesa on this machine), so the panel videos and the video tool's re-roll check wait for a machine that
+-      renders (pilot 3's smoke used a private Xvfb with glfw [P3 L1058-1059], which writes outside the lane's
+-      folders). The notebook's final replay was not rendered either (the smoke item above), so the replay's reset seed
+-      (2044 / 2054 / 2062, "Video review") stays inferred. Before launch either a machine that renders shows both, or
+-      the maintainer accepts in writing that the first renders are the Colab replays and the judging run's (the
+-      pending list). pilot4_mirror.py, pilot4_mech.py and pilot3_vg.py were not run on the smoke.
++    - Rendered (decision (37); the render stage, 2026-11-06, 14:11-15:12 UTC [measured: render/render/logs/
++      video_run1.rc to replay_run2.rc]; it ran the video tool and the replay writer only, nothing trained [measured
++      as recorded: render/render/CMDLOG.txt]). In the smoke lane pilot4_video.py (0c904fc4...) had stopped at import
++      under MUJOCO_GL=egl and osmesa (no libEGL and no libOSMesa on this machine). The render stage used MuJoCo's
++      glfw backend under a private Xvfb display, as pilot 3's smoke rendered [P3 L1058-1059], through pilot 3's
++      wrapper SP/work/pilot3/judging/score/bin/withx (e342c9f2..., pilot 3's copy of SP/work/pilot3/r6_fix/bin/withx)
++      copied to render/render/bin/withx (d1503ac7...) with one line changed, its S= folder, which also moves the
++      Xvfb log: Xvfb :97 with no TCP or unix-socket listener, MUJOCO_GL=glfw, MESA_SHADER_CACHE_DISABLE=true
++      [measured: the wrapper, render/render/logs/withx_diff_vs_p3_score.txt]; software GL, Mesa llvmpipe [measured as
++      recorded: the render lane's gl_check.py run, its output not kept in a file].
++    - The video tool [measured: render/render/logs/video_run1.log and video_run2.log, compare_videos.json,
++      videos_run1_SHA256SUMS.txt, videos/run1/s42/videos.json; recomputed in render/text/data/render_facts.json]:
++      pilot4_video.py through iso.py with the render line the scorer writes for the cell (pilot4_score.py line 1086:
++      OUT/s42/65536 --from-score score_validation_65536.json), on copies of the smoke's judged cell OUT/s42/65536 (its
++      6 files equal by sha256) and of the smoke's validation score (f421c999...), from a clean clone at 0e6a57b
++      (clean before and after, and tools/tree too); the tool read the judged pair f0ee303a... / aebded4b... where
++      binding.json names it, in the smoke's run folder (unchanged after). Exit 0; 40 of 40 re-rolled panel episodes
++      equal probe.json, and on each the L and R boxes equal the probe's floor-contact channel; 80 mp4s and
++      videos.json: for each WALK episode (resets 3042-3081) a real-time file (100 fps, 10.0 s) and a quarter-speed
++      file (25 fps, 40.0 s), each h264 640x480 with 1,000 frames, 49,527,598 bytes in all; camera tracking, distance
++      3.0, azimuth 135, elevation -20. A second render, run at the same time in the same Xvfb, is byte-identical: 80
++      of 80 sha256 equal, videos.json equal but for its output paths.
++    - The notebook replay [measured: render/render/replay/run1/ and run2/ (replay_record.json and the mp4s),
++      logs/replay_run1.log; recomputed in render/text/data/render_facts.json]: the replay writer of the manual cell's
++      final save (generate_stage_artifacts -> reporting.stage_artifacts._record_stage_replays ->
++      evaluation.record_stage_video, the selected checkpoint, then the final one) called with the notebook's
++      arguments (tyrannosaurus_rex / anatomical, load_all_stages, stage 2, ppo, seed 42) on a copy of the smoke's
++      launch run (56 files, equal by sha256), twice: tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4, h264 640x480,
++      100 fps, 1,000 frames, 10.0 s, 783,375 bytes, sha256
++      00e67bb7d20205cc6266fea16a7c74279b5dafb109735c179780d010c147c528 (reward 3050.87 in the writer's log). Reset
++      seed 2044: both record_stage_video calls computed replay_seed(42, 2) = 2044 (recorded by a wrapper that returns
++      the value unchanged), the seed passed to the render env's reset [measured by code reading:
++      environments/shared/evaluation.py line 359 at 0e6a57b]. The second run is byte-identical (0 of 1,000 frames
++      differ), no warnings. The ..._stage2_selected.mp4 (robust_best_model, byte-equal to the 32,768 zip
++      4ab2de8b...) is 085fc77c..., also byte-identical.
++    - Looked at, not the maintainer's video review (a throwaway QUICK_TEST model): the T. rex walks upright in every
++      panel episode and in both replays, the L and R boxes alternating through each stride; the prey sphere comes
++      into view ahead, passes beside the feet (about 3.7 s in panel episode 0, about 5 s in the final replay) and
++      drops behind; by 10 s the body has turned toward the fixed-angle camera [measured as recorded: the render
++      lane's frames, render/render/frames/, two sheets looked at again here; inferred: the veer the (a) readout
++      measures, median -27.8 deg].
++    - Outside its folder the render stage's checks found one change, the /var/lib/xkb directory's modification time,
++      at each Xvfb start, nothing left there but README.compiled [measured: render/render/logs/final_checks.txt;
++      inferred: Xvfb's keymap compiler]; the pinned tools' list 1152 OK before and after; the smoke's files
++      unchanged.
++    - pilot4_mirror.py, pilot4_mech.py and pilot3_vg.py were not run on the smoke.
+   - Entry baseline (in place of pilot 3's parent baseline [P3 L568-572], which a command-free 8M parent cannot give
+     in the live env unprepared): each seed's 8M pair, prepared in memory as the edge prepares it (the straightness
+     tool's baseline mode), rolled on the whole 40-episode panel (resets 3042-3081) in the committed pilot-4 env
+@@ -962,8 +1020,9 @@
+       cmp_tol_records.json].
+   - Every tool built, unit-tested, validated on pilot 3's judged cells (pilot 3's yaw_change_deg reproduced) and
+     pinned by sha256 before launch, with a durable copy outside the scratchpad [P3 L1401-1403].
+-    Done but for the durable copy and pilot4_video.py's first render (not run: the fourth item above; the tool is
+-    unit-tested, 15 cases, and differs from pilot 3's validated pilot3_video.py only in docstrings, its usage example,
++    Done but for the durable copy (pilot4_video.py's first render, made by the render stage on the smoke's judged
++    cell with 40 of 40 re-rolled episodes equal to probe.json, is in the fourth item above; the tool is unit-tested,
++    15 cases, and differs from pilot 3's validated pilot3_video.py only in docstrings, its usage example,
+     its record's schema name and an artifact label, 24 diff lines, no rendering line [measured: diff,
+     prelaunch/fix/data/diff_video_p3_p4.txt]) (the tolerance stage's final run, 11:51-11:57 UTC, the files unchanged
+     during it; the tests' tree tools/tree clean at 0e6a57b; nothing trains in the tests) [measured:
+@@ -984,13 +1043,16 @@
+       862b25b9..., pilot4_mech.py 5d9e21e7..., pilot3_vg.py a58d5f4f... and iso.py 5da55763... (byte copies of
+       pilot 3's), and the smoke runner nb_pilot_runner4.py 33fd52cc....
+     Not run yet (required before launch, after the freeze): the durable copy outside the session scratchpad [P3
+-    L1401-1403]: the pinned files, byte-identical, checked by sha256sum -c against SHA256SUMS.txt. The list names the
++    L1401-1403], which decision (39) approves for after the freeze approval as a copy of the tools and the evidence
++    on an orphan branch (never merged, no pull request): the pinned files, byte-identical, checked by sha256sum -c
++    against SHA256SUMS.txt. The list names the
+     tolerance stage's evidence as ../prelaunch/tol/... (547 of its 1152 entries [measured:
+     prelaunch/fix/logs/tools_list_counts.txt]) and test_pilot4_score.py reads ../prelaunch/tol/val_final by default,
+     so the copy holds SP/work/pilot4/tools/ and SP/work/pilot4/prelaunch/tol/ at the same relative positions (or the
+     test is given PILOT4_STRAIGHT_VAL), and sha256sum -c SHA256SUMS.txt run from the copy's tools folder must give
+     1152 OK; where the copy also keeps the lanes' evidence, sha256sum -c fix/pin/SHA256SUMS_lanes.txt run from the
+-    copy's prelaunch folder must give 614 OK.
++    copy's prelaunch folder must give 614 OK, and, for the render stage's evidence, sha256sum -c
++    SHA256SUMS_render.txt run from the copy's render/render folder must give 324 OK.
+   - The Colab steps for pilot 4 (pilot 3's COLAB_STEPS_PILOT3.txt as the model), reviewed against this text; the
+     parent-file route (Q4).
+     Not run yet (required before launch, after the freeze: pilot 3's steps were written from its frozen text after its
+@@ -1004,16 +1066,16 @@
+     <seed>, N_ENVS 4, RUN_ID pilot4_walk_s<seed>, BEHAVIOR "walk", CRITIC_PHASE False, K3_PANEL False
+     (smoke/nb/params_s42.json); the launch lines and first-hour checks under "Run handling"; the RESUME and _b rules.
+     Their test: a line-by-line check against the frozen text before any Colab launch, as pilot 3's had.
+-  Pending, in this order: the maintainer's approval of this text (its sha256; with it the smoke RESUME's departure
+-  above) and of the fourteen local commits; the OK to push, then the push with an explicit refspec to the same-named
+-  remote branch, never a bare git push [P3 L1397-1400], after which git ls-remote
+-  https://github.com/kuds/mesozoic-labs.git refs/heads/<prefix>/pilot-walk-r10-p4 must print
+-  0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 (by its URL, not origin: the first item), and nothing more is pushed to it
+-  until every seed is judged ("Code"); the durable copy of the pinned tools; the video tool's first render and the
+-  notebook replay's reset seed (2044 for s42) on a machine that renders, or the maintainer's written acceptance that
+-  the first renders are the Colab replays and the judging run's; the Colab steps (COLAB_STEPS_PILOT4.txt from pilot
+-  3's COLAB_STEPS_PILOT3.txt, written from this text once frozen), reviewed against this text; the maintainer's launch
+-  approval.
++  Pending, in this order: the maintainer's approval of this text (its sha256) and of the fourteen local commits (the
++  smoke RESUME's departure above is accepted, decision (38)); then, approved by decision (39) for after that approval
++  and not done yet, the push with an explicit refspec to the same-named remote branch, never a bare git push [P3
++  L1397-1400], after which git ls-remote https://github.com/kuds/mesozoic-labs.git
++  refs/heads/<prefix>/pilot-walk-r10-p4 must print 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8 (by its URL, not origin:
++  the first item), and nothing more is pushed to it until every seed is judged ("Code"), and the durable copy of the
++  pinned tools and the evidence on an orphan branch (never merged, no pull request); the Colab steps
++  (COLAB_STEPS_PILOT4.txt from pilot 3's COLAB_STEPS_PILOT3.txt, written from this text once frozen), reviewed
++  against this text; the maintainer's launch approval. The video tool's first render and the notebook replay with
++  its reset seed (2044 for s42), pending before, are done on this machine (decision (37); the fourth item above).
+ 
+ TOOL PLAN (what the pilot-4 tools change against pilot 3's pinned tools in SP/work/pilot3/tools/; each new tool and
+ test pinned in a new SHA256SUMS.txt before launch, done: sha256 0f42f29f..., "Pre-launch checks"; none on the
+@@ -1124,8 +1186,9 @@
+ 
+ Decisions taken (2026-11-06; items Q1-Q27 as draft v3 listed them, each with the maintainer's choice; the run log's
+ maintainer decisions keep their parenthesized numbers) [measured: RL 1093, 05:27 UTC, "MAINTAINER DECISIONS
+-(AskUserQuestion, on draft v3 Q1-Q27)"; RL 1096, 11:21 UTC, "MAINTAINER DECISIONS (AskUserQuestion)"]. The
+-alternatives v3 listed beside each proposal were not chosen and are not carried here (v3 keeps them).
++(AskUserQuestion, on draft v3 Q1-Q27)"; RL 1096, 11:21 UTC, and RL 1100, 14:05 UTC, "MAINTAINER DECISIONS
++(AskUserQuestion)"]. The alternatives v3 listed beside each proposal were not chosen and are not carried here (v3
++keeps them).
+   (31) Straightness rule, "Accept as proposed (Recommended)": Q1-Q3, Q9, Q19, Q20, Q22 and Q25.
+   (32) Judging and outcome, "Accept as proposed (Recommended)": Q8, Q10, Q21, Q23 and Q27.
+   (33) Running, "Accept as proposed (Recommended)": Q4-Q7, Q11 and Q12.
+@@ -1139,6 +1202,14 @@
+   (36) "Smoke, then final text (Recommended)": the QUICK_TEST notebook smoke on CPU with the pinned tools (it trains
+        a throwaway model; approved), the judge, score and resume checks on its output, then the 18 text corrections
+        and the tolerance applied to make this text; the push and the Colab launch still wait.
++  (37) "Render here, then freeze (Recommended)": render pilot4_video.py and the notebook replay on the smoke's output
++       with MuJoCo's glfw backend under a private Xvfb display (no training), add the evidence to this text, then
++       the maintainer approves its final sha256 (rendered: "Pre-launch checks").
++  (38) The RESUME test, "Accept the copy (Recommended)": the smoke's RESUME from a copy of its own 32,768 pair, the
++       departure from pilot 3's procedure stated under "Pre-launch checks", is accepted.
++  (39) The push, "Yes, after the freeze (Recommended)": after the freeze approval, push pilot-walk-r10-p4 with an
++       explicit refspec, and a durable copy of the tools and the evidence to an orphan branch (never merged, no pull
++       request); neither is done yet.
+   Q1. The STRAIGHT bars, (31): (a) |median| <= 5 deg and p95 <= 15 deg; (b) p95 D <= 11.5 deg, with Q20's guard;
+      (c) median r <= 5 deg and p95 r <= 11.5 deg ("STRAIGHT").
+   Q2. The weave measure, (31): D, the deviation of the 1-s mean heading from the commanded heading; R report only.
+@@ -1169,8 +1240,8 @@
+   Q17. The [ppo] schedules, (34): production's schedule as committed (learning rate 5e-5 -> 1e-5 over 2M, entropy
+       0.005 decaying toward 0.001 over 4M); no [ppo] change.
+   Q18. The approvals, (34): the order as proposed; the approvals themselves are still open: this text once frozen
+-      (its sha256), the fourteen local commits (seven built, four review fixes, three postfix fixes), the OK to push
+-      and the launch ("Status", "Pre-launch checks").
++      (its sha256), the fourteen local commits (seven built, four review fixes, three postfix fixes) and the launch;
++      the OK to push is given for after the freeze approval (decision (39)) ("Status", "Pre-launch checks").
+   Q19. (c)'s prey and counting rule, (31): the prey turned with the walker at the nudge; only nudges after the
+       episode's prey pass count; NOT READ below 30 counting episodes.
+   Q20. The zig-zag guard, (31): p95 W0 <= 18.5 deg.
+@@ -1290,7 +1361,8 @@
+ Changes from v3 (against draft v3, SP/work/pilot4/postfix/fix/criteria_pilot4_draft_v3.txt, sha256 1c52644d...c19d; v3
+ is kept unchanged; this text is made from it by SP/work/pilot4/prelaunch/text/scripts/make_final.py, which checks
+ every replaced text before replacing it, then edited by the pre-launch fix stage's
+-SP/work/pilot4/prelaunch/fix/scripts/apply_fix.py, which checks every replaced text the same way: the last bullet)
++SP/work/pilot4/prelaunch/fix/scripts/apply_fix.py, which checks every replaced text the same way (the next-to-last
++bullet), and by the render stage's SP/work/pilot4/render/text/scripts/apply_render.py, the same way (the last bullet))
+   - The tools' fix stage's 18 text corrections (SP/work/pilot4/tools/out/fix/text_corrections.txt, sha256
+     78f17142...): C1-C5, C7, C8 (inserted), C9a, C9b and C10-C16 with their NEW text verbatim but for the citations
+     and wording the next bullets name, and C6 in its alternative (a) form, decision (35): the turned-twin tolerance
+@@ -1332,3 +1404,15 @@
+     consequences v3 named, and the C8 limit points to v3's Q25; PENDING_REVIEW and the existence reading name the
+     straightness record; the test-target, end-to-end, smoke-runner and lineage sentences are made exact; the TOML's
+     "PROPOSED" comments are noted under "What is trained".
++  - The render stage (decisions (37)-(39); SP/work/pilot4/render/; the text before it kept as
++    render/text/criteria_pilot4_before_render.txt, sha256 6a8b3340...; render/text/scripts/apply_render.py checks
++    every replaced text), on the render lane's record; no bar, seed, budget, cadence, outcome rule or decided value
++    and no tool changed (the tools' SHA256SUMS.txt still 0f42f29f..., sha256sum -c 1152 OK [measured:
++    render/text/logs/sha_before.txt and sha_after.txt]): every passage that said the video tool or the notebook
++    replay was not rendered, that no EGL or OSMesa meant no render, or that a first render or its waiver was still
++    required now gives the render record or points to it (Status, the smoke item, the video item and the tools item
++    of "Pre-launch checks", the pending list); s42's replay reset seed reads measured under "Video review" (2054 and
++    2062 stay inferred); the RESUME departure is accepted (decision (38)); the push and the durable copy are
++    approved for after the freeze approval and not done (decision (39): Status, the push and durable-copy items, the
++    pending list, Q18); the title, Status, "Maintainer decisions behind this pilot" and "Decisions taken" name
++    (37)-(39); Status pins the render stage's evidence and the lanes' folders name its two.

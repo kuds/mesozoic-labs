@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/iso.py", line 84, in <module>
+    sys.exit(main(sys.argv))
+             ~~~~^^^^^^^^^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/iso.py", line 68, in main
+    runpy.run_path(str(script), run_name="__main__")
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 294, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_video.py", line 468, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_video.py", line 339, in main
+    renderer = mujoco.Renderer(base.unwrapped.model, height=HEIGHT, width=WIDTH)
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/mujoco/rendering/classic/renderer.py", line 88, in __init__
+    if gl_context.GLContext is not None:
+       ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'mujoco.rendering.classic.gl_context' has no attribute 'GLContext'

@@ -1,0 +1,87 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
+rootdir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix
+configfile: scripts/pytest.ini
+plugins: platformdirs-4.14.3, anyio-4.16.0, cov-7.1.0
+collecting ... collected 65 items
+
+::test_the_tool_plan_s_constants PASSED                                  [  1%]
+::test_every_definition_is_pilot_3_s PASSED                              [  3%]
+::test_the_changed_functions_change_only_what_the_plan_names PASSED      [  4%]
+::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals0] PASSED [  6%]
+::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals1] PASSED [  7%]
+::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals2] PASSED [  9%]
+::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals3] PASSED [ 10%]
+::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals4] PASSED [ 12%]
+::test_a_quiet_ledger_reads_no_flag_and_30_evaluations PASSED            [ 13%]
+::test_4_of_10_is_not_flagged_and_5_of_10_is PASSED                      [ 15%]
+::test_the_bar_is_strictly_above_0_10 PASSED                             [ 16%]
+::test_consecutive_flags_alarm_and_split_flags_do_not PASSED             [ 18%]
+::test_an_alarm_at_the_window_s_first_and_last_evaluations PASSED        [ 20%]
+::test_evaluations_after_the_window_are_not_read PASSED                  [ 21%]
+::test_a_collapse_stopped_window_ends_at_its_newest_pair PASSED          [ 23%]
+::test_a_duplicated_row_set_after_a_resume_reads_the_last_written_set PASSED [ 24%]
+::test_a_repeated_episode_index_inside_one_block_starts_a_new_set PASSED [ 26%]
+::test_an_evaluation_with_fewer_than_10_rows_is_printed_and_not_flagged PASSED [ 27%]
+::test_an_unresolved_only_alarm_is_a_possible_alarm PASSED               [ 29%]
+::test_actuator_names_and_groups PASSED                                  [ 30%]
+::test_a_missing_column_reads_not_run PASSED                             [ 32%]
+::test_td_per_500000_step_blocks PASSED                                  [ 33%]
+::test_grid_gaps_are_read_against_65536 PASSED                           [ 35%]
+::test_cmd_is_the_mean_of_full_horizon_window_means PASSED               [ 36%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[14-0.6-park0-driven0] PASSED [ 38%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[14-0.5999-park1-driven1] PASSED [ 40%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[11-0.65-park2-driven2] PASSED [ 41%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[13--0.6-park3-driven3] PASSED [ 43%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[12-0.7-park4-driven4] PASSED [ 44%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[12--0.61-park5-driven5] PASSED [ 46%]
+::test_park_is_tail_up_on_a_pitch_actuator_and_driven_either_sign[0-0.95-park6-driven6] PASSED [ 47%]
+::test_fewer_than_10_full_horizon_episodes_forms_no_cmd PASSED           [ 49%]
+::test_the_bar_in_the_trace_counts_full_horizon_episodes_per_actuator PASSED [ 50%]
+::test_the_trace_s_head_tip_line_names_its_references_as_pilot_3_s PASSED [ 52%]
+::test_seed_reading_no_habit_habit_and_not_run PASSED                    [ 53%]
+::test_a_neck_alarm_is_a_neck_habit PASSED                               [ 55%]
+::test_a_leg_alarm_is_never_a_habit PASSED                               [ 56%]
+::test_a_possible_alarm_is_settled_by_the_trace PASSED                   [ 58%]
+::test_park_and_driven_are_habits PASSED                                 [ 60%]
+::test_the_ledger_cli_writes_json PASSED                                 [ 61%]
+::test_seed_accepts_a_pilot_cell_with_its_own_run_s_ledger PASSED        [ 63%]
+::test_seed_refuses_a_retired_run_s_ledger_and_a_ledger_elsewhere PASSED [ 64%]
+::test_seed_refuses_another_file_in_the_run_s_stage_folder PASSED        [ 66%]
+::test_seed_refuses_a_same_named_copy_outside_the_judged_run PASSED      [ 67%]
+::test_seed_refuses_a_dirty_tree_an_off_schedule_and_a_validation_only_cell PASSED [ 69%]
+::test_seed_lists_every_problem_at_once PASSED                           [ 70%]
+::test_a_full_window_covers_the_deciding_checkpoint PASSED               [ 72%]
+::test_the_four_judged_checkpoints_windows[500000-458752-7] PASSED       [ 73%]
+::test_the_four_judged_checkpoints_windows[1000000-983040-15] PASSED     [ 75%]
+::test_the_four_judged_checkpoints_windows[1500000-1441792-22] PASSED    [ 76%]
+::test_the_four_judged_checkpoints_windows[2000000-1966080-30] PASSED    [ 78%]
+::test_a_stale_copy_cut_short_of_the_deciding_checkpoint_is_a_window_problem PASSED [ 80%]
+::test_the_window_s_tail_boundary_is_one_grid_step PASSED                [ 81%]
+::test_a_copy_without_its_first_rows_is_a_window_problem PASSED          [ 83%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[250000] PASSED [ 84%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[500000] PASSED [ 86%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[750000] PASSED [ 87%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[1000000] PASSED [ 89%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[1250000] PASSED [ 90%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[1500000] PASSED [ 92%]
+::test_a_resume_from_any_intact_pair_covers_the_checkpoint[1750000] PASSED [ 93%]
+::test_the_window_grid_is_65536_and_the_run_s_own_only_for_a_validation_read PASSED [ 95%]
+::test_seed_main_refuses_a_stale_judged_copy_before_the_trace PASSED     [ 96%]
+::test_seed_main_reads_a_covering_window_and_records_the_check PASSED    [ 98%]
+::test_every_mode_refuses_an_existing_json_target PASSED                 [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tests_final/test_pilot4_habit.xml -
+============================= slowest 10 durations =============================
+0.08s call     ::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals2]
+0.07s call     ::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals0]
+0.07s call     ::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals4]
+0.07s call     ::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals1]
+0.07s call     ::test_pilot_3_s_reading_and_pilot_4_s_agree_but_for_the_grid_gaps_and_the_td_blocks[evals3]
+0.06s call     ::test_the_bar_in_the_trace_counts_full_horizon_episodes_per_actuator
+0.05s call     ::test_seed_reading_no_habit_habit_and_not_run
+0.05s call     ::test_a_possible_alarm_is_settled_by_the_trace
+0.05s call     ::test_the_ledger_cli_writes_json
+0.04s call     ::test_park_and_driven_are_habits
+============================== 65 passed in 1.34s ==============================
+{"pytest_args": ["-p", "no:cacheprovider", "-c", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/scripts/pytest.ini", "--rootdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix", "--confcutdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests", "--basetemp", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pt_test_pilot4_habit", "-v", "-rfEs", "--durations=10", "--junitxml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tests_final/test_pilot4_habit.xml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests/test_pilot4_habit.py"], "exit_status": 0, "elapsed_s": 1.61, "environments_imported_in_pytest_process": false, "environments_file_in_pytest_process": null, "python": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python", "dont_write_bytecode": true}

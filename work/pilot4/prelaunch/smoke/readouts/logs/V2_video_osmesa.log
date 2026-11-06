@@ -1,0 +1,45 @@
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/iso.py", line 84, in <module>
+    sys.exit(main(sys.argv))
+             ~~~~^^^^^^^^^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/iso.py", line 68, in main
+    runpy.run_path(str(script), run_name="__main__")
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 294, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_video.py", line 468, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_video.py", line 301, in main
+    install_probe_shims()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/pilot4_video.py", line 219, in install_probe_shims
+    from environments.shared import (
+    ...<4 lines>...
+    )
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/judge_tree/environments/shared/plant_contract/__init__.py", line 62, in <module>
+    from .manifest import (
+    ...<7 lines>...
+    )
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/judge_tree/environments/shared/plant_contract/manifest.py", line 14, in <module>
+    import mujoco
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/mujoco/__init__.py", line 71, in <module>
+    from mujoco.rendering.classic.renderer import Renderer  # pytype: disable=import-error
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/mujoco/rendering/classic/renderer.py", line 20, in <module>
+    from mujoco.rendering.classic import gl_context
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/mujoco/rendering/classic/gl_context.py", line 38, in <module>
+    from mujoco.osmesa import GLContext as _GLContext
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/mujoco/osmesa/__init__.py", line 31, in <module>
+    from OpenGL import GL
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/OpenGL/GL/__init__.py", line 4, in <module>
+    from OpenGL.GL.VERSION.GL_1_1 import *
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/OpenGL/GL/VERSION/GL_1_1.py", line 14, in <module>
+    from OpenGL.raw.GL.VERSION.GL_1_1 import *
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/OpenGL/raw/GL/VERSION/GL_1_1.py", line 7, in <module>
+    from OpenGL.raw.GL import _errors
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/OpenGL/raw/GL/_errors.py", line 4, in <module>
+    _error_checker = _ErrorChecker( _p, _p.GL.glGetError )
+                                        ^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'glGetError'

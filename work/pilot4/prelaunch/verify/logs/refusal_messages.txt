@@ -1,0 +1,34 @@
+== A5_judge_again_65536: 1 lines
+refusing (nothing written): SP/pilot4/prelaunch/smoke/judge/OUT/s42/65536 exists (one judgement per checkpoint, never overwritten)
+== A6_pilot_budget: 1 lines
+refusing (nothing written): budget 50000 (not 2000000); curriculum.eval_freq is 32768, not 65536; curriculum.checkpoint_freq is 32768, not 250000
+== A8_fallback_wrong: 1 lines
+refusing (nothing written): stage2_final.zip records num_timesteps 49,152, not the uninterrupted end 65,536 of the 50,000-step budget (whole rollouts of 16,384)
+== R1_parent_cli_s52: 1 lines
+refusing (nothing written): --parent-sha256 sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00 is not s42's own 8M parent sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4 (it is s52's); parent_checkpoint_sha256 sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4 is not the chosen parent sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34
+== R_parent_sha_record: 1 lines
+refusing (nothing written): parent_checkpoint_sha256 sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00 is not the chosen parent sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4
+== R_command_table: 1 lines
+refusing (nothing written): reward_weights.command_config is not the committed [env.command_config] table key for key: yaw_gain = 1.0 (float), committed 1.5 (float); the run's recorded env kwargs (stage_config.json reward_weights) differ from the env this tree builds (constructor defaults and the committed [env]), so the probe would judge in another env than training's: {"command_config": {"recorded_run": {"cruise_sp
+== R_env_kwarg_drift: 1 lines
+refusing (nothing written): the run's recorded env kwargs (stage_config.json reward_weights) differ from the env this tree builds (constructor defaults and the committed [env]), so the probe would judge in another env than training's: {"forward_vel_weight": {"recorded_run": 3.0, "toml_main": 2.0}}
+== R_other_head: 1 lines
+refusing (nothing written): git_commit 31d02e42d148511e50f9cba9a598d9a9d36c23af != tree HEAD 0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8
+== R_n_envs_2: 1 lines
+refusing (nothing written): run.n_envs is 2, not 4
+== R_warm_start_log_std: 1 lines
+refusing (nothing written): run.warm_start_log_std is recorded (-2.0): pilot 4 keeps each walker's own log_std
+== R_critic_dropped: 1 lines
+refusing (nothing written): run.critic_phase_dropped is recorded ({'inputs': 3, 'kind': 'episode_phase'}): pilot 4's parents read no critic phase, so no drop is expected
+== R_parent_task: 1 lines
+refusing (nothing written): run.parent_task_sha256 is 'sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a', not pilot 3's command-free task sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a
+== R_no_lineage: 1 lines
+refusing (nothing written): the judged zip records no mesozoic_task_lineage (no edge lineage: not a pilot-4 fine-tune)
+== R_wrong_run_id: 1 lines
+refusing (nothing written): the run copy's folder 'pilot3_walk_s42' is not a pilot-4 RUN_ID (pilot4_walk_s<seed> or pilot4_walk_s<seed>_b)
+== D2_dirty_judge: 1 lines
+refusing (nothing written): the tree SP/pilot4/prelaunch/smoke/judge_tree has local edits
+== B3_resumed_final_fallback: 1 lines
+refusing (nothing written): a resumed run's final pair does not end at the uninterrupted end; no fallback for it
+== B4_resume_nonperiodic: 1 lines
+refusing (nothing written): budget None (not 50000); resumed from SP/pilot4/prelaunch/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot4_walk_s42/03_locomotion/models/stage2_final; resumed from SP/pilot4/prelaunch/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot4_walk_s42/03_locomotion/models/stage2_final, which is not a periodic stage2_<steps>_steps checkpoint

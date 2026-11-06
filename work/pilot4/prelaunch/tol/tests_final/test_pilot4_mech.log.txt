@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python
+rootdir: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol
+configfile: scripts/pytest.ini
+plugins: platformdirs-4.14.3, anyio-4.16.0, cov-7.1.0
+collecting ... collected 19 items
+
+::test_si_med_and_boxcar PASSED                                          [  5%]
+::test_counter_turn_is_zero_for_a_monotonic_veer_and_reads_a_reversal PASSED [ 10%]
+::test_t_start_on_a_constant_and_a_ramped_walk PASSED                    [ 15%]
+::test_the_two_debounces_differ_where_the_lanes_differ PASSED            [ 21%]
+::test_the_copies_equal_the_frozen_probes_debounce_and_events PASSED     [ 26%]
+::test_per_touchdown_metrics_on_a_synthetic_gait PASSED                  [ 31%]
+::test_a_mid_swing_touch_is_a_scuff_and_an_edge_touch_is_not PASSED      [ 36%]
+::test_stride_rom_reads_each_sides_range_per_own_stride PASSED           [ 42%]
+::test_stride_rom_reads_only_strides_from_touchdowns_at_step_100_on PASSED [ 47%]
+::test_weave_reads_no_t_start_as_not_run PASSED                          [ 52%]
+::test_ledger_window_is_the_last_six_at_or_before_the_checkpoint PASSED  [ 57%]
+::test_ledger_reads_full_horizon_then_cause_and_skips_bad_rows PASSED    [ 63%]
+::test_ledger_not_run_reasons PASSED                                     [ 68%]
+::test_leg_power_sums_each_sides_medians PASSED                          [ 73%]
+::test_output_cell_and_parent_refusals PASSED                            [ 78%]
+::test_existing_json_is_refused_before_the_tree_is_imported PASSED       [ 84%]
+::test_the_references_are_the_lanes_records PASSED                       [ 89%]
+::test_the_parent_table_is_v3s PASSED                                    [ 94%]
+::test_constants_are_the_lanes PASSED                                    [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_pilot4_mech.xml -
+============================= slowest 10 durations =============================
+0.06s call     ::test_the_copies_equal_the_frozen_probes_debounce_and_events
+0.01s call     ::test_the_references_are_the_lanes_records
+0.01s call     ::test_a_mid_swing_touch_is_a_scuff_and_an_edge_touch_is_not
+0.01s call     ::test_si_med_and_boxcar
+0.01s call     ::test_stride_rom_reads_each_sides_range_per_own_stride
+
+(5 durations < 0.005s hidden.  Use -vv to show these durations.)
+============================== 19 passed in 0.23s ==============================
+{"pytest_args": ["-p", "no:cacheprovider", "-c", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/scripts/pytest.ini", "--rootdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol", "--confcutdir", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests", "--basetemp", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tmp/pt_test_pilot4_mech", "-v", "-rfEs", "--durations=10", "--junitxml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/tol/tests_final/test_pilot4_mech.xml", "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/tests/test_pilot4_mech.py"], "exit_status": 0, "elapsed_s": 0.5, "environments_imported_in_pytest_process": false, "environments_file_in_pytest_process": null, "python": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot3/branch/venv_full/bin/python", "dont_write_bytecode": true}

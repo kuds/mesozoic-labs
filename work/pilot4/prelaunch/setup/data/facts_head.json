@@ -1,0 +1,1913 @@
+{
+ "42": {
+  "runner_exit": 0,
+  "runner_sha256": "33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+  "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "notebook_sha256": "sha256:1eac05eef78af5000518e192c276b123815c41b707b60af2ae277236c9070d89",
+  "roles": {
+   "setup": 3,
+   "config": 6,
+   "resume": 18,
+   "chain": 20,
+   "manual": 22,
+   "disconnect": 32
+  },
+  "run_all": {
+   "stopped_at": 20,
+   "stopped_by_the_guard": true
+  },
+  "manual_cell_stopped_at_learn": true,
+  "learn_called": [
+   {
+    "class": "stable_baselines3.ppo.ppo.PPO",
+    "total_timesteps": 2000000,
+    "reset_num_timesteps": true
+   }
+  ],
+  "guard_hits": [],
+  "guard_hits_final": [],
+  "entry_lines_ok": true,
+  "entry_lines_missing": [],
+  "entry_lines_forbidden_present": [],
+  "entry_lines_other_warm_start": [],
+  "entry_lines_required": {
+   "setup (local)": "Running locally; using this checkout. REPO_REF selects only the Colab checkout.",
+   "quick test": "Quick test mode: False",
+   "behavior": "Behavior recipe: walk",
+   "K3 panel": "In-run K3 panel: off",
+   "critic phase": "Critic phase: off",
+   "run directory": "Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s42 (new run: RUN_ID names no existing run)",
+   "node": "Node locomotion (stage 2): Locomotion (ppo)",
+   "timesteps": "Timesteps: 2,000,000",
+   "vecnormalize": "VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+  },
+  "parent_pair": {
+   "zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip",
+   "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+   "zip_sha256": "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+   "vecnorm_sha256": "sha256:b9e6dee894e549ca4e844f7ef3c162e0f52609eacede7b1790e5d649e77d9cce"
+  },
+  "locomotion_curriculum_at_end": {
+   "eval_freq": 65536,
+   "checkpoint_freq": 250000,
+   "eval_episodes": 10,
+   "max_checkpoints": 0,
+   "warm_start_log_std": null,
+   "warmup_timesteps": 0,
+   "ramp_start_value": 2.0,
+   "timesteps": 2000000,
+   "initialize_from_own_checkpoint": true
+  },
+  "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+  "runner_environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+  "pairs_unchanged": true,
+  "errors": {},
+  "tensors_changed": {
+   "mlp_extractor.policy_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   }
+  },
+  "n_tensors": 13,
+  "parent_command_column_l2": {
+   "mlp_extractor.policy_net.0.weight": [
+    1.4142132997512817,
+    1.41421377658844,
+    1.41421377658844
+   ],
+   "mlp_extractor.value_net.0.weight": [
+    1.4142132997512817,
+    1.4142135381698608,
+    1.4142135381698608
+   ]
+  },
+  "loaded_command_columns_max_abs": {
+   "mlp_extractor.policy_net.0.weight": 0.0,
+   "mlp_extractor.value_net.0.weight": 0.0
+  },
+  "columns_0_60_bit_equal": {
+   "mlp_extractor.policy_net.0.weight": true,
+   "mlp_extractor.value_net.0.weight": true
+  },
+  "log_std_bit_equal_parent": true,
+  "log_std_mean_min_max": [
+   -1.9380897283554077,
+   -2.241372585296631,
+   -1.7055096626281738
+  ],
+  "adam_step_pairs_parent_loaded": [
+   [
+    742878.0,
+    742878.0
+   ]
+  ],
+  "adam_params_with_changed_moments_or_listed": {
+   "log_std": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_sq_n_changed": 0,
+    "step_parent": 742878.0,
+    "step_loaded": 742878.0
+   },
+   "mlp_extractor.policy_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 742878.0,
+    "step_loaded": 742878.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 742878.0,
+    "step_loaded": 742878.0
+   }
+  },
+  "optimizer_lr_parent_loaded": [
+   [
+    1.0023040000000002e-05
+   ],
+   [
+    1.0023040000000002e-05
+   ]
+  ],
+  "vecnorm_parent": {
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    3.124748848300523e-12,
+    3.124748848300523e-12,
+    3.124748848300523e-12
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 401.0106260184962,
+   "ret_rms_var": 38646.19242348458,
+   "ret_rms_count": 8000000.0001,
+   "clip_obs": 10.0,
+   "epsilon": 1e-08,
+   "gamma": 0.995
+  },
+  "vecnorm_train": {
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 0.0,
+   "ret_rms_var": 1.0,
+   "ret_rms_count": 0.0001,
+   "training": true,
+   "num_envs": 4
+  },
+  "vecnorm_eval": {
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_count": 0.0001,
+   "training": false,
+   "num_envs": 1
+  },
+  "at_learn": {
+   "model_class": "stable_baselines3.ppo.ppo.PPO",
+   "learn_kwargs": {
+    "total_timesteps": 2000000,
+    "callback": "<stable_baselines3.common.callbacks.CallbackList object at 0x7f26f09c4590>",
+    "progress_bar": false,
+    "reset_num_timesteps": true
+   },
+   "num_timesteps": 8000000,
+   "ent_coef": 0.005,
+   "clip_range_type": "FloatSchedule",
+   "clip_range(1.0)": 0.2,
+   "lr_schedule(1.0)": 5e-05,
+   "lr_schedule(0.0)": 1e-05,
+   "optimizer_lr": [
+    1.0023040000000002e-05
+   ],
+   "ent_coef_warmup_marker": false,
+   "train_env_forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "train_env_walk_heading_price_weight": [
+    0.2,
+    0.2,
+    0.2,
+    0.2
+   ],
+   "train_env_walk_heading_price_scale_rad": [
+    0.5,
+    0.5,
+    0.5,
+    0.5
+   ],
+   "train_env_command_mode": [
+    "heading",
+    "heading",
+    "heading",
+    "heading"
+   ],
+   "train_env_prey_lateral_range": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "vecnorm_training": true,
+   "vecnorm_obs_rms_count": 32002572.0001,
+   "device": "cpu",
+   "n_envs": 4,
+   "n_steps": 4096,
+   "batch_size": 256,
+   "n_epochs": 10,
+   "gamma": 0.995,
+   "gae_lambda": 0.95,
+   "target_kl": 0.05,
+   "seed": 42
+  },
+  "stage_config_git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "stage_config_run": {
+   "seed": 42,
+   "n_envs": 4,
+   "timesteps": 2000000,
+   "hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "label": "walking pilot 4 s42",
+   "load_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip",
+   "load_mode": "initialize_next_stage",
+   "parent_checkpoint_sha256": "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+  },
+  "task_recorded": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "task_tree": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "hp_ppo_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+  "hp_sac_tree": "sha256:49fa0f8e9d10f9a51a8be007fec66c8ac8c77092422c5209feeeafde0d4b8eb6",
+  "curriculum_changed_vs_pilot3": {
+   "checkpoint_freq": [
+    500000,
+    250000
+   ],
+   "collapse_peak_floor_reference": [
+    1092.6,
+    1064.0
+   ],
+   "eval_freq": [
+    131072,
+    65536
+   ],
+   "initialize_from_own_checkpoint": [
+    null,
+    true
+   ],
+   "ramp_start_value": [
+    0.2,
+    2.0
+   ],
+   "timesteps": [
+    8000000,
+    2000000
+   ],
+   "warm_start_log_std": [
+    -2.0,
+    null
+   ],
+   "warmup_timesteps": [
+    300000,
+    0
+   ]
+  },
+  "reward_weights_changed_vs_pilot3": {
+   "command_config": [
+    null,
+    {
+     "cruise_speed": 1.5,
+     "stop_probability": 0.0,
+     "turn_increment_max": 0.0,
+     "straight_probability": 1.0,
+     "speed_scale": 1.5,
+     "lateral_speed_scale": 1.0,
+     "yaw_rate_scale": 0.6,
+     "yaw_gain": 1.5,
+     "yaw_rate_max": 0.3,
+     "turn_slowdown": true,
+     "minimum_turn_speed_fraction": 0.25
+    }
+   ],
+   "command_mode": [
+    "none",
+    "heading"
+   ],
+   "prey_lateral_range": [
+    [
+     -2.0,
+     2.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "walk_heading_price_scale_rad": [
+    null,
+    0.5
+   ],
+   "walk_heading_price_weight": [
+    null,
+    0.2
+   ]
+  },
+  "hyperparameters_changed_vs_pilot3": {},
+  "model_attributes": {
+   "num_timesteps_loaded": 8000000,
+   "num_timesteps_parent": 8000000,
+   "attached_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   },
+   "parent_ent_coef_in_archive": 0.001,
+   "critic_phase_attribute": null,
+   "symmetry_attribute": null
+  },
+  "start_actions": {
+   "env": "built tree, pilot 3's exact [env] (no command, no price, prey_lateral_range default)",
+   "steps": 1000,
+   "terminated": false,
+   "steps_with_nonzero_command_inputs": 0,
+   "max_abs_action_delta_new_vs_pilot3": 0.0,
+   "max_abs_mean_delta_new_vs_pilot3": 0.0,
+   "max_abs_value_delta_new_vs_pilot3": 0.0
+  },
+  "rollout_live": {
+   "steps": 1000,
+   "terminated": false,
+   "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_mean_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_value_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_action_delta_pilot3_unprepared_on_live": 0.5939645767211914,
+   "spawn_heading_rad": 0.0,
+   "desired_heading_at_reset": 0.0,
+   "reset_obs_60_63": [
+    1.0,
+    0.0,
+    0.0
+   ]
+  },
+  "shaping_simulation": {
+   "order": [
+    "EntCoefDecayCallback",
+    "StageWarmupCallback",
+    "RewardRampCallback"
+   ],
+   "before_training_start": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_training_start": {
+    "clip_range(1.0)": 0.02,
+    "ent_coef": 0.02,
+    "warmup_marker": true,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_4": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_8": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.004999992,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_10000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.0049900000000000005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_1000000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.004,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_2000000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.003,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_2015232": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.002984768,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   }
+  },
+  "judge_accepted": true,
+  "judge_binding_problems": [],
+  "judge_anchors": {
+   "HYPERPARAMETERS_SHA256": [
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+   ],
+   "TASK_SHA256": [
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+   ],
+   "COMMAND_TABLE_vs_committed_same_json": true,
+   "COMMAND_TABLE_vs_recorded_same_json": true,
+   "PILOT_HEAD_vs_tree_head": [
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+   ],
+   "PARENT_TASK_SHA256_vs_recorded": [
+    "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+   ],
+   "PARENT_SHA256_seed_vs_recorded": [
+    "41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+    "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4"
+   ],
+   "CADENCE_vs_recorded": {
+    "eval_freq": [
+     65536,
+     65536
+    ],
+    "eval_episodes": [
+     10,
+     10
+    ],
+    "checkpoint_freq": [
+     250000,
+     250000
+    ],
+    "max_checkpoints": [
+     0,
+     0
+    ]
+   },
+   "PRICE_and_R6_vs_recorded": {
+    "walk_heading_price_weight": [
+     0.2,
+     0.2
+    ],
+    "walk_heading_price_scale_rad": [
+     0.5,
+     0.5
+    ],
+    "walk_support_gate_bw": [
+     0.04,
+     0.04
+    ],
+    "airborne_substep_weight": [
+     1.0,
+     1.0
+    ],
+    "forward_vel_max": [
+     1.5,
+     1.5
+    ],
+    "walk_touchdown_weight": [
+     0.1,
+     0.1
+    ]
+   },
+   "PREY_LATERAL_RANGE_vs_recorded": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "COMMAND_MODE_vs_recorded": [
+    "heading",
+    "heading"
+   ],
+   "entry_constants_vs_recorded": {
+    "WARMUP_TIMESTEPS": [
+     0,
+     0
+    ],
+    "RAMP_START_VALUE": [
+     2.0,
+     2.0
+    ],
+    "N_ENVS": [
+     4,
+     4
+    ]
+   },
+   "LINEAGE_vs_zip": {
+    "mode": [
+     "initialize_next_stage",
+     "initialize_next_stage"
+    ],
+    "parent_stage": [
+     2,
+     2
+    ]
+   },
+   "PILOT_UNINTERRUPTED_END_vs_tree": [
+    2015232,
+    2015232,
+    16384
+   ],
+   "tree_shaping_inert": true
+  }
+ },
+ "52": {
+  "runner_exit": 0,
+  "runner_sha256": "33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+  "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "notebook_sha256": "sha256:1eac05eef78af5000518e192c276b123815c41b707b60af2ae277236c9070d89",
+  "roles": {
+   "setup": 3,
+   "config": 6,
+   "resume": 18,
+   "chain": 20,
+   "manual": 22,
+   "disconnect": 32
+  },
+  "run_all": {
+   "stopped_at": 20,
+   "stopped_by_the_guard": true
+  },
+  "manual_cell_stopped_at_learn": true,
+  "learn_called": [
+   {
+    "class": "stable_baselines3.ppo.ppo.PPO",
+    "total_timesteps": 2000000,
+    "reset_num_timesteps": true
+   }
+  ],
+  "guard_hits": [],
+  "guard_hits_final": [],
+  "entry_lines_ok": true,
+  "entry_lines_missing": [],
+  "entry_lines_forbidden_present": [],
+  "entry_lines_other_warm_start": [],
+  "entry_lines_required": {
+   "setup (local)": "Running locally; using this checkout. REPO_REF selects only the Colab checkout.",
+   "quick test": "Quick test mode: False",
+   "behavior": "Behavior recipe: walk",
+   "K3 panel": "In-run K3 panel: off",
+   "critic phase": "Critic phase: off",
+   "run directory": "Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s52 (new run: RUN_ID names no existing run)",
+   "node": "Node locomotion (stage 2): Locomotion (ppo)",
+   "timesteps": "Timesteps: 2,000,000",
+   "vecnormalize": "VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+  },
+  "parent_pair": {
+   "zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps.zip",
+   "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+   "zip_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "vecnorm_sha256": "sha256:cf29635feb8c4040ea9a9bb08255b97de60673365dce107445c115aa2927f37a"
+  },
+  "locomotion_curriculum_at_end": {
+   "eval_freq": 65536,
+   "checkpoint_freq": 250000,
+   "eval_episodes": 10,
+   "max_checkpoints": 0,
+   "warm_start_log_std": null,
+   "warmup_timesteps": 0,
+   "ramp_start_value": 2.0,
+   "timesteps": 2000000,
+   "initialize_from_own_checkpoint": true
+  },
+  "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+  "runner_environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+  "pairs_unchanged": true,
+  "errors": {},
+  "tensors_changed": {
+   "mlp_extractor.policy_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   }
+  },
+  "n_tensors": 13,
+  "parent_command_column_l2": {
+   "mlp_extractor.policy_net.0.weight": [
+    1.4142132997512817,
+    1.41421377658844,
+    1.41421377658844
+   ],
+   "mlp_extractor.value_net.0.weight": [
+    1.4142132997512817,
+    1.4142135381698608,
+    1.4142135381698608
+   ]
+  },
+  "loaded_command_columns_max_abs": {
+   "mlp_extractor.policy_net.0.weight": 0.0,
+   "mlp_extractor.value_net.0.weight": 0.0
+  },
+  "columns_0_60_bit_equal": {
+   "mlp_extractor.policy_net.0.weight": true,
+   "mlp_extractor.value_net.0.weight": true
+  },
+  "log_std_bit_equal_parent": true,
+  "log_std_mean_min_max": [
+   -1.9424948692321777,
+   -2.243213415145874,
+   -1.7057538032531738
+  ],
+  "adam_step_pairs_parent_loaded": [
+   [
+    744057.0,
+    744057.0
+   ]
+  ],
+  "adam_params_with_changed_moments_or_listed": {
+   "log_std": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_sq_n_changed": 0,
+    "step_parent": 744057.0,
+    "step_loaded": 744057.0
+   },
+   "mlp_extractor.policy_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 744057.0,
+    "step_loaded": 744057.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 744057.0,
+    "step_loaded": 744057.0
+   }
+  },
+  "optimizer_lr_parent_loaded": [
+   [
+    1.0023040000000002e-05
+   ],
+   [
+    1.0023040000000002e-05
+   ]
+  ],
+  "vecnorm_parent": {
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    3.124748848300523e-12,
+    3.124748848300523e-12,
+    3.124748848300523e-12
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 403.93803082386506,
+   "ret_rms_var": 38950.486110523205,
+   "ret_rms_count": 8000000.0001,
+   "clip_obs": 10.0,
+   "epsilon": 1e-08,
+   "gamma": 0.995
+  },
+  "vecnorm_train": {
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 0.0,
+   "ret_rms_var": 1.0,
+   "ret_rms_count": 0.0001,
+   "training": true,
+   "num_envs": 4
+  },
+  "vecnorm_eval": {
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_count": 0.0001,
+   "training": false,
+   "num_envs": 1
+  },
+  "at_learn": {
+   "model_class": "stable_baselines3.ppo.ppo.PPO",
+   "learn_kwargs": {
+    "total_timesteps": 2000000,
+    "callback": "<stable_baselines3.common.callbacks.CallbackList object at 0x7fb459fa4590>",
+    "progress_bar": false,
+    "reset_num_timesteps": true
+   },
+   "num_timesteps": 8000000,
+   "ent_coef": 0.005,
+   "clip_range_type": "FloatSchedule",
+   "clip_range(1.0)": 0.2,
+   "lr_schedule(1.0)": 5e-05,
+   "lr_schedule(0.0)": 1e-05,
+   "optimizer_lr": [
+    1.0023040000000002e-05
+   ],
+   "ent_coef_warmup_marker": false,
+   "train_env_forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "train_env_walk_heading_price_weight": [
+    0.2,
+    0.2,
+    0.2,
+    0.2
+   ],
+   "train_env_walk_heading_price_scale_rad": [
+    0.5,
+    0.5,
+    0.5,
+    0.5
+   ],
+   "train_env_command_mode": [
+    "heading",
+    "heading",
+    "heading",
+    "heading"
+   ],
+   "train_env_prey_lateral_range": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "vecnorm_training": true,
+   "vecnorm_obs_rms_count": 32002572.0001,
+   "device": "cpu",
+   "n_envs": 4,
+   "n_steps": 4096,
+   "batch_size": 256,
+   "n_epochs": 10,
+   "gamma": 0.995,
+   "gae_lambda": 0.95,
+   "target_kl": 0.05,
+   "seed": 52
+  },
+  "stage_config_git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "stage_config_run": {
+   "seed": 52,
+   "n_envs": 4,
+   "timesteps": 2000000,
+   "hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "label": "walking pilot 4 s52",
+   "load_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s52/03_locomotion/models/stage2_8000000_steps.zip",
+   "load_mode": "initialize_next_stage",
+   "parent_checkpoint_sha256": "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+  },
+  "task_recorded": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "task_tree": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "hp_ppo_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+  "hp_sac_tree": "sha256:49fa0f8e9d10f9a51a8be007fec66c8ac8c77092422c5209feeeafde0d4b8eb6",
+  "curriculum_changed_vs_pilot3": {
+   "checkpoint_freq": [
+    500000,
+    250000
+   ],
+   "collapse_peak_floor_reference": [
+    1092.6,
+    1064.0
+   ],
+   "eval_freq": [
+    131072,
+    65536
+   ],
+   "initialize_from_own_checkpoint": [
+    null,
+    true
+   ],
+   "ramp_start_value": [
+    0.2,
+    2.0
+   ],
+   "timesteps": [
+    8000000,
+    2000000
+   ],
+   "warm_start_log_std": [
+    -2.0,
+    null
+   ],
+   "warmup_timesteps": [
+    300000,
+    0
+   ]
+  },
+  "reward_weights_changed_vs_pilot3": {
+   "command_config": [
+    null,
+    {
+     "cruise_speed": 1.5,
+     "stop_probability": 0.0,
+     "turn_increment_max": 0.0,
+     "straight_probability": 1.0,
+     "speed_scale": 1.5,
+     "lateral_speed_scale": 1.0,
+     "yaw_rate_scale": 0.6,
+     "yaw_gain": 1.5,
+     "yaw_rate_max": 0.3,
+     "turn_slowdown": true,
+     "minimum_turn_speed_fraction": 0.25
+    }
+   ],
+   "command_mode": [
+    "none",
+    "heading"
+   ],
+   "prey_lateral_range": [
+    [
+     -2.0,
+     2.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "walk_heading_price_scale_rad": [
+    null,
+    0.5
+   ],
+   "walk_heading_price_weight": [
+    null,
+    0.2
+   ]
+  },
+  "hyperparameters_changed_vs_pilot3": {},
+  "model_attributes": {
+   "num_timesteps_loaded": 8000000,
+   "num_timesteps_parent": 8000000,
+   "attached_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   },
+   "parent_ent_coef_in_archive": 0.001,
+   "critic_phase_attribute": null,
+   "symmetry_attribute": null
+  },
+  "start_actions": {
+   "env": "built tree, pilot 3's exact [env] (no command, no price, prey_lateral_range default)",
+   "steps": 1000,
+   "terminated": false,
+   "steps_with_nonzero_command_inputs": 0,
+   "max_abs_action_delta_new_vs_pilot3": 0.0,
+   "max_abs_mean_delta_new_vs_pilot3": 0.0,
+   "max_abs_value_delta_new_vs_pilot3": 0.0
+  },
+  "rollout_live": {
+   "steps": 1000,
+   "terminated": false,
+   "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_mean_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_value_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_action_delta_pilot3_unprepared_on_live": 0.7560487389564514,
+   "spawn_heading_rad": 0.0,
+   "desired_heading_at_reset": 0.0,
+   "reset_obs_60_63": [
+    1.0,
+    0.0,
+    0.0
+   ]
+  },
+  "shaping_simulation": {
+   "order": [
+    "EntCoefDecayCallback",
+    "StageWarmupCallback",
+    "RewardRampCallback"
+   ],
+   "before_training_start": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_training_start": {
+    "clip_range(1.0)": 0.02,
+    "ent_coef": 0.02,
+    "warmup_marker": true,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_4": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_8": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.004999992,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_10000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.0049900000000000005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_1000000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.004,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_2000000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.003,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_2015232": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.002984768,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   }
+  },
+  "judge_accepted": true,
+  "judge_binding_problems": [],
+  "judge_anchors": {
+   "HYPERPARAMETERS_SHA256": [
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+   ],
+   "TASK_SHA256": [
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+   ],
+   "COMMAND_TABLE_vs_committed_same_json": true,
+   "COMMAND_TABLE_vs_recorded_same_json": true,
+   "PILOT_HEAD_vs_tree_head": [
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+   ],
+   "PARENT_TASK_SHA256_vs_recorded": [
+    "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+   ],
+   "PARENT_SHA256_seed_vs_recorded": [
+    "2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00",
+    "sha256:2a87a6874f252de9462960dbfe5bfd6dc0986241679800111d68ef8c68f34c00"
+   ],
+   "CADENCE_vs_recorded": {
+    "eval_freq": [
+     65536,
+     65536
+    ],
+    "eval_episodes": [
+     10,
+     10
+    ],
+    "checkpoint_freq": [
+     250000,
+     250000
+    ],
+    "max_checkpoints": [
+     0,
+     0
+    ]
+   },
+   "PRICE_and_R6_vs_recorded": {
+    "walk_heading_price_weight": [
+     0.2,
+     0.2
+    ],
+    "walk_heading_price_scale_rad": [
+     0.5,
+     0.5
+    ],
+    "walk_support_gate_bw": [
+     0.04,
+     0.04
+    ],
+    "airborne_substep_weight": [
+     1.0,
+     1.0
+    ],
+    "forward_vel_max": [
+     1.5,
+     1.5
+    ],
+    "walk_touchdown_weight": [
+     0.1,
+     0.1
+    ]
+   },
+   "PREY_LATERAL_RANGE_vs_recorded": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "COMMAND_MODE_vs_recorded": [
+    "heading",
+    "heading"
+   ],
+   "entry_constants_vs_recorded": {
+    "WARMUP_TIMESTEPS": [
+     0,
+     0
+    ],
+    "RAMP_START_VALUE": [
+     2.0,
+     2.0
+    ],
+    "N_ENVS": [
+     4,
+     4
+    ]
+   },
+   "LINEAGE_vs_zip": {
+    "mode": [
+     "initialize_next_stage",
+     "initialize_next_stage"
+    ],
+    "parent_stage": [
+     2,
+     2
+    ]
+   },
+   "PILOT_UNINTERRUPTED_END_vs_tree": [
+    2015232,
+    2015232,
+    16384
+   ],
+   "tree_shaping_inert": true
+  }
+ },
+ "60": {
+  "runner_exit": 0,
+  "runner_sha256": "33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+  "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "notebook_sha256": "sha256:1eac05eef78af5000518e192c276b123815c41b707b60af2ae277236c9070d89",
+  "roles": {
+   "setup": 3,
+   "config": 6,
+   "resume": 18,
+   "chain": 20,
+   "manual": 22,
+   "disconnect": 32
+  },
+  "run_all": {
+   "stopped_at": 20,
+   "stopped_by_the_guard": true
+  },
+  "manual_cell_stopped_at_learn": true,
+  "learn_called": [
+   {
+    "class": "stable_baselines3.ppo.ppo.PPO",
+    "total_timesteps": 2000000,
+    "reset_num_timesteps": true
+   }
+  ],
+  "guard_hits": [],
+  "guard_hits_final": [],
+  "entry_lines_ok": true,
+  "entry_lines_missing": [],
+  "entry_lines_forbidden_present": [],
+  "entry_lines_other_warm_start": [],
+  "entry_lines_required": {
+   "setup (local)": "Running locally; using this checkout. REPO_REF selects only the Colab checkout.",
+   "quick test": "Quick test mode: False",
+   "behavior": "Behavior recipe: walk",
+   "K3 panel": "In-run K3 panel: off",
+   "critic phase": "Critic phase: off",
+   "run directory": "Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s60 (new run: RUN_ID names no existing run)",
+   "node": "Node locomotion (stage 2): Locomotion (ppo)",
+   "timesteps": "Timesteps: 2,000,000",
+   "vecnormalize": "VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+  },
+  "parent_pair": {
+   "zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/stage2_8000000_steps.zip",
+   "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+   "zip_sha256": "sha256:2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2",
+   "vecnorm_sha256": "sha256:56e58a536d08198fdafbde3310e05116ff65e7cd471f536016858f87f9c32dc9"
+  },
+  "locomotion_curriculum_at_end": {
+   "eval_freq": 65536,
+   "checkpoint_freq": 250000,
+   "eval_episodes": 10,
+   "max_checkpoints": 0,
+   "warm_start_log_std": null,
+   "warmup_timesteps": 0,
+   "ramp_start_value": 2.0,
+   "timesteps": 2000000,
+   "initialize_from_own_checkpoint": true
+  },
+  "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+  "runner_environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/clones/setup/environments/__init__.py",
+  "pairs_unchanged": true,
+  "errors": {},
+  "tensors_changed": {
+   "mlp_extractor.policy_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "n_changed": 1536,
+    "shape": [
+     512,
+     63
+    ],
+    "changed_columns": [
+     60,
+     61,
+     62
+    ],
+    "loaded_values_at_changed_max_abs": 0.0
+   }
+  },
+  "n_tensors": 13,
+  "parent_command_column_l2": {
+   "mlp_extractor.policy_net.0.weight": [
+    1.4142132997512817,
+    1.41421377658844,
+    1.41421377658844
+   ],
+   "mlp_extractor.value_net.0.weight": [
+    1.4142132997512817,
+    1.4142135381698608,
+    1.4142135381698608
+   ]
+  },
+  "loaded_command_columns_max_abs": {
+   "mlp_extractor.policy_net.0.weight": 0.0,
+   "mlp_extractor.value_net.0.weight": 0.0
+  },
+  "columns_0_60_bit_equal": {
+   "mlp_extractor.policy_net.0.weight": true,
+   "mlp_extractor.value_net.0.weight": true
+  },
+  "log_std_bit_equal_parent": true,
+  "log_std_mean_min_max": [
+   -1.9591017961502075,
+   -2.348068952560425,
+   -1.661561369895935
+  ],
+  "adam_step_pairs_parent_loaded": [
+   [
+    742882.0,
+    742882.0
+   ]
+  ],
+  "adam_params_with_changed_moments_or_listed": {
+   "log_std": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_sq_n_changed": 0,
+    "step_parent": 742882.0,
+    "step_loaded": 742882.0
+   },
+   "mlp_extractor.policy_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 742882.0,
+    "step_loaded": 742882.0
+   },
+   "mlp_extractor.value_net.0.weight": {
+    "exp_avg_n_changed": 0,
+    "exp_avg_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_loaded_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_n_changed": 0,
+    "exp_avg_sq_parent_cmd_cols_max_abs": 0.0,
+    "exp_avg_sq_loaded_cmd_cols_max_abs": 0.0,
+    "step_parent": 742882.0,
+    "step_loaded": 742882.0
+   }
+  },
+  "optimizer_lr_parent_loaded": [
+   [
+    1.0023040000000002e-05
+   ],
+   [
+    1.0023040000000002e-05
+   ]
+  ],
+  "vecnorm_parent": {
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    3.124748848300523e-12,
+    3.124748848300523e-12,
+    3.124748848300523e-12
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 386.0738830832325,
+   "ret_rms_var": 37743.57755738444,
+   "ret_rms_count": 8000000.0001,
+   "clip_obs": 10.0,
+   "epsilon": 1e-08,
+   "gamma": 0.995
+  },
+  "vecnorm_train": {
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_mean": 0.0,
+   "ret_rms_var": 1.0,
+   "ret_rms_count": 0.0001,
+   "training": true,
+   "num_envs": 4
+  },
+  "vecnorm_eval": {
+   "mean_0_60_bit_equal_parent": true,
+   "var_0_60_bit_equal_parent": true,
+   "mean_60_63": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "var_60_63": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "count": 32002572.0001,
+   "ret_rms_count": 0.0001,
+   "training": false,
+   "num_envs": 1
+  },
+  "at_learn": {
+   "model_class": "stable_baselines3.ppo.ppo.PPO",
+   "learn_kwargs": {
+    "total_timesteps": 2000000,
+    "callback": "<stable_baselines3.common.callbacks.CallbackList object at 0x7fab767dc590>",
+    "progress_bar": false,
+    "reset_num_timesteps": true
+   },
+   "num_timesteps": 8000000,
+   "ent_coef": 0.005,
+   "clip_range_type": "FloatSchedule",
+   "clip_range(1.0)": 0.2,
+   "lr_schedule(1.0)": 5e-05,
+   "lr_schedule(0.0)": 1e-05,
+   "optimizer_lr": [
+    1.0023040000000002e-05
+   ],
+   "ent_coef_warmup_marker": false,
+   "train_env_forward_vel_weight": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "train_env_walk_heading_price_weight": [
+    0.2,
+    0.2,
+    0.2,
+    0.2
+   ],
+   "train_env_walk_heading_price_scale_rad": [
+    0.5,
+    0.5,
+    0.5,
+    0.5
+   ],
+   "train_env_command_mode": [
+    "heading",
+    "heading",
+    "heading",
+    "heading"
+   ],
+   "train_env_prey_lateral_range": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "vecnorm_training": true,
+   "vecnorm_obs_rms_count": 32002572.0001,
+   "device": "cpu",
+   "n_envs": 4,
+   "n_steps": 4096,
+   "batch_size": 256,
+   "n_epochs": 10,
+   "gamma": 0.995,
+   "gae_lambda": 0.95,
+   "target_kl": 0.05,
+   "seed": 60
+  },
+  "stage_config_git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "stage_config_run": {
+   "seed": 60,
+   "n_envs": 4,
+   "timesteps": 2000000,
+   "hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+   "label": "walking pilot 4 s60",
+   "load_path": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/setup/pairs/pilot3_walk_s60/03_locomotion/models/stage2_8000000_steps.zip",
+   "load_mode": "initialize_next_stage",
+   "parent_checkpoint_sha256": "sha256:2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+  },
+  "task_recorded": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "task_tree": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "hp_ppo_tree": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+  "hp_sac_tree": "sha256:49fa0f8e9d10f9a51a8be007fec66c8ac8c77092422c5209feeeafde0d4b8eb6",
+  "curriculum_changed_vs_pilot3": {
+   "checkpoint_freq": [
+    500000,
+    250000
+   ],
+   "collapse_peak_floor_reference": [
+    1092.6,
+    1064.0
+   ],
+   "eval_freq": [
+    131072,
+    65536
+   ],
+   "initialize_from_own_checkpoint": [
+    null,
+    true
+   ],
+   "ramp_start_value": [
+    0.2,
+    2.0
+   ],
+   "timesteps": [
+    8000000,
+    2000000
+   ],
+   "warm_start_log_std": [
+    -2.0,
+    null
+   ],
+   "warmup_timesteps": [
+    300000,
+    0
+   ]
+  },
+  "reward_weights_changed_vs_pilot3": {
+   "command_config": [
+    null,
+    {
+     "cruise_speed": 1.5,
+     "stop_probability": 0.0,
+     "turn_increment_max": 0.0,
+     "straight_probability": 1.0,
+     "speed_scale": 1.5,
+     "lateral_speed_scale": 1.0,
+     "yaw_rate_scale": 0.6,
+     "yaw_gain": 1.5,
+     "yaw_rate_max": 0.3,
+     "turn_slowdown": true,
+     "minimum_turn_speed_fraction": 0.25
+    }
+   ],
+   "command_mode": [
+    "none",
+    "heading"
+   ],
+   "prey_lateral_range": [
+    [
+     -2.0,
+     2.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "walk_heading_price_scale_rad": [
+    null,
+    0.5
+   ],
+   "walk_heading_price_weight": [
+    null,
+    0.2
+   ]
+  },
+  "hyperparameters_changed_vs_pilot3": {},
+  "model_attributes": {
+   "num_timesteps_loaded": 8000000,
+   "num_timesteps_parent": 8000000,
+   "attached_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "lineage": {
+    "mode": "initialize_next_stage",
+    "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "parent_species": "tyrannosaurus_rex",
+    "parent_embodiment": "anatomical",
+    "parent_stage": 2,
+    "zeroed_command_parameters": [
+     "mlp_extractor.policy_net.0.weight",
+     "mlp_extractor.value_net.0.weight"
+    ]
+   },
+   "parent_ent_coef_in_archive": 0.001,
+   "critic_phase_attribute": null,
+   "symmetry_attribute": null
+  },
+  "start_actions": {
+   "env": "built tree, pilot 3's exact [env] (no command, no price, prey_lateral_range default)",
+   "steps": 1000,
+   "terminated": false,
+   "steps_with_nonzero_command_inputs": 0,
+   "max_abs_action_delta_new_vs_pilot3": 0.0,
+   "max_abs_mean_delta_new_vs_pilot3": 0.0,
+   "max_abs_value_delta_new_vs_pilot3": 0.0
+  },
+  "rollout_live": {
+   "steps": 1000,
+   "terminated": false,
+   "max_action_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_mean_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_value_delta_vs_pilot3_on_zeroed": 0.0,
+   "max_action_delta_pilot3_unprepared_on_live": 0.585644006729126,
+   "spawn_heading_rad": 0.0,
+   "desired_heading_at_reset": 0.0,
+   "reset_obs_60_63": [
+    1.0,
+    0.0,
+    0.0
+   ]
+  },
+  "shaping_simulation": {
+   "order": [
+    "EntCoefDecayCallback",
+    "StageWarmupCallback",
+    "RewardRampCallback"
+   ],
+   "before_training_start": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_training_start": {
+    "clip_range(1.0)": 0.02,
+    "ent_coef": 0.02,
+    "warmup_marker": true,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_4": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_8": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.004999992,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_10000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.0049900000000000005,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_1000000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.004,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_2000000": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.003,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "after_step_at_2015232": {
+    "clip_range(1.0)": 0.2,
+    "ent_coef": 0.002984768,
+    "warmup_marker": false,
+    "forward_vel_weight": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   }
+  },
+  "judge_accepted": true,
+  "judge_binding_problems": [],
+  "judge_anchors": {
+   "HYPERPARAMETERS_SHA256": [
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+    "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+   ],
+   "TASK_SHA256": [
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+    "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a"
+   ],
+   "COMMAND_TABLE_vs_committed_same_json": true,
+   "COMMAND_TABLE_vs_recorded_same_json": true,
+   "PILOT_HEAD_vs_tree_head": [
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+    "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
+   ],
+   "PARENT_TASK_SHA256_vs_recorded": [
+    "782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+    "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a"
+   ],
+   "PARENT_SHA256_seed_vs_recorded": [
+    "2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2",
+    "sha256:2c066770802541e47fb453b8dbd04b030bc8053d4224af27a52eb0281e4645a2"
+   ],
+   "CADENCE_vs_recorded": {
+    "eval_freq": [
+     65536,
+     65536
+    ],
+    "eval_episodes": [
+     10,
+     10
+    ],
+    "checkpoint_freq": [
+     250000,
+     250000
+    ],
+    "max_checkpoints": [
+     0,
+     0
+    ]
+   },
+   "PRICE_and_R6_vs_recorded": {
+    "walk_heading_price_weight": [
+     0.2,
+     0.2
+    ],
+    "walk_heading_price_scale_rad": [
+     0.5,
+     0.5
+    ],
+    "walk_support_gate_bw": [
+     0.04,
+     0.04
+    ],
+    "airborne_substep_weight": [
+     1.0,
+     1.0
+    ],
+    "forward_vel_max": [
+     1.5,
+     1.5
+    ],
+    "walk_touchdown_weight": [
+     0.1,
+     0.1
+    ]
+   },
+   "PREY_LATERAL_RANGE_vs_recorded": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "COMMAND_MODE_vs_recorded": [
+    "heading",
+    "heading"
+   ],
+   "entry_constants_vs_recorded": {
+    "WARMUP_TIMESTEPS": [
+     0,
+     0
+    ],
+    "RAMP_START_VALUE": [
+     2.0,
+     2.0
+    ],
+    "N_ENVS": [
+     4,
+     4
+    ]
+   },
+   "LINEAGE_vs_zip": {
+    "mode": [
+     "initialize_next_stage",
+     "initialize_next_stage"
+    ],
+    "parent_stage": [
+     2,
+     2
+    ]
+   },
+   "PILOT_UNINTERRUPTED_END_vs_tree": [
+    2015232,
+    2015232,
+    16384
+   ],
+   "tree_shaping_inert": true
+  }
+ }
+}

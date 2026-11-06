@@ -1,0 +1,190 @@
+{
+ "lines": 907,
+ "summary": {
+  "git_write": 3,
+  "pip": 0,
+  "bare_python": 0,
+  "sleep": 0,
+  "network": 0,
+  "mujoco_gl_not_disable": 6,
+  "file_op_outside_lane": 2,
+  "redirect_outside_lane": 4,
+  "literal_scratch_path": 96
+ },
+ "flags": {
+  "git_write": [
+   [
+    100,
+    "[2026-11-06T12:23:35Z] $ git -C $K/clone remote set-url --push origin no_push_from_smoke_lane"
+   ],
+   [
+    105,
+    "[2026-11-06T12:23:45Z] [note] SLIP: the previous call ran 'git -C $K/clone remote set-url --push origin no_push_from_smoke_lane' on this lane's own clone; the rules forbid any remote or push-URL change. Not reverted (that would be a second "
+   ],
+   [
+    741,
+    "[2026-11-06T12:43:39Z job D3_dirty_restore] $ git -C SP/work/pilot4/prelaunch/smoke/judge_tree checkout -- README.md && git -C SP/work/pilot4/prelaunch/smoke/judge_tree status --porcelain --ignored --untracked-files=all > SP/work/pilot4/pre"
+   ]
+  ],
+  "pip": [],
+  "bare_python": [],
+  "sleep": [],
+  "network": [],
+  "mujoco_gl_not_disable": [
+   [
+    134,
+    "[2026-11-06T12:24:36Z] $ MUJOCO_GL=egl PYOPENGL_PLATFORM=egl $PY -I $K/render_probe/probe_gl.py > $K/render_probe/probe_egl.txt 2>&1; cat $K/render_probe/probe_egl.txt"
+   ],
+   [
+    136,
+    "[2026-11-06T12:24:37Z] $ MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa $PY -I $K/render_probe/probe_gl.py > $K/render_probe/probe_osmesa.txt 2>&1; cat $K/render_probe/probe_osmesa.txt"
+   ],
+   [
+    612,
+    "[2026-11-06T12:41:25Z job V1_video_egl] $ cd SP/work/pilot4/prelaunch/smoke/judge_tree && MUJOCO_GL=egl PYOPENGL_PLATFORM=egl ISO_WT=SP/work/pilot4/prelaunch/smoke/judge_tree SP/work/pilot3/branch/venv_full/bin/python -I SP/work/pilot4/tool"
+   ],
+   [
+    613,
+    "    inner nonzero: status 1 from: MUJOCO_GL=egl PYOPENGL_PLATFORM=egl ISO_WT=SP/work/pilot4/prelaunch/smoke/judge_tree SP/work/pilot3/branch/venv_full/bin/python -I SP/work/pilot4/tools/iso.py SP/work/pilot4/tools/pilot4_video.py SP/work/pi"
+   ],
+   [
+    616,
+    "[2026-11-06T12:41:26Z job V2_video_osmesa] $ cd SP/work/pilot4/prelaunch/smoke/judge_tree && MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa ISO_WT=SP/work/pilot4/prelaunch/smoke/judge_tree SP/work/pilot3/branch/venv_full/bin/python -I SP/work/pi"
+   ],
+   [
+    617,
+    "    inner nonzero: status 1 from: MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa ISO_WT=SP/work/pilot4/prelaunch/smoke/judge_tree SP/work/pilot3/branch/venv_full/bin/python -I SP/work/pilot4/tools/iso.py SP/work/pilot4/tools/pilot4_video.py SP/w"
+   ]
+  ],
+  "file_op_outside_lane": [
+   [
+    1,
+    "mkdir -p \"$L\"  # L=<scratchpad><masked-abs-path>  -> rc=0"
+   ],
+   [
+    784,
+    "sed -i \"s/sc.seed_outcome(counts, len(rows)) if hasattr(sc, \\\"seed_outcome\\\")<masked-abs-path>(counts) if hasattr(sc, \\\"seed_outcome\\\")/; s/\\\"lengths\\\": dict(Counter(int(r.get(\\\"episode_steps\\\", r.get(\\\"steps\\\", -1)) or -1)<masked-abs-path>\"lengths\\\": dict(Counter(int(r.get(\\\"length\\\", -1) or -1)/\" "
+   ]
+  ],
+  "redirect_outside_lane": [
+   [
+    1,
+    "<masked-abs-path>",
+    "mkdir -p \"$L\"  # L=<scratchpad><masked-abs-path>  -> rc=0"
+   ],
+   [
+    1,
+    "relative target rc=0",
+    "mkdir -p \"$L\"  # L=<scratchpad><masked-abs-path>  -> rc=0"
+   ],
+   [
+    2,
+    "relative target rc=0",
+    "ls -la \"$L\" -> rc=0"
+   ],
+   [
+    3,
+    "relative target rc=0",
+    "ls \"$W/pilot4/prelaunch/tol\" \"$W/pilot4/prelaunch/tol/scripts\" \"$W/pilot4/prelaunch/setup/scripts\" 2>&1 | head -80 -> rc=0 0"
+   ]
+  ],
+  "literal_scratch_path": [
+   333,
+   335,
+   337,
+   339,
+   341,
+   343,
+   345,
+   347,
+   349,
+   351,
+   353,
+   465,
+   467,
+   469,
+   471,
+   473,
+   497,
+   499,
+   519,
+   521,
+   523,
+   524,
+   525,
+   580,
+   581,
+   584,
+   588,
+   591,
+   594,
+   595,
+   596,
+   597,
+   600,
+   601,
+   604,
+   606,
+   608,
+   610,
+   612,
+   613,
+   616,
+   617,
+   655,
+   665,
+   668,
+   677,
+   680,
+   681,
+   684,
+   688,
+   691,
+   692,
+   695,
+   696,
+   699,
+   703,
+   706,
+   710,
+   713,
+   714,
+   717,
+   721,
+   724,
+   728,
+   731,
+   732,
+   735,
+   737,
+   738,
+   741,
+   743,
+   748,
+   749,
+   752,
+   756,
+   759,
+   760,
+   763,
+   775,
+   840,
+   842,
+   844,
+   858,
+   860,
+   862,
+   864,
+   866,
+   868,
+   870,
+   872,
+   874,
+   876,
+   878,
+   883,
+   885,
+   887
+  ]
+ }
+}

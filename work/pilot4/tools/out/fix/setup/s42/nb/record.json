@@ -1,0 +1,385 @@
+{
+ "tool": "nb_pilot_runner4",
+ "tool_sha256": "sha256:33fd52ccef7692b56e77849f3bc8b885c21df5790b08d66b5e00ce36fc4952bd",
+ "started": "2026-11-06T09:20:15Z",
+ "argv": [
+  "--params",
+  "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/setup/params_s42.json",
+  "--out",
+  "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/setup/s42/nb",
+  "--clone",
+  "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone",
+  "--stop-at-learn"
+ ],
+ "clone": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone",
+ "notebook": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/notebooks/sb3_training.ipynb",
+ "phase": "launch",
+ "params": {
+  "repo_ref": "claude/pilot-walk-r10-p4",
+  "config": {
+   "SPECIES": "tyrannosaurus_rex",
+   "EMBODIMENT": "anatomical",
+   "ALGORITHM": "ppo",
+   "N_ENVS": 4,
+   "SEED": 42,
+   "QUICK_TEST": false,
+   "USE_GOOGLE_DRIVE": false,
+   "AUTO_DISCONNECT": false,
+   "BEHAVIOR": "walk",
+   "TRUNK_FROM": "",
+   "RETRAIN_FROM": "",
+   "RUN_LABEL": "walking pilot 4 s42",
+   "RUN_ID": "pilot4_walk_s42",
+   "K3_PANEL": false,
+   "CRITIC_PHASE": false
+  },
+  "manual": [
+   "MANUAL_NODE = \"locomotion\"",
+   "MANUAL_LOAD_PATH = \"/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps\"",
+   "MANUAL_VECNORM_PATH = \"/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl\"",
+   "MANUAL_LOAD_MODE = \"initialize_next_stage\"",
+   "MANUAL_TIMESTEPS = None"
+  ],
+  "path_map": [
+   [
+    "/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo",
+    "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs"
+   ]
+  ],
+  "guard_line": "raise RuntimeError(\"Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.\")",
+  "resume_stage": "locomotion",
+  "expect_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "expect_hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62"
+ },
+ "python": "3.13.18",
+ "cells": [
+  {
+   "cell": 3,
+   "ok": true,
+   "seconds": 0.0
+  },
+  {
+   "cell": 4,
+   "ok": true,
+   "seconds": 0.3
+  },
+  {
+   "cell": 6,
+   "ok": true,
+   "seconds": 0.3
+  },
+  {
+   "cell": 8,
+   "ok": true,
+   "seconds": 1.2
+  },
+  {
+   "cell": 9,
+   "ok": true,
+   "seconds": 0.0
+  },
+  {
+   "cell": 11,
+   "ok": true,
+   "seconds": 0.9
+  },
+  {
+   "cell": 13,
+   "ok": true,
+   "seconds": 101.3
+  },
+  {
+   "cell": 15,
+   "ok": true,
+   "seconds": 0.0
+  },
+  {
+   "cell": 16,
+   "ok": true,
+   "seconds": 0.0
+  },
+  {
+   "cell": 18,
+   "ok": true,
+   "seconds": 0.0
+  },
+  {
+   "cell": 20,
+   "ok": false,
+   "seconds": 0.0,
+   "exception": "RuntimeError",
+   "message": "Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here."
+  },
+  {
+   "cell": 22,
+   "ok": false,
+   "seconds": 2.4,
+   "exception": "LearnBlocked",
+   "message": "learn() stopped by nb_pilot_runner4 --stop-at-learn (PPO.learn, nothing trained)"
+  }
+ ],
+ "stop_at_learn": true,
+ "notebook_sha256": "sha256:1eac05eef78af5000518e192c276b123815c41b707b60af2ae277236c9070d89",
+ "clone_head": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+ "clone_status_before": [],
+ "roles": {
+  "setup": 3,
+  "config": 6,
+  "resume": 18,
+  "chain": 20,
+  "manual": 22,
+  "disconnect": 32
+ },
+ "edits": [
+  [
+   "setup",
+   "REPO_REF",
+   "claude/pilot-walk-r10-p4"
+  ],
+  [
+   "config",
+   "SPECIES",
+   "tyrannosaurus_rex"
+  ],
+  [
+   "config",
+   "EMBODIMENT",
+   "anatomical"
+  ],
+  [
+   "config",
+   "ALGORITHM",
+   "ppo"
+  ],
+  [
+   "config",
+   "N_ENVS",
+   4
+  ],
+  [
+   "config",
+   "SEED",
+   42
+  ],
+  [
+   "config",
+   "QUICK_TEST",
+   false
+  ],
+  [
+   "config",
+   "USE_GOOGLE_DRIVE",
+   false
+  ],
+  [
+   "config",
+   "AUTO_DISCONNECT",
+   false
+  ],
+  [
+   "config",
+   "BEHAVIOR",
+   "walk"
+  ],
+  [
+   "config",
+   "TRUNK_FROM",
+   ""
+  ],
+  [
+   "config",
+   "RETRAIN_FROM",
+   ""
+  ],
+  [
+   "config",
+   "RUN_LABEL",
+   "walking pilot 4 s42"
+  ],
+  [
+   "config",
+   "RUN_ID",
+   "pilot4_walk_s42"
+  ],
+  [
+   "config",
+   "K3_PANEL",
+   false
+  ],
+  [
+   "config",
+   "CRITIC_PHASE",
+   false
+  ],
+  [
+   "manual",
+   "MANUAL_NODE",
+   "MANUAL_NODE = \"locomotion\""
+  ],
+  [
+   "manual",
+   "MANUAL_LOAD_PATH",
+   "MANUAL_LOAD_PATH = \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps\""
+  ],
+  [
+   "manual",
+   "MANUAL_VECNORM_PATH",
+   "MANUAL_VECNORM_PATH = \"/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl\""
+  ],
+  [
+   "manual",
+   "MANUAL_LOAD_MODE",
+   "MANUAL_LOAD_MODE = \"initialize_next_stage\""
+  ],
+  [
+   "manual",
+   "MANUAL_TIMESTEPS",
+   "MANUAL_TIMESTEPS = None"
+  ],
+  [
+   "chain",
+   "guard line",
+   "raise RuntimeError(\"Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.\")"
+  ]
+ ],
+ "manual_values": {
+  "MANUAL_NODE": "locomotion",
+  "MANUAL_LOAD_PATH": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps",
+  "MANUAL_VECNORM_PATH": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+  "MANUAL_LOAD_MODE": "initialize_next_stage",
+  "MANUAL_TIMESTEPS": null
+ },
+ "parent_pair": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip",
+  "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl",
+  "zip_sha256": "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+  "vecnorm_sha256": "sha256:b9e6dee894e549ca4e844f7ef3c162e0f52609eacede7b1790e5d649e77d9cce"
+ },
+ "expected_entry_lines": {
+  "required": [
+   [
+    "setup (local)",
+    "^Running locally; using this checkout\\."
+   ],
+   [
+    "quick test",
+    "^Quick test mode: False$"
+   ],
+   [
+    "behavior",
+    "^Behavior recipe: walk$"
+   ],
+   [
+    "K3 panel",
+    "^In-run K3 panel: off$"
+   ],
+   [
+    "critic phase",
+    "^Critic phase: off$"
+   ],
+   [
+    "run directory",
+    "^Run directory: .*/pilot4_walk_s42 \\(new run: RUN_ID names no existing run\\)$"
+   ],
+   [
+    "node",
+    "^Node locomotion \\(stage 2\\): Locomotion \\(ppo\\)$"
+   ],
+   [
+    "timesteps",
+    "^Timesteps:\\ 2,000,000$"
+   ],
+   [
+    "vecnormalize",
+    "^VecNormalize loaded from: /tmp/claude\\-0/\\-home\\-user\\-mesozoic\\-labs/aff94cce\\-91ba\\-5515\\-b81b\\-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps\\.pkl$"
+   ]
+  ],
+  "forbidden": [
+   "Warm start: policy log_std set",
+   "Warm start: dropped the critic's"
+  ]
+ },
+ "environments_resolves_to": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/environments/__init__.py",
+ "ipython_stand_in": false,
+ "learn_stops": {
+  "learn_stops": [
+   "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+   "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+   "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+   "stable_baselines3.ppo.ppo.PPO.learn",
+   "stable_baselines3.sac.sac.SAC.learn",
+   "stable_baselines3.a2c.a2c.A2C.learn",
+   "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+  ],
+  "guards": [
+   "stable_baselines3.ppo.ppo.PPO.train",
+   "stable_baselines3.sac.sac.SAC.train",
+   "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.collect_rollouts",
+   "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.collect_rollouts",
+   "torch.optim.adam.Adam.step",
+   "torch.optim.sgd.SGD.step",
+   "torch.optim.optimizer.Optimizer.step",
+   "torch.Tensor.backward",
+   "environments.shared.mirror_kl_ppo.MirrorKLPPO.train",
+   "torch.autograd.backward"
+  ],
+  "e2e_capture_wraps": [
+   "stable_baselines3.common.base_class.BaseAlgorithm.learn",
+   "stable_baselines3.common.on_policy_algorithm.OnPolicyAlgorithm.learn",
+   "stable_baselines3.common.off_policy_algorithm.OffPolicyAlgorithm.learn",
+   "stable_baselines3.ppo.ppo.PPO.learn",
+   "stable_baselines3.sac.sac.SAC.learn",
+   "stable_baselines3.a2c.a2c.A2C.learn",
+   "environments.shared.mirror_kl_ppo.MirrorKLPPO.learn"
+  ]
+ },
+ "stop_after_pair_requested": null,
+ "cadence_override_requested": null,
+ "run_all": {
+  "stopped_at": 20,
+  "stopped_by_the_guard": true
+ },
+ "learn_called": [
+  {
+   "class": "stable_baselines3.ppo.ppo.PPO",
+   "total_timesteps": 2000000,
+   "reset_num_timesteps": true
+  }
+ ],
+ "manual_cell_stopped_at_learn": true,
+ "guard_hits": [],
+ "environments_imported_from": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/environments/__init__.py",
+ "locomotion_curriculum_at_end": {
+  "eval_freq": 65536,
+  "checkpoint_freq": 250000,
+  "eval_episodes": 10,
+  "max_checkpoints": 0,
+  "warm_start_log_std": null,
+  "warmup_timesteps": 0,
+  "ramp_start_value": 2.0,
+  "timesteps": 2000000,
+  "initialize_from_own_checkpoint": true
+ },
+ "run_dir": "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s42",
+ "entry_lines": {
+  "required": {
+   "setup (local)": "Running locally; using this checkout. REPO_REF selects only the Colab checkout.",
+   "quick test": "Quick test mode: False",
+   "behavior": "Behavior recipe: walk",
+   "K3 panel": "In-run K3 panel: off",
+   "critic phase": "Critic phase: off",
+   "run directory": "Run directory: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/clone/logs/tyrannosaurus_rex/anatomical/ppo/pilot4_walk_s42 (new run: RUN_ID names no existing run)",
+   "node": "Node locomotion (stage 2): Locomotion (ppo)",
+   "timesteps": "Timesteps: 2,000,000",
+   "vecnormalize": "VecNormalize loaded from: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/out/fix/tmp/pairs/pilot3_walk_s42/03_locomotion/models/stage2_vecnormalize_8000000_steps.pkl"
+  },
+  "missing": [],
+  "forbidden_present": [],
+  "other_warm_start_lines": [],
+  "first_eval_line": "not reached (learn() did not run)",
+  "first_eval_ok": null,
+  "ok": true
+ },
+ "ended": "2026-11-06T09:22:03Z",
+ "exit": 0
+}

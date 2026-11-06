@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/tools/nb_pilot_runner4.py", line 493, in run_cell
+    exec(compile(src, f"<cell {idx}>", "exec"), ns)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<cell 20>", line 1, in <module>
+RuntimeError: Walking pilot 4: chain loop skipped on purpose. Now run the manual cell (section 7) by itself -- unless you are resuming: then stop here.
+BaselineProgress: 32768 of 50000 steps (66% of budget) and the policy has never beaten the zero-action baseline — latest eval 3039.3 vs 3766.6 (80.7%). On a stage whose reward optimum IS the do-nothing policy this means the run is in a worse-than-trivial local optimum, not merely early. Run 20260804_143747 spent its whole 10M budget in exactly this state and failed its gate (issue #486).
+Video recording failed.
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/clone/environments/shared/reporting/stage_artifacts.py", line 2225, in _record_stage_replays
+    record_stage_video(
+    ~~~~~~~~~~~~~~~~~~^
+        selected_model,
+        ^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        collect_stance_diagnostics=replay_diagnostics,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/clone/environments/shared/evaluation.py", line 393, in record_stage_video
+    frames.append(render_env.render())
+                  ~~~~~~~~~~~~~~~~~^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/prelaunch/smoke/clone/environments/shared/base_env.py", line 1716, in render
+    self._renderer = mujoco.Renderer(self.model, height=480, width=640)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/optB/venv/lib/python3.13/site-packages/mujoco/rendering/classic/renderer.py", line 88, in __init__
+    if gl_context.GLContext is not None:
+       ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'mujoco.rendering.classic.gl_context' has no attribute 'GLContext'

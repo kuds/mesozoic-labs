@@ -1,0 +1,377 @@
+366:for n,c in ev[\"checkpoints\"].items():
+367:    if n.endswith(\".zip\"):
+368:        print(n, c[\"num_timesteps\"], c[\"sha256\"][:23], \"lineage\", c[\"lineage_key_present\"], c[\"lineage_raw_keys\"], json.dumps(c[\"lineage\"])[:400], c[\"policy_std\"], c[\"data_keys_meso
+369:    else:
+370:        print(n, c[\"sha256\"][:23], c[\"bytes\"])
+371:print(\"setup lineage\", json.dumps(ev[\"setup_entry_lineage_record\"]))
+372:print(json.dumps(ev[\"ledger\"])[:1200])
+373:print(json.dumps(ev[\"provenance\"])[:2500])
+374:print(ev[\"stage_summary.txt\"])
+375:" $K/out/smoke_evidence_launch_s42.json
+378:[2026-11-06T12:35:58Z] $ $PY -I -c "
+379:import json,sys
+380:ev=json.load(open(sys.argv[1]))
+381:tb=ev[\"tensorboard\"]
+382:print(tb[\"files\"], tb[\"sizes\"])
+383:for d,row in tb[\"per_dir\"].items():
+384:    print(d, row[\"n_scalar_tags\"])
+385:    for t in (\"time/fps\",\"train/std\",\"train/value_loss\",\"train/explained_variance\",\"train/approx_kl\",\"train/clip_fraction\",\"train/learning_rate\",\"eval/mean_reward\",\"rollout/ep_rew
+386:        print(\" \",t,row.get(t))
+387:print(ev[\"cells\"])
+388:print(ev[\"warning_lines_stdout\"][:10])
+389:print(ev[\"stderr_lines_not_indented\"][:40])
+390:" $K/out/smoke_evidence_launch_s42.json
+393:[2026-11-06T12:36:10Z] $ date -u -d @1793968192 +%FT%TZ; date -u -d @1793968362.458 +%FT%T.%3NZ; stat -c "%n %y" $K/runs/launch/pilot4_walk_s42/03_locomotion/models/stage2_65536_steps.zip $K/runs/
+394:[exit 0 0]
+395:[2026-11-06T12:36:10Z] $ cat $K/nb/status.txt | tail -3; grep -n "Resuming\|Newest intact\|Matched Vec\|Checkpoint steps\|Run directory\|Eval num\|Warm start" $K/nb/resume/runner.stdout.log | cut 
+396:[exit 0 0]
+398:[2026-11-06T12:36:17Z] $ sed -n "1,40p;80,150p" $K/nb/launch_s42/runner.stdout.log | cut -c1-330
+399:[exit 0 0]
+401:[2026-11-06T12:36:22Z] $ date -u +%T; sed -n "20,30p" $K/nb/resume/runner.stdout.log | cut -c1-400; grep -n "Resuming\|Newest intact\|Matched Vec\|Checkpoint steps\|Eval num\|Warm start\|##### nb_
+402:[exit 0 0 0]
+404:[2026-11-06T12:36:32Z] $ ls $P4/tests; grep -n "def test.*resum" $P4/tests/test_pilot4_judge.py | head -20
+405:[exit 0 0]
+407:[2026-11-06T12:36:39Z] $ echo HOME=$HOME; find /tmp -maxdepth 1 -newer $K/tmp/marker_launch_s42 2>&1 | head; ls -la --time-style=full-iso $HOME/.cache 2>&1 | head -5; find $HOME/.cache $HOME/.conf
+408:[exit 0 0]
+410:[2026-11-06T12:36:48Z] $ date -u +%T; grep -n "Resuming\|Newest intact\|Matched Vec\|Checkpoint steps\|Eval num\|Warm start\|##### nb_pilot\|Nothing to resume\|WARNING" $K/nb/resume/runner.stdout.
+411:[exit 0 0 0]
+413:[2026-11-06T12:36:55Z] $ sed -n "1020,1070p" $P4/pilot4_score.py
+416:[2026-11-06T12:37:00Z] $ date -u +%T; grep -n "Resuming\|Newest intact\|Matched Vec\|Checkpoint steps\|Eval num\|Warm start\|##### nb_pilot\|Nothing to resume\|WARNING" $K/nb/resume/runner.stdout.
+417:[exit 0 0 0]
+419:[2026-11-06T12:37:25Z] [note] wrote scripts/final_state.sh with the file-writing tool
+420:[2026-11-06T12:37:25Z] $ date -u +%T; grep -n "Resuming\|Newest intact\|Matched Vec\|Checkpoint steps\|Eval num\|Warm start\|##### nb_pilot\|Nothing to resume\|WARNING" $K/nb/resume/runner.stdout.
+421:[exit 0 0 0]
+423:[2026-11-06T12:37:30Z] $ wc -l $K/CMDLOG.txt; grep -c "^\[exit" $K/CMDLOG.txt; grep -c "job " $K/CMDLOG.txt; du -sh $K; df -h $S | tail -1
+424:[exit 0 0]
+426:[2026-11-06T12:37:39Z] $ date -u +%T; cat $K/nb/status.txt | tail -4; grep -n "Eval num\|Warm start\|##### nb_pilot\|Final model saved" $K/nb/resume/runner.stdout.log | tail -6 | cut -c1-200
+427:[exit 0 0 0]
+429:[2026-11-06T12:37:47Z] $ sed -n "51,79p" $K/nb/launch_s42/runner.stdout.log | cut -c1-260
+430:[exit 0 0]
+432:[2026-11-06T12:37:52Z] $ date -u +%T; cat $K/nb/status.txt | tail -3; grep -n "Eval num\|Warm start\|##### nb_pilot\|Final model saved" $K/nb/resume/runner.stdout.log | tail -4 | cut -c1-200
+433:[exit 0 0 0]
+435:[2026-11-06T12:37:58Z] $ ls $S/pilot4/prelaunch/tol/e2e/ | head; f=$(ls $S/pilot4/prelaunch/tol/e2e/logs/judge_s42_2000000.log 2>&1); grep -n "L=\|plant\|physics\|interface\|classif\|WALK\|seed ou
+436:[exit 0 0 0]
+438:[2026-11-06T12:38:03Z] $ sed -n "1,48p" $S/pilot4/prelaunch/tol/e2e/logs/judge_s42_2000000.log | cut -c1-220
+439:[exit 0 0]
+441:[2026-11-06T12:38:08Z] $ date -u +%T; cat $K/nb/status.txt | tail -3; grep -n "Eval num\|Warm start\|##### nb_pilot\|Final model saved" $K/nb/resume/runner.stdout.log | tail -4 | cut -c1-200
+442:[exit 0 0 0]
+444:[2026-11-06T12:38:15Z] $ diff <(cut -d" " -f1 $K/data/snap_run_files.txt) <(cut -d" " -f1 $K/data/launch_run_files.txt) | grep "^[<>]" | grep -v "figures/" ; grep -c "figures/" $K/data/launch_run_
+447:[2026-11-06T12:38:21Z] $ date -u +%T; cat $K/nb/status.txt | tail -3; grep -n "Eval num\|Warm start\|##### nb_pilot\|Final model saved" $K/nb/resume/runner.stdout.log | tail -4 | cut -c1-200
+448:[exit 0 0 0]
+450:[2026-11-06T12:38:26Z] $ sed -n "720,800p" $P4/tests/test_pilot4_judge.py
+453:[2026-11-06T12:38:31Z] $ date -u +%T; cat $K/nb/status.txt | tail -3; grep -n "Eval num\|Warm start\|##### nb_pilot\|Final model saved" $K/nb/resume/runner.stdout.log | tail -4 | cut -c1-200
+454:[exit 0 0 0]
+456:[2026-11-06T12:38:36Z] $ tail -c 1500 $K/nb/resume/runner.stdout.log; echo; tail -c 800 $K/nb/resume/runner.stderr.log; ls -la --time-style=+%T $K/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick
+459:[2026-11-06T12:38:43Z] $ ls $P3/r6_fix/out | head -40; head -40 $P3/r6_fix/out/unbroken_vs_resumed_65536.txt 2>&1
+460:[exit 1]
+462:[2026-11-06T12:38:48Z] $ date -u +%T; cat $K/nb/status.txt | tail -4; grep -n "Eval num\|Warm start\|##### nb_pilot\|Final model saved" $K/nb/resume/runner.stdout.log | tail -4 | cut -c1-200
+463:[exit 0 0 0]
+465:[2026-11-06T12:38:55Z job resume_end_time] $ date -u +%FT%T.%NZ > SP/pilot4/prelaunch/smoke/nb/resume.end
+467:[2026-11-06T12:38:55Z job stage_config_after_resume] $ cp SP/pilot4/prelaunch/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot4_walk_s42/03_locomotio
+469:[2026-11-06T12:38:55Z job resume_copy_out] $ cp -a SP/pilot4/prelaunch/smoke/clone/logs/tyrannosaurus_rex/anatomical/ppo_quick_test/pilot4_walk_s42 /tmp/claude-0/-home
+471:[2026-11-06T12:38:55Z job resume_files] $ cd SP/pilot4/prelaunch/smoke/runs/resume/pilot4_walk_s42 && find . -type f -printf '%P %s\n' | sort > /tmp/claude-0/-home-use
+473:[2026-11-06T12:38:55Z job clone_tracked_clean_after_resume] $ git -C SP/pilot4/prelaunch/smoke/clone status --porcelain --untracked-files=no > /tmp/claude-0/-home-user
+477:[2026-11-06T12:38:59Z] $ sed -n "1,30p" $K/nb/plan_launch/cells_edited.json | cut -c1-200 | head -5; $PY -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[\"18\"][:400])" $K/nb/resum
+480:[2026-11-06T12:39:04Z] $ cat $K/nb/status.txt; cat $K/nb/resume.start $K/nb/resume.end; tail -3 $K/nb/phase_resume.console.txt
+482:[2026-11-06T12:39:04Z] $ $PY -I $K/scripts/jq.py keys $K/nb/resume/record.json exit run_all override entry_lines cells locomotion_curriculum_at_end environments_imported_from started ended
+485:[2026-11-06T12:39:11Z] $ $PY -I $K/scripts/make_copies4.py $K/runs/launch/pilot4_walk_s42 $K/runs/resume/pilot4_walk_s42 $K/judge/copies > $K/judge/make_copies.txt 2>&1; echo rc=$?; cat $K/judge/m
+486:[exit 1 0]
+488:[2026-11-06T12:39:16Z] [note] the previous make_copies4 call failed before running (the judge/ folder did not exist for its log redirect); nothing written
+489:[2026-11-06T12:39:16Z] $ mkdir -p $K/judge
+491:[2026-11-06T12:39:16Z] $ $PY -I $K/scripts/make_copies4.py $K/runs/launch/pilot4_walk_s42 $K/runs/resume/pilot4_walk_s42 $K/judge/copies > $K/judge/make_copies.txt 2>&1; echo rc=$?; cat $K/judge/m
+492:[exit 0 0]
+494:[2026-11-06T12:39:28Z] $ bash $K/scripts/phase_judge.sh > $K/judge/phase_judge.console.txt 2>&1; echo rc=$?; cat $K/judge/status.txt
+496:[2026-11-06T12:39:28Z] $ nice -n 15 $PY -I $K/scripts/evidence4.py $K/nb/resume $K/runs/resume/pilot4_walk_s42 $K/clone $P4 $S/pilot4/prelaunch/setup/runs/s42/judge_bound_keys.json $K/out/smoke_ev
+497:[2026-11-06T12:39:28Z job tree_clean_start] $ git -C SP/pilot4/prelaunch/smoke/judge_tree status --porcelain --ignored --untracked-files=all > /tmp/claude-0/-home-user
+499:[2026-11-06T12:39:28Z job A1_check_only_32768_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b8
+501:[2026-11-06T12:39:29Z] $ $PY -I -c "
+502:import json,sys
+503:ev=json.load(open(sys.argv[1]))
+504:for k in (\"header_lines\",\"eval_lines\",\"gate_lines\",\"warm_start_lines_stdout\",\"warm_start_on_stderr\",\"judge_bound_keys_differing_from_setup_entry\",\"plant_identity_equal_to_setup_entry\
+505:    v=ev[k]
+506:    print(k, json.dumps(v)[:3000])
+507:print(\"stderr\", ev[\"stderr_lines_not_indented\"][:20])
+508:for n,c in ev[\"checkpoints\"].items():
+509:    if n.endswith(\".zip\"):
+510:        print(n, c[\"num_timesteps\"], c[\"sha256\"][:23], c[\"lineage_key_present\"], c[\"lineage\"]==ev[\"setup_entry_lineage_record\"], c[\"policy_std\"])
+511:    else: print(n, c[\"sha256\"][:23])
+512:print(json.dumps(ev[\"ledger\"]))
+513:tb=ev[\"tensorboard\"]; print(tb[\"files\"])
+514:for d,row in tb.get(\"per_dir\",{}).items():
+515:    print(d, row[\"n_scalar_tags\"], {t:row.get(t) for t in (\"time/fps\",\"train/std\",\"eval/mean_reward\")})
+516:" $K/out/smoke_evidence_resume_s42.json | cut -c1-1500
+517:[exit 0 0]
+519:[2026-11-06T12:39:31Z job A2_check_only_65536_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b8
+521:[2026-11-06T12:39:35Z job A2_out_absent_after_check_only] $ test ! -e SP/pilot4/prelaunch/smoke/judge/OUT
+523:[2026-11-06T12:39:35Z job A3_judge_65536_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9
+524:[2026-11-06T12:39:35Z job A4_judge_32768_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9
+525:[2026-11-06T12:39:35Z job B2_judge_resumed_65536_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515
+527:[2026-11-06T12:39:42Z] $ $PY -I $K/scripts/compare_resume.py $K/runs/launch/pilot4_walk_s42 $K/runs/resume/pilot4_walk_s42 $K/nb/resume_stage_config_before.json $K/nb/resume_stage_config_after.jso
+529:[2026-11-06T12:39:42Z] $ $PY -I -c "
+530:import json,sys
+531:r=json.load(open(sys.argv[1]))
+532:print(\"CHANGED BY RESUME:\")
+533:for k,v in r[\"stage_config_leaves_changed_by_resume\"].items(): print(\" \",k, json.dumps(v)[:300])
+534:print(\"BOUND KEYS kept:\", all(v[\"kept\"] for k,v in r[\"bound_keys\"].items() if k not in (\"run.timesteps\",\"run.resume_load_path\",\"run.resume_checkpoint_sha256\")))
+535:for k,v in r[\"bound_keys\"].items():
+536:    if not v[\"kept\"]: print(\"  not kept:\",k,json.dumps(v)[:300])
+537:for n,z in r[\"zips\"].items():
+538:    if isinstance(z,str): print(n,z); continue
+539:    print(n, z[\"num_timesteps\"], \"members_equal\", z[\"members_equal\"], \"data_keys_differ\", z[\"data_keys_differ\"], \"lineage_equal\", z[\"lineage_equal\"], \"zeroed\", (z[\"lineage_resume\
+540:print(r[\"sidecars_equal\"])
+541:" $K/out/compare_resume.json
+544:[2026-11-06T12:39:51Z] $ $PY -I -c "
+545:import json,sys,zipfile
+546:for run in sys.argv[1:3]:
+547:    for n in (\"stage2_32768_steps.zip\",\"stage2_65536_steps.zip\",\"stage2_final.zip\"):
+548:        d=json.loads(zipfile.ZipFile(run+\"/03_locomotion/models/\"+n).read(\"data\"))
+549:        print(run.split(\"/\")[-2], n, {k:d.get(k) for k in (\"num_timesteps\",\"_n_updates\",\"_num_timesteps_at_start\",\"_current_progress_remaining\",\"ent_coef\")})
+550:" $K/runs/launch/pilot4_walk_s42 $K/runs/resume/pilot4_walk_s42
+553:[2026-11-06T12:40:06Z] $ date -u +%T; cat $K/judge/status.txt; for f in A1_check_only_32768 A2_check_only_65536; do tail -2 $K/judge/logs/$f.log | cut -c1-400; done
+554:[exit 0 0]
+556:[2026-11-06T12:40:11Z] $ sed -n "77,125p" $K/nb/resume/runner.stdout.log | cut -c1-300
+557:[exit 0 0]
+559:[2026-11-06T12:40:17Z] $ date -u +%T; cat $K/judge/status.txt | tail -4; tail -2 $K/judge/logs/A3_judge_65536.log | cut -c1-200
+560:[exit 0 0]
+562:[2026-11-06T12:40:37Z] [note] wrote scripts/timing.py with the file-writing tool
+563:[2026-11-06T12:40:37Z] $ $PY -I $K/scripts/timing.py $K/out/smoke_evidence_launch_s42.json $K/out/smoke_evidence_resume_s42.json $K/nb $K/out/timing.json 2>&1 | head -60
+564:[exit 0 0]
+566:[2026-11-06T12:40:41Z] $ tail -8 $K/out/timing.json; date -u +%T; cat $K/judge/status.txt | tail -5
+567:[exit 0 0]
+569:[2026-11-06T12:40:48Z] $ $PY -I $K/scripts/jq.py keys $K/runs/launch/pilot4_walk_s42/03_locomotion/gate_verdict.json passed gate_kind failures task_sha256 gate_sha256 model_sha256 stage_result.pub
+572:[2026-11-06T12:40:53Z] $ date -u +%T; cat $K/judge/status.txt | tail -5; tail -1 $K/judge/logs/A3_judge_65536.log | cut -c1-150; tail -1 $K/judge/logs/B2_judge_resumed_65536.log | cut -c1-150
+573:[exit 0 0]
+575:[2026-11-06T12:41:04Z] $ sed -n "1,4p;44,60p" $K/judge/logs/A3_judge_65536.log | cut -c1-300
+576:[exit 0 0]
+580:[2026-11-06T12:41:09Z job A5_judge_again_65536_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b
+581:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+582:    inner nonzero: status 2 from: eval "$CMD"
+583:[2026-11-06T12:41:13Z job A5_judge_again_65536_expect2] exit: 2 (4s)
+584:[2026-11-06T12:41:13Z job A6_pilot_budget_check_only_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-
+586:[2026-11-06T12:41:14Z] $ date -u +%T; cat $K/judge/status.txt | tail -6
+587:[exit 0 0]
+588:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+589:    inner nonzero: status 2 from: eval "$CMD"
+590:[2026-11-06T12:41:17Z job A6_pilot_budget_check_only_expect2] exit: 2 (4s)
+591:[2026-11-06T12:41:17Z job A7_final_fallback_50000_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-551
+593:[2026-11-06T12:41:21Z] $ bash $K/scripts/phase_readouts.sh > $K/readouts_phase.console.txt 2>&1; echo rc=$?; cat $K/readouts/status.txt
+594:[2026-11-06T12:41:21Z job S2_straight_seed_no_validation_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-9
+595:[2026-11-06T12:41:21Z job H3_habit_seed_validation_65536_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-9
+596:[2026-11-06T12:41:21Z job S1_straight_seed_validation_65536_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cc
+597:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+598:    inner nonzero: status 2 from: eval "$CMD"
+599:[2026-11-06T12:41:21Z job S2_straight_seed_no_validation_expect2] exit: 2 (0s)
+600:[2026-11-06T12:41:21Z job H4_habit_seed_no_validation_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba
+601:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+602:    inner nonzero: status 2 from: eval "$CMD"
+603:[2026-11-06T12:41:22Z job H4_habit_seed_no_validation_expect2] exit: 2 (1s)
+604:[2026-11-06T12:41:22Z job H1_habit_ledger_launch] $ SP/pilot3/branch/venv_full/bin/python -I /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc
+606:[2026-11-06T12:41:22Z job H2_habit_ledger_resume] $ SP/pilot3/branch/venv_full/bin/python -I /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc
+608:[2026-11-06T12:41:22Z job N1_noise_launch] $ SP/pilot3/branch/venv_full/bin/python -I /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scrat
+610:[2026-11-06T12:41:24Z job N2_noise_resume] $ SP/pilot3/branch/venv_full/bin/python -I /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scrat
+612:[2026-11-06T12:41:25Z job V1_video_egl] $ cd SP/pilot4/prelaunch/smoke/judge_tree && MUJOCO_GL=egl PYOPENGL_PLATFORM=egl ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/
+613:    inner nonzero: status 1 from: MUJOCO_GL=egl PYOPENGL_PLATFORM=egl ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-
+614:    inner nonzero: status 1 from: eval "$CMD"
+615:[2026-11-06T12:41:26Z job V1_video_egl] exit: 1 (1s)
+616:[2026-11-06T12:41:26Z job V2_video_osmesa] $ cd SP/pilot4/prelaunch/smoke/judge_tree && MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa ISO_WT=/tmp/claude-0/-home-user-mesoz
+617:    inner nonzero: status 1 from: MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce
+618:    inner nonzero: status 1 from: eval "$CMD"
+619:[2026-11-06T12:41:26Z job V2_video_osmesa] exit: 1 (0s)
+621:[2026-11-06T12:41:33Z] $ grep -n "\"status\"\|porcelain" $P4/pilot4_straight.py $P4/pilot4_habit.py $P4/pilot4_video.py | head; date -u +%T; tail -3 $K/judge/status.txt
+624:[2026-11-06T12:41:39Z] $ grep -n "tree_state\|def tree_\|_tree(\|seed_problems(\|baseline_problems(" $P4/pilot4_straight.py | head -20; sed -n "1218,1230p" $P4/pilot4_straight.py; sed -n "565,580p
+627:[2026-11-06T12:41:46Z] $ date -u +%T; cat $K/readouts/status.txt 2>&1; tail -4 $K/judge/status.txt
+630:[2026-11-06T12:41:52Z] $ for f in S2_straight_seed_no_validation H4_habit_seed_no_validation V1_video_egl V2_video_osmesa; do echo "== $f"; tail -6 $K/readouts/logs/$f.log | cut -c1-600; done
+631:[exit 0 0]
+633:[2026-11-06T12:41:57Z] $ for f in V1_video_egl V2_video_osmesa; do echo "== $f"; grep -n "File \|Error\|refus" $K/readouts/logs/$f.log | head -8 | cut -c1-260; done; ls -la $K/readouts/videos/ $K/
+634:[exit 2 0]
+636:[2026-11-06T12:42:05Z] $ date -u +%T; tail -5 $K/judge/status.txt; for f in H1_habit_ledger_launch H2_habit_ledger_resume; do echo "== $f"; cat $K/readouts/logs/$f.log | cut -c1-300 | head -40; do
+637:[exit 0 0 0]
+640:[2026-11-06T12:42:10Z] $ for f in N1_noise_launch N2_noise_resume; do echo "== $f"; cat $K/readouts/logs/$f.log | cut -c1-300 | head -40; done
+641:[exit 0 0 0]
+643:[2026-11-06T12:42:30Z] $ date -u +%T; tail -6 $K/judge/status.txt; tail -3 $K/readouts/logs/S1_straight_seed_validation.log | cut -c1-200; tail -3 $K/readouts/logs/H3_habit_seed_validation.log | c
+644:[exit 0 0]
+646:[2026-11-06T12:42:36Z] $ cat $K/readouts/logs/H3_habit_seed_validation.log | cut -c1-300
+647:[exit 0 0]
+649:[2026-11-06T12:42:42Z] $ date -u +%T; tail -4 $K/judge/status.txt; tail -2 $K/judge/logs/A7_final_fallback_50000.log | cut -c1-200
+650:[exit 0 0]
+652:[2026-11-06T12:42:47Z] $ for f in A5_judge_again_65536 A6_pilot_budget; do echo "== $f"; tail -2 $K/judge/logs/$f.log | cut -c1-1500; done
+653:[exit 0 0]
+655:[2026-11-06T12:42:53Z job A8_fallback_wrong_num_timesteps_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-
+657:[2026-11-06T12:42:53Z] $ $PY -I -c "
+658:import json,sys
+659:d=json.load(open(sys.argv[1]))
+660:m=d[\"meta\"]
+661:print(sorted(m.keys()))
+662:print({k:m[k] for k in m if \"plant\" in k or \"leg\" in k or k in (\"seed_scheme\",\"seed_base\",\"episodes\",\"settle_steps_gait_window\",\"settle_steps_gate\",\"env_kwargs_drift_vs_recorded\",\
+663:" $K/judge/OUT/s42/65536/probe.json | cut -c1-3000
+664:[exit 0 0]
+665:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+666:    inner nonzero: status 2 from: eval "$CMD"
+667:[2026-11-06T12:42:57Z job A8_fallback_wrong_num_timesteps_expect2] exit: 2 (4s)
+668:[2026-11-06T12:42:57Z job R1_parent_cli_s52_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b
+670:[2026-11-06T12:43:00Z] $ $PY -I -c "
+671:import json,sys
+672:d=json.load(open(sys.argv[1])); r=d[\"meta\"][\"robot\"]
+673:print({k:r[k] for k in r if k in (\"leg_length_m\",\"leg_length_source\",\"root_name\",\"feet\",\"display\",\"gravity\")} )
+674:b=json.load(open(sys.argv[2])); print(b[\"plant\"], b[\"validation_only\"], b[\"expected_budget\"], b[\"cadence_checked\"], b[\"text_anchors_checked\"], b[\"run_end\"])
+675:" $K/judge/OUT/s42/65536/probe.json $K/judge/OUT/s42/65536/binding.json | cut -c1-2000; date -u +%T; tail -3 $K/judge/status.txt
+677:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+678:    inner nonzero: status 2 from: eval "$CMD"
+679:[2026-11-06T12:43:01Z job R1_parent_cli_s52_expect2] exit: 2 (4s)
+680:[2026-11-06T12:43:01Z job R_parent_sha_record_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b8
+681:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+682:    inner nonzero: status 2 from: eval "$CMD"
+683:[2026-11-06T12:43:04Z job R_parent_sha_record_expect2] exit: 2 (3s)
+684:[2026-11-06T12:43:04Z job R_command_table_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a
+686:[2026-11-06T12:43:07Z] $ grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; tail -2 $K/readouts/logs/S1_straight_seed_validation.log | cut -c1-250; tail -2 $K/judge/logs/A8_fallback_wron
+687:[exit 0 0]
+688:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+689:    inner nonzero: status 2 from: eval "$CMD"
+690:[2026-11-06T12:43:08Z job R_command_table_expect2] exit: 2 (4s)
+691:[2026-11-06T12:43:08Z job R_env_kwarg_drift_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b
+692:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+693:    inner nonzero: status 2 from: eval "$CMD"
+694:[2026-11-06T12:43:12Z job R_env_kwarg_drift_expect2] exit: 2 (4s)
+695:[2026-11-06T12:43:12Z job R_other_head_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f0
+696:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+697:    inner nonzero: status 2 from: eval "$CMD"
+698:[2026-11-06T12:43:16Z job R_other_head_expect2] exit: 2 (4s)
+699:[2026-11-06T12:43:16Z job R_n_envs_2_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018
+701:[2026-11-06T12:43:16Z] $ date -u +%T; tail -8 $K/judge/status.txt
+703:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+704:    inner nonzero: status 2 from: eval "$CMD"
+705:[2026-11-06T12:43:19Z job R_n_envs_2_expect2] exit: 2 (3s)
+706:[2026-11-06T12:43:19Z job R_warm_start_log_std_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b
+708:[2026-11-06T12:43:21Z] $ for f in R1_parent_cli_s52 R_parent_sha_record R_command_table R_env_kwarg_drift R_other_head; do echo "== $f"; tail -1 $K/judge/logs/$f.log | cut -c1-1800; done
+709:[exit 0 0]
+710:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+711:    inner nonzero: status 2 from: eval "$CMD"
+712:[2026-11-06T12:43:23Z job R_warm_start_log_std_expect2] exit: 2 (4s)
+713:[2026-11-06T12:43:23Z job R_critic_dropped_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-
+714:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+715:    inner nonzero: status 2 from: eval "$CMD"
+716:[2026-11-06T12:43:27Z job R_critic_dropped_expect2] exit: 2 (4s)
+717:[2026-11-06T12:43:27Z job R_parent_task_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f
+719:[2026-11-06T12:43:28Z] $ date -u +%T; tail -12 $K/judge/status.txt; cat $K/judge/phase_judge.console.txt 2>&1 | tail -3
+720:[exit 0 0]
+721:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+722:    inner nonzero: status 2 from: eval "$CMD"
+723:[2026-11-06T12:43:31Z job R_parent_task_expect2] exit: 2 (4s)
+724:[2026-11-06T12:43:31Z job R_no_lineage_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f0
+726:[2026-11-06T12:43:34Z] $ grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; date -u +%T; tail -6 $K/judge/status.txt
+728:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+729:    inner nonzero: status 2 from: eval "$CMD"
+730:[2026-11-06T12:43:34Z job R_no_lineage_expect2] exit: 2 (3s)
+731:[2026-11-06T12:43:34Z job R_wrong_run_id_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9
+732:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+733:    inner nonzero: status 2 from: eval "$CMD"
+734:[2026-11-06T12:43:38Z job R_wrong_run_id_expect2] exit: 2 (4s)
+735:[2026-11-06T12:43:38Z job D1_dirty_make] $ printf '\n(smoke lane: a local edit that makes the tree dirty)\n' >> SP/pilot4/prelaunch/smoke/judge_tree/README.md && git -
+737:[2026-11-06T12:43:38Z job D2_dirty_judge_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9
+738:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+739:    inner nonzero: status 2 from: eval "$CMD"
+740:[2026-11-06T12:43:39Z job D2_dirty_judge_expect2] exit: 2 (1s)
+741:[2026-11-06T12:43:39Z job D3_dirty_restore] $ git -C SP/pilot4/prelaunch/smoke/judge_tree checkout -- README.md && git -C /tmp/claude-0/-home-user-mesozoic-labs/aff94c
+743:[2026-11-06T12:43:39Z job B1_check_only_resumed_65536_expect0] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba
+745:[2026-11-06T12:43:41Z] $ diff $K/snap/pilot4_walk_s42/03_locomotion/stage_config.json $K/runs/launch/pilot4_walk_s42/03_locomotion/stage_config.json; echo diff_rc=$?
+748:[2026-11-06T12:43:42Z job B3_resumed_final_fallback_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5
+749:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+750:    inner nonzero: status 2 from: eval "$CMD"
+751:[2026-11-06T12:43:46Z job B3_resumed_final_fallback_expect2] exit: 2 (4s)
+752:[2026-11-06T12:43:46Z job B4_resume_nonperiodic_expect2] $ cd SP/pilot4/prelaunch/smoke/judge_tree && ISO_WT=/tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-
+754:[2026-11-06T12:43:46Z] $ date -u +%T; tail -9 $K/judge/status.txt; tail -2 $K/judge/phase_judge.console.txt
+756:    inner nonzero: status 2 from: ISO_WT=SP/pilot4/prelaunch/smoke/judge_tree /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/wo
+757:    inner nonzero: status 2 from: eval "$CMD"
+758:[2026-11-06T12:43:49Z job B4_resume_nonperiodic_expect2] exit: 2 (3s)
+759:[2026-11-06T12:43:49Z job refusal_outs_absent] $ find SP/pilot4/prelaunch/smoke/judge -maxdepth 1 -name 'OUT_*' > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-
+760:    inner nonzero: status 1 from: test ! -s SP/pilot4/prelaunch/smoke/judge/logs/refusal_outs_present.txt
+761:    inner nonzero: status 1 from: eval "$CMD"
+762:[2026-11-06T12:43:49Z job refusal_outs_absent] exit: 1 (0s)
+763:[2026-11-06T12:43:49Z job tree_clean_end] $ git -C SP/pilot4/prelaunch/smoke/judge_tree status --porcelain --ignored --untracked-files=all > /tmp/claude-0/-home-user-m
+767:[2026-11-06T12:43:54Z] $ date -u +%T; tail -4 $K/judge/status.txt; tail -2 $K/judge/phase_judge.console.txt
+770:[2026-11-06T12:44:03Z] $ cat $K/judge/logs/refusal_outs_present.txt | sed "s|$K/||"; ls $K/judge; find $K/judge/OUT $K/judge/OUT_resume -maxdepth 3 | sed "s|$K/||"
+771:[exit 0 0]
+773:[2026-11-06T12:44:11Z] [note] phase_judge.sh's refusal_outs_absent step exited 1 only because its pattern OUT_* also matched OUT_resume (B2's intended output); the corrected check follows
+774:[2026-11-06T12:44:11Z] $ export JOB_STATUS=$K/judge/status.txt; bash $K/scripts/job.sh "refusal_outs_absent_corrected" "find $K/judge -maxdepth 1 -name \"OUT_*\" -not -name OUT_resume > $K/judge/l
+775:[2026-11-06T12:44:11Z job refusal_outs_absent_corrected] $ find SP/pilot4/prelaunch/smoke/judge -maxdepth 1 -name "OUT_*" -not -name OUT_resume > /tmp/claude-0/-home-u
+778:[2026-11-06T12:44:11Z] $ $PY -I $K/scripts/summarize_judge.py $K/judge $P4 $K/judge/judge_summary.json > $K/judge/judge_summary.txt 2>&1; echo rc=$?; cat $K/judge/judge_summary.txt | cut -c1-900
+779:[exit 0 0]
+781:[2026-11-06T12:44:16Z] $ grep -n "^def seed_outcome\|^def label_episode" -A 6 $P4/pilot4_score.py | head -24
+782:[exit 0 0]
+784:[2026-11-06T12:44:27Z] $ sed -i "s/sc.seed_outcome(counts, len(rows)) if hasattr(sc, \"seed_outcome\")/sc.seed_outcome(counts) if hasattr(sc, \"seed_outcome\")/; s/\"lengths\": dict(Counter(int(r.
+786:[2026-11-06T12:44:27Z] $ $PY -I $K/scripts/summarize_judge.py $K/judge $P4 $K/judge/judge_summary.json > $K/judge/judge_summary.txt 2>&1; echo rc=$?; cat $K/judge/judge_summary.txt | cut -c1-700
+787:[exit 0 0]
+789:[2026-11-06T12:44:36Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; tail -2 $K/readouts/logs/S1_straight_seed_validation.log | cut -c1-200
+790:[exit 0 0]
+791:[2026-11-06T12:44:36Z] $ $PY -I -c "
+792:import json,sys
+793:from collections import Counter
+794:for p in sys.argv[1:]:
+795:    d=json.load(open(p+\"/probe.json\")); rows=d[\"episodes\"]
+796:    v=[r[\"speed_displacement_mps\"] for r in rows]; L=d[\"meta\"][\"robot\"][\"leg_length_m\"]
+797:    print(p.split(\"smoke/\")[-1], \"L\", round(L,4), \"len\", dict(Counter(r[\"length\"] for r in rows)), \"speed min/median/max\", round(min(v),3), round(sorted(v)[20],3), round(max(v),3), \"flo
+798:" $K/judge/OUT/s42/32768 $K/judge/OUT/s42/65536 $K/judge/OUT/s42/50000 $K/judge/OUT_resume/s42/65536
+801:[2026-11-06T12:44:43Z] $ for f in A4_judge_32768 A3_judge_65536 A7_final_fallback_50000 B2_judge_resumed_65536; do echo "$f: $(grep -c "touch-class=walk | floor-class=walk" $K/judge/logs/$f.log) o
+804:[2026-11-06T12:44:59Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; du -sh $K/judge/copies $K/runs $K/snap $K/clone $K/judge_tree $K/tmp $K/pairs 2>&1 | sed "s|$K/||
+805:[exit 0 0]
+807:[2026-11-06T12:45:06Z] $ sed -n "1,8p;40,50p" $K/readouts/logs/S1_straight_seed_validation.log | cut -c1-250
+808:[exit 0 0]
+810:[2026-11-06T12:45:13Z] $ cp -a $K/clone/logs/tyrannosaurus_rex/anatomical/zero_action_baselines $K/runs/zero_action_baselines_from_clone && ls $K/runs/zero_action_baselines_from_clone
+812:[2026-11-06T12:45:13Z] $ git -C $K/clone status --porcelain --untracked-files=no | wc -l; git -C $K/clone status --porcelain --ignored | cut -c1-80 | sed "s|$K/||" | head
+813:[exit 0 0 0 0]
+815:[2026-11-06T12:45:24Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; cat $K/readouts/status.txt | tail -3
+816:[exit 0 0]
+818:[2026-11-06T12:45:30Z] $ grep -c "\] \$ " $K/CMDLOG.txt; grep -c "^\[exit" $K/CMDLOG.txt; grep -c " job .*\] \$ " $K/CMDLOG.txt; grep -c " job .*\] exit:" $K/CMDLOG.txt; grep -c "inner nonzero" $K
+821:[2026-11-06T12:45:44Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; cat $K/readouts/status.txt | tail -2
+822:[exit 0 0]
+824:[2026-11-06T12:46:04Z] [note] wrote scripts/cleanup.sh with the file-writing tool (and one edit)
+825:[2026-11-06T12:46:04Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; cat $K/readouts/status.txt | tail -2
+826:[exit 0 0]
+828:[2026-11-06T12:46:11Z] $ grep "counting=" $K/readouts/logs/S1_straight_seed_validation.log | grep "^  c " | awk "{print \$3, \$4, \$7}" | tr "\n" ";" | cut -c1-1500
+829:[exit 0 0 0 0 0]
+831:[2026-11-06T12:46:21Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; cat $K/readouts/status.txt | tail -2
+832:[exit 0 0]
+834:[2026-11-06T12:46:58Z] $ date -u +%T; grep -c "" $K/readouts/logs/S1_straight_seed_validation.log; cat $K/readouts/status.txt | tail -3; cd $P4 && grep -E " (pilot4_judge|pilot4_straight|pilot4_sc
+837:[2026-11-06T12:47:05Z] $ date -u +%T; cat $K/readouts/status.txt | tail -3; tail -25 $K/readouts/logs/S1_straight_seed_validation.log | cut -c1-300
+838:[exit 0 0]
+840:[2026-11-06T12:47:05Z job C1_score_as_is] $ SP/pilot3/branch/venv_full/bin/python -I /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratc
+842:[2026-11-06T12:47:05Z job C2_score_validation_primary_65536] $ SP/pilot3/branch/venv_full/bin/python -I /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-
+844:[2026-11-06T12:47:05Z job tree_clean_end_readouts] $ git -C SP/pilot4/prelaunch/smoke/judge_tree status --porcelain --ignored --untracked-files=all > /tmp/claude-0/-ho
+848:[2026-11-06T12:47:18Z] $ date -u +%T; cat $K/readouts/status.txt | tail -4; head -3 $K/readouts/logs/S1_straight_seed_validation.log | cut -c1-400
+849:[exit 0 0]
+851:[2026-11-06T12:47:23Z] $ cat $K/readouts/logs/C1_score_as_is.log | cut -c1-400 | head -40
+852:[exit 0 0 0]
+854:[2026-11-06T12:47:29Z] $ cat $K/readouts/logs/C2_score_validation_65536.log | cut -c1-500 | head -40
+855:[exit 0 0 0]
+857:[2026-11-06T12:47:37Z] $ bash $K/scripts/final_state.sh > $K/pin/final_state.console.txt 2>&1; echo rc=$?; cat $K/pin/status.txt; cat $K/pin/sha256sums_ok_count_end.txt; wc -c < $K/pin/sha256sums_
+858:[2026-11-06T12:47:37Z job sha256sums_check_end] $ cd SP/pilot4/tools && sha256sum -c SHA256SUMS.txt > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9
+860:[2026-11-06T12:47:47Z job sha256sums_ok_count_end] $ grep -c ': OK$' SP/pilot4/prelaunch/smoke/pin/sha256sums_check_end.txt > /tmp/claude-0/-home-user-mesozoic-labs/af
+862:[2026-11-06T12:47:47Z job sha256sums_list_sha_end] $ cd SP/pilot4/tools && sha256sum SHA256SUMS.txt > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9
+864:[2026-11-06T12:47:47Z job tools_newer_than_start] $ find SP/pilot4/tools -newer /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/
+866:[2026-11-06T12:47:47Z job pilot3_newer_than_start] $ find SP/pilot3/tools SP/p
+868:[2026-11-06T12:47:47Z job tree_head_end] $ git -C SP/pilot4/tools/tree rev-parse HEAD > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scr
+870:[2026-11-06T12:47:47Z job tree_status_end] $ git -C SP/pilot4/tools/tree status --porcelain --ignored --untracked-files=all > /tmp/claude-0/-home-user-mesozoic-labs/af
+872:[2026-11-06T12:47:48Z job tree_index_mtime_end] $ stat -c '%y' SP/pilot4/tools/tree/.git/index > /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e
+874:[2026-11-06T12:47:48Z job parent_run_copy_sha_end] $ cd SP/pilot3/runs/final && sha256sum pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip pilot3_walk_s42
+876:[2026-11-06T12:47:48Z job parent_my_copy_sha_end] $ cd SP/pilot4/prelaunch/smoke/pairs && sha256sum pilot3_walk_s42/03_locomotion/models/stage2_8000000_steps.zip pilot
+878:[2026-11-06T12:47:48Z job no_bytecode_in_lane] $ find SP/pilot4/prelaunch/smoke /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/
+882:[2026-11-06T12:48:01Z] $ bash $K/scripts/cleanup.sh > $K/pin/cleanup.console.txt 2>&1; echo rc=$?; cat $K/pin/cleanup_status.txt; cat $K/pin/size_before_cleanup.txt | sed "s|$K/||"; wc -c < $K/pin
+883:[2026-11-06T12:48:01Z job size_before_cleanup] $ du -sh SP/pilot4/prelaunch/smoke/clone /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scr
+885:[2026-11-06T12:48:01Z job clone_status_before_delete] $ git -C SP/pilot4/prelaunch/smoke/clone status --porcelain --untracked-files=no > /tmp/claude-0/-home-user-mesoz
+887:[2026-11-06T12:48:01Z job delete_clones] $ rm -rf SP/pilot4/prelaunch/smoke/clone /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpa
+890:[2026-11-06T12:48:02Z] $ rm -rf $K/tmp; ls $K; du -sh $K | sed "s|$S/||"; df -h $S | tail -1
+891:[exit 0 0]
+893:[2026-11-06T12:48:21Z] $ $PY -I -c "
+894:import json,sys
+895:d=json.load(open(sys.argv[1]))
+896:print(d[\"schema\"], d[\"mode\"], \"validation\", d[\"validation\"], \"partial\", d[\"partial\"], d[\"tool_sha256\"][:20], d[\"head\"][:12], d[\"steps\"])
+897:print(\"panel all match\", d[\"panel\"].get(\"all_rolled_match\"), \"used\", sum(1 for e in d[\"panel\"][\"episodes\"] if e.get(\"used\")))
+898:for k,v in d[\"parts\"].items():
+899:    print(k, json.dumps(v)[:600])
+900:print(\"checks\", json.dumps(d[\"checks\"])[:800])
+901:print(\"env\", json.dumps(d[\"env\"])[:400])
+902:print(\"psi_cmd\", json.dumps(d[\"psi_cmd\"])[:300])
+903:" $K/readouts/straight/s42_65536.json
+905:[2026-11-06T12:48:33Z] $ S=$(ls -d /tmp/*/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work); K=$S/pilot4/prelaunch/smoke   [last shell call; lib.sh not sourced, so TMP
+906:[2026-11-06T12:48:33Z] $ rm -rf "$K/tmp"; du -sh "$K" > "$K/pin/lane_size_after_cleanup.txt"; ls "$K" > "$K/pin/lane_listing_after_cleanup.txt"
+907:[exit 0 0 0]

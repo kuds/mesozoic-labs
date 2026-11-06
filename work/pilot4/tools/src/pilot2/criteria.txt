@@ -1,0 +1,234 @@
+T. rex walking pilot 2 (wider exploration): fixed criteria (written 2026-10-17 and amended 2026-10-18, both before any
+pilot-2 training step)
+
+Adapted from walking pilot 1's criteria (foot/meanwhile/pilot/criteria.txt, "pilot 1" below). Everything not named
+under "The one change" is pilot 1's, word for word in substance: the WALK rule with all its guards, the episode
+labels, the seed and pilot outcomes, the video review, the collapse-stopped, off-schedule and missing rules, and the
+known limits of the WALK label. The exceptions are three rules marked "added for pilot 2 (follows from the change)"
+below; they check or state what the change implies and weaken none of pilot 1's rules. Where this file only points at
+pilot 1's text, pilot 1's text is the rule.
+
+Maintainer decision of 2026-10-17 (recorded here; to be recorded with pilot 1's outcome as an amendment to decision
+D-D36 in the repository's decision tables by a later records change, not now)
+  Pilot 1 (D-D36; branch claude/pilot-walk-r9 at eaeef50f; run IDs pilot_walk_s42/52/60) read STILL on all three
+  seeds (foot/meanwhile/pilot/run_log.txt, final judging 2026-10-17 ~22:20 UTC, score.json sha256 86d7350e...): no
+  steps by 4,194,304; at 2M, 3M and 4M every seed was STILL on 39-40 of 40 panel episodes (s42 had one FALL at 2M),
+  median speed 0.001-0.002 m/s, no touchdowns, foot duty 1.00/1.00. Report only: the in-training evaluation reward
+  stayed flat at about 1,097-1,100 (the parent's standing reward under the walk task); the forward-reward term was
+  about 0.5-3.2 per episode from 2M to 4.2M (max 7.5), against the September walkers' 39-54 at 2.1M and 148-234 at
+  4.2M; the policy's action std (exp(log_std) over the 15 actuators) was 0.095 mean in the parent (min 0.018, max
+  0.164) and only 0.108-0.111 at 4.2M (min 0.022, max 0.196): exploration barely widened.
+  The maintainer chose "Second pilot, wider exploration": the same pilot again with ONE change, the exploration
+  noise reset at the warm start (below). Like pilot 1 it is a deliberate exception to the gait-quality plan's open
+  GQ-3 (a) ("no walker session on today's rewards") and to GQ-17's retrain order (robot first), under D-D36. The
+  maintainer was told the value is 0.22 on every actuator, the stance stage's starting noise.
+
+The one change, and why
+  At the warm start, and only there (initialize_next_stage; never on a RESUME of the same stage, never on a fresh
+  start, never on a root, and never for a stage without the key), every one of the 15 actuators' log_std is set to
+  -1.5, std exp(-1.5) = 0.2231, after the parent's parameters are loaded and before the first update.
+    The value: the T. rex stance stage's own starting noise is log_std_init = -1.5 (configs/tyrannosaurus_rex/
+    anatomical/stance.toml, [ppo.policy_kwargs], decision D-D27), std 0.2231, which the maintainer was told as
+    "0.22". log(0.22) = -1.514; the pilot uses -1.5 exactly, std 0.2231 (0.0031 above 0.22), so the noise is the
+    stance's own starting noise and not a new number.
+    Where: configs/tyrannosaurus_rex/anatomical/locomotion.toml, [curriculum] warm_start_log_std = -1.5 (pilot-only;
+    production and pilot 1 have no such key and keep the parent's log_std as loaded). train_base applies it when the
+    node is warm-started across its edge (the same rule as the stage-entry warm-up and ramp), in place, keeping the
+    parent's Adam moments for log_std as every other parameter's are kept (train_base._apply_warm_start_log_std:
+    the moments are gradient-scale statistics that a new value does not invalidate; the parent's first moment is at
+    most 3.9e-4 against a second-moment root of 0.0009-0.0014 and decays by 0.9 per minibatch; clearing the moments
+    would be a second change). It prints "Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators
+    (the parent's std: mean 0.095, min 0.018, max 0.164; Adam moments kept)" (to stdout, not through logging, so the
+    line does not depend on how the Colab kernel's logging is set up; commit 8c0015ba) and stage_config.json records
+    curriculum.warm_start_log_std = -1.5 and run.warm_start_log_std = -1.5 (a RESUME keeps the run record, like the
+    edge), and the recipe digest run.hyperparameters_sha256 covers the key (sha256:ec9925f9..., pilot 1's
+    af78e500...). Task and gate digests are unchanged (23d50a6d... / 02602cb0...).
+    Why: pilot 1 never stepped and its noise stayed at about 0.1, under half the stance's starting noise, with four
+    actuators at 0.018 in the parent and still 0.022-0.024 at 4,194,304. A policy whose training rollouts barely
+    move off the parent's standing actions rarely produces the displacement the forward term pays, so the reward
+    cannot pull it toward stepping. Resetting the noise to the stance's starting value restores the exploration the
+    stance itself began with.
+    What it does not change: the policy's mean action (deterministic behaviour at the warm start is the parent's,
+    so the panel before any update would read the parent's STILL), the value network, the VecNormalize statistics
+    (obs_rms carried, ret_rms reset, as in pilot 1), and the entropy schedule (warm-up ent_coef 0.02 for 300,000
+    steps, then 0.005 -> 0.001 anchored at 4,000,000). The panel evaluation is deterministic (mean actions), so the
+    noise acts only through what training learns.
+
+Everything else is pilot 1's (identical, except the three rules marked "added for pilot 2 (follows from the change)")
+  Parent: r9 arm L seed 60 at 6M, committed on the branch at pilot_checkpoints/r9_arm_l_s60_6291456/ (the checkpoint
+    and its sidecar unchanged from pilot 1), sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e
+    (sidecar 0567d610...), on main's physics r9 plant (policy interface r15). Same provenance caveats (pilot 1,
+    design.txt section 3). The folder's SOURCE.txt keeps pilot 1's text as it was (it still describes this
+    checkpoint) and gains a closing paragraph recording pilot 2's decision.
+  Branch: claude/pilot-walk-r9-b at ba464855ebf8d719ce6b4b543db54c3f486709cd = claude/pilot-walk-r9 (eaeef50f) + three
+    pilot-only commits: fb5510df (the key, its tests, the regenerated digest snapshot), 8c0015ba (the "Warm start"
+    line printed instead of logged; a command-line curriculum checks every chain node's key before anything trains,
+    which the pilot does not use) and ba464855 (the SOURCE.txt paragraph). Never merged, no pull request. The runs
+    must record git_commit ba464855...; if the branch moves before launch, the head the runs record is the one
+    judged, and this file is amended before any pilot-2 step to name it.
+  Stage: the production T. rex locomotion stage as pilot 1 ran it (stock PPO, the production [env] reward, [ppo]
+    hyperparameters and reward_and_length/v1 gate), warm-started under initialize_next_stage through the notebook's
+    manual single-node cell, 4,194,304 steps, learning_rate_end 2.902848e-5 (production's path step for step),
+    evaluation every 131,072 steps on 10 episodes, a periodic checkpoint every 524,288 steps, all kept; warm-up
+    300,000, forward-weight ramp 0.2 -> 2.0 over 2,000,000, entropy anchor 4,000,000; none of arm L's options.
+  Seeds: 42, 52 and 60, one runtime each. Run IDs pilot2_walk_s42, pilot2_walk_s52, pilot2_walk_s60 (a restarted
+    seed: pilot2_walk_s<seed>_b). Pilot 1's pilot_walk_s* folders are never reused or written to.
+  Judging tools: pilot 1's, in foot/meanwhile/pilot/tools/ ("tools/" below), unchanged: none has been modified
+    since 2026-10-17 14:45 UTC, before pilot 1's runs started (17:17) and were judged with them (~22:20). Neither
+    the branch nor foot/pilot2/ holds a copy. The tools used, by sha256 (taken 2026-10-18):
+      tools/pilot_judge.py       2dc44b6a2cb6f20e5b9b85e5d54d568268af169323dd2ac598f386eb8f934436
+      tools/pilot_score.py       b4297e1305cd59bf7dff0bd9f562405c37f99cf1f86f469e1723b48050f4389f
+      tools/pilot_video.py       c7079c1dd31a6bb7d5aa54823b3ca1ce84aefb6e4213b7a71661283caa53a897
+      tools/gait_probe_pilot.py  d7711c811b36f399644fe8afb83fed4ca48d8519e49d2386a8eff4eab000ef6f
+      tools/iso.py               addbfc79c866b472edacb1b8ea18b7a2863b1dfb64601acb74c6a47f323bc159
+    (pilot_judge.py runs the probe through iso.py).
+  The probe and judging: the frozen 2026-09 gait-audit probe through tools/gait_probe_pilot.py, 40 episodes,
+    deterministic actions, resets 3042-3081, gait window from 1 s, floor-truth channel, at 2,097,152, 3,145,728 and
+    4,194,304 with their VecNormalize sidecars (pilot 1, "How it is judged"). tools/pilot_judge.py runs on a clean
+    clone of claude/pilot-walk-r9-b at the head the runs recorded (--expect-head <that head>), with
+    --parent-sha256 sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e, and binds what it bound
+    for pilot 1: the budget 4,194,304, the seed, initialize_next_stage, the plant, the tree's hyperparameter digest
+    (now including warm_start_log_std, so a run trained without the key, e.g. on pilot 1's branch, is refused) and
+    git_commit = that head, and the parent sha256. Added for pilot 2 (follows from the change): before the probe,
+    the judging session also reads each run's stage_config.json; curriculum.warm_start_log_std and
+    run.warm_start_log_std must both be -1.5 (a run that does not record the reset was not trained with the change:
+    it is not scored, the seed counts as missing). Outputs go to a new directory (pilot 2's OUT), never pilot 1's.
+  Episode labels FALL / HOP / STILL / WALK / OTHER, the WALK rule's six conditions (alternation >= 0.6, lead swaps
+    per stride >= 1.0, flight <= 0.2, jointlag_frac_hip_pitch in [0.35, 0.65], floor_stride_frequency_hz <= 5.0,
+    floor_duty_L and floor_duty_R <= 0.80), "a metric the probe cannot define fails the test that reads it", "Why
+    the guards" and "Known limits of the WALK label": pilot 1's, unchanged, including the report-only counts of the
+    OTHER episodes that pass the contact bar by the guard that rejects them and the short-swing WALK episodes.
+  Video review (REQUIRED for WALKS): pilot 1's rule unchanged (the final replay (a) plus the panel episodes (b) that
+    pilot_score.py lists; "agree" only if the final replay (a), where the seed has one, shows a walk and at least 30
+    of the 40 panel episodes remain walks on video; a disagree makes the seed MIXED; PENDING_VIDEO_REVIEW while a
+    verdict could change the outcome). The notebook
+    replay for pilot 2 is
+      MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot2_walk_s<seed>/03_locomotion/replays/
+      tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4   (pilot2_walk_s<seed>_b for a restarted seed)
+    (pilot_score.py prints pilot 1's folder name, pilot_walk_s<seed>, in its watch list; read it as pilot2_walk_s<seed>).
+    Reset seed of the replay: 2002 + the training seed (2044, 2054, 2062), as in pilot 1.
+  Seed outcome at a checkpoint (40 episodes; first that applies): WALKS (WALK >= 30 and FALL <= 4), HOPS (HOP >= 20),
+    FALLS (FALL >= 5), STILL (STILL >= 20), MIXED. Read at 4,194,304, then the video review if WALKS.
+  Collapse-stopped seed (the backstop cannot stop a run before step 3,801,088): scored from its newest periodic
+    checkpoint, reported as collapse-stopped, counted. Off-schedule run (a RESUME from a checkpoint before 2,000,000,
+    i.e. any periodic checkpoint below 2,097,152): never scored; pilot_judge.py refuses it or, with
+    --report-off-schedule, writes it under OUT/off_schedule/<run>/; the seed is restarted from the parent under
+    pilot2_walk_s<seed>_b instead. Added for pilot 2 (follows from the change): a RESUME never applies the reset
+    (it continues the noise its checkpoint learned), which is the intended behaviour: the reset belongs to the warm
+    start only. Missing seed: any launched seed with no scored outcome (lost runtime not restarted, an unjudged
+    checkpoint, a failed binding check, and, added for pilot 2 (follows from the change), a run that does not record
+    the reset); its judged checkpoints are reported, not scored.
+  Pilot outcome (pilot_score.py --seeds 42,52,60): the outcome at least 2 of the launched seeds share; MIXED when
+    every launched seed has an outcome and no two share one; INCOMPLETE while a missing seed could still decide it;
+    PENDING_VIDEO_REVIEW (never WALKS) while a WALKS seed's review is pending and could change it. 2,097,152 and
+    3,145,728 are scored and reported as the trajectory and do not decide.
+  The locomotion gate (reward_and_length/v1, judged by the manual cell, never enforced): recorded only; expected
+    FAIL on speed. A PASS changes nothing.
+
+What each outcome means relative to pilot 1 (the maintainer decides what follows; no decision table)
+  Pilot 1 is the reference: same parent, plant, stage, seeds and judging, without the reset. It is a sequential
+  comparison, not a randomized control: two pilots on the same seeds differ only in the key, but GPU training is not
+  bit-reproducible, so a seed-for-seed difference is read as the change's effect only at the level of the outcome.
+  WALKS  The noise reset was sufficient: from this stance, on today's walk reward, the policy starts an alternating
+         gait by 4.2M once its noise is reset to the stance's starting noise, confirmed on video, where pilot 1 (same
+         parent, seeds and judging, without the reset) stood still. Within the WALK label's known limits. It does
+         not show that the reset was necessary, or that exploration was the only thing in the way: the comparison is
+         sequential and not bit-reproducible (above). A possible next run is the full production node (8M) from
+         the same parent with the same reset, judged by the same probe at 8M (both September hops strengthened from
+         4M to 8M); it would again be a manual node from an uncertified parent, never published or reused.
+  HOPS   The walk reward pays the hop from this stance once the reset widens exploration: the September two-footed
+         hop reproduces from the arm L stance, and the gait the reset produces is the hop, where pilot 1 (without
+         the reset) stood still. That points at the locomotion reward (the gait plan's section 5: gait-r1, GQ-5,
+         GQ-15), not at the stance.
+  FALLS  The policy falls in at least 5 of 40 deterministic episodes. The fall episodes' traces say which: falls
+         while standing mean the wider noise broke the stance (training at std 0.22 drove the learned mean policy
+         off the parent's balance; read against r9 s60's 6 of 20 joint-space noise falls in the screen's K3 test);
+         falls while stepping mean stepping started and fails (the policy steps and cannot keep its balance).
+  STILL  Again, as pilot 1: exploration at 0.22 is not enough, or the walk reward does not pay stepping from this
+         stance by 4.2M; this pilot cannot tell the two apart. The report-only std and forward-term trajectories
+         below say which is likelier (noise that stayed near 0.22 with a forward term still near pilot 1's points
+         at the reward and the stance; noise that fell back toward 0.1 points at the policy gradient pulling the
+         noise back to the standing optimum), but neither decides.
+  MIXED  Report the per-episode labels; the maintainer reads them (a seed made MIXED by the video review says so).
+  INCOMPLETE, PENDING_VIDEO_REVIEW  Not outcomes: judge or restart the missing seeds; finish the video review.
+
+Report only (never part of the outcome)
+  Everything pilot 1 reports (median speed, alternation, simultaneous fraction, lead swaps, flight, hip-pitch lag,
+  single support, stride frequency, foot duty, foot swing and stride length over L = 0.877 m, the probe's own gait
+  classes, the guard counts, the short-swing WALKs, left-lead fraction, falls by step, the in-training telemetry in
+  gate_progress.npz, the gate verdict), plus these comparisons with pilot 1, per seed and pooled:
+  - The policy std trajectory: exp(log_std) over the 15 actuators (mean, min, max) at the warm start (0.2231 on
+    every actuator, by construction; the training output's "Warm start" line also prints the parent's 0.095 /
+    0.018 / 0.164), at every periodic checkpoint fetched (at least 2,097,152, 3,145,728 and 4,194,304; all eight if
+    fetched) and from TensorBoard's train/std where available, against pilot 1's 0.095 -> 0.108-0.111 at 4.2M (min
+    0.022, max 0.196).
+  - The forward-reward term per evaluation episode (gate_progress.npz), from the first evaluation to 4,194,304,
+    against pilot 1's 0.5-3.2 from 2M to 4.2M (max 7.5) and the September walkers' 39-54 at 2.1M and 148-234 at 4.2M.
+  - The in-training evaluation reward against pilot 1's flat 1,097-1,100, and the touch telemetry (airborne duty,
+    two-foot duty) against pilot 1's and the September walkers' (pilot 1, the table at its end).
+  - The training output's "Warm start" line, quoted per seed when the notebook output is available.
+
+Known limits of this pilot (in addition to pilot 1's)
+  - One change against pilot 1, three seeds, 4.2M: an outcome says what this reset does by 4.2M on this stance, not
+    what any other noise level, a longer run or another stance would do.
+  - The reset is to the stance's starting noise, not to the noise the September walkers explored with (their
+    parents' std is not measured here); a STILL at 0.22 does not rule out a larger noise.
+  - The value network and the Adam moments are the parent's; the reset adds noise to a policy whose critic has
+    never seen it, so the first updates after the warm start may be noisier than pilot 1's. The warm-up's clip 0.02
+    for 300,000 steps bounds how far the policy can move then, as in pilot 1.
+  - The deterministic panel cannot see the noise itself; only what training made of it.
+
+Pre-launch checks, re-run 2026-10-18 on ba464855 (none is a pilot-2 training step: QUICK_TEST runs on this machine;
+logs under foot/pilot2/fix3/)
+  - Notebook smoke (fix3/smoke: a fresh clone at ba464855; the Colab steps' cells with step 6's guard line typed as
+    the chain-loop cell's first line: "Run all" over cells 3-20, which stopped at the guard with the step-6 message,
+    then the manual cell 22 alone, then section 9's cell 32; QUICK_TEST, RUN_ID pilot2_walk_s42; log
+    fix3/smoke/runner.log.txt): every other cell ok. The "Warm start: ..." line printed on stdout right after
+    "VecNormalize loaded from". stage_config.json: curriculum.warm_start_log_std -1.5, run.warm_start_log_std -1.5,
+    load_mode initialize_next_stage, parent_checkpoint_sha256 70f3a444..., hyperparameters_sha256 ec9925f9...,
+    git_commit ba464855. The policy's std after 32,768 / 65,536 steps and at the final save: mean 0.2245 / 0.2256 /
+    0.2259 (all 15 within 0.2239-0.2266), and the checkpoints' policy.pth and policy.optimizer.pth are byte-identical
+    to fb5510df's smoke: printing the line instead of logging it changed nothing in training. The clone stayed
+    clean. Gate FAIL on speed and "Result bundle not rewritten for the manual node", as in pilot 1.
+  - The final replay (a second run of the same smoke, fix3/smoke/runner2.log.txt, with mediapy 1.2.7 and ffmpeg
+    installed on this machine and MuJoCo's OSMesa renderer): the manual cell wrote
+    03_locomotion/replays/tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4 (640x480, 1,000 frames at 100 fps,
+    10 s, 117 KB; a frame shows the T. rex standing) and played it. The selected-checkpoint replay was skipped, as
+    a QUICK_TEST keeps no best model, so a smoke shows one video where a full run shows two. (With mediapy 1.2.2 the
+    import fails on this machine's numpy 2.5.3; the notebook logs "Video recording failed." and carries on.) On
+    Colab, pilot 1's three runs each wrote this file through the same replay code (Drive, 2026-10-17 20:59-21:10
+    UTC, 111-120 KB).
+  - Judge on that clone (tools/pilot_judge.py, --expect-head ba464855..., the parent sha256 above, --expect-budget
+    50000 as a validation-only judgement of the smoke's 65,536 checkpoint; fix3/judge.log.txt): accepted,
+    binding.json branch claude/pilot-walk-r9-b, head and stage_config git_commit ba464855, hyperparameters_sha256
+    ec9925f9...; 40/40 stand, every episode metric equal to fb5510df's judgement of its smoke.
+  - Unit and wiring tests: test_curriculum_warm_start_log_std.py, 29 (the 27 below, now reading the printed line
+    and checking it is not logged, plus two: a SAC curriculum whose chain declares the key, and a NaN on
+    locomotion, are refused before the run directory exists and before any node trains; both fail without
+    8c0015ba's check), and the T. rex curriculum walk in test_train_base.py.
+  - The whole shared and T. rex test suites on the branch tree, as below: 5,937 passed (the 5,935 below plus the
+    two new ones), 1 skipped, the same one test deselected; exit 0 (fix3/pytest_full.log.txt). digest_snapshot
+    --block-optional-backends --check, species_catalog --check, plant_contract --check and notebook_cells.py
+    current; CI's ruff 0.16.9 check and format check and mypy 2.3.1 on environments/ clean.
+
+Pre-launch checks of 2026-10-17, on fb5510df (kept as run; superseded where the re-run above differs)
+  - Notebook smoke (foot/pilot2/nb_smoke, a fresh clone of the branch; the Colab steps' cells: "Run all" up to the
+    chain loop's guard, i.e. cells 3-18, then the manual cell 22 alone, then section 9's cell 32; QUICK_TEST,
+    RUN_ID pilot2_walk_s42; log foot/pilot2/nb_smoke_runner.log.txt): every cell ok. The "Warm start: policy log_std
+    set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.095, min 0.018, max 0.164; Adam moments
+    kept)" line printed with no logging configured, right after "VecNormalize loaded from". stage_config.json:
+    curriculum.warm_start_log_std -1.5, run.warm_start_log_std -1.5, load_mode initialize_next_stage,
+    parent_checkpoint_sha256 70f3a444..., hyperparameters_sha256 ec9925f9..., git_commit fb5510df. The policy's std
+    after 32,768 / 65,536 steps and at the final save: mean 0.2245 / 0.2256 / 0.2259 (all 15 within 0.2239-0.2266).
+    The clone stayed clean. Gate FAIL on speed and "Result bundle not rewritten for the manual node", as in pilot 1.
+  - Judge on that clone (tools/pilot_judge.py, --expect-head fb5510df, the parent sha256 above, --expect-budget 50000
+    as a validation-only judgement of the smoke's 65,536 checkpoint): accepted, binding.json branch
+    claude/pilot-walk-r9-b, hyperparameters_sha256 ec9925f9...; 40/40 stand. The same run copy with pilot 1's
+    recipe digest (af78e500...) and no key is refused: "hyperparameters_sha256 ... != this tree's ...".
+  - Unit and wiring tests: test_curriculum_warm_start_log_std.py (27: the schema, the rule, the reset on a real
+    policy with its Adam state, train() end to end for warm start, resume, fresh start, absent key, malformed value)
+    and the T. rex curriculum walk in test_train_base.py (locomotion alone warm-started with -1.5 and recorded).
+  - The whole shared and T. rex test suites on the branch tree (test_heading_free_rollouts.py left out, as CI runs it
+    at full depth only): 5,935 passed, 1 skipped, and test_species_catalog::test_catalog_derives_current_model_and_
+    stage_facts deselected (it pins the production 8,000,000 budget, as for pilot 1). digest_snapshot
+    --block-optional-backends --check, species_catalog --check, plant_contract --check and notebook_cells.py current.

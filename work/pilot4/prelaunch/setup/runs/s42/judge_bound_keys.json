@@ -1,0 +1,77 @@
+{
+ "stage_config.json": {
+  "species": "tyrannosaurus_rex",
+  "embodiment": "anatomical",
+  "stage": 2,
+  "git_commit": "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8",
+  "run.load_mode": "initialize_next_stage",
+  "run.seed": 42,
+  "run.parent_checkpoint_sha256": "sha256:41fc0b0cd7167ab25a2567779b89f431b829f6a2bae4c72fa3c89192732e87c4",
+  "run.timesteps": 2000000,
+  "run.resume_load_path": "<absent>",
+  "run.hyperparameters_sha256": "sha256:fbc94bef69a91d5a65f1df99adb9c35e7897a259affaa3e7b7ba4477418eaa62",
+  "run.n_envs": 4,
+  "run.parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+  "run.critic_phase_dropped": "<absent>",
+  "run.warm_start_log_std": "<absent>",
+  "task_fingerprint.task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+  "curriculum.warmup_timesteps": 0,
+  "curriculum.ramp_start_value": 2.0,
+  "curriculum.initialize_from_own_checkpoint": true,
+  "curriculum.warm_start_log_std": "<absent>",
+  "curriculum.eval_freq": 65536,
+  "curriculum.eval_episodes": 10,
+  "curriculum.checkpoint_freq": 250000,
+  "curriculum.max_checkpoints": 0,
+  "hyperparameters.critic_phase": "<absent>",
+  "reward_weights.command_mode": "heading",
+  "reward_weights.command_config": {
+   "cruise_speed": 1.5,
+   "stop_probability": 0.0,
+   "turn_increment_max": 0.0,
+   "straight_probability": 1.0,
+   "speed_scale": 1.5,
+   "lateral_speed_scale": 1.0,
+   "yaw_rate_scale": 0.6,
+   "yaw_gain": 1.5,
+   "yaw_rate_max": 0.3,
+   "turn_slowdown": true,
+   "minimum_turn_speed_fraction": 0.25
+  },
+  "reward_weights.prey_lateral_range": [
+   0.0,
+   0.0
+  ],
+  "reward_weights.walk_heading_price_weight": 0.2,
+  "reward_weights.walk_heading_price_scale_rad": 0.5,
+  "reward_weights.walk_support_gate_bw": 0.04,
+  "reward_weights.airborne_substep_weight": 1.0,
+  "reward_weights.forward_vel_max": 1.5,
+  "reward_weights.walk_touchdown_weight": 0.1
+ },
+ "plant_identity.json": {
+  "physics_revision": 10,
+  "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+  "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+ },
+ "zip data member mesozoic_task_lineage": {
+  "mode": "initialize_next_stage",
+  "parent_stage": 2,
+  "zeroed_command_parameters": [
+   "mlp_extractor.policy_net.0.weight",
+   "mlp_extractor.value_net.0.weight"
+  ],
+  "record": {
+   "mode": "initialize_next_stage",
+   "parent_task_sha256": "sha256:782d95b607d0086d0cefe475c9caf8ac420c1f2b74d23b786808aaee98232a6a",
+   "child_task_sha256": "sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a",
+   "parent_species": "tyrannosaurus_rex",
+   "parent_embodiment": "anatomical",
+   "parent_stage": 2,
+   "zeroed_command_parameters": [
+    "mlp_extractor.policy_net.0.weight",
+    "mlp_extractor.value_net.0.weight"
+   ]
+  }
+ }
+}

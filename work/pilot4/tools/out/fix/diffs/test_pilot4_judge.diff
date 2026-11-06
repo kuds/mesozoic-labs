@@ -1,0 +1,178 @@
+--- TOOLS-stage/tests/test_pilot4_judge.py
++++ fix-stage/tests/test_pilot4_judge.py
+@@ -290,6 +290,9 @@
+     (lambda sc: sc["run"].update(warm_start_log_std=-2.0), "run.warm_start_log_std is recorded (-2.0)"),
+     (lambda sc: sc["curriculum"].update(warm_start_log_std=-2.0), "curriculum.warm_start_log_std is recorded (-2.0)"),
+     (lambda sc: sc["curriculum"].update(warm_start_log_std=-1.5), "curriculum.warm_start_log_std is recorded (-1.5)"),
++    # fix stage (review: a null record must be refused too, as critic_phase_dropped's is)
++    (lambda sc: sc["run"].update(warm_start_log_std=None), "run.warm_start_log_std is recorded (None)"),
++    (lambda sc: sc["curriculum"].update(warm_start_log_std=None), "curriculum.warm_start_log_std is recorded (None)"),
+     (lambda sc: sc["curriculum"].update(warmup_timesteps=300_000), "curriculum.warmup_timesteps is 300000, not 0"),
+     (lambda sc: sc["curriculum"].pop("warmup_timesteps"), "curriculum.warmup_timesteps is absent (not 0)"),
+     (lambda sc: sc["curriculum"].update(warmup_timesteps=False), "curriculum.warmup_timesteps is False, not 0"),
+@@ -355,6 +358,19 @@
+     (lambda sc: sc["reward_weights"].update(walk_touchdown_weight="0.1"),
+      "reward_weights.walk_touchdown_weight is '0.1', not 0.1"),
+     (lambda sc: sc.pop("reward_weights"), "stage_config.json records no env kwargs table (reward_weights: None)"),
++    # fix stage (review: near values; no tolerance, no widened prey, only 4 envs)
++    (lambda sc: sc["reward_weights"].update(walk_heading_price_weight=0.2000001),
++     "walk_heading_price_weight is 0.2000001, not 0.2"),
++    (lambda sc: sc["reward_weights"].update(walk_heading_price_scale_rad=0.4999),
++     "walk_heading_price_scale_rad is 0.4999, not 0.5"),
++    (lambda sc: sc["reward_weights"].update(forward_vel_max=1.5001), "forward_vel_max is 1.5001, not 1.5"),
++    (lambda sc: sc["reward_weights"].update(walk_support_gate_bw=0.0400001), "walk_support_gate_bw is 0.0400001"),
++    (lambda sc: sc["reward_weights"].update(prey_lateral_range=[0.0, 0.5]),
++     "prey_lateral_range is [0.0, 0.5], not [0.0, 0.0]"),
++    (lambda sc: sc["reward_weights"].update(prey_lateral_range=[-1e-9, 0.0]), "prey_lateral_range is [-1e-09, 0.0]"),
++    (lambda sc: sc["reward_weights"].update(prey_lateral_range=[0.0, 0.0, 0.0]),
++     "prey_lateral_range is [0.0, 0.0, 0.0]"),
++    (lambda sc: sc["run"].update(n_envs=8), "run.n_envs is 8, not 4"),
+     # the cadence (a Run handling record)
+     (lambda sc: sc["curriculum"].update(eval_freq=131072), "curriculum.eval_freq is 131072, not 65536"),
+     (lambda sc: sc["curriculum"].update(eval_freq=65536.0), "curriculum.eval_freq is 65536.0, not 65536"),
+@@ -520,6 +536,104 @@
+                                   "curriculum.checkpoint_freq is 32768, not 250000"]
+ 
+ 
++# fix stage: the text's own digests, table and head (review: a record and a tree that moved together were accepted)
++
++V3_TEXT = WORK / "pilot4" / "postfix" / "fix" / "criteria_pilot4_draft_v3.txt"
++MOVED_TABLE = dict(COMMAND_TABLE, switch_interval_s=6.0, switch_jitter_s=1.0)
++MOVED_HP = "sha256:" + "ab" * 32
++MOVED_TASK = "sha256:" + "cd" * 32
++
++
++def test_the_text_anchors_are_v3_s_values():
++    assert pj.HYPERPARAMETERS_SHA256 == HP_P4 and pj.TASK_SHA256 == TASK_P4
++    assert pj.same_json(pj.COMMAND_TABLE, COMMAND_TABLE) and pj.PILOT_HEAD == "0e6a57bb4d6ba30aef36dd9aa30ff4d175786cc8"
++    assert all(isinstance(v, float) for k, v in pj.COMMAND_TABLE.items() if k != "turn_slowdown")
++    if not V3_TEXT.is_file():
++        pytest.skip(f"no v3 text at {V3_TEXT}")
++    text = V3_TEXT.read_text()
++    for value in (pj.HYPERPARAMETERS_SHA256, pj.TASK_SHA256, pj.PILOT_HEAD):  # written out in full in v3
++        assert value in text, value
++    lines = text.splitlines()  # v3 "What is trained" writes the table as "key value" in its left column (47 wide)
++    first = next(i for i, ln in enumerate(lines) if "[env.command_config], written once:" in ln)
++    last = next(i for i, ln in enumerate(lines) if i > first and "prey_lateral_range = [0.0, 0.0]" in ln)
++    left = " ".join(" ".join(ln[:47] for ln in lines[first + 1:last]).split())
++    for k, v in pj.COMMAND_TABLE.items():
++        assert f"{k} {str(v).lower()}," in left + ",", (k, v, left)
++    assert len(left.split(",")) - 1 == len(pj.COMMAND_TABLE) - 1  # eleven "key value" entries, no other
++
++
++def test_a_record_and_a_tree_that_moved_together_are_refused_at_the_pilot_budget():
++    sc = good_sc(hyperparameters_sha256=MOVED_HP)
++    sc["task_fingerprint"]["task_sha256"] = MOVED_TASK
++    sc["reward_weights"]["command_config"] = copy.deepcopy(MOVED_TABLE)
++    problems, info = problems_of(sc, hp=MOVED_HP, task=MOVED_TASK, table=MOVED_TABLE)
++    assert info["cadence_checked"] is True
++    assert problems == [f"this tree's recipe digest {MOVED_HP} is not v3's {HP_P4}",
++                        f"this tree's task digest {MOVED_TASK} is not v3's {TASK_P4}",
++                        "this tree's committed [env.command_config] is not v3's table: switch_interval_s = 6.0 added; "
++                        "switch_jitter_s = 1.0 added"], problems
++    for one in ({"hp": MOVED_HP}, {"task": MOVED_TASK}, {"table": MOVED_TABLE}):
++        sc1 = good_sc(hyperparameters_sha256=one.get("hp", HP_P4))
++        sc1["task_fingerprint"]["task_sha256"] = one.get("task", TASK_P4)
++        sc1["reward_weights"]["command_config"] = copy.deepcopy(one.get("table", COMMAND_TABLE))
++        got, _ = problems_of(sc1, **one)
++        assert len(got) == 1 and "is not v3's" in got[0], (one, got)
++
++
++def test_the_text_anchors_are_not_checked_at_a_validation_budget():
++    sc = good_sc(timesteps=50_000, hyperparameters_sha256=MOVED_HP)
++    sc["task_fingerprint"]["task_sha256"] = MOVED_TASK
++    sc["reward_weights"]["command_config"] = copy.deepcopy(MOVED_TABLE)
++    problems, info = problems_of(sc, budget=50_000, hp=MOVED_HP, task=MOVED_TASK, table=MOVED_TABLE)
++    assert problems == [] and info["cadence_checked"] is False
++
++
++def test_anchor_problems_alone():
++    assert pj.anchor_problems(HP_P4, TASK_P4, copy.deepcopy(COMMAND_TABLE)) == []
++    got = pj.anchor_problems(HP_P4, TASK_P4, dict(COMMAND_TABLE, yaw_gain=2.0))
++    assert got == ["this tree's committed [env.command_config] is not v3's table: yaw_gain = 2.0 (float), committed "
++                   "1.5 (float)"]
++    assert len(pj.anchor_problems(HP_P4, TASK_P4, dict(COMMAND_TABLE, cruise_speed=2))) == 1  # an int is not 1.5
++    # equal under Python's == but not the same JSON value (the task digest hashes the table as written)
++    for edit in ({"stop_probability": 0}, {"turn_slowdown": 1}, {"straight_probability": 1}):
++        got = pj.anchor_problems(HP_P4, TASK_P4, dict(COMMAND_TABLE, **edit))
++        assert len(got) == 1 and "is not v3's table" in got[0], (edit, got)
++    assert len(pj.anchor_problems(HP_P4.upper(), TASK_P4, COMMAND_TABLE)) == 1  # the digest as written
++
++
++# fix stage: the env kwargs drift (review: a run whose other env weights differ was judged and scored)
++
++def test_env_kwargs_drift_is_the_probe_s_comparison():
++    rec = {"a": 1.0, "t": [0.0, 0.0], "dflt_same": 5, "dflt_diff": 6, "n": 2.0, "cfg": {"x": 1.0}}
++    env_kwargs = {"a": 1.0, "t": (0.0, 0.0), "only_env": 2, "n": 2, "cfg": {"x": 1.0}}
++    defaults = {"dflt_same": 5, "dflt_diff": 5, "a": 9.0, "unused": 7}
++    assert pj.env_kwargs_drift(rec, env_kwargs, defaults) == {
++        "dflt_diff": {"toml_main": 5, "recorded_run": 6},
++        "only_env": {"toml_main": 2, "recorded_run": "<absent>"}}
++    assert pj.env_kwargs_drift(dict(rec, extra=1.0), env_kwargs, defaults)["extra"] == {
++        "toml_main": "<absent>", "recorded_run": 1.0}
++    assert set(pj.env_kwargs_drift(None, env_kwargs, defaults)) == set(env_kwargs)
++    assert pj.env_kwargs_drift(dict(rec, a=3.0), env_kwargs, defaults)["a"] == {"toml_main": 1.0, "recorded_run": 3.0}
++
++
++def test_a_drift_record_refuses_and_an_empty_one_does_not():
++    assert problems_of(good_sc())[0] == []
++    drift = {"forward_vel_weight": {"toml_main": 2.0, "recorded_run": 3.0}}
++    problems, _ = pj.binding_problems(
++        good_sc(), seed=42, want_parent=pj.norm_sha(PARENTS[42]), expect_budget=2_000_000, ramp=2_000_000, warmup=0,
++        ramp_start=2.0, forward_weight=2.0, hp_here=HP_P4, task_here=TASK_P4, committed_table=COMMAND_TABLE,
++        lineage=LINEAGE, report_off_schedule=False, kwargs_drift=drift)
++    assert len(problems) == 1 and "differ from the env this tree builds" in problems[0]
++    assert '{"forward_vel_weight": {"recorded_run": 3.0, "toml_main": 2.0}}' in problems[0]
++    for empty in ({}, None):
++        assert pj.drift_problem(empty) is None
++        got, _ = pj.binding_problems(
++            good_sc(), seed=42, want_parent=pj.norm_sha(PARENTS[42]), expect_budget=2_000_000, ramp=2_000_000,
++            warmup=0, ramp_start=2.0, forward_weight=2.0, hp_here=HP_P4, task_here=TASK_P4,
++            committed_table=COMMAND_TABLE, lineage=LINEAGE, report_off_schedule=False, kwargs_drift=empty)
++        assert got == []
++
++
+ def test_cadence_problems_lists_every_key():
+     assert pj.cadence_problems({}) == ["curriculum.eval_freq is None, not 65536",
+                                        "curriculum.eval_episodes is None, not 10",
+@@ -1034,6 +1148,12 @@
+     ("a lineage without zeroed columns",
+      {"lineage": {k: v for k, v in LINEAGE.items() if k != "zeroed_command_parameters"}}, {},
+      "records no zeroed_command_parameters"),
++    # fix stage: an env weight the binding does not name, as the probe's drift record sees it
++    ("another forward weight", {"edit": _set("reward_weights.forward_vel_weight", 3.0)}, {},
++     'differ from the env this tree builds (constructor defaults and the committed [env]), so the probe would judge '
++     'in another env than training\'s: {"forward_vel_weight": {"recorded_run": 3.0, "toml_main": 2.0}}'),
++    ("an env kwarg the tree does not have", {"edit": _set("reward_weights.not_an_env_kwarg", 1.0)}, {},
++     '{"not_an_env_kwarg": {"recorded_run": 1.0, "toml_main": "<absent>"}}'),
+ ])
+ def test_refusals_on_the_tree_write_nothing(tmp_path, facts, label, make, judge_kwargs, needle):
+     out = tmp_path / "OUT"
+@@ -1228,6 +1348,27 @@
+ 
+ 
+ @needs_tree
++def test_the_default_expect_head_is_the_text_s_head(tmp_path, facts):
++    """Fix stage: without --expect-head the tree must be at PILOT_HEAD (0e6a57b): a clean clone on the pilot branch
++    at HEAD~1 is refused for its head (the branch rule passes there); the tree under test is at PILOT_HEAD."""
++    assert facts["head"] == pj.PILOT_HEAD
++    clone = tmp_path / "clone"
++    genv = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
++
++    def git(*args, cwd=clone):
++        return subprocess.run(["git", *args], cwd=cwd, env=genv, check=True, capture_output=True, text=True)
++    git("clone", "-q", "--shared", "--no-checkout", str(TREE), str(clone), cwd=tmp_path)
++    branch = pj.BRANCH_PREFIX + "r10-p4"
++    git("checkout", "-q", "-B", branch, facts["head"] + "~1")
++    parent = git("rev-parse", "HEAD").stdout.strip()
++    out = tmp_path / "OUT"
++    run = make_run(tmp_path / "runs", facts)
++    assert_refused(judge(run, out, "--check-only", tree=clone), out, f"tree HEAD {parent} is not {pj.PILOT_HEAD}")
++    r = judge(run, out, "--check-only")  # the shared tree, no --expect-head: the default passes there
++    assert r.returncode == 0 and "all checks passed" in r.stdout, (r.stdout, r.stderr)
++
++
++@needs_tree
+ def test_iso_refuses_without_a_tree_and_rewrites_pythonpath(tmp_path):
+     probe = tmp_path / "show.py"
+     probe.write_text("import os, sys, environments\nprint(os.environ['PYTHONPATH'].split(os.pathsep)[0])\n"

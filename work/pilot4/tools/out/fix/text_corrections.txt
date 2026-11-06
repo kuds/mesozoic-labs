@@ -1,0 +1,328 @@
+TEXT CORRECTIONS for criteria_pilot4_draft_v3.txt (fix stage, 2026-11-06). v3 itself is NOT edited.
+v3: /tmp/claude-0/-home-user-mesozoic-labs/aff94cce-91ba-5515-b81b-a9f018e73dc9/scratchpad/work/pilot4/postfix/fix/criteria_pilot4_draft_v3.txt (sha256 1c52644dc96dfbe7188f42a7c81aa49c3743138781ff023da6186d528ffcc19d, 936 lines).
+Each correction: the v3 line range, the OLD text copied from v3 verbatim (line-numbered), and the NEW text that
+replaces it (INSERT AFTER: the NEW text goes after the named line, nothing is removed). Numbers marked [measured:
+fix stage] are read from this lane's validation records, written by the pinned pilot4_straight.py (sha256:93d5c558ebffb80036f0f054e918629c17af07d0a18e03ac844532ec2d487848).
+Apply bottom-up (highest line first) so the line numbers stay valid. Every correction follows a fix made in the
+pinned tools or states what they do; none changes a bar, a seed, a budget or an outcome rule.
+
+======================================================================================================================
+C1  v3 lines 704-707
+source: validity review, should-fix 1 (anchors) and 2 (env-kwargs drift); review_code: the judge's env binding
+why: The judge compared the run's record only with whatever the judging tree derives, and the probe only warns about
+     an env-kwargs drift; both are now refusals (pilot4_judge.py: anchor_problems, env_kwargs_drift, drift_problem).
+OLD:
+   704 |     - New env binding: the recorded env_kwargs carry command_mode "heading" and the committed command table key for
+   705 |       key, prey_lateral_range [0, 0], the price 0.2 / 0.5 and R6's four keys; the recorded task_sha256 equals the one
+   706 |       the tree derives (914a1cae... at 0bcb0cf, 7700f28 and 0e6a57b), as hyperparameters_sha256 already does
+   707 |       (fbc94bef...).
+NEW:
+    - New env binding: the recorded env kwargs (stage_config.json's reward_weights) carry command_mode "heading" and
+      the committed command table key for key (same keys, same values of the same JSON types), prey_lateral_range
+      [0, 0], the price 0.2 / 0.5 and R6's four keys, and equal, key for key, the env the judging tree builds (its
+      constructor defaults and committed [env]: the gait probe's own drift record, computed by the judge before the
+      probe and read again from the probe's JSON after it, must be empty); the recorded task_sha256 equals the one
+      the tree derives (914a1cae... at 0bcb0cf, 7700f28 and 0e6a57b), as hyperparameters_sha256 already does
+      (fbc94bef...), and at the pilot budget the tree's two derivations and its committed table must also be this
+      text's own (the full digests under Run handling, the table under What is trained), so a record and a tree
+      that moved together are refused.
+
+======================================================================================================================
+C2  v3 lines 710-713
+source: validity review, minor (wording); judge lane text issues 1-3
+why: What the judge does: the shared tree is detached at the branch tip; the cadence is checked at the pilot budget
+     only; --expect-head now has a default (fix stage).
+OLD:
+   710 |     - Kept: the clean tree on a pilot-walk-* head (--expect-head), stage 2, initialize_next_stage, the seed,
+   711 |       git_commit = HEAD, the plant digests, intact pairs, --final-fallback, --check-only, one run per seed in OUT,
+   712 |       the probe's fixed arguments. Unit tests: pilot 3's adapted, plus refusals of pilot 3's stance parent, another
+   713 |       seed's 8M parent, a -2.0 record, a 0.2 ramp, prey [-2, 2], the price off, a rewritten command table.
+NEW:
+    - Kept: the clean tree on a pilot-walk-* head (checked out, or detached at the tip of the local pilot-walk-*
+      branch; --expect-head, default the head the runs record, 0e6a57b), stage 2, initialize_next_stage, the seed,
+      git_commit = HEAD, the plant digests, intact pairs, --final-fallback, --check-only, one run per seed in OUT,
+      the probe's fixed arguments. Added: the cadence 65536 / 10 / 250000 / 0 (Run handling), checked when the
+      budget is the pilot's 2,000,000 (a validation-only smoke copy records it unchecked: the smoke overrides it in
+      memory). Unit tests: pilot 3's adapted, plus refusals of pilot 3's stance parent, another seed's 8M parent, a
+      -2.0 record, a 0.2 ramp, prey [-2, 2], the price off, a rewritten command table, an env-kwargs drift, and a
+      tree whose digests or table moved with the record.
+
+======================================================================================================================
+C3  v3 lines 523-525
+source: validity review, should-fix 2 (env-kwargs drift): the first-hour list
+why: A run whose other env weights (forward_vel_weight, fall_penalty, ...) differ from the committed TOML was judged
+     and scored before the fix; the first-hour list now names the check the judge makes.
+OLD:
+   523 |   sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a, env command_mode heading with the
+   524 |   committed table, prey_lateral_range [0, 0], walk_heading_price_weight 0.2 and _scale_rad 0.5, R6's four keys, the
+   525 |   seed. A run whose record differs is a launch fault (stopped, restarted under _b), not a readout [P3 L670-681]. The
+NEW:
+  sha256:914a1caee2c086a09ef66e9e6d4ad234dd085b69c4da687cc29af82b110fcd7a, env command_mode heading with the
+  committed table, prey_lateral_range [0, 0], walk_heading_price_weight 0.2 and _scale_rad 0.5, R6's four keys, no
+  other env kwarg different from the committed TOML (stage_config.json's reward_weights against the env the tree
+  builds: the judge refuses a run whose record differs, as the probe's own drift record would show), the
+  seed. A run whose record differs is a launch fault (stopped, restarted under _b), not a readout [P3 L670-681]. The
+
+======================================================================================================================
+C4  v3 lines 717-720
+source: validity review, should-fix 3; review_code, should-fix 2 (the scorer trusted a record's verdicts)
+why: A record from an edited tool, with looser bars, or with PASS verdicts over failing values decided the outcome
+     (the review's forged record read STRAIGHT WALKS); pilot4_score.py now refuses each (recomputed_verdicts,
+     STRAIGHT_TOOL_SHA256, STRAIGHT_CONSTANTS, score_cell).
+OLD:
+   717 |     - New, in new functions with tests: --straight (the straightness tool's JSON per seed) and --straight-review (the
+   718 |       look's JSON); the four seed outcomes; the pilot outcome over them; the report-only count of seeds passing (a),
+   719 |       (b) and the look; the existence reading; PENDING_REVIEW;
+   720 |       (c)'s NOT READ printed with its counts.
+NEW:
+    - New, in new functions with tests: --straight (the straightness tool's JSON per seed) and --straight-review (the
+      look's JSON); the four seed outcomes; the pilot outcome over them; the report-only count of seeds passing (a),
+      (b) and the look; the existence reading; PENDING_REVIEW;
+      (c)'s NOT READ printed with its counts. A straightness record is read only when it is the seed-mode record of
+      that very cell (the sha256s of its binding.json and probe.json, its checkpoint and sidecar sha256s, head and
+      final-model flag), written by the pinned pilot4_straight.py (its sha256 in SHA256SUMS.txt) with this text's
+      bars and windows (the record's constants), and only when each part's verdict follows from the record's own
+      values under those bars; otherwise the seed waits for a record. A cell whose probe.json records an env-kwargs
+      drift is not scored.
+
+======================================================================================================================
+C5  v3 line 744
+source: validity review, minor (the crab is unquantified on the look's figure); review_code: seed-mode drift
+why: v3 relies on the look alone against a crab; the tool computed the per-episode crab but showed it nowhere.
+OLD:
+   744 |     - The parts' verdicts with their bars as named constants; the top-down path plot and heading curves for the look.
+NEW:
+    - The parts' verdicts with their bars as named constants; the top-down path plot and heading curves for the look;
+      report only, the medians over the full-length panel episodes of the 1-s crab (course minus heading) and of the
+      end cross-track, in the record, the printout and on the path plot (entry: +4.8 / -1.4 / +2.3 deg and +0.39 /
+      -4.06 / -2.97 m [measured: fix stage, SP/work/pilot4/tools/out/fix/val_final/baseline_s42.json, _s52, _s60]).
+      Seed mode also refuses a cell whose probe.json records an env-kwargs drift.
+
+======================================================================================================================
+C6  v3 lines 740-743
+source: review_code and validity review, minor: the turned-twin tolerance (a maintainer decision; proposed: keep 1e-5
+        and record the flag as expected)
+why: Applied literally the 1e-5 deg tolerance (from 15 episodes) flags 3 s42 episodes on real dynamics; the tool keeps
+     v3's 1e-5. ALTERNATIVE (a), not applied: write '1e-4 deg' here, set pilot4_straight.TWIN_HEADING_TOL_DEG = 1e-4
+     (the scorer's STRAIGHT_CONSTANTS and STRAIGHT_TOOL_SHA256 follow), change the record test's expectation to 0
+     flagged on every seed, re-run the three baselines and re-pin.
+OLD:
+   740 |       only). Tests: states 0..650 equal the panel episode's bitwise; a 0-deg nudge reproduces the panel episode
+   741 |       bitwise; with the command columns zeroed (the entry baseline), the nudged episode equals the panel episode
+   742 |       turned by the angle (heading + angle to 1e-5 deg at 10 s) and the state-651 observation differs from the
+   743 |       un-nudged one only in obs[60:63]; the pass check at state 650; NOT READ below 30 counting episodes.
+NEW:
+      only). Tests: states 0..650 equal the panel episode's bitwise; a 0-deg nudge reproduces the panel episode
+      bitwise; with the command columns zeroed (the entry baseline), the nudged episode equals the panel episode
+      turned by the angle (heading + angle to 1e-5 deg at 10 s; on the 118 nudged entry episodes the largest deviation
+      is 2.73e-5 deg: s42 flags 3 of 40 beyond 1e-5 (2.73e-5, 1.94e-5, 1.08e-5 deg), s52 0 of 38, s60 0 of 40, so the
+      tool flags them and its s42 baseline run exits 1; that flag is expected and holds nothing, every deviation being
+      six orders below the 15-deg offset [measured: fix stage,
+      SP/work/pilot4/tools/out/fix/val_final/baseline_s42.json, _s52, _s60]) and the state-651 observation differs
+      from the un-nudged one only in obs[60:63]; the pass check at state 650; NOT READ below 30 counting episodes.
+
+======================================================================================================================
+C7  v3 lines 355-357
+source: validity review, minor; straightness lane text issue 2 (a nan at an integer position)
+why: numpy returns nan at an integer position with an inf above it although the order statistic there is finite; the
+     tool reads it inf (pinned by a test); verdict-neutral at 30-40 counting episodes.
+OLD:
+   355 |   inf, and also when only the upper one is and the interpolation fraction is 0.5 or more, as at n = 30 with 2 inf
+   356 |   [measured: postfix/text/out/pct_inf.txt]; the tool maps any nan to inf); inf fails every bar, so with 40 values
+   357 |   one inf passes a p95 bar and two fail it [measured: review_text/out/review_calc.txt P4].
+NEW:
+  inf, and also when only the upper one is and the interpolation fraction is 0.5 or more, as at n = 30 with 2 inf
+  [measured: postfix/text/out/pct_inf.txt]; the tool maps any nan to inf, also at an integer position with an inf
+  above it, e.g. the median of 31 values with 15 inf, where p95 is inf too, so no (c) verdict changes); inf fails
+  every bar, so with 40 values one inf passes a p95 bar and two fail it [measured: review_text/out/review_calc.txt
+  P4].
+
+======================================================================================================================
+C8  v3 line 623  (INSERT AFTER)
+source: validity review, minor: what (c) admits (insert after line 623)
+why: A Known limit v3 did not list.
+AFTER:
+   623 |     part reads heading]. Only the straightness look sees these (its criterion: Q27).
+INSERT:
+  - Likewise (c) reads one 1-s mean (states 900-1000): a weave or an overshoot after the nudge that is back by 9 s
+    passes it (a synthetic 1.01-s, 20-deg zig-zag after the nudge reads median r 0.2 deg [measured as recorded:
+    SP/work/pilot4/tools/out/review_validity/logs/adversarial.txt]); only the look's recovery heading curves see it
+    (Q25 names the alternative, the worst of m_900..m_950).
+
+======================================================================================================================
+C9a  v3 lines 442-447
+source: validity review, minor: the (c) baseline is now measured on every nudge
+why: The property was measured on 15 episodes and inferred for the rest; the tool's baseline mode now measures it on
+     all 118.
+OLD:
+   442 |     prey turns with them, the command-blind walkers pilot 4 starts from keep the offset exactly (for a +15-deg nudge,
+   443 |     heading +15.000 deg from the un-nudged episode at 10 s and actions within 9.6e-7 on 15 of 15 episodes [measured:
+   444 |     postfix/text/out/nudge_summary.txt, nudge_extract.txt]): median r 22.8 / 34.8 / 29.1 deg, p95 40.2 / 55.4 /
+   445 |     52.7, within 11.5 deg on 18/40, 2/38 and 3/40, share removed 0, so (c) fails on all three [measured as recorded:
+   446 |     postfix/text/out/baseline_turnedprey.txt, the first draft's recorded un-nudged rollouts plus the offset; the
+   447 |     property measured for +15 deg on 15 of the 59 full episodes, inferred for -15 deg and for the other 44]. With
+NEW:
+    prey turns with them, the command-blind walkers pilot 4 starts from keep the offset (heading within 2.73e-5 deg of
+    the un-nudged episode plus the angle at 10 s on 118 of 118 nudged entry episodes, actions within 3.90e-6; states
+    0..650 equal 80/80 / 76/76 / 80/80; the state-651 observation beyond 1e-3 only in obs[60:63] on 40/40 / 38/38 /
+    40/40): median r 22.8 / 34.8 / 29.1 deg, p95 40.2 / 55.4 / 52.7, within 11.5 deg on 18/40, 2/38 and 3/40, share
+    removed 0, so (c) fails on all three [measured: pilot4_straight.py baseline mode on every nudge, fix stage,
+    SP/work/pilot4/tools/out/fix/val_final/baseline_s42.json, _s52, _s60; reproduced by an independent rollout within
+    6.1e-8 deg, SP/work/pilot4/tools/out/review_validity/data/cmp_s*.json]. With
+
+======================================================================================================================
+C9b  v3 lines 882-886
+source: validity review, minor: the recovery table's proposed (c) row
+why: As C9a, in the table.
+OLD:
+   882 |     proposed (c), prey turned with the walker (the fixed mechanics): r median 22.8 / 34.8 / 29.1, p95 40.2 / 55.4 /
+   883 |       52.7, within 11.5 on 18/40, 2/38, 3/40, share 0: FAIL on all three [measured as recorded: postfix/text/out/
+   884 |       baseline_turnedprey.txt: the un-nudged rollouts above plus the offset; the property (the command-blind walker
+   885 |       keeps the offset exactly) measured for +15 deg on 15 of the 59 full episodes, postfix/text/out/
+   886 |       nudge_summary.txt, inferred for -15 deg and the other 44]
+NEW:
+    proposed (c), prey turned with the walker (the fixed mechanics): r median 22.8 / 34.8 / 29.1, p95 40.2 / 55.4 /
+      52.7, within 11.5 on 18/40, 2/38, 3/40, share 0: FAIL on all three [measured: pilot4_straight.py baseline mode
+      on every nudge, fix stage, SP/work/pilot4/tools/out/fix/val_final/baseline_s42.json, _s52, _s60; the
+      command-blind walker keeps the offset on 118 of 118 nudged entry episodes]
+
+======================================================================================================================
+C10  v3 line 533
+source: validity review, minor; judge lane text issue 6: the resume floor
+why: The judge accepts a resume from any periodic pair; moot at checkpoint_freq 250,000, which the judge enforces.
+OLD:
+   533 |   periodic pair (250,000 or later) and is never off-schedule; the RESUME cell's own refusal stays: a run whose final
+NEW:
+  periodic pair (250,000 or later; at the fixed cadence there is no earlier pair, so the judge does not check the
+  floor) and is never off-schedule; the RESUME cell's own refusal stays: a run whose final
+
+======================================================================================================================
+C11  v3 lines 766-768
+source: review_code, should-fix 1: the smoke runner could reach a full training run
+why: Inherited from pilot 3's runner; now refused (pinned by tests and by the e2e on the real notebook).
+OLD:
+   766 |   The smoke runner: nb_pilot_runner4.py from nb_pilot_runner3.py (7f533128...): the pilot-4 cells, the local parent
+   767 |     pair, MANUAL_VECNORM_PATH explicit, the cadence override 65,536 / 250,000 -> 32,768 in memory, the expected entry
+   768 |     lines as measured.
+NEW:
+  The smoke runner: nb_pilot_runner4.py from nb_pilot_runner3.py (7f533128...): the pilot-4 cells, the local parent
+    pair, MANUAL_VECNORM_PATH explicit, the cadence override 65,536 / 250,000 -> 32,768 in memory, the expected entry
+    lines as measured; it refuses, before any cell, a launch or a resume whose config QUICK_TEST is not true unless
+    --stop-at-learn (learn() stopped: nothing trains) or --plan-only (nothing runs), so the only training it can run
+    is the pre-registered QUICK_TEST CPU smoke.
+
+======================================================================================================================
+C12a  v3 lines 448-451
+source: straightness lane text issues 3-4: the report-only variants under the fixed mechanics
+why: v3's variant numbers come from the first draft's mechanics; the tool applies the fixed mechanics.
+OLD:
+   448 |     the prey left in place, under the first draft's mechanics (mj_forward and a rebuilt observation at state 650),
+   449 |     they read median r 21.6 / 34.9 / 28.2 deg, share removed -0.11 to +0.05 (medians per seed and sign), and the
+   450 |     nudge made no walker fall (118 nudged episodes, all counting under the pass rule; s52's two left out are the
+   451 |     panel fall at reset 3050, 90 steps) [measured: out/recov_rule.txt, out/recov_summary.txt]. A turn at the reset
+NEW:
+    the prey left in place, under the first draft's mechanics (mj_forward and a rebuilt observation at state 650),
+    they read median r 21.6 / 34.9 / 28.2 deg (under the fixed mechanics 21.3 / 34.7 / 28.5 [measured: fix stage,
+    SP/work/pilot4/tools/out/fix/val_final/baseline_s42.json, _s52, _s60]), share removed -0.11 to +0.05 (medians per
+    seed and sign), and the nudge made no walker fall (118 nudged episodes, all counting under the pass rule; s52's
+    two left out are the panel fall at reset 3050, 90 steps) [measured: out/recov_rule.txt, out/recov_summary.txt]. A
+    turn at the reset
+
+======================================================================================================================
+C12b  v3 lines 452-453
+source: straightness lane text issue 3: the variant turned at the reset
+why: The same for the turned-at-reset variant (report only either way).
+OLD:
+   452 |     instead is not discriminating: s60 passes it as it is (read at 5 s: median 1.8, p95 6.8, 40 of 40 within the
+   453 |     band, share removed 0.91) by steering at the prey ahead [measured: out/recov_summary.txt]; so it is report only.
+NEW:
+    instead is not discriminating: s60 passes it as it is (read at 5 s, first draft's mechanics: median 1.8, p95 6.8,
+    40 of 40 within the band, share removed 0.91; under the fixed mechanics, the turn after state 0 with the prey left
+    in place, median r 12.9 / 6.0 / 1.4, within 11.5 deg 17 / 30 / 40 of 40 [measured: fix stage,
+    SP/work/pilot4/tools/out/fix/val_final/baseline_s42.json, _s52, _s60]) by steering at the prey ahead [measured:
+    out/recov_summary.txt]; so it is report only.
+
+======================================================================================================================
+C13  v3 lines 665-668
+source: readouts lane text issues 1-3: the smoke's own entry lines
+why: v3's launch lines are the Colab run's; the smoke's differ in three lines, which the runner pins.
+OLD:
+   665 |   - The notebook smoke on CPU with a smoke runner rebuilt for pilot 4 (QUICK_TEST, the cadence override to 32,768 in
+   666 |     memory, RUN_ID pilot4_walk_s42 under the quick-test tree; the only training permitted then is the pre-registered
+   667 |     65,536-step CPU smoke, as in pilot 3 [P3 L1040-1049]), the RESUME test from its 32,768 pair, and the judge's
+   668 |     validation steps on its copies (refusals included). The RESUME test also shows that the resumed run's
+NEW:
+  - The notebook smoke on CPU with a smoke runner rebuilt for pilot 4 (QUICK_TEST, the cadence override to 32,768 in
+    memory, RUN_ID pilot4_walk_s42 under the quick-test tree; the only training permitted then is the pre-registered
+    65,536-step CPU smoke, as in pilot 3 [P3 L1040-1049]), the RESUME test from its 32,768 pair, and the judge's
+    validation steps on its copies (refusals included). Locally the setup cell prints "Running locally; using this
+    checkout." in place of the Colab "Repository ref ... commit:" line (the runner checks the clone's HEAD instead),
+    the manual cell prints "Timesteps: 50,000" under QUICK_TEST, and the first evaluation line reads
+    "Eval num_timesteps=32768" under the override [measured as recorded: the readouts lane, learn() stopped]. The
+    RESUME test also shows that the resumed run's
+
+======================================================================================================================
+C14  v3 lines 756-758
+source: adapted-readouts lane text issues 1-3: the noise readout
+why: The plan and the Report-only list disagreed on a first-65,536 section; the forward reference's evaluation was not
+     named.
+OLD:
+   756 |   pilot4_noise.py from pilot3_noise.py (c191c72a...): the warm-start reference becomes each parent's exp(log_std)
+   757 |     (mean, min, max per seed), no warm-up section (WARMUP_STEPS 0), BLOCK 250,000, and the forward references pilot
+   758 |     3's own evaluations at 8M on R6's scale.
+NEW:
+  pilot4_noise.py from pilot3_noise.py (c191c72a...): the warm-start reference becomes each parent's exp(log_std)
+    (mean, min, max per seed, the seed read from the RUN_ID), no warm-up section (WARMUP_STEPS 0) but a section over
+    the first 65,536 steps (the fresh ret_rms, as Report only asks), BLOCK 250,000, and the forward references pilot
+    3's own last evaluation at or before 8M (7,995,392) on R6's scale (1943.495 / 1912.660 / 1897.846).
+
+======================================================================================================================
+C15  v3 lines 579-587
+source: readouts lane text issues 4-6: the mechanics and mirror references
+why: The ratio, the scuff share and the loss's statistics were not defined; pilot4_mech.py and pilot4_mirror.py follow
+     these sources literally.
+OLD:
+   579 |     left/right asymmetry ratio; pilot 3's 8M values for comparison: s42 knee 12 vs 28 deg per stride, right landing
+   580 |     3.1 BW vs left 1.6, left foot 0.24 m behind; s52 early scuff in 56% of right swings; s60 a 29-deg reversal and a
+   581 |     3.8-deg right lean; asymmetry 2.06x / 1.97x / 1.80x; duty L-R median -0.09 / -0.01 / -0.19 [measured as recorded:
+   582 |     RL 1079, 1084, 1071].
+   583 |   - The habit readout (pilot 3's definitions [P3 L797-847], on this run's ledger, 30 evaluations from 65,536; the
+   584 |     trace at the deciding checkpoint); it picks nothing.
+   585 |   - Mirror-equivariance: the mirrored policy pi_m = M_a pi(M_o o) on 10 panel resets (does the turn flip?), its
+   586 |     handedness (yaw(pi) - yaw(pi_m)) / 2 against pilot 3's -26 / -47 / -33 deg, and the mirror-KL loss on the walker's
+   587 |     own states against pilot 3's 42-79 [measured as recorded: VEER DIAGNOSIS findings (2) and (5)].
+NEW:
+    left/right asymmetry ratio; pilot 3's 8M values for comparison: s42 knee 12 vs 28 deg per stride, right landing
+    3.1 BW vs left 1.6, left foot 0.24 m behind; s52 early scuff in 56% of right swings (the per-episode median;
+    384/702 = 54.7% pooled); s60 a 29-deg reversal and a 3.8-deg right lean; asymmetry 2.06x / 1.97x / 1.80x (the
+    gait ledger's leg work: the median over the last 6 evaluations' full-horizon episodes of r_leg_work_abs_j /
+    l_leg_work_abs_j; the panel's leg power reads 2.38 / 2.03 / 2.24); duty L-R median -0.09 / -0.01 / -0.19
+    [measured as recorded: RL 1079, 1084, 1071].
+  - The habit readout (pilot 3's definitions [P3 L797-847], on this run's ledger, 30 evaluations from 65,536; the
+    trace at the deciding checkpoint); it picks nothing.
+  - Mirror-equivariance: the mirrored policy pi_m = M_a pi(M_o o) on 10 panel resets (does the turn flip?), its
+    handedness (yaw(pi) - yaw(pi_m)) / 2 against pilot 3's -26 / -47 / -33 deg, and the mirror-KL loss on the walker's
+    own states (resets 3042-3061) against pilot 3's 42-79 (the checkpoints' own statistics: 78.508 / 41.671 / 54.005;
+    symmetrised 70.724 / 41.119 / 54.832) [measured as recorded: VEER DIAGNOSIS findings (2) and (5); the screen
+    lane's lk_check.txt].
+
+======================================================================================================================
+C16  v3 lines 467-468
+source: score lane text issues 1 and 5: pending and the existence reading's finality
+why: v3 named only the review and the look; a missing record is pending too (never INCOMPLETE).
+OLD:
+   467 |   A WALKS seed whose review or look is pending is "pending". The three parts are printed for every WALKS seed, with
+   468 |   their values, whether they pass or not; for a seed that is not WALKS they are printed report only.
+NEW:
+  A WALKS seed whose video review, straightness record or (when (a) and (b) pass) look is still missing and could
+  change its outcome is "pending" (its possible outcomes are printed). The three parts are printed for every WALKS
+  seed, with their values, whether they pass or not; for a seed that is not WALKS they are printed report only.
+
+======================================================================================================================
+Not changed in the text (recorded for the freeze):
+  - The lineage's place in the archive (the SB3 'data' JSON member) is still to be read off the notebook smoke's pair
+    (v3 L526-527 already says so).
+  - The habit readout's head-tip reference labels (pilot 3's stance parent 0.904 m, the statue 0.959 m): v3 names none
+    for pilot 4; report only.
+  - pilot3_vg.py's docstring keeps pilot 3's ramp remark (a byte copy); with pilot 4's inert shaping V and G share one
+    reward at every checkpoint, as v3 L599-600 says.
