@@ -1014,7 +1014,7 @@ def test_the_floor_contact_package_imports_neither_gait_curriculum_nor_reporting
     when called, so the band builds its morphology without it (test_anatomical_stance_cop_band's
     test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time pins that at run time)."""
     paths = sorted(FLOOR_CONTACT.glob("*.py"))
-    assert {path.name for path in paths} >= {"__init__.py", "reduction.py", "morphology.py"}
+    assert {path.name for path in paths} >= {"__init__.py", "reduction.py", "morphology.py", "step_cop.py"}
     offenders = [
         f"{path.name}: {name}"
         for path in paths

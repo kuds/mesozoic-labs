@@ -17,7 +17,12 @@ Modules, bottom-up:
 * :mod:`~environments.shared.floor_contact.morphology` -- feet, legs, support
   geoms, soles and body weight read off a live env, with each embodiment
   class's ``FOOT_SUPPORT`` entry; imports mujoco (``gait/morphology.py``
-  re-exports it).
+  re-exports it);
+* :mod:`~environments.shared.floor_contact.step_cop` -- ``StepFootCop``, the
+  band's per-step reader: it copies each substep's contacts and reduces one
+  control step in one fused pass, with :mod:`.reduction`'s decode,
+  classification, thresholds and normalization and the recorder's
+  arithmetic.
 
 Layering: this package imports nothing from ``gait``, ``curriculum`` or
 ``reporting``, and this file imports nothing, so a pure reader of
