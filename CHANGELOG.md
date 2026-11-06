@@ -2599,6 +2599,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The Velociraptor takes the T. rex's stance lessons: a heading-free
+  observation and the six-heading certificate, a quiet start at its own noise
+  cliff, the D-D27 anti-hop terms and rails, and the T. rex's training
+  safeguards on its stance and walk** (breaking — policy interface change:
+  velociraptor revision 12 → 13, 70 → 69 wide; every policy-interface-r12
+  velociraptor checkpoint is invalidated, and none has trained on physics r4;
+  decision D-D59, the maintainer's choices of 2026-11-06;
+  `configs/plant_versions.toml` note 21, `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `configs/velociraptor_mongoliensis/anatomical/stance.toml` and
+  `locomotion.toml`, whose comments carry every measurement below). Every
+  value is this plant's own, measured on the r4 statue, never copied from the
+  T. rex:
+  - **Observation:** `bipedal-target-heading-free/v1`, as the T. rex and the
+    anatomical Compsognathus have it since D-D31 (projected gravity for the
+    imu quaternion, the root velocity in the gravity-aligned heading frame,
+    the prey direction in pelvis coordinates), through
+    `VelociraptorMongoliensisEnv._get_obs`. A seed turned with its whole scene
+    to each of the six headings repeats its episode: the same actions, joint
+    state to 9.1e-14, rewards to 3.3e-13. Only the policy interface moves;
+    physics, visual and the source closure are unchanged.
+  - **Gate:** `stance_quality_heading/v1` judges the unchanged v2 block at
+    −90, −45, 0, 45, 90 and 180°, so a heading-dependent stance (the T. rex's
+    `20261009_155723` passed v2 and stands 0/8 turned −45° or −90°) is refused;
+    the report-only heading probe goes, as config load requires beside the
+    certificate. The T. rex's D-D27 rails join it: `max_settle_touchdowns = 2`
+    (the statue lands exactly once on all 480 episodes of its six-heading
+    panels on 3042–3081 and 7042–7081), `max_episode_yaw_change_deg = 25`
+    (statue at most 10.9°, 15.7° out of sample) and `max_hop_or_fall_episodes
+    = 1` (statue 0 there, 1 of 240 on the other out-of-sample seeds). The
+    statue is clean on 40/40 seeds at every heading on both blocks.
+    `certification_seeds = 2`: a stance is provisional until two seeds pass.
+  - **Start:** `log_std_init = −2.66`, action std 0.07 (SB3's default std 1.0
+    before). At std 1.0 the noise is a hop on this plant (no foot down on 49%
+    of steps) and its penalties cost 63% of the alive bonus. Under
+    clip(N(0, σ)) commands the r4 statue reaches the horizon on 40/40
+    episodes at σ 0.05 and 0.06, 37/40 at 0.07 (40/40 on 7042–7081), 32/40 at
+    0.08, 7/40 at 0.10 and 0/40 at 0.135 and at the T. rex's 0.22, every fall
+    from 0.07 on its tail; 0.07 starts at the cliff's edge, the anatomical
+    Compsognathus's rule (D-D26). The entropy bonus now decays to 0 at 7M of
+    the 12M budget (was a 0.001 floor reached at 3M, an anchor left when the
+    budget doubled).
+  - **Reward:** three T. rex terms on `VelociraptorMongoliensisEnv`, each off
+    by default, declared in `OPT_IN_TASK_KWARGS` and emitting its info keys
+    only when on (so the locomotion, strike and behavior tasks and reward
+    shapes do not move): `tail_home_pose` (0.25, tolerance 0.05 rad, around
+    the statue's settled tail, 4.5° down at tail_1 and clear of every stop, so
+    no T. rex-style spring preload is needed), `floor_impact` (0.5 per body
+    weight above 2.5, the excess capped at 1, the anatomical Compsognathus's
+    form: the statue's largest peak on 120 seeds is 2.02) and
+    `airborne_substeps` (1.0). The statue pays nothing for the two contact
+    terms and earns the tail term in full: its stance reward is 3091.32 ±
+    2.80 (was 2843.0), so `min_avg_reward` is 1850 and the collapse reference
+    3091.3. The per-step reward stays positive to σ 0.5 (+0.34); at the old
+    std 1.0 it is −0.50, the airborne term tipping it, which is how the r3
+    contact-quality pilot trained at std 1.0 shortened its episodes.
+  - **Safeguards:** the opt-in hop watch (unsupported duty 0.05 from 7M, the
+    entropy anchor, stopping the run), the relative collapse floor (0.45 of
+    the reference behind a 1M-step peak warm-up, for the absolute 2130 that a
+    statue-like start arms at initialisation), the 500k-step checkpoint
+    archive (the T. rex screens judged finals and intermediates; 15 of their
+    notebook PASSes, judged on an early `robust_best`, failed at the final)
+    and the never-beat-the-statue warning at 35% of the budget.
+  - **Walk:** the locomotion stage's absolute collapse floor of 100, 8x under
+    its r4 statue's 796.00 ± 3.58, becomes the relative pair (0.45, pinned to
+    physics r4), and its entropy decay is anchored at 4M of 8M, as on the T.
+    rex. Its reward is unchanged: the raptor's own September run was the one
+    genuine biped gait the gait audit found, and no T. rex walk has passed a
+    gait judgement.
+  - **Not ported**, with the reason on record: `foot_load_balance` and a
+    metatarsus penalty (the statue carries 29% of each foot's load there; the
+    bilateral term already pays the weaker foot), the sole, pad and CoP terms
+    and bars (no box sole), head clearance and neck posture (no neck joints),
+    the height term, the 10 Hz command filter (the raptor's genuine stride was
+    9.8 Hz), mirror-symmetric PPO and the critic phase (off by default on main
+    and untested; the raptor has no mirror map yet), the screen-only CoP band
+    and stagger terms, and a recovery stage (it needs a certified r4 stance).
+  - **Tests:** `test_anatomical_noise_tolerance.py` pins the cliff on both
+    sides of the recipe's σ and ties it to `log_std_init`; the settled tail
+    target is re-measured against the statue; the three terms' tests cover the
+    off path, the sum order, the cap, the airborne count and the fingerprint
+    carve-out; the velociraptor joins the heading-free observation, contract,
+    rollout and checkpoint tables (the shared linear test policy runs at gain
+    0.001 on it); the gate-config, hop-watch, archive, catalog, manifest and
+    heading-probe tests follow the new config. The digest snapshot moves only
+    velociraptor lines (650 lines, one added for the heading-free helpers).
+  - **Untested in training:** nothing here has trained. The next velociraptor
+    session is a fresh stance on two seeds, each judged on its certificate and
+    re-judged on 7042–7081.
 - **The centre-of-mass stance reduction moves into the gait package, beside
   the evaluation telemetry** (#653; a pure move: no key, number, bar or test
   outcome changes; the maintainer's decision of 2026-10-29;

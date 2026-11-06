@@ -213,8 +213,8 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      edited or extended (`docs/PLANT_CONTRACT.md`, "Backend parity and runtime
      binding")
    - A biped can take the heading-free observation schema
-     `bipedal-target-heading-free/v1`, as the T-Rex and the anatomical
-     Compsognathus do: build its root block with
+     `bipedal-target-heading-free/v1`, as the T-Rex, the anatomical
+     Compsognathus and the Velociraptor do: build its root block with
      `environments/shared/heading_observation.heading_free_root_segments`
      and declare the schema in `configs/plant_versions.toml`
      (`docs/PLANT_CONTRACT.md`, "The heading-free observation schema")

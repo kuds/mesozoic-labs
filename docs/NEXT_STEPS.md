@@ -120,7 +120,23 @@ level; the policy interface and visual layer are unchanged), with the stance's
 tail target re-centred on it, which strands every T-Rex physics-r9 checkpoint,
 the stance screens' runs and walking pilot 2's parent included; the next T-Rex
 session is a fresh stance on physics r10, under criteria the maintainer
-approves first (section 3).* Section 2 labels each
+approves first (section 3).* *2026-11-06: the maintainer took D-D59: the T. rex's stance
+lessons applied to the velociraptor. Its observation is heading-free (policy
+interface r12 → r13, `configs/plant_versions.toml` note 21), its stance
+certifies under the six-heading certificate with the T. rex's D-D27 rails and
+`certification_seeds = 2`, it starts at action std 0.07 (its r4 statue's noise
+cliff; std 1.0 before) with the entropy bonus decaying to 0 at 7M, and it
+prices airborne substeps, capped floor impacts and its tail pose, with the hop
+watch, a relative collapse floor and the checkpoint archive; its locomotion
+stage gains a relative collapse floor and a 4M entropy anchor, its reward
+unchanged. Nothing had trained on velociraptor physics r4, so no certified
+checkpoint is stranded. The next velociraptor session is a fresh
+`BEHAVIOR="stance"` on at least two seeds, each judged on its certificate and
+re-judged on the fresh seeds 7042–7081 (`stance_gate_report.py --species
+velociraptor_mongoliensis --embodiment anatomical --model … --vecnorm …
+--seed 7042 --out-dir <a scratch directory>`), its final and archived
+checkpoints judged as well as the handoff, before any velociraptor walk; the
+order against the T. rex sessions is the maintainer's.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

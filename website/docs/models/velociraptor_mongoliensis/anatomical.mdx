@@ -13,10 +13,14 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
-The stance node certifies stance quality, not reward: since physics r3 its gate is `stance_quality/v2`, which judges
-every episode of a 40-episode panel on the floor's force under each foot (no hop at reset, both feet planted, both
-toes and the metatarsal head loaded, no splay or drift, no actuator held at its limit) and certifies the stance when
-at least 37 of 40 are clean. Velociraptor trains on Stable-Baselines3 only.
+The stance node certifies stance quality, not reward: since physics r3 its gate judges every episode of a 40-episode
+panel on the floor's force under each foot (no hop at reset, both feet planted, both toes and the metatarsal head
+loaded, no splay, drift or turn, no actuator held at its limit), and since policy interface r13 (decision D-D59) it is
+the six-heading certificate `stance_quality_heading/v1`: the panel is rolled with the whole scene turned -90, -45, 0,
+45, 90 and 180 degrees, and the stance certifies when at least 37 of the 40 seeds are clean at every heading. Its
+observation reads no world heading (projected gravity and the root velocity and prey direction in the animal's own
+frame), as the T-Rex's does, and its stance training starts at a small action noise (std 0.07) that the standing
+statue survives. Velociraptor trains on Stable-Baselines3 only.
 
 <SpeciesCatalog species={MODEL} />
 

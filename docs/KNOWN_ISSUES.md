@@ -59,6 +59,21 @@ robustness, **LOW** = cosmetic / QoL.
   on r3 (support-geom duty at least 0.964 against 1.000; out of sample one
   episode in 240 reads under the 0.35 windowed load-share bar), so the
   digit-IV deficit above has slightly less statue margin to aim at.
+  *Update (2026-11-06, D-D59):* the velociraptor half of the recommendation
+  is taken as one change, not as the paired sweep: the stance recipe starts
+  at action std 0.07 (`log_std_init` −2.66), at the r4 statue's measured
+  noise cliff (40/40 full horizon at σ 0.05 and 0.06, 37/40 and 40/40 on two
+  seed blocks at 0.07, 32/40 at 0.08, 7/40 at 0.10, 0/40 at 0.135 and 0.22),
+  and prices airborne substeps and floor impacts (capped) with the T. rex's
+  terms, plus a tail home-pose term; the hop watch, a relative collapse floor
+  and the checkpoint archive guard the run. Under the same σ panel the old
+  std 1.0 is itself a hop (no foot down on 49% of steps), and with the new
+  terms its per-step reward is −0.50, which is how the contact-quality arm
+  shortened its episodes; at σ 0.07 it is +2.80. The per-site load shaping,
+  the per-site observation channels and the toe audit stay open, and so does
+  this entry until a velociraptor stance certifies: nothing has trained on
+  the D-D59 recipe, so whether the quiet start reaches the standing basin,
+  and whether digit IV loads there, is unmeasured.
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
@@ -1667,6 +1682,12 @@ robustness, **LOW** = cosmetic / QoL.
   anatomical compsognathus r4 observation, and it changes only the
   world-frame channels of the velociraptor's and the compsognathus
   robot's.
+  *Update (2026-11-06, D-D59):* the velociraptor is heading-free too (policy
+  interface r13, `configs/plant_versions.toml` note 21; one seed's six
+  headings repeat its episode, joint state to 9.1e-14), and its stance
+  declares the six-heading certificate in place of the report-only probe
+  (its statue clean on 40/40 seeds at every heading on 3042–3081 and on
+  7042–7081). The entry stays open for the compsognathus robot alone.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

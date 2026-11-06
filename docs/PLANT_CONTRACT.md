@@ -233,8 +233,8 @@ the pin test keeps pinning. A new species or embodiment declares SB3 only; the m
 
 ### The heading-free observation schema
 
-`bipedal-target-heading-free/v1` (the anatomical T-Rex from policy interface 14, the anatomical Compsognathus from 4; decision
-D-D31, `configs/plant_versions.toml` note 18) carries no world heading: projected gravity replaces the root's world
+`bipedal-target-heading-free/v1` (the anatomical T-Rex from policy interface 14, the anatomical Compsognathus from 4, decision
+D-D31, `configs/plant_versions.toml` note 18; the Velociraptor from 13, decision D-D59, note 21) carries no world heading: projected gravity replaces the root's world
 quaternion, the root's linear velocity is expressed in the gravity-aligned heading frame and the target direction in
 pelvis coordinates, all built from the free root's own quaternion `qpos[3:7]` by
 `environments/shared/heading_observation.py` ([HEADING_INVARIANCE_DESIGN_2026_10.md](HEADING_INVARIANCE_DESIGN_2026_10.md)).
