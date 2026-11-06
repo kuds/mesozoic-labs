@@ -59,6 +59,9 @@ Reward components:
     - Walking pilot 3's R6 (pilot-only, never merged; both off by default):
       alive, posture and height paid only on a supported step (the
       compsognathus support rule), and an alternating-touchdown event
+    - Walking pilot 4's heading price (pilot-only, never merged; off by
+      default; needs a live command mode): the pelvis yaw against the
+      command's desired heading, linear up to a scale, flat beyond it
     - Head clearance and neck posture
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -77,7 +80,7 @@ import mujoco
 import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
-from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.direction_commands import DirectionCommandConfig, wrap_angle
 from environments.shared.heading_observation import body_to_world, heading_free_root_segments, world_to_heading
 from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
@@ -223,6 +226,24 @@ class _WalkTouchdownEvents:
         return self._last_output
 
 
+# Walking pilot 4's heading price (pilot-only, never merged): the maintainer's decisions (23) and (27) of 2026-11-05,
+# the veer diagnosis's price H, screened offline on pilot 3's recorded walks (it passed the pre-declared rule at weight
+# 0.2 against the spawn heading, which a straight command's desired heading equals).
+def _walk_pelvis_yaw(quat: np.ndarray) -> float:
+    """World yaw of the pelvis +x axis in radians, from a (w, x, y, z) quaternion: the angle of :func:`_walk_heading_2d`
+    (the same projection, unnormalised; atan2 does not need the norm)."""
+    w, x, y, z = (float(value) for value in np.asarray(quat, dtype=np.float64))
+    return float(np.arctan2(2.0 * (x * y + w * z), 1.0 - 2.0 * (y * y + z * z)))
+
+
+def _walk_heading_price(theta: float, weight: float, scale_rad: float) -> float:
+    """``-weight * min(|theta| / scale_rad, 1)``: linear in the heading error up to *scale_rad*, flat beyond it.
+
+    Even in *theta*, so a turn to the left and the same turn to the right cost the same.
+    """
+    return -weight * min(abs(theta) / scale_rad, 1.0)
+
+
 class TyrannosaurusRexEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment.
 
@@ -314,6 +335,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # Walking pilot 3's R6 (pilot-only, never merged): the support gate and the touchdown event.
         ("walk_support_gate_bw", 0.0, ("walk_support_gate_bw",)),
         ("walk_touchdown_weight", 0.0, ("walk_touchdown_weight",)),
+        # Walking pilot 4's heading price (pilot-only, never merged): the weight is the switch, the scale its kwarg.
+        ("walk_heading_price_weight", 0.0, ("walk_heading_price_weight", "walk_heading_price_scale_rad")),
     )
     _STANCE_WIDTH_REFERENCES = ("keyframe", "settled")
     _ACTION_PENALTY_SOURCES = ("filtered", "raw")
@@ -400,6 +423,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         leg_home_pose_reference: str = "keyframe",
         walk_support_gate_bw: float = 0.0,
         walk_touchdown_weight: float = 0.0,
+        walk_heading_price_weight: float = 0.0,
+        walk_heading_price_scale_rad: float = 0.5,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -514,6 +539,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.leg_home_pose_reference = leg_home_pose_reference
         self.walk_support_gate_bw = walk_support_gate_bw
         self.walk_touchdown_weight = walk_touchdown_weight
+        self.walk_heading_price_weight = walk_heading_price_weight
+        self.walk_heading_price_scale_rad = walk_heading_price_scale_rad
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -585,6 +612,16 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             raise ValueError("walk_support_gate_bw must be a finite, non-negative multiple of body weight")
         if not 0.0 <= self.walk_touchdown_weight < np.inf:
             raise ValueError("walk_touchdown_weight must be finite and non-negative")
+        if not 0.0 <= self.walk_heading_price_weight < np.inf:
+            raise ValueError("walk_heading_price_weight must be finite and non-negative")
+        if not 0.0 < self.walk_heading_price_scale_rad < np.inf:
+            raise ValueError("walk_heading_price_scale_rad must be a positive, finite angle")
+        if self.walk_heading_price_weight > 0.0 and command_mode == "none":
+            # The price's reference is the command's desired heading, which only a live command mode has.
+            raise ValueError(
+                "walk_heading_price_weight > 0 needs a live command_mode ('heading' or 'heading_and_speed'): the "
+                "price measures the pelvis yaw against the command's desired heading"
+            )
         # The leg target under leg_home_pose_reference = "settled", chosen in
         # _get_reward_info rather than written over _leg_home_qpos: _cache_ids
         # (hashed by the plant contract) rebuilds that from the keyframe
@@ -1436,6 +1473,25 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             info["walk_touchdown_unit"] = walk_touchdown_unit
             info["reward_walk_touchdown"] = reward_walk_touchdown
 
+        # 9d. Walking pilot 4's heading price (pilot-only, never merged; off unless walk_heading_price_weight > 0, and
+        # its info keys exist only then; on needs a live command mode, checked in __init__):
+        # -w * min(|theta| / scale, 1), theta = wrap(pelvis yaw - the command's desired heading) in [-pi, pi).  The yaw
+        # is the CURRENT pelvis quaternion's, the state the step reached, which R6's heading terms read too; the
+        # command state's own heading_error was computed before the step (base_env.step updates the command after the
+        # reward), so it is one control step stale here.  The desired heading is that of the command the action was
+        # chosen under.  A stop masks the heading as the controller masks it (price 0, theta recorded as 0).
+        reward_walk_heading_price = 0.0
+        if self.walk_heading_price_weight > 0.0:
+            walk_heading_error = 0.0
+            state = self._command_state
+            if state is not None and state.heading_active:
+                walk_heading_error = wrap_angle(_walk_pelvis_yaw(pelvis_quat) - state.desired_heading)
+                reward_walk_heading_price = _walk_heading_price(
+                    walk_heading_error, self.walk_heading_price_weight, self.walk_heading_price_scale_rad
+                )
+            info["walk_heading_error_rad"] = walk_heading_error
+            info["reward_walk_heading_price"] = reward_walk_heading_price
+
         # 10. Action smoothness (shared helper)
         # Jerk BEFORE smoothness: _reward_action_smoothness rotates the action
         # history, so calling it first would leave the jerk term reading this
@@ -1530,6 +1586,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             total_reward += info["reward_lateral_lean"]
         if self.walk_touchdown_weight > 0.0:
             total_reward += reward_walk_touchdown
+        if self.walk_heading_price_weight > 0.0:
+            total_reward += reward_walk_heading_price
         info["reward_total"] = total_reward
 
         return total_reward, info
