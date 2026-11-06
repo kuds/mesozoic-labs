@@ -163,6 +163,24 @@ under 0.1 degree), did not fall in any of the 120 final evaluation episodes
 and passed the single-heading stance check (`stance_quality/v2`) on two of the
 three seeds; the stage's six-heading certificate was not run. They did not
 pass the screen's stricter criteria for the foot's front-to-back pressure and
-for robustness to action noise, so no stage enables the options yet. They are
+for robustness to action noise, so no stage enabled the options then. They were
 kept as tested building blocks for later stance and walking experiments, and
 for other species once they have a map.
+
+## The committed T. rex stance (the stance-landing decision of 2026-11-06)
+
+Since the maintainer's stance-landing decision of 2026-11-06 the T. rex stance
+stage turns them on, in `configs/tyrannosaurus_rex/anatomical/stance.toml`, as
+part of the r10 "LTSB" stance recipe: mirror-symmetric training with all four
+keys above, the lean term and the settled leg target, `leg_home_pose_weight`
+1.0 and `leg_home_pose_tolerance` 0.05, and two more opt-in `[env]` options of
+the T. rex env, a penalty on the front-to-back stagger of the feet
+(`stance_stagger_weight = 0.30`, `stance_stagger_tolerance_m = 0.045`) and a
+penalty that keeps each foot's centre of pressure inside a band along the
+foot (`stance_cop_band_weight = 0.30`). Three screen runs of exactly this
+recipe, trained with the critic's episode phase on (the notebook's
+`CRITIC_PHASE = True`), passed the stage's six-heading certificate on
+physics r10. They trained on a branch, so they never count as certified or
+as replicates (`environments/shared/run_exclusions.py`); two new seeds
+certify the recipe on `main`. The recovery stage inherits the stance's
+`[env]` and `[ppo]` tables, so it trains with the options and mirror-KL too.

@@ -1300,11 +1300,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # its most-leaning spawn) against 105-141 more on episodes that
         # stood on a rolled pad, and the window mean offset separates the two
         # with AUC 0.99.  A bonus adds about 0.25 x 800 = 200 to every
-        # standing episode's return: re-measure stance.toml's
-        # collapse_peak_floor_reference before enabling it there, and add
-        # reward_lateral_lean to DiagnosticsCallback.REWARD_KEYS and to
-        # visualization's reward-decomposition weight map in the same change
-        # (left out while no stage pays it, so no run records an empty series).
+        # standing episode's return.  The committed stance pays it since
+        # the stance-landing decision of 2026-11-06 (the r10 LTSB recipe;
+        # stance.toml's collapse_peak_floor_reference re-measured with it), so
+        # reward_lateral_lean is in DiagnosticsCallback.REWARD_KEYS and
+        # visualization's reward-decomposition weight map.
         if self.lateral_lean_weight > 0.0:
             com_lateral_offset = self._com_lateral_offset()
             reward_lateral_lean, lateral_lean_quality = _reward_lateral_lean_pure(
@@ -1329,8 +1329,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # exactly mirror-invariant.  Designed in the 2026-10-19 night
         # continuation and screened from scratch as stance4's arm LTS (w 0.30,
         # tol 0.045 m; docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
-        # §17.5 and §18.1, decision D-D39).  Like reward_lateral_lean, it is
-        # not in DiagnosticsCallback.REWARD_KEYS while no committed stage pays it.
+        # §17.5 and §18.1, decision D-D39).  Like reward_lateral_lean, it is in
+        # DiagnosticsCallback.REWARD_KEYS: the committed stance pays it since the
+        # stance-landing decision of 2026-11-06.
         if self.stance_stagger_weight > 0.0:
             foot_stagger = self._foot_stagger()
             reward_stance_stagger, stagger_quality = _reward_stance_stagger_pure(
@@ -1380,10 +1381,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # 2-element numpy calls cost about 35 us a step), keeping their one
         # np.exp over both feet (math.exp moves some values by an ulp): the
         # band's tests pin every value to theirs byte for byte.  Like
-        # reward_stance_stagger, it is not in DiagnosticsCallback.REWARD_KEYS:
-        # a listed key that no info carries is still written to every run's
-        # diagnostics.npz as a NaN series, so listing it would change the
-        # band-off runs' records.
+        # reward_stance_stagger, it is in DiagnosticsCallback.REWARD_KEYS: the
+        # committed stance pays it since the stance-landing decision of 2026-11-06
+        # (a listed key that no info carries is written to a run's diagnostics.npz
+        # as a NaN series).
         if self.stance_cop_band_weight > 0.0:
             reading = self._cop_band().reading(self._step_count, self.model, self.data)
             feet = list(

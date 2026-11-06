@@ -42,6 +42,34 @@ BUFFER_FIELDS = ("observations", "actions", "rewards", "episode_starts", "values
 PHASE_MODULE = "environments.shared.critic_phase_ppo"
 
 
+#: The [env] keys the r10 LTSB stance recipe (the stance-landing decision of 2026-11-06) added to the T. rex stance
+#: config, and the [ppo] keys.
+LTSB_ENV_KEYS = (
+    "lateral_lean_weight",
+    "lateral_lean_tolerance_m",
+    "leg_home_pose_reference",
+    "stance_stagger_weight",
+    "stance_stagger_tolerance_m",
+    "stance_cop_band_weight",
+)
+LTSB_PPO_KEYS = ("symmetry", "symmetry_kappa", "symmetry_sigma_floor", "symmetry_mirror_critic")
+
+
+def pre_landing_stance(configs: dict[Any, Any]) -> None:
+    """Set the T. rex stance (``configs[1]``, as ``load_all_stages`` keys it) back to its values before the r10 LTSB
+    stance recipe (the stance-landing decision of 2026-11-06), in place: no stance options, ``leg_home_pose``
+    0.5 / 0.10, stock PPO and the collapse reference 3766.6.  The golden was written at 4c9d5e9b, before it, and on a
+    tree before it this changes nothing (test_critic_phase.py pins that the result digests to main's pre-landing task
+    and recipe)."""
+    stance = configs[1]
+    for key in LTSB_ENV_KEYS:
+        stance["env_kwargs"].pop(key, None)
+    stance["env_kwargs"].update(leg_home_pose_weight=0.5, leg_home_pose_tolerance=0.10)
+    for key in LTSB_PPO_KEYS:
+        stance["ppo_kwargs"].pop(key, None)
+    stance["curriculum_kwargs"]["collapse_peak_floor_reference"] = 3766.6
+
+
 def digest(value: Any) -> str:
     import numpy as np
 
@@ -141,6 +169,7 @@ def run(tree: Path, work: Path) -> dict[str, Any]:
     species = get_species_config(model_id)
     committed = load_all_stages(model_id)
     configs = copy.deepcopy(committed)
+    pre_landing_stance(configs)
     for stage in (1, 2):
         configs[stage]["ppo_kwargs"].update(n_steps=256, batch_size=128)
 

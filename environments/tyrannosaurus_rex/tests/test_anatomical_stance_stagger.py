@@ -40,7 +40,10 @@ SCREENED = {"stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045}
 def off_kwargs():
     """The stance stage's env kwargs with the stagger keys removed."""
     kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"])
-    for key in OPTION_KEYS:
+    # The committed stance turns the CoP band on as well (the r10 LTSB recipe, the stance-landing decision of
+    # 2026-11-06): "off" is both off, so the stagger-on run differs from it by exactly the stagger term, summed as
+    # reward_total sums it.
+    for key in (*OPTION_KEYS, "stance_cop_band_weight"):
         kwargs.pop(key, None)
     return kwargs
 
