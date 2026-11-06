@@ -370,6 +370,7 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "foot_flatness_tolerance_deg",
         "stance_width_tolerance_m",
         "lateral_lean_tolerance_m",
+        "stance_stagger_tolerance_m",
         "stance_width_reference",
         "stance_width_settle_steps",
         "foot_terms_min_support_force",
