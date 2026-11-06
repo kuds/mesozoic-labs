@@ -1003,10 +1003,10 @@ class SpawnYaw:
     world-frame velocity and prey direction), so a stance could depend on
     the world heading without any v2 criterion seeing it: both physics-r8
     T-Rex stances fell when spawned 90 degrees off, where the statue stands.
-    The Velociraptor and the Compsognathus robot still observe those
-    world-frame channels; the T-Rex from policy interface r14 and the
-    anatomical Compsognathus from r4 observe no world heading (D-D31,
-    ``bipedal-target-heading-free/v1``: projected gravity, the root velocity
+    The Compsognathus robot still observes those world-frame channels; the
+    T-Rex from policy interface r14, the anatomical Compsognathus from r4
+    (D-D31) and the Velociraptor from r13 (D-D59) observe no world heading
+    (``bipedal-target-heading-free/v1``: projected gravity, the root velocity
     in the gravity-aligned heading frame and the prey direction in pelvis
     coordinates, :mod:`environments.shared.heading_observation`).  Turning the spawn
     changes nothing physical because every plant declares the elliptic
@@ -1031,7 +1031,7 @@ class SpawnYaw:
     physics and reward are identical for a heading-invariant controller and
     only a world-frame observation differs -- exactly the question of
     whether the policy reads its heading.  On a heading-free observation
-    (trex r14, anatomical compsognathus r4) nothing differs: the turned
+    (trex r14, anatomical compsognathus r4, velociraptor r13) nothing differs: the turned
     observation equals the unturned one, so a seed's turned episodes repeat
     its unturned one up to floating-point rounding, which an unstable closed
     loop can still amplify into a different outcome; the animal-only turn
@@ -1043,8 +1043,8 @@ class SpawnYaw:
     of a fixed grid (:func:`build_stance_heading_report`) and blocks handoff,
     reuse and publication on it.  A stage that declares the certificate
     does not roll this probe (config load refuses the key there); on a
-    stage without it (the compsognathus robot and the velociraptor) the probe
-    stays report-only, with the handoff warning of 2026-10-11.
+    stage without it (the compsognathus robot; the velociraptor until D-D59)
+    the probe stays report-only, with the handoff warning of 2026-10-11.
     """
 
     yaw_deg: float

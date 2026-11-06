@@ -318,11 +318,53 @@ canonical_mujoco_version = "3.10.0"
 #     velociraptor physics-r3, brachiosaurus physics-r4 and dibothrosuchus
 #     physics-r1 checkpoint is invalidated (the plant check compares
 #     physics_sha256); no widen applies.
+#
+# 21. Velociraptor observations made heading-free (decision D-D59, 2026-11-06,
+#     the T-Rex's and the anatomical compsognathus's note 18 for the third
+#     species; docs/HEADING_INVARIANCE_DESIGN_2026_10.md).  The velociraptor
+#     fed its policy the imu site's world quaternion, the root's world linear
+#     velocity and the world prey direction, so a stance could learn its world
+#     heading where no single-heading criterion sees it.  Note 18's
+#     coordination condition is met: D-D31 deferred the velociraptor until the
+#     maintainer's two physics-r3 stances were reviewed (both 0/40 on a ~10 Hz
+#     hop, docs/investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md), and
+#     nothing has trained on physics r4, so no certified checkpoint is
+#     stranded.  The per-site foot-load channels the pilot findings propose
+#     (their priority 4) are not part of it.  Schema
+#     bipedal-target-heading-free/v1, note 18's segment table on this
+#     species' widths: joint_position and joint_velocity 24 + 24, unchanged;
+#     pelvis_projected_gravity 3 (was the 4-wide imu quaternion); gyro 3 and
+#     accelerometer 3, their own site frames, unchanged;
+#     pelvis_heading_linear_velocity 3; foot_contact 2, the per-foot d3 +
+#     metatarsus + d4 touch sums (note 14), unchanged; prey_direction_body 3;
+#     prey_distance 1; command 3, last.  R is the free root's own quaternion
+#     qpos[3:7], as note 18 builds it (the imu site's frame no longer enters
+#     the observation).  Measured: one seed turned with its whole scene to
+#     each of -90, -45, 0, 45, 90 and 180 deg repeats its episode, the same
+#     float32 actions, joint state to 9.1e-14, rewards to 3.3e-13 and the
+#     observation to 2.9e-11 per step (seeds 3042-3043, 250 steps, the zero
+#     action and the heading-free tests' fixed linear policy, whose gain is
+#     0.001 on this plant: at 0.003 it tips the statue onto its tail).
+#
+#     Velociraptor policy interface r12 -> r13 (70 -> 69 wide), through
+#     VelociraptorMongoliensisEnv._get_obs (the species base: the anatomical
+#     model is its only embodiment).  The species has been SB3-only since note
+#     14, so there is no MJX exit; its _cache_ids tokens already enter its
+#     policy digest (sb3_sensor_cache) and are unchanged, and the D-D59 reward
+#     terms resolve their targets in __init__, which no digest hashes.
+#
+#     Only the POLICY INTERFACE moves: PHYSICS (6b4dfb..), VISUAL (1bf243..)
+#     and the source closure (62f142..) are unchanged, and rewards,
+#     terminations and dynamics are bit-identical at corresponding states.
+#     Every velociraptor policy-interface-r12 checkpoint is invalidated (the
+#     plant check compares the interface digest and the observation width)
+#     and none can be widened: the width moves by -1, not by a command
+#     segment.  The velociraptor has no recovery calibration to restamp.
 [plants.velociraptor_mongoliensis.anatomical]
 physics_revision = 4
-policy_interface_revision = 12
+policy_interface_revision = 13
 visual_revision = 4
-observation_schema = "bipedal-target/v1"
+observation_schema = "bipedal-target-heading-free/v1"
 
 # 4. The T-Rex theropod stance correction.  The home keyframe stood the animal
 #    on a near-straight knee (172.1 deg interior, 7.9 deg from full extension),

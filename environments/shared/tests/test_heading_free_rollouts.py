@@ -84,7 +84,11 @@ METRIC_ATOL = 1e-6
 
 @pytest.fixture(
     scope="module",
-    params=(ModelId("tyrannosaurus_rex", "anatomical"), ModelId("compsognathus_longipes", "anatomical")),
+    params=(
+        ModelId("tyrannosaurus_rex", "anatomical"),
+        ModelId("compsognathus_longipes", "anatomical"),
+        ModelId("velociraptor_mongoliensis", "anatomical"),
+    ),
     ids=lambda m: f"{m.species}-{m.embodiment}",
 )
 def frozen_policy(request):

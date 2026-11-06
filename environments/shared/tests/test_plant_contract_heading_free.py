@@ -34,14 +34,19 @@ from environments.shared.plant_contract import (
 from environments.shared.plant_contract.digests import _semantic_digest
 from environments.shared.scripts import observation_ablation_report
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 HEADING_FREE = (
     pytest.param(TYRANNOSAURUS_REX, TyrannosaurusRexAnatomicalEnv, id="tyrannosaurus_rex-anatomical"),
     pytest.param(COMPSOGNATHUS_LONGIPES, CompsognathusLongipesAnatomicalEnv, id="compsognathus_longipes-anatomical"),
+    pytest.param(
+        VELOCIRAPTOR_MONGOLIENSIS, VelociraptorMongoliensisAnatomicalEnv, id="velociraptor_mongoliensis-anatomical"
+    ),
 )
 #: Each model's per-foot touch-sensor groups, right foot first: the T-Rex sums its plantar pad and three digits.
 FOOT_GROUPS = {
@@ -50,6 +55,11 @@ FOOT_GROUPS = {
         ["l_foot_touch", "l_toe_d2_touch", "l_toe_d3_touch", "l_toe_d4_touch"],
     ],
     COMPSOGNATHUS_LONGIPES: [["r_foot_touch"], ["l_foot_touch"]],
+    # Digit III (the foot site's own sensor) first, then the metatarsus and digit IV (plant_versions note 14).
+    VELOCIRAPTOR_MONGOLIENSIS: [
+        ["r_foot_touch", "r_meta_touch", "r_d4_touch"],
+        ["l_foot_touch", "l_meta_touch", "l_d4_touch"],
+    ],
 }
 
 
