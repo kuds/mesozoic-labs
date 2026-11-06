@@ -751,6 +751,10 @@ training, the resolve cell's line starting `Critic phase on:` must name
 `stance`; at the first checkpoint, `01_stance/stage_config.json` must record
 `run.hyperparameters_sha256` `sha256:c64211e8…` and `task_fingerprint.json`
 `1e5964b6…`, else the run is stopped and relaunched under a new `RUN_ID`.
+Neither run starts from a screen run's weights: a run whose stage record
+loads, resumes or widens a screen's checkpoint, or names a screen's run
+folder or run id, never counts (the stance-landing decision of 2026-11-06,
+`environments/shared/run_exclusions.py`).
 A seed the hop watch stops is restarted on a new seed, not resumed. The
 stage trains 12M steps, rolls the six-heading certificate on its
 robust-best handoff and writes `gate_verdict.json` and the bundle; both
