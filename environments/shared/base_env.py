@@ -339,9 +339,9 @@ class BaseDinoEnv(gym.Env, ABC):
             # WALKING PILOT 4 (pilot-only, never merged): a stage TOML's [env] command_config table reaches every
             # constructor call (make_env, the evaluation env, the probe bank, the judge's gait probe) as a dict,
             # because config.load_stage_config passes [env] through; the dataclass is built here, the one place they
-            # all share.  A field that should be a number but is not (a string, a bool) and an unknown field are a
-            # TypeError, an invalid value a ValueError (the dataclass's own checks); everything below then sees the
-            # dataclass (direction_commands.direction_command_config_from_table).
+            # all share.  A number not written as a float (an int, a string, a bool; speed_range's bounds included)
+            # and an unknown field are a TypeError, an invalid value a ValueError (the dataclass's own checks);
+            # everything below then sees the dataclass (direction_commands.direction_command_config_from_table).
             command_config = direction_command_config_from_table(command_config)
         self.command_config = command_config
         self.direction_controller: DirectionCommandController | None = None

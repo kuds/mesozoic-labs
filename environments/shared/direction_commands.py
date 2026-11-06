@@ -14,7 +14,6 @@ differently or are updated at different frequencies.
 from __future__ import annotations
 
 import math
-import numbers
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, fields
 from typing import Any
@@ -115,24 +114,30 @@ class DirectionCommandConfig:
             object.__setattr__(self, "speed_range", bounds)
 
 
-#: WALKING PILOT 4 (pilot-only, never merged): the DirectionCommandConfig fields that are not single numbers.
-_TABLE_NON_NUMBER_FIELDS = frozenset({"turn_slowdown", "speed_range"})
-
-
 def direction_command_config_from_table(table: Mapping[str, Any]) -> DirectionCommandConfig:
     """Build the config from a stage TOML's ``[env] command_config`` table (walking pilot 4, pilot-only, never merged).
 
-    The dataclass coerces its numbers through ``float()``, so a string or a bool would build silently, while the task
-    fingerprint's env section hashes the table as written: ``"1.5"`` would be another task with the same command.  So
-    every field of the table but ``turn_slowdown`` and ``speed_range`` must be a number (an int or a float, not a
-    bool): anything else is a ``TypeError``.  An unknown field is left to the dataclass (a ``TypeError``) and every
-    value check to its ``__post_init__`` (a ``ValueError``).
+    The dataclass coerces its numbers through ``float()``, so ``4``, ``"4.0"`` and ``True`` would build the same
+    config as ``4.0``, while the task fingerprint's env section hashes the table as written (an int as ``4``, a float
+    as ``4.0``): one command would be several tasks.  So every number of the table, the two bounds of ``speed_range``
+    included, must be written as a float (``4.0``, not ``4``; not a string, not a bool): anything else is a
+    ``TypeError`` naming the field.  ``turn_slowdown`` is left to the dataclass's bool check (a ``ValueError``) and a
+    ``speed_range`` of ``None`` (the default; TOML has no null) passes.  An unknown field is left to the dataclass (a
+    ``TypeError``) and every value check to its ``__post_init__`` (a ``ValueError``).
     """
     names = {field.name for field in fields(DirectionCommandConfig)}
     for name, value in table.items():
-        if name in names and name not in _TABLE_NON_NUMBER_FIELDS:
-            if isinstance(value, bool) or not isinstance(value, numbers.Real):
-                raise TypeError(f"command_config.{name} must be a number, not {value!r}")
+        if name not in names or name == "turn_slowdown" or (name == "speed_range" and value is None):
+            continue
+        if name == "speed_range":
+            # A bool is not a float, so True and False are refused here too.
+            if not isinstance(value, (list, tuple)) or not all(isinstance(bound, float) for bound in value):
+                raise TypeError(
+                    f"command_config.speed_range must be a number pair written as floats ([0.5, 1.0], not [0.5, 1]), "
+                    f"not {value!r}"
+                )
+        elif not isinstance(value, float):
+            raise TypeError(f"command_config.{name} must be a number written as a float (4.0, not 4), not {value!r}")
     return DirectionCommandConfig(**table)
 
 

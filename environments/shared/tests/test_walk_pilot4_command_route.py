@@ -5,10 +5,11 @@ stage 2) and feeds a "point straight" command through the reserved command input
 check of 2026-11-05 measured that config alone cannot do it; these tests pin the pilot-only edits that let it:
 
 - (1) ``BaseDinoEnv.__init__`` builds the ``DirectionCommandConfig`` from a TOML ``command_config`` table (a mapping);
-  a field that should be a number and is not is refused, not coerced.
+  a number not written as a float (an int, a string, a bool; speed_range's bounds included) is refused, not coerced.
 - (2) ``task_fingerprint.derive_stage_task_fingerprint`` derives a live stage's command manifest from that table when
   no manifest is passed, so ``train()``'s ``stage_task_fingerprint(stage_config=...)`` and the digest harness hash it;
-  it builds and checks the table as the env does, the mode rule included, so no table the env refuses is hashed.
+  it validates the mode and builds and checks the table as the env does, the mode rule included, so no table under a
+  live mode that the env refuses is hashed.
 - (3) ``task_fingerprint.validate_declared_parent`` accepts a non-root node's own earlier COMMAND-FREE checkpoint
   only when the child stage's ``[curriculum]`` declares ``initialize_from_own_checkpoint = true`` (decision (25):
   this one stage); every other node of every model keeps the edge rule, which the tests here walk exhaustively.
@@ -155,36 +156,47 @@ def test_a_bad_table_fails_at_construction():
 
 
 @pytest.mark.parametrize(
-    "name, value",
+    "name, value, mode",
     [
-        ("cruise_speed", "1.5"),
-        ("cruise_speed", True),
-        ("speed_scale", True),
-        ("yaw_gain", "1.5"),
-        ("stop_probability", False),
-        ("minimum_turn_speed_fraction", None),
-        ("switch_interval_s", [4.0]),
+        ("cruise_speed", "1.5", "heading"),
+        ("cruise_speed", True, "heading"),
+        ("speed_scale", True, "heading"),
+        ("yaw_gain", "1.5", "heading"),
+        ("stop_probability", False, "heading"),
+        ("minimum_turn_speed_fraction", None, "heading"),
+        ("switch_interval_s", [4.0], "heading"),
+        # An int is refused too: the env section hashes 4 and 4.0 as two tasks with one command.
+        ("switch_interval_s", 4, "heading"),
+        ("cruise_speed", 1, "heading"),
+        # speed_range's bounds, under "heading_and_speed" (the mode that takes a range).
+        ("speed_range", ["0.5", "1.0"], "heading_and_speed"),
+        ("speed_range", [True, True], "heading_and_speed"),
+        ("speed_range", [0, 1], "heading_and_speed"),
+        ("speed_range", [0.5, 1], "heading_and_speed"),
+        ("speed_range", 1.0, "heading_and_speed"),
     ],
 )
-def test_a_table_number_must_be_a_number(name, value):
-    """The dataclass coerces its numbers through float(), so a string or a bool would build silently, while the env
-    section hashes the table as written (the code review measured cruise_speed "1.5" as another task with the same
-    command): a table field that should be a number and is not is a TypeError, at construction and in the task
-    fingerprint's derivation alike."""
+def test_a_table_number_must_be_a_number(name, value, mode):
+    """The dataclass coerces its numbers through float(), so a string, a bool or an int would build the config a float
+    builds, while the env section hashes the table as written (the code review measured cruise_speed "1.5", the postfix
+    verification switch_interval_s = 4 and speed_range ["0.5", "1.0"], each as another task with the same command): a
+    table number not written as a float is a TypeError, at construction and in the task fingerprint's derivation
+    alike."""
     with pytest.raises(TypeError, match=rf"command_config\.{name} must be a number"):
-        TyrannosaurusRexAnatomicalEnv(command_mode="heading", command_config={name: value})
+        TyrannosaurusRexAnatomicalEnv(command_mode=mode, command_config={name: value})
     identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
     with pytest.raises(TypeError, match=rf"command_config\.{name} must be a number"):
         stage_task_fingerprint(
-            TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live({name: value}), plant_identity=identity
+            TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live({name: value}, mode=mode), plant_identity=identity
         )
 
 
-def test_a_table_takes_ints_and_floats_and_keeps_its_bool_and_its_range():
-    """TOML integers are numbers (1 is the dataclass's 1.0); turn_slowdown stays a bool and speed_range a pair."""
+def test_a_float_table_builds_and_keeps_its_bool_and_its_range():
+    """Floats build (an int does not: test_a_table_number_must_be_a_number); turn_slowdown stays a bool and
+    speed_range a pair, and a speed_range of None (the dataclass default) passes."""
     env = TyrannosaurusRexAnatomicalEnv(
         command_mode="heading_and_speed",
-        command_config={"cruise_speed": 1, "speed_scale": 2, "turn_slowdown": False, "speed_range": [0, 1.5]},
+        command_config={"cruise_speed": 1.0, "speed_scale": 2.0, "turn_slowdown": False, "speed_range": [0.0, 1.5]},
     )
     try:
         assert env.command_config == DirectionCommandConfig(
@@ -192,11 +204,16 @@ def test_a_table_takes_ints_and_floats_and_keeps_its_bool_and_its_range():
         )
     finally:
         env.close()
+    env = TyrannosaurusRexAnatomicalEnv(command_mode="heading", command_config={"speed_range": None})
+    try:
+        assert env.command_config == DirectionCommandConfig()
+    finally:
+        env.close()
 
 
 def test_a_table_speed_range_list_is_the_dataclass_tuple():
     """TOML has arrays, not tuples, and no null: a speed_range list is the dataclass's tuple of floats."""
-    env = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config={"speed_range": [0.5, 1]})
+    env = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config={"speed_range": [0.5, 1.0]})
     try:
         assert env.command_config.speed_range == (0.5, 1.0)
         assert env.command_config == DirectionCommandConfig(speed_range=(0.5, 1.0))
