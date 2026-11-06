@@ -2,7 +2,7 @@
 name = "stance"
 description = "Learn to stand and balance without falling"
 
-[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1429.1 since physics r10, D-D44; 1329.1 from D-D27), as its note there says
+[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1609.1 since the r10 LTSB recipe, the stance-landing decision of 2026-11-06; 1429.1 on physics r10, D-D44; 1329.1 from D-D27), as its note there says
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit

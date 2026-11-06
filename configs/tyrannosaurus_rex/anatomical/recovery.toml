@@ -15,7 +15,13 @@
 # task, not the interface, and the recovery gate (W4) measures per-shove
 # recovery rather than reward. A stance [env] or [ppo] edit therefore
 # moves this stage's task or hyperparameters too; test_stage_manifest.py
-# pins the resolved tables, key order included. [sac] is not inherited:
+# pins the resolved tables, key order included. Since the stance-landing
+# decision of 2026-11-06 the stance tables carry the r10 LTSB stance recipe
+# (the lateral lean, the settled leg reference with leg_home_pose 1.0 / 0.05,
+# the stance stagger penalty, the per-foot centre-of-pressure band and
+# mirror-KL PPO), so this stage inherits them; it has not trained with them,
+# and its pushed-statue reference below is re-measured with them.
+# [sac] is not inherited:
 # this stage is PPO-only, and stance's [sac] has never been run.
 #
 # RUNNABLE AS A GATED STAGE since 2026-08-28 (plan P5): gate_kind below is
@@ -224,7 +230,7 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # no rail has been derived for the pushed task and inventing one would gate on
 # an unmeasured number. The failure mode a rail catches — a policy that threw
 # away most of the available return — is already covered here by the collapse
-# backstop below, which is anchored to the pushed statue (1429.1). The frozen
+# backstop below, which is anchored to the pushed statue (1609.1). The frozen
 # capability spec records no rail either, so a declared one could only ever be
 # an extra refusal conjunct (reporting/gates.py::_recovery_reward_rail).
 
@@ -289,14 +295,35 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # and 44 of 69 exactly on 3ffc18e (physics r9). The +100.0 over 1329.1 is
 # 1.35 of its 74.3 standard error, so the reference moves to 1429.1. Floor =
 # 0.45 x 1429.1 = 643.1.
-collapse_peak_floor_reference = 1429.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
-                                        # 3042-3081, physics r10 (above). 1329.1 through r9: physics r8
+#
+# Re-measured for the r10 LTSB stance recipe (the stance-landing decision of
+# 2026-11-06: the stance [env] and [ppo] this file inherits gained the lean
+# term, the settled leg reference with leg_home_pose 1.0 / 0.05, the stagger
+# penalty, the CoP band and mirror-KL PPO) by the same judge and command,
+# 2026-11-06, 40 episodes, seeds 3042-3081: 1609.1 ± 519.3 (sample SD, as
+# above; the harness prints the population SD, 512.8), mean length 465.4, 0/40
+# full horizon, 51 of 70 shoves recovered; the same command gives
+# 1429.1 ± 470.1, mean length 465.4 and 51 of 70 on 77c63ade (main before that
+# decision): the same lengths and shoves, as expected of a zero-action statue,
+# whose trajectory no reward weight moves, so the +180.0 is reward only. The
+# reference moves to 1609.1. Floor = 0.45 x 1609.1 = 724.1. The view
+# digests of this stage move with it (configs/digest_snapshot.generated.txt);
+# no task, recipe or gate digest does. Two of the
+# inherited terms, the stagger and the band, are gated on the settle step
+# and a zero command, never on a push: here, where the command is always
+# zero, they also price the fore-aft foot stagger and the centre-of-pressure
+# excursions a recovery step makes (each up to 0.30 a step), which no
+# recovery run has trained with yet.
+collapse_peak_floor_reference = 1609.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+                                        # 3042-3081, physics r10 under the r10 LTSB stance terms
+                                        # (the stance-landing decision of 2026-11-06, above); 1429.1 on
+                                        # physics r10 before them. 1329.1 through r9: physics r8
                                         # with the D-D27 stance terms, re-measured on r9 (1369.4) and kept.
                                         # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1429.1 reference was measured on
-                                        # (r10 above; 1329.1 on r8, re-measured on r9). The 974.7 the r8
+statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1609.1 reference was measured on
+                                        # (r10 above, as 1429.1 was; 1329.1 on r8, re-measured on r9). The 974.7 the r8
                                         # value replaced was r7's: the 2026-08-23
                                         # panel, review §5.1 — the same r7 plant as the frozen first-runs
                                         # panels; the perturbation engine, plant_versions note 11, bumped only
