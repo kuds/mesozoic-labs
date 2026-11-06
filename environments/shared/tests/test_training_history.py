@@ -1965,17 +1965,23 @@ def _gait_stage(
     split: bool = False,
     omit: tuple[str, ...] = (),
     nan_columns: tuple[str, ...] = (),
+    work: tuple[float, float] = (200.0, 100.0),
+    roll: float = 3.0,
+    early_roll: float | None = None,
+    stop: float = 0.08,
+    knee_stop: float = 0.0,
 ) -> Path:
     """A stage of eight 10-episode evaluations whose gait columns have known answers.
 
     Evaluations 0-1 turn left (+5 deg every episode); from evaluation 2 on, episodes 0-8 turn right by 10 + episode
     deg and episode 9 left by 2 deg (*split*: the even episodes turn left by 10 + episode deg instead).  Every
     episode: the left hip pitch 12 deg above the right's, the left ankle *episode* deg above the right's, the
-    lateral displacement -0.1 * episode m, the right leg twice the left's absolute work and three times its slip,
-    the pelvis rolled 3 deg right side down, tail_1_yaw on its stop on 8% of substeps (r_knee never), the head at
-    50 deg/s, and episodes 0-2 naming tail_3_pitch_act as their saturating actuator.  *fell*: (evaluation, episode)
-    pairs that end early, written with a -100 deg yaw that no aggregate may read.  *omit*: columns not written;
-    *nan_columns*: nan on every episode.
+    lateral displacement -0.1 * episode m, the right and left legs' absolute work *work* (by default the right's
+    twice the left's), the right leg three times the left's slip, the pelvis rolled *roll* deg (+ right side down;
+    *early_roll* on evaluations 0-1 when given), tail_1_yaw on its stop on *stop* of substeps and r_knee on
+    *knee_stop*, the head at 50 deg/s, and episodes 0-2 naming tail_3_pitch_act as their saturating actuator.
+    *fell*: (evaluation, episode) pairs that end early, written with a -100 deg yaw that no aggregate may read.
+    *omit*: columns not written; *nan_columns*: nan on every episode.
     """
     stage = tmp_path / "runs" / name / "03_locomotion"
     rows = []
@@ -1997,13 +2003,13 @@ def _gait_stage(
                 leg_q_l_minus_r_ankle_deg=float(episode),
                 window_yaw_change_signed_deg=-100.0 if early else yaw,
                 window_displacement_lateral_m=-0.1 * episode,
-                r_leg_work_abs_j=200.0,
-                l_leg_work_abs_j=100.0,
+                r_leg_work_abs_j=work[0],
+                l_leg_work_abs_j=work[1],
                 r_slip_m=0.3,
                 l_slip_m=0.1,
-                root_roll_mean_deg=3.0,
-                tail_1_yaw_stop_share=0.08,
-                r_knee_stop_share=0.0,
+                root_roll_mean_deg=early_roll if early_roll is not None and evaluation < 2 else roll,
+                tail_1_yaw_stop_share=stop,
+                r_knee_stop_share=knee_stop,
                 head_angular_rate_rms_dps=50.0,
             )
             row.update({column: math.nan for column in nan_columns})
@@ -2014,6 +2020,33 @@ def _gait_stage(
         config["name"] = stage_name
     (stage / th.STAGE_CONFIG_FILENAME).write_text(json.dumps(config), encoding="utf-8")
     return stage
+
+
+def _rewrite_ledger(stage: Path, update: Any = None, drop: tuple[str, ...] = (), add: tuple[str, ...] = ()) -> None:
+    """Rewrite *stage*'s eval_episodes.csv: ``update(row)`` on each row, the *drop* columns removed, *add* appended."""
+    path = stage / th.EVAL_EPISODES_FILENAME
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        header, rows = list(reader.fieldnames or []), list(reader)
+    for row in rows:
+        if update is not None:
+            update(row)
+    _write_csv(path, rows, [column for column in header if column not in drop] + list(add))
+
+
+#: The plan's names that already mean something else: the report never prints one bare (a column name is fine).
+_BARE_WORDS = re.compile(
+    r"(?<![_a-z<>])(?:slip|stop share|saturated|stride length|duty|load share|gait symmetry|stride frequency|"
+    r"yaw change)(?![_a-z])",
+    re.IGNORECASE,
+)
+
+
+def _figure_texts(figure: Any) -> list[str]:
+    """Every text a figure draws: titles, panel notes, legends, labels and ticks."""
+    import matplotlib.text
+
+    return [text.get_text() for text in figure.findobj(matplotlib.text.Text)]
 
 
 class TestGaitLedger:
@@ -2072,9 +2105,16 @@ class TestGaitLedger:
         assert "magnitude includes target steering" in veer["text"]
         assert veer["text"].startswith("VEER: turns right in 54 of 59 full-horizon episodes, median 14.0 deg right")
         assert "a choice" in veer["text"] and "bar set on T. rex" not in veer["text"]
+        assert "bar >= 0.8 on the same-sign share only, no turn-rate bar, a choice" in veer["text"]
         asymmetry = flags["ASYMMETRY"]
-        assert (asymmetry["metric"], asymmetry["side"], asymmetry["value"]) == ("r_over_l_leg_work_abs_j", "r", 2.0)
+        assert (asymmetry["metric"], asymmetry["side"], asymmetry["leg"], asymmetry["value"]) == (
+            "r_over_l_leg_work_abs_j",
+            "right",
+            "r",
+            2.0,
+        )
         assert asymmetry["text"].startswith("ASYMMETRY: right leg does 2.00x the left leg's absolute mechanical work")
+        assert "a proxy for the gait report's POWER bar" in asymmetry["rule"]
         assert "met at every evaluation (8)" in asymmetry["text"]
         lean = flags["LEAN"]
         assert (lean["side"], lean["value"], lean["threshold"]) == ("right side down", 3.0, 2.0)
@@ -2086,10 +2126,14 @@ class TestGaitLedger:
         assert [line.split(":")[0] for line in lines[2:6]] == ["VEER", "ASYMMETRY", "LEAN", "ON STOP"]
         assert not any(line.startswith("Not flagged") for line in lines)
         assert any("r/l slip_m 3.00" in line and "no bar" in line for line in lines)
-        # The plan's bare words are never printed: every name is the ledger's own.
-        assert not any(
-            re.search(r"(?<![_a-z])(?:slip|stop share|saturated|yaw change)(?![_a-z])", line) for line in lines
+        assert any(
+            line.startswith("context: left minus right mean angle from home, deg (+ = left above right): ")
+            and "leg_q_l_minus_r_hip_pitch_deg +12.0 (same sign in 59 of 59)" in line
+            for line in lines
         )
+        # The plan's bare words are never printed: every name is the ledger's own (lines, caveats and rules).
+        texts = [*lines, *block["caveats"].values(), *(flag["rule"] for flag in block["flags"])]
+        assert [text for text in texts if _BARE_WORDS.search(text)] == []
 
     def test_the_json_html_and_page_carry_it(self, tmp_path, capsys):
         stage = _gait_stage(tmp_path)
@@ -2105,8 +2149,11 @@ class TestGaitLedger:
         assert [flag["id"] for flag in block["flags"]] == ["VEER", "ASYMMETRY", "LEAN", "ON STOP"]
         text = (out / th.HTML_FILENAME).read_text(encoding="utf-8")
         assert "<h2>Gait ledger</h2>" in text and "VEER: turns right in 54 of 59" in text
+        section = text.split("<h2>Gait ledger</h2>", 1)[1].split("<h2>", 1)[0]
+        assert not _BARE_WORDS.search(section) and not _BARE_WORDS.search(document["rules"]["gait_ledger"])
         run = th.load_run_history(stage, read_std=False)
         figure = th._gait_ledger_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        assert [text for text in _figure_texts(figure) if _BARE_WORDS.search(text)] == []
         text_axis, yaw_axis = figure.axes[:2]
         red = [t.get_text() for t in text_axis.texts if t.get_color() == th._CRITICAL]
         assert red[0].startswith("VEER: turns right") and any(t.startswith("ASYMMETRY") for t in red)
@@ -2165,10 +2212,9 @@ class TestGaitLedger:
         assert any("not computed: no full-horizon" in t.get_text() for t in figure.axes[1].texts)
         empty = tmp_path / "empty" / "03_locomotion"
         empty.mkdir(parents=True)
-        written = th.write_report([th.load_run_history(empty, read_std=False)], tmp_path / "out", title="e", dpi=30)
-        assert written["errors"] == []
-        document = json.loads((tmp_path / "out" / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
-        assert document["runs"][0]["gait_ledger"]["why"] == "no evaluation recorded (no eval_episodes.csv)"
+        nothing = th.load_run_history(empty, read_std=False)
+        assert th.run_record(nothing, [])["gait_ledger"]["why"] == "no evaluation recorded (no eval_episodes.csv)"
+        assert not any(error.startswith("gait ledger") for error in nothing.errors)
 
     def test_flags_are_evaluated_on_a_walking_stage_only_and_say_where_their_bars_were_set(self, tmp_path):
         stance = th.load_run_history(_gait_stage(tmp_path, name="stand", stage_name="stance"), read_std=False)
@@ -2200,17 +2246,24 @@ class TestGaitLedger:
         tagged = [line for line in block["lines"][1:] if line.startswith(("VEER", "ASYMMETRY", "LEAN", "context"))]
         assert tagged and all(line.endswith("[survivors only, 42 of 60]") for line in tagged)
 
-    def test_the_window_follows_gait_evaluations(self, tmp_path, capsys):
+    def test_the_window_follows_gait_evaluations(self, tmp_path, capsys, monkeypatch):
         stage = _gait_stage(tmp_path)
         run = th.load_run_history(stage, read_std=False, gait_evaluations=2)
         assert (
             run.gait_ledger["window"]["evaluations"] == 2 and run.gait_ledger["window"]["full_horizon_episodes"] == 19
         )
         assert th.load_run_history(stage, read_std=False, gait_evaluations=50).gait_ledger["window"]["evaluations"] == 8
+        # The CLI hands --gait-evaluations to load_run_history (the render itself is covered elsewhere).
+        handed: list[Any] = []
+
+        def write_report(runs, out, **kwargs):
+            handed.extend(runs)
+            return {"errors": [], "html": str(out)}
+
+        monkeypatch.setattr(th, "write_report", write_report)
         out = tmp_path / "reports" / "k1"
         assert script.main([str(stage), "--out", str(out), "--no-std", "--dpi", "30", "--gait-evaluations", "1"]) == 0
-        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
-        assert document["runs"][0]["gait_ledger"]["window"]["evaluations"] == 1
+        assert [r.gait_ledger["window"]["evaluations"] for r in handed] == [1]
         with pytest.raises(SystemExit):
             script.main([str(stage), "--out", str(tmp_path / "reports" / "k0"), "--gait-evaluations", "0"])
         assert "--gait-evaluations must be at least 1" in capsys.readouterr().err
@@ -2226,3 +2279,198 @@ class TestGaitLedger:
         assert "a:" in heads and "b:" in heads and sum(h.startswith("GAIT LEDGER") for h in heads) == 1
         offsets = [t.get_text() for t in figure.axes[4].texts]
         assert offsets.count("a") == 1 and offsets.count("b") == 1
+
+
+class TestGaitLedgerEdges:
+    """The left side named, each bar's edge, the unbroken run, the quiet ON STOP, ties, an empty window, a failure."""
+
+    def test_the_left_side_is_named_when_it_leads(self, tmp_path):
+        block = th.load_run_history(_gait_stage(tmp_path, work=(100.0, 250.0), roll=-3.0), read_std=False).gait_ledger
+        work = block["metrics"]["r_over_l_leg_work_abs_j"]
+        assert work["median"] == pytest.approx(0.4) and work["max_over_min"] == pytest.approx(2.5)
+        assert (work["left_larger"], work["right_larger"]) == (59, 0)
+        flags = {flag["id"]: flag for flag in block["flags"]}
+        asymmetry, lean = flags["ASYMMETRY"], flags["LEAN"]
+        assert asymmetry["fired"] and (asymmetry["side"], asymmetry["leg"]) == ("left", "l")
+        assert asymmetry["value"] == pytest.approx(2.5)
+        assert asymmetry["text"].startswith(
+            "ASYMMETRY: left leg does 2.50x the right leg's absolute mechanical work, larger in 59 of 59 episodes"
+        )
+        assert lean["fired"] and (lean["side"], lean["value"]) == ("left side down", 3.0)
+        assert lean["text"].startswith("LEAN: pelvis rolled 3.0 deg, left side down, same sign in 59 of 59 episodes")
+        assert "root_roll_mean_deg -3.00 deg" in lean["text"]
+
+    def test_the_bars_edges(self):
+        def fired(flag, value):
+            return th._gait_flag(flag, "G", "m", None, value, "rule", [], [])["fired"]
+
+        assert fired("VEER", 0.8) and not fired("VEER", 0.79)  # same-sign >= 0.8
+        assert not fired("ASYMMETRY", 1.3) and fired("ASYMMETRY", 1.31)  # max/min > 1.3
+        assert not fired("LEAN", 2.0) and fired("LEAN", 2.01)  # |roll| > 2 deg
+        assert not fired("ON STOP", 0.05) and fired("ON STOP", 0.051)  # share > 0.05
+        assert not fired("VEER", math.nan) and not fired("ASYMMETRY", math.nan)
+
+    def test_survivors_only_starts_below_eighty_percent(self, tmp_path):
+        at_bar = tuple((evaluation, episode) for evaluation in range(2, 8) for episode in (8, 9))  # 48 of 60
+        window = th.load_run_history(_gait_stage(tmp_path, name="at", fell=at_bar), read_std=False).gait_ledger[
+            "window"
+        ]
+        assert (window["full_horizon_episodes"], window["survivors_only"]) == (48, False)
+        below = th.load_run_history(_gait_stage(tmp_path, name="below", fell=at_bar + ((7, 7),)), read_std=False)
+        window = below.gait_ledger["window"]
+        assert (window["full_horizon_episodes"], window["survivors_only"]) == (47, True)
+
+    def test_met_since_is_the_unbroken_run_ending_at_the_last_evaluation(self):
+        assert th._met([1, 2, 3, 4], [True, False, True, True]) == (3, 3)
+        assert th._met([1, 2, 3], [True, True, False]) == (2, None)
+        assert th._met([1, 2], [True, True]) == (2, 1)
+
+    def test_lean_counts_only_evaluations_leaning_the_same_way(self, tmp_path):
+        block = th.load_run_history(_gait_stage(tmp_path, roll=-3.0, early_roll=3.0), read_std=False).gait_ledger
+        lean = next(flag for flag in block["flags"] if flag["id"] == "LEAN")
+        assert lean["side"] == "left side down" and (lean["evaluations_met"], lean["met_since"]) == (6, 3 * STEP)
+
+    def test_on_stop_names_the_largest_joint_when_none_is_over_the_bar(self, tmp_path):
+        block = th.load_run_history(_gait_stage(tmp_path, stop=0.03), read_std=False).gait_ledger
+        stop = next(flag for flag in block["flags"] if flag["id"] == "ON STOP")
+        assert stop["fired"] is False and (stop["metric"], stop["value"]) == ("tail_1_yaw_stop_share", 0.03)
+        quiet = next(line for line in block["lines"] if line.startswith("Not flagged:"))
+        assert "ON STOP (largest tail_1_yaw_stop_share 0.030; bar 0.05)" in quiet
+
+    def test_on_stop_names_no_joint_as_largest_when_every_median_is_zero(self, tmp_path):
+        idle = th.load_run_history(_gait_stage(tmp_path, name="idle", stop=0.0), read_std=False).gait_ledger
+        quiet = next(line for line in idle["lines"] if line.startswith("Not flagged:"))
+        assert "ON STOP (every <joint>_stop_share 0 over the window; bar 0.05)" in quiet and "largest" not in quiet
+        stage = _gait_stage(tmp_path, name="once", stop=0.0)
+
+        def one_episode(row):
+            if (row["evaluation"], row["episode"]) == ("7", "0"):
+                row["r_knee_stop_share"] = "0.02"
+
+        _rewrite_ledger(stage, one_episode)
+        block = th.load_run_history(stage, read_std=False).gait_ledger
+        stop = next(flag for flag in block["flags"] if flag["id"] == "ON STOP")
+        assert stop["fired"] is False and (stop["metric"], stop["value"]) == ("r_knee_stop_share", 0.0)
+        quiet = next(line for line in block["lines"] if line.startswith("Not flagged:"))
+        assert (
+            "ON STOP (every <joint>_stop_share median 0; largest in any one episode r_knee_stop_share 0.020; bar 0.05)"
+            in quiet
+        )
+
+    def test_every_joint_over_on_stops_bar_is_flagged(self, tmp_path):
+        block = th.load_run_history(_gait_stage(tmp_path, knee_stop=0.06), read_std=False).gait_ledger
+        stops = [(flag["metric"], flag["fired"]) for flag in block["flags"] if flag["id"] == "ON STOP"]
+        assert stops == [("tail_1_yaw_stop_share", True), ("r_knee_stop_share", True)]
+
+    def test_a_saturation_tie_names_every_leader(self, tmp_path):
+        stage = _gait_stage(tmp_path)
+
+        def hip_roll(row):
+            if row["episode"] in ("3", "4", "5"):
+                row.update(saturated_actuator="l_hip_roll_act", saturated_actuator_fraction="0.2")
+
+        _rewrite_ledger(stage, hip_roll)
+        run = th.load_run_history(stage, read_std=False)
+        named = run.gait_ledger["metrics"]["saturated_actuator"]
+        assert (named["most_named"], named["most_named_ties"], named["most_named_episodes"]) == (
+            "l_hip_roll_act",
+            ["tail_3_pitch_act"],
+            18,
+        )
+        assert any(
+            "context: saturated_actuator l_hip_roll_act and tail_3_pitch_act in 18 each of 59 episodes" in line
+            for line in run.gait_ledger["lines"]
+        )
+        figure = th._gait_ledger_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        assert "most named (18 each of 59):\nl_hip_roll_act\ntail_3_pitch_act" in _figure_texts(figure)
+        untied = th.load_run_history(_gait_stage(tmp_path, name="untied"), read_std=False).gait_ledger
+        assert untied["metrics"]["saturated_actuator"]["most_named_ties"] == []
+        assert any("saturated_actuator tail_3_pitch_act in 18 of 59 episodes" in line for line in untied["lines"])
+
+    def test_an_unrecorded_saturated_actuator_says_so(self, tmp_path):
+        stage = _gait_stage(tmp_path)
+        _rewrite_ledger(stage, drop=("saturated_actuator_fraction",))
+        block = th.load_run_history(stage, read_std=False).gait_ledger
+        assert block["absent"]["saturated_actuator_fraction"].startswith("not in eval_episodes.csv")
+        assert block["metrics"]["saturated_actuator"]["named"] == {th.NOT_RECORDED_ACTUATOR: 59}
+        assert any(
+            "saturated_actuator not recorded (saturated_actuator_fraction empty or absent on all 59 episodes)" in line
+            for line in block["lines"]
+        )
+        # No actuator at the bar in any episode: the line says what each episode holds instead.
+        quiet = _gait_stage(tmp_path, name="quiet")
+        _rewrite_ledger(quiet, lambda row: row.update(saturated_actuator="", saturated_actuator_fraction="0.0"))
+        lines = th.load_run_history(quiet, read_std=False).gait_ledger["lines"]
+        assert any(
+            f"saturated_actuator names no actuator in any of 59 episodes: {th.GAIT_NONE_SATURATED} 59" in line
+            for line in lines
+        )
+
+    def test_an_empty_window_says_so_and_keeps_the_trend(self, tmp_path):
+        late = tuple((evaluation, episode) for evaluation in range(2, 8) for episode in range(10))
+        run = th.load_run_history(_gait_stage(tmp_path, fell=late), read_std=False)
+        block = run.gait_ledger
+        assert block["computed"] is True and run.errors == []
+        assert block["metrics"] == {} and block["flags"] == [] and block["absent"] == {}
+        assert (
+            block["flags_evaluated"] is False
+            and block["flags_why"] == "no full-horizon episode in the last 6 evaluations"
+        )
+        assert (block["window"]["full_horizon_episodes"], block["window"]["survivors_only"]) == (0, True)
+        assert block["lines"][2] == (
+            "no full-horizon episode in the last 6 evaluations: no window value and no flag (the trend still reads "
+            "each earlier evaluation)"
+        )
+        assert not any(line.startswith(("context", "Flags not", "Not flagged")) for line in block["lines"])
+        assert block["trend"]["window_yaw_change_signed_deg"]["median"][:2] == [5.0, 5.0]
+        assert all(math.isnan(m) for m in block["trend"]["window_yaw_change_signed_deg"]["median"][2:])
+        figure = th._gait_ledger_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        assert any(line.get_label() == "window_yaw_change_signed_deg" for line in figure.axes[1].get_lines())
+
+    def test_an_empty_stage_name_is_read_as_walking(self, tmp_path):
+        run = th.load_run_history(_gait_stage(tmp_path, stage_name=""), read_std=False)
+        assert run.stage_name is None and run.gait_ledger["flags_evaluated"] is True
+        assert run.gait_ledger["flags_why"] == "the stage records no name; read as walking"
+
+    def test_the_page_draws_each_evaluations_share_turning_right(self, tmp_path):
+        run = th.load_run_history(_gait_stage(tmp_path), read_std=False)
+        figure = th._gait_ledger_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        share = next(line for line in figure.axes[2].get_lines() if line.get_label() == "turning right")
+        assert list(share.get_ydata()) == pytest.approx([0.0, 0.0, 0.9, 0.9, 0.9, 0.9, 0.9, 1.0])
+
+    def test_the_page_draws_the_stop_joints_with_the_highest_peaks(self, tmp_path):
+        stage = _gait_stage(tmp_path)
+        extra = tuple(f"j{k}_stop_share" for k in range(10))
+
+        def stops(row):
+            row.update({column: str(0.001 * (k + 1)) for k, column in enumerate(extra)})
+
+        _rewrite_ledger(stage, stops, add=extra)
+        run = th.load_run_history(stage, read_std=False)
+        figure = th._gait_ledger_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        drawn = [line.get_label() for line in figure.axes[8].get_lines() if line.get_label().endswith("_stop_share")]
+        assert th._GAIT_STOP_JOINTS == 6
+        assert drawn == ["tail_1_yaw_stop_share", *(f"j{k}_stop_share" for k in range(9, 4, -1))]
+        assert "+5 more above 0 (JSON trend)" in _figure_texts(figure)
+
+    def test_a_failing_ledger_or_page_costs_only_itself(self, tmp_path, monkeypatch):
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        stage = _gait_stage(tmp_path)
+        monkeypatch.setattr(th, "gait_ledger", boom)
+        run = th.load_run_history(stage, read_std=False)
+        assert run.gait_ledger["computed"] is False and run.gait_ledger["why"] == "RuntimeError: boom"
+        assert run.gait_ledger["lines"][1] == "not computed: RuntimeError: boom"
+        assert run.errors == ["gait ledger: RuntimeError: boom"]
+        assert th.run_record(run, [])["gait_ledger"]["computed"] is False
+        fresh = th.RunHistory(stage_dir=Path("t"), label="t")  # ledger_of's own path is guarded too
+        assert th.ledger_of(fresh)["why"] == "RuntimeError: boom" and fresh.errors == [
+            "gait ledger: RuntimeError: boom"
+        ]
+        figure = th._gait_ledger_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        assert "not computed: RuntimeError: boom" in [t.get_text() for t in figure.axes[0].texts]
+        monkeypatch.setattr(th, "_gait_ledger_figure", boom)
+        pages, errors = th.render_pages([run], title="t", marks=[], dpi=30)
+        assert errors == [f"{th.GAIT_LEDGER_PAGE}: RuntimeError: boom"]
+        assert [page.name for page in pages] == th.page_names()[:-1]

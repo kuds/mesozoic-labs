@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `window_yaw_change_signed_deg` (+ left) led by its same-sign share (it runs
   from the settle step to the episode end, so its magnitude includes target
   steering), `window_displacement_lateral_m`, the left-minus-right offsets,
-  the right-over-left leg work and slip ratios, `root_roll_mean_deg`,
+  the right-over-left `<foot>_leg_work_abs_j` and `<foot>_slip_m` ratios,
+  `root_roll_mean_deg`,
   `saturated_actuator` and its fraction, each `<joint>_stop_share` and
   `head_angular_rate_rms_dps`. Report-only flags (VEER, ASYMMETRY, LEAN,
   ON STOP) on a locomotion stage only, each bar a choice set on three seeds
@@ -25,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   training-history artifact step; no gate, digest, schema string or stage
   result changes. On the three pilot-3 walking runs it shows the
   one-sided right turns, s42's left-minus-right hip pitch, the 2:1 leg work,
-  s60's right-over-left slip and its roll and neck_pitch saturation.
+  s60's right-over-left `<foot>_slip_m`, its roll and its `neck_pitch_act`
+  saturation.
 - **The critic's episode phase as a PPO option, off by default, with a
   warm-start rule and a warm-start noise reset** (approved by the maintainer
   on 2026-11-03).
