@@ -55,9 +55,11 @@ switch-off runs' ``provenance.json`` (their ``robust_best_model.zip``
 ``model_hash``, the file their verdicts judge).  The other checkpoint digests
 are the six stance7 runs' fetched ``stage1_final.zip`` and periodic
 ``stage1_<steps>_steps.zip`` files; the stance6 runs' were never fetched, so a
-load of one is caught by its path or its parent run id only.  Readers here
-never raise on a missing or malformed file: an unreadable record decides
-nothing, and the callers' own rules still apply to it.
+load of one is caught by its path or its parent run id only.  The pinned
+copies of these records, which a test holds both lists to, are
+``tests/fixtures/ltsb_stance/screen_records.json``.  Readers here never raise
+on a missing or malformed file: an unreadable record decides nothing, and the
+callers' own rules still apply to it.
 
 The callers: :func:`environments.shared.replication.discover_replicates` and
 ``discover_replicates_for_run`` (an excluded sibling is skipped, an excluded

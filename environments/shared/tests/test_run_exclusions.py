@@ -637,3 +637,25 @@ def test_the_results_layer_refuses_a_result_built_on_a_screen_ancestor():
     final = {**clean, "deliverables": {"1": {"model_hash": PC_S42_FINAL}}}
     assert [reason.split(": ")[0] for reason in excluded_provenance_reasons(final)] == ["deliverables.1"]
     assert excluded_provenance_reasons(None) == [] and excluded_provenance_reasons({"ancestors": [1]}) == []
+
+
+def test_the_stance7_digests_are_the_screens_own_records():
+    """The stance7 handoff and checkpoint digests the module lists are the pinned copies of the screens' records: a
+    verdict's checkpoint_sha256 where it was fetched (it equals provenance's deliverable model_hash), else that
+    model_hash, and the sha256 of each fetched checkpoint; so a typo in either list fails here."""
+    path = REPO_ROOT / "environments" / "shared" / "tests" / "fixtures" / "ltsb_stance" / "screen_records.json"
+    pinned = json.loads(path.read_text(encoding="utf-8"))["runs"]
+    assert set(pinned) == {run for run in SCREEN_RUNS if run.startswith("stance7_")}
+    handoffs = {}
+    for run, record in pinned.items():
+        assert record["run_id"] == run and record["repository_commit"] == SCREEN_COMMIT
+        assert record["provenance_deliverable_model_path"] == "01_stance/models/robust_best_model.zip"
+        verdict = record["gate_verdict_checkpoint_sha256"]
+        assert verdict is not None if "LTSBpc_" in run else verdict is None
+        assert verdict in (None, record["provenance_deliverable_model_hash"])
+        handoffs[verdict or record["provenance_deliverable_model_hash"]] = run
+    assert {digest: run for digest, run in EXCLUDED_HANDOFF_SHA256.items() if run.startswith("stance7_")} == handoffs
+    assert run_exclusions.EXCLUDED_CHECKPOINT_SHA256 == {
+        digest: f"{run}/{name}" for run, record in pinned.items() for name, digest in record["checkpoints"].items()
+    }
+    assert all("stage1_final.zip" in record["checkpoints"] for record in pinned.values())
