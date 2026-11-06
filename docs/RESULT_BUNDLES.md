@@ -313,9 +313,10 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   reuse rule 7.  A run that never counts (the maintainer's stance-landing
   decision of 2026-11-06: the nine r10 T. rex stance screen runs, which trained
   the landed stance recipe on branch commits, listed in
-  `environments/shared/run_exclusions.py` by those commits and by their handoff
-  checkpoints, read from `provenance.json`, the stage directory's
-  `stage_config.json` and its `gate_verdict.json`) is never counted as a
+  `environments/shared/run_exclusions.py` by those commits, their run ids and
+  their checkpoints, read from `provenance.json`, the stage directory's
+  `stage_config.json` and its `gate_verdict.json`; a run whose stage loaded,
+  resumed or widened one of their checkpoints is one too) is never counted as a
   replicate and counts no replicate of its own; it is never a reusable ancestor
   (reuse rule 9 in `environments/shared/ancestors.py`), a widening parent or a
   promotable result (the audit and the species catalog refuse its provenance).

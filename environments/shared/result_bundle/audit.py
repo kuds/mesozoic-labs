@@ -181,6 +181,7 @@ def audit_result_bundle(
         validate_captured_provenance,
         validate_result_summary,
     )
+    from ..run_exclusions import excluded_stage_config_reason
 
     run_path = Path(run_dir).resolve()
     summary_path = run_path / "summary.json"
@@ -493,6 +494,12 @@ def audit_result_bundle(
                                 declared_seeds[str(stage)] = declared_certification_seeds(curriculum_block, stage=stage)
                             except GateSchemaError as exc:
                                 errors.append(str(exc))
+                        # A stage recorded at a screen's commit, or that loaded, resumed or widened a
+                        # screen's checkpoint, is never a result (the stance-landing decision of
+                        # 2026-11-06, rules (b) and (d)).
+                        exclusion = excluded_stage_config_reason(config_value)
+                        if exclusion is not None:
+                            errors.append(f"stage {stage} config: this run is never a result: {exclusion}")
                         run_block = config_value.get("run")
                         if isinstance(run_block, Mapping):
                             recorded_hyperparameters[str(stage)] = run_block.get("hyperparameters_sha256")

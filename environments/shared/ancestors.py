@@ -36,12 +36,15 @@ between 5 and 6, and rule 9 by the maintainer's stance-landing decision of
 9. the run is not one that never counts (the stance-landing decision of
    2026-11-06, :mod:`environments.shared.run_exclusions`): its
    ``provenance.json`` ``repository_commit`` and the stage directory's
-   ``stage_config.json`` ``git_commit`` are not an excluded branch commit, and
-   the directory's ``gate_verdict.json`` does not hash an excluded handoff
-   checkpoint -- the r10 T. rex stance screen runs, whose digests equal the
-   landed recipe's, so rules 2-8 alone would accept them.  Evaluated right
-   after rule 1 resolves the stage directory, so a followed record re-applies
-   it at the source;
+   ``stage_config.json`` ``git_commit`` are not an excluded branch commit, the
+   directory's ``gate_verdict.json`` does not hash an excluded handoff
+   checkpoint, and its ``stage_config.json`` ``run`` block records no load of
+   a screen's checkpoint (by its digest, by a path inside a screen's run
+   folder or by a screen's run id) -- the r10 T. rex stance screen runs,
+   whose digests equal the landed
+   recipe's, so rules 2-8 alone would accept them.  Evaluated right after
+   rule 1 resolves the stage directory, so a followed record re-applies it
+   at the source;
 2. that directory carries a ``gate_verdict.json`` that PASSED, hashes both
    files of its handoff pair, and judged this node's id;
 3. the verdict's ``task_sha256`` equals the fingerprint derived from the

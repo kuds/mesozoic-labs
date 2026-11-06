@@ -2639,11 +2639,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lines. No plant, policy-interface, locomotion or behavior line moves.
 - **The r10 T. rex stance screen runs never count** (the stance-landing decision
   of 2026-11-06). `environments/shared/run_exclusions.py` lists the two branch
-  commits and the nine runs' handoff checkpoints; a run whose `provenance.json`,
-  stage `stage_config.json` or `gate_verdict.json` names one is never a
-  replicate and counts none of its own, is refused by reuse rule 9 (and so
-  by `TRUNK_FROM = "auto"`), is never offered or accepted for widening,
-  and is refused by the bundle audit and the species catalog.
+  commits, the nine runs' ids and handoff checkpoints and the stance7 runs'
+  other fetched checkpoints; a run whose `provenance.json`, stage
+  `stage_config.json` or `gate_verdict.json` names one, or whose stage loaded,
+  resumed or widened one of those checkpoints (a `--load`, a resume of a copied
+  stage directory, a widened copy), is never a replicate and counts none of its
+  own, is refused by reuse rule 9 (and so by `TRUNK_FROM = "auto"`), is never
+  offered or accepted for widening, and is refused by the bundle audit and the
+  species catalog.
 - **The Velociraptor takes the T. rex's stance lessons: a heading-free
   observation and the six-heading certificate, a quiet start at its own noise
   cliff, the D-D27 anti-hop terms and rails, and the T. rex's training

@@ -5507,12 +5507,17 @@ The stance-landing decision answers no: the nine r10 screen runs
 `stance7_r10LTSBpc_*` at `1dfe2327`) never count as certified, as replicates, as
 reusable ancestors, as widening parents or as committed results. Their task,
 gate, plant and recipe digests equal a new seed's, so the rule is explicit:
-`environments/shared/run_exclusions.py` lists the two commits and the nine
-handoff checkpoints, and replicate discovery, reuse rule 9, the widening tool,
-the bundle audit and the species catalog refuse a run whose `provenance.json`,
-stage `stage_config.json` or `gate_verdict.json` names one (measured on copies
-of the fetched screen records: a new seed beside the three phase-critic runs
-counts 0 replicates, 3 before; reuse refuses all six fetched runs under rule 9).
+`environments/shared/run_exclusions.py` lists the two commits, the nine runs'
+ids and handoff checkpoints and the stance7 runs' other fetched checkpoints, and
+replicate discovery, reuse rule 9, the widening tool, the bundle audit and the
+species catalog refuse a run whose `provenance.json`, stage `stage_config.json`
+or `gate_verdict.json` names one (measured on copies of the fetched screen
+records: a new seed beside the three phase-critic runs counts 0 replicates, 3
+before; reuse refuses all six fetched runs under rule 9). A run whose stage
+loaded, resumed or widened one of those checkpoints never counts either,
+whatever commit it trained at: its weights carry the screen's training, so a run
+warm-started from a screen's checkpoint is not a new seed or a certified
+parent's child.
 
 ### 30.4 What changes in §13–§29
 

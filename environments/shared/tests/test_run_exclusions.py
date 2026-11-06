@@ -5,9 +5,9 @@ The nine screen runs trained the landed stance recipe on branch commits, so thei
 equal a new certification seed's: every rule replicate discovery and reuse apply would accept them.  These tests pin
 the one rule that keeps them out, at every call site (replicate discovery for a sibling and for the run itself, reuse
 rule 9 directly and through a followed record, trunk selection, the older-interface widening hint, the widening tool,
-the result-bundle audit and the species catalog), on each of its three keys (the run's provenance commit, the stage
-directory's recorded commit, the verdict's handoff checkpoint), and that the same files at another commit still count,
-so the rule alone excludes them.  The judged-run directories are ``ancestors_helpers.build_trunk_run``'s.
+the result-bundle audit and the species catalog), on each of its four rules (the run's provenance commit, the stage
+directory's recorded commit, the verdict's handoff checkpoint, a load of a screen's checkpoint the stage records), and
+that the same files at another commit, or without the load, still count, so the rule alone excludes them.  The judged-run directories are ``ancestors_helpers.build_trunk_run``'s.
 """
 
 from __future__ import annotations
@@ -31,9 +31,17 @@ from environments.shared.result_bundle import sha256_file
 from environments.shared.run_exclusions import (
     EXCLUDED_COMMITS,
     EXCLUDED_HANDOFF_SHA256,
+    EXCLUDED_RUN_IDS,
     EXCLUSION_DECISION,
+    LINEAGE_DIGEST_KEYS,
+    LINEAGE_PATH_KEYS,
+    LINEAGE_RUN_ID_KEYS,
+    excluded_checkpoint_reason,
     excluded_commit_reason,
     excluded_handoff_reason,
+    excluded_lineage_reason,
+    excluded_path_reason,
+    excluded_run_id_reason,
     excluded_run_reason,
 )
 from environments.shared.stage_manifest import load_stage_manifest
@@ -59,6 +67,9 @@ MAIN_COMMIT = "77c63ade7bcdc4bbfeb84dcf76f6bdf6d0363b02"
 SCREEN_RUNS = {f"stance7_r10LTSB{arm}_s{seed}" for arm in ("pc", "off") for seed in (42, 60, 80)} | {
     f"stance6_r10LTSB_s{seed}" for seed in (42, 60, 80)
 }
+#: stance7_r10LTSBpc_s42's handoff (robust_best_model.zip) and its stage1_final.zip.
+PC_S42_HANDOFF = "sha256:77959e30f4f20e1a3bb184d210b4430a14b6df1a046cdbc2e5b279487fbfc299"
+PC_S42_FINAL = "sha256:1c9d87c3d0f817b048de429bb80cdc89fcd2c83d5fbafd7f444af0b5474b9ff6"
 
 RECIPE = {"learning_rate": 3e-4, "n_steps": 2048}
 RECIPE_DIGEST = hyperparameters_sha256({"ppo_kwargs": RECIPE, "curriculum_kwargs": STANCE_CURRICULUM}, "PPO")
@@ -72,11 +83,22 @@ def log_base(tmp_path: Path) -> Path:
     return base
 
 
-def _run(log_base: Path, name: str, *, seed: int, commit: "str | None" = None, stage_commit: "str | None" = None):
-    """A judged same-recipe run; *commit* writes its provenance.json, *stage_commit* its stage_config git_commit."""
+def _run(
+    log_base: Path,
+    name: str,
+    *,
+    seed: int,
+    commit: "str | None" = None,
+    stage_commit: "str | None" = None,
+    lineage: "dict[str, Any] | None" = None,
+):
+    """A judged same-recipe run; *commit* writes its provenance.json, *stage_commit* its stage_config git_commit,
+    *lineage* the load keys of its stage_config run block."""
     run = log_base / name
     run.mkdir(parents=True)
-    stage_dir = build_trunk_run(run, seed=seed, algorithm="PPO", hyperparameters=RECIPE, record_recipe_digest=True)
+    stage_dir = build_trunk_run(
+        run, seed=seed, algorithm="PPO", hyperparameters=RECIPE, record_recipe_digest=True, lineage=lineage
+    )
     if commit is not None:
         _write(run / "provenance.json", {"run_id": name, "repository_commit": commit})
     if stage_commit is not None:
@@ -97,6 +119,12 @@ def _set_stage_commit(stage_dir: Path, commit: str) -> None:
 def _exclude(monkeypatch: pytest.MonkeyPatch, digest: str) -> str:
     excluded = {**run_exclusions.EXCLUDED_HANDOFF_SHA256, digest: "stand-in"}
     monkeypatch.setattr(run_exclusions, "EXCLUDED_HANDOFF_SHA256", excluded)
+    return digest
+
+
+def _exclude_checkpoint(monkeypatch: pytest.MonkeyPatch, digest: str) -> str:
+    excluded = {**run_exclusions.EXCLUDED_CHECKPOINT_SHA256, digest: "stand-in/stage1_final.zip"}
+    monkeypatch.setattr(run_exclusions, "EXCLUDED_CHECKPOINT_SHA256", excluded)
     return digest
 
 
@@ -417,3 +445,165 @@ def test_the_bundle_audit_and_the_catalog_refuse_a_screen_result():
     with pytest.raises(CatalogError, match="never a committed result"):
         _refuse_excluded_run({"repository_commit": MAIN_COMMIT, "model_hash": handoff}, relative_path="r")
     _refuse_excluded_run({"repository_commit": MAIN_COMMIT, "model_hash": "sha256:" + "0" * 64}, relative_path="r")
+
+
+# ------------------------------------------------------------------------------------------------- rule (d): a load
+
+
+def test_rule_d_reads_every_digest_path_and_run_id_key_the_stage_record_has():
+    """The lineage keys save_stage_config records for a --load, an edge resume and a widened root: every digest,
+    path and run-id key among them is one rule (d) reads, so a renamed key fails here."""
+    from environments.shared.config import LOAD_LINEAGE_KEYS, RESUME_LINEAGE_KEYS, WIDEN_LINEAGE_KEYS
+
+    recorded = {*LOAD_LINEAGE_KEYS, *RESUME_LINEAGE_KEYS, *WIDEN_LINEAGE_KEYS}
+    assert {key for key in recorded if key.endswith("checkpoint_sha256")} == set(LINEAGE_DIGEST_KEYS)
+    assert {key for key in recorded if key.endswith("path")} == set(LINEAGE_PATH_KEYS)
+    assert {key for key in recorded if key.endswith("run_id")} == set(LINEAGE_RUN_ID_KEYS)
+
+
+def test_rule_d_reads_a_screen_checkpoint_a_screen_folder_and_a_screen_run_id():
+    assert EXCLUDED_RUN_IDS == SCREEN_RUNS
+    final = excluded_checkpoint_reason(PC_S42_FINAL)
+    assert final is not None and "stance7_r10LTSBpc_s42/stage1_final.zip" in final and EXCLUSION_DECISION in final
+    assert excluded_checkpoint_reason(PC_S42_FINAL.removeprefix("sha256:").upper()) == final
+    assert excluded_checkpoint_reason(PC_S42_HANDOFF) == excluded_handoff_reason(PC_S42_HANDOFF)
+    assert excluded_checkpoint_reason("sha256:" + "0" * 64) is None and excluded_checkpoint_reason(None) is None
+    for inside in (
+        "/content/drive/MyDrive/runs/stance7_r10LTSBpc_s42/01_stance/models/stage1_final.zip",
+        "stance7_r10LTSBoff_s80/01_stance/models/stage1_4194304_steps",
+        "C:\\runs\\stance6_r10LTSB_s60\\01_stance\\models\\robust_best_model.zip",
+    ):
+        assert excluded_path_reason(inside) is not None, inside
+    for outside in ("/runs/stance7_r10LTSBpc_s42_copy/01_stance/models/stage1_final.zip", "/runs/cert_s43/x.zip", 3):
+        assert excluded_path_reason(outside) is None, outside
+    assert excluded_run_id_reason(" stance7_r10LTSBpc_s60 ") is not None and excluded_run_id_reason("cert_s43") is None
+    reason = excluded_lineage_reason({"load_path": None, "parent_run_id": "stance6_r10LTSB_s42"})
+    assert reason is not None and reason.startswith("run.parent_run_id: ")
+    assert excluded_lineage_reason({"seed": 1, "hyperparameters_sha256": RECIPE_DIGEST}) is None
+    assert excluded_lineage_reason(None) is None and excluded_lineage_reason([PC_S42_FINAL]) is None
+
+
+def test_rule_d_reads_what_save_stage_config_records_for_a_load(tmp_path, monkeypatch):
+    """The trainer's own writer: a --load from a screen's run folder, and from a copy of a screen's checkpoint kept
+    elsewhere (its digest listed), are excluded; a load from a new seed's folder is not."""
+    from environments.shared.config import save_stage_config
+
+    config = {"env_kwargs": {}, "curriculum_kwargs": STANCE_CURRICULUM, "ppo_kwargs": RECIPE}
+
+    def loaded_from(source: Path, name: str, task: str) -> Path:
+        # The fixture's checkpoints differ only by the task digest they carry, so each source gets its own.
+        handoff = build_trunk_run(source, task_sha256=task) / "models" / "robust_best_model.zip"
+        stage_dir: Path = tmp_path / name / "01_stance"
+        save_stage_config(
+            stage_dir,
+            1,
+            config,
+            "PPO",
+            extra={"seed": 45},
+            model_id=TYRANNOSAURUS_REX,
+            load_path=str(handoff),
+            load_mode="resume_same_stage",
+        )
+        return stage_dir
+
+    from_folder = loaded_from(tmp_path / "drive" / "stance7_r10LTSBpc_s42", "loaded_from_folder", STANCE_TASK)
+    copy = tmp_path / "parents" / "copy"
+    from_copy = loaded_from(copy, "loaded_from_copy", OTHER_TASK)
+    control = loaded_from(tmp_path / "drive" / "cert_s43", "loaded_from_a_new_seed", "sha256:" + "c" * 64)
+    _exclude_checkpoint(monkeypatch, sha256_file(copy / "01_stance" / "models" / "robust_best_model.zip"))
+
+    assert "stage_config.json run.load_path: " in (excluded_run_reason(from_folder.parent) or "")
+    assert "stage_config.json run.parent_checkpoint_sha256: " in (excluded_run_reason(from_copy.parent) or "")
+    assert excluded_run_reason(control.parent) is None
+
+
+@pytest.mark.parametrize(
+    "lineage",
+    [
+        pytest.param(
+            {
+                "load_path": "/content/drive/runs/stance7_r10LTSBpc_s42/01_stance/models/stage1_final.zip",
+                "load_mode": "resume_same_stage",
+                "parent_checkpoint_sha256": PC_S42_FINAL,
+            },
+            id="a --load of a screen's final from its run folder",
+        ),
+        pytest.param(
+            {
+                "load_path": "/content/parents/stance_final.zip",
+                "load_mode": "resume_same_stage",
+                "parent_checkpoint_sha256": PC_S42_FINAL,
+            },
+            id="a --load of a copy of a screen's final kept elsewhere",
+        ),
+        pytest.param(
+            {
+                "load_path": "/content/drive/runs/stance7_r10LTSBoff_s60/01_stance/models/stage1_99_steps.zip",
+                "load_mode": "resume_same_stage",
+                "parent_checkpoint_sha256": "sha256:" + "1" * 64,
+            },
+            id="a --load of an unlisted checkpoint from a screen's run folder",
+        ),
+        pytest.param(
+            {
+                "resume_load_path": "/content/drive/runs/cert_s45/01_stance/models/stage1_8388608_steps.zip",
+                "resume_checkpoint_sha256": "sha256:" + "2" * 64,
+                "parent_run_id": "stance7_r10LTSBpc_s80",
+            },
+            id="an edge resume of a stage whose parent was a screen run",
+        ),
+        pytest.param(
+            {
+                "widened_from_path": "/content/parents/robust_best_model.zip",
+                "widened_from_checkpoint_sha256": PC_S42_HANDOFF,
+                "widened_from_run_id": "parent",
+            },
+            id="a widened copy of a screen's handoff",
+        ),
+    ],
+)
+def test_a_new_run_that_loaded_a_screen_checkpoint_never_counts(log_base, monkeypatch, lineage):
+    """Cases B5 and B6 of the equivalence review: a fresh run at main's commit, its own id and seed, whose stance
+    was loaded from a screen's weights.  Rules (a) to (c) see nothing of the screen; rule (d) alone keeps it out of
+    discovery (both ways) and reuse, and with the lists emptied the same run counts."""
+    this_run = _run(log_base, "cert_s44", seed=44, commit=MAIN_COMMIT)
+    loaded = _run(log_base, "cert_s45", seed=45, commit=MAIN_COMMIT, stage_commit=MAIN_COMMIT, lineage=lineage)
+    _run(log_base, "cert_s43", seed=43, commit=MAIN_COMMIT)
+
+    assert "01_stance/stage_config.json run." in (excluded_run_reason(loaded) or "")
+    assert _discover(this_run) == [{"run_id": "cert_s43", "training_seed": 43}]
+    assert _discover(loaded, training_seed=45) == []
+    with pytest.raises(AncestorReuseError, match="reuse rule 9"):
+        _find(loaded)
+
+    for name in ("EXCLUDED_HANDOFF_SHA256", "EXCLUDED_CHECKPOINT_SHA256"):
+        monkeypatch.setattr(run_exclusions, name, {})
+    monkeypatch.setattr(run_exclusions, "EXCLUDED_RUN_IDS", frozenset())
+    assert [entry["training_seed"] for entry in _discover(this_run)] == [43, 45]
+
+
+def test_a_copied_screen_stage_resumed_and_rejudged_on_main_never_counts(log_base):
+    """The equivalence review's narrower gap: a screen's stage directory copied without provenance.json, resumed on
+    main from its copied final (main's commit in stage_config.json; a root's resume records the load under the
+    load keys) and re-judged (the fixture's verdict hashes a handoff no list names).  Only the resume's recorded
+    checkpoint names the screen."""
+    this_run = _run(log_base, "cert_s44", seed=44, commit=MAIN_COMMIT)
+    resume = {
+        "load_path": "/content/drive/runs/my_copy/01_stance/models/stage1_final.zip",
+        "load_mode": "resume_same_stage",
+        "parent_checkpoint_sha256": PC_S42_FINAL,
+    }
+    copy = _run(log_base, "my_copy", seed=42, stage_commit=MAIN_COMMIT, lineage=resume)
+
+    assert "run.parent_checkpoint_sha256: " in (excluded_run_reason(copy) or "")
+    assert _discover(this_run) == []
+
+
+def test_the_bundle_audit_applies_rules_b_and_d_to_every_stage_config_it_hashes():
+    from environments.shared.run_exclusions import excluded_stage_config_reason
+
+    assert excluded_stage_config_reason({"git_commit": STANCE6_COMMIT, "run": {}}) is not None
+    loaded = {"git_commit": MAIN_COMMIT, "run": {"seed": 45, "parent_checkpoint_sha256": PC_S42_FINAL}}
+    assert "run.parent_checkpoint_sha256: " in (excluded_stage_config_reason(loaded) or "")
+    assert excluded_stage_config_reason({"git_commit": MAIN_COMMIT, "run": {"seed": 44}}) is None
+    assert excluded_stage_config_reason(None) is None
