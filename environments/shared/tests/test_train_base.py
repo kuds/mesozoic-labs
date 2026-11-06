@@ -919,6 +919,14 @@ class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
         assert not any("table" in record.message for record in caplog.records)
 
 
+#: A velociraptor stance block as recorded before decision D-D59: ``stance_quality/v2`` with the report-only heading
+#: probe declared (the maintainer's decision of 2026-10-11), the shape the probe-warning tests need now that no
+#: committed biped stance but the compsognathus robot's declares the probe.
+_PRE_D_D59_PROBED_STANCE = {
+    "curriculum_kwargs": {"gate_kind": "stance_quality/v2", "stance_probe_spawn_yaw_deg": [-90.0, -45.0, 45.0, 90.0]}
+}
+
+
 def _write_heading_probe(stage_dir: Path, *, yaw_deg: float, policy_fraction: float) -> None:
     """A one-row ``stance_heading_probe.json``: the whole scene turned *yaw_deg*, where the statue stands."""
     row = {"yaw_deg": yaw_deg, "whole_scene": True, "statue": {"full_horizon_fraction": 1.0}}
@@ -1402,9 +1410,15 @@ class TestTrainCurriculumWalksTheManifest:
         plant = make_plant_identity()
         original = tmp_path / "logs" / "original-run"
         original.mkdir(parents=True)
-        # The trunk's stance was judged under the checkout's own velociraptor
-        # stance block, so rule 7 (D-A22) matches the gate this run declares.
-        stance_curriculum = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]["curriculum_kwargs"]
+        # The trunk's stance was judged under the run's own velociraptor stance
+        # block, so rule 7 (D-A22) matches the gate this run declares.  The block
+        # is served as it was recorded before D-D59 moved it to the six-heading
+        # certificate (stance_quality/v2 with the report-only heading probe):
+        # build_trunk_run writes a v2 report, and this test is about following the
+        # middle run's record, not about the kind.
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
+        stance_curriculum = {**configs[1]["curriculum_kwargs"], **_PRE_D_D59_PROBED_STANCE["curriculum_kwargs"]}
+        configs = {**configs, 1: {**configs[1], "curriculum_kwargs": stance_curriculum}}
         stance_dir = build_trunk_run(
             original, model_id=VELOCIRAPTOR_MONGOLIENSIS, plant=plant, curriculum=stance_curriculum
         )
@@ -1432,6 +1446,7 @@ class TestTrainCurriculumWalksTheManifest:
             output_dir=tmp_path / "logs" / "child-run",
             task_sha256=STANCE_TASK,
             plant=plant,
+            stage_configs=configs,
         )
 
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
@@ -1446,7 +1461,7 @@ class TestTrainCurriculumWalksTheManifest:
         # The D-A21 ignored-edit warning (the fixture records no algorithm
         # block) and the reuse line both name the ORIGINAL run, never the middle.
         reused = [r for r in caplog.records if r.message.startswith("Reusing certified 'stance' from run original-run")]
-        # So does the heading-probe warning: the velociraptor stance declares the probe and the fixture rolled none.
+        # So does the heading-probe warning: the served block declares the probe and the fixture rolled none.
         probe = [r for r in reused if "whose heading probe warns" in r.message]
         assert probe and all(r.levelno == logging.WARNING for r in probe)
         assert all("is missing although the stage declares the heading probe" in r.message for r in probe)
@@ -1563,9 +1578,9 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_every_trained_node_records_the_managers_verdict(self, tmp_path, monkeypatch, caplog):
         """Decision D-A5: the in-training verdict is written per node, hash-bound to its handoff.  The
-        velociraptor stance declares ``stance_quality/v2`` since D-D25, so its verdict is the post-training
-        judge's (stubbed by ``_run``) and the other two nodes' the manager's."""
-        from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY, STANCE_V2_POST_TRAINING_JUDGED_BY
+        velociraptor stance declares the six-heading certificate since D-D59 (``stance_quality/v2`` from D-D25),
+        so its verdict is the post-training judge's (stubbed by ``_run``) and the other two nodes' the manager's."""
+        from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY, STANCE_HEADING_POST_TRAINING_JUDGED_BY
 
         record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog)
 
@@ -1573,7 +1588,9 @@ class TestTrainCurriculumWalksTheManifest:
         for verdict in record["verdicts"]:
             assert verdict["passed"] is True and verdict["failures"] == []
             expected = (
-                STANCE_V2_POST_TRAINING_JUDGED_BY if verdict["stage_id"] == "stance" else CURRICULUM_MANAGER_JUDGED_BY
+                STANCE_HEADING_POST_TRAINING_JUDGED_BY
+                if verdict["stage_id"] == "stance"
+                else CURRICULUM_MANAGER_JUDGED_BY
             )
             assert verdict["judged_by"] == expected
             assert verdict["stage_dir"].name in {"01_stance", "02_locomotion", "03_behavior"}
@@ -2184,8 +2201,10 @@ class TestTrainCurriculumWalksTheManifest:
         """The maintainer's decision of 2026-10-11 at the command line: the child of a reused stance
         whose heading probe falls on a whole-scene row is trained as before, with the warning logged
         where the node enters on it (``record_ancestor``, stubbed here, logs its own line for the
-        reuse).  The probe is read for any species that has one."""
-        ancestor = self._certified_ancestor(tmp_path / "trunk-run")
+        reuse).  The probe is read for any species that has one; the ancestor here is a velociraptor
+        stance recorded before D-D59 moved the species to the six-heading certificate, under v2 with the
+        probe declared, as the recorded config (not the checkout's) decides."""
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_D_D59_PROBED_STANCE)
         _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=0.0)
 
         record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
@@ -2198,7 +2217,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert "-45 deg 0.00 (statue 1.00)" in warning.message
 
     def test_a_node_entering_on_a_stance_whose_probe_stands_logs_nothing(self, tmp_path, monkeypatch, caplog):
-        ancestor = self._certified_ancestor(tmp_path / "trunk-run")
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_D_D59_PROBED_STANCE)
         _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=1.0)
 
         record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)

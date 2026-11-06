@@ -657,27 +657,33 @@ class TestPublicationKeys:
         thresholds = thresholds_from_configs({1: {"curriculum_kwargs": block}})
         assert "certification_seeds" not in thresholds[1]
 
-    def test_tyrannosaurus_rex_stance_declares_two_certification_seeds_outside_every_digest(self):
-        """configs/tyrannosaurus_rex/anatomical/stance.toml declares 2 (plan A8; the seed 42/43/44 record in KNOWN_ISSUES) and
-        every other committed stage keeps the default 1; the stance gate digest AND its recipe digest
-        are exactly what they were without the key, so the certified stance trunk stays reusable."""
+    def test_the_two_biped_stances_declare_two_certification_seeds_outside_every_digest(self):
+        """configs/tyrannosaurus_rex/anatomical/stance.toml declares 2 (plan A8; the seed 42/43/44 record in KNOWN_ISSUES),
+        and so does the velociraptor's since D-D59; every other committed stage keeps the default 1. Each stance's
+        gate digest AND its recipe digest are exactly what they were without the key, so a certified stance trunk
+        stays reusable."""
         from environments.shared.config import hyperparameters_sha256, load_all_stages
         from environments.shared.species_names import model_ids
 
-        stance = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[1]
-        block = stance["curriculum_kwargs"]
-        assert block["certification_seeds"] == 2 == declared_certification_seeds(block, stage=1)
-        without = {key: value for key, value in block.items() if key != "certification_seeds"}
-        assert gate_config_view(block) == gate_config_view(without)
-        assert gate_config_sha256(gate_config_view(block)) == gate_config_sha256(gate_config_view(without))
-        assert hyperparameters_sha256(stance, "PPO") == hyperparameters_sha256(
-            {**stance, "curriculum_kwargs": without}, "PPO"
-        )
+        declaring = {
+            (ModelId("tyrannosaurus_rex", "anatomical"), 1),
+            (ModelId("velociraptor_mongoliensis", "anatomical"), 1),
+        }
+        for model_id, stage in sorted(declaring):
+            stance = load_all_stages(model_id)[stage]
+            block = stance["curriculum_kwargs"]
+            assert block["certification_seeds"] == 2 == declared_certification_seeds(block, stage=stage)
+            without = {key: value for key, value in block.items() if key != "certification_seeds"}
+            assert gate_config_view(block) == gate_config_view(without)
+            assert gate_config_sha256(gate_config_view(block)) == gate_config_sha256(gate_config_view(without))
+            assert hyperparameters_sha256(stance, "PPO") == hyperparameters_sha256(
+                {**stance, "curriculum_kwargs": without}, "PPO"
+            )
         models = model_ids()
         assert models, "the manifest lists no model"
         for model_id in models:
             for stage, cfg in load_all_stages(model_id).items():
-                if (model_id, stage) == (ModelId("tyrannosaurus_rex", "anatomical"), 1):
+                if (model_id, stage) in declaring:
                     continue
                 assert "certification_seeds" not in cfg["curriculum_kwargs"], (model_id, stage)
                 assert declared_certification_seeds(cfg["curriculum_kwargs"], stage=stage) == 1

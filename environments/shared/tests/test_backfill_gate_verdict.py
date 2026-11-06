@@ -515,28 +515,35 @@ class TestStanceReports:
         assert len(verdict["failures"]) == 6
         assert all("mean_reward 1000.0 < 2260.0 (rail)" in failure for failure in verdict["failures"])
 
-    def test_gate_current_on_a_v2_stance_refuses_another_gate_and_re_derives_its_own(self, tmp_path):
-        """``--gate current`` on a stance whose current gate is still ``stance_quality/v2`` (the velociraptor's,
-        which D-D32 left unchanged): a v2 report scored under an older rail is refused, never re-scored; one the
-        v2 code scored under the current block re-derives, so its verdict is written -- the FAIL it re-derives
-        to, since its statue-like episodes score 1000 against the 1710 rail."""
+    def test_gate_current_on_a_v2_stance_refuses_another_gate_and_re_derives_its_own(self, tmp_path, monkeypatch):
+        """``--gate current`` on a stance whose current gate is ``stance_quality/v2``: a v2 report scored under an
+        older rail is refused, never re-scored; one the v2 code scored under the current block re-derives, so its
+        verdict is written -- the FAIL it re-derives to, since its statue-like episodes score 1000 against the rail.
+
+        No committed stance declares v2 since the velociraptor's moved to the six-heading certificate (D-D59, as the
+        T-Rex's and the anatomical compsognathus's did with D-D32), so the checkout's current block is the
+        velociraptor's own v2 block under the v2 kind, served the way the checkout would serve it."""
+        from environments.shared import config as config_module
         from environments.shared.reporting.stance_report import write_stance_gate_report
 
         from .stance_v2_helpers import stage_record, v2_report
 
-        current = load_all_stages(ModelId("velociraptor_mongoliensis", "anatomical"))[1]["curriculum_kwargs"]
-        assert current["gate_kind"] == "stance_quality/v2" and current["min_avg_reward"] == 1710.0
+        model_id = ModelId("velociraptor_mongoliensis", "anatomical")
+        stages = load_all_stages(model_id)
+        current = {**stages[1]["curriculum_kwargs"], "gate_kind": "stance_quality/v2"}
+        rail = current["min_avg_reward"]
+        assert rail == 1850.0
+        served = {**stages, 1: {**stages[1], "curriculum_kwargs": current}}
+        monkeypatch.setattr(config_module, "load_all_stages", lambda species: served)
         older = {**current, "min_avg_reward": 900.0}
         stale_dir = tmp_path / "20261009_120000" / "01_stance"
-        stage_record(stale_dir, older, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
-        write_stance_gate_report(
-            stale_dir, v2_report(stale_dir, older, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
-        )
+        stage_record(stale_dir, older, model_id=model_id)
+        write_stance_gate_report(stale_dir, v2_report(stale_dir, older, model_id=model_id))
         with pytest.raises(BackfillError) as excinfo:
             backfill_gate_verdict(stale_dir, gate="current", force=True)
         message = str(excinfo.value)
         assert "cannot back a stance_quality/v2 verdict under the current 'stance' block" in message
-        assert "min_avg_reward: judged at 900.0, configured 1710.0 now" in message
+        assert f"min_avg_reward: judged at 900.0, configured {rail} now" in message
         assert "notebook JUDGE branch" in message
         assert read_gate_verdict(stale_dir) is None
         # The same evidence still backfills under the gate it was scored under.
@@ -544,15 +551,13 @@ class TestStanceReports:
         assert read_gate_verdict(stale_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(older))
 
         v2_dir = tmp_path / "20261010_120000" / "01_stance"
-        stage_record(v2_dir, current, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
-        write_stance_gate_report(
-            v2_dir, v2_report(v2_dir, current, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
-        )
+        stage_record(v2_dir, current, model_id=model_id)
+        write_stance_gate_report(v2_dir, v2_report(v2_dir, current, model_id=model_id))
         backfill_gate_verdict(v2_dir, gate="current")
         verdict = read_gate_verdict(v2_dir)
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
         assert verdict["passed"] is False and verdict["stage_result"]["stance_clean_count"] == 40
-        assert verdict["failures"] == ["stage 1 mean_reward 1000.0 < 1710.0 (rail)"]
+        assert verdict["failures"] == [f"stage 1 mean_reward 1000.0 < {rail} (rail)"]
 
     def test_a_report_that_disagrees_with_the_recorded_block_is_refused_under_the_default_too(self, tmp_path):
         """A stale report beside an edited stage_config.json proves nothing about the recorded gate either."""

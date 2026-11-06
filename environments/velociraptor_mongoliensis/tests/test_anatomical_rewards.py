@@ -508,7 +508,7 @@ class TestCurriculumStageRewards:
         env.close()
 
 
-class TestTrexStanceTermsPorted:
+class TestPortedStanceTerms:
     """The T-Rex's tail-pose, floor-impact and airborne-substep terms on the raptor (decision D-D59).
 
     Each is off by default and declared in ``OPT_IN_TASK_KWARGS``: off, it emits
