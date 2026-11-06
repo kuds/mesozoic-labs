@@ -140,19 +140,29 @@ the sum of three touch sensors, on the middle toe, the outer toe and the metatar
 the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
 interface revision 11; it has no `mjx_config.py`. Since physics r4 (note 17, decision D-D30) the friction cone is
 elliptic, the one friction model of every species: the capsule feet were already heading-invariant under MuJoCo's
-default pyramidal cone, and the elliptic cone keeps any foot shape so.
+default pyramidal cone, and the elliptic cone keeps any foot shape so. Since policy interface r13 (note 21, the maintainer's decision of 2026-11-06) the observation reads no world heading, as the T-Rex's and the anatomical Compsognathus's do: projected gravity,
+the root velocity in the gravity-aligned heading frame and the prey direction in pelvis coordinates replace the world
+quaternion, velocity and prey direction, so turning the whole scene about vertical leaves the observation unchanged.
 
 ### Stance gate
-The stance stage certifies under `stance_quality/v2` (decision D-D25): each episode of the 40-episode panel (seeds
-3042-3081) is classified on floor truth, the floor's normal force under each leg on every physics substep, and the
-stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80 (37 of 40). An episode is clean when
-it reaches the horizon with no hop or stomp in the settle window, both feet down and loaded, every support geom of
-each foot (both toes and the metatarsal head) loaded, no splay, drift or chatter and no actuator held at its limit; the
-bars and their measured provenance are in `configs/velociraptor_mongoliensis/anatomical/stance.toml`. The verdict is the post-stage
-`stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation. Beside it the report writes
-a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
-report only; a whole-scene row whose full-horizon fraction is below 0.95 is warned of without blocking, in the probe's
-text and wherever the stance is handed on or reused (the maintainer's decisions of 2026-10-11; `docs/KNOWN_ISSUES.md`).
+The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (the maintainer's decision of 2026-11-06; the
+`stance_quality/v2` block of D-D25, judged at every heading): the 40 seeds of the certification panel (3042-3081)
+are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees, each episode is classified on floor
+truth, the floor's normal force under each leg on every physics substep, and the stance passes when every heading
+passes the v2 decision and the one-sided 95% lower bound on seeds clean at every heading reaches 0.80 (37 of 40). An
+episode is clean when it reaches the horizon with no hop or stomp in the settle window and at most one re-plant there,
+both feet down and loaded, every support geom of each foot (both toes and the metatarsal head) loaded, no splay,
+drift, turn or chatter and no actuator held at its limit, and no panel may hold more than one hop or fall; the bars
+and their measured provenance are in `configs/velociraptor_mongoliensis/anatomical/stance.toml`. The verdict is the
+post-stage `stance_heading_report.json` on the handoff checkpoint pair, never an in-training evaluation, and a stance
+stays provisional until two seeds certify (`certification_seeds = 2`). Judge its final and archived checkpoints too,
+and re-judge it on the fresh seeds 7042-7081 (`docs/NEXT_STEPS.md`).
+
+### Exploration
+The stance starts at action std 0.07 (`log_std_init = -2.66`, the maintainer's decision of 2026-11-06): the zero-action statue survives white
+command noise to about that sigma and falls past it, onto its tail
+(`tests/test_anatomical_noise_tolerance.py`). At SB3's default std 1.0 the noise itself is a hop. Move
+`log_std_init` with the cliff if the plant changes.
 
 ### Reward Components
 
@@ -164,11 +174,14 @@ shaping is direction-aware and centred on the raptor's natural forward lean;
 absolute tilt remains the safety signal for termination. The stance stage also
 pays bilateral support (the weaker-loaded foot), retention of the home leg pose,
 and charges commands parked at their limits and command chatter (action jerk),
-with part of the alive bonus conditioned on support; each is a `VelociraptorMongoliensisEnv` kwarg
-that is inert at its default and set in `configs/velociraptor_mongoliensis/anatomical/stance.toml`.
+with part of the alive bonus conditioned on support; since the maintainer's decision of 2026-11-06 it also
+pays the tail's settled pose and charges fully airborne substeps and floor
+impacts above 2.5 body weights (the T-Rex's terms). Each is a
+`VelociraptorMongoliensisEnv` kwarg that is inert at its default and set in
+`configs/velociraptor_mongoliensis/anatomical/stance.toml`.
 
 ### Termination Conditions
-- Pelvis height < 0.25m (fallen)
+- Pelvis height < 0.3m (fallen)
 - Pelvis height > 1.0m (launched into air)
 - Torso contacts ground
 - Episode length > max_episode_steps

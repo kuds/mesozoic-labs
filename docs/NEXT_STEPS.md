@@ -120,7 +120,42 @@ level; the policy interface and visual layer are unchanged), with the stance's
 tail target re-centred on it, which strands every T-Rex physics-r9 checkpoint,
 the stance screens' runs and walking pilot 2's parent included; the next T-Rex
 session is a fresh stance on physics r10, under criteria the maintainer
-approves first (section 3).* Section 2 labels each
+approves first (section 3).* *2026-11-06: the maintainer decided to apply the T. rex's stance
+lessons to the velociraptor (no decision id yet: the next records change numbers
+it). Its observation is heading-free (policy
+interface r12 → r13, `configs/plant_versions.toml` note 21), its stance
+certifies under the six-heading certificate with the T. rex's D-D27 rails and
+`certification_seeds = 2`, it starts at action std 0.07 (its r4 statue's noise
+cliff; std 1.0 before) with the entropy bonus decaying to 0 at 7M, and it
+prices airborne substeps, capped floor impacts and its tail pose, with the hop
+watch, a relative collapse floor and the checkpoint archive; its locomotion
+stage gains a relative collapse floor and a 4M entropy anchor, its reward
+unchanged. Nothing had trained on velociraptor physics r4, so no certified
+checkpoint is stranded. The next velociraptor session is a fresh
+`BEHAVIOR="stance"` on at least two seeds, each judged on its certificate and
+re-judged on the fresh seeds 7042–7081 (`stance_gate_report.py --species
+velociraptor_mongoliensis --embodiment anatomical --model … --vecnorm …
+--seed 7042 --out-dir <a scratch directory>`), its final and archived
+checkpoints judged as well as the handoff, before any velociraptor walk; the
+order against the T. rex sessions is the maintainer's. A failed seed is
+replaced by a new seed: a same-seed rerun on the same code and image
+reproduced the T. rex's stance6 runs byte for byte (the phase-critic round's
+OFF arm, 2026-11-02), so it is a replication check, not a second sample. The
+velociraptor's evaluation runs no recorder (no box-soled foot), so no ledger
+names a parked tail: trace the archived checkpoints offline
+(`episode_trace_report.py --species velociraptor_mongoliensis --embodiment
+anatomical --model … --vecnorm … --actuators tail`), whose per-actuator
+command and `|a| >= 0.99` shares show a tail habit forming; the certificate
+refuses a railed stance at judgement, as it refused the T. rex's stance6 s42
+on its hop-or-fall rail. Before the first velociraptor walk, scan the trained
+stance parent's noise tolerance in the locomotion env, as the T. rex's walking
+pilot 3 did before choosing its log_std reset of −2.0 (a uniform `log_std` on a
+grid around the parent's, seeds 3042–3081 with three noise streams, the
+largest value at which 120/120 episodes stand): the walk inherits the
+stance's learned std, at most about 0.07, and the T. rex's walking pilot 1
+read STILL on 3/3 seeds from a std-0.095 parent. Whether to set
+`[curriculum] warm_start_log_std` from that scan is the maintainer's; never
+the T. rex's −2.0 here, where the r4 statue stands 0/40 at std 0.135.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.

@@ -85,11 +85,13 @@ from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
 from environments.shared.model_id import ModelId
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
-#: The heading-free models and their environments.
+#: The heading-free models and their environments (the velociraptor since policy interface r13, 2026-11-06).
 HEADING_FREE_ENVS = {
     ModelId("tyrannosaurus_rex", "anatomical"): TyrannosaurusRexAnatomicalEnv,
     ModelId("compsognathus_longipes", "anatomical"): CompsognathusLongipesAnatomicalEnv,
+    ModelId("velociraptor_mongoliensis", "anatomical"): VelociraptorMongoliensisAnatomicalEnv,
 }
 #: The certificate's heading grid, in degrees (``whole_scene_yaw/v1``, D-D32).
 HEADINGS_DEG = HEADING_GRID_DEG
@@ -120,9 +122,17 @@ def zero_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.nda
     return lambda observation: action
 
 
+#: The linear policy's weight scale per environment class, small enough to stand the whole horizon.  0.003
+#: unless listed: the velociraptor's statue falls past an action noise of about 0.07 (the 2026-11-06 cliff panel),
+#: and at 0.003 its seed-3042 actions reach 0.135 and it ends on its tail at step 204; at 0.001 they stay under
+#: 0.045 and seeds 3042-3043 stand all 1000 steps.
+LINEAR_POLICY_GAINS: dict[type, float] = {VelociraptorMongoliensisAnatomicalEnv: 0.001}
+
+
 def linear_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.ndarray]:
-    """A fixed deterministic linear policy, small enough (gain 0.003) to stand the whole horizon."""
-    weights = np.random.default_rng(7).normal(scale=0.003, size=(env.action_space.shape[0], observation_dim))
+    """A fixed deterministic linear policy, small enough (``LINEAR_POLICY_GAINS``) to stand the whole horizon."""
+    gain = LINEAR_POLICY_GAINS.get(type(env), 0.003)
+    weights = np.random.default_rng(7).normal(scale=gain, size=(env.action_space.shape[0], observation_dim))
     return lambda observation: np.tanh(weights @ np.clip(observation, -10.0, 10.0)).astype(np.float32)
 
 

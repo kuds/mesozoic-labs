@@ -3,17 +3,25 @@ Velociraptor Gymnasium Environment
 
 A bipedal dinosaur locomotion environment with predatory strike behavior.
 
-Observation space (total dimension is generated in the public species catalog):
+Observation space (bipedal-target-heading-free/v1 since policy interface r13, the
+maintainer's decision of 2026-11-06; the total dimension is generated in the
+public species catalog):
     - Joint positions (qpos[7:]) — 24 hinge joints excluding root freejoint
     - Joint velocities (qvel[6:]) — 24 hinge joints excluding root freejoint
-    - Pelvis orientation (quaternion) — 4
-    - Pelvis angular velocity (gyroscope) — 3
-    - Pelvis linear velocity — 3
-    - Pelvis acceleration — 3
+    - Pelvis projected gravity (unit down vector in pelvis coordinates) — 3
+    - Pelvis angular velocity (gyroscope, its own site frame) — 3
+    - Pelvis linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
+    - Pelvis acceleration (accelerometer, its own site frame) — 3
     - Foot contact — 2 (per-foot sum of the toe d3, metatarsus and toe d4 touch sensors)
-    - Prey direction (unit vector) — 3
+    - Prey direction in pelvis coordinates (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
+
+No channel carries the world heading: the three root blocks come from the
+free root's own quaternion through environments/shared/heading_observation.py
+(docs/HEADING_INVARIANCE_DESIGN_2026_10.md), as on the T-Rex and the
+anatomical Compsognathus (D-D31), so turning the whole scene about vertical
+leaves the observation unchanged.
 
 Action space (total dimension is generated in the public species catalog):
     - Actions are residuals around the named XML ``home`` keyframe controls
@@ -46,6 +54,9 @@ Reward components:
     - Action jerk (penalize the second difference of actions, i.e. chatter)
     - Action saturation (penalize commands parked at their range limits)
     - Leg home pose (soft retention of the home keyframe leg stance)
+    - Tail home pose (the tail joints around the statue's settled tail; off by default)
+    - Floor impact (summed foot force above a body-weight multiple, the excess
+      capped) and airborne substeps, read per physics substep (off by default)
     - Spin penalty (penalize pelvis angular velocity)
     - Heading alignment (facing toward prey)
     - Lateral velocity penalty (anti crab-walk)
@@ -62,6 +73,7 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.heading_observation import heading_free_root_segments
 from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
 )
@@ -105,6 +117,43 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     _camera_azimuth = 135
     _camera_elevation = -20
     _camera_track_body = "pelvis"
+    #: Opt-in task options carved out of the task fingerprint and of the
+    #: effective config ``stage_config.json`` records while off: each entry is
+    #: (switch, off value, the kwargs the switch makes inert).  Off, they change
+    #: no reward, info key, trajectory or reset draw, so a stage that leaves
+    #: them off keeps its task_sha256 (task_fingerprint.inert_opt_in_env_kwargs,
+    #: the T-Rex's lateral-lean pattern).  The stance stage turns all three on
+    #: (the maintainer's decision of 2026-11-06); locomotion, strike and the behaviors leave them off.
+    OPT_IN_TASK_KWARGS = (
+        ("tail_home_pose_weight", 0.0, ("tail_home_pose_weight", "tail_home_pose_tolerance")),
+        ("floor_impact_weight", 0.0, ("floor_impact_weight", "floor_impact_threshold_bw")),
+        ("airborne_substep_weight", 0.0, ("airborne_substep_weight",)),
+    )
+    #: The tail joints the tail_home_pose term prices, and their target: the
+    #: noise-free statue's post-settle pose (seed 0, steps 200-999, physics r4;
+    #: TestSettledTailTargetTracksTheStatue re-measures it).  The tail servos
+    #: hold the keyframe zeros against gravity only to within their kp: under
+    #: the home controller the statue's tail settles 4.5 deg down at tail_1
+    #: (2.7 / 1.3 deg at tail_2 / tail_3), 0.17-0.24 rad clear of every stop
+    #: (tail_1_yaw's at +-10 deg, the pitch joints' at +-15 deg; the per-seed
+    #: window means at reset noise 0.05 within 4.1e-4 rad, 1.2e-4 on the pitch
+    #: joints, and their pooled mean within 1e-5).  So, as
+    #: on the T-Rex through physics r9, the target is the statue's own droop:
+    #: pricing the keyframe would cap the ideal statue below full quality.
+    #: Unlike the T-Rex r9 tail, no joint rests on a stop, so the droop needs
+    #: no spring preload (the T-Rex's D-D44).
+    _TAIL_HOME_JOINTS = ("tail_1_pitch", "tail_1_yaw", "tail_2_pitch", "tail_3_pitch")
+    _TAIL_SETTLED_QPOS = (-0.07851, 0.0, -0.04639, -0.02307)
+    #: A foot (or the pair) reads as airborne at or below this touch force, in
+    #: N: the floor-truth library's contact threshold (gait.constants
+    #: CONTACT_THRESHOLD_N, which a species env may not import).
+    _AIRBORNE_TOUCH_N = 0.1
+    #: The floor-impact term charges a step's peak at most this far above its
+    #: threshold, in body weights (the anatomical Compsognathus's cap): a hop
+    #: landing reads 11-12.6 body weights on this plant (the r3 pilots), and an
+    #: uncapped charge would out-price the -50 fall penalty within a few
+    #: landings, paying the policy to fall sooner rather than land softer.
+    _FLOOR_IMPACT_EXCESS_CAP_BW = 1.0
 
     def __init__(
         self,
@@ -147,6 +196,15 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         action_saturation_threshold: float = 0.9,
         leg_home_pose_weight: float = 0.0,
         leg_home_pose_tolerance: float = 0.35,
+        # The T-Rex's D-D27 contact terms and its tail pose term (
+        # the maintainer's decision of 2026-11-06), each off by default and carved out of the task fingerprint
+        # while off (OPT_IN_TASK_KWARGS): a zero weight reproduces the reward
+        # that predates them bit for bit and emits none of their info keys.
+        tail_home_pose_weight: float = 0.0,
+        tail_home_pose_tolerance: float = 0.05,
+        floor_impact_weight: float = 0.0,
+        floor_impact_threshold_bw: float = 3.0,
+        airborne_substep_weight: float = 0.0,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -190,7 +248,22 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         self.action_saturation_threshold = action_saturation_threshold
         self.leg_home_pose_weight = leg_home_pose_weight
         self.leg_home_pose_tolerance = leg_home_pose_tolerance
+        self.tail_home_pose_weight = tail_home_pose_weight
+        self.tail_home_pose_tolerance = tail_home_pose_tolerance
+        self.floor_impact_weight = floor_impact_weight
+        self.floor_impact_threshold_bw = floor_impact_threshold_bw
+        self.airborne_substep_weight = airborne_substep_weight
 
+        if not 0.0 <= self.tail_home_pose_weight < np.inf:
+            raise ValueError("tail_home_pose_weight must be finite and non-negative")
+        if not 0.0 < self.tail_home_pose_tolerance < np.inf:
+            raise ValueError("tail_home_pose_tolerance must be a positive, finite angle")
+        if not 0.0 <= self.floor_impact_weight < np.inf:
+            raise ValueError("floor_impact_weight must be finite and non-negative")
+        if not 0.0 < self.floor_impact_threshold_bw < np.inf:
+            raise ValueError("floor_impact_threshold_bw must be a positive, finite multiple of body weight")
+        if not 0.0 <= self.airborne_substep_weight < np.inf:
+            raise ValueError("airborne_substep_weight must be finite and non-negative")
         if self.foot_contact_saturation_force <= 0.0:
             raise ValueError("foot_contact_saturation_force must be positive")
         if not 0.0 <= self.support_conditioned_alive_fraction <= 1.0:
@@ -275,6 +348,21 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         )
         self._leg_home_qpos_indices = self._joint_qpos_indices(leg_home_joint_names)
         self._leg_home_qpos = self.model.key_qpos[self.home_keyframe_id][self._leg_home_qpos_indices].copy()
+        # The tail_home_pose term's joints and its statue-measured target
+        # (_TAIL_SETTLED_QPOS), resolved here for the same reason as the leg
+        # target above.  The term prices JOINT positions: tail_stability reads
+        # only the tail-tip angular velocity, which a tail parked motionless
+        # against a stop satisfies perfectly (the T-Rex's 2026-08
+        # narrow-tolerance run parked three tail joints that way, and this
+        # species' r2 audit stance held tail_1_pitch at -15 deg, its stop, on
+        # 95% of steps).
+        self._tail_home_qpos_indices = self._joint_qpos_indices(self._TAIL_HOME_JOINTS)
+        self._tail_home_qpos = np.asarray(self._TAIL_SETTLED_QPOS, dtype=np.float64)
+        # The animal's weight in N, for the floor-impact term: the pelvis
+        # subtree is the whole animal (the prey is a separate mocap body), so
+        # this is the 13.5 kg x 9.81 = 132.4 N the floor-truth library and the
+        # stance gate's peak-force bars divide by.
+        self._body_weight_n = float(self.model.body_subtreemass[self.pelvis_id] * abs(self.model.opt.gravity[2]))
 
     def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
         """Resolve scalar hinge-joint qpos addresses, failing on model drift."""
@@ -382,20 +470,26 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct observation vector."""
+        """Construct the bipedal-target-heading-free/v1 observation vector (69 values).
+
+        Since policy interface r13 (the maintainer's decision of 2026-11-06) no channel carries the
+        world heading: the pelvis orientation is projected gravity, the pelvis
+        linear velocity is expressed in the gravity-aligned heading frame and
+        the prey direction in pelvis coordinates, all three from the free
+        root's own quaternion qpos[3:7] (environments/shared/heading_observation.py),
+        never from the orientation sensor, which is still zero when the
+        constructor calls this before any forward pass.  The T-Rex's layout
+        (D-D31), on this species' joints and feet.
+        """
         # Joint positions (exclude root freejoint: first 7 values are pos + quat)
         qpos = self.data.qpos[7:].copy()
 
         # Joint velocities (exclude root freejoint: first 6 values are lin + ang vel)
         qvel = self.data.qvel[6:].copy()
 
-        # Pelvis state from sensors
+        # Pelvis state from sensors, already in their own site frame (never rotated again)
         pelvis_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
         pelvis_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
-        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4].copy()
-
-        # Pelvis linear velocity (from root freejoint)
-        pelvis_linvel = self.data.qvel[0:3].copy()
 
         # Foot contact (from touch sensors: d3 + metatarsus + d4 per foot)
         foot_contact = np.array(self._foot_contact_forces())
@@ -406,19 +500,26 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         prey_rel = prey_pos - pelvis_pos
         prey_distance = np.linalg.norm(prey_rel)
 
-        # Normalize prey direction
+        # Normalize prey direction (world frame; turned into pelvis coordinates below)
         prey_direction = prey_rel / (prey_distance + 1e-8)
+
+        # Heading-free root block: projected gravity, the root's world linear
+        # velocity (free joint qvel[0:3]) in the heading frame, the prey
+        # direction in pelvis coordinates.
+        gravity, heading_velocity, prey_direction_body = heading_free_root_segments(
+            self.data.qpos, self.data.qvel[0:3], prey_direction
+        )
 
         obs = np.concatenate(
             [
                 qpos,  # Joint positions
                 qvel,  # Joint velocities
-                pelvis_quat,  # Orientation (quaternion)
+                gravity,  # Projected gravity (unit down vector, pelvis frame)
                 pelvis_gyro,  # Angular velocity
-                pelvis_linvel,  # Linear velocity
+                heading_velocity,  # Linear velocity (forward, left, up)
                 pelvis_accel,  # Accelerometer
-                foot_contact,  # Foot contacts
-                prey_direction,  # Direction to prey (unit vector)
+                foot_contact,  # Foot contacts (2)
+                prey_direction_body,  # Direction to prey (unit vector, pelvis frame)
                 [prey_distance],  # Distance to prey (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
@@ -563,6 +664,25 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info["leg_home_pose_quality"] = leg_home_pose_quality
         info["reward_leg_home_pose"] = reward_leg_home_pose
 
+        # 8b3. Tail home pose (off unless tail_home_pose_weight > 0; its info
+        # keys exist only then).  The same soft Gaussian as the leg term, on
+        # the four servoed tail joints around the statue's settled tail
+        # (_TAIL_SETTLED_QPOS).  The tail stability term (4) reads only the
+        # tail-tip gyro, so a tail frozen against a stop is optimal for it;
+        # this prices the joint positions themselves (the T-Rex's term, 2026-11-06).
+        reward_tail_home_pose = 0.0
+        if self.tail_home_pose_weight > 0.0:
+            _, tail_rms_error, tail_quality = _reward_soft_home_pose_pure(
+                self.data.qpos[self._tail_home_qpos_indices],
+                self._tail_home_qpos,
+                self.tail_home_pose_tolerance,
+                1.0,
+            )
+            reward_tail_home_pose = self.tail_home_pose_weight * float(tail_quality)
+            info["tail_home_pose_error"] = float(tail_rms_error)
+            info["tail_home_pose_quality"] = float(tail_quality)
+            info["reward_tail_home_pose"] = reward_tail_home_pose
+
         # 8c. Pelvis angular velocity (for spinning detection in eval metrics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
         info["pelvis_angular_vel"] = pelvis_angular_vel
@@ -581,6 +701,38 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info["alternation_ratio"] = alternation_ratio
         info["contact_asymmetry"] = alternation_ratio  # backward compat with metrics
         info["reward_gait"] = reward_gait
+
+        # 9b. Floor impact and airborne substeps (each off unless its weight is
+        # positive; its info keys exist only then), from every physics
+        # substep's per-foot touch (BaseDinoEnv.step keeps the block beside the
+        # MIN the support terms read).  Since physics r3 the per-foot touch sum
+        # IS the floor force under that foot, and nothing but the feet touches
+        # the floor while the animal stands, so the summed touch is the
+        # animal's floor force.  The impact term prices the step's PEAK above
+        # floor_impact_threshold_bw body weights, the excess capped at
+        # _FLOOR_IMPACT_EXCESS_CAP_BW; the airborne term the share of the
+        # step's substeps on which every foot is unloaded.  Both run over the
+        # whole episode, settle included, where the support terms' step-level
+        # MIN and the gate's window let a stomp or a two-foot hop go unpriced
+        # (the T-Rex's D-D27 terms, here in the capped form of the anatomical
+        # Compsognathus; the maintainer's decision of 2026-11-06).
+        reward_floor_impact = 0.0
+        reward_airborne_substeps = 0.0
+        if self.floor_impact_weight > 0.0 or self.airborne_substep_weight > 0.0:
+            foot_force_block = self._substep_foot_force_block()
+            if self.floor_impact_weight > 0.0:
+                peak_foot_force_bw = float(foot_force_block.sum(axis=1).max()) / self._body_weight_n
+                impact_excess = min(
+                    max(0.0, peak_foot_force_bw - self.floor_impact_threshold_bw), self._FLOOR_IMPACT_EXCESS_CAP_BW
+                )
+                reward_floor_impact = -self.floor_impact_weight * impact_excess
+                info["peak_foot_force_bw"] = peak_foot_force_bw
+                info["reward_floor_impact"] = reward_floor_impact
+            if self.airborne_substep_weight > 0.0:
+                airborne_substeps = int(np.count_nonzero(np.all(foot_force_block <= self._AIRBORNE_TOUCH_N, axis=1)))
+                reward_airborne_substeps = -self.airborne_substep_weight * airborne_substeps / foot_force_block.shape[0]
+                info["airborne_substeps"] = float(airborne_substeps)
+                info["reward_airborne_substeps"] = reward_airborne_substeps
 
         # 10. Action smoothness (shared helper)
         # Jerk BEFORE smoothness: _reward_action_smoothness rotates the action
@@ -636,6 +788,13 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             + reward_speed
             + reward_idle
         )
+        # Added only when enabled, so the legacy sum keeps its exact order.
+        if self.tail_home_pose_weight > 0.0:
+            total_reward += reward_tail_home_pose
+        if self.floor_impact_weight > 0.0:
+            total_reward += reward_floor_impact
+        if self.airborne_substep_weight > 0.0:
+            total_reward += reward_airborne_substeps
         info["reward_total"] = total_reward
 
         return total_reward, info

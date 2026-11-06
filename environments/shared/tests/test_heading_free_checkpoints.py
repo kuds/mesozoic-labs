@@ -56,8 +56,10 @@ from .ancestors_helpers import STANCE_CURRICULUM, STANCE_TASK, build_trunk_run  
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
-MODELS = (TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES)
-#: The pre-migration policy interfaces, as the committed plant manifest recorded them before note 18.
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+MODELS = (TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES, VELOCIRAPTOR_MONGOLIENSIS)
+#: The pre-migration policy interfaces, as the committed plant manifest recorded them before note 18 (the
+#: velociraptor's before note 21, 2026-11-06).
 PRE_MIGRATION: dict[ModelId, dict[str, Any]] = {
     TYRANNOSAURUS_REX: {
         "policy_interface_revision": 13,
@@ -69,9 +71,14 @@ PRE_MIGRATION: dict[ModelId, dict[str, Any]] = {
         "observation_dim": 56,
         "policy_interface_sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd",
     },
+    VELOCIRAPTOR_MONGOLIENSIS: {
+        "policy_interface_revision": 12,
+        "observation_dim": 70,
+        "policy_interface_sha256": "sha256:c11825a0f66004b93b86b855b802a48a5890f3d43848b622ea00419230c129f1",
+    },
 }
 #: Current widths: the 4-wide quaternion became 3-wide projected gravity.
-CURRENT_WIDTH = {TYRANNOSAURUS_REX: 63, COMPSOGNATHUS_LONGIPES: 55}
+CURRENT_WIDTH = {TYRANNOSAURUS_REX: 63, COMPSOGNATHUS_LONGIPES: 55, VELOCIRAPTOR_MONGOLIENSIS: 69}
 PPO_KWARGS: dict[str, Any] = {
     "n_steps": 64,
     "batch_size": 32,

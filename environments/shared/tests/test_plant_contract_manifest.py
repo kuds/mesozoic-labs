@@ -38,12 +38,12 @@ DUAL_BACKEND = frozenset(model_ids(backend="jax-mjx"))
 # segment (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77 -> 70/64/86/80, and 43 / 53 -> 46 / 56 for the two Compsognathus
 # plants; velociraptor left the frozen MJX core at policy-interface revision 11, and trex at revision 14 with the
 # heading-free observation (64 -> 63), which also took the anatomical compsognathus from 56 to 55 (projected gravity
-# replaces the 4-wide quaternion).
+# replaces the 4-wide quaternion), and the velociraptor from 70 to 69 at revision 13 (2026-11-06).
 #: Each SB3-only model's observation width.  Exempt: DUAL_BACKEND, which does claim MJX parity.
 SB3_ONLY_OBSERVATION_WIDTH = {
     COMPSOGNATHUS_LONGIPES: 55,
     COMPSOGNATHUS_LONGIPES_ROBOT: 46,
-    VELOCIRAPTOR_MONGOLIENSIS: 70,
+    VELOCIRAPTOR_MONGOLIENSIS: 69,
     TYRANNOSAURUS_REX: 63,
 }
 #: Each SB3-only model's action width, resolved from the bundled manifest alone.  Exempt: DUAL_BACKEND: the
@@ -57,7 +57,7 @@ BUNDLED_ACTION_DIM = {
 #: (observation_dim, action_dim) of the identity generated from each executable environment.  Exempt: both
 #: Compsognathus models, whose widths SB3_ONLY_OBSERVATION_WIDTH and BUNDLED_ACTION_DIM pin.
 IDENTITY_DIMS = {
-    VELOCIRAPTOR_MONGOLIENSIS: (70, 22),
+    VELOCIRAPTOR_MONGOLIENSIS: (69, 22),
     TYRANNOSAURUS_REX: (63, 15),
     BRACHIOSAURUS_ALTITHORAX: (86, 30),
     DIBOTHROSUCHUS_ELAPHROS: (80, 27),

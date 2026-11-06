@@ -91,6 +91,13 @@ class TestSettings:
             ]
         )
 
+    def test_the_velociraptor_mongoliensis_stance_block(self):
+        """The T-Rex's watch ported with its anchor (the maintainer's decision that day): the duty bar, the entropy anneal's end, stop."""
+        stage = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")
+        curriculum = stage["curriculum_kwargs"]
+        assert hop_watch_settings(curriculum) == (0.05, 7_000_000, True)
+        assert curriculum["hop_watch_after_timesteps"] == stage["ppo_kwargs"]["ent_coef_decay_timesteps"]
+
     def test_defaults_warn_from_the_start(self):
         assert hop_watch_settings({"hop_watch_max_unsupported_duty": 0.1}) == (0.1, 0, False)
 
@@ -152,8 +159,8 @@ class TestBuild:
     def test_built_only_where_declared(self):
         plateau = _Plateau()
         assert build_hop_watch_callback(plateau, {"curriculum_kwargs": {}}, stage_dir=None) is None
-        velociraptor_mongoliensis = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), 1)
-        assert build_hop_watch_callback(plateau, velociraptor_mongoliensis, stage_dir=None) is None
+        brachiosaurus_altithorax = load_stage_config(ModelId("brachiosaurus_altithorax", "anatomical"), 1)
+        assert build_hop_watch_callback(plateau, brachiosaurus_altithorax, stage_dir=None) is None
         assert (
             build_hop_watch_callback(
                 None, load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance"), stage_dir=None
@@ -237,7 +244,7 @@ class TestTrainerWiring:
 
     def test_a_stage_without_the_keys_trains_without_one(self, tmp_path, monkeypatch):
         callbacks = self._callbacks(
-            tmp_path, monkeypatch, load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), 1)
+            tmp_path, monkeypatch, load_stage_config(ModelId("brachiosaurus_altithorax", "anatomical"), 1)
         )
         assert not any(isinstance(callback, HopRegimeWatchCallback) for callback in callbacks)
 

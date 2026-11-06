@@ -506,3 +506,151 @@ class TestCurriculumStageRewards:
         assert "reward_approach" in info
         assert info["approach_delta"] != 0.0
         env.close()
+
+
+class TestPortedStanceTerms:
+    """The T-Rex's tail-pose, floor-impact and airborne-substep terms on the raptor (the maintainer's decision of 2026-11-06).
+
+    Each is off by default and declared in ``OPT_IN_TASK_KWARGS``: off, it emits
+    no info key and leaves the reward and the task fingerprint as they were;
+    the stance stage turns all three on.
+    """
+
+    #: Every info key the three terms emit while on.
+    ON_KEYS = (
+        "tail_home_pose_error",
+        "tail_home_pose_quality",
+        "reward_tail_home_pose",
+        "peak_foot_force_bw",
+        "reward_floor_impact",
+        "airborne_substeps",
+        "reward_airborne_substeps",
+    )
+    ON = {"tail_home_pose_weight": 0.25, "floor_impact_weight": 0.5, "airborne_substep_weight": 1.0}
+
+    def test_off_by_default_they_emit_no_info_key(self):
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=42)
+            _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+            assert not set(self.ON_KEYS) & set(info)
+        finally:
+            env.close()
+
+    def test_on_they_enter_the_total_after_the_legacy_sum(self):
+        """The total is the legacy left-to-right sum, then the enabled terms in declaration order, exactly."""
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.05, **self.ON)
+        try:
+            env.reset(seed=3042)
+            rng = np.random.default_rng(0)
+            for _ in range(200):
+                action = rng.uniform(-1.0, 1.0, env.action_space.shape).astype(np.float32)
+                _, reward, terminated, truncated, info = env.step(action)
+                assert set(self.ON_KEYS) <= set(info)
+                expected = info[TestStanceQualityRewards.LEGACY_TERMS[0]]
+                for key in TestStanceQualityRewards.LEGACY_TERMS[1:]:
+                    expected = expected + info[key]
+                # The D-D25 terms, in the order _get_reward_info sums them, are inert here.
+                expected = (
+                    expected
+                    + info["reward_tail_home_pose"]
+                    + info["reward_floor_impact"]
+                    + info["reward_airborne_substeps"]
+                )
+                if terminated and not info.get("success"):
+                    expected += env.fall_penalty
+                # Exact, as the legacy test compares: summing the new terms anywhere else changes the last bits
+                # on most steps (89 of these 200 with them first).
+                assert reward == expected
+                if terminated or truncated:
+                    env.reset(seed=3043)
+        finally:
+            env.close()
+
+    def test_the_statue_earns_the_tail_term_and_pays_neither_contact_term(self):
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0, **self.ON)
+        try:
+            env.reset(seed=0)
+            infos = [env.step(np.zeros(env.action_space.shape, dtype=np.float32))[4] for _ in range(300)]
+            window = infos[200:]
+            assert min(info["tail_home_pose_quality"] for info in window) > 0.999
+            assert all(info["reward_airborne_substeps"] == 0.0 for info in infos)
+            assert all(info["reward_floor_impact"] == 0.0 for info in infos)
+        finally:
+            env.close()
+
+    def test_a_tail_parked_on_its_stop_forfeits_its_joint(self):
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0, tail_home_pose_weight=1.0)
+        try:
+            env.reset(seed=0)
+            env.data.qpos[env._tail_home_qpos_indices] = env._tail_home_qpos
+            settled = env._get_reward_info(np.zeros(env.model.nu))[1]["tail_home_pose_quality"]
+            env.data.qpos[env._tail_home_qpos_indices[0]] = -np.deg2rad(15.0)  # tail_1_pitch on its ventral stop
+            parked = env._get_reward_info(np.zeros(env.model.nu))[1]
+            assert settled == pytest.approx(1.0)
+            # One joint of four 0.18 rad off a 0.05 rad tolerance: that joint's Gaussian is ~0, so a quarter goes.
+            assert parked["tail_home_pose_quality"] == pytest.approx(0.75, abs=1e-4)
+            assert parked["reward_tail_home_pose"] == parked["tail_home_pose_quality"]
+        finally:
+            env.close()
+
+    def test_impact_prices_the_peak_above_the_threshold_with_the_excess_capped(self, monkeypatch):
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            reset_noise_scale=0.0, floor_impact_weight=0.5, floor_impact_threshold_bw=2.5
+        )
+        try:
+            env.reset(seed=0)
+            weight = env._body_weight_n
+            assert weight == pytest.approx(13.5 * 9.81, rel=0.01)
+            for peak_bw, excess in ((2.0, 0.0), (3.0, 0.5), (12.0, 1.0)):
+                block = np.array([[0.5, 0.5], [peak_bw / 2, peak_bw / 2], [0.4, 0.6]]) * weight
+                monkeypatch.setattr(env, "_substep_foot_force_block", lambda block=block: block.copy())
+                info = env._get_reward_info(np.zeros(env.model.nu))[1]
+                assert info["peak_foot_force_bw"] == pytest.approx(peak_bw)
+                assert info["reward_floor_impact"] == pytest.approx(-0.5 * excess)
+        finally:
+            env.close()
+
+    def test_airborne_prices_the_share_of_substeps_with_every_foot_unloaded(self, monkeypatch):
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0, airborne_substep_weight=1.0)
+        try:
+            env.reset(seed=0)
+            # Five substeps: two with both feet at or under 0.1 N, one with one foot down, two standing.
+            block = np.array([[0.0, 0.1], [0.05, 0.0], [0.0, 40.0], [60.0, 60.0], [66.0, 66.0]])
+            monkeypatch.setattr(env, "_substep_foot_force_block", lambda: block.copy())
+            info = env._get_reward_info(np.zeros(env.model.nu))[1]
+            assert info["airborne_substeps"] == 2.0
+            assert info["reward_airborne_substeps"] == pytest.approx(-2.0 / 5.0)
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"tail_home_pose_weight": -0.1}, "tail_home_pose_weight"),
+            ({"tail_home_pose_tolerance": 0.0}, "tail_home_pose_tolerance"),
+            ({"floor_impact_weight": float("inf")}, "floor_impact_weight"),
+            ({"floor_impact_threshold_bw": 0.0}, "floor_impact_threshold_bw"),
+            ({"airborne_substep_weight": -1.0}, "airborne_substep_weight"),
+        ],
+    )
+    def test_invalid_settings_fail_fast(self, kwargs, message):
+        with pytest.raises(ValueError, match=message):
+            VelociraptorMongoliensisAnatomicalEnv(**kwargs)
+
+    def test_off_they_stay_out_of_the_task_fingerprint_and_on_they_are_hashed(self):
+        from environments.shared.model_id import ModelId
+        from environments.shared.task_fingerprint import stage_task_fingerprint
+
+        model_id = ModelId("velociraptor_mongoliensis", "anatomical")
+        names = {name for _, _, kwargs in VelociraptorMongoliensisAnatomicalEnv.OPT_IN_TASK_KWARGS for name in kwargs}
+        assert names == {
+            "tail_home_pose_weight",
+            "tail_home_pose_tolerance",
+            "floor_impact_weight",
+            "floor_impact_threshold_bw",
+            "airborne_substep_weight",
+        }
+        assert names <= set(stage_task_fingerprint(model_id, "stance")["env"])
+        for stage in ("locomotion", "behavior"):
+            assert not names & set(stage_task_fingerprint(model_id, stage)["env"]), stage

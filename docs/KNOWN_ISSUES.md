@@ -59,6 +59,23 @@ robustness, **LOW** = cosmetic / QoL.
   on r3 (support-geom duty at least 0.964 against 1.000; out of sample one
   episode in 240 reads under the 0.35 windowed load-share bar), so the
   digit-IV deficit above has slightly less statue margin to aim at.
+  *Update (2026-11-06, the maintainer's decision that day):* the velociraptor half of the recommendation
+  is taken as one change, not as the paired sweep: the stance recipe starts
+  at action std 0.07 (`log_std_init` −2.66), at the r4 statue's measured
+  noise cliff (40/40 full horizon at σ 0.05 and 0.06, 37/40 and 40/40 on two
+  seed blocks at 0.07, 32/40 at 0.08, 7/40 at 0.10, 0/40 at 0.135 and 0.22),
+  and prices airborne substeps and floor impacts (capped) with the T. rex's
+  terms, plus a tail home-pose term; the hop watch, a relative collapse floor
+  and the checkpoint archive guard the run. Under the same σ panel the old
+  std 1.0 is itself a hop (no foot down on 49% of steps). With the new terms
+  the per-step reward, the fall penalty aside, stays positive at every σ
+  measured (+2.81 at 0.07, +0.29 at the old 1.0, where it is +0.78 without
+  them), so no term pays a noisy policy to fall; why the contact-quality arm
+  shortened its episodes is not explained by them. The per-site load shaping,
+  the per-site observation channels and the toe audit stay open, and so does
+  this entry until a velociraptor stance certifies: nothing has trained on
+  the 2026-11-06 recipe, so whether the quiet start reaches the standing basin,
+  and whether digit IV loads there, is unmeasured.
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
@@ -899,6 +916,13 @@ robustness, **LOW** = cosmetic / QoL.
   locomotion statues read 2197.0 ± 217.8
   (dibothrosuchus) and 2201.3 ± 200.6 (brachiosaurus, median 2244.9: two of
   40 episodes lose part of `gait_symmetry` to a briefly unloaded foot).
+  **Update 2026-11-06** (the maintainer's decision that day): the
+  velociraptor is done too. Its stance uses the relative pair (0.45 of the
+  re-measured 3091.3 statue, pin 4) behind a 1.0M peak warm-up, and its
+  locomotion the pair (0.45 of its r4 statue's 796.00 ± 3.58) behind the
+  D-B5 warm-up of 2.3M, replayed on the dibothrosuchus series scaled to that
+  statue in `test_curriculum_early_stopping.py`. Still open: the
+  brachiosaurus and dibothrosuchus floors stay absolute.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
@@ -1667,6 +1691,12 @@ robustness, **LOW** = cosmetic / QoL.
   anatomical compsognathus r4 observation, and it changes only the
   world-frame channels of the velociraptor's and the compsognathus
   robot's.
+  *Update (2026-11-06, the maintainer's decision that day):* the velociraptor is heading-free too (policy
+  interface r13, `configs/plant_versions.toml` note 21; one seed's six
+  headings repeat its episode, joint state to 9.1e-14), and its stance
+  declares the six-heading certificate in place of the report-only probe
+  (its statue clean on 40/40 seeds at every heading on 3042–3081 and on
+  7042–7081). The entry stays open for the compsognathus robot alone.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

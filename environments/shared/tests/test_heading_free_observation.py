@@ -45,6 +45,7 @@ from environments.shared.plant_contract import load_plant_versions
 from environments.shared.plant_contract.policy_layer import _policy_interface_payload
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 from .heading_free_helpers import FLOAT32_BUDGET, assert_paired, linear_policy, paired_traces, zero_policy
 
@@ -56,6 +57,11 @@ MODELS = (
         ModelId("compsognathus_longipes", "anatomical"),
         CompsognathusLongipesAnatomicalEnv,
         id="compsognathus_longipes-anatomical",
+    ),
+    pytest.param(
+        ModelId("velociraptor_mongoliensis", "anatomical"),
+        VelociraptorMongoliensisAnatomicalEnv,
+        id="velociraptor_mongoliensis-anatomical",
     ),
 )
 #: Whole-scene turns for the pointwise test, across the yaw wrap.

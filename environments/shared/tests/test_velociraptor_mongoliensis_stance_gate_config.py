@@ -1,8 +1,11 @@
-"""The velociraptor stance stage's ``stance_quality/v2`` declaration (decision D-D25, 2026-10-06).
+"""The velociraptor stance stage's floor-truth declaration (decision D-D25, 2026-10-06; the maintainer's decision of 2026-11-06).
 
 ``configs/velociraptor_mongoliensis/anatomical/stance.toml`` moved from
 ``reward_and_length/v1``, which its zero-action statue cleared by design, to
-the floor-truth gate with physics r3.  Its bars were set on the r3 statue's
+the floor-truth gate ``stance_quality/v2`` with physics r3, and with policy
+interface r13 (heading-free observations, 2026-11-06) to the six-heading
+certificate ``stance_quality_heading/v1``, which judges the same v2 block at
+every whole-scene heading.  Its bars were set on the r3 statue's
 40-episode panel and validated against the two audited checkpoints of the
 ``20260922_125248`` stance, rolled on the r2 plant they load on
 (``docs/investigations/STANCE_HACK_AUDIT_2026_10.md`` §8).  This module pins
@@ -28,8 +31,9 @@ the declaration in the ways that each fail differently:
    refused it.
 5. **The bar and the rails agree with the numbers they were derived from**,
    recomputed here rather than copied: the bound admits 37/40 and refuses
-   36/40, and both statue-derived constants are their fractions of the
-   statue reference the stage records.
+   36/40, the reward rail is its fraction of the statue reference the stage
+   records, and the collapse floor is the relative 0.45 of it, not an
+   absolute number (2026-11-06).
 """
 
 from __future__ import annotations
@@ -43,12 +47,12 @@ from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_schema import validate_gate_config
 from environments.shared.curriculum.recovery_gate import binomial_lcb
 from environments.shared.curriculum.stance_gate_v2 import (
-    STANCE_GATE_V2_KIND,
     STANCE_V2_THRESHOLD_KEYS,
     StanceV2Thresholds,
     StatueReference,
     classify_stance_episode,
 )
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.gait.stance_metrics import episode_stance_metrics, spawn_grace_steps
 from environments.shared.model_id import ModelId
 
@@ -173,9 +177,12 @@ def _without(curriculum: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any
     return loose
 
 
-def test_the_stance_declares_the_floor_truth_gate_and_validates_as_it(stage, curriculum):
-    assert curriculum["gate_kind"] == STANCE_GATE_V2_KIND
-    assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_GATE_V2_KIND
+def test_the_stance_declares_the_heading_certificate_and_validates_as_it(stage, curriculum):
+    """Since the 2026-11-06 decision the v2 block is judged at six whole-scene headings: v2's keys, the certificate's kind."""
+    assert curriculum["gate_kind"] == STANCE_HEADING_GATE_KIND
+    assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_HEADING_GATE_KIND
+    # The certificate replaces the report-only heading probe (config load would refuse it beside the kind).
+    assert "stance_probe_spawn_yaw_deg" not in curriculum
     thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     env = stage["env_kwargs"]
     thresholds.validate_settle_window(float(env.get("timestep", 0.002)) * int(env.get("frame_skip", 5)))
@@ -243,16 +250,19 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
 
 
 def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
-    """min_avg_reward is 0.60 and collapse_peak_floor 0.75 of the statue, rounded to 10; the ratio states 0.60 itself.
+    """min_avg_reward is 0.60 of the statue, rounded to 10; the ratio states 0.60 itself; the floor is relative.
 
-    The reference is the r3 statue's standing reward (2842.76, 40 episodes, seeds 3042-3081; 2843.00 on the
-    elliptic cone of physics r4, so it carries), pinned to the physics revision it was last measured on
-    (test_statue_constant_freshness.py checks the pin); the explicit floor still wins over it in
-    collapse_settings_from_config.
+    The reference is the r4 statue's standing reward under the 2026-11-06 [env] (3091.32, 40 episodes, seeds
+    3042-3081: the 2843.00 of the r4 plant plus the tail term's 248.3), pinned to the physics revision it was
+    last measured on (test_statue_constant_freshness.py checks the pin).  The collapse floor is the T-Rex's
+    relative 0.45 of it behind a 1M-step peak warm-up: an explicit collapse_peak_floor would win over the pair
+    in collapse_settings_from_config, so the absolute key is gone, not shadowed.
     """
     reference = curriculum["collapse_peak_floor_reference"]
-    assert reference == 2842.8 and curriculum["statue_constants_physics_revision"] == 4
+    assert reference == 3091.3 and curriculum["statue_constants_physics_revision"] == 4
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
-    assert curriculum["collapse_peak_floor"] == round(0.75 * reference, -1)
+    assert "collapse_peak_floor" not in curriculum
+    assert curriculum["collapse_peak_floor_fraction"] == 0.45
+    assert curriculum["collapse_peak_warmup_timesteps"] == 1_000_000
     assert curriculum["min_avg_reward_statue_ratio"] == 0.60
     assert curriculum["min_full_horizon_fraction"] == 0.95

@@ -381,7 +381,8 @@ class TestFootContactSensors:
             foot_dims = obs[-9:-7]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
             np.testing.assert_array_equal(foot_dims, np.asarray(env._foot_contact_forces(), dtype=np.float32))
-            assert env.observation_space.shape == (70,)
+            # 69 since policy interface r13 (2026-11-06): projected gravity (3) for the quaternion (4).
+            assert env.observation_space.shape == (69,)
         finally:
             env.close()
 
@@ -423,3 +424,44 @@ class TestNaturalPitchTracksStance:
 def test_velociraptor_mongoliensis_is_sb3_only():
     """The summed foot cannot be mirrored by the frozen MJX registration (D-D17)."""
     assert VelociraptorMongoliensisAnatomicalEnv.supported_training_backends == ("stable-baselines3",)
+
+
+class TestSettledTailTargetTracksTheStatue:
+    """``_TAIL_SETTLED_QPOS`` (the tail_home_pose term's target, 2026-11-06) is a measured constant.
+
+    It is the noise-free statue's tail pose over the post-settle window, measured
+    on physics r4: -0.078506 / 0.0 / -0.046391 / -0.023066 rad (tail_1 pitch and
+    yaw, tail_2 and tail_3 pitch); a 5000-step roll ends 1.2e-5 rad from it, and
+    the per-seed window means at reset noise 0.05 (the stance config, seeds
+    3042-3081) sit within 4.1e-4 rad of it (tail_1_yaw; 1.2e-4 on the pitch
+    joints), their pooled mean within 1e-5.  Nothing derives it from the plant
+    at run time, so a gain, spring or mass edit that moves the tail would
+    silently re-centre the statue off its own target; this re-measures it, as
+    the T-Rex's TestSettledPoseTargetsTrackTheStatue does.  Every joint stays
+    0.17 rad or more clear of its stop (tail_1_yaw's at +-10 deg, the pitch
+    joints' at +-15 deg): the droop the term targets is not a parked tail.
+    """
+
+    SETTLE_STEPS = 200
+    HORIZON = 1000
+
+    def test_the_target_is_the_statues_post_settle_tail(self):
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            action = np.zeros(env.model.nu, dtype=np.float32)
+            tail = []
+            for step in range(self.HORIZON):
+                _, _, terminated, _, _ = env.step(action)
+                assert not terminated
+                if step >= self.SETTLE_STEPS:
+                    tail.append(env.data.qpos[env._tail_home_qpos_indices].copy())
+            np.testing.assert_allclose(
+                np.mean(tail, axis=0), VelociraptorMongoliensisAnatomicalEnv._TAIL_SETTLED_QPOS, atol=1e-4
+            )
+            joint_ids = [env.model.jnt_qposadr.tolist().index(int(i)) for i in env._tail_home_qpos_indices]
+            ranges = env.model.jnt_range[joint_ids]
+            target = np.asarray(VelociraptorMongoliensisAnatomicalEnv._TAIL_SETTLED_QPOS)
+            assert np.all(target - ranges[:, 0] > 0.15) and np.all(ranges[:, 1] - target > 0.15)
+        finally:
+            env.close()
