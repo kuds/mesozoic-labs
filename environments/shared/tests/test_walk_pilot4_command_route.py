@@ -10,6 +10,9 @@ check of 2026-11-05 measured that config alone cannot do it; these tests pin the
 - (3) ``task_fingerprint.validate_declared_parent`` accepts a non-root node's own earlier checkpoint only when the
   child stage's ``[curriculum]`` declares ``initialize_from_own_checkpoint = true`` (decision (25): this one stage);
   every other node of every model keeps the edge rule, which the tests here walk exhaustively.
+- (4) ``train_behaviors.read_recipe`` leaves pilot 4's T. rex locomotion keys (the command, the prey line, the heading
+  price) out of the [env] the T. rex behavior recipes inherit, so the 11 recipes keep their task digests; every other
+  model's recipes inherit their locomotion [env] whole, as before.
 
 Nothing here trains.
 """
@@ -488,3 +491,169 @@ def test_train_reads_the_key_of_the_stage_it_trains_and_nothing_else(tmp_path, m
 
     with pytest.raises(GateSchemaError, match="initialize_from_own_checkpoint"):
         _train_from(tmp_path / "f", monkeypatch, bad, recorded=2, child=2)
+
+
+# ======================================================================================== (4) the recipes' inherited [env]
+#: What pilot 4's T. rex locomotion [env] adds (decisions (23)-(28)): the live straight command, the prey on the spawn
+#: line and the heading price (its keys are read by name; the env learns them in the price commit).
+PILOT_LOCOMOTION_ENV: dict[str, Any] = {
+    "command_mode": "heading",
+    "command_config": dict(STRAIGHT_TABLE),
+    "prey_lateral_range": [0.0, 0.0],
+    "walk_heading_price_weight": 0.2,
+    "walk_heading_price_scale_rad": 0.5,
+}
+
+
+def _recipe_paths(model_id: ModelId) -> list[Path]:
+    return sorted((model_id.path(REPOSITORY / "configs") / "behaviors").glob("*.toml"))
+
+
+def _models_with_recipes() -> list[ModelId]:
+    from environments.shared.species_names import model_ids
+
+    return [model_id for model_id in sorted(model_ids()) if _recipe_paths(model_id)]
+
+
+def _locomotion_env(model_id: ModelId) -> dict[str, Any]:
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    path = model_id.path(REPOSITORY / "configs") / load_stage_manifest(model_id).by_id("locomotion").config_file
+    return dict(tomllib.loads(path.read_text(encoding="utf-8"))["env"])
+
+
+class _LocomotionEnvAs:
+    """Stands in for train_behaviors' tomllib: the model's locomotion TOML parses with its [env] replaced by *env*;
+    every other file (the recipe itself) parses as written."""
+
+    def __init__(self, model_id: ModelId, env: dict[str, Any]) -> None:
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        config_file = load_stage_manifest(model_id).by_id("locomotion").config_file
+        self.path = (model_id.path(REPOSITORY / "configs") / config_file).resolve()
+        self.env = env
+        self.reads = 0
+
+    def load(self, stream: Any) -> dict[str, Any]:
+        data = tomllib.load(stream)
+        if Path(stream.name).resolve() == self.path:
+            self.reads += 1
+            data = {**data, "env": dict(self.env)}
+        return data
+
+
+def _inherited(recipe: Path, env_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """read_recipe's env kwargs without the terrain sampler it adds for a recipe with [terrain_sampler]."""
+    has_sampler = "terrain_sampler" in tomllib.loads(recipe.read_text(encoding="utf-8"))
+    assert ("terrain_sampler" in env_kwargs) is has_sampler, recipe.name
+    return {key: value for key, value in env_kwargs.items() if key != "terrain_sampler"}
+
+
+def _read(model_id: ModelId, recipe: Path, monkeypatch: Any, locomotion_env: dict[str, Any]) -> dict[str, Any]:
+    from environments.shared import train_behaviors
+
+    stand_in = _LocomotionEnvAs(model_id, locomotion_env)
+    monkeypatch.setattr(train_behaviors, "tomllib", stand_in)
+    try:
+        env_kwargs = train_behaviors.read_recipe(recipe, model_id)[3]
+    finally:
+        monkeypatch.undo()
+    assert stand_in.reads == 1, "read_recipe read the locomotion TOML through the stand-in"
+    return _inherited(recipe, env_kwargs)
+
+
+def test_the_tyrannosaurus_recipes_leave_the_pilot_locomotion_keys_behind(monkeypatch):
+    """Every T. rex recipe resolves the same [env] whether or not the locomotion [env] carries pilot 4's keys: the
+    command, the prey line and the price stay with the locomotion stage; R6 and the rest are inherited as before."""
+    from environments.shared.train_behaviors import LOCOMOTION_ONLY_ENV_KEYS
+
+    assert set(LOCOMOTION_ONLY_ENV_KEYS) == {TYRANNOSAURUS_REX}
+    assert set(LOCOMOTION_ONLY_ENV_KEYS[TYRANNOSAURUS_REX]) == set(PILOT_LOCOMOTION_ENV)
+    committed = _locomotion_env(TYRANNOSAURUS_REX)
+    without = {key: value for key, value in committed.items() if key not in PILOT_LOCOMOTION_ENV}
+    with_keys = {**without, **PILOT_LOCOMOTION_ENV}
+    recipes = _recipe_paths(TYRANNOSAURUS_REX)
+    assert len(recipes) == 11
+    for recipe in recipes:
+        own = tomllib.loads(recipe.read_text(encoding="utf-8")).get("env", {})
+        assert not set(own) & set(PILOT_LOCOMOTION_ENV), recipe.name
+        expected = {**without, "max_episode_steps": 2500, **own}
+        assert _read(TYRANNOSAURUS_REX, recipe, monkeypatch, with_keys) == expected, recipe.name
+        assert _read(TYRANNOSAURUS_REX, recipe, monkeypatch, without) == expected, recipe.name
+        assert _read(TYRANNOSAURUS_REX, recipe, monkeypatch, committed) == expected, recipe.name
+
+
+def _golden_recipe_tasks(model_id: ModelId) -> dict[str, str]:
+    golden = (REPOSITORY / "configs" / "digest_snapshot.generated.txt").read_text(encoding="utf-8").splitlines()
+    tasks = {}
+    for line in golden:
+        fields_ = line.split("\t")
+        if fields_[:3] == ["behavior", model_id.species, model_id.embodiment] and fields_[4] == "task_sha256":
+            tasks[fields_[3]] = fields_[5]
+    return tasks
+
+
+def _recipe_task(model_id: ModelId, recipe: Path, monkeypatch: Any, locomotion_env: dict[str, Any]) -> str:
+    """The recipe's task_sha256 as the digest harness computes it, under a locomotion [env] of *locomotion_env*."""
+    from environments.shared import train_behaviors
+    from environments.shared.harnesses.digest_snapshot import _behavior_task
+
+    monkeypatch.setattr(train_behaviors, "tomllib", _LocomotionEnvAs(model_id, locomotion_env))
+    try:
+        return str(_behavior_task(recipe, model_id)["task_sha256"])
+    finally:
+        monkeypatch.undo()
+
+
+def test_the_tyrannosaurus_recipe_tasks_stay_the_golden_s_under_the_pilot_keys(monkeypatch):
+    """The digest harness's own recipe task derivation, with pilot 4's keys in the locomotion [env]: all 11 T. rex
+    recipe tasks equal the committed golden's lines.  Without the drop (an empty key list) the command keys reach the
+    behavior env, which refuses them, and the prey line alone moves every recipe's task: the drop is what holds them."""
+    from environments.shared import train_behaviors
+
+    golden = _golden_recipe_tasks(TYRANNOSAURUS_REX)
+    recipes = _recipe_paths(TYRANNOSAURUS_REX)
+    assert sorted(golden) == [recipe.stem for recipe in recipes]
+    committed = _locomotion_env(TYRANNOSAURUS_REX)
+    with_keys = {**committed, **PILOT_LOCOMOTION_ENV}
+    for recipe in recipes:
+        assert _recipe_task(TYRANNOSAURUS_REX, recipe, monkeypatch, with_keys) == golden[recipe.stem], recipe.name
+    no_drop = {**train_behaviors.LOCOMOTION_ONLY_ENV_KEYS, TYRANNOSAURUS_REX: ()}
+    prey_only = {key: value for key, value in committed.items() if key not in PILOT_LOCOMOTION_ENV}
+    prey_only["prey_lateral_range"] = [0.0, 0.0]
+    recipe = recipes[0]
+    with monkeypatch.context() as patch:
+        patch.setattr(train_behaviors, "LOCOMOTION_ONLY_ENV_KEYS", no_drop)
+        with pytest.raises(ValueError, match="a behavior env runs command_mode 'heading_and_speed' on commands="):
+            _recipe_task(TYRANNOSAURUS_REX, recipe, monkeypatch, with_keys)
+        assert _recipe_task(TYRANNOSAURUS_REX, recipe, monkeypatch, prey_only) != golden[recipe.stem]
+
+
+def test_every_other_model_s_recipes_inherit_their_locomotion_env_whole(monkeypatch):
+    """No other model changes: each recipe of every other model resolves {**locomotion [env], 2,500 steps, **recipe
+    [env]} exactly as at 31d02e42, prey_lateral_range included where its locomotion [env] sets one (compsognathus
+    [0, 0], dibothrosuchus [-1, 1]); and a pilot key written into another model's locomotion [env] is inherited, so
+    the drop is keyed to the T. rex alone."""
+    from environments.shared.train_behaviors import read_recipe
+
+    others = [model_id for model_id in _models_with_recipes() if model_id != TYRANNOSAURUS_REX]
+    assert len(others) == 5
+    carried = set()
+    for model_id in others:
+        locomotion = _locomotion_env(model_id)
+        for recipe in _recipe_paths(model_id):
+            own = tomllib.loads(recipe.read_text(encoding="utf-8")).get("env", {})
+            resolved = _inherited(recipe, read_recipe(recipe, model_id)[3])
+            assert resolved == {**locomotion, "max_episode_steps": 2500, **own}, (model_id, recipe.name)
+            if "prey_lateral_range" in locomotion and "prey_lateral_range" not in own:
+                assert resolved["prey_lateral_range"] == locomotion["prey_lateral_range"]
+                carried.add(str(model_id))
+        recipe = _recipe_paths(model_id)[0]
+        priced = {**locomotion, "prey_lateral_range": [0.0, 0.0], "walk_heading_price_weight": 0.2}
+        resolved = _read(model_id, recipe, monkeypatch, priced)
+        assert resolved["prey_lateral_range"] == [0.0, 0.0] and resolved["walk_heading_price_weight"] == 0.2
+    assert carried == {
+        "compsognathus_longipes/anatomical",
+        "compsognathus_longipes/robot",
+        "dibothrosuchus_elaphros/anatomical",
+    }

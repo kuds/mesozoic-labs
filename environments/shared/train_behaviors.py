@@ -35,6 +35,22 @@ from environments.shared.terrain_sampling import TerrainSamplerConfig
 #: bundle.json's schema; a bundle saved before the task-fingerprint identity (v1) is refused by name.
 BUNDLE_SCHEMA = "mesozoic.behavior-bundle/v2"
 
+#: WALKING PILOT 4 (pilot-only, never merged): the locomotion ``[env]`` keys a model's behavior recipes do NOT
+#: inherit (:func:`read_recipe`).  Pilot 4's T. rex locomotion stage (the maintainer's decisions (23)-(28) of
+#: 2026-11-05) runs a live straight command, the prey held on the spawn line and a heading price; a behavior states
+#: its own command task (``[commands]``) on its own 2,500-step horizon, so these stay with the locomotion stage and
+#: the 11 T. rex recipes keep their task digests.  Keyed by model: every other model's recipes inherit their
+#: locomotion ``[env]`` whole, as before (compsognathus and dibothrosuchus set ``prey_lateral_range`` there).
+LOCOMOTION_ONLY_ENV_KEYS: dict[ModelId, tuple[str, ...]] = {
+    ModelId("tyrannosaurus_rex", "anatomical"): (
+        "command_mode",
+        "command_config",
+        "prey_lateral_range",
+        "walk_heading_price_weight",
+        "walk_heading_price_scale_rad",
+    ),
+}
+
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -155,7 +171,10 @@ def read_recipe(
     baseline = model_id.path(REPO_ROOT / "configs") / parent_stage.config_file
     with baseline.open("rb") as stream:
         defaults = tomllib.load(stream)
-    env_kwargs = {**defaults["env"], "max_episode_steps": 2500, **recipe.get("env", {})}
+    # Walking pilot 4 (pilot-only, never merged): the locomotion stage's own keys stay behind (LOCOMOTION_ONLY_ENV_KEYS).
+    stays_behind = LOCOMOTION_ONLY_ENV_KEYS.get(model_id, ())
+    inherited = {key: value for key, value in defaults["env"].items() if key not in stays_behind}
+    env_kwargs = {**inherited, "max_episode_steps": 2500, **recipe.get("env", {})}
     if sampler is not None:
         env_kwargs["terrain_sampler"] = sampler
     return recipe, commands, terrain, env_kwargs
