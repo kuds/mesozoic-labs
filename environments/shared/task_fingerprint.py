@@ -611,7 +611,8 @@ def derive_stage_task_fingerprint(
         )
 
         try:
-            command_mode = validate_command_mode(effective_kwargs.get("command_mode"), backend=backend)
+            # The key is present: the branch is entered only when it is not "none" (its default when absent).
+            command_mode = validate_command_mode(effective_kwargs["command_mode"], backend=backend)
         except ValueError as exc:
             raise TaskFingerprintError(f"[env] command_config cannot be hashed: {exc}") from exc
         command_config = direction_command_config_from_table(command_table)
