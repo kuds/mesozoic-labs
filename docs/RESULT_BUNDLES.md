@@ -310,7 +310,16 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   for the missing field alone), and its run block's `seed` differs.  A sibling whose
   verdict records no `gate_sha256` (judged before decision D-A22) is skipped
   until re-judged with `backfill_gate_verdict.py --force`, consistent with
-  reuse rule 7.  `environments.shared.replication.discover_replicates_for_run`
+  reuse rule 7.  A run that never counts (the maintainer's stance-landing
+  decision of 2026-11-06: the nine r10 T. rex stance screen runs, which trained
+  the landed stance recipe on branch commits, listed in
+  `environments/shared/run_exclusions.py` by those commits and by their handoff
+  checkpoints, read from `provenance.json`, the stage directory's
+  `stage_config.json` and its `gate_verdict.json`) is never counted as a
+  replicate and counts no replicate of its own; it is never a reusable ancestor
+  (reuse rule 9 in `environments/shared/ancestors.py`), a widening parent or a
+  promotable result (the audit and the species catalog refuse its provenance).
+  `environments.shared.replication.discover_replicates_for_run`
   finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`.
   The count is recorded at publication (decision D-B10): a replicate that finishes
   later is counted when the run's publication cell is re-run with the

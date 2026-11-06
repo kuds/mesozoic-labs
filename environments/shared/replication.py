@@ -34,6 +34,12 @@ records no ``gate_sha256`` (judged before D-A22) IS skipped, consistent with
 reuse rule 7 and decision D-B6, and joins the count once re-judged
 (``scripts/backfill_gate_verdict.py --force``).
 
+Some runs never count (the maintainer's stance-landing decision of 2026-11-06,
+:mod:`environments.shared.run_exclusions`): the r10 T. rex stance screen runs,
+trained on branch commits whose digests equal the landed recipe's.  A sibling
+that is one of them is skipped with the reason, and a run that is one of them
+counts no replicate at all, so its own record stays at this run alone.
+
 Discovery never raises on a malformed sibling: every skip is logged at INFO
 with its reason, because a neighbouring run's broken files must not stop
 this run from publishing.  The RECORD is what fails closed — the schema
@@ -121,6 +127,7 @@ def discover_replicates(
         read_gate_verdict,
         verdict_is_reusable,
     )
+    from .run_exclusions import excluded_run_reason
 
     run_path = Path(run_dir).resolve()
     try:
@@ -130,6 +137,15 @@ def discover_replicates(
     current_plant = _normalize_plant_identity(_plant_mapping(plant_identity), model_id=model_id)
     if current_plant is None:
         raise ResultBundleError("replicate discovery needs the run's plant identity")
+    own_exclusion = excluded_run_reason(run_path)
+    if own_exclusion is not None:
+        _logger.info(
+            "replicates of %s for %r: none counted, the run itself never counts: %s",
+            run_path.name,
+            entry.id,
+            own_exclusion,
+        )
+        return []
 
     def _skip(sibling: Path, reason: str) -> None:
         _logger.info("replicates of %s for %r: skipping %s: %s", run_path.name, entry.id, sibling.name, reason)
@@ -145,6 +161,10 @@ def discover_replicates(
         stage_dir = _stage_dir_or_none(sibling, entry.reference)
         if stage_dir is None:
             _skip(sibling, f"no stage directory for {entry.id!r}")
+            continue
+        exclusion = excluded_run_reason(sibling, stage_dir)
+        if exclusion is not None:
+            _skip(sibling, exclusion)
             continue
         try:
             verdict = read_gate_verdict(stage_dir)
@@ -253,12 +273,19 @@ def discover_replicates_for_run(
     result is what ``reporting.save_result_bundle(replicates=...)`` records;
     a node with no such verdict (never judged, failed, judged before
     D-A22) contributes no key, and its record then counts this run alone.
+    A run that never counts (:mod:`environments.shared.run_exclusions`)
+    contributes no key at all.
     """
     from .config import read_recorded_stage_config, recorded_hyperparameters_sha256
     from .result_bundle import GateVerdictError, read_gate_verdict, verdict_is_reusable
+    from .run_exclusions import excluded_run_reason
     from .stage_manifest import load_stage_manifest
 
     run_path = Path(run_dir).resolve()
+    exclusion = excluded_run_reason(run_path)
+    if exclusion is not None:
+        _logger.info("replicates of %s: none counted, the run itself never counts: %s", run_path.name, exclusion)
+        return {}
     manifest = load_stage_manifest(model_id)
     replicates: dict[str, list[dict[str, Any]]] = {}
     for entry in manifest.deliverables:
