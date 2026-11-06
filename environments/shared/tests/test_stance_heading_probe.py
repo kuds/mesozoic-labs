@@ -240,17 +240,19 @@ class TestProbeTable:
     )
     def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance_without_the_certificate(self, model_id):
         # The maintainer's decision of 2026-10-11 for the velociraptor and the compsognathus robot (D-D27 for the
-        # trex until the certificate replaced it there, D-D32).
+        # trex until the certificate replaced it there, D-D32, and for the velociraptor until D-D59).
         assert "stance_probe_spawn_yaw_deg" in _DIAGNOSTIC_KEYS
         curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
         assert curriculum["stance_probe_spawn_yaw_deg"] == [-90.0, -45.0, 45.0, 90.0]
         assert declares_heading_probe(curriculum)
 
-    def test_the_two_anatomical_stances_declare_the_certificate_and_no_probe(self):
-        """The maintainer's approval of 2026-10-11 (D-D32): T. rex and the anatomical compsognathus only."""
+    def test_the_heading_free_stances_declare_the_certificate_and_no_probe(self):
+        """The maintainer's approval of 2026-10-11 (D-D32): T. rex and the anatomical compsognathus; the velociraptor
+        with its heading-free observation since D-D59 (2026-11-06)."""
         assert _CERTIFIED == {
             ModelId("tyrannosaurus_rex", "anatomical"),
             ModelId("compsognathus_longipes", "anatomical"),
+            ModelId("velociraptor_mongoliensis", "anatomical"),
         }
         for model_id in sorted(_CERTIFIED):
             curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
@@ -424,14 +426,15 @@ class TestHandoffWarning:
         assert "is missing although the stage declares the heading probe; heading robustness is unmeasured" in message
         # The remedy rolls it into a scratch directory: --out-dir also writes a gate report, never into the stage.
         assert "--out-dir <a scratch directory>" in message and f"--out-dir {tmp_path}" not in message
-        # Undeclared by the caller, the stage's recorded config decides: the velociraptor stance declares the
-        # probe, so a stance the command-line curriculum trained (it rolls none) warns; the brachiosaurus stance
-        # does not, nor does a velociraptor stance recorded before its config declared the probe (2026-10-11),
-        # whatever the checkout's config now says.  The trex stance's certificate replaced it (D-D32): with no
-        # certificate on disk it warns the certificate missing instead, whatever *declared* says.
-        tyrannosaurus_rex, velociraptor_mongoliensis, brachiosaurus_altithorax = (
+        # Undeclared by the caller, the stage's recorded config decides: the compsognathus robot's stance declares
+        # the probe, so a stance the command-line curriculum trained (it rolls none) warns; the brachiosaurus
+        # stance does not, nor does a robot stance recorded before its config declared the probe (2026-10-11),
+        # whatever the checkout's config now says.  The trex stance's certificate replaced it (D-D32), as the
+        # velociraptor's did (D-D59): with no certificate on disk it warns the certificate missing instead,
+        # whatever *declared* says.
+        tyrannosaurus_rex, compsognathus_longipes_robot, brachiosaurus_altithorax = (
             tmp_path / "tyrannosaurus_rex",
-            tmp_path / "velociraptor_mongoliensis",
+            tmp_path / "compsognathus_longipes_robot",
             tmp_path / "brachiosaurus_altithorax",
         )
         save_stage_config(
@@ -442,11 +445,11 @@ class TestHandoffWarning:
             model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         )
         save_stage_config(
-            velociraptor_mongoliensis,
+            compsognathus_longipes_robot,
             1,
-            load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance"),
+            load_stage_config(ModelId("compsognathus_longipes", "robot"), "stance"),
             "PPO",
-            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            model_id=ModelId("compsognathus_longipes", "robot"),
         )
         save_stage_config(
             brachiosaurus_altithorax,
@@ -455,29 +458,32 @@ class TestHandoffWarning:
             "PPO",
             model_id=ModelId("brachiosaurus_altithorax", "anatomical"),
         )
-        old_velociraptor_mongoliensis, before = (
-            tmp_path / "old_velociraptor_mongoliensis",
-            load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance"),
+        old_compsognathus_longipes_robot, before = (
+            tmp_path / "old_compsognathus_longipes_robot",
+            load_stage_config(ModelId("compsognathus_longipes", "robot"), "stance"),
         )
         before["curriculum_kwargs"].pop("stance_probe_spawn_yaw_deg")
         save_stage_config(
-            old_velociraptor_mongoliensis, 1, before, "PPO", model_id=ModelId("velociraptor_mongoliensis", "anatomical")
+            old_compsognathus_longipes_robot, 1, before, "PPO", model_id=ModelId("compsognathus_longipes", "robot")
         )
         (message,) = stage_heading_probe_warnings(tyrannosaurus_rex)
         assert (
             "stance_heading_report.json is missing although the stage declares the six-heading certificate" in message
         )
         assert stage_heading_probe_warnings(tyrannosaurus_rex, declared=False) == [message]
-        assert len(stage_heading_probe_warnings(velociraptor_mongoliensis)) == 1
+        assert len(stage_heading_probe_warnings(compsognathus_longipes_robot)) == 1
         assert stage_heading_probe_warnings(brachiosaurus_altithorax) == []
-        assert stage_heading_probe_warnings(old_velociraptor_mongoliensis) == []
-        assert stage_heading_probe_warnings(velociraptor_mongoliensis, declared=False) == []
+        assert stage_heading_probe_warnings(old_compsognathus_longipes_robot) == []
+        assert stage_heading_probe_warnings(compsognathus_longipes_robot, declared=False) == []
 
     def test_declares_heading_probe(self):
         assert not declares_heading_probe(
             load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["curriculum_kwargs"]
         )
         assert declares_heading_probe(
+            load_stage_config(ModelId("compsognathus_longipes", "robot"), "stance")["curriculum_kwargs"]
+        )
+        assert not declares_heading_probe(
             load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["curriculum_kwargs"]
         )
         assert not declares_heading_probe(
