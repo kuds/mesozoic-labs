@@ -2021,7 +2021,8 @@ def train(
     (:func:`~environments.shared.task_fingerprint.validate_declared_parent`).
     A stage whose ``[curriculum]`` declares ``initialize_from_own_checkpoint
     = true`` (walking pilot 4's T. rex locomotion only) also accepts an
-    earlier checkpoint of itself.  To everything after the check such a load
+    earlier command-free checkpoint of itself (a command-trained one is
+    refused: it is resumed instead).  To everything after the check such a load
     is an edge crossing (:func:`_load_crosses_edge`): the stage-entry shaping
     and ``warm_start_log_std`` apply when declared, and the
     ``initialize_next_stage`` load prepares a command-blind parent's command

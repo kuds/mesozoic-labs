@@ -402,6 +402,40 @@ def test_the_key_adds_exactly_the_node_itself():
         _accepted(TYRANNOSAURUS_REX, 2, 1, None, accept_own_checkpoint="yes")
 
 
+def test_the_own_checkpoint_path_admits_only_a_command_free_checkpoint():
+    """The key brings a COMMAND-FREE earlier checkpoint of the node into its live task (pilot 3's walkers, whose
+    records carry no command section).  A command-trained checkpoint of the node itself (a pilot-4 checkpoint) is
+    refused even with the key: train()'s initialize_next_stage load would reseed its learned command statistics and
+    reset ret_rms, so it is resumed instead.  The declared parent's records and every root are unchanged, command
+    section or not, and without the key a command-trained own checkpoint is refused by the edge rule as before."""
+    from environments.shared.task_fingerprint import validate_declared_parent
+
+    command = {"command": {"schema": "mesozoic.direction-command/v1"}}
+    for model_id, child, parent, _ in _every_edge_case():
+        own = {**model_id.record(), "stage": child}
+        if parent is None:
+            for flag in (True, False):
+                assert _accepted(model_id, child, parent, {**own, **command}, accept_own_checkpoint=flag)
+            continue
+        assert _accepted(model_id, child, parent, own, accept_own_checkpoint=True)
+        assert _accepted(model_id, child, parent, {**model_id.record(), "stage": parent, **command})
+        assert _accepted(
+            model_id, child, parent, {**model_id.record(), "stage": parent, **command}, accept_own_checkpoint=True
+        )
+        assert not _accepted(model_id, child, parent, {**own, **command}, accept_own_checkpoint=True)
+        assert not _accepted(model_id, child, parent, {**own, **command})
+    with pytest.raises(TaskFingerprintError, match="is a command-trained checkpoint of .* itself") as refusal:
+        validate_declared_parent(
+            {**TYRANNOSAURUS_REX.record(), "stage": 2, **command},
+            declared_parent=1,
+            model_id=TYRANNOSAURUS_REX,
+            child_stage=2,
+            artifact="stage2_250000_steps.zip",
+            accept_own_checkpoint=True,
+        )
+    assert "continue it with resume_same_stage" in str(refusal.value)
+
+
 def test_the_key_is_a_bool_in_no_digest():
     """The schema knows the key and types it; it enters neither the gate view nor the recipe digest."""
     import copy
@@ -437,9 +471,12 @@ class _SB3Reached(RuntimeError):
     """train() passed the declared-parent check and went on to import the backend."""
 
 
-def _train_from(tmp_path: Path, monkeypatch: Any, stage_configs: dict[Any, Any], *, recorded: Any, child: Any) -> str:
+def _train_from(
+    tmp_path: Path, monkeypatch: Any, stage_configs: dict[Any, Any], *, recorded: Any, child: Any, command: bool = False
+) -> str:
     """train()'s launch path up to the backend import, on a checkpoint whose fingerprint records stage *recorded*
-    (the pattern of test_train_base.py's TestTrainRefusesAnUndeclaredParent)."""
+    (the pattern of test_train_base.py's TestTrainRefusesAnUndeclaredParent); *command* adds a command section to
+    the record, as a command-trained checkpoint carries."""
     import zipfile
     from types import SimpleNamespace
 
@@ -451,8 +488,11 @@ def _train_from(tmp_path: Path, monkeypatch: Any, stage_configs: dict[Any, Any],
     monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: (_ for _ in ()).throw(_SB3Reached()))
     tmp_path.mkdir(parents=True, exist_ok=True)
     parent = tmp_path / f"parent_{recorded}.zip"
+    record = {**TYRANNOSAURUS_REX.record(), "stage": recorded}
+    if command:
+        record["command"] = {"schema": "mesozoic.direction-command/v1"}
     with zipfile.ZipFile(parent, "w") as archive:
-        archive.writestr("data", json.dumps({MODEL_TASK_ATTRIBUTE: {**TYRANNOSAURUS_REX.record(), "stage": recorded}}))
+        archive.writestr("data", json.dumps({MODEL_TASK_ATTRIBUTE: record}))
     output_dir = tmp_path / f"out_{recorded}_{child}"
     output_dir.mkdir()
     species: Any = SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object)
@@ -490,6 +530,12 @@ def test_train_reads_the_key_of_the_stage_it_trains_and_nothing_else(tmp_path, m
     assert _train_from(tmp_path / "a", monkeypatch, on, recorded=2, child=2) == "passed-the-check"
     # The committed locomotion stage declares the key itself (pilot 4's TOML).
     assert _train_from(tmp_path / "a0", monkeypatch, committed, recorded=2, child=2) == "passed-the-check"
+    # ... for a command-free checkpoint of itself only: a command-trained one (a pilot-4 checkpoint) is resumed.
+    with pytest.raises(TaskFingerprintError, match="is a command-trained checkpoint of .* itself"):
+        _train_from(tmp_path / "a1", monkeypatch, committed, recorded=2, child=2, command=True)
+    assert _train_from(tmp_path / "a2", monkeypatch, committed, recorded=1, child=2, command=True) == (
+        "passed-the-check"
+    )
     assert _train_from(tmp_path / "b", monkeypatch, on, recorded=1, child=2) == "passed-the-check"
     with pytest.raises(TaskFingerprintError, match=r"declared parent \(or, by its initialize_from_own_checkpoint"):
         _train_from(tmp_path / "c", monkeypatch, on, recorded=3, child=2)

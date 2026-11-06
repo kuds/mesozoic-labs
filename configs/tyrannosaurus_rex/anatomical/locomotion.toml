@@ -149,9 +149,11 @@ max_checkpoints = 0                     # WALKING PILOT 3 and 4 (pilot-only, nev
                                         # 5): keep every periodic pair (8 at 2,000,000), pilot 3's decision of 2026-11-03.
 initialize_from_own_checkpoint = true   # WALKING PILOT 4 (pilot-only, never merged; no other stage of any model
                                         # declares it): the maintainer's decision (25) of 2026-11-05. Under
-                                        # initialize_next_stage this node also accepts an earlier checkpoint of ITSELF
-                                        # beside its declared parent (stance): pilot 3's command-free 8M locomotion
-                                        # pairs into this live-command task (task_fingerprint.validate_declared_parent).
+                                        # initialize_next_stage this node also accepts an earlier COMMAND-FREE
+                                        # checkpoint of ITSELF beside its declared parent (stance): pilot 3's 8M
+                                        # locomotion pairs into this live-command task; a command-trained checkpoint
+                                        # of this node is refused, and resumed instead
+                                        # (task_fingerprint.validate_declared_parent).
                                         # Such a load is an edge crossing to train_base: the command columns are zeroed
                                         # and their inputs reseeded, ret_rms starts afresh, and the stage-entry shaping
                                         # applies, which the warm-up and ramp lines below make inert. Permits a load and

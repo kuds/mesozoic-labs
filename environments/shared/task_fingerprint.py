@@ -465,11 +465,14 @@ def validate_declared_parent(
 
     *accept_own_checkpoint* (walking pilot 4, pilot-only, never merged; the
     maintainer's decision (25) of 2026-11-05) lets a NON-root also accept an
-    earlier checkpoint of ITSELF, beside its declared parent, exactly as a
-    root does.  ``train()`` passes it from the child stage's ``[curriculum]
-    initialize_from_own_checkpoint`` (only the T. rex locomotion config
-    declares it), so every other node keeps the rule above; it changes
-    nothing for a root.
+    earlier COMMAND-FREE checkpoint of ITSELF (a record without a ``command``
+    section), beside its declared parent.  ``train()`` passes it from the
+    child stage's ``[curriculum] initialize_from_own_checkpoint`` (only the
+    T. rex locomotion config declares it), so every other node keeps the rule
+    above; it changes nothing for a root.  A command-trained checkpoint of
+    the node itself is refused even then: an ``initialize_next_stage`` load
+    would reseed its learned command statistics and reset its ``ret_rms``,
+    so it is continued with ``resume_same_stage`` instead.
 
     A checkpoint with no fingerprint at all (*recorded* ``None``: minted before
     2026-08-15) cannot be checked; it warns and continues — the same dated
@@ -506,6 +509,21 @@ def validate_declared_parent(
         not isinstance(recorded_stage, bool) and isinstance(recorded_stage, (int, str)) and recorded_stage in accepted
     )
     if matches:
+        if (
+            accept_own_checkpoint
+            and declared_parent is not None
+            and recorded_stage == child_stage
+            and "command" in recorded
+        ):
+            # Walking pilot 4: the self-load exists to bring a COMMAND-FREE checkpoint of the node (pilot 3's walkers)
+            # into its live-command task.  train()'s initialize_next_stage load would reseed a command-trained one's
+            # learned command statistics and reset its ret_rms; such a checkpoint is continued with resume_same_stage.
+            raise TaskFingerprintError(
+                f"{artifact} is a command-trained checkpoint of {model_id} stage "
+                f"{_describe_stage(model_id, child_stage)} itself: initialize_from_own_checkpoint admits only a "
+                "command-free earlier checkpoint (initialize_next_stage would reseed its live command statistics "
+                "and reset ret_rms); continue it with resume_same_stage"
+            )
         return
     recorded_desc = _describe_stage(model_id, recorded_stage)
     child_desc = _describe_stage(model_id, child_stage)

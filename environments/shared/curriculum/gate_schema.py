@@ -347,11 +347,12 @@ _WARM_START_KEYS = frozenset({WARM_START_LOG_STD_KEY})
 
 #: Walking pilot 4 (pilot-only, never merged; the maintainer's decision (25)
 #: of 2026-11-05): ``initialize_from_own_checkpoint = true`` lets a NON-ROOT
-#: node accept, under ``initialize_next_stage``, an earlier checkpoint of
-#: ITSELF beside its declared ``warm_start_from`` parent
-#: (``task_fingerprint.validate_declared_parent``), as a root does (decision
-#: D-A3): the T. rex locomotion stage re-initialised from walking pilot 3's
-#: command-free locomotion checkpoints into its live-command task.  Absent or
+#: node accept, under ``initialize_next_stage``, an earlier command-free
+#: checkpoint of ITSELF beside its declared ``warm_start_from`` parent
+#: (``task_fingerprint.validate_declared_parent``; a command-trained one is
+#: refused), as a root accepts itself (decision D-A3): the T. rex locomotion
+#: stage re-initialised from walking pilot 3's command-free locomotion
+#: checkpoints into its live-command task.  Absent or
 #: false, the edge rule is unchanged; only the stage that declares it is
 #: affected, and only the T. rex locomotion config declares it.  It permits a
 #: load and shapes nothing, so it enters no gate, recipe or task digest (its
