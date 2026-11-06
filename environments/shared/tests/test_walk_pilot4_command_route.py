@@ -705,6 +705,29 @@ def test_the_tyrannosaurus_recipes_leave_the_pilot_locomotion_keys_behind(monkey
         assert _read(TYRANNOSAURUS_REX, recipe, monkeypatch, committed) == expected, recipe.name
 
 
+def test_a_recipe_s_own_env_keeps_a_key_the_locomotion_drop_leaves_behind(tmp_path):
+    """The drop applies to the INHERITED locomotion [env] only: a T. rex recipe that sets a dropped key in its own
+    [env] keeps it.  No committed recipe sets one, so a drop applied to the merged [env] behaved the same on all 11
+    (the code review's surviving mutant); this recipe, a committed one with prey_lateral_range [-1, 1] written into
+    its own [env], tells them apart."""
+    from environments.shared.train_behaviors import read_recipe
+
+    recipe = _recipe_paths(TYRANNOSAURUS_REX)[0]
+    text = recipe.read_text(encoding="utf-8")
+    line = "prey_lateral_range = [-1.0, 1.0]\n"
+    text = text.replace("[env]\n", "[env]\n" + line, 1) if "[env]\n" in text else text + "\n[env]\n" + line
+    own_env = tomllib.loads(text)["env"]
+    assert own_env["prey_lateral_range"] == [-1.0, 1.0]
+    copied = tmp_path / recipe.name
+    copied.write_text(text, encoding="utf-8")
+    resolved = _inherited(copied, read_recipe(copied, TYRANNOSAURUS_REX)[3])
+    committed = _locomotion_env(TYRANNOSAURUS_REX)
+    without = {key: value for key, value in committed.items() if key not in PILOT_LOCOMOTION_ENV}
+    assert resolved == {**without, "max_episode_steps": 2500, **own_env}
+    assert resolved["prey_lateral_range"] == [-1.0, 1.0]
+    assert not {"command_mode", "command_config", "walk_heading_price_weight"} & set(resolved)
+
+
 def _golden_recipe_tasks(model_id: ModelId) -> dict[str, str]:
     golden = (REPOSITORY / "configs" / "digest_snapshot.generated.txt").read_text(encoding="utf-8").splitlines()
     tasks = {}
