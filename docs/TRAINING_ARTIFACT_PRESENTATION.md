@@ -1286,7 +1286,7 @@ draw them from the ledgers above:
 
     python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
-        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...]
+        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...] [--gait-evaluations K]
 
 One stage directory gives that run's pages; several give a comparison (at
 most eight runs, with distinct labels), one colour per seed (else per run)
@@ -1322,6 +1322,7 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Exploration and K3 (`17_exploration_k3`) | The leg actuators' exploration std over training (below) beside K3's noise falls from the in-run K3 panel and the judge files |
 | Normalization (`18_obs_normalization`) | The observation normalization's drift per checkpoint, from the VecNormalize pickles in `models/` (below) |
 | Body dynamics (`19_body_dynamics`) | The four MjData-derived extras: each limited joint's stop share and mean stop torque (only joints ever on a stop), the tail-base and neck-base pitch moment and load, the CoM's and capture point's toe and heel margins, the centroidal angular momentum RMS, the head's angular-rate RMS |
+| Gait ledger (`20_gait_ledger`) | The gait columns over the run's last 6 evaluations (`--gait-evaluations`), as text lines, and each per evaluation (its median): `window_yaw_change_signed_deg` (+ left) led by its same-sign share, since it runs from the settle step to the episode end and so includes steering toward the task's target ("magnitude includes target steering"); `window_displacement_lateral_m`; the `leg_q_<left>_minus_<right>_<joint>_deg` offsets (window-mean angle from home, + = left above right); the right-over-left `<foot>_leg_work_abs_j` and `<foot>_slip_m` ratios (per episode, then the median); `root_roll_mean_deg` (+ right side down); `saturated_actuator` and `saturated_actuator_fraction`; each `<joint>_stop_share`; `head_angular_rate_rms_dps`. Report-only flags on a locomotion stage only, each bar a choice set on three seeds and three hand-built walks: VEER (same-sign share >= 0.8; only that half of the gait report's bar, with no turn-rate bar, so a consistent turn of any size fires it), ASYMMETRY (`<foot>_leg_work_abs_j` max/min > 1.3, a proxy for the gait report's leg-power bar), LEAN (\|roll\| > 2 deg), ON STOP (`<joint>_stop_share` > 0.05). The numbers, their trend and the rules are the JSON's per-run `gait_ledger` block; a column the ledger lacks is listed as absent, and a run with no full-horizon evaluation episode says so |
 
 Each per-episode value is reduced over the evaluation's full-horizon
 episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean

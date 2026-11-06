@@ -14,7 +14,7 @@ Generated, renderable artifacts are grouped by kind::
     stage1/
     ├── figures/    training_curves.png  foot_contacts.png  stance_diagnostics.png
     │   │           locomotion_health.png  behavioral_metrics.png  gate_progress.png
-    │   └── training_history/  01_outcomes.png ... 12_hip_roll.png  13_commands.png ... 19_body_dynamics.png
+    │   └── training_history/  01_outcomes.png ... 12_hip_roll.png  13_commands.png ... 20_gait_ledger.png
     │                          training_history.html  training_history.json
     ├── replays/    <species>_<embodiment>_<algo>_stage<N>_<label>.mp4  (+ _front/_side views)
     │               <species>_<embodiment>_<algo>_stage<N>_<label>_stance.csv
