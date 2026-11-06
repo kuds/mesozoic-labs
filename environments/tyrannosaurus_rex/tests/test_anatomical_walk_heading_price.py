@@ -389,6 +389,26 @@ def test_on_the_price_is_added_to_the_total_and_changes_nothing_else(seed):
     assert nonzero > 0
 
 
+@pytest.mark.parametrize("price", [{}, PRICE])
+def test_the_total_is_the_env_order_sum_with_the_price_only_when_on(price):
+    """Each step's reward is R6's env-order sum (the 29 legacy terms, then the airborne substeps and the touchdown
+    event, as test_anatomical_walk_r6.py rebuilds it) plus the price only while it is on: nothing is added while off."""
+    from environments.tyrannosaurus_rex.tests.test_anatomical_walk_r6 import ORDER
+
+    rows = _roll(_live(**price), 3042, steps=300, amplitude=0.2)
+    assert len(rows) > 50
+    for m, (_, reward, terminated, _, info, _) in enumerate(rows[1:]):
+        total = info[ORDER[0]]
+        for key in ORDER[1:]:
+            total = total + info[key]
+        total = total + info["reward_airborne_substeps"] + info["reward_walk_touchdown"]
+        if price:
+            total = total + info["reward_walk_heading_price"]
+        if terminated and not info.get("success"):
+            total += -150.0
+        assert reward == total, m
+
+
 def test_the_pelvis_yaw_is_the_heading_the_command_reads():
     """The quaternion yaw the price reads equals the root body's heading the controller reads (BaseDinoEnv._heading)
     on walking states, so the price and the command measure one angle."""
