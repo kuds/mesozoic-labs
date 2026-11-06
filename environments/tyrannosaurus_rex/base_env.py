@@ -73,6 +73,7 @@ Reward components:
 
 from __future__ import annotations
 
+import numbers
 from pathlib import Path
 from typing import Any
 
@@ -612,6 +613,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             raise ValueError("walk_support_gate_bw must be a finite, non-negative multiple of body weight")
         if not 0.0 <= self.walk_touchdown_weight < np.inf:
             raise ValueError("walk_touchdown_weight must be finite and non-negative")
+        for name in ("walk_heading_price_weight", "walk_heading_price_scale_rad"):
+            # Walking pilot 4: a bool would pass the range checks below as 0 or 1, and a string would fail them with
+            # an unhelpful TypeError; both are refused here by name.
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, numbers.Real):
+                raise ValueError(f"{name} must be a number, not {value!r}")
         if not 0.0 <= self.walk_heading_price_weight < np.inf:
             raise ValueError("walk_heading_price_weight must be finite and non-negative")
         if not 0.0 < self.walk_heading_price_scale_rad < np.inf:

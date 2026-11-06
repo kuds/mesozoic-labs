@@ -7,8 +7,9 @@ in [-pi, pi), read from the CURRENT pelvis quaternion (the state the step reache
 The price needs a live command mode (its reference is the command's desired heading); a stop masks it.
 
 - A: off, nothing moves: rewards, observations, info, trajectories, every T. rex stage's task fingerprint and the
-  recorded stage config; the keys are validated; on, both keys are hashed.
-- B: the term: the formula and its saturation, a left and a right turn cost the same, the wrap at the half turn,
+  recorded stage config; the keys are validated (numbers only, in range); on, both keys are hashed.
+- B: the term: the formula and its saturation, a left and a right turn cost the same, the configured weight and
+  scale (not the pilot's alone), the wrap at the half turn,
   the current pelvis yaw against the desired heading (not the stale heading error), a stop, the info keys only when
   on, and the price added to the total and nothing else changed.
 """
@@ -203,6 +204,15 @@ def test_invalid_price_settings_fail_fast(kwargs, match):
         TyrannosaurusRexAnatomicalEnv(**kwargs)
 
 
+@pytest.mark.parametrize("key", PRICE_KEYS)
+@pytest.mark.parametrize("value", [True, False, "0.2", None])
+def test_a_price_key_must_be_a_number(key, value):
+    """A bool passed the range checks as 0 or 1 (the weight True acted as 1.0) and a string failed them with an
+    unhelpful TypeError (both measured by the code review of 2026-11-06): each is refused by name."""
+    with pytest.raises(ValueError, match=f"{key} must be a number"):
+        TyrannosaurusRexAnatomicalEnv(**_live(**{**PRICE, key: value}))
+
+
 # ======================================================================================== B. the term
 def test_the_formula_saturates_at_the_scale_and_is_even():
     """r_H = -w * min(|theta| / s, 1): 0 at 0, linear to -w at |theta| = s, flat at -w beyond, the same at -theta."""
@@ -263,6 +273,25 @@ def test_a_left_and_a_right_turn_cost_the_same_and_saturate():
                 prices[sign] = info["reward_walk_heading_price"]
             assert prices[1.0] == pytest.approx(prices[-1.0], abs=1e-12)
             assert prices[1.0] == pytest.approx(-0.2 * min(psi / 0.5, 1.0), abs=1e-9)
+    finally:
+        env.close()
+
+
+@pytest.mark.parametrize("weight, scale", [(0.2, 0.5), (0.1, 0.25), (0.35, 1.0)])
+def test_the_price_uses_the_configured_weight_and_scale(weight, scale):
+    """Every other 'on' test uses the pilot's 0.2 / 0.5, so a price that ignored either key (the weight or the scale
+    hard-coded: the code review's two surviving mutants) passed them all: -w * min(psi / s, 1) at other settings,
+    below, at and beyond each scale, on both sides."""
+    env = TyrannosaurusRexAnatomicalEnv(**_live(walk_heading_price_weight=weight, walk_heading_price_scale_rad=scale))
+    try:
+        for psi in (0.05, 0.2, 0.25, 0.5, 0.9, 2.5):
+            for sign in (1.0, -1.0):
+                env.reset(seed=3042)
+                state = env._command_state
+                assert state is not None
+                info = _scored_at_yaw(env, state.desired_heading + sign * psi)
+                expected = -weight * min(psi / scale, 1.0)
+                assert info["reward_walk_heading_price"] == pytest.approx(expected, abs=1e-9), (weight, scale, psi)
     finally:
         env.close()
 
