@@ -607,3 +607,33 @@ def test_the_bundle_audit_applies_rules_b_and_d_to_every_stage_config_it_hashes(
     assert "run.parent_checkpoint_sha256: " in (excluded_stage_config_reason(loaded) or "")
     assert excluded_stage_config_reason({"git_commit": MAIN_COMMIT, "run": {"seed": 44}}) is None
     assert excluded_stage_config_reason(None) is None
+
+
+def test_the_results_layer_refuses_a_result_built_on_a_screen_ancestor():
+    """An ``ancestors`` record (a node reused from another run) naming a screen's handoff or a screen's run id makes
+    the result never a result, in the audit and in the catalog; a deliverable that is a screen's final does too."""
+    from environments.shared.result_bundle.audit import _excluded_run_errors
+    from environments.shared.run_exclusions import excluded_provenance_reasons
+    from environments.shared.species_catalog import CatalogError, _refuse_excluded_run
+
+    unlisted = "sha256:" + "0" * 64
+    by_handoff = {"run_id": "20261110_120000", "model_hash": PC_S42_HANDOFF}
+    by_run_id = {"run_id": "stance7_r10LTSBpc_s60", "model_hash": unlisted}
+    for ancestor in (by_handoff, by_run_id):
+        provenance = {"repository_commit": MAIN_COMMIT, "deliverables": {}, "ancestors": {"1": ancestor}}
+        errors = _excluded_run_errors(provenance, where="provenance.json")
+        assert len(errors) == 1 and "never a result: ancestors.1: " in errors[0] and EXCLUSION_DECISION in errors[0]
+        with pytest.raises(CatalogError, match="never a committed result: ancestors.1: "):
+            _refuse_excluded_run(provenance, relative_path="results/x/summary.json")
+
+    clean = {
+        "repository_commit": MAIN_COMMIT,
+        "model_hash": unlisted,
+        "deliverables": {"2": {"model_hash": unlisted}},
+        "ancestors": {"1": {"run_id": "cert_s44", "model_hash": unlisted}},
+    }
+    assert excluded_provenance_reasons(clean) == [] and _excluded_run_errors(clean, where="x") == []
+    _refuse_excluded_run(clean, relative_path="r")
+    final = {**clean, "deliverables": {"1": {"model_hash": PC_S42_FINAL}}}
+    assert [reason.split(": ")[0] for reason in excluded_provenance_reasons(final)] == ["deliverables.1"]
+    assert excluded_provenance_reasons(None) == [] and excluded_provenance_reasons({"ancestors": [1]}) == []

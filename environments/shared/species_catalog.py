@@ -766,22 +766,13 @@ def _max_reported_velocity(stage_summaries: list[dict[str, Any]]) -> int | float
 def _refuse_excluded_run(provenance: Any, *, relative_path: str) -> None:
     """A committed result of a run that never counts (the stance-landing decision of 2026-11-06) is a catalog
     failure."""
-    from .run_exclusions import excluded_commit_reason, excluded_handoff_reason
+    from .run_exclusions import excluded_provenance_reasons
 
     if not isinstance(provenance, dict):
         return
-    reasons = [excluded_commit_reason(provenance.get("repository_commit"))]
-    reasons.append(excluded_handoff_reason(provenance.get("model_hash")))
-    deliverables = provenance.get("deliverables")
-    if isinstance(deliverables, dict):
-        reasons += [
-            excluded_handoff_reason(record.get("model_hash"))
-            for record in deliverables.values()
-            if isinstance(record, dict)
-        ]
-    for reason in reasons:
-        if reason is not None:
-            raise CatalogError(f"result {relative_path} is never a committed result: {reason}")
+    reasons = excluded_provenance_reasons(provenance)
+    if reasons:
+        raise CatalogError(f"result {relative_path} is never a committed result: {reasons[0]}")
 
 
 def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:

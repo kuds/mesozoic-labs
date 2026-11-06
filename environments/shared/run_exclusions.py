@@ -63,9 +63,11 @@ The callers: :func:`environments.shared.replication.discover_replicates` and
 ``discover_replicates_for_run`` (an excluded sibling is skipped, an excluded
 run counts no replicate), :mod:`environments.shared.ancestors` (reuse rule 9,
 and the older-interface widening hint), ``scripts/widen_checkpoint.py`` (an
-excluded parent is refused), the result-bundle audit (rule (a) on the
-bundle's provenance, (b) and (d) on every stage config it hashes) and the
-species catalog (an excluded run is never a promotable or committed result).
+excluded parent is refused), the result-bundle audit (rule (a) and
+:func:`excluded_provenance_reasons` on the bundle's provenance, (b) and (d) on
+every stage config it hashes) and the species catalog (the same provenance
+reading on a committed summary): an excluded run is never a promotable or
+committed result, nor is one whose provenance records a screen as an ancestor.
 A later screen needs its own entry here.
 """
 
@@ -296,6 +298,34 @@ def excluded_stage_config_reason(stage_config: Any) -> str | None:
     if reason is not None:
         return reason
     return excluded_lineage_reason(stage_config.get("run"))
+
+
+def excluded_provenance_reasons(provenance: Any) -> list[str]:
+    """Every way a result's ``provenance.json`` names a run that never counts (the bundle audit's and the catalog's).
+
+    Rule (a) on its ``repository_commit``; its selected checkpoint's ``model_hash`` and each deliverable's; and
+    each ``ancestors`` record (a node this run reused from another run): its ``model_hash`` and its ``run_id``.
+    Reuse rule 9 refuses a screen as an ancestor, so an ancestor record names one only if it was written before
+    the rule existed; a result built on a screen's stance is refused here all the same.
+    """
+    if not isinstance(provenance, Mapping):
+        return []
+    reasons = [
+        excluded_commit_reason(provenance.get("repository_commit")),
+        excluded_checkpoint_reason(provenance.get("model_hash")),
+    ]
+    for field in ("deliverables", "ancestors"):
+        records = provenance.get(field)
+        if not isinstance(records, Mapping):
+            continue
+        for key, record in records.items():
+            if not isinstance(record, Mapping):
+                continue
+            found = [excluded_checkpoint_reason(record.get("model_hash"))]
+            if field == "ancestors":
+                found.append(excluded_run_id_reason(record.get("run_id")))
+            reasons += [f"{field}.{key}: {reason}" for reason in found if reason is not None]
+    return [reason for reason in reasons if reason is not None]
 
 
 def _read_object(path: Path) -> Mapping[str, Any] | None:

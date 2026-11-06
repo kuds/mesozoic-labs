@@ -319,7 +319,8 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   resumed or widened one of their checkpoints is one too) is never counted as a
   replicate and counts no replicate of its own; it is never a reusable ancestor
   (reuse rule 9 in `environments/shared/ancestors.py`), a widening parent or a
-  promotable result (the audit and the species catalog refuse its provenance).
+  promotable result (the audit and the species catalog refuse its provenance,
+  and a result whose provenance records one of them as an ancestor).
   `environments.shared.replication.discover_replicates_for_run`
   finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`.
   The count is recorded at publication (decision D-B10): a replicate that finishes

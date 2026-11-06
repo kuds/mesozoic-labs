@@ -146,19 +146,11 @@ def _audit_load_lineage(
 
 
 def _excluded_run_errors(provenance: Mapping[str, Any], *, where: str) -> list[str]:
-    """A run that never counts (the stance-landing decision of 2026-11-06) is never promoted: its commit, or a
-    deliverable's handoff."""
-    from ..run_exclusions import excluded_commit_reason, excluded_handoff_reason
+    """A run that never counts (the stance-landing decision of 2026-11-06) is never promoted: its commit, its
+    checkpoints, its ancestors."""
+    from ..run_exclusions import excluded_provenance_reasons
 
-    reasons = [excluded_commit_reason(provenance.get("repository_commit"))]
-    deliverables = provenance.get("deliverables")
-    if isinstance(deliverables, Mapping):
-        reasons += [
-            excluded_handoff_reason(record.get("model_hash"))
-            for record in deliverables.values()
-            if isinstance(record, Mapping)
-        ]
-    return [f"{where}: this run is never a result: {reason}" for reason in reasons if reason is not None]
+    return [f"{where}: this run is never a result: {reason}" for reason in excluded_provenance_reasons(provenance)]
 
 
 def audit_result_bundle(

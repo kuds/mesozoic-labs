@@ -2646,7 +2646,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stage directory, a widened copy), is never a replicate and counts none of its
   own, is refused by reuse rule 9 (and so by `TRUNK_FROM = "auto"`), is never
   offered or accepted for widening, and is refused by the bundle audit and the
-  species catalog.
+  species catalog, as is a result whose `provenance.json` records a screen run
+  as an ancestor.
 - **The Velociraptor takes the T. rex's stance lessons: a heading-free
   observation and the six-heading certificate, a quiet start at its own noise
   cliff, the D-D27 anti-hop terms and rails, and the T. rex's training
