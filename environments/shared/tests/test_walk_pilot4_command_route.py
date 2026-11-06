@@ -349,6 +349,28 @@ def test_the_derivation_applies_the_env_s_mode_rule():
         assert derived["command"] == json.loads(json.dumps(reported))
 
 
+def test_the_derivation_applies_the_env_s_mode_validator():
+    """An unknown live mode is refused by the env built from the [env] and by the derivation (the postfix code
+    verification measured command_mode 'sideways' hashed while its env refused it), before the table is read, as the
+    env reads it; and the derivation validates under its own backend, so jax-mjx, which runs no live mode, refuses."""
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    for table in (STRAIGHT_TABLE, {"cruise_speed": 1}):
+        with pytest.raises(ValueError, match="command_mode='sideways' is not one of"):
+            TyrannosaurusRexAnatomicalEnv(**_live(table, mode="sideways"))
+        with pytest.raises(TaskFingerprintError, match="cannot be hashed: command_mode='sideways' is not one of"):
+            stage_task_fingerprint(
+                TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live(table, mode="sideways"), plant_identity=identity
+            )
+    with pytest.raises(TaskFingerprintError, match="cannot be hashed: command_mode='heading' is not implemented on"):
+        derive_stage_task_fingerprint(
+            model_id=TYRANNOSAURUS_REX,
+            stage=2,
+            backend="jax-mjx",
+            env_kwargs=_live(STRAIGHT_TABLE),
+            plant_identity=identity,
+        )
+
+
 def test_a_passed_manifest_is_hashed_verbatim_and_nothing_is_derived():
     identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
     manifest = DirectionCommandController(DirectionCommandConfig(**STRAIGHT_TABLE)).manifest()

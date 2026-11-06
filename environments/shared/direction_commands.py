@@ -145,8 +145,8 @@ def check_command_mode_config(command_mode: str, config: DirectionCommandConfig)
     """The env's mode rule: ``"heading"`` holds ``cruise_speed``, so a speed range or stops are refused (ValueError).
 
     WALKING PILOT 4 (pilot-only, never merged): one helper that ``BaseDinoEnv.__init__`` and the task fingerprint's
-    derivation of a live stage TOML's command section both call, so the fingerprint never hashes a table the env
-    built from the same ``[env]`` refuses.
+    derivation of a live stage TOML's command section both call (after the same mode validator and table builder),
+    so the fingerprint never hashes a table under a live mode that the env built from the same ``[env]`` refuses.
     """
     if command_mode == "heading" and (config.speed_range is not None or config.stop_probability > 0.0):
         raise ValueError("command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'")
