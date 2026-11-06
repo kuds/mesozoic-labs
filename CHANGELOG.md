@@ -2613,6 +2613,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The r10 LTSB T. rex stance recipe is the committed stance, for its
+  certification by two new seeds** (the maintainer's stance-landing decision of
+  2026-11-06, cited by date: it has no decision id yet, and the next records
+  change assigns one). The T. rex env gains two opt-in stance terms, off by
+  default: a stance stagger penalty (`stance_stagger_weight`,
+  `stance_stagger_tolerance_m`) and a per-foot centre-of-pressure band
+  (`stance_cop_band_weight` and seven band keys), whose per-step reading is the
+  gait recorder's own reduction, moved into `environments/shared/floor_contact/`
+  so that no species env imports the gait package; the code is the one the r10
+  screen runs trained, but for comments and docstrings.
+  `configs/tyrannosaurus_rex/anatomical/stance.toml` turns the recipe on: the
+  two terms, the lateral lean, the settled leg reference with `leg_home_pose`
+  1.0 / 0.05 and mirror-KL PPO; its zero-action statue re-measured at
+  4470.37 +/- 30.88 (40/40), so the collapse reference is 4470.4; the gate and
+  its bars are unchanged (`min_avg_reward` 2260, gate `d26c34e6`). The critic
+  phase stays the notebook's `CRITIC_PHASE` launch switch (no committed stage
+  sets it): with it on the recipe is `c64211e8`, the three phase-critic
+  screens'. Recovery inherits the stance's `[env]` and `[ppo]`; its pushed
+  statue is re-measured at 1609.1 (1429.1 before, the same lengths and shoves).
+  The three reward keys join the training diagnostics. The digest snapshot moves
+  14 lines, the T. rex stance's and recovery's: stance task
+  `533fff20` -> `1e5964b6`, PPO `9d1598a6` -> `054ab483`; recovery task
+  `9d71e607` -> `a53afa60`, PPO `4ac6592a` -> `de9c9af0`; their view and reward
+  lines. No plant, policy-interface, locomotion or behavior line moves.
+- **The r10 T. rex stance screen runs never count** (the stance-landing decision
+  of 2026-11-06). `environments/shared/run_exclusions.py` lists the two branch
+  commits and the nine runs' handoff checkpoints; a run whose `provenance.json`,
+  stage `stage_config.json` or `gate_verdict.json` names one is never a
+  replicate and counts none of its own, is refused by reuse rule 9 (and so
+  by `TRUNK_FROM = "auto"`), is never offered or accepted for widening,
+  and is refused by the bundle audit and the species catalog.
 - **The Velociraptor takes the T. rex's stance lessons: a heading-free
   observation and the six-heading certificate, a quiet start at its own noise
   cliff, the D-D27 anti-hop terms and rails, and the T. rex's training

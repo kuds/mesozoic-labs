@@ -435,6 +435,19 @@ robustness, **LOW** = cosmetic / QoL.
   [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
   and §29 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 25 (2026-11-06):** the maintainer's stance-landing decision of
+  that day (cited by date: the next records change assigns its id) puts on
+  `main` the stance recipe whose three r10 phase-critic screen runs passed the
+  six-heading certificate: the stance stagger penalty and the per-foot
+  centre-of-pressure band (opt-in env terms, the screens' code), the
+  lateral lean, the settled leg reference with `leg_home_pose` 1.0 / 0.05
+  and mirror-KL PPO, task `1e5964b6`; the collapse reference re-measured
+  to 4470.4 and recovery's to 1609.1; the gate and its bars unchanged.
+  The nine r10 screen runs never count as certified, as replicates or as
+  reusable ancestors (`environments/shared/run_exclusions.py`). No T-Rex
+  stance is certified on `main` yet: the next session is two new seeds
+  with `CRITIC_PHASE = True` (NEXT_STEPS §3). Record: §30 of the stance
+  record above.
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
