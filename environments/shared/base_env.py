@@ -26,7 +26,13 @@ from .command_frame import COMMAND_MODE_NONE
 from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
-from .direction_commands import DirectionCommandConfig, DirectionCommandController, DirectionCommandState
+from .direction_commands import (
+    DirectionCommandConfig,
+    DirectionCommandController,
+    DirectionCommandState,
+    check_command_mode_config,
+    direction_command_config_from_table,
+)
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
@@ -333,9 +339,10 @@ class BaseDinoEnv(gym.Env, ABC):
             # WALKING PILOT 4 (pilot-only, never merged): a stage TOML's [env] command_config table reaches every
             # constructor call (make_env, the evaluation env, the probe bank, the judge's gait probe) as a dict,
             # because config.load_stage_config passes [env] through; the dataclass is built here, the one place they
-            # all share.  An unknown field is a TypeError and an invalid value a ValueError (the dataclass's own
-            # checks); everything below then sees the dataclass.
-            command_config = DirectionCommandConfig(**command_config)
+            # all share.  A field that should be a number but is not (a string, a bool) and an unknown field are a
+            # TypeError, an invalid value a ValueError (the dataclass's own checks); everything below then sees the
+            # dataclass (direction_commands.direction_command_config_from_table).
+            command_config = direction_command_config_from_table(command_config)
         self.command_config = command_config
         self.direction_controller: DirectionCommandController | None = None
         if self.command_mode != COMMAND_MODE_NONE:
@@ -346,12 +353,8 @@ class BaseDinoEnv(gym.Env, ABC):
                     f"command_mode={self.command_mode!r} needs a command_config (a DirectionCommandConfig)"
                 )
             self.direction_controller = DirectionCommandController(command_config)
-            if self.command_mode == "heading" and (
-                command_config.speed_range is not None or command_config.stop_probability > 0.0
-            ):
-                raise ValueError(
-                    "command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'"
-                )
+            # The mode rule, shared with the task fingerprint's derivation (walking pilot 4, pilot-only, never merged).
+            check_command_mode_config(self.command_mode, command_config)
         elif command_config is not None:
             raise ValueError("command_config needs a live command_mode ('heading' or 'heading_and_speed'), not 'none'")
         self._command_state: DirectionCommandState | None = None

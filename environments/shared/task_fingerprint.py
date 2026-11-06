@@ -581,7 +581,12 @@ def derive_stage_task_fingerprint(
     object, or with no ``command_config``, still needs the manifest passed
     and is refused without it (:func:`compute_task_fingerprint`).  The env
     section hashes the table as written, so the same command written as a
-    different table is a different task.
+    different table is a different task.  The table is built and checked
+    as the env builds and checks it: a field that should be a number and is
+    not is a ``TypeError``, an invalid value a ``ValueError``, and a table
+    the env's mode rule refuses ("heading" with a speed range or stops) a
+    :class:`TaskFingerprintError`, so no table the env would refuse is
+    hashed.
     """
     manifest: dict[str, Any] | None = None
     effective_kwargs = _effective_env_kwargs(model_id, env_kwargs)
@@ -591,10 +596,21 @@ def derive_stage_task_fingerprint(
         and isinstance(command_table, Mapping)
         and effective_kwargs.get("command_mode", COMMAND_MODE_NONE) != COMMAND_MODE_NONE
     ):
-        # WALKING PILOT 4 (pilot-only, never merged): the live locomotion stage's [env] command_config table.
-        from .direction_commands import DirectionCommandConfig, DirectionCommandController
+        # WALKING PILOT 4 (pilot-only, never merged): the live locomotion stage's [env] command_config table, built
+        # and checked as BaseDinoEnv.__init__ builds and checks it (the same two helpers), so a table the env would
+        # refuse is never hashed.
+        from .direction_commands import (
+            DirectionCommandController,
+            check_command_mode_config,
+            direction_command_config_from_table,
+        )
 
-        command_manifest = DirectionCommandController(DirectionCommandConfig(**command_table)).manifest()
+        command_config = direction_command_config_from_table(command_table)
+        try:
+            check_command_mode_config(str(effective_kwargs.get("command_mode")), command_config)
+        except ValueError as exc:
+            raise TaskFingerprintError(f"[env] command_config cannot be hashed: {exc}") from exc
+        command_manifest = DirectionCommandController(command_config).manifest()
     multiple = float(effective_kwargs.get("perturbation_capture_velocity_multiple", 0.0) or 0.0)
     if multiple > 0.0:
         if plant_identity is None or not plant_identity.get("model_path"):

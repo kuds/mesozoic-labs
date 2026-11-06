@@ -4,12 +4,14 @@ The maintainer's decisions (23) and (25) of 2026-11-05: pilot 4 keeps the T. rex
 stage 2) and feeds a "point straight" command through the reserved command inputs, set in the stage TOML.  The hybrid
 check of 2026-11-05 measured that config alone cannot do it; these tests pin the pilot-only edits that let it:
 
-- (1) ``BaseDinoEnv.__init__`` builds the ``DirectionCommandConfig`` from a TOML ``command_config`` table (a mapping).
+- (1) ``BaseDinoEnv.__init__`` builds the ``DirectionCommandConfig`` from a TOML ``command_config`` table (a mapping);
+  a field that should be a number and is not is refused, not coerced.
 - (2) ``task_fingerprint.derive_stage_task_fingerprint`` derives a live stage's command manifest from that table when
-  no manifest is passed, so ``train()``'s ``stage_task_fingerprint(stage_config=...)`` and the digest harness hash it.
-- (3) ``task_fingerprint.validate_declared_parent`` accepts a non-root node's own earlier checkpoint only when the
-  child stage's ``[curriculum]`` declares ``initialize_from_own_checkpoint = true`` (decision (25): this one stage);
-  every other node of every model keeps the edge rule, which the tests here walk exhaustively.
+  no manifest is passed, so ``train()``'s ``stage_task_fingerprint(stage_config=...)`` and the digest harness hash it;
+  it builds and checks the table as the env does, the mode rule included, so no table the env refuses is hashed.
+- (3) ``task_fingerprint.validate_declared_parent`` accepts a non-root node's own earlier COMMAND-FREE checkpoint
+  only when the child stage's ``[curriculum]`` declares ``initialize_from_own_checkpoint = true`` (decision (25):
+  this one stage); every other node of every model keeps the edge rule, which the tests here walk exhaustively.
 - (4) ``train_behaviors.read_recipe`` leaves pilot 4's T. rex locomotion keys (the command, the prey line, the heading
   price) out of the [env] the T. rex behavior recipes inherit, so the 11 recipes keep their task digests; every other
   model's recipes inherit their locomotion [env] whole, as before.
@@ -152,6 +154,46 @@ def test_a_bad_table_fails_at_construction():
         TyrannosaurusRexAnatomicalEnv(command_mode="heading", command_config={"stop_probability": 0.1})
 
 
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("cruise_speed", "1.5"),
+        ("cruise_speed", True),
+        ("speed_scale", True),
+        ("yaw_gain", "1.5"),
+        ("stop_probability", False),
+        ("minimum_turn_speed_fraction", None),
+        ("switch_interval_s", [4.0]),
+    ],
+)
+def test_a_table_number_must_be_a_number(name, value):
+    """The dataclass coerces its numbers through float(), so a string or a bool would build silently, while the env
+    section hashes the table as written (the code review measured cruise_speed "1.5" as another task with the same
+    command): a table field that should be a number and is not is a TypeError, at construction and in the task
+    fingerprint's derivation alike."""
+    with pytest.raises(TypeError, match=rf"command_config\.{name} must be a number"):
+        TyrannosaurusRexAnatomicalEnv(command_mode="heading", command_config={name: value})
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    with pytest.raises(TypeError, match=rf"command_config\.{name} must be a number"):
+        stage_task_fingerprint(
+            TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live({name: value}), plant_identity=identity
+        )
+
+
+def test_a_table_takes_ints_and_floats_and_keeps_its_bool_and_its_range():
+    """TOML integers are numbers (1 is the dataclass's 1.0); turn_slowdown stays a bool and speed_range a pair."""
+    env = TyrannosaurusRexAnatomicalEnv(
+        command_mode="heading_and_speed",
+        command_config={"cruise_speed": 1, "speed_scale": 2, "turn_slowdown": False, "speed_range": [0, 1.5]},
+    )
+    try:
+        assert env.command_config == DirectionCommandConfig(
+            cruise_speed=1.0, speed_scale=2.0, turn_slowdown=False, speed_range=(0.0, 1.5)
+        )
+    finally:
+        env.close()
+
+
 def test_a_table_speed_range_list_is_the_dataclass_tuple():
     """TOML has arrays, not tuples, and no null: a speed_range list is the dataclass's tuple of floats."""
     env = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config={"speed_range": [0.5, 1]})
@@ -268,6 +310,26 @@ def test_the_env_section_hashes_the_table_as_written():
     reordered = dict(reversed(list(spelled_out.items())))
     c = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live(reordered), plant_identity=identity)
     assert c["task_sha256"] == b["task_sha256"]
+
+
+def test_the_derivation_applies_the_env_s_mode_rule():
+    """'heading' holds cruise_speed: a heading table with stops or a speed range is refused by the env built from the
+    [env] and, now, by the derivation too (the code review measured such a table hashed while its env refused it),
+    while the same table under 'heading_and_speed' builds and is hashed with the manifest its env reports."""
+    identity = current_plant_identity(TYRANNOSAURUS_REX).to_dict()
+    for table in ({**STRAIGHT_TABLE, "stop_probability": 0.1}, {**STRAIGHT_TABLE, "speed_range": [0.5, 1.5]}):
+        with pytest.raises(ValueError, match="'heading' holds cruise_speed"):
+            TyrannosaurusRexAnatomicalEnv(**_live(table))
+        with pytest.raises(TaskFingerprintError, match="cannot be hashed: command_mode='heading' holds cruise_speed"):
+            stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=_live(table), plant_identity=identity)
+        live = _live(table, mode="heading_and_speed")
+        env = TyrannosaurusRexAnatomicalEnv(**live)
+        try:
+            reported = env.command_manifest()
+        finally:
+            env.close()
+        derived = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion", env_kwargs=live, plant_identity=identity)
+        assert derived["command"] == json.loads(json.dumps(reported))
 
 
 def test_a_passed_manifest_is_hashed_verbatim_and_nothing_is_derived():

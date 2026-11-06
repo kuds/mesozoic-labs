@@ -14,7 +14,9 @@ differently or are updated at different frequencies.
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass
+import numbers
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, fields
 from typing import Any
 
 import numpy as np
@@ -111,6 +113,38 @@ class DirectionCommandConfig:
             if not 0.0 <= bounds[0] <= bounds[1] <= self.speed_scale:
                 raise ValueError("speed_range must satisfy 0 <= low <= high <= speed_scale")
             object.__setattr__(self, "speed_range", bounds)
+
+
+#: WALKING PILOT 4 (pilot-only, never merged): the DirectionCommandConfig fields that are not single numbers.
+_TABLE_NON_NUMBER_FIELDS = frozenset({"turn_slowdown", "speed_range"})
+
+
+def direction_command_config_from_table(table: Mapping[str, Any]) -> DirectionCommandConfig:
+    """Build the config from a stage TOML's ``[env] command_config`` table (walking pilot 4, pilot-only, never merged).
+
+    The dataclass coerces its numbers through ``float()``, so a string or a bool would build silently, while the task
+    fingerprint's env section hashes the table as written: ``"1.5"`` would be another task with the same command.  So
+    every field of the table but ``turn_slowdown`` and ``speed_range`` must be a number (an int or a float, not a
+    bool): anything else is a ``TypeError``.  An unknown field is left to the dataclass (a ``TypeError``) and every
+    value check to its ``__post_init__`` (a ``ValueError``).
+    """
+    names = {field.name for field in fields(DirectionCommandConfig)}
+    for name, value in table.items():
+        if name in names and name not in _TABLE_NON_NUMBER_FIELDS:
+            if isinstance(value, bool) or not isinstance(value, numbers.Real):
+                raise TypeError(f"command_config.{name} must be a number, not {value!r}")
+    return DirectionCommandConfig(**table)
+
+
+def check_command_mode_config(command_mode: str, config: DirectionCommandConfig) -> None:
+    """The env's mode rule: ``"heading"`` holds ``cruise_speed``, so a speed range or stops are refused (ValueError).
+
+    WALKING PILOT 4 (pilot-only, never merged): one helper that ``BaseDinoEnv.__init__`` and the task fingerprint's
+    derivation of a live stage TOML's command section both call, so the fingerprint never hashes a table the env
+    built from the same ``[env]`` refuses.
+    """
+    if command_mode == "heading" and (config.speed_range is not None or config.stop_probability > 0.0):
+        raise ValueError("command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'")
 
 
 @dataclass(frozen=True)
