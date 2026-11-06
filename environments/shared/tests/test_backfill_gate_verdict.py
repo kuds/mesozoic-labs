@@ -76,8 +76,9 @@ def _stage_dir(
 
     Dibothrosuchus because its stance still declares ``reward_and_length/v1``, the kind ``--gate current``
     re-judges this evidence under; the velociraptor stance these tests used moved to ``stance_quality/v2``
-    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair.  *model_id* names
-    another model in ``stage_config.json``.
+    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair, and to the
+    six-heading certificate with the maintainer's decision of 2026-11-06.  *model_id* names another
+    model in ``stage_config.json``.
     """
     stage_dir = tmp_path / "20260801_120000" / "stage1"
     models = stage_dir / "models"

@@ -922,7 +922,7 @@ class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
 #: A velociraptor stance block as recorded before the maintainer's decision of 2026-11-06: ``stance_quality/v2`` with the report-only heading
 #: probe declared (the maintainer's decision of 2026-10-11), the shape the probe-warning tests need now that no
 #: committed biped stance but the compsognathus robot's declares the probe.
-_PRE_D_D59_PROBED_STANCE = {
+_PRE_2026_11_06_PROBED_STANCE = {
     "curriculum_kwargs": {"gate_kind": "stance_quality/v2", "stance_probe_spawn_yaw_deg": [-90.0, -45.0, 45.0, 90.0]}
 }
 
@@ -1088,8 +1088,8 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "record_stage_duration", record_duration)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
-        # A stance_quality/v2 node (the velociraptor stance since D-D25) or a stance_quality_heading/v1
-        # node (the trex stance since D-D32) is judged after its budget from the floor-truth report on its
+        # A stance_quality_heading/v1 node (the trex stance since D-D32, the velociraptor stance since the
+        # maintainer's decision of 2026-11-06) is judged after its budget from the floor-truth report on its
         # handoff pair, which these stubs never write; it passes here as every in-training node does
         # through the stubbed CurriculumCallback, so the walk -- not the gate -- is what this class
         # exercises (test_stance_v2_cli_judge.py and test_stance_heading_end_to_end.py judge the real
@@ -1417,7 +1417,7 @@ class TestTrainCurriculumWalksTheManifest:
         # build_trunk_run writes a v2 report, and this test is about following the
         # middle run's record, not about the kind.
         configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
-        stance_curriculum = {**configs[1]["curriculum_kwargs"], **_PRE_D_D59_PROBED_STANCE["curriculum_kwargs"]}
+        stance_curriculum = {**configs[1]["curriculum_kwargs"], **_PRE_2026_11_06_PROBED_STANCE["curriculum_kwargs"]}
         configs = {**configs, 1: {**configs[1], "curriculum_kwargs": stance_curriculum}}
         stance_dir = build_trunk_run(
             original, model_id=VELOCIRAPTOR_MONGOLIENSIS, plant=plant, curriculum=stance_curriculum
@@ -2204,7 +2204,7 @@ class TestTrainCurriculumWalksTheManifest:
         reuse).  The probe is read for any species that has one; the ancestor here is a velociraptor
         stance recorded before 2026-11-06 moved the species to the six-heading certificate, under v2 with the
         probe declared, as the recorded config (not the checkout's) decides."""
-        ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_D_D59_PROBED_STANCE)
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_2026_11_06_PROBED_STANCE)
         _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=0.0)
 
         record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
@@ -2217,7 +2217,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert "-45 deg 0.00 (statue 1.00)" in warning.message
 
     def test_a_node_entering_on_a_stance_whose_probe_stands_logs_nothing(self, tmp_path, monkeypatch, caplog):
-        ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_D_D59_PROBED_STANCE)
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run", edits=_PRE_2026_11_06_PROBED_STANCE)
         _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=1.0)
 
         record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
@@ -2964,10 +2964,11 @@ class TestOneStageBody:
         monkeypatch.setattr(train_base, "_record_stage_result", record_stage_result)
         monkeypatch.setattr(result_bundle, "write_gate_verdict", write_verdict)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", curriculum_callback)
-        # The velociraptor stance declares stance_quality/v2 since D-D25, which train_curriculum judges after
-        # the budget from the floor-truth report on the handoff pair these stubs never write; it passes here
-        # as the stubbed CurriculumCallback passes every other node (test_stance_v2_cli_judge.py judges the
-        # real report path).
+        # The velociraptor stance declares stance_quality_heading/v1 since the maintainer's decision of
+        # 2026-11-06 (stance_quality/v2 from D-D25), which train_curriculum judges after the budget from the
+        # floor-truth report on the handoff pair these stubs never write; it passes here as the stubbed
+        # CurriculumCallback passes every other node (test_stance_heading_end_to_end.py judges the real
+        # report path).
         monkeypatch.setattr(
             train_base,
             "_post_training_stance_verdict",
