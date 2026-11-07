@@ -134,6 +134,9 @@ REPORT_CAP = 0.025  # m; distances are evaluated up to this value, larger ones r
 LATERAL_CAP = 0.40  # m; distance cap for the swing-foot lateral gap
 SWING_MIN_FRAC = 0.04  # mid-swing pad clearance threshold, fraction of H
 TAIL_MIN_FRAC = 0.25  # tail lowest-point threshold, fraction of H
+#: Round-two gate set (``gates="r2"``): also no overlapping components on one rigid body, no interference
+#: in the brisk walk, and every swept joint usable at least ``RANGE_MARGIN_RAD`` beyond the walks' excursion.
+RANGE_MARGIN_RAD = 0.10
 MID_SWING = (0.25, 0.75)  # fraction of each swing's duration
 SWEEP_STEP = 0.05  # rad, maximum joint increment along a sweep
 TAIL_PHASES = (0.0, 0.25, 0.5, 0.75)
@@ -903,7 +906,7 @@ def _max_step(S: _Screen, frames_q, trunk_body) -> float:
 # Main entry
 # ================================================================================================
 def screen(xml_path, q_home, gait_trajs: dict[str, dict], out_png: str | None = None, *, H: float | None = None,
-           frame_stride: int = 1, substeps: int = 0) -> dict:
+           frame_stride: int = 1, substeps: int = 0, gates: str = "r1") -> dict:
     """Run the four clearance checks on a compiled candidate; returns a JSON-serialisable dict.
 
     xml_path    MJCF written by ``pipeline.build_candidate``.
@@ -916,6 +919,8 @@ def screen(xml_path, q_home, gait_trajs: dict[str, dict], out_png: str | None = 
     substeps    extra poses interpolated between consecutive evaluated frames for the interference
                 check (0 = the trajectory's frames only); ``max_step_mm`` reports the resulting
                 resolution.
+    gates       "r1" (round one: home, nominal walk, swing, tail, battery) or "r2" (round two: also
+                component overlaps on one body, the brisk walk and joint-range margins).
     """
     t0 = time.perf_counter()
     timing = {}
@@ -1133,7 +1138,8 @@ def screen(xml_path, q_home, gait_trajs: dict[str, dict], out_png: str | None = 
         battery=battery,
         verification=dict(S.stats),
     )
-    report["summary"] = _summary(report, H, tail_gate, tail_gate_key, swing, battery)
+    report["joint_range_margins"] = _range_margins(S, interference["joint_extremes"]["sweeps"], gait_trajs)
+    report["summary"] = _summary(report, H, tail_gate, tail_gate_key, swing, battery, gates=gates)
     timing["total"] = time.perf_counter() - t0
     report["timing_s"] = {k: round(v, 3) for k, v in timing.items()}
     if out_png:
@@ -1236,7 +1242,28 @@ def _joint_ranges(sweeps: list) -> dict:
     return out
 
 
-def _summary(report, H, tail_gate, tail_gate_key, swing, battery) -> dict:
+def _range_margins(S: _Screen, sweeps: list, gait_trajs: dict) -> dict:
+    """Per swept joint: the walks' excursion against the usable range (first new interference, else the
+    joint limit), in rad.  Positive margins mean the walks stay inside the usable range."""
+    usable = _joint_ranges(sweeps)
+    out = {}
+    for jn, rec in usable.items():
+        j = S.jnt(jn)
+        if j is None or not gait_trajs:
+            continue
+        adr = j[1]
+        vals = np.concatenate([np.asarray(tr["q"], float)[:, adr] for tr in gait_trajs.values()])
+        lo = rec["first_new_interference"][0] if rec["first_new_interference"][0] is not None else rec["limits"][0]
+        hi = rec["first_new_interference"][1] if rec["first_new_interference"][1] is not None else rec["limits"][1]
+        m_lo = float(vals.min() - lo) if lo is not None else None
+        m_hi = float(hi - vals.max()) if hi is not None else None
+        out[jn] = dict(walk_min=round(float(vals.min()), 4), walk_max=round(float(vals.max()), 4),
+                       usable=[lo, hi], margin_min=None if m_lo is None else round(m_lo, 4),
+                       margin_max=None if m_hi is None else round(m_hi, 4))
+    return out
+
+
+def _summary(report, H, tail_gate, tail_gate_key, swing, battery, gates: str = "r1") -> dict:
     inter = report["interference"]
     counts = {k: _compact_counts(v["counts"]) for k, v in inter.items()}
     operating = [k for k in inter if k == "home" or k.startswith("gait_") or k == "tail_limits_in_gait"]
@@ -1257,6 +1284,15 @@ def _summary(report, H, tail_gate, tail_gate_key, swing, battery) -> dict:
         tail_clearance=bool(tail_gate / H >= TAIL_MIN_FRAC) if np.isfinite(tail_gate) else None,
         battery_path=bool(battery.get("clear_directions")),
     )
+    if gates == "r2":
+        brisk = "gait_brisk" in counts
+        margins = [v for r in report.get("joint_range_margins", {}).values()
+                   for v in (r["margin_min"], r["margin_max"]) if v is not None]
+        passes.update(
+            interference_free_brisk_gait=(counts["gait_brisk"]["interference_pairs"] == 0) if brisk else None,
+            component_overlap_free=not report["same_body_hardware_at_home"]["overlaps"],
+            joint_range_margin=bool(min(margins) >= RANGE_MARGIN_RAD) if margins else None,
+        )
     passes["all"] = all(v is True for v in passes.values())
     hh_home = [r for r in inter["home"]["pairs"] if r["class"] == "hardware-hardware" and r["min_mm"] < 0]
     return dict(
@@ -1279,6 +1315,8 @@ def _summary(report, H, tail_gate, tail_gate_key, swing, battery) -> dict:
         battery_overlapping_at_home=battery.get("overlapping_at_home", []),
         same_body_component_overlaps=[dict(geoms=r["geoms"], min_mm=r["min_mm"])
                                       for r in report["same_body_hardware_at_home"]["overlaps"]],
+        joint_range_margins=report.get("joint_range_margins", {}),
+        gate_set=gates,
         **{"pass": passes},
     )
 

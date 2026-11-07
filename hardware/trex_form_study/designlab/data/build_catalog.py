@@ -174,9 +174,34 @@ def convert_parts():
                         dims_m=[L, 2 * W + 0.004, Hh], mass_kg=2 * b["mass_kg"], capacity_wh=2 * b["capacity_wh"],
                         voltage_v=2 * b["voltage_v"], price_usd=2 * b["price_usd"] if b["price_usd"] else 0,
                         basis="derived (two sourced packs in series)", notes=label + "; " + b["notes"][:300]))
+    out.append(_compute_from_survey())
     (HERE / "parts.json").write_text(json.dumps(dict(
-        generated_by="designlab/data/build_catalog.py", research="research/parts_2026-11-07.json", parts=out), indent=1))
+        generated_by="designlab/data/build_catalog.py",
+        research="research/parts_2026-11-07.json; research/compute_2026-11-07.json (round-two compute, P14)",
+        parts=out), indent=1))
     return out
+
+
+def _compute_from_survey() -> dict:
+    """Round-two compute (owner choice P14): the survey's architecture C, a Raspberry Pi 5 8 GB with the
+    official Active Cooler, the AI HAT+ 13 TOPS (Hailo-8L) and a USB 3 SSD.  Envelope, typical and
+    worst-case power, mass and list price are the survey's synthesized values; the mass is its estimate
+    (no measured Pi, cooler or HAT masses were found), so the basis is partially sourced."""
+    survey = json.loads((HERE / "research" / "compute_2026-11-07.json").read_text())
+    arch = {a["id"]: a for a in survey["synthesis"]["architectures"]}["C_pi5_hailo8l_oak_depth"]
+    keys = ("raspberry-pi-5-product-brief", "ai-hat-plus-product-brief", "cnx-software.com/2023/11/05",
+            "sixfab.com/blog/raspberry-pi-5-ai-hat")
+    sources = [f"{s['url']} | accessed 2026-11-07 | {s['what']}" for s in survey["synthesis"]["key_sources"]
+               if any(k in s["url"] for k in keys)]
+    return dict(
+        id="rpi5_8gb_ai_hat_plus_13tops", research_id="C_pi5_hailo8l_oak_depth (research/compute_2026-11-07.json)",
+        category="compute", vendor="Raspberry Pi",
+        model="Raspberry Pi 5 8 GB + Active Cooler + AI HAT+ 13 TOPS (Hailo-8L) + USB 3 SSD",
+        dims_m=[0.085, 0.056, 0.030], mass_kg=arch["mass_g"] / 1000, power_typ_w=float(arch["power_w_typical"]),
+        power_max_w=float(arch["power_w_max"]), capacity_wh=0, voltage_v=5.0, max_current_a=5.0,
+        price_usd=float(arch["price_usd"]), fov="",
+        basis="partially_sourced; envelope, power and price from the survey, mass a survey estimate",
+        sources=sources, notes=arch["volume_note"][:500])
 
 
 def _volt(s: str) -> float:

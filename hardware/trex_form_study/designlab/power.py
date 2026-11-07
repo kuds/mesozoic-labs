@@ -30,9 +30,14 @@ MIN_MIN = 15.0
 FALLBACK_KT_PER_RATED = 1.0 / 6.0  # if Kt unknown: assume rated torque at 6 A rms (flagged)
 FALLBACK_R = 0.25
 
+COMPUTE_BUDGET = {  # W at the compute rail, before the DC-DC, by selected compute part
+    # Round one: PR #662's Jetson allowance, kept unchanged so round-one results reproduce (A13).
+    "nvidia_orin_nano_super_devkit": {"jetson_module": 25.0, "carrier_storage_cooling": 6.0},
+    # Round two (P14): the compute survey's typical board-level draw for the Pi 5 + AI HAT+ (Hailo-8L)
+    # set, plus an allowance for the USB SSD the survey left out (assumption A14).
+    "rpi5_8gb_ai_hat_plus_13tops": {"pi5_ai_hat_plus": 8.0, "usb_ssd": 1.5},
+}
 AUX_FIXED = {  # W (PR #662 auxiliary budget, kept as the baseline)
-    "jetson_module": 25.0,
-    "carrier_storage_cooling": 6.0,
     "mcu_comms": 4.0,
 }
 
@@ -70,7 +75,7 @@ def aux_power(design) -> dict:
         for it in b.items:
             if it.category == "sensors" and it.power_nom:
                 sensors += it.power_nom
-    loads = dict(AUX_FIXED, sensors=sensors)
+    loads = dict(COMPUTE_BUDGET[design.sel["compute"]], **AUX_FIXED, sensors=sensors)
     total_load = sum(loads.values())
     return dict(loads=loads, load_w=total_load, input_w=total_load / ETA_DCDC)
 

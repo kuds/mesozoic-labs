@@ -12,6 +12,8 @@ the *unbent* (level) trunk frame.  Lengths are fractions of H.
 
 from __future__ import annotations
 
+import copy
+
 import numpy as np
 
 # ---------------------------------------------------------------------------------------------
@@ -142,6 +144,31 @@ FAMILY_SHAPE = {
         shell_mm=1.6,
     ),
 }
+
+
+#: Generator revision 2 (round two).  Round-one shapes stay under the plain family letter so round-one
+#: models rebuild byte-identical; ``family_key`` picks the shape set for a candidate's revision
+#: (``Candidate.overrides`` entry ``("rev", 2)``).  Each change is recorded in DECISION_LOG.md.
+def family_key(family: str, rev: int = 1) -> str:
+    return family if rev < 2 else f"{family}@2"
+
+
+def _derived(base: str, **changes) -> dict:
+    d = copy.deepcopy(FAMILY_SHAPE[base])
+    for k, v in changes.items():
+        if isinstance(v, dict) and isinstance(d.get(k), dict):
+            d[k].update(v)
+        else:
+            d[k] = v
+    return d
+
+
+# F8: the stereo camera must sit inside the skull cover.  A slightly broader Tapered skull (it was the only
+# one with no fitting position at 60 cm) and a flatter skull roof (exponent 2.6 -> 3.2, a broad flat roof
+# between the brows, as in the animal) let it sit about 2-4 mm higher.
+FAMILY_SHAPE["T@2"] = _derived("T", skull=dict(width_rear=0.46, roof_n=3.2))
+FAMILY_SHAPE["S@2"] = _derived("S", skull=dict(roof_n=3.2))
+FAMILY_SHAPE["H@2"] = _derived("H", skull=dict(roof_n=3.2))
 
 
 def leg_chain_length(h: float, leg_scale: float = 1.0) -> float:

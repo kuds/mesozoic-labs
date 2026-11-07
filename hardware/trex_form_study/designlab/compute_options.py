@@ -25,7 +25,7 @@ from pathlib import Path
 from . import power
 
 HEIGHTS = (60, 75, 100, 120)
-JETSON_W = power.AUX_FIXED["jetson_module"] + power.AUX_FIXED["carrier_storage_cooling"]
+JETSON_W = sum(power.COMPUTE_BUDGET["nvidia_orin_nano_super_devkit"].values())
 JETSON_KG = 0.174  # the kit as sold; the 0.12 kg tray and mounting allowance is kept for every architecture
 JETSON_USD = 399 + 120  # catalog price (NVIDIA list after the July 2026 rise) + integration, as costed
 

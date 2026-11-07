@@ -206,7 +206,7 @@ def skull_panels(sk, family: str, base_world: np.ndarray, thickness, material, r
     for k, s in enumerate(us):
         c = occ + ax * (s * L)
         zt, zb = t_[k] * L, b_[k] * L
-        ring = egg_ring(h_[k] * L, zt, zb, zb + 0.42 * (zt - zb), 2.6, 3.2, angles)
+        ring = egg_ring(h_[k] * L, zt, zb, zb + 0.42 * (zt - zb), _roof_n(family), 3.2, angles)
         rows.append(c + np.outer(ring[:, 0], [0, 1, 0]) + np.outer(ring[:, 1], up))
     skull = Panel("skull", "head", np.stack(rows), thickness, material, "skull", True, True, rgba, mounts=4)
     usj = np.linspace(ju[0], ju[-1], 18)
@@ -252,6 +252,48 @@ def skull_dorsal(sk, family: str, s: float):
     return sk.occiput + ax * (s * L) + up * zt, ax, up
 
 
+def _roof_n(family: str) -> float:
+    """Superellipse exponent of the skull's upper section (2.6 in round one; larger = flatter, broader roof)."""
+    return float(T.FAMILY_SHAPE[family]["skull"].get("roof_n", 2.6))
+
+
+def skull_inside(sk, family: str, p_world, inset: float = 0.0) -> bool:
+    """Whether a world point lies inside the skull's outer surface shrunk by ``inset`` (the same
+    superellipse sections ``skull_panels`` lofts; between its stations the profiles are interpolated)."""
+    L = sk.skull_len
+    u, top, tooth, half, *_ = skull_profiles(family)
+    ax, up = _skull_frame(sk)
+    rel = np.asarray(p_world, float) - sk.occiput
+    s = float(rel @ ax) / L
+    if s < u[0] or s > u[-1]:
+        return False
+    zt = float(PchipInterpolator(u, top)(s)) * L
+    zb = float(PchipInterpolator(u, tooth)(s)) * L
+    hw = float(PchipInterpolator(u, half)(s)) * L
+    zw = zb + 0.42 * (zt - zb)
+    y, z = abs(float(rel[1])), float(rel @ up)
+    n, h = (_roof_n(family), zt - zw) if z >= zw else (3.2, zw - zb)
+    if hw - inset <= 0 or h - inset <= 0:
+        return False
+    return (y / (hw - inset)) ** n + (abs(z - zw) / (h - inset)) ** n <= 1.0
+
+
+def eye_boxes(sk, family: str):
+    """World AABBs (lo, hi) of the two cosmetic eye boxes that ``skull_panels`` places."""
+    L = sk.skull_len
+    u, top, tooth, half, *_ = skull_profiles(family)
+    ax, up = _skull_frame(sk)
+    s_eye = 0.20
+    he = float(PchipInterpolator(u, half)(s_eye)) * L
+    ze = float(PchipInterpolator(u, top)(s_eye)) * L
+    h = 0.5 * np.array([0.035, 0.012, 0.035]) * L
+    out = []
+    for sd in (1, -1):
+        c = sk.occiput + ax * (s_eye * L) + up * (0.62 * ze) + np.array([0, sd * 0.86 * he, 0])
+        out.append((c - h, c + h))
+    return out
+
+
 def skull_crown_world(sk, family: str) -> float:
     L = sk.skull_len
     u, top, *_ = skull_profiles(family)
@@ -268,7 +310,7 @@ def neck_panel(sk, family: str, base_world: np.ndarray, thickness, material, rgb
     L = sk.skull_len
     path = sk.neck_path - base_world
     n = len(path)
-    girth = {"T": 0.90, "S": 0.98, "H": 0.94}[family]
+    girth = {"T": 0.90, "S": 0.98, "H": 0.94}[family.split("@")[0]]
     u = np.linspace(0, 1, n)
     half_w = ((0.125 - 0.045 * u) * B * girth)
     up = (0.100 - 0.030 * u) * B * girth

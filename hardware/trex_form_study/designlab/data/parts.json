@@ -1,6 +1,6 @@
 {
  "generated_by": "designlab/data/build_catalog.py",
- "research": "research/parts_2026-11-07.json",
+ "research": "research/parts_2026-11-07.json; research/compute_2026-11-07.json (round-two compute, P14)",
  "parts": [
   {
    "id": "nvidia_orin_nano_super_devkit",
@@ -547,6 +547,34 @@
     "https://shop.danenergy.com/cdn/shop/files/drone-series-a.pdf?v=17979842379531034863 | accessed 2026-11-07 | series datasheet: dims, currents, cells; 6S1P TN6S1P-50S: 25 x 72 x 150 mm, 0.5 kg, 108 Wh, 25 A"
    ],
    "notes": "2 x Dan-Tech 6S3P-50S in series; About 231 Wh/kg by my calculation. Probably oversized at 324 Wh. The 6S1P sibling (108 Wh, 0.5 kg, 25 A continuous) matches the incumbent energy class better. A BMS with CAN telemetry suits robotics. Large packs face air-transport restrictions; I did not source the thresholds."
+  },
+  {
+   "id": "rpi5_8gb_ai_hat_plus_13tops",
+   "research_id": "C_pi5_hailo8l_oak_depth (research/compute_2026-11-07.json)",
+   "category": "compute",
+   "vendor": "Raspberry Pi",
+   "model": "Raspberry Pi 5 8 GB + Active Cooler + AI HAT+ 13 TOPS (Hailo-8L) + USB 3 SSD",
+   "dims_m": [
+    0.085,
+    0.056,
+    0.03
+   ],
+   "mass_kg": 0.1,
+   "power_typ_w": 8.0,
+   "power_max_w": 18.0,
+   "capacity_wh": 0,
+   "voltage_v": 5.0,
+   "max_current_a": 5.0,
+   "price_usd": 290.0,
+   "fov": "",
+   "basis": "partially_sourced; envelope, power and price from the survey, mass a survey estimate",
+   "sources": [
+    "https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-008348-DS-10-raspberry-pi-5-product-brief.pdf | accessed 2026-11-07 | Pi 5 November 2026 list prices and production to Jan 2036 (corrected brief edition)",
+    "https://www.cnx-software.com/2023/11/05/raspberry-pi-5-review-raspberry-pi-os-bookworm-benchmarks-power-consumption/ | accessed 2026-11-07 | Pi 5 at the wall: 16.8 W peak with USB drives attached (PSU included)",
+    "https://sixfab.com/blog/raspberry-pi-5-ai-hat-benchmark-deepx-vs-hailo/ | accessed 2026-11-07 | Pi 5 + NPU HAT whole-system power (mixed-model proxy) and host-bound end-to-end fps",
+    "https://pip-assets.raspberrypi.com/categories/1081-raspberry-pi-ai-hat/documents/RP-008133-DS-1-raspberry-pi-ai-hat-plus-product-brief.pdf | accessed 2026-11-07 | AI HAT+ prices, 0-50 C ambient rating, production to Jan 2030"
+   ],
+   "notes": "Pi 5 + Active Cooler + AI HAT+ stack 85 x 56 x 30 mm (0.14 L), plus a 5 V/5 A buck and a small USB SSD: a smaller footprint than the dev kit and within its 34.77 mm reseller height, so it fits any chest that takes the dev kit (the study's tray resizes with the selected board). Mass ~100 g is a survey estimate (no measured Pi, cooler or HAT masses exist; the cooler's 29 g is a retailer shipping weight), excluding the SSD. Price = $175 + $5 + $70 + $40 = $290 list (~$323 at observed street prices)"
   }
  ]
 }

@@ -23,6 +23,25 @@ CAMERA_STATION = 0.24
 CAMERA_PITCH_DEG = 5.0
 #: Lidar station along the trunk (fraction of B ahead of the hip axis).
 LIDAR_STATION = 0.92
+#: Revision 2 (round two): the camera box is placed by a search over skull stations and depths so that it
+#: sits inside the skull cover (inset by half the wall and ``CAMERA_CLEAR_M``) and clear of the eyes; the
+#: highest fitting position wins (round one put it 4 mm under the roof at station 0.24, where the cover
+#: cut the box by 2.3-13.7 mm).
+CAMERA_STATIONS_R2 = np.arange(0.08, 0.305, 0.005)
+CAMERA_CLEAR_M = 0.002
+#: Upper ankle motor station along the tibia (fraction of its length below the knee).  Revision 2 value
+#: chosen from a knee-flexion sweep at 60 cm (decision log F9).
+ANKLE_MOTOR_FRAC = {1: 0.30, 2: 0.30}
+ANKLE_MOTOR_FRAC_R2_BY_HEIGHT = {60: 0.46}  # 60 cm: knee usable 0.80-0.86 rad (0.62-0.66 at 0.30)
+#: Revision 2: clearance between a pelvis side plate and the inner face of the upper-thigh shell.  The
+#: round-one hip spacing ignored the plate thickness, so narrow stances (no extra spacing) put the plates
+#: 1.4-2.8 mm into the shells at 60-75 cm and 5 mm at 100 cm (``100-N-S-10``).  3 mm still left a 1.3 mm
+#: contact at standing (the stance hip roll and the shell's convex pieces bring it about 4 mm further in);
+#: 6 mm clears every 60-75 cm narrow body at standing (decision log F9).
+PELVIS_THIGH_CLEAR_M = 0.006
+#: Revision 2: minimum vertical gap between the tail motor and the tail-base battery cassette where they
+#: overlap in plan (round one left -0.2 mm on 60-M-T-10).
+TAIL_MOTOR_CLEAR_M = 0.003
 
 G = 9.81
 
@@ -77,6 +96,9 @@ class Design:
     def __init__(self, cand: Candidate, B: float, selection: dict | None = None):
         self.cand = cand
         self.B = B
+        #: generator revision (1: round one, 2: round two) and the matching family shape key
+        self.rev = int(cand.override("rev", 1))
+        self.fk = T.family_key(cand.family, self.rev)
         self.sel = selection or hw.default_selection(cand.height)
         self.notes: list[str] = []
         self.geometry_checks: dict = {}
@@ -102,6 +124,53 @@ class Design:
         roll = self.act("hip_roll")
         x_front = -(roll.envelope[1] + 0.012) if self.cand.leg_layout == "tandem" else -0.02 * self.B
         return x_front - cas_x - 0.010
+
+    def _camera_fit(self, cam_size) -> dict:
+        """Revision 2: highest stereo-camera position inside the skull cover and clear of the eyes."""
+        sk = self.sk
+        L = sk.skull_len
+        fam = T.FAMILY_SHAPE[self.fk]
+        inset = 0.5 * cover_thickness(self.cand.height, fam["shell_mm"]) + CAMERA_CLEAR_M
+        ax, up = shapes._skull_frame(sk)
+        Rc = ry(np.radians(CAMERA_PITCH_DEG))
+        half = 0.5 * np.asarray(cam_size)
+        signs = np.array([[a, b, c] for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)], float)
+        eyes = shapes.eye_boxes(sk, self.fk)
+        best = None
+        for st in CAMERA_STATIONS_R2:
+            top_w, _, _ = shapes.skull_dorsal(sk, self.fk, float(st))
+            for drop in np.arange(0.004, 0.0605, 0.0005):
+                c = top_w - up * (half[2] + drop) - ax * half[0]
+                corners = c + (Rc @ (signs * half).T).T
+                if not all(shapes.skull_inside(sk, self.fk, q, inset) for q in corners):
+                    continue
+                lo, hi = corners.min(0), corners.max(0)
+                if any(np.all(lo < e_hi + 0.002) and np.all(e_lo - 0.002 < hi) for e_lo, e_hi in eyes):
+                    continue
+                if best is None or c[2] > best["z"] + 1e-9:
+                    best = dict(z=float(c[2]), station=float(st), drop_m=float(drop))
+                break  # the first fitting drop is the highest at this station
+        if best is None:
+            return dict(fits=False, station=CAMERA_STATION, drop_m=0.004, skull_length_m=float(L))
+        return dict(fits=True, station=best["station"], drop_m=best["drop_m"], centre_z_m=best["z"],
+                    skull_length_m=float(L), inset_m=float(inset))
+
+    def _tail_motor_lift(self, tail, tr, h_ax) -> float:
+        """Revision 2: raise the tail motor so it clears the cassette by TAIL_MOTOR_CLEAR_M where they overlap
+        in plan (the motor stays on the yaw axis)."""
+        b = getattr(self, "battery", None)
+        if b is None:
+            return 0.0
+        cen, size, R = b["center"], np.asarray(b["size"]), b["R"]
+        cas = cen + (R @ (np.array([[a, c, d] for a in (-1, 1) for c in (-1, 1) for d in (-1, 1)]) * 0.5 * size).T).T
+        if tail.box is not None:
+            hx = 0.5 * max(tail.box[0], tail.box[1])
+        else:
+            hx = 0.5 * tail.envelope[0]
+        if cas[:, 0].max() < tr[0] - hx or cas[:, 0].min() > tr[0] + hx:
+            return 0.0
+        gap = (tr[2] + 0.006) - cas[:, 2].max()
+        return float(max(0.0, TAIL_MOTOR_CLEAR_M - gap))
 
     def act(self, role: str) -> catalog.Actuator:
         if role in hw.JOINT_GROUPS:
@@ -130,7 +199,7 @@ class Design:
         c, sk = self.cand, self.sk
         B, H = sk.B, sk.H
         wv = WIDTHS[c.width]
-        self.design_profile = shapes.trunk_profile(c.family, B, wv["torso_scale"])
+        self.design_profile = shapes.trunk_profile(self.fk, B, wv["torso_scale"])
 
         roll, yaw, pitch, knee = (self.act(r) for r in ("hip_roll", "hip_yaw", "hip_pitch", "knee"))
         d_roll, l_roll = roll.envelope
@@ -152,6 +221,15 @@ class Design:
         else:
             raise ValueError(layout)
         y_leg = pelvis_half + gap + half_upper + wv["hip_extra"] * B
+        if self.rev >= 2 and layout in ("tandem", "side"):
+            # the pelvis side plate (its beam-rule thickness) and the thigh shell wall must both fit
+            _, t_pel = hw.size_beam(0.55 * B, 2.0 * self.mass_guess * G, 0.25, max(0.05, 1.2 * d_roll))
+            t_sh = cover_thickness(c.height, T.FAMILY_SHAPE[self.fk]["shell_mm"])
+            need = (pelvis_half + 0.5 * max(0.003, t_pel) + 0.5 * t_sh + PELVIS_THIGH_CLEAR_M + half_upper
+                    + wv["hip_extra"] * B)
+            if need > y_leg:
+                self.geometry_checks["hip_spacing_added_for_pelvis_plate_m"] = float(need - y_leg)
+                y_leg = need
         if y_r is None:  # PR #662-like: roll axis ~32 mm (at 360 mm hip) inboard of the leg plane
             y_r = y_leg - 0.032 * (H / 0.36)
         z_r = 0.02 * B
@@ -298,7 +376,9 @@ class Design:
                 back = back if back[0] < 0 else -back
                 pos = []
                 for k, act in enumerate((ank_a, ank_b)):
-                    frac_a = 0.30 + k * (da + 0.006) / tib_len  # below the thigh fairing at knee flexion
+                    f0 = (ANKLE_MOTOR_FRAC_R2_BY_HEIGHT.get(c.height, ANKLE_MOTOR_FRAC[2]) if self.rev >= 2
+                          else ANKLE_MOTOR_FRAC[1])
+                    frac_a = f0 + k * (da + 0.006) / tib_len  # below the thigh fairing at knee flexion
                     pm = knee_w + ax_t * (frac_a * tib_len) + back * (0.5 * da + 0.010)
                     pos.append(pm)
                     self.add(hw.motor_item(f"{side}_ankle_motor_{'ab'[k]}", f"{side}_shank", act,
@@ -497,9 +577,17 @@ class Design:
         # met the neck motor).  Pitched +5 deg above level in the world; the head keeps its world
         # attitude in every posture, so the view does not tilt with the chest.
         cam = catalog.parts()[self.sel["camera"]]
-        top_w, ax, up = shapes.skull_dorsal(sk, self.cand.family, CAMERA_STATION)
         cam_size = (cam.dims[2], cam.dims[0], cam.dims[1])
-        cam_w = top_w - up * (0.5 * cam_size[2] + 0.004) - ax * 0.5 * cam_size[0]
+        station, drop = CAMERA_STATION, 0.004
+        if self.rev >= 2:
+            fit = self._camera_fit(cam_size)
+            self.geometry_checks["camera_fit"] = fit
+            if fit["fits"]:
+                station, drop = fit["station"], fit["drop_m"]
+            else:
+                self.notes.append("stereo camera does not fit inside the skull cover at any searched station")
+        top_w, ax, up = shapes.skull_dorsal(sk, self.fk, station)
+        cam_w = top_w - up * (0.5 * cam_size[2] + drop) - ax * 0.5 * cam_size[0]
         cam_p = self.to_body("head", cam_w)
         cam_R = self.bodies["head"].R_world.T @ ry(np.radians(CAMERA_PITCH_DEG))
         self.add(hw.box_item("camera", "head", "sensors", cam.mass + 0.04, cam_p, cam_size, "A", cam.basis, cam.id,
@@ -519,7 +607,12 @@ class Design:
         tail = self.act("tail")
         tr = sk.tail_root
         h_ax = (tail.box[2] + 0.004) if tail.box is not None else tail.envelope[1]
-        self.add(hw.motor_item("tail_motor", "trunk", tail, tr + np.array([0.0, 0.0, 0.5 * h_ax + 0.006]),
+        lift = 0.0
+        if self.rev >= 2 and self.cand.battery_pos == "tailbase":
+            lift = self._tail_motor_lift(tail, tr, h_ax)
+            if lift > 0:
+                self.geometry_checks["tail_motor_raised_m"] = lift
+        self.add(hw.motor_item("tail_motor", "trunk", tail, tr + np.array([0.0, 0.0, 0.5 * h_ax + 0.006 + lift]),
                                (0, 0, 1), category="expression_actuator"))  # on the yaw axis, above the pivot
         self.add(hw.Item("tail_fork_bearings", "trunk", "bearings", 0.08 * (B / 0.38) ** 2, tr, np.eye(3), "none", (0,),
                          "B", "estimate", "PR #662 tail fork 0.08 kg, scaled with B^2", visual=False, collide=False))
@@ -573,21 +666,21 @@ class Design:
     def _place_covers(self):
         c, sk = self.cand, self.sk
         B = sk.B
-        fam = T.FAMILY_SHAPE[c.family]
+        fam = T.FAMILY_SHAPE[self.fk]
         colors = FAMILY_COLORS[c.family]
         t = cover_thickness(c.height, fam["shell_mm"])
         mat = cover_material(c.height)
         regions = fam["cover_regions"]
         prof = self._required_profile()
         self.prof = prof
-        for p in shapes.trunk_panels(sk, c.family, prof, regions, t, mat, colors["main"], colors["accent"]):
+        for p in shapes.trunk_panels(sk, self.fk, prof, regions, t, mat, colors["main"], colors["accent"]):
             self.bodies["trunk"].panels.append(p)
         if "rib_hoops" in regions:
             for p in shapes.rib_hoops(sk, prof, (0.27, 0.36, 0.45, 0.54), t, (0.50, 0.50, 0.46, 1)):
                 self.bodies["trunk"].panels.append(p)
         nb_w = self.bodies["head"].pos_world
-        self.bodies["head"].panels.append(shapes.neck_panel(sk, c.family, nb_w, t, mat, colors["main"]))
-        for p in shapes.skull_panels(sk, c.family, nb_w, t, mat, colors["accent"], colors["jaw"], TEETH_RGBA):
+        self.bodies["head"].panels.append(shapes.neck_panel(sk, self.fk, nb_w, t, mat, colors["main"]))
+        for p in shapes.skull_panels(sk, self.fk, nb_w, t, mat, colors["accent"], colors["jaw"], TEETH_RGBA):
             if isinstance(p, shapes.Panel):
                 self.bodies["head"].panels.append(p)
             elif p[0] == "teeth":
@@ -602,21 +695,21 @@ class Design:
                                      (0.035 * sk.skull_len, 0.012 * sk.skull_len, 0.035 * sk.skull_len), "C", "estimate",
                                      "cosmetic", rgba=p[2], collide=False))
         tr_w = self.bodies["tail"].pos_world
-        for p in shapes.tail_panels(sk, c.family, tr_w, prof, t, mat, colors["main"], regions):
+        for p in shapes.tail_panels(sk, self.fk, tr_w, prof, t, mat, colors["main"], regions):
             self.bodies["tail"].panels.append(p)
         pitch, knee = self.act("hip_pitch"), self.act("knee")
         yaw = self.act("hip_yaw")
         for side, s in (("left", 1.0), ("right", -1.0)):
             if "thigh" in regions:
                 Lf = float(np.linalg.norm(sk.leg["knee"] - sk.leg["hip"]))
-                fs_ = T.FAMILY_SHAPE[c.family]
+                fs_ = T.FAMILY_SHAPE[self.fk]
                 r_top = max(0.5 * pitch.envelope[0] + 0.012, 0.19 * B * fs_["thigh_scale"])
                 s_seam = (0.5 * pitch.envelope[0] + yaw.envelope[1] + 0.012) / Lf
                 r_seam = max(0.5 * knee.envelope[0], 0.5 * knee.envelope[1], 0.5 * yaw.envelope[0]) + 0.010
                 kf = getattr(self, "knee_motor_frac", 0.4)
                 r_knee = max(0.045 * B, (0.5 * max(knee.envelope) + 0.008) if kf > 0.75 else 0.0)
                 half_up = self.hip["half_upper"] + 0.004
-                up, lo = shapes.thigh_panels(side, self.femur_axis, Lf, B, c.family, r_top, half_up, s_seam, r_seam,
+                up, lo = shapes.thigh_panels(side, self.femur_axis, Lf, B, self.fk, r_top, half_up, s_seam, r_seam,
                                              r_knee, t, mat, colors["limb"])
                 self.bodies[f"{side}_thigh"].panels.append(up)
                 self.bodies[f"{side}_femur"].panels.append(lo)
@@ -711,7 +804,7 @@ class Design:
         # The pelvis covers clear the thigh fairings: within the fairing's reach of the hip axis the trunk
         # half-width stays inside the fairing's inner face, less the wall and a 6 mm gap (round-one
         # clearance screen: pelvis and upper-thigh shells overlapped at home, up to 21 mm at 120 cm).
-        fam = T.FAMILY_SHAPE[self.cand.family]
+        fam = T.FAMILY_SHAPE[self.fk]
         if "thigh" in fam["cover_regions"]:
             pitch = self.act("hip_pitch")
             r_top = max(0.5 * pitch.envelope[0] + 0.012, 0.19 * sk.B * fam["thigh_scale"])
@@ -759,7 +852,7 @@ def _corners(it: hw.Item) -> np.ndarray:
 # Scale solve
 # ================================================================================================
 def crown_height(cand: Candidate, B: float) -> float:
-    return shapes.skull_crown_world(build_skeleton(cand, B), cand.family)
+    return shapes.skull_crown_world(build_skeleton(cand, B), T.family_key(cand.family, int(cand.override("rev", 1))))
 
 
 def solve_B(cand: Candidate) -> float:
