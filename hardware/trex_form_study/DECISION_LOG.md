@@ -20,6 +20,8 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P5 | No portability weight ceiling, but weight still matters. Partial coverings and exposed mechanics are acceptable. | adopted |
 | P6 | Earlier forms rejected: a rectangular chassis with a head and tail; a deep barrel torso with a high rounded back, hanging belly, small-looking head and no chest/abdomen/hip distinction. More covered silhouette area is not itself success. | adopted |
 | P7 | Explore 60, 75, 100 and 120 cm crown heights; narrow, balanced and broad widths; distinct body families; 0°, 10° and 20° chest-up postures. Do not freeze the form factor or start extensive training before two review rounds. | adopted |
+| P8 | Owner, 7 Nov 2026, during round one: keep the larger sizes in the study and do not rule them out on price. Report their cost as a note. | adopted |
+| P9 | Owner, 7 Nov 2026, during round one: evaluate onboard compute beyond Jetson, such as a Raspberry Pi or other smaller computers and processors. | adopted (compute survey in `COMPUTE.md`) |
 
 ## Engineering constraints and findings
 

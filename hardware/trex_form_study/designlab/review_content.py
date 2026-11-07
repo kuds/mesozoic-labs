@@ -43,7 +43,7 @@ def header(x) -> str:
   <nav class="toc" aria-label="Sections">
     <a href="#sizes">Sizes</a><a href="#families">Body families</a><a href="#posture">Posture</a><a href="#width">Width</a>
     <a href="#proportions">Proportions</a><a href="#inside">Inside</a><a href="#sensing">Sensing</a>
-    <a href="#screening">Screening</a><a href="#cost">Cost and runtime</a><a href="#questions">Questions for you</a>
+    <a href="#compute">Compute</a><a href="#screening">Screening</a><a href="#cost">Cost and runtime</a><a href="#questions">Questions for you</a>
     <a href="#next">Next</a>
   </nav>
 </header>"""
@@ -319,6 +319,58 @@ def sensing(x) -> str:
 </section>"""
 
 
+def compute(x) -> str:
+    """Onboard compute alternatives (owner request P9); skipped if the survey has not been run."""
+    import json
+
+    rp = x.r1.parent / "designlab" / "data" / "research" / "compute_2026-11-07.json"
+    ep = x.r1 / "compute_options.json"
+    if not rp.exists() or not ep.exists():
+        return ""
+    res = json.loads(rp.read_text())
+    eff = json.loads(ep.read_text())
+    syn = res["synthesis"]
+    arows = []
+    for a in syn["architectures"]:
+        arows.append([f"<b>{K.esc(a['name'])}</b>", K.esc(a["where_inference_runs"]),
+                      f"{a['power_w_typical']:.0f} W" if a.get("power_w_typical") is not None else "–",
+                      f"{a['mass_g']:.0f} g" if a.get("mass_g") is not None else "–",
+                      f"${a['price_usd']:,.0f}" if a.get("price_usd") is not None else "–",
+                      _ok(a.get("covers_minimum_spec")), K.esc(a.get("covers_growth_spec", "")),
+                      K.esc(a.get("software_effort", ""))])
+    atbl = K.table(["Architecture", "Where inference runs", "Typical power", "Mass", "Price", "Minimum spec",
+                    "Growth (voice, re-ID, mapping)", "Porting effort"], arows, num={2, 3, 4})
+    rrows = []
+    names = [r["name"] for r in eff["sizes"]["60"]["rows"]]
+    for i, nm in enumerate(names):
+        cells = [K.esc(nm)]
+        for h in HEIGHTS:
+            r = eff["sizes"][str(h)]["rows"][i]
+            cells.append(f"{r['runtime_min']:.0f} min <span class='mono'>({r['runtime_change_min']:+.1f})</span>")
+        rrows.append(cells)
+    rtbl = K.table(["Architecture"] + [f"{h} cm" for h in HEIGHTS], rrows, num={1, 2, 3, 4})
+    per = "".join(f"<li><b>{p['size_cm']:.0f} cm</b>: {K.esc(p['primary'])}"
+                  + (f"; alternative {K.esc(p['alternative'])}" if p.get("alternative") else "") + f". {K.esc(p['why'])}</li>"
+                  for p in syn["per_size"])
+    return f"""
+<section id="compute">
+  <p class="kicker">8 · Compute</p><h2>Jetson, or something smaller?</h2>
+  <div class="prose">
+    <p>{K.esc(syn['answer_to_owner'])}</p>
+    <p>The survey covered Jetson modules and kits, Raspberry Pi 5 and Compute Module 5 with Hailo accelerators,
+    RK3588 and other NPU boards, x86 and Qualcomm boards, M.2 accelerators, and cameras that run inference
+    themselves. Each category was then fact-checked independently. Sources and corrections are in
+    <code>COMPUTE.md</code>.</p>
+  </div>
+  {atbl}
+  <h3>Runtime on each size's selected pack</h3>
+  <div class="prose"><p>Change from the Jetson baseline in brackets. This is first order: drive power and the other
+  auxiliaries are held fixed.</p></div>
+  {rtbl}
+  <div class="prose"><ul>{per}</ul></div>
+</section>"""
+
+
 def screening(x) -> str:
     rows = []
     for cid in sorted(x.R, key=lambda k: (int(k.split("-")[0]), k)):
@@ -336,7 +388,7 @@ def screening(x) -> str:
     flagged = sorted(set(st["ss_infeasible"] + st["walk_infeasible"] + st["over_catalog"] + st["guard"]))
     return f"""
 <section id="screening">
-  <p class="kicker">8 · Mechanical screening</p><h2>What fits, what collides, what was fixed</h2>
+  <p class="kicker">9 · Mechanical screening</p><h2>What fits, what collides, what was fixed</h2>
   <div class="prose">
     <p>Every review candidate is checked on its compiled model for:</p>
     <ul>
@@ -385,11 +437,12 @@ def cost(x) -> str:
                    "Cost low", "Nominal", "High"], rows, num={2, 3, 4, 5, 6, 7, 8})
     return f"""
 <section id="cost">
-  <p class="kicker">9 · Cost and runtime</p><h2>Budget fit falls off above 75 cm</h2>
+  <p class="kicker">10 · Cost and runtime</p><h2>What each size costs and how long it runs</h2>
   <div class="prose">
-    <p>Cost covers one physical prototype with outsourced fabrication. It includes drives, electronics,
-    battery and spares, printed coverings, frame parts, bench and tether supply, integration and
-    contingency. Priced parts use sourced prices. The lots (frame, coverings, integration) are scaled
+    <p>Per your note, the larger sizes stay in as full options. Their cost is reported here, not used to rule
+    them out. Cost covers one physical prototype with outsourced fabrication. It includes drives,
+    electronics, battery and spares, printed coverings, frame parts, bench and tether supply, integration
+    and contingency. Priced parts use sourced prices. The lots (frame, coverings, integration) are scaled
     from PR #662's 60 cm lines, so the high side is a real possibility, not a worst case. Runtime is the
     nominal reference walk on the lightest pack that meets 20 minutes, at 75 % usable energy and with no
     regeneration credit.</p>
@@ -400,13 +453,18 @@ def cost(x) -> str:
 
 
 def questions(x) -> str:
+    def note(h):
+        r = x.c(REF[h])
+        return (f"{kg(r['mass'])}, {r['bus']:.0f} V, {r['runtime']:.0f} min; cost {usd(r['cost'][1])} nominal, "
+                f"{usd(r['cost'][2])} high")
+
     q = [
         ("Which size should round two develop?",
-         ["60 cm: lightest and cheapest; uses the incumbent drive class.",
-          "75 cm: about 40 % heavier, with a larger hip-pitch drive. Still on a 24 V bus and the same battery class.",
-          "100 cm: museum presence; nominal cost above the $20k ceiling.",
-          "120 cm: the long-term 3–4 ft robot. Two to three times the budget at this stage.",
-          "Develop two (for example 75 cm and 100 cm) side by side."]),
+         [f"60 cm: lightest; uses the incumbent drive class ({note(60)}).",
+          f"75 cm: more presence with a larger hip-pitch drive ({note(75)}).",
+          f"100 cm: museum presence ({note(100)}).",
+          f"120 cm: the long-term 3–4 ft robot ({note(120)}).",
+          "Develop two sizes side by side, for example a smaller and a larger one."]),
         ("Which body family is closest to what you want?",
          ["Tapered: lean animal, light coverings, visible legs.",
           "Substantial: full animal outline, heaviest coverings.",
@@ -422,7 +480,7 @@ def questions(x) -> str:
                     + "".join(f"<li>{K.esc(o)}</li>" for o in opts) + "</ol></div>" for i, (t, opts) in enumerate(q))
     return f"""
 <section id="questions">
-  <p class="kicker">10 · Questions for you</p><h2>Four decisions for round two</h2>
+  <p class="kicker">11 · Questions for you</p><h2>Four decisions for round two</h2>
   <div class="prose"><p>Answers can be as short as a letter per question. A sentence about what looks wrong is just as useful.
   Nothing has been frozen, and no controller training starts until round two has been reviewed.</p></div>
   {items}
@@ -432,7 +490,7 @@ def questions(x) -> str:
 def nextsteps(x) -> str:
     return """
 <section id="next">
-  <p class="kicker">11 · Next</p><h2>Round two, and what stays unproven</h2>
+  <p class="kicker">12 · Next</p><h2>Round two, and what stays unproven</h2>
   <div class="prose">
     <ul>
       <li><b>Round two</b> refines the chosen size, family, posture and proportions:
@@ -466,5 +524,5 @@ def footer(x) -> str:
 </footer>"""
 
 
-SECTIONS = [header, sizes, families, posture, width, proportions, inside, sensing, screening, cost, questions,
+SECTIONS = [header, sizes, families, posture, width, proportions, inside, sensing, compute, screening, cost, questions,
             nextsteps, footer]
