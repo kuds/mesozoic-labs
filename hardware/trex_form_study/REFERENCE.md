@@ -27,9 +27,9 @@ Each value below is classed as one of:
 | Arms | Fixed, low and forward on the chest | 2018 remount lowered the arms and brought them forward | FM_MAKEOVER; PAD2022 | Reference |
 | Head carriage (level posture) | Head centre of mass ≈ 1.35 H ahead of and ≈ 0.2 H above the hip | B2009 digital mounts: ≈ 1.23 H ahead, +0.07–0.13 H above. PAD2022 MOR 555 S-neck mount: higher | B2009 tbl 2–3; PAD2022 | Interpretation (between mounts; also varied by posture) |
 | Neck | Two-segment S approximation, 0.32 B along the curve | 1.5 × skull length along a three-segment S (one cast mount) | PAD2022 | Interpretation: shorter, which keeps the head closer to the hips (hip-pitch load) |
-| Centre of mass ahead of hip | 0.10–0.12 H (battery in the tail base); ≈ 0.2 H (belly battery) | 0.30–0.61 femur lengths ≈ 0.13–0.27 H | H2011; B2009 | Adaptation: the robot's tail is light (≈ 2 % of mass vs 10–21 % in the animal), so the battery moves to the tail base to restore balance |
-| Mass fractions | Head+neck ≈ 3–4 %, tail ≈ 2 %, one leg ≈ 18–22 % | Head 4–11 %, tail 10–21 %, one leg 9.5–16 % | H2011 tbl 4–8; B2009 | Hardware-driven: actuators make robot legs heavy, and shells make head and tail light |
-| Foot spacing (track gauge) | 0.31–0.41 H (narrow to broad variants) | Left-right track centroid spacing ≈ 0.07 H (0.046–0.09); pace angulation 164–171° | F2026; MC2014 | **Adaptation, with a large gap.** The animal walked nearly single-file. Robot feet are limited by hip hardware width and swing clearance (`SCREENING.md`) |
+| Centre of mass ahead of hip | 0.12–0.15 H (battery in the tail base; 60–120 cm reference robots); 0.17–0.18 H (belly battery) | 0.30–0.61 femur lengths ≈ 0.13–0.27 H | H2011; B2009 | Adaptation: the robot's tail is light (3–5 % of mass vs 10–21 % in the animal), so the battery moves to the tail base to restore balance. The anatomical-length tail variant moves the centre of mass back to 0.09–0.11 H |
+| Mass fractions | Head+neck 5.0–5.5 % (includes the head-mounted camera), tail 2.9–4.5 %, one leg 23.5–26 % | Head 4–11 %, tail 10–21 %, one leg 9.5–16 % | H2011 tbl 4–8; B2009 | Hardware-driven: actuators make robot legs heavy, and shells make head and tail light |
+| Foot spacing (track gauge) | 0.24–0.49 H (narrow to broad variants, all sizes; balanced 0.31–0.40 H) | Left-right track centroid spacing ≈ 0.07 H (0.046–0.09); pace angulation 164–171° | F2026; MC2014 | **Adaptation, with a large gap.** The animal walked nearly single-file. Robot feet are limited by hip hardware width and swing clearance (`SCREENING.md`) |
 | Walking gait | Reference walk Fr 0.012, stride 0.55 H, ~2 steps/s at 60 cm | Preferred walk Fr ≈ 0.05 (0.02–0.13), relative stride 1.0–1.5 H | VB2021; F2026; MC2014 | Adaptation for round-one sizing. The behavior spec proposes moving toward Fr 0.02–0.05 with longer strides |
 
 ## Independent replicate
@@ -43,7 +43,7 @@ A second, independent research pass (`anatomy_2026-11-07_replicate.json`: 34 ref
 
 It adds four points:
 * **Chest.** Fleshed chest width/hip height is 0.43 (0.39–0.57) and chest width/height is 0.92 (0.72–0.98). The animal was barrel-chested; our S chest is deeper than it is wide (≈ 0.75), and T sits just below the low end of the width range by design.
-* **Head position.** The snout tip lies 1.13–1.5 skull lengths ahead of the glenoid. Ours is ≈ 1.7, so the robot's head is carried further forward than in mounts. A shorter or steeper neck is a round-two option, and it would also lower hip-pitch load.
+* **Head position.** The snout tip lies 1.13–1.5 skull lengths ahead of the glenoid. On the round-one models it is 1.59 skull lengths ahead of the shoulder reference point, so the robot's head is carried slightly further forward than in mounts. A steeper neck is a round-two option, and it would also lower hip-pitch load.
 * **Glenoid height.** The glenoid sits ≈ 0.16 H below the acetabulum (see the torso-inclination definition).
 * **Walking gait.** Walking Froude 0.05–0.25 and relative stride 1.2–1.5 H.
 
@@ -51,7 +51,7 @@ It adds four points:
 
 The robot's proportions follow the animal where hardware allows: skull, trunk length, leg ratios,
 foot, arms and chest volume. They depart where the hardware decides:
-* the legs are heavy and the tail is light, so the center of mass sits closer to the hip only because the battery moves into the tail base;
+* the legs are heavy (23–26 % of mass each) and the tail is light (3–5 %), so the centre of mass sits near the hip only because the battery moves into the tail base;
 * the feet sit about 5× wider apart than tyrannosaurid tracks;
 * the default tail is shorter (a stated option, not a constraint).
 

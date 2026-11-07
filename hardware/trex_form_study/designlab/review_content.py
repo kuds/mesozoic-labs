@@ -79,11 +79,11 @@ def sizes(x) -> str:
     The body is solved so the crown lands on the class height. Everything else follows from the
     skeletal template and the hardware that has to fit inside.</p>
     <p>Mass grows much faster than height: from {kg(r60['mass'])} at 60 cm to {kg(r120['mass'])} at
-    120 cm. Single-support hip-pitch load is the governing joint load, and it grows from
-    {hp[60]:.1f} to {hp[120]:.1f} N·m. The 60 and 75 cm classes {'both run' if 75 in same_bus else 'differ'} on a
-    24 V bus{', using the incumbent X4-class drives except where a joint outgrows them' if 75 in same_bus else ''}.
-    The 100 and 120 cm classes need larger drives{', a 48 V bus' if any(buses[h] == 48.0 for h in (100, 120)) else ''}
-    and a wide-angle camera with a lidar.</p>
+    120 cm. The governing joint load is hip pitch in single support, and it grows from
+    {hp[60]:.1f} to {hp[120]:.1f} N·m. That load sets the drive class, which drives the mass and cost
+    steps between sizes. Bus voltage by size: {', '.join(f'{h} cm {buses[h]:.0f} V' for h in HEIGHTS)}.
+    The 100 and 120 cm classes use larger leg drives, a wide-angle camera (OAK-D Pro W) and a 2D
+    lidar. At 120 cm the hip-pitch requirement reaches the strongest single drive in the catalog (§9).</p>
   </div>
   {x.img('sizes_common_scale.png', 'Side views of the four reference robots on one ground line with a 1.75 m person for scale',
          'Sizes at one scale', 'Reference candidates <span class="mono">60/75/100/120-M-S-10</span> on one ground line with a 0.5 m grid and a 1.75 m person.')}
