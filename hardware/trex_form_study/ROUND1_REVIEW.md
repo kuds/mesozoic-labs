@@ -1,7 +1,9 @@
 # Round-one design review
 
-**Status:** awaiting the owner's answers to the questions in §6. Nothing here is a final design, and
-no controller training has started.
+**Status:** answered at the review (decision log P10–P14): 60 and 75 cm side by side, Tapered and
+Hybrid as separate bodies, 10° chest-up, larger-skull, narrow-stance and compact variants, and a
+Raspberry Pi 5 with the Hailo-8L AI HAT+. Nothing here is a final design, and no controller training
+has started.
 
 The illustrated version of this review is the review page, which is published separately and
 linked in the delivery message. It uses the same numbers and plates. The tables below are compiled

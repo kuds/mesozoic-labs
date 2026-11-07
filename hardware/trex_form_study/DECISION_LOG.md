@@ -22,6 +22,11 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P7 | Explore 60, 75, 100 and 120 cm crown heights; narrow, balanced and broad widths; distinct body families; 0°, 10° and 20° chest-up postures. Do not freeze the form factor or start extensive training before two review rounds. | adopted |
 | P8 | Owner, 7 Nov 2026, during round one: keep the larger sizes in the study and do not rule them out on price. Report their cost as a note. | adopted |
 | P9 | Owner, 7 Nov 2026, during round one: evaluate onboard compute beyond Jetson, such as a Raspberry Pi or other smaller computers and processors. | adopted (compute survey in `COMPUTE.md`) |
+| P10 | Owner, 7 Nov 2026, round-one review: develop the 60 cm and 75 cm classes side by side in round two. 100 and 120 cm stay in the record but are not developed further. | adopted for round two |
+| P11 | Owner, round-one review: carry the Tapered and Hybrid body families forward as two separate bodies and compare them. Substantial is dropped as a direction (kept as the round-one reference). | adopted for round two |
+| P12 | Owner, round-one review: 10° chest-up posture. The owner first leaned to level, then chose 10° after comparing: level is closer to the near-horizontal backbone of modern mounted reconstructions, but 10° reads as an alert stance, keeps the class crown heights (sizes are matched at 10°) and changes loads, power and cost by about 1 %. | adopted for round two |
+| P13 | Owner, round-one review: carry forward a larger skull, a narrower stance and compact proportions, each as a separate variant on the base body (not combined). | adopted for round two |
+| P14 | Owner, round-one review: onboard compute is a Raspberry Pi 5 with the Raspberry Pi AI HAT+ (13 TOPS Hailo-8L), the survey's recommendation for 60–75 cm (`COMPUTE.md`). | adopted for round two |
 
 ## Engineering constraints and findings
 
@@ -64,4 +69,6 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 
 ## Open preferences (asked in round one)
 
-*Filled after the round-one review: size class, body family, posture, width and tail/skull proportion.*
+Answered at the round-one review (P10–P14): 60 and 75 cm side by side; Tapered and Hybrid as separate
+bodies; 10° chest-up; larger skull, narrower stance and compact proportions as separate variants;
+Raspberry Pi 5 + AI HAT+ (Hailo-8L) compute.
