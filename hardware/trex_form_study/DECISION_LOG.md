@@ -27,7 +27,7 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P12 | Owner, round-one review: 10° chest-up posture. The owner first leaned to level, then chose 10° after comparing: level is closer to the near-horizontal backbone of modern mounted reconstructions, but 10° reads as an alert stance, keeps the class crown heights (sizes are matched at 10°) and changes loads, power and cost by about 1 %. | adopted for round two |
 | P13 | Owner, round-one review: carry forward a larger skull, a narrower stance and compact proportions, each as a separate variant on the base body (not combined). | adopted for round two |
 | P14 | Owner, round-one review: onboard compute is a Raspberry Pi 5 with the Raspberry Pi AI HAT+ (13 TOPS Hailo-8L), the survey's recommendation for 60–75 cm (`COMPUTE.md`). | adopted for round two |
-| P15 | Owner, during round two: also research the level (0°) posture, as a variant of each round-two base body. | adopted for round two |
+| P15 | Owner, during round two: also research the level (0°) posture, as a variant of each round-two base body. It is the same body as the 10° base (crown about 54 / 67 cm instead of 60 / 75 cm); the owner declined a body scaled up to reach the class height when level. | adopted for round two |
 
 ## Engineering constraints and findings
 
