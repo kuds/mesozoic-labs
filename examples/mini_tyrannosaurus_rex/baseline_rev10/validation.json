@@ -1,0 +1,486 @@
+{
+  "mujoco_version": "3.10.0",
+  "scope": "Concept geometry and ideal dynamics only; walking, hardware fit and continuous motor duty remain unverified.",
+  "interface": {
+    "nq": 22,
+    "nv": 21,
+    "actuators": 14,
+    "sensor_definitions": 39
+  },
+  "body_mass_kg": {
+    "torso": 0.422,
+    "tail": 0.015,
+    "left_arm": 0.01,
+    "right_arm": 0.01,
+    "left_hip_yaw_body": 0.021,
+    "left_hip_roll_body": 0.021,
+    "left_thigh": 0.033,
+    "left_shin": 0.028,
+    "left_foot": 0.023,
+    "right_hip_yaw_body": 0.021,
+    "right_hip_roll_body": 0.021,
+    "right_thigh": 0.033,
+    "right_shin": 0.028,
+    "right_foot": 0.023,
+    "head_yaw_body": 0.024,
+    "head_pitch_body": 0.055,
+    "jaw_body": 0.012
+  },
+  "equilibrium": {
+    "mass_kg": 0.8000000000000002,
+    "assumption": "Vertical reactions at sole lateral centers, sagittal CoP at COM x; one static load distribution.",
+    "com_m": [
+      -0.0037921250071227238,
+      1.1250000125000246e-05,
+      0.1220268749932503
+    ],
+    "sole_centers_m": {
+      "left": [
+        0.007,
+        0.048,
+        0.0
+      ],
+      "right": [
+        0.007,
+        -0.048,
+        0.0
+      ]
+    },
+    "normal_force_fractions": {
+      "left": 0.5001171875013021,
+      "right": 0.4998828124986979
+    },
+    "nonnegative_normal_forces": true,
+    "joint_loads_Nm": {
+      "left_shoulder_pitch": -0.0007848000000000009,
+      "right_shoulder_pitch": -0.0007848000000000009,
+      "left_hip_yaw": 0.0,
+      "left_hip_roll": -0.03694844531266418,
+      "left_hip_pitch": -0.017718876097958854,
+      "left_knee": -0.049463422973061937,
+      "left_ankle": -0.016051176097955814,
+      "right_hip_yaw": 0.0,
+      "right_hip_roll": 0.03692085468735762,
+      "right_hip_pitch": -0.017711900957946374,
+      "right_knee": -0.04943805408284509,
+      "right_ankle": -0.016044200957943334,
+      "head_yaw": 0.0,
+      "head_pitch": -0.015289866024525003,
+      "jaw": -0.002966544
+    },
+    "base_wrench_residual": [
+      0.0,
+      0.0,
+      -1.7763568394002505e-15,
+      2.7755575615628914e-17,
+      -1.0408340855860843e-17,
+      0.0
+    ]
+  },
+  "lateral_transfer": {
+    "home": {
+      "left": {
+        "side": "left",
+        "cop_from_sole_center_m": [
+          -0.010792125007122724,
+          -0.047988749999875
+        ],
+        "contact_half_extents_m": [
+          0.035,
+          0.017
+        ],
+        "inside_contact_rectangle": false,
+        "normal_force_N": 7.848
+      },
+      "right": {
+        "side": "right",
+        "cop_from_sole_center_m": [
+          -0.010792125007122724,
+          0.048011250000125
+        ],
+        "contact_half_extents_m": [
+          0.035,
+          0.017
+        ],
+        "inside_contact_rectangle": false,
+        "normal_force_N": 7.848
+      }
+    },
+    "flat_foot_roll_sweep": [
+      {
+        "torso_roll_rad": -0.2,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122724,
+            -0.042002114859065194
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": -0.15000000000000002,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122726,
+            -0.04360983079220936
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": -0.1,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122722,
+            -0.04514603704808484
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": -0.04999999999999999,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122726,
+            -0.04660689391109271
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": 0.0,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122724,
+            -0.047988749999875
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": 0.04999999999999999,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122726,
+            -0.04928815139386649
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": 0.10000000000000003,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122722,
+            -0.05050185026629735
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": 0.15000000000000002,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122726,
+            -0.05162681300206868
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      },
+      {
+        "torso_roll_rad": 0.2,
+        "required_support": {
+          "side": "left",
+          "cop_from_sole_center_m": [
+            -0.010792125007122724,
+            -0.05266022778021031
+          ],
+          "contact_half_extents_m": [
+            0.035,
+            0.017
+          ],
+          "inside_contact_rectangle": false,
+          "normal_force_N": 7.848
+        }
+      }
+    ],
+    "scope": "Static one-family kinematic diagnostic; does not demonstrate foot unloading, stepping or walking."
+  },
+  "motor_clearance": {
+    "motor_cases": 14,
+    "poses": 2001,
+    "seed": 635,
+    "overlap_poses": 0,
+    "minimum_separating_axis_gap_m": 0.0024999999999999953,
+    "witness": {
+      "pose_rad": {
+        "left_hip_yaw": -0.03611806458551543,
+        "left_hip_roll": -0.0962746901096451,
+        "left_hip_pitch": 0.05390283327921424,
+        "left_knee": -0.020406063726223,
+        "left_ankle": -0.06751513413032222,
+        "right_hip_yaw": 0.11674776322786672,
+        "right_hip_roll": 0.03807134109844253,
+        "right_hip_pitch": 0.24256851962106896,
+        "right_knee": 0.35186503906394107,
+        "right_ankle": 0.22104512915451965,
+        "head_pitch": -0.09889239898550574,
+        "head_yaw": -0.28737263250179274,
+        "jaw": 0.15019305704749616,
+        "left_shoulder_pitch": -0.24061590187049814
+      },
+      "pair": [
+        "head_pitch_servo_case",
+        "jaw_servo_case"
+      ]
+    }
+  },
+  "upper_body_contacts": {
+    "poses": 625,
+    "points_per_joint": 5,
+    "joint_ranges_rad": {
+      "head_pitch": [
+        -0.25,
+        0.1
+      ],
+      "head_yaw": [
+        -0.65,
+        0.65
+      ],
+      "jaw": [
+        0.0,
+        0.32
+      ],
+      "left_shoulder_pitch": [
+        -0.65,
+        0.2
+      ]
+    },
+    "overlap_poses": 0,
+    "maximum_penetration_m": 0.0,
+    "worst_poses": [],
+    "scope": "Collision proxies and existing contact exclusions; not hollow-shell CAD or cable clearance."
+  },
+  "combined_contacts": {
+    "poses": 2000,
+    "seed": 636,
+    "overlap_poses": 0,
+    "maximum_penetration_m": 0.0,
+    "witness": {}
+  },
+  "free_hold": {
+    "duration_s": 10.000000000000009,
+    "finite": true,
+    "warnings": 0,
+    "maximum_tilt_deg": 2.021393934690302,
+    "minimum_height_ratio": 0.9872154996947989,
+    "final_height_ratio": 0.9911423562218148,
+    "actuators": {
+      "left_hip_yaw_servo": {
+        "peak_Nm": 0.031828308741862814,
+        "rms_Nm": 0.01210789004392501,
+        "final_second_mean_abs_Nm": 0.01062204878858857
+      },
+      "left_hip_roll_servo": {
+        "peak_Nm": 0.07447491925367292,
+        "rms_Nm": 0.016550596108632555,
+        "final_second_mean_abs_Nm": 0.015655520579522374
+      },
+      "left_hip_pitch_servo": {
+        "peak_Nm": 0.08110305537041063,
+        "rms_Nm": 0.03554489314938566,
+        "final_second_mean_abs_Nm": 0.03198234609048845
+      },
+      "left_knee_servo": {
+        "peak_Nm": 0.15802856067715232,
+        "rms_Nm": 0.07535621271363253,
+        "final_second_mean_abs_Nm": 0.06633330612149092
+      },
+      "left_ankle_servo": {
+        "peak_Nm": 0.16005363736978567,
+        "rms_Nm": 0.07475588509230832,
+        "final_second_mean_abs_Nm": 0.07083030008773263
+      },
+      "right_hip_yaw_servo": {
+        "peak_Nm": 0.02671192934928404,
+        "rms_Nm": 0.011860688654655433,
+        "final_second_mean_abs_Nm": 0.010744019633855136
+      },
+      "right_hip_roll_servo": {
+        "peak_Nm": 0.04515582948705537,
+        "rms_Nm": 0.015677873316801896,
+        "final_second_mean_abs_Nm": 0.0149646868841574
+      },
+      "right_hip_pitch_servo": {
+        "peak_Nm": 0.09907293287689642,
+        "rms_Nm": 0.03651795258295683,
+        "final_second_mean_abs_Nm": 0.033115897034510657
+      },
+      "right_knee_servo": {
+        "peak_Nm": 0.1789496823672329,
+        "rms_Nm": 0.07500962395377987,
+        "final_second_mean_abs_Nm": 0.06569884184146445
+      },
+      "right_ankle_servo": {
+        "peak_Nm": 0.16004100798891013,
+        "rms_Nm": 0.07417645564925247,
+        "final_second_mean_abs_Nm": 0.07035818258121218
+      },
+      "head_pitch_servo": {
+        "peak_Nm": 0.028026087567550356,
+        "rms_Nm": 0.015991947344074886,
+        "final_second_mean_abs_Nm": 0.015148012292326147
+      },
+      "head_yaw_servo": {
+        "peak_Nm": 0.00952612969490883,
+        "rms_Nm": 0.0011572558545312518,
+        "final_second_mean_abs_Nm": 0.0006049666862908043
+      },
+      "jaw_servo": {
+        "peak_Nm": 0.004757629768708324,
+        "rms_Nm": 0.0030154093140921275,
+        "final_second_mean_abs_Nm": 0.00294497775815947
+      },
+      "left_shoulder_pitch_servo": {
+        "peak_Nm": 0.002561258498018991,
+        "rms_Nm": 0.0016145126707191285,
+        "final_second_mean_abs_Nm": 0.0015792748536498315
+      }
+    }
+  },
+  "leg_cap_sensitivity": {
+    "leg_cap_Nm": 0.1,
+    "scope": "Ideal hard-cap sensitivity, not measured continuous duty.",
+    "duration_s": 10.000000000000009,
+    "finite": true,
+    "warnings": 0,
+    "maximum_tilt_deg": 2.193446914144278,
+    "minimum_height_ratio": 0.9918231450818701,
+    "final_height_ratio": 0.9952069080630044,
+    "actuators": {
+      "left_hip_yaw_servo": {
+        "peak_Nm": 0.02553888590854808,
+        "rms_Nm": 0.014237467797675095,
+        "final_second_mean_abs_Nm": 0.011994779017906972
+      },
+      "left_hip_roll_servo": {
+        "peak_Nm": 0.04816529202691561,
+        "rms_Nm": 0.03342404188804552,
+        "final_second_mean_abs_Nm": 0.033726146242692934
+      },
+      "left_hip_pitch_servo": {
+        "peak_Nm": 0.059711169397537116,
+        "rms_Nm": 0.03639925729694423,
+        "final_second_mean_abs_Nm": 0.03243960927597723
+      },
+      "left_knee_servo": {
+        "peak_Nm": 0.1,
+        "rms_Nm": 0.07268676689296089,
+        "final_second_mean_abs_Nm": 0.0644261585418366
+      },
+      "left_ankle_servo": {
+        "peak_Nm": 0.1,
+        "rms_Nm": 0.07743076434500158,
+        "final_second_mean_abs_Nm": 0.07277812289972041
+      },
+      "right_hip_yaw_servo": {
+        "peak_Nm": 0.02539342301660581,
+        "rms_Nm": 0.014154721326581746,
+        "final_second_mean_abs_Nm": 0.012327529908111699
+      },
+      "right_hip_roll_servo": {
+        "peak_Nm": 0.04662618241167585,
+        "rms_Nm": 0.033564025655803256,
+        "final_second_mean_abs_Nm": 0.03316821350495641
+      },
+      "right_hip_pitch_servo": {
+        "peak_Nm": 0.06045541423468297,
+        "rms_Nm": 0.03602412621481204,
+        "final_second_mean_abs_Nm": 0.03310873383526106
+      },
+      "right_knee_servo": {
+        "peak_Nm": 0.1,
+        "rms_Nm": 0.072525503428295,
+        "final_second_mean_abs_Nm": 0.06464775511541017
+      },
+      "right_ankle_servo": {
+        "peak_Nm": 0.1,
+        "rms_Nm": 0.07760235278491365,
+        "final_second_mean_abs_Nm": 0.07228152017319038
+      },
+      "head_pitch_servo": {
+        "peak_Nm": 0.02138052831374091,
+        "rms_Nm": 0.015621687898930134,
+        "final_second_mean_abs_Nm": 0.014910305871012275
+      },
+      "head_yaw_servo": {
+        "peak_Nm": 0.007945776578356257,
+        "rms_Nm": 0.0006995250372775252,
+        "final_second_mean_abs_Nm": 0.00021421244474477272
+      },
+      "jaw_servo": {
+        "peak_Nm": 0.0038688796170482345,
+        "rms_Nm": 0.0030282532430724604,
+        "final_second_mean_abs_Nm": 0.0030128273242418613
+      },
+      "left_shoulder_pitch_servo": {
+        "peak_Nm": 0.002135927092778668,
+        "rms_Nm": 0.0017087497244268912,
+        "final_second_mean_abs_Nm": 0.001699956404664624
+      }
+    }
+  },
+  "source_sha256": {
+    "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+    "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
+    "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
+  }
+}

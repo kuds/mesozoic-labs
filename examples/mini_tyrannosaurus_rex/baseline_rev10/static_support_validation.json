@@ -1,0 +1,543 @@
+{
+  "schema_version": 1,
+  "title": "Mini Tyrannosaurus Rex coupled static-support study",
+  "reviewed_commit": "c8da759",
+  "scope": "Finite kinematic and gravity-support investigation, not a walking, fabrication, thermal-duty or hardware-clearance qualification.",
+  "provenance": {
+    "source_sha256": {
+      "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+      "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
+      "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
+    },
+    "runtime": {
+      "python": "3.12",
+      "mujoco": "3.10.0",
+      "numpy": "2.5.1",
+      "scipy": "1.18.0"
+    },
+    "measurement_origin": "Results were measured with predecessor exploratory scripts optimize_support.py and refine_ankle.py. The accompanying support_search.py consolidates equivalent methodology; the full search has not been rerun with that consolidated script.",
+    "baseline_model_mass_kg": 0.8,
+    "source_revision_note": "Hashes identify the frozen model and included assets used for these measurements. They do not describe a later optional tail-motor variant.",
+    "generator_status": "Recorded numerical results, not a fresh run of the consolidated support_search.py."
+  },
+  "method": {
+    "stance_side": "left",
+    "root_placement": "The root rotation and translation are derived from each candidate pose so that the left sole is exactly level at the world origin.",
+    "baseline_variables": "All 14 direct position-command joint targets within the model limits; the shoulder linkage is honored.",
+    "required_swing_clearance_m": 0.003,
+    "torso_tilt_penalty_threshold_rad": 0.61,
+    "root_height_penalty_lower_bound_m": 0.075,
+    "sagittal_cop_margin_m": 0.002,
+    "differential_evolution": {
+      "seed": 635,
+      "maxiter": 450,
+      "population_multiplier": 12,
+      "tolerance": 1e-07,
+      "polish": true,
+      "workers": 1,
+      "updating": "immediate"
+    },
+    "objective": "Maximize the lateral CoP coordinate, with quadratic penalties for sagittal CoP excess, insufficient swing clearance, torso tilt, low root height and collision-proxy penetration.",
+    "support_loads": "One vertical gravity-support wrench at the left sole. Joint torques are calculated from generalized gravity loads minus the stance-site Jacobian transpose times that wrench. These are not measured motor loads or temperatures; linked-arm actuator load would require combining its joint loads through its transmission.",
+    "contact_rectangle_m": [
+      0.07,
+      0.034
+    ],
+    "contact_and_clearance_scope": "The model collision proxies and their existing exclusions are retained. Motor-box separation checks only modeled boxes; horns, connectors, cables, shell interiors and manufacturing tolerances are not validated."
+  },
+  "baseline": {
+    "interpretation": "No feasible flat-foot single-support posture was found. The best recorded CoP is still outside the sole. This finite nonconvex search did not converge and does not prove global static infeasibility or rule out dynamic walking.",
+    "optimizer_converged": false,
+    "evaluations": 75813,
+    "best_found_lateral_cop_mm": -37.37427151820884,
+    "contact_lateral_halfwidth_mm": 17.0,
+    "inside_contact_rectangle": false,
+    "load_warning": "Because this candidate requires a CoP outside the sole, its reaction wrench is not physically achievable with that contact patch. Its reported joint loads must not be presented as loads of an achievable baseline single-support posture.",
+    "witness": {
+      "cop_m": [
+        -0.007435520120145575,
+        -0.037374271518208844
+      ],
+      "com_height_m": 0.12786521475673235,
+      "swing_clearance_m": 0.03719352286727353,
+      "torso_tilt_rad": 0.2768421593289529,
+      "root_height_m": 0.11295927601659314,
+      "max_proxy_penetration_m": 0,
+      "contacts": [],
+      "joint_torque_Nm": {
+        "left_shoulder_pitch": -0.0009445765893781096,
+        "right_shoulder_pitch": -0.0009445765893781096,
+        "left_hip_yaw": 0.004981671166025568,
+        "left_hip_roll": 0.19386211691758495,
+        "left_hip_pitch": -0.06218343434265693,
+        "left_knee": -0.1486726246883383,
+        "left_ankle": -0.0045853519029024625,
+        "right_hip_yaw": 0.0043643305952228055,
+        "right_hip_roll": -0.02398445120787799,
+        "right_hip_pitch": 0.03542847127072681,
+        "right_knee": 0.024455461953236418,
+        "right_ankle": 0.004448135821774056,
+        "head_yaw": -0.00182683542613814,
+        "head_pitch": -0.018684520719591483,
+        "jaw": -0.0027258421381284796
+      },
+      "variant": "baseline",
+      "seed": 635,
+      "evaluations": 75813,
+      "objective": 0.037374271518208844,
+      "pose_rad": {
+        "left_hip_yaw": 0.2,
+        "left_hip_roll": 0.2,
+        "left_hip_pitch": -0.24471607450163702,
+        "left_knee": 0.28784548869176635,
+        "left_ankle": -0.2358450558579735,
+        "right_hip_yaw": -0.2,
+        "right_hip_roll": 0.2,
+        "right_hip_pitch": 0.45,
+        "right_knee": 0.7,
+        "right_ankle": 0.45,
+        "head_pitch": 0.1,
+        "head_yaw": 0.65,
+        "jaw": 0.0,
+        "left_shoulder_pitch": -0.65
+      },
+      "qpos": [
+        -0.0018094271480421434,
+        -0.0469905476136446,
+        0.11295927601659314,
+        0.986399583915649,
+        -0.10843073625018841,
+        0.08532941668472785,
+        -0.08931700249964064,
+        -0.65,
+        -0.65,
+        0.2,
+        0.2,
+        -0.24471607450163702,
+        0.28784548869176635,
+        -0.2358450558579735,
+        -0.2,
+        0.2,
+        0.45,
+        0.7,
+        0.45,
+        0.65,
+        0.1,
+        0.0
+      ],
+      "success": false,
+      "motor_box_gap_m": 0.0025000000000000022,
+      "closest_motor_pair": [
+        "head_pitch_servo_case",
+        "jaw_servo_case"
+      ],
+      "inside_sole": false
+    }
+  },
+  "wider_sole_comparison": {
+    "method": "Evaluate the same baseline witness posture with only the contact-box width changed; this is not a new optimization.",
+    "added_material_mass_kg": 0.0,
+    "physical_design_status": "No widened-foot structure, added material mass, mounting, traction or fabrication validation is included.",
+    "interpretation": "A 60 mm sole does not contain the recorded CoP. An 80 mm sole contains it, but the same posture retains approximately 0.194 N m hip-roll and 0.149 N m knee gravity loads. Width alone does not provide a low-torque solution.",
+    "witness_pose_rad": {
+      "left_hip_yaw": 0.2,
+      "left_hip_roll": 0.2,
+      "left_hip_pitch": -0.24471607450163702,
+      "left_knee": 0.28784548869176635,
+      "left_ankle": -0.2358450558579735,
+      "right_hip_yaw": -0.2,
+      "right_hip_roll": 0.2,
+      "right_hip_pitch": 0.45,
+      "right_knee": 0.7,
+      "right_ankle": 0.45,
+      "head_pitch": 0.1,
+      "head_yaw": 0.65,
+      "jaw": 0.0,
+      "left_shoulder_pitch": -0.65
+    },
+    "witness_root_and_joint_qpos": [
+      -0.0018094271480421434,
+      -0.0469905476136446,
+      0.11295927601659314,
+      0.986399583915649,
+      -0.10843073625018841,
+      0.08532941668472785,
+      -0.08931700249964064,
+      -0.65,
+      -0.65,
+      0.2,
+      0.2,
+      -0.24471607450163702,
+      0.28784548869176635,
+      -0.2358450558579735,
+      -0.2,
+      0.2,
+      0.45,
+      0.7,
+      0.45,
+      0.65,
+      0.1,
+      0.0
+    ],
+    "cases": [
+      {
+        "cop_m": [
+          -0.007435520120145575,
+          -0.037374271518208844
+        ],
+        "com_height_m": 0.12786521475673235,
+        "swing_clearance_m": 0.03643937958445035,
+        "torso_tilt_rad": 0.2768421593289529,
+        "root_height_m": 0.11295927601659314,
+        "max_proxy_penetration_m": 0,
+        "contacts": [],
+        "joint_torque_Nm": {
+          "left_shoulder_pitch": -0.0009445765893781096,
+          "right_shoulder_pitch": -0.0009445765893781096,
+          "left_hip_yaw": 0.004981671166025568,
+          "left_hip_roll": 0.19386211691758495,
+          "left_hip_pitch": -0.06218343434265693,
+          "left_knee": -0.1486726246883383,
+          "left_ankle": -0.0045853519029024625,
+          "right_hip_yaw": 0.0043643305952228055,
+          "right_hip_roll": -0.02398445120787799,
+          "right_hip_pitch": 0.03542847127072681,
+          "right_knee": 0.024455461953236418,
+          "right_ankle": 0.004448135821774056,
+          "head_yaw": -0.00182683542613814,
+          "head_pitch": -0.018684520719591483,
+          "jaw": -0.0027258421381284796
+        },
+        "variant": "wide_60",
+        "foot_width_m": 0.06,
+        "inside_sole": false,
+        "assumption": "Same optimized baseline posture, changed contact width only; no added material mass or fabricated foot design."
+      },
+      {
+        "cop_m": [
+          -0.007435520120145575,
+          -0.037374271518208844
+        ],
+        "com_height_m": 0.12786521475673235,
+        "swing_clearance_m": 0.035859269366894056,
+        "torso_tilt_rad": 0.2768421593289529,
+        "root_height_m": 0.11295927601659314,
+        "max_proxy_penetration_m": 0,
+        "contacts": [],
+        "joint_torque_Nm": {
+          "left_shoulder_pitch": -0.0009445765893781096,
+          "right_shoulder_pitch": -0.0009445765893781096,
+          "left_hip_yaw": 0.004981671166025568,
+          "left_hip_roll": 0.19386211691758495,
+          "left_hip_pitch": -0.06218343434265693,
+          "left_knee": -0.1486726246883383,
+          "left_ankle": -0.0045853519029024625,
+          "right_hip_yaw": 0.0043643305952228055,
+          "right_hip_roll": -0.02398445120787799,
+          "right_hip_pitch": 0.03542847127072681,
+          "right_knee": 0.024455461953236418,
+          "right_ankle": 0.004448135821774056,
+          "head_yaw": -0.00182683542613814,
+          "head_pitch": -0.018684520719591483,
+          "jaw": -0.0027258421381284796
+        },
+        "variant": "wide_80",
+        "foot_width_m": 0.08,
+        "inside_sole": true,
+        "assumption": "Same optimized baseline posture, changed contact width only; no added material mass or fabricated foot design."
+      }
+    ]
+  },
+  "ideal_ankle_roll_comparison": {
+    "virtual_joint_ranges_rad": [
+      -0.45,
+      0.45
+    ],
+    "added_actuators": 2,
+    "added_motor_and_mount_mass_kg": 0.0,
+    "physical_design_status": "Two virtual coincident ankle-roll joints are introduced. No new motor, mount, bearing, horn, connector or cable geometry is present. Existing collision exclusions remain, including parent-child exclusions; therefore absence of proxy contacts is not physical packaging approval.",
+    "model_mass_kg": 0.8,
+    "large_lean": {
+      "interpretation": "A recorded approximately 35 degree torso-lean posture has its CoP inside the sole and modeled leg gravity loads at or below approximately 0.0958 N m. The evolutionary search did not formally converge. This posture is not a demonstrated transition or walking gait.",
+      "optimizer_converged": false,
+      "evaluations": 87272,
+      "torso_tilt_deg": 34.960690171080074,
+      "peak_leg_load_Nm": 0.09582000565218404,
+      "witness": {
+        "cop_m": [
+          -0.01814705273678859,
+          0.0121307308425311
+        ],
+        "com_height_m": 0.1382255522362396,
+        "swing_clearance_m": 0.04871808891625783,
+        "torso_tilt_rad": 0.6101791522549669,
+        "root_height_m": 0.12883538538947137,
+        "max_proxy_penetration_m": 0,
+        "contacts": [],
+        "joint_torque_Nm": {
+          "left_shoulder_pitch": -0.0008037402810057003,
+          "right_shoulder_pitch": -0.0008037402810057012,
+          "left_hip_yaw": -0.05149945248003051,
+          "left_hip_roll": 0.09512752942019924,
+          "left_hip_pitch": -0.07973764588493323,
+          "left_knee": -0.09527734438088774,
+          "left_ankle": -0.0798241492725603,
+          "left_ankle_roll": -0.09582000565218404,
+          "right_hip_yaw": 0.020172968290829044,
+          "right_hip_roll": -0.032820332033156104,
+          "right_hip_pitch": 0.023142560519308047,
+          "right_knee": 0.02099385636040235,
+          "right_ankle": 0.003198000556215789,
+          "right_ankle_roll": -0.0010892188697726396,
+          "head_yaw": -0.007235972145264919,
+          "head_pitch": -0.014691533330741042,
+          "jaw": -0.0025785626498812174
+        },
+        "variant": "ideal_ankle_roll",
+        "seed": 635,
+        "evaluations": 87272,
+        "objective": -0.012127521289485127,
+        "pose_rad": {
+          "left_hip_yaw": 0.2,
+          "left_hip_roll": 0.15396159481255794,
+          "left_hip_pitch": 0.08680280827452963,
+          "left_knee": -0.35,
+          "left_ankle": 0.1738794523364039,
+          "right_hip_yaw": -0.2,
+          "right_hip_roll": 0.2,
+          "right_hip_pitch": 0.45,
+          "right_knee": 0.7,
+          "right_ankle": 0.45,
+          "head_pitch": -0.25,
+          "head_yaw": 0.65,
+          "jaw": 0.0,
+          "left_shoulder_pitch": -0.65,
+          "left_ankle_roll": 0.45,
+          "right_ankle_roll": 0.45
+        },
+        "qpos": [
+          -0.010017599436134828,
+          -0.00232138214489315,
+          0.12883538538947137,
+          0.9483750010665611,
+          -0.3000393115089141,
+          0.014273207475513848,
+          -0.10177202193932246,
+          -0.65,
+          -0.65,
+          0.2,
+          0.15396159481255794,
+          0.08680280827452963,
+          -0.35,
+          0.1738794523364039,
+          0.45,
+          -0.2,
+          0.2,
+          0.45,
+          0.7,
+          0.45,
+          0.45,
+          0.65,
+          -0.25,
+          0.0
+        ],
+        "success": false,
+        "motor_box_gap_m": 0.0025000000000000196,
+        "closest_motor_pair": [
+          "head_pitch_servo_case",
+          "jaw_servo_case"
+        ],
+        "inside_sole": true
+      }
+    },
+    "moderate_lean_refinement": {
+      "method": "Five SLSQP starts near the evolutionary witness minimize an auxiliary peak-leg-load variable, with a small mean-square joint-angle regularizer.",
+      "seed": 700,
+      "starts": 5,
+      "maxiter_per_start": 250,
+      "ftol": 1e-10,
+      "torso_tilt_limit_rad": 0.45,
+      "required_swing_clearance_m": 0.005,
+      "cop_limits_m": {
+        "x": [
+          -0.032,
+          0.032
+        ],
+        "y": [
+          -0.014,
+          0.014
+        ]
+      },
+      "root_height_limits_m": [
+        0.075,
+        0.135
+      ],
+      "permitted_proxy_penetration_m": 1e-06,
+      "interpretation": "All five local refinements converged to approximately 0.1372 N m best peak leg load at the 25.8 degree torso-lean limit. Agreement among local starts is not a global optimum proof. This remains an optimistic massless, unpackaged extra-joint comparison.",
+      "start_summaries": [
+        {
+          "start_index": 0,
+          "optimizer_success": true,
+          "optimizer_message": "Optimization terminated successfully",
+          "iterations": 38,
+          "minimum_constraint_residual": -2.99704705497561e-13,
+          "best_peak_leg_load_Nm": 0.13719943703550694,
+          "cop_m": [
+            -0.013327813566000766,
+            -0.009929151955420133
+          ],
+          "torso_tilt_deg": 25.783100780904217,
+          "swing_clearance_m": 0.03625678612526163,
+          "maximum_proxy_penetration_m": 0
+        },
+        {
+          "start_index": 1,
+          "optimizer_success": true,
+          "optimizer_message": "Optimization terminated successfully",
+          "iterations": 35,
+          "minimum_constraint_residual": -5.654476886718385e-12,
+          "best_peak_leg_load_Nm": 0.1371994370334019,
+          "cop_m": [
+            -0.013328369091516093,
+            -0.009929110457143318
+          ],
+          "torso_tilt_deg": 25.783100781211022,
+          "swing_clearance_m": 0.036256983680665086,
+          "maximum_proxy_penetration_m": 0
+        },
+        {
+          "start_index": 2,
+          "optimizer_success": true,
+          "optimizer_message": "Optimization terminated successfully",
+          "iterations": 34,
+          "minimum_constraint_residual": -3.962541406110631e-11,
+          "best_peak_leg_load_Nm": 0.1371994377474662,
+          "cop_m": [
+            -0.012889141786674302,
+            -0.009714761669547246
+          ],
+          "torso_tilt_deg": 25.783100783157415,
+          "swing_clearance_m": 0.036092836051999595,
+          "maximum_proxy_penetration_m": 0
+        },
+        {
+          "start_index": 3,
+          "optimizer_success": true,
+          "optimizer_message": "Optimization terminated successfully",
+          "iterations": 37,
+          "minimum_constraint_residual": -5.955536064305988e-11,
+          "best_peak_leg_load_Nm": 0.13719943650827296,
+          "cop_m": [
+            -0.014188845977488311,
+            -0.009869223392749949
+          ],
+          "torso_tilt_deg": 25.783100784299318,
+          "swing_clearance_m": 0.03650923095126767,
+          "maximum_proxy_penetration_m": 0
+        },
+        {
+          "start_index": 4,
+          "optimizer_success": true,
+          "optimizer_message": "Optimization terminated successfully",
+          "iterations": 36,
+          "minimum_constraint_residual": -4.149292021082829e-12,
+          "best_peak_leg_load_Nm": 0.13719943700744194,
+          "cop_m": [
+            -0.013325936833510254,
+            -0.009929287161567801
+          ],
+          "torso_tilt_deg": 25.783100781124784,
+          "swing_clearance_m": 0.036256232983432606,
+          "maximum_proxy_penetration_m": 0
+        }
+      ],
+      "best_start_index": 3,
+      "best_witness": {
+        "cop_m": [
+          -0.014188845977488311,
+          -0.009869223392749949
+        ],
+        "com_height_m": 0.13643941996933007,
+        "swing_clearance_m": 0.03650923095126767,
+        "torso_tilt_rad": 0.45000000005955537,
+        "root_height_m": 0.1257333599942888,
+        "max_proxy_penetration_m": 0,
+        "contacts": [],
+        "joint_torque_Nm": {
+          "left_shoulder_pitch": -0.0008827699539415267,
+          "right_shoulder_pitch": -0.0008827699539415267,
+          "left_hip_yaw": -0.04718017852724446,
+          "left_hip_roll": 0.13719943650562016,
+          "left_hip_pitch": -0.10262866182813271,
+          "left_knee": -0.13719943650787467,
+          "left_ankle": -0.0557952613067822,
+          "left_ankle_roll": 0.0768356351863016,
+          "right_hip_yaw": 0.01642747807813842,
+          "right_hip_roll": -0.027476251632332138,
+          "right_hip_pitch": 0.02385075726796203,
+          "right_knee": 0.022065628371783805,
+          "right_ankle": 0.003353803256234569,
+          "right_ankle_roll": -0.00043335682766704403,
+          "head_yaw": -0.006595714844697804,
+          "head_pitch": -0.014770578252788654,
+          "jaw": -0.002718107027251239
+        },
+        "success": true,
+        "message": "Optimization terminated successfully",
+        "maximum_leg_load_Nm": 0.13719943650827296,
+        "minimum_constraint": -5.955536064305988e-11,
+        "pose_rad": {
+          "left_hip_yaw": 0.19999999999999984,
+          "left_hip_roll": 0.2,
+          "left_hip_pitch": 0.11604069629800352,
+          "left_knee": -0.07985467110824,
+          "left_ankle": -0.03633858584739754,
+          "right_hip_yaw": -0.19999999999999854,
+          "right_hip_roll": 0.2,
+          "right_hip_pitch": 0.45,
+          "right_knee": 0.7,
+          "right_ankle": 0.45,
+          "head_pitch": -0.14437539336286512,
+          "head_yaw": 0.65,
+          "jaw": 5.327020549332916e-16,
+          "left_shoulder_pitch": -0.6499999999999974,
+          "left_ankle_roll": 0.2499999746533167,
+          "right_ankle_roll": 0.45
+        },
+        "qpos": [
+          -0.0040430726237786815,
+          -0.022776793194719397,
+          0.1257333599942888,
+          0.9699240064503878,
+          -0.22199935962926154,
+          -0.022197593581550087,
+          -0.0973189235175481,
+          -0.6499999999999974,
+          -0.6499999999999974,
+          0.19999999999999984,
+          0.2,
+          0.11604069629800352,
+          -0.07985467110824,
+          -0.03633858584739754,
+          0.2499999746533167,
+          -0.19999999999999854,
+          0.2,
+          0.45,
+          0.7,
+          0.45,
+          0.45,
+          0.65,
+          -0.14437539336286512,
+          5.327020549332916e-16
+        ],
+        "iterations": 37
+      }
+    }
+  },
+  "conclusion": {
+    "baseline_static_support_demonstrated": false,
+    "dynamic_walking_decided_by_this_study": false,
+    "hardware_or_continuous_duty_validated": false,
+    "recommendation": "Preserve the 800 g baseline while investigating dynamic control with contact and torque-duty measurements. Treat wider soles, ankle-roll mechanisms and hip-bracket changes as alternatives requiring physical packaging and actuator identification. Do not turn a finite static-search result into a walking certification gate."
+  }
+}

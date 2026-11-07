@@ -10,6 +10,7 @@ lands, fold its open items in here and archive the review document.
 
 | Review | Scope | Outcome |
 |---|---|---|
+| [reviews/ROBOT_DESIGN_REVIEW_2026_10.md](reviews/ROBOT_DESIGN_REVIEW_2026_10.md) | Standalone mini/medium T-Rex examples, repository conventions and balance | Repaired long-hold creep, hidden-support checks, source provenance and sizing reproduction; walking and physical hardware remain unqualified |
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
@@ -22,6 +23,18 @@ robustness, **LOW** = cosmetic / QoL.
 ---
 
 ## Training / RL
+
+- **HIGH — Standalone mini and medium T-Rex concepts are not qualified walkers.**
+  The revised mini reaches 30 seconds in five of twelve nominal walking trials,
+  but completed cases include internal link/motor-case contact and joint-limit
+  overshoot; lower assumed torque caps fail, and tail wagging at 0.20 Nm still
+  falls. The medium has no demonstrated gait. Thirty-second unsupported stance
+  and character checks do not resolve this. Add constrained limb/load-transfer
+  feasibility, contact-based gait metrics and held-out controller trials before
+  registration or walking claims. Assigned part envelopes/inertias and ideal
+  servos also require hardware fit, torque-speed, thermal, power and timing
+  identification. Evidence: [design review](reviews/ROBOT_DESIGN_REVIEW_2026_10.md);
+  proposed work: [robot walking validation](hardware/ROBOT_WALKING_VALIDATION.md).
 
 - **HIGH** — **Completed short stance reward pilots remain uncertified;
   the base T-Rex stance reward is CoP-indifferent, and the velociraptor
