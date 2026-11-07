@@ -1,0 +1,171 @@
+{
+  "inputs_sha256": {
+    "examples/tyrannosaurus_rex_60cm/platform/proportions.py": "8c73f07bf5bf4c3ca4f46b18bc53fcf97f2840297351a58ebfca8c3f4af65de8",
+    "examples/tyrannosaurus_rex_60cm/platform/build.py": "9a2e965f9c4e4ab8a75ff093d8981cb13297c8413b76837f2cfc8655dbffa2b2",
+    "examples/tyrannosaurus_rex_60cm/platform/design.json": "e46ea292b9f334da66ad3739f537b2601bd658ef74a23c2563cf67eb1b5c7da6",
+    "hardware/tyrannosaurus_rex_60cm/m01_skeleton/design.json": "4a0dd655bb92a83ab597e8476b193124fe435618f598b3e133d3c2c855589d63",
+    "examples/tyrannosaurus_rex_60cm/build.py": "ac09272e9801da6be20d457b1a5a9335beb75c6dd608481af3f6b376a6b6c5c0",
+    "environments/shared/robot_building.py": "ad68f4f6bba8a37deff67bd42a3e6b1a095cdad63b897deaa11e0f9f81ba6a98",
+    "environments/shared/robot_rendering.py": "29d440e57dab2c6b2d3592ce99febde53c747a9b88ee393f599ed3561c5c1fff"
+  },
+  "scope": "Geometric zero, soles tangent to ground; core torso body includes bays, longitudinal rails and removable side covers. Leg hardware width includes motor cases and their connector keepouts. Mass and inertia are allocated.",
+  "variants": {
+    "compact": {
+      "model_sha256": "9a7ca8d1f4fba1257efe56097963f89e29628a3d3d98398ef5c1ac59c3ac8177",
+      "ledger_sha256": "4001d9a6c4c0b6f6b8af9af7ffbc0ba36aa7cf53abcd9a34fd34606567a222d4",
+      "height_mm": 600.0,
+      "length_mm": 904.0,
+      "leg_hardware_width_mm": 340.00000001230626,
+      "torso_bay_LWH_mm": [
+        428.50000000000006,
+        190.0,
+        197.55964425626948
+      ],
+      "crown_to_hardware_width_ratio": 1.764705882289068,
+      "hip_height_mm": 332.00000000000006,
+      "hip_pitch_spacing_mm": 212.00000000000003,
+      "foot_center_spacing_mm": 212.00000000000003,
+      "hip_height_to_stance": 1.5660377358490567,
+      "sole_LW_mm": [
+        144.0,
+        72.0
+      ],
+      "thigh_shin_axis_lengths_mm": [
+        136.3084736911099,
+        136.3084736911099
+      ],
+      "mass_kg": 9.7440431417,
+      "com_world_mm": [
+        6.845064420339383,
+        -0.8934689503898401,
+        299.6888767427986
+      ],
+      "inertia_about_com_kg_m2": [
+        [
+          0.2677497041075814,
+          0.0004063688791775386,
+          3.835651526709616e-05
+        ],
+        [
+          0.0004063688791775386,
+          0.3364660995525117,
+          0.0014481745278614687
+        ],
+        [
+          3.835651526709269e-05,
+          0.0014481745278614687,
+          0.20068290411398162
+        ]
+      ],
+      "left_foot_min_lateral_com_shift_mm": 70.89346895038985,
+      "moving_head_kg": 0.415,
+      "moving_tail_kg": 0.1940068493,
+      "fixed_pelvis_mass_fraction": 0.4221040424583366
+    },
+    "nominal": {
+      "model_sha256": "06019e3c43c48376d7d048f0e9c4b540df0094459247125b9d7c35f7d9ce6f66",
+      "ledger_sha256": "6beb0ea7b6d1961b87d4163dcd9f96a2dcfcfb80acaffd3891444b44c08fa077",
+      "height_mm": 600.0000000000001,
+      "length_mm": 1010.0,
+      "leg_hardware_width_mm": 352.00000001230626,
+      "torso_bay_LWH_mm": [
+        437.00000000000006,
+        204.0,
+        212.69946946895746
+      ],
+      "crown_to_hardware_width_ratio": 1.7045454544858623,
+      "hip_height_mm": 360.0,
+      "hip_pitch_spacing_mm": 224.0,
+      "foot_center_spacing_mm": 224.0,
+      "hip_height_to_stance": 1.607142857142857,
+      "sole_LW_mm": [
+        156.0,
+        80.0
+      ],
+      "thigh_shin_axis_lengths_mm": [
+        150.78461459976612,
+        150.78461459976612
+      ],
+      "mass_kg": 9.8960606052,
+      "com_world_mm": [
+        4.8815452825133825,
+        -0.8797440057908852,
+        318.84897293591007
+      ],
+      "inertia_about_com_kg_m2": [
+        [
+          0.314760884784581,
+          0.0004234632761662736,
+          0.005240601542768805
+        ],
+        [
+          0.0004234632761662736,
+          0.39342636149830695,
+          0.001525134731991572
+        ],
+        [
+          0.005240601542768805,
+          0.001525134731991572,
+          0.22771254531346768
+        ]
+      ],
+      "left_foot_min_lateral_com_shift_mm": 72.8797440057909,
+      "moving_head_kg": 0.415,
+      "moving_tail_kg": 0.235,
+      "fixed_pelvis_mass_fraction": 0.41561992838228745
+    },
+    "wide": {
+      "model_sha256": "d06b19fa2c168af0542a727c58fed4a3c92b4c0cb5efb766dccbe8014d8b88c5",
+      "ledger_sha256": "f2b882161646141572a92949d9cd638b9e3bf81cfc5fdca5f2e98ad480a00576",
+      "height_mm": 600.0000000000001,
+      "length_mm": 1100.0,
+      "leg_hardware_width_mm": 382.0000000123062,
+      "torso_bay_LWH_mm": [
+        452.00000000000006,
+        238.0,
+        225.06435047074035
+      ],
+      "crown_to_hardware_width_ratio": 1.5706806282216517,
+      "hip_height_mm": 380.0,
+      "hip_pitch_spacing_mm": 254.0,
+      "foot_center_spacing_mm": 254.0,
+      "hip_height_to_stance": 1.4960629921259843,
+      "sole_LW_mm": [
+        168.0,
+        88.0
+      ],
+      "thigh_shin_axis_lengths_mm": [
+        164.69365500832143,
+        164.69365500832143
+      ],
+      "mass_kg": 10.0385272139,
+      "com_world_mm": [
+        3.775642720116492,
+        -0.8672586937168555,
+        331.6564738323211
+      ],
+      "inertia_about_com_kg_m2": [
+        [
+          0.3692321080836414,
+          0.00043309126730043464,
+          0.011530522468226676
+        ],
+        [
+          0.00043309126730043464,
+          0.447532238896389,
+          0.001587752585548709
+        ],
+        [
+          0.011530522468226676,
+          0.0015877525855487159,
+          0.27110935627088817
+        ]
+      ],
+      "left_foot_min_lateral_com_shift_mm": 83.86725869371686,
+      "moving_head_kg": 0.415,
+      "moving_tail_kg": 0.2637671233,
+      "fixed_pelvis_mass_fraction": 0.4097214573772208
+    }
+  },
+  "render_sha256": "34a362c5d6a5807280457fa95b63a0d1489d213ca8acfffdb6142ae81fc69c94"
+}

@@ -1,0 +1,217 @@
+{
+  "model_sha256": "06019e3c43c48376d7d048f0e9c4b540df0094459247125b9d7c35f7d9ce6f66",
+  "components_sha256": "6beb0ea7b6d1961b87d4163dcd9f96a2dcfcfb80acaffd3891444b44c08fa077",
+  "design_sha256": "e46ea292b9f334da66ad3739f537b2601bd658ef74a23c2563cf67eb1b5c7da6",
+  "code_sha256": "72b763dcd63e46828f1fd3f49bf2a76194250952c035559e407fceb3794b53b9",
+  "mujoco": "3.10.0",
+  "seconds": 8.0,
+  "dt_s": 0.0005,
+  "full_resolution": true,
+  "output_radius_m": 0.03,
+  "input_radius_m": 0.01,
+  "span_m": 0.19,
+  "nominal_cable_stiffness_n_per_m": 12000,
+  "pretension_each_n": 18,
+  "extra_parts_kg_per_axis": {
+    "input_drum": 0.012,
+    "two_drum_bearings_and_support": 0.024,
+    "two_guides_and_cables": 0.012,
+    "two_tensioners_and_anchors": 0.018,
+    "output_sector_mass_over_direct_hub": 0.01
+  },
+  "extra_total_kg_two_axes": 0.152,
+  "mass_placement": {
+    "base_direct": {
+      "mass_kg": 9.896060605287609,
+      "com_world_m": [
+        0.004881545281232945,
+        -0.0008797440059480058,
+        0.318848972931758
+      ],
+      "central_inertia_world_kg_m2": [
+        [
+          0.3147608846146873,
+          0.00042346326678158555,
+          0.00524060147476797
+        ],
+        [
+          0.00042346326678158555,
+          0.39342636180293994,
+          0.0015251348416561125
+        ],
+        [
+          0.00524060147476797,
+          0.0015251348416561125,
+          0.22771254518975934
+        ]
+      ]
+    },
+    "remote_unqualified_proposal": {
+      "mass_kg": 10.048060605287608,
+      "com_world_m": [
+        0.004557304115626027,
+        -0.00031150289821628484,
+        0.32227540092287255
+      ],
+      "central_inertia_world_kg_m2": [
+        [
+          0.32275590226461115,
+          0.0006117656381180905,
+          0.007830798682268412
+        ],
+        [
+          0.0006117656381180905,
+          0.39296833304703477,
+          0.0010502879951114015
+        ],
+        [
+          0.007830798682268412,
+          0.0010502879951114015,
+          0.22127435487841907
+        ]
+      ]
+    }
+  },
+  "results": {
+    "neck_pitch": {
+      "direct_locked_inertia_kg_m2": 0.0031786425745439994,
+      "gravity_cos_sin_coefficients_nm": [
+        0.2356195230132434,
+        -0.031784400001372275
+      ],
+      "trials": {
+        "base_direct": {
+          "rms_error_deg": 0.1946359786640712,
+          "max_error_deg": 0.26361281145256515,
+          "rms_motor_nm": 0.23458340735317856,
+          "peak_motor_nm": 0.4588610969773341,
+          "min_tension_n": null,
+          "peak_tension_n": null,
+          "slack_fraction": null,
+          "output_moment_arm_range_mm": null,
+          "max_abs_output_rad": 0.16756372590877347,
+          "max_abs_input_rad": 0.16756372590877347,
+          "input_travel_within_1p3_rad": null
+        },
+        "remote_nominal": {
+          "rms_error_deg": 0.44107963608157147,
+          "max_error_deg": 0.7526472409159582,
+          "rms_motor_nm": 0.08167870033741646,
+          "peak_motor_nm": 0.1529536989924447,
+          "min_tension_n": 7.9230593233847,
+          "peak_tension_n": 28.07694067670897,
+          "slack_fraction": 0.0,
+          "output_moment_arm_range_mm": [
+            29.58321450117417,
+            30.000000000000004
+          ],
+          "max_abs_output_rad": 0.1646907910295077,
+          "max_abs_input_rad": 0.5239088733565043,
+          "input_travel_within_1p3_rad": true
+        },
+        "remote_soft": {
+          "rms_error_deg": 0.4618146308567077,
+          "max_error_deg": 2.2027740516467045,
+          "rms_motor_nm": 0.08157287282622591,
+          "peak_motor_nm": 0.18114516160601848,
+          "min_tension_n": 9.235576415651671,
+          "peak_tension_n": 26.764423594706763,
+          "slack_fraction": 0.0,
+          "output_moment_arm_range_mm": [
+            29.491158513623617,
+            30.000000000000004
+          ],
+          "max_abs_output_rad": 0.18176511844156185,
+          "max_abs_input_rad": 0.7011866802821716,
+          "input_travel_within_1p3_rad": true
+        },
+        "remote_loose": {
+          "rms_error_deg": 0.4452813275234316,
+          "max_error_deg": 2.1037448960812775,
+          "rms_motor_nm": 0.08128970009073173,
+          "peak_motor_nm": 0.20906568191239547,
+          "min_tension_n": 0.0,
+          "peak_tension_n": 22.160395470973327,
+          "slack_fraction": 1.0,
+          "output_moment_arm_range_mm": [
+            29.572441242439083,
+            30.000000000000004
+          ],
+          "max_abs_output_rad": 0.16678228004600706,
+          "max_abs_input_rad": 0.6183932987396983,
+          "input_travel_within_1p3_rad": true
+        }
+      }
+    },
+    "tail_yaw": {
+      "direct_locked_inertia_kg_m2": 0.003593606563235418,
+      "gravity_cos_sin_coefficients_nm": [
+        0.0,
+        0.0
+      ],
+      "trials": {
+        "base_direct": {
+          "rms_error_deg": 0.20362893031235962,
+          "max_error_deg": 0.32671692420034854,
+          "rms_motor_nm": 0.01919000962043859,
+          "peak_motor_nm": 0.263592190006798,
+          "min_tension_n": null,
+          "peak_tension_n": null,
+          "slack_fraction": null,
+          "output_moment_arm_range_mm": null,
+          "max_abs_output_rad": 0.2276469908000966,
+          "max_abs_input_rad": 0.2276469908000966,
+          "input_travel_within_1p3_rad": null
+        },
+        "remote_nominal": {
+          "rms_error_deg": 0.45733607304358337,
+          "max_error_deg": 0.6102513595065329,
+          "rms_motor_nm": 0.02250509149066424,
+          "peak_motor_nm": 0.08786406333559933,
+          "min_tension_n": 14.457947592568045,
+          "peak_tension_n": 21.542052408294715,
+          "slack_fraction": 0.0,
+          "output_moment_arm_range_mm": [
+            29.21978881669405,
+            30.000000000000004
+          ],
+          "max_abs_output_rad": 0.22445808870726697,
+          "max_abs_input_rad": 0.6680214800943461,
+          "input_travel_within_1p3_rad": true
+        },
+        "remote_soft": {
+          "rms_error_deg": 0.44683739814064893,
+          "max_error_deg": 0.9369620459392887,
+          "rms_motor_nm": 0.02258501974578551,
+          "peak_motor_nm": 0.08786406333559933,
+          "min_tension_n": 15.099706328788468,
+          "peak_tension_n": 20.900401588133516,
+          "slack_fraction": 0.0,
+          "output_moment_arm_range_mm": [
+            29.193520475061028,
+            30.000000000000004
+          ],
+          "max_abs_output_rad": 0.2281528551534032,
+          "max_abs_input_rad": 0.6777531726612244,
+          "input_travel_within_1p3_rad": true
+        },
+        "remote_loose": {
+          "rms_error_deg": 0.5376370661618454,
+          "max_error_deg": 1.2115717771327397,
+          "rms_motor_nm": 0.024096943952192654,
+          "peak_motor_nm": 0.08786406333559933,
+          "min_tension_n": 0.0,
+          "peak_tension_n": 9.78136736210245,
+          "slack_fraction": 1.0,
+          "output_moment_arm_range_mm": [
+            29.098647802421322,
+            30.000000000000004
+          ],
+          "max_abs_output_rad": 0.241008654267342,
+          "max_abs_input_rad": 0.7362697312478633,
+          "input_travel_within_1p3_rad": true
+        }
+      }
+    }
+  }
+}
