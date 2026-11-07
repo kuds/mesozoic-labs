@@ -230,6 +230,10 @@ class Design:
             if need > y_leg:
                 self.geometry_checks["hip_spacing_added_for_pelvis_plate_m"] = float(need - y_leg)
                 y_leg = need
+            add = float(c.override("hip_spacing_add_m", 0.0))  # round two: narrowest walkable stance search
+            if add:
+                self.geometry_checks["hip_spacing_added_for_walking_m"] = add
+                y_leg += add
         if y_r is None:  # PR #662-like: roll axis ~32 mm (at 360 mm hip) inboard of the leg plane
             y_r = y_leg - 0.032 * (H / 0.36)
         z_r = 0.02 * B

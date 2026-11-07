@@ -43,10 +43,19 @@ COMPUTE = "rpi5_8gb_ai_hat_plus_13tops"
 REV = 2
 
 
-def candidate(cid: str) -> Candidate:
+#: Narrow stance (owner P13): the leg plane is moved out in these steps until both walks pass the
+#: round-two clearance gates (no contact at home or in either walk, no part overlaps, joint-range margin),
+#: so the narrow variant is the narrowest stance that walks with this hip hardware.
+NARROW_STEP_M = 0.002
+NARROW_MAX_ADD_M = 0.024
+WALK_GATES = ("interference_free_home", "interference_free_nominal_gait", "interference_free_brisk_gait",
+              "component_overlap_free", "joint_range_margin")
+
+
+def candidate(cid: str, extra: tuple = ()) -> Candidate:
     from .params import parse
 
-    return replace(parse(cid), overrides=(("rev", REV),))
+    return replace(parse(cid), overrides=(("rev", REV),) + tuple(tuple(e) for e in extra))
 
 
 def candidate_ids() -> list[str]:
@@ -95,8 +104,19 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
 
     t0 = time.time()
     cand = candidate(cid)
+    search = []
     try:
         res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
+        if cand.width == "N":
+            add = 0.0
+            while True:
+                ok, gates = _walk_gates(cand, dict(res["selection"]), res["design"].B, Path(xml_dir))
+                search.append(dict(hip_spacing_add_m=round(add, 4), walk_gates_pass=ok, gates=gates))
+                if ok or add >= NARROW_MAX_ADD_M - 1e-9:
+                    break
+                add += NARROW_STEP_M
+                cand = candidate(cid, (("hip_spacing_add_m", round(add, 4)),))
+                res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
         meas = metrics.measure(res["model"], res["design"], res["q_home"])
         ev = res["evaluation"]
         d = res["design"]
@@ -107,6 +127,7 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
                    metrics=meas, margins=ev["margins"], holds=ev["holds"], power=ev["power"], runtime=ev["runtime"],
                    cost=ev["cost"], gaits=ev["gaits"], sizing_history=ev["sizing_history"],
                    walk_feasible=ev["walk_feasible"], geometry_checks=d.geometry_checks, notes=d.notes,
+                   overrides=[list(o) for o in cand.overrides if o[0] != "rev"], narrow_search=search,
                    mass_by_category=_mass_by_category(res["rows"]),
                    mass_by_volume_class=_mass_by_volume_class(res["rows"]), seconds=time.time() - t0, ok=True)
     except Exception as e:  # keep failed cases
@@ -121,6 +142,21 @@ def _size_star(a):
     return size_one(*a)
 
 
+def _walk_gates(cand, sel: dict, B: float, xml_dir: Path) -> tuple[bool, dict]:
+    """Walking clearance gates of one sized build (both reference walks, round-two gate set)."""
+    from . import clearance, gait, sizing
+    from .pipeline import build_candidate
+
+    d = xml_dir / "narrow_search"
+    res = build_candidate(cand, d, selection=sel, B=B, write=False)
+    H = res["design"].sk.H
+    trajs = {n: gait.generate(res["model"], res["q_home"], H, s) for n, s in (("nominal", sizing.NOMINAL),
+                                                                            ("brisk", sizing.BRISK))}
+    cl = clearance.screen(str(d / f"{cand.id}.xml"), res["q_home"], trajs, H=H, gates="r2")
+    ps = cl["summary"]["pass"]
+    return all(ps.get(k) is True for k in WALK_GATES), {k: ps.get(k) for k in WALK_GATES}
+
+
 # ------------------------------------------------------------------------------------------------
 # Rebuild and screen
 # ------------------------------------------------------------------------------------------------
@@ -133,7 +169,7 @@ def screen_one(cid: str, out: Path) -> dict:
 
     rec = json.loads((out / "candidates" / f"{cid}.json").read_text())
     sel = dict(rec["selection"])
-    cand = candidate(cid)
+    cand = candidate(cid, rec.get("overrides", ()))
     rv = out / "review"
     models = rv / "mjcf"
     res = build_candidate(cand, models, selection=sel, B=rec["B"], write=False)
