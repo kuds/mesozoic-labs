@@ -324,6 +324,15 @@ def sensing(x) -> str:
 </section>"""
 
 
+SHORT_ARCH = {"A_orin_nano_super_devkit": "Jetson Orin Nano Super dev kit (current), capped at 15 W",
+              "B_orin_nano_module_small_carrier": "Orin Nano 8 GB module on a 10–60 V carrier",
+              "C_pi5_hailo8l_oak_depth": "Raspberry Pi 5 8 GB + AI HAT+ 13 TOPS (Hailo-8L)",
+              "D_pi5_oak_on_camera_inference": "Raspberry Pi 5 8 GB, detection on the OAK-D's chip",
+              "E_rk3588_orange_pi_5_max": "Orange Pi 5 Max (RK3588)",
+              "F_oak4_d_pro_camera_computer": "Luxonis OAK 4 D Pro (camera is the computer)",
+              "G_orin_nx_16gb_large_sizes": "Jetson Orin NX 16 GB"}
+
+
 def compute(x) -> str:
     """Onboard compute alternatives (owner request P9); skipped if the survey has not been run."""
     import json
@@ -332,47 +341,60 @@ def compute(x) -> str:
     ep = x.r1 / "compute_options.json"
     if not rp.exists() or not ep.exists():
         return ""
-    res = json.loads(rp.read_text())
+    syn = json.loads(rp.read_text())["synthesis"]
     eff = json.loads(ep.read_text())
-    syn = res["synthesis"]
     arows = []
     for a in syn["architectures"]:
-        arows.append([f"<b>{K.esc(a['name'])}</b>", K.esc(a["where_inference_runs"]),
-                      f"{a['power_w_typical']:.0f} W" if a.get("power_w_typical") is not None else "–",
-                      f"{a['mass_g']:.0f} g" if a.get("mass_g") is not None else "–",
-                      f"${a['price_usd']:,.0f}" if a.get("price_usd") is not None else "–",
-                      _ok(a.get("covers_minimum_spec")), K.esc(a.get("covers_growth_spec", "")),
-                      K.esc(a.get("software_effort", ""))])
-    atbl = K.table(["Architecture", "Where inference runs", "Typical power", "Mass", "Price", "Minimum spec",
-                    "Growth (voice, re-ID, mapping)", "Porting effort"], arows, num={2, 3, 4})
-    rrows = []
-    names = [r["name"] for r in eff["sizes"]["60"]["rows"]]
-    for i, nm in enumerate(names):
-        cells = [K.esc(nm)]
-        for h in HEIGHTS:
-            r = eff["sizes"][str(h)]["rows"][i]
-            cells.append(f"{r['runtime_min']:.0f} min <span class='mono'>({r['runtime_change_min']:+.1f})</span>")
-        rrows.append(cells)
+        arows.append([f"<b>{K.esc(SHORT_ARCH.get(a['id'], a['name']))}</b>",
+                      f"{a['power_w_typical']:g} / {a['power_w_max']:g} W",
+                      f"{a['mass_g']:.0f} g" if a.get("mass_g") else "not published",
+                      f"${a['price_usd']:,.0f}", "yes" if a.get("covers_minimum_spec") else "provisional",
+                      ", ".join(f"{int(h)}" for h in a.get("best_for_sizes", [])) or "–"])
+    atbl = K.table(["Architecture", "Typical / max power", "Mass", "Price", "Meets minimum spec", "Suggested for (cm)"],
+                   arows, num={1, 2, 3})
+    names = [a["id"] for a in syn["architectures"] if a.get("power_w_typical") is not None]
+    rrows = [["Study budget today (31 W allowance)"] + [f"{eff['sizes'][str(h)]['baseline_runtime_min']:.0f} min"
+                                                       for h in HEIGHTS]]
+    for i, aid in enumerate(names):
+        rrows.append([K.esc(SHORT_ARCH.get(aid, aid))] + [
+            f"{eff['sizes'][str(h)]['rows'][i]['runtime_min']:.0f} min "
+            f"<span class='mono'>({eff['sizes'][str(h)]['rows'][i]['runtime_change_min']:+.0f})</span>" for h in HEIGHTS])
     rtbl = K.table(["Architecture"] + [f"{h} cm" for h in HEIGHTS], rrows, num={1, 2, 3, 4})
-    per = "".join(f"<li><b>{p['size_cm']:.0f} cm</b>: {K.esc(p['primary'])}"
-                  + (f"; alternative {K.esc(p['alternative'])}" if p.get("alternative") else "") + f". {K.esc(p['why'])}</li>"
-                  for p in syn["per_size"])
     return f"""
 <section id="compute">
   <p class="kicker">8 · Compute</p><h2>Jetson, or something smaller?</h2>
   <div class="prose">
-    <p>{K.esc(syn['answer_to_owner'])}</p>
-    <p>The survey covered Jetson modules and kits, Raspberry Pi 5 and Compute Module 5 with Hailo accelerators,
-    RK3588 and other NPU boards, x86 and Qualcomm boards, M.2 accelerators, and cameras that run inference
-    themselves. Each category was then fact-checked independently. Sources and corrections are in
-    <code>COMPUTE.md</code>.</p>
+    <p><b>Yes at 60 and 75 cm; mostly no at 100 and 120 cm. The first fix is the power budget, not the
+    computer.</b></p>
+    <ul>
+      <li><b>Power budget.</b> The study books the Jetson at 31 W. Independent measurements of the same module
+      show 10–14 W running detectors, so capped at 15 W the dev kit should draw about 15 W. That alone
+      lengthens every size's runtime, by about 8 minutes at 60 cm.</li>
+      <li><b>60 and 75 cm.</b> A Raspberry Pi 5 with Raspberry Pi's $70 AI HAT+ (a 13 TOPS Hailo chip for the
+      person detector and re-identification) does the job at about 8 W, 100 g and $290. The Jetson kit is
+      about 15 W, 174 g and $439. The head camera keeps computing depth and encoding the operator video.
+      Running detection on the camera itself, with no HAT, is cheaper still, but it waits for a bench test
+      under the full combined load.</li>
+      <li><b>100 and 120 cm.</b> Stay on NVIDIA, where mapping, voice and bigger models will live and price
+      is not a constraint. That is an Orin Nano at 100 cm, and an Orin NX at 120 cm only if those growth
+      loads are committed. A camera that is also the computer (Luxonis OAK 4) is worth an experiment.</li>
+      <li><b>Whatever is chosen:</b>
+        <ul>
+          <li>the walking policy and motor loop stay on the Teensy microcontroller;</li>
+          <li>the current OpenCV person detector must move to a neural accelerator;</li>
+          <li>the depth camera's chip is discontinued, so spares are needed.</li>
+        </ul></li>
+    </ul>
+    <p>79 options in five categories were surveyed from sourced data, then fact-checked independently (108
+    corrections). The synthesis was challenged by two critics before revision. Details, sources and bench
+    tests are in <code>COMPUTE.md</code>.</p>
   </div>
   {atbl}
   <h3>Runtime on each size's selected pack</h3>
-  <div class="prose"><p>Change from the Jetson baseline in brackets. This is first order: drive power and the other
-  auxiliaries are held fixed.</p></div>
+  <div class="prose"><p>Change from today's study budget in brackets. First order: drive power and the other
+  auxiliaries are held fixed. Round two will adopt the chosen computer's measured budget and re-size the
+  batteries.</p></div>
   {rtbl}
-  <div class="prose"><ul>{per}</ul></div>
 </section>"""
 
 
@@ -480,12 +502,17 @@ def questions(x) -> str:
         ("Which proportion changes should round two carry forward?",
          ["Anatomical (longer) tail.", "Larger skull.", "Narrower body and stance.", "Broader body and stance.",
           "Compact legs."]),
+        ("Which onboard compute direction should round two adopt?",
+         ["Raspberry Pi 5 + Hailo at 60–75 cm, NVIDIA Jetson at 100–120 cm (the survey's recommendation).",
+          "Keep the Jetson Orin Nano at every size, re-budgeted from measurements.",
+          "Also prototype the OAK 4 camera-computer.",
+          "Something else: say what matters most (runtime, cost, software effort, growth)."]),
     ]
     items = "".join(f'<div class="q"><h3>{i + 1}. {K.esc(t)}</h3><ol type="a">'
                     + "".join(f"<li>{K.esc(o)}</li>" for o in opts) + "</ol></div>" for i, (t, opts) in enumerate(q))
     return f"""
 <section id="questions">
-  <p class="kicker">11 · Questions for you</p><h2>Four decisions for round two</h2>
+  <p class="kicker">11 · Questions for you</p><h2>Five decisions for round two</h2>
   <div class="prose"><p>Answers can be as short as a letter per question. A sentence about what looks wrong is just as useful.
   Nothing has been frozen, and no controller training starts until round two has been reviewed.</p></div>
   {items}
