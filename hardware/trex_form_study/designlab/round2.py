@@ -186,7 +186,8 @@ def screen_one(cid: str, out: Path) -> dict:
     scr.mkdir(parents=True, exist_ok=True)
     result = dict(id=cid, xml_sha256=_sha(xml), sized_sha256=rec.get("xml_sha256"))
     result["matches_sized"] = result["xml_sha256"] == result["sized_sha256"]
-    for name, fn in (("clearance", _clearance), ("sensors", _sensors), ("turning", _turning), ("carpet", _carpet)):
+    for name, fn in (("clearance", _clearance), ("sensors", _sensors), ("turning", _turning), ("carpet", _carpet),
+                     ("envelope", _envelope)):
         try:
             summ = fn(cid, xml, q_home, trajs, design, rec, scr)
             if summ is not None:
@@ -230,6 +231,20 @@ def _carpet(cid, xml, q_home, trajs, design, rec, scr):
     return carpet.screen_record(cid, rec, str(xml), q_home, design, trajs, scr)
 
 
+def _envelope(cid, xml, q_home, trajs, design, rec, scr):
+    from . import envelope
+    from .pipeline import build_candidate
+
+    # a fresh model instance (the other screens may have changed the shared one's state)
+    res = build_candidate(candidate(cid, rec.get("overrides", ())), scr.parent / "mjcf", selection=dict(rec["selection"]),
+                          B=rec["B"], write=False)
+    turn = None
+    tp = scr / f"{cid}_turning.json"
+    if tp.exists():
+        turn = envelope.turning_rms_from(json.loads(tp.read_text()))
+    return envelope.screen_record(cid, rec, res["model"], res["q_home"], res["design"], trajs, scr, turning=turn)
+
+
 def _screen_star(a):
     try:
         return screen_one(*a)
@@ -260,10 +275,11 @@ def make_plates(out: Path, r1_models: Path | None = None) -> list[str]:
         if have(cid):
             made.append(plates.cutaway_plate(x(cid), str(P / f"{cid}_cutaway.png"), f"{cid} installed hardware"))
     lab = lambda ids: [(x(i), i) for i in ids if have(i)]  # noqa: E731
-    made.append(plates.lineup(lab(base_ids()), str(P / "bases_common_scale.png"), mode="exterior", normalize=False,
-                              title="Round two: 60 and 75 cm, Tapered and Hybrid, at one physical scale"))
-    made.append(plates.lineup(lab(base_ids()), str(P / "bases_silhouettes.png"), mode="silhouette", normalize=False,
-                              title="Silhouettes at one physical scale"))
+    if lab(base_ids()):
+        made.append(plates.lineup(lab(base_ids()), str(P / "bases_common_scale.png"), mode="exterior",
+                                  normalize=False, title="Round two: 60 and 75 cm, Tapered and Hybrid, at one physical scale"))
+        made.append(plates.lineup(lab(base_ids()), str(P / "bases_silhouettes.png"), mode="silhouette",
+                                  normalize=False, title="Silhouettes at one physical scale"))
     fam = {"T": "Tapered", "H": "Hybrid"}
     for h in HEIGHTS:
         rows = [[x(Candidate(h, w, f, po, proportion=p).id) for w, p, po in VARIANTS] for f in FAMILIES]
@@ -274,12 +290,14 @@ def make_plates(out: Path, r1_models: Path | None = None) -> list[str]:
                                   mode="exterior", title=f"{h} cm: base and single-change variants, side view"))
         made.append(plates.matrix(rows, [fam[f] for f in FAMILIES], cols, str(P / f"variants_{h}_front.png"),
                                   view="front", mode="exterior", title=f"{h} cm: base and variants, front view"))
-    made.append(plates.matrix([[x(f"{h}-M-{f}-10") for f in FAMILIES] for h in HEIGHTS], ["60 cm", "75 cm"],
-                              [fam[f] for f in FAMILIES], str(P / "families_r2.png"), view="side", mode="exterior",
-                              title="Tapered and Hybrid at 60 and 75 cm (10° chest-up, balanced width)"))
-    made.append(plates.matrix([[x(f"{h}-M-{f}-10") for f in FAMILIES] for h in HEIGHTS], ["60 cm", "75 cm"],
-                              [fam[f] for f in FAMILIES], str(P / "families_r2_cutaway.png"), view="side", mode="cutaway",
-                              title="Installed hardware: Raspberry Pi 5 compute, head camera, tail-base battery"))
+    grid = [[x(f"{h}-M-{f}-10") for f in FAMILIES] for h in HEIGHTS]
+    if any(c for r in grid for c in r):
+        made.append(plates.matrix(grid, ["60 cm", "75 cm"], [fam[f] for f in FAMILIES], str(P / "families_r2.png"),
+                                  view="side", mode="exterior",
+                                  title="Tapered and Hybrid at 60 and 75 cm (10° chest-up, balanced width)"))
+        made.append(plates.matrix(grid, ["60 cm", "75 cm"], [fam[f] for f in FAMILIES],
+                                  str(P / "families_r2_cutaway.png"), view="side", mode="cutaway",
+                                  title="Installed hardware: Raspberry Pi 5 compute, head camera, tail-base battery"))
     if r1_models is not None:
         pairs = [(str(r1_models / f"{c}.xml"), x(c)) for c in ("60-M-T-10", "60-M-H-10") if have(c)
                  and (r1_models / f"{c}.xml").exists()]
@@ -287,7 +305,8 @@ def make_plates(out: Path, r1_models: Path | None = None) -> list[str]:
             made.append(plates.matrix([list(p) for p in pairs], [p[1].split("/")[-1][:-4] for p in pairs],
                                       ["Round one", "Round two"], str(P / "r1_vs_r2_60_cutaway.png"), view="side",
                                       mode="cutaway", title="60 cm: round one against round two, installed hardware"))
-    made.append(plates.silhouette_sheet(lab(candidate_ids()), str(P / "silhouettes_r2.png")))
+    if lab(candidate_ids()):
+        made.append(plates.silhouette_sheet(lab(candidate_ids()), str(P / "silhouettes_r2.png")))
     made = [str(p) for p in made if p]
     for png in made + [str(q) for q in (rv / "screening").glob("*.png")]:
         compact_png(png)
