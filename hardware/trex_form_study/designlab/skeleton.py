@@ -82,7 +82,21 @@ def _posture(cand: Candidate) -> dict:
     return POSTURES[cand.posture]
 
 
-def _neck_path(base_world: np.ndarray, B: float, neck_scale: float, rise: float) -> np.ndarray:
+def _neck_path(base_world: np.ndarray, B: float, neck_scale: float, rise: float, profile: dict | None = None) -> np.ndarray:
+    if profile is not None:
+        # revision 2: one smooth S of world angles (deg at arc fractions s), integrated in n steps
+        from scipy.interpolate import PchipInterpolator
+
+        f = PchipInterpolator(np.asarray(profile["s"], float), np.radians(np.asarray(profile["deg"], float)))
+        n = int(profile.get("n", 18))
+        ss = np.linspace(0.0, 1.0, n + 1)
+        p = np.asarray(base_world, float).copy()
+        pts = [p.copy()]
+        for k in range(1, n + 1):
+            a = float(f(0.5 * (ss[k - 1] + ss[k]))) + rise
+            p = p + (profile["length"] * B * neck_scale / n) * np.array([np.cos(a), 0.0, np.sin(a)])
+            pts.append(p.copy())
+        return np.array(pts)
     pts = [base_world]
     p = base_world.copy()
     for length, ang in T.SKELETON["neck_segments"]:
@@ -95,10 +109,10 @@ def _neck_path(base_world: np.ndarray, B: float, neck_scale: float, rise: float)
     return np.array(pts)
 
 
-def _tail_path(root_world: np.ndarray, B: float, tail_scale: float, n: int = 24) -> np.ndarray:
+def _tail_path(root_world: np.ndarray, B: float, tail_scale: float, n: int = 24, curve_deg: float | None = None) -> np.ndarray:
     L = T.SKELETON["tail_len"] * B * tail_scale
     a0 = np.radians(T.SKELETON["tail_pitch_deg"])
-    curve = np.radians(T.SKELETON["tail_curve_deg"])
+    curve = np.radians(T.SKELETON["tail_curve_deg"] if curve_deg is None else curve_deg)
     pts = [root_world]
     p = root_world.copy()
     for k in range(1, n + 1):
@@ -113,6 +127,7 @@ def build_skeleton(cand: Candidate, B: float) -> Skeleton:
     post = _posture(cand)
     prop = PROPORTIONS[cand.proportion]
     S = T.SKELETON
+    fs = T.FAMILY_SHAPE[T.family_key(cand.family, int(cand.override("rev", 1)))]
     H = B * prop["leg_scale"]
     theta_p = np.radians(post["pelvis_deg"])
     theta_c = np.radians(post["chest_deg"])
@@ -137,7 +152,7 @@ def build_skeleton(cand: Candidate, B: float) -> Skeleton:
     neck_base = pivot + ry(bend) @ (nb0 - pivot)
     nb_world = origin + R_p @ neck_base
     rise = np.radians(post["neck_rise_deg"])
-    neck_path = _neck_path(nb_world, B, prop["neck_scale"], rise)
+    neck_path = _neck_path(nb_world, B, prop["neck_scale"], rise, fs.get("neck_path"))
     occiput = neck_path[-1]
     skull_len = S["skull_len"] * B * prop["skull_scale"]
     skull_pitch = np.radians(S["skull_pitch_deg"]) + rise
@@ -147,9 +162,9 @@ def build_skeleton(cand: Candidate, B: float) -> Skeleton:
     trx_m = cand.override("tail_root_x_m")  # packaging setback (build.Design), metres in the trunk frame
     if trx_m is not None:
         tail_root[0] = min(tail_root[0], float(trx_m))
-    tail_path = _tail_path(origin + R_p @ tail_root, B, prop["tail_scale"])
+    tail_path = _tail_path(origin + R_p @ tail_root, B, prop["tail_scale"], curve_deg=fs.get("tail_curve_deg"))
 
-    arm0 = np.array([S["arm_x"], 0.0, S["arm_z"]]) * B
+    arm0 = np.array([fs.get("arm_x", S["arm_x"]), 0.0, fs.get("arm_z", S["arm_z"])]) * B
     arm_root = pivot + ry(bend) @ (arm0 - pivot)
 
     # Leg design pose (left leg, before hip-module lateral offsets are known).

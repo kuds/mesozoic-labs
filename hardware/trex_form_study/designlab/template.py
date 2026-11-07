@@ -163,12 +163,32 @@ def _derived(base: str, **changes) -> dict:
     return d
 
 
-# F8: the stereo camera must sit inside the skull cover.  A slightly broader Tapered skull (it was the only
-# one with no fitting position at 60 cm) and a flatter skull roof (exponent 2.6 -> 3.2, a broad flat roof
-# between the brows, as in the animal) let it sit about 2-4 mm higher.
-FAMILY_SHAPE["T@2"] = _derived("T", skull=dict(width_rear=0.46, roof_n=3.2))
-FAMILY_SHAPE["S@2"] = _derived("S", skull=dict(roof_n=3.2))
-FAMILY_SHAPE["H@2"] = _derived("H", skull=dict(roof_n=3.2))
+# Revision 2 shapes (decision log F8 and F10).  F8: the stereo camera must sit inside the skull cover, so the
+# skull roof is flatter (section exponent 2.6 -> 3.2, a broad flat roof between the brows, as in the animal).
+# F10 (round-two visual critique, each change prototyped and screened at 60 and 75 cm): a crown-neutral
+# S-curved neck that carries the head over the chest front; a deeper, broader skull (deeper snout and
+# mandible, broad rear, blunt U-shaped tip; length and crown unchanged); a fuller throat; calf fairings over
+# the ankle drives; a continuous tail with a deep base and a slightly raised tip; a thigh that runs smoothly
+# to the knee; arms attached at the chest flank.  Tapered: a pubic keel and a small belly tuck.  Hybrid:
+# six swept-back ribs under a dorsal spine band, a keeled chest front, and longer tail segments.
+_HEAD_R2 = dict(width_rear=0.50, width_snout=0.23, roof_n=3.2, snout=1.12, jaw=1.5, tip=0.065)
+_NECK_PATH_R2 = dict(length=0.235, s=(0.0, 0.5, 1.0), deg=(-10.0, 36.0, 0.0), n=18)
+_TAIL_TAPER_R2 = dict(up=0.75, lo=1.5, w=1.0)
+FAMILY_SHAPE["T@2"] = _derived(
+    "T", skull=_HEAD_R2, neck=dict(girth=0.95, end_lo=0.21, end_half=0.17, end_up=0.11), neck_path=_NECK_PATH_R2,
+    tail_root_scale=1.0, tail_taper=_TAIL_TAPER_R2, tail_curve_deg=9.0, arm_x=0.82, arm_z=-0.21,
+    thigh_lower=dict(lat_extra=0.011, end_s=1.0), calf=dict(clear=0.016),
+    cover_regions=FAMILY_SHAPE["T"]["cover_regions"] + ("pubic_boot", "shank"))
+FAMILY_SHAPE["T@2"]["ventral"][6:8] = [-0.195, -0.215]
+FAMILY_SHAPE["H@2"] = _derived(
+    "H", skull=_HEAD_R2, neck=dict(girth=0.96, end_lo=0.21, end_half=0.17, end_up=0.11), neck_path=_NECK_PATH_R2,
+    tail_taper=_TAIL_TAPER_R2, tail_curve_deg=9.0, tail_segments=dict(root=0.40, seg=2, gap=1), arm_x=0.82,
+    arm_z=-0.21, thigh_lower=dict(lat_extra=0.011, end_s=1.0), calf=dict(clear=0.016),
+    rib_hoops=dict(x=(0.25, 0.31, 0.37, 0.43, 0.49, 0.55), span=140.0, sweep=0.05, thickness=0.0025),
+    cover_regions=FAMILY_SHAPE["H"]["cover_regions"] + ("spine_ridge", "shank"))
+FAMILY_SHAPE["H@2"]["ventral"][7:10] = [-0.250, -0.292, -0.322]
+FAMILY_SHAPE["H@2"]["n_lo"][8:11] = [2.0, 2.0, 2.0]
+FAMILY_SHAPE["S@2"] = _derived("S", skull=dict(roof_n=3.2))  # not developed in round two
 
 
 def leg_chain_length(h: float, leg_scale: float = 1.0) -> float:

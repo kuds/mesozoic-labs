@@ -680,7 +680,7 @@ class Design:
         for p in shapes.trunk_panels(sk, self.fk, prof, regions, t, mat, colors["main"], colors["accent"]):
             self.bodies["trunk"].panels.append(p)
         if "rib_hoops" in regions:
-            for p in shapes.rib_hoops(sk, prof, (0.27, 0.36, 0.45, 0.54), t, (0.50, 0.50, 0.46, 1)):
+            for p in shapes.rib_hoops(sk, prof, (0.27, 0.36, 0.45, 0.54), t, (0.50, 0.50, 0.46, 1), fam.get("rib_hoops")):
                 self.bodies["trunk"].panels.append(p)
         nb_w = self.bodies["head"].pos_world
         self.bodies["head"].panels.append(shapes.neck_panel(sk, self.fk, nb_w, t, mat, colors["main"]))
@@ -713,20 +713,30 @@ class Design:
                 kf = getattr(self, "knee_motor_frac", 0.4)
                 r_knee = max(0.045 * B, (0.5 * max(knee.envelope) + 0.008) if kf > 0.75 else 0.0)
                 half_up = self.hip["half_upper"] + 0.004
+                tl = fs_.get("thigh_lower")
+                kw = dict(lat_min=0.5 * knee.envelope[1] + tl["lat_extra"], end_s=tl["end_s"]) if tl else {}
                 up, lo = shapes.thigh_panels(side, self.femur_axis, Lf, B, self.fk, r_top, half_up, s_seam, r_seam,
-                                             r_knee, t, mat, colors["limb"])
+                                             r_knee, t, mat, colors["limb"], **kw)
                 self.bodies[f"{side}_thigh"].panels.append(up)
                 self.bodies[f"{side}_femur"].panels.append(lo)
             if "shank" in regions and c.leg_layout in ("tandem", "side"):
                 hock_l = self.to_body(f"{side}_shank", sk.leg["hock"] + np.array([0, s * self.hip["y_leg"], 0]))
-                top, bot = 0.06 * hock_l, 0.66 * hock_l
-                self.bodies[f"{side}_shank"].panels.append(shapes.shank_panel(
-                    side, top, bot, B, 0.5 * self.act("ankle_a").envelope[1] + 0.008, t, mat, colors["limb"]))
+                half_t = 0.5 * self.act("ankle_a").envelope[1] + 0.008
+                if fam.get("calf") and self.rev >= 2:
+                    # revision 2: a calf sized from the ankle drives, covering both of them
+                    back = self.act("ankle_a").envelope[0] + fam["calf"]["clear"]
+                    low = c.height <= 60  # the upper drive sits at 0.46 of the tibia at 60 cm (F9)
+                    f0, f1 = (0.30, 1.0) if low else (0.06, 0.88)
+                    panel = shapes.shank_panel(side, f0 * hock_l, f1 * hock_l, B, half_t, t, mat, colors["limb"],
+                                               back_m=back, profile="r2_low" if low else "r2")
+                else:
+                    panel = shapes.shank_panel(side, 0.06 * hock_l, 0.66 * hock_l, B, half_t, t, mat, colors["limb"])
+                self.bodies[f"{side}_shank"].panels.append(panel)
         # fixed arms, low at the front of the chest
         from .geometry import sweep
 
         L = T.SKELETON["arm_len"] * B
-        st = self.prof.at(T.SKELETON["arm_x"] * B)
+        st = self.prof.at(fam.get("arm_x", T.SKELETON["arm_x"]) * B)
         for side, s in (("left", 1.0), ("right", -1.0)):
             root = sk.arm_root + ry(sk.bend) @ np.array([0, s * 0.82 * st["half"], 0])
             pts = np.array([[0, 0, 0], [0.06, s * 0.02, -0.40], [0.30, s * 0.05, -0.50], [0.56, s * 0.06, -0.47],

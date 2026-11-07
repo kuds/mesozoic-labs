@@ -505,6 +505,14 @@ class _Screen:
             self.stats["cache_hits"] += 1
             return min(hit, distmax)
         val = self._verify(g1, g2, distmax, r)
+        if val < 0.0:
+            # A penetration that the shifted probes agree on can still be a sign flip of the convex routine
+            # (round two: one frame read -9.65 mm between frames at +9.7 mm).  Cross-check with the exact
+            # convex distance and trust it when it says the pair is separated.
+            ex = self.exact(g1, g2)
+            if ex > VERIFY_TOL:
+                self.stats["sign_flip_fixed"] = self.stats.get("sign_flip_fixed", 0) + 1
+                val = ex
         self._cache[key] = val
         if abs(val - r) > VERIFY_TOL:
             self.stats["corrected"] += 1
