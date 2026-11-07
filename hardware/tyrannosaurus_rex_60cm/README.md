@@ -4,6 +4,8 @@ The 60 cm robot is the first **candidate physical platform**; the mini remains a
 useful simulation reference. Height means floor to the eventual head crown in
 the nominal standing pose. A headless chassis does not have to be 60 cm tall.
 
+The [intermediate simulation handoff](platform/README.md) tracks the powered head and tail, current body proportions, walking controller and indoor follow experiments.
+
 Start with the [M1 skeleton study](m01_skeleton/README.md). It has a horizontal
 spine, forward-folding knees, six independent joints per leg, full-size motor
 and electronics envelopes, and fixed future head/tail/arm mass. Its thin green

@@ -767,3 +767,14 @@ physics_revision = 1
 policy_interface_revision = 1
 visual_revision = 1
 observation_schema = "bipedal-target-heading-free/v1"
+
+# 22. Independent intermediate platform. Do not initialize from mini checkpoints.
+# 23. Interface r2 forwards each drive tick to the shared telemetry hooks,
+# stores right/left substep loads, and honors a latched non-foot strike.
+# 24. Interface r3 recomputes the first sensor packet after applying the
+# selected contact material and restoring nominal drive bounds at reset.
+[plants.tyrannosaurus_rex.intermediate]
+physics_revision = 1
+policy_interface_revision = 3
+visual_revision = 1
+observation_schema = "robot-inertial-encoder-command/v1"

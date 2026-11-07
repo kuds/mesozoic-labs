@@ -57,3 +57,17 @@ python -m pytest environments/shared/tests/test_robot_floor.py environments/shar
 ```
 
 The report records model, component ledger, generator, parameter file, applied floor, drive, validation and clearance code SHA-256 values together with NumPy and MuJoCo versions. The video uses the deterministic measured joint and free-root trajectory at 25 fps, matched side/front views and 1× playback. Video rendering additionally requires Pillow and imageio-ffmpeg. Use `--strict` to return a failing process status for open mechanical issues while preserving the report. The default report-only command finishes even when the design gate fails.
+
+## Separate r02 clearance study
+
+The untrained r02 candidate relocates the disconnect outboard, takes the camera braces from the spine corners to a transverse bridge and drop tabs, spaces the thin torso covers away from the hip yaw cases, and sets the moving head and tail skins back from their fixed forks. The head gains a short structural spine from the shaft into the cover. Device envelopes, leg assembly and motor limits retain their r01 dimensions. New and relocated components feed the body mass, CoM and inertia calculations. Five added brackets and tabs total 64 g. Their incremental one-off outsourced fabrication allowance is $95–265 if excluded from the existing fabrication lot. The device, battery and compute part numbers are identical to the r01 ledgers.
+
+On the same 512 combined poses and the same commanded crouch and turn trajectories, 20 previously flagged geometry pairs clear 3 mm at every sample. These include the disconnect/hanger, both camera braces against the compute reserve, hip cases against torso skin, and moving covers against the fork or tail root. Three new flags involve a bracket touching its intended owner's service volume. Those deserve fastener, cable-exit and tool-access checks even where structural contact is intended. Across all tested configurations r02 has 145 unique flagged pairs out of 5,717 tested pairs, compared with 162 of 5,315 on r01. The independent joint box still permits left/right foot interference.
+
+At 9.960 kg, r02 holds left single support on the hard floor for 1.936 s, reaching 5.6° peak tilt. Its carpet trial reaches 18.3° and fails the 12° criterion. These measurements apply to the r02 model only. Before selecting it for a new training revision, detail the revised brackets and moving cover attachments, re-run battery removal and thermal/service-access tests on that revision, resolve coupled leg motion and run held-out locomotion trials. It has no registered checkpoint or qualification status.
+
+```sh
+python -m examples.tyrannosaurus_rex_60cm.platform.study_clearance
+```
+
+[Repacked model and component ledger](../../../examples/tyrannosaurus_rex_60cm/platform/clearance_study/) · [R02 source-bound report and interference witnesses](clearance_study_r02.json)

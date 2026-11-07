@@ -68,9 +68,9 @@ ROBOT = ModelId("compsognathus_longipes", "robot")
 
 
 def test_embodiments_are_a_closed_vocabulary_with_one_label_each():
-    assert EMBODIMENTS == ("anatomical", "robot")
+    assert EMBODIMENTS == ("anatomical", "robot", "intermediate")
     assert tuple(EMBODIMENT_LABELS) == EMBODIMENTS
-    assert EMBODIMENT_LABELS == {"anatomical": "Anatomical", "robot": "Robot"}
+    assert EMBODIMENT_LABELS == {"anatomical": "Anatomical", "robot": "Robot", "intermediate": "Intermediate"}
 
 
 @pytest.mark.parametrize(

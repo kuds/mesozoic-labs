@@ -532,8 +532,21 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         return obs, reward, terminated, truncated, info
 
 
+def supports_behavior_env(model_id: ModelId) -> bool:
+    """Whether the registered plant accepts the shared terrain/direction command API."""
+    canonical = get_species_config(model_id).env_class
+    return {"command_mode", "command_config"} <= inspect.signature(canonical).parameters.keys()
+
+
 @lru_cache(maxsize=None)
 def _behavior_env_class(model_id: ModelId) -> type[Any]:
+    # The mixin constructs canonical(command_mode=..., command_config=...).
+    # Sensor-packet plants with a dedicated API keep their registered contract.
+    if not supports_behavior_env(model_id):
+        raise ValueError(
+            f"{model_id} uses its registered stage environment for commands; "
+            "shared direction/terrain behavior recipes are unsupported"
+        )
     canonical = get_species_config(model_id).env_class
     return type(
         f"{model_id.pascal}BehaviorEnv",

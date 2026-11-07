@@ -1,0 +1,16 @@
+schema = "mesozoic.stage-manifest/v2"
+
+[[stages]]
+id = "stance"
+config = "stance.toml"
+legacy_number = 1
+recipe = "stance"
+deliverable = true
+
+[[stages]]
+id = "locomotion"
+config = "locomotion.toml"
+legacy_number = 2
+warm_start_from = "stance"
+recipe = "walk"
+deliverable = true

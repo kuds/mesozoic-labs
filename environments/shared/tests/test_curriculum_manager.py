@@ -477,7 +477,8 @@ class TestThresholdsFromConfigs:
         # Every model, both Compsognathus embodiments included: D-B14 keeps
         # them on reward_and_length/v1, and the loop must see them so a kind
         # drift there fails here too.
-        assert len(model_ids()) == 7
+        assert ModelId("tyrannosaurus_rex", "intermediate") in model_ids()
+        assert len(model_ids()) == 8
         for model_id in model_ids():
             stages = load_all_stages(model_id)
             chain = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, int)}

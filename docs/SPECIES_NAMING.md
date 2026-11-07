@@ -2,8 +2,10 @@
 
 A **species ID** is the species' binomial in snake_case (genus, underscore,
 epithet). An **embodiment** is `anatomical`, the animal-proportioned research
-model, or `robot`, a buildable robot of that species. A robot's hardware
-iterations are physics revisions of the same embodiment, not new embodiments.
+model, `robot` for the original robotic platform, or `intermediate` for the
+independently maintained 60 cm T. rex. The mini and intermediate robots coexist
+with separate mechanisms, sensor contracts, action spaces and checkpoints.
+Hardware iterations within each platform use its physics revision.
 A **model** is the pair (species, embodiment); in code it is a `ModelId`
 (`environments/shared/model_id.py`), held in variables named `model_id`
 (`model` means a policy or an MjModel). There are no aliases: machine
@@ -25,6 +27,7 @@ Regenerate the public catalog with
 | `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` | [`/docs/models/velociraptor_mongoliensis/anatomical`](../website/docs/models/velociraptor_mongoliensis/anatomical.mdx) |
 | `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus Rex (Anatomical) | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | [`/docs/models/tyrannosaurus_rex/anatomical`](../website/docs/models/tyrannosaurus_rex/anatomical.mdx) |
 | `tyrannosaurus_rex` | `robot` | Tyrannosaurus Rex (Robot) | `MesozoicLabs/TyrannosaurusRex-Robot-v0` | [`/docs/models/tyrannosaurus_rex/robot`](../website/docs/models/tyrannosaurus_rex/robot.mdx) |
+| `tyrannosaurus_rex` | `intermediate` | Tyrannosaurus Rex (Intermediate) | `MesozoicLabs/TyrannosaurusRex-Intermediate-v0` | [`/docs/models/tyrannosaurus_rex/intermediate`](../website/docs/models/tyrannosaurus_rex/intermediate.mdx) |
 | `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus Altithorax (Anatomical) | `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` | [`/docs/models/brachiosaurus_altithorax/anatomical`](../website/docs/models/brachiosaurus_altithorax/anatomical.mdx) |
 | `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` | [`/docs/models/dibothrosuchus_elaphros/anatomical`](../website/docs/models/dibothrosuchus_elaphros/anatomical.mdx) |
 | `compsognathus_longipes` | `anatomical` | Compsognathus Longipes (Anatomical) | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | [`/docs/models/compsognathus_longipes/anatomical`](../website/docs/models/compsognathus_longipes/anatomical.mdx) |

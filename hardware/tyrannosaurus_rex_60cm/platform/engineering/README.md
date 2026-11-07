@@ -8,7 +8,7 @@ Run these commands from the checkout root with the repository MuJoCo environment
 
 ```sh
 python -m examples.tyrannosaurus_rex_60cm.platform.build
-python -m examples.tyrannosaurus_rex_60cm.platform.engineering
+python -m examples.tyrannosaurus_rex_60cm.platform.engineering --service-xml /tmp/rex-service.xml
 python -m examples.tyrannosaurus_rex_60cm.platform.tendon_bench
 ```
 
@@ -52,6 +52,8 @@ The 3:1 nominal transmission lowers neck motor effort. Its input must travel far
 | Drive control | Teensy 4.1, two CAN transceiver board allowances, pelvis IMU, foot force wires, separate TTL interface. RMD drives contain the leg motor controllers. | Verify populated board heights, bus termination, wiring topology, deadman and deterministic update timing. Choose transceiver, IMU, foot load cells/amplifier and TTL level/interface components. |
 | Power | 100 × 50 × 60 mm main bay plus 65 × 51 × 32 mm servo supply/TTL and 55 × 26 × 36 mm disconnect. | A rear hanger intrudes into the disconnect reserve in the broader geometry screen. Redesign mount before fabrication. Select fuse holders, regenerative clamp, switch, current/temperature sensors and connector-rated contacts, then rerun clearance. |
 | Optical stack | Torso OAK-D Lite 91 × 28 × 17.5 mm and 61 g bare. Its 103 g installed allocation includes bracket and lead. Two 13 × 18 × 2 mm ToF carriers, 0.5 g bare, have separate 18 g installed allocations. | Calibrate intrinsics, extrinsics, depth validity and timestamp alignment with foot loads and IMU. Use locking strain relief and verify isolator movement under impact. |
+
+Use the source-sized service XML for board layout. A catalog cross-check found that two inert, internal visual boxes in the frozen training model fall short of the supplier dimensions. The logic regulator D24V10F5 is 17.78 × 12.70 × 3.556 mm. Its conservative service proxy grows to 17.78 × 12.70 × 6 mm. The appendage D42V110F12 is 43.18 × 31.75 × 9.017 mm using its complete listed dimensions, so its service proxy is 43.2 × 31.8 × 9.017 mm. Neither body supplies the inertia or the outer installed envelope. The corrected bodies have at least 12.0 and 9.6 mm, respectively, to their nearest installation-envelope faces, and main-bay board-to-board clearance exceeds 10.7 mm. The audit keeps the two frozen-proxy failures visible. The ToF housings have exactly 2 mm allocated on the tightest axis before tolerance. A real LED, header or cable bend may need more. [Logic board dimensions](https://www.pololu.com/product/2831/specs) · [Appendage supply dimensions](https://www.pololu.com/product/5677/specs)
 
 The prior kit dimensions apply to the complete development kit, with a 9–20 V barrel input at the carrier. Reserve the underside for fitting and swapping the selected length of NVMe drive. An M.2 device and standoff occupy kit service space even when hidden from the outside. Integrated compute budgets need a weighed assembly and actual connector exit drawings. [NVIDIA kit and data sheet](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/nano-super-developer-kit/) · [Carrier input](https://developer.nvidia.com/downloads/assets/embedded/secure/jetson/orin_nano/docs/jetson_orin_nano_devkit_carrier_board_specification_sp.pdf) · [Teensy 4.1](https://www.pjrc.com/store/teensy41.html) · [Battery](https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/)
 

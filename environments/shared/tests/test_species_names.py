@@ -37,6 +37,7 @@ MODEL_DISPLAY_NAMES = {
     ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor Mongoliensis (Anatomical)",
     ModelId("tyrannosaurus_rex", "anatomical"): "Tyrannosaurus Rex (Anatomical)",
     ModelId("tyrannosaurus_rex", "robot"): "Tyrannosaurus Rex (Robot)",
+    ModelId("tyrannosaurus_rex", "intermediate"): "Tyrannosaurus Rex (Intermediate)",
     ModelId("brachiosaurus_altithorax", "anatomical"): "Brachiosaurus Altithorax (Anatomical)",
     ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus Elaphros (Anatomical)",
     ModelId("compsognathus_longipes", "anatomical"): "Compsognathus Longipes (Anatomical)",
@@ -52,6 +53,8 @@ def _selection_code(model_id):
     """The selection cell with ``SPECIES`` and ``EMBODIMENT`` set to *model_id*'s IDs through the AST."""
     tree = ast.parse(_notebook_cell("# ===== SPECIES SELECTION ====="))
     values = {"SPECIES": model_id.species, "EMBODIMENT": model_id.embodiment}
+    if model_id.embodiment == "intermediate":
+        values["BEHAVIOR"] = "walk"
     assigned = set()
     for statement in tree.body:
         if (

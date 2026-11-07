@@ -277,6 +277,70 @@ def component_ledger(model, rows):
     return result
 
 
+def source_sized_model(folder, p):
+    """Produce a service model with published minimum box dimensions and frozen mass properties."""
+    xml = ET.parse(folder / "model.xml")
+    original = {}
+    for part in p["installed_box_checks"]:
+        geom = xml.find(f".//geom[@name='{part['geom']}']")
+        if geom is None or geom.get("type") != "box":
+            raise ValueError(f"missing box {part['geom']}")
+        full_mm = 2000 * np.fromstring(geom.get("size"), sep=" ")
+        original[part["geom"]] = full_mm
+        geom.set("size", values(np.maximum(full_mm, part["minimum_mm"]) / 2000))
+    return xml, original
+
+
+def installed_size_checks(folder, p):
+    xml, original = source_sized_model(folder, p)
+    model = mujoco.MjModel.from_xml_string(ET.tostring(xml.getroot(), encoding="unicode"))
+    data = fresh(model)
+    rows = []
+    for part in p["installed_box_checks"]:
+        gid = model.geom(part["geom"]).id
+        parent = part["parent"]
+        margin = None
+        if parent:
+            e = model.geom(parent).id
+            # Exact projection of an oriented child box into parent coordinates.
+            parent_rotation = data.geom_xmat[e].reshape(3, 3).T
+            projected = abs(parent_rotation @ data.geom_xmat[gid].reshape(3, 3)) @ model.geom_size[gid]
+            center = parent_rotation @ (data.geom_xpos[gid] - data.geom_xpos[e])
+            margin = 1000 * min(model.geom_size[e] - abs(center) - projected)
+        rows.append(
+            dict(
+                **part,
+                frozen_proxy_mm=original[part["geom"]].tolist(),
+                frozen_covers_part=bool(np.all(original[part["geom"]] + 1.0e-6 >= part["minimum_mm"])),
+                service_proxy_mm=(2000 * model.geom_size[gid]).tolist(),
+                worst_inside_parent_face_gap_mm=margin,
+            )
+        )
+    # Pair every selected board against other boards that share the same power bay,
+    # including generic protection/distribution. Distinct assembly boxes have their
+    # own full-volume clearance screen in platform validation.
+    distances = []
+    boards = ["logic_converter", "compute_converter", "protection_distribution"]
+    for i, a in enumerate(boards):
+        for b in boards[i + 1 :]:
+            gap = clearance_distance(
+                model, data, model.geom(a).id, model.geom(b).id, required_clearance_m=0.002, search_distance_m=0.1
+            )
+            distances.append(
+                dict(a=a, b=b, margin_or_bound_mm=1000 * gap["min_distance_m"], method=gap["distance_method"])
+            )
+    body_gaps = [r["worst_inside_parent_face_gap_mm"] for r in rows if r["parent"]]
+    return {
+        "proxies": rows,
+        "frozen_undersized": [r["geom"] for r in rows if not r["frozen_covers_part"]],
+        "main_power_bay_internals": distances,
+        "service_geometry_pass": bool(
+            min(body_gaps) >= 2 - 1e-9 and min(r["margin_or_bound_mm"] for r in distances) >= 2 - 1e-9
+        ),
+        "service_xml_sha256": hashlib.sha256(ET.tostring(xml.getroot())).hexdigest(),
+    }
+
+
 def supported_power_trials(folder, config):
     """Use the same installed battery, live or isolated; compare bus voltage on a shared physical trial."""
     rows = json.loads((folder / "components.json").read_text())["components"]
@@ -347,6 +411,7 @@ def analyze_case(folder, p):
             static_screens=[static_loads(model, limits, a) for a in (0, 0.3, 0.6)],
         )
     return dict(
+        installed_size_checks=installed_size_checks(folder, p),
         schemes=schemes,
         components=ledger,
         extraction=extraction(folder),
@@ -359,8 +424,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--variants", nargs="+", default=["compact", "nominal", "wide"])
     ap.add_argument("--output", type=Path, default=HARDWARE / "engineering_report.json")
+    ap.add_argument("--service-xml", type=Path, help="Export nominal source-sized installed hardware inspection XML")
     args = ap.parse_args()
     p = json.loads(ASSUMPTIONS.read_text())
+    if args.service_xml:
+        service_xml, _ = source_sized_model(HERE / "nominal", p)
+        args.service_xml.write_bytes(ET.tostring(service_xml.getroot()))
     report = dict(
         assumptions_sha256=sha(ASSUMPTIONS),
         validator_sha256=sha(Path(__file__)),

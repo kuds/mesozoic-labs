@@ -459,3 +459,34 @@ backends = ["stable-baselines3"]
 key = "target_reach"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+# Independent hardware platform: the mini robot remains the 'robot' embodiment.
+[species.tyrannosaurus_rex.embodiments.intermediate]
+tagline = "Intermediate indoor walking platform"
+gait = "Bipedal"
+specialty = "Commanded locomotion with powered neck and tail"
+env_entrypoint = "environments.tyrannosaurus_rex.intermediate.env:TyrannosaurusRexIntermediateEnv"
+model_path = "environments/tyrannosaurus_rex/intermediate/assets/tyrannosaurus_rex_intermediate.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.tyrannosaurus_rex.embodiments.intermediate.success_metrics]]
+backends = ["stable-baselines3"]
+key = "command_tracking"
+label = "Velocity tracking while upright"
+definition = "Fraction of recorded command samples within 0.06 m/s forward and 0.15 rad/s yaw tolerances. Gait quality is judged separately from independent foot-contact measurements."
+
+[[species.tyrannosaurus_rex.embodiments.intermediate.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Walking development gate"
+definition = "Full-length development episodes, reward and forward speed clear the declared stage thresholds. Confirmation also requires the independent gait evaluation."
+
+[[species.tyrannosaurus_rex.embodiments.intermediate.deliverable_metrics]]
+deliverable = "stance"
+backends = ["stable-baselines3"]
+key = "upright_duration"
+label = "Development stance duration"
+definition = "Upright holding for the recipe horizon under small reset perturbations, judged by reward and episode duration."

@@ -60,6 +60,7 @@ BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+INTERMEDIATE = ModelId("tyrannosaurus_rex", "intermediate")
 MODEL_IDS = (
     VELOCIRAPTOR_MONGOLIENSIS,
     TYRANNOSAURUS_REX,
@@ -106,6 +107,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # 3-wide projected gravity: 64/56 -> 63/55.
         VELOCIRAPTOR_MONGOLIENSIS: (70, 22, 31, 30, 22, 13.5),
         TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
+        INTERMEDIATE: (57, 14, 21, 20, 14, 9.896061),
         ModelId("tyrannosaurus_rex", "robot"): (41, 10, 17, 16, 10, 0.7541),
         BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
         DIBOTHROSUCHUS_ELAPHROS: (80, 27, 35, 34, 27, 8.65),
@@ -184,6 +186,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
     expected_observation_schemas = {
+        INTERMEDIATE: "robot-inertial-encoder-command/v1",
         ModelId("tyrannosaurus_rex", "robot"): "bipedal-target-heading-free/v1",
         VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target/v1",
         TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
@@ -244,6 +247,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # policy revision once more: the hashed methods' qualnames moved to the
     # species base classes. POLICY only, physics and visual unchanged.
     expected_policy_revisions = {
+        INTERMEDIATE: 1,
         ModelId("tyrannosaurus_rex", "robot"): 1,
         VELOCIRAPTOR_MONGOLIENSIS: 12,
         TYRANNOSAURUS_REX: 15,
@@ -253,6 +257,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
     expected_physics_revisions = {
+        INTERMEDIATE: 1,
         ModelId("tyrannosaurus_rex", "robot"): 1,
         VELOCIRAPTOR_MONGOLIENSIS: 4,
         TYRANNOSAURUS_REX: 9,
@@ -260,6 +265,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     expected_visual_revisions = {
+        INTERMEDIATE: 1,
         ModelId("tyrannosaurus_rex", "robot"): 1,
         VELOCIRAPTOR_MONGOLIENSIS: 4,
         TYRANNOSAURUS_REX: 4,
@@ -510,6 +516,13 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     for model_id, entry in models.items():
+        if model_id == INTERMEDIATE:
+            stages = entry["stages"]
+            assert [s["id"] for s in stages] == ["stance", "locomotion"]
+            assert [s["advancement_gate"]["gate_kind"] for s in stages] == ["reward_and_length/v1"] * 2
+            assert [s["advancement_gate"]["min_avg_episode_length"] for s in stages] == [178, 345]
+            assert stages[1]["advancement_gate"]["min_avg_forward_velocity"] == 0.065
+            continue
         if model_id.species == "compsognathus_longipes" or model_id == ModelId("tyrannosaurus_rex", "robot"):
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
             first, second, third = (

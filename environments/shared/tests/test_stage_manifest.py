@@ -559,6 +559,11 @@ class TestManifestV2Edges:
         # Every committed manifest, the Compsognathus pair included: root-first chains, no unknown label.
         for model_id in MODEL_IDS:
             manifest = load_stage_manifest(model_id)
+            if model_id == ModelId("tyrannosaurus_rex", "intermediate"):
+                assert [stage.id for stage in manifest.chain_for("locomotion")] == ["stance", "locomotion"]
+                with pytest.raises(StageManifestError):
+                    manifest.resolve_behavior("hunt")
+                continue
             assert manifest.resolve_behavior("hunt").id == "behavior", model_id
             assert manifest.resolve_behavior("stance").id == "stance", model_id
             assert manifest.chain_for("behavior")[0].id == "stance", model_id
@@ -679,6 +684,7 @@ class TestRecipeLabels:
     def test_recipe_labels_per_model(self):
         expected = {model_id: ("stance", "walk", "hunt") for model_id in INTEGER_MODELS}
         expected.update({model_id: ("stance", "recover", "walk", "hunt") for model_id in RECOVERY_MODELS})
+        expected[ModelId("tyrannosaurus_rex", "intermediate")] = ("stance", "walk")
         assert set(expected) == set(MODEL_IDS)
         assert {model_id: load_stage_manifest(model_id).recipe_labels for model_id in MODEL_IDS} == expected
         labelled = {
@@ -686,6 +692,9 @@ class TestRecipeLabels:
             for model_id in MODEL_IDS
         }
         for model_id, recipes in labelled.items():
+            if model_id == ModelId("tyrannosaurus_rex", "intermediate"):
+                assert recipes == {"stance": "stance", "locomotion": "walk"}
+                continue
             assert recipes["stance"] == "stance" and recipes["locomotion"] == "walk" and recipes["behavior"] == "hunt"
             assert recipes.get("recovery", "recover") == "recover", model_id
 
@@ -762,12 +771,15 @@ class TestCommittedManifestsAreV2:
         manifest = load_stage_manifest(model_id)
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
         assert all(entry.deliverable for entry in manifest.stages)
-        assert manifest.recipe_labels == (
-            ("stance", "recover", "walk", "hunt") if model_id in RECOVERY_MODELS else ("stance", "walk", "hunt")
-        )
+        labels = ("stance", "recover", "walk", "hunt") if model_id in RECOVERY_MODELS else ("stance", "walk", "hunt")
+        advancing = ["stance", "locomotion", "behavior"]
+        if model_id == ModelId("tyrannosaurus_rex", "intermediate"):
+            labels = ("stance", "walk")
+            advancing = ["stance", "locomotion"]
+        assert manifest.recipe_labels == labels
         for entry in manifest.stages:
             assert (model_id.path(_CONFIGS_DIR) / entry.config_file).is_file()
-        assert [entry.id for entry in manifest.advancing_stages] == ["stance", "locomotion", "behavior"]
+        assert [entry.id for entry in manifest.advancing_stages] == advancing
 
     def test_tyrannosaurus_rex_declares_edges_deliverables_and_labels(self):
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
@@ -794,6 +806,7 @@ class TestCommittedManifestsAreV2:
         from environments.shared.stage_manifest import stage_dirname
 
         pre_phase_a = {
+            ModelId("tyrannosaurus_rex", "intermediate"): ["01_stance", "02_locomotion"],
             # M1 joins the same directory convention from its initial registration.
             TYRANNOSAURUS_REX_ROBOT: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
             TYRANNOSAURUS_REX: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],

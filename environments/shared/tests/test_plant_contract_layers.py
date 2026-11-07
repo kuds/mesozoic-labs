@@ -453,6 +453,11 @@ def test_mjx_probe_rejects_a_registration_with_both_root_bodies(monkeypatch):
 #: class (the soft-cubic residual, D-D26; the heading-free observation, D-D31); the robot inherits all three.
 #: Values are double-entered on purpose: a qualname move is a policy revision.
 SB3_INTERFACE_QUALNAMES: dict[ModelId, dict[str, str]] = {
+    ModelId("tyrannosaurus_rex", "intermediate"): {
+        "sb3_observation": "TyrannosaurusRexIntermediateEnv._get_obs",
+        "sb3_action_mapping": "TyrannosaurusRexIntermediateEnv._scale_action",
+        "sb3_sensor_cache": "TyrannosaurusRexIntermediateEnv._cache_ids",
+    },
     ModelId("tyrannosaurus_rex", "robot"): {
         "sb3_observation": "TyrannosaurusRexEnv._get_obs",
         "sb3_action_mapping": "TyrannosaurusRexEnv._scale_action",
@@ -507,6 +512,9 @@ def test_the_hashed_interface_methods_sit_where_note_19_put_them(model_id):
         implementations = _policy_interface_payload(env.model, env, version)["interface_implementations"]
         recorded = {key: value["qualname"] for key, value in implementations.items() if key.startswith("sb3_")}
         assert recorded == SB3_INTERFACE_QUALNAMES[model_id]
+        if model_id == ModelId("tyrannosaurus_rex", "intermediate"):
+            assert implementations["runtime"]["reset"]["qualname"] == "TyrannosaurusRexIntermediateEnv.reset"
+            return
         assert implementations["home_reset"]["sb3"]["qualname"] == "BaseDinoEnv.reset"
         if model_id.species != "compsognathus_longipes" and model_id != ModelId("tyrannosaurus_rex", "robot"):
             assert {name.split(".")[0] for name in recorded.values()} == {f"{model_id.species_pascal}Env"}

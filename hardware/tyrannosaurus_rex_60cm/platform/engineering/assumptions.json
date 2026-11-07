@@ -38,6 +38,19 @@
     ["integration",1,1350,2200,3200,"subcontract fit-up, harness termination and limited rework allowance",null],
     ["contingency",1,600,1050,1600,"freight, taxes and supplier or fabrication iteration reserve",null]
   ],
+  "installed_box_checks": [
+    {"geom":"battery_pack","minimum_mm":[143,44,45],"parent":"battery_reserve","source":"pack"},
+    {"geom":"jetson_kit","minimum_mm":[103,90.5,34.77],"parent":"compute_reserve","source":"jetson"},
+    {"geom":"teensy_41","minimum_mm":[60.96,18.38,15],"parent":"control_reserve","source":"teensy","note":"PCB maximum width, populated height estimated"},
+    {"geom":"oak_d_lite","minimum_mm":[17.5,91,28],"parent":"rgbd_reserve","source":"camera"},
+    {"geom":"tof_left_carrier","minimum_mm":[2,18,13],"parent":"tof_left_reserve","source":"tof"},
+    {"geom":"tof_right_carrier","minimum_mm":[2,18,13],"parent":"tof_right_reserve","source":"tof"},
+    {"geom":"compute_converter","minimum_mm":[25.4,25.4,9.525],"parent":"power_reserve","source":"compute_buck"},
+    {"geom":"logic_converter","minimum_mm":[17.78,12.70,3.556],"parent":"power_reserve","source":"logic_buck"},
+    {"geom":"regulated_12v_ttl_case","minimum_mm":[43.18,31.75,9.017],"parent":"regulated_12v_ttl_reserve","source":"servo_buck"},
+    {"geom":"neck_motor_case","minimum_mm":[46.5,34,28.5],"parent":null,"source":"xm"},
+    {"geom":"tail_motor_case","minimum_mm":[46.5,28.5,34],"parent":null,"source":"xm"}
+  ],
   "motor_screen": {
     "RMD": {"mass_kg":0.36,"diameter_mm":55,"length_mm":61,"rated_nm":10.5,"peak_nm":30,"rated_rpm":83,"no_load_rpm":111,"tested_voltage_v":24,"unit_usd":377},
     "AK45_10": {"mass_kg":0.262,"diameter_mm":53,"length_mm":45.2,"rated_nm":2.5,"peak_nm":7,"rated_rpm":120,"no_load_rpm":180,"tested_voltage_v":24},

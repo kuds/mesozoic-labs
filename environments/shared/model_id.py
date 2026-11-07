@@ -2,7 +2,8 @@
 
 A species is named by its binomial in snake_case (``tyrannosaurus_rex``), and
 an embodiment is one word of :data:`EMBODIMENTS`: ``anatomical`` for the
-anatomical model, ``robot`` for a robot of the species.  Neither is
+anatomical model, ``robot`` for the original robotic platform, and
+``intermediate`` for the separately maintained intermediate platform.  Neither is
 normalised and neither has aliases; a model has no default embodiment.
 
 Every machine identifier of a model (its config, log and result directories,
@@ -31,9 +32,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 #: The closed vocabulary of embodiments, in model order within a species.
-EMBODIMENTS = ("anatomical", "robot")
+EMBODIMENTS = ("anatomical", "robot", "intermediate")
 #: Display labels, for model display names such as "Tyrannosaurus Rex (Anatomical)".
-EMBODIMENT_LABELS = {"anatomical": "Anatomical", "robot": "Robot"}
+EMBODIMENT_LABELS = {"anatomical": "Anatomical", "robot": "Robot", "intermediate": "Intermediate"}
 
 # Binomial snake_case: genus, then epithet (and any further lower-case words).
 _SPECIES_ID = re.compile(r"[a-z]+(?:_[a-z]+)+")

@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from environments.shared.behavior_env import supports_behavior_env
 from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.model_id import ModelId
 from environments.shared.species_names import model_entry, model_ids
@@ -16,7 +17,7 @@ from environments.shared.terrain import TerrainConfig, generate_terrain
 from environments.shared.terrain_sampling import TERRAIN_FAMILIES, TerrainSamplerConfig, select_terrain_family
 
 ROOT = Path(__file__).resolve().parents[3]
-MODEL_IDS = model_ids(backend="stable-baselines3")
+MODEL_IDS = tuple(m for m in model_ids(backend="stable-baselines3") if supports_behavior_env(m))
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BEHAVIORS = (
     "difficult_terrain",
@@ -49,7 +50,7 @@ def _terrain(recipe):
 def test_the_sb3_models_are_discovered():
     """Protect the parametrized tests below against an empty, vacuously passing model list (review G7)."""
     assert MODEL_IDS, "the manifest lists no Stable-Baselines3 model"
-    # Coverage equality with the committed recipe directories: one per SB3 model, configs/<species>/<embodiment>/.
+    # Coverage equality with the committed recipe directories: one per shared command API model, configs/<species>/<embodiment>/.
     recipe_dirs = {path.parent.parent for path in (ROOT / "configs").glob("*/*/behaviors/*.toml")}
     assert recipe_dirs == {model_id.path(ROOT / "configs") for model_id in MODEL_IDS}
 
