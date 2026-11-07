@@ -275,4 +275,25 @@ def _physics_payload(model: mujoco.MjModel, version: PlantVersion) -> dict[str, 
                 }
             )
         payload["collision_meshes"] = mesh_payload
+    if version.observation_schema == "robot-inertial-encoder-command/v1":
+        from environments.shared.intermediate_drive import InstalledDrive
+        from environments.shared.robot_floor import FLOORS, apply_surface
+
+        from .digests import _callable_semantics
+
+        payload["installed_drives"] = {
+            name: model.numeric(name).data.copy()
+            for name in (
+                "drive_peak_nm",
+                "drive_continuous_nm",
+                "drive_no_load_rad_s",
+                "drive_deadband_rad",
+                "drive_traction",
+                "drive_timing",
+            )
+        }
+        payload["drive_implementation"] = {
+            name: _callable_semantics(getattr(InstalledDrive, name)) for name in ("__init__", "reset", "step")
+        }
+        payload["surface_models"] = {"values": FLOORS, "apply": _callable_semantics(apply_surface)}
     return payload

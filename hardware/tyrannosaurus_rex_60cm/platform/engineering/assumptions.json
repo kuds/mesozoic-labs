@@ -1,0 +1,74 @@
+{
+  "as_of": "2026-11-06",
+  "supplier_urls": {
+    "rmd": "https://myactuator.us/products/rmd-x-series/rmd-x4-p36-36-e-l",
+    "rmd_drawing": "https://www.myactuator.com/x4-36-l-details",
+    "cube": "https://www.cubemars.com/product/ak45-10-v3-0-kv75-robotic-actuator.html",
+    "cube36": "https://store.cubemars.com/products/ak45-36-v3-0-kv80",
+    "xm": "https://emanual.robotis.com/docs/en/dxl/x/xm430-w210/",
+    "xm_price": "https://robotis.us/products/dynamixel-xm430-w210-t",
+    "jetson": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/nano-super-developer-kit/",
+    "jetson_carrier": "https://developer.nvidia.com/downloads/assets/embedded/secure/jetson/orin_nano/docs/jetson_orin_nano_devkit_carrier_board_specification_sp.pdf",
+    "pack": "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/",
+    "camera": "https://checkout.luxonis.com/products/oak-d-lite-1",
+    "tof": "https://www.pololu.com/product/3415",
+    "teensy": "https://www.pjrc.com/store/teensy41.html",
+    "compute_buck": "https://www.pololu.com/product/4095/specs",
+    "servo_buck": "https://www.pololu.com/product/5677/specs",
+    "logic_buck": "https://www.pololu.com/product/2831/specs",
+    "tether_supply": "https://www.meanwell.com/Upload/PDF/RSP-750/RSP-750-spec.pdf"
+  },
+  "procurement_note": "USD per unit or lot as labeled. Fixed supplier prices are public references, not quotes. Ranged prices include supplier changes or engineering allowances. Integration is a bounded subcontract budget for assembly/bring-up, excluding full commercial product design, research salaries and facilities.",
+  "budget_columns": ["cost_id", "quantity", "low_unit_usd", "target_unit_usd", "high_unit_usd", "basis", "source_id"],
+  "budget": [
+    ["leg_actuator",12,377,377,377,"supplier_reference","rmd"],
+    ["expression_servo",2,310.39,310.39,310.39,"supplier_reference","xm_price"],
+    ["compute",1,300,425,575,"kit, NVMe, cabling and mounts allowance","jetson"],
+    ["rgbd",1,150,180,250,"camera plus cable allowance","camera"],
+    ["tof",2,22.95,22.95,22.95,"supplier_reference","tof"],
+    ["battery",1,75,105,150,"pack, removable tray and connectors allowance","pack"],
+    ["control",1,125,180,270,"MCU, two CAN buses, IMU, TTL bridge and carrier allowance","teensy"],
+    ["foot_sensing",2,50,90,150,"per foot load elements, amplifier and mounting allowance",null],
+    ["power",1,275,420,650,"three regulators, fuses, e-stop/disconnect, anti-spark, bus sensing, energy clamp allowance","servo_buck"],
+    ["harness",1,150,240,350,"robot harnesses, locking connectors, flex sleeve and strain relief allowance",null],
+    ["frame",1,1800,2750,4000,"outsourced cut, bend and mill structural parts, bearings, hubs, soles and fasteners; lot",null],
+    ["covers",1,350,600,1050,"outsourced SLS/MJF skins including inserts, finish and revision allowance",null],
+    ["bench",1,550,850,1300,"bench/tether supply, off-board charger, cradle or catch frame, load/sensor instrumentation allowance","tether_supply"],
+    ["spares",1,950,1250,1750,"two leg spares, pack, bearings and cable spares allowance",null],
+    ["integration",1,1350,2200,3200,"subcontract fit-up, harness termination and limited rework allowance",null],
+    ["contingency",1,600,1050,1600,"freight, taxes and supplier or fabrication iteration reserve",null]
+  ],
+  "installed_box_checks": [
+    {"geom":"battery_pack","minimum_mm":[143,44,45],"parent":"battery_reserve","source":"pack"},
+    {"geom":"jetson_kit","minimum_mm":[103,90.5,34.77],"parent":"compute_reserve","source":"jetson"},
+    {"geom":"teensy_41","minimum_mm":[60.96,18.38,15],"parent":"control_reserve","source":"teensy","note":"PCB maximum width, populated height estimated"},
+    {"geom":"oak_d_lite","minimum_mm":[17.5,91,28],"parent":"rgbd_reserve","source":"camera"},
+    {"geom":"tof_left_carrier","minimum_mm":[2,18,13],"parent":"tof_left_reserve","source":"tof"},
+    {"geom":"tof_right_carrier","minimum_mm":[2,18,13],"parent":"tof_right_reserve","source":"tof"},
+    {"geom":"compute_converter","minimum_mm":[25.4,25.4,9.525],"parent":"power_reserve","source":"compute_buck"},
+    {"geom":"logic_converter","minimum_mm":[17.78,12.70,3.556],"parent":"power_reserve","source":"logic_buck"},
+    {"geom":"regulated_12v_ttl_case","minimum_mm":[43.18,31.75,9.017],"parent":"regulated_12v_ttl_reserve","source":"servo_buck"},
+    {"geom":"neck_motor_case","minimum_mm":[46.5,34,28.5],"parent":null,"source":"xm"},
+    {"geom":"tail_motor_case","minimum_mm":[46.5,28.5,34],"parent":null,"source":"xm"}
+  ],
+  "motor_screen": {
+    "RMD": {"mass_kg":0.36,"diameter_mm":55,"length_mm":61,"rated_nm":10.5,"peak_nm":30,"rated_rpm":83,"no_load_rpm":111,"tested_voltage_v":24,"unit_usd":377},
+    "AK45_10": {"mass_kg":0.262,"diameter_mm":53,"length_mm":45.2,"rated_nm":2.5,"peak_nm":7,"rated_rpm":120,"no_load_rpm":180,"tested_voltage_v":24},
+    "AK45_36": {"mass_kg":0.349,"diameter_mm":55,"length_mm":56.5,"rated_nm":8,"peak_nm":24,"rated_rpm":40,"no_load_rpm":52,"tested_voltage_v":24}
+  },
+  "historical_screen": {"archive_sha256":"812bc13867194a626cb21ce1fbe3b76ea543edc6127b51c1146e213b962799f6","scheme":"2 hip rolls AK45-36, 10 AK45-10","length_mm":780,"crown_mm":600,"hip_mm":330,"mass_kg":5.409,"additional_pelvis_payload_at_80pct_kg":0.558,"battery_electronics_allocation_kg":0.75},
+  "power": {
+    "pack_nominal_v":22.2,"pack_ah":3.3,"usable_fraction":[0.65,0.75,0.85],"assumed_loaded_stop_v":21.0,"pack_full_v":25.2,
+    "motor_torque_constant_nm_per_phase_rms_a":1.8,"phase_resistance_ohm":0.4,
+    "gear_forward_efficiency":0.75,"traction_electrical_efficiency":0.92,"drive_idle_w_per_axis":1.4,"aux_converter_efficiency":0.88,
+    "aux_at_regulated_rails_w":{"jetson_module":25,"carrier_storage_cooling":6,"rgbd_and_proximity":5,"control_buses_foot_electronics":4,"two_expression_drives_mean":6},
+    "joint_order":["hip_yaw","hip_roll","hip_pitch","knee","ankle_pitch","ankle_roll"],
+    "duty_cases":{
+      "quiet":{"joint_rms_nm":[0.9,2.4,2.5,3.0,1.8,1.3],"mean_positive_mechanical_w":[0.4,0.8,1.0,1.5,0.8,0.4]},
+      "design_walk":{"joint_rms_nm":[1.5,4.2,4.1,4.8,3.0,2.6],"mean_positive_mechanical_w":[0.75,2.3,3.0,3.8,2.4,1.3]},
+      "strenuous":{"joint_rms_nm":[2.0,5.5,5.8,6.4,4.2,3.5],"mean_positive_mechanical_w":[1.2,3.5,5.0,6.5,3.9,2.0]}
+    },
+    "tether_v":24,"tether_supply_a":31.3,"assumed_peak_bus_power_w":550,"design_bus_cable_loop_resistance_ohm":0.035,
+    "status":"Duty powers are assumptions, not gait logs. Supplier constants are applicable to a particular 24V actuator revision. Thermal resistance, transient current, output shaft-to-motor power loss, usable energy, cell voltage sag, inward regeneration and cooling have not been measured."
+  }
+}

@@ -111,6 +111,35 @@ Mini T-Rex M1 Skeleton. **Specialty:** Non-contact target reaching with fixed fu
 
 [Full documentation →](../environments/tyrannosaurus_rex/README.md)
 
+<a id="tyrannosaurus_rex-intermediate"></a>
+
+### Tyrannosaurus Rex (Intermediate)
+
+Intermediate indoor walking platform. **Specialty:** Commanded locomotion with powered neck and tail.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 57 |
+| Action dimension / actuators | 14 |
+| Generalized coordinates / velocities | nq=21, nv=20 |
+| Compiled dynamic model mass | 9.9 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/tyrannosaurus_rex/intermediate/assets/tyrannosaurus_rex_intermediate.xml` |
+
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Stance | stance (deliverable) | — | Intermediate platform start, settle and hold | 0.032768M | reward ≥ 80; episode length ≥ 178; avg. velocity ≥ 0 m/s; ≥ 8 episodes/evaluation; 2 consecutive passes |
+| 2 — Locomotion | walk (deliverable) | 1 — Stance | Intermediate platform velocity, yaw and expression commands | 0.262144M | reward ≥ 180; episode length ≥ 345; avg. velocity ≥ 0.065 m/s; ≥ 8 episodes/evaluation; 2 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Velocity tracking while upright:** Fraction of recorded command samples within 0.06 m/s forward and 0.15 rad/s yaw tolerances. Gait quality is judged separately from independent foot-contact measurements.
+
+**Per-deliverable success semantics:**
+- **walk (2 — Locomotion) · Stable-Baselines3 — Walking development gate:** Full-length development episodes, reward and forward speed clear the declared stage thresholds. Confirmation also requires the independent gait evaluation.
+- **stance (1 — Stance) · Stable-Baselines3 — Development stance duration:** Upright holding for the recipe horizon under small reset perturbations, judged by reward and episode duration.
+
+[Full documentation →](../environments/tyrannosaurus_rex/README.md)
+
 <a id="brachiosaurus_altithorax-anatomical"></a>
 
 ### Brachiosaurus Altithorax (Anatomical)

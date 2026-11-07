@@ -20,6 +20,7 @@ from environments.shared.behavior_checkpoint import (  # noqa: E402
     load_behavior_checkpoint,
     prepare_behavior_checkpoint,
 )
+from environments.shared.behavior_env import supports_behavior_env  # noqa: E402
 from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import attach_plant_identity, current_plant_identity  # noqa: E402
 from environments.shared.result_bundle import sha256_file  # noqa: E402
@@ -36,7 +37,7 @@ from environments.shared.train_behaviors import (  # noqa: E402
 
 
 @pytest.fixture(
-    scope="module", params=model_ids(backend="stable-baselines3"), ids=lambda m: f"{m.species}-{m.embodiment}"
+    scope="module", params=tuple(m for m in model_ids(backend="stable-baselines3") if supports_behavior_env(m)), ids=lambda m: f"{m.species}-{m.embodiment}"
 )
 def walker(request, tmp_path_factory):
     """A short optimizer smoke fixture, explicitly not a trained locomotion policy.

@@ -10,4 +10,4 @@ mass/inertia. Qualify single support, walking, turning, perception/control
 latency, cooling, service access and payload variation. Preserve the M1 model
 and policies under their exact revisions; do not relabel their evidence as M2.
 
-No integrated model or accepted M2 hardware exists in this change.
+The [r01 simulation candidate](../platform/README.md) evaluates one powered neck pitch axis and one powered tail yaw axis with fixed arms. M2 physical acceptance still requires the measurements and qualification above.

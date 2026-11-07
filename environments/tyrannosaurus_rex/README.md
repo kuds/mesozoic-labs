@@ -14,16 +14,16 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 
 ## Models
 
-The species has anatomical and robot embodiments, each with its own plant and policies.
+Each embodiment has its own plant and policy interface. The mini and intermediate hardware projects are developed in parallel.
 
-| | Anatomical | Robot |
-|---|---|---|
-| Species / embodiment | `tyrannosaurus_rex` / `anatomical` | `tyrannosaurus_rex` / `robot` |
-| Environment class | `TyrannosaurusRexAnatomicalEnv` | `TyrannosaurusRexRobotEnv` |
-| Gymnasium ID | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | `MesozoicLabs/TyrannosaurusRex-Robot-v0` |
-| MJCF | `anatomical/assets/tyrannosaurus_rex_anatomical.xml` | `robot/assets/tyrannosaurus_rex_robot.xml` |
-| Configs | `configs/tyrannosaurus_rex/anatomical/` | `configs/tyrannosaurus_rex/robot/` |
-| Catalog | [Anatomical](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) | [Robot](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-robot) |
+| | Anatomical | Robot | Intermediate (60 cm) |
+|---|---|---| --- |
+| Species / embodiment | `tyrannosaurus_rex` / `anatomical` | `tyrannosaurus_rex` / `robot` | `tyrannosaurus_rex` / `intermediate` |
+| Environment class | `TyrannosaurusRexAnatomicalEnv` | `TyrannosaurusRexRobotEnv` | `TyrannosaurusRexIntermediateEnv` |
+| Gymnasium ID | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | `MesozoicLabs/TyrannosaurusRex-Robot-v0` | `MesozoicLabs/TyrannosaurusRex-Intermediate-v0` |
+| MJCF | `anatomical/assets/tyrannosaurus_rex_anatomical.xml` | `robot/assets/tyrannosaurus_rex_robot.xml` | `intermediate/assets/tyrannosaurus_rex_intermediate.xml` |
+| Configs | `configs/tyrannosaurus_rex/anatomical/` | `configs/tyrannosaurus_rex/robot/` | `configs/tyrannosaurus_rex/intermediate/` |
+| Catalog | [Anatomical](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) | [Robot](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-robot) | [Intermediate](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-intermediate) |
 
 The **mini M1 skeleton** uses torso A, ten full servo envelopes and forward-folding
 legs, with fixed future head/tail/arm inertia allowances. Its allocated mass is
@@ -32,6 +32,8 @@ are experimental. It has no actuated head or tail. Its final task is a slow,
 upright planar target arrival, not biting. Start with stance; no learned walking
 or hardware validation is claimed. See the [hardware milestone guide](../../hardware/mini_tyrannosaurus_rex/README.md)
 and [M1 build, assumptions and training commands](../../hardware/mini_tyrannosaurus_rex/m01_skeleton/README.md).
+
+The [intermediate platform handoff](../../hardware/tyrannosaurus_rex_60cm/platform/README.md) covers the separate 14-actuator plant, sensor-based walking policy and robot-side follow experiment.
 
 The implementation notes below describe the **anatomical** model.
 

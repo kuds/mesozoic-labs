@@ -9,7 +9,7 @@ import pytest
 from environments.shared.robot_clearance import clearance_distance, separation_lower_bound
 
 
-def test_rotated_boxes_have_certified_clearance_despite_native_false_zero():
+def test_rotated_boxes_have_certified_clearance_despite_native_false_zero(monkeypatch):
     model = mujoco.MjModel.from_xml_string("""
     <mujoco><worldbody>
       <body><freejoint/><geom type="box" size=".13 .08 .024"/></body>
@@ -36,7 +36,9 @@ def test_rotated_boxes_have_certified_clearance_despite_native_false_zero():
         -0.00762241283697646,
     ]
     mujoco.mj_forward(model, data)
-    assert mujoco.mj_geomDistance(model, data, 0, 1, 1, None) == 0
+    # Some MuJoCo builds return the correct positive gap for this fixture.
+    # Inject the historical native result to exercise the fallback on every build.
+    monkeypatch.setattr(mujoco, "mj_geomDistance", lambda *_: 0.0)
     positions, orientations = data.geom_xpos.copy(), data.geom_xmat.copy()
     result = clearance_distance(model, data, 0, 1, required_clearance_m=0.002, search_distance_m=1)
     assert result["distance_method"] == "support_plane_lower_bound"

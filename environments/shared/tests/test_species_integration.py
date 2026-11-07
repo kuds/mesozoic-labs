@@ -20,11 +20,13 @@ from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.model_id import ModelId
 from environments.shared.species_names import model_ids
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.tyrannosaurus_rex.intermediate.env import TyrannosaurusRexIntermediateEnv
 from environments.tyrannosaurus_rex.robot.env import TyrannosaurusRexRobotEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+INTERMEDIATE = ModelId("tyrannosaurus_rex", "intermediate")
 TYRANNOSAURUS_REX_ROBOT = ModelId("tyrannosaurus_rex", "robot")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
@@ -41,6 +43,7 @@ MODEL_ENVS = [
         (VelociraptorMongoliensisAnatomicalEnv, VELOCIRAPTOR_MONGOLIENSIS),
         (TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX),
         (TyrannosaurusRexRobotEnv, TYRANNOSAURUS_REX_ROBOT),
+        (TyrannosaurusRexIntermediateEnv, INTERMEDIATE),
         (BrachiosaurusAltithoraxAnatomicalEnv, BRACHIOSAURUS_ALTITHORAX),
         (DibothrosuchusElaphrosAnatomicalEnv, DIBOTHROSUCHUS_ELAPHROS),
     )
@@ -51,6 +54,7 @@ MODEL_ENVS = [
 # segment to every species: 67/61/83/77 -> 70/64/86/80.  The trex's
 # heading-free observation (plant_versions note 18) then took it to 63.
 SPECIES_DIMS = {
+    INTERMEDIATE: {"obs": 57, "act": 14},
     TYRANNOSAURUS_REX_ROBOT: {"obs": 41, "act": 10},
     VELOCIRAPTOR_MONGOLIENSIS: {"obs": 70, "act": 22},
     TYRANNOSAURUS_REX: {"obs": 63, "act": 15},
@@ -60,6 +64,7 @@ SPECIES_DIMS = {
 
 # Expected reward component keys per species
 SPECIES_REWARD_KEYS = {
+    INTERMEDIATE: ["reward_total", "forward_vel", "command_tracking", "swing_score"],
     TYRANNOSAURUS_REX_ROBOT: [
         "reward_alive",
         "reward_forward",
@@ -138,6 +143,9 @@ SPECIES_REWARD_KEYS = {
 }
 
 
+# These plants expose the shared target-reaching reward and mutable reward coefficients.
+TARGET_REWARD_ENVS = [param for param in MODEL_ENVS if param.values[1] != INTERMEDIATE]
+
 _TABLES = {
     "MODEL_ENVS": {param.values[1] for param in MODEL_ENVS},
     "SPECIES_DIMS": SPECIES_DIMS,
@@ -165,6 +173,7 @@ class TestGymnasiumRegistration:
             "MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0",
             "MesozoicLabs/TyrannosaurusRex-Anatomical-v0",
             "MesozoicLabs/TyrannosaurusRex-Robot-v0",
+            "MesozoicLabs/TyrannosaurusRex-Intermediate-v0",
             "MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0",
             "MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
         ],
@@ -372,7 +381,7 @@ class TestRewardConsistency:
                 env.reset()
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", TARGET_REWARD_ENVS)
     def test_alive_bonus_positive(self, env_class, model_id):
         env = env_class()
         env.reset(seed=42)
@@ -381,7 +390,7 @@ class TestRewardConsistency:
         assert info["reward_alive"] > 0
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", TARGET_REWARD_ENVS)
     def test_energy_penalty_zero_for_zero_action(self, env_class, model_id):
         env = env_class()
         env.reset(seed=42)
@@ -390,7 +399,7 @@ class TestRewardConsistency:
         assert abs(info["reward_energy"]) < 1e-8
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", TARGET_REWARD_ENVS)
     def test_energy_penalty_negative_for_full_action(self, env_class, model_id):
         env = env_class()
         env.reset(seed=42)
@@ -399,7 +408,7 @@ class TestRewardConsistency:
         assert info["reward_energy"] < 0
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", TARGET_REWARD_ENVS)
     def test_approach_reward_zero_on_first_step(self, env_class, model_id):
         """Approach reward should be zero on the first step (no prior distance)."""
         env = env_class()
@@ -412,7 +421,7 @@ class TestRewardConsistency:
             assert info["approach_delta"] == 0.0
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", TARGET_REWARD_ENVS)
     def test_zero_forward_weight_zeroes_forward_reward(self, env_class, model_id):
         env = env_class(forward_vel_weight=0.0)
         env.reset(seed=42)
@@ -478,7 +487,7 @@ class TestEdgeCases:
         assert not np.any(np.isnan(obs))
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", TARGET_REWARD_ENVS)
     def test_set_reward_weight(self, env_class, model_id):
         """set_reward_weight should update an existing attribute."""
         env = env_class()

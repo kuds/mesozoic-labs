@@ -173,10 +173,15 @@ def test_configs_manifest_plants_and_behaviors_hold_the_same_models() -> None:
     plant_pairs = {(species, embodiment) for species, table in plants.items() for embodiment in table}
     stage_pairs = _pairs(CONFIGS.glob("*/*/stages.toml"))
     behavior_pairs = _pairs(path for path in CONFIGS.glob("*/*/behaviors") if path.is_dir())
-    sb3_pairs = {(model_id.species, model_id.embodiment) for model_id in model_ids(backend="stable-baselines3")}
+    from environments.shared.behavior_env import supports_behavior_env
+
+    sb3_pairs = {
+        (model_id.species, model_id.embodiment) for model_id in model_ids(backend="stable-baselines3")
+        if supports_behavior_env(model_id)
+    }
     assert stage_pairs == manifest_pairs, "configs/<species>/<embodiment>/stages.toml"
     assert plant_pairs == manifest_pairs, "configs/plant_versions.toml [plants.<species>.<embodiment>]"
-    assert behavior_pairs == sb3_pairs, "configs/<species>/<embodiment>/behaviors/ (Stable-Baselines3 models)"
+    assert behavior_pairs == sb3_pairs, "configs/<species>/<embodiment>/behaviors/ (shared direction/terrain command API)"
 
 
 def test_directory_names_at_depth_one_and_two_are_the_manifests() -> None:

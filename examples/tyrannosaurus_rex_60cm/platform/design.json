@@ -1,0 +1,21 @@
+{
+  "revision": "intermediate-r01",
+  "candidate": "nominal",
+  "dimensions_in_metres": true,
+  "reference": "hip pitch axis at geometric zero joint pose; soles tangent to ground",
+  "variants": {
+    "compact": {"hip_height":0.332,"hip_yaw_offset":0.039,"knee_advance":0.052,"sole_length":0.144,"sole_width":0.072,"rib_half_width":0.080,"back_rise":0.145,"snout":0.397,"tail_tip":-0.507,"battery_x":-0.159},
+    "nominal": {"hip_height":0.360,"hip_yaw_offset":0.045,"knee_advance":0.056,"sole_length":0.156,"sole_width":0.080,"rib_half_width":0.087,"back_rise":0.160,"snout":0.435,"tail_tip":-0.575,"battery_x":-0.170},
+    "wide": {"hip_height":0.380,"hip_yaw_offset":0.060,"knee_advance":0.068,"sole_length":0.168,"sole_width":0.088,"rib_half_width":0.104,"back_rise":0.172,"snout":0.470,"tail_tip":-0.630,"battery_x":-0.185}
+  },
+  "camera": {"position_m":[0.220,0,0.006],"pitch_down_rad":-0.20943951023931956,"vertical_fov_deg":46.5,"grid_px":[640,400],"device_size_m":[0.0175,0.091,0.028],"reserve_size_m":[0.050,0.115,0.040],"installed_kg":0.103},
+  "tof": {"position_m":[0.205,0.065,-0.100],"pitch_down_deg":22.0,"yaw_out_deg":8.0,"reserve_size_m":[0.030,0.028,0.018],"installed_kg_each":0.018},
+  "drives": {
+    "leg":{"peak_nm":12,"continuous_nm":6,"no_load_rad_s":6.0,"deadband_rad":0.0044},
+    "neck_pitch":{"peak_nm":0.88,"continuous_nm":0.50,"no_load_rad_s":7.0,"deadband_rad":0.0044},
+    "tail_yaw":{"peak_nm":0.88,"continuous_nm":0.50,"no_load_rad_s":7.0,"deadband_rad":0.0044},
+    "hip_roll_limit_nominal_rad":0.36,"ankle_roll_limit_nominal_rad":0.40,
+    "reference_bus_v":22.2,"delay_s":0.008,"effort_window_s":2.0
+  },
+  "basis": "Leg cases and electronic assemblies inherit the M1 drawing-identified parts. Geometry and installed brackets are design assumptions. All drive values are conservatively allocated proxies at a 22.2 V traction bus / regulated 12 V appendage supply pending dyno tests. No-load speed and continuous heat budget are not catalogue curves."
+}

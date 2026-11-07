@@ -25,12 +25,13 @@ Available environment IDs:
 - `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` - Velociraptor Mongoliensis (Anatomical)
 - `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` - Tyrannosaurus Rex (Anatomical)
 - `MesozoicLabs/TyrannosaurusRex-Robot-v0` - Tyrannosaurus Rex (Robot), the mini M1 skeleton
+- `MesozoicLabs/TyrannosaurusRex-Intermediate-v0` - Tyrannosaurus Rex (Intermediate), the 60 cm engineering plant
 - `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` - Brachiosaurus Altithorax (Anatomical)
 - `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` - Dibothrosuchus Elaphros (Anatomical)
 - `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` - Compsognathus Longipes (Anatomical)
 - `MesozoicLabs/CompsognathusLongipes-Robot-v0` - Compsognathus Longipes (Robot), the robot prototype
 
-`import environments` registers all seven at once, from `configs/species_manifest.toml`.
+`import environments` registers all eight at once, from `configs/species_manifest.toml`.
 Each class is `<Species><Embodiment>Env` in `environments.<species>.<embodiment>.env`,
 a subclass of the species base class `<Species>Env` in `environments.<species>.base_env`.
 

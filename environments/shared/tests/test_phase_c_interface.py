@@ -81,6 +81,7 @@ from environments.compsognathus_longipes.anatomical.env import CompsognathusLong
 from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
 from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.base_env import BaseDinoEnv
+from environments.shared.behavior_env import supports_behavior_env
 from environments.shared.command_frame import (
     COMMAND_COMPONENTS,
     COMMAND_ENV_KEYS,
@@ -738,6 +739,7 @@ _COMPSOGNATHUS_LONGIPES_PUSH_KEYS = (
 _STAGES = [
     pytest.param(model_id, entry.id, id=f"{model_id.species}-{model_id.embodiment}-{entry.id}")
     for model_id in model_ids()
+    if supports_behavior_env(model_id)  # only this constructor family had the Phase C command fields
     for entry in load_stage_manifest(model_id).stages
 ]
 

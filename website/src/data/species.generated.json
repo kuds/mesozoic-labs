@@ -1102,6 +1102,153 @@
       "historical_results": []
     },
     {
+      "species": "tyrannosaurus_rex",
+      "embodiment": "intermediate",
+      "species_display_name": "Tyrannosaurus Rex",
+      "display_name": "Tyrannosaurus Rex (Intermediate)",
+      "tagline": "Intermediate indoor walking platform",
+      "gait": "Bipedal",
+      "specialty": "Commanded locomotion with powered neck and tail",
+      "environment": {
+        "entrypoint": "environments.tyrannosaurus_rex.intermediate.env:TyrannosaurusRexIntermediateEnv",
+        "observation_dim": 57,
+        "action_dim": 14
+      },
+      "model": {
+        "path": "environments/tyrannosaurus_rex/intermediate/assets/tyrannosaurus_rex_intermediate.xml",
+        "nq": 21,
+        "nv": 20,
+        "nu": 14,
+        "dynamic_mass_kg": 9.896061,
+        "plant_contract": {
+          "bundle_sha256": "sha256:3e7e2dee5432805be1b6638ca254b4c630fb45852f98051f3491dd3cabdafedb",
+          "source_closure_sha256": "sha256:410e7ea403dbcacdd14463ddd909bdb2317711375e3d7cd1760c2bae59c7ac7c",
+          "policy_interface": {
+            "schema": "mesozoic.policy-interface/v1",
+            "revision": 1,
+            "observation_schema": "robot-inertial-encoder-command/v1",
+            "sha256": "sha256:15222ae0d40a2fc3b660890338c685ccab18c210a78b34618af4175a75ab77a9"
+          },
+          "physics": {
+            "schema": "mesozoic.mujoco-physics/v1",
+            "revision": 1,
+            "sha256": "sha256:797cbcfa6c323a9bf28dc4af976f0f1af696682e8ce2b3c618cf8b5fda6e586b"
+          },
+          "visual": {
+            "schema": "mesozoic.mujoco-visual/v1",
+            "revision": 1,
+            "sha256": "sha256:14d063aed9c02d42e7ba9a1f195b567b1f760ed026559ab0d0b0d0a058024392"
+          }
+        }
+      },
+      "training_notebooks": [
+        "sb3_training"
+      ],
+      "success_metrics": [
+        {
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "command_tracking",
+          "label": "Velocity tracking while upright",
+          "definition": "Fraction of recorded command samples within 0.06 m/s forward and 0.15 rad/s yaw tolerances. Gait quality is judged separately from independent foot-contact measurements."
+        }
+      ],
+      "deliverable_metrics": [
+        {
+          "deliverable": "walk",
+          "stage_id": "locomotion",
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "forward_velocity_gate",
+          "label": "Walking development gate",
+          "definition": "Full-length development episodes, reward and forward speed clear the declared stage thresholds. Confirmation also requires the independent gait evaluation."
+        },
+        {
+          "deliverable": "stance",
+          "stage_id": "stance",
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "upright_duration",
+          "label": "Development stance duration",
+          "definition": "Upright holding for the recipe horizon under small reset perturbations, judged by reward and episode duration."
+        }
+      ],
+      "stages": [
+        {
+          "id": "stance",
+          "position": 1,
+          "number": 1,
+          "label": "1",
+          "name": "stance",
+          "title": "Stance",
+          "description": "Intermediate platform start, settle and hold",
+          "config_path": "configs/tyrannosaurus_rex/intermediate/stance.toml",
+          "timesteps": 32768,
+          "deliverable": true,
+          "warm_start_from": null,
+          "recipe": "stance",
+          "certification_seeds": 1,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 80.0,
+            "min_avg_episode_length": 178,
+            "min_avg_forward_velocity": 0.0,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_success_lcb": null,
+            "min_eval_episodes": 8,
+            "required_consecutive": 2
+          },
+          "video": null
+        },
+        {
+          "id": "locomotion",
+          "position": 2,
+          "number": 2,
+          "label": "2",
+          "name": "locomotion",
+          "title": "Locomotion",
+          "description": "Intermediate platform velocity, yaw and expression commands",
+          "config_path": "configs/tyrannosaurus_rex/intermediate/locomotion.toml",
+          "timesteps": 262144,
+          "deliverable": true,
+          "warm_start_from": "stance",
+          "recipe": "walk",
+          "certification_seeds": 1,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 180.0,
+            "min_avg_episode_length": 345,
+            "min_avg_forward_velocity": 0.065,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_success_lcb": null,
+            "min_eval_episodes": 8,
+            "required_consecutive": 2
+          },
+          "video": null
+        }
+      ],
+      "historical_results": []
+    },
+    {
       "species": "brachiosaurus_altithorax",
       "embodiment": "anatomical",
       "species_display_name": "Brachiosaurus Altithorax",

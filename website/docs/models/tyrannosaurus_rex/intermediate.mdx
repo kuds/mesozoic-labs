@@ -1,0 +1,17 @@
+---
+sidebar_position: 3
+sidebar_label: Intermediate
+---
+
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('tyrannosaurus_rex', 'intermediate');
+
+# Tyrannosaurus Rex (Intermediate)
+
+The intermediate engineering model targets a standing crown height near 60 cm. It carries installed leg motors, a removable battery, onboard compute and sensors. Twelve leg axes and two expression axes use a separate policy interface from the mini T. rex. The current model is an unbuilt simulation candidate.
+
+<SpeciesCatalog species={MODEL} />
+
+The platform handoff in `hardware/tyrannosaurus_rex_60cm/platform/` contains the geometry comparisons, mechanical failures, learned-policy evaluations and rendered person-following experiments for this revision.

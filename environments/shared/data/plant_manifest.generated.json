@@ -282,6 +282,46 @@
           "sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4"
         }
       },
+      "intermediate": {
+        "bundle_sha256": "sha256:660a5da2babb6e7c16c2ba36080e67312a9872e1d8d351789948d6c71bb456f7",
+        "embodiment": "intermediate",
+        "env_entrypoint": "environments.tyrannosaurus_rex.intermediate.env:TyrannosaurusRexIntermediateEnv",
+        "model_path": "environments/tyrannosaurus_rex/intermediate/assets/tyrannosaurus_rex_intermediate.xml",
+        "physics": {
+          "nq": 21,
+          "nu": 14,
+          "nv": 20,
+          "revision": 1,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:797cbcfa6c323a9bf28dc4af976f0f1af696682e8ce2b3c618cf8b5fda6e586b"
+        },
+        "policy_interface": {
+          "action_dim": 14,
+          "observation_dim": 57,
+          "observation_schema": "robot-inertial-encoder-command/v1",
+          "revision": 3,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:06d0a7c100970303364ef8172af6358415cdffa2eb680c57e0bcbc8703fad3f7"
+        },
+        "source": {
+          "closure_sha256": "sha256:410e7ea403dbcacdd14463ddd909bdb2317711375e3d7cd1760c2bae59c7ac7c",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:06019e3c43c48376d7d048f0e9c4b540df0094459247125b9d7c35f7d9ce6f66",
+              "kind": "mjcf",
+              "logical_path": "environments/tyrannosaurus_rex/intermediate/assets/tyrannosaurus_rex_intermediate.xml"
+            }
+          ],
+          "root": "environments/tyrannosaurus_rex/intermediate/assets/tyrannosaurus_rex_intermediate.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "tyrannosaurus_rex",
+        "visual": {
+          "revision": 1,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:14d063aed9c02d42e7ba9a1f195b567b1f760ed026559ab0d0b0d0a058024392"
+        }
+      },
       "robot": {
         "bundle_sha256": "sha256:03911272024c35ef38feb86b0c14c6fd9cab3065410732d3d0c89db21a04b497",
         "embodiment": "robot",

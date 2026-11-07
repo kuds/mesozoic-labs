@@ -126,8 +126,11 @@ def _translate_surface_and_animal(env, height):
 
 def test_the_model_tables_cover_every_model():
     """A new model fails here, naming the table, instead of going untested (review M4)."""
-    assert set(MODEL_IDS) == set(model_ids()), "MODEL_IDS must list every manifest model"
-    assert set(SPEEDS) == set(model_ids()), "SPEEDS must pin every manifest model"
+    dedicated = ModelId("tyrannosaurus_rex", "intermediate")
+    assert set(MODEL_IDS) | {dedicated} == set(model_ids())
+    assert set(SPEEDS) == set(MODEL_IDS), "SPEEDS must pin every shared behavior model"
+    with pytest.raises(ValueError, match="uses its registered stage environment"):
+        get_behavior_env_class(dedicated)
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")

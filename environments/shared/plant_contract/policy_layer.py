@@ -34,6 +34,13 @@ def _action_mapping_contract(
 ) -> tuple[str | dict[str, Any], tuple[str, ...]]:
     """Describe the species' normalized-action mapping and JAX implementation."""
     mode = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
+    if mode == "periodic-joint-residual/v1":
+        return {
+            "mode": mode,
+            "reference": "commanded phase",
+            "origin": "periodic joint reference",
+            "range": model.actuator_ctrlrange,
+        }, ()
     if mode == _ACTION_MAPPING_MIDPOINT:
         return _MIDPOINT_ACTION_MAPPING_DESCRIPTION, ("scale_action_jax",)
     if mode not in _HOME_KEYFRAME_ACTION_MAPPINGS:
@@ -460,7 +467,25 @@ def _policy_interface_payload(
         else ("_array_mod", "build_bipedal_obs")
     )
     heading_free = version.observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
-    if heading_free:
+    robot_inertial = version.observation_schema == "robot-inertial-encoder-command/v1"
+    if robot_inertial:
+        observation_segments = [
+            {"name": name, "width": width}
+            for name, width in (
+                ("encoder_position_rad", model.nu),
+                ("encoder_rate", model.nu),
+                ("estimated_up", 3),
+                ("body_gyro", 3),
+                ("left_right_load", 2),
+                ("phase_sin_cos", 2),
+                ("neck_tail_command", 2),
+                ("previous_action", model.nu),
+                ("body_velocity_command_mps_rps", 3),
+            )
+        ]
+        if sum(s["width"] for s in observation_segments) != np.prod(env.observation_space.shape):
+            raise PlantContractError("Robot sensor packet disagrees with the declared observation segments")
+    elif heading_free:
         observation_segments = _heading_free_observation_segments(model, env, root_label, target_label)
         segment_widths = [_segment_width(segment) for segment in observation_segments]
         observation_width = int(np.prod(env.observation_space.shape))
@@ -507,6 +532,14 @@ def _policy_interface_payload(
         "sb3_observation": _callable_semantics(env._get_obs),
         "sb3_action_mapping": _callable_semantics(env._scale_action),
     }
+    if robot_inertial:
+        interface_implementations["robot_sensor_and_residual_functions"] = _module_function_semantics(
+            "environments.shared.robot_walking", ("update_gravity", "pack_sensors", "reference_angles")
+        )
+        interface_implementations["runtime"] = {
+            method: _callable_semantics(getattr(env, method))
+            for method in ("step", "reset", "set_velocity_command", "set_expression")
+        }
     if heading_free:
         # _get_obs calls these helpers: hashing only its call site would leave
         # the frame arithmetic outside the digest.

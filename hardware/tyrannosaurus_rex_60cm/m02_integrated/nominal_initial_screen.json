@@ -1,0 +1,77 @@
+{
+  "revision": "preliminary nominal model, before roll-range exploration",
+  "method": "Quasistatic flat sole gravity balance with opposite knee at 0.5 rad; both hip rolls and counter-rotating ankles at or below 0.25 rad; see final report for the widened nominal configuration.",
+  "source_sha256": {
+    "examples/tyrannosaurus_rex_60cm/platform/validate_platform.py": "d457f1e16af3f79ef44bfdc26e9854dd13aa19675fbfec8f8c6391f98ad9d25a",
+    "examples/tyrannosaurus_rex_60cm/platform/design.json": "53cb0638c53ee8978ddebfafb2ac6492330c059afab44d3f725380ccc7d58621",
+    "examples/tyrannosaurus_rex_60cm/platform/build.py": "f2402ab361401666d8ac84d4bba651c8e96f38237474260faef88e31aa85ed37",
+    "environments/shared/robot_clearance.py": "b4356d5bee7d54054c3c913cdc082060d84d1ccc36b86a34060a9e803dab980f",
+    "environments/shared/robot_floor.py": "6f255c6b8005d772780419675b24aa7572da8b9f97961540575a5e17ac80bc8f",
+    "environments/shared/intermediate_drive.py": "8d9a426dc2e9afb8210a37d9502e0ef624eb161bc52a38b9ab23f77cf4b4f734",
+    "environments/shared/robot_building.py": "ad68f4f6bba8a37deff67bd42a3e6b1a095cdad63b897deaa11e0f9f81ba6a98",
+    "examples/tyrannosaurus_rex_60cm/components.json": "055870766d5922c2128e00fc757a78a6983c3ef07b16749893544710cf76bfb7",
+    "examples/tyrannosaurus_rex_60cm/model.xml": "fb5e84485ef4d5ce01ab9a118c0fb82319b8005183ac358e7f3a615451968651",
+    "examples/tyrannosaurus_rex_60cm/build.py": "ac09272e9801da6be20d457b1a5a9335beb75c6dd608481af3f6b376a6b6c5c0",
+    "hardware/tyrannosaurus_rex_60cm/m01_skeleton/design.json": "4a0dd655bb92a83ab597e8476b193124fe435618f598b3e133d3c2c855589d63",
+    "examples/tyrannosaurus_rex_60cm/platform/compact/model.xml": "8b968a647cac64aad9184035475adde5daf4c6adfc8ffd114f6225da0f43175d",
+    "examples/tyrannosaurus_rex_60cm/platform/compact/components.json": "208ab54f8bc709dd17e55a67cf62645cdf4a2525efa7d44c82bdb44edac41fba",
+    "examples/tyrannosaurus_rex_60cm/platform/nominal/model.xml": "33c67cbcbe15fa85120b7c7b236084ed3721738e40824544a35bd0eef0c01353",
+    "examples/tyrannosaurus_rex_60cm/platform/nominal/components.json": "d99ef525077152109701554f82dce3af700c8f6a36496e2034b7b1dbba7d651b",
+    "examples/tyrannosaurus_rex_60cm/platform/wide/model.xml": "0fc3f42b13fff47bf5100886f2b716c00324ade6071c7ce4500c77003333cd6d",
+    "examples/tyrannosaurus_rex_60cm/platform/wide/components.json": "86e863a008edc5a4efb7f050f89889774e792c7b8cc3b5829a7f85136c6ebe84"
+  },
+  "static_single_support": [
+    {
+      "stance": "left",
+      "nominal_sole_center_minus_com_y_m": 0.11287974400579089,
+      "commanded_hip_roll_rad": -0.25,
+      "signed_sole_margin_m": -0.01569041800080189,
+      "swing_clearance_m": 0.051115602968453355,
+      "joint_torque_nm": [
+        0.0,
+        9.410292806265968,
+        -2.6920937288684224,
+        -7.109354083763019,
+        -2.4081254594815618,
+        5.406445523832245,
+        0.0,
+        -1.5584585833210163,
+        -0.17603465202341245,
+        1.1736424182306164,
+        0.2747429169296024,
+        0.0,
+        0.23561952301324351,
+        0.0
+      ],
+      "root_residual_force_n": 1.4210854715202004e-14,
+      "root_residual_moment_nm": 6.753223014464259e-16,
+      "geometric_and_peak_torque_feasible": false
+    },
+    {
+      "stance": "right",
+      "nominal_sole_center_minus_com_y_m": -0.11112025599420912,
+      "commanded_hip_roll_rad": 0.25,
+      "signed_sole_margin_m": -0.013930929989220124,
+      "swing_clearance_m": 0.051115602968453355,
+      "joint_torque_nm": [
+        0.0,
+        1.5584585833210163,
+        -0.17603465202341245,
+        1.1736424182306164,
+        0.2747429169296024,
+        0.0,
+        0.0,
+        -9.239481086297989,
+        -2.6920937288684224,
+        -7.109354083763019,
+        -2.4081254594815618,
+        -5.235633803864265,
+        0.23561952301324351,
+        0.0
+      ],
+      "root_residual_force_n": 1.4210854715202004e-14,
+      "root_residual_moment_nm": 6.753223014464259e-16,
+      "geometric_and_peak_torque_feasible": false
+    }
+  ]
+}
