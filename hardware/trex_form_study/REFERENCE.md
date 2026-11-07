@@ -32,6 +32,21 @@ Each value below is classed as one of:
 | Foot spacing (track gauge) | 0.31–0.41 H (narrow to broad variants) | Left-right track centroid spacing ≈ 0.07 H (0.046–0.09); pace angulation 164–171° | F2026; MC2014 | **Adaptation, with a large gap.** The animal walked nearly single-file. Robot feet are limited by hip hardware width and swing clearance (`SCREENING.md`) |
 | Walking gait | Reference walk Fr 0.012, stride 0.55 H, ~2 steps/s at 60 cm | Preferred walk Fr ≈ 0.05 (0.02–0.13), relative stride 1.0–1.5 H | VB2021; F2026; MC2014 | Adaptation for round-one sizing. The behavior spec proposes moving toward Fr 0.02–0.05 with longer strides |
 
+## Independent replicate
+
+A second, independent research pass (`anatomy_2026-11-07_replicate.json`: 34 references, 45 ratios) agrees on every calibrated value:
+* skull/hip height 0.47 (0.40–0.57);
+* rear skull width/length 0.63;
+* tibia/femur 0.91 and MT III/femur 0.536;
+* gleno-acetabular distance/body length 0.212;
+* tail/body length 0.55.
+
+It adds four points:
+* **Chest.** Fleshed chest width/hip height is 0.43 (0.39–0.57) and chest width/height is 0.92 (0.72–0.98). The animal was barrel-chested; our S chest is deeper than it is wide (≈ 0.75), and T sits just below the low end of the width range by design.
+* **Head position.** The snout tip lies 1.13–1.5 skull lengths ahead of the glenoid. Ours is ≈ 1.7, so the robot's head is carried further forward than in mounts. A shorter or steeper neck is a round-two option, and it would also lower hip-pitch load.
+* **Glenoid height.** The glenoid sits ≈ 0.16 H below the acetabulum (see the torso-inclination definition).
+* **Walking gait.** Walking Froude 0.05–0.25 and relative stride 1.2–1.5 H.
+
 ## What this means for the design
 
 The robot's proportions follow the animal where hardware allows: skull, trunk length, leg ratios,
