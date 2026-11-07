@@ -1,0 +1,55 @@
+{
+ "plate": "candidate_plate",
+ "png": "round1/review/plates/100-M-S-10-bighead_four_views.png",
+ "mujoco": "3.10.0",
+ "title": "100-M-S-10-bighead",
+ "subtitle": "Substantial, anatomically balanced \u00b7 balanced width \u00b7 10\u00b0 chest-up \u00b7 100 cm height class \u00b7 large skull",
+ "scale_px_per_m": 422.3956124967704,
+ "measurements": {
+  "id": "100-M-S-10-bighead",
+  "xml": "round1/review/mjcf/100-M-S-10-bighead.xml",
+  "xml_sha256": "e1e0201880ff2516c949ae70898f867c4a91766b385c5c6d82defa30cece502c",
+  "mass_kg": 33.424014,
+  "crown_m": 1.0011218130887412,
+  "hip_pitch_axis_m": 0.6508788787382309,
+  "length_m": 2.479310790682058,
+  "max_width_m": 0.37015021182480523,
+  "torso_width_m": 0.2897799906986842,
+  "thigh_width_m": 0.36486971985965083,
+  "thigh_width_source": "thigh fairings",
+  "foot_centre_spacing_m": 0.21341160790681998,
+  "torso_inclination_deg": 10.0,
+  "torso_inclination_source": "ledger metrics",
+  "ledger_checks": {
+   "crown_m": {
+    "model": 1.0011218130887412,
+    "ledger": 1.0011214949437957,
+    "ok": true
+   },
+   "hip_height_m": {
+    "model": 0.6508788787382309,
+    "ledger": 0.6530987194511495,
+    "ok": true,
+    "model_zero_roll": 0.6530990049821954,
+    "stance_hip_roll_deg": 1.07406095317429,
+    "explained": "ledger H is the design hip height; the stance solve rolls the hips"
+   },
+   "mass_kg": {
+    "model": 33.424014,
+    "ledger": 33.42402363569414,
+    "ok": true
+   },
+   "foot_centre_spacing_m": {
+    "model": 0.21341160790681998,
+    "ledger": 0.21341155390024139,
+    "ok": true
+   },
+   "xml_sha256": {
+    "model": "e1e0201880ff2516c949ae70898f867c4a91766b385c5c6d82defa30cece502c",
+    "ledger": "e1e0201880ff2516c949ae70898f867c4a91766b385c5c6d82defa30cece502c",
+    "ok": true
+   }
+  }
+ },
+ "notes": "side/front/top orthographic at scale_px_per_m; three-quarter perspective, not to scale"
+}

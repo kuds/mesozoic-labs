@@ -70,7 +70,6 @@ def sizes(x) -> str:
     r60, r75, r100, r120 = (x.c(REF[h]) for h in HEIGHTS)
     hp = {h: x.c(REF[h])["margins"]["hip_pitch"]["hold"] for h in HEIGHTS}
     buses = {h: x.c(REF[h])["bus"] for h in HEIGHTS}
-    same_bus = [h for h in HEIGHTS if buses[h] == 24.0]
     return f"""
 <section id="sizes">
   <p class="kicker">1 · Size</p><h2>Four height classes at one physical scale</h2>

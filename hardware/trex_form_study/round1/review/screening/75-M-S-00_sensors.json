@@ -1,0 +1,3035 @@
+{
+ "model": {
+  "xml": "round1/review/mjcf/75-M-S-00.xml",
+  "hip_height_m": 0.4963,
+  "toe_tip_x_m": 0.1593,
+  "centre_y_m": 0.0,
+  "feet_half_width_m": 0.1403,
+  "neck_range_rad": [
+   -0.35,
+   0.35
+  ]
+ },
+ "fov": {
+  "camera": {
+   "kind": "camera",
+   "hfov_deg": 73.0,
+   "vfov_deg": 58.0,
+   "dfov_deg": 86.0,
+   "range_m": [
+    0.4,
+    8.0
+   ],
+   "part": "luxonis_oak_d_lite",
+   "parts_json_fov": "Stereo OV7251 (global shutter): HFOV 73 x VFOV 58 (DFOV 86). RGB IMX214 13 MP: HFOV 69 x VFOV 54 (DFOV 81). Ideal depth range ~0.8-12 m. Baseline 75 mm.",
+   "projection": "rectilinear",
+   "ideal_range_m": [
+    0.8,
+    12.0
+   ]
+  },
+  "tof": {
+   "kind": "tof",
+   "hfov_deg": 45.0,
+   "vfov_deg": 45.0,
+   "dfov_deg": 65.0,
+   "zones": [
+    8,
+    8
+   ],
+   "range_m": [
+    0.02,
+    4.0
+   ],
+   "part": "st_vl53l5cx_carrier",
+   "parts_json_fov": "65 deg diagonal (45 x 45 deg); 4x4 or 8x8 zones; 20 mm to 4 m",
+   "projection": "equidistant"
+  },
+  "lidar": null
+ },
+ "camera": {
+  "part": "luxonis_oak_d_lite",
+  "projection": "rectilinear",
+  "hfov_deg": 73.0,
+  "vfov_deg": 58.0,
+  "range_m": [
+   0.4,
+   8.0
+  ],
+  "ideal_range_m": [
+   0.8,
+   12.0
+  ],
+  "site_pos_m": [
+   0.6604,
+   0.0,
+   0.6432
+  ],
+  "height_m": 0.6432,
+  "optical_axis": [
+   0.9962,
+   0.0,
+   0.0872
+  ],
+  "pitch_deg": 5.0,
+  "poses": {
+   "home": {
+    "blocked": 0.0315,
+    "by_group": {
+     "head": 0.0315,
+     "arms": 0.0,
+     "legs": 0.0,
+     "trunk_covers": 0.0,
+     "trunk_hw": 0.0,
+     "tail": 0.0
+    },
+    "top_geoms": {
+     "cover_skull": 0.0315
+    },
+    "floor": 0.3879,
+    "sky": 0.5806,
+    "robot_beyond_range": 0.0,
+    "window_rays": 0.9646,
+    "other_sensor_box_rays": 0,
+    "neck_pitch_rad": 0.0,
+    "centre_column": {
+     "fov_edge_floor_ahead_of_toes_m": 1.9456,
+     "visible": {
+      "ahead_of_toes_m": 2.0179,
+      "horizontal_from_camera_m": 1.5168,
+      "slant_m": 1.6475,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "depth_valid": {
+      "ahead_of_toes_m": 2.0179,
+      "horizontal_from_camera_m": 1.5168,
+      "slant_m": 1.6475,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "depth_valid_ideal": {
+      "ahead_of_toes_m": 2.0179,
+      "horizontal_from_camera_m": 1.5168,
+      "slant_m": 1.6475,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "visible_intervals_ahead_of_toes_m": [
+      [
+       2.0179,
+       3.0162
+      ],
+      [
+       3.8156,
+       99.0
+      ]
+     ]
+    },
+    "floor_rect": {
+     "area_m2": 2.4,
+     "not_visible_m2": 2.3613,
+     "no_valid_depth_m2": 2.3613,
+     "visible_fraction": 0.0161,
+     "depth_valid_fraction": 0.0161,
+     "outside_fov_m2": 2.34,
+     "occluded_m2": {
+      "head": 0.0213
+     },
+     "too_close_m2": 0.0,
+     "unresolved_cells": 0,
+     "no_valid_depth_ideal_m2": 2.3613
+    },
+    "person": {
+     "segments": [
+      {
+       "distance_m": 1.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.6,
+       "in_fov_fraction": 0.6,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.2
+       ],
+       "xy": [
+        1.5264,
+        -0.5
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.7
+       ],
+       "xy": [
+        2.3924,
+        -1.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.7
+       ],
+       "xy": [
+        3.2584,
+        -1.5
+       ]
+      },
+      {
+       "distance_m": 1.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.68,
+       "in_fov_fraction": 0.68,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.3
+       ],
+       "xy": [
+        1.6604,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 1.0,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.7
+       ],
+       "xy": [
+        2.6604,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 1.0,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.7
+       ],
+       "xy": [
+        3.6604,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 1.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.6,
+       "in_fov_fraction": 0.6,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.2
+       ],
+       "xy": [
+        1.5264,
+        0.5
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.7
+       ],
+       "xy": [
+        2.3924,
+        1.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.7
+       ],
+       "xy": [
+        3.2584,
+        1.5
+       ]
+      }
+     ],
+     "torso": [
+      {
+       "distance_m": 1.5,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 1.5,
+       "bearing_deg": 0.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": 0.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 1.5,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      }
+     ],
+     "torso_follow": {
+      "min_fraction_ahead": 1.0,
+      "ok": true,
+      "min_fraction_30deg": 1.0,
+      "ok_30deg": true,
+      "threshold": 0.75
+     }
+    }
+   },
+   "neck_min": {
+    "blocked": 0.0315,
+    "by_group": {
+     "head": 0.0315,
+     "arms": 0.0,
+     "legs": 0.0,
+     "trunk_covers": 0.0,
+     "trunk_hw": 0.0,
+     "tail": 0.0
+    },
+    "top_geoms": {
+     "cover_skull": 0.0315
+    },
+    "floor": 0.7105,
+    "sky": 0.2581,
+    "robot_beyond_range": 0.0,
+    "window_rays": 0.9646,
+    "other_sensor_box_rays": 0,
+    "neck_pitch_rad": -0.35,
+    "centre_column": {
+     "fov_edge_floor_ahead_of_toes_m": 1.11,
+     "visible": {
+      "ahead_of_toes_m": 1.1313,
+      "horizontal_from_camera_m": 0.6083,
+      "slant_m": 0.8322,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "depth_valid": {
+      "ahead_of_toes_m": 1.1313,
+      "horizontal_from_camera_m": 0.6083,
+      "slant_m": 0.8322,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "depth_valid_ideal": {
+      "ahead_of_toes_m": 1.1313,
+      "horizontal_from_camera_m": 0.6083,
+      "slant_m": 0.8322,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "visible_intervals_ahead_of_toes_m": [
+      [
+       1.1313,
+       1.3525
+      ],
+      [
+       1.4668,
+       99.0
+      ]
+     ]
+    },
+    "floor_rect": {
+     "area_m2": 2.4,
+     "not_visible_m2": 1.385,
+     "no_valid_depth_m2": 1.385,
+     "visible_fraction": 0.4229,
+     "depth_valid_fraction": 0.4229,
+     "outside_fov_m2": 1.3288,
+     "occluded_m2": {
+      "head": 0.0563
+     },
+     "too_close_m2": 0.0,
+     "unresolved_cells": 0,
+     "no_valid_depth_ideal_m2": 1.385
+    },
+    "person": {
+     "segments": [
+      {
+       "distance_m": 1.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.24,
+       "in_fov_fraction": 0.24,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        0.75
+       ],
+       "xy": [
+        1.5484,
+        -0.5
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.4,
+       "in_fov_fraction": 0.4,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        0.95
+       ],
+       "xy": [
+        2.4144,
+        -1.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.6,
+       "in_fov_fraction": 0.6,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.2
+       ],
+       "xy": [
+        3.2804,
+        -1.5
+       ]
+      },
+      {
+       "distance_m": 1.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.28,
+       "in_fov_fraction": 0.28,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        0.8
+       ],
+       "xy": [
+        1.6823,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.48,
+       "in_fov_fraction": 0.48,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.05
+       ],
+       "xy": [
+        2.6823,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.68,
+       "in_fov_fraction": 0.68,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.3
+       ],
+       "xy": [
+        3.6823,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 1.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.24,
+       "in_fov_fraction": 0.24,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        0.75
+       ],
+       "xy": [
+        1.5484,
+        0.5
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.4,
+       "in_fov_fraction": 0.4,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        0.95
+       ],
+       "xy": [
+        2.4144,
+        1.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.6,
+       "in_fov_fraction": 0.6,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.5,
+        1.2
+       ],
+       "xy": [
+        3.2804,
+        1.5
+       ]
+      }
+     ],
+     "torso": [
+      {
+       "distance_m": 1.5,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.1538
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.3846
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.5385
+      },
+      {
+       "distance_m": 1.5,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.0769
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.3077
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.4615
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.6923
+      },
+      {
+       "distance_m": 1.5,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.1538
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.3846
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.5385
+      }
+     ],
+     "torso_follow": {
+      "min_fraction_ahead": 0.0769,
+      "ok": false,
+      "min_fraction_30deg": 0.0,
+      "ok_30deg": false,
+      "threshold": 0.75
+     }
+    }
+   },
+   "neck_max": {
+    "blocked": 0.0315,
+    "by_group": {
+     "head": 0.0315,
+     "arms": 0.0,
+     "legs": 0.0,
+     "trunk_covers": 0.0,
+     "trunk_hw": 0.0,
+     "tail": 0.0
+    },
+    "top_geoms": {
+     "cover_skull": 0.0315
+    },
+    "floor": 0.0527,
+    "sky": 0.9158,
+    "robot_beyond_range": 0.0,
+    "window_rays": 0.9646,
+    "other_sensor_box_rays": 0,
+    "neck_pitch_rad": 0.35,
+    "centre_column": {
+     "fov_edge_floor_ahead_of_toes_m": 10.6934,
+     "visible": {
+      "ahead_of_toes_m": 14.2823,
+      "horizontal_from_camera_m": 13.8276,
+      "slant_m": 13.8456,
+      "image_b": -0.9583,
+      "limited_by": "occlusion:head"
+     },
+     "depth_valid": null,
+     "depth_valid_ideal": null,
+     "visible_intervals_ahead_of_toes_m": [
+      [
+       14.2823,
+       99.0
+      ]
+     ]
+    },
+    "floor_rect": {
+     "area_m2": 2.4,
+     "not_visible_m2": 2.4,
+     "no_valid_depth_m2": 2.4,
+     "visible_fraction": 0.0,
+     "depth_valid_fraction": 0.0,
+     "outside_fov_m2": 2.4,
+     "occluded_m2": {},
+     "too_close_m2": 0.0,
+     "unresolved_cells": 0,
+     "no_valid_depth_ideal_m2": 2.4
+    },
+    "person": {
+     "segments": [
+      {
+       "distance_m": 1.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.88,
+       "in_fov_fraction": 0.88,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.65,
+        1.7
+       ],
+       "xy": [
+        1.4799,
+        -0.5
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.92,
+       "in_fov_fraction": 0.92,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.6,
+        1.7
+       ],
+       "xy": [
+        2.346,
+        -1.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 0.96,
+       "in_fov_fraction": 0.96,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.55,
+        1.7
+       ],
+       "xy": [
+        3.212,
+        -1.5
+       ]
+      },
+      {
+       "distance_m": 1.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.8,
+       "in_fov_fraction": 0.88,
+       "occluded_fraction": 0.08,
+       "occluded_by": {
+        "head": 0.08
+       },
+       "visible_z_m": [
+        0.7,
+        1.7
+       ],
+       "xy": [
+        1.6139,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.84,
+       "in_fov_fraction": 0.92,
+       "occluded_fraction": 0.08,
+       "occluded_by": {
+        "head": 0.08
+       },
+       "visible_z_m": [
+        0.6,
+        1.7
+       ],
+       "xy": [
+        2.6139,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.84,
+       "in_fov_fraction": 1.0,
+       "occluded_fraction": 0.16,
+       "occluded_by": {
+        "head": 0.16
+       },
+       "visible_z_m": [
+        0.55,
+        1.7
+       ],
+       "xy": [
+        3.6139,
+        0.0
+       ]
+      },
+      {
+       "distance_m": 1.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.88,
+       "in_fov_fraction": 0.88,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.65,
+        1.7
+       ],
+       "xy": [
+        1.4799,
+        0.5
+       ]
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.92,
+       "in_fov_fraction": 0.92,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.6,
+        1.7
+       ],
+       "xy": [
+        2.346,
+        1.0
+       ]
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 0.96,
+       "in_fov_fraction": 0.96,
+       "occluded_fraction": 0.0,
+       "occluded_by": {},
+       "visible_z_m": [
+        0.55,
+        1.7
+       ],
+       "xy": [
+        3.212,
+        1.5
+       ]
+      }
+     ],
+     "torso": [
+      {
+       "distance_m": 1.5,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": -30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 1.5,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.9231
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.8462
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.7692
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 0.0,
+       "visible_fraction": 0.7692
+      },
+      {
+       "distance_m": 1.5,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 2.5,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      },
+      {
+       "distance_m": 3.0,
+       "bearing_deg": 30.0,
+       "visible_fraction": 1.0
+      }
+     ],
+     "torso_follow": {
+      "min_fraction_ahead": 0.7692,
+      "ok": true,
+      "min_fraction_30deg": 1.0,
+      "ok_30deg": true,
+      "threshold": 0.75
+     }
+    }
+   }
+  },
+  "gait": {
+   "worst": 0.0315,
+   "worst_frame": 0,
+   "mean": 0.0315,
+   "best": 0.0315,
+   "worst_by_group": {
+    "head": 0.0315,
+    "arms": 0.0,
+    "legs": 0.0,
+    "trunk_covers": 0.0,
+    "trunk_hw": 0.0,
+    "tail": 0.0
+   },
+   "per_frame": [
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315
+   ],
+   "worst_support": [
+    "right"
+   ]
+  },
+  "window": {
+   "depth_limit_m": 0.1737,
+   "enclosure": 0.9775,
+   "enclosed": true,
+   "first_hit_shares": {
+    "cover_skull": 0.9646
+   },
+   "mounting_panels": [
+    "cover_skull"
+   ],
+   "panels": {
+    "cover_skull": {
+     "body": "head",
+     "share_home": 0.9646,
+     "moves_with": null,
+     "poses": [
+      "home",
+      "neck_max",
+      "neck_min"
+     ],
+     "gait_frames": 80,
+     "extent_panel_frame_mm": [
+      135.1099,
+      54.2518,
+      68.1032
+     ],
+     "home_extent_sensor_frame_mm": {
+      "width_y": 54.2518,
+      "height_z": 77.719,
+      "depth_x": [
+       18.0326,
+       147.2825
+      ],
+      "distance_mm": [
+       21.4504,
+       161.6763
+      ]
+     }
+    }
+   }
+  },
+  "mount_check": {
+   "home": {
+    "cover_skull": {
+     "direction_fraction": 0.0225,
+     "max_depth_mm": 8.5125
+    }
+   },
+   "neck_min": {
+    "cover_skull": {
+     "direction_fraction": 0.015,
+     "max_depth_mm": 8.7399
+    }
+   },
+   "neck_max": {
+    "cover_skull": {
+     "direction_fraction": 0.02,
+     "max_depth_mm": 11.2314
+    }
+   }
+  }
+ },
+ "tof": {
+  "tof_l": {
+   "summary": {
+    "zones_floor_valid": 64,
+    "zones_floor_beyond_range": 0,
+    "zones_self": {},
+    "zones_none": 0,
+    "floor_ahead_of_toes_m": [
+     0.2284,
+     0.9336
+    ],
+    "floor_range_m": [
+     0.3998,
+     0.9217
+    ],
+    "window_rays": 1.0,
+    "other_sensor_box_rays": 0,
+    "site_pos_m": [
+     0.2554,
+     0.0149,
+     0.361
+    ],
+    "axis": [
+     0.6917,
+     0.147,
+     -0.7071
+    ],
+    "axis_depression_deg": 45.0
+   },
+   "zones": [
+    {
+     "row": 0,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.9217,
+     "valid": true,
+     "floor_xy": [
+      0.9664,
+      0.4772
+     ],
+     "ahead_of_toes_m": 0.8071
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.8823,
+     "valid": true,
+     "floor_xy": [
+      0.9719,
+      0.3821
+     ],
+     "ahead_of_toes_m": 0.8127
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.8577,
+     "valid": true,
+     "floor_xy": [
+      0.9812,
+      0.2954
+     ],
+     "ahead_of_toes_m": 0.8219
+    },
+    {
+     "row": 0,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.8459,
+     "valid": true,
+     "floor_xy": [
+      0.9942,
+      0.2136
+     ],
+     "ahead_of_toes_m": 0.8349
+    },
+    {
+     "row": 0,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.8459,
+     "valid": true,
+     "floor_xy": [
+      1.0111,
+      0.134
+     ],
+     "ahead_of_toes_m": 0.8518
+    },
+    {
+     "row": 0,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.8577,
+     "valid": true,
+     "floor_xy": [
+      1.0325,
+      0.054
+     ],
+     "ahead_of_toes_m": 0.8732
+    },
+    {
+     "row": 0,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.8823,
+     "valid": true,
+     "floor_xy": [
+      1.0593,
+      -0.0291
+     ],
+     "ahead_of_toes_m": 0.9001
+    },
+    {
+     "row": 0,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.9217,
+     "valid": true,
+     "floor_xy": [
+      1.0929,
+      -0.1182
+     ],
+     "ahead_of_toes_m": 0.9336
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.7576,
+     "valid": true,
+     "floor_xy": [
+      0.8057,
+      0.3902
+     ],
+     "ahead_of_toes_m": 0.6464
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.7296,
+     "valid": true,
+     "floor_xy": [
+      0.8149,
+      0.3133
+     ],
+     "ahead_of_toes_m": 0.6556
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.7119,
+     "valid": true,
+     "floor_xy": [
+      0.8255,
+      0.2418
+     ],
+     "ahead_of_toes_m": 0.6662
+    },
+    {
+     "row": 1,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.7033,
+     "valid": true,
+     "floor_xy": [
+      0.8378,
+      0.1736
+     ],
+     "ahead_of_toes_m": 0.6785
+    },
+    {
+     "row": 1,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.7033,
+     "valid": true,
+     "floor_xy": [
+      0.852,
+      0.1068
+     ],
+     "ahead_of_toes_m": 0.6927
+    },
+    {
+     "row": 1,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.7119,
+     "valid": true,
+     "floor_xy": [
+      0.8685,
+      0.0395
+     ],
+     "ahead_of_toes_m": 0.7092
+    },
+    {
+     "row": 1,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.7296,
+     "valid": true,
+     "floor_xy": [
+      0.8878,
+      -0.0301
+     ],
+     "ahead_of_toes_m": 0.7286
+    },
+    {
+     "row": 1,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.7576,
+     "valid": true,
+     "floor_xy": [
+      0.9108,
+      -0.1041
+     ],
+     "ahead_of_toes_m": 0.7515
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.6487,
+     "valid": true,
+     "floor_xy": [
+      0.6924,
+      0.3304
+     ],
+     "ahead_of_toes_m": 0.5331
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.6272,
+     "valid": true,
+     "floor_xy": [
+      0.703,
+      0.2653
+     ],
+     "ahead_of_toes_m": 0.5438
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.6135,
+     "valid": true,
+     "floor_xy": [
+      0.714,
+      0.2041
+     ],
+     "ahead_of_toes_m": 0.5548
+    },
+    {
+     "row": 2,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.6069,
+     "valid": true,
+     "floor_xy": [
+      0.7256,
+      0.1452
+     ],
+     "ahead_of_toes_m": 0.5663
+    },
+    {
+     "row": 2,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.6069,
+     "valid": true,
+     "floor_xy": [
+      0.7379,
+      0.0872
+     ],
+     "ahead_of_toes_m": 0.5786
+    },
+    {
+     "row": 2,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.6135,
+     "valid": true,
+     "floor_xy": [
+      0.7513,
+      0.0286
+     ],
+     "ahead_of_toes_m": 0.5921
+    },
+    {
+     "row": 2,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.6272,
+     "valid": true,
+     "floor_xy": [
+      0.7662,
+      -0.0317
+     ],
+     "ahead_of_toes_m": 0.6069
+    },
+    {
+     "row": 2,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.6487,
+     "valid": true,
+     "floor_xy": [
+      0.783,
+      -0.0956
+     ],
+     "ahead_of_toes_m": 0.6237
+    },
+    {
+     "row": 3,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.5722,
+     "valid": true,
+     "floor_xy": [
+      0.6066,
+      0.2866
+     ],
+     "ahead_of_toes_m": 0.4473
+    },
+    {
+     "row": 3,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.5548,
+     "valid": true,
+     "floor_xy": [
+      0.6179,
+      0.2297
+     ],
+     "ahead_of_toes_m": 0.4586
+    },
+    {
+     "row": 3,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.5437,
+     "valid": true,
+     "floor_xy": [
+      0.6288,
+      0.1758
+     ],
+     "ahead_of_toes_m": 0.4695
+    },
+    {
+     "row": 3,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.5383,
+     "valid": true,
+     "floor_xy": [
+      0.6396,
+      0.1236
+     ],
+     "ahead_of_toes_m": 0.4804
+    },
+    {
+     "row": 3,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.5383,
+     "valid": true,
+     "floor_xy": [
+      0.6506,
+      0.0719
+     ],
+     "ahead_of_toes_m": 0.4913
+    },
+    {
+     "row": 3,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.5437,
+     "valid": true,
+     "floor_xy": [
+      0.6619,
+      0.0198
+     ],
+     "ahead_of_toes_m": 0.5027
+    },
+    {
+     "row": 3,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.5548,
+     "valid": true,
+     "floor_xy": [
+      0.6739,
+      -0.0339
+     ],
+     "ahead_of_toes_m": 0.5146
+    },
+    {
+     "row": 3,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.5722,
+     "valid": true,
+     "floor_xy": [
+      0.6867,
+      -0.0904
+     ],
+     "ahead_of_toes_m": 0.5275
+    },
+    {
+     "row": 4,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.5165,
+     "valid": true,
+     "floor_xy": [
+      0.538,
+      0.2528
+     ],
+     "ahead_of_toes_m": 0.3788
+    },
+    {
+     "row": 4,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.5018,
+     "valid": true,
+     "floor_xy": [
+      0.5495,
+      0.2021
+     ],
+     "ahead_of_toes_m": 0.3903
+    },
+    {
+     "row": 4,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.4924,
+     "valid": true,
+     "floor_xy": [
+      0.5603,
+      0.1536
+     ],
+     "ahead_of_toes_m": 0.401
+    },
+    {
+     "row": 4,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.4878,
+     "valid": true,
+     "floor_xy": [
+      0.5705,
+      0.1064
+     ],
+     "ahead_of_toes_m": 0.4112
+    },
+    {
+     "row": 4,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.4878,
+     "valid": true,
+     "floor_xy": [
+      0.5805,
+      0.0596
+     ],
+     "ahead_of_toes_m": 0.4212
+    },
+    {
+     "row": 4,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.4924,
+     "valid": true,
+     "floor_xy": [
+      0.5903,
+      0.0123
+     ],
+     "ahead_of_toes_m": 0.431
+    },
+    {
+     "row": 4,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.5018,
+     "valid": true,
+     "floor_xy": [
+      0.6002,
+      -0.0364
+     ],
+     "ahead_of_toes_m": 0.4409
+    },
+    {
+     "row": 4,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.5165,
+     "valid": true,
+     "floor_xy": [
+      0.6104,
+      -0.0875
+     ],
+     "ahead_of_toes_m": 0.4511
+    },
+    {
+     "row": 5,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.4751,
+     "valid": true,
+     "floor_xy": [
+      0.4809,
+      0.2259
+     ],
+     "ahead_of_toes_m": 0.3216
+    },
+    {
+     "row": 5,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.4622,
+     "valid": true,
+     "floor_xy": [
+      0.4924,
+      0.1797
+     ],
+     "ahead_of_toes_m": 0.3332
+    },
+    {
+     "row": 5,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.454,
+     "valid": true,
+     "floor_xy": [
+      0.503,
+      0.1354
+     ],
+     "ahead_of_toes_m": 0.3437
+    },
+    {
+     "row": 5,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.45,
+     "valid": true,
+     "floor_xy": [
+      0.5127,
+      0.0921
+     ],
+     "ahead_of_toes_m": 0.3534
+    },
+    {
+     "row": 5,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.45,
+     "valid": true,
+     "floor_xy": [
+      0.5219,
+      0.0491
+     ],
+     "ahead_of_toes_m": 0.3626
+    },
+    {
+     "row": 5,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.454,
+     "valid": true,
+     "floor_xy": [
+      0.5306,
+      0.0056
+     ],
+     "ahead_of_toes_m": 0.3713
+    },
+    {
+     "row": 5,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.4622,
+     "valid": true,
+     "floor_xy": [
+      0.539,
+      -0.0392
+     ],
+     "ahead_of_toes_m": 0.3797
+    },
+    {
+     "row": 5,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.4751,
+     "valid": true,
+     "floor_xy": [
+      0.5472,
+      -0.0861
+     ],
+     "ahead_of_toes_m": 0.3879
+    },
+    {
+     "row": 6,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.4438,
+     "valid": true,
+     "floor_xy": [
+      0.4316,
+      0.2037
+     ],
+     "ahead_of_toes_m": 0.2723
+    },
+    {
+     "row": 6,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.4324,
+     "valid": true,
+     "floor_xy": [
+      0.4431,
+      0.1612
+     ],
+     "ahead_of_toes_m": 0.2838
+    },
+    {
+     "row": 6,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.425,
+     "valid": true,
+     "floor_xy": [
+      0.4534,
+      0.1201
+     ],
+     "ahead_of_toes_m": 0.2942
+    },
+    {
+     "row": 6,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.4214,
+     "valid": true,
+     "floor_xy": [
+      0.4628,
+      0.0799
+     ],
+     "ahead_of_toes_m": 0.3035
+    },
+    {
+     "row": 6,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.4214,
+     "valid": true,
+     "floor_xy": [
+      0.4713,
+      0.0399
+     ],
+     "ahead_of_toes_m": 0.312
+    },
+    {
+     "row": 6,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.425,
+     "valid": true,
+     "floor_xy": [
+      0.4791,
+      -0.0006
+     ],
+     "ahead_of_toes_m": 0.3198
+    },
+    {
+     "row": 6,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.4324,
+     "valid": true,
+     "floor_xy": [
+      0.4863,
+      -0.0423
+     ],
+     "ahead_of_toes_m": 0.3271
+    },
+    {
+     "row": 6,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.4438,
+     "valid": true,
+     "floor_xy": [
+      0.4931,
+      -0.0859
+     ],
+     "ahead_of_toes_m": 0.3338
+    },
+    {
+     "row": 7,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.4204,
+     "valid": true,
+     "floor_xy": [
+      0.3877,
+      0.185
+     ],
+     "ahead_of_toes_m": 0.2284
+    },
+    {
+     "row": 7,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.4099,
+     "valid": true,
+     "floor_xy": [
+      0.3992,
+      0.1453
+     ],
+     "ahead_of_toes_m": 0.2399
+    },
+    {
+     "row": 7,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.4031,
+     "valid": true,
+     "floor_xy": [
+      0.4094,
+      0.1069
+     ],
+     "ahead_of_toes_m": 0.2501
+    },
+    {
+     "row": 7,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.3998,
+     "valid": true,
+     "floor_xy": [
+      0.4184,
+      0.0692
+     ],
+     "ahead_of_toes_m": 0.2591
+    },
+    {
+     "row": 7,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.3998,
+     "valid": true,
+     "floor_xy": [
+      0.4263,
+      0.0316
+     ],
+     "ahead_of_toes_m": 0.2671
+    },
+    {
+     "row": 7,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.4031,
+     "valid": true,
+     "floor_xy": [
+      0.4335,
+      -0.0065
+     ],
+     "ahead_of_toes_m": 0.2742
+    },
+    {
+     "row": 7,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.4099,
+     "valid": true,
+     "floor_xy": [
+      0.4398,
+      -0.0457
+     ],
+     "ahead_of_toes_m": 0.2805
+    },
+    {
+     "row": 7,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.4204,
+     "valid": true,
+     "floor_xy": [
+      0.4454,
+      -0.0866
+     ],
+     "ahead_of_toes_m": 0.2861
+    }
+   ],
+   "window": {
+    "depth_limit_m": 0.1737,
+    "enclosure": 0.9425,
+    "enclosed": true,
+    "first_hit_shares": {
+     "cover_chest_ventral": 1.0
+    },
+    "mounting_panels": [
+     "cover_chest_ventral"
+    ],
+    "panels": {
+     "cover_chest_ventral": {
+      "body": "trunk",
+      "share_home": 1.0,
+      "moves_with": null,
+      "poses": [
+       "home"
+      ],
+      "gait_frames": 0,
+      "extent_panel_frame_mm": [
+       71.2305,
+       45.3003,
+       10.3013
+      ],
+      "home_extent_sensor_frame_mm": {
+       "width_y": 50.5536,
+       "height_z": 39.0528,
+       "depth_x": [
+        24.951,
+        77.9515
+       ],
+       "distance_mm": [
+        27.7632,
+        88.1568
+       ]
+      }
+     }
+    }
+   },
+   "mount_check": {}
+  },
+  "tof_r": {
+   "summary": {
+    "zones_floor_valid": 64,
+    "zones_floor_beyond_range": 0,
+    "zones_self": {},
+    "zones_none": 0,
+    "floor_ahead_of_toes_m": [
+     0.2284,
+     0.9336
+    ],
+    "floor_range_m": [
+     0.3998,
+     0.9217
+    ],
+    "window_rays": 1.0,
+    "other_sensor_box_rays": 0,
+    "site_pos_m": [
+     0.2554,
+     -0.0149,
+     0.361
+    ],
+    "axis": [
+     0.6917,
+     -0.147,
+     -0.7071
+    ],
+    "axis_depression_deg": 45.0
+   },
+   "zones": [
+    {
+     "row": 0,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.9217,
+     "valid": true,
+     "floor_xy": [
+      1.0929,
+      0.1182
+     ],
+     "ahead_of_toes_m": 0.9336
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.8823,
+     "valid": true,
+     "floor_xy": [
+      1.0593,
+      0.0291
+     ],
+     "ahead_of_toes_m": 0.9001
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.8577,
+     "valid": true,
+     "floor_xy": [
+      1.0325,
+      -0.054
+     ],
+     "ahead_of_toes_m": 0.8732
+    },
+    {
+     "row": 0,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.8459,
+     "valid": true,
+     "floor_xy": [
+      1.0111,
+      -0.134
+     ],
+     "ahead_of_toes_m": 0.8518
+    },
+    {
+     "row": 0,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.8459,
+     "valid": true,
+     "floor_xy": [
+      0.9942,
+      -0.2136
+     ],
+     "ahead_of_toes_m": 0.8349
+    },
+    {
+     "row": 0,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.8577,
+     "valid": true,
+     "floor_xy": [
+      0.9812,
+      -0.2954
+     ],
+     "ahead_of_toes_m": 0.8219
+    },
+    {
+     "row": 0,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.8823,
+     "valid": true,
+     "floor_xy": [
+      0.9719,
+      -0.3821
+     ],
+     "ahead_of_toes_m": 0.8127
+    },
+    {
+     "row": 0,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.9217,
+     "valid": true,
+     "floor_xy": [
+      0.9664,
+      -0.4772
+     ],
+     "ahead_of_toes_m": 0.8071
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.7576,
+     "valid": true,
+     "floor_xy": [
+      0.9108,
+      0.1041
+     ],
+     "ahead_of_toes_m": 0.7515
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.7296,
+     "valid": true,
+     "floor_xy": [
+      0.8878,
+      0.0301
+     ],
+     "ahead_of_toes_m": 0.7286
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.7119,
+     "valid": true,
+     "floor_xy": [
+      0.8685,
+      -0.0395
+     ],
+     "ahead_of_toes_m": 0.7092
+    },
+    {
+     "row": 1,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.7033,
+     "valid": true,
+     "floor_xy": [
+      0.852,
+      -0.1068
+     ],
+     "ahead_of_toes_m": 0.6927
+    },
+    {
+     "row": 1,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.7033,
+     "valid": true,
+     "floor_xy": [
+      0.8378,
+      -0.1736
+     ],
+     "ahead_of_toes_m": 0.6785
+    },
+    {
+     "row": 1,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.7119,
+     "valid": true,
+     "floor_xy": [
+      0.8255,
+      -0.2418
+     ],
+     "ahead_of_toes_m": 0.6662
+    },
+    {
+     "row": 1,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.7296,
+     "valid": true,
+     "floor_xy": [
+      0.8149,
+      -0.3133
+     ],
+     "ahead_of_toes_m": 0.6556
+    },
+    {
+     "row": 1,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.7576,
+     "valid": true,
+     "floor_xy": [
+      0.8057,
+      -0.3902
+     ],
+     "ahead_of_toes_m": 0.6464
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.6487,
+     "valid": true,
+     "floor_xy": [
+      0.783,
+      0.0956
+     ],
+     "ahead_of_toes_m": 0.6237
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.6272,
+     "valid": true,
+     "floor_xy": [
+      0.7662,
+      0.0317
+     ],
+     "ahead_of_toes_m": 0.6069
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.6135,
+     "valid": true,
+     "floor_xy": [
+      0.7513,
+      -0.0286
+     ],
+     "ahead_of_toes_m": 0.5921
+    },
+    {
+     "row": 2,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.6069,
+     "valid": true,
+     "floor_xy": [
+      0.7379,
+      -0.0872
+     ],
+     "ahead_of_toes_m": 0.5786
+    },
+    {
+     "row": 2,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.6069,
+     "valid": true,
+     "floor_xy": [
+      0.7256,
+      -0.1452
+     ],
+     "ahead_of_toes_m": 0.5663
+    },
+    {
+     "row": 2,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.6135,
+     "valid": true,
+     "floor_xy": [
+      0.714,
+      -0.2041
+     ],
+     "ahead_of_toes_m": 0.5548
+    },
+    {
+     "row": 2,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.6272,
+     "valid": true,
+     "floor_xy": [
+      0.703,
+      -0.2653
+     ],
+     "ahead_of_toes_m": 0.5438
+    },
+    {
+     "row": 2,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.6487,
+     "valid": true,
+     "floor_xy": [
+      0.6924,
+      -0.3304
+     ],
+     "ahead_of_toes_m": 0.5331
+    },
+    {
+     "row": 3,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.5722,
+     "valid": true,
+     "floor_xy": [
+      0.6867,
+      0.0904
+     ],
+     "ahead_of_toes_m": 0.5275
+    },
+    {
+     "row": 3,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.5548,
+     "valid": true,
+     "floor_xy": [
+      0.6739,
+      0.0339
+     ],
+     "ahead_of_toes_m": 0.5146
+    },
+    {
+     "row": 3,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.5437,
+     "valid": true,
+     "floor_xy": [
+      0.6619,
+      -0.0198
+     ],
+     "ahead_of_toes_m": 0.5027
+    },
+    {
+     "row": 3,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.5383,
+     "valid": true,
+     "floor_xy": [
+      0.6506,
+      -0.0719
+     ],
+     "ahead_of_toes_m": 0.4913
+    },
+    {
+     "row": 3,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.5383,
+     "valid": true,
+     "floor_xy": [
+      0.6396,
+      -0.1236
+     ],
+     "ahead_of_toes_m": 0.4804
+    },
+    {
+     "row": 3,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.5437,
+     "valid": true,
+     "floor_xy": [
+      0.6288,
+      -0.1758
+     ],
+     "ahead_of_toes_m": 0.4695
+    },
+    {
+     "row": 3,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.5548,
+     "valid": true,
+     "floor_xy": [
+      0.6179,
+      -0.2297
+     ],
+     "ahead_of_toes_m": 0.4586
+    },
+    {
+     "row": 3,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.5722,
+     "valid": true,
+     "floor_xy": [
+      0.6066,
+      -0.2866
+     ],
+     "ahead_of_toes_m": 0.4473
+    },
+    {
+     "row": 4,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.5165,
+     "valid": true,
+     "floor_xy": [
+      0.6104,
+      0.0875
+     ],
+     "ahead_of_toes_m": 0.4511
+    },
+    {
+     "row": 4,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.5018,
+     "valid": true,
+     "floor_xy": [
+      0.6002,
+      0.0364
+     ],
+     "ahead_of_toes_m": 0.4409
+    },
+    {
+     "row": 4,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.4924,
+     "valid": true,
+     "floor_xy": [
+      0.5903,
+      -0.0123
+     ],
+     "ahead_of_toes_m": 0.431
+    },
+    {
+     "row": 4,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.4878,
+     "valid": true,
+     "floor_xy": [
+      0.5805,
+      -0.0596
+     ],
+     "ahead_of_toes_m": 0.4212
+    },
+    {
+     "row": 4,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.4878,
+     "valid": true,
+     "floor_xy": [
+      0.5705,
+      -0.1064
+     ],
+     "ahead_of_toes_m": 0.4112
+    },
+    {
+     "row": 4,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.4924,
+     "valid": true,
+     "floor_xy": [
+      0.5603,
+      -0.1536
+     ],
+     "ahead_of_toes_m": 0.401
+    },
+    {
+     "row": 4,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.5018,
+     "valid": true,
+     "floor_xy": [
+      0.5495,
+      -0.2021
+     ],
+     "ahead_of_toes_m": 0.3903
+    },
+    {
+     "row": 4,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.5165,
+     "valid": true,
+     "floor_xy": [
+      0.538,
+      -0.2528
+     ],
+     "ahead_of_toes_m": 0.3788
+    },
+    {
+     "row": 5,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.4751,
+     "valid": true,
+     "floor_xy": [
+      0.5472,
+      0.0861
+     ],
+     "ahead_of_toes_m": 0.3879
+    },
+    {
+     "row": 5,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.4622,
+     "valid": true,
+     "floor_xy": [
+      0.539,
+      0.0392
+     ],
+     "ahead_of_toes_m": 0.3797
+    },
+    {
+     "row": 5,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.454,
+     "valid": true,
+     "floor_xy": [
+      0.5306,
+      -0.0056
+     ],
+     "ahead_of_toes_m": 0.3713
+    },
+    {
+     "row": 5,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.45,
+     "valid": true,
+     "floor_xy": [
+      0.5219,
+      -0.0491
+     ],
+     "ahead_of_toes_m": 0.3626
+    },
+    {
+     "row": 5,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.45,
+     "valid": true,
+     "floor_xy": [
+      0.5127,
+      -0.0921
+     ],
+     "ahead_of_toes_m": 0.3534
+    },
+    {
+     "row": 5,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.454,
+     "valid": true,
+     "floor_xy": [
+      0.503,
+      -0.1354
+     ],
+     "ahead_of_toes_m": 0.3437
+    },
+    {
+     "row": 5,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.4622,
+     "valid": true,
+     "floor_xy": [
+      0.4924,
+      -0.1797
+     ],
+     "ahead_of_toes_m": 0.3332
+    },
+    {
+     "row": 5,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.4751,
+     "valid": true,
+     "floor_xy": [
+      0.4809,
+      -0.2259
+     ],
+     "ahead_of_toes_m": 0.3216
+    },
+    {
+     "row": 6,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.4438,
+     "valid": true,
+     "floor_xy": [
+      0.4931,
+      0.0859
+     ],
+     "ahead_of_toes_m": 0.3338
+    },
+    {
+     "row": 6,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.4324,
+     "valid": true,
+     "floor_xy": [
+      0.4863,
+      0.0423
+     ],
+     "ahead_of_toes_m": 0.3271
+    },
+    {
+     "row": 6,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.425,
+     "valid": true,
+     "floor_xy": [
+      0.4791,
+      0.0006
+     ],
+     "ahead_of_toes_m": 0.3198
+    },
+    {
+     "row": 6,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.4214,
+     "valid": true,
+     "floor_xy": [
+      0.4713,
+      -0.0399
+     ],
+     "ahead_of_toes_m": 0.312
+    },
+    {
+     "row": 6,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.4214,
+     "valid": true,
+     "floor_xy": [
+      0.4628,
+      -0.0799
+     ],
+     "ahead_of_toes_m": 0.3035
+    },
+    {
+     "row": 6,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.425,
+     "valid": true,
+     "floor_xy": [
+      0.4534,
+      -0.1201
+     ],
+     "ahead_of_toes_m": 0.2942
+    },
+    {
+     "row": 6,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.4324,
+     "valid": true,
+     "floor_xy": [
+      0.4431,
+      -0.1612
+     ],
+     "ahead_of_toes_m": 0.2838
+    },
+    {
+     "row": 6,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.4438,
+     "valid": true,
+     "floor_xy": [
+      0.4316,
+      -0.2037
+     ],
+     "ahead_of_toes_m": 0.2723
+    },
+    {
+     "row": 7,
+     "col": 0,
+     "kind": "floor",
+     "range_m": 0.4204,
+     "valid": true,
+     "floor_xy": [
+      0.4454,
+      0.0866
+     ],
+     "ahead_of_toes_m": 0.2861
+    },
+    {
+     "row": 7,
+     "col": 1,
+     "kind": "floor",
+     "range_m": 0.4099,
+     "valid": true,
+     "floor_xy": [
+      0.4398,
+      0.0457
+     ],
+     "ahead_of_toes_m": 0.2805
+    },
+    {
+     "row": 7,
+     "col": 2,
+     "kind": "floor",
+     "range_m": 0.4031,
+     "valid": true,
+     "floor_xy": [
+      0.4335,
+      0.0065
+     ],
+     "ahead_of_toes_m": 0.2742
+    },
+    {
+     "row": 7,
+     "col": 3,
+     "kind": "floor",
+     "range_m": 0.3998,
+     "valid": true,
+     "floor_xy": [
+      0.4263,
+      -0.0316
+     ],
+     "ahead_of_toes_m": 0.2671
+    },
+    {
+     "row": 7,
+     "col": 4,
+     "kind": "floor",
+     "range_m": 0.3998,
+     "valid": true,
+     "floor_xy": [
+      0.4184,
+      -0.0692
+     ],
+     "ahead_of_toes_m": 0.2591
+    },
+    {
+     "row": 7,
+     "col": 5,
+     "kind": "floor",
+     "range_m": 0.4031,
+     "valid": true,
+     "floor_xy": [
+      0.4094,
+      -0.1069
+     ],
+     "ahead_of_toes_m": 0.2501
+    },
+    {
+     "row": 7,
+     "col": 6,
+     "kind": "floor",
+     "range_m": 0.4099,
+     "valid": true,
+     "floor_xy": [
+      0.3992,
+      -0.1453
+     ],
+     "ahead_of_toes_m": 0.2399
+    },
+    {
+     "row": 7,
+     "col": 7,
+     "kind": "floor",
+     "range_m": 0.4204,
+     "valid": true,
+     "floor_xy": [
+      0.3877,
+      -0.185
+     ],
+     "ahead_of_toes_m": 0.2284
+    }
+   ],
+   "window": {
+    "depth_limit_m": 0.1737,
+    "enclosure": 0.9475,
+    "enclosed": true,
+    "first_hit_shares": {
+     "cover_chest_ventral": 1.0
+    },
+    "mounting_panels": [
+     "cover_chest_ventral"
+    ],
+    "panels": {
+     "cover_chest_ventral": {
+      "body": "trunk",
+      "share_home": 1.0,
+      "moves_with": null,
+      "poses": [
+       "home"
+      ],
+      "gait_frames": 0,
+      "extent_panel_frame_mm": [
+       71.2237,
+       45.2982,
+       10.2969
+      ],
+      "home_extent_sensor_frame_mm": {
+       "width_y": 50.5507,
+       "height_z": 39.051,
+       "depth_x": [
+        24.9527,
+        77.9455
+       ],
+       "distance_mm": [
+        27.7776,
+        88.1501
+       ]
+      }
+     }
+    }
+   },
+   "mount_check": {}
+  },
+  "near_coverage": {
+   "strip_1p2m": {
+    "area_m2": 0.96,
+    "camera": 0.0,
+    "tof_union": 0.4297,
+    "combined": 0.4297,
+    "tof_l": 0.2839,
+    "tof_r": 0.2839,
+    "tof_overlap_of_union": 0.3212
+   },
+   "foot_path": {
+    "area_m2": 0.32,
+    "camera": 0.0,
+    "tof_union": 0.7148,
+    "combined": 0.7148,
+    "tof_l": 0.5645,
+    "tof_r": 0.5645,
+    "tof_overlap_of_union": 0.5792
+   },
+   "foot_path_half_width_m": 0.1903
+  }
+ },
+ "lidar": null,
+ "gait": {
+  "frames": 80,
+  "stride": 2,
+  "camera": {
+   "worst": 0.0315,
+   "worst_frame": 0,
+   "mean": 0.0315,
+   "best": 0.0315,
+   "worst_by_group": {
+    "head": 0.0315,
+    "arms": 0.0,
+    "legs": 0.0,
+    "trunk_covers": 0.0,
+    "trunk_hw": 0.0,
+    "tail": 0.0
+   },
+   "per_frame": [
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315,
+    0.0315
+   ],
+   "worst_support": [
+    "right"
+   ]
+  },
+  "spec": {
+   "speed": 0.2421,
+   "stride": 0.2739,
+   "period": 1.1311,
+   "froude": 0.012
+  }
+ },
+ "method": {
+  "camera_grid": [
+   41,
+   31
+  ],
+  "camera_occlusion_range_m": 3.0,
+  "floor_step_m": 0.025,
+  "floor_rect_m": [
+   2.0,
+   1.2
+  ],
+  "near_strip_m": 0.8,
+  "person_z_m": [
+   0.5,
+   1.7
+  ],
+  "person_dz_m": 0.05,
+  "torso_z_m": [
+   0.9,
+   1.5
+  ],
+  "torso_min_fraction": 0.75,
+  "lidar_rays": 720,
+  "lidar_occlusion_range_m": 1.0,
+  "window_depth_frac_H": 0.35,
+  "window_min_share": 0.1,
+  "enclosure_min": 0.6,
+  "groups": [
+   "head",
+   "arms",
+   "legs",
+   "trunk_covers",
+   "trunk_hw",
+   "tail"
+  ]
+ },
+ "summary": {
+  "camera_part": "luxonis_oak_d_lite",
+  "camera_height_m": 0.6432,
+  "camera_blocked": {
+   "home": 0.0315,
+   "neck_min": 0.0315,
+   "neck_max": 0.0315
+  },
+  "camera_blocked_by_group_home": {
+   "head": 0.0315
+  },
+  "camera_blocked_gait": {
+   "worst": 0.0315,
+   "mean": 0.0315
+  },
+  "centre_column_nearest_visible_floor_ahead_of_toes_m": 2.0179,
+  "centre_column_nearest_depth_floor_ahead_of_toes_m": 2.0179,
+  "floor_rect_not_visible_m2": {
+   "home": 2.3613,
+   "neck_min": 1.385,
+   "neck_max": 2.4
+  },
+  "floor_rect_no_valid_depth_m2": 2.3613,
+  "person_visible_fraction_home": {
+   "1m@-30": 0.6,
+   "2m@-30": 1.0,
+   "3m@-30": 1.0,
+   "1m@+0": 0.68,
+   "2m@+0": 1.0,
+   "3m@+0": 1.0,
+   "1m@+30": 0.6,
+   "2m@+30": 1.0,
+   "3m@+30": 1.0
+  },
+  "torso_follow": {
+   "home": {
+    "ok": true,
+    "min_ahead": 1.0,
+    "min_30deg": 1.0
+   },
+   "neck_min": {
+    "ok": false,
+    "min_ahead": 0.0769,
+    "min_30deg": 0.0
+   },
+   "neck_max": {
+    "ok": true,
+    "min_ahead": 0.7692,
+    "min_30deg": 1.0
+   }
+  },
+  "tof": {
+   "tof_l": {
+    "floor_zones": 64,
+    "self_zones": {},
+    "floor_ahead_of_toes_m": [
+     0.2284,
+     0.9336
+    ]
+   },
+   "tof_r": {
+    "floor_zones": 64,
+    "self_zones": {},
+    "floor_ahead_of_toes_m": [
+     0.2284,
+     0.9336
+    ]
+   }
+  },
+  "near_strip_coverage": {
+   "strip_1p2m": {
+    "area_m2": 0.96,
+    "camera": 0.0,
+    "tof_union": 0.4297,
+    "combined": 0.4297,
+    "tof_l": 0.2839,
+    "tof_r": 0.2839,
+    "tof_overlap_of_union": 0.3212
+   },
+   "foot_path": {
+    "area_m2": 0.32,
+    "camera": 0.0,
+    "tof_union": 0.7148,
+    "combined": 0.7148,
+    "tof_l": 0.5645,
+    "tof_r": 0.5645,
+    "tof_overlap_of_union": 0.5792
+   }
+  }
+ },
+ "flags": [
+  "camera looks through cover_skull (96% of FOV rays): assumed window about 54 x 78 mm, 21-162 mm from the site",
+  "home: cover_skull cuts through the camera box (8.5 mm deep)",
+  "neck_min: cover_skull cuts through the camera box (8.7 mm deep)",
+  "neck_max: cover_skull cuts through the camera box (11.2 mm deep)",
+  "neck_min: torso (0.9-1.5 m) at 1.5-3 m straight ahead only 8% visible (< 75%)",
+  "camera centre column first sees the floor 2.02 m ahead of the toe tips (limited by occlusion:head); 2.36 of 2.40 m2 of the 2 x 1.2 m rectangle is not visible",
+  "near strip (0.8 m ahead of the toes): combined camera + ToF coverage 43% of 1.2 m width, 71% of the foot path (camera 0%, ToF 43%)"
+ ],
+ "timing_s": {
+  "camera_poses": 0.2427,
+  "floor_view_and_tof": 0.141,
+  "lidar_home": 0.0,
+  "gait": 1.5102,
+  "total": 1.9182,
+  "png": 0.334
+ }
+}

@@ -41,7 +41,7 @@ designlab/            the generator and screens (Python package)
   data/               catalogs + raw sourced research records (URLs, access dates)
 round1/
   stage_a/            one compact JSON per candidate + summary.csv/json
-  review/             review-set models (MJCF + ledgers), screening JSON and PNG, plates
+  review/             review set: mjcf/ (ledgers; reference-size MJCF), screening JSON and PNG, plates
   TABLES.md           every comparison table, generated
 ```
 

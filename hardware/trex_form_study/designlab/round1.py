@@ -42,7 +42,7 @@ def rebuild(cid: str, stage_a: Path, out: Path) -> dict:
     sel = dict(rec["selection"])
     sel["mass_guess"] = _final_mass_guess(rec)
     cand = parse(cid)
-    models = out / "models"
+    models = out / "mjcf"
     res = build_candidate(cand, models, selection=sel, B=rec["B"], write=False)
     xml = models / f"{cid}.xml"
     design, M, q_home = res["design"], res["model"], res["q_home"]
@@ -105,12 +105,21 @@ def _rebuild_star(a):
         return dict(id=a[0], error=repr(e), trace=traceback.format_exc())
 
 
+def compact_png(path) -> None:
+    """Re-encode a rendered PNG as a 256-colour palette image (Floyd-Steinberg), about 60 % smaller with no
+    visible change at review sizes.  Applied to every committed plate and screening image."""
+    from PIL import Image
+
+    im = Image.open(path).convert("RGB")
+    im.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG).save(path, optimize=True)
+
+
 def make_plates(out: Path, index: dict):
     import designlab  # noqa: F401
 
     from . import plates
 
-    m = out / "models"
+    m = out / "mjcf"
     P = out / "plates"
     P.mkdir(parents=True, exist_ok=True)
     x = lambda cid: str(m / f"{cid}.xml")  # noqa: E731
@@ -147,7 +156,10 @@ def make_plates(out: Path, index: dict):
                               ["Tandem roll (default)", "Side-by-side roll", "Serial (PR #662-like)", "Belly battery"],
                               str(P / "layouts_60_cutaway.png"), view="side", mode="cutaway",
                               title="Leg and battery layouts, cutaway"))
-    return [str(p) for p in made if p]
+    made = [str(p) for p in made if p]
+    for png in made + [str(q) for q in (out / "screening").glob("*.png")]:
+        compact_png(png)
+    return made
 
 
 def main():

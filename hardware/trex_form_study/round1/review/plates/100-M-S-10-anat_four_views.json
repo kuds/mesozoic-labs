@@ -1,0 +1,55 @@
+{
+ "plate": "candidate_plate",
+ "png": "round1/review/plates/100-M-S-10-anat_four_views.png",
+ "mujoco": "3.10.0",
+ "title": "100-M-S-10-anat",
+ "subtitle": "Substantial, anatomically balanced \u00b7 balanced width \u00b7 10\u00b0 chest-up \u00b7 100 cm height class \u00b7 anatomical tail length",
+ "scale_px_per_m": 353.0502352555168,
+ "measurements": {
+  "id": "100-M-S-10-anat",
+  "xml": "round1/review/mjcf/100-M-S-10-anat.xml",
+  "xml_sha256": "37b08c6c43fa29b715ded29ebd114c0fe9846eeaf4b205372398abbbd35aa9da",
+  "mass_kg": 33.60373,
+  "crown_m": 1.0011381922993308,
+  "hip_pitch_axis_m": 0.6618325902512322,
+  "length_m": 2.9662917495071564,
+  "max_width_m": 0.37251797416109905,
+  "torso_width_m": 0.29451999050844513,
+  "thigh_width_m": 0.37251797416109905,
+  "thigh_width_source": "thigh fairings",
+  "foot_centre_spacing_m": 0.2075002966922739,
+  "torso_inclination_deg": 10.0,
+  "torso_inclination_source": "ledger metrics",
+  "ledger_checks": {
+   "crown_m": {
+    "model": 1.0011381922993308,
+    "ledger": 1.0011382543449185,
+    "ok": true
+   },
+   "hip_height_m": {
+    "model": 0.6618325902512322,
+    "ledger": 0.6638970999107023,
+    "ok": true,
+    "model_zero_roll": 0.6638970267328336,
+    "stance_hip_roll_deg": 1.0271872759546372,
+    "explained": "ledger H is the design hip height; the stance solve rolls the hips"
+   },
+   "mass_kg": {
+    "model": 33.60373,
+    "ledger": 33.603752512899796,
+    "ok": true
+   },
+   "foot_centre_spacing_m": {
+    "model": 0.2075002966922739,
+    "ledger": 0.20750029559678532,
+    "ok": true
+   },
+   "xml_sha256": {
+    "model": "37b08c6c43fa29b715ded29ebd114c0fe9846eeaf4b205372398abbbd35aa9da",
+    "ledger": "37b08c6c43fa29b715ded29ebd114c0fe9846eeaf4b205372398abbbd35aa9da",
+    "ok": true
+   }
+  }
+ },
+ "notes": "side/front/top orthographic at scale_px_per_m; three-quarter perspective, not to scale"
+}
