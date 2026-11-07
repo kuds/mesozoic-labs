@@ -1,0 +1,552 @@
+{
+ "generated_by": "designlab/data/build_catalog.py",
+ "research": "research/parts_2026-11-07.json",
+ "parts": [
+  {
+   "id": "nvidia_orin_nano_super_devkit",
+   "research_id": "jetson_orin_nano_super_devkit",
+   "category": "compute",
+   "vendor": "NVIDIA",
+   "model": "Jetson Orin Nano Super Developer Kit (P3766: Orin Nano 8GB module with heatsink/fan + P3768 reference carrier)",
+   "dims_m": [
+    0.103,
+    0.0905,
+    0.03477
+   ],
+   "mass_kg": 0.174,
+   "power_typ_w": 15.0,
+   "power_max_w": 25,
+   "capacity_wh": 0,
+   "voltage_v": 19.0,
+   "max_current_a": null,
+   "price_usd": 399,
+   "fov": "",
+   "basis": "partially_sourced",
+   "sources": [
+    "https://dam-cdn.nvd.orangelogic.com/AssetLink/2ug686w80406gxf6q8uv7r3l7265m2n8.pdf | accessed 2026-11-07 | NVIDIA datasheet: 103 x 90.5 x 34.77 mm (height includes feet, carrier, module and thermal solution), 7-25 W, USD 249, I/O list",
+    "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/ | accessed 2026-11-07 | family spec table: 67 TOPS, 7-15-25 W, gives a conflicting 100 x 79 x 21 mm",
+    "https://developer.nvidia.com/blog/nvidia-jetpack-6-2-brings-super-mode-to-nvidia-jetson-orin-nano-and-jetson-orin-nx-modules/ | accessed 2026-11-07 | power modes",
+    "https://docs.nvidia.com/jetson/orin-nano-devkit/user-guide/latest/hardware_layout.html | accessed 2026-11-07 | connectors",
+    "https://docs.nvidia.com/jetson/orin-nano-devkit/user-guide/latest/quick_start.html | accessed 2026-11-07 | included 19 V supply; default mode typically 25 W",
+    "https://forums.developer.nvidia.com/t/jetson-orin-devkit-weight/242644 | accessed 2026-11-07 | NVIDIA moderator: Orin Nano devkit 0.174 kg (Feb 2023)",
+    "https://www.sparkfun.com/nvidia-jetson-orin-nano-developer-kit.html | accessed 2026-11-07 | USD 399",
+    "https://nvidianews.nvidia.com/news/nvidia-announces-jetson-orin-nano-2-robotics-computer-to-redefine-entry-level-edge-ai | accessed 2026-11-07 | Orin Nano 2 announcement"
+   ],
+   "notes": "Two NVIDIA pages give different dimensions: the dedicated datasheet says 103 x 90.5 x 34.77 mm and the family page says 100 x 79 x 21 mm. I used the datasheet, because 21 mm cannot include a fan heatsink. The 174 g mass is from an NVIDIA moderator forum post (Feb 2023, original Orin Nano devkit), not a datasheet. NVIDIA describes the Super kit as the same hardware upgraded in software. A 6S bus (up to 25.2 V full) needs a regulator to feed the 19 V jack. Watch item: NVIDIA announced Jetson Orin "
+  },
+  {
+   "id": "luxonis_oak_d_lite",
+   "research_id": "luxonis_oak_d_lite",
+   "category": "camera",
+   "vendor": "Luxonis",
+   "model": "OAK-D Lite (SKU A00483; auto-focus or fixed-focus RGB)",
+   "dims_m": [
+    0.091,
+    0.028,
+    0.0175
+   ],
+   "mass_kg": 0.061,
+   "power_typ_w": 3,
+   "power_max_w": 5,
+   "capacity_wh": 0,
+   "voltage_v": 5.0,
+   "max_current_a": null,
+   "price_usd": 269,
+   "fov": "Stereo OV7251 (global shutter): HFOV 73 x VFOV 58 (DFOV 86). RGB IMX214 13 MP: HFOV 69 x VFOV 54 (DFOV 81). Ideal depth range ~0.8-12 m. Baseline 75 mm.",
+   "basis": "sourced",
+   "sources": [
+    "https://docs.luxonis.com/hardware/products/OAK-D%20Lite | accessed 2026-11-07 | sensors, FOV, range, power breakdown, IMU",
+    "https://shop.luxonis.com/products/oak-d-lite-1 | accessed 2026-11-07 | 91 x 28 x 17.5 mm, 61 g, USD 269"
+   ],
+   "notes": "Luxonis gives power as a breakdown: base plus streaming 2.5-3 W, AI up to 1 W, stereo up to 0.5 W, encoder up to 0.5 W. The 5 W maximum is my sum of those. Older listings showed USD 149-169; a price-change page exists but returned 404."
+  },
+  {
+   "id": "luxonis_oak_d_pro_w",
+   "research_id": "luxonis_oak_d_pro_w",
+   "category": "camera",
+   "vendor": "Luxonis",
+   "model": "OAK-D Pro W (IMX378 variant SKU A00573)",
+   "dims_m": [
+    0.097,
+    0.0295,
+    0.023100000000000002
+   ],
+   "mass_kg": 0.091,
+   "power_typ_w": 3,
+   "power_max_w": 15,
+   "capacity_wh": 0,
+   "voltage_v": 5.0,
+   "max_current_a": null,
+   "price_usd": 529,
+   "fov": "Stereo OV9282 (global shutter): HFOV 127 x VFOV 79.5 (DFOV 150). RGB IMX378: HFOV 95 x VFOV 72 (DFOV 120). Ideal depth range ~0.7-12 m. Baseline 75 mm.",
+   "basis": "sourced",
+   "sources": [
+    "https://docs.luxonis.com/hardware/products/OAK-D%20Pro%20W | accessed 2026-11-07 | sensors, FOV, range, power, IMU",
+    "https://checkout.luxonis.com/products/oak-d-pro-w | accessed 2026-11-07 | 97 x 29.5 x 23.1 mm, 91 g, prices"
+   ],
+   "notes": "Typical 3 W is the docs' base consumption (2.5-3 W). The 15 W maximum is the Luxonis statement for Pro devices. The widest FOV option, with IR for textureless floors and walls."
+  },
+  {
+   "id": "st_vl53l5cx_carrier",
+   "research_id": "pololu_vl53l5cx_3417",
+   "category": "tof",
+   "vendor": "Pololu",
+   "model": "VL53L5CX ToF 8x8-zone carrier with regulator, 400 cm max (#3417)",
+   "dims_m": [
+    0.013,
+    0.018,
+    0.003
+   ],
+   "mass_kg": 0.0005,
+   "power_typ_w": 0.5,
+   "power_max_w": 0.75,
+   "capacity_wh": 0,
+   "voltage_v": 5.5,
+   "max_current_a": null,
+   "price_usd": 19.95,
+   "fov": "65 deg diagonal (45 x 45 deg); 4x4 or 8x8 zones; 20 mm to 4 m",
+   "basis": "sourced",
+   "sources": [
+    "https://www.pololu.com/product/3417 | accessed 2026-11-07 | specs and price"
+   ],
+   "notes": "Power values are my calculation at 5 V. A 15 Hz maximum at 8x8 appeared only in a search snippet and is unverified."
+  },
+  {
+   "id": "pololu_vl53l8cx",
+   "research_id": "pololu_vl53l8cx_3419",
+   "category": "tof",
+   "vendor": "Pololu",
+   "model": "VL53L8CX ToF 8x8-zone carrier with regulators, 400 cm max (#3419)",
+   "dims_m": [
+    0.013,
+    0.023,
+    0.003
+   ],
+   "mass_kg": 0.0007,
+   "power_typ_w": 0.5,
+   "power_max_w": 0.75,
+   "capacity_wh": 0,
+   "voltage_v": 5.5,
+   "max_current_a": null,
+   "price_usd": 24.95,
+   "fov": "65 deg diagonal (45 x 45 deg); 8x8 zones; 20 mm to 4 m. In 5000 lux: about 2.8 m versus about 1.7 m for the VL53L5CX.",
+   "basis": "sourced",
+   "sources": [
+    "https://www.pololu.com/product/3419 | accessed 2026-11-07 | specs and price"
+   ],
+   "notes": "Pololu warns that its level shifter is sensitive to load: keep wires short (under 8 cm). Power values are my calculation at 5 V."
+  },
+  {
+   "id": "slamtec_rplidar_c1",
+   "research_id": "slamtec_rplidar_c1",
+   "category": "lidar",
+   "vendor": "SLAMTEC",
+   "model": "RPLIDAR C1 (C1M1), DTOF 2D",
+   "dims_m": [
+    0.055600000000000004,
+    0.055600000000000004,
+    0.041299999999999996
+   ],
+   "mass_kg": 0.11,
+   "power_typ_w": 1.15,
+   "power_max_w": 1.3,
+   "capacity_wh": 0,
+   "voltage_v": 5.0,
+   "max_current_a": null,
+   "price_usd": 79.99,
+   "fov": "360 deg 2D scan plane (pitch angle 0-1.5 deg). White target (70%) 0.05-12 m; black target (10%) 0.05-6 m.",
+   "basis": "sourced",
+   "sources": [
+    "https://www.slamtec.com/en/C1/Spec | accessed 2026-11-07 | dims, weight, range, rates",
+    "https://cdn.shopify.com/s/files/1/0058/3145/8904/files/SLAMTEC_rplidar_datasheet_C1_v1.1_en.pdf | accessed 2026-11-07 | power 4.8-5.2 V, 230/260 mA; 110 g",
+    "https://www.waveshare.com/rplidar-c1.htm | accessed 2026-11-07 | price; 1.15 W"
+   ],
+   "notes": "Maximum power is my calculation: 5 V x 260 mA."
+  },
+  {
+   "id": "ldrobot_stl19p",
+   "research_id": "ldrobot_stl19p",
+   "category": "lidar",
+   "vendor": "LDROBOT (sold by Waveshare as D500 LiDAR Kit)",
+   "model": "STL-19P DTOF 2D LiDAR",
+   "dims_m": [
+    0.054,
+    0.04629,
+    0.035
+   ],
+   "mass_kg": 0.045,
+   "power_typ_w": 1.45,
+   "power_max_w": 0,
+   "capacity_wh": 0,
+   "voltage_v": 5.0,
+   "max_current_a": null,
+   "price_usd": 95.99,
+   "fov": "360 deg 2D; pitch error 0.5-2 deg. White (80%) 0.03-12 m; black (4%) 0.03-8 m.",
+   "basis": "sourced",
+   "sources": [
+    "https://files.waveshare.com/wiki/D500-LiDAR-Kit/LDROBOT_STL-19P_Datasheet_EN_v1.0(1).pdf | accessed 2026-11-07 | LDROBOT datasheet: all specs, 45 g without cable",
+    "https://www.waveshare.com/d500-lidar-kit.htm | accessed 2026-11-07 | price, 1.45 W"
+   ],
+   "notes": "The lightest 2D LiDAR found here. The datasheet lists starting current as TBD. Typical power is my calculation: 5 V x 290 mA."
+  },
+  {
+   "id": "lipo_6s_3300",
+   "research_id": "gensace_gtech_3300_6s_60c_ec5",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "G-Tech 3300mAh 6S 60C 22.2V LiPo, EC5 (incumbent)",
+   "dims_m": [
+    0.138,
+    0.042,
+    0.043
+   ],
+   "mass_kg": 0.506,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 73.26,
+   "voltage_v": 22.2,
+   "max_current_a": 198,
+   "price_usd": 107.19,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | 506 g, 138 x 42 x 43 mm, 60C/120C, price",
+    "https://www.buddyrc.com/collections/gens-ace-batteries/products/gens-ace-3300mah-22-2v-60c-6s1p-lipo-battery-pack-ec5-plug-1 | accessed 2026-11-07 | same 506 g and 138 x 42 x 43 mm"
+   ],
+   "notes": "Confirmed: the incumbent 138 x 42 x 43 mm and 506 g match the official US Gens ace/Tattu store and BuddyRC. The Wh and amp values are my calculations: 22.2 V x 3.3 Ah, and 60C x 3.3 Ah. C-ratings are vendor marketing values. About 145 Wh/kg by my calculation. Over 20 min it supports roughly 220 W average at 100% depth of discharge, or about 176 W using 80% (my calculation). The XT90 version differs (about 482 g per search snippets, unverified)."
+  },
+  {
+   "id": "lipo_6s_5000",
+   "research_id": "gensace_gtech_5000_6s_60c_ec5",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "G-Tech 5000mAh 6S 60C 22.2V LiPo, EC5",
+   "dims_m": [
+    0.165,
+    0.045,
+    0.047
+   ],
+   "mass_kg": 0.755,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 111,
+   "voltage_v": 22.2,
+   "max_current_a": 300,
+   "price_usd": 136.99,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://genstattu.com/gens-ace-5000mah-6s-60c-22-2v-g-tech-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | 755 g, 165 x 45 x 47 mm, price"
+   ],
+   "notes": "Wh and amps are my calculations (about 147 Wh/kg). Other retailers in search snippets list 735-740 g and 155-164 mm."
+  },
+  {
+   "id": "lipo_6s_10000",
+   "research_id": "tattu_plus_10000_6s_25c",
+   "category": "battery",
+   "vendor": "Tattu (Grepow)",
+   "model": "Tattu Plus 10000mAh 6S 25C 22.2V smart LiPo, EC5 (AS150+XT150 version also sold)",
+   "dims_m": [
+    0.186,
+    0.07,
+    0.063
+   ],
+   "mass_kg": 1.517,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 222,
+   "voltage_v": 22.2,
+   "max_current_a": 250,
+   "price_usd": 227.99,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://genstattu.com/tattu-plus-22-2v-25c-10000mah-6s-lipo-smart-battery-pack-with-ec5-plug.html | accessed 2026-11-07 | 1517 g, 186 x 70 x 63 mm, EC5, price",
+    "https://www.genstattu.com/tattu-plus-22-2v-25c-6s-liPo-battery-10000-mah-with-as150-xt150-plug.html | accessed 2026-11-07 | AS150/XT150 version, same mass and dims"
+   ],
+   "notes": "Wh and amps are my calculations (about 146 Wh/kg). Heavy for a removable cassette in a small T. rex. Its 222 Wh is far above the 15-20 min need at modest power."
+  },
+  {
+   "id": "lipo_12s_5000",
+   "research_id": "gensace_5000_12s_60c",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "5000mAh 12S 60C 44.4V LiPo, no discharge plug (GEA12S500060)",
+   "dims_m": [
+    0.324,
+    0.052,
+    0.047
+   ],
+   "mass_kg": 1.542,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 222,
+   "voltage_v": 44.4,
+   "max_current_a": 300,
+   "price_usd": 294.99,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://genstattu.com/gens-ace-5000mah-12s-44-4v-60c-lipo-battery-pack-with-no-plug/ | accessed 2026-11-07 | 1542 g, 324 x 52 x 47 mm, price"
+   ],
+   "notes": "Wh and amps are my calculations. A 324 mm long pack is awkward for a cassette. Two 6S packs in series (next entry) are more compact. A 50.4 V full charge exceeds the Pololu D36V50F12's 50 V maximum input."
+  },
+  {
+   "id": "lipo_2x6s_3300_series",
+   "research_id": "gensace_3300_6s_x2_series",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "2x G-Tech 3300mAh 6S 60C in series (12S equivalent), derived",
+   "dims_m": [
+    0.138,
+    0.084,
+    0.043
+   ],
+   "mass_kg": 1.012,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 146.5,
+   "voltage_v": 44.4,
+   "max_current_a": 198,
+   "price_usd": 214.38,
+   "fov": "",
+   "basis": "partially_sourced",
+   "sources": [
+    "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | per-pack data"
+   ],
+   "notes": "Every number here is derived from the single-pack data. The envelope assumes the packs sit side by side with no wiring or spacer allowance. Same energy density as a single pack."
+  },
+  {
+   "id": "liion_6s2p_p45b",
+   "research_id": "flywoo_explorer_p45b_6s2p",
+   "category": "battery",
+   "vendor": "Flywoo",
+   "model": "Explorer LiPack Molicel P45B 21700 6S2P 9000mAh",
+   "dims_m": [
+    0.15,
+    0.046,
+    0.072
+   ],
+   "mass_kg": 0.8607,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 199.8,
+   "voltage_v": 22.2,
+   "max_current_a": 45,
+   "price_usd": 99.99,
+   "fov": "",
+   "basis": "partially_sourced; dims estimated from cell layout",
+   "sources": [
+    "https://www.defiancerc.com/products/flywoo-explorer-molicell-p45b-21700-6s2p-9000mah-lionpack-battery | accessed 2026-11-07 | 860.7 g, XT60, 45 A, price"
+   ],
+   "notes": "Dimensions are not stated. The listing conflicts with itself: it says 45 A discharge performance, mentions a 35 A peak in the description, and has a typo reading 6S1P 9000mAh. In theory, two cells in parallel at 45 A each give 90 A (my calculation), but the XT60 connector would limit the pack. Wh is my calculation (about 232 Wh/kg, or 194 Wh using 3.6 V cells). Flywoo's own site returned 403."
+  },
+  {
+   "id": "liion_6s3p_50s",
+   "research_id": "dantech_tn6s3p_50s",
+   "category": "battery",
+   "vendor": "Dan-Tech Energy (Berlin)",
+   "model": "Li-Ion Drone Battery 15000mAh 21.6V 75A (TN6S3P-50S-01)",
+   "dims_m": [
+    0.075,
+    0.072,
+    0.15
+   ],
+   "mass_kg": 1.4,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 324,
+   "voltage_v": 21.6,
+   "max_current_a": 75,
+   "price_usd": 0,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://shop.danenergy.com/products/li-ion-drone-battery-15000mah-21-6v-75a-6s3p-50s | accessed 2026-11-07 | 324 Wh, 75 A, 1.4 kg, prices",
+    "https://shop.danenergy.com/cdn/shop/files/drone-series-a.pdf?v=17979842379531034863 | accessed 2026-11-07 | series datasheet: dims, currents, cells; 6S1P TN6S1P-50S: 25 x 72 x 150 mm, 0.5 kg, 108 Wh, 25 A"
+   ],
+   "notes": "About 231 Wh/kg by my calculation. Probably oversized at 324 Wh. The 6S1P sibling (108 Wh, 0.5 kg, 25 A continuous) matches the incumbent energy class better. A BMS with CAN telemetry suits robotics. Large packs face air-transport restrictions; I did not source the thresholds."
+  },
+  {
+   "id": "pololu_d42v110f12",
+   "research_id": "pololu_d42v110f12",
+   "category": "dcdc",
+   "vendor": "Pololu",
+   "model": "D42V110F12 12V 9A step-down regulator (#5677)",
+   "dims_m": [
+    0.0318,
+    0.0432,
+    0.009
+   ],
+   "mass_kg": 0.015,
+   "power_typ_w": 64.8,
+   "power_max_w": 108,
+   "capacity_wh": 0,
+   "voltage_v": 60.0,
+   "max_current_a": 9,
+   "price_usd": 69.95,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://www.pololu.com/product/5677 | accessed 2026-11-07 | features, size, price",
+    "https://www.pololu.com/product/5677/specs | accessed 2026-11-07 | 15 g; 9 A at 42 V in"
+   ],
+   "notes": "108 W is my calculation. Safe on both 6S and 12S buses. Note the user asked for D42V110F12; this 12 V version is rated 9 A, while the 11 A rating belongs to lower-voltage versions."
+  },
+  {
+   "id": "pololu_d36v50f12",
+   "research_id": "pololu_d36v50f12",
+   "category": "dcdc",
+   "vendor": "Pololu",
+   "model": "D36V50F12 12V 4.5A step-down regulator (#4095)",
+   "dims_m": [
+    0.0254,
+    0.0254,
+    0.0095
+   ],
+   "mass_kg": 0.007,
+   "power_typ_w": 32.4,
+   "power_max_w": 54,
+   "capacity_wh": 0,
+   "voltage_v": 50.0,
+   "max_current_a": 4.5,
+   "price_usd": 39.95,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://www.pololu.com/product/4095 | accessed 2026-11-07 | features, size, price",
+    "https://www.pololu.com/product/4095/specs | accessed 2026-11-07 | 7.0 g; 4.5 A at 36 V in"
+   ],
+   "notes": "The 54 W figure is my calculation (12 V x 4.5 A). The 50 V maximum input is below a fully charged 12S pack (50.4 V by my calculation), so do not use it on 12S. Fine on 6S."
+  },
+  {
+   "id": "meanwell_ddr_120c_24",
+   "research_id": "meanwell_ddr_120c_24",
+   "category": "dcdc",
+   "vendor": "Mean Well",
+   "model": "DDR-120C-24 (48 V-input class, 120 W, isolated DIN-rail DC-DC)",
+   "dims_m": [
+    0.032,
+    0.1252,
+    0.102
+   ],
+   "mass_kg": 0.51,
+   "power_typ_w": 72.0,
+   "power_max_w": 120,
+   "capacity_wh": 0,
+   "voltage_v": 67.2,
+   "max_current_a": 5,
+   "price_usd": 88.66,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/DDR-120/DDR-120-SPEC.PDF | accessed 2026-11-07 | spec rev 2026-09-10: all electrical, dims 32 x 125.2 x 102 mm (W x H x D), packing 510 g",
+    "https://www.trcelectronics.com/products/mean-well-ddr-120c-24 | accessed 2026-11-07 | price"
+   ],
+   "notes": "Mass is Mean Well's PACKING value (510 g), which is heavy. Works across the whole 12S range (36-50.4 V by my calculation)."
+  },
+  {
+   "id": "te_lev100",
+   "research_id": "te_kilovac_lev100",
+   "category": "other",
+   "vendor": "TE Connectivity (KILOVAC)",
+   "model": "LEV100 contactor: LEV100A4ANG (12 V coil) / A5ANG (24 V) / A6ANG (48 V), SPST-NO",
+   "dims_m": [
+    0.01,
+    0.01,
+    0.01
+   ],
+   "mass_kg": 0.19,
+   "power_typ_w": 6,
+   "power_max_w": 0,
+   "capacity_wh": 0,
+   "voltage_v": 900.0,
+   "max_current_a": 100,
+   "price_usd": 0,
+   "fov": "",
+   "basis": "partially_sourced; missing dims padded",
+   "sources": [
+    "https://www.zoro.com/static/cms/enhanced_pdf/Waldom%20Electronics_ddecontrolleractionshowdocdociddatasheet7f617734509xxlev100xxdcaa3d.pdf | accessed 2026-11-07 | TE LEV100 datasheet: ratings, coil data, 6.7 oz (190 g), outline drawing"
+   ],
+   "notes": "Drawing callouts include 57.96 mm, 52.52 mm, 46.3 mm, 40.77 mm and a 39.5 mm diameter body, but I could not confirm which axis each belongs to, so dims are left empty. Hot switching is polarity sensitive: observe the marked + terminal. Oversized relative to the ~50 V/50 A target but light. The Albright SW80P (100 A, IP66, 48 V DC rating without blowouts) was checked, but its weight could not be read from the PDF."
+  },
+  {
+   "id": "pcan_usb_fd",
+   "research_id": "peak_pcan_usb_fd",
+   "category": "can_interface",
+   "vendor": "PEAK-System (HMS)",
+   "model": "PCAN-USB FD (IPEH-004022 USB-A / IPEH-004023 USB-C)",
+   "dims_m": [
+    0.075,
+    0.043,
+    0.022
+   ],
+   "mass_kg": 0.068,
+   "power_typ_w": 0.51,
+   "power_max_w": 0.85,
+   "capacity_wh": 0,
+   "voltage_v": 5.0,
+   "max_current_a": null,
+   "price_usd": 368,
+   "fov": "",
+   "basis": "sourced",
+   "sources": [
+    "https://www.peak-system.com/products/hardware/external-pc-interfaces/pcan-usb-fd/?&L=1 | accessed 2026-11-07 | specs",
+    "https://www.peak-system.com/produktcd/Pdf/English/PCAN-USB-FD_UserMan_eng.pdf | accessed 2026-11-07 | 75 x 43 x 22 mm without cable, 68 g max with cable, 170 mA",
+    "https://www.gridconnect.com/products/can-usb-fd-adapter-pcan-usb-fd | accessed 2026-11-07 | price"
+   ],
+   "notes": "0.85 W is my calculation. The USB-C version showed out of stock on PEAK's site. Isolation is useful when sharing ground with motor drives."
+  },
+  {
+   "id": "liion_12s2p_p45b",
+   "research_id": "flywoo_explorer_p45b_6s2p x2",
+   "category": "battery",
+   "vendor": "Flywoo",
+   "model": "2 x Flywoo 6S2P P45B in series",
+   "dims_m": [
+    0.15,
+    0.096,
+    0.072
+   ],
+   "mass_kg": 1.7214,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 399.6,
+   "voltage_v": 44.4,
+   "max_current_a": 45,
+   "price_usd": 199.98,
+   "fov": "",
+   "basis": "derived (two sourced packs in series)",
+   "sources": [
+    "https://www.defiancerc.com/products/flywoo-explorer-molicell-p45b-21700-6s2p-9000mah-lionpack-battery | accessed 2026-11-07 | 860.7 g, XT60, 45 A, price"
+   ],
+   "notes": "2 x Flywoo 6S2P P45B in series; Dimensions are not stated. The listing conflicts with itself: it says 45 A discharge performance, mentions a 35 A peak in the description, and has a typo reading 6S1P 9000mAh. In theory, two cells in parallel at 45 A each give 90 A (my calculation), but the XT60 connector would limit the pack. Wh is"
+  },
+  {
+   "id": "liion_12s3p_50s",
+   "research_id": "dantech_tn6s3p_50s x2",
+   "category": "battery",
+   "vendor": "Dan-Tech Energy (Berlin)",
+   "model": "2 x Dan-Tech 6S3P-50S in series",
+   "dims_m": [
+    0.075,
+    0.148,
+    0.15
+   ],
+   "mass_kg": 2.8,
+   "power_typ_w": 0.0,
+   "power_max_w": 0,
+   "capacity_wh": 648,
+   "voltage_v": 43.2,
+   "max_current_a": 75,
+   "price_usd": 0,
+   "fov": "",
+   "basis": "derived (two sourced packs in series)",
+   "sources": [
+    "https://shop.danenergy.com/products/li-ion-drone-battery-15000mah-21-6v-75a-6s3p-50s | accessed 2026-11-07 | 324 Wh, 75 A, 1.4 kg, prices",
+    "https://shop.danenergy.com/cdn/shop/files/drone-series-a.pdf?v=17979842379531034863 | accessed 2026-11-07 | series datasheet: dims, currents, cells; 6S1P TN6S1P-50S: 25 x 72 x 150 mm, 0.5 kg, 108 Wh, 25 A"
+   ],
+   "notes": "2 x Dan-Tech 6S3P-50S in series; About 231 Wh/kg by my calculation. Probably oversized at 324 Wh. The 6S1P sibling (108 Wh, 0.5 kg, 25 A continuous) matches the incumbent energy class better. A BMS with CAN telemetry suits robotics. Large packs face air-transport restrictions; I did not source the thresholds."
+  }
+ ]
+}

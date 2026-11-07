@@ -1,0 +1,88 @@
+# T. rex form, size and posture study
+
+A design study for the Mesozoic Labs robotic *T. rex*. It compares four sizes (60, 75, 100 and
+120 cm crown height), three widths, three body families and three postures, with real
+component envelopes, load-based actuator sizing, power, cost and mechanical screening. Round
+one is a **design review package**. It does not select a final robot and trains no controller.
+
+| Read first | What it is |
+|---|---|
+| [ROUND1_REVIEW.md](ROUND1_REVIEW.md) | Round-one findings, comparison plates and the preference questions |
+| [BASELINE.md](BASELINE.md) | Source and evidence reconciliation: PR stack, missing R2/R3 handoff, uploaded posture study, exact baseline |
+| [DEFINITIONS.md](DEFINITIONS.md) | How every height, width, ratio, posture angle, load and limit is defined |
+| [DECISION_LOG.md](DECISION_LOG.md) | Preferences (P), engineering constraints (E), findings (F) and assumptions (A) |
+| [BEHAVIOR_SPEC.md](BEHAVIOR_SPEC.md) | Proposed locomotion and autonomy targets for the selected design (not yet tested) |
+| [REFERENCE.md](REFERENCE.md) | Anatomical references, how they map to the template, and licensing |
+| [SCREENING.md](SCREENING.md) | Mechanical, clearance and sensor screening, including failed cases |
+| [REPRODUCTION.md](REPRODUCTION.md) | Clean-checkout reproduction audit of PR #662/#663 |
+| `r0_posture_study_2026-11-07/` | The uploaded 60 cm posture study, preserved with provenance |
+
+## Layout
+
+```
+designlab/            the generator and screens (Python package)
+  params.py           candidate IDs, height classes, widths, postures, proportion variants
+  template.py         skeletal template and body-family shape tables (units of hip height)
+  skeleton.py         world landmarks for a candidate: posture solve, neck, tail, legs
+  hardware.py         component items, structure beam rules
+  build.py            bodies, hardware placement, coverings -> Design
+  mjcf.py             MJCF writer, exact thin-shell mass properties, ledger rows
+  statics.py          stance IK, contact-consistent loads, single-support hold search
+  gait.py             reference walk (LIPM/ZMP) + full inverse dynamics
+  sizing.py           load requirements and actuator selection
+  power.py, cost.py   runtime and prototype cost
+  metrics.py          dimensions and ratios measured on the compiled model
+  clearance.py        self-collision, swing and tail clearance, battery service path
+  sensors.py          camera / ToF / lidar coverage by ray casting
+  render.py, plates.py   review renders and plates (MuJoCo, offscreen)
+  stage_a.py          the broad sweep;  round1.py  the review set and plates
+  data/               catalogs + raw sourced research records (URLs, access dates)
+round1/
+  stage_a/            one compact JSON per candidate + summary.csv/json
+  review/             review-set models (MJCF + ledgers), screening JSON, plates
+```
+
+## Reproduce
+
+Requires Python ≥ 3.11 and the packages below. MuJoCo 3.10.0 is the repository's canonical
+version. Rendering needs an offscreen OpenGL (OSMesa: `apt-get install libosmesa6`, or EGL on
+a GPU).
+
+```bash
+cd hardware/trex_form_study
+python -m venv .venv
+. .venv/bin/activate
+pip install "mujoco==3.10.0" numpy scipy pillow matplotlib
+```
+
+```bash
+python -m designlab.cli build 100-M-S-10 --out /tmp/models
+```
+
+```bash
+python -m designlab.cli size 100-M-S-10 --out /tmp/models
+```
+
+```bash
+python -m designlab.stage_a --out round1/stage_a --xml-dir /tmp/stage_a_models --workers 3
+```
+
+```bash
+python -m designlab.round1 --out round1/review
+```
+
+`build` writes one candidate's MJCF and ledger. `size` adds load-based actuator and battery
+selection. `stage_a` runs the full sweep, about an hour on 3 cores. `round1` builds the review set,
+its screens and every plate.
+
+Candidate IDs read `<crown cm>-<width N|M|W>-<family T|S|H>-<posture 00|10|20>`, with optional
+suffixes `-anat`, `-compact`, `-bighead` (proportions), `-side`, `-serial` (leg layout) and `-belly`
+(battery position). Example: `100-M-H-10`. Every generated MJCF opens in MuJoCo's viewer
+(`python -m mujoco.viewer --mjcf=<file>`) at its `home` keyframe.
+
+## What is and is not claimed
+
+* Masses, inertias, loads, powers, runtimes and costs come from models built from sourced part data and stated rules. **None is measured.** Every ledger row carries its basis (`sourced` / `derived` / `estimate`).
+* The reference walk is a prescribed trajectory for sizing. It is not a controller and does not show that any controller can walk the robot.
+* Renders show the generated models themselves. No concept art is used.
+* Physical construction, simulation evidence and hardware measurements are kept separate. Round one contains only the first two.
