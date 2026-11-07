@@ -293,6 +293,15 @@ def inside(x) -> str:
     ltbl = K.table(["Candidate", "Layout", "Mass", "Hip-roll hold, N·m", "Hip-pitch hold, N·m", "CoM ahead of hip",
                     "Runtime", "Cost"], lay_rows, num={2, 3, 4, 5, 6, 7})
     r60 = x.c("60-M-S-10")
+    joint = {"hip_roll": "hip roll", "hip_yaw": "thigh twist", "hip_pitch": "hip pitch", "knee": "knee",
+             "ankle_a": "upper ankle drive", "ankle_b": "lower ankle drive"}
+    layout_drives = []
+    for suf, lab in (("-side", "the side-by-side legs take"), ("-serial", "the serial legs take"),
+                     ("-belly", "the belly-battery robot takes")):
+        p = x.c(f"60-M-S-10{suf}")["parts"]
+        changed = [f"a {part(p[g])} {joint[g]}" for g in joint if p.get(g) != r60["parts"].get(g)]
+        if changed:
+            layout_drives.append(f"{lab} {', '.join(changed[:-1]) + ' and ' if len(changed) > 1 else ''}{changed[-1]}")
     return f"""
 <section id="inside">
   <p class="kicker">6 · Inside</p><h2>What has to fit, and what it costs the shape</h2>
@@ -308,8 +317,8 @@ def inside(x) -> str:
     resolves the earlier single-support hip-roll gap of about 9 N·m against 6 N·m in the model: the hold
     falls to {r60['margins']['hip_roll']['hold']:.1f} N·m, carried by a {part(r60['parts']['hip_roll'])}, while hip pitch and knee stay on the
     incumbent MyActuator X4-36 class. The comparison below holds size, width, family, posture and
-    proportions fixed. Each layout is re-sized, so its drives can differ: a CubeMars AK60-39 hip roll for
-    the side-by-side and serial legs, a RobStride 03 hip pitch for the belly battery.</p>
+    proportions fixed. Each layout is re-sized, so some drives differ from the default:
+    {'; '.join(layout_drives)}.</p>
   </div>
   <div class="grid2">
     {x.img('60-M-S-10_cutaway.png', '60 cm robot with translucent coverings showing installed hardware', 'Cutaway, 60 cm', 'Battery, compute, camera, power and actuators, labelled from the model.')}
