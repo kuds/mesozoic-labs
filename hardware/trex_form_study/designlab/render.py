@@ -96,6 +96,11 @@ class Scene:
             for g in range(m.ngeom):
                 if m.geom_group[g] == 1:
                     m.geom_rgba[g, 3] = 0.16
+        if mode == "hardware":  # cosmetic head details would float once the skull shell is hidden
+            for g in range(m.ngeom):
+                nm = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or ""
+                if nm.startswith(("hw_tooth_", "hw_eye_")):
+                    m.geom_rgba[g, 3] = 0.0
         opt = mujoco.MjvOption()
         for g in range(6):
             opt.geomgroup[g] = 0
@@ -170,7 +175,7 @@ class Scene:
         if view == "side":
             u, v = p[0], p[2]
         elif view == "front":
-            u, v = -p[1], p[2]
+            u, v = p[1], p[2]  # the front camera shows the robot's left (+y) on the image right
         elif view == "top":
             u, v = p[0], p[1]
         else:

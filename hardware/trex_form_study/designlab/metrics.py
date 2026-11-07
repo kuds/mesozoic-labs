@@ -26,9 +26,31 @@ def _geom_points(m, d, g):
         R = d.geom_xmat[g].reshape(3, 3)
         return d.geom_xpos[g] + v @ R.T
     R = d.geom_xmat[g].reshape(3, 3)
-    c = d.geom_xpos[g] + R @ m.geom_aabb[g][:3]
+    t, sz = m.geom_type[g], m.geom_size[g]
+    p = d.geom_xpos[g]
+    # exact axis-aligned extreme points for round primitives (rotated boxes would overstate widths)
+    if t == mujoco.mjtGeom.mjGEOM_SPHERE:
+        return p + np.vstack([np.eye(3), -np.eye(3)]) * sz[0]
+    if t == mujoco.mjtGeom.mjGEOM_CAPSULE:
+        ends = np.array([p + R[:, 2] * sz[1], p - R[:, 2] * sz[1]])
+        return np.vstack([e + s * sz[0] * np.eye(3)[k] for e in ends for k in range(3) for s in (-1, 1)])
+    if t == mujoco.mjtGeom.mjGEOM_CYLINDER:
+        out = []
+        for e in (p + R[:, 2] * sz[1], p - R[:, 2] * sz[1]):
+            for k in range(3):  # rim extreme along world axis k: radius x |component of e_k in the disc plane|
+                v = np.eye(3)[k] - R[:, 2] * R[k, 2]
+                nv = np.linalg.norm(v)
+                if nv > 1e-12:
+                    out += [e + sz[0] * v / nv, e - sz[0] * v / nv]
+                else:
+                    out.append(e)
+        return np.array(out)
+    if t == mujoco.mjtGeom.mjGEOM_ELLIPSOID:
+        ext = np.sqrt((R**2) @ (sz[:3] ** 2))
+        return np.array([p + s * ext[k] * np.eye(3)[k] for k in range(3) for s in (-1, 1)])
+    c = p + R @ m.geom_aabb[g][:3]
     h = m.geom_aabb[g][3:]
-    corners = np.array([[sx * h[0], sy * h[1], sz * h[2]] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
+    corners = np.array([[sx * h[0], sy * h[1], sz_ * h[2]] for sx in (-1, 1) for sy in (-1, 1) for sz_ in (-1, 1)])
     return c + corners @ R.T
 
 

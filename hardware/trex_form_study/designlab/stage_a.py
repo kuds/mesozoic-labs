@@ -67,6 +67,38 @@ def _run_star(args):
     return run_one(*args)
 
 
+def remeasure_one(cid: str, out: str, xml_dir: str) -> dict:
+    """Rebuild a sized candidate from its record (same selection and B; the XML SHA-256 must match)
+    and recompute its metrics with the current ``metrics.measure``.  Loads, power and cost are not
+    touched: they do not depend on the measurement code."""
+    import hashlib
+
+    import designlab  # noqa: F401
+
+    from . import metrics, pipeline
+
+    path = Path(out, "candidates", f"{cid}.json")
+    doc = json.loads(path.read_text())
+    if not doc.get("ok"):
+        return dict(id=cid, skipped=True)
+    res = pipeline.build_candidate(parse(cid), Path(xml_dir), selection=dict(doc["selection"]), B=doc["B"],
+                                   write=False)
+    sha = hashlib.sha256((Path(xml_dir) / f"{cid}.xml").read_bytes()).hexdigest()
+    if sha != doc["xml_sha256"]:
+        return dict(id=cid, error="rebuilt model differs from the sweep record")
+    doc["metrics"] = metrics.measure(res["model"], res["design"], res["q_home"])
+    doc["metrics_revision"] = "exact primitive extremes (round-one review)"
+    path.write_text(json.dumps(doc, indent=1, default=_json))
+    return dict(id=cid, ok=True)
+
+
+def _remeasure_star(args):
+    try:
+        return remeasure_one(*args)
+    except Exception as e:  # keep going; report
+        return dict(id=args[0], error=repr(e))
+
+
 def _mass_by_category(rows):
     out = {}
     for r in rows:
@@ -140,9 +172,20 @@ def main():
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--aggregate-only", action="store_true")
+    ap.add_argument("--remeasure", action="store_true",
+                    help="recompute metrics of finished candidates from rebuilt models (SHA-checked)")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
+    if a.remeasure:
+        ids = sorted(p.stem for p in (out / "candidates").glob("*.json"))
+        xml_dir = a.xml_dir or str(out / "models")
+        ctx = mp.get_context("spawn")
+        with ctx.Pool(a.workers) as pool:
+            for r in pool.imap_unordered(_remeasure_star, [(i, str(out), xml_dir) for i in ids], chunksize=4):
+                if not r.get("ok"):
+                    print(r, flush=True)
+        a.aggregate_only = True
     if not a.aggregate_only:
         ids = a.only or [c.id for c in candidate_list()]
         done = {p.stem for p in (out / "candidates").glob("*.json")} if (out / "candidates").exists() else set()

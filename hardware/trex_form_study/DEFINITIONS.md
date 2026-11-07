@@ -8,7 +8,7 @@ pose), unless stated otherwise. Frame: +X forward, +Y the robot's left, +Z up, f
 | Term | Definition |
 |---|---|
 | Crown height | Floor to the highest point of the skull covering (vertex-exact) in the nominal standing pose. Height classes 60/75/100/120 cm match the crown at the **10° reference posture**. The 0° and 20° versions of the same body report the crown height they reach (controlled comparison, so the body is not rescaled). |
-| Hip height `H` | Floor to the hip-pitch axis (acetabulum analogue). |
+| Hip height `H` | Floor to the hip-pitch axis (acetabulum analogue) in the design pose. It is the unit for every ratio. In the `home` stance the stance solve rolls each hip by 1.2–1.6° to set the foot spacing, so the measured axis sits 1–4 mm lower. The plates print that measured value and say so. |
 | Body unit `B` | Scale of every anatomical landmark. `H = leg_scale × B` (leg_scale = 1 except the `compact` proportion variant). |
 | Torso inclination | Angle above horizontal of the trunk reference line. The line runs from the hip-pitch-axis midpoint (acetabulum analogue) to the shoulder reference point, which sits 0.88 H ahead of the hip on the dorsal-column reference line in the level design pose, so it is horizontal at 0° by construction. Chest-up is positive. Postures 0°, 10° and 20° are exploratory values, not validated anatomical targets. In mounted skeletons the glenoid itself lies about 0.16 H below the acetabulum (derived, anatomy research), so a line drawn to the anatomical glenoid reads about 10.5° lower than this inclination. |
 | Pelvis inclination | Angle of the pelvis/sacral reference axis. The pelvis follows half the chest rotation (0°, 5°, 10°). The remainder is a fixed structural lumbar bend, not a joint. |
@@ -29,7 +29,7 @@ included, is never rotated.
 | Thigh width | Full width across both thigh fairings. |
 | Foot spacing | Distance between the two sole-site centres in the nominal stance. |
 | Support width / area | Width and area of the convex hull of all floor-contact pads of both feet. |
-| Max width | Full width of everything visible. |
+| Max width | Full width of everything visible. Measured from vertex-exact meshes and the exact extremes of boxes, capsules, cylinders, spheres and ellipsoids. |
 
 ## Ratios reported
 
