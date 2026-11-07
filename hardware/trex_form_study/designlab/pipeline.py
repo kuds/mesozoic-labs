@@ -7,8 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from . import hardware as hw
 from . import catalog, cost, mjcf, power, sizing, statics
+from . import hardware as hw
 from .build import Design, solve_B
 from .geometry import quat_from_matrix
 from .params import Candidate

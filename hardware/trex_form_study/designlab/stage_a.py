@@ -38,6 +38,7 @@ def candidate_list() -> list[Candidate]:
 
 def run_one(cid: str, out: str, xml_dir: str) -> dict:
     import designlab  # noqa: F401  (GL backend before mujoco)
+
     from . import metrics, pipeline
 
     t0 = time.time()

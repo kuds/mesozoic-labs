@@ -10,7 +10,8 @@ from dataclasses import dataclass, field, replace
 
 import numpy as np
 
-from . import catalog, hardware as hw, shapes
+from . import catalog, shapes
+from . import hardware as hw
 from . import template as T
 from .geometry import frame_from_axis, ry, rz
 from .params import REFERENCE_POSTURE, WIDTHS, Candidate

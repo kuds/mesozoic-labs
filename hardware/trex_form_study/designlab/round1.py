@@ -33,6 +33,7 @@ def _sha(p: Path) -> str:
 def rebuild(cid: str, stage_a: Path, out: Path) -> dict:
     """Rebuild one candidate with its Stage A selection; write MJCF, ledger, clearance and sensors."""
     import designlab  # noqa: F401
+
     from . import gait, metrics, mjcf, sizing
     from .params import parse
     from .pipeline import build_candidate
@@ -106,6 +107,7 @@ def _rebuild_star(a):
 
 def make_plates(out: Path, index: dict):
     import designlab  # noqa: F401
+
     from . import plates
 
     m = out / "models"

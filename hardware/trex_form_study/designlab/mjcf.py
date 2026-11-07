@@ -126,11 +126,12 @@ def write_mjcf(design: Design, path: Path, rows: list[dict] | None = None, home_
             R = pb.R_world.T @ b.R_world
         el = ET.SubElement(parent_el, "body", name=name, pos=num(pos), quat=num(quat_from_matrix(R)))
         elems[name] = el
-        m, com, I = inert.get(name, (1e-4, np.zeros(3), np.eye(3) * 1e-7))
-        I = 0.5 * (I + I.T)
-        I = I + np.eye(3) * 1e-9
+        m, com, inertia = inert.get(name, (1e-4, np.zeros(3), np.eye(3) * 1e-7))
+        inertia = 0.5 * (inertia + inertia.T)
+        inertia = inertia + np.eye(3) * 1e-9
         ET.SubElement(el, "inertial", pos=num(com), mass=f"{max(m, 1e-4):.6g}",
-                      fullinertia=num([I[0, 0], I[1, 1], I[2, 2], I[0, 1], I[0, 2], I[1, 2]]))
+                      fullinertia=num([inertia[0, 0], inertia[1, 1], inertia[2, 2], inertia[0, 1], inertia[0, 2],
+                                       inertia[1, 2]]))
         j = b.joint
         if j:
             if j["type"] == "free":

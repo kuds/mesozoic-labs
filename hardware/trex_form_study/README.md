@@ -35,11 +35,14 @@ designlab/            the generator and screens (Python package)
   clearance.py        self-collision, swing and tail clearance, battery service path
   sensors.py          camera / ToF / lidar coverage by ray casting
   render.py, plates.py   review renders and plates (MuJoCo, offscreen)
-  stage_a.py          the broad sweep;  round1.py  the review set and plates
+  stage_a.py          the broad sweep;  round1.py  the review set, its screens and plates
+  report.py           generated tables (round1/TABLES.md) and page data (round1/review_data.json)
+  review_page.py, review_content.py, page_kit.py   the review web page
   data/               catalogs + raw sourced research records (URLs, access dates)
 round1/
   stage_a/            one compact JSON per candidate + summary.csv/json
-  review/             review-set models (MJCF + ledgers), screening JSON, plates
+  review/             review-set models (MJCF + ledgers), screening JSON and PNG, plates
+  TABLES.md           every comparison table, generated
 ```
 
 ## Reproduce
@@ -71,9 +74,20 @@ python -m designlab.stage_a --out round1/stage_a --xml-dir /tmp/stage_a_models -
 python -m designlab.round1 --out round1/review
 ```
 
+```bash
+python -m designlab.report --stage-a round1/stage_a --review round1/review --out round1
+```
+
+```bash
+python -m designlab.review_page --round1 round1 --out /tmp/review_page
+```
+
 `build` writes one candidate's MJCF and ledger. `size` adds load-based actuator and battery
-selection. `stage_a` runs the full sweep, about an hour on 3 cores. `round1` builds the review set,
-its screens and every plate.
+selection. `stage_a` runs the full sweep, about an hour on 3 cores. `round1` rebuilds the review set
+from the Stage A selections (each model's SHA-256 is checked against the sweep record), then runs the
+clearance and sensor screens and draws every plate. `report` writes the tables, and `review_page`
+writes the review page with web-sized images. `python -m designlab.clearance <id>` and
+`python -m designlab.sensors <id>` screen a single candidate.
 
 Candidate IDs read `<crown cm>-<width N|M|W>-<family T|S|H>-<posture 00|10|20>`, with optional
 suffixes `-anat`, `-compact`, `-bighead` (proportions), `-side`, `-serial` (leg layout) and `-belly`
