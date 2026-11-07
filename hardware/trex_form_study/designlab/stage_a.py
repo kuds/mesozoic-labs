@@ -157,7 +157,7 @@ def aggregate(out: Path):
             if k not in keys:
                 keys.append(k)
     with open(out / "summary.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=keys)
+        w = csv.DictWriter(f, fieldnames=keys, lineterminator="\n")
         w.writeheader()
         for r in rows:
             w.writerow(r)
