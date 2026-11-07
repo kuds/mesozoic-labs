@@ -9,7 +9,7 @@ Method (first order, stated): the reference candidate's drive power and the othe
 the Jetson budget (module 25 W + carrier/storage/cooling 6 W, through the 0.88 DC-DC) is replaced by
 the architecture's typical whole-set power through the same converter; runtime is the selected
 pack's usable energy (75 %) over the new walking power.  Mass and price change by the difference
-from the Jetson set (0.294 kg incl. tray; $249 + $120 integration as costed).  The mass change
+from the Jetson set (0.294 kg incl. tray; $399 + $120 integration as costed).  The mass change
 (tens to a few hundred grams) is not fed back into the joint loads; at these sizes it moves the
 walking power by well under 1 %.  Camera-side inference power is counted in the architecture's
 set when the architecture moves inference onto the camera.
@@ -27,7 +27,7 @@ from . import power
 HEIGHTS = (60, 75, 100, 120)
 JETSON_W = power.AUX_FIXED["jetson_module"] + power.AUX_FIXED["carrier_storage_cooling"]
 JETSON_KG = 0.294
-JETSON_USD = 249 + 120
+JETSON_USD = 399 + 120  # catalog price (NVIDIA list after the July 2026 rise) + integration, as costed
 
 
 def effects(research: dict, stage_a: Path) -> dict:
