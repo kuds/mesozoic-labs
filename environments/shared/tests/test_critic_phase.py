@@ -13,10 +13,14 @@ from environments.shared.model_id import ModelId
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 #: The T. rex recipe digests of main at 4c9d5e9b, before the option existed (configs/digest_snapshot.generated.txt
 #: there, lines 384-406).  Written out here, never read from a golden a later --write could move.
+#: The T. rex recipe digests on main.  The stance and recovery PPO digests moved with the r10 LTSB stance recipe
+#: (the stance-landing decision of 2026-11-06: mirror-KL PPO in stance's [ppo], which recovery inherits); the
+#: critic-phase option still adds no committed key.  The SAC digests read only [sac] and [curriculum] keys that did not
+#: move.
 MAIN_RECIPE_DIGESTS = {
-    ("stance", "PPO"): "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e",
+    ("stance", "PPO"): "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
     ("stance", "SAC"): "sha256:c6eb8d73dfdde463350306ba49070b031cbe327407cfdaf6aee270eb52d8fd26",
-    ("recovery", "PPO"): "sha256:4ac6592a9159dd5aae860949029f757d6d6cdceee083df4d9215db2480e11274",
+    ("recovery", "PPO"): "sha256:de9c9af0411e29a3a00e01f7fe096b1a2d0d12b2e64bbcbbbafe57c4c4e7eb65",
     ("recovery", "SAC"): "sha256:09b1e8034671fa666c74e2e4faac98fa751288a4ead8dc3473d1c702b7116b31",
     ("locomotion", "PPO"): "sha256:fde660acc611e9103a184c580a70142b96ddf5cb743b66e7deeb438a33f6980c",
     ("locomotion", "SAC"): "sha256:49ef875a97a5105b442714fe18795a5a5277b765476f92b79616469ab1d1a799",
@@ -153,6 +157,34 @@ def test_the_recipe_digest_records_the_switch_when_a_table_writes_it():
     assert digests["absent"] == MAIN_RECIPE_DIGESTS[("stance", "PPO")]
     # Each moves the digest, an explicit false too: "absent" is the default, and the record says what the table said.
     assert len(set(digests.values())) == 3
+    # With the switch written on (the notebook's CRITIC_PHASE = True writes exactly this), the committed stance is
+    # the recipe the r10 phase-critic screens recorded (stance7_r10LTSBpc_*, run.hyperparameters_sha256).
+    assert digests["on"] == "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954"
+
+
+def test_the_off_path_scenario_trains_the_stance_as_it_was_before_the_ltsb_landing():
+    """critic_phase_off_scenario.py compares main's off path with a golden written at 4c9d5e9b, before the r10 LTSB
+    stance recipe (the stance-landing decision of 2026-11-06): it sets the stance back, and the result is main's
+    pre-landing stance task and recipe exactly (its stage 2 is untouched)."""
+    import copy
+
+    from environments.shared.config import load_all_stages
+    from environments.shared.task_fingerprint import stage_task_fingerprint
+
+    from .critic_phase_off_scenario import pre_landing_stance
+
+    committed = load_all_stages(TYRANNOSAURUS_REX)
+    configs = copy.deepcopy(committed)
+    pre_landing_stance(configs)
+    stance = configs[1]
+    assert hyperparameters_sha256(stance, "PPO") == (
+        "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e"
+    )
+    assert stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance)["task_sha256"] == (
+        "sha256:533fff20288d02faea724721992c7d3efca65f7b2f3a6e06c4ad2e716b2bdfda"
+    )
+    assert stance["curriculum_kwargs"]["collapse_peak_floor_reference"] == 3766.6
+    assert configs[2] == committed[2]
 
 
 def test_the_recipe_digest_records_a_warm_start_log_std_when_a_stage_declares_one():

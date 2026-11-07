@@ -763,6 +763,18 @@ def _max_reported_velocity(stage_summaries: list[dict[str, Any]]) -> int | float
     return max(reported_velocities) if reported_velocities else None
 
 
+def _refuse_excluded_run(provenance: Any, *, relative_path: str) -> None:
+    """A committed result of a run that never counts (the stance-landing decision of 2026-11-06) is a catalog
+    failure."""
+    from .run_exclusions import excluded_provenance_reasons
+
+    if not isinstance(provenance, dict):
+        return
+    reasons = excluded_provenance_reasons(provenance)
+    if reasons:
+        raise CatalogError(f"result {relative_path} is never a committed result: {reasons[0]}")
+
+
 def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
     result_path = _repo_path(relative_path, field=f"{model_id} result summary")
     with result_path.open(encoding="utf-8") as result_file:
@@ -815,6 +827,7 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
         )
 
     validated_provenance = _validate_provenance(summary["provenance"], result_path=relative_path)
+    _refuse_excluded_run(summary["provenance"], relative_path=relative_path)
     raw_stages_by_id = {entry.id: summary["stages"][stage_key] for stage_key, entry in stage_entries}
     deliverables, primary_deliverable, target_deliverable = _build_result_deliverables(
         model_id, summary, validated_provenance, raw_stages_by_id, relative_path=relative_path

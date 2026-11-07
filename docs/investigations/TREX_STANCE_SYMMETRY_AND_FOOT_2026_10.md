@@ -179,6 +179,13 @@ stance is certified. Its evidence is in
 folders `com_revisit/`, `tail_probes/` and `tail_record/` beside it. The
 statuses above are unchanged.*
 
+*Status 2026-11-06 (appended): §30, appended that day, records the
+maintainer's stance-landing decision of that day: the stance recipe of the
+three r10 phase-critic screen runs (`stance7_r10LTSBpc_*`) is put on `main`
+for its certification by two new seeds, and the nine r10 screen runs never
+count, which answers §16.2's open question. No T. rex stance is certified.
+The statuses below are unchanged.*
+
 *Status 2026-10-30 (appended): §29, appended that day, records in short the
 night's no-training probes of the tail habit and the two critic-blind screens
 that followed them, with decisions D-D56 to D-D58. From seed 42's r10
@@ -5452,3 +5459,71 @@ maintainer's word), never to be merged.
   (`scratchpad2/r10round/bias_screen/`, `scratchpad2/r10round/bias_screen2/`,
   `scratchpad2/com_revisit/notes/`); the ledgers of the screens are also on
   the durable branches.
+
+## 30. Status 2026-11-06 (appended): the LTSB stance recipe on `main` for its certification; the stance-landing decision
+
+*Appended 2026-11-06; §1–§29 above are unchanged.* Labels as in §27:
+measured, as each source records it; inferred, where said.
+
+### 30.1 The decision
+
+At 14:09 UTC on 2026-11-06, after a read-only readiness check of the
+certification path, the maintainer chose "B: land LTSB + phase critic
+(Recommended)" (the stance-landing decision, cited by date: it has no
+decision id yet, and the next records change assigns one): the recipe the
+three r10 phase-critic screen runs trained (`stance7_r10LTSBpc_s42`, `_s60`
+and `_s80`, which passed the six-heading certificate; task `1e5964b6`,
+recipe `c64211e8`) lands on `main` by a reviewed code PR, and two new seeds
+then certify it there with the notebook's `CRITIC_PHASE = True`.
+
+### 30.2 What lands
+
+- The T. rex env's opt-in stance stagger penalty (§18.1) and per-foot
+  centre-of-pressure band (§20.2, §21.1), with the floor-contact reduction
+  in `environments/shared/floor_contact/`: the code the screens trained with,
+  identical to the screen commit's but for comments and docstrings
+  (measured: every ported module parses to the screen commit's syntax tree
+  once docstrings are removed; the stance env's rollouts on the statue and on
+  seeded noise, and the three phase-critic finals' deterministic rollouts,
+  are byte-identical on the two trees).
+- The committed stance turns the recipe on: the two terms (0.30, 0.045 m;
+  0.30), the lateral lean (0.25, 0.015 m), the settled leg reference,
+  `leg_home_pose` 1.0 / 0.05 and mirror-KL PPO. Its statue re-measured at
+  4470.37 ± 30.88, 40/40 (measured), so the collapse reference is 4470.4, the
+  screens' own. The gate and its bars are unchanged (`min_avg_reward` 2260,
+  gate `d26c34e6`, the gate the screens were judged under). The phase critic
+  stays a launch switch: with it on, the recipe digest is the phase-critic
+  screens' `c64211e8` (measured).
+- Recovery inherits the stance's `[env]` and `[ppo]`; its pushed statue is
+  re-measured at 1609.1 (measured; 1429.1 on `main` before, with the same
+  lengths and shoves), and it has never trained with the new terms.
+
+### 30.3 The screen runs never count
+
+§16.2 left open whether a screen run could ever count toward
+`certification_seeds` once its configuration is committed byte-identically.
+The stance-landing decision answers no: the nine r10 screen runs
+(`stance6_r10LTSB_*` at `8737cd3d`, `stance7_r10LTSBoff_*` and
+`stance7_r10LTSBpc_*` at `1dfe2327`) never count as certified, as replicates, as
+reusable ancestors, as widening parents or as committed results. Their task,
+gate, plant and recipe digests equal a new seed's, so the rule is explicit:
+`environments/shared/run_exclusions.py` lists the two commits, the nine runs'
+ids and handoff checkpoints and the stance7 runs' other fetched checkpoints, and
+replicate discovery, reuse rule 9, the widening tool, the bundle audit and the
+species catalog refuse a run whose `provenance.json`, stage `stage_config.json`
+or `gate_verdict.json` names one (measured on copies of the fetched screen
+records: a new seed beside the three phase-critic runs counts 0 replicates, 3
+before; reuse refuses all six fetched runs under rule 9). A run whose stage
+loaded, resumed or widened one of those checkpoints never counts either,
+whatever commit it trained at: its weights carry the screen's training, so a run
+warm-started from a screen's checkpoint is not a new seed or a certified
+parent's child.
+
+### 30.4 What changes in §13–§29
+
+- **§13, next steps:** the next T. rex session is the two-seed certification
+  of the committed stance ([NEXT_STEPS.md](../NEXT_STEPS.md) §3 has the
+  settings); the long critic-blind study of §29 is not part of it.
+- **§14, this repository:** `environments/shared/floor_contact/`,
+  `environments/shared/run_exclusions.py` and the stance and recovery configs;
+  the screens' own records stay where §21 to §29 put them.

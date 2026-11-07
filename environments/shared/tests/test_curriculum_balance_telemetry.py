@@ -58,7 +58,12 @@ import pytest
 
 from environments.shared.model_id import ModelId
 
+from .critic_phase_off_scenario import pre_landing_stance
+
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+#: The reward keys the r10 LTSB stance recipe (the stance-landing decision of 2026-11-06) added to
+#: DiagnosticsCallback.REWARD_KEYS.
+LTSB_REWARD_KEYS = ("reward_lateral_lean", "reward_stance_stagger", "reward_stance_cop_band")
 EPISODES = 2
 STEPS = 768
 #: The K3 panel at test scale: every 128 steps (128, 384 and 640 inside a rollout of 256 steps; 512 on the checkpoint
@@ -234,6 +239,14 @@ def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) 
 
     monkeypatch.setattr(train_base, "_report_hpt_metrics", lambda *a, **k: None)
     monkeypatch.setattr(train_base, "_eval_episodes_for_stage", lambda config: EPISODES)
+    # The three stance-option reward keys joined DiagnosticsCallback.REWARD_KEYS with the LTSB recipe (the
+    # stance-landing decision of 2026-11-06); the stance trained here pays none of them (above), so neither run records
+    # them, as before they were listed.
+    monkeypatch.setattr(
+        DiagnosticsCallback,
+        "REWARD_KEYS",
+        [key for key in DiagnosticsCallback.REWARD_KEYS if key not in LTSB_REWARD_KEYS],
+    )
     if not additions:
         monkeypatch.setattr(StageAwareEvalCallback, "report_extensions", False)
         monkeypatch.setattr(
@@ -257,6 +270,10 @@ def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) 
     }
     _instrument(monkeypatch, record)
     configs = load_all_stages(TYRANNOSAURUS_REX)
+    # The key sets below were pinned on 2e734e29, before the r10 LTSB stance recipe (the stance-landing decision of
+    # 2026-11-06) turned the stance options and mirror-KL PPO on in stance.toml, and the plain pair trains stock PPO:
+    # the stance is trained as it was then.
+    pre_landing_stance(configs)
     stance = configs[1]
     stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
     stance["ppo_kwargs"].update(n_steps=256, batch_size=64, n_epochs=2)
@@ -539,11 +556,14 @@ def test_the_full_run_writes_the_body_columns_last_and_ledger_only(trained):
 
 
 def _k3_stage_factory():
-    """The stance env the proof trained (its horizon 40 steps past the settle window), as the panel builds it."""
+    """The stance env the proof trained (the pre-landing stance ``_train`` sets, its horizon 40 steps past the
+    settle window), as the panel builds it."""
     from environments.shared.config import load_all_stages
     from environments.shared.species_registry import get_species_config
 
-    stance = load_all_stages(TYRANNOSAURUS_REX)[1]
+    configs = load_all_stages(TYRANNOSAURUS_REX)
+    pre_landing_stance(configs)  # as _train trains it, so the offline panel rolls the env the run rolled
+    stance = configs[1]
     stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
     env_class, kwargs = get_species_config(TYRANNOSAURUS_REX).env_class, dict(stance["env_kwargs"])
     return (lambda: env_class(**kwargs)), int(kwargs["max_episode_steps"])

@@ -833,6 +833,16 @@ def test_flat_probability_is_no_longer_a_transition_setting(learned_behavior, re
 
 
 _LEAN_KWARGS = {"lateral_lean_weight", "lateral_lean_tolerance_m"}
+_COP_BAND_KWARGS = {
+    "stance_cop_band_weight",
+    "stance_cop_band_lower",
+    "stance_cop_band_upper",
+    "stance_cop_band_pad_lower",
+    "stance_cop_band_pad_upper",
+    "stance_cop_band_tolerance",
+    "stance_cop_band_full_price_load_share",
+    "stance_cop_band_min_load_share",
+}
 
 
 @pytest.mark.parametrize(
@@ -841,6 +851,18 @@ _LEAN_KWARGS = {"lateral_lean_weight", "lateral_lean_tolerance_m"}
         ({"lateral_lean_weight": 0.25}, _LEAN_KWARGS),
         ({"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.02}, _LEAN_KWARGS),
         ({"leg_home_pose_reference": "settled"}, {"leg_home_pose_reference"}),
+        # The standing foot stagger penalty.
+        ({"stance_stagger_weight": 0.3}, {"stance_stagger_weight", "stance_stagger_tolerance_m"}),
+        (
+            {"stance_stagger_weight": 0.3, "stance_stagger_tolerance_m": 0.03},
+            {"stance_stagger_weight", "stance_stagger_tolerance_m"},
+        ),
+        # The per-foot CoP band.
+        ({"stance_cop_band_weight": 0.3}, _COP_BAND_KWARGS),
+        (
+            {"stance_cop_band_weight": 0.3, "stance_cop_band_lower": -0.5, "stance_cop_band_tolerance": 0.2},
+            _COP_BAND_KWARGS,
+        ),
     ],
 )
 def test_a_transition_may_turn_the_opt_in_stance_options_on_and_off(learned_behavior, options, hashed):

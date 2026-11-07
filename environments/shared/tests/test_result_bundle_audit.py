@@ -1523,3 +1523,45 @@ class TestAuditLoadLineageAcrossRuns:
         )
         assert problems == []
         assert lineage is not None and "parent_run_id" not in lineage
+
+
+def test_a_bundle_whose_stage_loaded_a_screen_checkpoint_is_never_a_result(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """The stance-landing decision of 2026-11-06, rule (d), through the audit's own stage-config loop: a stage whose run
+    block records that it resumed from an r10 T. rex stance screen run's checkpoint (stance7_r10LTSBpc_s42's
+    stage1_final.zip) is never a result, so the bundle writer, which audits before it writes the manifest, refuses it;
+    the same bundle without that key is written and audits clean."""
+    screen_final = "sha256:1c9d87c3d0f817b048de429bb80cdc89fcd2c83d5fbafd7f444af0b5474b9ff6"
+    for name, digest in (("20260718_120000", None), ("20260718_130000", screen_final)):
+        run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / name
+        stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
+        if digest is None:
+            _save(run_dir, stage_results, stage_configs, run_id="loaded-control")
+            assert audit_result_bundle(run_dir)["errors"] == []
+            continue
+        config_path = run_dir / "stage1" / "stage_config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config.setdefault("run", {})["resume_checkpoint_sha256"] = digest
+        config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        with pytest.raises(
+            ResultBundleError, match="stage 1 config: this run is never a result: run.resume_checkpoint"
+        ):
+            _save(run_dir, stage_results, stage_configs, run_id="loaded-test")
+
+
+def test_a_bundle_of_a_run_that_never_counts_is_never_a_result(
+    tmp_path: Path, stable_provenance: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stance-landing decision of 2026-11-06: audit_result_bundle refuses a bundle whose provenance names an
+    excluded commit (environments/shared/run_exclusions.py), through its own call site, not only the helper."""
+    from environments.shared import run_exclusions
+
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260718_120000"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
+    _save(run_dir, stage_results, stage_configs, run_id="excluded-test")
+    assert audit_result_bundle(run_dir)["errors"] == []
+    commit = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["repository_commit"]
+    monkeypatch.setattr(run_exclusions, "EXCLUDED_COMMITS", {commit: "a stand-in screen run"})
+    errors = audit_result_bundle(run_dir)["errors"]
+    assert any("this run is never a result" in error for error in errors), errors

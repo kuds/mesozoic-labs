@@ -1,6 +1,7 @@
 """Tests for DiagnosticsCallback."""
 
 from collections import Counter
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -582,6 +583,42 @@ class TestTheActionJerkRewardKey:
         from environments.shared.visualization import _REWARD_KEY_TO_CONFIG_WEIGHTS
 
         assert _REWARD_KEY_TO_CONFIG_WEIGHTS["reward_action_jerk"] == ("action_jerk_weight",)
+
+
+#: The T. rex stance options the committed stance pays since the stance-landing decision of 2026-11-06: each reward key
+#: and the weight that scales it.
+_STANCE_OPTION_REWARD_KEYS = [
+    ("reward_lateral_lean", "lateral_lean_weight"),
+    ("reward_stance_stagger", "stance_stagger_weight"),
+    ("reward_stance_cop_band", "stance_cop_band_weight"),
+]
+
+
+class TestTheStanceOptionRewardKeys:
+    """The lean, stagger and CoP-band terms: the T. rex env emits each while its weight is above 0, the committed
+    stance pays all three, and each is recorded like every reward term and read with its weight."""
+
+    @pytest.mark.parametrize(("key", "weight"), _STANCE_OPTION_REWARD_KEYS)
+    def test_it_is_recorded_from_the_infos_into_the_npz(self, callback, tmp_path, key, weight):
+        assert key in DiagnosticsCallback.REWARD_KEYS
+        callback.locals = {"infos": [{key: -0.25, "forward_vel": 0.0}]}
+        callback._on_step()
+        callback.locals = {"infos": [{key: -0.75, "forward_vel": 0.0}]}
+        callback._on_step()
+        callback._on_rollout_end()
+        assert (f"diagnostics/{key}", -0.5) in [call.args for call in callback.logger.record.call_args_list]
+        assert np.load(str(tmp_path / "diagnostics.npz"))[key].tolist() == [-0.5]
+
+    @pytest.mark.parametrize(("key", "weight"), _STANCE_OPTION_REWARD_KEYS)
+    def test_the_reward_decomposition_reads_its_weight(self, key, weight):
+        from environments.shared.visualization import _REWARD_KEY_TO_CONFIG_WEIGHTS
+
+        assert _REWARD_KEY_TO_CONFIG_WEIGHTS[key] == (weight,)
+
+    @pytest.mark.parametrize(("key", "weight"), _STANCE_OPTION_REWARD_KEYS)
+    def test_the_tyrannosaurus_rex_env_emits_it(self, key, weight):
+        source = Path(__file__).resolve().parents[2] / "tyrannosaurus_rex" / "base_env.py"
+        assert f'info["{key}"]' in source.read_text(encoding="utf-8")
 
 
 class TestRolloutCounts:

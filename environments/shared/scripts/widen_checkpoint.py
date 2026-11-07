@@ -291,6 +291,11 @@ def _resolve_parent(
                     f"{verdict_path} records passed={passed!r}: only a parent whose gate passed is widened "
                     "(a widened copy of a failed node would carry that node's weights under a fresh directory)"
                 )
+        from environments.shared.run_exclusions import excluded_run_reason
+
+        exclusion = excluded_run_reason(stage_dir.parent, stage_dir)
+        if exclusion is not None:
+            raise WidenError(f"{stage_dir} is never widened: {exclusion}")
         handoff = select_handoff_checkpoint(stage_dir / "models")
         if handoff is None:
             raise WidenError(
@@ -359,6 +364,12 @@ def _resolve_parent(
             f"parent VecNormalize sidecar not found: {pkl_path}; a checkpoint without its normalization "
             "statistics is not widened (the widened policy would be a different policy)"
         )
+    from environments.shared.result_bundle import sha256_file
+    from environments.shared.run_exclusions import excluded_handoff_reason
+
+    exclusion = excluded_handoff_reason(sha256_file(zip_path))
+    if exclusion is not None:
+        raise WidenError(f"{zip_path} is never widened: {exclusion}")
     if zip_path.stem not in HANDOFF_NAMES:
         raise WidenError(
             f"{zip_path.name} is not a handoff checkpoint ({' / '.join(HANDOFF_NAMES)}); the widened pair is "

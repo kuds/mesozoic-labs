@@ -611,21 +611,26 @@ def test_the_trainer_reads_the_switch_from_the_ppo_table():
 def test_the_trainer_wires_the_switch_end_to_end(switch, symmetric, tmp_path, monkeypatch):
     """train_base.train (the notebook's train_stage call) on the real T. rex stance stage, one tiny update: off, the
     stock VecNormalize, MlpPolicy and buffer and no record; on, the phase env, policy, buffer and record.  The
-    committed stance trains stock PPO (no [ppo] symmetry key); the symmetric case adds mirror-KL PPO with the
-    mirrored critic, the configuration the phase-critic stance runs trained under."""
+    committed stance trains mirror-KL PPO with the mirrored critic (the r10 LTSB recipe, the stance-landing decision
+    of 2026-11-06), the configuration the phase-critic stance runs trained under: the symmetric case keeps it, and the
+    other two drop its four [ppo] symmetry keys to train stock PPO."""
     import copy
 
     from environments.shared import train_base
     from environments.shared.config import load_all_stages
     from environments.shared.species_registry import get_species_config
 
+    from .critic_phase_off_scenario import LTSB_PPO_KEYS
+
     configs = copy.deepcopy(load_all_stages(TYRANNOSAURUS_REX))
-    assert "symmetry" not in configs[1]["ppo_kwargs"]  # main's stance is stock PPO
-    configs[1]["ppo_kwargs"].update(n_steps=64, batch_size=64, n_epochs=1)
+    ppo = configs[1]["ppo_kwargs"]
+    assert ppo["symmetry"] == "mirror_kl" and ppo["symmetry_mirror_critic"] is True  # main's stance is mirror-KL
+    ppo.update(n_steps=64, batch_size=64, n_epochs=1)
     if switch:
-        configs[1]["ppo_kwargs"]["critic_phase"] = True
-    if symmetric:
-        configs[1]["ppo_kwargs"].update(symmetry="mirror_kl", symmetry_mirror_critic=True)
+        ppo["critic_phase"] = True
+    if not symmetric:
+        for key in LTSB_PPO_KEYS:
+            ppo.pop(key)
     seen = {}
     original = train_base._create_or_load_model
 

@@ -2,7 +2,7 @@
 name = "stance"
 description = "Learn to stand and balance without falling"
 
-[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1429.1 since physics r10, D-D44; 1329.1 from D-D27), as its note there says
+[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1609.1 since the r10 LTSB recipe, the stance-landing decision of 2026-11-06; 1429.1 on physics r10, D-D44; 1329.1 from D-D27), as its note there says
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
@@ -65,7 +65,13 @@ action_jerk_weight = 3.0                       # Frequency-aware smoothness: pen
                                                # ~8e4, so the term is nearly free for the behaviour we want and is
                                                # charged almost entirely to chatter.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
-leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance.
+leg_home_pose_weight = 1.0                     # The r10 LTSB stance recipe (the stance-landing decision of
+                                               # 2026-11-06): 1.0 and the tolerance 0.05 below, stance3's arm L+T
+                                               # (D-D37; the T. rex stance record
+                                               # docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
+                                               # §16.2), with the settled reference at the end of this table.
+                                               # 0.5 before that decision.
+                                               # Softly retain the authored p5 theropod leg stance.
                                                # REVERTED from 1.5 (issue #491): the 1.5 experiment could not have
                                                # worked, and measurement says why. This term governs 8 joints --
                                                # r/l hip_pitch, hip_roll, knee, ankle -- and those 8 carry only
@@ -78,7 +84,11 @@ leg_home_pose_weight = 0.5                     # Softly retain the authored p5 t
                                                # weight had nothing to pull on: measured DC moved 0.766 -> 0.738,
                                                # 3.7%, while the run took ~2M extra steps to escape its early
                                                # collapse. The list, not the weight, is the problem (#491).
-leg_home_pose_tolerance = 0.10                 # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
+leg_home_pose_tolerance = 0.05                 # The r10 LTSB stance recipe (the stance-landing decision of
+                                               # 2026-11-06, arm L+T): 0.05 rad, 0.10 before.
+                                               # leg_home_pose_broad_fraction 0.25 and _broad_scale 6.0 are
+                                               # unchanged, so the broad component's width is 0.30 rad.
+                                               # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
                                                # after the 20260808 run (postmortem: TREX_STAGE1_PASSIVE_TOES_RUN_
                                                # 2026_08.md section 6). At 0.20 the statue-breaking left-knee/ankle
                                                # offsets the release ablation convicted (0.21/0.17 rad measured)
@@ -386,6 +396,28 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # reward gate, which §9 retired: the statue is the reward optimum at
                                                # every noise level. Robustness is stage 1b's job, via perturbations,
                                                # not lucky-draw reset noise (§13).
+# The r10 LTSB stance recipe (the maintainer's stance-landing decision of 2026-11-06): the stance options below, off
+# by default in the env, are on here, with leg_home_pose 1.0 / 0.05 above and mirror-KL PPO in [ppo]. Three r10
+# screen runs of exactly this recipe with the critic phase on (stance7_r10LTSBpc_s42, _s60 and _s80, task 1e5964b6)
+# passed the six-heading certificate on branch commits; they never count as certified or as replicates
+# (run_exclusions.py), and two new seeds certify it on main. The statue-derived collapse reference in
+# [curriculum] moves with these keys. Arm L as #624 ships it (website/docs/training/mirror-symmetry.md): the
+# standing lateral-lean bonus on the centre of mass over the feet, paid after stance_width_settle_steps with a zero
+# command and both feet loaded (base_env 8g), and the leg_home_pose term centred on the statue's settled leg pose
+# (base_env._LEG_SETTLED_QPOS, physics r10's).
+lateral_lean_weight = 0.25
+lateral_lean_tolerance_m = 0.015
+leg_home_pose_reference = "settled"
+# The stance stagger penalty (base_env 8h; stance4's arm LTS, D-D39): -w (1 - exp(-(s/tol)^2)), s the right foot
+# site's lead over the left along the pelvis heading, paid after stance_width_settle_steps with a zero command.
+stance_stagger_weight = 0.30
+stance_stagger_tolerance_m = 0.045
+# The per-foot centre-of-pressure band (base_env 8i; stance5's arm LTSB, D-D40 3a-3d): -w mean_feet
+# (1 - g exp(-(u/0.357)^2)), u each foot's excess of its whole-foot CoP outside [-0.6, +0.4] or of its pad CoP
+# outside [-0.65, +0.65] (span half-lengths), g the load-share ramp (0 at a share <= 0.25, 1 at >= 0.35, linear
+# between; 0 for a foot unloaded or off its pad), paid after stance_width_settle_steps with a zero command. Only
+# the weight is set here; the other seven band keys stay at their code defaults, as the screens trained them.
+stance_cop_band_weight = 0.30
 
 [ppo]                                   # recovery.toml inherits this and [ppo.policy_kwargs] (`extends`), all but ent_coef_decay_timesteps: an edit here moves recovery's hyperparameters too
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -460,6 +492,16 @@ ent_coef_decay_timesteps = 7000000      # 64% of the 11M budget (derived as 70% 
                                         # locks in; this anneal and the learning rate are unchanged.
 
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
+# The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06): mirror-symmetric PPO
+# (environments/shared/mirror_kl_ppo.py) with the committed T. rex mirror map (mirror_map.json beside this file):
+# the mirror loss at kappa 0.3 with its sigma floor 0.01 and the mirrored critic, as arm L ships them (#624); all
+# four keys written, as website/docs/training/mirror-symmetry.md asks. The schedules above are unchanged. The critic
+# phase stays a launch switch (the SB3 notebook's CRITIC_PHASE, the same decision): no committed stage sets
+# [ppo] critic_phase.
+symmetry = "mirror_kl"
+symmetry_kappa = 0.3
+symmetry_sigma_floor = 0.01
+symmetry_mirror_critic = true
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
@@ -919,6 +961,14 @@ min_avg_reward = 2260.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # reference moves to 3766.6 and the rail re-derives: 0.60 x 3766.6 =
                                         # 2260.0, 2260. stance_quality_baseline.py 0.05 40 agrees (3766.6 +/- 16.2).
                                         #
+                                        # Kept at 2260 under the r10 LTSB stance recipe (the stance-landing decision
+                                        # of 2026-11-06), which moves the statue to 4470.37 +/- 30.88
+                                        # (collapse_peak_floor_reference below): the gate and its bars stay as they
+                                        # were (gate d26c34e6, the one the r10 screens were judged under), so 2260 is
+                                        # 0.60 x the D-D27 r10 statue (3766.6) it was derived from, now 0.51 x the
+                                        # LTSB statue. The ratio rail below re-derives itself: 0.60 x the statue panel
+                                        # each report rolls, about 2682 under LTSB, binds before this one.
+                                        #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
                                         # it by better than 2x. Meanwhile 0.89 = 2900 sat within ~2.4% of a
@@ -1034,7 +1084,15 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 3766.6   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+collapse_peak_floor_reference = 4470.4   # The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06):
+                                         # the zero-action statue panel (zero_action_baseline.py, 40 episodes, seeds
+                                         # 3042-3081, noise 0.05) on this config, physics r10: 4470.37 +/- 30.88,
+                                         # 40/40 full horizon, +703.81 over the D-D27 task's 3766.56 (decomposed on
+                                         # the screen branch: the leg term +506.53, the lean +198.60, the stagger
+                                         # -1.17, the band -0.15). Floor 0.45 x 4470.4 =
+                                         # 2011.7. The r10 screens trained with exactly this value. Before
+                                         # that decision, 3766.6:
+                                         # the zero-action statue's standing reward at noise 0.05, 40 episodes,
                                          # seeds 3042-3081, on physics r10 (the preloaded tail springs, D-D44)
                                          # with the D-D27 stance task: 3766.56 +/- 16.21, 40/40 full horizon
                                          # (min_avg_reward above has the figures; floor 0.45 x 3766.6 = 1695.0).

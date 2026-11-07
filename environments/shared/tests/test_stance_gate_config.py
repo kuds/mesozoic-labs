@@ -145,10 +145,20 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
     assert binomial_lcb(40, n) == pytest.approx(0.9278, abs=1e-4)
 
 
+#: The statue reference min_avg_reward was derived from: the D-D27 stance task on physics r10.  The r10 LTSB
+#: recipe (the stance-landing decision of 2026-11-06) moved collapse_peak_floor_reference to its own statue (4470.4) and
+#: kept the gate and its bars as they were (gate d26c34e6, the one the r10 screens were judged under), so the fixed rail
+#: stays at 0.60 of this.
+RAIL_REFERENCE = 3766.6
+
+
 def test_the_reward_rails_are_the_same_fraction_of_the_statue(curriculum):
-    """min_avg_reward is 0.60 of the recorded statue reference, rounded to 10; the statue ratio states 0.60 itself."""
+    """min_avg_reward is 0.60 of the statue it was derived from, rounded to 10, and never above 0.60 of the current
+    statue reference (a rail, not a bar on a competent policy); the statue ratio states 0.60 itself and re-derives
+    against each report's own statue panel."""
     reference = curriculum["collapse_peak_floor_reference"]
-    assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
+    assert curriculum["min_avg_reward"] == round(0.60 * RAIL_REFERENCE, -1) == 2260.0
+    assert curriculum["min_avg_reward"] <= round(0.60 * reference, -1)
     assert curriculum["min_avg_reward_statue_ratio"] == 0.60
     assert curriculum["min_full_horizon_fraction"] == 0.95
 

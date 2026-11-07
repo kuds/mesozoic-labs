@@ -335,7 +335,12 @@ from none, under `stance_quality/v2`.* *2026-10-07: the first two r8 seeds,
 next seeds train on the D-D27 task.* *2026-10-11: and on physics r9 (D-D29),
 where no T-Rex stance has trained.* *2026-10-25: and now on physics r10 (D-D44),
 where no T-Rex stance has trained; the stance screens of 2026-10-18 to
-2026-10-24 trained on r9 and certified nothing.* Nothing relies on a `mesozoic-labs/certified` library
+2026-10-24 trained on r9 and certified nothing.* *2026-11-06: the clause "where no
+T-Rex stance has trained" no longer holds: the r10 screen runs (`stance6_r10LTSB_*`,
+`stance7_r10LTSBoff_*` and `stance7_r10LTSBpc_*`) trained on r10 and passed on branch commits,
+and they never count (the stance-landing decision of 2026-11-06); the recipe of the phase-critic
+three is the committed stance since that decision, and the two-seed count on `main` starts from
+none.* Nothing relies on a `mesozoic-labs/certified` library
 directory.
 
 ---
@@ -705,6 +710,67 @@ r10. The decisions' full text is in
 is §9 of
 [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
 and §29 of the stance record.*
+
+*2026-11-06: the maintainer's stance-landing decision (no decision id yet:
+the next records change numbers it). The T-Rex stance recipe whose three r10
+phase-critic screen runs passed the six-heading certificate ("LTSB": the
+lateral lean, the settled leg reference with `leg_home_pose` 1.0 / 0.05, the
+stance stagger penalty, the per-foot centre-of-pressure band and mirror-KL
+PPO; task `1e5964b6`) is the committed stance, and the screens never count.
+The next T-Rex session is its certification: two fresh seeds on Colab L4,
+one session each, the SB3 notebook with `REPO_REF` set to the full SHA of
+the commit that put the recipe on `main`, and these LTSB certification
+settings for the first session (`environments/shared/tests/test_ltsb_stance_recipe.py`
+checks them against the notebook):*
+
+```python
+SPECIES = "tyrannosaurus_rex"
+EMBODIMENT = "anatomical"
+ALGORITHM = "ppo"
+N_ENVS = 4
+BEHAVIOR = "stance"
+SEED = 44
+RUN_ID = "trex_stance_r10_ltsb_s44"
+TRUNK_FROM = ""
+RETRAIN_FROM = ""
+CRITIC_PHASE = True
+K3_PANEL = False
+QUICK_TEST = False
+```
+
+*The second session is the same with `SEED = 43` and
+`RUN_ID = "trex_stance_r10_ltsb_s43"`: seeds no r10 screen used (42, 60 and
+80 did). `BEHAVIOR = "stance"` (the older `stand` of the rows above is
+refused). `RUN_ID` is explicit: `""` re-enters the run this runtime
+resolved last. `TRUNK_FROM` does not matter for `BEHAVIOR = "stance"` (the
+root target always trains here; `select_trunk` skips it); `""` makes the
+trunk record state no trunk. `CRITIC_PHASE = True` on the launch and on
+every resume: a resume with it off is refused, but a fresh launch with it
+off would train the switch-off recipe `054ab483` without a warning. Before
+training, the resolve cell's line starting `Critic phase on:` must name
+`stance`; at the first checkpoint, `01_stance/stage_config.json` must record
+`run.hyperparameters_sha256` `sha256:c64211e8…` and `task_fingerprint.json`
+`1e5964b6…`, else the run is stopped and relaunched under a new `RUN_ID`.
+Neither run starts from a screen run's weights: a run whose stage record
+loads, resumes or widens a screen's checkpoint, or names a screen's run
+folder or run id, never counts (the stance-landing decision of 2026-11-06,
+`environments/shared/run_exclusions.py`).
+A seed the hop watch stops is restarted on a new seed, not resumed. The
+stage trains 12M steps, rolls the six-heading certificate on its
+robust-best handoff and writes `gate_verdict.json` and the bundle; both
+runs stay in `logs/tyrannosaurus_rex/anatomical/ppo/`, the second run's
+bundle counts the first, and re-running the first run's publication cell
+counts the second in its own record. Then the fresh-seed audit of each
+handoff pair (`stance_gate_report.py --species tyrannosaurus_rex
+--embodiment anatomical --model … --vecnorm … --seed 7042 --out-dir
+<scratch>`, never the stage directory), and a docs PR with the outcome.
+The robust-best rule can hand off a shallow early checkpoint (a known
+limit); the audit and the handoff's step count are the guards. Later
+sessions on the certified stance (`recover`, `walk`, `hunt`) leave
+`CRITIC_PHASE = False`: the switch writes `critic_phase = true` into every
+chain node, and recovery's phase (settle step 140) against the stance's
+(200) is a refused load. The decision's record is §30 of the stance
+record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

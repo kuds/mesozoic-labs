@@ -67,6 +67,7 @@ Reward components:
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -96,6 +97,9 @@ from environments.shared.reward_functions import (
 )
 from environments.shared.reward_functions import (
     reward_sole_flatness as _reward_sole_flatness_pure,
+)
+from environments.shared.reward_functions import (
+    reward_stance_stagger as _reward_stance_stagger_pure,
 )
 from environments.shared.reward_functions import (
     reward_stance_width as _reward_stance_width_pure,
@@ -193,6 +197,23 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     OPT_IN_TASK_KWARGS = (
         ("lateral_lean_weight", 0.0, ("lateral_lean_weight", "lateral_lean_tolerance_m")),
         ("leg_home_pose_reference", "keyframe", ("leg_home_pose_reference",)),
+        # The standing foot stagger penalty (8h in _compute_reward).
+        ("stance_stagger_weight", 0.0, ("stance_stagger_weight", "stance_stagger_tolerance_m")),
+        # The per-foot centre-of-pressure band (8i in _compute_reward).
+        (
+            "stance_cop_band_weight",
+            0.0,
+            (
+                "stance_cop_band_weight",
+                "stance_cop_band_lower",
+                "stance_cop_band_upper",
+                "stance_cop_band_pad_lower",
+                "stance_cop_band_pad_upper",
+                "stance_cop_band_tolerance",
+                "stance_cop_band_full_price_load_share",
+                "stance_cop_band_min_load_share",
+            ),
+        ),
     )
     _STANCE_WIDTH_REFERENCES = ("keyframe", "settled")
     _ACTION_PENALTY_SOURCES = ("filtered", "raw")
@@ -277,6 +298,16 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         lateral_lean_weight: float = 0.0,
         lateral_lean_tolerance_m: float = 0.015,
         leg_home_pose_reference: str = "keyframe",
+        stance_stagger_weight: float = 0.0,
+        stance_stagger_tolerance_m: float = 0.045,
+        stance_cop_band_weight: float = 0.0,
+        stance_cop_band_lower: float = -0.6,
+        stance_cop_band_upper: float = 0.4,
+        stance_cop_band_pad_lower: float = -0.65,
+        stance_cop_band_pad_upper: float = 0.65,
+        stance_cop_band_tolerance: float = 0.357,
+        stance_cop_band_full_price_load_share: float = 0.25,
+        stance_cop_band_min_load_share: float = 0.35,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -389,6 +420,18 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.lateral_lean_weight = lateral_lean_weight
         self.lateral_lean_tolerance_m = lateral_lean_tolerance_m
         self.leg_home_pose_reference = leg_home_pose_reference
+        self.stance_stagger_weight = stance_stagger_weight
+        self.stance_stagger_tolerance_m = stance_stagger_tolerance_m
+        self.stance_cop_band_weight = stance_cop_band_weight
+        self.stance_cop_band_lower = stance_cop_band_lower
+        self.stance_cop_band_upper = stance_cop_band_upper
+        self.stance_cop_band_pad_lower = stance_cop_band_pad_lower
+        self.stance_cop_band_pad_upper = stance_cop_band_pad_upper
+        self.stance_cop_band_tolerance = stance_cop_band_tolerance
+        self.stance_cop_band_full_price_load_share = stance_cop_band_full_price_load_share
+        self.stance_cop_band_min_load_share = stance_cop_band_min_load_share
+        # The band's per-step contact reader (floor_contact/step_cop.py), built on first use when the band is on.
+        self._cop_band_reader: Any = None
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -451,6 +494,23 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             raise ValueError("lateral_lean_weight must be finite and non-negative")
         if not 0.0 < self.lateral_lean_tolerance_m < np.inf:
             raise ValueError("lateral_lean_tolerance_m must be a positive, finite length")
+        if not 0.0 <= self.stance_stagger_weight < np.inf:
+            raise ValueError("stance_stagger_weight must be finite and non-negative")
+        if not 0.0 < self.stance_stagger_tolerance_m < np.inf:
+            raise ValueError("stance_stagger_tolerance_m must be a positive, finite length")
+        if not 0.0 <= self.stance_cop_band_weight < np.inf:
+            raise ValueError("stance_cop_band_weight must be finite and non-negative")
+        for name in ("stance_cop_band", "stance_cop_band_pad"):
+            lower, upper = getattr(self, f"{name}_lower"), getattr(self, f"{name}_upper")
+            if not -np.inf < lower < upper < np.inf:
+                raise ValueError(f"{name}_lower and {name}_upper must be finite with lower < upper")
+        if not 0.0 < self.stance_cop_band_tolerance < np.inf:
+            raise ValueError("stance_cop_band_tolerance must be positive and finite")
+        if not 0.0 <= self.stance_cop_band_full_price_load_share < self.stance_cop_band_min_load_share < 0.5:
+            raise ValueError(
+                "stance_cop_band_full_price_load_share and stance_cop_band_min_load_share must satisfy "
+                "0 <= full_price_load_share < min_load_share < 0.5"
+            )
         if self.leg_home_pose_reference not in self._LEG_HOME_POSE_REFERENCES:
             raise ValueError(
                 f"leg_home_pose_reference must be one of {self._LEG_HOME_POSE_REFERENCES}, "
@@ -527,6 +587,53 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             command_mode=command_mode,
             command_config=command_config,
         )
+        # Build the CoP band's reader now, so a model it cannot describe fails here.
+        if self.stance_cop_band_weight > 0.0:
+            self._cop_band()
+
+    def _cop_band(self) -> Any:
+        """The CoP band's per-step contact reader, :class:`environments.shared.floor_contact.step_cop.StepFootCop`.
+
+        The reader and the morphology it reduces with live in the neutral
+        floor_contact package, which the gait recorder imports too, so this env imports
+        nothing from the gait package.  Imported here, only when the band is
+        on, so an env with it off never loads the reader.  It needs the
+        model's foot registry entry with an ankle and a support span: the
+        anatomical T. rex declares both in its FOOT_SUPPORT, which is passed
+        in from this class rather than looked up through species_registry
+        (support_entry), so a band-on env loads neither train_base nor the
+        curriculum nor gait at run time either (a test pins it).
+        """
+        if self._cop_band_reader is None:
+            from environments.shared.floor_contact.morphology import Morphology, entry_from_support
+            from environments.shared.floor_contact.step_cop import StepFootCop
+            from environments.shared.model_id import ModelId
+
+            embodiment = getattr(type(self), "embodiment", None)
+            if not embodiment:
+                raise ValueError("stance_cop_band_weight > 0 needs an embodiment class (its FOOT_SUPPORT entry)")
+            model_id = ModelId("tyrannosaurus_rex", str(embodiment))
+            entry = entry_from_support(getattr(type(self), "FOOT_SUPPORT", None))
+            morphology = Morphology.from_env(self, model_id, registry={model_id: entry})
+            spans = [(foot.label, foot.sole_geom, foot.heel_line_m, foot.toe_line_m) for foot in morphology.feet]
+            if [label for label, *_ in spans] != ["r", "l"] or not all(
+                sole >= 0 and np.isfinite(heel) and np.isfinite(toe) for _label, sole, heel, toe in spans
+            ):
+                raise ValueError(f"stance_cop_band_weight > 0 needs two soled feet r, l with support spans: {spans}")
+            self._cop_band_reader = StepFootCop(self, morphology)
+        return self._cop_band_reader
+
+    def _accumulate_substep(self, substep: int) -> None:
+        # The CoP band copies each substep's floor contacts (reads only).  The step being
+        # taken is _step_count + 1 (step() increments it after the substep loop).  Nothing happens while off.
+        super()._accumulate_substep(substep)
+        if self.stance_cop_band_weight > 0.0:
+            self._cop_band().record(self.model, self.data, self._step_count + 1, substep)
+
+    def _invalidate_substep_aggregates(self) -> None:
+        super()._invalidate_substep_aggregates()
+        if self._cop_band_reader is not None:
+            self._cop_band_reader.forget()
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
@@ -741,6 +848,19 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         midpoint = 0.5 * (self.data.site_xpos[self.r_foot_site_id] + self.data.site_xpos[self.l_foot_site_id])
         heading = world_to_heading(body_to_world(self.data.xquat[self.pelvis_id]))
         return float((heading @ (com - midpoint))[1])
+
+    def _foot_stagger(self) -> float:
+        """The right foot site's fore-aft lead over the left, in metres, + = right foot ahead.
+
+        Along the forward axis of the gravity-aligned pelvis heading frame (the
+        observation's own, ``world_to_heading``), from the step's last forward
+        pass: the quantity the 2026-10-19 split diagnosis calls the stagger
+        (r_foot site minus l_foot site along the pelvis heading).  It flips
+        sign under the left-right mirror.
+        """
+        offset = self.data.site_xpos[self.r_foot_site_id] - self.data.site_xpos[self.l_foot_site_id]
+        heading = world_to_heading(body_to_world(self.data.xquat[self.pelvis_id]))
+        return float((heading @ offset)[0])
 
     def _sole_tilts_deg(self) -> np.ndarray:
         """Each plantar pad's tilt from level, in degrees (right, left).
@@ -1180,11 +1300,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # its most-leaning spawn) against 105-141 more on episodes that
         # stood on a rolled pad, and the window mean offset separates the two
         # with AUC 0.99.  A bonus adds about 0.25 x 800 = 200 to every
-        # standing episode's return: re-measure stance.toml's
-        # collapse_peak_floor_reference before enabling it there, and add
-        # reward_lateral_lean to DiagnosticsCallback.REWARD_KEYS and to
-        # visualization's reward-decomposition weight map in the same change
-        # (left out while no stage pays it, so no run records an empty series).
+        # standing episode's return.  The committed stance pays it since
+        # the stance-landing decision of 2026-11-06 (the r10 LTSB recipe;
+        # stance.toml's collapse_peak_floor_reference re-measured with it), so
+        # reward_lateral_lean is in DiagnosticsCallback.REWARD_KEYS and
+        # visualization's reward-decomposition weight map.
         if self.lateral_lean_weight > 0.0:
             com_lateral_offset = self._com_lateral_offset()
             reward_lateral_lean, lateral_lean_quality = _reward_lateral_lean_pure(
@@ -1196,6 +1316,124 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             info["com_lateral_offset_m"] = com_lateral_offset
             info["lateral_lean_quality"] = float(lateral_lean_quality)
             info["reward_lateral_lean"] = float(reward_lateral_lean) if lean_gate else 0.0
+
+        # 8h. Standing foot stagger (off unless stance_stagger_weight > 0;
+        # its info keys exist only then).  A
+        # Gaussian PENALTY on the fore-aft stagger of the two foot sites along
+        # the pelvis heading (_foot_stagger), centred on 0 (the statue's
+        # window mean |stagger| is 2.0 mm), paid only after the settle (step >
+        # stance_width_settle_steps) and only while the command is zero.  Not
+        # gated on support: a penalty that a lifted foot escaped would pay the
+        # policy to unload a foot.  -w (1 - exp(-(s/tol)^2)); the stagger
+        # enters squared and both gates are mirror-invariant, so the term is
+        # exactly mirror-invariant.  Designed in the 2026-10-19 night
+        # continuation and screened from scratch as stance4's arm LTS (w 0.30,
+        # tol 0.045 m; docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
+        # §17.5 and §18.1, decision D-D39).  Like reward_lateral_lean, it is in
+        # DiagnosticsCallback.REWARD_KEYS: the committed stance pays it since the
+        # stance-landing decision of 2026-11-06.
+        if self.stance_stagger_weight > 0.0:
+            foot_stagger = self._foot_stagger()
+            reward_stance_stagger, stagger_quality = _reward_stance_stagger_pure(
+                np.asarray(foot_stagger), self.stance_stagger_tolerance_m, self.stance_stagger_weight
+            )
+            stagger_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            info["foot_stagger_m"] = foot_stagger
+            info["stance_stagger_quality"] = float(stagger_quality)
+            info["reward_stance_stagger"] = float(reward_stance_stagger) if stagger_gate else 0.0
+
+        # 8i. Per-foot centre-of-pressure band (off unless
+        # stance_cop_band_weight > 0; its info keys exist only then).  A
+        # Gaussian PENALTY on each foot's whole-foot CoP (the judge's K2b
+        # reading for this step: every floor contact of the limb over the
+        # step's substeps, in span half-lengths, floor_contact/step_cop.py)
+        # outside [stance_cop_band_lower, stance_cop_band_upper], with the pad's own
+        # CoP held to [stance_cop_band_pad_lower, stance_cop_band_pad_upper]
+        # as well, so load moved onto the digits cannot pay the band (guard 2).
+        # Each foot's quality is scaled by a guard factor (guard 1, a ramp): 0
+        # for a foot that is unloaded or stands off its pad, or carries at
+        # most stance_cop_band_full_price_load_share of the two limbs' floor
+        # load, 1 from stance_cop_band_min_load_share up, linear between.  A
+        # foot whose guard is 0 pays the per-foot maximum, so lifting a foot
+        # never lowers the price, and at fixed readings a lighter foot never
+        # pays less; the price has no step at the bar.  The ramp leaves a
+        # bounded door: a lighter foot whose CoP is back in band pays 1 - g of
+        # the per-foot maximum, less than a loaded foot u out of band when
+        # g > exp(-(u / tolerance)^2) (at the defaults from share 0.30 for
+        # u 0.3, never at 0.25 or below).  Paid only after the settle and only
+        # while the command is zero, like the stagger term.  -w mean_feet
+        # (1 - q); every reading is fore-aft, the guard is per foot and the
+        # mean is symmetric, so the term is exactly mirror-invariant.
+        # Defaults (spans of 70 mm): band [-0.6, +0.4] (the split diagnosis'
+        # tight band, AUC 1.000 on both failing panels), pad band
+        # [-0.65, +0.65] (the band widened by the digits' observed
+        # whole-foot-minus-pad shift, p1..p99 -0.25..+0.04), tolerance 0.357
+        # (25 mm), the guard's ramp from share 0.25 to 0.35 (the v2 gate's
+        # windowed load-share bar; the maintainer's 2026-10-20 decision 3a).
+        # The screened dose is w 0.30, the stagger term's maximum (decision
+        # D-D40; docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
+        # §20.2 and §21.1).  Info per foot: <s>_cop_band_guard is the guard
+        # factor and <s>_cop_band_counted is 1 only at a guard of 1 (the
+        # design's counted rule), so 1 - counted is how often a guard fires
+        # and 1 - guard how much.  The arithmetic is
+        # reward_functions.cop_band_load_guard's and reward_stance_cop_band's,
+        # operation for operation, on the two feet as Python floats (their
+        # 2-element numpy calls cost about 35 us a step), keeping their one
+        # np.exp over both feet (math.exp moves some values by an ulp): the
+        # band's tests pin every value to theirs byte for byte.  Like
+        # reward_stance_stagger, it is in DiagnosticsCallback.REWARD_KEYS: the
+        # committed stance pays it since the stance-landing decision of 2026-11-06
+        # (a listed key that no info carries is written to a run's diagnostics.npz
+        # as a NaN series).
+        if self.stance_cop_band_weight > 0.0:
+            reading = self._cop_band().reading(self._step_count, self.model, self.data)
+            feet = list(
+                zip(
+                    reading.foot_cop.tolist(),
+                    reading.foot_loaded.tolist(),
+                    reading.pad_cop.tolist(),
+                    reading.pad_loaded.tolist(),
+                    reading.leg_force_mean.tolist(),
+                    reading.digit_share.tolist(),
+                )
+            )
+            limb_total = float(reading.leg_force_mean.sum())
+            full_price = self.stance_cop_band_full_price_load_share
+            ramp = self.stance_cop_band_min_load_share - full_price  # > 0: the validation's full_price < min
+            lower, upper = self.stance_cop_band_lower, self.stance_cop_band_upper
+            pad_lower, pad_upper = self.stance_cop_band_pad_lower, self.stance_cop_band_pad_upper
+            tolerance = max(self.stance_cop_band_tolerance, 1e-8)
+            shares, guards, exponents = [], [], []
+            for foot_cop, foot_loaded, pad_cop, pad_loaded, limb, _digit_share in feet:
+                share = limb / limb_total if limb_total > 0.0 else 0.0
+                loaded = foot_loaded and pad_loaded and math.isfinite(share)
+                guard = min(max((share - full_price) / ramp, 0.0), 1.0) if loaded else 0.0
+                excess = 0.0  # a foot whose guard is 0 scores 0: its readings (NaN when unloaded) are not read
+                if guard > 0.0:
+                    whole = max(lower - foot_cop, 0.0) + max(foot_cop - upper, 0.0)
+                    pad = max(pad_lower - pad_cop, 0.0) + max(pad_cop - pad_upper, 0.0)
+                    excess = max(whole, pad)
+                scaled = excess / tolerance
+                shares.append(share)
+                guards.append(guard)
+                exponents.append(-(scaled * scaled))
+            gaussian = np.exp(exponents).tolist()
+            band_quality = [guard * value if guard > 0.0 else 0.0 for guard, value in zip(guards, gaussian)]
+            band_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            for index, label in enumerate(("r", "l")):
+                foot_cop, foot_loaded, pad_cop, pad_loaded, _limb, digit_share = feet[index]
+                info[f"{label}_cop_band_foot_cop"] = foot_cop if foot_loaded else 0.0
+                info[f"{label}_cop_band_pad_cop"] = pad_cop if pad_loaded else 0.0
+                info[f"{label}_cop_band_load_share"] = shares[index]
+                info[f"{label}_cop_band_digit_share"] = digit_share if math.isfinite(digit_share) else 0.0
+                info[f"{label}_cop_band_guard"] = guards[index]
+                info[f"{label}_cop_band_counted"] = 1.0 if guards[index] >= 1.0 else 0.0
+                info[f"{label}_cop_band_quality"] = band_quality[index]
+            info["stance_cop_band_quality"] = (band_quality[0] + band_quality[1]) / 2.0
+            reward_stance_cop_band = -self.stance_cop_band_weight * (
+                ((1.0 - band_quality[0]) + (1.0 - band_quality[1])) / 2.0
+            )
+            info["reward_stance_cop_band"] = reward_stance_cop_band if band_gate else 0.0
 
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
@@ -1324,6 +1562,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             total_reward += reward_airborne_substeps
         if self.lateral_lean_weight > 0.0:
             total_reward += info["reward_lateral_lean"]
+        if self.stance_stagger_weight > 0.0:
+            total_reward += info["reward_stance_stagger"]
+        if self.stance_cop_band_weight > 0.0:
+            total_reward += info["reward_stance_cop_band"]
         info["reward_total"] = total_reward
 
         return total_reward, info

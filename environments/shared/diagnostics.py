@@ -149,6 +149,12 @@ class DiagnosticsCallback(_BaseCallback):
         # The second difference of the command (every stance stage pays it: action_jerk_weight), emitted by
         # the env since the T. rex stance shaping and recorded nowhere until it joined this list.
         "reward_action_jerk",
+        # The T. rex stance options the committed stance pays since the stance-landing decision of 2026-11-06 (lean,
+        # stagger, CoP band). The env emits each only while its weight is above 0, so another stage's run records it
+        # as a NaN series.
+        "reward_lateral_lean",
+        "reward_stance_stagger",
+        "reward_stance_cop_band",
         "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
         "reward_target",  # Compsognathus target reaching

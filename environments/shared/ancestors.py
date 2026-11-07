@@ -5,8 +5,9 @@ trained.  ``train_curriculum --trunk-from <run_dir>`` and the notebook's
 chain loop both apply the rule this module owns, in this order, refusing
 on the first failure with a reason naming it (the list is in evaluation
 order; rule 7 was appended by decision D-A22 and keeps its number, which
-is why it sits between 3 and 4, and rule 8 by decision D-D32, which sits
-between 5 and 6):
+is why it sits between 3 and 4, rule 8 by decision D-D32, which sits
+between 5 and 6, and rule 9 by the maintainer's stance-landing decision of
+2026-11-06, which sits between 1 and 2):
 
 1. the candidate run has a stage directory for the node, in any layout
    generation (``stage{N}``, ``NN_{id}``, bare id) — preferred whenever it
@@ -32,6 +33,18 @@ between 5 and 6):
    following it would present the trunk's node as this run's own (its results
    re-entered as trained here, its lineage lost); with the default the
    pre-D-A23 refusal stands;
+9. the run is not one that never counts (the stance-landing decision of
+   2026-11-06, :mod:`environments.shared.run_exclusions`): its
+   ``provenance.json`` ``repository_commit`` and the stage directory's
+   ``stage_config.json`` ``git_commit`` are not an excluded branch commit, the
+   directory's ``gate_verdict.json`` does not hash an excluded handoff
+   checkpoint, and its ``stage_config.json`` ``run`` block records no load of
+   a screen's checkpoint (by its digest, by a path inside a screen's run
+   folder or by a screen's run id) -- the r10 T. rex stance screen runs,
+   whose digests equal the landed
+   recipe's, so rules 2-8 alone would accept them.  Evaluated right after
+   rule 1 resolves the stage directory, so a followed record re-applies it
+   at the source;
 2. that directory carries a ``gate_verdict.json`` that PASSED, hashes both
    files of its handoff pair, and judged this node's id;
 3. the verdict's ``task_sha256`` equals the fingerprint derived from the
@@ -288,7 +301,7 @@ def find_certified_ancestor(
     """Apply the §4.2 reuse rule to *run_dir*'s directory for *entry*.
 
     Raises :class:`AncestorReuseError` naming the first rule that failed
-    (module docstring, rules 1-7); returns the ancestor otherwise.
+    (module docstring, rules 1-9); returns the ancestor otherwise.
     *current_task_sha256* is the digest derived from the CURRENT stage
     config (``stage_task_fingerprint``), which the verdict and the
     directory's own record must both equal exactly.  *current_gate_config*
@@ -482,6 +495,7 @@ def _find_certified_ancestor(
         sha256_file,
         verdict_is_reusable,
     )
+    from .run_exclusions import excluded_run_reason
     from .stage_manifest import stage_dir_candidates
     from .task_fingerprint import read_checkpoint_attribute
 
@@ -515,6 +529,13 @@ def _find_certified_ancestor(
             parent_model_sha256=parent_model_sha256,
             via=via,
         )
+
+    # (9) Not a run that never counts (the stance-landing decision of
+    # 2026-11-06): a branch screen run's digests equal the landed recipe's, so
+    # rules 2-8 would accept it.
+    exclusion = excluded_run_reason(run_path, stage_dir)
+    if exclusion is not None:
+        raise AncestorReuseError(f"{run_path} never counts (reuse rule 9): {exclusion}")
 
     # (2) A passed, reusable verdict for this node.
     try:
@@ -971,17 +992,19 @@ def _older_interface_root(
     checks besides the revision agrees with the current plant: same model
     (species and embodiment), ``physics_sha256``, ``nq``/``nv``/``nu`` and ``action_dim``, and an
     observation exactly ``COMMAND_WIDTH`` narrower (decision D-C17).  A run
-    behind a physics bump is an older plant, not a widen candidate.
+    behind a physics bump is an older plant, not a widen candidate, and a
+    run that never counts (reuse rule 9) is never offered for widening.
     """
     from .command_frame import COMMAND_WIDTH
     from .plant_contract import PlantIdentity
     from .result_bundle import GateVerdictError, read_gate_verdict
+    from .run_exclusions import excluded_run_reason
     from .stage_manifest import stage_dir_candidates
 
     stage_dir = next(
         (run_dir / name for name in stage_dir_candidates(model_id, root.reference) if (run_dir / name).is_dir()), None
     )
-    if stage_dir is None:
+    if stage_dir is None or excluded_run_reason(run_dir, stage_dir) is not None:
         return None
     try:
         verdict = read_gate_verdict(stage_dir)

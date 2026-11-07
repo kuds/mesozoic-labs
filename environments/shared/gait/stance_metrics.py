@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING, Any, Mapping, NamedTuple
 
 import numpy as np
 
+from ..floor_contact.reduction import normalized_foot_cop
 from . import events
 from .constants import (
     CONTACT_THRESHOLD_N,
@@ -560,13 +561,7 @@ def whole_foot_cop(trace: "EpisodeTrace") -> tuple[np.ndarray, np.ndarray, np.nd
     reduction :func:`episode_stance_metrics` and the pad telemetry share, so
     their readings agree bit for bit.
     """
-    span = np.asarray(trace.foot_support_span, dtype=np.float64).reshape(-1, 2)
-    spanned = np.asarray(np.isfinite(span).all(axis=1), dtype=bool)
-    middle = np.where(spanned, span.mean(axis=1), np.nan)
-    half = np.where(spanned, (span[:, 1] - span[:, 0]) / 2.0, np.nan)
-    cop = (np.asarray(trace.foot_cop, dtype=np.float64) - middle) / half
-    loaded = np.isfinite(cop) & (np.asarray(trace.leg_floor_max) > CONTACT_THRESHOLD_N)
-    return spanned, cop, loaded
+    return normalized_foot_cop(trace.foot_cop, trace.leg_floor_max, trace.foot_support_span)
 
 
 def _foot_cop_metric(trace: "EpisodeTrace", window: slice) -> float:

@@ -316,12 +316,21 @@ def test_the_ppo_symmetry_keys_select_mirror_kl_ppo_on_fresh_and_resumed_models(
     assert type(child) is PPO and SY.CHECKPOINT_ATTRIBUTE not in vars(child)
 
 
-def test_no_stage_config_enables_symmetry():
+def test_only_the_tyrannosaurus_rex_stance_and_its_recovery_enable_symmetry():
+    """The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06) writes all four symmetry keys in the
+    T. rex stance's [ppo], which recovery inherits (`extends`); no other stage of any model enables it."""
     from environments.shared.species_names import model_ids
     from environments.shared.stage_manifest import load_stage_manifest
 
+    enabled = {}
     for model_id in model_ids():
         for entry in load_stage_manifest(model_id).stages:
             ppo = dict(load_stage_config(model_id, entry.reference).get("ppo_kwargs", {}))
+            config = SY.pop_symmetry_config(ppo)
             assert not set(SY.SYMMETRY_KEYS) & set(ppo), (model_id, entry.id)
-            assert SY.pop_symmetry_config(ppo) is None
+            if config is not None:
+                enabled[(str(model_id), entry.id)] = config
+    model = "tyrannosaurus_rex/anatomical"
+    assert sorted(enabled) == [(model, "recovery"), (model, "stance")]
+    expected = SY.SymmetryConfig(kappa=0.3, sigma_floor=0.01, mirror_critic=True)
+    assert all(config == expected for config in enabled.values())

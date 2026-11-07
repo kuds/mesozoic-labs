@@ -2490,3 +2490,17 @@ def test_index_page_keys_video_cards_by_stage_id() -> None:
         if "stage3SuccessRate" in path.read_text(encoding="utf-8")
     )
     assert readers == ["data/species.ts"]
+
+
+def test_a_committed_result_of_a_run_that_never_counts_is_refused(tmp_path: Path, monkeypatch: Any) -> None:
+    """The stance-landing decision of 2026-11-06: _build_result refuses a summary whose provenance names an excluded
+    commit (environments/shared/run_exclusions.py), through its own call site, not only the helper."""
+    from environments.shared.species_catalog import CatalogError
+
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
+    )
+    _build_result_from(tmp_path, monkeypatch, summary)
+    summary["provenance"]["repository_commit"] = "1dfe2327f773007fa7fd68460dc0c53740936ff9"
+    with pytest.raises(CatalogError, match="never a committed result"):
+        _build_result_from(tmp_path, monkeypatch, summary)

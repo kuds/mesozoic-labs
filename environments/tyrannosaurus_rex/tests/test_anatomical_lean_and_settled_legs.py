@@ -31,9 +31,18 @@ LEAN_INFO_KEYS = {"com_lateral_offset_m", "lateral_lean_quality", "reward_latera
 SCREENED = {"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.015, "leg_home_pose_reference": "settled"}
 
 
+#: The other T. rex stance options the committed stance turns on (the r10 LTSB recipe, the stance-landing decision of
+#: 2026-11-06).
+OTHER_OPTION_KEYS = ("stance_stagger_weight", "stance_stagger_tolerance_m", "stance_cop_band_weight")
+
+
 @pytest.fixture(scope="module")
 def stance_kwargs():
-    return dict(load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"])
+    """The committed stance's env kwargs with every opt-in stance option removed, so "off" means off."""
+    kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"])
+    for key in (*OPTION_KEYS, *OTHER_OPTION_KEYS):
+        kwargs.pop(key, None)
+    return kwargs
 
 
 def _roll(kwargs, steps, seed=3042, amplitude=0.05):
@@ -60,9 +69,15 @@ def test_the_options_default_to_off():
         "lateral_lean_tolerance_m": 0.015,
         "leg_home_pose_reference": "keyframe",
     }
+    # The committed stance turns both on at the screened values (the r10 LTSB recipe, the stance-landing decision of
+    # 2026-11-06), and recovery inherits them (recovery.toml extends stance's [env]); no other stage sets one.
+    setting = {}
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
-        assert not set(OPTION_KEYS) & set(env_kwargs), entry.id
+        present = {key: env_kwargs[key] for key in OPTION_KEYS if key in env_kwargs}
+        if present:
+            setting[entry.id] = present
+    assert setting == {"stance": SCREENED, "recovery": SCREENED}
 
 
 def test_off_the_options_change_no_reward_and_no_info_key(stance_kwargs):
@@ -78,6 +93,14 @@ def test_off_the_options_change_no_reward_and_no_info_key(stance_kwargs):
 def test_off_the_options_move_no_task_fingerprint_and_no_recorded_config(tmp_path, stance_kwargs):
     for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
         committed = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference)
+        env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
+        if set(OPTION_KEYS) & set(env_kwargs):
+            # stance and recovery set the options (the stance-landing decision of 2026-11-06): their fingerprint is the
+            # one the screened values give, written out on top of the stage's kwargs without them.
+            without = {key: value for key, value in env_kwargs.items() if key not in OPTION_KEYS}
+            written = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs={**without, **SCREENED})
+            assert written == committed and set(OPTION_KEYS) <= set(committed["env"]), entry.id
+            continue
         explicit_off = {**load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"], "lateral_lean_weight": 0}
         explicit_off.update(lateral_lean_tolerance_m=0.05, leg_home_pose_reference="keyframe")
         assert stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs=explicit_off) == committed, (
@@ -107,7 +130,8 @@ def test_off_the_options_move_no_task_fingerprint_and_no_recorded_config(tmp_pat
         == 3
     )
     # stage_config.json records no off option's defaults, and every key the TOML sets.
-    config = load_stage_config(TYRANNOSAURUS_REX, "stance")
+    committed_config = load_stage_config(TYRANNOSAURUS_REX, "stance")
+    config = {**committed_config, "env_kwargs": dict(stance_kwargs)}
     path = save_stage_config(
         tmp_path / "off", "stance", config, "PPO", env_class=TyrannosaurusRexAnatomicalEnv, model_id=TYRANNOSAURUS_REX
     )
