@@ -12,8 +12,9 @@ import argparse
 import json
 from pathlib import Path
 
+from .params import Candidate
 from .report import _cm, _f, _usd, flags, short_part, table, volume_class_mass, worst
-from .round2 import FAMILIES, HEIGHTS, VARIANT_LABEL, VARIANTS, base_ids, candidate_ids
+from .round2 import FAMILIES, HEIGHTS, VARIANT_LABEL, VARIANTS, base_ids, candidate_ids, variant_key
 
 FAMILY_NAMES = {"T": "Tapered", "H": "Hybrid"}
 GROUPS = ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b", "neck", "tail")
@@ -32,9 +33,7 @@ def load(r2: Path, r1: Path) -> tuple[dict, dict, dict, dict]:
 
 
 def variant_of(cid: str) -> str:
-    h, w, f, p, *rest = cid.split("-")
-    prop = rest[0] if rest else "base"
-    return VARIANT_LABEL.get((w, prop), cid)
+    return VARIANT_LABEL.get(variant_key(cid), cid)
 
 
 def _bat(doc):
@@ -126,13 +125,13 @@ def t_variants(D: dict) -> str:
             base = D.get(f"{h}-M-{f}-10")
             if not base or not base.get("ok"):
                 continue
-            for w, p in VARIANTS[1:]:
-                cid = f"{h}-{w}-{f}-10" + ("" if p == "base" else f"-{p}")
+            for w, p, po in VARIANTS[1:]:
+                cid = Candidate(h, w, f, po, proportion=p).id
                 d = D.get(cid)
                 if not d or not d.get("ok"):
                     continue
                 bm, dm = base["metrics"], d["metrics"]
-                rows.append([f"`{cid}`", VARIANT_LABEL[(w, p)],
+                rows.append([f"`{cid}`", VARIANT_LABEL[(w, p, po)],
                              f"{d['metrics']['mass'] - bm['mass']:+.2f} kg",
                              f"{100 * (d['margins']['hip_pitch']['hold'] / base['margins']['hip_pitch']['hold'] - 1):+.0f} %",
                              f"{100 * (d['margins']['hip_roll']['hold'] / base['margins']['hip_roll']['hold'] - 1):+.0f} %",
@@ -242,7 +241,8 @@ def build(r2: Path, r1: Path) -> tuple[str, dict]:
           "`round2/review/`. Every number is a model estimate; none is measured.", "",
           f"Round two: {len(D)} candidates, {len(ok)} built and sized; {len(passed)} of {len(R)} screened pass every "
           "round-two clearance gate.", "",
-          "## 1. Candidates (10° chest-up, Raspberry Pi 5 + AI HAT+ compute)", "", t_candidates(D), "",
+          "## 1. Candidates (Raspberry Pi 5 + AI HAT+ compute; 10° chest-up except the level variants)", "",
+          t_candidates(D), "",
           "## 2. Selected drives (part and requirement / planning-limit ratio of the governing limit)", "", t_drives(D), "",
           "## 3. Joint loads and balance", "", t_loads(D), "",
           "## 4. Round one against round two, base bodies", "", t_r1_vs_r2(D, D1, R, R1), "",

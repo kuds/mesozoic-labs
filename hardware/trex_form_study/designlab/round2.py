@@ -1,7 +1,9 @@
 """Round two: the owner's round-one choices (decision log P10-P14), sized from scratch and screened.
 
 Candidates: 60 and 75 cm; Tapered and Hybrid bodies; 10 deg chest-up; for each, the balanced-width base
-and three single-change variants (narrow stance, larger skull, compact proportions): 16 in all.  Every
+and four single-change variants (narrow stance, larger skull, compact proportions, and the level 0 deg
+posture the owner asked to keep researching, P15): 20 in all.  The level variant is the same body as its
+base (sizes are matched at 10 deg), so its crown is lower.  Every
 candidate uses generator revision 2 (``Candidate.overrides`` ``("rev", 2)``; the changes are F8-F10 in
 DECISION_LOG.md) and the Raspberry Pi 5 + AI HAT+ compute, and is sized by the same loop as Stage A
 (loads -> drives and battery -> rebuild until stable).
@@ -32,10 +34,11 @@ from .params import Candidate
 
 HEIGHTS = (60, 75)
 FAMILIES = ("T", "H")
-#: (width, proportion) per variant; each variant changes one thing against the balanced-width base
-VARIANTS = (("M", "base"), ("N", "base"), ("M", "bighead"), ("M", "compact"))
-VARIANT_LABEL = {("M", "base"): "base", ("N", "base"): "narrow stance", ("M", "bighead"): "larger skull",
-                 ("M", "compact"): "compact"}
+#: (width, proportion, posture) per variant; each variant changes one thing against the 10 deg,
+#: balanced-width base
+VARIANTS = (("M", "base", 10), ("N", "base", 10), ("M", "bighead", 10), ("M", "compact", 10), ("M", "base", 0))
+VARIANT_LABEL = {("M", "base", 10): "base", ("N", "base", 10): "narrow stance", ("M", "bighead", 10): "larger skull",
+                 ("M", "compact", 10): "compact", ("M", "base", 0): "level (0°)"}
 COMPUTE = "rpi5_8gb_ai_hat_plus_13tops"
 REV = 2
 
@@ -47,7 +50,14 @@ def candidate(cid: str) -> Candidate:
 
 
 def candidate_ids() -> list[str]:
-    return [Candidate(h, w, f, 10, proportion=p).id for h in HEIGHTS for f in FAMILIES for w, p in VARIANTS]
+    return [Candidate(h, w, f, po, proportion=p).id for h in HEIGHTS for f in FAMILIES for w, p, po in VARIANTS]
+
+
+def variant_key(cid: str) -> tuple:
+    from .params import parse
+
+    c = parse(cid)
+    return (c.width, c.proportion, c.posture)
 
 
 def base_ids() -> list[str]:
@@ -220,7 +230,7 @@ def make_plates(out: Path, r1_models: Path | None = None) -> list[str]:
                               title="Silhouettes at one physical scale"))
     fam = {"T": "Tapered", "H": "Hybrid"}
     for h in HEIGHTS:
-        rows = [[x(Candidate(h, w, f, 10, proportion=p).id) for w, p in VARIANTS] for f in FAMILIES]
+        rows = [[x(Candidate(h, w, f, po, proportion=p).id) for w, p, po in VARIANTS] for f in FAMILIES]
         cols = [VARIANT_LABEL[v] for v in VARIANTS]
         if not any(c for r in rows for c in r):
             continue
