@@ -9,10 +9,21 @@ Requirements are computed on the *built* model:
 Selection rule (per group, same part on left and right):
     sustained planning torque  >= max(nominal-walk RMS, single-support hold)   (continuous)
     peak planning torque       >= 1.25 x brisk-walk peak                       (transient)
-    usable speed               >= 1.15 x brisk-walk peak speed
-choosing the part with the lowest score = mass_kg + COST_WEIGHT x price_usd/1000 (COST_WEIGHT = 0.8 kg per
-$1000: a $1000 saving is worth 0.8 kg) from parts with a sourced price.  A size uses one bus voltage
-for all leg drives: 24 V parts are tried first, then 48 V.
+    usable speed on the bus    >= 1.15 x brisk-walk peak speed
+Among parts that meet all three, the lowest score wins:
+    score = mass_kg + COST_WEIGHT x price_usd / 1000 + packaging term
+* COST_WEIGHT = 0.8 kg per $1000 (a $1000 saving is worth 0.8 kg); only parts with a sourced price.
+* Packaging term (hip groups only): PACK_K x M x (dy_leg / d dimension) x dimension.  The hip-roll
+  motor diameter, the thigh-twist motor diameter and the hip-pitch motor length set the hip-pitch
+  spacing (``build.Design._build``), and each metre of half-spacing y_leg adds about
+  m_leg g y_leg to the single-support roll and twist loads of the stance hip.  Sized at a sustained
+  torque density of ~13 N·m/kg (48 V class), with m_leg ~ 0.22 M, that costs
+  2 x 0.22 x 9.81 / 13 ~ 0.33 kg of actuator per metre of y_leg per kg of robot mass M: PACK_K = 0.33/m.
+  It is a first-order estimate that leaves out the loop gain; the sizing loop then checks the result.
+Bus: all leg drives share one bus.  A 6S (24 V class, 21.0-25.2 V over the usable charge) bus is tried
+first, then 12S (48 V class, 42.0-50.4 V).  A drive is eligible if its sourced allowable supply window
+covers the bus swing (``catalog.Actuator.accepts``); below its nominal voltage its usable speed is
+derated by bus/nominal (``catalog.Actuator.speed_at``), and no credit is taken above it.
 """
 
 from __future__ import annotations
@@ -95,22 +106,42 @@ def requirements(M: statics.Model, q_home: np.ndarray, H: float, layout: str) ->
                 gaits={k: v["summary"] for k, v in runs.items()}, runs=runs)
 
 
+BUSES = {24.0: (21.0, 25.2), 48.0: (42.0, 50.4)}  # nominal -> (low, high) over the usable charge
+PACK_K = 0.33  # kg of actuator per metre of hip half-spacing per kg of robot (see module docstring)
+#: d(y_leg)/d(dimension) per layout for the dimension of each hip group that sets the spacing:
+#: hip_roll -> diameter, hip_yaw -> diameter, hip_pitch -> axial length (build.Design._build).
+PACK_GEOMETRY = {"tandem": {"hip_roll": 0.5, "hip_yaw": 0.5, "hip_pitch": 0.5},
+                 "side": {"hip_roll": 1.0, "hip_yaw": 0.5, "hip_pitch": 0.5},
+                 "serial": {"hip_roll": 0.5, "hip_yaw": 0.5, "hip_pitch": 0.5}}
+
+
 def pool(kind: str, voltage: float | None = None):
+    """Selectable parts, cheapest-lightest first.  ``voltage`` is a bus nominal (24.0 or 48.0)."""
     acts = catalog.actuators().values()
     if kind == "servo":
         return sorted([a for a in acts if a.box is not None and a.price],
                       key=lambda a: (a.mass + COST_WEIGHT * a.price / 1000.0, a.mass))
     sel = [a for a in acts if a.box is None and a.price]
     if voltage is not None:
-        sel = [a for a in sel if abs(a.nominal_voltage - voltage) < 1e-6]
+        lo, hi = BUSES[voltage]
+        sel = [a for a in sel if a.accepts(lo, hi)]
     return sorted(sel, key=lambda a: (a.mass + COST_WEIGHT * a.price / 1000.0, a.mass))
 
 
-def meets(a: catalog.Actuator, r: dict) -> bool:
-    return a.sustained >= r["cont"] and a.peak >= r["peak_req"] and a.rated_speed >= r["speed_req"]
+def meets(a: catalog.Actuator, r: dict, bus: float | None = None) -> bool:
+    return a.sustained >= r["cont"] and a.peak >= r["peak_req"] and a.speed_at(bus) >= r["speed_req"]
 
 
-def select(req: dict, prefer_voltage=(24.0, 48.0), qdd_for_expression: bool = True) -> dict:
+def score(a: catalog.Actuator, group: str, mass: float, layout: str) -> float:
+    s = a.mass + COST_WEIGHT * a.price / 1000.0
+    k = PACK_GEOMETRY.get(layout, PACK_GEOMETRY["tandem"]).get(group)
+    if k:
+        D, L = a.envelope
+        s += PACK_K * mass * k * (L if group == "hip_pitch" else D)
+    return s
+
+
+def select(req: dict, mass: float = 15.0, layout: str = "tandem", prefer_voltage=(24.0, 48.0)) -> dict:
     groups = req["groups"]
     choice, notes = {}, []
     bus = None
@@ -118,7 +149,8 @@ def select(req: dict, prefer_voltage=(24.0, 48.0), qdd_for_expression: bool = Tr
         ok = True
         tmp = {}
         for g in ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b"):
-            cands = [a for a in pool("leg", v) if meets(a, groups[g])]
+            cands = sorted([a for a in pool("leg", v) if meets(a, groups[g], v)],
+                           key=lambda a: (score(a, g, mass, layout), a.mass))
             if not cands:
                 ok = False
                 break
@@ -131,7 +163,8 @@ def select(req: dict, prefer_voltage=(24.0, 48.0), qdd_for_expression: bool = Tr
         # nothing meets every requirement: take the strongest 48 V part for the failing groups and flag it
         bus = 48.0
         for g in ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b"):
-            cands = [a for a in pool("leg", bus) if meets(a, groups[g])]
+            cands = sorted([a for a in pool("leg", bus) if meets(a, groups[g], bus)],
+                           key=lambda a: (score(a, g, mass, layout), a.mass))
             if cands:
                 choice[g] = cands[0].id
             else:
@@ -144,7 +177,7 @@ def select(req: dict, prefer_voltage=(24.0, 48.0), qdd_for_expression: bool = Tr
         if cands:
             choice[g] = cands[0].id
         else:
-            leg = [a for a in pool("leg") if meets(a, groups[g])]
+            leg = [a for a in pool("leg", bus) if meets(a, groups[g], bus)]
             if leg:
                 choice[g] = leg[0].id
                 notes.append(f"{g}: no servo meets the load; QDD part {leg[0].id} used")
@@ -152,3 +185,5 @@ def select(req: dict, prefer_voltage=(24.0, 48.0), qdd_for_expression: bool = Tr
                 choice[g] = max(pool("servo"), key=lambda a: a.sustained).id
                 notes.append(f"{g}: no part meets the load")
     return dict(choice=choice, bus=bus, notes=notes)
+
+

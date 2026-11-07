@@ -222,10 +222,11 @@ def joint_role(joint: str) -> str | None:
 def joint_limits(design: Design, joint: str):
     role = joint_role(joint)
     act = design.act(role)
-    if role in ("ankle_a", "ankle_b") and design.cand.leg_layout == "proximal":
-        lim = 2 * act.peak  # both ankle motors share pitch or roll through the parallel linkage
-    else:
-        lim = act.peak
+    # Ankle (tandem/side layouts): the two motors drive pitch and roll through a parallel linkage, so the
+    # joint-space capability is the diamond |tau_pitch| + |tau_roll| <= 2 x peak.  The per-joint box
+    # used here (+-1 x peak on each joint) is the largest box inside that diamond: conservative for one
+    # axis alone.  A controller study should model the linkage instead.  Serial layout: one motor each.
+    lim = act.peak
     kp = max(5.0, 8.0 * act.rated_torque)
     return lim, kp
 

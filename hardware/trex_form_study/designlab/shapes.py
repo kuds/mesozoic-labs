@@ -238,6 +238,16 @@ def skull_panels(sk, family: str, base_world: np.ndarray, thickness, material, r
     return out
 
 
+def skull_dorsal(sk, family: str, s: float):
+    """World point on the skull's dorsal midline at station ``s`` (fraction of skull length from the
+    occipital condyle), and the skull frame (axis, up) in the world."""
+    L = sk.skull_len
+    u, top, *_ = skull_profiles(family)
+    ax, up = _skull_frame(sk)
+    zt = float(PchipInterpolator(u, top)(s)) * L
+    return sk.occiput + ax * (s * L) + up * zt, ax, up
+
+
 def skull_crown_world(sk, family: str) -> float:
     L = sk.skull_len
     u, top, *_ = skull_profiles(family)

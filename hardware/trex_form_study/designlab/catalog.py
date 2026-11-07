@@ -50,6 +50,8 @@ class Actuator:
     price: float  # USD
     armature: float  # reflected rotor inertia, kg m^2 (estimate unless sourced)
     box: tuple | None = None  # (L, W, H) for box servos
+    voltage_min: float | None = None  # allowable supply window, V (sourced text; see build_catalog.py)
+    voltage_max: float | None = None
     basis: dict = field(default_factory=dict)
     sources: list = field(default_factory=list)
     notes: str = ""
@@ -65,6 +67,19 @@ class Actuator:
     @property
     def rated_speed(self) -> float:
         return self.rated_speed_rpm * 2 * 3.141592653589793 / 60.0
+
+    def accepts(self, v_low: float, v_high: float) -> bool:
+        """True if the drive may run from a supply that swings between v_low and v_high."""
+        lo = self.voltage_min if self.voltage_min is not None else self.nominal_voltage
+        hi = self.voltage_max if self.voltage_max is not None else self.nominal_voltage
+        return lo <= v_low + 1e-9 and hi >= v_high - 1e-9
+
+    def speed_at(self, bus_nominal: float | None) -> float:
+        """Usable joint speed on a bus.  Back-EMF limits speed in proportion to supply voltage, so a
+        drive run below its nominal voltage is derated by bus/nominal; no credit is taken above it."""
+        if bus_nominal is None or self.box is not None:
+            return self.rated_speed
+        return self.rated_speed * min(1.0, bus_nominal / self.nominal_voltage)
 
     @property
     def no_load_speed(self) -> float:
@@ -114,7 +129,8 @@ def actuators() -> dict[str, Actuator]:
             no_load_speed_rpm=rec["no_load_speed_rpm"], nominal_voltage=rec["nominal_voltage_v"],
             kt=rec.get("kt_nm_per_a"), phase_resistance=rec.get("phase_resistance_ohm"),
             price=rec["price_usd"], armature=rec.get("armature_kg_m2", 0.0),
-            box=tuple(rec["box_m"]) if rec.get("box_m") else None, basis=rec.get("basis", {}),
+            box=tuple(rec["box_m"]) if rec.get("box_m") else None, voltage_min=rec.get("voltage_min_v"),
+            voltage_max=rec.get("voltage_max_v"), basis=rec.get("basis", {}),
             sources=rec.get("sources", []), notes=rec.get("notes", ""),
         )
     return out

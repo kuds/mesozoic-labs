@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from . import hardware as hw
-from . import cost, mjcf, power, sizing, statics
+from . import catalog, cost, mjcf, power, sizing, statics
 from .build import Design, solve_B
 from .geometry import quat_from_matrix
 from .params import Candidate
@@ -63,17 +63,27 @@ def dump(obj, path: Path):
     path.write_text(json.dumps(obj, indent=1, default=lambda x: x.tolist() if hasattr(x, "tolist") else str(x)))
 
 
-def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 5, selection: dict | None = None,
+def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 8, selection: dict | None = None,
                    verbose: bool = False) -> dict:
-    """Build, compute loads, re-select actuators and battery, rebuild until the selection is stable."""
+    """Build, compute loads, re-select actuators and battery, rebuild until the selection is stable.
+
+    Stopping rules (recorded in ``sizing_history``):
+    * converged: same selection twice and installed mass within 5 %;
+    * oscillation: a selection recurs (A -> B -> A); every group then keeps the stronger of the parts
+      it alternated between (higher sustained torque), which is conservative;
+    * mass spiral: installed mass grew more than 8 % per iteration for three iterations running, or
+      reached twice the first build's mass.  The candidate is then reported as not converged;
+    * otherwise the last selection after ``max_iter`` iterations, flagged as not converged.
+    """
     sel = dict(selection or hw.default_selection(cand.height))
     B = solve_B(cand)
     history = []
+    seen = []
     for it in range(max_iter):
         res = build_candidate(cand, out_dir, selection=sel, B=B, write=False)
         M, q_home, design = res["model"], res["q_home"], res["design"]
         req = sizing.requirements(M, q_home, design.sk.H, cand.leg_layout)
-        new = sizing.select(req)
+        new = sizing.select(req, mass=res["summary"]["mass"], layout=cand.leg_layout)
         nom = req["runs"]["nominal"]["idr"]
         ms = sizing._motor_space(M.names, nom["tau"], nom["omega"], cand.leg_layout)
         trial = dict(sel)
@@ -94,14 +104,37 @@ def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 5, selection:
             print(cand.id, "iter", it, "mass %.2f" % res["summary"]["mass"], trial["joints"], trial["battery"],
                   "%.0f W" % pw["total_w"])
         converged = key == prev and abs(trial["mass_guess"] - sel.get("mass_guess", 0)) < 0.05 * trial["mass_guess"]
-        spiral = it > 0 and res["summary"]["mass"] > 1.35 * history[0]["mass"]
+        masses = [h["mass"] for h in history]
+        growth = [b / a - 1 for a, b in zip(masses, masses[1:], strict=False)]
+        spiral = (len(growth) >= 3 and all(g > 0.08 for g in growth[-3:])) or masses[-1] > 2.0 * masses[0]
         if spiral:
             history[-1]["notes"] = history[-1]["notes"] + [
-                "sizing stopped: installed mass grew >35 % over the first iteration (actuator mass feeding back into loads)"]
+                "sizing stopped: mass spiral (installed mass kept growing as heavier actuators raised the loads); "
+                "not converged"]
             break
+        if key != prev and key in seen[:-1]:
+            # A -> B -> A: keep the stronger part of each alternating group
+            cyc = [h["selection"] for h in history[seen.index(key):]]
+            acts = catalog.actuators()
+            joints = {}
+            for g in hw.JOINT_GROUPS:
+                opts = {c["joints"][g] for c in cyc}
+                joints[g] = max(opts, key=lambda a: (acts[a].sustained, acts[a].peak))
+            strong = dict(trial, joints=joints)
+            for g in ("neck", "tail"):
+                opts = {c[g] for c in cyc}
+                strong[g] = max(opts, key=lambda a: (acts[a].sustained, acts[a].peak))
+            strong["battery"] = max({c["battery"] for c in cyc}, key=lambda b: power.catalog.part(b).capacity_wh)
+            history[-1]["notes"] = history[-1]["notes"] + [
+                "selection oscillated; each group keeps the stronger of the alternating parts"]
+            sel = strong
+            break
+        seen.append(key)
         sel = trial
         if converged:
             break
+    else:
+        history[-1]["notes"] = history[-1]["notes"] + [f"not converged after {max_iter} iterations"]
     # final build and evaluation; if the final loads exceed a part's planning limits, step that group up
     for repair in range(3):
         res = build_candidate(cand, out_dir, selection=sel, B=B, write=False)
@@ -110,11 +143,12 @@ def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 5, selection:
         bumped = False
         for g, r in req["groups"].items():
             a = design.act(g)
-            if sizing.meets(a, r):
+            bus = sel["bus"] if a.box is None else None
+            if sizing.meets(a, r, bus):
                 continue
             kind = "servo" if a.box is not None else "leg"
             pool = sizing.pool(kind, sel["bus"] if kind == "leg" else None)
-            better = [b for b in pool if sizing.meets(b, r)]
+            better = [b for b in pool if sizing.meets(b, r, sel["bus"] if kind == "leg" else None)]
             if better:
                 if g in hw.JOINT_GROUPS:
                     sel["joints"] = dict(sel["joints"], **{g: better[0].id})
@@ -133,10 +167,11 @@ def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 5, selection:
     margins = {}
     for g, r in req["groups"].items():
         a = design.act(g)
-        margins[g] = dict(actuator=a.id, sustained=a.sustained, peak=a.peak, speed=a.rated_speed,
+        spd = a.speed_at(sel["bus"] if a.box is None else None)
+        margins[g] = dict(actuator=a.id, sustained=a.sustained, peak=a.peak, speed=spd,
                           cont_req=r["cont"], peak_req=r["peak_req"], speed_req=r["speed_req"],
                           cont_ratio=r["cont"] / a.sustained, peak_ratio=r["peak_req"] / a.peak,
-                          speed_ratio=r["speed_req"] / max(a.rated_speed, 1e-6), rms=r["rms"], hold=r["hold"],
+                          speed_ratio=r["speed_req"] / max(spd, 1e-6), rms=r["rms"], hold=r["hold"],
                           double_support=r["double_support"])
     evaluation = dict(requirements={g: r for g, r in req["groups"].items()}, holds=req["holds"], gaits=req["gaits"],
                       walk_feasible=req["walk_feasible"],

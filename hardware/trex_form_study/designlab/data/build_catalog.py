@@ -16,12 +16,16 @@ Rules (stated here so every derived number can be traced):
 * Box servos (ROBOTIS, Feetech) publish stall torque; following PR #662 their planning sustained and
   peak torques are 0.167 and 0.293 of 12 V stall.  Their 'rated_torque' field below is set so the
   generic SUSTAINED_FRACTION gives that value.
+* Allowable supply voltage = the first "a-b V" range in the record's ``voltage_range`` text (for
+  CubeMars, the driver's "allowable" range when one is quoted).  Records that state only a nominal
+  input ("48 V input; operating range not stated") are limited to that nominal voltage.
 Run:  python -m designlab.data.build_catalog   (from hardware/trex_form_study)
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -38,6 +42,16 @@ BOX = {  # W x H x D mm from the research envelope notes
     "feetech_sts3250": (45.22, 24.72, 35.0),
 }
 SUSTAINED_FRACTION = 0.57  # must match catalog.SUSTAINED_FRACTION
+
+
+def voltage_window(r: dict, nominal: float) -> tuple[float, float, str]:
+    """(min, max, basis) allowable supply voltage from the research record's text."""
+    txt = r.get("voltage_range") or ""
+    allow = re.search(r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*V allowable", txt)
+    m = allow or re.search(r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*V", txt)
+    if m:
+        return float(m.group(1)), float(m.group(2)), "sourced (voltage_range text)"
+    return nominal, nominal, "nominal only (no operating range stated)"
 
 
 def convert_actuators():
@@ -81,10 +95,12 @@ def convert_actuators():
         arm = 2.5e-6 * (D_ref / 0.055) ** 4 * gr**2 if not servo else 2.0e-4 * (gr / 270.0) ** 0.5
         price = r.get("price_usd")
         basis["price"] = "sourced" if price else "missing"
+        vnom = r.get("nominal_voltage_v") or (12 if servo else 48)
+        vmin, vmax, basis["voltage_window"] = voltage_window(r, vnom)
         out.append(dict(
             id=aid, vendor=r["vendor"], model=r["model"], mass_kg=r["mass_g"] / 1000, diameter_m=d, length_m=L,
             box_m=box, rated_torque_nm=rated, peak_torque_nm=peak, rated_speed_rpm=usable, no_load_speed_rpm=nl,
-            nominal_voltage_v=r.get("nominal_voltage_v") or (12 if servo else 48), gear_ratio=gr, kt_nm_per_a=kt,
+            nominal_voltage_v=vnom, voltage_min_v=vmin, voltage_max_v=vmax, gear_ratio=gr, kt_nm_per_a=kt,
             phase_resistance_ohm=R, price_usd=price, armature_kg_m2=arm, interface=r.get("interface", ""),
             basis=dict(mass="sourced", **basis, armature="estimate (rule in build_catalog.py)",
                        speed="derived (max of rated, 0.6 x no-load)"),
@@ -164,8 +180,6 @@ def convert_parts():
 
 
 def _volt(s: str) -> float:
-    import re
-
     m = re.search(r"(\d+(?:\.\d+)?)\s*V", s or "")
     return float(m.group(1)) if m else 0.0
 

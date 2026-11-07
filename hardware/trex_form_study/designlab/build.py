@@ -12,9 +12,16 @@ import numpy as np
 
 from . import catalog, hardware as hw, shapes
 from . import template as T
-from .geometry import frame_from_axis, ry
+from .geometry import frame_from_axis, ry, rz
 from .params import REFERENCE_POSTURE, WIDTHS, Candidate
 from .skeleton import Skeleton, build_skeleton
+
+#: Camera mount: station along the skull (fraction of skull length from the occipital condyle;
+#: the orbits are at 0.20 and the lacrimal horn at 0.27) and pitch above level, in the world.
+CAMERA_STATION = 0.24
+CAMERA_PITCH_DEG = 5.0
+#: Lidar station along the trunk (fraction of B ahead of the hip axis).
+LIDAR_STATION = 0.92
 
 G = 9.81
 
@@ -162,6 +169,7 @@ class Design:
         self._place_head_tail_hardware()
         self._place_structure()
         self._place_covers()
+        self._place_lidar()
 
     # ------------------------------------------------------------------ legs
     def _place_legs(self):
@@ -434,40 +442,41 @@ class Design:
         self.add(hw.Item("torso_harness", trunk, "harness", 0.08 * (B / 0.38) ** 1.6, np.array([0.25 * B, 0, 0]), np.eye(3),
                          "none", (0,), "B", "estimate", "PR #662 0.08 kg at 360 mm hip, scaled with B^1.6", visual=False,
                          collide=False))
-        # Camera at the front of the chest below the neck ("throat"), pitched +4 deg in the world.
-        cam = parts[sel["camera"]]
-        cam_x = 0.935 * B
-        st = self.at(cam_x)
-        cam_p = self._chest(np.array([cam_x, 0.0, st["ventral"] + 0.45 * (st["dorsal"] - st["ventral"])]))
-        cam_R = sk.R_p.T @ ry(np.radians(4.0))
-        self.add(hw.box_item("camera", trunk, "sensors", cam.mass + 0.04, cam_p, (cam.dims[2], cam.dims[0], cam.dims[1]),
-                             "A", cam.basis, cam.id, hw.SENSOR_RGBA, rot=cam_R, cost_nom=cam.price + 25,
-                             cost_high=cam.price + 60, power_nom=cam.power_typ, power_max=cam.power_max))
-        self.bodies[trunk].sites.append(dict(name="camera", pos=cam_p, rot=cam_R, size=0.006, fov=cam.fov, part=cam.id))
+        # Two ToF sensors under the chest, 45 deg down, each turned 12 deg outward over its own foot path
+        # (round-one screening: the earlier pair aimed identically and overlapped 82-90 %).
         tof = parts[sel["tof"]]
         for k, sgn in enumerate((1, -1)):
             tx = 0.50 * B
             st = self.at(tx)
             tp = self._chest(np.array([tx, sgn * 0.030 * B, st["ventral"] + 0.014]), tx > piv)
-            tR = sk.R_p.T @ ry(np.radians(-30.0)) @ np.eye(3)
+            tR = sk.R_p.T @ rz(np.radians(12.0 * sgn)) @ ry(np.radians(-45.0))
             self.add(hw.box_item(f"tof_{'lr'[k]}", trunk, "sensors", tof.mass + 0.012, tp, (0.008, 0.020, 0.020), "A",
                                  tof.basis, tof.id, hw.SENSOR_RGBA, rot=tR, cost_nom=tof.price, cost_high=tof.price * 1.2,
                                  power_nom=tof.power_typ, power_max=tof.power_max))
             self.bodies[trunk].sites.append(dict(name=f"tof_{'lr'[k]}", pos=tp, rot=tR, size=0.004, fov=tof.fov, part=tof.id))
-        if sel.get("lidar"):
-            li = parts[sel["lidar"]]
-            lx = 0.80 * B
-            st = self.at(lx)
-            lp = self._chest(np.array([lx, 0.0, st["ventral"] - 0.5 * li.dims[2] + 0.006]))
-            lR = sk.R_p.T
-            self.add(hw.box_item("lidar", trunk, "sensors", li.mass + 0.03, lp, li.dims, "A", li.basis, li.id,
-                                 hw.SENSOR_RGBA, rot=lR, cost_nom=li.price + 30, cost_high=li.price + 80,
-                                 power_nom=li.power_typ, power_max=li.power_max))
-            self.bodies[trunk].sites.append(dict(name="lidar", pos=lp, rot=lR, size=0.005, fov=li.fov, part=li.id))
+        # The camera is in the head (_place_head_tail_hardware) and the lidar under the as-built belly
+        # (_place_lidar, after the coverings exist).
 
     def _place_head_tail_hardware(self):
         sk = self.sk
         B = sk.B
+        # Stereo camera in the skull roof just ahead of the orbits, looking forward over the snout
+        # (round-one screening: a throat camera lost the view straight ahead to the jaw, and its box
+        # met the neck motor).  Pitched +5 deg above level in the world; the head keeps its world
+        # attitude in every posture, so the view does not tilt with the chest.
+        cam = catalog.parts()[self.sel["camera"]]
+        top_w, ax, up = shapes.skull_dorsal(sk, self.cand.family, CAMERA_STATION)
+        cam_size = (cam.dims[2], cam.dims[0], cam.dims[1])
+        cam_w = top_w - up * (0.5 * cam_size[2] + 0.004) - ax * 0.5 * cam_size[0]
+        cam_p = self.to_body("head", cam_w)
+        cam_R = self.bodies["head"].R_world.T @ ry(np.radians(CAMERA_PITCH_DEG))
+        self.add(hw.box_item("camera", "head", "sensors", cam.mass + 0.04, cam_p, cam_size, "A", cam.basis, cam.id,
+                             hw.SENSOR_RGBA, rot=cam_R, cost_nom=cam.price + 25, cost_high=cam.price + 60,
+                             power_nom=cam.power_typ, power_max=cam.power_max))
+        self.bodies["head"].sites.append(dict(name="camera", pos=cam_p, rot=cam_R, size=0.006, fov=cam.fov, part=cam.id))
+        self.add(hw.Item("camera_cable", "head", "harness", 0.012 + 0.03 * (B / 0.38), cam_p, np.eye(3), "none", (0,), "B",
+                         "estimate", "USB/flex camera lead through the neck with a service loop", visual=False,
+                         collide=False))
         neck = self.act("neck")
         nb = sk.neck_base
         p_motor = nb + ry(sk.bend) @ np.array([-0.02 * B, 0, -0.02 * B])
@@ -598,6 +607,29 @@ class Design:
             secs = [shapes.egg_ring(r[k], r[k], -r[k], 0.0, 2.0, 2.0, ang) for k in range(len(pts))]
             self.bodies["trunk"].panels.append(shapes.Panel(f"{side}_arm", "trunk", sweep(pts, secs), t, mat, "arm", True,
                                                             False, colors["accent"], mounts=2))
+
+    def _place_lidar(self):
+        """2D lidar under the as-built belly, scan plane clear of the hull (round-one screening: placed
+        inside the hull it widened the belly around itself and blocked 93-100 % of its own scan)."""
+        if not self.sel.get("lidar"):
+            return
+        sk = self.sk
+        B = sk.B
+        li = catalog.parts()[self.sel["lidar"]]
+        lx = LIDAR_STATION * B
+        st = self.prof.at(lx)
+        # lowest hull point over the lidar's footprint, in the unbent design frame
+        xs = np.linspace(lx - 0.6 * li.dims[0], lx + 0.6 * li.dims[0], 7)
+        vent = min(float(self.prof.at(x)["ventral"]) for x in xs)
+        lp = self._chest(np.array([lx, 0.0, vent - 0.5 * li.dims[2] - 0.004]))
+        lR = sk.R_p.T
+        self.add(hw.box_item("lidar", "trunk", "sensors", li.mass + 0.03, lp, li.dims, "A", li.basis, li.id,
+                             hw.SENSOR_RGBA, rot=lR, cost_nom=li.price + 30, cost_high=li.price + 80,
+                             power_nom=li.power_typ, power_max=li.power_max))
+        self.add(hw.Item("lidar_bracket", "trunk", "structure", 0.025 * (B / 0.38) ** 2, lp, np.eye(3), "none", (0,), "B",
+                         "estimate", "printed belly bracket and guard", visual=False, collide=False))
+        self.bodies["trunk"].sites.append(dict(name="lidar", pos=lp, rot=lR, size=0.005, fov=li.fov, part=li.id))
+        self.geometry_checks["lidar_below_hull_m"] = float(st["ventral"] - vent)
 
     def _required_profile(self) -> shapes.TrunkProfile:
         """Widen/deepen the designed trunk profile where hardware needs more room (class A/B)."""
