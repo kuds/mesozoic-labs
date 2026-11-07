@@ -40,7 +40,7 @@ Required ablations: reference-only, policy-only (no reference), and the full con
 on the same fresh seeds. Privileged state may be used by a critic or for evaluation, never by the
 deployed actor.
 
-## 3. Autonomy (onboard Jetson; the external page selects and supervises only)
+## 3. Autonomy (onboard computer; the external page selects and supervises only)
 
 | Behavior | Proposed target |
 |---|---|
@@ -52,6 +52,8 @@ deployed actor.
 | Interface disconnection | Heartbeat loss → controlled stop within 1.0 s, then stand. No motion until reconnection plus an explicit start. |
 | Behavior transitions | Walk ↔ stop ↔ turn ↔ follow transitions meet the start/stop and body-motion limits of §1. |
 | Perception inputs | Markerless ML person detection and tracking on rendered RGB-D (simulation) or the real camera. Ranging from ToF/lidar. Never simulator ground-truth positions. |
+| Head attitude while following | The camera is in the head (round-one sensor layout), so person-following must keep the head near level: within the neck range at which the selected person's torso stays at least 75 % visible at 1.5–3 m (`SCREENING.md` §5). The camera pose comes from the neck encoder and IMU, time-aligned to each frame within 20 ms. |
+| Compute timing | Detection ≥ 10 Hz, and ≤ 200 ms from the oldest sensor sample to a motion request (PR #662 transport contract). Every autonomy result names the onboard computer it ran on, or the timing model it assumed. Results do not transfer between computers without re-timing (compute options: `COMPUTE.md`). |
 
 Integrated pass criterion: a single controller and interface must pass §1 and §3 together, in the
 same runs, across locomotion, obstacle avoidance, person following and transitions. Walking
