@@ -61,18 +61,18 @@ Stage A: 132 candidates, 132 built and sized.
 
 | Candidate | Torso width × depth | Torso length / depth | Cover mass (C) | Hardware (A) | Arrangement (B) | Total | CoM ahead of hip | Hip-pitch hold | Covers cost (nom) |
 |---|---|---|---|---|---|---|---|---|---|
-| 60-M-T-10 (Tapered) | 14.7 × 23.4 cm | 2.89 | 0.99 kg | 5.93 kg | 3.85 kg | 10.76 kg | 0.102 H | 3.7 N·m | $1.1k |
-| 60-M-S-10 (Substantial) | 17.7 × 27.8 cm | 2.41 | 1.41 kg | 6.02 kg | 3.96 kg | 11.38 kg | 0.116 H | 4.5 N·m | $1.5k |
-| 60-M-H-10 (Hybrid) | 16.1 × 26.5 cm | 2.56 | 1.07 kg | 5.93 kg | 3.87 kg | 10.87 kg | 0.111 H | 4.1 N·m | $1.2k |
-| 75-M-T-10 (Tapered) | 18.4 × 29.2 cm | 2.72 | 1.57 kg | 7.19 kg | 5.94 kg | 14.70 kg | 0.136 H | 9.0 N·m | $1.6k |
-| 75-M-S-10 (Substantial) | 22.1 × 34.7 cm | 2.26 | 2.30 kg | 7.19 kg | 6.19 kg | 15.68 kg | 0.143 H | 9.9 N·m | $2.3k |
-| 75-M-H-10 (Hybrid) | 20.1 × 33.1 cm | 2.40 | 1.69 kg | 7.19 kg | 5.98 kg | 14.86 kg | 0.146 H | 9.7 N·m | $1.7k |
-| 100-M-T-10 (Tapered) | 24.5 × 38.9 cm | 2.72 | 3.47 kg | 13.29 kg | 11.60 kg | 28.36 kg | 0.142 H | 24.3 N·m | $3.2k |
-| 100-M-S-10 (Substantial) | 29.5 × 46.3 cm | 2.26 | 5.03 kg | 15.69 kg | 12.88 kg | 33.60 kg | 0.135 H | 27.0 N·m | $4.4k |
-| 100-M-H-10 (Hybrid) | 26.8 × 44.1 cm | 2.40 | 3.68 kg | 15.37 kg | 12.23 kg | 31.28 kg | 0.144 H | 26.9 N·m | $3.4k |
-| 120-M-T-10 (Tapered) | 29.4 × 46.7 cm | 2.72 | 5.67 kg | 19.97 kg | 17.94 kg | 43.58 kg | 0.148 H | 46.7 N·m | $4.8k |
-| 120-M-S-10 (Substantial) | 35.3 × 55.6 cm | 2.26 | 8.12 kg | 19.32 kg | 18.63 kg | 46.08 kg | 0.153 H | 51.2 N·m | $6.6k |
-| 120-M-H-10 (Hybrid) | 32.2 × 52.9 cm | 2.40 | 5.90 kg | 19.44 kg | 17.73 kg | 43.08 kg | 0.162 H | 50.8 N·m | $5.0k |
+| 60-M-T-10 (Tapered) | 14.7 × 23.4 cm | 2.89 | 0.99 kg | 5.63 kg | 4.13 kg | 10.76 kg | 0.102 H | 3.7 N·m | $1.1k |
+| 60-M-S-10 (Substantial) | 17.7 × 27.8 cm | 2.41 | 1.42 kg | 5.72 kg | 4.24 kg | 11.38 kg | 0.116 H | 4.5 N·m | $1.5k |
+| 60-M-H-10 (Hybrid) | 16.1 × 26.5 cm | 2.56 | 1.08 kg | 5.63 kg | 4.16 kg | 10.87 kg | 0.111 H | 4.1 N·m | $1.2k |
+| 75-M-T-10 (Tapered) | 18.4 × 29.2 cm | 2.72 | 1.58 kg | 6.90 kg | 6.22 kg | 14.70 kg | 0.136 H | 9.0 N·m | $1.6k |
+| 75-M-S-10 (Substantial) | 22.1 × 34.7 cm | 2.26 | 2.31 kg | 6.89 kg | 6.47 kg | 15.68 kg | 0.143 H | 9.9 N·m | $2.3k |
+| 75-M-H-10 (Hybrid) | 20.1 × 33.1 cm | 2.40 | 1.70 kg | 6.89 kg | 6.26 kg | 14.86 kg | 0.146 H | 9.7 N·m | $1.7k |
+| 100-M-T-10 (Tapered) | 24.5 × 38.9 cm | 2.72 | 3.48 kg | 13.00 kg | 11.89 kg | 28.36 kg | 0.142 H | 24.3 N·m | $3.2k |
+| 100-M-S-10 (Substantial) | 29.5 × 46.3 cm | 2.26 | 5.04 kg | 15.32 kg | 13.24 kg | 33.60 kg | 0.135 H | 27.0 N·m | $4.4k |
+| 100-M-H-10 (Hybrid) | 26.8 × 44.1 cm | 2.40 | 3.69 kg | 15.08 kg | 12.52 kg | 31.28 kg | 0.144 H | 26.9 N·m | $3.4k |
+| 120-M-T-10 (Tapered) | 29.4 × 46.7 cm | 2.72 | 5.67 kg | 19.61 kg | 18.30 kg | 43.58 kg | 0.148 H | 46.7 N·m | $4.8k |
+| 120-M-S-10 (Substantial) | 35.3 × 55.6 cm | 2.26 | 8.13 kg | 18.89 kg | 19.06 kg | 46.08 kg | 0.153 H | 51.2 N·m | $6.6k |
+| 120-M-H-10 (Hybrid) | 32.2 × 52.9 cm | 2.40 | 5.91 kg | 19.01 kg | 18.16 kg | 43.08 kg | 0.162 H | 50.8 N·m | $5.0k |
 
 ## 7. Postures (balanced width, substantial family)
 

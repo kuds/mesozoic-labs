@@ -86,6 +86,11 @@ def hold_txt(doc: dict, group: str, nd: int = 1) -> str:
 
 
 def volume_class_mass(doc: dict) -> dict:
+    """A/B/C mass.  Uses the ledger's per-row classes when the record has them; older records fall
+    back to classing by category (which counts the battery cassette and compute tray as A)."""
+    if doc.get("mass_by_volume_class"):
+        mv = doc["mass_by_volume_class"]
+        return dict(A=mv.get("A", 0.0), B=mv.get("B", 0.0), C=mv.get("C", 0.0), total=sum(mv.values()))
     mb = doc["mass_by_category"]
     a = sum(v for k, v in mb.items() if k in CLASS_A)
     c = sum(v for k, v in mb.items() if k in CLASS_C)

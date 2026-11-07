@@ -55,7 +55,8 @@ def run_one(cid: str, out: str, xml_dir: str) -> dict:
                    metrics=meas, margins=ev["margins"], holds=ev["holds"], power=ev["power"], runtime=ev["runtime"],
                    cost=ev["cost"], gaits=ev["gaits"], sizing_history=ev["sizing_history"],
                    walk_feasible=ev["walk_feasible"],
-                   mass_by_category=_mass_by_category(res["rows"]), seconds=time.time() - t0, ok=True)
+                   mass_by_category=_mass_by_category(res["rows"]),
+                   mass_by_volume_class=_mass_by_volume_class(res["rows"]), seconds=time.time() - t0, ok=True)
     except Exception as e:  # keep failed cases
         doc = dict(id=cid, ok=False, error=repr(e), traceback=traceback.format_exc(), seconds=time.time() - t0)
     Path(out, "candidates").mkdir(parents=True, exist_ok=True)
@@ -69,8 +70,8 @@ def _run_star(args):
 
 def remeasure_one(cid: str, out: str, xml_dir: str) -> dict:
     """Rebuild a sized candidate from its record (same selection and B; the XML SHA-256 must match)
-    and recompute its metrics with the current ``metrics.measure``.  Loads, power and cost are not
-    touched: they do not depend on the measurement code."""
+    and recompute its metrics with the current ``metrics.measure`` and its A/B/C mass from the ledger
+    rows.  Loads, power and cost are not touched: they do not depend on the measurement code."""
     import hashlib
 
     import designlab  # noqa: F401
@@ -88,6 +89,7 @@ def remeasure_one(cid: str, out: str, xml_dir: str) -> dict:
         return dict(id=cid, error="rebuilt model differs from the sweep record")
     doc["metrics"] = metrics.measure(res["model"], res["design"], res["q_home"])
     doc["metrics_revision"] = "exact primitive extremes (round-one review)"
+    doc["mass_by_volume_class"] = _mass_by_volume_class(res["rows"])
     path.write_text(json.dumps(doc, indent=1, default=_json))
     return dict(id=cid, ok=True)
 
@@ -103,6 +105,14 @@ def _mass_by_category(rows):
     out = {}
     for r in rows:
         out[r["category"]] = out.get(r["category"], 0.0) + r["mass_kg"]
+    return out
+
+
+def _mass_by_volume_class(rows):
+    """A/B/C mass from each ledger row's own class (DEFINITIONS.md), e.g. the battery cassette is B."""
+    out = {}
+    for r in rows:
+        out[r["volume_class"]] = out.get(r["volume_class"], 0.0) + r["mass_kg"]
     return out
 
 

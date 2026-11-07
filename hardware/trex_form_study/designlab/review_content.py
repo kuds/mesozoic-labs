@@ -29,8 +29,8 @@ def header(x) -> str:
   <p class="kicker">Mesozoic Labs · robotic <i>T. rex</i> · design review, round one · 7 Nov 2026</p>
   <h1>Four sizes, three bodies, three postures</h1>
   <p class="lede">Round one built and sized {st['ok']} candidate robots: four crown heights (60, 75, 100 and
-  120 cm), three widths, three body families, three chest postures and seven layout and proportion
-  variants. Each candidate has real component envelopes, load-based actuator and battery choices,
+  120 cm), three widths, three body families, three chest postures and, per height, six layout, battery and
+  proportion variants. Each candidate has real component envelopes, load-based actuator and battery choices,
   power, cost and mechanical screens. The {n_review} candidates shown here are rendered from their
   compiled simulation models. Nothing on this page is a final design. The questions at the end
   decide what round two refines.</p>
@@ -70,6 +70,9 @@ def sizes(x) -> str:
     r60, r75, r100, r120 = (x.c(REF[h]) for h in HEIGHTS)
     hp = {h: x.c(REF[h])["margins"]["hip_pitch"]["hold"] for h in HEIGHTS}
     buses = {h: x.c(REF[h])["bus"] for h in HEIGHTS}
+    hp120 = r120["margins"]["hip_pitch"]
+    shared = (" that the 100 cm reference already uses"
+              if r100["margins"]["hip_pitch"]["actuator"] == hp120["actuator"] else "")
     return f"""
 <section id="sizes">
   <p class="kicker">1 · Size</p><h2>Four height classes at one physical scale</h2>
@@ -78,11 +81,13 @@ def sizes(x) -> str:
     The body is solved so the crown lands on the class height. Everything else follows from the
     skeletal template and the hardware that has to fit inside.</p>
     <p>Mass grows much faster than height: from {kg(r60['mass'])} at 60 cm to {kg(r120['mass'])} at
-    120 cm. The governing joint load is hip pitch in single support, and it grows from
+    120 cm. The largest joint load is hip pitch in single support, and it grows from
     {hp[60]:.1f} to {hp[120]:.1f} N·m. That load sets the drive class, which drives the mass and cost
     steps between sizes. Bus voltage by size: {', '.join(f'{h} cm {buses[h]:.0f} V' for h in HEIGHTS)}.
     The 100 and 120 cm classes use larger leg drives, a wide-angle camera (OAK-D Pro W) and a 2D
-    lidar. At 120 cm the hip-pitch requirement reaches the strongest single drive in the catalog (§9).</p>
+    lidar. At 120 cm every candidate needs the strongest single drive in the catalog for hip pitch, the
+    {part(hp120['actuator'])}{shared}. The 120 cm reference's requirement is {hp120['cont_ratio']:.2f} × its
+    sustained planning limit (§9).</p>
   </div>
   {x.img('sizes_common_scale.png', 'Side views of the four reference robots on one ground line with a 1.75 m person for scale',
          'Sizes at one scale', 'Reference candidates <span class="mono">60/75/100/120-M-S-10</span> on one ground line with a 0.5 m grid and a 1.75 m person.')}
@@ -93,8 +98,11 @@ def sizes(x) -> str:
   </div>
   {tbl}
   <h3>Which drives each size needs</h3>
-  <div class="prose"><p>The selector picks, joint by joint, the lightest sourced part with price that meets the
-  load. The criteria are sustained torque against the larger of the nominal-walk RMS and the
+  <div class="prose"><p>The selector picks, joint by joint, among the sourced parts with a price that meet the
+  load on the chosen bus, the one with the lowest score: its mass plus 0.8 kg per $1000 of price, plus a
+  hip-spacing packaging term for the hip-roll, hip-pitch and thigh-twist drives (the neck and tail try box
+  servos first). Where no part meets the load, as for hip pitch on the 120 cm reference, the strongest
+  drive on the 48 V bus is used and flagged. The criteria are sustained torque against the larger of the nominal-walk RMS and the
   single-support hold, peak torque against 1.25 × the brisk-walk peak, and speed. The second line of
   each cell gives the governing ratio: requirement over planning limit, so 1.00 means just
   enough.</p></div>
@@ -113,14 +121,23 @@ def families(x) -> str:
                      f"{m['ratios']['com_ahead_of_hip_over_H']:.2f} H", usd(r["cost_lines"]["covers"][1])])
     tbl = K.table(["Family (100 cm, 10°)", "Torso width × depth", "Coverings (C)", "Hardware (A)", "Arrangement (B)",
                    "Total", "CoM ahead of hip", "Covers cost"], rows, num={2, 3, 4, 5, 6, 7})
+    t100, s100, t120, s120 = (x.c(c) for c in ("100-M-T-10", "100-M-S-10", "120-M-T-10", "120-M-S-10"))
+    bat = lambda r: BATTERY_NAMES.get(r["battery"], r["battery"])  # noqa: E731
     return f"""
 <section id="families">
-  <p class="kicker">2 · Body family</p><h2>Three ways to clothe the same machine</h2>
+  <p class="kicker">2 · Body family</p><h2>Three ways to clothe one skeletal template</h2>
   <div class="prose">
-    <p>The families share the skeleton, legs and hardware. They differ in where volume goes and how
-    much of the machine is covered. All three keep a deep chest, a waist behind the ribs, a distinct
-    pubic keel between the thighs and a muscular thigh. They avoid the earlier rejected forms: a
-    rectangular chassis, or a barrel torso with a hanging belly.</p>
+    <p>The families share the skeletal template, the tandem leg layout and the placement of the hardware,
+    but each is sized on its own built mass and loads, so drives, pack and even bus can differ. At 100 cm
+    the Tapered body takes {part(t100['parts']['hip_pitch'])} hip-pitch drives and a {bat(t100)} pack, where the
+    Substantial body needs {part(s100['parts']['hip_pitch'])} drives and a {bat(s100)} pack. At 120 cm the Tapered
+    body stays on {t120['bus']:.0f} V, while the Substantial and Hybrid hip-pitch loads exceed the strongest
+    catalog drive and the selector falls back to {s120['bus']:.0f} V.</p>
+    <p>Beyond that, they differ in where volume goes and how much of the machine is covered. All three
+    keep a deep chest, a waist behind the ribs and a muscular thigh. The Substantial and Hybrid bodies
+    also cover a distinct pubic keel between the thighs, which the Tapered body leaves open with the rest
+    of its ventral abdomen. They avoid the earlier rejected forms: a rectangular chassis, or a barrel
+    torso with a hanging belly.</p>
     <ul>
       <li><b>Tapered</b>: lean trunk, light coverings over the back and flanks, an open ventral abdomen,
       exposed lower legs. Lightest and cheapest to cover. It reads as a lean animal.</li>
@@ -160,12 +177,18 @@ def posture(x) -> str:
   <div class="prose">
     <p>Posture is solved, not drawn. The trunk line from the hip axis to the shoulder reference is set to
     the target angle. The pelvis takes half of it, and the rest is a fixed lumbar bend. The neck keeps
-    the skull at −4° and the tail keeps its world angle, so the head, tail and feet stay put while
-    the chest rises. The whole robot is never rotated.</p>
+    the skull at −4° and the tail keeps its world angle, so the skull and tail keep their attitude
+    while the chest rises, and the hip axis and feet stay put. The head is carried up with the chest
+    (the crown rises 6–13 cm per 10°), and the tail is lowered as the pelvis tips (its lowest point by
+    about 0.04 H per 10°). The whole robot is never rotated.</p>
     <p>The height classes are matched at 10°. The 0° and 20° versions are the same body, so their crown
-    height moves a little instead of the body being rescaled. Raising the chest moves the centre of mass
-    back toward the hip. It also lifts the head-mounted camera, which gives a slightly wider view of
-    people and a slightly larger blind zone on the floor.</p>
+    height moves by about ±10 % (67 / 75 / 83 cm at 0° / 10° / 20° in the 75 cm class) instead of the
+    body being rescaled. Raising the chest from 10° to 20° moves the centre of mass back toward the hip,
+    by about 0.004–0.006 H on the reference bodies; from 0° to 10° it barely moves (slightly forward on
+    the reference bodies). It also lifts the head-mounted camera, which pushes the nearest floor it can
+    see about 0.2 m further out per 10°. What it does for the view of a person close by depends on size:
+    at 75 cm the camera sees slightly more of a person 1 m away, while at 100 cm the robot's own head
+    hides more of a person straight ahead (at 1 m: 96 % visible at 0°, 88 % at 10°, 80 % at 20°).</p>
   </div>
   {x.img('postures_75.png', 'The 75 cm robot at three postures', 'Posture, 75 cm', 'Same body at 0°, 10° and 20° chest-up.')}
   {tbl}
@@ -202,10 +225,15 @@ def width(x) -> str:
     (2.68–2.75).</p>
     <p>Both hip-roll motors sit on the body centreline, one ahead of and one behind the hip axis. The
     single-support hip-roll load then comes only from carrying the lifted leg, so it grows with hip
-    spacing. That is why the narrow variants need the least hip-roll torque. Broader feet give the
-    walk more support margin, at the cost of a wider stance than the animal. Tyrannosaurid trackways
-    are nearly single-file, at about 0.07 × hip height between left and right prints; every robot
-    variant is about five times wider.</p>
+    spacing. That is why the narrow variants need the least hip-roll torque.</p>
+    <p>Broader spacing does not give the walk more support margin in this model. Every width variant
+    has the same foot pads, so in single support the body has to shift farther sideways to stand over
+    the same pad. In the table the broad variant has the lowest walk CoP margin at 60, 100 and 120 cm,
+    and across all 36 size × family × posture combinations it beats the balanced width in only 19. It
+    also moves the stance further from the animal's. Tyrannosaurid trackways are nearly single-file, at
+    about 0.07 × hip height between left and right prints. The width variants stand 3.4 to 7 times wider
+    (0.24–0.49 H from narrow to broad, about 5 times at balanced width), and the side-by-side hip-roll
+    layout wider still.</p>
   </div>
   <div class="grid2">
     {x.img('widths_100_front.png', 'Front views of narrow, balanced and broad variants', 'Width, front', '100 cm, Substantial, 10°.')}
@@ -233,9 +261,12 @@ def proportions(x) -> str:
   <div class="prose">
     <p>The default tail is shortened to 1.55 × hip height, about two thirds of the animal's, to limit
     floor footprint, turning sweep and tail inertia. The <b>anatomical tail</b> variant restores
-    2.3 × hip height. The <b>large skull</b> variant adds 15 % to skull length, which answers the earlier
-    complaint that the head looked small. The <b>compact</b> variant shortens the legs and tail and
-    enlarges the skull slightly, for a stockier look at the same crown height.</p>
+    2.3 × hip height. The <b>large skull</b> variant makes the skull 15 % longer relative to the body (13 %
+    in absolute length, because the body shrinks slightly to keep the crown height), which answers the
+    earlier complaint that the head looked small. The <b>compact</b> variant shortens the legs (hip height
+    −4 %) and the tail (−23 %), and its skull comes out about as long as the large-skull variant's: 12 %
+    longer than the default in absolute length. The result is a stockier look at the same crown
+    height.</p>
   </div>
   {x.img('proportions_100.png', 'Four proportion variants at 100 cm', 'Proportions, 100 cm', 'Default, anatomical tail, compact and large skull, at one scale.')}
   {tbl}
@@ -244,8 +275,9 @@ def proportions(x) -> str:
 
 def inside(x) -> str:
     chart = K.stacked_chart([(f"{h} cm", [x.c(REF[h])["classes"][k] for k in "ABC"]) for h in HEIGHTS],
-                            ["Hardware (A: drives, battery, compute, sensors)",
-                             "Arrangement (B: structure, bearings, linkages, harness, mounts)", "Coverings (C)"],
+                            ["Hardware (A: drives, battery pack, compute, control, power, sensors)",
+                             "Arrangement (B: structure, bearings, linkages, harness, feet, battery cassette, "
+                             "compute tray, cover supports and fasteners, 6 % integration reserve)", "Coverings (C)"],
                             title="Installed mass by volume class")
     lay_rows = []
     for suf, lab in (("", "tandem hip roll (default)"), ("-side", "side-by-side hip roll"), ("-serial", "serial leg (PR #662-like)"),
@@ -260,19 +292,24 @@ def inside(x) -> str:
                          f"{r['runtime']:.0f} min", usd(r["cost"][1])])
     ltbl = K.table(["Candidate", "Layout", "Mass", "Hip-roll hold, N·m", "Hip-pitch hold, N·m", "CoM ahead of hip",
                     "Runtime", "Cost"], lay_rows, num={2, 3, 4, 5, 6, 7})
+    r60 = x.c("60-M-S-10")
     return f"""
 <section id="inside">
   <p class="kicker">6 · Inside</p><h2>What has to fit, and what it costs the shape</h2>
   <div class="prose">
-    <p>Every component is a real envelope with a sourced mass where one exists: drives, battery cassette,
-    Jetson compute with tray, control stack, power distribution, camera, ToF sensors, lidar, bearings,
-    linkages and harness. Nothing is scaled as decoration. The trunk is widened or deepened only where
+    <p>Drives, battery cassette, Jetson compute with tray, control stack, power distribution, camera, ToF
+    sensors, lidar and linkages are real envelopes with a sourced mass where one exists. Bearings and
+    harness, like the IMU and foot sensing, are point-mass allowances without geometry: they count in
+    the body masses and inertias but are not screened for clearance. Nothing is scaled as decoration. The trunk is widened or deepened only where
     hardware needs room, and those changes are recorded per candidate.</p>
     <p>Two layout choices carry most of the mechanics. The tandem hip-roll layout puts both roll motors on
     the centreline. The tail-base battery sits behind the hip, where the animal carried its heavy tail
-    muscles, and moves the centre of mass back toward the hip. On the 60 cm robot this layout resolves the
-    earlier single-support hip gap of about 9 N·m against 6 N·m in the model, using the incumbent
-    drive class. The comparison below holds everything else fixed.</p>
+    muscles, and moves the centre of mass back toward the hip. On the 60 cm robot the tandem layout
+    resolves the earlier single-support hip-roll gap of about 9 N·m against 6 N·m in the model: the hold
+    falls to {r60['margins']['hip_roll']['hold']:.1f} N·m, carried by a {part(r60['parts']['hip_roll'])}, while hip pitch and knee stay on the
+    incumbent MyActuator X4-36 class. The comparison below holds size, width, family, posture and
+    proportions fixed. Each layout is re-sized, so its drives can differ: a CubeMars AK60-39 hip roll for
+    the side-by-side and serial legs, a RobStride 03 hip pitch for the belly battery.</p>
   </div>
   <div class="grid2">
     {x.img('60-M-S-10_cutaway.png', '60 cm robot with translucent coverings showing installed hardware', 'Cutaway, 60 cm', 'Battery, compute, camera, power and actuators, labelled from the model.')}
@@ -283,8 +320,8 @@ def inside(x) -> str:
   <h3>Where the mass is</h3>
   {chart}
   <p class="note">Class A is volume the hardware itself needs. Class B comes from the chosen arrangement. Class C is the
-  cosmetic coverings, which can be redesigned freely. Every ledger row also states its basis (sourced, derived or
-  estimate). No row is measured.</p>
+  cosmetic coverings, which can be redesigned freely. Every ledger row also states its basis (sourced, partially
+  sourced, derived or estimate). No row is measured.</p>
 </section>"""
 
 
@@ -389,8 +426,9 @@ def compute(x) -> str:
         </ul></li>
     </ul>
     <p>79 options in five categories were surveyed from sourced data, then fact-checked independently (108
-    corrections). The synthesis was challenged by two critics before revision. Details, sources and bench
-    tests are in <code>COMPUTE.md</code>.</p>
+    corrections). The synthesis was challenged by two critics before revision. Details and bench tests are
+    in <code>COMPUTE.md</code>; the source URLs and the corrections are in
+    <code>designlab/data/research/compute_2026-11-07.json</code>.</p>
   </div>
   {atbl}
   <h3>Runtime on each size's selected pack</h3>
@@ -428,22 +466,23 @@ def screening(x) -> str:
       <li>tail height;</li>
       <li>a straight removal path for the battery cassette.</li>
     </ul>
-    <p>The first run found five generator defects:</p>
+    <p>The first run found six generator defects:</p>
     <ul>
       <li>hip brackets overlapping at the centreline;</li>
       <li>the tail motor inside the battery cassette at 60 and 75 cm;</li>
       <li>the power board inside the compute tray;</li>
       <li>ankle plates limiting ankle pitch;</li>
-      <li>pelvis and thigh shells overlapping.</li>
+      <li>pelvis and thigh shells overlapping;</li>
+      <li>the 60 cm thigh fairing reaching the ankle motors at knee flexion.</li>
     </ul>
-    <p>All five were fixed, and the record is in the decision log (F6). The table shows the screen after
+    <p>All six were fixed, and the record is in the decision log (F6). The table shows the screen after
     the fixes.</p>
     <p>Across all {st['n']} sized candidates, Stage A flagged {len(flagged)} for:</p>
     <ul>
       <li>no balanced single-support pose;</li>
       <li>a walk that leaves the support pad;</li>
       <li>a load beyond the catalog;</li>
-      <li>sizing that did not converge.</li>
+      <li>sizing that hit the mass-spiral rule.</li>
     </ul>
     <p>The full list is in <code>round1/TABLES.md</code>.</p>
   </div>
@@ -490,10 +529,10 @@ def questions(x) -> str:
 
     q = [
         ("Which size should round two develop?",
-         [f"60 cm: lightest; uses the incumbent drive class ({note(60)}).",
+         [f"60 cm: lightest; keeps the incumbent X4-36 class at hip pitch and knee ({note(60)}).",
           f"75 cm: more presence with a larger hip-pitch drive ({note(75)}).",
           f"100 cm: museum presence ({note(100)}).",
-          f"120 cm: the long-term 3–4 ft robot ({note(120)}).",
+          f"120 cm: the top of the long-term 3–4 ft (0.9–1.2 m) range, which 100 cm also falls inside ({note(120)}).",
           "Develop two sizes side by side, for example a smaller and a larger one."]),
         ("Which body family is closest to what you want?",
          ["Tapered: lean animal, light coverings, visible legs.",
@@ -504,7 +543,7 @@ def questions(x) -> str:
          ["Level (0°).", "Alert, 10° chest-up.", "Upright, 20° chest-up."]),
         ("Which proportion changes should round two carry forward?",
          ["Anatomical (longer) tail.", "Larger skull.", "Narrower body and stance.", "Broader body and stance.",
-          "Compact legs."]),
+          "Compact proportions (shorter legs and tail, larger skull)."]),
         ("Which onboard compute direction should round two adopt?",
          ["Raspberry Pi 5 + Hailo at 60–75 cm, NVIDIA Jetson at 100–120 cm (the survey's recommendation).",
           "Keep the Jetson Orin Nano at every size, re-budgeted from measurements.",
@@ -532,7 +571,10 @@ def nextsteps(x) -> str:
         <ul>
           <li>skull and neck shaping;</li>
           <li>the shank coverings;</li>
-          <li>the remaining 60 cm thigh-to-ankle-motor contact;</li>
+          <li>the tight 60 cm thigh-to-ankle-motor clearance (0.6 mm in the brisk walk; the two meet by
+          0.62 rad of knee flexion);</li>
+          <li>two same-body overlaps left in the 60 cm Tapered model (power board and hip-roll motor, tail
+          motor and battery cassette);</li>
           <li>a turning reference gait for twist loads;</li>
           <li>the carpet contact model.</li>
         </ul>
@@ -554,7 +596,8 @@ def footer(x) -> str:
 <footer>
   <p>Generated from <code>hardware/trex_form_study</code> on branch <code>claude/mesozoic-trex-design-iteration-azm2fs</code>:
   <code>python -m designlab.stage_a</code>, <code>designlab.round1</code>, <code>designlab.report</code>, <code>designlab.review_page</code>.
-  Every image is a render of a generated MuJoCo model. No reference figure or photograph is reproduced. Anatomical
+  Every plate is a render of a generated MuJoCo model, and the two coverage maps are plots of ray casts on
+  those models. No reference figure or photograph is reproduced. Anatomical
   proportions follow cited measurements (<code>REFERENCE.md</code>).</p>
 </footer>"""
 
