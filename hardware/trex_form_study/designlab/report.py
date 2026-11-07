@@ -422,7 +422,16 @@ def _page_record(d: dict) -> dict:
                 bus=d["selection"]["bus"], battery=d["selection"]["battery"], worst=[g, r, kind],
                 parts={k: v["actuator"] for k, v in d["margins"].items()},
                 holds={k: v["hold"] for k, v in d["margins"].items()}, flags=flags(d),
-                com_ahead=m["ratios"]["com_ahead_of_hip_over_H"], classes=volume_class_mass(d))
+                com_ahead=m["ratios"]["com_ahead_of_hip_over_H"], classes=volume_class_mass(d),
+                metrics=m, margins=d["margins"], power=dict(total_w=d["power"]["total_w"],
+                                                             drives_w=d["power"]["drives_w"],
+                                                             aux_w=d["power"]["aux"]["input_w"],
+                                                             peak_drives_w=d["power"]["peak_drives_w"]),
+                runtime_range=d["runtime"]["minutes_range"], cost_lines=d["cost"]["lines"],
+                mass_by_category=d["mass_by_category"], ss_feasible=all(h["feasible"] for h in d["holds"].values()),
+                walk_feasible=d.get("walk_feasible"),
+                walk_cop_margin_mm=1000 * d["gaits"]["nominal"]["min_cop_margin_single"],
+                selection=d["selection"])
 
 
 def main():

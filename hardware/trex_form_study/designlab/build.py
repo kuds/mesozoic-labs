@@ -6,7 +6,7 @@ keyframe and ledgers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
@@ -77,14 +77,31 @@ class Design:
         self.cand = cand
         self.B = B
         self.sel = selection or hw.default_selection(cand.height)
-        self.sk: Skeleton = build_skeleton(cand, B)
-        self.bodies: dict[str, Body] = {}
         self.notes: list[str] = []
         self.geometry_checks: dict = {}
+        self.sk: Skeleton = build_skeleton(cand, B)
+        if cand.battery_pos == "tailbase":
+            # The tail-base cassette sits between the rear hip-roll motor and the tail pivot.  If it does
+            # not fit, the tail pivot moves back (never forward): a packaging setback, recorded.
+            x_lim = self._tailbase_root_limit()
+            if x_lim < self.sk.tail_root[0] - 1e-6:
+                setback = float(self.sk.tail_root[0] - x_lim)
+                self.sk = build_skeleton(replace(cand, overrides=tuple(cand.overrides) + (("tail_root_x_m", x_lim),)), B)
+                self.geometry_checks["tail_root_setback_m"] = setback
+                self.notes.append(f"tail pivot moved back {1000 * setback:.0f} mm to fit the tail-base battery cassette")
+        self.bodies: dict[str, Body] = {}
         self.mass_guess = self.sel.get("mass_guess", MASS_GUESS[cand.height])
         self._build()
 
     # ------------------------------------------------------------------ helpers
+    def _tailbase_root_limit(self) -> float:
+        """Most forward tail-pivot x (trunk frame) that leaves the tail-base cassette 10 mm clear."""
+        bat = catalog.parts()[self.sel["battery"]]
+        cas_x = bat.dims[0] + 0.020
+        roll = self.act("hip_roll")
+        x_front = -(roll.envelope[1] + 0.012) if self.cand.leg_layout == "tandem" else -0.02 * self.B
+        return x_front - cas_x - 0.010
+
     def act(self, role: str) -> catalog.Actuator:
         if role in hw.JOINT_GROUPS:
             return catalog.actuator(self.sel["joints"][role])
@@ -203,8 +220,11 @@ class Design:
             br_len = abs(y_leg - y_r) - 0.5 * l_pitch + 0.02
             br_w = max(0.025, 0.55 * d_pitch)
             m_br, t_br = hw.size_beam(max(br_len, 0.02), load, 0.6, br_w)
+            # tandem: the bracket leaves the roll output on the centreline, so it sits on that roll motor's
+            # side of the hip axis (left ahead, right behind) and the two brackets cannot meet
+            x_br = np.sign(xr) * (0.5 * br_w + 0.002) if layout == "tandem" else 0.0
             self.add(hw.box_item(f"{side}_hip_bracket", f"{side}_roll", "structure", m_br,
-                                 self.to_body(f"{side}_roll", np.array([0.0, s * (0.5 * (y_leg - 0.5 * l_pitch + y_r)), H])),
+                                 self.to_body(f"{side}_roll", np.array([x_br, s * (0.5 * (y_leg - 0.5 * l_pitch + y_r)), H])),
                                  (br_w, max(br_len, 0.02), max(0.006, 2 * t_br)), "B", "estimate", "twin-plate beam rule",
                                  hw.STRUCT_RGBA))
             self.add(hw.motor_item(f"{side}_hip_pitch_motor", f"{side}_roll", pitch, self.to_body(f"{side}_roll", hip_w),
@@ -260,7 +280,10 @@ class Design:
             wid = max(0.020, 0.40 * da)
             m_t, t_t = hw.size_beam(tib_len, load, 0.30, wid)
             m_m, t_m = hw.size_beam(met_len, load, 0.30, wid)
-            for nm, a, b_, m_, t_ in (("tibia", knee_w, hock_w, m_t, t_t), ("metatarsus", hock_w, mtp_w, m_m, t_m)):
+            # the metatarsus plates stop short of the two-axis ankle block (half its size + 6 mm) so they do
+            # not limit ankle pitch
+            mtp_stop = mtp_w - (mtp_w - hock_w) / met_len * (0.5 * 0.028 * H / 0.38 + 0.006)
+            for nm, a, b_, m_, t_ in (("tibia", knee_w, hock_w, m_t, t_t), ("metatarsus", hock_w, mtp_stop, m_m, t_m)):
                 for it in hw.plate_link_items(f"{side}_{nm}", f"{side}_shank", self.to_body(f"{side}_shank", a),
                                               self.to_body(f"{side}_shank", b_), wid, max(t_, 0.003), m_,
                                               lateral=0.008 + 0.10 * wid):
@@ -274,7 +297,7 @@ class Design:
                 back = back if back[0] < 0 else -back
                 pos = []
                 for k, act in enumerate((ank_a, ank_b)):
-                    frac_a = 0.22 + k * (da + 0.006) / tib_len
+                    frac_a = 0.30 + k * (da + 0.006) / tib_len  # below the thigh fairing at knee flexion
                     pm = knee_w + ax_t * (frac_a * tib_len) + back * (0.5 * da + 0.010)
                     pos.append(pm)
                     self.add(hw.motor_item(f"{side}_ankle_motor_{'ab'[k]}", f"{side}_shank", act,
@@ -387,7 +410,10 @@ class Design:
             x_front = -(roll.envelope[1] + 0.012) if c.leg_layout == "tandem" else -0.02 * B
             bx = x_front - 0.5 * cas[0]
             st = self.at(bx)
-            bz = max(self.hip["z_roll"], st["ventral"] + 0.5 * cas[2] + 0.012)
+            # low under the tail base (removed through a ventral hatch), below the tail motor, which sits
+            # on the tail pivot; the bottom follows the highest hull point over the cassette length
+            v_hi = max(self.at(x)["ventral"] for x in np.linspace(bx - 0.5 * cas[0], bx + 0.5 * cas[0], 7))
+            bz = v_hi + 0.5 * cas[2] + 0.012
             chest = False
         else:
             bx = 0.20 * B + 0.5 * cas[0]
@@ -408,7 +434,10 @@ class Design:
         pdims = (0.110, 0.070, 0.050) if bus <= 24 else (0.150, 0.090, 0.060)
         pmass = 0.30 if bus <= 24 else 0.62
         if c.battery_pos == "tailbase":
-            px = 0.22 * B + 0.5 * pdims[0]
+            # in the abdomen, kept 10 mm behind the chest compute tray
+            comp_ = parts[sel["compute"]]
+            tray_x = comp_.dims[0] + 0.017
+            px = min(0.22 * B + 0.5 * pdims[0], 0.60 * B - 0.5 * tray_x - 0.5 * pdims[0] - 0.010)
             stp = self.at(px)
             ppos = self._chest(np.array([px, 0.0, stp["ventral"] + 0.5 * pdims[2] + 0.014 + 0.01 * B]), px > piv)
             pR = bendR if px > piv else np.eye(3)
@@ -488,8 +517,9 @@ class Design:
                          "B", "estimate", "PR #662 neck fork 0.08 kg, scaled with B^2", visual=False, collide=False))
         tail = self.act("tail")
         tr = sk.tail_root
-        self.add(hw.motor_item("tail_motor", "trunk", tail, tr + np.array([0.6 * tail.envelope[0] + 0.01, 0, 0]),
-                               (0, 0, 1), category="expression_actuator"))
+        h_ax = (tail.box[2] + 0.004) if tail.box is not None else tail.envelope[1]
+        self.add(hw.motor_item("tail_motor", "trunk", tail, tr + np.array([0.0, 0.0, 0.5 * h_ax + 0.006]),
+                               (0, 0, 1), category="expression_actuator"))  # on the yaw axis, above the pivot
         self.add(hw.Item("tail_fork_bearings", "trunk", "bearings", 0.08 * (B / 0.38) ** 2, tr, np.eye(3), "none", (0,),
                          "B", "estimate", "PR #662 tail fork 0.08 kg, scaled with B^2", visual=False, collide=False))
 
@@ -643,6 +673,7 @@ class Design:
         clearance, wall = 0.008, 0.002
         xs = prof.x.copy()
         dors, vent, half = prof.dorsal.copy(), prof.ventral.copy(), prof.half_width.copy()
+        hw_half = np.zeros_like(half)
         widened = []
         inv = ry(-sk.bend)
         for it in self.bodies["trunk"].items:
@@ -672,9 +703,29 @@ class Design:
                 if need_lo < vent[k]:
                     widened.append((it.name, "ventral", float(x0 / sk.B), float(vent[k] - need_lo)))
                     vent[k] = need_lo
+                hw_half[k] = max(hw_half[k], need_w)
                 if need_w > half[k]:
                     widened.append((it.name, "half_width", float(x0 / sk.B), float(need_w - half[k])))
                     half[k] = need_w
+        # The pelvis covers clear the thigh fairings: within the fairing's reach of the hip axis the trunk
+        # half-width stays inside the fairing's inner face, less the wall and a 6 mm gap (round-one
+        # clearance screen: pelvis and upper-thigh shells overlapped at home, up to 21 mm at 120 cm).
+        fam = T.FAMILY_SHAPE[self.cand.family]
+        if "thigh" in fam["cover_regions"]:
+            pitch = self.act("hip_pitch")
+            r_top = max(0.5 * pitch.envelope[0] + 0.012, 0.19 * sk.B * fam["thigh_scale"])
+            t = cover_thickness(self.cand.height, fam["shell_mm"])
+            cap = self.hip["y_leg"] - (self.hip["half_upper"] + 0.004) - t - 0.006
+            narrowed, conflicts = [], []
+            for k, x0 in enumerate(xs):
+                if abs(x0) <= 1.06 * r_top + 0.010 and half[k] > cap:
+                    new_h = max(cap, hw_half[k])
+                    if hw_half[k] > cap:
+                        conflicts.append((float(x0 / sk.B), float(hw_half[k] - cap)))
+                    narrowed.append((float(x0 / sk.B), float(half[k] - new_h)))
+                    half[k] = new_h
+            self.geometry_checks["pelvis_narrowed_for_thighs"] = narrowed
+            self.geometry_checks["pelvis_thigh_conflicts"] = conflicts
         self.geometry_checks["trunk_widened_for_hardware"] = widened
         self.geometry_checks["designed_profile"] = dict(x=prof.x.tolist(), dorsal=prof.dorsal.tolist(),
                                                         ventral=prof.ventral.tolist(), half=prof.half_width.tolist())

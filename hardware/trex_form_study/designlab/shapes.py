@@ -82,7 +82,9 @@ class TrunkProfile:
     n_lo: np.ndarray
 
     def interp(self, xs):
-        xs = np.atleast_1d(np.asarray(xs, float))
+        # beyond the outermost stations the end sections are held (no cubic extrapolation), e.g. when the
+        # tail pivot moves back to make room for a tail-base battery
+        xs = np.clip(np.atleast_1d(np.asarray(xs, float)), self.x[0], self.x[-1])
 
         def f(v):
             return PchipInterpolator(self.x, v)(xs)
@@ -351,7 +353,7 @@ def thigh_panels(side: str, femur_axis: np.ndarray, Lf: float, B: float, family:
         else:
             t = z / max(s_seam * Lf, 1e-6)
             front = r_top * (1 - t) ** 1.1 + r_seam * t
-            back = (r_top * 1.12 * scale) * (1 - t) ** 0.9 + r_seam * t
+            back = (r_top * 1.12 * scale) * (1 - t) ** 2.0 + r_seam * t  # caudofemoral bulge high, near the hip
             lat = half_upper * (1 - t) + r_seam * t
         ring = egg_ring(lat, front, -back, -0.1 * back, 2.4, 2.4, ang)
         rows.append(ax * z + np.outer(ring[:, 0], [0, 1, 0]) + np.outer(ring[:, 1], fwd))

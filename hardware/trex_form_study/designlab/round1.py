@@ -67,7 +67,8 @@ def rebuild(cid: str, stage_a: Path, out: Path) -> dict:
     try:
         from . import sensors
 
-        se = sensors.screen(str(xml), q_home, trajs["nominal"], None)
+        se = sensors.screen(str(xml), q_home, trajs["nominal"], None, png_path=str(out_screen / f"{cid}_sensors.png"),
+                            gait_stride=2, title=cid)
         (out_screen / f"{cid}_sensors.json").write_text(json.dumps(se, indent=1, default=_json))
         result["sensors"] = se.get("summary", {})
     except Exception as e:

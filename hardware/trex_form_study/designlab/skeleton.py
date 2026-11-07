@@ -144,6 +144,9 @@ def build_skeleton(cand: Candidate, B: float) -> Skeleton:
 
     trx = S["tail_root_x_tailbase"] if cand.battery_pos == "tailbase" else S["tail_root_x"]
     tail_root = np.array([trx, 0.0, S["tail_root_z"]]) * B
+    trx_m = cand.override("tail_root_x_m")  # packaging setback (build.Design), metres in the trunk frame
+    if trx_m is not None:
+        tail_root[0] = min(tail_root[0], float(trx_m))
     tail_path = _tail_path(origin + R_p @ tail_root, B, prop["tail_scale"])
 
     arm0 = np.array([S["arm_x"], 0.0, S["arm_z"]]) * B
