@@ -1,0 +1,37 @@
+{
+  "checkout": "eb0e984a6eebdcefc324268e03f9e6ba94c721f3",
+  "tests": "983 passed in 230.44s (0:03:50)",
+  "scope": "20 affected shared contract, registry, mechanics, gait, sensor and autonomy modules plus T. rex gait protocol. Broad unrelated lint/type diagnostics are recorded in baseline/ci-comparison.json.",
+  "plant_manifest_check": "current",
+  "catalog_check": "current",
+  "digest_snapshot_check": "current, 897 lines",
+  "independent_gallery_replay": {
+    "command": "python -m examples.intermediate_rex_r2.follow_trial --embodiment intermediate_r3_175 --model examples/intermediate_rex_r2/successor/model.xml --installation hardware/intermediate_rex_r2/autonomy/successor/installation.json --mode policy --policy hardware/intermediate_rex_r2/gait/successor/bundle --scenario obstacle --surface hard --seed 731 --duration 45 --width 240 --output /tmp/r3-replay --video",
+    "record": "hardware/intermediate_rex_r2/autonomy/successor/demonstration/obstacle_policy_hard_731.json",
+    "frames_identical": 450,
+    "frames": 450,
+    "uncompressed_trace_sha256": "179924d8608de266a72e47c0b1c523ec5cc61df3d75c7667fd236c7de00d26a4",
+    "video_sha256": "3824937dc7891e9464fde56a51b59f9c848f25c7d4d85382df9df90129a54a6a",
+    "byte_identical_video": true,
+    "final_xy_m": [
+      3.007812627823192,
+      0.6877693161538411
+    ],
+    "final_optical_range_m": 2.01,
+    "heldout_pass": true
+  },
+  "mechanics_hash_checks": "Loads, continuous/sampled clearance, and transmission report bindings pass for all three heights.",
+  "governed_overlay_smoke": {
+    "installed_paths": 33,
+    "base_physical_xml_sha256": "87e36ef3cffc87b83dc33abffd5bed4acaee62a768de11b273143febbf64d3fe",
+    "policy_interface_revision": 2,
+    "selected_actor_output_shape": [
+      14
+    ],
+    "sensor_packet_shape": [
+      57
+    ],
+    "finite_on_reset_seed": 96801,
+    "tested_separate_checkout": true
+  }
+}
