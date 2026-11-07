@@ -42,20 +42,20 @@ Stage A: 132 candidates, 132 built and sized.
 
 ## 5. Widths (substantial family, 10°)
 
-| Candidate | Torso width | Hip-pitch spacing | Foot spacing | Thigh width | Hardware width | Crown / torso width | Crown / hardware width | Hip H / foot spacing | Hip-roll hold | Walk CoP margin | Mass |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 60-N-S-10 (Narrow) | 15.2 cm | 16.3 cm | 13.0 cm | 25.4 cm | 23.3 cm | 3.94 | 2.58 | 3.05 | 2.5 N·m | 17 mm | 11.3 kg |
-| 60-M-S-10 (Balanced) | 17.7 cm | 17.9 cm | 16.1 cm | 27.0 cm | 25.2 cm | 3.39 | 2.38 | 2.47 | 2.9 N·m | 13 mm | 11.4 kg |
-| 60-W-S-10 (Broad) | 20.5 cm | 20.7 cm | 19.6 cm | 29.8 cm | 28.8 cm | 2.93 | 2.09 | 2.03 | 3.5 N·m | 9 mm | 11.4 kg |
-| 75-N-S-10 (Narrow) | 19.0 cm | 15.8 cm | 12.6 cm | 24.5 cm | 23.8 cm | 3.94 | 3.15 | 3.94 | 3.3 N·m | 4 mm | 15.6 kg |
-| 75-M-S-10 (Balanced) | 22.1 cm | 17.8 cm | 16.0 cm | 26.5 cm | 27.2 cm | 3.40 | 2.76 | 3.11 | 4.0 N·m | 26 mm | 15.7 kg |
-| 75-W-S-10 (Broad) | 25.6 cm | 21.3 cm | 20.2 cm | 30.0 cm | 31.4 cm | 2.93 | 2.39 | 2.46 | 5.0 N·m | 21 mm | 15.9 kg |
-| 100-N-S-10 (Narrow) | 25.4 cm | 21.1 cm | 16.9 cm | 33.4 cm | 31.5 cm | 3.95 | 3.18 | 3.93 | 10.4 N·m | 39 mm | 33.0 kg |
-| 100-M-S-10 (Balanced) | 29.5 cm | 23.8 cm | 21.4 cm | 36.5 cm | 36.0 cm | 3.40 | 2.78 | 3.11 | 12.5 N·m | 38 mm | 33.6 kg |
-| 100-W-S-10 (Broad) | 34.1 cm | 31.5 cm | 29.9 cm | 45.9 cm | 44.6 cm | 2.93 | 2.25 | 2.22 | 18.8 N·m | 32 mm | 36.2 kg |
-| 120-N-S-10 (Narrow) | 30.4 cm | 24.2 cm | 19.4 cm | 37.0 cm | 36.8 cm | 3.95 | 3.27 | 4.12 | 15.2 N·m | 41 mm | 45.7 kg |
-| 120-M-S-10 (Balanced) | 35.3 cm | 27.4 cm | 24.6 cm | 40.2 cm | 42.1 cm | 3.40 | 2.86 | 3.23 | 18.5 N·m | 41 mm | 46.1 kg |
-| 120-W-S-10 (Broad) | 40.9 cm | 38.2 cm | 36.3 cm | 53.6 cm | 53.7 cm | 2.93 | 2.24 | 2.20 | 33.0 N·m | -4 mm | 55.0 kg |
+| Candidate | Torso width | Hip-pitch spacing | Foot spacing | Thigh width | Hardware width | Max width | Crown / torso width | Crown / hardware width | Crown / max width | Hip H / foot spacing | Hip-roll hold | Walk CoP margin | Mass |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 60-N-S-10 (Narrow) | 15.2 cm | 16.3 cm | 13.0 cm | 25.4 cm | 23.3 cm | 25.4 cm | 3.94 | 2.58 | 2.36 | 3.05 | 2.5 N·m | 17 mm | 11.3 kg |
+| 60-M-S-10 (Balanced) | 17.7 cm | 17.9 cm | 16.1 cm | 27.0 cm | 25.2 cm | 27.0 cm | 3.39 | 2.38 | 2.22 | 2.47 | 2.9 N·m | 13 mm | 11.4 kg |
+| 60-W-S-10 (Broad) | 20.5 cm | 20.7 cm | 19.6 cm | 29.8 cm | 28.8 cm | 29.8 cm | 2.93 | 2.09 | 2.01 | 2.03 | 3.5 N·m | 9 mm | 11.4 kg |
+| 75-N-S-10 (Narrow) | 19.0 cm | 15.8 cm | 12.6 cm | 24.5 cm | 23.8 cm | 24.7 cm | 3.94 | 3.15 | 3.04 | 3.94 | 3.3 N·m | 4 mm | 15.6 kg |
+| 75-M-S-10 (Balanced) | 22.1 cm | 17.8 cm | 16.0 cm | 26.5 cm | 27.2 cm | 28.1 cm | 3.40 | 2.76 | 2.68 | 3.11 | 4.0 N·m | 26 mm | 15.7 kg |
+| 75-W-S-10 (Broad) | 25.6 cm | 21.3 cm | 20.2 cm | 30.0 cm | 31.4 cm | 32.3 cm | 2.93 | 2.39 | 2.33 | 2.46 | 5.0 N·m | 21 mm | 15.9 kg |
+| 100-N-S-10 (Narrow) | 25.4 cm | 21.1 cm | 16.9 cm | 33.4 cm | 31.5 cm | 33.4 cm | 3.95 | 3.18 | 2.99 | 3.93 | 10.4 N·m | 39 mm | 33.0 kg |
+| 100-M-S-10 (Balanced) | 29.5 cm | 23.8 cm | 21.4 cm | 36.5 cm | 36.0 cm | 37.3 cm | 3.40 | 2.78 | 2.68 | 3.11 | 12.5 N·m | 38 mm | 33.6 kg |
+| 100-W-S-10 (Broad) | 34.1 cm | 31.5 cm | 29.9 cm | 45.9 cm | 44.6 cm | 45.9 cm | 2.93 | 2.25 | 2.18 | 2.22 | 18.8 N·m | 32 mm | 36.2 kg |
+| 120-N-S-10 (Narrow) | 30.4 cm | 24.2 cm | 19.4 cm | 37.0 cm | 36.8 cm | 38.4 cm | 3.95 | 3.27 | 3.13 | 4.12 | 15.2 N·m | 41 mm | 45.7 kg |
+| 120-M-S-10 (Balanced) | 35.3 cm | 27.4 cm | 24.6 cm | 40.2 cm | 42.1 cm | 43.7 cm | 3.40 | 2.86 | 2.75 | 3.23 | 18.5 N·m | 41 mm | 46.1 kg |
+| 120-W-S-10 (Broad) | 40.9 cm | 38.2 cm | 36.3 cm | 53.6 cm | 53.7 cm | 55.3 cm | 2.93 | 2.24 | 2.17 | 2.20 | 33.0 N·m | -4 mm | 55.0 kg |
 
 ## 6. Body families (balanced width, 10°)
 

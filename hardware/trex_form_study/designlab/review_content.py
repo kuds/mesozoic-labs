@@ -183,10 +183,11 @@ def width(x) -> str:
             m = r["metrics"]
             rows.append([f"<span class='mono'>{cid}</span>", WIDTH[w], cm(m["torso_width"]), cm(m["hip_pitch_spacing"]),
                          cm(m["foot_spacing"]), cm(m["max_width"]), f"{m['ratios']['crown_over_torso_width']:.2f}",
+                         f"{m['crown'] / m['max_width']:.2f}", f"{m['ratios']['hip_height_over_foot_spacing']:.2f}",
                          f"{r['margins']['hip_roll']['hold']:.1f}", f"{r['walk_cop_margin_mm']:.0f} mm", kg(r["mass"])])
     tbl = K.table(["Candidate", "Width", "Torso width", "Hip spacing", "Foot spacing", "Max width",
-                   "Crown / torso width", "Hip-roll hold, N·m", "Walk CoP margin", "Mass"], rows,
-                  num={2, 3, 4, 5, 6, 7, 8, 9})
+                   "Crown / torso width", "Crown / max width", "Hip H / foot spacing", "Hip-roll hold, N·m",
+                   "Walk CoP margin", "Mass"], rows, num={2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
     return f"""
 <section id="width">
   <p class="kicker">4 · Width</p><h2>Narrow, balanced and broad</h2>
@@ -194,6 +195,11 @@ def width(x) -> str:
     <p>Torso width, hip-joint spacing, width across the hardware, foot spacing and the total support area
     are kept separate. Each width variant changes all of them together: the torso scale, the hip spacing
     and the foot spacing.</p>
+    <p>Crown-to-torso-width is set by the width variant and family alone (narrow 3.94, balanced 3.40 and broad
+    2.93 for the Substantial body), so it is the same at every size. Crown-to-maximum-width is not. The
+    maximum width is the thigh fairings around the hip motors, and motors do not shrink with the body. The
+    balanced 60 cm robot is therefore relatively wider (crown / max width 2.22) than the 75–120 cm robots
+    (2.68–2.75).</p>
     <p>Both hip-roll motors sit on the body centreline, one ahead of and one behind the hip axis. The
     single-support hip-roll load then comes only from carrying the lifted leg, so it grows with hip
     spacing. That is why the narrow variants need the least hip-roll torque. Broader feet give the

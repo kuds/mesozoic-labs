@@ -165,8 +165,8 @@ def t_loads(D: dict) -> str:
 
 def t_widths(D: dict) -> str:
     head = ["Candidate", "Torso width", "Hip-pitch spacing", "Foot spacing", "Thigh width", "Hardware width",
-            "Crown / torso width", "Crown / hardware width", "Hip H / foot spacing", "Hip-roll hold",
-            "Walk CoP margin", "Mass"]
+            "Max width", "Crown / torso width", "Crown / hardware width", "Crown / max width", "Hip H / foot spacing",
+            "Hip-roll hold", "Walk CoP margin", "Mass"]
     rows = []
     for h in HEIGHTS:
         for w in "NMW":
@@ -176,8 +176,9 @@ def t_widths(D: dict) -> str:
             m, r = d["metrics"], d["metrics"]["ratios"]
             rows.append([f"{h}-{w}-S-10 ({WIDTH_NAMES[w]})", _cm(m["torso_width"]) + " cm",
                          _cm(m["hip_pitch_spacing"]) + " cm", _cm(m["foot_spacing"]) + " cm",
-                         _cm(m["thigh_width"]) + " cm", _cm(m["hardware_width"]) + " cm",
+                         _cm(m["thigh_width"]) + " cm", _cm(m["hardware_width"]) + " cm", _cm(m["max_width"]) + " cm",
                          _f(r["crown_over_torso_width"], 2), _f(r["crown_over_hardware_width"], 2),
+                         _f(m["crown"] / m["max_width"], 2),
                          _f(r["hip_height_over_foot_spacing"], 2), _f(d["margins"]["hip_roll"]["hold"], 1, " N·m"),
                          _f(1000 * d["gaits"]["nominal"]["min_cop_margin_single"], 0, " mm"),
                          _f(m["mass"], 1, " kg")])
