@@ -52,7 +52,22 @@ The new tool therefore measures the same quantity as the earlier work.
 
 ## 5. Clean-checkout reproduction of the #662 platform
 
-*Pending: filled from the reproduction audit (`REPRODUCTION.md`).*
+Full record in `REPRODUCTION.md`. In summary:
+* **#662 mechanics and engineering reproduce from a clean checkout.** This covers the build,
+  engineering, tendon bench, proportions, validation with video, the clearance study and the M1
+  skeleton. Numbers match to relative 1e-11 or better, and every pass/fail outcome is the same,
+  including "overall mechanical release gate: fail".
+* **Exceptions in #662:**
+  * the committed `engineering_report.json` is stale against its own committed sources;
+  * `validate_platform --verify-sources` exits 1 on a renderer hash;
+  * the MP4 does not regenerate byte-for-byte (different framing);
+  * the clearance study writes two files that were never committed;
+  * 11 registry/contract tests fail (stale intermediate plant manifest, digest tables, species
+    catalog).
+* **No learned-policy claim can be reproduced.** No bundle, checkpoint or training input is
+  committed, and two linked documentation paths do not exist.
+* **#663 is evidence-only.** It has no code, its inputs are absent, and its cited commits cannot be
+  fetched. **#664** is the same commit and conflicts with `main` in 4 test/config files.
 
 ## 6. Baseline used for new work
 
