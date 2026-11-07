@@ -61,6 +61,8 @@ TRUNK_REGIONS = {
     "chest_ventral": ((0.42, 0.95), [(140, 220)]),
     "chest_front": ((0.60, 0.97), [(-180, 180)]),
     "abdomen": ((0.18, 0.44), [(-180, 180)]),
+    # back and flanks of the abdomen only (open ventral abdomen, Tapered family)
+    "abdomen_upper": ((0.18, 0.44), [(-140, 140)]),
     "pelvis_dorsal": ((-0.42, 0.22), [(-66, 66)]),
     "pelvis_lateral": ((-0.42, 0.22), [(66, 108), (-108, -66)]),
     "pubic_boot": ((0.04, 0.30), [(140, 220)]),

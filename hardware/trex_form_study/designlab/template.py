@@ -103,18 +103,19 @@ FAMILY_SHAPE = {
         thigh_scale=0.88,
         tail_root_scale=0.92,
         skull=dict(depth=0.40, width_rear=0.44, width_snout=0.20, brow=0.04),
-        cover_regions=("skull", "jaw", "neck", "chest_dorsal", "chest_lateral", "pelvis_dorsal",
+        cover_regions=("skull", "jaw", "neck", "chest_dorsal", "chest_lateral", "abdomen_upper", "pelvis_dorsal",
                        "pelvis_lateral", "pelvis_ventral", "thigh", "hip_cap", "tail"),
         shell_mm=1.6,
     ),
-    # Substantial, anatomically balanced: deep ribcage with gastral basket, distinct pubic boot keel,
-    # waist in plan view between ribcage and thighs, robust thigh fairings and tail root.
+    # Substantial, anatomically balanced: deep ribcage with gastral basket, belly line rising behind the
+    # ribs to a distinct pubic boot keel (side-view waist), waist in plan view between ribcage and thighs,
+    # slight dorsal ridge rather than a rounded back, robust thigh fairings and tail root.
     "S": dict(
         dorsal=[0.165, 0.205, 0.270, 0.292, 0.292, 0.276, 0.256, 0.242, 0.232, 0.224, 0.206, 0.160],
-        ventral=[-0.110, -0.130, -0.155, -0.185, -0.265, -0.365, -0.310, -0.315, -0.355, -0.370, -0.300, -0.180],
+        ventral=[-0.110, -0.130, -0.155, -0.185, -0.260, -0.345, -0.262, -0.285, -0.345, -0.365, -0.300, -0.180],
         half_width=[0.088, 0.102, 0.124, 0.136, 0.135, 0.106, 0.152, 0.196, 0.220, 0.212, 0.180, 0.120],
         wide=[0.50, 0.55, 0.62, 0.74, 0.78, 0.62, 0.45, 0.38, 0.36, 0.38, 0.45, 0.50],
-        n_up=[2.2, 2.2, 2.2, 2.1, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.1, 2.2],
+        n_up=[2.2, 2.2, 2.0, 1.9, 1.8, 1.8, 1.8, 1.8, 1.8, 1.9, 2.0, 2.2],
         n_lo=[2.2, 2.2, 1.9, 1.5, 1.4, 1.35, 1.9, 2.4, 2.6, 2.6, 2.4, 2.2],
         thigh_scale=1.12,
         tail_root_scale=1.05,
@@ -128,10 +129,10 @@ FAMILY_SHAPE = {
     # hoops over the mid-trunk showing the battery and compute bays; segmented exposed distal tail.
     "H": dict(
         dorsal=[0.158, 0.198, 0.260, 0.282, 0.282, 0.266, 0.250, 0.237, 0.228, 0.221, 0.203, 0.155],
-        ventral=[-0.102, -0.120, -0.142, -0.168, -0.238, -0.325, -0.275, -0.285, -0.325, -0.340, -0.280, -0.170],
+        ventral=[-0.102, -0.120, -0.142, -0.168, -0.235, -0.315, -0.248, -0.265, -0.320, -0.338, -0.280, -0.170],
         half_width=[0.083, 0.096, 0.116, 0.126, 0.124, 0.100, 0.138, 0.177, 0.200, 0.194, 0.165, 0.110],
         wide=[0.50, 0.55, 0.62, 0.74, 0.78, 0.62, 0.46, 0.40, 0.38, 0.40, 0.46, 0.51],
-        n_up=[2.1] * 12,
+        n_up=[2.1, 2.1, 1.95, 1.85, 1.8, 1.8, 1.8, 1.8, 1.8, 1.9, 2.0, 2.1],
         n_lo=[2.1, 2.1, 1.85, 1.5, 1.4, 1.35, 1.9, 2.3, 2.5, 2.5, 2.3, 2.1],
         thigh_scale=1.0,
         tail_root_scale=1.0,

@@ -1,4 +1,4 @@
-"""Sensor coverage screening on the compiled model: chest camera, ToF pair and 2D lidar.
+"""Sensor coverage screening on the compiled model: head camera, ToF pair and 2D lidar.
 
 Screening, not certification.  This is a geometric ray cast of what the robot's own body hides
 from its sensors, run on the compiled MJCF so that what is reported is what was built.  It is for
@@ -45,8 +45,9 @@ Ray model
 
 Sensor windows (assumption)
 ---------------------------
-The camera and ToF sites lie inside cover shells and the MJCF has no cut-outs (the throat camera
-sits inside ``cover_neck``, the S-family ToF pair inside ``cover_chest_ventral``).  A sensor is
+The camera and ToF sites lie inside cover shells and the MJCF has no cut-outs (the skull-roof
+camera sits inside ``cover_skull``, the S-family ToF pair inside ``cover_chest_ventral``; the first
+round-one layout had the camera in the throat, inside ``cover_neck``).  A sensor is
 *enclosed* if at least ``ENCLOSURE_MIN`` of ``MOUNT_CHECK_RAYS`` directions around its site (whole
 sphere) first hit robot geometry within ``WINDOW_DEPTH_FRAC`` x H (H = hip height of the model at
 home); measured: 0.83-0.98 for the enclosed throat camera and S-family ToF, 0.27-0.44 for the exposed

@@ -26,11 +26,13 @@ LIDAR_STATION = 0.92
 G = 9.81
 
 FAMILY_COLORS = {
-    "T": dict(main=(0.38, 0.45, 0.37, 1), accent=(0.55, 0.57, 0.45, 1), jaw=(0.80, 0.76, 0.64, 1),
+    # placeholder finishes for review renders (jaw a lighter skin tone, not bone, so the head reads as
+    # one deep skull rather than a beak)
+    "T": dict(main=(0.38, 0.45, 0.37, 1), accent=(0.55, 0.57, 0.45, 1), jaw=(0.50, 0.53, 0.43, 1),
               limb=(0.31, 0.38, 0.31, 1)),
-    "S": dict(main=(0.34, 0.41, 0.33, 1), accent=(0.50, 0.52, 0.41, 1), jaw=(0.80, 0.75, 0.62, 1),
+    "S": dict(main=(0.34, 0.41, 0.33, 1), accent=(0.50, 0.52, 0.41, 1), jaw=(0.47, 0.50, 0.40, 1),
               limb=(0.28, 0.34, 0.27, 1)),
-    "H": dict(main=(0.36, 0.41, 0.42, 1), accent=(0.58, 0.55, 0.44, 1), jaw=(0.80, 0.75, 0.62, 1),
+    "H": dict(main=(0.36, 0.41, 0.42, 1), accent=(0.58, 0.55, 0.44, 1), jaw=(0.50, 0.52, 0.48, 1),
               limb=(0.30, 0.35, 0.36, 1)),
 }
 TEETH_RGBA = (0.93, 0.91, 0.84, 1)
@@ -626,8 +628,11 @@ class Design:
         self.add(hw.box_item("lidar", "trunk", "sensors", li.mass + 0.03, lp, li.dims, "A", li.basis, li.id,
                              hw.SENSOR_RGBA, rot=lR, cost_nom=li.price + 30, cost_high=li.price + 80,
                              power_nom=li.power_typ, power_max=li.power_max))
-        self.add(hw.Item("lidar_bracket", "trunk", "structure", 0.025 * (B / 0.38) ** 2, lp, np.eye(3), "none", (0,), "B",
-                         "estimate", "printed belly bracket and guard", visual=False, collide=False))
+        gap = float(st["ventral"] - vent) + 0.004  # lidar top to the hull above its centre
+        bp = self._chest(np.array([lx, 0.0, vent + 0.5 * gap - 0.004]))
+        self.add(hw.box_item("lidar_bracket", "trunk", "structure", 0.025 * (B / 0.38) ** 2, bp,
+                             (0.6 * li.dims[0], 0.6 * li.dims[1], gap + 0.010), "B", "estimate",
+                             "printed throat bracket and guard", hw.STRUCT_RGBA, rot=lR, collide=False))
         self.bodies["trunk"].sites.append(dict(name="lidar", pos=lp, rot=lR, size=0.005, fov=li.fov, part=li.id))
         self.geometry_checks["lidar_below_hull_m"] = float(st["ventral"] - vent)
 
