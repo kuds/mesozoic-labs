@@ -43,7 +43,7 @@ def header(x) -> str:
   <nav class="toc" aria-label="Sections">
     <a href="#sizes">Sizes</a><a href="#families">Body families</a><a href="#posture">Posture</a><a href="#width">Width</a>
     <a href="#proportions">Proportions</a><a href="#inside">Inside</a><a href="#sensing">Sensing</a>
-    <a href="#compute">Compute</a><a href="#screening">Screening</a><a href="#cost">Cost and runtime</a><a href="#questions">Questions for you</a>
+    {'<a href="#compute">Compute</a>' if (x.r1 / "compute_options.json").exists() else ''}<a href="#screening">Screening</a><a href="#cost">Cost and runtime</a><a href="#questions">Questions for you</a>
     <a href="#next">Next</a>
   </nav>
 </header>"""
@@ -376,7 +376,7 @@ def screening(x) -> str:
     for cid in sorted(x.R, key=lambda k: (int(k.split("-")[0]), k)):
         cl = (x.R[cid].get("clearance") or {})
         ps = cl.get("pass", {})
-        sw = (cl.get("swing") or {}).get("nominal", {})
+        sw = (cl.get("swing_clearance") or {}).get("nominal", {})
         rows.append([f"<span class='mono'>{cid}</span>", _ok(ps.get("interference_free_home")),
                      _ok(ps.get("interference_free_nominal_gait")), _ok(ps.get("swing_clearance")),
                      _ok(ps.get("tail_clearance")), _ok(ps.get("battery_path")),

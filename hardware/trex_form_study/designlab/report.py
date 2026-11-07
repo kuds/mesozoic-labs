@@ -336,19 +336,27 @@ def matrix_stats(D: dict) -> dict:
 
 
 def t_screening(R: dict) -> str:
-    """One row per review candidate: clearance and sensor pass/fail flags (see SCREENING.md)."""
-    head = ["Candidate", "Clearance flags", "Sensor summary", "Rebuild matches Stage A"]
+    """One row per review candidate: the five clearance gates and the main sensor numbers (see SCREENING.md)."""
+    head = ["Candidate", "No contact at home", "No contact, nominal walk", "Swing ≥ 0.04 H", "Tail ≥ 0.25 H",
+            "Battery path", "Camera view blocked", "Torso visible ahead", "Nearest camera floor ahead of toes",
+            "Foot path covered (ToF + camera)", "Lidar blocked ≤ 1 m", "Same model as Stage A"]
     rows = []
+    pf = lambda v: "–" if v is None else ("pass" if v else "**fail**")  # noqa: E731
     for cid in sorted(R, key=lambda k: (int(k.split("-")[0]), k)):
         r = R[cid]
-        cl = r.get("clearance") or {}
+        ps = (r.get("clearance") or {}).get("pass", {})
         se = r.get("sensors") or {}
-        cflags = cl.get("flags") or cl.get("pass") or {}
-        sflags = se.get("flags") or se.get("pass") or {}
-        fmt = lambda fl: ", ".join(f"{k}: {'pass' if v else '**fail**'}" for k, v in fl.items()  # noqa: E731
-                                    if isinstance(v, bool)) or (r.get("clearance_error") or "–")
-        rows.append([cid, fmt(cflags), fmt(sflags) if sflags else (r.get("sensors_error") or "–"),
-                     _f(r.get("matches_stage_a"))])
+        cam = se.get("camera_blocked", {}).get("home")
+        torso = se.get("torso_follow", {}).get("home", {}).get("ok")
+        floor = se.get("centre_column_nearest_visible_floor_ahead_of_toes_m")
+        foot = (se.get("near_strip_coverage", {}).get("foot_path", {}) or {}).get("combined")
+        lid = (se.get("lidar_blocked_1m") or {}).get("as_built")
+        rows.append([cid, pf(ps.get("interference_free_home")), pf(ps.get("interference_free_nominal_gait")),
+                     pf(ps.get("swing_clearance")), pf(ps.get("tail_clearance")), pf(ps.get("battery_path")),
+                     "–" if cam is None else f"{100 * cam:.1f} %", pf(torso),
+                     "–" if floor is None else f"{floor:.2f} m", "–" if foot is None else f"{100 * foot:.0f} %",
+                     "none fitted" if lid is None else f"{100 * lid:.0f} %",
+                     _f(r.get("matches_stage_a")) if r.get("matches_stage_a") is not None else "–"])
     return table(head, rows)
 
 

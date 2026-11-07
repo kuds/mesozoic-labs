@@ -162,7 +162,7 @@ def cost_chart(rows: list[tuple[str, float, float, float]], budget=(10000, 20000
     out.append(f'<rect x="{sx(budget[0]):.1f}" y="{top - 14}" width="{sx(budget[1]) - sx(budget[0]):.1f}" '
                f'height="{rowh * len(rows) + 10}" fill="var(--band)" rx="4"/>')
     out.append(f'<text x="{(sx(budget[0]) + sx(budget[1])) / 2:.1f}" y="{top - 18}" text-anchor="middle">'
-               f'budget $10–20k</text>')
+               f'original budget $10–20k</text>')
     for v in range(0, xmax + 1, 5000):
         x = sx(v)
         out.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{top - 8}" y2="{top + rowh * len(rows)}" stroke="var(--grid)" stroke-width="1"/>')
