@@ -1243,8 +1243,8 @@ def _joint_ranges(sweeps: list) -> dict:
 
 
 def _range_margins(S: _Screen, sweeps: list, gait_trajs: dict) -> dict:
-    """Per swept joint: the walks' excursion against the usable range (first new interference, else the
-    joint limit), in rad.  Positive margins mean the walks stay inside the usable range."""
+    """Per swept joint: the walks' excursion against the usable range (first new interference with the
+    trunk or the same leg, else the joint limit), in rad.  Positive margins mean the walks stay inside."""
     usable = _joint_ranges(sweeps)
     out = {}
     for jn, rec in usable.items():
@@ -1253,8 +1253,15 @@ def _range_margins(S: _Screen, sweeps: list, gait_trajs: dict) -> dict:
             continue
         adr = j[1]
         vals = np.concatenate([np.asarray(tr["q"], float)[:, adr] for tr in gait_trajs.values()])
-        lo = rec["first_new_interference"][0] if rec["first_new_interference"][0] is not None else rec["limits"][0]
-        hi = rec["first_new_interference"][1] if rec["first_new_interference"][1] is not None else rec["limits"][1]
+        # a limit set by the other leg (e.g. the two feet's toes meeting in a single-joint sweep from home) is
+        # not a range limit while walking: the other leg moves, and leg-to-leg contact is checked on every
+        # walk frame (and by the swing lateral gap); such limits fall back to the joint limit here
+        lim = []
+        for i in (0, 1):
+            fni, by = rec["first_new_interference"][i], rec["limited_by"][i]
+            inter_leg = bool(by) and any("left_" in g for g in by) and any("right_" in g for g in by)
+            lim.append(rec["limits"][i] if (fni is None or inter_leg) else fni)
+        lo, hi = lim
         m_lo = float(vals.min() - lo) if lo is not None else None
         m_hi = float(hi - vals.max()) if hi is not None else None
         out[jn] = dict(walk_min=round(float(vals.min()), 4), walk_max=round(float(vals.max()), 4),
