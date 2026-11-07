@@ -50,7 +50,7 @@ WIDTHS = {
 #: alternatives so their effect can be seen in isolation.
 PROPORTIONS = {
     "base": dict(tail_scale=1.00, leg_scale=1.00, skull_scale=1.00, neck_scale=1.00, label="Study default"),
-    "anat": dict(tail_scale=1.22, leg_scale=1.00, skull_scale=1.00, neck_scale=1.00, label="Anatomical tail length"),
+    "anat": dict(tail_scale=1.48, leg_scale=1.00, skull_scale=1.00, neck_scale=1.00, label="Anatomical tail length"),
     "compact": dict(tail_scale=0.72, leg_scale=0.90, skull_scale=1.05, neck_scale=0.90, label="Compact (short tail, shorter legs)"),
     "bighead": dict(tail_scale=1.00, leg_scale=1.00, skull_scale=1.15, neck_scale=1.00, label="Large skull"),
 }

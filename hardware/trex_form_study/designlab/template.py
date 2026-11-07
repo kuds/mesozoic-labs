@@ -18,19 +18,19 @@ import numpy as np
 # Skeleton landmarks (level design pose)
 # ---------------------------------------------------------------------------------------------
 SKELETON = dict(
-    # Acetabulum -> glenoid (shoulder) distance.  SUE/Stan shoulder-to-hip is 21-23 % of body
-    # length and hip height is ~25-27 % of body length (Hutchinson et al. 2011, table 3), i.e.
-    # ~0.8-0.9 H.  0.84 is used.
-    glenoid_x=0.84,
+    # Acetabulum -> glenoid (shoulder) distance.  Gleno-acetabular distance is 0.211-0.225 of body
+    # length (Hutchinson et al. 2011, table 3: Stan, CM 9380, SUE) and standing hip height ~0.24 of
+    # body length (derived, data/research/anatomy_2026-11-07.json), i.e. ~0.88 H.
+    glenoid_x=0.88,
     glenoid_z=-0.02,
     # Lumbar bend pivot (chest rotates about this point for chest-up postures).
     lumbar_x=0.30,
     lumbar_z=0.10,
     # Neck base (cervico-dorsal junction, top of shoulders) in the chest frame.
-    neck_base_x=0.90,
-    neck_base_z=0.09,
+    neck_base_x=0.92,
+    neck_base_z=0.07,
     # Neck: two straight segments approximating the S-curve (length, angle above torso axis).
-    neck_segments=((0.17, 30.0), (0.15, 6.0)),
+    neck_segments=((0.17, 26.0), (0.15, 5.0)),
     # Skull long-axis length (occipital condyle to snout tip, covering included) and shape.
     skull_len=0.47,
     skull_pitch_deg=-4.0,  # world pitch of the skull axis in the nominal pose (nose slightly down)
@@ -50,23 +50,26 @@ SKELETON = dict(
 # Leg: segment lengths as fractions of the total chain length, design angles from vertical
 # (positive = distal end forward), from SUE limb ratios femur:tibia:metatarsus ~ 1.32:1.14:0.67.
 LEG = dict(
-    femur_frac=0.43,
-    tibia_frac=0.36,
-    meta_frac=0.21,
+    # femur : tibia : metatarsal III = 1 : 0.90 : 0.53 (adult ratios, Persons & Currie 2016 table 1;
+    # Persons et al. 2020 table 1; derived in data/research/anatomy_2026-11-07.json)
+    femur_frac=0.411,
+    tibia_frac=0.370,
+    meta_frac=0.219,
     femur_deg=22.0,  # knee forward of hip
     tibia_deg=-28.0,  # hock behind knee
     meta_deg=15.0,  # MTP forward of hock (fixed hock bend = tibia/meta angle difference)
     mtp_height=0.050,  # ankle (MTP) axis above floor, fraction of H
     toe_len=0.20,  # digit III, MTP to tip
     toe_side_scale=0.82,
-    toe_splay_deg=24.0,
+    toe_splay_deg=33.0,  # tracks: total II-IV divarication 51-80 deg, typical ~70 (McCrea et al. 2014)
     heel_len=0.06,  # pad behind the MTP axis
 )
 
 ADAPTATIONS = [
-    ("tail_len", "Anatomical tail measured from the first free caudal is about 2.0 H (51-59 % of body "
-     "length).  The study default is 1.55 H to limit turning sweep, floor footprint and tail inertia; the "
-     "'anat' proportion variant restores ~1.9 H for comparison."),
+    ("tail_len", "Anatomical tail measured from the first free caudal is about 2.3 H (51-59 % of body "
+     "length, Hutchinson et al. 2011 table 3; hip height ~0.24 of body length).  The study default is "
+     "1.55 H to limit turning sweep, floor footprint and tail inertia; the 'anat' proportion variant "
+     "restores 2.3 H for comparison."),
     ("legs", "The tibia and metatarsus are fused into one shank with a fixed hock bend; the actuated ankle "
      "(pitch and roll) sits at the metatarsophalangeal joint so the toes carry the load while the hock "
      "stays raised as in the animal."),
