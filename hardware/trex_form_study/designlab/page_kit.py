@@ -66,6 +66,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--grid);vertical-align:top}
 th{font-weight:600;color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td .mono{white-space:nowrap}
 tr:last-child td{border-bottom:0}
 .note{font-size:14px;color:var(--ink-2);background:var(--wash);border-radius:10px;padding:12px 14px;max-width:90ch}
 .tag{display:inline-block;font:500 11px/1.6 "IBM Plex Mono",ui-monospace,monospace;padding:0 6px;border-radius:4px;border:1px solid var(--rule);color:var(--ink-2);white-space:nowrap}

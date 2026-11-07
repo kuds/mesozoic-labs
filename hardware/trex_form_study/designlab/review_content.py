@@ -252,8 +252,11 @@ def inside(x) -> str:
                      ("-belly", "battery in the belly")):
         cid = f"60-M-S-10{suf}"
         r = x.c(cid)
-        lay_rows.append([f"<span class='mono'>{cid}</span>", lab, kg(r["mass"]), f"{r['margins']['hip_roll']['hold']:.1f}",
-                         f"{r['margins']['hip_pitch']['hold']:.1f}", f"{r['metrics']['ratios']['com_ahead_of_hip_over_H']:.3f} H",
+        ok = r.get("ss_feasible", True)
+        lay_rows.append([f"<span class='mono'>{cid}</span>", lab, kg(r["mass"]),
+                         f"{r['margins']['hip_roll']['hold']:.1f}" if ok else "no balanced pose",
+                         f"{r['margins']['hip_pitch']['hold']:.1f}" if ok else "no balanced pose",
+                         f"{r['metrics']['ratios']['com_ahead_of_hip_over_H']:.3f} H",
                          f"{r['runtime']:.0f} min", usd(r["cost"][1])])
     ltbl = K.table(["Candidate", "Layout", "Mass", "Hip-roll hold, N·m", "Hip-pitch hold, N·m", "CoM ahead of hip",
                     "Runtime", "Cost"], lay_rows, num={2, 3, 4, 5, 6, 7})

@@ -99,21 +99,21 @@ Stage A: 132 candidates, 132 built and sized.
 | 60-M-S-10-anat | anatomical tail | 182.3 cm | 91.4 cm | 11.7 kg | 0.085 H | 3.0 N·m | 3.3 N·m | 94 W | 35 min | $15.7k / $21.7k |
 | 60-M-S-10-compact | compact | 143.1 cm | 47.6 cm | 11.5 kg | 0.158 H | 2.9 N·m | 5.9 N·m | 102 W | 32 min | $15.7k / $21.8k |
 | 60-M-S-10-bighead | large skull | 153.4 cm | 60.7 cm | 11.3 kg | 0.120 H | 2.9 N·m | 4.5 N·m | 96 W | 34 min | $15.5k / $21.5k |
-| 60-M-S-10-side | side-by-side hip roll | 148.4 cm | 61.7 cm | 12.7 kg | 0.094 H | 0.0 N·m | 0.0 N·m | 117 W | 28 min | $17.0k / $23.3k |
+| 60-M-S-10-side | side-by-side hip roll | 148.4 cm | 61.7 cm | 12.7 kg | 0.094 H | no balanced pose | no balanced pose | 117 W | 28 min | $17.0k / $23.3k |
 | 60-M-S-10-serial | serial leg (PR #662-like) | 148.4 cm | 61.7 cm | 12.4 kg | 0.102 H | 12.8 N·m | 3.9 N·m | 104 W | 32 min | $16.3k / $22.3k |
 | 60-M-S-10-belly | belly battery | 142.1 cm | 61.7 cm | 12.7 kg | 0.183 H | 3.3 N·m | 8.0 N·m | 108 W | 30 min | $15.6k / $21.7k |
 | 75-M-S-10 | default | 185.5 cm | 77.2 cm | 15.7 kg | 0.143 H | 4.0 N·m | 9.9 N·m | 113 W | 29 min | $18.0k / $25.4k |
 | 75-M-S-10-anat | anatomical tail | 222.5 cm | 114.2 cm | 16.1 kg | 0.103 H | 4.0 N·m | 7.4 N·m | 112 W | 29 min | $18.6k / $26.2k |
 | 75-M-S-10-compact | compact | 175.3 cm | 59.5 cm | 17.6 kg | 0.184 H | 4.5 N·m | 13.9 N·m | 114 W | 29 min | $18.3k / $25.9k |
 | 75-M-S-10-bighead | large skull | 186.0 cm | 75.9 cm | 15.6 kg | 0.150 H | 4.0 N·m | 10.1 N·m | 113 W | 29 min | $17.8k / $25.2k |
-| 75-M-S-10-side | side-by-side hip roll | 185.5 cm | 77.2 cm | 17.9 kg | 0.103 H | 0.0 N·m | 0.0 N·m | 169 W | 29 min | $20.4k / $28.2k |
+| 75-M-S-10-side | side-by-side hip roll | 185.5 cm | 77.2 cm | 17.9 kg | 0.103 H | no balanced pose | no balanced pose | 169 W | 29 min | $20.4k / $28.2k |
 | 75-M-S-10-serial | serial leg (PR #662-like) | 185.5 cm | 77.2 cm | 18.6 kg | 0.113 H | 20.2 N·m | 8.5 N·m | 135 W | 24 min | $21.7k / $29.4k |
 | 75-M-S-10-belly | belly battery | 177.6 cm | 77.2 cm | 17.2 kg | 0.177 H | 4.6 N·m | 13.5 N·m | 115 W | 29 min | $18.5k / $26.0k |
 | 100-M-S-10 | default | 247.3 cm | 102.9 cm | 33.6 kg | 0.135 H | 12.5 N·m | 27.0 N·m | 171 W | 29 min | $30.1k / $41.5k |
 | 100-M-S-10-anat | anatomical tail | 296.6 cm | 152.3 cm | 33.6 kg | 0.102 H | 12.0 N·m | 20.2 N·m | 180 W | 28 min | $26.3k / $37.8k |
 | 100-M-S-10-compact | compact | 233.7 cm | 79.4 cm | 32.9 kg | 0.177 H | 11.4 N·m | 33.9 N·m | 168 W | 30 min | $30.4k / $42.0k |
 | 100-M-S-10-bighead | large skull | 247.9 cm | 101.2 cm | 33.4 kg | 0.143 H | 12.4 N·m | 28.0 N·m | 169 W | 30 min | $30.1k / $41.4k |
-| 100-M-S-10-side | side-by-side hip roll | 247.3 cm | 102.9 cm | 37.1 kg | 0.105 H | 0.0 N·m | 0.0 N·m | 225 W | 22 min | $30.2k / $42.3k |
+| 100-M-S-10-side | side-by-side hip roll | 247.3 cm | 102.9 cm | 37.1 kg | 0.105 H | no balanced pose | no balanced pose | 225 W | 22 min | $30.2k / $42.3k |
 | 100-M-S-10-serial | serial leg (PR #662-like) | 247.3 cm | 102.9 cm | 37.6 kg | 0.111 H | 50.5 N·m | 22.2 N·m | 230 W | 29 min | $31.3k / $43.0k |
 | 100-M-S-10-belly | belly battery | 236.7 cm | 102.9 cm | 33.3 kg | 0.167 H | 12.2 N·m | 33.2 N·m | 170 W | 29 min | $30.5k / $41.9k |
 | 120-M-S-10 | default | 296.8 cm | 123.5 cm | 46.1 kg | 0.153 H | 18.5 N·m | 51.2 N·m | 209 W | 31 min | $38.0k / $52.7k |

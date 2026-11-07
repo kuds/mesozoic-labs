@@ -78,6 +78,13 @@ def worst(doc: dict) -> tuple[str, float, str]:
     return best
 
 
+def hold_txt(doc: dict, group: str, nd: int = 1) -> str:
+    """Single-support hold for a joint group, or a plain statement when no balanced pose exists."""
+    if not all(h["feasible"] for h in doc["holds"].values()):
+        return "no balanced pose"
+    return _f(doc["margins"][group]["hold"], nd, " N·m")
+
+
 def volume_class_mass(doc: dict) -> dict:
     mb = doc["mass_by_category"]
     a = sum(v for k, v in mb.items() if k in CLASS_A)
@@ -179,7 +186,7 @@ def t_widths(D: dict) -> str:
                          _cm(m["thigh_width"]) + " cm", _cm(m["hardware_width"]) + " cm", _cm(m["max_width"]) + " cm",
                          _f(r["crown_over_torso_width"], 2), _f(r["crown_over_hardware_width"], 2),
                          _f(m["crown"] / m["max_width"], 2),
-                         _f(r["hip_height_over_foot_spacing"], 2), _f(d["margins"]["hip_roll"]["hold"], 1, " N·m"),
+                         _f(r["hip_height_over_foot_spacing"], 2), hold_txt(d, "hip_roll"),
                          _f(1000 * d["gaits"]["nominal"]["min_cop_margin_single"], 0, " mm"),
                          _f(m["mass"], 1, " kg")])
     return table(head, rows)
@@ -236,8 +243,7 @@ def t_variants(D: dict) -> str:
             m = d["metrics"]
             rows.append([f"{h}-M-S-10{suf}", label, _cm(m["length"]) + " cm", _cm(m["tail_length"]) + " cm",
                          _f(m["mass"], 1, " kg"), _f(m["ratios"]["com_ahead_of_hip_over_H"], 3, " H"),
-                         _f(d["margins"]["hip_roll"]["hold"], 1, " N·m"),
-                         _f(d["margins"]["hip_pitch"]["hold"], 1, " N·m"), _f(d["power"]["total_w"], 0, " W"),
+                         hold_txt(d, "hip_roll"), hold_txt(d, "hip_pitch"), _f(d["power"]["total_w"], 0, " W"),
                          _f(d["runtime"]["minutes"], 0, " min"),
                          f"{_usd(d['cost']['nominal'])} / {_usd(d['cost']['high'])}"])
     return table(head, rows)
