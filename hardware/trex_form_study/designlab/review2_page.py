@@ -963,7 +963,20 @@ def refinement(x: Ctx) -> str:
   <div class="prose"><p>The carpet target is 0.06 H above the pile top (at least 15 mm). For each lift, both reference
   walks are regenerated with that lift and checked against the selected drives and the walking clearance gates.</p></div>
   {ltbl}
+  {_nominal_note(x)}
 </section>"""
+
+
+def _nominal_note(x: Ctx) -> str:
+    p = x.r2 / "refine" / "carpet_lift_carpet_60_nominal_only.json"
+    if not p.exists():
+        return ""
+    d = json.loads(p.read_text())
+    v = [r["knee_speed"] for r in d.values()]
+    return (f'<p class="note">The drives column covers both walks lifted. At 60 cm the nominal walk alone at 0.19–0.195 H '
+            f'keeps the knee at {min(v):.2f}–{max(v):.2f} of its speed limit '
+            f'(<code>round2/refine/carpet_lift_carpet_60_nominal_only.json</code>), so there the brisk walk is the one over, '
+            f'and on carpet the 60 cm robot walks at the nominal speed with that swing.</p>')
 
 
 def size_study_sec(x: Ctx) -> str:

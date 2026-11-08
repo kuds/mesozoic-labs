@@ -9,7 +9,8 @@ rounds are **design review packages**. Neither selects a final robot, and no con
 
 | Read first | What it is |
 |---|---|
-| [ROUND2_REVIEW.md](ROUND2_REVIEW.md) | Round-two findings, the scorecard, the three bodies proposed for verification and the round-two questions |
+| [ROUND2_REVIEW.md](ROUND2_REVIEW.md) | Round-two findings with the overnight refinement: the recommended bodies, the scorecard, the size study, materials and power, and the owner's questions |
+| [round2/refine/MATERIALS.md](round2/refine/MATERIALS.md) | Materials (structure, coverings, foot pads) and power (battery, tether, the 3–4 ft robot), sourced and simulated |
 | [ROUND1_REVIEW.md](ROUND1_REVIEW.md) | Round-one findings, comparison plates and the preference questions |
 | [COMPUTE.md](COMPUTE.md) | Onboard compute survey (owner request P9) and the round-two compute budget |
 | [BASELINE.md](BASELINE.md) | Source and evidence reconciliation: PR stack, missing R2/R3 handoff, uploaded posture study, exact baseline |
@@ -47,7 +48,8 @@ designlab/            the generator and screens (Python package)
   envelope.py         round two: behavior envelope (animal-like walk, one-foot stop, push recovery, heat)
   round2.py           round two: sizing with the packaging search, every screen, plates
   report2.py          round-two tables (round2/TABLES.md) and data (round2/review_data.json)
-  shortlist.py        round-two scorecard and the bodies proposed for verification (round2/SHORTLIST.md)
+  shortlist.py        round-two scorecard (version 2) and the bodies proposed for verification (round2/SHORTLIST.md)
+  whatif.py, sizestudy.py, refine.py   75 cm what-if, size study, overnight refinement (levers, materials, power)
   data/               catalogs + raw sourced research records (URLs, access dates)
 round1/
   stage_a/            one compact JSON per candidate + summary.csv/json
@@ -57,6 +59,9 @@ round2/
   candidates/         one sized record per round-two candidate (20)
   review/             mjcf/ ledgers (the MJCF regenerates), screening JSON and PNG, plates
   TABLES.md, SHORTLIST.md, shortlist.json, review_data.json   generated
+  CROSSCHECK.md/.json independent blind cross-check of the picks
+  whatif_fr05/, size_study/, refine/   overnight: the what-if, the size study (SIZE_STUDY.md) and the refinement
+                      experiments (REFINE.md, MATERIALS.md, fixed_drives.json, carpet_lift*.json, plates/)
 ```
 
 ## Reproduce
@@ -112,6 +117,28 @@ python -m designlab.shortlist --round2 round2
 
 ```bash
 python -m designlab.review2_page --round2 round2 --out /tmp/review2_page
+```
+
+Overnight refinement (each writes its own directory under `round2/`; `--resume` keeps finished bodies):
+
+```bash
+python -m designlab.sizestudy --out round2/size_study --workers 3
+```
+
+```bash
+python -m designlab.refine --out round2/refine --workers 3 --cases carpet_60 targeted_75 knee_60 knee_75
+```
+
+```bash
+python -m designlab.refine --out round2/refine --fixed --cases
+```
+
+```bash
+python -m designlab.refine --out round2/refine --cases --carpet-lift --lift-cases targeted_75 --lifts 0.175 0.18
+```
+
+```bash
+python -m designlab.shortlist --round2 round2 --extra round2/whatif_fr05 round2/refine/carpet_60 round2/refine/targeted_75
 ```
 
 `round2` sizes the 20 round-two candidates (with the packaging search), rebuilds each one (SHA-256
