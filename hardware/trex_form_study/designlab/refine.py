@@ -82,6 +82,21 @@ CASES = {
     "targeted_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, min_gap=0.0,
                         headroom_by_group={"neck": 0.85, "hip_roll": 0.85},
                         label="75 cm: Froude 0.05 sizing + 15 % headroom on neck and hip roll"),
+    # carpet-ready 75 cm: targeted_75 plus the carpet swing as a sizing walk.  The lifted-walk pass on targeted_75
+    # puts the 0.06 H target (30.1-30.4 mm above the pile) at a lift of about 0.176 H, so the nominal walk is
+    # lifted to 0.18 H; the knee clears its range there (0.135 rad at 0.19 H on Tapered), so no ankle change
+    "carpet_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True,
+                      walks=("fr05", "lift18"), min_gap=0.0, headroom_by_group={"neck": 0.85, "hip_roll": 0.85},
+                      label="75 cm: targeted drives, sized for the 0.18 H carpet swing and Froude 0.05"),
+    # knee headroom: on the carpet-ready bodies the governing limit is the knee's speed (0.95 at both sizes), a
+    # kinematic requirement that a lighter body does not change (same-drive pass); 15 % headroom on the knee
+    # lets the sizing pick a faster knee drive instead of the lightest one that passes
+    "knee_60": dict(ids=("60-M-T-10",), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
+                    walks=("fr05", "lift19"), min_gap=0.0, headroom_by_group={"knee": 0.85},
+                    label="60 cm carpet-ready + 15 % knee headroom"),
+    "knee_75": dict(ids=("75-M-T-10",), overrides=(), headroom=1.0, fr05=True, walks=("fr05", "lift18"), min_gap=0.0,
+                    headroom_by_group={"neck": 0.85, "hip_roll": 0.85, "knee": 0.85},
+                    label="75 cm carpet-ready + 15 % knee headroom"),
 }
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
 LIFTS = (0.13, 0.16, 0.19, 0.22)
@@ -201,6 +216,93 @@ def carpet_lift_one(a) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------
+# Same drives: what a lighter body buys when the drives are kept
+# ------------------------------------------------------------------------------------------------
+#: reference case whose drives and pack a material/power case keeps in the same-drive pass
+FIXED_REF = {"mat60": "carpet_60", "mat75": "targeted_75"}
+
+
+def fixed_one(a) -> dict:
+    """One material or power case rebuilt with its reference case's drives and pack (no re-selection).
+
+    Re-sizing a lighter body selects lighter drives, so its margins stay near the limits and the saving shows up
+    as drive mass and cost.  Keeping the reference drives shows the other use of the saving: margin.  Same
+    sizing walks as the case (``_init``), same ratio definitions as the sizing record (continuous / sustained,
+    peak / peak, speed / speed at the bus).  Clearance is not re-run: the shapes are the reference body's, apart
+    from the covering wall thickness."""
+    from . import cost, power, round2, sizing
+    from .pipeline import build_candidate
+
+    case, cid, out, scratch = a
+    _init(case)
+    t0 = time.time()
+    ref_case = FIXED_REF[case.split("_")[0]]
+    ref = json.loads(Path(out, ref_case, "candidates", f"{cid}.json").read_text())
+    rec = json.loads(Path(out, case, "candidates", f"{cid}.json").read_text())
+    sel = dict(ref["selection"])
+    cand = round2.candidate(cid, tuple(tuple(o) for o in rec.get("overrides", ())))
+    res = build_candidate(cand, Path(scratch), selection=sel, write=False)
+    M, q0, design = res["model"], res["q_home"], res["design"]
+    req = sizing.requirements(M, q0, design.sk.H, cand.leg_layout)
+    ratios = {}
+    for g, r in req["groups"].items():
+        act = design.act(g)
+        spd = act.speed_at(sel["bus"] if act.box is None else None)
+        ratios[g] = dict(actuator=act.id, cont=r["cont"] / act.sustained, peak=r["peak_req"] / act.peak,
+                         speed=r["speed_req"] / max(spd, 1e-6), hold=r["hold"])
+    worst = max(((g, k, v[k]) for g, v in ratios.items() for k in ("cont", "peak", "speed")), key=lambda t: t[2])
+    leg_worst = max(((g, k, v[k]) for g, v in ratios.items() if g not in ("neck", "tail")
+                     for k in ("cont", "peak", "speed")), key=lambda t: t[2])
+    nom = req["runs"]["nominal"]["idr"]
+    ms = sizing._motor_space(M.names, nom["tau"], nom["omega"], cand.leg_layout)
+    pw = power.walking_power(design, req, ms)
+    tether = getattr(design, "power_mode", "battery") == "tether"
+    rt = None if tether else power.runtime(power.catalog.part(sel["battery"]), pw["total_w"])
+    ref_m = ref["margins"]
+    ref_worst = max(((g, k, m[f"{k}_ratio"]) for g, m in ref_m.items() for k in ("cont", "peak", "speed")),
+                    key=lambda t: t[2])
+    ref_leg = max(((g, k, m[f"{k}_ratio"]) for g, m in ref_m.items() if g not in ("neck", "tail")
+                   for k in ("cont", "peak", "speed")), key=lambda t: t[2])
+    return dict(case=case, id=cid, reference_case=ref_case, label=CASES[case]["label"], mass_kg=M.mass(),
+                reference_mass_kg=ref["metrics"]["mass"], com_ahead_of_hip_m=_com_ahead(M, q0, design),
+                reference_com_ahead_of_hip_m=ref["metrics"].get("com_ahead_of_hip"),
+                worst=worst, leg_worst=leg_worst, reference_worst=ref_worst, reference_leg_worst=ref_leg,
+                ratios=ratios, holds={g: r["hold"] for g, r in req["groups"].items()},
+                reference_holds={g: m["hold"] for g, m in ref_m.items()},
+                walk_w=pw["total_w"], reference_walk_w=ref["power"]["total_w"],
+                runtime_min=None if rt is None else rt["minutes"], reference_runtime_min=ref["runtime"]["minutes"],
+                tether=tether, walk_feasible=req["walk_feasible"],
+                cost=cost.estimate(design, res["rows"], sel), reference_cost=ref["cost"],
+                ik_ok=all(req["gaits"][k]["ik_ok"] for k in req["gaits"]), seconds=time.time() - t0)
+
+
+def _com_ahead(M, q0, design) -> float:
+    from . import metrics
+
+    return float(metrics.measure(M, design, q0)["com_ahead_of_hip"])
+
+
+def fixed_markdown(rows: list) -> str:
+    lines = ["", "## Same drives: the material and power cases with the reference body's drives and pack", "",
+             "Each case rebuilt with the drives and pack of its reference (60 cm: `carpet_60`; 75 cm: `targeted_75`) "
+             "instead of being re-sized.  Ratios use the same sizing walks; clearance is not re-run.", "",
+             "| Body | Case | Mass (reference) | CoM ahead of hip | Governing leg drive (reference) | Governing drive, any "
+             "(reference) | Hip-pitch hold | Walking power | Runtime | Cost nominal (reference) |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    for r in rows:
+        lw, rlw, w, rw = r["leg_worst"], r["reference_leg_worst"], r["worst"], r["reference_worst"]
+        hp, rhp = r["holds"].get("hip_pitch"), r["reference_holds"].get("hip_pitch")
+        rt = "tethered" if r["tether"] else f"{r['runtime_min']:.1f} min ({r['reference_runtime_min']:.1f})"
+        lines.append(
+            f"| `{r['id']}` | {r['label']} | {r['mass_kg']:.2f} kg ({r['reference_mass_kg']:.2f}) | "
+            f"{1e3 * r['com_ahead_of_hip_m']:.0f} mm ({1e3 * r['reference_com_ahead_of_hip_m']:.0f}) | "
+            f"{lw[0]} {lw[1]} {lw[2]:.2f} ({rlw[0]} {rlw[1]} {rlw[2]:.2f}) | {w[0]} {w[1]} {w[2]:.2f} "
+            f"({rw[0]} {rw[1]} {rw[2]:.2f}) | {hp:.2f} N·m ({rhp:.2f}) | {r['walk_w']:.1f} W ({r['reference_walk_w']:.1f}) | "
+            f"{rt} | ${r['cost']['nominal'] / 1e3:.1f}k (${r['reference_cost']['nominal'] / 1e3:.1f}k) |")
+    return "\n".join(lines) + "\n"
+
+
+# ------------------------------------------------------------------------------------------------
 # Comparison
 # ------------------------------------------------------------------------------------------------
 def compare(out: Path, r2: Path = Path("round2")) -> dict:
@@ -229,7 +331,8 @@ def compare(out: Path, r2: Path = Path("round2")) -> dict:
             if d:
                 rows.append(dict(case=case, **row(c["label"], d, rv, ref, rv.get("_detail"))))
     lift = json.loads((out / "carpet_lift.json").read_text()) if (out / "carpet_lift.json").exists() else None
-    return dict(cases={k: v["label"] for k, v in CASES.items()}, rows=rows, carpet_lift=lift)
+    fixed = json.loads((out / "fixed_drives.json").read_text()) if (out / "fixed_drives.json").exists() else None
+    return dict(cases={k: v["label"] for k, v in CASES.items()}, rows=rows, carpet_lift=lift, fixed_drives=fixed)
 
 
 def markdown(cmp: dict) -> str:
@@ -252,6 +355,8 @@ def markdown(cmp: dict) -> str:
                              f"{'–' if tj[0] is None else f'{tj[0]} {tj[1]:.2f} rad'} | {v['min_above_pile_top_mm']:.1f} mm | "
                              f"{'yes' if v['meets_target_all_piles'] else 'no'} |")
         text += "\n".join(lines) + "\n"
+    if cmp.get("fixed_drives"):
+        text += fixed_markdown(cmp["fixed_drives"])
     return text
 
 
@@ -262,6 +367,7 @@ def main():
     ap.add_argument("--cases", nargs="*", default=None)
     ap.add_argument("--carpet-lift", action="store_true")
     ap.add_argument("--lift-cases", nargs="*", default=None, help="run the carpet swing pass on these cases' bodies")
+    ap.add_argument("--fixed", action="store_true", help="same-drive pass over the material and power cases")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--resume", action="store_true", help="skip bodies already sized or screened")
     a = ap.parse_args()
@@ -308,6 +414,12 @@ def main():
                 name = "carpet_lift.json" if not a.lift_cases else f"carpet_lift_{'_'.join(a.lift_cases)}.json"
                 (out / name).write_text(json.dumps(lift, indent=1, default=str))
                 print("carpet lift done", flush=True)
+            if a.fixed:
+                todo = [(c, cid, str(out), str(out / "fixed_models" / c)) for c in CASES if c.split("_")[0] in FIXED_REF
+                        for cid in CASES[c]["ids"] if (out / c / "candidates" / f"{cid}.json").exists()]
+                fixed = list(pool.imap(fixed_one, todo))
+                (out / "fixed_drives.json").write_text(json.dumps(fixed, indent=1, default=str))
+                print("same-drive pass done", flush=True)
     cmp = compare(out)
     (out / "refine.json").write_text(json.dumps(cmp, indent=1, default=str))
     (out / "REFINE.md").write_text(markdown(cmp))

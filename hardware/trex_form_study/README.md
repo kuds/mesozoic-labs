@@ -118,8 +118,9 @@ python -m designlab.review2_page --round2 round2 --out /tmp/review2_page
 checked against its sized record) and runs the clearance, sensor, turning, carpet and behavior-envelope
 screens, then draws the plates: about an hour on 3 cores. Its reference walks run at round two's accuracy
 (`gait.set_accuracy("r2")`, decision log F14); the default keeps round one reproducible. `report2` and
-`shortlist` only format and rank recorded results. `python -m designlab.turning`, `python -m designlab.carpet`
-and `python -m designlab.envelope` screen single candidates.
+`shortlist` only format and rank recorded results. `python -m designlab.turning <id> --round2 round2 --out <dir>`
+and `python -m designlab.envelope round2 <id>` screen single round-two candidates; `python -m designlab.carpet <id>
+--out <dir>` screens round-one (Stage A) bodies only, at round one's walk accuracy.
 
 `build` writes one candidate's MJCF and ledger. `size` adds load-based actuator and battery
 selection. `stage_a` runs the full sweep, about an hour on 3 cores. `round1` rebuilds the review set
@@ -139,4 +140,4 @@ suffixes `-anat`, `-compact`, `-bighead` (proportions), `-side`, `-serial` (leg 
 * The reference walk is a prescribed trajectory for sizing. It is not a controller and does not show that any controller can walk the robot.
 * Renders show the generated models themselves. No concept art is used.
 * Physical construction, simulation evidence and hardware measurements are kept separate. Rounds one and two contain only the first two.
-* The turning, carpet and behavior-envelope screens are necessary-condition checks on prescribed motions and simple balance models. Passing them does not show that a controller can produce the behavior; failing one shows that no controller can with that body and those drives.
+* The turning, carpet and behavior-envelope screens check prescribed motions and simple balance models against the selected drives with the sizing margins. Passing them does not show that a controller can produce the behavior; failing one shows that the prescribed motion exceeds that body and those drives at those margins, not that no controller can.
