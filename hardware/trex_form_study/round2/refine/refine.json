@@ -7,6 +7,14 @@
   "narrow_3mm": "narrow stance, target turns >= 3 mm",
   "no_calf": "no calf fairing (exposed ankle drives)",
   "carpet_60": "60 cm: ankle drives at 0.60, sized for the 0.19 H carpet swing and Froude 0.05",
+  "mat60_cf": "60 cm carpet-ready + carbon-fibre frame plates",
+  "mat60_thin": "60 cm carpet-ready + covering walls x0.75",
+  "mat60_tether": "60 cm carpet-ready + tether-only power",
+  "mat60_light": "60 cm carpet-ready + carbon plates + covering walls x0.75",
+  "mat75_cf": "75 cm targeted + carbon-fibre frame plates",
+  "mat75_thin": "75 cm targeted + covering walls x0.75",
+  "mat75_tether": "75 cm targeted + tether-only power",
+  "mat75_light": "75 cm targeted + carbon plates + covering walls x0.75",
   "targeted_75": "75 cm: Froude 0.05 sizing + 15 % headroom on neck and hip roll"
  },
  "rows": [
@@ -1180,6 +1188,109 @@
    "stressed": 1.0075566959778997
   },
   {
+   "case": "pads_large",
+   "label": "pads x1.25",
+   "id": "60-M-H-10",
+   "ok": true,
+   "crown_m": 0.600719705981623,
+   "H_m": 0.4014828397317346,
+   "mass_kg": 11.010635200000001,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 71.54558984178334,
+   "runtime_min": 46.07831184689869,
+   "cost_nominal": 14930.0,
+   "cost_high": 20752.0,
+   "drives": {
+    "hip_roll": "cubemars_ak45_36_v3",
+    "hip_pitch": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p12_10_e",
+    "ankle_b": "myactuator_rmd_x4_p12_10_e",
+    "neck": "feetech_sts3250",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {},
+   "governing": [
+    "knee",
+    "speed",
+    0.7891984269485525
+   ],
+   "ratios": {
+    "hip_roll": 0.6951335419814203,
+    "hip_pitch": 0.6957483825795324,
+    "hip_yaw": 0.7883404744327959,
+    "knee": 0.7891984269485525,
+    "ankle_a": 0.7567031839246923,
+    "ankle_b": 0.7566650645280175,
+    "neck": 0.7558385384501594,
+    "tail": 0.40343478774506486
+   },
+   "fast_walk": {
+    "ok": null,
+    "worst": null,
+    "speed_ms": null
+   },
+   "turning": {
+    "targets_pass": null,
+    "worst": null,
+    "worst_where": null,
+    "twist_speed_in_place": null,
+    "twist_speed_limit": null,
+    "mu_needed": null,
+    "min_gap_mm": null
+   },
+   "carpet": {
+    "passes": null,
+    "toe_margin_mm": null,
+    "friction_margin": null,
+    "medium_upright": null
+   },
+   "stop_ms2": null,
+   "push_ms": null,
+   "session_worst": null,
+   "clearance_all": null,
+   "tightest_joint_margin_rad": null,
+   "overrides": [
+    [
+     "pad_scale",
+     1.25
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 15.50000000000001
+   },
+   "person_in_view": null,
+   "gates": {
+    "clearance": false,
+    "drives_sizing_walks": true,
+    "turning_targets": null,
+    "animal_walk": null,
+    "person_in_view": false,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": null,
+    "all": false
+   },
+   "scores": {
+    "natural_walking": 0.7026719101714918,
+    "turning": null,
+    "carpet": null,
+    "robustness": 0.5744867003644838,
+    "following": 0.0,
+    "endurance": 1.0,
+    "head_and_tail": 0.9069357692497344,
+    "packaging": 1.0,
+    "cost": 1.0
+   },
+   "total": 0.6457916793592253,
+   "stressed": 1.0202053198542065
+  },
+  {
    "case": "no_calf",
    "label": "no calf fairing (exposed ankle drives)",
    "id": "60-M-T-10",
@@ -1828,6 +1939,465 @@
    },
    "total": 0.6584241530694396,
    "stressed": 1.1462582767071283
+  },
+  {
+   "case": "mat60_cf",
+   "label": "60 cm carpet-ready + carbon-fibre frame plates",
+   "id": "60-M-T-10",
+   "ok": true,
+   "crown_m": 0.6007161153227374,
+   "H_m": 0.40468919988052376,
+   "mass_kg": 10.173616200000001,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 68.2215169368381,
+   "runtime_min": 48.32346374021853,
+   "cost_nominal": 16375.0,
+   "cost_high": 22850.0,
+   "drives": {
+    "hip_roll": "cubemars_ak45_36_v3",
+    "hip_pitch": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p12_10_e",
+    "ankle_b": "myactuator_rmd_x4_p12_10_e",
+    "neck": "feetech_sts3250",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {},
+   "governing": [
+    "knee",
+    "speed",
+    0.9451631659668676
+   ],
+   "ratios": {
+    "hip_roll": 0.6420197278461188,
+    "hip_pitch": 0.9006663643752691,
+    "hip_yaw": 0.7165911991931624,
+    "knee": 0.9451631659668676,
+    "ankle_a": 0.7168848348216803,
+    "ankle_b": 0.7168484561350152,
+    "neck": 0.7484139538480757,
+    "tail": 0.512236456295782
+   },
+   "fast_walk": {
+    "ok": null,
+    "worst": null,
+    "speed_ms": null
+   },
+   "turning": {
+    "targets_pass": null,
+    "worst": null,
+    "worst_where": null,
+    "twist_speed_in_place": null,
+    "twist_speed_limit": null,
+    "mu_needed": null,
+    "min_gap_mm": null
+   },
+   "carpet": {
+    "passes": null,
+    "toe_margin_mm": null,
+    "friction_margin": null,
+    "medium_upright": null
+   },
+   "stop_ms2": null,
+   "push_ms": null,
+   "session_worst": null,
+   "clearance_all": null,
+   "tightest_joint_margin_rad": null,
+   "overrides": [
+    [
+     "ankle_frac",
+     0.6
+    ],
+    [
+     "structure_material",
+     "cf_plate"
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 14.000000000000009
+   },
+   "person_in_view": null,
+   "gates": {
+    "clearance": false,
+    "drives_sizing_walks": true,
+    "turning_targets": null,
+    "animal_walk": null,
+    "person_in_view": false,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": null,
+    "all": false
+   },
+   "scores": {
+    "natural_walking": 0.18278944677710815,
+    "turning": null,
+    "carpet": null,
+    "robustness": 0.3451083353915657,
+    "following": 0.0,
+    "endurance": 1.0,
+    "head_and_tail": 0.9193100769198738,
+    "packaging": 1.0,
+    "cost": 0.8625
+   },
+   "total": 0.44309234787164314,
+   "stressed": 1.1119566658433737
+  },
+  {
+   "case": "mat60_tether",
+   "label": "60 cm carpet-ready + tether-only power",
+   "id": "60-M-T-10",
+   "ok": true,
+   "crown_m": 0.6007161153227374,
+   "H_m": 0.40468919988052376,
+   "mass_kg": 10.1308472,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 74.62843007487996,
+   "runtime_min": 44.17485396238657,
+   "cost_nominal": 14723.0,
+   "cost_high": 20512.0,
+   "drives": {
+    "hip_roll": "cubemars_ak45_36_v3",
+    "hip_pitch": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p12_10_e",
+    "ankle_a": "myactuator_rmd_x4_p12_10_e",
+    "ankle_b": "myactuator_rmd_x4_p12_10_e",
+    "neck": "feetech_sts3250",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {
+    "knee": [
+     "myactuator_rmd_x4_p36_36_e_l",
+     "myactuator_rmd_x4_p12_10_e"
+    ]
+   },
+   "governing": [
+    "knee",
+    "cont",
+    0.9069861204814416
+   ],
+   "ratios": {
+    "hip_roll": 0.68237321835473,
+    "hip_pitch": 0.861348458507433,
+    "hip_yaw": 0.7161009471357755,
+    "knee": 0.9069861204814416,
+    "ankle_a": 0.7108085557262284,
+    "ankle_b": 0.7107716496096437,
+    "neck": 0.7614870044513548,
+    "tail": 0.5039675082874239
+   },
+   "fast_walk": {
+    "ok": null,
+    "worst": null,
+    "speed_ms": null
+   },
+   "turning": {
+    "targets_pass": null,
+    "worst": null,
+    "worst_where": null,
+    "twist_speed_in_place": null,
+    "twist_speed_limit": null,
+    "mu_needed": null,
+    "min_gap_mm": null
+   },
+   "carpet": {
+    "passes": null,
+    "toe_margin_mm": null,
+    "friction_margin": null,
+    "medium_upright": null
+   },
+   "stop_ms2": null,
+   "push_ms": null,
+   "session_worst": null,
+   "clearance_all": null,
+   "tightest_joint_margin_rad": null,
+   "overrides": [
+    [
+     "ankle_frac",
+     0.6
+    ],
+    [
+     "power_mode",
+     "tether"
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 14.000000000000009
+   },
+   "person_in_view": null,
+   "gates": {
+    "clearance": false,
+    "drives_sizing_walks": true,
+    "turning_targets": null,
+    "animal_walk": null,
+    "person_in_view": false,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": null,
+    "all": false
+   },
+   "scores": {
+    "natural_walking": 0.3100462650618615,
+    "turning": null,
+    "carpet": null,
+    "robustness": 0.1906331396188654,
+    "following": 0.0,
+    "endurance": 0.9669941584954629,
+    "head_and_tail": 0.8975216592477421,
+    "packaging": 1.0,
+    "cost": 1.0
+   },
+   "total": 0.44597103252447934,
+   "stressed": 1.1737467441524538
+  },
+  {
+   "case": "mat75_cf",
+   "label": "75 cm targeted + carbon-fibre frame plates",
+   "id": "75-M-T-10",
+   "ok": true,
+   "crown_m": 0.7507875377562617,
+   "H_m": 0.5058614998506548,
+   "mass_kg": 13.6801878,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 82.65240730439554,
+   "runtime_min": 39.88631556560457,
+   "cost_nominal": 20218.0,
+   "cost_high": 28201.0,
+   "drives": {
+    "hip_roll": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_pitch": "myactuator_rmd_x6_p20_60_e",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_b": "myactuator_rmd_x4_p36_36_e_l",
+    "neck": "robotis_xm540_w270_t",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {
+    "hip_roll": [
+     "cubemars_ak45_36_v3",
+     "myactuator_rmd_x4_p36_36_e_l"
+    ],
+    "hip_pitch": [
+     "robstride_03",
+     "myactuator_rmd_x6_p20_60_e"
+    ],
+    "neck": [
+     "robotis_xm540_w150_t",
+     "robotis_xm540_w270_t"
+    ]
+   },
+   "governing": [
+    "hip_yaw",
+    "cont",
+    0.9556934244306053
+   ],
+   "ratios": {
+    "hip_roll": 0.6769693296088909,
+    "hip_pitch": 0.8245924612687004,
+    "hip_yaw": 0.9556934244306053,
+    "knee": 0.9419956132332943,
+    "ankle_a": 0.7030368080990438,
+    "ankle_b": 0.703023177867684,
+    "neck": 0.6535520540320084,
+    "tail": 0.8858766626434259
+   },
+   "fast_walk": {
+    "ok": null,
+    "worst": null,
+    "speed_ms": null
+   },
+   "turning": {
+    "targets_pass": null,
+    "worst": null,
+    "worst_where": null,
+    "twist_speed_in_place": null,
+    "twist_speed_limit": null,
+    "mu_needed": null,
+    "min_gap_mm": null
+   },
+   "carpet": {
+    "passes": null,
+    "toe_margin_mm": null,
+    "friction_margin": null,
+    "medium_upright": null
+   },
+   "stop_ms2": null,
+   "push_ms": null,
+   "session_worst": null,
+   "clearance_all": null,
+   "tightest_joint_margin_rad": null,
+   "overrides": [
+    [
+     "structure_material",
+     "cf_plate"
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 9.500000000000005
+   },
+   "person_in_view": null,
+   "gates": {
+    "clearance": false,
+    "drives_sizing_walks": true,
+    "turning_targets": null,
+    "animal_walk": null,
+    "person_in_view": false,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": null,
+    "all": false
+   },
+   "scores": {
+    "natural_walking": 0.14768858523131553,
+    "turning": null,
+    "carpet": null,
+    "robustness": 0.033050685665688695,
+    "following": 0.0,
+    "endurance": 0.7954526226241828,
+    "head_and_tail": 0.6902055622609569,
+    "packaging": 1.0,
+    "cost": 0.4782
+   },
+   "total": 0.3041383718165465,
+   "stressed": 1.2367797257337245
+  },
+  {
+   "case": "mat75_tether",
+   "label": "75 cm targeted + tether-only power",
+   "id": "75-M-T-10",
+   "ok": true,
+   "crown_m": 0.7507875377562617,
+   "H_m": 0.5058614998506548,
+   "mass_kg": 14.789567799999999,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 100.11530438849398,
+   "runtime_min": 32.92903138172831,
+   "cost_nominal": 18310.0,
+   "cost_high": 25500.0,
+   "drives": {
+    "hip_roll": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_pitch": "myactuator_rmd_x6_p20_60_e",
+    "hip_yaw": "myactuator_rmd_x4_p36_36_e_l",
+    "knee": "robstride_06",
+    "ankle_a": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_b": "myactuator_rmd_x4_p36_36_e_l",
+    "neck": "robotis_xm540_w270_t",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {
+    "hip_roll": [
+     "cubemars_ak45_36_v3",
+     "myactuator_rmd_x4_p36_36_e_l"
+    ],
+    "hip_pitch": [
+     "robstride_03",
+     "myactuator_rmd_x6_p20_60_e"
+    ],
+    "hip_yaw": [
+     "cubemars_ak45_36_v3",
+     "myactuator_rmd_x4_p36_36_e_l"
+    ],
+    "knee": [
+     "myactuator_rmd_x4_p36_36_e_l",
+     "robstride_06"
+    ],
+    "neck": [
+     "robotis_xm540_w150_t",
+     "robotis_xm540_w270_t"
+    ]
+   },
+   "governing": [
+    "tail",
+    "peak",
+    0.9174343379218706
+   ],
+   "ratios": {
+    "hip_roll": 0.8084035836545009,
+    "hip_pitch": 0.8504900156579965,
+    "hip_yaw": 0.7918538948788337,
+    "knee": 0.5952438762504604,
+    "ankle_a": 0.7198240993774176,
+    "ankle_b": 0.7198079284299677,
+    "neck": 0.6653934259594055,
+    "tail": 0.9174343379218706
+   },
+   "fast_walk": {
+    "ok": null,
+    "worst": null,
+    "speed_ms": null
+   },
+   "turning": {
+    "targets_pass": null,
+    "worst": null,
+    "worst_where": null,
+    "twist_speed_in_place": null,
+    "twist_speed_limit": null,
+    "mu_needed": null,
+    "min_gap_mm": null
+   },
+   "carpet": {
+    "passes": null,
+    "toe_margin_mm": null,
+    "friction_margin": null,
+    "medium_upright": null
+   },
+   "stop_ms2": null,
+   "push_ms": null,
+   "session_worst": null,
+   "clearance_all": null,
+   "tightest_joint_margin_rad": null,
+   "overrides": [
+    [
+     "power_mode",
+     "tether"
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 9.500000000000005
+   },
+   "person_in_view": null,
+   "gates": {
+    "clearance": false,
+    "drives_sizing_walks": true,
+    "turning_targets": null,
+    "animal_walk": null,
+    "person_in_view": false,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": null,
+    "all": false
+   },
+   "scores": {
+    "natural_walking": 0.4983666144733449,
+    "turning": null,
+    "carpet": null,
+    "robustness": 0.37341465522412853,
+    "following": 0.0,
+    "endurance": 0.5171612552691323,
+    "head_and_tail": 0.6376094367968824,
+    "packaging": 1.0,
+    "cost": 0.669
+   },
+   "total": 0.4419315979214938,
+   "stressed": 1.1006341379103486
   },
   {
    "case": "targeted_75",
