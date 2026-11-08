@@ -586,8 +586,8 @@ schema-2 summaries still read):
   `[curriculum]` bar (default 1) and `replication.count < certification_seeds`
   — rather than copying from the run block. `provenance.ancestors` is the
   summary-side projection of `ancestors/<stage_id>/`.
-- `replication` is writer-recorded (decision D-B10). When the notebook's
-  publication cell runs, `environments.shared.replication.discover_replicates_for_run`
+- `replication` is writer-recorded (decision D-B10). When the notebook
+  writes the run's bundle, `environments.shared.replication.discover_replicates_for_run`
   looks through the sibling runs under `LOG_BASE/<species>/<embodiment>/<algo>/` for the
   same recipe on another seed — a passed, reusable `gate_verdict.json` for
   the node with equal `task_sha256` and `gate_sha256`, a `stage_config.json`
@@ -600,9 +600,11 @@ schema-2 summaries still read):
   stance declares 2; once a stance bundle is published the catalog and the
   model page render it as `1 run of 2 seeds; provisional`, re-deriving
   the label from the current config — no T-Rex stance bundle is committed
-  yet; see `docs/KNOWN_ISSUES.md`). A replicate that certifies later is counted by re-running the
-  publication cell of the run that should count it, with the sibling
-  present: a `partial` bundle is rebuilt, and a `complete` bundle
+  yet; see `docs/KNOWN_ISSUES.md`). A replicate that certifies later is counted when the
+  bundle of the run that should count it is written again with the sibling
+  present (a hand-typed `save_run_bundle(...)` call or a later committed
+  cell: the SB3 notebook has no stand-alone publication cell): a `partial`
+  bundle is rebuilt, and a `complete` bundle
   regenerates its derived artifacts when the replication record is its
   only change — anything else on a complete bundle is still refused as
   immutable.
