@@ -50,7 +50,7 @@
   "right_ankle_roll"
  ],
  "feedforward": "inverse-dynamics joint torque, contact-consistent; MJCF joint damping and friction not included",
- "match_rule": "every record leaf agrees to 6 significant digits (rel 5e-07)",
+ "match_rule": "every record leaf agrees to 6 significant digits (rel 5e-07); a leaf whose two values both lie within its unit's noise floor ((speed|speed_peak|yaw_rate\\w*|omega)$ 1e-06, power_mean$ 1e-06, (_nm|rms|rms_stacked|peak|mz_abs_max)$ 1e-06, _mm$ 0.0001, (_m|margin\\w*|origin|error_max|lean_inward|sway_amp|lift|stride|radius|r_eff|r_cop_min)$ 1e-07) matches and is listed",
  "references": {
   "nominal": {
    "name": "nominal",
@@ -111,7 +111,7 @@
     ],
     "accuracy": "r2"
    },
-   "seconds": 11.709608155000751,
+   "seconds": 17.39357513699906,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/candidates/60-N-T-10.json gaits.nominal",
@@ -120,6 +120,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 6,
      "max_rel_diff": 3.1563874907058416e-16,
      "max_rel_diff_at": "min_cop_margin",
      "match": true
@@ -186,7 +189,7 @@
     ],
     "accuracy": "r2"
    },
-   "seconds": 11.259235167000952,
+   "seconds": 16.198402506001003,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/candidates/60-N-T-10.json gaits.brisk",
@@ -195,6 +198,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 6,
      "max_rel_diff": 6.441426147398122e-16,
      "max_rel_diff_at": "min_cop_margin",
      "match": true
@@ -261,7 +267,7 @@
     ],
     "accuracy": "r2"
    },
-   "seconds": 10.78631543299889,
+   "seconds": 16.20005334799862,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/candidates/60-N-T-10.json gaits.fr05",
@@ -270,6 +276,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 6,
      "max_rel_diff": 5.03010480722944e-16,
      "max_rel_diff_at": "joints.right_ankle_roll.peak",
      "match": true
@@ -336,7 +345,7 @@
     ],
     "accuracy": "r2"
    },
-   "seconds": 11.46629041199958,
+   "seconds": 16.412706103001256,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/candidates/60-N-T-10.json gaits.lift19",
@@ -345,6 +354,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 6,
      "max_rel_diff": 4.73458123595038e-16,
      "max_rel_diff_at": "min_cop_margin",
      "match": true
@@ -356,6 +368,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 0,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -442,7 +457,7 @@
     "phase_tol": 1e-09,
     "unwrap": "exact"
    },
-   "seconds": 12.371036509999612,
+   "seconds": 18.352959716999976,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json runs.walk_0.35_left",
@@ -451,6 +466,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 3,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -537,7 +555,7 @@
     "phase_tol": 1e-09,
     "unwrap": "exact"
    },
-   "seconds": 11.79172763400129,
+   "seconds": 17.9960262329987,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json runs.walk_0.35_right",
@@ -546,6 +564,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 3,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -632,7 +653,7 @@
     "phase_tol": 1e-09,
     "unwrap": "exact"
    },
-   "seconds": 12.846269208999729,
+   "seconds": 17.691986812000323,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json runs.in_place_0.50_left",
@@ -641,6 +662,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 7,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -727,7 +751,7 @@
     "phase_tol": 1e-09,
     "unwrap": "exact"
    },
-   "seconds": 12.63365112900101,
+   "seconds": 18.432142446999933,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json runs.in_place_0.50_right",
@@ -736,6 +760,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 7,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -822,7 +849,7 @@
     "phase_tol": 1e-09,
     "unwrap": "exact"
    },
-   "seconds": 12.425461866998376,
+   "seconds": 15.167585504999806,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json runs.walk_0.50_left",
@@ -831,6 +858,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 3,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -917,7 +947,7 @@
     "phase_tol": 1e-09,
     "unwrap": "exact"
    },
-   "seconds": 12.71310093199827,
+   "seconds": 12.531479494999076,
    "record_checks": [
     {
      "record": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json runs.walk_0.50_right",
@@ -926,6 +956,9 @@
      "n_mismatched": 0,
      "missing": [],
      "n_missing": 0,
+     "noise_floor_matches": [],
+     "n_noise_floor_matches": 0,
+     "n_noise_level_leaves": 3,
      "max_rel_diff": 0.0,
      "max_rel_diff_at": null,
      "match": true
@@ -935,7 +968,7 @@
   }
  },
  "matches_records": true,
- "seconds": 124.16611801399995,
+ "seconds": 172.3412018350009,
  "provenance": {
   "versions": {
    "python": "3.13.18",
@@ -947,7 +980,7 @@
    "torch": "2.15.0"
   },
   "git": {
-   "commit": "72a79946dcc0030cbb3df5c96a5a06c6b5af6f90",
+   "commit": "ecf63a5d2404c795e55f26b00e7f3c8b90c49148",
    "dirty": true
   }
  }
