@@ -125,6 +125,11 @@ Sources: HP 3D HR PA 12 and PA 11 data sheets, EOS PA 2200 data sheet, Windform 
 vs PA12 comparison, HLH Rapid MJF design guide, Protolabs lead times, JLC3DP pricing, Rock West prepreg data,
 Formlabs vacuum-forming guide, The Foamory EVA data; all accessed 2026-11-08.
 
+The effects in this table are the research's estimates for graded walls with the internal supports raised to 25 %
+(60 cm) and 29 % (75 cm). The simulated lever in §2 thins every wall uniformly to ×0.75 with the supports scaling
+with the walls, so it saves more (PA11: −0.31 / −0.52 kg) and costs less (+$20–60) than these estimates; the
+graded rule is the more conservative build target.
+
 **Recommendation.** MJF PA11 with graded walls on every printed panel; EVA foam bumpers at strike points (snout,
 jaw tip, tail tip, shins); stretch fabric only over moving gaps (neck-to-trunk, hip and knee gaiters). Moulded
 carbon skins only on the 75 cm skull, jaw, neck and tail if the neck servo needs relief (about −0.46 kg and
