@@ -707,6 +707,10 @@ def corrections(x: Ctx) -> str:
 </section>"""
 
 
+#: The owner's answers at the round-two review, 8 Nov 2026 (DECISION_LOG.md P16-P23): question index -> option index.
+OWNER_ANSWERS = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+
+
 def questions(x: Ctx) -> str:
     keys = x.pick_keys()
     sg = lambda v: "+" if v >= 0 else "−"  # noqa: E731
@@ -776,13 +780,18 @@ def questions(x: Ctx) -> str:
          ["Yes: a bounded walking and turning probe on the chosen bodies, with the same budget each.",
           "Not yet: another design round first."]),
     ]
+    def opt(i, j, o):
+        mark = " " + K.tag("your answer", "ok") if j == OWNER_ANSWERS.get(i) else ""
+        return f"<li>{K.esc(o)}{mark}</li>"
+
     items = "".join(f'<div class="q"><h3>{i + 1}. {K.esc(t)}</h3><ol type="a">'
-                    + "".join(f"<li>{K.esc(o)}</li>" for o in opts) + "</ol></div>" for i, (t, opts) in enumerate(q))
+                    + "".join(opt(i, j, o) for j, o in enumerate(opts)) + "</ol></div>" for i, (t, opts) in enumerate(q))
     return f"""
 <section id="questions">
   <p class="kicker">Questions for you</p><h2>Eight decisions before verification</h2>
-  <div class="prose"><p>A letter per question is enough. Nothing is frozen until you answer, and no controller
-  training starts without your go-ahead.</p></div>
+  <div class="prose"><p>{"You answered these on 8 Nov 2026 (<code>DECISION_LOG.md</code> P16–P23); your answer is marked "
+  "under each question." if OWNER_ANSWERS else "A letter per question is enough. Nothing is frozen until you answer, and "
+  "no controller training starts without your go-ahead."}</p></div>
   {items}
 </section>"""
 
@@ -793,7 +802,7 @@ def nextsteps(x: Ctx) -> str:
   <p class="kicker">Next</p><h2>From screens to evidence</h2>
   <div class="prose">
     <ul>
-      <li><b>Stage 1: closed-loop probe</b> (needs your go-ahead). A bounded controller study on the picked bodies,
+      <li><b>Stage 1: closed-loop probe</b> (approved 8 Nov, <code>DECISION_LOG.md</code> P23). A bounded controller study on the picked bodies,
       with the same budget each: walking at the target speeds, turning, start and stop, and a push test on hard floor
       and on the carpet floors from this round.</li>
       <li><b>Bench tests that need no robot.</b> Friction and twist tests of the chosen foot-pad compound at the

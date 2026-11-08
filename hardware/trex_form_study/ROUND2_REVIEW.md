@@ -1,8 +1,9 @@
 # Round-two design review, with the overnight refinement
 
-**Status (8 Nov 2026, morning):** round two plus an overnight refinement session, awaiting the owner's answers to
-§12. Nothing here is a final design. No controller training has started (P7), and the proposed next step, a
-bounded closed-loop probe, waits for the owner's go-ahead. Every mass, power, runtime and cost is a model estimate
+**Status (8 Nov 2026, morning):** round two plus an overnight refinement session. The owner answered §12 the same
+morning (`DECISION_LOG.md` P16–P23): the three recommended bodies go to verification, every recommendation is
+adopted, the head camera stays in the skull roof, and the bounded Stage 1 closed-loop probe may start. Nothing here
+is a final design, and no controller has been trained yet. Every mass, power, runtime and cost is a model estimate
 from sourced part data and stated rules; none is measured.
 
 The illustrated version is the round-two review page, published separately and linked in the delivery message
@@ -696,11 +697,13 @@ The same on every body (every MuJoCo model under `round2/`: `round2/models/*.xml
    view, less of a close person's torso)?
 8. **Stage 1 go-ahead.** May the bounded closed-loop probe start on the chosen bodies (§13)?
 
-The answers go into `DECISION_LOG.md` as P-entries.
+The answers go into `DECISION_LOG.md` as P-entries. **Answered 8 Nov 2026 (P16–P23):** 1, the recommended three;
+2, keep the weights; 3, (a) the targeted upgrade; 4, (a) keep the fairings; 5, (a) bigger feet on the 75 cm body only;
+6, (a) as recommended; 7, keep the camera in the skull roof; 8, go ahead with Stage 1.
 
 ## 13. Next
 
-* **Stage 1, closed-loop probe** (needs the owner's go-ahead): a bounded controller study on the chosen
+* **Stage 1, closed-loop probe** (approved 8 Nov, P23): a bounded controller study on the chosen
   bodies, with the same budget each. It covers walking at the target speeds and the animal-like pace, the target
   turns, start and stop, a push, and walking with the carpet swing on the carpet floors of this round. It is not
   the final training; it checks that a controller can use the margins found here.
