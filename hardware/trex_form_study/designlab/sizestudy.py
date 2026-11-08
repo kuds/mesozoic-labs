@@ -261,8 +261,8 @@ def _f(v, nd=2, unit=""):
 
 
 def markdown(cmp: dict) -> str:
-    from .report2 import GROUP_LABEL
     from .report import short_part
+    from .report2 import GROUP_LABEL
 
     head = ["Body", "Case", "Crown / hip axis", "Mass", "Governing sizing ratio", "Froude 0.05 walk", "Target turns",
             "Carpet toe margin", "Tightest joint margin", "Packaging changes", "Runtime", "Cost nominal", "Score",

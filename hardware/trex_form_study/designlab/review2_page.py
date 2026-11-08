@@ -158,7 +158,6 @@ class Ctx:
 def header(x: Ctx) -> str:
     bases = [x.D[c] for c in base_ids() if c in x.D and x.D[c].get("ok")]
     n_pass = sum(1 for c in x.ok if x.passes(c))
-    picks = x.picks()
     by_h = {h: [d for d in bases if d["candidate"]["height"] == h] for h in HEIGHTS}
     fact_mass = " / ".join(_rng([d["metrics"]["mass"] for d in by_h[h]], lambda v: f"{v:.1f}") for h in HEIGHTS)
     fact_rt = " / ".join(_rng([d["runtime"]["minutes"] for d in by_h[h]], lambda v: f"{v:.0f}") for h in HEIGHTS)
@@ -724,27 +723,33 @@ def questions(x: Ctx) -> str:
         calf = f" (60 cm: {nc['mass_kg'] - b['metrics']['mass']:+.2f} kg)".replace("-", "−") if b else ""
     q = [
         ("Which bodies go to verification?",
-         [f"The recommended three: {', '.join(k for k, _ in RECOMMENDED)}.",
-          f"The scorecard's own picks: {', '.join(keys)}." if keys else "The scorecard's own picks.",
-          "Swap one (name it), for example on looks or the narrow stance 60-N-T-10 to test stance width.",
-          "A different set: say what matters most."]),
+         ([f"The recommended three, which are the scorecard's own picks: {', '.join(k for k, _ in RECOMMENDED)}."]
+          if set(keys) == {k for k, _ in RECOMMENDED} else
+          [f"The recommended three: {', '.join(k for k, _ in RECOMMENDED)}.",
+           f"The scorecard's own picks: {', '.join(keys)}." if keys else "The scorecard's own picks."])
+         + ["Swap one (name it), for example the targeted 75 cm Tapered for its looks, or the base-width carpet-ready "
+            "60 cm Tapered for its wider turn gaps.",
+            "A different set: say what matters most."]),
         ("Do the priority weights match yours?",
          ["Yes: natural walking and turning first, then robustness, following, carpet, endurance, head and tail, "
           "packaging and cost.",
           "Reorder them: say which behaviors matter more or less."]),
         ("If a 75 cm body goes forward, which drives?",
-         [f"The targeted upgrade: Froude 0.05 sizing plus 15 % headroom on the neck servo and hip roll{tgt}.",
-          "The targeted upgrade plus a faster RobStride 06 knee, for knee-speed headroom." + knee,
+         [f"The targeted upgrade (recommended): Froude 0.05 sizing plus 15 % headroom on the neck servo and hip roll"
+          f"{tgt.replace(' (', ' (Tapered body: ', 1)}.",
+          "The targeted upgrade plus a faster RobStride 06 knee, for knee-speed headroom." + knee.replace(" The knee's", " On the Tapered body the knee's", 1),
           "Keep the round-two sizing (the spec's speeds, not the animal's)."]),
         ("Calf fairings: keep or drop?",
          ["Keep: the lower leg reads as an animal's; at 60 cm the ankle drives move down to 0.60 of the shank so the "
           "knee can bend enough for the carpet swing.",
           "Drop: exposed ankle drives and push rods, lighter, easier to service, more robotic" + calf + "."]),
         ("Feet?",
-         ["Keep the round-two feet.",
-          "Longer toes (x1.15) and larger pads (x1.25): about 8 % less grip needed, a one-foot stop of 1.41–1.46 m/s² "
-          "instead of 1.20–1.25, and standing on medium pile with the servos held, for about 0.1 kg and a harder-working "
-          "upper ankle drive (0.87 instead of 0.76 at 60 cm)."]),
+         ["As recommended: longer toes (x1.15) and larger pads (x1.25) on the 75 cm body only, for about 8 % less grip "
+          "needed, a one-foot stop of 1.41 m/s² instead of 1.20 and standing on medium pile with the servos held, for "
+          "0.14 kg. The 60 cm picks keep the round-two feet: there the bigger feet load the upper ankle drive to 0.87 of "
+          "its limit (0.76) and lower the score.",
+          "The bigger feet on every body.",
+          "The round-two feet on every body."]),
         ("Materials and power?",
          ["The recommended set: 6061 aluminium frame (2.54 mm plates where a leg bench test allows), MJF PA11 coverings "
           "with walls about a quarter thinner, cast polyurethane pad treads measured on your floors, and the battery "
@@ -783,7 +788,7 @@ def nextsteps(x: Ctx) -> str:
       input with the detector, camera and logging running.</li>
       <li><b>Stage 2: single-leg bench.</b> One leg of the leading body on a bench: drive temperatures over a walking
       duty cycle, the knee and ankle clearances with the ankle drives at their new station, and the knee's speed in
-      the animal-like walk, the limit that now governs both refined bodies.</li>
+      the animal-like walk, the limit that governs all three picks.</li>
       <li><b>Verification training.</b> Equal-budget training on the finalists against <code>BEHAVIOR_SPEC.md</code>,
       then one design is chosen.</li>
       <li><b>Not yet shown by anything here:</b> walking under a controller, measured runtime, strength, thermal
@@ -847,11 +852,30 @@ def _cmp_table(rows: list[dict], label_of) -> str:
 def _lift_rows(name: str) -> list:
     out = []
     for r in x_lift(name):
+        src = (r.get("source") or "").rsplit("/", 1)[-1]
         for L, v in r["lifts"].items():
             tj = v.get("tightest_joint") or [None, None]
-            out.append([mono(r["id"]), f"{L} H",
+            out.append([mono(r["id"]) + (f' <span class="mono" style="font-size:12px">{K.esc(src)}</span>' if src else ""), f"{L} H",
                         f"{r['carpet_target_mm']:.1f} mm", f"{v['min_above_pile_top_mm']:.1f} mm",
                         _ok(v["meets_target_all_piles"], "met", "not met"),
+                        f"{_ok(v['drives_within_limits'], 'within', 'over')} {K.esc(GROUP_LABEL.get(v['worst_group'], v['worst_group']))} {v['worst_ratio']:.2f}",
+                        _ok(v["walking_gates"]),
+                        "–" if tj[0] is None else f"{K.esc(tj[0].replace('_', ' '))} {tj[1]:.2f} rad"])
+    return out
+
+
+def _nominal_rows(name: str) -> list:
+    """Rows of a nominal-only lift pass (``carpet_lift_*_nominal_only.json`` in list form)."""
+    out = []
+    data = x_lift(name)
+    if not isinstance(data, list):
+        return out
+    for r in data:
+        for L, v in r["lifts"].items():
+            tj = v.get("tightest_joint") or [None, None]
+            hi = v["toe"]["nominal"]["above_pile_top_mm"]["high"]
+            out.append([mono(r["id"]), f"{L} H", f"{r['carpet_target_mm']:.1f} mm", f"{hi:.2f} mm",
+                        _ok(all(v["toe"]["nominal"]["meets_carpet_target"].values()), "met", "not met"),
                         f"{_ok(v['drives_within_limits'], 'within', 'over')} {K.esc(GROUP_LABEL.get(v['worst_group'], v['worst_group']))} {v['worst_ratio']:.2f}",
                         _ok(v["walking_gates"]),
                         "–" if tj[0] is None else f"{K.esc(tj[0].replace('_', ' '))} {tj[1]:.2f} rad"])
@@ -865,17 +889,19 @@ def x_lift(name: str) -> list:
     return _LIFT_CACHE.get(name, [])
 
 
-#: The review's recommended verification set (ROUND2_REVIEW.md §6), chosen from the scorecard's tied leaders for
-#: the reasons given; the scorecard's own picks are shown in its section, and the owner decides (question 1).
+#: The review's recommended verification set (ROUND2_REVIEW.md §6): the three picks of scorecard version 2, whose
+#: totals tie within 0.005; the reasons are what each body adds. The owner decides (question 1).
 RECOMMENDED = (
-    ("60-M-T-10 [refine/carpet_60]", "The 60 cm anchor: the cleanest packaging of the leaders (4 mm in every turn, "
-     "the widest joint-range margin, 0.20 rad), and with its ankle drives lowered it reaches the carpet swing target "
-     "within its drives and knee range."),
-    ("75-M-T-10 [refine/targeted_75]", "The 75 cm body after the targeted drive upgrade: every gate passes, it "
-     "carries the carpet swing at 0.18 H, it needs the least grip of the leaders and it is the only one that stands "
-     "on medium pile with its servos simply held. The faster-knee variant ties with it on the scorecard; question 3."),
-    ("60-M-H-10 [refine/carpet_60]", "The family comparison at 60 cm, where the drive margins do not hide the "
-     "difference between the bodies; the cross-check's choice for the third slot."),
+    ("60-N-T-10 [refine/narrow_carpet_60]", "The best 60 cm body and the top total. The narrow stance, with every "
+     "target turn clearing by at least 3 mm, needs 12–14 % less grip than the base width with the same drives, and "
+     "with its ankle drives lowered its nominal walk carries the carpet swing (0.19 H) within the drives and every "
+     "walking gate."),
+    ("75-M-H-10 [refine/feet_75]", "The best 75 cm body: the targeted drive upgrade passes every gate, and the bigger "
+     "feet (toes x1.15, pads x1.25) give the hardest one-foot stop of the picks and let it stand on medium pile with "
+     "its servos held. It needs the least grip of the leaders and carries the carpet swing at 0.18 H within its drives."),
+    ("60-N-H-10 [refine/narrow_carpet_60]", "The family comparison at 60 cm, on the same layout and drives as the "
+     "first pick. Its carpet swing is the tightest of the three: it needs 0.195 H, which its nominal walk carries "
+     "within the drives and every walking gate."),
 )
 
 
@@ -893,16 +919,26 @@ def overnight(x: Ctx) -> str:
             f'<p>{K.esc(FAMILY.get(d["candidate"]["family"], ""))}, {cm(d["metrics"]["crown"])} crown; '
             f'{kg(d["metrics"]["mass"])}, {d["runtime"]["minutes"]:.0f} min, {usd(d["cost"]["nominal"])} nominal '
             f'({usd(d["cost"]["high"])} high).</p>'
-            f'<p>Score {r.get("total", 0):.2f}; governing drive {K.esc(GROUP_LABEL.get(g, g))} {kind} {gr:.2f}.</p>'
+            f'<p>Score {r.get("total", 0):.3f}; governing drive {K.esc(GROUP_LABEL.get(g, g))} {kind} {gr:.2f}.</p>'
             f'<p style="font-size:14px;color:var(--ink-2)">{K.esc(why)}</p></div>')
     if not cards:
         return ""
     sk = x.pick_keys()
     lead = [x.rows[k] for k in (x.SL or {}).get("ranking", [])[:4] if k in x.rows]
     spread = (max(r["total"] for r in lead) - min(r["total"] for r in lead)) if lead else None
-    note = (f"The scorecard's own rule picks {', '.join(mono(k) for k in sk)}; its top four bodies are within "
-            f"{spread:.3f} of each other, a tie at its resolution. The recommendation chooses among the tied leaders "
-            f"for reasons the scorecard does not score, given on each card.") if sk and spread is not None else ""
+    same = set(sk) == {k for k, _ in RECOMMENDED}
+    top3 = [x.rows[k]["total"] for k in (x.SL or {}).get("ranking", [])[:3] if k in x.rows]
+    if sk and same and top3:
+        note = (f"These are the scorecard's own three picks (the best passing body at each height, then the other "
+                f"family's counterpart of the best). Their totals lie within {max(top3) - min(top3):.3f} of each other, "
+                f"a tie at its resolution, so the set also rests on what each body adds, given on each card. They "
+                f"replace the provisional overnight set, the base-width 60 cm and 75 cm Tapered bodies.")
+    elif sk and spread is not None:
+        note = (f"The scorecard's own rule picks {', '.join(mono(k) for k in sk)}; its top four bodies are within "
+                f"{spread:.3f} of each other, a tie at its resolution. The recommendation chooses among the tied leaders "
+                f"for reasons the scorecard does not score, given on each card.")
+    else:
+        note = ""
     return f"""
 <section id="overnight">
   <p class="kicker">Overnight · 7–8 Nov</p><h2>The recommended bodies</h2>
@@ -916,31 +952,48 @@ def overnight(x: Ctx) -> str:
 </section>"""
 
 
-REFINE_SHOW = ("carpet_60", "targeted_75", "feet_60", "feet_75", "knee_60", "knee_75", "no_calf", "pads_large", "toes_long",
-               "foot_both", "narrow_3mm", "headroom_60")
+REFINE_SHOW = ("narrow_carpet_60", "feet_75", "carpet_60", "targeted_75", "feet_60", "knee_60", "knee_75", "no_calf",
+               "pads_large", "toes_long", "foot_both", "narrow_3mm", "headroom_60")
+#: Nominal-walk-only lift passes (``refine --carpet-lift --nominal-only``).
+NOMINAL_SHOW = ("carpet_lift_narrow_carpet_60_0.190_0.195_nominal_only", "carpet_lift_carpet_60_0.190_0.195_nominal_only")
+#: Lift passes shown, both reference walks lifted (``refine.carpet_lift_one``).
+LIFT_SHOW = ("carpet_lift_narrow_carpet_60_0.190_0.195", "carpet_lift_feet_75_0.175_0.180_0.190", "carpet_lift_carpet_60",
+             "carpet_lift_carpet_60_0.195", "carpet_lift_targeted_75", "carpet_lift_targeted_75_0.175_0.180")
 
 
 def refinement(x: Ctx) -> str:
     if not x.RF:
         return ""
     labels = x.RF.get("cases", {})
-    base = [r for r in x.RF["rows"] if r.get("case") == "round2" and r.get("id") in ("60-M-T-10", "60-M-H-10", "75-M-T-10", "75-M-H-10")]
+    base = [r for r in x.RF["rows"] if r.get("case") == "round2" and r.get("id") in ("60-N-T-10", "60-N-H-10", "60-M-T-10", "60-M-H-10",
+                                                                                     "75-M-T-10", "75-M-H-10")]
     rows = base + [r for c in REFINE_SHOW for r in x.RF["rows"] if r.get("case") == c]
     tbl = _cmp_table(rows, lambda r: "round two" if r.get("case") == "round2" else labels.get(r["case"], r["case"]))
     for name, data in x.LIFT.items():
         _LIFT_CACHE[name] = data
     lifts = []
-    for name in ("carpet_lift_carpet_60", "carpet_lift_carpet_60_0.195", "carpet_lift_targeted_75",
-                 "carpet_lift_targeted_75_0.175_0.180"):
+    for name in LIFT_SHOW:
         lifts += _lift_rows(name)
+    nom = [r for name in NOMINAL_SHOW for r in _nominal_rows(name)]
+    ntbl = K.table(["Body", "Swing lift", "Carpet target", "Nominal walk above a high-pile top", "Target",
+                    "Drives (nominal walk lifted)", "Walking clearance gates", "Tightest joint margin"], nom, num={2, 3}) if nom else ""
     ltbl = K.table(["Body", "Swing lift", "Carpet target", "Lowest point above a pile top", "Target", "Drives (nominal and brisk walks lifted)",
                     "Walking clearance gates", "Tightest joint margin"], lifts, num={2, 3}) if lifts else ""
     rp = x.r2 / "refine" / "plates"
-    side = x.img("refined_side.png", "Round two against the refined bodies, side view", "Round two and the refined bodies",
-                 "Left: the round-two body. Right: the refined body (60 cm: ankle drives lowered to 0.60 of the shank; "
-                 "75 cm: the targeted drive upgrade).", src_dir=rp) if (rp / "refined_side.png").exists() else ""
-    cut = x.img("refined_cutaway.png", "Round two against the refined bodies, cutaway", "Installed hardware, round two and refined",
-                "The same bodies with the covers cut away.", src_dir=rp) if (rp / "refined_cutaway.png").exists() else ""
+    if (rp / "picks_side.png").exists():
+        side = x.img("picks_side.png", "Round two against the recommended bodies, side view", "Round two and the recommended bodies",
+                     "Left: the round-two body. Right: the recommended body (60 cm: the narrow stance's legs moved out "
+                     "6 mm per side instead of 4 mm and the ankle drives lowered to 0.60 of the shank; 75 cm Hybrid: the "
+                     "targeted drive upgrade and the bigger feet).", src_dir=rp)
+        cut = x.img("picks_cutaway.png", "Round two against the recommended bodies, cutaway",
+                    "Installed hardware, round two and recommended", "The same bodies with the covers cut away.",
+                    src_dir=rp) if (rp / "picks_cutaway.png").exists() else ""
+    else:
+        side = x.img("refined_side.png", "Round two against the refined bodies, side view", "Round two and the refined bodies",
+                     "Left: the round-two body. Right: the refined body (60 cm: ankle drives lowered to 0.60 of the shank; "
+                     "75 cm: the targeted drive upgrade).", src_dir=rp) if (rp / "refined_side.png").exists() else ""
+        cut = x.img("refined_cutaway.png", "Round two against the refined bodies, cutaway", "Installed hardware, round two and refined",
+                    "The same bodies with the covers cut away.", src_dir=rp) if (rp / "refined_cutaway.png").exists() else ""
     return f"""
 <section id="refine">
   <p class="kicker">Overnight · Refinement</p><h2>One lever at a time on the leading bodies</h2>
@@ -954,9 +1007,16 @@ def refinement(x: Ctx) -> str:
       fairing kept; sized with the carpet swing (0.19 H lift) and the Froude 0.05 walk, the drives do not change.</li>
       <li><b>Targeted 75 cm.</b> The Froude 0.05 walk as a sizing case plus 15 % headroom on the neck and hip roll:
       four drives change, the mass falls and every gate passes. The same body already carries a 0.18 H carpet swing.</li>
-      <li><b>Knee headroom.</b> On both refined bodies the governing limit is the knee's speed (0.95). A faster
+      <li><b>Narrow carpet-ready 60 cm (picks 1 and 3).</b> The narrow stance with every target turn clearing by
+      at least 3 mm (the legs moved out 6 mm per side) plus the lowered ankle drives: the same drives as the
+      base-width carpet-ready bodies, 12–14 % less grip needed, and the nominal walk carries the carpet swing within
+      the drives (the second carpet table).</li>
+      <li><b>Bigger feet (pick 2).</b> Longer toes (x1.15) and larger pads (x1.25): about 8 % less grip, a harder
+      one-foot stop and standing on medium pile with the servos held. Adopted on the 75 cm Hybrid; at 60 cm they load
+      the upper ankle drive to 0.87 of its limit and lower the score.</li>
+      <li><b>Knee headroom.</b> On the refined bodies the governing limit is the knee's speed (0.93–0.97). A faster
       RobStride 06 knee removes it but costs 0.7–0.9 kg and runtime.</li>
-      <li><b>Feet, calf fairing, narrow stance, blanket headroom:</b> see the table.</li>
+      <li><b>Calf fairing, pads or toes alone, the narrow stance alone, blanket headroom:</b> see the table.</li>
     </ul>
   </div>
   {tbl}
@@ -967,19 +1027,21 @@ def refinement(x: Ctx) -> str:
   walks are regenerated with that lift and checked against the selected drives and the walking clearance gates.</p></div>
   {ltbl}
   {_nominal_note(x)}
+  <h3>Carpet swing on the nominal walk alone</h3>
+  <div class="prose"><p>The 60 cm carpet-ready bodies, narrow and base width, with only the nominal walk lifted and the
+  brisk walk at its reference lift (<code>round2/refine/carpet_lift_*_0.190_0.195_nominal_only.json</code>): on carpet
+  they walk at the nominal speed; a brisk walk with the carpet swing exceeds the knee's speed.</p></div>
+  {ntbl}
 </section>"""
 
 
 def _nominal_note(x: Ctx) -> str:
-    p = x.r2 / "refine" / "carpet_lift_carpet_60_nominal_only.json"
-    if not p.exists():
+    v = [lf["ratios"]["knee"] for name in NOMINAL_SHOW for r in (x_lift(name) or []) for lf in r["lifts"].values()]
+    if not v:
         return ""
-    d = json.loads(p.read_text())
-    v = [r["knee_speed"] for r in d.values()]
     return (f'<p class="note">The drives column covers both walks lifted. At 60 cm the nominal walk alone at 0.19–0.195 H '
-            f'keeps the knee at {min(v):.2f}–{max(v):.2f} of its speed limit '
-            f'(<code>round2/refine/carpet_lift_carpet_60_nominal_only.json</code>), so there the brisk walk is the one over, '
-            f'and on carpet the 60 cm robot walks at the nominal speed with that swing.</p>')
+            f'keeps the knee at {min(v):.2f}–{max(v):.2f} of its speed limit (next table), so there the brisk walk is the '
+            f'one over, and on carpet the 60 cm robot walks at the nominal speed with that swing.</p>')
 
 
 def size_study_sec(x: Ctx) -> str:
@@ -1025,7 +1087,7 @@ def materials(x: Ctx) -> str:
             r = x.fx_row(f"mat{h}_{k}", cid)
             if not r:
                 continue
-            lw, rlw = r["leg_worst"], r["reference_leg_worst"]
+            lw = r["leg_worst"]
             rt = "tethered" if r["tether"] else f"{r['runtime_min']:.1f} min"
             dm = r["mass_kg"] - r["reference_mass_kg"]
             dc = (r["cost"]["nominal"] - r["reference_cost"]["nominal"]) / 1000
@@ -1042,7 +1104,9 @@ def materials(x: Ctx) -> str:
                    "Governing leg drive", "Neck servo", "Tail servo peak", "CoM ahead of hip"], rows, num={2, 3, 4, 5, 7, 8, 9},
                   caption="Each lever on the carpet-ready 60 cm body (10.83 kg, 71 W, 46.5 min, $14.8k; knee speed 0.95, "
                           "CoM 34 mm ahead of the hip) or the targeted 75 cm body (14.58 kg, 88 W, 37.6 min, $18.4k; knee "
-                          "speed 0.95, CoM 64 mm), keeping that body's drives and pack.")
+                          "speed 0.95, CoM 64 mm), keeping that body's drives and pack. These led when the runs were made; "
+                          "the recommended narrow 60 cm bodies keep the same drives at nearly the same mass, and the levers "
+                          "were not re-run on the picks.")
     big = []
     for cid in ("100-M-T-10", "120-M-T-10", "120-M-H-10"):
         p = x.r1 / "stage_a" / "candidates" / f"{cid}.json"
@@ -1065,8 +1129,8 @@ def materials(x: Ctx) -> str:
 <section id="materials">
   <p class="kicker">Overnight · Materials and power</p><h2>Carbon fibre, coverings, pads, and battery or tether</h2>
   <div class="prose">
-    <p><b>Lighter materials do not move the limit that binds these bodies.</b> The governing limit on both is the
-    knee's speed in the animal-like walk, set by the walk's geometry and timing, not by mass. Lighter bodies lower
+    <p><b>Lighter materials do not move the limit that binds these bodies.</b> The governing limit on every
+    recommended body is the knee's speed in the animal-like walk, set by the walk's geometry and timing, not by mass. Lighter bodies lower
     torques, power and the head and tail loads: torque headroom and runtime, not speed headroom.</p>
     <ul>
       <li><b>Carbon-fibre frame plates: not for prototype 1.</b> With the sourced 3 mm quasi-isotropic plate they
@@ -1077,8 +1141,9 @@ def materials(x: Ctx) -> str:
       cracking) save 0.3–0.5 kg at about today's cost, mostly off the neck and tail.</li>
       <li><b>Foot pads:</b> a cast polyether polyurethane tread (50–60 Shore A, small round studs) is expected to grip
       at 0.70–0.85 on carpet and 0.8–1.0 on wood and tile, but vinyl and laminate can be 0.42–0.50. Counting the
-      stance foot's spin, the 60 cm robot needs about 0.55 just to walk and the 75 cm robot about 0.40, so the 60 cm
-      robot may not walk on vinyl or laminate at all. Measure the pad on your floors.</li>
+      stance foot's spin, the recommended 60 cm bodies need about 0.48 just to walk (0.55 at base width) and the 75 cm
+      body about 0.36, so the 60 cm robot may barely walk on vinyl and not at all on laminate. Measure the pad on your
+      floors.</li>
       <li><b>Tether-only: no.</b> The pack is also the counterweight at the tail base; without it the centre of mass
       moves forward and the knee goes past its speed limit with the same drives. Keep the battery and add an external
       DC input, as your power requirement already asks, with the cable hung from a boom (never trailed).</li>

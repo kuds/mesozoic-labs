@@ -138,8 +138,20 @@ python -m designlab.refine --out round2/refine --cases --carpet-lift --lift-case
 ```
 
 ```bash
-python -m designlab.shortlist --round2 round2 --extra round2/whatif_fr05 round2/refine/carpet_60 round2/refine/targeted_75
+python -m designlab.refine --out round2/refine --cases --carpet-lift --lift-cases narrow_carpet_60 --lifts 0.19 0.195 --nominal-only
 ```
+
+```bash
+python -m designlab.refine --out round2/refine --plates-picks --report-only
+```
+
+```bash
+R=round2/refine; python -m designlab.shortlist --round2 round2 --extra round2/whatif_fr05 $R/carpet_60 $R/targeted_75 $R/narrow_carpet_60 $R/feet_60 $R/feet_75 $R/knee_60 $R/knee_75 $R/no_calf $R/pads_large $R/toes_long $R/foot_both $R/narrow_3mm $R/headroom_60
+```
+
+The carpet swing pass (`--carpet-lift`) regenerates the reference walks with each lift and checks them against
+the selected drives and the walking clearance gates; `--nominal-only` lifts the nominal walk alone, the carpet
+gait's speed. `--plates-picks` draws round two against the recommended bodies.
 
 `round2` sizes the 20 round-two candidates (with the packaging search), rebuilds each one (SHA-256
 checked against its sized record) and runs the clearance, sensor, turning, carpet and behavior-envelope

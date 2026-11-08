@@ -183,7 +183,10 @@ def _screen(a):
 # Carpet swing height
 # ------------------------------------------------------------------------------------------------
 def carpet_lift_one(a) -> dict:
-    """One body, every lift in ``LIFTS``: drives, clearance and toe catch of the lifted walks."""
+    """One body, every lift in ``LIFTS``: drives, clearance and toe catch of the lifted walks.
+
+    ``a = (id, case dir, scratch dir[, lifts[, nominal_only]])``; with ``nominal_only`` only the nominal walk is
+    lifted and the brisk walk stays at its reference lift (the carpet gait walks at the nominal speed)."""
     import numpy as np
 
     from . import carpet, clearance, round2, sizing
@@ -191,6 +194,7 @@ def carpet_lift_one(a) -> dict:
 
     cid, r2dir, scratch = a[:3]
     lifts = a[3] if len(a) > 3 else LIFTS
+    nominal_only = bool(a[4]) if len(a) > 4 else False
     _init(None)
     t0 = time.time()
     rec = json.loads(Path(r2dir, "candidates", f"{cid}.json").read_text())
@@ -203,11 +207,12 @@ def carpet_lift_one(a) -> dict:
     unders = carpet.foot_underside(M, q0, "whole_foot")
     nominal0, brisk0 = sizing.NOMINAL, sizing.BRISK
     out = dict(id=cid, H_m=H, carpet_target_mm=1e3 * carpet.carpet_target(H), reference_lift=[nominal0.lift_frac, brisk0.lift_frac],
-               lifts={})
+               lifted="nominal walk only" if nominal_only else "nominal and brisk walks", lifts={})
     try:
         for lift in lifts:
             sizing.NOMINAL = replace(nominal0, lift_frac=lift)
-            sizing.BRISK = replace(brisk0, lift_frac=lift)
+            if not nominal_only:
+                sizing.BRISK = replace(brisk0, lift_frac=lift)
             req = sizing.requirements(M, q0, H, layout)
             ratios = {}
             for g, r in req["groups"].items():
@@ -340,22 +345,25 @@ def fixed_markdown(rows: list) -> str:
 # Plates: round two against the refined bodies
 # ------------------------------------------------------------------------------------------------
 PLATE_PAIRS = (("60-M-T-10", "carpet_60"), ("60-M-H-10", "carpet_60"), ("75-M-T-10", "targeted_75"))
+#: The recommended verification set (scorecard version 2 picks, ROUND2_REVIEW.md section 6).
+PICK_PAIRS = (("60-N-T-10", "narrow_carpet_60"), ("75-M-H-10", "feet_75"), ("60-N-H-10", "narrow_carpet_60"))
 
 
-def plates_refined(out: Path, r2: Path = Path("round2")) -> list:
+def plates_refined(out: Path, r2: Path = Path("round2"), pairs=PLATE_PAIRS, stem: str = "refined",
+                   cut_title: str = "Installed hardware: 60 cm ankle drives lowered to 0.60 of the shank; 75 cm drive upgrade",
+                   side_title: str = "Round two against the refined bodies") -> list:
     """Side exterior and side cutaway grids: each row one body, round two on the left, the refined body on the
     right, at one physical scale (``plates.matrix``)."""
     from . import plates
 
-    grid = [[str(r2 / "models" / f"{cid}.xml"), str(out / case / "models" / f"{cid}.xml")] for cid, case in PLATE_PAIRS]
-    labels = [f"{cid} ({case})" for cid, case in PLATE_PAIRS]
+    grid = [[str(r2 / "models" / f"{cid}.xml"), str(out / case / "models" / f"{cid}.xml")] for cid, case in pairs]
+    labels = [f"{cid} ({case})" for cid, case in pairs]
     P = out / "plates"
     P.mkdir(parents=True, exist_ok=True)
-    made = [plates.matrix(grid, labels, ["Round two", "Refined overnight"], str(P / "refined_side.png"), view="side",
-                          mode="exterior", title="Round two against the refined bodies"),
-            plates.matrix(grid, labels, ["Round two", "Refined overnight"], str(P / "refined_cutaway.png"),
-                          view="side", mode="cutaway",
-                          title="Installed hardware: 60 cm ankle drives lowered to 0.60 of the shank; 75 cm drive upgrade")]
+    made = [plates.matrix(grid, labels, ["Round two", "Refined overnight"], str(P / f"{stem}_side.png"), view="side",
+                          mode="exterior", title=side_title),
+            plates.matrix(grid, labels, ["Round two", "Refined overnight"], str(P / f"{stem}_cutaway.png"),
+                          view="side", mode="cutaway", title=cut_title)]
     return made
 
 
@@ -363,9 +371,8 @@ def plates_refined(out: Path, r2: Path = Path("round2")) -> list:
 # Comparison
 # ------------------------------------------------------------------------------------------------
 def compare(out: Path, r2: Path = Path("round2")) -> dict:
-    from .sizestudy import row
-
     from .shortlist import detail
+    from .sizestudy import row
 
     def load(base: Path, cid: str):
         p = base / "candidates" / f"{cid}.json"
@@ -427,9 +434,11 @@ def main():
     ap.add_argument("--carpet-lift", action="store_true")
     ap.add_argument("--lift-cases", nargs="*", default=None, help="run the carpet swing pass on these cases' bodies")
     ap.add_argument("--lifts", nargs="*", type=float, default=None, help="swing lifts (fraction of H) for that pass")
+    ap.add_argument("--nominal-only", action="store_true", help="carpet swing pass: lift the nominal walk only")
     ap.add_argument("--fixed", action="store_true", help="same-drive pass over the material and power cases")
     ap.add_argument("--fixed-cases", nargs="*", default=None, help="limit the same-drive pass to these cases (merged)")
     ap.add_argument("--plates", action="store_true", help="draw round two against the refined bodies")
+    ap.add_argument("--plates-picks", action="store_true", help="draw round two against the recommended bodies")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--resume", action="store_true", help="skip bodies already sized or screened")
     a = ap.parse_args()
@@ -471,12 +480,14 @@ def main():
                 todo = [(cid, "round2", str(scratch)) for cid in CARPET_LIFT_IDS] if not a.lift_cases else [
                     (cid, str(out / c), str(scratch / c)) for c in a.lift_cases for cid in CASES[c]["ids"]]
                 lifts = tuple(a.lifts) if a.lifts else LIFTS
-                lift = list(pool.imap(carpet_lift_one, [t + (lifts,) for t in todo]))
+                lift = list(pool.imap(carpet_lift_one, [t + (lifts, a.nominal_only) for t in todo]))
                 for r, t in zip(lift, todo, strict=True):
                     r["source"] = t[1]
                 name = "carpet_lift.json" if not a.lift_cases else f"carpet_lift_{'_'.join(a.lift_cases)}.json"
                 if a.lifts:
                     name = name.replace(".json", "_" + "_".join(f"{v:.3f}" for v in lifts) + ".json")
+                if a.nominal_only:
+                    name = name.replace(".json", "_nominal_only.json")
                 (out / name).write_text(json.dumps(lift, indent=1, default=str))
                 print("carpet lift done", flush=True)
             if a.fixed:
@@ -495,6 +506,10 @@ def main():
                 print("same-drive pass done", flush=True)
     if a.plates:
         for m in plates_refined(out):
+            print("plate", m, flush=True)
+    if a.plates_picks:
+        for m in plates_refined(out, pairs=PICK_PAIRS, stem="picks", side_title="Round two against the recommended bodies",
+                                cut_title="Installed hardware of the recommended bodies"):
             print("plate", m, flush=True)
     cmp = compare(out)
     (out / "refine.json").write_text(json.dumps(cmp, indent=1, default=str))

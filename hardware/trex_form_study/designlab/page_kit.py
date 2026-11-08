@@ -44,9 +44,10 @@ p{margin:0}
 .prose{display:grid;gap:12px;max-width:70ch}
 .prose ul,.prose ol{margin:0;padding-left:1.2em;display:grid;gap:6px}
 section{padding-block:40px 8px;display:grid;gap:18px;border-bottom:1px solid var(--rule)}
+section>*,.prose>*{min-width:0}
 section:last-of-type{border-bottom:0}
 .mono,code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em}
-code{background:var(--surface-2);padding:1px 5px;border-radius:4px}
+code{background:var(--surface-2);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
 a{color:var(--accent)}
 nav.toc{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:20px;font-size:14px}
 nav.toc a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid var(--rule)}

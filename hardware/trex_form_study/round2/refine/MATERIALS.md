@@ -7,7 +7,10 @@ battery operation on the 3–4 ft robot.
 Method. Sourced research on the materials, coverings, foot pads and power architecture (cited inline; accessed
 2026-11-08; the research workflow's raw output is in the session scratch). Simulation of each lever on the two
 refined leaders, `60-M-T-10` carpet-ready (`round2/refine/carpet_60`) and `75-M-T-10` with the targeted upgrade
-(`round2/refine/targeted_75`) (`designlab/refine.py`):
+(`round2/refine/targeted_75`) (`designlab/refine.py`). They led when these runs were made. The final picks
+(ROUND2_REVIEW §6) are the narrow carpet-ready 60 cm bodies, which keep the same drives at nearly the same mass
+(10.81–10.91 kg against 10.83–10.93 kg), and the targeted 75 cm Hybrid with bigger feet (14.85 kg); the levers were not
+re-run on them, so expect similar but not identical numbers.
 
 * **same drives**, every lever (`round2/refine/fixed_drives.json`, `REFINE.md` last table): the lighter body keeps
   the reference body's drives and pack, so the saving shows up as margin;
@@ -42,13 +45,14 @@ Every number is a model estimate. None is measured.
    for. With PA11 at ×0.75 the neck servo falls from 0.76 to 0.70 of its rating (60 cm) and from 0.67 to 0.60
    (75 cm), and the 75 cm tail servo's peak from 0.89 to 0.77; cost changes by $20–60. If the thinner walls need
    more internal supports (25 % and 29 % instead of 20 % and 24 %), the saving is about 0.26 / 0.44 kg.
-4. **Foot pads: grip is the limit after the drives.** Counting the stance foot's yaw moment (F21), the carpet-ready
-   60 cm bodies need friction 0.54–0.55 walking, 0.62–0.63 in the 0.35 rad/s turn and 0.83–0.86 brisk; the targeted
-   75 cm bodies need 0.39–0.40, 0.45–0.46 and 0.61–0.63. A cast polyether polyurethane tread (50–60 Shore A, with
-   1.0–1.5 mm studs) is expected to give about 0.70–0.85 on carpet and 0.8–1.0 on wood and tile, but laminate and
-   vinyl can be as low as 0.42–0.50. So the 60 cm robot may not walk at all on vinyl or laminate, and both sizes
-   need speed and turn limits for brisk walking on slippery floors. Measure the chosen pad on the owner's floors
-   before relying on any of this.
+4. **Foot pads: grip is the limit after the drives.** Counting the stance foot's yaw moment (F21), the narrow
+   carpet-ready 60 cm picks need friction 0.47–0.48 walking, 0.53–0.55 in the 0.35 rad/s turn and 0.73–0.75 brisk
+   (the base-width carpet-ready bodies 0.54–0.55, 0.62–0.63 and 0.83–0.86); the targeted 75 cm Hybrid with bigger feet
+   needs 0.36, 0.41 and 0.56 (the targeted bodies with round-two feet 0.39–0.40, 0.45–0.46 and 0.61–0.63). A cast
+   polyether polyurethane tread (50–60 Shore A, with 1.0–1.5 mm studs) is expected to give about 0.70–0.85 on carpet
+   and 0.8–1.0 on wood and tile, but laminate and vinyl can be as low as 0.42–0.50. So the 60 cm robot may barely
+   walk on vinyl and not at all on laminate, and both sizes need speed and turn limits for brisk walking on slippery
+   floors. Measure the chosen pad on the owner's floors before relying on any of this.
 5. **Direct power (tether-only): no.** The battery is also the counterweight at the tail base (F2). Without it the
    centre of mass moves 12–16 mm forward, the hip-pitch hold rises 14–37 %, and with the same drives the knee goes
    past its speed limit (1.03–1.07). Keep the removable battery and add an external DC input, as P4 already asks
@@ -144,7 +148,7 @@ Formlabs vacuum-forming guide, The Foamory EVA data; all accessed 2026-11-08.
 
 The effects in this table are the research's estimates, computed on two round-two bodies (`60-N-H-10` and the
 larger-skull `75-M-T-10-bighead`, which has more cover area) for graded walls with the internal supports raised to
-25 % (60 cm) and 29 % (75 cm); compare options with them, not with §2. On the recommended bodies the simulated
+25 % (60 cm) and 29 % (75 cm); compare options with them, not with §2. On the two refined leaders the simulated
 lever in §2 thins every wall uniformly to ×0.75 with the supports scaling with the walls: PA11 then saves 0.31 /
 0.52 kg for +$20–60, or about 0.26 / 0.44 kg if the supports must rise to 25 / 29 % (the research's reviewer).
 Thinner walls keep about 44 % of today's bending stiffness, so add ribs every 50–80 mm (estimate).
@@ -158,7 +162,8 @@ at 0.67 it does not.
 ## 5. Foot pads and grip
 
 The carpet and turning screens assume the carpet band's lower edge, μ 0.54 (assumption A16), from a lightly loaded
-shoe on an inclined plane. The refined leaders' pads carry 72 kPa (60 cm) and 62 kPa (75 cm) in static single support.
+shoe on an inclined plane. The recommended bodies' pads carry about 72 kPa (60 cm) and 41 kPa (75 cm, with the larger
+pads; 62 kPa without them) in static single support.
 
 | Compound | Expected static μ (estimates from the sources) | Wear (DIN abrasion) | Notes |
 |---|---|---|---|
@@ -168,16 +173,22 @@ shoe on an inclined plane. The refined leaders' pads carry 72 kPa (60 cm) and 62
 | Neoprene | no grip advantage | up to 400 mm³ | backing or bumpers only |
 | Hard pads (90 A and harder) | carpet 0.35–0.45 | — | keep hard parts (95 A TPU, printed toes and claws) off the contact path |
 
-What it means for the recommended bodies (friction need with the stance foot's yaw moment, from their turning
-screens: nominal walk / 0.35 rad/s walking turn / brisk walk):
+What it means for the recommended bodies (ROUND2_REVIEW §6; friction need with the stance foot's yaw moment, from
+their turning screens: nominal walk / 0.35 rad/s walking turn / brisk walk), with the bodies they replaced as the
+lead for comparison:
 
 | Body | Need | Carpet (0.70–0.85) | Wood (0.8–0.9), tile (0.9–1.0) | Polished concrete (0.6–0.85) | Vinyl (about 0.50), laminate (about 0.42) |
 |---|---|---|---|---|---|
-| 60 cm carpet-ready | 0.54–0.55 / 0.62–0.63 / 0.83–0.86 | walk and turn; brisk only at the top of the range | all on tile; brisk marginal on wood | walk; turn marginal; brisk not assured | not even the nominal walk |
-| 75 cm targeted | 0.39–0.40 / 0.45–0.46 / 0.61–0.63 | all | all | walk and turn; brisk marginal | vinyl: walk and turn; laminate: the walk only, barely; brisk on neither |
+| 60 cm narrow carpet-ready (picks 1 and 3) | 0.47–0.48 / 0.53–0.55 / 0.73–0.75 | walk and turn; brisk above the bottom of the range | all | walk and turn; brisk not assured | vinyl: the nominal walk only, barely; laminate: none |
+| 75 cm targeted with the bigger feet (pick 2) | 0.36 / 0.41 / 0.56 | all | all | all | vinyl: walk and turn; laminate: walk, turns barely; brisk on neither |
+| 60 cm carpet-ready, base width | 0.54–0.55 / 0.62–0.63 / 0.83–0.86 | walk and turn; brisk only at the top of the range | all on tile; brisk marginal on wood | walk; turn marginal; brisk not assured | not even the nominal walk |
+| 75 cm targeted, round-two feet | 0.39–0.40 / 0.45–0.46 / 0.61–0.63 | all | all | walk and turn; brisk marginal | vinyl: walk and turn; laminate: the walk only, barely; brisk on neither |
 
 So the controller needs floor-dependent speed and yaw-rate limits (and the tail can cancel some of the stance
-foot's yaw), and the 60 cm robot may be confined to carpet, wood and tile. {{PADS_NOTE}} Before relying on any
+foot's yaw), and the 60 cm robot may be confined to carpet, wood, tile and polished concrete. The foot's geometry
+moves the need more than the compound can: the narrow stance needs 12–14 % less than the base width (the reason the
+60 cm picks use it), longer toes (×1.15) about 8 % less, and larger pads (×1.25) leave it unchanged but raise the
+one-foot stop to 1.33 m/s² (ROUND2_REVIEW §7.4–7.6, `round2/refine/REFINE.md`). Before relying on any
 number, run inclined-plane and twist tests of the chosen pad at the robot's pressure on the owner's floors, dry and
 dusty, before and after two hours of walking (about one day and $100, estimate).
 
