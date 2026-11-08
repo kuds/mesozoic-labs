@@ -64,6 +64,9 @@ WALK_GATES = ("interference_free_home", "interference_free_nominal_gait", "inter
 #: (The first final run searched straight walks only; three of the four narrow stances then touched in the
 #: target turns: pelvis plate or cover against the upper thigh, and toe against toe turning in place.)
 TURN_SEARCH_WIDTHS = ("N",)
+#: Least closest approach (mm) the target turns must keep in that search (0: interference-free, round two).
+#: The refinement experiments raise it to trade stance width for build-tolerance margin.
+TURN_SEARCH_MIN_GAP_MM = 0.0
 
 
 def candidate(cid: str, extra: tuple = ()) -> Candidate:
@@ -110,7 +113,7 @@ def _json(x):
 # ------------------------------------------------------------------------------------------------
 # Sizing (as Stage A)
 # ------------------------------------------------------------------------------------------------
-def size_one(cid: str, out: str, xml_dir: str) -> dict:
+def size_one(cid: str, out: str, xml_dir: str, base_overrides: tuple = ()) -> dict:
     import designlab  # noqa: F401
 
     from . import gait, metrics, pipeline
@@ -118,7 +121,8 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
 
     gait.set_accuracy(GAIT_ACCURACY)
     t0 = time.time()
-    cand = candidate(cid)
+    base_overrides = tuple(tuple(o) for o in base_overrides)  # refinement experiments (e.g. foot scale); () in round two
+    cand = candidate(cid, base_overrides)
     search = []
     try:
         res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
@@ -143,7 +147,7 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
                 extra["ankle_frac"] = round(min(ANKLE_MAX, fa + ANKLE_STEP), 3)
             else:
                 break
-            cand = candidate(cid, tuple(extra.items()))
+            cand = candidate(cid, base_overrides + tuple(extra.items()))
             res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
         meas = metrics.measure(res["model"], res["design"], res["q_home"])
         ev = res["evaluation"]
@@ -203,8 +207,14 @@ def _turn_gates(cand, sel: dict, B: float, xml_dir: Path) -> tuple[bool, dict, s
             trajs[f"{c}_{lab}"] = turning.generate(M, q0, H, sizing.NOMINAL, yaw_rate=sgn * v["yaw_rate"],
                                                    in_place=v["in_place"])
     cl = turning.clearance_screen(str(d / f"{cand.id}.xml"), M, q0, H, trajs, cases)
-    ok = all(cl["cases"][c]["interference_free"] for c in cases)
     gaps = {c: cl["cases"][c]["min_gap_mm"] for c in cases}
+    ok = all(cl["cases"][c]["interference_free"] for c in cases)
+    if ok and TURN_SEARCH_MIN_GAP_MM > 0.0:
+        ok = all(g is None or g >= TURN_SEARCH_MIN_GAP_MM for g in gaps.values())
+        if not ok:  # a near-contact: the deepest pairs say which way to move
+            names = " ".join(" ".join((cl["cases"][c].get("deepest") or {}).get("geoms", [])) for c in cases)
+            return False, gaps, ("hip_spacing" if any(k in names for k in ("pelvis_plate", "pelvis_lateral", "_toe_"))
+                                 else None)
     if ok:
         return True, gaps, None
     names = " ".join(" ".join((cl["cases"][c].get("deepest") or {}).get("geoms", [])) for c in cases

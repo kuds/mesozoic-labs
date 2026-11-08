@@ -175,8 +175,12 @@ def build_skeleton(cand: Candidate, B: float) -> Skeleton:
     knee = hip + lf * np.array([np.sin(af), 0, -np.cos(af)])
     hock = knee + lt * np.array([np.sin(at), 0, -np.cos(at)])
     mtp = hock + lm * np.array([np.sin(am), 0, -np.cos(am)])
+    # refinement experiments: digit length and heel pad scaled by the overrides "toe_scale" and "heel_scale"
+    toe_s = float(cand.override("toe_scale", 1.0))
+    heel_s = float(cand.override("heel_scale", 1.0))
     leg = dict(hip=hip, knee=knee, hock=hock, mtp=mtp, chain=L, femur=lf, tibia=lt, meta=lm,
-               toe_len=T.LEG["toe_len"] * H, heel_len=T.LEG["heel_len"] * H)
+               toe_len=T.LEG["toe_len"] * H * toe_s if toe_s != 1.0 else T.LEG["toe_len"] * H,
+               heel_len=T.LEG["heel_len"] * H * heel_s if heel_s != 1.0 else T.LEG["heel_len"] * H)
 
     return Skeleton(cand=cand, B=B, H=H, theta_p=theta_p, theta_c=theta_c, bend=bend, R_p=R_p,
                     origin=origin, pivot=pivot, glenoid=glenoid, neck_base=neck_base,

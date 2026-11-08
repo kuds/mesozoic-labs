@@ -437,6 +437,10 @@ class Design:
             toes.append((base, tip))
             tips.append((tip, dvec, L))
         m_toe = 0.016 * (H / 0.38) ** 2.3
+        toe_s = float(self.cand.override("toe_scale", 1.0))
+        pad_s = float(self.cand.override("pad_scale", 1.0))
+        if toe_s != 1.0:  # refinement experiments: toe mass with digit length
+            m_toe *= toe_s
         for k, (a, b) in enumerate(toes):
             it = hw.rod_item(f"{side}_toe_{k}", body, self.to_body(body, a), self.to_body(body, b), r_toe, m_toe,
                              vclass="B", source="toe rule", rgba=(0.33, 0.33, 0.30, 1), category="foot")
@@ -457,14 +461,18 @@ class Design:
         hx.collide = False
         self.add(hx)
         pad_h = 0.022 * H
-        contact = [("heel", mtp_w + np.array([-0.2 * heel, 0, 0]), (0.050 * H, 0.060 * H))]
+        if pad_s == 1.0:
+            contact = [("heel", mtp_w + np.array([-0.2 * heel, 0, 0]), (0.050 * H, 0.060 * H))]
+        else:  # refinement experiments: pad footprint scaled, heel pad kept clear of the MTP block
+            contact = [("heel", mtp_w + np.array([-0.2 * heel, 0, 0]), (0.050 * H * pad_s, 0.060 * H * pad_s))]
         for k, (tip, dvec, L) in enumerate(tips):
             c_ = tip - dvec * 0.22 * L
-            contact.append((f"toe{k}", c_, (0.050 * H, 0.040 * H)))
+            contact.append((f"toe{k}", c_, (0.050 * H, 0.040 * H) if pad_s == 1.0 else (0.050 * H * pad_s, 0.040 * H * pad_s)))
         pts = []
+        m_pad = 0.010 * (H / 0.38) ** 2 * (pad_s ** 2 if pad_s != 1.0 else 1.0)
         for nm, c_, (lx, ly) in contact:
             cc = np.array([c_[0], c_[1], 0.5 * pad_h])
-            it = hw.box_item(f"{side}_pad_{nm}", body, "foot", 0.010 * (H / 0.38) ** 2, self.to_body(body, cc),
+            it = hw.box_item(f"{side}_pad_{nm}", body, "foot", m_pad, self.to_body(body, cc),
                              (lx, ly, pad_h), "B", "estimate", "elastomer pad rule", (0.13, 0.13, 0.12, 1))
             it.meta["floor_contact"] = True
             self.add(it)
@@ -729,7 +737,8 @@ class Design:
                                              r_knee, t, mat, colors["limb"], **kw)
                 self.bodies[f"{side}_thigh"].panels.append(up)
                 self.bodies[f"{side}_femur"].panels.append(lo)
-            if "shank" in regions and c.leg_layout in ("tandem", "side"):
+            # refinement experiments: override ("calf_fairing", 0) leaves the shank uncovered (exposed ankle drives)
+            if "shank" in regions and c.leg_layout in ("tandem", "side") and c.override("calf_fairing", 1):
                 hock_l = self.to_body(f"{side}_shank", sk.leg["hock"] + np.array([0, s * self.hip["y_leg"], 0]))
                 half_t = 0.5 * self.act("ankle_a").envelope[1] + 0.008
                 if fam.get("calf") and self.rev >= 2:
