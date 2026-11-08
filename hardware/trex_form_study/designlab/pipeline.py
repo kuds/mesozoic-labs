@@ -63,6 +63,13 @@ def dump(obj, path: Path):
     path.write_text(json.dumps(obj, indent=1, default=lambda x: x.tolist() if hasattr(x, "tolist") else str(x)))
 
 
+#: Oscillation between buses (24 V <-> 48 V): settle on the higher bus and re-select (True), instead of the
+#: round-one rule, which kept the stronger part of each group and the larger pack whatever its voltage and so could
+#: pair a 12S pack with a 24 V bus (two round-one records, 100-M-S-10-serial and 120-N-T-00; decision log F17).
+#: False reproduces round one; the round-two runners set True.
+BUS_CONSISTENT_OSCILLATION = False
+
+
 def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 8, selection: dict | None = None,
                    verbose: bool = False) -> dict:
     """Build, compute loads, re-select actuators and battery, rebuild until the selection is stable.
@@ -116,6 +123,22 @@ def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 8, selection:
             # A -> B -> A: keep the stronger part of each alternating group
             cyc = [h["selection"] for h in history[seen.index(key):]]
             acts = catalog.actuators()
+            buses = {c["bus"] for c in cyc}
+            if len(buses) > 1 and BUS_CONSISTENT_OSCILLATION:
+                # the selection alternated between buses: settle on the higher bus, re-select every part for it
+                # from the current loads, and take the battery for that bus (parts and pack must suit one bus)
+                bus = max(buses)
+                pick = sizing.select(req, mass=res["summary"]["mass"], layout=cand.leg_layout, prefer_voltage=(bus,))
+                strong = dict(trial, joints={g: pick["choice"][g] for g in hw.JOINT_GROUPS}, neck=pick["choice"]["neck"],
+                              tail=pick["choice"]["tail"], bus=pick["bus"])
+                d_s = Design(cand, B, strong)
+                pw_s = power.walking_power(d_s, req, ms)
+                strong["battery"] = power.select_battery(pick["bus"], pw_s["total_w"],
+                                                         pw_s["peak_drives_w"] + pw_s["aux"]["input_w"])["pack"]
+                history[-1]["notes"] = history[-1]["notes"] + [
+                    f"selection oscillated between buses; settled on {pick['bus']:.0f} V and re-selected every part"]
+                sel = strong
+                break
             joints = {}
             for g in hw.JOINT_GROUPS:
                 opts = {c["joints"][g] for c in cyc}

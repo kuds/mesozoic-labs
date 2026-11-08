@@ -120,6 +120,7 @@ def size_one(cid: str, out: str, xml_dir: str, base_overrides: tuple = ()) -> di
     from .stage_a import _mass_by_category, _mass_by_volume_class
 
     gait.set_accuracy(GAIT_ACCURACY)
+    pipeline.BUS_CONSISTENT_OSCILLATION = True  # no round-two candidate oscillated between buses (F17)
     t0 = time.time()
     base_overrides = tuple(tuple(o) for o in base_overrides)  # refinement experiments (e.g. foot scale); () in round two
     cand = candidate(cid, base_overrides)
