@@ -1,8 +1,9 @@
 """Stage 1 fail-fast gates G1 (plant) and G2 (references), ``STAGE1_PLAN.md`` section 3, steps 2 and 3.
 
-Every gate takes the plant options of ``plant.build`` (``plant_kw``: the open choices ``ankle_gains`` and
-``ankle_armature``, the bus, the envelope's braking rule) and records them; the defaults are the plant G1 and G2 were
-first run on.
+Every gate takes the plant options of ``plant.build`` (``plant_kw``: ``ankle_gains`` and ``ankle_armature``, the bus,
+the envelope's braking rule) and records them.  The defaults are the plant and the G2 rule that ``STAGE1_PLAN.md``
+decided during the build (decisions 11-13: joint-space ankle gains, the linkage's armature, the 20-start panel);
+G2 records them as ``decided``, with what each run used, and keeps the other choices' results as evidence.
 
 G1, the plant:
 
@@ -18,7 +19,11 @@ G1, the plant:
   drawn from the plant's generator) give bit-identical traces, another seed does not, and reseeding one plant
   (``Plant.reset(seed=...)``) repeats its first trace;
 * the plant (envelope included) runs at least ``MIN_STEPS_PER_S`` physics steps per second per core with zero
-  command on hard floor, alone and with one process per core.
+  command on hard floor, alone and with one process per core: each process times ``RATE_SAMPLES`` runs of
+  ``RATE_STEPS`` steps (the processes per core start their timed runs together), every sample is recorded, and the
+  median of the lone process's samples and the median of all the per-core samples are judged (one short sample is
+  at the mercy of a passing load: a single 20k-step sample once read 18.5k steps/s alone, while the four per-core
+  processes right after it averaged 26.5k).
 
 G2, the references:
 
@@ -32,16 +37,17 @@ G2, the references:
   (``Plant.armature_extra``: the second motor's armature on each ankle axis; zero with
   ``ankle_armature="screened"``).
 
-The pass rule is ``rule``.  "single" (the plan's wording, the default) judges the one unperturbed run.  "panel"
-judges the median of ``PANEL_RUNS`` starts whose root velocity is offset in x and y by at most ``PANEL_OFFSET_M_S``
-(seeded; the same offsets for every plant).  Both verdicts are always recorded.
+The pass rule is ``rule``.  "panel" (``STAGE1_PLAN.md`` decision 13, the default) judges the median of
+``PANEL_RUNS`` replays from starts whose root velocity is offset in x and y by at most ``PANEL_OFFSET_M_S`` (seed
+``PANEL_SEED``; the same offsets for every plant) against ``MIN_REPLAY_STRIDES``.  "single" (the plan's original
+wording) judges the one unperturbed run.  Both verdicts are always recorded, and the unperturbed run is reported.
 
 Reported with G2, not gated:
 
 * the open-loop replay has no feedback, so its fall time is chaotic (on the 60 cm bodies start offsets of 1 um/s
-  already move it by several strides); the panel is run on every combination of the two open plant choices
-  (``PLANT_CHOICES``), and ``open_decisions`` lists those choices and the pass rule with this evidence, for the
-  owner.  Until the owner decides, the gates take the defaults; nothing is tuned to pass;
+  already move it by several strides); the panel is run on every combination of the two plant choices
+  (``PLANT_CHOICES``, the 2 x 2 plant matrix), and ``decided`` cites the plan's decisions 11-13 with that matrix
+  as evidence.  The decisions rest on reasons that do not depend on the gate's outcome; nothing is tuned to pass;
 * every other reference replayed the same way, with and without the envelope (``walking_turns`` lists the walking
   turns);
 * for each replay: the fall cause, the envelope's clamps (driving or braking side), the smallest margin to each
@@ -76,12 +82,16 @@ TENDON_TOL = 1e-9
 TENDON_SAMPLES = 500
 REPEAT_S = 2.0
 MIN_STEPS_PER_S = 20_000
-RATE_STEPS = 20_000
+RATE_STEPS = 50_000  # physics steps per timed sample (about 2 s)
+RATE_SAMPLES = 5  # timed samples per process
+RATE_WARMUP = 1000
+RATE_BARRIER_S = 600.0  # the longest the per-core processes wait for each other before timing
 REPLAY_STRIDES = 60.0
 MIN_REPLAY_STRIDES = 10.0
 DESIGN_STUDY_STRIDES = {"60-N-T-10": 13.6, "60-N-H-10": 16.6, "75-M-H-10": 60.0}
 FRICTION_SMOOTH = 0.05  # rad/s, the frictionloss compensation's tanh width
-RULES = ("single", "panel")
+#: G2 pass rules; the first is ``STAGE1_PLAN.md`` decision 13's and the default.
+RULES = ("panel", "single")
 PANEL_RUNS = 20
 PANEL_OFFSET_M_S = 1e-3
 PANEL_SEED = 0
@@ -89,7 +99,7 @@ PANEL_CHUNK = 5
 SAMPLE_EVERY = 10  # physics steps between trace samples (20 ms): toe heights and leg gaps
 PRE_FALL_S = 0.5  # the last part of a falling run, left out of the *_before_fall values (plan section 4's window)
 MIN_RANGE_RAD = 0.10  # plan section 4: usable range every joint must keep
-#: The two open plant choices (``plant.build``), every combination.
+#: The two plant choices (``plant.build``), every combination: G2's 2 x 2 plant matrix.
 PLANT_CHOICES = {
     "motor_gains+linkage_armature": dict(ankle_gains="motor", ankle_armature="linkage"),
     "joint_gains+linkage_armature": dict(ankle_gains="joint", ankle_armature="linkage"),
@@ -101,7 +111,24 @@ RULE_TEXT = {
               "(plan section 3 step 3 as written)",
     "panel": f"the median of {PANEL_RUNS} nominal replays with the envelope, from starts whose root velocity is offset "
              f"in x and y by at most {1e3 * PANEL_OFFSET_M_S:g} mm/s (seed {PANEL_SEED}), is at least "
-             f"{MIN_REPLAY_STRIDES:g} strides",
+             f"{MIN_REPLAY_STRIDES:g} strides (STAGE1_PLAN.md decision 13)",
+}
+#: Where the plan records the choices G2 depends on.
+DECISIONS_SOURCE = "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (step 3, 8 Nov)'"
+#: The plan's decisions 11-13: the option each one takes and its reason (which does not depend on the gate's outcome).
+DECISIONS = {
+    11: dict(choice="ankle_gains", taken=plant.ANKLE_GAINS[0], title="Ankle servo gains: joint space",
+             reason="carpet.hold_servos defines one hold servo per joint for the screened model, which drives each "
+                    "ankle axis with one motor; applying that rule to each of the linkage's two motors doubles the "
+                    "ankle's joint-space stiffness, and half the gain per motor reproduces the screened stiffness "
+                    "exactly (the damping that results is in plant.json, gains.ankle_joint_space)"),
+    12: dict(choice="ankle_armature", taken=plant.ANKLE_ARMATURE[0], title="Ankle armature: the linkage's",
+             reason="both motors' rotors are geared to both ankle axes, so each axis carries twice the screened "
+                    "single-motor armature: the physical two-motor ankle the plan specifies"),
+    13: dict(choice="g2_rule", taken=RULES[0], title="G2 replay rule: a 20-start panel",
+             reason="an open-loop replay has no feedback, so its fall time is chaotic (start offsets of 1 mm/s move "
+                    "one body's run from 25.8 to 5 strides); G2 is judged on the panel's median and the unperturbed "
+                    "run is reported"),
 }
 
 
@@ -236,25 +263,62 @@ def repeatability(body: str, seed: int = 1, **plant_kw) -> dict:
                 ok=a == b and a != c and a == e)
 
 
-def _rate(body: str, steps: int = RATE_STEPS, plant_kw: dict | None = None) -> float:
+_RATE_BARRIER = None  # in a step-rate pool's workers: the per-core processes start their timed runs together
+
+
+def _rate_init(barrier) -> None:
+    global _RATE_BARRIER
+    _RATE_BARRIER = barrier
+
+
+def _rate(body: str, steps: int = RATE_STEPS, samples: int = RATE_SAMPLES, plant_kw: dict | None = None) -> list:
+    """Steps per second of ``samples`` consecutive timed runs of ``steps`` physics steps each (zero command, hard
+    floor), after ``RATE_WARMUP`` untimed steps; in a step-rate pool the timed runs start once every process is
+    ready."""
     p = plant.build(body, "hard", **(plant_kw or {}))
     p.reset()
     p.hold()
-    p.step(1000)
-    t0 = time.perf_counter()
-    p.step(steps)
-    return steps / (time.perf_counter() - t0)
+    p.step(RATE_WARMUP)
+    if _RATE_BARRIER is not None:
+        _RATE_BARRIER.wait(RATE_BARRIER_S)
+    out = []
+    for _ in range(samples):
+        t0 = time.perf_counter()
+        p.step(steps)
+        out.append(steps / (time.perf_counter() - t0))
+    return out
 
 
-def step_rate(body: str, steps: int = RATE_STEPS, procs: int | None = None, **plant_kw) -> dict:
-    """Plant steps per second (zero command, hard floor, envelope on): one process, then one per core at once."""
+def rate_summary(single: list, parallel: list[list], steps: int = RATE_STEPS) -> dict:
+    """G1's step-rate verdict from every sample: the lone process's samples (``single``) and those of each process of
+    the per-core run (``parallel``, one list per process).  The rate per core is the smaller of the two medians (the
+    lone process's samples, and all the per-core samples together), judged against ``MIN_STEPS_PER_S``."""
+    single = [float(v) for v in single]
+    parallel = [[float(v) for v in s] for s in parallel]
+    med_single = float(np.median(single))
+    med_par = float(np.median(np.concatenate(parallel)))
+    per_core = min(med_single, med_par)
+    return dict(rule=f"median of every sample ({len(single)} per process, {steps} steps each), alone and with one "
+                     f"process per core, against {MIN_STEPS_PER_S} steps/s",
+                steps_per_sample=int(steps), samples_per_process=len(single), statistic="median",
+                single_process_samples=single, single_process=med_single,
+                processes=len(parallel), per_process_samples=parallel,
+                per_process_median=[float(np.median(s)) for s in parallel], per_process_all_median=med_par,
+                per_process_mean=float(np.mean(np.concatenate(parallel))),
+                lowest_sample=float(min(min(single), *(min(s) for s in parallel))),
+                per_core=per_core, threshold=MIN_STEPS_PER_S, ok=bool(per_core >= MIN_STEPS_PER_S))
+
+
+def step_rate(body: str, steps: int = RATE_STEPS, samples: int = RATE_SAMPLES, procs: int | None = None,
+              **plant_kw) -> dict:
+    """Plant steps per second (zero command, hard floor, envelope on): one process alone, then one per core at once,
+    ``samples`` timed runs of ``steps`` steps in each (``rate_summary``)."""
     procs = procs or os.cpu_count() or 1
-    single = _rate(body, steps, plant_kw)
-    with mp.get_context("spawn").Pool(procs) as pool:
-        par = pool.starmap(_rate, [(body, steps, plant_kw)] * procs)
-    per_core = float(min(single, np.mean(par)))
-    return dict(steps=steps, single_process=single, processes=procs, per_process=par, per_process_mean=float(np.mean(par)),
-                per_core=per_core, threshold=MIN_STEPS_PER_S, ok=per_core >= MIN_STEPS_PER_S)
+    single = _rate(body, steps, samples, plant_kw)
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(procs, initializer=_rate_init, initargs=(ctx.Barrier(procs),)) as pool:
+        par = pool.starmap(_rate, [(body, steps, samples, plant_kw)] * procs, chunksize=1)
+    return rate_summary(single, par, steps)
 
 
 def g1(body: str, out_dir: Path | None = None, **plant_kw) -> dict:
@@ -459,43 +523,38 @@ def reference_range_margins(p: plant.Plant, ref: Reference) -> dict:
     return out
 
 
-def open_decisions(choices: dict, gated: str, rule: str) -> list[dict]:
-    """The three open choices behind G2, with the evidence of ``choices`` (``g2``)."""
-    def ev(name):
-        c = choices[name]
-        return (f"{c['nominal_strides']:.1f} strides unperturbed; panel median {c['panel']['median']:.1f} "
-                f"({c['panel']['runs_at_least_min_strides']}/{c['panel']['runs']} at least {MIN_REPLAY_STRIDES:g})")
-
-    blocks = ("plan section 3 step 4 onwards: the transitions, the tracker's feedforward and gains and every later "
-              "verdict are built on this plant and this gate; the owner decides and DECISION_LOG records it first")
-    out = [
-        dict(id="a", choice="ankle_gains",
-             question="Ankle hold-servo gain: per motor (each ankle motor has its own hold servo, kp = sustained / "
-                      "0.01 rad on its own coordinate, so pitch and roll are twice as stiff as one hold_servos joint) "
-                      "or joint space (each ankle axis at the hold_servos stiffness: each motor at half kp)?",
-             options={"motor": "per motor; " + ev("motor_gains+linkage_armature") + " (linkage armature)",
-                      "joint": "joint space; " + ev("joint_gains+linkage_armature") + " (linkage armature)"},
-             taken_until_decided=choices[gated]["options"]["ankle_gains"]),
-        dict(id="b", choice="ankle_armature",
-             question="Ankle armature: linkage-consistent (each motor's armature on its tendon: twice the "
-                      "screened per-joint armature on pitch and roll, the feet's inverse weight 5-9 % lower and "
-                      "hard-floor contacts 5-10 % stiffer) or as screened (the screened MJCF's one armature per joint)?",
-             options={"linkage": "with motor gains " + ev("motor_gains+linkage_armature") + "; with joint gains "
-                                 + ev("joint_gains+linkage_armature"),
-                      "screened": "with motor gains " + ev("motor_gains+screened_armature") + "; with joint gains "
-                                  + ev("joint_gains+screened_armature")},
-             taken_until_decided=choices[gated]["options"]["ankle_armature"]),
-        dict(id="c", choice="g2_rule",
-             question="G2's replay criterion: one unperturbed run (the plan's wording) or a seeded panel? The open-loop "
-                      "fall time is chaotic, so one run is a sample of a wide distribution.",
-             options={r: RULE_TEXT[r] for r in RULES}, taken_until_decided=rule),
-    ]
-    for d in out:
-        d["blocks"] = blocks
-    return out
+def decided(choices: dict, gated: str, rule: str) -> dict:
+    """The three choices behind G2 as ``STAGE1_PLAN.md`` decided them during the build (``DECISIONS``), what this run
+    used, and the evidence the plan keeps: the 2 x 2 plant matrix with its panels (``choices``, ``g2``'s
+    ``reported_not_gated.plant_choices``) and, for the rule, the unperturbed run beside the panel."""
+    used = dict(ankle_gains=choices[gated]["options"]["ankle_gains"],
+                ankle_armature=choices[gated]["options"]["ankle_armature"], g2_rule=rule)
+    matrix = {name: dict(ankle_gains=c["options"]["ankle_gains"], ankle_armature=c["options"]["ankle_armature"],
+                         unperturbed_strides=c["nominal_strides"], unperturbed_fall_cause=c["nominal_fall_cause"],
+                         panel_median_strides=c["panel"]["median"], panel_min_strides=c["panel"]["min"],
+                         panel_max_strides=c["panel"]["max"],
+                         panel_runs_at_least_min_strides=c["panel"]["runs_at_least_min_strides"],
+                         panel_runs=c["panel"]["runs"], single_rule_pass=c["single_rule_pass"],
+                         panel_rule_pass=c["panel_rule_pass"], used_here=name == gated)
+              for name, c in choices.items()}
+    rows = []
+    for number, dec in DECISIONS.items():
+        rows.append(dict(decision=number, source=f"{DECISIONS_SOURCE}, decision {number}", choice=dec["choice"],
+                         title=dec["title"], taken=dec["taken"], used=used[dec["choice"]],
+                         follows=used[dec["choice"]] == dec["taken"], reason=dec["reason"],
+                         evidence=("rule_evidence" if dec["choice"] == "g2_rule" else "plant_matrix")))
+    g = choices[gated]
+    return dict(source=f"{DECISIONS_SOURCE}, decisions {min(DECISIONS)}-{max(DECISIONS)}",
+                note="decided on reasons that do not depend on the gate's outcome; the results with the other choices "
+                     "stay recorded as evidence (here, and every panel run in reported_not_gated.plant_choices)",
+                decisions=rows, follows_all=all(r["follows"] for r in rows), plant_matrix=matrix,
+                rule_evidence=dict(rules={r: RULE_TEXT[r] for r in RULES}, used=rule,
+                                   unperturbed_strides=g["nominal_strides"], panel_median_strides=g["panel"]["median"],
+                                   panel_min_strides=g["panel"]["min"], panel_max_strides=g["panel"]["max"],
+                                   single_rule_pass=g["single_rule_pass"], panel_rule_pass=g["panel_rule_pass"]))
 
 
-def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES, rule: str = "single", procs: int | None = None,
+def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES, rule: str = RULES[0], procs: int | None = None,
        **plant_kw) -> dict:
     """G2 from the references saved in ``out_dir`` (``refs.prepare``), on the plant of ``plant_kw``."""
     if rule not in RULES:
@@ -566,7 +625,7 @@ def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES, rule: str = "s
                design_study_strides_screened_model=DESIGN_STUDY_STRIDES[body], min_strides=MIN_REPLAY_STRIDES,
                nominal_panel_with_envelope=panel, single_run_pass=bool(walked >= MIN_REPLAY_STRIDES),
                panel_pass=panel["median_at_least_min_strides"], reported_not_gated=info,
-               open_decisions=open_decisions(choices, gated, rule))
+               decided=decided(choices, gated, rule))
     out["pass"] = bool(out["all_match"] and (out["single_run_pass"] if rule == "single" else out["panel_pass"]))
     out["seconds"] = time.perf_counter() - t0
     return out

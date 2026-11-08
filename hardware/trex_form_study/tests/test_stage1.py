@@ -1,13 +1,16 @@
 """Tests for the Stage 1 plant, drives and references (designlab/stage1; STAGE1_PLAN.md sections 2 and 3).
 
 Run from hardware/trex_form_study:  python -m pytest tests/test_stage1.py -q
-The default run is fast (shortened stand, one reference, short replays).  The full-length gate checks (20 s stands
-on hard floor and low pile, every reference against its records, the full nominal replay) take minutes and run only
-with STAGE1_SLOW=1 (the repository registers no slow marker).
+The default run is fast (shortened stand, one reference, short replays) and needs no git-ignored file: the MJCF
+models rebuild from their records (``plant.model_files``) and the reference arrays a test replays are generated
+into a temporary directory.  The committed run records (``stage1/runs/<run>/<body>/*.json``) are read as records.
+The full-length gate checks (20 s stands on hard floor and low pile, every reference against its records, the full
+nominal replay and its panel) take minutes and run only with STAGE1_SLOW=1 (the repository registers no slow marker).
 """
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import sys
@@ -49,6 +52,17 @@ def hard():
 def nominal():
     src = refs.source(BODY)
     return src, refs.generate(src, "nominal")
+
+
+@pytest.fixture(scope="module")
+def nominal_npz(nominal, tmp_path_factory):
+    """The nominal reference's arrays, written here as ``refs.prepare`` writes them (the run directory's ``refs/``
+    is git-ignored, so a fresh checkout has none)."""
+    src, g = nominal
+    out = tmp_path_factory.mktemp("refs")
+    entry = refs.write(src, g, out)
+    assert entry["matches_records"]
+    return out / Path(entry["file"]).name
 
 
 @pytest.fixture(scope="module")
@@ -190,6 +204,13 @@ def test_envelope_is_rebound_on_reset():
 # ------------------------------------------------------------------------------------------------
 # Plant
 # ------------------------------------------------------------------------------------------------
+def _ankle_block(p, side: str, gains) -> np.ndarray:
+    """``G^T diag(gains) G`` over one ankle's pitch and roll."""
+    idx = [p.joints.index(f"{side}_{j}") for j in ("ankle_pitch", "ankle_roll")]
+    Gs = p.G[np.ix_(idx, idx)]
+    return Gs.T @ np.diag(np.asarray(gains)[idx]) @ Gs
+
+
 def test_hold_gains_follow_carpet_hold_servos(hard):
     _, m0 = _screened()
     d0 = mujoco.MjData(m0)
@@ -200,22 +221,49 @@ def test_hold_gains_follow_carpet_hold_servos(hard):
             continue
         assert gains[f"{jn}_servo"]["kp"] == pytest.approx(g["kp"], rel=1e-12)
         assert gains[f"{jn}_servo"]["kv"] == pytest.approx(g["kv"], rel=1e-12)
-    for side in statics.SIDES:  # each ankle motor: its own sustained torque at 0.01 rad of its own coordinate
+    # decision 11, the default: each ankle motor at half its hold servo's kp, one hold servo's stiffness per axis
+    assert hard.meta["options"]["ankle_gains"] == "joint" == hard.meta["gains"]["ankle_gains"]
+    assert hard.meta["gains"]["ankle_gains_source"] == "STAGE1_PLAN.md decision 11"
+    js = hard.meta["gains"]["ankle_joint_space"]
+    for side in statics.SIDES:
         ia, ib = (hard.joints.index(f"{side}_{j}") for j in ("ankle_pitch", "ankle_roll"))
         for i in (ia, ib):
-            assert hard.kp[i] == pytest.approx(hard.drives[i].sustained / carpet.SERVO_ERROR_RAD)
-        K = hard.G[np.ix_([ia, ib], [ia, ib])].T @ np.diag(hard.kp[[ia, ib]]) @ hard.G[np.ix_([ia, ib], [ia, ib])]
-        assert K == pytest.approx(2 * hard.kp[ia] * np.eye(2))  # joint space: two motors share each axis
+            dr = hard.drives[i]
+            assert hard.kp[i] == pytest.approx(0.5 * dr.sustained / carpet.SERVO_ERROR_RAD, rel=1e-12)
+            assert hard.kv[i] == pytest.approx(2 * carpet.SERVO_ZETA * np.sqrt(hard.kp[i] * gains[dr.actuator]["inertia_kg_m2"]),
+                                               rel=1e-12)
+        hp, hr = ref[f"{side}_ankle_pitch"], ref[f"{side}_ankle_roll"]
+        K, D = _ankle_block(hard, side, hard.kp), _ankle_block(hard, side, hard.kv)
+        assert K == pytest.approx(np.diag([hp["kp"], hr["kp"]]), rel=1e-12)  # exactly the screened stiffness
+        r = js[side]  # plant.json: the joint-space damping on pitch and roll against hold_servos'
+        assert [r["stiffness_Nm_per_rad"][a] for a in ("pitch", "roll", "pitch_roll")] == pytest.approx(
+            [K[0, 0], K[1, 1], K[0, 1]], rel=1e-12, abs=1e-12)
+        assert [r["damping_Nms_per_rad"][a] for a in ("pitch", "roll", "pitch_roll")] == pytest.approx(
+            [D[0, 0], D[1, 1], D[0, 1]], rel=1e-12)
+        assert D[0, 0] == pytest.approx(D[1, 1], rel=1e-12)  # kv_a + kv_b on either axis
+        assert r["hold_servos"]["pitch"]["kv"] == pytest.approx(hp["kv"], rel=1e-12)
+        assert r["hold_servos"]["roll"]["kv"] == pytest.approx(hr["kv"], rel=1e-12)
+        assert r["damping_over_hold_servos"]["pitch"] == pytest.approx(D[0, 0] / hp["kv"], rel=1e-12)
+        assert r["damping_over_hold_servos"]["roll"] == pytest.approx(D[1, 1] / hr["kv"], rel=1e-12)
+        assert r["stiffness_over_hold_servos"] == pytest.approx({"pitch": 1.0, "roll": 1.0}, rel=1e-12)
+    # 60-N-T-10: 0.94 N m s/rad on pitch and roll with the linkage's armature (decision 12), against hold_servos'
+    # 0.80 / 0.65 (decision 11 quotes 0.73: the value with the screened armature, test_ankle_armature_options)
+    assert js["left"]["damping_Nms_per_rad"]["pitch"] == pytest.approx(0.943, abs=0.001)
+    assert (js["left"]["hold_servos"]["pitch"]["kv"], js["left"]["hold_servos"]["roll"]["kv"]) == pytest.approx(
+        (0.804, 0.649), abs=0.001)
 
 
-def test_joint_space_ankle_gain_option_gives_one_hold_servo_per_axis():
-    p = plant.build(BODY, "hard", ankle_gains="joint", settle=False)
-    assert p.meta["gains"]["ankle_gains"] == "joint" and p.meta["options"]["ankle_gains"] == "joint"
-    for side in statics.SIDES:
+def test_per_motor_ankle_gain_option_doubles_the_joint_space_stiffness():
+    p = plant.build(BODY, "hard", ankle_gains="motor", settle=False)
+    assert p.meta["gains"]["ankle_gains"] == "motor" and p.meta["options"]["ankle_gains"] == "motor"
+    assert p.meta["gains"]["ankle_gains_source"].startswith("argument")
+    for side in statics.SIDES:  # each ankle motor: its own sustained torque at 0.01 rad of its own coordinate
         ia, ib = (p.joints.index(f"{side}_{j}") for j in ("ankle_pitch", "ankle_roll"))
-        Gs = p.G[np.ix_([ia, ib], [ia, ib])]
-        K = Gs.T @ np.diag(p.kp[[ia, ib]]) @ Gs
-        assert K == pytest.approx(p.drives[ia].sustained / carpet.SERVO_ERROR_RAD * np.eye(2))
+        for i in (ia, ib):
+            assert p.kp[i] == pytest.approx(p.drives[i].sustained / carpet.SERVO_ERROR_RAD)
+        assert _ankle_block(p, side, p.kp) == pytest.approx(2 * p.kp[ia] * np.eye(2))  # two motors share each axis
+        assert p.meta["gains"]["ankle_joint_space"][side]["stiffness_over_hold_servos"] == pytest.approx(
+            {"pitch": 2.0, "roll": 2.0}, rel=1e-12)
     with pytest.raises(ValueError):
         plant.build(BODY, "hard", ankle_gains="box", settle=False)
 
@@ -237,8 +285,13 @@ def test_ankle_armature_options():
     assert np.all(lk.m.body_invweight0[feet, 0] < 0.95 * m0.body_invweight0[feet, 0])  # 9 % lower on 60 cm
     assert sc.m.body_invweight0[feet] == pytest.approx(m0.body_invweight0[feet], rel=1e-12)
     eff = lk.meta["ankle"]["armature"]
-    assert eff["choice"] == "linkage"
+    assert eff["choice"] == "linkage" and eff["source"] == "STAGE1_PLAN.md decision 12"  # the default
+    assert sc.meta["ankle"]["armature"]["source"].startswith("argument")
     assert eff["feet"]["left"]["time_constant_contact_stiffness_ratio"] == pytest.approx(1.10, abs=0.01)
+    # the ankles' joint-space damping with joint gains: 0.94 N m s/rad with this armature, 0.73 (the figure in
+    # STAGE1_PLAN.md decision 11) with the screened one
+    for p, want in ((lk, 0.943), (sc, 0.731)):
+        assert p.meta["gains"]["ankle_joint_space"]["left"]["damping_Nms_per_rad"]["pitch"] == pytest.approx(want, abs=0.001)
     with pytest.raises(ValueError):
         plant.build(BODY, "hard", ankle_armature="none", settle=False)
 
@@ -318,16 +371,29 @@ def test_falls_include_a_shell_proxy_below_the_floor(hard):
     hard.reset()
 
 
-def test_toe_lowest_point_is_exact(hard):
+def test_toe_lowest_point_is_exact(hard, floors):
+    toes = [hard._gname[g] for g in hard._toes]
+    assert len(toes) == 12 and all(("_toe_" in t or "_claw_" in t) and "pad" not in t for t in toes)
+    assert toes == plant.toe_geoms(_screened()[1])  # the screened model's toes and claws
+    for floor, p in floors.items():  # the same geoms on every floor
+        assert [p._gname[g] for g in p._toes] == toes, floor
+    pads = [hard._gname[g] for side in statics.SIDES for g in carpet.pad_geoms(hard.m)[side]]
+    pad_toes = {n for n in pads if "pad_toe" in n}
+    assert len(pad_toes) == 6
+    low = floors["low"]  # pile_model takes the pads off the floor: their contype no longer tells them from toes
+    by_name = {low._gname[g]: g for g in range(low.m.ngeom) if low._gname[g]}
+    assert all(low.m.geom_contype[by_name[n]] == 0 for n in pads)
+    assert set(plant.toe_geoms(low.m)) - set(toes) == pad_toes  # what the rule alone would pick on the pile model
     rng = np.random.default_rng(2)
-    for _ in range(20):
-        q = hard.q_home.copy()
-        q[hard.qadr] += rng.uniform(-0.4, 0.4, len(hard.joints))
-        hard.set_state(q, np.zeros(hard.m.nv))
-        z, g = hard.toe_lowest()
-        assert z == pytest.approx(min(carpet.lowest_point(hard.m, hard.d, t)[2] for t in hard._toes), abs=1e-12)
-        assert "toe" in g or "claw" in g
-    hard.reset()
+    for p in (hard, low):
+        for _ in range(20):
+            q = p.q_home.copy()
+            q[p.qadr] += rng.uniform(-0.4, 0.4, len(p.joints))
+            p.set_state(q, np.zeros(p.m.nv))
+            z, g = p.toe_lowest()
+            assert z == pytest.approx(min(carpet.lowest_point(p.m, p.d, t)[2] for t in p._toes) - p.z_floor, abs=1e-12)
+            assert g in toes
+        p.reset()
 
 
 def test_75cm_body_settles_into_contact():
@@ -355,8 +421,58 @@ def test_floors_are_carpet_pys(floors):
             assert got[key] == pytest.approx(ref[key], rel=1e-12), (pile, key)
         assert got["solimp"] == pytest.approx(list(ref["solimp"])) and got["friction"] == pytest.approx(list(ref["friction"]))
         assert got["full_cell_probe"]["K_N_per_m"] == pytest.approx(ref["full_cell_probe"]["K_N_per_m"], rel=1e-12)
-        _, info = carpet.pile_model(xml, m0.key_qpos[0].copy(), ref)  # the same probes under the same feet
+        m_ref, info = carpet.pile_model(xml, m0.key_qpos[0].copy(), ref)  # the same probes under the same feet
         assert floors[pile].meta["floor_info"]["probes_per_foot"] == info["probes_per_foot"]
+        _pile_probe_ratios(floors[pile], m_ref, got, ref)
+
+
+def _probe_contacts(m, qpos) -> dict:
+    """(side, probe position) -> (stiffness k imp / R, damping b / R, regularisation 1 / R) of every probe contact at
+    ``qpos``, from MuJoCo's own efc_KBIP and efc_R."""
+    d = mujoco.MjData(m)
+    d.qpos[:] = qpos
+    mujoco.mj_forward(m, d)
+    left = statics.bid(m, "left_foot")
+    out = {}
+    for i in range(d.ncon):
+        c = d.contact[i]
+        g = int(c.geom[1] if m.geom_contype[c.geom[0]] != carpet.PROBE_BIT else c.geom[0])
+        if m.geom_contype[g] != carpet.PROBE_BIT:
+            continue
+        k, b, imp, _ = d.efc_KBIP[c.efc_address]
+        R = d.efc_R[c.efc_address]
+        side = "left" if m.geom_bodyid[g] == left else "right"
+        out[(side, tuple(np.round(m.geom_pos[g], 12)))] = np.array([k * imp / R, b / R, 1.0 / R])
+    return out
+
+
+def _pile_probe_ratios(p, m_ref, got: dict, ref: dict) -> None:
+    """The pile probes' ratios recorded in ``armature_effects`` (plant over screened model) against carpet.py's own
+    derivation (the full-cell probe of ``pile_floor``, from the left foot's inverse weight) and against MuJoCo's
+    contact parameters of every probe in contact, plant pile model against carpet.py's on the screened model."""
+    feet = p.meta["ankle"]["armature"]["feet"]
+    left = feet["left"]
+    assert left["pile_probe_stiffness_ratio"] == pytest.approx(
+        got["full_cell_probe"]["K_N_per_m"] / ref["full_cell_probe"]["K_N_per_m"], rel=1e-12)  # stiffness kept
+    assert left["pile_probe_damping_ratio"] == pytest.approx(
+        got["full_cell_probe"]["damping_N_s_per_m"] / ref["full_cell_probe"]["damping_N_s_per_m"], rel=1e-12)
+    assert left["pile_probe_regularisation_ratio"] == pytest.approx(
+        got["regularisation_inertia_kg_per_contact"] / ref["regularisation_inertia_kg_per_contact"], rel=1e-12)
+    for f in feet.values():  # damping as 1 / sqrt(invweight0), regularisation as 1 / invweight0 (60 cm: 5 % and 10 %)
+        assert f["pile_probe_stiffness_ratio"] == pytest.approx(1.0, abs=1e-4)
+        assert f["pile_probe_damping_ratio"] == pytest.approx(np.sqrt(f["time_constant_contact_stiffness_ratio"]), rel=1e-4)
+        assert f["pile_probe_regularisation_ratio"] == f["time_constant_contact_stiffness_ratio"]
+        assert f["pile_probe_damping_ratio"] == pytest.approx(1.049, abs=0.001)
+    q = p.q_home.copy()
+    q[2] -= 0.002  # 2 mm into the pile
+    ours, theirs = _probe_contacts(p.m, q), _probe_contacts(m_ref, q)
+    for side in statics.SIDES:
+        keys = [k for k in ours if k[0] == side and k in theirs]
+        assert len(keys) > 100
+        r = np.array([ours[k] / theirs[k] for k in keys])
+        f = feet[side]
+        assert r == pytest.approx(np.tile([f["pile_probe_stiffness_ratio"], f["pile_probe_damping_ratio"],
+                                           f["pile_probe_regularisation_ratio"]], (len(keys), 1)), rel=1e-9)
 
 
 def test_settle_tells_which_floors_the_stance_stands_on(floors):
@@ -445,8 +561,8 @@ def test_reference_file_round_trip(nominal, tmp_path):
 # ------------------------------------------------------------------------------------------------
 # Replay diagnostics
 # ------------------------------------------------------------------------------------------------
-def test_replay_feedforward_carries_the_plants_extra_armature():
-    ref = refs.Reference.load(RUN / BODY / "refs" / "nominal.npz")
+def test_replay_feedforward_carries_the_plants_extra_armature(nominal_npz):
+    ref = refs.Reference.load(nominal_npz)
     lk = gates.replay(plant.build(BODY, "hard", settle=False), ref, strides=1.0)
     sc = gates.replay(plant.build(BODY, "hard", settle=False, ankle_armature="screened"), ref, strides=1.0)
     off = gates.replay(plant.build(BODY, "hard", settle=False), ref, strides=1.0, armature_ff=False)
@@ -457,9 +573,9 @@ def test_replay_feedforward_carries_the_plants_extra_armature():
         assert r["toe_lowest_above_floor_mm"] > -20.0 and r["envelope_clamps"] == {}
 
 
-def test_leg_gap_on_the_reference_walk():
+def test_leg_gap_on_the_reference_walk(nominal_npz):
     lg = legs.LegGap(BODY)
-    ref = refs.Reference.load(RUN / BODY / "refs" / "nominal.npz")
+    ref = refs.Reference.load(nominal_npz)
     r = lg.trace(ref.q[::4])
     assert r["interference_free"] and r["poses"] == 40
     assert r["min_gap_all_pair"] == ["hw_left_hip_bracket", "hw_right_hip_bracket"]  # 4 mm apart at any pose
@@ -476,6 +592,84 @@ def test_panel_offsets_are_seeded_and_bounded():
     assert s["median"] == 12.0 and s["median_at_least_min_strides"] and s["runs_at_least_min_strides"] == 2
     with pytest.raises(ValueError):
         gates.g2(BODY, RUN / BODY, rule="vote")
+
+
+def _choices(strides: dict) -> dict:
+    """``g2``'s plant matrix from (unperturbed run, panel) strides per plant choice."""
+    out = {}
+    for name, (single, runs) in strides.items():
+        pnl = gates.panel_stats(runs)
+        out[name] = dict(options=dict(gates.PLANT_CHOICES[name], bus_V=24.0), nominal_strides=single,
+                         nominal_fall_cause=None if single >= gates.REPLAY_STRIDES else "tilt", panel=pnl,
+                         single_rule_pass=single >= gates.MIN_REPLAY_STRIDES,
+                         panel_rule_pass=pnl["median_at_least_min_strides"])
+    return out
+
+
+def test_g2_records_the_build_decisions_with_the_plant_matrix_as_evidence():
+    # the defaults are STAGE1_PLAN.md's decisions 11-13
+    assert {n: d["taken"] for n, d in gates.DECISIONS.items()} == {11: "joint", 12: "linkage", 13: "panel"}
+    sig = inspect.signature(plant.build).parameters
+    assert sig["ankle_gains"].default == "joint" and sig["ankle_armature"].default == "linkage"
+    assert inspect.signature(gates.g2).parameters["rule"].default == "panel"
+    strides = {"motor_gains+linkage_armature": (4.3, [3.0] * 15 + [12.0] * 5),
+               "joint_gains+linkage_armature": (60.0, [8.0] * 7 + [33.0] * 13),
+               "motor_gains+screened_armature": (8.2, [4.0] * 20),
+               "joint_gains+screened_armature": (2.3, [6.0] * 13 + [11.0] * 7)}
+    choices = _choices(strides)
+    dec = gates.decided(choices, "joint_gains+linkage_armature", "panel")
+    assert [d["decision"] for d in dec["decisions"]] == [11, 12, 13] and dec["follows_all"]
+    for d in dec["decisions"]:
+        assert d["source"].startswith("STAGE1_PLAN.md") and d["source"].endswith(f"decision {d['decision']}")
+        assert d["used"] == d["taken"] and d["follows"] and d["reason"]
+    assert "decisions 11-13" in dec["source"]
+    mat = dec["plant_matrix"]  # the 2 x 2 plant matrix and its panels stay as evidence
+    assert set(mat) == set(gates.PLANT_CHOICES) and [n for n, r in mat.items() if r["used_here"]] == [
+        "joint_gains+linkage_armature"]
+    for name, (single, runs) in strides.items():
+        assert mat[name]["unperturbed_strides"] == single and mat[name]["panel_median_strides"] == np.median(runs)
+        assert mat[name]["panel_runs_at_least_min_strides"] == sum(r >= 10 for r in runs)
+    ev = dec["rule_evidence"]
+    assert ev["used"] == "panel" and ev["unperturbed_strides"] == 60.0 and ev["panel_median_strides"] == 33.0
+    off = gates.decided(choices, "motor_gains+linkage_armature", "single")  # a comparison run says it deviates
+    assert not off["follows_all"] and [d["follows"] for d in off["decisions"]] == [False, True, False]
+    assert [d["used"] for d in off["decisions"]] == ["motor", "linkage", "single"]
+
+
+def test_step_rate_judges_the_median_of_every_sample():
+    s = gates.rate_summary([30e3, 10e3, 25e3], [[24e3, 26e3, 5e3], [21e3, 22e3, 23e3]], steps=500)
+    assert s["single_process_samples"] == [30e3, 10e3, 25e3]  # every sample recorded
+    assert s["per_process_samples"] == [[24e3, 26e3, 5e3], [21e3, 22e3, 23e3]]
+    assert s["single_process"] == 25e3 and s["per_process_median"] == [24e3, 22e3]
+    assert s["per_process_all_median"] == 22.5e3 and s["per_core"] == 22.5e3 and s["ok"]  # one slow sample is noise
+    assert s["lowest_sample"] == 5e3 and s["samples_per_process"] == 3 and s["steps_per_sample"] == 500
+    slow_alone = gates.rate_summary([19e3, 19.5e3, 30e3], [[24e3, 26e3, 25e3]])
+    assert slow_alone["per_core"] == 19.5e3 and not slow_alone["ok"]  # a slow median fails
+    assert gates.RATE_SAMPLES >= 5 and gates.RATE_STEPS >= 50_000
+    r = gates._rate(BODY, steps=200, samples=3)  # in this process (no pool): three timed samples
+    assert len(r) == 3 and all(v > 0 for v in r)
+
+
+@pytest.mark.parametrize("body", sorted(BODIES))
+def test_gate_records_follow_the_build_decisions(body):
+    """The committed run records (``stage1/runs/2026-11-08``) were made with the decided plant and G2 rule."""
+    doc = json.loads((RUN / body / "gates.json").read_text())
+    g1, g2 = doc["G1"], doc["G2"]
+    assert "open_decisions" not in g2 and g2["decided"]["follows_all"] and doc["same_plant_options"]
+    assert g2["rule"] == "panel" and len(g2["nominal_panel_with_envelope"]["strides"]) == gates.PANEL_RUNS
+    assert (g1["plant_options"]["ankle_gains"], g1["plant_options"]["ankle_armature"]) == ("joint", "linkage")
+    assert set(g2["decided"]["plant_matrix"]) == set(gates.PLANT_CHOICES)
+    assert g2["pass"] == (g2["all_match"] and g2["panel_pass"])
+    sr = g1["step_rate"]
+    assert len(sr["single_process_samples"]) == gates.RATE_SAMPLES and sr["steps_per_sample"] == gates.RATE_STEPS
+    assert len(sr["per_process_samples"]) == sr["processes"]
+    assert all(len(s) == gates.RATE_SAMPLES for s in sr["per_process_samples"])
+    assert sr["ok"] == (min(np.median(sr["single_process_samples"]), np.median(sr["per_process_samples"]))
+                        >= gates.MIN_STEPS_PER_S)
+    pj = json.loads((RUN / body / "plant.json").read_text())
+    assert pj["options"] == g1["plant_options"] and pj["gains"]["ankle_gains_source"] == "STAGE1_PLAN.md decision 11"
+    assert set(pj["gains"]["ankle_joint_space"]) >= set(statics.SIDES)
+    assert all("pile_probe_damping_ratio" in f for f in pj["ankle"]["armature"]["feet"].values())
 
 
 def test_later_steps_are_not_implemented(tmp_path):
@@ -500,7 +694,14 @@ def test_g2_references_match_and_the_nominal_replay_reproduces_the_gate_record(b
     doc = refs.prepare(body, tmp_path)
     assert doc["matches_records"]
     rec = json.loads((RUN / body / "gates.json").read_text())["G2"]
-    ref = refs.Reference.load(tmp_path / doc["references"]["nominal"]["file"])
-    r = gates.replay(plant.build(body, "hard"), ref)  # deterministic: exactly the recorded single run
+    path = tmp_path / doc["references"]["nominal"]["file"]
+    ref = refs.Reference.load(path)
+    r = gates.replay(plant.build(body, "hard"), ref)  # deterministic: exactly the recorded unperturbed run
     assert r["strides"] == rec["nominal_strides_with_envelope"]
     assert rec["single_run_pass"] == (r["strides"] >= gates.MIN_REPLAY_STRIDES)
+    offsets = gates._offsets()  # and the gated panel (decision 13), run by run
+    jobs = [dict(body=body, ref=str(path), plant_kw=dict(envelope=True), offsets=offsets[i : i + gates.PANEL_CHUNK],
+                 strides=gates.REPLAY_STRIDES, full=False) for i in range(0, gates.PANEL_RUNS, gates.PANEL_CHUNK)]
+    runs = [x["strides"] for chunk in gates.run_jobs(jobs) for x in chunk]
+    assert runs == rec["nominal_panel_with_envelope"]["strides"]
+    assert rec["panel_pass"] == (np.median(runs) >= gates.MIN_REPLAY_STRIDES) == rec["pass"]

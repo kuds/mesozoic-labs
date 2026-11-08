@@ -8,10 +8,12 @@ Run from hardware/trex_form_study:
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``) and, unless ``--no-gates``,
 ``gates.json`` (``gates``: G1 and G2 of plan section 3).  ``gates`` reruns G1 and G2 on the saved references.
-``--ankle-gains``, ``--ankle-armature`` and ``--g2-rule`` set the open choices G2 depends on (``gates.open_decisions``;
-the defaults until the owner decides); they are recorded in plant.json and gates.json.  The exit status is 1 if a
-gate fails (plan section 3: stop).  ``tune``, ``train``, ``eval``, ``sweep``, ``report`` and ``all`` are later steps
-of the plan and are not implemented yet.
+``--ankle-gains``, ``--ankle-armature`` and ``--g2-rule`` set the choices G2 depends on; the defaults are the ones
+``STAGE1_PLAN.md`` decided during the build (decisions 11-13: joint-space ankle gains, the linkage's armature, the
+20-start panel), and the others stay available for comparison.  They are recorded in plant.json and gates.json
+(``G2.decided`` says whether a run follows the decisions).  The exit status is 1 if a gate fails (plan section 3:
+stop).  ``tune``, ``train``, ``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan and are not
+implemented yet.
 """
 
 from __future__ import annotations
@@ -87,10 +89,13 @@ def plant_doc(body: str, plant_kw: dict | None = None) -> dict:
 
 
 def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | None = None,
-              rule: str = "single") -> dict:
+              rule: str | None = None) -> dict:
+    """G1 and G2 (or one of them) into ``<out>/gates.json``; ``rule`` is G2's (default: ``gates.RULES[0]``, the
+    plan's decision 13)."""
     from . import gates
 
     plant_kw = plant_kw or {}
+    rule = rule or gates.RULES[0]
     path = out / "gates.json"
     doc = json.loads(path.read_text()) if path.exists() else dict(body=body)
     if only in (None, "g1"):
@@ -115,21 +120,24 @@ def summary(doc: dict) -> str:
         sr = g1["step_rate"]
         hashes = all(h["matches_record"] and h["matches_plan"] for h in g1["hashes"].values())
         tm = g1["tendon_map"]
+        per = sr.get("per_process_all_median", sr.get("per_process_mean"))
         lines.append(f"G1 {'pass' if g1['pass'] else 'FAIL'}: hashes {hashes}; {st}; tendon map err "
                      f"{max(tm['max_err_joint_torque_Nm'], tm['max_err_motor_speed_rad_s']):.1e}; "
-                     f"repeat {g1['repeatability']['ok']}; {sr['single_process']:.0f} steps/s alone, "
-                     f"{sr['per_process_mean']:.0f} per process x {sr['processes']}")
+                     f"repeat {g1['repeatability']['ok']}; step rate (median of {sr.get('samples_per_process', 1)} x "
+                     f"{sr.get('steps_per_sample', sr.get('steps'))} steps) {sr['single_process']:.0f} steps/s alone, "
+                     f"{per:.0f} per process x {sr['processes']} (lowest sample "
+                     f"{sr.get('lowest_sample', min(sr.get('per_process', [per]))):.0f})")
     if g2:
         o = g2["plant_options"]
+        pnl = g2["nominal_panel_with_envelope"]
         lines.append(f"G2 {'pass' if g2['pass'] else 'FAIL'} (rule {g2['rule']}; ankle gains {o['ankle_gains']}, "
                      f"armature {o['ankle_armature']}): references match {g2['all_match']} (nominal "
                      f"{g2['nominal_speed_m_s']} m/s, CoP margin {g2['nominal_min_cop_margin_single_m']} m); nominal "
-                     f"replay {g2['nominal_strides_with_envelope']:.1f} strides with the envelope, "
+                     f"panel median {pnl['median']:.1f} strides ({pnl['runs_at_least_min_strides']}/{pnl['runs']} at "
+                     f"least {g2['min_strides']:g}, range {pnl['min']:.1f}-{pnl['max']:.1f}); unperturbed run "
+                     f"{g2['nominal_strides_with_envelope']:.1f} strides with the envelope, "
                      f"{g2['nominal_strides_without_envelope']:.1f} without (design study, screened MJCF: "
-                     f"{g2['design_study_strides_screened_model']}); panel median "
-                     f"{g2['nominal_panel_with_envelope']['median']:.1f} "
-                     f"({g2['nominal_panel_with_envelope']['runs_at_least_min_strides']}/"
-                     f"{g2['nominal_panel_with_envelope']['runs']} at least {g2['min_strides']:g})")
+                     f"{g2['design_study_strides_screened_model']})")
         others = ", ".join(f"{name} {v['with_envelope']['strides']:.1f}" for name, v in g2["replay"].items()
                            if name != "nominal")
         lines.append(f"   other replays with the envelope (strides): {others}")
@@ -138,12 +146,17 @@ def summary(doc: dict) -> str:
                        f"({c['panel']['runs_at_least_min_strides']}/{c['panel']['runs']})"
                        for name, c in info["plant_choices"].items())
         lines.append(f"   plant choices (nominal strides unperturbed, panel): {ch}")
-        lines.append("   open decisions: " + "; ".join(f"({d['id']}) {d['choice']} = {d['taken_until_decided']} until "
-                                                       "decided" for d in g2["open_decisions"]))
+        dec = g2.get("decided")
+        if dec:
+            lines.append("   decided (STAGE1_PLAN.md): " + "; ".join(
+                f"({d['decision']}) {d['choice']} = {d['taken']}"
+                + ("" if d["follows"] else f", NOT FOLLOWED: this run used {d['used']}") for d in dec["decisions"]))
     return "\n".join(lines)
 
 
 def main(argv=None) -> int:
+    from . import gates, plant
+
     ap = argparse.ArgumentParser(prog="python -m designlab.stage1", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -153,13 +166,15 @@ def main(argv=None) -> int:
         p.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/<run>")
         p.add_argument("--seed", type=int, default=None, help="tuning or training seed (later steps)")
         if name in ("prepare", "gates"):
-            p.add_argument("--ankle-gains", choices=("motor", "joint"), default="motor",
-                           help="ankle hold-servo gain: per motor (default) or joint space (open decision a)")
-            p.add_argument("--ankle-armature", choices=("linkage", "screened"), default="linkage",
-                           help="ankle armature: on the motor tendons (default) or as screened (open decision b)")
-            p.add_argument("--g2-rule", choices=("single", "panel"), default="single",
-                           help="G2 replay criterion: one unperturbed run (default, the plan's) or the seeded panel "
-                                "(open decision c)")
+            p.add_argument("--ankle-gains", choices=plant.ANKLE_GAINS, default=plant.ANKLE_GAINS[0],
+                           help="ankle hold-servo gain: joint space (default, STAGE1_PLAN.md decision 11) or per "
+                                "motor (for comparison)")
+            p.add_argument("--ankle-armature", choices=plant.ANKLE_ARMATURE, default=plant.ANKLE_ARMATURE[0],
+                           help="ankle armature: the linkage's, on the motor tendons (default, decision 12) or as "
+                                "screened (for comparison)")
+            p.add_argument("--g2-rule", choices=gates.RULES, default=gates.RULES[0],
+                           help="G2 replay criterion: the median of the 20-start panel (default, decision 13) or the "
+                                "one unperturbed run (the plan's original wording)")
         if name == "prepare":
             p.add_argument("--no-gates", action="store_true", help="skip G1 and G2")
             p.add_argument("--refs", default=None, help="comma-separated reference names (default: all)")

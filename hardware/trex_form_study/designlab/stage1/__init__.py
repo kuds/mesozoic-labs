@@ -13,8 +13,8 @@ Modules (plan section 2):
 * ``refs``: the reference walks and turns with their inverse-dynamics feedforward, regenerated and checked
   against the records;
 * ``legs``: leg-to-leg proximity on simulated traces (only the foot pads collide in the plant);
-* ``gates``: the fail-fast checks G1 (plant) and G2 (references) of plan section 3, with the evidence for the open
-  choices G2 depends on (``gates.open_decisions``).
+* ``gates``: the fail-fast checks G1 (plant) and G2 (references) of plan section 3, with the choices G2 depends on
+  as the plan decided them during the build (decisions 11-13, ``gates.decided``) and the evidence it keeps.
 
 Run from hardware/trex_form_study:
     python -m designlab.stage1 prepare --body 60-N-T-10 --out stage1/runs/<run>
