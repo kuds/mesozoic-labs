@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The r10 LTSB T. rex stance certified on `main` on two seeds, with its
+  fresh-seed audit** (the maintainer's stance-landing decision of 2026-11-06,
+  cited by date: this records change keeps the date citation, and its number
+  is still to be assigned; the appended §31 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
+  dated status note at its top; `docs/NEXT_STEPS.md` §1 to §3,
+  `docs/KNOWN_ISSUES.md` (Update 26 of the T-Rex stance entry),
+  `docs/CONSOLIDATION_PLAN_2026_09.md`, `docs/README.md`,
+  `website/docs/training/mirror-symmetry.md`). Records only.
+  `trex_stance_r10_ltsb_s44` (seed 44) and `trex_stance_r10_ltsb_s43` (seed
+  43), trained on `main` at `820dbda` on Colab L4s with `CRITIC_PHASE = True`
+  (recipe `c64211e8`, task `1e5964b6`, gate `d26c34e6`), 12,001,280 steps
+  each, both pass: clean on 40/40 seeds at every heading of the six-heading
+  certificate (bound 0.928), with robust-best handoffs at 10,850,000 and
+  11,350,000 steps and no hop-watch stop. The second, stopped after its
+  final save, most likely by Colab's runtime cap, was judged by an in-place
+  resume that trained nothing. Its bundle records the stance as `certified true,
+  provisional false, replication count 2`; the first's own bundle, published
+  before the second was judged, keeps replication 1, left so as the r13
+  seed-42 run's was. The fresh-seed audit (seeds 7042–7081, on CPU, each run
+  twice with byte-identical reports) passes both handoffs 40/40 at every
+  heading (rewards 4487.1 and 4480.7 against the statue's 4467.7). The docs
+  that named a publication cell the SB3 notebook does not have
+  (`docs/RESULT_BUNDLES.md`, `docs/BEHAVIOR_RECIPES_PLAN.md` §4.5,
+  `website/docs/training/recipes.md`) now say that a late replicate is
+  counted when the run's bundle is written again, by a hand-typed
+  `save_run_bundle(...)` call or a later committed cell, and a dated note in
+  `docs/NEXT_STEPS.md` corrects its 2026-11-06 note's clause. No library
+  code, config, notebook or digest changes, and this change trains nothing.
 - **A gait ledger page in the training history (report only).** Page
   `20_gait_ledger` and a per-run `gait_ledger` block in
   `training_history.json` read the gait columns `eval_episodes.csv` already
@@ -2614,9 +2643,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The r10 LTSB T. rex stance recipe is the committed stance, for its
-  certification by two new seeds** (the maintainer's stance-landing decision of
-  2026-11-06, cited by date: it has no decision id yet, and the next records
-  change assigns one). The T. rex env gains two opt-in stance terms, off by
+  certification by two new seeds** (#661; the maintainer's stance-landing
+  decision of 2026-11-06, cited by date: it has no decision id yet; the records
+  change of its certification keeps the date citation, and its number is still
+  to be assigned). The T. rex env gains two opt-in stance terms, off by
   default: a stance stagger penalty (`stance_stagger_weight`,
   `stance_stagger_tolerance_m`) and a per-foot centre-of-pressure band
   (`stance_cop_band_weight` and seven band keys), whose per-step reading is the
@@ -2637,8 +2667,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `533fff20` -> `1e5964b6`, PPO `9d1598a6` -> `054ab483`; recovery task
   `9d71e607` -> `a53afa60`, PPO `4ac6592a` -> `de9c9af0`; their view and reward
   lines. No plant, policy-interface, locomotion or behavior line moves.
-- **The r10 T. rex stance screen runs never count** (the stance-landing decision
-  of 2026-11-06). `environments/shared/run_exclusions.py` lists the two branch
+- **The r10 T. rex stance screen runs never count** (#661; the stance-landing
+  decision of 2026-11-06). `environments/shared/run_exclusions.py` lists the two branch
   commits, the nine runs' ids and handoff checkpoints and the stance7 runs'
   other fetched checkpoints; a run whose `provenance.json`, stage
   `stage_config.json` or `gate_verdict.json` names one, or whose stage loaded,

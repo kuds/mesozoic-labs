@@ -204,6 +204,15 @@ and the evidence in
 and the folders `overnight_probes/`, `bias_screen/` and `bias_screen2/`
 beside it. The statuses above are unchanged.*
 
+*Status 2026-11-08 (appended): §31, appended that day, records the
+certification of the committed stance on `main`: two new seeds,
+`trex_stance_r10_ltsb_s44` and `trex_stance_r10_ltsb_s43`, trained at
+`820dbda` with the critic phase on, both pass the six-heading certificate
+(40/40 seeds clean at every heading) and the fresh-seed audit on seeds
+7042–7081, and the second's bundle counts both (replication 2, not
+provisional). The T. rex stance is certified on `main` on two seeds. The
+statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -5527,3 +5536,163 @@ parent's child.
 - **§14, this repository:** `environments/shared/floor_contact/`,
   `environments/shared/run_exclusions.py` and the stance and recovery configs;
   the screens' own records stay where §21 to §29 put them.
+
+## 31. Status 2026-11-08 (appended): the LTSB stance certified on `main` on two seeds; the fresh-seed audit
+
+*Appended 2026-11-08; §1–§30 above are unchanged.* Labels as in §27:
+measured, as each source records it; inferred, where said. The sources are
+the two runs' records on Drive, read only (`provenance.json`, `summary.json`
+and, in `01_stance/`, `gate_verdict.json`, `stage_config.json`,
+`task_fingerprint.json`, `plant_identity.json`, `progress.json` and
+`handoff_in_training.json`), the session's run log and the fresh-seed
+audit's reports. None of them is copied into this repository; the reports'
+sha256 are in §31.4.
+
+### 31.1 The two runs
+
+Both trained on `main` at `820dbda` (`repository_dirty` false), each trained
+in one Colab session on an L4 GPU, from the SB3 notebook with the settings
+[NEXT_STEPS.md](../NEXT_STEPS.md) §3 gives (`BEHAVIOR = "stance"`,
+`CRITIC_PHASE = True`), launched on 2026-11-07 at 03:23 UTC (seed 43) and
+03:24 UTC (seed 44). Both records name task `1e5964b6`, recipe `c64211e8`
+(`critic_phase` true, `mirror_kl`), gate `stance_quality_heading/v1`
+`d26c34e6`, policy interface r15 and physics r10, and `ancestors` is empty
+in both provenances; the two `stage_config.json` files differ only in
+`run.seed` and `run.duration_seconds`, and the two `task_fingerprint.json`
+and four `plant_identity.json` files are byte-identical (measured).
+
+| | `trex_stance_r10_ltsb_s44` | `trex_stance_r10_ltsb_s43` |
+|---|---|---|
+| Seed | 44 | 43 |
+| Training | 12,001,280 steps, 23h06m55s | 12,001,280 steps, 23h28m58s |
+| Final evaluation | 4484.94 ± 19.48 | 4464.98 ± 45.45 |
+| Best evaluation (`best_model`) | 4495.51 ± 17.16 at 3,900,000 | 4493.05 ± 22.85 at 7,950,000 |
+| Handoff | `robust_best_model.zip` at 10,850,000 (4493.22 ± 13.45 over 40 episodes, mean − std 4479.77) | `robust_best_model.zip` at 11,350,000 (4492.06 ± 14.47, mean − std 4477.59) |
+| Handoff sha256 (checkpoint / normalizer) | `460245a6…` / `42b29118…` | `a86e968f…` / `1844149b…` |
+| Certificate (seeds 3042–3081, six headings) | 40/40 seeds clean at every heading, bound 0.9278, statue reward min 4470.37 | the same |
+| `gate_verdict.json` | passed, no failures, 2026-11-08 03:04:32 UTC | passed, no failures, 2026-11-08 04:21:15 UTC |
+| Bundle | `complete`, 03:19 UTC: replication 1, provisional | `complete`, 04:36 UTC: replication 2, not provisional |
+
+The final and best evaluations are the stage's own evaluations of its
+checkpoints, not fields of the certificate, whose fields in the verdict's
+`stage_result` are the `stance_heading_*` seed counts, bound and statue
+minimum (measured).
+
+Seed 43's first session ended at Colab's runtime cap of about 24 hours after
+its final save (`stage1_final.zip` at 02:56:00 UTC on 2026-11-08) and its
+final and selected evaluations (to 02:59:34), before the certificate: its
+run folder holds nothing written later (measured on Drive; the cap as the
+cause is inferred). At 03:47:57 UTC the maintainer resumed it in place (the
+same run folder and `RUN_ID`) with `RESUME_STAGE = "stance"`; the notebook
+printed "Nothing to resume" (the stage held its final pair), trained
+nothing and judged the stage. The resume is the provenance's second session;
+`stage_config.json` was last written at 02:56:08 UTC, before it, and the
+session records no environment drift (measured), so the resume rewrote none
+of the training records the replication rule compares (inferred).
+
+### 31.2 The replication record
+
+`trex_stance_r10_ltsb_s43`'s `provenance.json` records the stance
+deliverable as `certified true`, `certification_seeds` 2,
+`provisional false`, `replication` `{count 2, runs:
+[trex_stance_r10_ltsb_s43 / 43, trex_stance_r10_ltsb_s44 / 44]}`, this run
+first (measured). Each condition of the replicate rule
+([RESULT_BUNDLES.md](../RESULT_BUNDLES.md)) holds for the sibling: the same
+`logs/tyrannosaurus_rex/anatomical/ppo/` folder, a passed, reusable verdict
+in its `01_stance/`, equal task and gate digests, the same plant identity,
+the same `hyperparameters_sha256`, another seed, and neither run excluded by
+`environments/shared/run_exclusions.py` (commit `820dbda`, no load, resume
+or widen lineage, no screen handoff). `discover_replicates_for_run` at
+`820dbda`, on copies of the records, reproduces the count: seed 43's run
+finds seed 44's, and with seed 43's verdict removed, as it was when seed 44's
+run published, seed 44's run finds none (measured). Seed 44's verdict was on
+Drive (03:04:32 UTC) before seed 43's run published (04:36 UTC).
+
+`trex_stance_r10_ltsb_s44`'s own `provenance.json` and `summary.json` keep
+replication 1 and `provisional true`, as the r13 seed-42 run's bundle kept
+1 beside the seed-44 run's 2 ([NEXT_STEPS.md](../NEXT_STEPS.md) §2); the
+maintainer chose on 2026-11-08 to leave them so, and nothing on Drive
+changed. The count is written at publication. The bundle writer would
+regenerate that `complete` bundle's derived artifacts for a change of the
+replication record alone, but no committed notebook cell re-publishes a
+finished run: the cell that defines `save_run_bundle` does not call it, and
+a session that reuses every node of its own run writes no bundle (measured on
+the notebook), so it would take a hand-typed `save_run_bundle(...)` call.
+Reuse reads the per-node files, and trunk selection counts the replicating
+seeds itself, so no reuse depends on that label (inferred from
+`environments/shared/ancestors.py`). The catalog reads each bundle alone:
+promoted into `results/`, seed 44's own bundle would show
+`1 run of 2 seeds; provisional` and seed 43's `2 runs of 2 seeds` (inferred
+from `environments/shared/species_catalog.py`, not run).
+
+### 31.3 The hop watch and the handoff steps
+
+Both stages declare the hop watch (unsupported duty above 0.05 after
+7,000,000 steps stops the run) and neither tripped: neither `01_stance/`
+holds a `hop_watch.json`, the final `progress.json` of each records
+`warnings_total` 0, and its `gate_progress.npz` records unsupported duty 0.0
+at all 240 evaluations, 50,000 to 12,000,000 steps (measured). Both trained
+the full budget. Report only: the in-training 40-episode screen at heading 0
+counted one or two hop-or-fall episodes at some evaluations after 7M (seed
+43 at 4 evaluations, seed 44 at 14), none at either handoff step; no watch
+reads it, and both certificates passed 40/40.
+
+Each handoff is the `robust_best` checkpoint, the first strict maximum of
+mean − 1.0 × std over the 40 evaluation episodes: seed 44's at 10,850,000
+steps (90.4% of the budget; its score beat the 4.25M checkpoint's by 0.62)
+and seed 43's at 11,350,000 (94.6%), as `01_stance/handoff_in_training.json`
+records (`step_agrees` true) and the zip's `num_timesteps` and the
+normalizer's `ret_rms` count repeat (measured). Neither is the shallow early
+checkpoint [NEXT_STEPS.md](../NEXT_STEPS.md) §3 warns of (inferred: no
+number is set for "shallow", and the early robust-best handoffs this record
+names, §15.2, §17.3, §19.4 and §21.4, are at 524,288 to 6,815,744 steps). The
+`best_model` checkpoints (3.9M and 7.95M) are not the handoffs.
+
+### 31.4 The fresh-seed audit
+
+`stance_gate_report.py --species tyrannosaurus_rex --embodiment anatomical
+--model … --vecnorm … --seed 7042 --out-dir <scratch>` on each handoff pair,
+read-only copies whose sha256 equal the verdict's, on CPU from a clone at
+`820dbda`, never into a stage directory; each audit was run a second time
+on its own clone and copies, and the report JSON, TXT and CSV were
+byte-identical (measured).
+
+| | `trex_stance_r10_ltsb_s44` | `trex_stance_r10_ltsb_s43` |
+|---|---|---|
+| Seeds clean at every heading (7042–7081) | 40/40, bound 0.9278 | 40/40, bound 0.9278 |
+| Episodes clean, pooled | 240/240 | 240/240 |
+| Full horizon, each heading | 1.0000 | 1.0000 |
+| Reward, each heading | 4487.1 | 4480.7 |
+| Statue reward, each heading | 4467.7 | 4467.7 |
+| Verdict | GATE: PASS | GATE: PASS |
+| Report sha256 (JSON / TXT) | `93418e9d…` / `f7cf7ec1…` | `8b466a7d…` / `54e6a327…` |
+
+No episode fails any of the 18 per-episode bars or the horizon at any heading, and an
+independent re-judging of every episode from the report's CSV against the
+TOML's bars agrees (measured). The audit's numbers belong to its grid; it is
+a recorded manual step, and the judge refuses that grid as the gate's
+evidence.
+
+### 31.5 What changes in §13–§30
+
+- **§13, §29.3 and §30.4, certification:** the T. rex stance is certified on
+  `main` on two seeds, `trex_stance_r10_ltsb_s44` and
+  `trex_stance_r10_ltsb_s43`; the two-seed ask is met, and the certification
+  §30.1 plans is done.
+- **§30.1, the decision id:** the stance-landing decision keeps its date
+  citation in this records change; its number is still to be assigned.
+- **§13, next steps:** the T. rex sessions on the certified stance
+  (`recover`, `walk`, `hunt`) leave `CRITIC_PHASE = False`
+  ([NEXT_STEPS.md](../NEXT_STEPS.md) §3). Which comes first, and its trunk,
+  are the maintainer's: `TRUNK_FROM = "auto"` would pick
+  `trex_stance_r10_ltsb_s44`, the greater directory name on the tie
+  (inferred from `select_trunk`, not run), so the next session pins
+  `TRUNK_FROM` to the run the maintainer chooses.
+- **§14, this repository:** records only, in NEXT_STEPS, KNOWN_ISSUES, the
+  consolidation plan's status table, RESULT_BUNDLES, BEHAVIOR_RECIPES_PLAN,
+  the CHANGELOG, the docs index and two website pages; no evidence folder is
+  added to [stance_2026_10/](stance_2026_10/README.md).
+- **§14, session scratch:** the audit's reports, logs and checks and the
+  copies of the runs' records, in the session's scratch
+  (`stance_cert/fresh_audit/`); the checkpoint copies were deleted after
+  use, their sha256 kept beside the reports.

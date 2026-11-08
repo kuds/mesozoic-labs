@@ -181,6 +181,7 @@ foot (`stance_cop_band_weight = 0.30`). Three screen runs of exactly this
 recipe, trained with the critic's episode phase on (the notebook's
 `CRITIC_PHASE = True`), passed the stage's six-heading certificate on
 physics r10. They trained on a branch, so they never count as certified or
-as replicates (`environments/shared/run_exclusions.py`); two new seeds
-certify the recipe on `main`. The recovery stage inherits the stance's
+as replicates (`environments/shared/run_exclusions.py`); two new seeds, 44
+and 43, certified it on `main` on 2026-11-08, each clean on all 40
+certificate seeds at every heading. The recovery stage inherits the stance's
 `[env]` and `[ppo]` tables, so it trains with the options and mirror-KL too.

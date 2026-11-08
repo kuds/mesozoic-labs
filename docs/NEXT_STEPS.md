@@ -155,7 +155,14 @@ largest value at which 120/120 episodes stand): the walk inherits the
 stance's learned std, at most about 0.07, and the T. rex's walking pilot 1
 read STILL on 3/3 seeds from a std-0.095 parent. Whether to set
 `[curriculum] warm_start_log_std` from that scan is the maintainer's; never
-the T. rex's −2.0 here, where the r4 statue stands 0/40 at std 0.135.* Section 2 labels each
+the T. rex's −2.0 here, where the r4 statue stands 0/40 at std 0.135.*
+*2026-11-08: two new seeds certified the committed T-Rex stance (the
+maintainer's stance-landing decision of 2026-11-06) on `main`:
+`trex_stance_r10_ltsb_s44` and `trex_stance_r10_ltsb_s43` both pass its
+six-heading certificate and the fresh-seed audit, and the second's bundle
+counts both (section 2). The sessions on that stance (`recover`, `walk`,
+`hunt`) follow with `CRITIC_PHASE = False`; which comes first, and its trunk,
+are the maintainer's (section 3).* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -290,6 +297,8 @@ strand the T-Rex runs below again; they were stranded already.*
 | trex | `20260810_145546` | 42 | r11 (legacy `stage1/2/3`) | PASS on the 2026-08 records; no `gate_verdict.json` in `stage1` | not certified | Nothing: seed 42 is already certified at r13 by `20260914_123816`; the template note's Session 1 (widen this run) is superseded *Stranded by physics r8 (2026-10-06, D-D24): the plant contract refuses this run's checkpoints, so no node of it is reused; already superseded.* |
 | trex | `20261006_185343` | 42 | r13, physics r8 (commit `7b8b5d1`) | **FAIL** — `01_stance` under `stance_quality/v2`, 11,001,856 steps, 14h55m, final eval 3015.04 ± 4.54; panel (seeds 3042–3081) clean on 0/40, bound 0.000, reward 3012.1 ± 7.2, every episode failing support, touchdowns, saturation and both settle bars; 0/40 again on the fresh seeds 7042–7081; judged 2026-10-07 09:58 UTC, `gate_sha256 3571f209…`, `task_sha256 6da0b7dd…`, handoff `robust_best_model.zip` (`checkpoint_sha256 2053f487…`, the 10.8M checkpoint); a 12.5 Hz two-foot micro-hop on raw ±1 commands that also steers to an absolute heading of about −45°; provenance `certified false`, `provisional true` | none (the run has no `02_recovery`) | Nothing: a measured failure, kept as history ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9). *Not reused since D-D27 (2026-10-07): the T-Rex `task_sha256` and stance `gate_sha256` moved; the checkpoints still load on the unchanged plant.* *Stranded by physics r9 (2026-10-11, D-D29): the plant contract now refuses its checkpoints too.* |
 | trex | `20261006_185704` | 44 | r13, physics r8 (commit `7b8b5d1`) | **FAIL** — `01_stance` under `stance_quality/v2`, 11,001,856 steps, 15h46m, final eval 3760.58 ± 86.96, best 3778.59 ± 9.82 at 10.35M; panel clean on 13/40, bound 0.204, reward 3772.7 ± 17.7 (settle peak over 1.5 BW on 27 episodes, settle airborne substeps on 6); 8/40, bound 0.104, on the fresh seeds 7042–7081; judged 2026-10-07 10:53 UTC, `gate_sha256 3571f209…`, `task_sha256 6da0b7dd…`, handoff `robust_best_model.zip` (`checkpoint_sha256 d320d274…`, the 10.35M best); stands like the statue after a settle stomp that re-seats its feet, hops for the whole episode on about 4% of resets, stands only near its training heading; provenance provisional, not certified | none (the run has no `02_recovery`) | Nothing: a measured failure, kept as history (the audit's §9). *Not reused since D-D27 (2026-10-07): the T-Rex `task_sha256` and stance `gate_sha256` moved; the checkpoints still load on the unchanged plant.* *Stranded by physics r9 (2026-10-11, D-D29): the plant contract now refuses its checkpoints too.* |
+| tyrannosaurus_rex | `trex_stance_r10_ltsb_s44` | 44 | r15, physics r10 (commit `820dbda`, clean) | **PASS** — `01_stance` under `stance_quality_heading/v1`, the committed stance with `CRITIC_PHASE = True` (`hyperparameters_sha256 c64211e8…`, mirror-KL), 12,001,280 steps, 23h06m55s on a Colab L4 (launched 2026-11-07 03:24 UTC), final eval 4484.94 ± 19.48, best 4495.51 ± 17.16 at 3.9M; certificate (seeds 3042–3081, six headings) clean on 40/40 seeds at every heading, bound 0.928, statue reward min 4470.4; judged 2026-11-08 03:04 UTC, `gate_sha256 d26c34e6…`, `task_sha256 1e5964b6…`, handoff `robust_best_model.zip` (`checkpoint_sha256 460245a6…`, the 10.85M checkpoint, `01_stance/handoff_in_training.json`); 40/40 at every heading again on the fresh seeds 7042–7081 (bound 0.928, reward 4487.1 against the statue's 4467.7); hop watch not tripped (no `hop_watch.json`; unsupported duty 0.0 at every evaluation); bundle `complete` (03:19 UTC), provenance `certified true`, `provisional true`, replication 1 | none (stance target) | Nothing for the two-seed bar: `trex_stance_r10_ltsb_s43` (next row) counts this run (replication 2 of 2). Its own bundle, published before that run was judged, stays at replication 1 (the 2026-11-08 note below). A trunk for the T-Rex sessions on the certified stance (`recover`, `walk`, `hunt`, with `CRITIC_PHASE = False`; section 3): `TRUNK_FROM = "auto"` would pick this run on the tie with the next row, the greater directory name (inferred from `select_trunk`, not run) |
+| tyrannosaurus_rex | `trex_stance_r10_ltsb_s43` | 43 | r15, physics r10 (commit `820dbda`, clean) | **PASS** — `01_stance` under `stance_quality_heading/v1`, the same recipe, 12,001,280 steps, 23h28m58s on a Colab L4 (launched 2026-11-07 03:23 UTC), final eval 4464.98 ± 45.45, best 4493.05 ± 22.85 at 7.95M; the session stopped after the final save and evaluations (2026-11-08 02:56–02:59 UTC), before the certificate, most likely at Colab's ~24 h cap (inferred: nothing was written after 02:59:34 UTC), and the run was resumed in place at 03:47:57 UTC with `RESUME_STAGE = "stance"`, which trained nothing ("Nothing to resume") and judged the stage; certificate clean on 40/40 seeds at every heading, bound 0.928, statue reward min 4470.4; judged 2026-11-08 04:21 UTC, `gate_sha256 d26c34e6…`, `task_sha256 1e5964b6…`, handoff `robust_best_model.zip` (`checkpoint_sha256 a86e968f…`, the 11.35M checkpoint); 40/40 at every heading again on the fresh seeds 7042–7081 (bound 0.928, reward 4480.7 against 4467.7); hop watch not tripped; bundle `complete` (04:36 UTC): stance deliverable `certified true, provisional false, replication count 2` (`trex_stance_r10_ltsb_s43` seed 43, `trex_stance_r10_ltsb_s44` seed 44) | none (stance target) | Nothing: the two-seed bar is met (the 2026-11-08 note below). A trunk for the same sessions; `TRUNK_FROM = "trex_stance_r10_ltsb_s43"` pins it |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Nothing: widened to r2 and re-paneled as `20260921_203149` (session 2, 2026-09-21); stays on the log tree as history *Stranded by physics r2 (2026-10-07, D-D26): the plant contract refuses this run's checkpoints, so no node of it is reused; history either way.* |
 | compsognathus | `20260921_203149` | 42 | r2 (obs 56, commit `25132fc`), widened from `20260909_162812` (r1, gap 1) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-21 20:38 UTC by `generate_stage_artifacts` on the widened handoff (`checkpoint_sha256 1d46747f…`, inherited `num_timesteps` 10,850,000, no training here): panel reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081, identical to the r1 report; `gate_sha256 62930e3f…`, `task_sha256 19837f77…`; gait audit 2026-09-28: marches in place, not a still stance | **PASS** — `03_locomotion`, 3,002,368 steps, 3h49m, 0.34 m/s, mean length 1000, final eval 3308.6 ± 13.0, best eval 3337.16 ± 8.11 at 2.6M, verdict 2026-09-22 00:31 UTC, `gate_sha256 33e185d3…`, `task_sha256 63195040…`; gait audit 2026-09-28: a genuine alternating walk | Nothing: bundle `complete` (2026-09-22 00:31 UTC); the stance deliverable records `widened_from_run_id 20260909_162812` and a null `best_eval_reward` (the rule of #546); this is the certified compsognathus walker `TRUNK_FROM = "auto"` selects *Stranded by physics r2 (2026-10-07, D-D26): the plant contract refuses this run's checkpoints and `TRUNK_FROM = "auto"` no longer selects it; the stance-hack audit found its stance a one-toe march (§3.3), the r2 stance gate refuses it on 0/20 rolled on the r1 plant (§11), and the gait plan's GQ-11 re-panel of its walk can only run in a checkout of an earlier commit. The next compsognathus session is a fresh stance on r2, on the policy-interface revision of the heading-free-observation PR (the status note below).* |
 | velociraptor | `20260723_005740` (July) | 42 | r3 (obs 67); physics r2 = current | stage1 balance 6M, 3h41m, final eval 1767, 1000-step episodes; run-level `publication_gate_passed` only, no per-node verdict; sidecar predates identity stamping | stage2 8M, 4h50m, 3.29 m/s; stage3 strike 12M | **Not a widen candidate**: seven revisions behind r10 and the crossed revisions include the reset-settling change (`plant_versions.toml` note 6). Fresh chain ran as `20260922_125248` (session 3, 2026-09-22) *Stranded by physics r3 (2026-10-06, D-D25): the plant contract refuses this run's checkpoints, so no node of it is reused; history either way.* |
@@ -340,7 +349,32 @@ T-Rex stance has trained" no longer holds: the r10 screen runs (`stance6_r10LTSB
 `stance7_r10LTSBoff_*` and `stance7_r10LTSBpc_*`) trained on r10 and passed on branch commits,
 and they never count (the stance-landing decision of 2026-11-06); the recipe of the phase-critic
 three is the committed stance since that decision, and the two-seed count on `main` starts from
-none.* Nothing relies on a `mesozoic-labs/certified` library
+none.* *2026-11-08: on `main` the count is two. `trex_stance_r10_ltsb_s44`
+(seed 44) and `trex_stance_r10_ltsb_s43` (seed 43) both certified the
+committed stance (the rows above), and `trex_stance_r10_ltsb_s43`'s
+`complete` bundle (2026-11-08 04:36 UTC) records the stance deliverable as
+`certified true, provisional false, replication count 2`, so the
+`certification_seeds = 2` bar is met as of 2026-11-08. The count is written
+at publication from the siblings' verdicts then on Drive, and
+`trex_stance_r10_ltsb_s44` published first (03:19 UTC, before the other run
+was judged at 04:21 UTC), so its own bundle still reads replication 1,
+`provisional true`, as the seed-42 run's does; the maintainer chose on
+2026-11-08 to leave it so, and nothing on Drive changed. Reuse reads the
+per-node files and trunk selection counts the replicating seeds itself, so no
+reuse depends on that label. The catalog reads each bundle alone: promoted
+into `results/`, `trex_stance_r10_ltsb_s44`'s own bundle would show
+`1 run of 2 seeds; provisional` and `trex_stance_r10_ltsb_s43`'s
+`2 runs of 2 seeds` (inferred from `environments/shared/species_catalog.py`,
+not run). The bundle writer regenerates a `complete` bundle's derived
+artifacts when its replication record is the only change
+([RESULT_BUNDLES.md](RESULT_BUNDLES.md)), so `trex_stance_r10_ltsb_s44`'s
+could be regenerated at replication 2 (inferred from
+`environments/shared/reporting/bundles.py`, not run). No committed notebook
+cell re-publishes a finished run, though (a session that reuses every node
+writes no bundle), so that would take a hand-typed `save_run_bundle(...)`
+call. The seed-42 run's bundle stays as recorded above: `03_locomotion/`
+appeared in it after its publication, so the writer refuses to rewrite it
+(section 3).* Nothing relies on a `mesozoic-labs/certified` library
 directory.
 
 ---
@@ -771,6 +805,36 @@ sessions on the certified stance (`recover`, `walk`, `hunt`) leave
 chain node, and recovery's phase (settle step 140) against the stance's
 (200) is a refused load. The decision's record is §30 of the stance
 record.*
+
+*Status 2026-11-08: the certification is done, and the committed T-Rex
+stance is certified on `main` on two seeds. Both sessions were launched on
+2026-11-07 at 03:23 and 03:24 UTC on `820dbda` (clean) on Colab L4s with the
+settings above, and both passed: `trex_stance_r10_ltsb_s44` (judged
+2026-11-08 03:04 UTC) and `trex_stance_r10_ltsb_s43` (judged 04:21 UTC),
+each clean on 40/40 seeds at every heading of its certificate (bound 0.928).
+The second's first session ended after its final save, before its
+certificate, most likely at Colab's ~24 h cap, and was resumed in place with
+`RESUME_STAGE = "stance"`, which trained nothing and judged the stage. Its
+bundle (04:36 UTC) counts both runs (replication 2, not provisional); the
+first's (03:19 UTC) reads replication 1, as section 2 explains. The
+2026-11-06 note's "re-running the first run's publication cell counts the
+second in its own record" does not hold: the notebook has no such cell, so
+the first run's own record keeps the count it was published with (section
+2's note of 2026-11-08). Neither hop
+watch tripped (unsupported duty 0.0 at every evaluation); the handoffs are
+the robust-best checkpoints at 10,850,000 and 11,350,000 of 12,001,280 steps
+(`01_stance/handoff_in_training.json`), not shallow early ones; and the
+fresh-seed audit of each handoff pair (seeds 7042–7081, on CPU at
+`820dbda`, each run twice with byte-identical reports) passes 40/40 seeds at
+every heading, bound 0.928 (rewards 4487.1 and 4480.7 against the statue's
+4467.7). The sessions on the certified stance (`recover`, `walk`, `hunt`)
+leave `CRITIC_PHASE = False` (above). Which comes first, and which run is
+its trunk, are the maintainer's: both runs cover the stance, so
+`TRUNK_FROM = "auto"` would pick `trex_stance_r10_ltsb_s44`, the greater
+directory name on the tie (inferred from `select_trunk`, not run), so the
+next session pins `TRUNK_FROM` to the run the maintainer chooses. This
+records change keeps the stance-landing decision's date citation; its number
+is still to be assigned. The record is §31 of the stance record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
