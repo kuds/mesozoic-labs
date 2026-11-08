@@ -53,6 +53,9 @@ MAT_LEVERS = (("cf", (("structure_material", "cf_plate"),), "carbon-fibre frame 
               # the research's recommended coverings: MJF PA11 (ductile) with graded 1.4 / 1.2 / 1.0 mm walls, about
               # x0.75 of the 1.6-1.8 mm walls on average
               ("pa11", (("cover_material", "PA11_MJF"), ("cover_wall_scale", 0.75)), "PA11 coverings, walls x0.75"),
+              ("cfqi4", (("structure_material", "cf_qi_eqrig"),),
+               "carbon-fibre frame plates at equal rigidity (3.99 mm quasi-isotropic)"),
+              ("thinal", (("structure_material", "al6061_t254"),), "6061 frame plates at 2.54 mm (brackets 3 mm)"),
               ("best", (("structure_material", "cf_qi"), ("cover_material", "PA11_MJF"), ("cover_wall_scale", 0.75)),
                "carbon plates (3 mm, sourced) + PA11 coverings, walls x0.75"))
 CASES = {

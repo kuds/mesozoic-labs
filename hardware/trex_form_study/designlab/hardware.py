@@ -112,6 +112,11 @@ STRUCT_MATERIALS = {
     # = 384 x 0.55 open hole x 0.45 fatigue and impact (estimate); bonded inserts and doublers make the fittings
     # factor 1.50 instead of 1.35.  ``cf_plate`` (2 mm floor) stays as the optimistic sensitivity.
     "cf_qi": dict(density=1520.0, E=45.9e9, allow=95e6, min_t=0.003, cost_factor=2.0, fittings=1.50),
+    # the same plate at equal out-of-plane rigidity with 3 mm 6061 (3.43 mm needed; 3.99 mm is the next stocked gauge)
+    "cf_qi_eqrig": dict(density=1520.0, E=45.9e9, allow=95e6, min_t=0.00399, cost_factor=2.0, fittings=1.50),
+    # thinner 6061-T6 for the non-bracket plates (0.100 in = 2.54 mm, a stocked laser-cut gauge): 0.61x the
+    # out-of-plane rigidity of 3 mm, close to 3 mm quasi-isotropic carbon's 0.67x
+    "al6061_t254": dict(density=AL_DENSITY, E=AL_E, allow=AL_ALLOW, min_t=0.00254, cost_factor=1.0),
 }
 
 

@@ -869,8 +869,8 @@ RECOMMENDED = (
      "the widest joint-range margin, 0.20 rad), and with its ankle drives lowered it reaches the carpet swing target "
      "within its drives and knee range."),
     ("75-M-T-10 [refine/targeted_75]", "The 75 cm body after the targeted drive upgrade: every gate passes, it "
-     "carries the carpet swing at 0.18 H, and it needs the least grip of the leaders. The faster-knee variant ties "
-     "with it on the scorecard; question 3."),
+     "carries the carpet swing at 0.18 H, it needs the least grip of the leaders and it is the only one that stands "
+     "on medium pile with its servos simply held. The faster-knee variant ties with it on the scorecard; question 3."),
     ("60-M-H-10 [refine/carpet_60]", "The family comparison at 60 cm, where the drive margins do not hide the "
      "difference between the bodies; the cross-check's choice for the third slot."),
 )
@@ -1015,7 +1015,7 @@ def materials(x: Ctx) -> str:
     from .refine import MAT_LEVERS
 
     labels = {f"mat{h}_{k}": lab for h in (60, 75) for k, _, lab in MAT_LEVERS}
-    order = ("cfqi", "cf", "thin", "pa11", "lightqi", "best", "tether")
+    order = ("cfqi", "cfqi4", "cf", "thinal", "thin", "pa11", "lightqi", "best", "tether")
     rows = []
     for h, cid in ((60, "60-M-T-10"), (75, "75-M-T-10")):
         for k in order:
@@ -1032,6 +1032,9 @@ def materials(x: Ctx) -> str:
                          f"{K.esc(GROUP_LABEL.get(lw[0], lw[0]))} {lw[2]:.2f}" + (" " + K.tag("over", "bad") if lw[2] > 1 else ""),
                          f"{r['ratios']['neck']['cont']:.2f}", f"{r['ratios']['tail']['peak']:.2f}",
                          f"{1e3 * r['com_ahead_of_hip_m']:.0f} mm"])
+    th = [x.fx_row(f"mat{h}_thinal", c) for h, c in ((60, "60-M-T-10"), (75, "75-M-T-10"))]
+    th = [r for r in th if r]
+    thin = (_rng([r["reference_mass_kg"] - r["mass_kg"] for r in th], lambda v: f"{v:.2f}") + " kg") if th else "part of it"
     tbl = K.table(["Size", "Lever", "Mass change", "Walking power", "Runtime", "Cost change (nominal)",
                    "Governing leg drive", "Neck servo", "Tail servo peak", "CoM ahead of hip"], rows, num={2, 3, 4, 5, 7, 8, 9},
                   caption="Each lever on the carpet-ready 60 cm body (10.83 kg, 71 W, 46.5 min, $14.8k; knee speed 0.95, "
@@ -1064,14 +1067,18 @@ def materials(x: Ctx) -> str:
     torques, power and the head and tail loads: torque headroom and runtime, not speed headroom.</p>
     <ul>
       <li><b>Carbon-fibre frame plates: not for prototype 1.</b> With the sourced 3 mm quasi-isotropic plate they
-      save about 0.4 kg for $1.6–2.1k; carbon cannot hold bearing fits or threads and hides fall damage.</li>
+      save about 0.4 kg for $1.6–2.1k, but that plate has only two-thirds of today's aluminium's rigidity; at equal
+      rigidity the saving roughly halves, and thinner aluminium plate (2.54 mm) gets {thin} for nothing. Carbon
+      cannot hold bearing fits or threads and hides fall damage.</li>
       <li><b>Coverings: the best value.</b> Walls about a quarter thinner in MJF PA11 (ductile, dents instead of
       cracking) save 0.3–0.5 kg at about today's cost, mostly off the neck and tail.</li>
       <li><b>Foot pads:</b> a cast polyether polyurethane tread (50–60 Shore A, small round studs) is expected to grip
-      at 0.70–0.85 on carpet and 0.8–1.0 on wood and tile; laminate and vinyl can be 0.42–0.50. Measure on your floors.</li>
+      at 0.70–0.85 on carpet and 0.8–1.0 on wood and tile, but vinyl and laminate can be 0.42–0.50. Counting the
+      stance foot's spin, the 60 cm robot needs about 0.55 just to walk and the 75 cm robot about 0.40, so the 60 cm
+      robot may not walk on vinyl or laminate at all. Measure the pad on your floors.</li>
       <li><b>Tether-only: no.</b> The pack is also the counterweight at the tail base; without it the centre of mass
       moves forward and the knee goes past its speed limit with the same drives. Keep the battery and add an external
-      DC input for bench work, as your power requirement already asks.</li>
+      DC input, as your power requirement already asks, with the cable hung from a boom (never trailed).</li>
       <li><b>3–4 ft robot: battery, yes.</b> About an hour of walking for 2–4 % of the robot's mass.</li>
     </ul>
   </div>
