@@ -927,10 +927,17 @@ def refinement(x: Ctx) -> str:
     for name, data in x.LIFT.items():
         _LIFT_CACHE[name] = data
     lifts = []
-    for name in ("carpet_lift_carpet_60", "carpet_lift_targeted_75", "carpet_lift_targeted_75_0.175_0.180"):
+    for name in ("carpet_lift_carpet_60", "carpet_lift_carpet_60_0.195", "carpet_lift_targeted_75",
+                 "carpet_lift_targeted_75_0.175_0.180"):
         lifts += _lift_rows(name)
     ltbl = K.table(["Body", "Swing lift", "Carpet target", "Lowest point above a pile top", "Target", "Drives (nominal and brisk walks lifted)",
                     "Walking clearance gates", "Tightest joint margin"], lifts, num={2, 3}) if lifts else ""
+    rp = x.r2 / "refine" / "plates"
+    side = x.img("refined_side.png", "Round two against the refined bodies, side view", "Round two and the refined bodies",
+                 "Left: the round-two body. Right: the refined body (60 cm: ankle drives lowered to 0.60 of the shank; "
+                 "75 cm: the targeted drive upgrade).", src_dir=rp) if (rp / "refined_side.png").exists() else ""
+    cut = x.img("refined_cutaway.png", "Round two against the refined bodies, cutaway", "Installed hardware, round two and refined",
+                "The same bodies with the covers cut away.", src_dir=rp) if (rp / "refined_cutaway.png").exists() else ""
     return f"""
 <section id="refine">
   <p class="kicker">Overnight · Refinement</p><h2>One lever at a time on the leading bodies</h2>
@@ -950,6 +957,8 @@ def refinement(x: Ctx) -> str:
     </ul>
   </div>
   {tbl}
+  {side}
+  {cut}
   <h3>Carpet swing height</h3>
   <div class="prose"><p>The carpet target is 0.06 H above the pile top (at least 15 mm). For each lift, both reference
   walks are regenerated with that lift and checked against the selected drives and the walking clearance gates.</p></div>

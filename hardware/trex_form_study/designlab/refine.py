@@ -319,6 +319,29 @@ def fixed_markdown(rows: list) -> str:
 
 
 # ------------------------------------------------------------------------------------------------
+# Plates: round two against the refined bodies
+# ------------------------------------------------------------------------------------------------
+PLATE_PAIRS = (("60-M-T-10", "carpet_60"), ("60-M-H-10", "carpet_60"), ("75-M-T-10", "targeted_75"))
+
+
+def plates_refined(out: Path, r2: Path = Path("round2")) -> list:
+    """Side exterior and side cutaway grids: each row one body, round two on the left, the refined body on the
+    right, at one physical scale (``plates.matrix``)."""
+    from . import plates
+
+    grid = [[str(r2 / "models" / f"{cid}.xml"), str(out / case / "models" / f"{cid}.xml")] for cid, case in PLATE_PAIRS]
+    labels = [f"{cid} ({case})" for cid, case in PLATE_PAIRS]
+    P = out / "plates"
+    P.mkdir(parents=True, exist_ok=True)
+    made = [plates.matrix(grid, labels, ["Round two", "Refined overnight"], str(P / "refined_side.png"), view="side",
+                          mode="exterior", title="Round two against the refined bodies"),
+            plates.matrix(grid, labels, ["Round two", "Refined overnight"], str(P / "refined_cutaway.png"),
+                          view="side", mode="cutaway",
+                          title="Installed hardware: 60 cm ankle drives lowered to 0.60 of the shank; 75 cm drive upgrade")]
+    return made
+
+
+# ------------------------------------------------------------------------------------------------
 # Comparison
 # ------------------------------------------------------------------------------------------------
 def compare(out: Path, r2: Path = Path("round2")) -> dict:
@@ -388,6 +411,7 @@ def main():
     ap.add_argument("--lifts", nargs="*", type=float, default=None, help="swing lifts (fraction of H) for that pass")
     ap.add_argument("--fixed", action="store_true", help="same-drive pass over the material and power cases")
     ap.add_argument("--fixed-cases", nargs="*", default=None, help="limit the same-drive pass to these cases (merged)")
+    ap.add_argument("--plates", action="store_true", help="draw round two against the refined bodies")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--resume", action="store_true", help="skip bodies already sized or screened")
     a = ap.parse_args()
@@ -451,6 +475,9 @@ def main():
                     fixed = sorted(keep + fixed, key=lambda r: (order.get(r["case"], 999), r["id"]))
                 fp.write_text(json.dumps(fixed, indent=1, default=str))
                 print("same-drive pass done", flush=True)
+    if a.plates:
+        for m in plates_refined(out):
+            print("plate", m, flush=True)
     cmp = compare(out)
     (out / "refine.json").write_text(json.dumps(cmp, indent=1, default=str))
     (out / "REFINE.md").write_text(markdown(cmp))
