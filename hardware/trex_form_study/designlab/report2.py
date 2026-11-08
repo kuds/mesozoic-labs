@@ -212,14 +212,39 @@ def t_flags(D: dict) -> str:
     return table(["Candidate", "Flags"], rows)
 
 
+CASE_LABEL = {"walk_0.35": "walking turn 0.35 rad/s", "in_place_0.50": "turn in place 0.5 rad/s",
+              "walk_0.50": "walking turn 0.5 rad/s (stretch)"}
+PILES = ("low", "medium", "high")
+
+
+def _yn(v) -> str:
+    return "–" if v is None else ("yes" if v else "**no**")
+
+
 def t_turning(R: dict) -> str:
     rows = []
     for cid in candidate_ids():
         tu = (R.get(cid) or {}).get("turning")
         if not tu:
             continue
-        rows.append([f"`{cid}`", json.dumps(tu)[:400]])
-    return table(["Candidate", "Turning summary"], rows) if rows else "_Not run._"
+        w = tu.get("worst_targets") or {}
+        gaps = tu.get("min_gap_mm") or {}
+        spd = tu.get("hip_yaw_speed_required") or {}
+        lim = tu.get("hip_yaw_speed_limit")
+        rows.append([f"`{cid}`", _yn(tu.get("targets_pass")),
+                     (f"{GROUP_LABEL.get(w.get('group'), w.get('group'))} {w.get('metric')}, "
+                      f"{CASE_LABEL.get(w.get('case'), w.get('case'))} ({tu['worst_ratio_targets']:.2f})")
+                     if tu.get("worst_ratio_targets") is not None else "–",
+                     (f"{spd.get('in_place_0.50', 0):.2f} of {lim:.2f} rad/s" if lim else "–"),
+                     _f(tu.get("hip_yaw_range_used_max"), 2), _f(tu.get("mu_needed_max"), 2),
+                     " / ".join(_f(gaps.get(c), 1) for c in CASE_LABEL) + " mm" if gaps else "–",
+                     _yn(tu.get("stretch_pass"))])
+    if not rows:
+        return "_Not run._"
+    return table(["Candidate", "Target turns pass", "Governing drive ratio, target turns",
+                  "Thigh-twist speed, turn in place (needed with margin, of usable)", "Thigh-twist range used",
+                  "Friction needed (single support)", "Closest approach: walk 0.35 / in place 0.5 / walk 0.5",
+                  "Stretch case passes"], rows)
 
 
 def t_carpet(R: dict) -> str:
@@ -228,8 +253,64 @@ def t_carpet(R: dict) -> str:
         ca = (R.get(cid) or {}).get("carpet")
         if not ca:
             continue
-        rows.append([f"`{cid}`", json.dumps(ca)[:400]])
-    return table(["Candidate", "Carpet summary"], rows) if rows else "_Not run._"
+        sw = ca.get("swing") or {}
+        g = sw.get("brisk") or sw.get("nominal") or {}
+        above = g.get("above_pile_top_mm") or {}
+        lift = g.get("lift_frac_needed") or {}
+        fr = ca.get("friction") or {}
+        need = max((f.get("required_governing") or 0.0) for f in fr.values()) if fr else None
+        st = ca.get("standing") or {}
+        up = " / ".join(("yes" if (st.get(k) or {}).get("upright") else "no") for k in PILES if k in st) or "–"
+        tip = ((ca.get("passive_tip") or {}).get("whole_foot") or {}).get("critical_compression_98kPa_mm")
+        rows.append([f"`{cid}`", _yn(ca.get("pass")), " / ".join(_f(above.get(k), 1) for k in PILES) + " mm",
+                     _f(ca.get("carpet_target_mm"), 1, " mm"), _f(lift.get("high"), 2, " H"), _f(need, 2),
+                     _f(ca.get("friction_margin"), 2), up, _f(tip, 1, " mm")])
+    if not rows:
+        return "_Not run._"
+    return table(["Candidate", "Gate", "Brisk mid-swing clearance above pile top, low / medium / high",
+                  "Carpet swing target (not gated)", "Lift for the target on high pile", "Friction needed (governing)",
+                  "Margin to 0.54", "Servo-held upright on low / medium / high pile",
+                  "Softest pile that holds (rigid, compression at 98 kPa)"], rows)
+
+
+def t_envelope(R: dict) -> str:
+    rows = []
+    for cid in candidate_ids():
+        ev = (R.get(cid) or {}).get("envelope")
+        if not ev:
+            continue
+        fw = ev.get("fast_walk_worst") or [None, None]
+        ok = ev.get("fast_walk_drives_ok")
+        fws = ("inconclusive (prescribed CoP off the pad)" if ok is None else
+               f"{'yes' if ok else '**no**'}: {GROUP_LABEL.get(fw[0], fw[0])} {fw[1]:.2f}") if fw[0] else "–"
+        sh = ev.get("session_worst") or [None, None]
+        rows.append([f"`{cid}`", _f(ev.get("fast_walk_speed_ms"), 2, " m/s"), fws,
+                     _f(ev.get("stop_max_one_foot_decel_ms2"), 2, " m/s²"), _f(ev.get("push_max_dv_ms"), 2, " m/s"),
+                     _f(ev.get("push_max_step_over_H"), 2, " H"),
+                     f"{GROUP_LABEL.get(sh[0], sh[0])} {sh[1]:.2f}" if sh[0] else "–"])
+    if not rows:
+        return "_Not run._"
+    return table(["Candidate", "Animal-like walk (Froude 0.05)", "Drives within limits: governing ratio",
+                  "Largest one-foot stop (target 1.5)", "Largest one-step push (CoM speed change)",
+                  "Longest capture step", "Hottest drive over a session (RMS / sustained)"], rows)
+
+
+def t_packaging(D: dict) -> str:
+    rows = []
+    for cid in candidate_ids():
+        d = D.get(cid)
+        if not d or not d.get("ok"):
+            continue
+        srch = d.get("packaging_search") or []
+        ov = dict(d.get("overrides") or [])
+        steps = []
+        for st in srch:
+            failed = [k.replace("interference_free_", "").replace("_", " ") for k, v in (st.get("gates") or {}).items()
+                      if v is not True]
+            steps.append(("pass" if st.get("walk_gates_pass") else f"fail ({', '.join(failed)}; cause {st.get('cause')})"))
+        rows.append([f"`{cid}`", ", ".join(f"{k} {v}" for k, v in ov.items()) or "none", str(len(srch)),
+                     "; ".join(steps) or "–"])
+    return table(["Candidate", "Packaging overrides", "Builds screened", "Walking gates per build"], rows)
 
 
 def build(r2: Path, r1: Path) -> tuple[str, dict]:
@@ -238,7 +319,9 @@ def build(r2: Path, r1: Path) -> tuple[str, dict]:
     passed = [c for c in candidate_ids() if ((R.get(c) or {}).get("clearance") or {}).get("pass", {}).get("all")]
     md = ["# Round-two tables", "",
           "Generated by `python -m designlab.report2` from `round2/candidates/*.json` and the screens in "
-          "`round2/review/`. Every number is a model estimate; none is measured.", "",
+          "`round2/review/`. Every number is a model estimate; none is measured. The reference walks run at round "
+          "two's accuracy (exact stride-boundary unwrap, 1e-6 m centre-of-mass tolerance; DECISION_LOG F14), so "
+          "loads are not directly comparable with round one's tables (F14 gives the effect).", "",
           f"Round two: {len(D)} candidates, {len(ok)} built and sized; {len(passed)} of {len(R)} screened pass every "
           "round-two clearance gate.", "",
           "## 1. Candidates (Raspberry Pi 5 + AI HAT+ compute; 10° chest-up except the level variants)", "",
@@ -249,11 +332,13 @@ def build(r2: Path, r1: Path) -> tuple[str, dict]:
           "## 5. Variants against their base", "", t_variants(D), "",
           "## 6. Clearance (round-two gates)", "", t_clearance(R), "",
           "## 7. Sensor coverage", "", t_sensors(R, D), "",
-          "## 8. Turning loads", "", t_turning(R), "",
-          "## 9. Carpet", "", t_carpet(R), "",
-          "## 10. Mass by volume class (ledger rows), base bodies", "", t_mass_classes(D), "",
-          "## 11. Cost lines, nominal, base bodies", "", t_cost_lines(D), "",
-          "## 12. Flags", "", t_flags(D), ""]
+          "## 8. Turning (prescribed turns, against the selected drives)", "", t_turning(R), "",
+          "## 9. Carpet (pile model, toe catch, friction, servo-held standing)", "", t_carpet(R), "",
+          "## 10. Behavior envelope (Stage 0 necessary conditions)", "", t_envelope(R), "",
+          "## 11. Packaging search", "", t_packaging(D), "",
+          "## 12. Mass by volume class (ledger rows), base bodies", "", t_mass_classes(D), "",
+          "## 13. Cost lines, nominal, base bodies", "", t_cost_lines(D), "",
+          "## 14. Flags", "", t_flags(D), ""]
     data = dict(candidates={c: D[c] for c in D}, review=R, round1_bases=D1)
     return "\n".join(md), data
 

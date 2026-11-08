@@ -59,6 +59,11 @@ ANKLE_MAX = 0.50
 SEARCH_MAX_STEPS = 10
 WALK_GATES = ("interference_free_home", "interference_free_nominal_gait", "interference_free_brisk_gait",
               "component_overlap_free", "joint_range_margin")
+#: Widths whose packaging search also requires the target turns (0.35 rad/s walking, 0.5 rad/s in place) to be
+#: free of self-interference: the narrow stance is the narrowest that walks *and* turns with this hip hardware.
+#: (The first final run searched straight walks only; three of the four narrow stances then touched in the
+#: target turns: pelvis plate or cover against the upper thigh, and toe against toe turning in place.)
+TURN_SEARCH_WIDTHS = ("N",)
 
 
 def candidate(cid: str, extra: tuple = ()) -> Candidate:
@@ -120,7 +125,13 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
         extra = {}
         for _ in range(SEARCH_MAX_STEPS):
             ok, gates, cause = _walk_gates(cand, dict(res["selection"]), res["design"].B, Path(xml_dir))
-            search.append(dict(overrides=dict(extra), walk_gates_pass=ok, gates=gates, cause=cause))
+            entry = dict(overrides=dict(extra), walk_gates_pass=ok, gates=gates, cause=cause)
+            if ok and cand.width in TURN_SEARCH_WIDTHS:
+                tok, gaps, tcause = _turn_gates(cand, dict(res["selection"]), res["design"].B, Path(xml_dir))
+                entry.update(turn_gates_pass=tok, turn_min_gap_mm=gaps, turn_cause=tcause)
+                if not tok:
+                    ok, cause = False, tcause
+            search.append(entry)
             if ok or cause is None:
                 break
             if cause == "hip_spacing" and extra.get("hip_spacing_add_m", 0.0) < NARROW_MAX_ADD_M - 1e-9:
@@ -175,6 +186,32 @@ def _walk_gates(cand, sel: dict, B: float, xml_dir: Path) -> tuple[bool, dict]:
     ps = sm["pass"]
     ok = all(ps.get(k) is True for k in WALK_GATES)
     return ok, {k: ps.get(k) for k in WALK_GATES}, None if ok else _cause(sm)
+
+
+def _turn_gates(cand, sel: dict, B: float, xml_dir: Path) -> tuple[bool, dict, str | None]:
+    """Self-interference in the target turns of one sized build (left and right, ``turning.clearance_screen``)."""
+    from . import sizing, turning
+    from .pipeline import build_candidate
+
+    d = xml_dir / "narrow_search"
+    res = build_candidate(cand, d, selection=sel, B=B, write=False)
+    M, q0, H = res["model"], res["q_home"], res["design"].sk.H
+    cases = {k: v for k, v in turning.CASES.items() if v["role"] == "target"}
+    trajs = {"straight": turning.generate(M, q0, H, sizing.NOMINAL)}
+    for c, v in cases.items():
+        for sgn, lab in ((1.0, "left"), (-1.0, "right")):
+            trajs[f"{c}_{lab}"] = turning.generate(M, q0, H, sizing.NOMINAL, yaw_rate=sgn * v["yaw_rate"],
+                                                   in_place=v["in_place"])
+    cl = turning.clearance_screen(str(d / f"{cand.id}.xml"), M, q0, H, trajs, cases)
+    ok = all(cl["cases"][c]["interference_free"] for c in cases)
+    gaps = {c: cl["cases"][c]["min_gap_mm"] for c in cases}
+    if ok:
+        return True, gaps, None
+    names = " ".join(" ".join((cl["cases"][c].get("deepest") or {}).get("geoms", [])) for c in cases
+                     if not cl["cases"][c]["interference_free"])
+    # pelvis plate or cover against the thigh, or the feet against each other: the legs move out
+    cause = "hip_spacing" if any(k in names for k in ("pelvis_plate", "pelvis_lateral", "_toe_")) else None
+    return False, gaps, cause
 
 
 def _cause(sm: dict) -> str | None:
@@ -376,6 +413,7 @@ def main():
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--skip-sizing", action="store_true")
     ap.add_argument("--plates-only", action="store_true")
+    ap.add_argument("--no-plates", action="store_true", help="size and screen only")
     ap.add_argument("--r1-models", default=None, help="directory for rebuilt round-one comparison models")
     a = ap.parse_args()
     import designlab  # noqa: F401
@@ -400,6 +438,8 @@ def main():
         for r in results:
             print("screened", r["id"], "sha ok" if r.get("matches_sized") else "SHA DIFFERS", {k: v for k, v in r.items()
                   if k.endswith("_error") or k == "error"}, flush=True)
+    if a.no_plates:
+        return
     r1 = rebuild_round1(["60-M-T-10", "60-M-H-10"], Path(a.r1_models)) if a.r1_models else None
     made = make_plates(out, r1)
     (out / "review" / "plates" / "plates_index.json").write_text(json.dumps(made, indent=1))

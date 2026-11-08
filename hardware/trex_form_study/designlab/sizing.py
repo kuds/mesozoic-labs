@@ -41,6 +41,10 @@ SPEED_MARGIN = 1.15
 
 NOMINAL = gait.GaitSpec(froude=0.012, stride_rel=0.55, duty=0.60)
 BRISK = gait.GaitSpec(froude=0.025, stride_rel=0.62, duty=0.58, lift_frac=0.11)
+#: Extra prescribed walks whose peaks and speeds join the requirements, as the brisk walk's do (name -> GaitSpec).
+#: Empty in rounds one and two.  Round two's what-if "sized for the animal-like walk" sets {"fr05": envelope.FAST}
+#: (``python -m designlab.round2 --whatif fr05``).
+EXTRA_WALKS: dict = {}
 
 
 def _motor_space(names, tau, omega, layout: str):
@@ -78,13 +82,14 @@ def requirements(M: statics.Model, q_home: np.ndarray, H: float, layout: str) ->
         else:  # no reachable, balanced single-support pose: a finding, not a load case
             holds[s] = dict(best=False, tau=np.zeros(len(names)), margin=float("nan"), roll_deg=None, ik_ok=False)
     runs = {}
-    for name, spec in (("nominal", NOMINAL), ("brisk", BRISK)):
+    for name, spec in (("nominal", NOMINAL), ("brisk", BRISK)) + tuple(EXTRA_WALKS.items()):
         tr = gait.generate(M, q_home, H, spec)
         idr = gait.inverse_dynamics(M, tr)
         runs[name] = dict(traj=tr, idr=idr, summary=gait.summarize(M, tr, idr))
     zeros = np.zeros((1, len(names)))
     ms_nom = _motor_space(names, runs["nominal"]["idr"]["tau"], runs["nominal"]["idr"]["omega"], layout)
     ms_brk = _motor_space(names, runs["brisk"]["idr"]["tau"], runs["brisk"]["idr"]["omega"], layout)
+    ms_ext = [_motor_space(names, runs[k]["idr"]["tau"], runs[k]["idr"]["omega"], layout) for k in EXTRA_WALKS]
     ms_ds = _motor_space(names, tau_ds[None, :], zeros, layout)
     hold_tau = np.vstack([holds[s]["tau"] for s in statics.SIDES])
     ms_hold = _motor_space(names, hold_tau, np.zeros_like(hold_tau), layout)
@@ -95,8 +100,8 @@ def requirements(M: statics.Model, q_home: np.ndarray, H: float, layout: str) ->
         rms = float(np.sqrt(np.mean(t_nom**2)))
         hold = float(np.max(np.abs(ms_hold[g][0])))
         ds = float(np.max(np.abs(ms_ds[g][0])))
-        peak = float(max(np.max(np.abs(t_brk)), np.max(np.abs(t_nom)), hold))
-        speed = float(max(np.max(np.abs(w_brk)), np.max(np.abs(w_nom))))
+        peak = float(max(np.max(np.abs(t_brk)), np.max(np.abs(t_nom)), hold, *(np.max(np.abs(x[g][0])) for x in ms_ext)))
+        speed = float(max(np.max(np.abs(w_brk)), np.max(np.abs(w_nom)), *(np.max(np.abs(x[g][1])) for x in ms_ext)))
         req[g] = dict(rms=rms, hold=hold, double_support=ds, peak=peak, speed=speed,
                       cont=max(rms, hold) * CONT_MARGIN, peak_req=peak * PEAK_MARGIN, speed_req=speed * SPEED_MARGIN)
     walk_ok = runs["nominal"]["summary"]["min_cop_margin_single"] > -0.010

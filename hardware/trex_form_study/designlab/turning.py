@@ -174,7 +174,8 @@ ZERO_REQ = 1e-3
 PAD_GRID = 8
 #: Foot pose error (m + rad, as statics.leg_ik) above which a frame counts as an IK failure.
 IK_TOL = 1e-4
-#: CoM-tracking tolerance (m) and pass limit per frame.  gait.generate uses 2e-4 m and 4 passes; differenced
+#: CoM-tracking tolerance (m) and pass limit per frame.  gait.generate at round one's accuracy uses 2e-4 m and 4
+#: passes (round two's, gait.set_accuracy("r2"), uses these values); differenced
 #: twice, that residual moves the multibody ZMP by centimetres, and its ZMP correction then does not converge.
 #: At 1e-6 m, together with the exact stride-boundary unwrap, it converges to about a millimetre (neither change
 #: is enough alone; validation block of the output).

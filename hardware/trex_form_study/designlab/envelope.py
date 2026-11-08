@@ -243,6 +243,7 @@ def main():
     ap.add_argument("ids", nargs="+")
     a = ap.parse_args()
     out = Path(a.round2)
+    gait.set_accuracy(round2.GAIT_ACCURACY)  # the round-two runner's walk accuracy
     for cid in a.ids:
         rec = json.loads((out / "candidates" / f"{cid}.json").read_text())
         cand = round2.candidate(cid, rec.get("overrides", ()))
