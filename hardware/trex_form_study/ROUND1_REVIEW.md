@@ -5,6 +5,13 @@ Hybrid as separate bodies, 10° chest-up, larger-skull, narrow-stance and compac
 Raspberry Pi 5 with the Hailo-8L AI HAT+. Nothing here is a final design, and no controller training
 has started.
 
+**Corrected after round two** (`ROUND2_REVIEW.md` §7, decision log F14): round one's reference walks did not
+converge (the generator held the centre of mass to 0.2 mm and approximated the stride boundary), which
+overstated peak loads, mostly at the ankles, and made some walks appear to leave the support pad. The walks
+flagged as leaving the pad, including the 120 cm broad variant's below, keep their centre of pressure on the
+pad at round two's accuracy. Turning in place needs several times the thigh-twist speed that `SCREENING.md` §7
+first stated (corrected there).
+
 The illustrated version of this review is the review page, which is published separately and
 linked in the delivery message. It uses the same numbers and plates. The tables below are compiled
 by hand from the generated tables in `round1/TABLES.md` (§1–3, §6 and §11; covers are class C),
@@ -90,8 +97,9 @@ descriptive. Every plate is a render of a compiled model in `round1/review/mjcf/
 6. **Width is mostly a hip-roll and stability trade.**
    * Hip-roll hold grows with hip spacing: narrow / balanced / broad is 2.5 / 2.9 / 3.5 N·m at 60 cm and
      15.2 / 18.5 / 33.0 N·m at 120 cm.
-   * At 120 cm the broad variant costs +8.9 kg and 11 min of runtime, and its reference walk is
-     marginal (CoP −4 mm).
+   * At 120 cm the broad variant costs +8.9 kg and 11 min of runtime. Round one also reported its
+     reference walk as marginal (CoP −4 mm); that was the walk generator's error, and at round two's
+     accuracy the centre of pressure stays 60 mm inside the pad (decision log F14).
    * At 100 cm the narrow variant fails clearance: the pelvis plates meet the thighs.
    * Every width variant (narrow to broad, all sizes, families and postures) stands about 3–7 × wider
      than tyrannosaurid trackways (0.24–0.49 H vs about 0.07 H). Only the side-by-side leg layout

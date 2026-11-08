@@ -168,9 +168,16 @@ The mass change is small at every size, −74 to −99 g for C, D and E against 
    converter efficiency.
 10. **Storage under walking vibration.**
 
-## Round-one status
+## Round-one and round-two status
 
 The round-one sweep keeps the 31 W Jetson allowance for every candidate, so all round-one runtimes are
-conservative by roughly 3–14 minutes, depending on size and computer. Round two adopts the owner's
-chosen architecture and its measured or bench budget in `designlab/power.py`, and re-sizes the
-batteries.
+conservative by roughly 3–14 minutes, depending on size and computer.
+
+Round two uses the owner's choice (P14): the Raspberry Pi 5 (8 GB) with the AI HAT+ (13 TOPS Hailo-8L)
+is a catalog part (`rpi5_8gb_ai_hat_plus_13tops`, derived from this survey's records), and
+`designlab/power.py` budgets compute by the selected part. The Pi 5 set is budgeted at 8.0 W, the
+survey's typical draw with the minimum workload, plus a 1.5 W USB SSD allowance: 9.5 W against the
+Jetson's 31 W. These are survey figures, not a measurement (decision log A14). The MCU and link budget
+(4 W) and the sensors are unchanged. Bench test 1 still has to replace the 9.5 W before the battery is
+fixed, and the open items above (Hailo-8L detector rate, camera load on the Pi, Teensy firmware) still
+apply.

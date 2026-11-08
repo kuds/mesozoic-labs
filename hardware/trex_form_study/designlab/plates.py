@@ -1746,8 +1746,12 @@ def matrix(xml_grid, row_labels, col_labels, out_png, view: str = "side", mode: 
     h_cap = {"side": 520.0, "front": 640.0, "top": 300.0}[view] * (1.0 if nr <= 2 else 0.8)
     s = min((cw - 2 * pad) / wmax, h_cap / hmax)
     draw_h = int(np.ceil(hmax * s + 2 * pad))
-    cap_lines = 3 if view == "side" else 4
-    cap_h = cap_lines * (_lh(_font(F_CAP)) + 4) + 8
+    # front and top captions add a width line, split in two when it would overrun a narrow cell
+    fcap = _font(F_CAP)
+    split_w = view != "side" and any(_tw(f"Max width {_mm(g.max_width)} mm  ·  Torso width {_mm(g.torso_width)} mm", fcap)
+                                     > cw - 8 for g in gs)
+    cap_lines = 3 if view == "side" else (5 if split_w else 4)
+    cap_h = cap_lines * (_lh(fcap) + 4) + 8
     row_h = draw_h + cap_h + 26
     y0 = _header_height(title, subtitle)
     y_cols = y0
@@ -1806,7 +1810,10 @@ def matrix(xml_grid, row_labels, col_labels, out_png, view: str = "side", mode: 
         yy += _lh(fb) + 4
         lines = [f"Crown {_mm(g.crown)} mm  ·  Torso {incl:.0f}°", f"Mass {_kg(g.mass)} kg"]
         if view != "side":
-            lines.append(f"Max width {_mm(g.max_width)} mm  ·  Torso width {_mm(g.torso_width)} mm")
+            if split_w:
+                lines += [f"Max width {_mm(g.max_width)} mm", f"Torso width {_mm(g.torso_width)} mm"]
+            else:
+                lines.append(f"Max width {_mm(g.max_width)} mm  ·  Torso width {_mm(g.torso_width)} mm")
         for ln in lines:
             dr.text((cx0 + cw / 2, yy), ln, font=fc, fill=INK2, anchor="ma")
             yy += _lh(fc) + 4

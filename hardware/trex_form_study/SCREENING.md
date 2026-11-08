@@ -1,6 +1,7 @@
-# Round-one screening
+# Screening (rounds one and two)
 
-What was screened, how, what failed, and what was fixed. This is screening, not certification.
+What was screened, how, what failed, and what was fixed. Sections 1–7 are round one; section 8 adds
+round two's screens. This is screening, not certification.
 Every result comes from the compiled models and the prescribed reference walks, not from a
 controller and not from hardware. Generated tables: `round1/TABLES.md`. Raw screen outputs:
 `round1/review/screening/`.
@@ -52,7 +53,7 @@ Flags:
 | Hip-pitch load beyond the strongest single catalog drive (MyActuator X12-P20-320, 48.4 N·m sustained planning limit) | 120 cm with the Substantial or Hybrid body at narrow and balanced width (ratio 1.01–1.07), including the 120 cm reference `120-M-S-10` (1.056), `120-W-S-10` (1.03), and the 120 cm large-skull (1.11), compact (1.39), belly-battery (1.25) and serial-leg (1.03; `TABLES.md` §11 lists only its hip-roll flag) variants | The head and chest sit ahead of the hip: the narrow and balanced Substantial and Hybrid bodies (43–46 kg) hold 49–52 N·m in single support. The Tapered body fits (0.91–0.98; 44–48 N·m) | Actuation |
 | Hip-roll load beyond the catalog | `100-M-S-10-serial` (1.04), `120-M-S-10-serial` (1.31), `120-M-S-10-side` (1.47) | Hip-roll axis offset from the centreline, as in PR #662 | Actuation, leg layout |
 | No balanced single-support pose within joint limits | `60/75/100-M-S-10-side` | With the roll motors side by side, the roll axes sit off the centreline, and the trunk's own weight adds a roll moment the hip range cannot balance | Leg layout |
-| Nominal reference walk leaves the support pad (CoP more than 10 mm outside) | `60-M-H-20` (−26 mm), `75-M-S-10-belly` (−12 mm), `60-W-S-00` (−11 mm). Nine more leave the pad by less than 10 mm: `60-N-S-00` (−8.3 mm), `60-M-H-00` (−7.9), `100-M-S-10-compact` (−6.5), `75-N-S-00` (−5.3), `120-W-S-10` (−3.5), `120-W-S-00` (−1.8), `60-W-S-20` and `60-W-T-10` (−1.1), `75-N-H-00` (−0.2) | The prescribed walk's centre-of-mass path does not fit these mass distributions at the fixed stride and timing. This limits the reference trajectory; it is not shown to be physically infeasible | Reference trajectory (re-test with a controller) |
+| Nominal reference walk leaves the support pad (CoP more than 10 mm outside) | `60-M-H-20` (−26 mm), `75-M-S-10-belly` (−12 mm), `60-W-S-00` (−11 mm). Nine more leave the pad by less than 10 mm: `60-N-S-00` (−8.3 mm), `60-M-H-00` (−7.9), `100-M-S-10-compact` (−6.5), `75-N-S-00` (−5.3), `120-W-S-10` (−3.5), `120-W-S-00` (−1.8), `60-W-S-20` and `60-W-T-10` (−1.1), `75-N-H-00` (−0.2) | **Corrected in round two (decision log F14):** not a property of these bodies. Round one's walk generator did not converge (centre of mass held to 0.2 mm, approximate stride-boundary derivatives), which left centimetres of ZMP error. At round two's accuracy all twelve keep their centre of pressure 29.8–59.7 mm inside the pad (`60-M-H-20` +30 mm, `75-M-S-10-belly` +38 mm, `60-W-S-00` +30 mm) | Reference-trajectory accuracy (fixed in round two) |
 | High-side cost above $20k, the top of the owner's $10–20k prototype budget (P4) | all 132 (high side $20.4–57.6k; 60 cm $20.4–23.3k). 68 are also above $20k at nominal: every 100 and 120 cm candidate, plus `75-M-S-10-serial` and `75-M-S-10-side` | The frame, cover, integration and contingency lots are scaled from PR #662's 60 cm lines (A8), whose own high case is already $20.6k. Per P8 the cost is reported, not used to rule candidates out | Cost |
 
 In the tandem layout, hip-pitch load is the largest joint load at every size except at 60 cm, where thigh
@@ -160,9 +161,57 @@ more expressive tail.
 
 | Item | Status | How it will be checked |
 |---|---|---|
-| Carpet | Not screened. No rollouts were run this round. A friction change alone is not a carpet model (`BEHAVIOR_SPEC.md` §1). | Pile compliance, toe catch and a friction band in the selected design's contact model, then controller trials |
-| Turning loads | The reference walk is straight. A 0.5 rad/s turn in place needs about 0.5 rad/s of thigh twist; every selected twist drive offers at least 2.5 rad/s on its bus (CubeMars AK80-64 on 24 V). Turning torques were not computed. | A turning reference gait in `gait.py` before round-two sizing |
+| Carpet | Not screened in round one. No rollouts were run. A friction change alone is not a carpet model (`BEHAVIOR_SPEC.md` §1). | **Screened in round two** (`carpet.py`, §8): pile compliance, toe catch, friction band and a servo-held standing check, then controller trials |
+| Turning loads | The reference walk is straight. **Corrected in round two:** round one estimated that a 0.5 rad/s turn in place needs about 0.5 rad/s of thigh twist. The swing foot must yaw through the stride's whole turn within its swing time, so the need depends on the yaw rate and the duty factor, not on size: the turning screen measures 2.40–2.55 rad/s on the 60 and 75 cm round-one bodies, 2.76–2.93 rad/s with the 1.15 speed margin. On `100-W-T-10` (CubeMars AK80-64 on 24 V, 2.51 rad/s usable) it is 2.44 rad/s, 2.80 rad/s with the margin: 1.12 of the drive's usable speed. The 18 Stage A bodies that select the AK80-64 on 24 V (11 at 100 cm, 7 at 120 cm) would need a faster twist drive or the 48 V bus to turn in place at 0.5 rad/s. | **Screened in round two** (`turning.py`, §8) |
 | Dynamic balance, slips, impacts, start/stop | Need a controller | Bounded training after design selection (`BEHAVIOR_SPEC.md`) |
 | Thermal | Sustained planning fractions only (assumption A1) | Bench thermal tests per joint duty |
 | Structure | Beam rules for plates and spars; no FEA, fasteners or bearing life | CAD with FEA after selection |
 | Cable routing, connectors | Mass allowances only; the battery path is screened for box overlap, not for hand access or connectors | CAD |
+
+## 8. Round two: new and changed screens
+
+Round two (`designlab/round2.py`) sizes 20 candidates and runs every screen below on each. Results are in
+`round2/TABLES.md` and `ROUND2_REVIEW.md`; the raw outputs are in `round2/review/screening/`. Every result
+still comes from compiled models with prescribed motions or simple balance models, never from a controller.
+
+| Screen | Module | Gate (pass/fail) | Reported, not gated |
+|---|---|---|---|
+| Sizing walks at round two's accuracy | `gait.py` (`set_accuracy("r2")`) | as round one: balanced single-support pose, CoP within 10 mm of the pad, every load within a catalog part's planning limits | ZMP error of the converged walk |
+| Clearance, gate set `r2` | `clearance.py` | no interference at home, in the nominal **and brisk** walks; no two components overlapping on one rigid body; joint-range margin ≥ 0.10 rad between each walk's extremes and the usable range; swing ≥ 0.04 H; tail ≥ 0.25 H; a battery path | tight pairs (0–3 mm), closest approach |
+| Packaging search | `round2.py` | a body failing a walking gate is changed and re-sized: the legs move out 2 mm per side (pelvis plate or cover against the thigh, and for the narrow stance any contact in the target turns), or the ankle drives move down the shank by 0.04 of its length (thigh against the calf or the upper ankle drive) | every build tried |
+| Sensors | `sensors.py` | as round one | camera station found by the skull-fit search |
+| Turning | `turning.py` | target turns (0.35 rad/s walking, 0.5 rad/s in place, both directions): every drive within its planning limits, IK on every frame, no self-interference | stretch case (0.5 rad/s walking), friction needed, thigh-twist range and speed, yaw rate at which contact begins |
+| Carpet | `carpet.py` | friction needed below the carpet band's lower edge (0.54) in both walks, and the swing foot's lowest point above every pile top in mid-swing with the stance sole at its 98 kPa depth | the 0.06 H carpet swing target and the lift that would meet it; servo-held standing on five floors; softest pile a rigid stance holds on |
+| Behavior envelope (Stage 0) | `envelope.py` | none | Froude 0.05 walk against the drives; one-foot stopping at 1.5 m/s²; one-step push recovery; drive heat over a session |
+
+**Walk accuracy (decision log F14).** Round one's reference walk held the centre of mass to 2e-4 m in at most
+four passes per frame and estimated the next stride's root x at the stride boundary. Differenced twice, both
+errors moved the multibody ZMP by centimetres, so the walk's ZMP correction did not converge. Round two
+holds the centre of mass to 1e-6 m (12 passes) and unwraps the stride exactly; the correction then converges to
+about a millimetre. Neither change is enough alone. The default setting still reproduces round one bit for bit.
+
+**Turning (`turning.py`).** A steady turn is one periodic stride generated like the straight walk: footprints
+carried by a path frame that yaws at the commanded rate, a linear-inverted-pendulum centre-of-mass path solved
+harmonic by harmonic in the turning frame and corrected against the multibody ZMP, legs by IK with hard joint
+limits, and the stride boundary unwrapped by the exact turn. Loads come from the full inverse dynamics with
+the contact wrenches from the base equations; double support uses the minimum-effort split, and the friction
+needed in double support is solved for separately. Requirements are compared like for like with straight walks
+from the same generator and against the selected drives with the sizing margins. Every turning run goes through
+the round-two clearance screen. Limits: prescribed steady turns only (no turn entry or exit), a flat pad friction
+model, and no slip or controller.
+
+**Carpet (`carpet.py`).** Low, medium and high pile at the top of each industry height band (6.35, 12.7 and
+19.05 mm), compressed by a sourced fraction at 98 kPa (2.9, 9.4 and 14.1 mm). Toe catch uses the exact lowest
+point of every foot geom (toes and claws included) along the reference walks. Friction need is the governing
+single- or double-support ratio from the inverse dynamics, against the sourced carpet band (0.54–1.25). The
+standing check holds every joint at home with stiff position servos on a probe-spring pile under the whole foot,
+calibrated to the pile's static stiffness only. Limits (assumption A16): linear local pile, assumed damping, no
+toe drag, no balance control, and only the static stiffness is matched, so times to tip are not results.
+
+**Behavior envelope (`envelope.py`, Stage 0).** Necessary conditions only (assumption A15): a prescribed walk at
+Froude 0.05 (stride 0.80 H) against the selected drives with the sizing margins; the largest deceleration one
+foot can hold with the ankle alone (linear inverted pendulum, pad reach); the largest push recoverable with one
+step under ideal balance control (capturability, an upper bound for comparing bodies); and each drive's RMS
+torque over a following session against its sustained planning torque. Failing one shows that no controller can
+produce the behavior with that body and those drives; passing one does not show that a controller can.
+
