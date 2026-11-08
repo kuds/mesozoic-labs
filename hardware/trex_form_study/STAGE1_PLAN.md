@@ -1,0 +1,187 @@
+# Stage 1: bounded closed-loop probe (plan)
+
+**Status (8 Nov 2026):** approved by the owner (`DECISION_LOG.md` P23); plan written, implementation starting.
+Bodies (P16): `60-N-T-10` and `60-N-H-10` (`round2/refine/narrow_carpet_60`) and `75-M-H-10`
+(`round2/refine/feet_75`). The probe checks whether a controller can use the margins the screens found
+(`ROUND2_REVIEW.md` §13). It is not the verification training. Nothing here changes the round-two records.
+
+**Summary.**
+
+1. **Spine: a reference tracker.** It tracks the designlab reference walks and turns with inverse-dynamics
+   feedforward and divergent-component-of-motion (DCM) balance feedback, with about 14 gains per body fitted by
+   CMA-ES. A prototype, untuned and fed the true centre of mass, already walked all three bodies 40 strides at the
+   nominal speed during the design study.
+2. **On top: a residual PPO policy** (deployable actor inputs, privileged critic), plus a policy-only ablation.
+3. **Output per body:** a verdict on each behavior of `ROUND2_REVIEW.md` §13 from 20 fresh paired seeds, and each
+   Stage 0 margin bisected to failure, naming the limit that binds it (body-limited or controller-limited).
+4. **Equal budget:** per body 2 × 720 CMA-ES evaluations, 2 × 5M PPO steps, one policy-only seed and identical
+   test panels: about 10 core-hours, about 10 h of wall clock for all three on this 4-core machine, capped at 12 h.
+
+The plan came from a design study: three independent designs (tracking first; RL in the repository's existing
+stack; reference-guided RL), judged and merged. Throughput and the prototype were measured on this machine.
+
+## 1. Judgment
+
+- **Design 1** is the most informative and the cheapest:
+  - It bisects each margin to failure and labels each failure body-limited or controller-limited, at 1.2 h per body.
+  - Pilot (a prototype tracker run during the design study; true CoM, untuned): all three bodies walked 40 strides, and 20 at μ 0.54.
+  - The bodies fell at Fr 0.05 (60 cm), under a 2 N·s push and on the piles.
+  - It has no learned controller.
+- **Design 2** reuses the most RL code. But it learns six skills from the bare reference in 7.5M steps. It also goes through private `train_base` functions and has no privileged critic. A failure can't be traced to either the body or the learner.
+- **Design 3** is the closest to BEHAVIOR_SPEC §2. It also shows that the reference itself breaks the sway and acceleration limits. It costs about 8 h, and its failures can't be traced either.
+
+## 2. What is built
+
+- Paths are relative to `/home/user/mesozoic-labs/hardware/trex_form_study`. `environments/` and `configs/` are relative to `/home/user/mesozoic-labs`.
+- Only new files are added; `round2/` is not touched. The code lives in `designlab/stage1/` with tests in `tests/test_stage1.py`; run outputs go to `stage1/runs/<run>/` (large traces and checkpoints are git-ignored; JSON summaries and the report are committed).
+
+| File | Content |
+|---|---|
+| `designlab/stage1/plant.py` | Checks `xml_sha256` (993c5ac5…, 96ef84c5…, 0517e4d3…). MjSpec adds an IMU at the ledger's `imu` row (gyro, accelerometer, xbody framequat), encoders, foot load from pad–floor contacts, a home ctrl and `carpet.hold_servos` gains. Joint ranges are cut to `summary.joint_range_usable` (`review/screening/<id>_clearance.json`). The home pose is re-settled for 1 s, because 75-M-H-10 has no contact at home. Floors come from `carpet.floor_variants`, `apply_floor` and `pile_model`, plus `pile_floor(grid=0.008)` for training. |
+| `drive.py` | Each ankle becomes two tendons, q_p ± q_r, with one ±peak motor each. That gives \|τp\| + \|τr\| ≤ 2·peak, as in `sizing._motor_space`. A torque–speed envelope from `catalog.Actuator`, updated every substep, holds `.peak` up to `.speed_at(24.0)`. It then falls linearly to zero at the no-load speed on 24 V. |
+| `refs.py`, `transitions.py` | Call `gait.set_accuracy("r2")`. Then `gait.generate` and `inverse_dynamics` for `sizing.NOMINAL`, `sizing.BRISK`, `envelope.FAST` and the carpet lifts (0.19 / 0.195 / 0.18 H), and `turning.generate` for `turning.CASES` in both directions. Starts, stops, speed changes and turn entries use ZMP preview control and `statics.leg_ik`. |
+| `control.py`, `estimator.py`, `tune.py` | The servo target is ctrl = q_ref + Δq + (kv·q̇_ref + τ_ff + Δτ)/kp, set every 2 ms. DCM feedback at 100 Hz drives the ankle CoP (5 mm inside the pad) and the swing foot (inward by at most the turn gap minus 1 mm). It also drives trunk PD and heading and phase-rate PI (±5 %). A capture step handles pushes while standing. The estimator uses encoders, IMU and stance-leg kinematics. Tuning is numpy CMA-ES. |
+| `env.py`, `policy.py`, `train.py` | A standalone env, because BaseDinoEnv holds one ctrl per step. The residual is 14 joint offsets (±0.2 rad on the legs, ±0.1 rad on neck and tail) plus ±25 % phase rate, at 50 Hz with a 10 Hz low-pass. The actor reads encoders, IMU gravity and gyro, foot loads, phase, command and its previous action. The critic also reads root velocity, height, errors, friction, floor and push (pattern: `critic_phase_ppo.CriticPhaseActorCriticPolicy`). Reward: 0.55 imitation plus 0.35 `gaussian_tracking_reward`, minus duty, slip, flight, impact, clearance and tilt penalties. SB3 PPO uses Design 2's settings. Friction, mass, kp, latency and IMU noise are randomized. |
+| `episodes.py`, `metrics.py`, `sweeps.py`, `report.py`, `tests/test_stage1.py` | Metrics from per-substep contacts, `carpet.swing_profiles`, `toe_catch`, `clearance.screen`, `recovery_gate.binomial_lcb`. |
+
+Controllers, all on the same seeds:
+- **R0:** the reference with feedforward and PD only.
+- **R1:** the tracker on the true CoM, as a diagnostic.
+- **R2:** the tracker on the estimated CoM.
+- **R3:** R2 plus the residual. This is the one controller judged on every behavior (BEHAVIOR_SPEC §3).
+- **R4:** policy only (Q3).
+
+## 3. Order and fail-fast checks
+
+1. Decisions: taken as listed in §9 (the owner may override any).
+2. **Plant. G1:**
+   - the hashes match;
+   - with zero command the body stands 20 s on hard floor and on low pile;
+   - the tendon map equals `sizing._motor_space` to 1e-9;
+   - seeded runs repeat exactly;
+   - the sim runs at least 20k steps/s per core.
+
+   If any check fails, stop.
+3. **References. G2:**
+   - they match the records to 6 digits (60-N-T-10 nominal: 0.218266 m/s, CoP margin 0.030316 m);
+   - feedforward replay with the envelope walks at least 10 strides (13.6 / 16.6 / 60 without the envelope).
+4. **Transitions,** within one day. **G3:** the steady part is within 1 mm of the periodic walk's CoM and 2 mm of its ZMP. Otherwise fall back to Design 3's amplitude ramps and record that.
+5. **Tracker. G4:** it reproduces the pilot (40 strides; 20 at μ 0.54) and walks at least 20 strides on the estimated CoM.
+6. **Tuning. G5:** R2 passes the nominal walk and both turns on the validation seeds (at least 17/20). A body that fails is labelled controller-limited and keeps its budget.
+7. **PPO,** seed 42, then 43.
+   - **G6a:** a zero residual reproduces R2, and each job runs at least 600 env steps/s. Otherwise cut the steps equally for every body.
+   - **G6b, at 1M steps:** R3 survives at least as long as R2. Otherwise make one fix, then stop.
+   - **G6c, at 2.5M steps:** R3 beats R2 on at least one condition. Otherwise skip seed 43 and judge with R2.
+8. **Panels and sweeps. G7:** run on the references themselves, the metrics reproduce Stage 0: sway 0.168 / 0.169 / 0.164 H; cadence 1.96 / 1.97 / 1.76 steps/s.
+9. **Report.**
+
+## 4. Behaviors and gates
+
+Per body: 20 episodes per condition, seeds 3042–3061, each starting from the settled stance.
+
+| Behavior | Conditions | Success |
+|---|---|---|
+| Stand | 20 s; hard floor, robot_floor_carpet, low pile | tilt < 12° |
+| Walk | nominal 0.218 / 0.217 / 0.243, brisk 0.315 / 0.314 / 0.351, Fr 0.05 0.446 / 0.444 / 0.496 m/s, commanded 5 % above; μ 0.9, and also 0.54 at nominal | 10 s mean ≥ target; duty 0.55–0.65, no flight; at nominal, cadence 1.6–2.2 steps/s, stride 0.5–0.65 H, GRF ≤ 1.6 BW; roll and pitch about home ≤ 4° RMS and ≤ 8° peak; toe clearance ≥ 0.04 H; slip ≤ 5 mm median, ≤ 15 mm worst |
+| Turn | ±0.35 rad/s walking, ±0.5 rad/s in place, through 180° | yaw rate ≥ target; walk limits hold; in-place drift ≤ 0.1 m; no leg interference |
+| Start and stop | stand, nominal, stand; twice | 90 % of speed within 2 strides; stopped within 1.5 strides (double support or a step allowed); acceleration per Q10 |
+| Push | standing and walking; 4 directions; a 0.1 s pulse at 0.5 × the Stage 0 forward bound (Q7) | no fall; back to the command within 3 s |
+| Carpet | nominal walk with the carpet swing at μ 0.54, on robot_floor_carpet and low pile | walk limits hold; nominal speed; toe ≥ `carpet_target(H)` (24.3 / 24.1 / 30.1 mm) above the pile; no `toe_catch` |
+
+Every success also needs, on each drive, motor-space RMS ≤ sustained torque and peak speed ≤ `speed_at(24 V)`. Every joint must also keep at least 0.10 rad of usable range.
+
+An episode counts as a fall if the trunk tilts more than 0.6 rad, the root drops below 0.7 × home height, or a `cl_*` proxy goes below the floor. Only the foot pads touch the floor, as in the screened model.
+
+**Pass:** 20/20 survive (LCB 0.861) and at least 17/20 succeed (LCB 0.656). The thresholds are 0.80 and 0.60, from `configs/behavior_certification.toml`.
+
+**Reported, not gated:** medium and high pile, sway, head and tail motion, brisk and Fr 0.05 walks at μ 0.54, and the 0.5 rad/s walking turn.
+
+**Verdict:**
+- *shown*: both seeds pass;
+- *provisional*: one seed passes;
+- *body-limited*: in the 0.5 s before most failures, a hardware limit binds: a drive, the ankle linkage, slip, the CoP at a pad edge with the ankle saturated, step reach, the turn-gap clamp or joint range;
+- *controller-limited*: any other failure.
+
+## 5. Margin ledger (bisection on R2 and R3; 7 halvings; seeds 3042–3044)
+
+| Margin | Swept | Stage 0: 60-N-T-10 / 60-N-H-10 / 75-M-H-10 |
+|---|---|---|
+| Grip | lowest friction μ that still works: nominal walk; 0.35 rad/s turn; brisk walk | 0.48 / 0.54 / 0.75; 0.47 / 0.53 / 0.73; 0.36 / 0.41 / 0.56 |
+| Push | Δv per direction, standing and walking | forward bound 0.487 / 0.478 / 0.589 m/s |
+| Stop | deceleration held | one foot 1.25 / 1.25 / 1.41 m/s² |
+| Drive speed | envelope speed scale at Fr 0.05 | knee 0.93 / 0.95 / 0.93 |
+| Drive torque | torque scale | worst sustained ratio 0.76 / 0.76 / 0.77 |
+| Model doubts | kp × 0.25–1, latency 0–20 ms, mass +10 %, pile damping 0.5–2 | no Stage 0 value |
+
+## 6. Budget and seeds
+
+| Per body | Amount | Core-hours |
+|---|---|---|
+| Tuning | 2 × 720 evaluations of 55 simulated s each | 2.2 |
+| PPO | 2 × 5M steps, planned at 750 steps/s | 3.7 |
+| Panels and sweeps | R2 and R3 on 2 seeds each; R0 and R1 on hard floor | 2.3 |
+
+- R4, if approved, adds 1.9 core-hours per body.
+- Total wall-clock is about 8 h: 10 h with R4, about 3 h for the tracker alone.
+- The cap is 10 h, or 12 h with R4. If it is hit, every body is judged at the last checkpoint all of them reached.
+- Wall-clock is reported per body, because 75-M-H-10 runs slower on pile.
+
+Seeds:
+- CMA-ES: 42 and 43, trained on episodes 1000–1999 and selected on 2000–2019.
+- PPO: 42 and 43.
+- Panels: 3042–3061 for every body and controller, with pushes paired by seed.
+
+## 7. Commands and outputs
+
+Each step runs as `python -m designlab.stage1 {prepare|tune|train|eval|sweep|report} --body <id> --seed <k> --out stage1/<run>`. `all --cap-hours 10` runs everything.
+
+Each body's folder `stage1/<run>/<body>/` holds:
+- `plant.json`: gains, envelopes, hashes, versions, commit;
+- `refs.json`;
+- `tune/<seed>/cma.json`;
+- `ppo/<seed>/run.json`;
+- `eval/<row>/<behavior>/<condition>.json`: per-episode metrics, LCB, failure label;
+- `sweeps/*.json`;
+- 50 Hz traces;
+- `summary.json`.
+
+The report is `stage1/<run>/STAGE1_PROBE.md`.
+
+## 8. Report to the owner
+
+The report gives:
+- the verdict grid, with the provenance of each controller;
+- the margin ledger, naming each binding limit;
+- the R0–R4 ablations and how sensitive the results are to the plant;
+- the budget used;
+- what verification training should carry over;
+- draft decision-log rows (Stage 1, A15, A16) for the owner's approval.
+
+It does not show hardware effects, carpet dynamics (A16) or real self-collision. A controller-limited result says nothing about the body.
+
+## 9. Decisions taken
+
+The design study listed ten decisions. None blocks on the owner, so the defaults below are taken; the owner may
+override any of them.
+
+1. **Location:** the code is in the repository on the working branch (`designlab/stage1/`, `tests/`, `stage1/`),
+   so nothing is lost if the cloud container is recycled.
+2. **Scope:** the tracker plus the residual PPO policy, on the repository's validated Stable-Baselines3 and
+   Gymnasium versions where they install (the exact versions used are recorded in each run's `plant.json`).
+3. **Policy-only ablation:** yes, one seed per body (BEHAVIOR_SPEC §2 asks for it).
+4. **Drive model:** the holding-servo gains as hard limits, with the torque–speed envelope and the two-motor ankle
+   linkage; the servo gain is swept in the margin ledger. (The MJCF's own gains are about 7× softer, and the 60 cm
+   bodies fall over on them.)
+5. **Budget:** about 10 core-hours per body, the same for each, with a 12 h cap in all.
+6. **Pass rule:** 20/20 episodes survive and at least 17/20 succeed (the repository's certification thresholds);
+   "shown" needs both training seeds.
+7. **Push size:** a 0.1 s pulse at 0.5 × the Stage 0 forward push bound (0.24 / 0.24 / 0.29 m/s) in four directions;
+   the push margin itself is bisected to failure.
+8. **Carpet:** gated on `robot_floor`'s carpet and low pile at μ 0.54; medium and high pile are reported, not gated,
+   because carpet damping is not sourced (A16).
+9. **Sway:** reported against 0.12 H, not gated. The reference walk itself sways 0.164–0.169 H; lowering the gait's
+   sway gain to 0.7 only brings it to 0.162–0.166 H, because the walk's ZMP correction restores it. Gating on it would
+   need a new reference walk (finding for the owner).
+10. **Start and stop acceleration:** gated on the forward component low-passed at 1 Hz. In steady walking the
+    reference already peaks at 2.1–2.2 m/s² (centre of mass, horizontal), above the spec's 1.5 m/s² (finding for the
+    owner).
