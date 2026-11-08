@@ -10,41 +10,56 @@ original value is kept verbatim):
   accelerometer and the trunk frame orientation (xbody framequat); joint encoders (position and velocity of the
   14 hinges); and the load on each foot from that foot's floor contacts only (a contact sensor, floor against the
   foot body, net force in the world frame), so a pad touching the other foot never counts as support;
-* the two-motor ankle (``drive``): each ankle's pitch and roll servos become motors on the tendons q_p + q_r and
-  q_p - q_r, each motor's armature on its tendon;
-* joint ranges cut to the clearance screen's usable ranges (``review/screening/<id>_clearance.json``,
-  ``summary.joint_range_usable``: the range up to the first new interference, else the MJCF limit).
+* the two-motor ankle (``drive``; the record's ``leg_layout`` must be a parallel-linkage layout): each ankle's pitch
+  and roll servos become motors on the tendons q_p + q_r and q_p - q_r.  The ankle armature is an open choice
+  (``ANKLE_ARMATURE``): ``"linkage"`` (the default) puts each motor's catalog armature on its own tendon, which in
+  joint space is twice the screened MJCF's armature on pitch and on roll (both motors turn for either axis);
+  ``"screened"`` keeps the screened MJCF's armature on the ankle joints (one motor's armature per joint) and none on
+  the tendons, so the mass matrix and the feet's inverse weights are exactly the screened model's.  With
+  ``"linkage"`` the feet's ``body_invweight0`` drops (9 % on the 60 cm bodies, 5 % on 75 cm), so contacts with a
+  time-constant solref (hard floor, robot_floor_carpet) are that much stiffer than in the screened model and in
+  ``carpet.standing_check``; ``meta["ankle"]["armature"]`` records both effects;
+* joint ranges cut to the clearance screen's usable ranges (``usable_ranges``).
 
 After compiling:
 
 * hold-servo gains by the rule of ``carpet.hold_servos``, applied to each drive's own coordinate:
   ``kp = sustained / carpet.SERVO_ERROR_RAD`` (0.01 rad) and ``kv = 2 zeta sqrt(kp I)``, I the drive's inertia
   with every other drive held, at the home pose (for a joint servo the diagonal of the mass matrix, as
-  ``hold_servos``; for an ankle motor that of the motor coordinates).  In joint space an ankle's pitch and roll
-  are therefore twice as stiff as one joint servo would be: two motors share each axis (``ankle_gains="motor"``,
-  the default).  ``ankle_gains="joint"`` halves each ankle motor's kp instead, so pitch and roll get exactly the
-  joint-space stiffness ``hold_servos`` gives one ankle joint (G1 and G2 are gated on the default; see
-  ``gates``).  The MJCF's own gains (``mjcf.write_mjcf``: kp = max(5, 8 x rated torque), kv = 0.05 kp) are
+  ``hold_servos``; for an ankle motor that of the motor coordinates).  The ankle gain is an open choice
+  (``ANKLE_GAINS``): with ``"motor"`` (the default) each ankle motor has its own hold servo, so in joint space an
+  ankle's pitch and roll are twice as stiff as one joint servo would be (two motors share each axis); ``"joint"``
+  halves each ankle motor's kp, so pitch and roll get exactly the joint-space stiffness ``hold_servos`` gives one
+  ankle joint.  The MJCF's own gains (``mjcf.write_mjcf``: kp = max(5, 8 x rated torque), kv = 0.05 kp) are
   replaced (DECISION_LOG P23, decision 4);
 * ctrl limits off: the servo target carries the feedforward, ``ctrl = G q* + (kv G qd* + f_ff) / kp`` in motor
   coordinates (``Plant.command``);
-* the torque-speed envelope (``drive.Envelope``), applied before every physics step;
+* the torque-speed envelope (``drive.Envelope``: driving side derated, braking at peak unless ``braking="derated"``),
+  applied before every physics step, on the record's 24 V bus unless ``bus`` is given (plan section 5);
 * the home keyframe's ctrl (the home pose in motor coordinates).
 
 Floors: ``hard`` (as compiled), ``robot_floor_carpet`` (``carpet.floor_variants`` + ``carpet.apply_floor``) and
 the probe piles ``low``, ``medium``, ``high`` (``carpet.floor_variants`` + ``carpet.pile_model``; ``pile_grid``
 builds a coarser pile with ``carpet.pile_floor``).  carpet.py's caveat holds: the piles match static stiffness only.
+The pile probes are re-derived on the plant model, so they keep carpet.py's stiffness per probe whatever the ankle
+armature.
 
-Every build settles the home pose for ``SETTLE_S`` with zero command (every servo at its home target), starting
-from the keyframe lowered by the predicted sinkage, as ``carpet.standing_check`` starts; on 75-M-H-10 the keyframe
-pads sit 0.3 um above the floor, so the stance has no contact before this settle.  ``Plant.reset`` returns to the
-settled pose at rest.
+Every build settles the home pose with zero command (every servo at its home target), starting from the keyframe
+lowered by the predicted sinkage, as ``carpet.standing_check`` starts; on 75-M-H-10 the keyframe pads sit 0.3 um
+above the floor, so the stance has no contact before this settle.  The settle runs at least ``SETTLE_S`` (the plan's
+1 s), then on in 1 s steps until ``carpet._settled`` holds over the last second (tilt span < 0.05 deg, CoM movement
+< 0.5 mm, not speeding up), the stance tips (tilt from home above 12 deg or the CoM down by 0.1 H, carpet.py's
+limits) or ``SETTLE_MAX_S`` passes.  ``meta["settle"]`` records the outcome and the residual rates; a plant whose
+stance did not settle (``Plant.settled`` False: the 60 cm bodies on medium and high pile) does not stand on that
+floor, and ``Plant.reset`` refuses to start an episode from it unless asked to.  ``Plant.reset`` otherwise returns
+to the settled pose at rest.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import platform
 import subprocess
@@ -60,15 +75,19 @@ from .. import carpet, statics
 from . import SHA256_PREFIX, STUDY, case_dir, drive
 
 FLOORS = ("hard", "robot_floor_carpet") + carpet.PILES
+ANKLE_GAINS = ("motor", "joint")
+ANKLE_ARMATURE = ("linkage", "screened")
 SETTLE_S = 1.0
+SETTLE_MAX_S = 10.0
 IMU_SITE = "imu"
-#: Falls (plan section 4): trunk tilt from vertical above this, or the root below FALL_HEIGHT_FRAC x its home height.
+#: Falls (plan section 4): trunk tilt from vertical above this, the root below FALL_HEIGHT_FRAC x its home height, or
+#: a ``cl_*`` shell proxy below the floor.
 FALL_TILT_RAD = 0.6
 FALL_HEIGHT_FRAC = 0.7
 
 
 class PlantError(RuntimeError):
-    """The model on disk is not the one the record sized, or a body input is missing."""
+    """The model on disk is not the one the record sized, a body input is missing, or a stance is not real."""
 
 
 # ------------------------------------------------------------------------------------------------
@@ -113,13 +132,60 @@ def verify(body: str, xml: Path) -> dict:
     return out
 
 
-def usable_ranges(body: str) -> dict:
-    """joint -> (low, high): the clearance screen's range up to the first new interference, else the MJCF limit."""
+def leg_layout(body: str) -> str:
+    """The record's leg layout; ``PlantError`` unless its ankle is the two-motor parallel linkage."""
+    layout = record(body)["candidate"]["leg_layout"]
+    if layout not in drive.LINKAGE_LAYOUTS:
+        raise PlantError(f"{body}: leg layout {layout!r}; the plant models the two-motor ankle linkage of the "
+                         f"{' and '.join(drive.LINKAGE_LAYOUTS)} layouts only")
+    return layout
+
+
+def _inter_leg(by) -> bool:
+    """A limit set by the two legs touching: the interfering pair names a left_ and a right_ geom."""
+    return bool(by) and any("left_" in g for g in by) and any("right_" in g for g in by)
+
+
+def usable_ranges(body: str, inter_leg: str = "mjcf") -> dict:
+    """joint -> (low, high): the clearance screen's single-joint sweeps (``summary.joint_range_usable``) read as the
+    clearance and turning screens read them (``clearance._range_margins``, ``turning._range_margins``): the first new
+    interference with the trunk or the same leg, else the MJCF limit.
+
+    A limit set by the two legs touching (the left and right toes meeting in a sweep of one hip roll from home, with
+    the other leg held at home) is not a range limit while walking, since the other leg moves; with ``inter_leg``
+    ``"mjcf"`` (the screens' reading, the plant's) it falls back to the MJCF limit, and leg-to-leg proximity is
+    checked on the simulated traces instead (``legs``).  ``"keep"`` keeps it (the literal reading of
+    ``joint_range_usable``, for comparison).  The screens' reading is checked against the screen's own
+    ``summary.joint_range_margins[joint]["usable"]``."""
+    if inter_leg not in ("mjcf", "keep"):
+        raise ValueError(f"inter_leg {inter_leg!r}: 'mjcf' or 'keep'")
+    doc = json.loads((case_dir(body) / "review" / "screening" / f"{body}_clearance.json").read_text())
+    margins = doc["summary"].get("joint_range_margins") or {}
+    out = {}
+    for jn, r in doc["summary"]["joint_range_usable"].items():
+        lim = []
+        for i in (0, 1):
+            fni, by = r["first_new_interference"][i], r["limited_by"][i]
+            drop = fni is None or (inter_leg == "mjcf" and _inter_leg(by))
+            lim.append(float(r["limits"][i] if drop else fni))
+        if inter_leg == "mjcf" and jn in margins and [float(v) for v in margins[jn]["usable"]] != lim:
+            raise PlantError(f"{body} {jn}: usable range {lim} differs from the clearance screen's own "
+                             f"{margins[jn]['usable']}")
+        out[jn] = (lim[0], lim[1])
+    return out
+
+
+def dropped_limits(body: str) -> dict:
+    """joint -> [(direction, first new interference, interfering geoms)] of the inter-leg limits ``usable_ranges``
+    drops."""
     doc = json.loads((case_dir(body) / "review" / "screening" / f"{body}_clearance.json").read_text())
     out = {}
     for jn, r in doc["summary"]["joint_range_usable"].items():
-        lo, hi = r["first_new_interference"]
-        out[jn] = (float(r["limits"][0] if lo is None else lo), float(r["limits"][1] if hi is None else hi))
+        for i, direction in enumerate(("low", "high")):
+            fni, by = r["first_new_interference"][i], r["limited_by"][i]
+            if fni is not None and _inter_leg(by):
+                out.setdefault(jn, []).append(dict(direction=direction, first_new_interference=float(fni),
+                                                   limited_by=list(by), plant=float(r["limits"][i])))
     return out
 
 
@@ -153,15 +219,18 @@ def provenance() -> dict:
 # ------------------------------------------------------------------------------------------------
 # Model text
 # ------------------------------------------------------------------------------------------------
-def augment(text: str, joints: list[str], drives: list[drive.Drive], ranges: dict, imu_pos) -> str:
+def augment(text: str, joints: list[str], drives: list[drive.Drive], ranges: dict, imu_pos,
+            ankle_armature: str = "linkage") -> str:
     """The screened MJCF text with the plant's sensors, ankle tendons, motors and usable joint ranges."""
+    if ankle_armature not in ANKLE_ARMATURE:
+        raise ValueError(f"ankle_armature {ankle_armature!r}: choose from {', '.join(ANKLE_ARMATURE)}")
     root = ET.fromstring(text)
     by_coord = {d.coordinate: d for d in drives}
     for j in root.iter("joint"):
         name = j.get("name")
         if name in ranges:
             j.set("range", f"{ranges[name][0]!r} {ranges[name][1]!r}")
-        if name is not None and name.endswith(("_ankle_pitch", "_ankle_roll")):
+        if ankle_armature == "linkage" and name is not None and name.endswith(("_ankle_pitch", "_ankle_roll")):
             j.set("armature", "0")  # the motors' armature moves to their tendons
     trunk = root.find("./worldbody/body[@name='trunk']")
     if trunk is None:
@@ -173,7 +242,8 @@ def augment(text: str, joints: list[str], drives: list[drive.Drive], ranges: dic
     for side in statics.SIDES:
         for motor, roll in drive.ANKLE_MOTORS:
             name = drive.tendon_name(side, motor)
-            t = ET.SubElement(tendon, "fixed", name=name, armature=repr(by_coord[name].armature))
+            arm = by_coord[name].armature if ankle_armature == "linkage" else 0.0
+            t = ET.SubElement(tendon, "fixed", name=name, armature=repr(arm))
             ET.SubElement(t, "joint", joint=f"{side}_ankle_pitch", coef="1")
             ET.SubElement(t, "joint", joint=f"{side}_ankle_roll", coef=repr(roll))
     replaced = {f"{side}_{jn}": drive.tendon_name(side, motor) for side in statics.SIDES
@@ -215,6 +285,70 @@ def _moment(m, d) -> np.ndarray:
     return dense
 
 
+def _dofs(m, joints: list[str]) -> list[int]:
+    return [int(m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)]) for jn in joints]
+
+
+def joint_armature(m, joints: list[str]) -> np.ndarray:
+    """Joint-space armature over ``joints`` (dof armature plus each tendon's armature through its Jacobian): the
+    mass matrix at the keyframe minus the same with every armature set to zero."""
+    d = mujoco.MjData(m)
+    d.qpos[:] = m.key_qpos[0]
+    saved = m.dof_armature.copy(), m.tendon_armature.copy()
+    dofs = _dofs(m, joints)
+    out = []
+    try:
+        for zero in (False, True):
+            if zero:
+                m.dof_armature[:] = 0.0
+                m.tendon_armature[:] = 0.0
+            mujoco.mj_forward(m, d)
+            M = np.zeros((m.nv, m.nv))
+            mujoco.mj_fullM(m, d, M)
+            out.append(M[np.ix_(dofs, dofs)])
+    finally:
+        m.dof_armature[:], m.tendon_armature[:] = saved
+    return out[0] - out[1]
+
+
+def _home_inertia(m, joints: list[str]) -> np.ndarray:
+    d = mujoco.MjData(m)
+    d.qpos[:] = m.key_qpos[0]
+    mujoco.mj_forward(m, d)
+    M = np.zeros((m.nv, m.nv))
+    mujoco.mj_fullM(m, d, M)
+    return np.diag(M)[_dofs(m, joints)]
+
+
+def armature_effects(m0, m, joints: list[str], choice: str) -> dict:
+    """What the plant's ankle armature changes against the screened model ``m0`` (module docstring)."""
+    A, A0 = joint_armature(m, joints), joint_armature(m0, joints)
+    inertia, inertia0 = _home_inertia(m, joints), _home_inertia(m0, joints)
+    ankles = [i for i, jn in enumerate(joints) if jn.endswith(("_ankle_pitch", "_ankle_roll"))]
+    feet = {}
+    for side in statics.SIDES:
+        b = statics.bid(m, f"{side}_foot")
+        w, w0 = float(m.body_invweight0[b, 0]), float(m0.body_invweight0[b, 0])
+        feet[side] = dict(invweight0_translation_plant=w, invweight0_translation_screened=w0,
+                          change_frac=w / w0 - 1.0, time_constant_contact_stiffness_ratio=w0 / w)
+    return dict(choice=choice,
+                rule="each motor's catalog armature on its tendon (joint space: 2x the screened per-joint armature on "
+                     "pitch and roll)" if choice == "linkage" else
+                     "the screened MJCF's armature on each ankle joint, none on the tendons (the screened mass matrix)",
+                joint_space_plant={joints[i]: float(A[i, i]) for i in ankles},
+                joint_space_screened={joints[i]: float(A0[i, i]) for i in ankles},
+                ankle_inertia_at_home_plant={joints[i]: float(inertia[i]) for i in ankles},
+                ankle_inertia_at_home_screened={joints[i]: float(inertia0[i]) for i in ankles},
+                ankle_inertia_change_frac={joints[i]: float(inertia[i] / inertia0[i] - 1.0) for i in ankles},
+                feet=feet,
+                contacts="hard floor and robot_floor_carpet use time-constant solrefs, whose force per depth scales "
+                         "with 1 / invweight0: time_constant_contact_stiffness_ratio is the plant's foot contact "
+                         "stiffness over the screened model's (and carpet.standing_check's); the piles' probes are "
+                         "re-derived on the plant model and keep carpet.py's stiffness",
+                feedforward="the references' inverse dynamics has the screened armature; replays add "
+                            "(A_plant - A_screened) qdd_ref (gates.replay)")
+
+
 # ------------------------------------------------------------------------------------------------
 # Plant
 # ------------------------------------------------------------------------------------------------
@@ -222,10 +356,14 @@ class Plant:
     """One body on one floor: ``m``, ``d``, the drives and their envelope, the settled home pose and metadata.
 
     ``joints`` are the 14 hinges in model order; joint-space arrays (targets, encoders) use that order, and the
-    drives (actuators) follow it with each ankle's pitch and roll replaced by its motors a and b."""
+    drives (actuators) follow it with each ankle's pitch and roll replaced by its motors a and b.  The model belongs
+    to this plant alone (the envelope writes its force ranges); ``reset`` and ``set_state`` re-bind the envelope to
+    ``m`` and ``d``.  ``armature_extra`` is the plant's joint-space armature minus the screened model's (14 x 14),
+    the term the references' inverse dynamics lacks."""
 
     def __init__(self, body: str, floor: str, seed: int, m: mujoco.MjModel, joints: list[str],
-                 drives: list[drive.Drive], envelope: drive.Envelope, meta: dict):
+                 drives: list[drive.Drive], envelope: drive.Envelope, meta: dict, layout: str = "tandem",
+                 armature_extra: np.ndarray | None = None):
         self.body, self.floor, self.seed = body, floor, int(seed)
         self.m, self.d = m, mujoco.MjData(m)
         self.joints, self.drives, self.envelope, self.meta = joints, drives, envelope, meta
@@ -234,8 +372,10 @@ class Plant:
         jid = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in joints]
         self.qadr = np.array([m.jnt_qposadr[j] for j in jid])
         self.dofs = np.array([m.jnt_dofadr[j] for j in jid])
-        self.G = drive.motor_matrix(joints)
+        self.G = drive.motor_matrix(joints, layout)
         self._GinvT = np.linalg.inv(self.G.T)
+        self.armature_extra = (np.zeros((len(joints), len(joints))) if armature_extra is None
+                               else np.asarray(armature_extra, float))
         self.kp = m.actuator_gainprm[:, 0].copy()
         self.kv = -m.actuator_biasprm[:, 2].copy()
         self.trunk = statics.bid(m, "trunk")
@@ -246,6 +386,20 @@ class Plant:
         self._R_home = self._trunk_R(self.q_home)
         self._sens = {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_SENSOR, i): (int(m.sensor_adr[i]), int(m.sensor_dim[i]))
                       for i in range(m.nsensor)}
+        fl = statics.gid(m, "floor")
+        if m.geom_type[fl] != mujoco.mjtGeom.mjGEOM_PLANE:
+            raise PlantError("the floor is not a plane")
+        self.z_floor = float(m.geom_pos[fl][2])
+        gname = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or "" for g in range(m.ngeom)]
+        self._gname = gname
+        self._cl = np.array([g for g in range(m.ngeom) if gname[g].startswith("cl_")], int)
+        self._cl_r = m.geom_rbound[self._cl].copy()
+        feet = set(self.feet)  # carpet._is_toe's rule; the unnamed pile probes are not toes
+        self._toes = np.array([g for g in range(m.ngeom) if m.geom_bodyid[g] in feet and m.geom_contype[g] != 1
+                               and m.geom_rbound[g] > 0 and any(t in gname[g] for t in carpet.TOE_TOKENS)], int)
+        self._toe_aabb = m.geom_aabb[self._toes].copy()
+        self._toe_size = m.geom_size[self._toes].copy()
+        self._toe_capsule = m.geom_type[self._toes] == mujoco.mjtGeom.mjGEOM_CAPSULE
         self.q_settled = self.q_home.copy()
 
     # --------------------------------------------------------------- state
@@ -254,8 +408,23 @@ class Plant:
         mujoco.mju_quat2Mat(R, q[3:7])
         return R.reshape(3, 3)
 
-    def reset(self, joint_noise: float = 0.0, root_velocity_noise: float = 0.0) -> None:
-        """Back to the settled home pose at rest, servos at home; optional uniform noise drawn from ``rng``."""
+    @property
+    def settled(self) -> bool | None:
+        """True if the zero-command stance settled on this floor, False if it did not, None if no settle was run."""
+        s = self.meta.get("settle")
+        return None if s is None else bool(s["settled"])
+
+    def reset(self, joint_noise: float = 0.0, root_velocity_noise: float = 0.0, seed: int | None = None,
+              allow_unsettled: bool = False) -> None:
+        """Back to the settled home pose at rest, servos at home; optional uniform noise drawn from ``rng``, which
+        ``seed`` replaces with a fresh generator (one per episode, so an episode does not depend on the draws of the
+        ones before it).  Refuses a stance that did not settle unless ``allow_unsettled``."""
+        if self.settled is False and not allow_unsettled:
+            s = self.meta["settle"]
+            raise PlantError(f"{self.body} does not stand on {self.floor}: the zero-command stance {s['status']} "
+                             f"after {s['seconds']:.1f} s; no settled stance to start from")
+        if seed is not None:
+            self.rng = np.random.default_rng(seed)
         m, d = self.m, self.d
         mujoco.mj_resetData(m, d)
         d.qpos[:] = self.q_settled
@@ -264,7 +433,7 @@ class Plant:
         if root_velocity_noise:
             d.qvel[:3] = self.rng.uniform(-root_velocity_noise, root_velocity_noise, 3)
         d.ctrl[:] = self.ctrl_home
-        self.envelope.restore()
+        self.envelope.bind(m, d)
         mujoco.mj_forward(m, d)
 
     def set_state(self, qpos, qvel) -> None:
@@ -273,7 +442,7 @@ class Plant:
         self.d.qpos[:] = qpos
         self.d.qvel[:] = qvel
         self.d.ctrl[:] = self.ctrl_home
-        self.envelope.restore()
+        self.envelope.bind(self.m, self.d)
         mujoco.mj_forward(self.m, self.d)
 
     # --------------------------------------------------------------- actuation
@@ -320,15 +489,64 @@ class Plant:
 
     def tilt(self) -> float:
         """Trunk tilt from vertical (rad): the angle between the trunk's z axis and the world's."""
-        return float(np.arccos(np.clip(self.d.xmat[self.trunk][8], -1.0, 1.0)))
+        return math.acos(max(-1.0, min(1.0, float(self.d.xmat[self.trunk][8]))))
 
     def tilt_from_home(self) -> float:
         """Trunk tilt relative to the home orientation (rad), as ``carpet.standing_check`` measures it."""
         Rw = self.d.xmat[self.trunk].reshape(3, 3) @ self._R_home.T
         return float(np.arccos(np.clip(Rw[2, 2], -1.0, 1.0)))
 
+    def proxy_below_floor(self) -> str | None:
+        """The first ``cl_*`` shell proxy whose lowest point is below the floor, else None (positions as of the last
+        step's start, like the sensors).  A bounding-sphere test first; exact lowest points only near the floor."""
+        d = self.d
+        if not len(self._cl):
+            return None
+        z = d.geom_xpos[self._cl, 2] - self._cl_r
+        if z.min() > self.z_floor:
+            return None
+        for g in self._cl[z <= self.z_floor]:
+            if carpet.lowest_point(self.m, d, g)[2] < self.z_floor:
+                return self._gname[g]
+        return None
+
+    def fall_cause(self) -> str | None:
+        """Why the episode counts as a fall (plan section 4), or None: "tilt", "height" or "proxy <geom>"."""
+        if self.tilt() > FALL_TILT_RAD:
+            return "tilt"
+        if float(self.d.qpos[2]) < FALL_HEIGHT_FRAC * self.z_home:
+            return "height"
+        g = self.proxy_below_floor()
+        return None if g is None else f"proxy {g}"
+
     def fallen(self) -> bool:
-        return self.tilt() > FALL_TILT_RAD or float(self.d.qpos[2]) < FALL_HEIGHT_FRAC * self.z_home
+        return self.fall_cause() is not None
+
+    def toe_lowest(self) -> tuple[float, str | None]:
+        """Height of the lowest toe or claw point above the floor (m; negative: through it, since toes and claws do
+        not collide) and its geom (positions as of the last step's start).  Exact: in closed form for capsules (every
+        toe and claw of these bodies); any other geom by ``carpet.lowest_point``, in the order of the world-AABB lower
+        bounds until no remaining bound is lower."""
+        d, g = self.d, self._toes
+        if not len(g):
+            return math.inf, None
+        cap = self._toe_capsule
+        lb = d.geom_xpos[g, 2] - np.abs(d.geom_xmat[g, 8]) * self._toe_size[:, 1] - self._toe_size[:, 0]
+        if not cap.all():
+            r2 = d.geom_xmat[g, 6:9]
+            lb = np.where(cap, lb, d.geom_xpos[g, 2] + np.einsum("ij,ij->i", r2, self._toe_aabb[:, :3])
+                          - np.einsum("ij,ij->i", np.abs(r2), self._toe_aabb[:, 3:]))
+        i = int(np.argmin(lb))
+        best, at = float(lb[i]), int(g[i])
+        if not cap.all():
+            best = math.inf
+            for i in np.argsort(lb):
+                if lb[i] >= best:
+                    break
+                z = float(lb[i]) if cap[i] else float(carpet.lowest_point(self.m, d, g[i])[2])
+                if z < best:
+                    best, at = z, int(g[i])
+        return best - self.z_floor, self._gname[at]
 
     def foot_loads(self) -> np.ndarray:
         return np.array([self.d.sensordata[self._sens[f"{s}_foot_load"][0] + 3] for s in statics.SIDES])
@@ -345,45 +563,76 @@ class Plant:
         A_hat = float(m.body_invweight0[self.feet[0], 0])
         return float(carpet.static_depth(pp["solref"], pp["solimp"], A_hat, 0.5 * W / (4 * len(pads)), m.opt.timestep))
 
-    def settle(self, sinkage: float, seconds: float = SETTLE_S) -> dict:
-        """Settle the home pose with zero command and keep it as the start of every episode."""
+    def settle(self, sinkage: float, H: float, min_seconds: float = SETTLE_S, max_seconds: float = SETTLE_MAX_S) -> dict:
+        """Settle the home pose with zero command (module docstring) and keep it as the start of every episode."""
         m, d = self.m, self.d
         mujoco.mj_resetDataKeyframe(m, d, 0)
+        self.envelope.bind(m, d)
         mujoco.mj_forward(m, d)
         ncon_key = [int(v) for v in self.sensors()["foot_contacts"]]
         d.qpos[2] -= sinkage
         mujoco.mj_forward(m, d)
         ncon0 = [int(v) for v in self.sensors()["foot_contacts"]]
-        self.step(int(round(seconds / m.opt.timestep)))
+        dt = float(m.opt.timestep)
+        every = max(1, int(round(carpet.LOG_DT / dt)))
+        per_s = int(round(1.0 / dt))
+        lag = per_s // every
+        n_min, n_max = int(round(min_seconds / dt)), int(round(max(min_seconds, max_seconds) / dt))
+        tilt, com = [float(np.degrees(self.tilt_from_home()))], [d.subtree_com[self.trunk].copy()]
+        com0 = com[0].copy()
+        status, k = "did not settle", 0
+        while True:
+            self.step(every)
+            k += every
+            tilt.append(float(np.degrees(self.tilt_from_home())))
+            com.append(d.subtree_com[self.trunk].copy())
+            if tilt[-1] > carpet.UPRIGHT_TILT_DEG or com0[2] - com[-1][2] > carpet.COLLAPSE_FRAC_H * H:
+                status = "tipped"
+                break
+            if k >= n_min and k % per_s == 0 and len(tilt) > 2 * lag and carpet._settled(tilt, com, lag):
+                status = "settled"
+                break
+            if k >= n_max:
+                break
         s = self.sensors()
-        out = dict(seconds=seconds, foot_contacts_at_keyframe=ncon_key, start_lowered_by_m=sinkage,
+        span_tilt, span_com = carpet._spans(tilt[-1 - min(lag, len(tilt) - 1) :], com[-1 - min(lag, len(com) - 1) :])
+        out = dict(status=status, settled=status == "settled", seconds=k * dt, min_seconds=min_seconds,
+                   max_seconds=max_seconds,
+                   rule="carpet._settled over the last second (tilt span < "
+                        f"{carpet.SETTLED_TILT_DEG} deg, CoM movement < {carpet.SETTLED_COM_MM} mm, not speeding up), "
+                        f"checked each second from 2 s; tipped: tilt from home > {carpet.UPRIGHT_TILT_DEG} deg or CoM "
+                        f"down by {carpet.COLLAPSE_FRAC_H} H",
+                   foot_contacts_at_keyframe=ncon_key, start_lowered_by_m=sinkage,
                    foot_contacts_at_start=ncon0, foot_contacts_settled=[int(v) for v in s["foot_contacts"]],
                    foot_load_N=[float(v) for v in s["foot_load"]],
                    weight_N=float(m.body_subtreemass[self.trunk]) * carpet.G,
-                   root_z_change_m=float(d.qpos[2] - self.z_home),
-                   tilt_from_home_deg=float(np.degrees(self.tilt_from_home())),
+                   root_z_change_m=float(d.qpos[2] - self.z_home), tilt_from_home_deg=tilt[-1],
+                   tilt_change_last_s_deg=span_tilt, com_move_last_s_mm=span_com,
                    max_abs_qvel=float(np.max(np.abs(d.qvel))),
+                   trunk_rate_rad_s=float(np.linalg.norm(d.qvel[3:6])),
+                   max_abs_joint_rate_rad_s=float(np.max(np.abs(d.qvel[self.dofs]))),
                    joint_offset_max_rad=float(np.max(np.abs(d.qpos[self.qadr] - self.q_home[self.qadr]))))
         self.q_settled = d.qpos.copy()
-        self.reset()
+        self.meta["settle"] = out
+        self.reset(allow_unsettled=True)
         return out
 
 
 def _gains(m, d, joints: list[str], G: np.ndarray, drives: list[drive.Drive], ankle_gains: str = "motor") -> dict:
     """Hold-servo gains (module docstring) at the home pose, written into the model's position actuators."""
+    if ankle_gains not in ANKLE_GAINS:
+        raise ValueError(f"ankle_gains {ankle_gains!r}: choose from {', '.join(ANKLE_GAINS)}")
     d.qpos[:] = m.key_qpos[0]
     d.qvel[:] = 0
     mujoco.mj_forward(m, d)
     Mfull = np.zeros((m.nv, m.nv))
     mujoco.mj_fullM(m, d, Mfull)
-    dofs = [m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)] for jn in joints]
+    dofs = _dofs(m, joints)
     Ginv = np.linalg.inv(G)
     inertia = np.diag(Ginv.T @ Mfull[np.ix_(dofs, dofs)] @ Ginv).copy()
     kp = np.array([dr.sustained for dr in drives]) / carpet.SERVO_ERROR_RAD
     if ankle_gains == "joint":  # G^T diag(kp) G on each ankle = the one-joint hold stiffness sustained / 0.01 rad
         kp[[i for i, dr in enumerate(drives) if dr.group in drive.REPLACES]] *= 0.5
-    elif ankle_gains != "motor":
-        raise ValueError(f"ankle_gains {ankle_gains!r}: 'motor' or 'joint'")
     kv = 2.0 * carpet.SERVO_ZETA * np.sqrt(kp * inertia)
     m.actuator_gainprm[:, 0] = kp
     m.actuator_biasprm[:, 1] = -kp
@@ -394,20 +643,28 @@ def _gains(m, d, joints: list[str], G: np.ndarray, drives: list[drive.Drive], an
 
 def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, speed_scale: float = 1.0,
           torque_scale: float = 1.0, pile_grid: float | None = None, settle: bool = True,
-          ankle_gains: str = "motor") -> Plant:
-    """The Stage 1 plant of ``body`` on ``floor`` (``FLOORS``), settled at home unless ``settle`` is False."""
+          ankle_gains: str = "motor", ankle_armature: str = "linkage", bus: float | None = None,
+          braking: str = "peak") -> Plant:
+    """The Stage 1 plant of ``body`` on ``floor`` (``FLOORS``), settled at home unless ``settle`` is False.
+
+    ``ankle_gains`` and ``ankle_armature`` are the two open plant choices (module docstring; the defaults are the
+    ones G1 and G2 were first run on); ``bus`` (V) replaces the record's 24 V bus in the envelope and ``braking``
+    selects the envelope's braking rule (``drive``)."""
     if floor not in FLOORS:
         raise ValueError(f"floor {floor!r}: choose from {', '.join(FLOORS)}")
+    if ankle_gains not in ANKLE_GAINS:
+        raise ValueError(f"ankle_gains {ankle_gains!r}: choose from {', '.join(ANKLE_GAINS)}")
     xml, ledger = model_files(body)
     check = verify(body, xml)
     rec = record(body)
+    layout = leg_layout(body)
     ranges = usable_ranges(body)
     imu = imu_position(ledger)
     text = xml.read_text()
     m0 = mujoco.MjModel.from_xml_string(text)
     joints = _hinges(m0)
-    drives = drive.drives(rec["selection"], joints)
-    aug = augment(text, joints, drives, ranges, imu)
+    drives = drive.drives(rec["selection"], joints, bus=bus, layout=layout)
+    aug = augment(text, joints, drives, ranges, imu, ankle_armature)
     m = mujoco.MjModel.from_xml_string(aug)
     q_home = m.key_qpos[0].copy()
     floor_info, pile = None, None
@@ -430,19 +687,27 @@ def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, 
         floor_info = dict(probes_per_foot=pile["probes_per_foot"], geometry=pile["geometry"])
     if _hinges(m) != joints:
         raise PlantError("hinge order changed")
-    G = drive.motor_matrix(joints)
+    G = drive.motor_matrix(joints, layout)
     d = mujoco.MjData(m)
     mujoco.mj_forward(m, d)
     moment = _moment(m, d)
-    dofs = [m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)] for jn in joints]
+    dofs = _dofs(m, joints)
     embed = np.zeros((m.nu, m.nv))
     embed[:, dofs] = G
     if not np.array_equal(moment, embed):
         raise PlantError("the compiled actuator transmission differs from drive.motor_matrix")
     gains = _gains(m, d, joints, G, drives, ankle_gains)
     m.key_ctrl[0] = G @ q_home[[m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)] for jn in joints]]
-    env = drive.Envelope(drives, moment, enabled=envelope, speed_scale=speed_scale, torque_scale=torque_scale)
-    meta = dict(body=body, floor=floor, seed=int(seed), model=check, H_m=float(rec["H"]),
+    env = drive.Envelope(drives, moment, enabled=envelope, speed_scale=speed_scale, torque_scale=torque_scale,
+                         braking=braking)
+    arm = armature_effects(m0, m, joints, ankle_armature)
+    extra = joint_armature(m, joints) - joint_armature(m0, joints)
+    bus_v = float(rec["selection"]["bus"] if bus is None else bus)
+    meta = dict(body=body, floor=floor, seed=int(seed), model=check, H_m=float(rec["H"]), leg_layout=layout,
+                options=dict(ankle_gains=ankle_gains, ankle_armature=ankle_armature, bus_V=bus_v,
+                             bus_source="record selection.bus" if bus is None else "argument", braking=braking,
+                             envelope=bool(envelope), speed_scale=float(speed_scale), torque_scale=float(torque_scale),
+                             pile_grid_m=pile_grid),
                 mass_kg=float(m.body_subtreemass[statics.bid(m, "trunk")]), timestep_s=float(m.opt.timestep),
                 integrator=mujoco.mjtIntegrator(m.opt.integrator).name, nq=int(m.nq), nv=int(m.nv), nu=int(m.nu),
                 ngeom=int(m.ngeom), imu_site_trunk_m=imu, floor_params=_jsonable(floor_params), floor_info=floor_info,
@@ -461,19 +726,27 @@ def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, 
                                      for a in range(m0.nu)}),
                 drives=[dr.as_dict() for dr in drives], envelope=env.describe(),
                 ankle=dict(linkage="motor a on q_p + q_r, motor b on q_p - q_r (unit cranks): "
-                                   "|tau_p| + |tau_r| <= 2 peak; joint-space stiffness 2 kp on pitch and roll",
-                           armature="each motor's catalog armature on its tendon; the ankle joints' own set to 0"),
+                                   "|tau_p| + |tau_r| <= 2 peak",
+                           armature=arm),
                 joint_ranges=dict(source="review/screening/<id>_clearance.json summary.joint_range_usable",
+                                  reading="read as the clearance and turning screens read it (clearance._range_margins):"
+                                          " the first new interference with the trunk or the same leg, else the MJCF "
+                                          "limit; a limit set by the two legs touching in a single-joint sweep from "
+                                          "home falls back to the MJCF limit (only the pads collide in the plant, so "
+                                          "leg-to-leg proximity is checked on the traces: legs.LegGap)",
                                   mjcf={jn: [float(v) for v in m0.jnt_range[mujoco.mj_name2id(
                                       m0, mujoco.mjtObj.mjOBJ_JOINT, jn)]] for jn in joints},
-                                  plant={jn: list(ranges[jn]) for jn in joints}),
+                                  plant={jn: list(ranges[jn]) for jn in joints},
+                                  dropped_inter_leg_limits=dropped_limits(body)),
                 ctrl=dict(limited=False, home=[float(v) for v in m.key_ctrl[0]]),
                 sensors=[dict(name=mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_SENSOR, i),
                               type=mujoco.mjtSensor(m.sensor_type[i]).name, dim=int(m.sensor_dim[i]))
-                         for i in range(m.nsensor)])
-    p = Plant(body, floor, seed, m, joints, drives, env, meta)
+                         for i in range(m.nsensor)],
+                falls=dict(tilt_rad=FALL_TILT_RAD, root_height_frac=FALL_HEIGHT_FRAC,
+                           proxies="any cl_* shell proxy below the floor plane"))
+    p = Plant(body, floor, seed, m, joints, drives, env, meta, layout, extra)
     if settle:
-        meta["settle"] = p.settle(p._predicted_sinkage(floor_params, pile))
+        p.settle(p._predicted_sinkage(floor_params, pile), float(rec["H"]))
     return p
 
 

@@ -7,11 +7,14 @@ section 13).  It reads the round-two records and models and never changes them; 
 Modules (plan section 2):
 
 * ``plant``: the screened MJCF of a body, checked against its record's ``xml_sha256``, with sensors, the
-  hold-servo gains, the usable joint ranges, a floor and a settled home pose;
+  hold-servo gains, the usable joint ranges, a floor and a settled home pose (or the finding that it does not stand
+  there);
 * ``drive``: the two-motor ankle linkage and the torque-speed envelope of every drive;
 * ``refs``: the reference walks and turns with their inverse-dynamics feedforward, regenerated and checked
   against the records;
-* ``gates``: the fail-fast checks G1 (plant) and G2 (references) of plan section 3.
+* ``legs``: leg-to-leg proximity on simulated traces (only the foot pads collide in the plant);
+* ``gates``: the fail-fast checks G1 (plant) and G2 (references) of plan section 3, with the evidence for the open
+  choices G2 depends on (``gates.open_decisions``).
 
 Run from hardware/trex_form_study:
     python -m designlab.stage1 prepare --body 60-N-T-10 --out stage1/runs/<run>

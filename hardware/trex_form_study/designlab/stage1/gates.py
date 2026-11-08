@@ -1,17 +1,22 @@
 """Stage 1 fail-fast gates G1 (plant) and G2 (references), ``STAGE1_PLAN.md`` section 3, steps 2 and 3.
 
+Every gate takes the plant options of ``plant.build`` (``plant_kw``: the open choices ``ankle_gains`` and
+``ankle_armature``, the bus, the envelope's braking rule) and records them; the defaults are the plant G1 and G2 were
+first run on.
+
 G1, the plant:
 
 * the hashes match (``plant.verify`` on the model the plant loads; ``refs.source`` on the rebuilt one);
 * with zero command (every servo at its home target, no feedforward) the body stands ``STAND_S`` on hard floor and
-  on low pile: no fall (``plant.FALL_*``) and a trunk tilt from home that stays below 12 deg
-  (``carpet.UPRIGHT_TILT_DEG``, the Stand behaviour's success limit);
-* the tendon map equals ``sizing._motor_space`` to ``TENDON_TOL`` on random torques and speeds, through the
-  compiled model's own transmission (motor torques from the sizing map, applied as raw motor torques, give back
-  the joint torques; joint speeds give the sizing's motor speeds), and the ankle reaches, but never exceeds,
-  ``|tau_p| + |tau_r| = 2 peak``;
+  on low pile from its settled stance: the stance settled (``plant.Plant.settle``), no fall (``Plant.fall_cause``)
+  and a trunk tilt from home that stays below 12 deg (``carpet.UPRIGHT_TILT_DEG``, the Stand behaviour's limit);
+* the tendon map equals ``sizing._motor_space`` (for the record's leg layout) to ``TENDON_TOL`` on random torques and
+  speeds, through the compiled model's own transmission (motor torques from the sizing map, applied as raw motor
+  torques, give back the joint torques; joint speeds give the sizing's motor speeds), and the ankle reaches, but
+  never exceeds, ``|tau_p| + |tau_r| = 2 peak``;
 * seeded runs repeat exactly: two fresh builds with the same seed (random start noise and random servo targets
-  drawn from the plant's generator) give bit-identical traces, and another seed does not;
+  drawn from the plant's generator) give bit-identical traces, another seed does not, and reseeding one plant
+  (``Plant.reset(seed=...)``) repeats its first trace;
 * the plant (envelope included) runs at least ``MIN_STEPS_PER_S`` physics steps per second per core with zero
   command on hard floor, alone and with one process per core.
 
@@ -20,20 +25,32 @@ G2, the references:
 * every reference matches its records to 6 digits (``refs.compare``, recorded in ``refs.json``);
 * the feedforward replay of the nominal walk on the plant with the envelope walks at least ``MIN_REPLAY_STRIDES``
   strides.  The replay is the reference with feedforward and servo PD only (R0, no feedback): every 2 ms the servos
-  get the reference joint angles and rates and the inverse-dynamics torque plus the MJCF's passive joint terms
-  (damping x qd_ref + frictionloss x tanh(qd_ref / 0.05)), from the reference's first frame (already walking),
-  until a fall or ``REPLAY_STRIDES``.  It is run with and without the envelope; the other references are replayed
-  the same way and reported, not gated.  The design study's replay on the screened MJCF (joint servos, no
-  envelope) lasted 13.6 / 16.6 / 60 strides (``DESIGN_STUDY_STRIDES``; 60 = no fall in 60).
+  get the reference joint angles and rates and a feedforward torque, from the reference's first frame (already
+  walking) until a fall or ``REPLAY_STRIDES``.  The feedforward is the inverse-dynamics torque, plus the MJCF's
+  passive joint terms (damping x qd_ref + frictionloss x tanh(qd_ref / 0.05)), plus the armature the plant has
+  beyond the screened model the inverse dynamics ran on, ``(A_plant - A_screened) qdd_ref``
+  (``Plant.armature_extra``: the second motor's armature on each ankle axis; zero with
+  ``ankle_armature="screened"``).
 
-Reported with G2, not gated: the open-loop replay has no feedback, so on a marginally stable body its fall time
-depends on tiny differences in the start.  ``replay_spread`` repeats the nominal replay from ``SPREAD_RUNS`` start
-states whose root velocity is offset by at most ``SPREAD_OFFSET_M_S`` (seeded); and the nominal replay is also run
-on the plant built with ``ankle_gains="joint"`` (the screened model's joint-space ankle stiffness), the one plant
-choice the spread was found to depend on.  G2 itself is the unperturbed run on the default plant, as the plan
-states.
+The pass rule is ``rule``.  "single" (the plan's wording, the default) judges the one unperturbed run.  "panel"
+judges the median of ``PANEL_RUNS`` starts whose root velocity is offset in x and y by at most ``PANEL_OFFSET_M_S``
+(seeded; the same offsets for every plant).  Both verdicts are always recorded.
 
-Nothing is tuned to pass a gate: every number comes from the plant and references as built.
+Reported with G2, not gated:
+
+* the open-loop replay has no feedback, so its fall time is chaotic (on the 60 cm bodies start offsets of 1 um/s
+  already move it by several strides); the panel is run on every combination of the two open plant choices
+  (``PLANT_CHOICES``), and ``open_decisions`` lists those choices and the pass rule with this evidence, for the
+  owner.  Until the owner decides, the gates take the defaults; nothing is tuned to pass;
+* every other reference replayed the same way, with and without the envelope (``walking_turns`` lists the walking
+  turns);
+* for each replay: the fall cause, the envelope's clamps (driving or braking side), the smallest margin to each
+  joint's plant range, the lowest toe or claw point (they do not collide, so they can pass through the floor), and,
+  on the gated plant with the envelope, the leg-to-leg gap sampled every 20 ms (``legs.LegGap``);
+* the joint-range margins of every reference against the plant's ranges, under the screens' reading of
+  ``joint_range_usable`` (the plant's) and the literal one (``plant.usable_ranges``), listing the joints left with
+  less than the 0.10 rad of usable range plan section 4 asks every success to keep;
+* the nominal replay without the armature feedforward term.
 """
 
 from __future__ import annotations
@@ -50,6 +67,7 @@ import numpy as np
 
 from .. import carpet, statics
 from . import drive, plant
+from .legs import LegGap
 from .refs import Reference
 
 STAND_S = 20.0
@@ -63,40 +81,69 @@ REPLAY_STRIDES = 60.0
 MIN_REPLAY_STRIDES = 10.0
 DESIGN_STUDY_STRIDES = {"60-N-T-10": 13.6, "60-N-H-10": 16.6, "75-M-H-10": 60.0}
 FRICTION_SMOOTH = 0.05  # rad/s, the frictionloss compensation's tanh width
-SPREAD_RUNS = 10
-SPREAD_OFFSET_M_S = 1e-3
-SPREAD_SEED = 0
+RULES = ("single", "panel")
+PANEL_RUNS = 20
+PANEL_OFFSET_M_S = 1e-3
+PANEL_SEED = 0
+PANEL_CHUNK = 5
+SAMPLE_EVERY = 10  # physics steps between trace samples (20 ms): toe heights and leg gaps
+PRE_FALL_S = 0.5  # the last part of a falling run, left out of the *_before_fall values (plan section 4's window)
+MIN_RANGE_RAD = 0.10  # plan section 4: usable range every joint must keep
+#: The two open plant choices (``plant.build``), every combination.
+PLANT_CHOICES = {
+    "motor_gains+linkage_armature": dict(ankle_gains="motor", ankle_armature="linkage"),
+    "joint_gains+linkage_armature": dict(ankle_gains="joint", ankle_armature="linkage"),
+    "motor_gains+screened_armature": dict(ankle_gains="motor", ankle_armature="screened"),
+    "joint_gains+screened_armature": dict(ankle_gains="joint", ankle_armature="screened"),
+}
+RULE_TEXT = {
+    "single": f"the unperturbed nominal replay with the envelope walks at least {MIN_REPLAY_STRIDES:g} strides "
+              "(plan section 3 step 3 as written)",
+    "panel": f"the median of {PANEL_RUNS} nominal replays with the envelope, from starts whose root velocity is offset "
+             f"in x and y by at most {1e3 * PANEL_OFFSET_M_S:g} mm/s (seed {PANEL_SEED}), is at least "
+             f"{MIN_REPLAY_STRIDES:g} strides",
+}
+
+
+def _saturated(m, d) -> np.ndarray:
+    f, fr = d.actuator_force, m.actuator_forcerange
+    return (f >= fr[:, 1] - 1e-9) | (f <= fr[:, 0] + 1e-9)
 
 
 # ------------------------------------------------------------------------------------------------
 # G1
 # ------------------------------------------------------------------------------------------------
-def stand(body: str, floor: str, seconds: float = STAND_S) -> dict:
+def stand(body: str, floor: str, seconds: float = STAND_S, **plant_kw) -> dict:
     """Zero-command stance from the settled home pose."""
     t0 = time.perf_counter()
-    p = plant.build(body, floor)
+    p = plant.build(body, floor, **plant_kw)
     build_s = time.perf_counter() - t0
+    if not p.settled:
+        s = p.meta["settle"]
+        return dict(floor=floor, stands=False, reason=f"no settled stance: the zero-command stance {s['status']} "
+                    f"after {s['seconds']:.1f} s", settle=s, floor_info=p.meta["floor_info"], build_s=build_s)
     m, d = p.m, p.d
     p.reset()
     p.hold()
     root = p.trunk
     com0 = d.subtree_com[root].copy()
     n = int(round(seconds / m.opt.timestep))
-    tilt_max, z_min, fell_at = 0.0, float(d.qpos[2]), None
+    tilt_max, z_min, fell_at, cause = 0.0, float(d.qpos[2]), None, None
     sat = np.zeros(m.nu, bool)
     t1 = time.perf_counter()
     for k in range(n):
         p.step()
-        sat |= np.abs(d.actuator_force) >= m.actuator_forcerange[:, 1] - 1e-9
+        sat |= _saturated(m, d)
         tilt_max = max(tilt_max, p.tilt_from_home())
         z_min = min(z_min, float(d.qpos[2]))
-        if p.fallen():
+        cause = p.fall_cause()
+        if cause is not None:
             fell_at = float(d.time)
             break
     wall = time.perf_counter() - t1
     tilt_max_deg = float(np.degrees(tilt_max))
     com = d.subtree_com[root]
-    return dict(floor=floor, seconds=float(d.time), fell_at_s=fell_at,
+    return dict(floor=floor, seconds=float(d.time), fell_at_s=fell_at, fall_cause=cause,
                 stands=fell_at is None and tilt_max_deg < carpet.UPRIGHT_TILT_DEG, tilt_from_home_max_deg=tilt_max_deg,
                 tilt_from_home_end_deg=float(np.degrees(p.tilt_from_home())), root_z_min_m=z_min,
                 com_drift_mm=1e3 * float(np.linalg.norm(com[:2] - com0[:2])), com_drop_mm=1e3 * float(com0[2] - com[2]),
@@ -106,10 +153,11 @@ def stand(body: str, floor: str, seconds: float = STAND_S) -> dict:
                 floor_info=p.meta["floor_info"])
 
 
-def tendon_map(body: str, samples: int = TENDON_SAMPLES, seed: int = 0) -> dict:
+def tendon_map(body: str, samples: int = TENDON_SAMPLES, seed: int = 0, **plant_kw) -> dict:
     """The compiled transmission against ``sizing._motor_space`` (module docstring)."""
-    p = plant.build(body, "hard", settle=False)
+    p = plant.build(body, "hard", settle=False, **plant_kw)
     m, d = p.m, p.d
+    layout = p.meta["leg_layout"]
     rng = np.random.default_rng(seed)
     peak = np.array([dr.peak for dr in p.drives])
     err_tau = err_w = err_tau_G = err_w_G = 0.0
@@ -119,7 +167,7 @@ def tendon_map(body: str, samples: int = TENDON_SAMPLES, seed: int = 0) -> dict:
     for _ in range(samples):
         tau = rng.uniform(-1.0, 1.0, len(p.joints)) * peak
         omega = rng.uniform(-10.0, 10.0, len(p.joints))
-        f_s, w_s = drive.sizing_motor_values(p.joints, tau, omega)
+        f_s, w_s = drive.sizing_motor_values(p.joints, tau, omega, layout)
         mujoco.mj_resetData(m, d)
         d.qpos[:] = p.q_home
         d.qpos[p.qadr] += rng.uniform(-0.2, 0.2, len(p.joints))
@@ -156,15 +204,14 @@ def tendon_map(body: str, samples: int = TENDON_SAMPLES, seed: int = 0) -> dict:
                            reaches=bool(all(abs(abs(a) + abs(b) - 2 * peak[ia]) <= TENDON_TOL for a, b in corners)))
     ok = max(err_tau, err_w, err_tau_G, err_w_G) <= TENDON_TOL and all(v["within"] and v["reaches"]
                                                                         for v in ankle.values())
-    return dict(samples=samples, tolerance=TENDON_TOL, max_err_joint_torque_Nm=err_tau, max_err_motor_speed_rad_s=err_w,
-                max_err_plant_matrix_torque_Nm=err_tau_G, max_err_plant_matrix_speed_rad_s=err_w_G, ankle_limit=ankle,
-                matches=bool(ok))
+    return dict(samples=samples, tolerance=TENDON_TOL, leg_layout=layout, max_err_joint_torque_Nm=err_tau,
+                max_err_motor_speed_rad_s=err_w, max_err_plant_matrix_torque_Nm=err_tau_G,
+                max_err_plant_matrix_speed_rad_s=err_w_G, ankle_limit=ankle, matches=bool(ok))
 
 
-def _trace_hash(body: str, seed: int, seconds: float = REPEAT_S) -> str:
-    """A fresh build, a random start and random servo targets (50 Hz) from the plant's seeded generator."""
-    p = plant.build(body, "hard", seed=seed)
-    p.reset(joint_noise=0.01, root_velocity_noise=0.02)
+def _trace_hash(p: plant.Plant, seed: int, seconds: float = REPEAT_S) -> str:
+    """A random start and random servo targets (50 Hz) from the plant's generator, reseeded with ``seed``."""
+    p.reset(joint_noise=0.01, root_velocity_noise=0.02, seed=seed)
     d = p.d
     h = hashlib.sha256()
     q0 = p.q_home[p.qadr]
@@ -177,14 +224,20 @@ def _trace_hash(body: str, seed: int, seconds: float = REPEAT_S) -> str:
     return h.hexdigest()
 
 
-def repeatability(body: str, seed: int = 1) -> dict:
-    a, b, c = _trace_hash(body, seed), _trace_hash(body, seed), _trace_hash(body, seed + 1)
+def repeatability(body: str, seed: int = 1, **plant_kw) -> dict:
+    """Fresh builds with one seed repeat bit for bit, another seed differs, and a reseeded plant repeats."""
+    first = plant.build(body, "hard", seed=seed, **plant_kw)
+    a = _trace_hash(first, seed)
+    b = _trace_hash(plant.build(body, "hard", seed=seed, **plant_kw), seed)
+    c = _trace_hash(plant.build(body, "hard", seed=seed + 1, **plant_kw), seed + 1)
+    e = _trace_hash(first, seed)
     return dict(seconds=REPEAT_S, seed=seed, trace_sha256=a, repeat_sha256=b, other_seed=seed + 1, other_sha256=c,
-                repeats=a == b, other_seed_differs=a != c, ok=a == b and a != c)
+                reseeded_sha256=e, repeats=a == b, other_seed_differs=a != c, reseeding_repeats=a == e,
+                ok=a == b and a != c and a == e)
 
 
-def _rate(body: str, steps: int = RATE_STEPS) -> float:
-    p = plant.build(body, "hard")
+def _rate(body: str, steps: int = RATE_STEPS, plant_kw: dict | None = None) -> float:
+    p = plant.build(body, "hard", **(plant_kw or {}))
     p.reset()
     p.hold()
     p.step(1000)
@@ -193,18 +246,18 @@ def _rate(body: str, steps: int = RATE_STEPS) -> float:
     return steps / (time.perf_counter() - t0)
 
 
-def step_rate(body: str, steps: int = RATE_STEPS, procs: int | None = None) -> dict:
+def step_rate(body: str, steps: int = RATE_STEPS, procs: int | None = None, **plant_kw) -> dict:
     """Plant steps per second (zero command, hard floor, envelope on): one process, then one per core at once."""
     procs = procs or os.cpu_count() or 1
-    single = _rate(body, steps)
+    single = _rate(body, steps, plant_kw)
     with mp.get_context("spawn").Pool(procs) as pool:
-        par = pool.starmap(_rate, [(body, steps)] * procs)
+        par = pool.starmap(_rate, [(body, steps, plant_kw)] * procs)
     per_core = float(min(single, np.mean(par)))
     return dict(steps=steps, single_process=single, processes=procs, per_process=par, per_process_mean=float(np.mean(par)),
                 per_core=per_core, threshold=MIN_STEPS_PER_S, ok=per_core >= MIN_STEPS_PER_S)
 
 
-def g1(body: str, out_dir: Path | None = None) -> dict:
+def g1(body: str, out_dir: Path | None = None, **plant_kw) -> dict:
     """G1; with ``out_dir`` (``refs.prepare`` output) the rebuilt model's hash check is included as well."""
     t0 = time.perf_counter()
     xml, _ = plant.model_files(body)
@@ -212,11 +265,11 @@ def g1(body: str, out_dir: Path | None = None) -> dict:
     path = Path(out_dir) / "refs.json" if out_dir is not None else None
     if path is not None and path.exists():
         hashes["reference_model"] = json.loads(path.read_text())["model"]
-    out = dict(hashes=hashes)
-    out["stand"] = {f: stand(body, f) for f in STAND_FLOORS}
-    out["tendon_map"] = tendon_map(body)
-    out["repeatability"] = repeatability(body)
-    out["step_rate"] = step_rate(body)
+    out = dict(plant_options=plant.build(body, "hard", settle=False, **plant_kw).meta["options"], hashes=hashes)
+    out["stand"] = {f: stand(body, f, **plant_kw) for f in STAND_FLOORS}
+    out["tendon_map"] = tendon_map(body, **plant_kw)
+    out["repeatability"] = repeatability(body, **plant_kw)
+    out["step_rate"] = step_rate(body, **plant_kw)
     out["pass"] = bool(all(h["matches_record"] and h["matches_plan"] for h in hashes.values())
                        and all(s["stands"] for s in out["stand"].values()) and out["tendon_map"]["matches"]
                        and out["repeatability"]["ok"] and out["step_rate"]["ok"])
@@ -231,40 +284,82 @@ def _yaw(R) -> float:
     return float(np.arctan2(R[1, 0], R[0, 0]))
 
 
-def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, start_velocity_offset=None) -> dict:
+def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, start_velocity_offset=None,
+           armature_ff: bool = True, legs: LegGap | None = None, sample_every: int = SAMPLE_EVERY) -> dict:
     """Feedforward replay (module docstring) of ``ref`` on ``p``; ``start_velocity_offset`` (m/s, world) is added
-    to the root velocity of the start frame."""
+    to the root velocity of the start frame; ``armature_ff`` adds the plant's extra armature term; ``legs`` samples
+    the leg-to-leg gap every ``sample_every`` steps.
+
+    Joint-range margins are tracked every step (``range_margin_min_rad``); they, the toe heights and the leg gaps
+    are also sampled every ``sample_every`` steps, so that a fall's last ``PRE_FALL_S`` (when the body is already
+    going down) can be told apart: the ``*_before_fall`` values leave it out."""
     if list(ref.joints) != p.joints:
         raise ValueError("reference and plant joints differ")
     m, d, env = p.m, p.d, p.envelope
-    series = ref.joint_series(p.qadr, p.dofs)
+    nj = len(p.joints)
+    S = np.hstack(ref.joint_series(p.qadr, p.dofs) + (ref.qdd_series(p.dofs),))
     damp, fric = m.dof_damping[p.dofs].copy(), m.dof_frictionloss[p.dofs].copy()
+    extra = p.armature_extra if armature_ff and np.any(p.armature_extra) else None
     qd0 = ref.qd[0].copy()
     if start_velocity_offset is not None:
         qd0[:3] += np.asarray(start_velocity_offset, float)
     p.set_state(ref.q[0], qd0)
+    jid = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in p.joints]
+    lo, hi = m.jnt_range[jid, 0].copy(), m.jnt_range[jid, 1].copy()
     x0 = d.qpos[:2].copy()
     R0 = d.xmat[p.trunk].reshape(3, 3).copy()
     n = int(round(strides * ref.period / m.opt.timestep))
-    ratio_max = np.zeros(m.nu)
+    peak = env.peak
+    w, wa, wmax = np.zeros(m.nu), np.zeros(m.nu), np.zeros(m.nu)
     sat_steps = np.zeros(m.nu)
-    past = 0
-    fell_at = None
+    clamp_drive, clamp_brake = np.zeros(m.nu, int), np.zeros(m.nu, int)
+    qmin, qmax = d.qpos[p.qadr].copy(), d.qpos[p.qadr].copy()
+    past = clamped = 0
+    fell_at = cause = None
+    samples = []  # (t, toe height, toe geom, smallest range margin, its joint)
+    frames = []
     yaw_prev, yaw_turned = _yaw(R0), 0.0
     t0 = time.perf_counter()
     k = 0
     for k in range(n):
-        q, qd, tau = ref.at(d.time, series)
-        p.command(q, qd, tau + damp * qd + fric * np.tanh(qd / FRICTION_SMOOTH))
+        x = ref.interp(d.time, S)
+        q, qd, tau = x[:nj], x[nj : 2 * nj], x[2 * nj : 3 * nj]
+        ff = tau + damp * qd + fric * np.tanh(qd / FRICTION_SMOOTH)
+        if extra is not None:
+            ff += extra @ x[3 * nj :]
+        p.command(q, qd, ff)
+        np.dot(env.moment, d.qvel, out=w)  # the drive speeds the envelope sets this step's limits from
         p.step()
-        r = np.abs(env.moment @ d.qvel) / env.rated
-        np.maximum(ratio_max, r, out=ratio_max)
-        past += bool((r > 1.0).any())
-        sat_steps += np.abs(d.actuator_force) >= m.actuator_forcerange[:, 1] - 1e-9
+        f = d.actuator_force
+        if env.active:  # some drive past its corner: its force range was narrowed for this step
+            past += 1
+            fr = m.actuator_forcerange
+            at_hi, at_lo = f >= fr[:, 1] - 1e-9, f <= fr[:, 0] + 1e-9
+            sat_steps += at_hi | at_lo
+            env_cl = (at_hi & (fr[:, 1] < peak - 1e-12)) | (at_lo & (fr[:, 0] > -peak + 1e-12))
+            if env_cl.any():
+                clamped += 1
+                brake = f * w < 0
+                clamp_brake += env_cl & brake
+                clamp_drive += env_cl & ~brake
+        else:
+            sat_steps += np.abs(f) >= peak - 1e-9
+        np.maximum(wmax, np.abs(w, out=wa), out=wmax)
+        qj = d.qpos[p.qadr]
+        np.minimum(qmin, qj, out=qmin)
+        np.maximum(qmax, qj, out=qmax)
         yaw = _yaw(d.xmat[p.trunk].reshape(3, 3))
         yaw_turned += (yaw - yaw_prev + np.pi) % (2 * np.pi) - np.pi  # unwrapped
         yaw_prev = yaw
-        if p.fallen():
+        if (k + 1) % sample_every == 0:
+            z, g = p.toe_lowest()
+            mr = np.minimum(qj - lo, hi - qj)
+            j = int(np.argmin(mr))
+            samples.append((float(d.time), z, g, float(mr[j]), j))
+            if legs is not None:
+                frames.append(d.qpos.copy())
+        cause = p.fall_cause()
+        if cause is not None:
             fell_at = float(d.time)
             break
     wall = time.perf_counter() - t0
@@ -273,62 +368,205 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
     heading = _yaw(R0)
     dxy = d.qpos[:2] - x0
     fwd = np.array([np.cos(heading), np.sin(heading)])
+    ratio_max = wmax / env.rated
     worst = int(np.argmax(ratio_max))
-    return dict(reference=ref.name, envelope=env.enabled, strides_max=strides, strides=dur / ref.period,
-                fell=fell_at is not None, fall_time_s=fell_at, seconds=dur,
-                mean_forward_speed_m_s=float(dxy @ fwd / max(dur, 1e-9)),
-                lateral_drift_m=float(dxy @ np.array([-fwd[1], fwd[0]])),
-                yaw_turned_deg=float(np.degrees(yaw_turned)), mean_yaw_rate_rad_s=yaw_turned / max(dur, 1e-9),
-                reference_yaw_rate_rad_s=float(ref.stride_motion[0]) / ref.period,
-                steps_past_corner_frac=past / steps,
-                speed_ratio_max={dr.actuator: float(v) for dr, v in zip(p.drives, ratio_max, strict=True)},
-                worst_speed_ratio=[p.drives[worst].actuator, float(ratio_max[worst])],
-                saturated_frac={p.drives[i].actuator: float(sat_steps[i] / steps) for i in np.flatnonzero(sat_steps)},
-                wall_s=wall, steps_per_s=steps / wall)
+    m_lo, m_hi = qmin - lo, hi - qmax
+    mr = np.minimum(m_lo, m_hi)
+    wj = int(np.argmin(mr))
+    cut = dur if fell_at is None else fell_at - PRE_FALL_S
+    keep = [s for s in samples if s[0] <= cut]
+    first_limit = next((s for s in samples if s[3] <= 0.0), None)
+    toe = min(samples, key=lambda s: s[1], default=None)
+    toe_pre = min(keep, key=lambda s: s[1], default=None)
+    rng_pre = min(keep, key=lambda s: s[3], default=None)
+    rows = None if legs is None else legs.per_pose(frames)
+    out = dict(reference=ref.name, envelope=env.enabled, braking=env.braking, armature_feedforward=extra is not None,
+               strides_max=strides, strides=dur / ref.period, fell=fell_at is not None, fall_time_s=fell_at,
+               fall_cause=cause, seconds=dur, mean_forward_speed_m_s=float(dxy @ fwd / max(dur, 1e-9)),
+               lateral_drift_m=float(dxy @ np.array([-fwd[1], fwd[0]])),
+               yaw_turned_deg=float(np.degrees(yaw_turned)), mean_yaw_rate_rad_s=yaw_turned / max(dur, 1e-9),
+               reference_yaw_rate_rad_s=float(ref.stride_motion[0]) / ref.period,
+               steps_past_corner_frac=past / steps,
+               speed_ratio_max={dr.actuator: float(v) for dr, v in zip(p.drives, ratio_max, strict=True)},
+               worst_speed_ratio=[p.drives[worst].actuator, float(ratio_max[worst])],
+               saturated_frac={p.drives[i].actuator: float(sat_steps[i] / steps) for i in np.flatnonzero(sat_steps)},
+               envelope_clamped_steps_frac=clamped / steps,
+               envelope_clamps={p.drives[i].actuator: dict(driving=int(clamp_drive[i]), braking=int(clamp_brake[i]))
+                                for i in np.flatnonzero(clamp_drive + clamp_brake)},
+               range_margin_min_rad={jn: [float(a), float(b)] for jn, a, b in zip(p.joints, m_lo, m_hi, strict=True)},
+               range_margin_worst=[p.joints[wj], "low" if m_lo[wj] <= m_hi[wj] else "high", float(mr[wj])],
+               joint_limit_reached=[jn for jn, v in zip(p.joints, mr, strict=True) if v <= 0.0],
+               joint_limit_first_reached=None if first_limit is None else dict(t_s=first_limit[0],
+                                                                               joint=p.joints[first_limit[4]]),
+               range_margin_worst_before_fall=None if rng_pre is None else [p.joints[rng_pre[4]], rng_pre[3]],
+               toe_lowest_above_floor_mm=None if toe is None else 1e3 * toe[1],
+               toe_lowest_geom=None if toe is None else toe[2],
+               toe_lowest_before_fall_mm=None if toe_pre is None else 1e3 * toe_pre[1],
+               pre_fall_s=PRE_FALL_S, sample_every_steps=sample_every,
+               leg_gap=None if rows is None else legs.summary(rows),
+               leg_gap_before_fall=None if rows is None or fell_at is None else legs.summary(rows[:len(keep)]),
+               wall_s=wall, steps_per_s=steps / wall)
+    return out
 
 
-def replay_spread(p: plant.Plant, ref: Reference, runs: int = SPREAD_RUNS, offset: float = SPREAD_OFFSET_M_S,
-                  seed: int = SPREAD_SEED, strides: float = REPLAY_STRIDES) -> dict:
-    """Strides of ``runs`` replays whose start root velocity is offset in x and y by up to ``offset`` (uniform,
-    seeded): how much the open-loop fall time depends on the start (reported with G2, not gated)."""
+def _offsets(runs: int = PANEL_RUNS, offset: float = PANEL_OFFSET_M_S, seed: int = PANEL_SEED) -> list:
     rng = np.random.default_rng(seed)
-    v = np.array([replay(p, ref, strides, np.r_[rng.uniform(-offset, offset, 2), 0.0])["strides"] for _ in range(runs)])
-    return dict(runs=runs, max_offset_m_s=offset, seed=seed, strides=[float(x) for x in v], median=float(np.median(v)),
-                min=float(v.min()), max=float(v.max()), runs_at_least_min_strides=int(np.sum(v >= MIN_REPLAY_STRIDES)))
+    return [np.r_[rng.uniform(-offset, offset, 2), 0.0] for _ in range(runs)]
 
 
-def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES) -> dict:
-    """G2 from the references saved in ``out_dir`` (``refs.prepare``)."""
+def _replay_job(job: dict) -> list[dict]:
+    """Worker: one plant, one reference, the replays of ``job`` (``g2``); ``full`` False keeps only the outcome."""
+    p = plant.build(job["body"], "hard", settle=False, **job["plant_kw"])
+    ref = Reference.load(job["ref"])
+    legs = LegGap(job["body"]) if job.get("legs") else None
+    out = []
+    for off in job["offsets"]:
+        r = replay(p, ref, job["strides"], off, armature_ff=job.get("armature_ff", True), legs=legs)
+        out.append(r if job.get("full", True) else {k: r[k] for k in ("strides", "fell", "fall_cause")})
+    return out
+
+
+def run_jobs(jobs: list[dict], procs: int | None = None) -> list[list[dict]]:
+    """``_replay_job`` over ``jobs``, on one process per core."""
+    procs = min(procs or os.cpu_count() or 1, len(jobs))
+    if procs <= 1:
+        return [_replay_job(j) for j in jobs]
+    with mp.get_context("spawn").Pool(procs) as pool:
+        return pool.map(_replay_job, jobs, chunksize=1)
+
+
+def panel_stats(strides) -> dict:
+    v = np.asarray(strides, float)
+    return dict(runs=len(v), max_offset_m_s=PANEL_OFFSET_M_S, seed=PANEL_SEED, strides=[float(x) for x in v],
+                median=float(np.median(v)), min=float(v.min()), max=float(v.max()),
+                runs_at_least_min_strides=int(np.sum(v >= MIN_REPLAY_STRIDES)),
+                median_at_least_min_strides=bool(np.median(v) >= MIN_REPLAY_STRIDES))
+
+
+def reference_range_margins(p: plant.Plant, ref: Reference) -> dict:
+    """The reference's joint excursions against the plant's ranges, under both readings of ``usable_ranges``."""
+    q = ref.q[:, p.qadr]
+    out = {}
+    for reading in ("mjcf", "keep"):
+        rng = plant.usable_ranges(p.body, inter_leg=reading)
+        lo, hi = np.array([rng[j][0] for j in p.joints]), np.array([rng[j][1] for j in p.joints])
+        m_lo, m_hi = q.min(0) - lo, hi - q.max(0)
+        mr = np.minimum(m_lo, m_hi)
+        w = int(np.argmin(mr))
+        out["screens_reading" if reading == "mjcf" else "literal_reading"] = dict(
+            min_margin_rad=float(mr[w]), joint=p.joints[w], side="low" if m_lo[w] <= m_hi[w] else "high",
+            below_min_range={jn: float(v) for jn, v in zip(p.joints, mr, strict=True) if v < MIN_RANGE_RAD})
+    return out
+
+
+def open_decisions(choices: dict, gated: str, rule: str) -> list[dict]:
+    """The three open choices behind G2, with the evidence of ``choices`` (``g2``)."""
+    def ev(name):
+        c = choices[name]
+        return (f"{c['nominal_strides']:.1f} strides unperturbed; panel median {c['panel']['median']:.1f} "
+                f"({c['panel']['runs_at_least_min_strides']}/{c['panel']['runs']} at least {MIN_REPLAY_STRIDES:g})")
+
+    blocks = ("plan section 3 step 4 onwards: the transitions, the tracker's feedforward and gains and every later "
+              "verdict are built on this plant and this gate; the owner decides and DECISION_LOG records it first")
+    out = [
+        dict(id="a", choice="ankle_gains",
+             question="Ankle hold-servo gain: per motor (each ankle motor has its own hold servo, kp = sustained / "
+                      "0.01 rad on its own coordinate, so pitch and roll are twice as stiff as one hold_servos joint) "
+                      "or joint space (each ankle axis at the hold_servos stiffness: each motor at half kp)?",
+             options={"motor": "per motor; " + ev("motor_gains+linkage_armature") + " (linkage armature)",
+                      "joint": "joint space; " + ev("joint_gains+linkage_armature") + " (linkage armature)"},
+             taken_until_decided=choices[gated]["options"]["ankle_gains"]),
+        dict(id="b", choice="ankle_armature",
+             question="Ankle armature: linkage-consistent (each motor's catalog armature on its tendon: twice the "
+                      "screened per-joint armature on pitch and roll, the feet's inverse weight 5-9 % lower and "
+                      "hard-floor contacts 5-10 % stiffer) or as screened (the screened MJCF's one armature per joint)?",
+             options={"linkage": "with motor gains " + ev("motor_gains+linkage_armature") + "; with joint gains "
+                                 + ev("joint_gains+linkage_armature"),
+                      "screened": "with motor gains " + ev("motor_gains+screened_armature") + "; with joint gains "
+                                  + ev("joint_gains+screened_armature")},
+             taken_until_decided=choices[gated]["options"]["ankle_armature"]),
+        dict(id="c", choice="g2_rule",
+             question="G2's replay criterion: one unperturbed run (the plan's wording) or a seeded panel? The open-loop "
+                      "fall time is chaotic, so one run is a sample of a wide distribution.",
+             options={r: RULE_TEXT[r] for r in RULES}, taken_until_decided=rule),
+    ]
+    for d in out:
+        d["blocks"] = blocks
+    return out
+
+
+def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES, rule: str = "single", procs: int | None = None,
+       **plant_kw) -> dict:
+    """G2 from the references saved in ``out_dir`` (``refs.prepare``), on the plant of ``plant_kw``."""
+    if rule not in RULES:
+        raise ValueError(f"rule {rule!r}: choose from {', '.join(RULES)}")
     t0 = time.perf_counter()
-    doc = json.loads((Path(out_dir) / "refs.json").read_text())
+    out_dir = Path(out_dir)
+    doc = json.loads((out_dir / "refs.json").read_text())
     checks = {name: dict(matches=e["matches_records"],
                          records=[dict(record=c["record"], leaves=c["leaves"], max_rel_diff=c["max_rel_diff"],
-                                       n_mismatched=c["n_mismatched"], n_missing=c["n_missing"])
+                                       n_mismatched=c["n_mismatched"], n_missing=c["n_missing"],
+                                       n_noise_floor_matches=c.get("n_noise_floor_matches"))
                                   for c in e["record_checks"]])
               for name, e in doc["references"].items()}
     nom = doc["references"]["nominal"]
-    plants = {flag: plant.build(body, "hard", envelope=flag) for flag in (True, False)}
-    rep = {}
-    for name, e in doc["references"].items():
-        ref = Reference.load(Path(out_dir) / e["file"])
-        rep[name] = {("with_envelope" if flag else "without_envelope"): replay(p, ref, strides)
-                     for flag, p in plants.items()}
+    path = {name: str(out_dir / e["file"]) for name, e in doc["references"].items()}
+    gated_plant = plant.build(body, "hard", settle=False, **plant_kw)
+    options = gated_plant.meta["options"]
+    gated = next(c for c, o in PLANT_CHOICES.items()
+                 if o["ankle_gains"] == options["ankle_gains"] and o["ankle_armature"] == options["ankle_armature"])
+    base = {k: v for k, v in plant_kw.items() if k not in ("ankle_gains", "ankle_armature", "envelope")}
+    jobs, keys = [], []
+
+    def add(key, ref, kw, offsets, **opt):
+        jobs.append(dict(body=body, ref=path[ref], plant_kw=kw, offsets=offsets, strides=strides, **opt))
+        keys.append(key)
+
+    for name in doc["references"]:
+        for flag in (True, False):
+            add(("replay", name, flag), name, dict(plant_kw, envelope=flag), [None], legs=flag)
+    add(("no_armature_ff",), "nominal", dict(plant_kw, envelope=True), [None], armature_ff=False)
+    offsets = _offsets()
+    for cname, copt in PLANT_CHOICES.items():
+        kw = dict(base, **copt, envelope=True)
+        add(("choice", cname), "nominal", kw, [None])
+        for i in range(0, PANEL_RUNS, PANEL_CHUNK):
+            add(("panel", cname, i), "nominal", kw, offsets[i : i + PANEL_CHUNK], full=False)
+    results = dict(zip(keys, run_jobs(jobs, procs), strict=True))
+    rep = {name: {("with_envelope" if flag else "without_envelope"): results[("replay", name, flag)][0]
+                  for flag in (True, False)} for name in doc["references"]}
+    choices = {}
+    for cname, copt in PLANT_CHOICES.items():
+        runs = [r for i in range(0, PANEL_RUNS, PANEL_CHUNK) for r in results[("panel", cname, i)]]
+        single = results[("choice", cname)][0]
+        pnl = panel_stats([r["strides"] for r in runs])
+        pnl["fall_causes"] = sorted({r["fall_cause"] for r in runs if r["fall_cause"]})
+        choices[cname] = dict(options=dict(base, **copt), gated=cname == gated, nominal_strides=single["strides"],
+                              nominal_fall_cause=single["fall_cause"], panel=pnl,
+                              single_rule_pass=bool(single["strides"] >= MIN_REPLAY_STRIDES),
+                              panel_rule_pass=pnl["median_at_least_min_strides"])
     walked = rep["nominal"]["with_envelope"]["strides"]
-    nominal_ref = Reference.load(Path(out_dir) / nom["file"])
-    alt = plant.build(body, "hard", ankle_gains="joint")
-    info = dict(nominal_spread_with_envelope=replay_spread(plants[True], nominal_ref, strides=strides),
-                joint_space_ankle_gains=dict(
-                    note="plant built with ankle_gains='joint' (each ankle motor at half kp: the screened model's "
-                         "joint-space ankle stiffness); not the gated plant",
-                    nominal_with_envelope=replay(alt, nominal_ref, strides),
-                    nominal_spread_with_envelope=replay_spread(alt, nominal_ref, strides=strides)))
-    out = dict(references_match=checks, all_match=all(c["matches"] for c in checks.values()),
-               nominal_speed_m_s=round(nom["speed_m_s"], 6), nominal_min_cop_margin_single_m=round(
-                   nom["min_cop_margin_single_m"], 6),
-               replay=rep, nominal_strides_with_envelope=walked,
+    panel = choices[gated]["panel"]
+    ranges = {name: reference_range_margins(gated_plant, Reference.load(path[name])) for name in doc["references"]}
+    walking_turns = {name: dict(with_envelope=v["with_envelope"]["strides"],
+                                without_envelope=v["without_envelope"]["strides"])
+                     for name, v in rep.items() if name.startswith("walk_")}
+    info = dict(
+        plant_choices=choices,
+        deterministic_across_processes=bool(choices[gated]["nominal_strides"] == walked),
+        nominal_without_armature_feedforward=results[("no_armature_ff",)][0],
+        reference_range_margins=ranges,
+        min_range_rad=MIN_RANGE_RAD)
+    out = dict(rule=rule, rule_text=RULE_TEXT[rule], plant_options=options,
+               references_match=checks, all_match=all(c["matches"] for c in checks.values()),
+               nominal_speed_m_s=round(nom["speed_m_s"], 6),
+               nominal_min_cop_margin_single_m=round(nom["min_cop_margin_single_m"], 6),
+               replay=rep, walking_turns=walking_turns, nominal_strides_with_envelope=walked,
                nominal_strides_without_envelope=rep["nominal"]["without_envelope"]["strides"],
                design_study_strides_screened_model=DESIGN_STUDY_STRIDES[body], min_strides=MIN_REPLAY_STRIDES,
-               reported_not_gated=info)
-    out["pass"] = bool(out["all_match"] and walked >= MIN_REPLAY_STRIDES)
+               nominal_panel_with_envelope=panel, single_run_pass=bool(walked >= MIN_REPLAY_STRIDES),
+               panel_pass=panel["median_at_least_min_strides"], reported_not_gated=info,
+               open_decisions=open_decisions(choices, gated, rule))
+    out["pass"] = bool(out["all_match"] and (out["single_run_pass"] if rule == "single" else out["panel_pass"]))
     out["seconds"] = time.perf_counter() - t0
     return out

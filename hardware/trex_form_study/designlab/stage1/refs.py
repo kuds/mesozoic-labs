@@ -18,7 +18,11 @@ The feedforward ``tau`` is the inverse-dynamics joint torque (contact-consistent
 friction are not in it).  Each summary is compared leaf by leaf with its record: the record's ``gaits`` for the
 straight walks (for the carpet swing, where the record sized that lift: ``lift19`` on 60-N-T-10), the turning
 screen's ``runs`` for the turns, and the carpet-lift pass (``round2/refine/carpet_lift_*.json``) for the carpet
-swing's toe clearance.  A leaf matches when it agrees to 6 significant digits (``REL_TOL``).
+swing's toe clearance.  A leaf matches when it agrees to 6 significant digits (``REL_TOL``).  Leaves that are only
+numerical noise of the IK and the inverse dynamics (the hip-yaw speed peak of a straight walk, about 2e-7 rad/s, and
+its power, about 2e-8 W) have no physical sixth digit: a leaf whose record and regenerated values both lie within the
+noise floor of its unit (``NOISE_FLOORS``: 1e-6 rad/s, 1e-6 W, 1e-6 N m, 1e-7 m) matches whatever its digits, and is
+listed as such (``noise_floor_matches``); on this machine every leaf is bit-identical, so none needs the floor.
 
 Files: ``refs.json`` (metadata and the record comparisons) and ``refs/<name>.npz`` (arrays; ``Reference.load``).
 """
@@ -28,6 +32,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import tempfile
 import time
 from dataclasses import asdict, dataclass, replace
@@ -49,6 +54,14 @@ DIRECTIONS = (("left", 1.0), ("right", -1.0))
 #: Half a unit in the sixth significant digit.
 REL_TOL = 5e-7
 ABS_TOL = 1e-12
+#: Noise floor per unit, by the leaf's last key (module docstring).
+NOISE_FLOORS = (
+    (re.compile(r"(speed|speed_peak|yaw_rate\w*|omega)$"), 1e-6),  # rad/s
+    (re.compile(r"power_mean$"), 1e-6),  # W
+    (re.compile(r"(_nm|rms|rms_stacked|peak|mz_abs_max)$"), 1e-6),  # N m
+    (re.compile(r"_mm$"), 1e-4),  # mm
+    (re.compile(r"(_m|margin\w*|origin|error_max|lean_inward|sway_amp|lift|stride|radius|r_eff|r_cop_min)$"), 1e-7),
+)
 
 
 def walk_specs(body: str) -> dict:
@@ -180,12 +193,31 @@ def agree(a, b) -> bool:
     return abs(a - b) <= max(REL_TOL * max(abs(a), abs(b)), ABS_TOL)
 
 
+def _number(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def noise_floor(key: str) -> float | None:
+    """The noise floor of a leaf from its last key (``NOISE_FLOORS``), or None (dimensionless and flag leaves)."""
+    last = re.sub(r"\[\d+\]", "", key).rsplit(".", 1)[-1]
+    return next((fl for pat, fl in NOISE_FLOORS if pat.search(last)), None)
+
+
+def within_noise(key: str, a, b) -> bool:
+    """Both values lie within the leaf's noise floor."""
+    fl = noise_floor(key)
+    return fl is not None and _number(a) and _number(b) and max(abs(a), abs(b)) <= fl
+
+
 def compare(ours, record) -> dict:
-    """Every leaf of ``record`` against ``ours``: how many, how many differ or are missing, the largest relative
-    difference."""
+    """Every leaf of ``record`` against ``ours``: how many, how many differ or are missing, how many match only
+    within their noise floor (module docstring), the largest relative difference."""
     a, b = leaves(_plain(ours)), leaves(record)
     missing = [k for k in b if k not in a]
-    bad = [k for k in b if k in a and not agree(a[k], b[k])]
+    bad, noise = [], []
+    for k in b:
+        if k in a and not agree(a[k], b[k]):
+            (noise if within_noise(k, a[k], b[k]) else bad).append(k)
     worst, at = 0.0, None
     for k, v in b.items():
         x = a.get(k)
@@ -195,6 +227,8 @@ def compare(ours, record) -> dict:
                 if r > worst:
                     worst, at = r, k
     return dict(leaves=len(b), mismatched=bad[:20], n_mismatched=len(bad), missing=missing[:20], n_missing=len(missing),
+                noise_floor_matches=noise[:20], n_noise_floor_matches=len(noise),
+                n_noise_level_leaves=sum(within_noise(k, v, v) for k, v in b.items()),
                 max_rel_diff=worst, max_rel_diff_at=at, match=not bad and not missing)
 
 
@@ -269,7 +303,10 @@ def prepare(body: str, out_dir: Path, names: list[str] | None = None) -> dict:
     doc = dict(body=body, accuracy=ACCURACY, model=src["model"], H_m=src["H"],
                q_home=[float(v) for v in src["q_home"]], joints=list(src["M"].names),
                feedforward="inverse-dynamics joint torque, contact-consistent; MJCF joint damping and friction not "
-                           "included", match_rule=f"every record leaf agrees to 6 significant digits (rel {REL_TOL})",
+                           "included",
+               match_rule=f"every record leaf agrees to 6 significant digits (rel {REL_TOL}); a leaf whose two values "
+                          "both lie within its unit's noise floor (" +
+                          ", ".join(f"{pat.pattern} {fl:g}" for pat, fl in NOISE_FLOORS) + ") matches and is listed",
                references=entries, matches_records=all(e["matches_records"] for e in entries.values()),
                seconds=time.perf_counter() - t0, provenance=plant.provenance())
     Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -314,11 +351,23 @@ class Reference:
         """Joint angles, rates and feedforward torques per frame for the hinges at ``qadr`` / ``dofs``."""
         return self.arrays["q"][:, qadr], self.arrays["qd"][:, dofs], self.arrays["tau"]
 
-    def at(self, t: float, series: tuple) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """``series`` (``joint_series``) linearly interpolated at time t, wrapped periodically."""
+    def qdd_series(self, dofs) -> np.ndarray:
+        """Joint accelerations per frame for the hinges at ``dofs``."""
+        return self.arrays["qdd"][:, dofs]
+
+    def at(self, t: float, series: tuple) -> tuple:
+        """Each array of ``series`` (e.g. ``joint_series``, optionally with ``qdd_series``) linearly interpolated at
+        time t, wrapped periodically."""
         s = (t / self.step) % self.n
         k0 = int(s) % self.n
         k1 = (k0 + 1) % self.n
         a = s - int(s)
-        q, qd, tau = series
-        return ((1 - a) * q[k0] + a * q[k1], (1 - a) * qd[k0] + a * qd[k1], (1 - a) * tau[k0] + a * tau[k1])
+        return tuple((1 - a) * x[k0] + a * x[k1] for x in series)
+
+    def interp(self, t: float, stacked: np.ndarray) -> np.ndarray:
+        """One row of ``stacked`` (frames x columns, e.g. the arrays of ``joint_series`` side by side) linearly
+        interpolated at time t, wrapped periodically: ``at`` in one operation."""
+        s = (t / self.step) % self.n
+        k0 = int(s) % self.n
+        a = s - int(s)
+        return (1 - a) * stacked[k0] + a * stacked[(k0 + 1) % self.n]
