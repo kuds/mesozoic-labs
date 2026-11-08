@@ -263,6 +263,7 @@ def main():
     ap.add_argument("--carpet-lift", action="store_true")
     ap.add_argument("--lift-cases", nargs="*", default=None, help="run the carpet swing pass on these cases' bodies")
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument("--resume", action="store_true", help="skip bodies already sized or screened")
     a = ap.parse_args()
     import designlab  # noqa: F401
 
@@ -274,9 +275,20 @@ def main():
         tasks = [(c, cid, str(out / c)) for c in cases for cid in CASES[c]["ids"]]
         with ctx.Pool(a.workers) as pool:
             if tasks:
-                for r in pool.imap_unordered(_size, tasks):
+                # --resume: keep sized records and finished screens from an interrupted run
+                size_tasks = [t for t in tasks if not (a.resume and (Path(t[2]) / "candidates" / f"{t[1]}.json").exists())]
+                for r in pool.imap_unordered(_size, size_tasks):
                     print("sized", r, flush=True)
-                results = list(pool.imap_unordered(_screen, tasks))
+                screen_tasks = [t for t in tasks if not (a.resume and (Path(t[2]) / "review" / "screening"
+                                                                       / f"{t[1]}_envelope.json").exists())]
+                results = list(pool.imap_unordered(_screen, screen_tasks))
+                if a.resume:  # keep the earlier screens' index entries
+                    for c in cases:
+                        idx = out / c / "review" / "review_index.json"
+                        if idx.exists():
+                            done = json.loads(idx.read_text())
+                            results += [dict(case=c, **v) for k, v in done.items()
+                                        if not any(r["case"] == c and r["id"] == k for r in results)]
                 for c in cases:
                     idx = out / c / "review" / "review_index.json"
                     index = json.loads(idx.read_text()) if idx.exists() else {}
