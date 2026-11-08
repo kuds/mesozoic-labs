@@ -186,3 +186,29 @@ override any of them.
 10. **Start and stop acceleration:** gated on the forward component low-passed at 1 Hz. In steady walking the
     reference already peaks at 2.1–2.2 m/s² (centre of mass, horizontal), above the spec's 1.5 m/s² (finding for the
     owner).
+
+### Decisions taken during the build (step 3, 8 Nov)
+
+The step-3 build found that the plant's two-motor ankle needs three modelling choices the plan did not settle, and
+that one of the plan's range rules cannot hold for the turn references. They are decided on the reasons below, which
+do not depend on the gate's outcome; the results with the other choices stay recorded in `gates.json` (G2's 2 × 2
+plant matrix and the 20-start panels).
+
+11. **Ankle servo gains: joint space.** `carpet.hold_servos` defines one hold servo per joint for the screened model,
+    which drives each ankle axis with one motor. Applying that rule to each of the linkage's two motors doubles the
+    ankle's stiffness in joint space; giving each motor half the gain reproduces the screened stiffness exactly.
+    (Per-motor damping then comes out equal on pitch and roll, 0.73 N·m·s/rad on `60-N-T-10` against the screened
+    0.80 / 0.65; recorded in `plant.json`.)
+12. **Ankle armature: the linkage's.** Both motors' rotors are geared to both ankle axes, so each axis carries twice
+    the screened single-motor armature. This is the physical two-motor ankle the plan specifies.
+13. **G2 replay rule: a 20-start panel.** An open-loop replay has no feedback, so its fall time is chaotic: start
+    offsets of 1 mm/s move one body's run from 25.8 to 5 strides. G2 is judged on the median of 20 replays (root
+    velocity offset by at most 1 mm/s, seed 0) reaching 10 strides, and the single unperturbed run is reported.
+14. **Joint range in the turns.** The 0.5 rad/s turn references themselves leave only 0.046–0.095 rad of hip-yaw
+    range (and 0.1004 rad in `75-M-H-10`'s 0.35 rad/s walking turn), so plan §4's 0.10 rad rule cannot hold in
+    the turns. Walks keep 0.10 rad. In turns a success must reach no joint limit and keep at least the reference's own
+    smallest margin less 0.02 rad. (Finding for the owner: the fastest target turns use nearly all of the thigh
+    twist's range.)
+
+With choices 11–13, G2's replays reach 60.0 / 22.8 / 60.0 strides unperturbed and panel medians of 33.6 / 24.2 / 60
+(`60-N-T-10` / `60-N-H-10` / `75-M-H-10`).
