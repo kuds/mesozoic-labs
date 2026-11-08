@@ -156,4 +156,90 @@ sheet data sheets; QIDI TPU friction note; Engineering ToolBox friction table; a
 
 ## 6. Power: battery, tether or both
 
-{{POWER_SECTION}}
+**What the model says for the demonstrator (60 and 75 cm).**
+
+* The selected pack is a 6S 3.3 Ah LiPo (73 Wh, 0.506 kg; with its cassette 0.68 kg) at the tail base. Walking draws
+  71 W (60 cm) and 88 W (75 cm) on the nominal walk, so the pack gives 46.5 and 37.6 min at 75 % usable energy,
+  about twice P4's 15–20 min.
+* **The pack is also the counterweight.** Round one moved it from the belly to the tail base because that cut
+  the 60 cm single-support hip-pitch load from 8.0 to 4.5 N·m (F2). Removing it undoes part of that: the centre of
+  mass moves from 34 to 49 mm ahead of the hip at 60 cm and from 64 to 77 mm at 75 cm, the hip-pitch hold rises
+  from 3.11 to 4.27 N·m (+37 %) and from 8.18 to 9.35 N·m (+14 %), and the walks change: with the same drives the
+  knee goes past its speed limit (1.07 at 60 cm, 1.03 at 75 cm). A tether-only body therefore needs the
+  counterweight back (ballast, or the power electronics moved to the tail base), which takes back most of the
+  0.6 kg saving. Re-sized without it, the 60 cm body is 0.70 kg lighter on a smaller knee drive and the 75 cm
+  body is 0.21 kg *heavier* on a larger one.
+* **A tether also loads the robot.** A cable drags behind a walking robot, pulls on the body as it turns and is
+  a trip and snag hazard. At 24 V the demonstrator draws 3–4 A on average; the per-drive peaks of the nominal
+  walk sum to 131 W (60 cm) and 187 W (75 cm), about 6–8 A. Brief peaks in stops, pushes and falls will be higher.
+
+**Recommendation for the demonstrator: battery plus an external DC input.** Keep the removable 6S pack in the
+tail-base cassette on every run, and add an external 24 V input at the tail base through a priority power path
+(an LTC4417-class controller: three inputs, 2.5–36 V, blocks reverse and cross conduction). P4 already asks for both
+("removable battery for 15–20 min, external-power operation"), and the cost model already carries a bench and
+tether supply line. The research's design:
+
+* The battery covers the peaks and rides through a tether drop-out, so the tether is sized for the mean walking
+  current (about 2.9 A at 60 cm and 3.7 A at 75 cm): 3–5 m of SJOOW 18/2 or 16/2 cable (69–82 g/m) drops 1.5–3.2 %.
+  A Mean Well RSP-750-24 class supply (31 A, constant-current overload with auto-recovery) feeds it.
+* An onboard clamp at 27 V or below: the 60 cm CubeMars AK45 drives accept only 15–28 V, and regeneration and the
+  supply's over-voltage window can exceed that. The power path stops the LiPo from being charged from the tether.
+* A Category 1 E-stop (controlled stop, then power off) that opens an onboard contactor after the power path, so
+  it cuts the tether and the battery together.
+* **Hang the tether from an overhead boom with a spring balancer; never trail it.** Five metres of cable on the
+  floor drags 1.2–3.6 N, against a single-support tip threshold of 8.0 N at 60 cm and 10.8 N at 75 cm, and 2 N of drag
+  raises the 60 cm brisk walk's friction need from 0.87 to 0.92–0.97. No practical breakaway connector releases
+  below the tip threshold (an Anderson Powerpole pair separates at 27–44 N).
+* For battery-free runs, an equal-mass dummy puck (0.678 kg) in the cassette keeps the centre of mass and the
+  controller's model unchanged; `BEHAVIOR_SPEC.md` §4 already requires the cassette or an equal-mass dummy on
+  tethered runs.
+* Estimated added cost: about $0.2–0.4k for the input, power path, clamp and puck, plus $0.3–1.5k for a boom if the
+  bench lot's catch frame cannot carry it (estimates).
+
+**A lighter pack is the one weight lever in the power system.** A 6S1P Li-ion pack of Molicel P45B cells
+(434 g, 97–100 Wh, $60, steel-can cells) would give about 62 / 50 min instead of 46.5 / 37.6 min and weigh 72 g
+less, and it still counts as under 100 Wh. It is a different shape (about 65 × 43 × 71 mm against 138 × 42 × 43
+mm), so the cassette and its removal path must be redesigned and re-screened; not simulated here. Hobby packs of
+this kind have no battery-management system.
+
+**The 3–4 ft robot (100–120 cm, P1).** Round one sized these bodies with the Jetson's compute budget. With the
+Pi 5's budget (9.5 W, plus the same 4 W MCU and link and the sensors, through the 0.88 converter) their walking
+draw is about 130–135 W at 100 cm and 180–190 W at 120 cm (round-one records `100-M-T-10`, `100-M-H-10`,
+`120-M-T-10`, `120-M-H-10`, adjusted; round one's walk-accuracy fault changed continuous loads by less than 2 %,
+F14):
+
+| Body (mass) | Bus | Pack | Pack mass (share of the robot) | Walking runtime at 75 % usable |
+|---|---|---|---|---|
+| `100-M-T-10` (28.4 kg, 130 W) | 24 V | 6S 5 Ah LiPo, 111 Wh | 0.76 kg (2.7 %) | about 38 min |
+| | | 6S2P Li-ion (Molicel P45B), 200 Wh | 0.86 kg (3.0 %) | about 69 min |
+| `120-M-T-10` (43.6 kg, 180 W) | 24 V | 6S 5 Ah LiPo | 0.76 kg (1.7 %) | about 28 min |
+| | | 6S2P Li-ion, 200 Wh | 0.86 kg (2.0 %) | about 50 min |
+| `120-M-H-10` (43.1 kg, 190 W) | 48 V | 12S2P Li-ion, 400 Wh | 1.72 kg (4.0 %) | about 94 min |
+
+So **yes, run the 3–4 ft robot on its battery.** About an hour of walking costs 2–4 % of its mass, against about
+6 % for the demonstrator's pack and cassette. What changes at that size is not mass but:
+
+* **Falls and pack protection.** A fall from standing carries about 160 J at 100 cm and 300 J at 120 cm (mass ×
+  g × centre-of-mass height), against 36 J and 63 J for the demonstrators. The pack needs a protected cassette
+  inside the pelvis or tail-root frame and a battery-management system with temperature telemetry.
+* **Bus voltage.** At 100–120 cm the research recommends 48 V: half the current of 24 V, and a 48 V tether stays
+  within the safety extra-low-voltage limit (60 V DC). It proposes about 390 Wh as two hot-swappable 12S strings,
+  each two 6S1P Li-ion modules of 97 Wh, about 1.7–2.0 kg in all (3–6 % of mass) for about 51–117 min at 345–150 W.
+  One string can be swapped while the other carries the robot. Comparable robots carry more: Boston Dynamics Spot
+  carries a 605 Wh, 4.2 kg battery on 32.5 kg (13 % of mass) for about 90 min.
+* **Travel and shipping.** Spare packs of 100 Wh or less go in carry-on luggage without approval; 101–160 Wh
+  needs the airline's approval (two spares at most); above 160 Wh is forbidden on passenger aircraft. Lithium-ion
+  packs over 100 Wh ship as Class 9 dangerous goods, and from January 2026 IATA requires them shipped at 30 % state
+  of charge or less. Sub-100 Wh modules avoid most of this. Every transported pack needs UN 38.3 test documents.
+* **The tether's place.** A 28–56 kg robot needs a fall-arrest gantry during development anyway; the tether belongs
+  on that gantry and on a charging dock, not on the floor. Its job (navigating, following people, voice commands)
+  cannot be done on a cable.
+
+Sources for this section: the round-two and refinement records (`round2/refine/carpet_60`, `targeted_75`,
+`mat60_tether`, `mat75_tether`, `fixed_drives.json`); round one's records (`round1/stage_a/candidates/100-*.json`,
+`120-*.json`); Analog Devices LTC4417 and LTC4359 data; Mean Well RSP-750 specification; AutomationDirect SJOOW
+cable data; IEC 60228 conductor resistance; Anderson Power DS-PP45 data; LEMO breakaway-connector white paper; Boston
+Dynamics Spot specification sheet; Unitree G1 and H1 specifications; Battery University BU-205 and BU-409; CSATF,
+TSA and FAA lithium-battery travel rules; the 2025 IATA battery guide summary (The Compliance Center); Defiance RC
+and akkuteile.de P45B pack and cell data; accessed 2026-11-08.
+
