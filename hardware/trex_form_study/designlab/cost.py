@@ -46,6 +46,24 @@ def estimate(design, rows: list[dict], selection: dict) -> dict:
     bus48 = selection.get("bus", 24) > 30
     structure = sum(r["mass_kg"] for r in rows if r["category"] in ("structure", "bearings", "linkage", "foot"))
     cover_cm3 = sum(r["mass_kg"] for r in rows if r["category"] == "cover") / 1.01e-3
+    # material experiments (overnight refinement): the frame lot is priced on the aluminium-equivalent part size
+    # with the plate material's cost factor; the cover lot on the cover's own volume with its cost per volume
+    frame_factor_mat, cover_factor_mat = 1.0, 1.0
+    if getattr(design, "struct_conv_al", 0.0) > 0.0:
+        from . import hardware as _hw
+
+        al_equiv = structure + design.struct_al_equiv_extra
+        cf = _hw.STRUCT_MATERIALS[design.struct_mat or design.bracket_mat]["cost_factor"]
+        frame_factor_mat = (design.struct_conv_al * cf + (al_equiv - design.struct_conv_al)) / al_equiv
+        structure = al_equiv
+    cmat = getattr(design, "cover_mat_override", None)
+    if cmat:
+        from .build import COVER_MATERIALS
+
+        m = COVER_MATERIALS[cmat]
+        cover_cm3 = sum(r["mass_kg"] for r in rows if r["category"] == "cover") / (m["density"] * 1e-6)
+        cover_factor_mat = (m["cost_per_kg"] * m["density"]) / (180.0 * 1010.0)
+    tether = getattr(design, "power_mode", "battery") == "tether"
     size = design.sk.H / 0.39
     lines = {}
     lines["leg_actuators"] = (leg, leg, leg * 1.05)
@@ -55,18 +73,19 @@ def estimate(design, rows: list[dict], selection: dict) -> dict:
     lines["tof"] = (2 * tof.price, 2 * tof.price + 10, 2 * tof.price + 30)
     if lid:
         lines["lidar"] = (lid.price + 15, lid.price + 30, lid.price + 60)
-    lines["battery"] = (bat.price + 30, bat.price + 60, bat.price + 100)
+    lines["battery"] = (bat.price + 30, bat.price + 60, bat.price + 100) if not tether else (120.0, 180.0, 280.0)
     lines["control"] = _scale(REF["control"], 1.3 if bus48 else 1.0)
     lines["foot_sensing"] = _scale(REF["foot_sensing"], max(1.0, size**0.5))
     lines["power"] = (450, 650, 950) if bus48 else REF["power24"]
     lines["harness"] = _scale(REF["harness"], max(1.0, size) * (1.3 if bus48 else 1.0))
     f_frame = max(1.0, (structure / REF_STRUCTURE_KG) ** 0.6)
-    lines["frame"] = _scale(REF["frame"], f_frame)
+    lines["frame"] = _scale(REF["frame"], f_frame * frame_factor_mat if frame_factor_mat != 1.0 else f_frame)
     f_cov = max(0.6, cover_cm3 / REF_COVER_CM3) ** 0.85
-    lines["covers"] = _scale(REF["covers"], f_cov)
+    lines["covers"] = _scale(REF["covers"], f_cov * cover_factor_mat if cover_factor_mat != 1.0 else f_cov)
     lines["bench"] = (900, 1400, 2200) if design.sk.H > 0.6 else REF["bench"]
     most = max(a.price for a in acts.values())
-    lines["spares"] = (2 * most + bat.price + 150, 2 * most + bat.price + 350, 2 * most + bat.price + 650)
+    bp = 0.0 if tether else bat.price
+    lines["spares"] = (2 * most + bp + 150, 2 * most + bp + 350, 2 * most + bp + 650)
     f_int = max(1.0, size**0.7)
     lines["integration"] = _scale(REF["integration"], f_int)
     sub = [sum(v[i] for v in lines.values()) for i in range(3)]

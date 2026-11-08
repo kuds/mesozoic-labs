@@ -100,14 +100,29 @@ def default_selection(height: int) -> dict:
 # ------------------------------------------------------------------------------------------------
 # Structure rules
 # ------------------------------------------------------------------------------------------------
+#: Plate materials for the overnight material experiments (override ``structure_material`` / ``bracket_material``;
+#: refined from the sourced research in round2/refine/MATERIALS.md).  The study default, 6061-T6, is used through the
+#: AL_* constants, so a call without ``material`` is unchanged.
+STRUCT_MATERIALS = {
+    "al6061": dict(density=AL_DENSITY, E=AL_E, allow=AL_ALLOW, min_t=0.003, cost_factor=1.0),
+    "al7075": dict(density=2810.0, E=71.7e9, allow=125e6, min_t=0.003, cost_factor=1.3),
+    "cf_plate": dict(density=1550.0, E=50e9, allow=110e6, min_t=0.002, cost_factor=2.0),
+}
+
+
 def size_beam(length: float, load_n: float, lever_frac: float, width: float, min_t: float = 0.003,
-              defl_frac: float = 0.005, fittings: float = 1.35) -> tuple[float, float]:
+              defl_frac: float = 0.005, fittings: float = 1.35, material: str | None = None) -> tuple[float, float]:
     """Twin 6061 side plates of ``width`` carrying ``load_n`` at ``lever_frac*length``.
 
     Thickness satisfies both stress (sigma <= AL_ALLOW) and stiffness (tip deflection of a
     cantilever <= defl_frac*length); mass includes a fittings factor.  Returns (mass, t).
     """
     m_bend = load_n * lever_frac * length
+    if material is not None:  # material experiments
+        mat = STRUCT_MATERIALS[material]
+        t = max(mat["min_t"] if min_t == 0.003 else min_t, 6 * m_bend / (2 * width**2 * mat["allow"]),
+                12 * (load_n * length**2 / (3 * mat["E"] * defl_frac)) / (2 * width**3))
+        return 2 * mat["density"] * width * t * length * fittings, t
     t_stress = 6 * m_bend / (2 * width**2 * AL_ALLOW)
     i_req = load_n * length**2 / (3 * AL_E * defl_frac)
     t_stiff = 12 * i_req / (2 * width**3)

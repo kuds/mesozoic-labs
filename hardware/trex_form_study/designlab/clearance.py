@@ -1297,7 +1297,7 @@ def _summary(report, H, tail_gate, tail_gate_key, swing, battery, gates: str = "
         interference_free_nominal_gait=(counts["gait_nominal"]["interference_pairs"] == 0) if nominal else None,
         swing_clearance=bool(min(swing_vals) >= SWING_MIN_FRAC) if swing_vals else None,
         tail_clearance=bool(tail_gate / H >= TAIL_MIN_FRAC) if np.isfinite(tail_gate) else None,
-        battery_path=bool(battery.get("clear_directions")),
+        battery_path=bool(battery.get("clear_directions")) if battery.get("found", True) else None,
     )
     if gates == "r2":
         brisk = "gait_brisk" in counts
@@ -1308,7 +1308,7 @@ def _summary(report, H, tail_gate, tail_gate_key, swing, battery, gates: str = "
             component_overlap_free=not report["same_body_hardware_at_home"]["overlaps"],
             joint_range_margin=bool(min(margins) >= RANGE_MARGIN_RAD) if margins else None,
         )
-    passes["all"] = all(v is True for v in passes.values())
+    passes["all"] = all(v is True for k, v in passes.items() if not (k == "battery_path" and v is None))
     hh_home = [r for r in inter["home"]["pairs"] if r["class"] == "hardware-hardware" and r["min_mm"] < 0]
     return dict(
         model=report["model"], H_m=report["H_m"],

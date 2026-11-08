@@ -62,9 +62,14 @@ COVER_MATERIALS = {
     "PA12_MJF": dict(density=1010.0, cost_per_kg=180.0, basis="estimate"),
     "PA12_MJF_large": dict(density=1010.0, cost_per_kg=150.0, basis="estimate"),
     "AL_6061": dict(density=2700.0, cost_per_kg=60.0, basis="estimate"),
+    # material experiments (overnight refinement; values refined from the sourced research)
+    "PA11_MJF": dict(density=1030.0, cost_per_kg=200.0, basis="estimate"),
+    "CF_SKIN": dict(density=1550.0, cost_per_kg=900.0, basis="estimate"),
 }
 
 MASS_GUESS = {60: 11.0, 75: 16.0, 100: 28.0, 120: 42.0}
+#: Tether-only experiment: connector, strain relief and pigtail in place of the battery and cassette (estimate).
+TETHER_CONNECTOR_KG = 0.12
 
 
 def cover_material(height: int) -> str:
@@ -98,6 +103,14 @@ class Design:
         self.B = B
         #: generator revision (1: round one, 2: round two) and the matching family shape key
         self.rev = int(cand.override("rev", 1))
+        # material and power experiments (overnight refinement); None / defaults reproduce every earlier model
+        self.struct_mat = cand.override("structure_material")
+        self.bracket_mat = cand.override("bracket_material")
+        self.cover_mat_override = cand.override("cover_material")
+        self.cover_wall_scale = float(cand.override("cover_wall_scale", 1.0))
+        self.power_mode = cand.override("power_mode", "battery")
+        self.struct_al_equiv_extra = 0.0  # aluminium-equivalent mass minus actual mass of converted beams (cost)
+        self.struct_conv_al = 0.0  # aluminium-equivalent mass of converted beams
         self.fk = T.family_key(cand.family, self.rev)
         self.sel = selection or hw.default_selection(cand.height)
         self.notes: list[str] = []
@@ -125,6 +138,24 @@ class Design:
         x_front = -(roll.envelope[1] + 0.012) if self.cand.leg_layout == "tandem" else -0.02 * self.B
         return x_front - cas_x - 0.010
 
+    # ------------------------------------------------------------------ material experiments
+    def _beam(self, length, load, lever, width, material):
+        """``hw.size_beam`` with the experiment's plate material, tracking the aluminium-equivalent mass for cost."""
+        if material is None:
+            return hw.size_beam(length, load, lever, width)
+        m, t = hw.size_beam(length, load, lever, width, material=material)
+        m_al, _ = hw.size_beam(length, load, lever, width)
+        self.struct_al_equiv_extra += m_al - m
+        self.struct_conv_al += m_al
+        return m, t
+
+    def _cover_t(self, family_mm: float) -> float:
+        t = cover_thickness(self.cand.height, family_mm)
+        return t * self.cover_wall_scale if self.cover_wall_scale != 1.0 else t
+
+    def _cover_mat(self) -> str:
+        return self.cover_mat_override or cover_material(self.cand.height)
+
     def _ankle_frac(self) -> float:
         """Upper ankle-drive station along the tibia (fraction below the knee): round one 0.30; revision 2 by
         height (F9), or the round-two packaging search's override ``ankle_frac``."""
@@ -141,7 +172,7 @@ class Design:
         sk = self.sk
         L = sk.skull_len
         fam = T.FAMILY_SHAPE[self.fk]
-        inset = 0.5 * cover_thickness(self.cand.height, fam["shell_mm"]) + CAMERA_CLEAR_M
+        inset = 0.5 * self._cover_t(fam["shell_mm"]) + CAMERA_CLEAR_M
         ax, up = shapes._skull_frame(sk)
         Rc = ry(np.radians(CAMERA_PITCH_DEG))
         half = 0.5 * np.asarray(cam_size)
@@ -234,8 +265,10 @@ class Design:
         y_leg = pelvis_half + gap + half_upper + wv["hip_extra"] * B
         if self.rev >= 2 and layout in ("tandem", "side"):
             # the pelvis side plate (its beam-rule thickness) and the thigh shell wall must both fit
-            _, t_pel = hw.size_beam(0.55 * B, 2.0 * self.mass_guess * G, 0.25, max(0.05, 1.2 * d_roll))
-            t_sh = cover_thickness(c.height, T.FAMILY_SHAPE[self.fk]["shell_mm"])
+            _, t_pel = (hw.size_beam(0.55 * B, 2.0 * self.mass_guess * G, 0.25, max(0.05, 1.2 * d_roll))
+                        if self.struct_mat is None else hw.size_beam(0.55 * B, 2.0 * self.mass_guess * G, 0.25,
+                                                                     max(0.05, 1.2 * d_roll), material=self.struct_mat))
+            t_sh = self._cover_t(T.FAMILY_SHAPE[self.fk]["shell_mm"])
             need = (pelvis_half + 0.5 * max(0.003, t_pel) + 0.5 * t_sh + PELVIS_THIGH_CLEAR_M + half_upper
                     + wv["hip_extra"] * B)
             if need > y_leg:
@@ -313,7 +346,7 @@ class Design:
             # --- roll output bracket and hip-pitch motor case (roll body)
             br_len = abs(y_leg - y_r) - 0.5 * l_pitch + 0.02
             br_w = max(0.025, 0.55 * d_pitch)
-            m_br, t_br = hw.size_beam(max(br_len, 0.02), load, 0.6, br_w)
+            m_br, t_br = self._beam(max(br_len, 0.02), load, 0.6, br_w, self.bracket_mat)
             # tandem: the bracket leaves the roll output on the centreline, so it sits on that roll motor's
             # side of the hip axis (left ahead, right behind) and the two brackets cannot meet
             x_br = np.sign(xr) * (0.5 * br_w + 0.002) if layout == "tandem" else 0.0
@@ -329,7 +362,7 @@ class Design:
             # --- thigh-twist (hip yaw) motor case on the thigh body, axis along the femur
             py = hip_w + ax_f * (0.5 * d_pitch + 0.5 * l_yaw + 0.006)
             self.add(hw.motor_item(f"{side}_hip_yaw_motor", f"{side}_thigh", yaw, self.to_body(f"{side}_thigh", py), ax_f))
-            m_tb, _ = hw.size_beam(0.5 * d_pitch + l_yaw, load, 0.4, max(0.025, 0.6 * d_pitch))
+            m_tb, _ = self._beam(0.5 * d_pitch + l_yaw, load, 0.4, max(0.025, 0.6 * d_pitch), self.bracket_mat)
             self.add(hw.box_item(f"{side}_thigh_bracket", f"{side}_thigh", "structure", m_tb,
                                  self.to_body(f"{side}_thigh", hip_w + ax_f * (0.5 * d_pitch + 0.25 * l_yaw)
                                               + np.array([0, -s * (0.5 * l_pitch + 0.004), 0])),
@@ -341,7 +374,7 @@ class Design:
             # --- femur structure and knee drive (femur body, below the twist output)
             f0 = hip_w + ax_f * (0.5 * d_pitch + l_yaw + 0.008)
             width = max(0.022, 0.5 * d_knee)
-            m_f, t_f = hw.size_beam(np.linalg.norm(knee_w - f0), load, 0.35, width)
+            m_f, t_f = self._beam(np.linalg.norm(knee_w - f0), load, 0.35, width, self.struct_mat)
             lat = 0.5 * l_knee + 0.004
             for it in hw.plate_link_items(f"{side}_femur", f"{side}_femur", self.to_body(f"{side}_femur", f0),
                                           self.to_body(f"{side}_femur", knee_w), width, max(t_f, 0.003), m_f, lateral=lat):
@@ -372,8 +405,8 @@ class Design:
             met_len = np.linalg.norm(mtp_w - hock_w)
             da, la = ank_a.envelope
             wid = max(0.020, 0.40 * da)
-            m_t, t_t = hw.size_beam(tib_len, load, 0.30, wid)
-            m_m, t_m = hw.size_beam(met_len, load, 0.30, wid)
+            m_t, t_t = self._beam(tib_len, load, 0.30, wid, self.struct_mat)
+            m_m, t_m = self._beam(met_len, load, 0.30, wid, self.struct_mat)
             # the metatarsus plates stop short of the two-axis ankle block (half its size + 6 mm) so they do
             # not limit ankle pitch
             mtp_stop = mtp_w - (mtp_w - hock_w) / met_len * (0.5 * 0.028 * H / 0.38 + 0.006)
@@ -480,7 +513,7 @@ class Design:
                 for dy in (-ly / 2, ly / 2):
                     pts.append(self.to_body(body, np.array([c_[0] + dx, c_[1] + dy, 0.0])))
         plate_len = toe_len * 0.7 + heel
-        m_plate, _ = hw.size_beam(plate_len, load, 0.25, 0.10 * H)
+        m_plate, _ = self._beam(plate_len, load, 0.25, 0.10 * H, self.struct_mat)
         self.add(hw.box_item(f"{side}_foot_plate", body, "structure", m_plate,
                              self.to_body(body, mtp_w + np.array([0.28 * toe_len, 0, -h + pad_h + 0.004])),
                              (plate_len, 0.5 * toe_len, 0.005), "B", "estimate", "foot plate beam rule", hw.STRUCT_RGBA,
@@ -526,12 +559,19 @@ class Design:
         pos = self._chest(np.array([bx, 0.0, bz]), chest)
         R = bendR if chest else np.eye(3)
         m_cas = bat.mass * 0.28 + 0.03
-        self.add(hw.box_item("battery", trunk, "battery", bat.mass, pos, bat.dims, "A", bat.basis, bat.id, hw.BATT_RGBA,
-                             rot=R, cost_nom=bat.price, cost_high=bat.price * 1.15))
-        self.add(hw.box_item("battery_cassette", trunk, "battery", m_cas, pos, cas, "B", "estimate",
-                             "tray, latch, pads, leads: 28 % of pack + 30 g", (0.55, 0.38, 0.2, 0.25), rot=R, collide=False,
-                             cost_nom=90, cost_high=160))
-        self.battery = dict(center=pos, size=cas, part=bat.id, R=R)
+        if self.power_mode == "tether":
+            # tether-only experiment: no pack or cassette; a panel connector, strain relief and pigtail where the
+            # cassette was (the cable leaves dorsally at the tail base)
+            self.add(hw.box_item("tether_connector", trunk, "battery", TETHER_CONNECTOR_KG, pos, (0.05, 0.04, 0.03), "A",
+                                 "estimate", "panel connector, strain relief, 0.3 m pigtail", hw.BATT_RGBA, rot=R,
+                                 cost_nom=60, cost_high=110))
+        else:
+            self.add(hw.box_item("battery", trunk, "battery", bat.mass, pos, bat.dims, "A", bat.basis, bat.id,
+                                 hw.BATT_RGBA, rot=R, cost_nom=bat.price, cost_high=bat.price * 1.15))
+            self.add(hw.box_item("battery_cassette", trunk, "battery", m_cas, pos, cas, "B", "estimate",
+                                 "tray, latch, pads, leads: 28 % of pack + 30 g", (0.55, 0.38, 0.2, 0.25), rot=R,
+                                 collide=False, cost_nom=90, cost_high=160))
+            self.battery = dict(center=pos, size=cas, part=bat.id, R=R)
         # Power distribution: above the battery (belly mode) or low in the abdomen (tail-base mode).
         bus = sel["bus"]
         pdims = (0.110, 0.070, 0.050) if bus <= 24 else (0.150, 0.090, 0.060)
@@ -647,7 +687,7 @@ class Design:
         roll = self.act("hip_roll")
         plen = 0.55 * B
         ph = self.hip["pelvis_half"]
-        m_pel, t_pel = hw.size_beam(plen, 2.0 * mg * G, 0.25, max(0.05, 1.2 * roll.envelope[0]))
+        m_pel, t_pel = self._beam(plen, 2.0 * mg * G, 0.25, max(0.05, 1.2 * roll.envelope[0]), self.struct_mat)
         for s in (1, -1):
             self.add(hw.box_item(f"pelvis_plate_{'lr'[s < 0]}", "trunk", "structure", m_pel / 2,
                                  np.array([-0.05 * B, s * ph, self.hip["z_roll"]]),
@@ -657,14 +697,15 @@ class Design:
         a = np.array([0.05 * B, 0, 0.10 * B])
         b = sk.neck_base + ry(sk.bend) @ np.array([-0.06 * B, 0, -0.05 * B])
         slen = np.linalg.norm(b - a)
-        m_sp, _ = hw.size_beam(slen, 3.0 * front_mass * G, 0.5, max(0.03, 0.06 * B))
+        m_sp, _ = self._beam(slen, 3.0 * front_mass * G, 0.5, max(0.03, 0.06 * B), self.struct_mat)
         self.add(hw.rod_item("spine_beam", "trunk", a, b, max(0.008, 0.02 * B), m_sp, source="spine twin-plate rule"))
         self.add(hw.Item("trays_crossmembers", "trunk", "structure", 0.12 + 0.02 * mg, np.array([0.4 * B, 0, -0.02 * B]),
                          np.eye(3), "none", (0,), "B", "estimate", "trays/crossmembers 0.12 kg + 2 % of mass", visual=False,
                          collide=False))
         occ_local = self.to_body("head", sk.occiput)
         head_mass_guess = 0.04 * (B / 0.38) ** 2.3 * 10
-        m_ns, _ = hw.size_beam(np.linalg.norm(occ_local), 3.0 * head_mass_guess * G, 0.5, max(0.02, 0.05 * B))
+        m_ns, _ = self._beam(np.linalg.norm(occ_local), 3.0 * head_mass_guess * G, 0.5, max(0.02, 0.05 * B),
+                             self.struct_mat)
         self.add(hw.rod_item("neck_spar", "head", np.zeros(3), occ_local, max(0.006, 0.015 * B), m_ns,
                              source="neck spar rule"))
         ax = np.array([np.cos(sk.skull_pitch), 0, np.sin(sk.skull_pitch)])
@@ -690,8 +731,8 @@ class Design:
         B = sk.B
         fam = T.FAMILY_SHAPE[self.fk]
         colors = FAMILY_COLORS[c.family]
-        t = cover_thickness(c.height, fam["shell_mm"])
-        mat = cover_material(c.height)
+        t = self._cover_t(fam["shell_mm"])
+        mat = self._cover_mat()
         regions = fam["cover_regions"]
         prof = self._required_profile()
         self.prof = prof
@@ -846,7 +887,7 @@ class Design:
         if "thigh" in fam["cover_regions"]:
             pitch = self.act("hip_pitch")
             r_top = max(0.5 * pitch.envelope[0] + 0.012, 0.19 * sk.B * fam["thigh_scale"])
-            t = cover_thickness(self.cand.height, fam["shell_mm"])
+            t = self._cover_t(fam["shell_mm"])
             cap = self.hip["y_leg"] - (self.hip["half_upper"] + 0.004) - t - 0.006
             narrowed, conflicts = [], []
             for k, x0 in enumerate(xs):
