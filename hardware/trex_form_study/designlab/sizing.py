@@ -133,8 +133,17 @@ def pool(kind: str, voltage: float | None = None):
     return sorted(sel, key=lambda a: (a.mass + COST_WEIGHT * a.price / 1000.0, a.mass))
 
 
+#: Fraction of each planning limit a selected part may use (1.0 in rounds one and two).  The size study's
+#: headroom rule sets 0.80: every requirement at most 0.80 of the part's sustained, peak and speed limit, the
+#: headroom the 60 cm bodies have without it.
+HEADROOM = 1.0
+
+
 def meets(a: catalog.Actuator, r: dict, bus: float | None = None) -> bool:
-    return a.sustained >= r["cont"] and a.peak >= r["peak_req"] and a.speed_at(bus) >= r["speed_req"]
+    if HEADROOM == 1.0:
+        return a.sustained >= r["cont"] and a.peak >= r["peak_req"] and a.speed_at(bus) >= r["speed_req"]
+    return (HEADROOM * a.sustained >= r["cont"] and HEADROOM * a.peak >= r["peak_req"]
+            and HEADROOM * a.speed_at(bus) >= r["speed_req"])
 
 
 def score(a: catalog.Actuator, group: str, mass: float, layout: str) -> float:

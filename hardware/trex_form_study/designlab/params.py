@@ -21,6 +21,20 @@ from dataclasses import dataclass, field, replace
 
 #: Target crown height (m) in the reference posture for each height class.
 HEIGHT_CLASSES = {60: 0.600, 75: 0.750, 100: 1.000, 120: 1.200}
+#: Study heights (size study, round two): crown targets between and around the classes.  Each takes every
+#: per-class rule (wall thickness scale, cover supports and fasteners, starting parts, mass guess, ankle-drive
+#: station, cover material, control-stack allowance) from ``SIZE_CLASS``, so only the size changes.
+STUDY_HEIGHTS = {54: 0.540, 57: 0.570, 80: 0.800}
+SIZE_CLASS = {54: 60, 57: 60, 80: 75}
+
+
+def size_class(height: int) -> int:
+    """The height class whose per-class rules a height uses (itself for a class)."""
+    return height if height in HEIGHT_CLASSES else SIZE_CLASS[height]
+
+
+def crown_target(height: int) -> float:
+    return HEIGHT_CLASSES[height] if height in HEIGHT_CLASSES else STUDY_HEIGHTS[height]
 
 #: The posture at which the crown height is matched; other postures keep the same body and
 #: report the crown height they reach (controlled comparison, see params docstring).
@@ -94,7 +108,7 @@ class Candidate:
 
     @property
     def crown_target(self) -> float:
-        return HEIGHT_CLASSES[self.height]
+        return crown_target(self.height)
 
     def at_posture(self, posture: int) -> "Candidate":
         return replace(self, posture=posture)

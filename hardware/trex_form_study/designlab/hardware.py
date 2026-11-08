@@ -90,7 +90,9 @@ DEFAULT_SELECTION = {
 
 
 def default_selection(height: int) -> dict:
-    sel = dict(DEFAULT_SELECTION[height])
+    from .params import size_class
+
+    sel = dict(DEFAULT_SELECTION[size_class(height)])
     sel["joints"] = {g: sel["leg"] for g in JOINT_GROUPS}
     return sel
 

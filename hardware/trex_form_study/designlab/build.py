@@ -14,7 +14,7 @@ from . import catalog, shapes
 from . import hardware as hw
 from . import template as T
 from .geometry import frame_from_axis, ry, rz
-from .params import REFERENCE_POSTURE, WIDTHS, Candidate
+from .params import REFERENCE_POSTURE, WIDTHS, Candidate, size_class
 from .skeleton import Skeleton, build_skeleton
 
 #: Camera mount: station along the skull (fraction of skull length from the occipital condyle;
@@ -68,12 +68,12 @@ MASS_GUESS = {60: 11.0, 75: 16.0, 100: 28.0, 120: 42.0}
 
 
 def cover_material(height: int) -> str:
-    return "PA12_MJF" if height <= 75 else "PA12_MJF_large"
+    return "PA12_MJF" if size_class(height) <= 75 else "PA12_MJF_large"
 
 
 def cover_thickness(height: int, family_mm: float) -> float:
     """Wall grows with panel span: 1.6-1.8 mm at 60 cm to ~2.6-2.9 mm at 120 cm (estimate)."""
-    scale = {60: 1.0, 75: 1.12, 100: 1.40, 120: 1.60}[height]
+    scale = {60: 1.0, 75: 1.12, 100: 1.40, 120: 1.60}[size_class(height)]
     return family_mm * scale / 1000.0
 
 
@@ -113,7 +113,7 @@ class Design:
                 self.geometry_checks["tail_root_setback_m"] = setback
                 self.notes.append(f"tail pivot moved back {1000 * setback:.0f} mm to fit the tail-base battery cassette")
         self.bodies: dict[str, Body] = {}
-        self.mass_guess = self.sel.get("mass_guess", MASS_GUESS[cand.height])
+        self.mass_guess = self.sel.get("mass_guess", MASS_GUESS[size_class(cand.height)])
         self._build()
 
     # ------------------------------------------------------------------ helpers
@@ -134,7 +134,7 @@ class Design:
         if ov is not None:
             self.geometry_checks["ankle_frac_override"] = float(ov)
             return float(ov)
-        return ANKLE_MOTOR_FRAC_R2_BY_HEIGHT.get(self.cand.height, ANKLE_MOTOR_FRAC[2])
+        return ANKLE_MOTOR_FRAC_R2_BY_HEIGHT.get(size_class(self.cand.height), ANKLE_MOTOR_FRAC[2])
 
     def _camera_fit(self, cam_size) -> dict:
         """Revision 2: highest stereo-camera position inside the skull cover and clear of the eyes."""
@@ -560,7 +560,7 @@ class Design:
         roll = self.act("hip_roll")
         cd = (0.090, 0.065, 0.032)
         cpos2 = np.array([0.0, 0.0, self.hip["z_roll"] + 0.5 * roll.envelope[0] + 0.5 * cd[2] + 0.010])
-        self.add(hw.box_item("control_stack", trunk, "control", 0.18 if c.height <= 75 else 0.24, cpos2, cd, "A",
+        self.add(hw.box_item("control_stack", trunk, "control", 0.18 if size_class(c.height) <= 75 else 0.24, cpos2, cd, "A",
                              "estimate", "PR #662 control allocation 0.18 kg (Teensy 4.1, CAN x2, IMU)", hw.BOARD_RGBA,
                              cost_nom=260, cost_high=420, power_nom=4.0, power_max=6.0))
         self.add(hw.Item("imu", trunk, "sensors", 0.02, cpos2 + np.array([0, 0, 0.5 * cd[2] + 0.005]), np.eye(3), "none",

@@ -11,6 +11,7 @@ import numpy as np
 
 from .build import COVER_MATERIALS, Design
 from .geometry import combine, grid_triangles, quat_from_matrix, shell_properties, thicken
+from .params import size_class
 
 INTEGRATION_RESERVE_FRACTION = 0.06  # PR #662 carried 0.60 kg on 9.90 kg (6 %)
 FASTENER_MASS = {60: 0.0025, 75: 0.0030, 100: 0.0045, 120: 0.0055}  # per mount (screw, insert, boss)
@@ -26,8 +27,8 @@ def panel_properties(design: Design, panel):
     mat = COVER_MATERIALS[panel.material]
     tris = grid_triangles(panel.grid, panel.close_ring)
     m, com, inertia, area = shell_properties(tris, panel.thickness, mat["density"])
-    support = SUPPORT_FRACTION[c.height] * m
-    fasten = FASTENER_MASS[c.height] * panel.mounts
+    support = SUPPORT_FRACTION[size_class(c.height)] * m
+    fasten = FASTENER_MASS[size_class(c.height)] * panel.mounts
     return dict(mass_shell=m, com=com, inertia=inertia, area=area, support=support, fasteners=fasten,
                 cost_nom=(m + support) * mat["cost_per_kg"] + 6.0 * panel.mounts,
                 cost_high=(m + support) * mat["cost_per_kg"] * 1.6 + 10.0 * panel.mounts)
@@ -64,7 +65,7 @@ def ledger(design: Design) -> list[dict]:
 
 
 def hw_support(design: Design) -> float:
-    return SUPPORT_FRACTION[design.cand.height]
+    return SUPPORT_FRACTION[size_class(design.cand.height)]
 
 
 def body_inertials(design: Design, rows: list[dict]):
