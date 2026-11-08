@@ -36,6 +36,7 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P21 | Owner, round-two review (question 6): materials and power as recommended (F22): 6061-T6 frame (2.54 mm plates where a leg bench test allows), MJF PA11 coverings with walls about a quarter thinner, cast polyurethane pad treads measured on the owner's floors, and the battery plus an external DC input with the cable hung from a boom. | adopted |
 | P22 | Owner, round-two review (question 7): keep the head camera in the skull roof (a person in view; the near floor relies on the two ToF sensors). | adopted |
 | P23 | Owner, round-two review (question 8): go ahead with the Stage 1 closed-loop probe on the three bodies of P16, with the same budget each (ROUND2_REVIEW.md §13). With two review rounds complete, this meets P7; the probe is bounded and is not the verification training. | adopted |
+| P24 | Owner, 8 Nov 2026, after the gait-tuning request: see how the Stage 1 training and evaluation go before making any more changes. The design is held as decided (P16–P23); the gait-tuning study already running (`designlab/gaittune.py`) completes as information only, and Stage 1 keeps the planned animal-pace reference walk (`envelope.FAST`). | adopted |
 
 ## Engineering constraints and findings
 
