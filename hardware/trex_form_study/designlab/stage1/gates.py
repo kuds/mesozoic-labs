@@ -477,7 +477,7 @@ def open_decisions(choices: dict, gated: str, rule: str) -> list[dict]:
                       "joint": "joint space; " + ev("joint_gains+linkage_armature") + " (linkage armature)"},
              taken_until_decided=choices[gated]["options"]["ankle_gains"]),
         dict(id="b", choice="ankle_armature",
-             question="Ankle armature: linkage-consistent (each motor's catalog armature on its tendon: twice the "
+             question="Ankle armature: linkage-consistent (each motor's armature on its tendon: twice the "
                       "screened per-joint armature on pitch and roll, the feet's inverse weight 5-9 % lower and "
                       "hard-floor contacts 5-10 % stiffer) or as screened (the screened MJCF's one armature per joint)?",
              options={"linkage": "with motor gains " + ev("motor_gains+linkage_armature") + "; with joint gains "

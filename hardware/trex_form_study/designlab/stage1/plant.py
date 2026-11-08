@@ -12,8 +12,10 @@ original value is kept verbatim):
   foot body, net force in the world frame), so a pad touching the other foot never counts as support;
 * the two-motor ankle (``drive``; the record's ``leg_layout`` must be a parallel-linkage layout): each ankle's pitch
   and roll servos become motors on the tendons q_p + q_r and q_p - q_r.  The ankle armature is an open choice
-  (``ANKLE_ARMATURE``): ``"linkage"`` (the default) puts each motor's catalog armature on its own tendon, which in
-  joint space is twice the screened MJCF's armature on pitch and on roll (both motors turn for either axis);
+  (``ANKLE_ARMATURE``): ``"linkage"`` (the default) puts each motor's armature on its own tendon (the value the
+  screened MJCF writes on the ankle joint whose servo that motor replaces, i.e. the motor's catalog armature as
+  written there), which in joint space is twice the screened MJCF's armature on pitch and on roll (both motors turn
+  for either axis);
   ``"screened"`` keeps the screened MJCF's armature on the ankle joints (one motor's armature per joint) and none on
   the tendons, so the mass matrix and the feet's inverse weights are exactly the screened model's.  With
   ``"linkage"`` the feet's ``body_invweight0`` drops (9 % on the 60 cm bodies, 5 % on 75 cm), so contacts with a
@@ -226,12 +228,15 @@ def augment(text: str, joints: list[str], drives: list[drive.Drive], ranges: dic
         raise ValueError(f"ankle_armature {ankle_armature!r}: choose from {', '.join(ANKLE_ARMATURE)}")
     root = ET.fromstring(text)
     by_coord = {d.coordinate: d for d in drives}
+    screened_arm = {}  # the armature the screened MJCF gives each ankle joint: the motor that replaces its servo's
     for j in root.iter("joint"):
         name = j.get("name")
         if name in ranges:
             j.set("range", f"{ranges[name][0]!r} {ranges[name][1]!r}")
-        if ankle_armature == "linkage" and name is not None and name.endswith(("_ankle_pitch", "_ankle_roll")):
-            j.set("armature", "0")  # the motors' armature moves to their tendons
+        if name is not None and name.endswith(("_ankle_pitch", "_ankle_roll")):
+            screened_arm[name] = j.get("armature")
+            if ankle_armature == "linkage":
+                j.set("armature", "0")  # the motors' armature moves to their tendons
     trunk = root.find("./worldbody/body[@name='trunk']")
     if trunk is None:
         raise PlantError("no trunk body")
@@ -242,8 +247,9 @@ def augment(text: str, joints: list[str], drives: list[drive.Drive], ranges: dic
     for side in statics.SIDES:
         for motor, roll in drive.ANKLE_MOTORS:
             name = drive.tendon_name(side, motor)
-            arm = by_coord[name].armature if ankle_armature == "linkage" else 0.0
-            t = ET.SubElement(tendon, "fixed", name=name, armature=repr(arm))
+            written = screened_arm.get(f"{side}_{drive.REPLACES[motor]}")
+            arm = "0" if ankle_armature == "screened" else written or repr(by_coord[name].armature)
+            t = ET.SubElement(tendon, "fixed", name=name, armature=arm)
             ET.SubElement(t, "joint", joint=f"{side}_ankle_pitch", coef="1")
             ET.SubElement(t, "joint", joint=f"{side}_ankle_roll", coef=repr(roll))
     replaced = {f"{side}_{jn}": drive.tendon_name(side, motor) for side in statics.SIDES
@@ -332,8 +338,8 @@ def armature_effects(m0, m, joints: list[str], choice: str) -> dict:
         feet[side] = dict(invweight0_translation_plant=w, invweight0_translation_screened=w0,
                           change_frac=w / w0 - 1.0, time_constant_contact_stiffness_ratio=w0 / w)
     return dict(choice=choice,
-                rule="each motor's catalog armature on its tendon (joint space: 2x the screened per-joint armature on "
-                     "pitch and roll)" if choice == "linkage" else
+                rule="each motor's armature (as the screened MJCF writes it) on its tendon (joint space: 2x the "
+                     "screened per-joint armature on pitch and roll)" if choice == "linkage" else
                      "the screened MJCF's armature on each ankle joint, none on the tendons (the screened mass matrix)",
                 joint_space_plant={joints[i]: float(A[i, i]) for i in ankles},
                 joint_space_screened={joints[i]: float(A0[i, i]) for i in ankles},

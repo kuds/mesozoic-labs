@@ -80,14 +80,14 @@
    },
    "left_ankle_a_servo": {
     "kp": 227.99999999999997,
-    "kv": 0.6638934180509779,
-    "inertia_kg_m2": 0.00048328341067040636,
+    "kv": 0.6638968523282894,
+    "inertia_kg_m2": 0.00048328841067040633,
     "coordinate": "left_ankle_a"
    },
    "left_ankle_b_servo": {
     "kp": 227.99999999999997,
-    "kv": 0.6660509862998459,
-    "inertia_kg_m2": 0.0004864297328410061,
+    "kv": 0.6660544094524091,
+    "inertia_kg_m2": 0.0004864347328410061,
     "coordinate": "left_ankle_b"
    },
    "right_hip_roll_servo": {
@@ -116,14 +116,14 @@
    },
    "right_ankle_a_servo": {
     "kp": 227.99999999999997,
-    "kv": 0.6660509862998459,
-    "inertia_kg_m2": 0.0004864297328410061,
+    "kv": 0.6660544094524091,
+    "inertia_kg_m2": 0.0004864347328410061,
     "coordinate": "right_ankle_a"
    },
    "right_ankle_b_servo": {
     "kp": 227.99999999999997,
-    "kv": 0.6638934180509779,
-    "inertia_kg_m2": 0.0004832834106704063,
+    "kv": 0.6638968523282893,
+    "inertia_kg_m2": 0.0004832884106704063,
     "coordinate": "right_ankle_b"
    }
   },
@@ -481,12 +481,12 @@
   "linkage": "motor a on q_p + q_r, motor b on q_p - q_r (unit cranks): |tau_p| + |tau_r| <= 2 peak",
   "armature": {
    "choice": "linkage",
-   "rule": "each motor's catalog armature on its tendon (joint space: 2x the screened per-joint armature on pitch and roll)",
+   "rule": "each motor's armature (as the screened MJCF writes it) on its tendon (joint space: 2x the screened per-joint armature on pitch and roll)",
    "joint_space_plant": {
-    "left_ankle_pitch": 0.00078125,
-    "left_ankle_roll": 0.00078125,
-    "right_ankle_pitch": 0.0007812499999999998,
-    "right_ankle_roll": 0.00078125
+    "left_ankle_pitch": 0.00078126,
+    "left_ankle_roll": 0.00078126,
+    "right_ankle_pitch": 0.0007812599999999998,
+    "right_ankle_roll": 0.00078126
    },
    "joint_space_screened": {
     "left_ankle_pitch": 0.00039063,
@@ -495,10 +495,10 @@
     "right_ankle_roll": 0.00039063
    },
    "ankle_inertia_at_home_plant": {
-    "left_ankle_pitch": 0.0010898873569350994,
-    "left_ankle_roll": 0.0008495389300877256,
-    "right_ankle_pitch": 0.001089887356935099,
-    "right_ankle_roll": 0.0008495389300877259
+    "left_ankle_pitch": 0.0010898973569350994,
+    "left_ankle_roll": 0.0008495489300877256,
+    "right_ankle_pitch": 0.001089897356935099,
+    "right_ankle_roll": 0.0008495489300877258
    },
    "ankle_inertia_at_home_screened": {
     "left_ankle_pitch": 0.0006992673569350994,
@@ -507,23 +507,23 @@
     "right_ankle_roll": 0.0004589189300877258
    },
    "ankle_inertia_change_frac": {
-    "left_ankle_pitch": 0.5586132344459693,
-    "left_ankle_roll": 0.8511743020174178,
-    "right_ankle_pitch": 0.5586132344459696,
-    "right_ankle_roll": 0.8511743020174176
+    "left_ankle_pitch": 0.5586275351278198,
+    "left_ankle_roll": 0.8511960923584658,
+    "right_ankle_pitch": 0.55862753512782,
+    "right_ankle_roll": 0.8511960923584654
    },
    "feet": {
     "left": {
-     "invweight0_translation_plant": 1.3410994175311803,
+     "invweight0_translation_plant": 1.3410972363261464,
      "invweight0_translation_screened": 1.4770746101399155,
-     "change_frac": -0.0920570915479042,
-     "time_constant_contact_stiffness_ratio": 1.1013908371230605
+     "change_frac": -0.0920585682539683,
+     "time_constant_contact_stiffness_ratio": 1.1013926284616549
     },
     "right": {
-     "invweight0_translation_plant": 1.3411282152508475,
+     "invweight0_translation_plant": 1.3411260339171884,
      "invweight0_translation_screened": 1.4771101352813478,
-     "change_frac": -0.09205943198311317,
-     "time_constant_contact_stiffness_ratio": 1.1013936762228702
+     "change_frac": -0.0920609087407408,
+     "time_constant_contact_stiffness_ratio": 1.10139546763325
     }
    },
    "contacts": "hard floor and robot_floor_carpet use time-constant solrefs, whose force per depth scales with 1 / invweight0: time_constant_contact_stiffness_ratio is the plant's foot contact stiffness over the screened model's (and carpet.standing_check's); the piles' probes are re-derived on the plant model and keep carpet.py's stiffness",
@@ -881,7 +881,7 @@
    16,
    16
   ],
-  "start_lowered_by_m": 0.00011073166364091992,
+  "start_lowered_by_m": 0.00011073148883485281,
   "foot_contacts_at_start": [
    16,
    16
@@ -891,18 +891,18 @@
    16
   ],
   "foot_load_N": [
-   53.51133256180113,
-   53.48182199902063
+   53.51133255906691,
+   53.48182200092534
   ],
   "weight_N": 106.99332613199999,
-  "root_z_change_m": -0.00031755198303906607,
-  "tilt_from_home_deg": 0.2607801805870601,
-  "tilt_change_last_s_deg": 0.016432775682800327,
-  "com_move_last_s_mm": 0.08288488225922587,
-  "max_abs_qvel": 0.00039338772770122115,
-  "trunk_rate_rad_s": 0.00016390194383839876,
-  "max_abs_joint_rate_rad_s": 0.00039338772770122115,
-  "joint_offset_max_rad": 0.007546281184815609
+  "root_z_change_m": -0.0003175516596700123,
+  "tilt_from_home_deg": 0.260780256522766,
+  "tilt_change_last_s_deg": 0.016432777582638947,
+  "com_move_last_s_mm": 0.08288487638164979,
+  "max_abs_qvel": 0.00039338736592051235,
+  "trunk_rate_rad_s": 0.00016390121564442396,
+  "max_abs_joint_rate_rad_s": 0.00039338736592051235,
+  "joint_offset_max_rad": 0.0075462811831599275
  },
  "provenance": {
   "versions": {
@@ -915,7 +915,7 @@
    "torch": "2.15.0"
   },
   "git": {
-   "commit": "dcf8db4a02f643d3250aff66ce78a18a08dd5f7a",
+   "commit": "000c2bc5087166d7690a8db98df78a4694a12792",
    "dirty": true
   }
  },
@@ -937,7 +937,7 @@
      16,
      16
     ],
-    "start_lowered_by_m": 0.00011073166364091992,
+    "start_lowered_by_m": 0.00011073148883485281,
     "foot_contacts_at_start": [
      16,
      16
@@ -947,24 +947,24 @@
      16
     ],
     "foot_load_N": [
-     53.51133256180113,
-     53.48182199902063
+     53.51133255906691,
+     53.48182200092534
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.00031755198303906607,
-    "tilt_from_home_deg": 0.2607801805870601,
-    "tilt_change_last_s_deg": 0.016432775682800327,
-    "com_move_last_s_mm": 0.08288488225922587,
-    "max_abs_qvel": 0.00039338772770122115,
-    "trunk_rate_rad_s": 0.00016390194383839876,
-    "max_abs_joint_rate_rad_s": 0.00039338772770122115,
-    "joint_offset_max_rad": 0.007546281184815609
+    "root_z_change_m": -0.0003175516596700123,
+    "tilt_from_home_deg": 0.260780256522766,
+    "tilt_change_last_s_deg": 0.016432777582638947,
+    "com_move_last_s_mm": 0.08288487638164979,
+    "max_abs_qvel": 0.00039338736592051235,
+    "trunk_rate_rad_s": 0.00016390121564442396,
+    "max_abs_joint_rate_rad_s": 0.00039338736592051235,
+    "joint_offset_max_rad": 0.0075462811831599275
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.35491121700033545,
-   "steps_per_s_zero_command": 20381.795253359847,
-   "env_steps_per_s_bound_50hz": 2038.1795253359846,
+   "build_s": 0.17388635000133945,
+   "steps_per_s_zero_command": 27053.079508273335,
+   "env_steps_per_s_bound_50hz": 2705.3079508273336,
    "below_g6a_env_rate": false
   },
   "robot_floor_carpet": {
@@ -999,7 +999,7 @@
      16,
      16
     ],
-    "start_lowered_by_m": 0.0015685978998473005,
+    "start_lowered_by_m": 0.0015685967223418229,
     "foot_contacts_at_start": [
      16,
      16
@@ -1009,24 +1009,24 @@
      16
     ],
     "foot_load_N": [
-     53.51441465273818,
-     53.47887768633909
+     53.5144146533438,
+     53.47887768728784
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.002184319908613286,
-    "tilt_from_home_deg": 0.11737404671898717,
-    "tilt_change_last_s_deg": 0.02249456026844321,
-    "com_move_last_s_mm": 0.12776312402766113,
-    "max_abs_qvel": 0.000604694810794916,
-    "trunk_rate_rad_s": 0.0006046948121636765,
-    "max_abs_joint_rate_rad_s": 0.00023712495226566372,
-    "joint_offset_max_rad": 0.007530872122308254
+    "root_z_change_m": -0.0021843187720776425,
+    "tilt_from_home_deg": 0.11737413896077807,
+    "tilt_change_last_s_deg": 0.022494574168123296,
+    "com_move_last_s_mm": 0.12776319412320106,
+    "max_abs_qvel": 0.0006046947484195296,
+    "trunk_rate_rad_s": 0.0006046947497882742,
+    "max_abs_joint_rate_rad_s": 0.0002371252847753832,
+    "joint_offset_max_rad": 0.007530872128560344
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.35102818100131117,
-   "steps_per_s_zero_command": 9739.41882994729,
-   "env_steps_per_s_bound_50hz": 973.941882994729,
+   "build_s": 0.20884544900036417,
+   "steps_per_s_zero_command": 18863.63073897588,
+   "env_steps_per_s_bound_50hz": 1886.363073897588,
    "below_g6a_env_rate": false
   },
   "low": {
@@ -1051,18 +1051,18 @@
     ],
     "condim": 3,
     "dampratio": 1.0,
-    "A_hat_per_kg": 1.3410994175311803,
+    "A_hat_per_kg": 1.3410972363261464,
     "timestep": 0.002,
     "full_cell_probe": {
      "K_N_per_m": 526.0664156110921,
      "solref": [
-      0.053243208947907586,
+      0.053243252246150626,
       1.0
      ],
-     "damping_N_s_per_m": 56.01892817371633
+     "damping_N_s_per_m": 56.018973729219375
     },
     "pad_stiffness_per_foot_N_per_m": 47697.830628486576,
-    "regularisation_inertia_kg_per_contact": 0.7456568744477515
+    "regularisation_inertia_kg_per_contact": 0.7456580872088281
    },
    "info": {
     "probes_per_foot": {
@@ -1092,24 +1092,24 @@
      145
     ],
     "foot_load_N": [
-     53.522878073463126,
-     53.47055040587567
+     53.52287807368527,
+     53.47055040535265
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.0015155694446286616,
-    "tilt_from_home_deg": 0.08210355565417919,
-    "tilt_change_last_s_deg": 0.013864471453206142,
-    "com_move_last_s_mm": 0.08399103179033889,
-    "max_abs_qvel": 0.0006341826421906915,
-    "trunk_rate_rad_s": 4.515821604257119e-05,
-    "max_abs_joint_rate_rad_s": 0.0006341826421906915,
-    "joint_offset_max_rad": 0.007538667419624332
+    "root_z_change_m": -0.001515569356714097,
+    "tilt_from_home_deg": 0.08210356121635527,
+    "tilt_change_last_s_deg": 0.013864472579986645,
+    "com_move_last_s_mm": 0.08399103677620381,
+    "max_abs_qvel": 0.0006341826243356281,
+    "trunk_rate_rad_s": 4.515825245544931e-05,
+    "max_abs_joint_rate_rad_s": 0.0006341826243356281,
+    "joint_offset_max_rad": 0.007538667421782956
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.4927397559986275,
-   "steps_per_s_zero_command": 1838.0711415269504,
-   "env_steps_per_s_bound_50hz": 183.80711415269505,
+   "build_s": 0.9335137010002654,
+   "steps_per_s_zero_command": 3352.401496911049,
+   "env_steps_per_s_bound_50hz": 335.2401496911049,
    "below_g6a_env_rate": true
   },
   "medium": {
@@ -1134,18 +1134,18 @@
     ],
     "condim": 3,
     "dampratio": 1.0,
-    "A_hat_per_kg": 1.3410994175311803,
+    "A_hat_per_kg": 1.3410972363261464,
     "timestep": 0.002,
     "full_cell_probe": {
      "K_N_per_m": 163.5071291764205,
      "solref": [
-      0.09550281310020696,
+      0.09550289076464707,
       1.0
      ],
-     "damping_N_s_per_m": 31.230781596574168
+     "damping_N_s_per_m": 31.23080699395345
     },
     "pad_stiffness_per_foot_N_per_m": 14825.001411556637,
-    "regularisation_inertia_kg_per_contact": 0.7456568744477515
+    "regularisation_inertia_kg_per_contact": 0.7456580872088281
    },
    "info": {
     "probes_per_foot": {
@@ -1175,24 +1175,24 @@
      80
     ],
     "foot_load_N": [
-     52.9416724645763,
-     52.70982656300629
+     52.9416804012589,
+     52.709838503559695
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.01733040102681016,
-    "tilt_from_home_deg": 12.281128294420995,
-    "tilt_change_last_s_deg": 9.406277932150731,
-    "com_move_last_s_mm": 54.87708963083006,
-    "max_abs_qvel": 0.4896639383265782,
-    "trunk_rate_rad_s": 0.4896642074161502,
-    "max_abs_joint_rate_rad_s": 0.001822128445458651,
-    "joint_offset_max_rad": 0.007645507990526633
+    "root_z_change_m": -0.01733033167900483,
+    "tilt_from_home_deg": 12.281083034264991,
+    "tilt_change_last_s_deg": 9.406236731993946,
+    "com_move_last_s_mm": 54.87684938169503,
+    "max_abs_qvel": 0.4896607425668585,
+    "trunk_rate_rad_s": 0.4896610116523588,
+    "max_abs_joint_rate_rad_s": 0.0018221223532656093,
+    "joint_offset_max_rad": 0.007645505240418489
    },
    "stands": false,
    "stand_status": "does not stand: the zero-command stance tipped after 2.1 s",
-   "build_s": 1.765398234998429,
-   "steps_per_s_zero_command": 1564.1660800536265,
-   "env_steps_per_s_bound_50hz": 156.41660800536266,
+   "build_s": 1.0904362140008743,
+   "steps_per_s_zero_command": 2460.294721240085,
+   "env_steps_per_s_bound_50hz": 246.0294721240085,
    "below_g6a_env_rate": true
   },
   "high": {
@@ -1217,18 +1217,18 @@
     ],
     "condim": 3,
     "dampratio": 1.0,
-    "A_hat_per_kg": 1.3410994175311803,
+    "A_hat_per_kg": 1.3410972363261464,
     "timestep": 0.002,
     "full_cell_probe": {
      "K_N_per_m": 109.00475278428034,
      "solref": [
-      0.11696658054794794,
+      0.11696667566707265,
       1.0
      ],
-     "damping_N_s_per_m": 25.49982639330336
+     "damping_N_s_per_m": 25.499847130176708
     },
     "pad_stiffness_per_foot_N_per_m": 9883.334274371093,
-    "regularisation_inertia_kg_per_contact": 0.7456568744477515
+    "regularisation_inertia_kg_per_contact": 0.7456580872088281
    },
    "info": {
     "probes_per_foot": {
@@ -1258,24 +1258,24 @@
      128
     ],
     "foot_load_N": [
-     52.750749047593594,
-     52.99199398541969
+     52.750756046575255,
+     52.991999471414914
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.0183673977458082,
-    "tilt_from_home_deg": 12.018681321332798,
-    "tilt_change_last_s_deg": 10.850746706826996,
-    "com_move_last_s_mm": 63.159678162357885,
-    "max_abs_qvel": 0.51060770701381,
-    "trunk_rate_rad_s": 0.5106084999543185,
-    "max_abs_joint_rate_rad_s": 0.0030785382640529085,
-    "joint_offset_max_rad": 0.007634986491174279
+    "root_z_change_m": -0.018367345555506343,
+    "tilt_from_home_deg": 12.018648600305228,
+    "tilt_change_last_s_deg": 10.850715829771445,
+    "com_move_last_s_mm": 63.1594987526956,
+    "max_abs_qvel": 0.5106054917401434,
+    "trunk_rate_rad_s": 0.5106062846757918,
+    "max_abs_joint_rate_rad_s": 0.003078556304891871,
+    "joint_offset_max_rad": 0.007634984626445115
    },
    "stands": false,
    "stand_status": "does not stand: the zero-command stance tipped after 1.5 s",
-   "build_s": 1.6330572180013405,
-   "steps_per_s_zero_command": 1017.3753321036361,
-   "env_steps_per_s_bound_50hz": 101.73753321036361,
+   "build_s": 1.045582969998577,
+   "steps_per_s_zero_command": 1646.9405596331762,
+   "env_steps_per_s_bound_50hz": 164.69405596331762,
    "below_g6a_env_rate": true
   }
  },
@@ -1302,18 +1302,18 @@
     ],
     "condim": 3,
     "dampratio": 1.0,
-    "A_hat_per_kg": 1.3410994175311803,
+    "A_hat_per_kg": 1.3410972363261464,
     "timestep": 0.002,
     "full_cell_probe": {
      "K_N_per_m": 2104.2656624443684,
      "solref": [
-      0.026621604473953793,
+      0.026621626123075313,
       1.0
      ],
-     "damping_N_s_per_m": 112.03785634743267
+     "damping_N_s_per_m": 112.03794745843875
     },
     "pad_stiffness_per_foot_N_per_m": 47697.830628486576,
-    "regularisation_inertia_kg_per_contact": 0.7456568744477515
+    "regularisation_inertia_kg_per_contact": 0.7456580872088281
    },
    "info": {
     "probes_per_foot": {
@@ -1343,25 +1343,25 @@
      46
     ],
     "foot_load_N": [
-     53.43846148126296,
-     53.555035315573654
+     53.438461464102204,
+     53.55503533258029
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.001566199109749089,
-    "tilt_from_home_deg": 0.07898354030129752,
-    "tilt_change_last_s_deg": 0.02842191226892031,
-    "com_move_last_s_mm": 0.16528502021307098,
-    "max_abs_qvel": 0.0005962920442155067,
-    "trunk_rate_rad_s": 0.0003666484208507636,
-    "max_abs_joint_rate_rad_s": 0.0005962920442155067,
-    "joint_offset_max_rad": 0.007538338153753409
+    "root_z_change_m": -0.0015661990282003213,
+    "tilt_from_home_deg": 0.07898355657642694,
+    "tilt_change_last_s_deg": 0.02842199006726799,
+    "com_move_last_s_mm": 0.16528545329884553,
+    "max_abs_qvel": 0.0005962922848249422,
+    "trunk_rate_rad_s": 0.000366649724105742,
+    "max_abs_joint_rate_rad_s": 0.0005962922848249422,
+    "joint_offset_max_rad": 0.007538338157198528
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.8136745129995688,
-   "steps_per_s_zero_command": 4617.322786362613,
-   "env_steps_per_s_bound_50hz": 461.73227863626136,
-   "below_g6a_env_rate": true
+   "build_s": 0.5483129390013346,
+   "steps_per_s_zero_command": 9978.139542592031,
+   "env_steps_per_s_bound_50hz": 997.8139542592031,
+   "below_g6a_env_rate": false
   },
   "medium": {
    "params": {
@@ -1385,18 +1385,18 @@
     ],
     "condim": 3,
     "dampratio": 1.0,
-    "A_hat_per_kg": 1.3410994175311803,
+    "A_hat_per_kg": 1.3410972363261464,
     "timestep": 0.002,
     "full_cell_probe": {
      "K_N_per_m": 654.028516705682,
      "solref": [
-      0.04775140655010348,
+      0.04775144538232354,
       1.0
      ],
-     "damping_N_s_per_m": 62.461563193148336
+     "damping_N_s_per_m": 62.4616139879069
     },
     "pad_stiffness_per_foot_N_per_m": 14825.001411556637,
-    "regularisation_inertia_kg_per_contact": 0.7456568744477515
+    "regularisation_inertia_kg_per_contact": 0.7456580872088281
    },
    "info": {
     "probes_per_foot": {
@@ -1426,24 +1426,24 @@
      24
     ],
     "foot_load_N": [
-     53.13626005017087,
-     52.42041559329105
+     53.13626613659913,
+     52.42041982989199
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.017730196473697057,
-    "tilt_from_home_deg": 12.444169128518723,
-    "tilt_change_last_s_deg": 10.64075241278004,
-    "com_move_last_s_mm": 61.78565351115519,
-    "max_abs_qvel": 0.5287399106947285,
-    "trunk_rate_rad_s": 0.528797500898348,
-    "max_abs_joint_rate_rad_s": 0.0018103948552702523,
-    "joint_offset_max_rad": 0.007671777978900238
+    "root_z_change_m": -0.017730159311862836,
+    "tilt_from_home_deg": 12.444145204920831,
+    "tilt_change_last_s_deg": 10.640730383832395,
+    "com_move_last_s_mm": 61.78552681359374,
+    "max_abs_qvel": 0.528738225528434,
+    "trunk_rate_rad_s": 0.5287958154106948,
+    "max_abs_joint_rate_rad_s": 0.0018103877619005725,
+    "joint_offset_max_rad": 0.007671776501871701
    },
    "stands": false,
    "stand_status": "does not stand: the zero-command stance tipped after 1.7 s",
-   "build_s": 0.9559920669998974,
-   "steps_per_s_zero_command": 7876.192491966652,
-   "env_steps_per_s_bound_50hz": 787.6192491966651,
+   "build_s": 0.6351326049989439,
+   "steps_per_s_zero_command": 8552.100847961401,
+   "env_steps_per_s_bound_50hz": 855.2100847961401,
    "below_g6a_env_rate": false
   },
   "high": {
@@ -1468,18 +1468,18 @@
     ],
     "condim": 3,
     "dampratio": 1.0,
-    "A_hat_per_kg": 1.3410994175311803,
+    "A_hat_per_kg": 1.3410972363261464,
     "timestep": 0.002,
     "full_cell_probe": {
      "K_N_per_m": 436.01901113712137,
      "solref": [
-      0.05848329027397397,
+      0.05848333783353633,
       1.0
      ],
-     "damping_N_s_per_m": 50.99965278660672
+     "damping_N_s_per_m": 50.999694260353415
     },
     "pad_stiffness_per_foot_N_per_m": 9883.334274371093,
-    "regularisation_inertia_kg_per_contact": 0.7456568744477515
+    "regularisation_inertia_kg_per_contact": 0.7456580872088281
    },
    "info": {
     "probes_per_foot": {
@@ -1509,35 +1509,33 @@
      41
     ],
     "foot_load_N": [
-     52.92431905423159,
-     52.521968569015215
+     52.92432408942194,
+     52.52197197347015
     ],
     "weight_N": 106.99332613199999,
-    "root_z_change_m": -0.018736942932235934,
-    "tilt_from_home_deg": 12.10350315527426,
-    "tilt_change_last_s_deg": 11.781786107476087,
-    "com_move_last_s_mm": 68.32015085703085,
-    "max_abs_qvel": 0.561346969341542,
-    "trunk_rate_rad_s": 0.5613836551982153,
-    "max_abs_joint_rate_rad_s": 0.003001760786123721,
-    "joint_offset_max_rad": 0.0076747312999285635
+    "root_z_change_m": -0.01873691601859906,
+    "tilt_from_home_deg": 12.103486573902906,
+    "tilt_change_last_s_deg": 11.781770119410114,
+    "com_move_last_s_mm": 68.32005859291172,
+    "max_abs_qvel": 0.561345846505855,
+    "trunk_rate_rad_s": 0.5613825322513838,
+    "max_abs_joint_rate_rad_s": 0.0030017626091431242,
+    "joint_offset_max_rad": 0.007674730383970249
    },
    "stands": false,
    "stand_status": "does not stand: the zero-command stance tipped after 1.2 s",
-   "build_s": 0.7727839100007259,
-   "steps_per_s_zero_command": 4045.0457508316686,
-   "env_steps_per_s_bound_50hz": 404.50457508316686,
-   "below_g6a_env_rate": true
+   "build_s": 0.5844280469991645,
+   "steps_per_s_zero_command": 6263.310533068324,
+   "env_steps_per_s_bound_50hz": 626.3310533068324,
+   "below_g6a_env_rate": false
   }
  },
  "throughput": {
   "rule": "physics steps/s with zero command / 10 (50 Hz env steps on 2 ms physics) is an upper bound on the PPO env rate; G6a asks for 600 per job",
   "below_g6a": {
-   "low (4 mm probes)": 184,
-   "medium (4 mm probes)": 156,
-   "high (4 mm probes)": 102,
-   "low (8 mm probes)": 462,
-   "high (8 mm probes)": 405
+   "low (4 mm probes)": 335,
+   "medium (4 mm probes)": 246,
+   "high (4 mm probes)": 165
   }
  }
 }

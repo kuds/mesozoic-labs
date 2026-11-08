@@ -192,6 +192,33 @@ GROUP_LABEL = {"hip_roll": "hip roll", "hip_pitch": "hip pitch", "hip_yaw": "thi
                "ankle_a": "ankle A", "ankle_b": "ankle B", "neck": "neck", "tail": "tail"}
 
 
+def _notes(out: Path) -> list[str]:
+    """Where each chosen walk sits against the search bounds and the constraints."""
+    lines = []
+    for cid in BODIES:
+        p = out / f"{cid}.json"
+        if not p.exists() or not json.loads(p.read_text()).get("chosen"):
+            continue
+        d = json.loads(p.read_text())
+        c, b = d["chosen"], d["baseline"]
+        at = [f"{k.replace('_', ' ')} at its {'lower' if abs(c['spec'][k] - lo) < 1e-9 else 'upper'} bound"
+              for k, (lo, hi) in BOUNDS.items() if abs(c["spec"][k] - lo) < 1e-9 or abs(c["spec"][k] - hi) < 1e-9]
+        n_feas = sum(e["feasible"] for e in d["grid"])
+        lines.append(f"* `{cid}`: {', '.join(at) if at else 'no parameter at a search bound'}; toe clearance "
+                     f"{round(c['toe_mid_swing_mm'] - c['toe_target_mm'], 1) + 0.0:+.1f} mm against the 0.04 H target; stride "
+                     f"{b['stride_m']:.3f} → {c['stride_m']:.3f} m at {c['speed_ms']:.3f} m/s; {n_feas} of {len(d['grid'])} "
+                     f"grid walks feasible; {len(d['pattern'])} pattern-search walks; walking clearance gates "
+                     f"{'pass' if c.get('walking_gates') else 'FAIL'} (tightest joint {c['tightest_joint'][0]} "
+                     f"{c['tightest_joint'][1]:.2f} rad).")
+    lines += ["* The swing lift sits at the 0.04 H toe-clearance target with no margin: the tuned walk is for flat, hard "
+              "floors; thresholds, rugs and carpet keep the higher swing.",
+              "* A deeper crouch or a shorter stride than the search allowed may lower the ratio further; the bounds "
+              f"({', '.join(f'{k} {lo}-{hi}' for k, (lo, hi) in BOUNDS.items())}) are a design choice, not a limit "
+              "found.", "* The peak centre-of-mass acceleration stays about twice the spec's 1.5 m/s² in every walk "
+              "searched; gait tuning does not fix it."]
+    return lines
+
+
 def report(out: Path) -> str:
     rows = []
     for cid in BODIES:
@@ -220,7 +247,7 @@ def report(out: Path) -> str:
           "|---|---|---|---|---|---|---|---|", *rows, "",
           f"Ratios include the screens' margins (speed ×{sizing.SPEED_MARGIN}, peak ×{sizing.PEAK_MARGIN}). Spec limits: "
           f"sway {SWAY_LIMIT_H} H peak to peak, acceleration {ACCEL_LIMIT} m/s². A reference walk, not a controller "
-          "result."]
+          "result.", "", "Reading it:", "", *_notes(out)]
     text = "\n".join(md) + "\n"
     (out / "GAIT_TUNE.md").write_text(text)
     return text

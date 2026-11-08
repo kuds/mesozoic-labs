@@ -80,14 +80,14 @@
    },
    "left_ankle_a_servo": {
     "kp": 598.4999999999999,
-    "kv": 2.9432555258192195,
-    "inertia_kg_m2": 0.0036185267712052506,
+    "kv": 2.943255525819219,
+    "inertia_kg_m2": 0.00361852677120525,
     "coordinate": "left_ankle_a"
    },
    "left_ankle_b_servo": {
     "kp": 598.4999999999999,
     "kv": 2.945416896667995,
-    "inertia_kg_m2": 0.003623843231068223,
+    "inertia_kg_m2": 0.0036238432310682226,
     "coordinate": "left_ankle_b"
    },
    "right_hip_roll_servo": {
@@ -117,13 +117,13 @@
    "right_ankle_a_servo": {
     "kp": 598.4999999999999,
     "kv": 2.9454168966679948,
-    "inertia_kg_m2": 0.003623843231068222,
+    "inertia_kg_m2": 0.0036238432310682217,
     "coordinate": "right_ankle_a"
    },
    "right_ankle_b_servo": {
     "kp": 598.4999999999999,
-    "kv": 2.943255525819219,
-    "inertia_kg_m2": 0.0036185267712052498,
+    "kv": 2.9432555258192186,
+    "inertia_kg_m2": 0.0036185267712052493,
     "coordinate": "right_ankle_b"
    }
   },
@@ -481,12 +481,12 @@
   "linkage": "motor a on q_p + q_r, motor b on q_p - q_r (unit cranks): |tau_p| + |tau_r| <= 2 peak",
   "armature": {
    "choice": "linkage",
-   "rule": "each motor's catalog armature on its tendon (joint space: 2x the screened per-joint armature on pitch and roll)",
+   "rule": "each motor's armature (as the screened MJCF writes it) on its tendon (joint space: 2x the screened per-joint armature on pitch and roll)",
    "joint_space_plant": {
     "left_ankle_pitch": 0.00648,
-    "left_ankle_roll": 0.0064800000000000005,
-    "right_ankle_pitch": 0.006480000000000001,
-    "right_ankle_roll": 0.0064800000000000005
+    "left_ankle_roll": 0.00648,
+    "right_ankle_pitch": 0.00648,
+    "right_ankle_roll": 0.00648
    },
    "joint_space_screened": {
     "left_ankle_pitch": 0.00324,
@@ -496,9 +496,9 @@
    },
    "ankle_inertia_at_home_plant": {
     "left_ankle_pitch": 0.00772884824207053,
-    "left_ankle_roll": 0.006755891762476417,
-    "right_ankle_pitch": 0.007728848242070542,
-    "right_ankle_roll": 0.0067558917624764014
+    "left_ankle_roll": 0.006755891762476416,
+    "right_ankle_pitch": 0.007728848242070541,
+    "right_ankle_roll": 0.006755891762476401
    },
    "ankle_inertia_at_home_screened": {
     "left_ankle_pitch": 0.00448884824207053,
@@ -508,9 +508,9 @@
    },
    "ankle_inertia_change_frac": {
     "left_ankle_pitch": 0.7217887140032861,
-    "left_ankle_roll": 0.9215300751232196,
-    "right_ankle_pitch": 0.7217887140032848,
-    "right_ankle_roll": 0.9215300751232236
+    "left_ankle_roll": 0.9215300751232194,
+    "right_ankle_pitch": 0.7217887140032844,
+    "right_ankle_roll": 0.9215300751232234
    },
    "feet": {
     "left": {
@@ -891,18 +891,18 @@
    16
   ],
   "foot_load_N": [
-   72.87587775530497,
-   72.85076800212359
+   72.87587775530504,
+   72.85076800212371
   ],
   "weight_N": 145.72668672,
   "root_z_change_m": -0.0002674757836438335,
   "tilt_from_home_deg": 0.293549466355876,
   "tilt_change_last_s_deg": 0.007454611848434989,
-  "com_move_last_s_mm": 0.04542465457675872,
-  "max_abs_qvel": 0.00038618848042788675,
-  "trunk_rate_rad_s": 3.6762677981232446e-05,
-  "max_abs_joint_rate_rad_s": 0.00038618848042788675,
-  "joint_offset_max_rad": 0.006609030536748146
+  "com_move_last_s_mm": 0.04542465457679727,
+  "max_abs_qvel": 0.00038618848042796345,
+  "trunk_rate_rad_s": 3.676267798140953e-05,
+  "max_abs_joint_rate_rad_s": 0.00038618848042796345,
+  "joint_offset_max_rad": 0.006609030536748149
  },
  "provenance": {
   "versions": {
@@ -915,7 +915,7 @@
    "torch": "2.15.0"
   },
   "git": {
-   "commit": "dcf8db4a02f643d3250aff66ce78a18a08dd5f7a",
+   "commit": "000c2bc5087166d7690a8db98df78a4694a12792",
    "dirty": true
   }
  },
@@ -947,24 +947,24 @@
      16
     ],
     "foot_load_N": [
-     72.87587775530497,
-     72.85076800212359
+     72.87587775530504,
+     72.85076800212371
     ],
     "weight_N": 145.72668672,
     "root_z_change_m": -0.0002674757836438335,
     "tilt_from_home_deg": 0.293549466355876,
     "tilt_change_last_s_deg": 0.007454611848434989,
-    "com_move_last_s_mm": 0.04542465457675872,
-    "max_abs_qvel": 0.00038618848042788675,
-    "trunk_rate_rad_s": 3.6762677981232446e-05,
-    "max_abs_joint_rate_rad_s": 0.00038618848042788675,
-    "joint_offset_max_rad": 0.006609030536748146
+    "com_move_last_s_mm": 0.04542465457679727,
+    "max_abs_qvel": 0.00038618848042796345,
+    "trunk_rate_rad_s": 3.676267798140953e-05,
+    "max_abs_joint_rate_rad_s": 0.00038618848042796345,
+    "joint_offset_max_rad": 0.006609030536748149
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.3108475989993167,
-   "steps_per_s_zero_command": 19013.769106279015,
-   "env_steps_per_s_bound_50hz": 1901.3769106279015,
+   "build_s": 0.16142335299991828,
+   "steps_per_s_zero_command": 26717.89306120049,
+   "env_steps_per_s_bound_50hz": 2671.7893061200493,
    "below_g6a_env_rate": false
   },
   "robot_floor_carpet": {
@@ -1009,24 +1009,24 @@
      16
     ],
     "foot_load_N": [
-     72.87965551325878,
-     72.84670502276943
+     72.87965551325861,
+     72.84670502276937
     ],
     "weight_N": 145.72668672,
     "root_z_change_m": -0.0022064600507860077,
     "tilt_from_home_deg": 0.06321365012011419,
     "tilt_change_last_s_deg": 0.026770750878416183,
-    "com_move_last_s_mm": 0.18834017351595359,
-    "max_abs_qvel": 0.0008060343275437251,
-    "trunk_rate_rad_s": 7.470429566135978e-05,
-    "max_abs_joint_rate_rad_s": 0.0008060343275437251,
-    "joint_offset_max_rad": 0.006599492339709221
+    "com_move_last_s_mm": 0.18834017351596835,
+    "max_abs_qvel": 0.0008060343275433026,
+    "trunk_rate_rad_s": 7.470429566112203e-05,
+    "max_abs_joint_rate_rad_s": 0.0008060343275433026,
+    "joint_offset_max_rad": 0.006599492339709214
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.23061131999929785,
-   "steps_per_s_zero_command": 14331.075723283846,
-   "env_steps_per_s_bound_50hz": 1433.1075723283845,
+   "build_s": 0.1689063140001963,
+   "steps_per_s_zero_command": 19037.861327739345,
+   "env_steps_per_s_bound_50hz": 1903.7861327739345,
    "below_g6a_env_rate": false
   },
   "low": {
@@ -1092,24 +1092,24 @@
      287
     ],
     "foot_load_N": [
-     72.8796441184387,
-     72.84708965130392
+     72.87964411843807,
+     72.84708965130461
     ],
     "weight_N": 145.72668672,
     "root_z_change_m": -0.0008202332963285208,
-    "tilt_from_home_deg": 0.2748934087468641,
-    "tilt_change_last_s_deg": 0.0005013292145252257,
-    "com_move_last_s_mm": 0.02331158737005538,
-    "max_abs_qvel": 0.0004979101632701715,
-    "trunk_rate_rad_s": 5.657161181367337e-06,
-    "max_abs_joint_rate_rad_s": 0.0004979101632701715,
-    "joint_offset_max_rad": 0.006608300285194183
+    "tilt_from_home_deg": 0.27489340874421236,
+    "tilt_change_last_s_deg": 0.0005013292145204518,
+    "com_move_last_s_mm": 0.023311587370107842,
+    "max_abs_qvel": 0.0004979101632702326,
+    "trunk_rate_rad_s": 5.657161181641062e-06,
+    "max_abs_joint_rate_rad_s": 0.0004979101632702326,
+    "joint_offset_max_rad": 0.006608300285194188
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 2.337549071000467,
-   "steps_per_s_zero_command": 968.5729653076291,
-   "env_steps_per_s_bound_50hz": 96.85729653076291,
+   "build_s": 1.5436672259984334,
+   "steps_per_s_zero_command": 1589.9912758542669,
+   "env_steps_per_s_bound_50hz": 158.9991275854267,
    "below_g6a_env_rate": true
   },
   "medium": {
@@ -1175,24 +1175,24 @@
      306
     ],
     "foot_load_N": [
-     72.89132111513513,
-     72.83546484496928
+     72.89132111513545,
+     72.83546484496885
     ],
     "weight_N": 145.72668672,
-    "root_z_change_m": -0.0026407024497946407,
-    "tilt_from_home_deg": 0.050643925429659425,
-    "tilt_change_last_s_deg": 0.011981931031923493,
-    "com_move_last_s_mm": 0.10084132252064601,
-    "max_abs_qvel": 0.0007111927955811092,
-    "trunk_rate_rad_s": 6.892355662393296e-05,
-    "max_abs_joint_rate_rad_s": 0.0007111927955811092,
-    "joint_offset_max_rad": 0.006597621078301206
+    "root_z_change_m": -0.0026407024497945852,
+    "tilt_from_home_deg": 0.05064392540087297,
+    "tilt_change_last_s_deg": 0.011981931029073203,
+    "com_move_last_s_mm": 0.10084132252068798,
+    "max_abs_qvel": 0.0007111927955810964,
+    "trunk_rate_rad_s": 6.89235566231983e-05,
+    "max_abs_joint_rate_rad_s": 0.0007111927955810964,
+    "joint_offset_max_rad": 0.006597621078301219
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 2.268888123000579,
-   "steps_per_s_zero_command": 915.5464315576241,
-   "env_steps_per_s_bound_50hz": 91.55464315576242,
+   "build_s": 1.8189754399991216,
+   "steps_per_s_zero_command": 1405.8187215050534,
+   "env_steps_per_s_bound_50hz": 140.58187215050535,
    "below_g6a_env_rate": true
   },
   "high": {
@@ -1258,24 +1258,24 @@
      399
     ],
     "foot_load_N": [
-     72.89904237932848,
-     72.82775940480093
+     72.89904237932859,
+     72.82775940480103
     ],
     "weight_N": 145.72668672,
-    "root_z_change_m": -0.004287258559391771,
-    "tilt_from_home_deg": 0.6594045783067116,
-    "tilt_change_last_s_deg": 0.032282705593054684,
-    "com_move_last_s_mm": 0.2442677410768272,
-    "max_abs_qvel": 0.000544549019930847,
-    "trunk_rate_rad_s": 0.00019088008392414654,
-    "max_abs_joint_rate_rad_s": 0.000544549019930847,
-    "joint_offset_max_rad": 0.006576832055915221
+    "root_z_change_m": -0.004287258559391716,
+    "tilt_from_home_deg": 0.6594045783050535,
+    "tilt_change_last_s_deg": 0.03228270558267887,
+    "com_move_last_s_mm": 0.24426774107414806,
+    "max_abs_qvel": 0.0005445490199316918,
+    "trunk_rate_rad_s": 0.0001908800839245584,
+    "max_abs_joint_rate_rad_s": 0.0005445490199316918,
+    "joint_offset_max_rad": 0.006576832055915202
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 4.010512185999687,
-   "steps_per_s_zero_command": 829.4859297818751,
-   "env_steps_per_s_bound_50hz": 82.94859297818752,
+   "build_s": 2.3307962430008047,
+   "steps_per_s_zero_command": 1044.545774298036,
+   "env_steps_per_s_bound_50hz": 104.45457742980359,
    "below_g6a_env_rate": true
   }
  },
@@ -1343,24 +1343,24 @@
      95
     ],
     "foot_load_N": [
-     72.87953877455018,
-     72.84728836209432
+     72.87953877455004,
+     72.84728836209433
     ],
     "weight_N": 145.72668672,
     "root_z_change_m": -0.0008843707065703255,
     "tilt_from_home_deg": 0.27578755586711284,
     "tilt_change_last_s_deg": 0.007452913685973561,
-    "com_move_last_s_mm": 0.06116539184105356,
-    "max_abs_qvel": 0.0007068139216961851,
-    "trunk_rate_rad_s": 2.915868039976856e-05,
-    "max_abs_joint_rate_rad_s": 0.0007068139216961851,
-    "joint_offset_max_rad": 0.006608672260944407
+    "com_move_last_s_mm": 0.061165391841042145,
+    "max_abs_qvel": 0.0007068139216964041,
+    "trunk_rate_rad_s": 2.9158680400166978e-05,
+    "max_abs_joint_rate_rad_s": 0.0007068139216964041,
+    "joint_offset_max_rad": 0.006608672260944403
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.3647034490004444,
-   "steps_per_s_zero_command": 2453.6959810924527,
-   "env_steps_per_s_bound_50hz": 245.36959810924526,
+   "build_s": 1.0425604110005224,
+   "steps_per_s_zero_command": 4664.671821319071,
+   "env_steps_per_s_bound_50hz": 466.46718213190707,
    "below_g6a_env_rate": true
   },
   "medium": {
@@ -1426,24 +1426,24 @@
      100
     ],
     "foot_load_N": [
-     72.87040346627843,
-     72.85644570552506
+     72.87040346627836,
+     72.85644570552519
     ],
     "weight_N": 145.72668672,
     "root_z_change_m": -0.00281836172122768,
     "tilt_from_home_deg": 0.07017376205766193,
     "tilt_change_last_s_deg": 0.007007357387531374,
-    "com_move_last_s_mm": 0.061040825620840955,
-    "max_abs_qvel": 0.0005762132447069332,
-    "trunk_rate_rad_s": 6.564426068229697e-05,
-    "max_abs_joint_rate_rad_s": 0.0005762132447069332,
-    "joint_offset_max_rad": 0.006596885467589438
+    "com_move_last_s_mm": 0.061040825620864984,
+    "max_abs_qvel": 0.0005762132447074648,
+    "trunk_rate_rad_s": 6.564426068265708e-05,
+    "max_abs_joint_rate_rad_s": 0.0005762132447074648,
+    "joint_offset_max_rad": 0.006596885467589444
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.9812455980008963,
-   "steps_per_s_zero_command": 3222.8581030515925,
-   "env_steps_per_s_bound_50hz": 322.28581030515926,
+   "build_s": 1.0941086260008888,
+   "steps_per_s_zero_command": 4569.8779152286015,
+   "env_steps_per_s_bound_50hz": 456.98779152286016,
    "below_g6a_env_rate": true
   },
   "high": {
@@ -1509,36 +1509,36 @@
      122
     ],
     "foot_load_N": [
-     72.87184118702756,
-     72.85494619545989
+     72.87184118702748,
+     72.85494619546
     ],
     "weight_N": 145.72668672,
     "root_z_change_m": -0.004368709603571275,
     "tilt_from_home_deg": 0.6545127739585143,
     "tilt_change_last_s_deg": 0.032875030975780706,
-    "com_move_last_s_mm": 0.24732631196273241,
-    "max_abs_qvel": 0.000591259417248599,
-    "trunk_rate_rad_s": 8.493271616488661e-05,
-    "max_abs_joint_rate_rad_s": 0.000591259417248599,
-    "joint_offset_max_rad": 0.006577547626172078
+    "com_move_last_s_mm": 0.2473263119627117,
+    "max_abs_qvel": 0.0005912594172487914,
+    "trunk_rate_rad_s": 8.493271616552645e-05,
+    "max_abs_joint_rate_rad_s": 0.0005912594172487914,
+    "joint_offset_max_rad": 0.006577547626172068
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.8372176400007447,
-   "steps_per_s_zero_command": 2552.9991453190173,
-   "env_steps_per_s_bound_50hz": 255.29991453190172,
+   "build_s": 1.1661344520016428,
+   "steps_per_s_zero_command": 3715.691066686504,
+   "env_steps_per_s_bound_50hz": 371.5691066686504,
    "below_g6a_env_rate": true
   }
  },
  "throughput": {
   "rule": "physics steps/s with zero command / 10 (50 Hz env steps on 2 ms physics) is an upper bound on the PPO env rate; G6a asks for 600 per job",
   "below_g6a": {
-   "low (4 mm probes)": 97,
-   "medium (4 mm probes)": 92,
-   "high (4 mm probes)": 83,
-   "low (8 mm probes)": 245,
-   "medium (8 mm probes)": 322,
-   "high (8 mm probes)": 255
+   "low (4 mm probes)": 159,
+   "medium (4 mm probes)": 141,
+   "high (4 mm probes)": 104,
+   "low (8 mm probes)": 466,
+   "medium (8 mm probes)": 457,
+   "high (8 mm probes)": 372
   }
  }
 }
