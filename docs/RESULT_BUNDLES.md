@@ -324,8 +324,11 @@ The bundle writer adds the **finalization** fields (result schema v4 onward):
   `environments.shared.replication.discover_replicates_for_run`
   finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`.
   The count is recorded at publication (decision D-B10): a replicate that finishes
-  later is counted when the run's publication cell is re-run with the
-  sibling present, which rebuilds a `partial` bundle and regenerates a
+  later is counted when the run's bundle is written again with the
+  sibling present (the SB3 notebook has no stand-alone publication cell: its
+  `save_run_bundle` cell only defines the call, and a session that reuses
+  every node writes no bundle, so it takes a hand-typed
+  `save_run_bundle(...)` call or a later committed cell), which rebuilds a `partial` bundle and regenerates a
   `complete` bundle's derived artifacts (`provenance.json`, `summary.json`,
   the CSV, the manifest) when the replication record is the ONLY thing that
   changed — every certified artifact and every other result of a complete

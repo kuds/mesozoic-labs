@@ -448,6 +448,17 @@ robustness, **LOW** = cosmetic / QoL.
   stance is certified on `main` yet: the next session is two new seeds
   with `CRITIC_PHASE = True` (NEXT_STEPS §3). Record: §30 of the stance
   record above.
+  **Update 26 (2026-11-08):** two new seeds certified that stance on
+  `main` (`CRITIC_PHASE = True`, commit `820dbda`):
+  `trex_stance_r10_ltsb_s44` and `trex_stance_r10_ltsb_s43` each pass the
+  six-heading certificate clean on 40/40 seeds at every heading (bound
+  0.928) and the fresh-seed audit on seeds 7042–7081 the same way, with no
+  hop-watch stop and robust-best handoffs at 10.85M and 11.35M of 12M steps.
+  The second's bundle records the stance as replication 2, not provisional,
+  so the two-seed ask is met; the first's own bundle, published before the
+  second was judged, keeps replication 1 (NEXT_STEPS §2). The stance-landing
+  decision stays cited by date in this records change; its number is still
+  to be assigned. Record: §31 of the stance record above.
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

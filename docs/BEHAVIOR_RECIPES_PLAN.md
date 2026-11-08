@@ -624,8 +624,8 @@ provisional (Phase B).
 **As implemented (2026-09-13; #535,
 WS-B4).** The count is writer-recorded, not catalog-aggregated (D-B10):
 `environments/shared/replication.py` discovers a deliverable's replicates
-among the run's `LOG_BASE/<species>/<algo>/` siblings when the notebook's
-publication cell runs, and `save_result_bundle(replicates=...)` records
+among the run's `LOG_BASE/<species>/<algo>/` siblings when the notebook
+writes the run's bundle, and `save_result_bundle(replicates=...)` records
 them in each deliverable's `replication` record — this run first, then its
 replicates, with distinct run ids and seeds. A replicate is a sibling of
 the SAME recipe (D-B16, tighter than "same task and plant, gate passed"
@@ -647,8 +647,10 @@ certification_seeds` (D-B11); the catalog validates the record and
 re-derives only `provisional` from the CURRENT declaration, never
 aggregating across bundles, and renders `N run(s) of M seed(s)` plus
 `provisional` identically to the website. A replicate that finishes later
-is counted by re-running the counting run's publication cell with the
-sibling present: a `partial` bundle is rebuilt, and a verified `complete`
+is counted when the counting run's bundle is written again with the
+sibling present (a hand-typed `save_run_bundle(...)` call or a later
+committed cell: the SB3 notebook has no stand-alone publication cell): a
+`partial` bundle is rebuilt, and a verified `complete`
 bundle regenerates its derived artifacts when the replication record is
 the only change (the writer masks `replication` and `provisional` — not
 `certification_seeds` — when comparing the existing and prospective summaries) and is refused as immutable on any other
