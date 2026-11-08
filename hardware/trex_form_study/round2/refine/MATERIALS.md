@@ -7,12 +7,13 @@ battery operation on the 3–4 ft robot.
 Method. Sourced research on the materials, coverings, foot pads and power architecture (cited inline; accessed
 2026-11-08; the research workflow's raw output is in the session scratch). Simulation of each lever on the two
 refined leaders, `60-M-T-10` carpet-ready (`round2/refine/carpet_60`) and `75-M-T-10` with the targeted upgrade
-(`round2/refine/targeted_75`), in two ways (`designlab/refine.py`):
+(`round2/refine/targeted_75`) (`designlab/refine.py`):
 
-* **re-sized** (`round2/refine/mat60_*`, `mat75_*`): the normal sizing loop picks drives and pack for the lighter
-  body;
-* **same drives** (`round2/refine/fixed_drives.json`, `REFINE.md` last table): the lighter body keeps the
-  reference body's drives and pack, so the saving shows up as margin.
+* **same drives**, every lever (`round2/refine/fixed_drives.json`, `REFINE.md` last table): the lighter body keeps
+  the reference body's drives and pack, so the saving shows up as margin;
+* **re-sized**, for the 2 mm carbon plates, the PA12 walls ×0.75, their combination and tether-only power
+  (`round2/refine/mat60_cf`, `_thin`, `_light`, `_tether` and the `mat75_` equivalents): the normal sizing loop picks
+  drives and pack for the lighter body.
 
 Every number is a model estimate. None is measured.
 
@@ -20,7 +21,7 @@ Every number is a model estimate. None is measured.
 
 1. **Lighter materials do not move the limit that binds the leading bodies.** On both refined leaders the
    governing limit is the knee's *speed* in the Froude 0.05 walk (0.95). That is set by the walk's geometry and
-   timing, not by mass. Every material case leaves it at 0.94–0.95. Lighter bodies lower the torques, the
+   timing, not by mass. Every material case leaves it at 0.94–0.95 with the reference drives (0.93–0.95 re-sized). Lighter bodies lower the torques, the
    walking power and the neck and tail loads, so they buy torque headroom and runtime, not walking-speed
    headroom. Runtime already exceeds the 15–20 min requirement by about 2×.
 2. **Carbon-fibre frame plates: not for prototype 1.** With the sourced 3 mm quasi-isotropic plate they save
@@ -30,10 +31,12 @@ Every number is a model estimate. None is measured.
    aluminium plate (2.54 mm, also stocked) gets 0.18 kg (60 cm) and 0.16 kg (75 cm) at no extra cost. Carbon cannot hold bearing fits or
    threads, delaminates out of sight in a fall, needs bonded aluminium inserts, and the quasi-isotropic plate is not
    a stock 2–4 day part. Keep 6061-T6. A hybrid frame (carbon plates and tube spars, aluminium wherever a motor,
-   bearing or thread attaches) is a direction for the long-term robot, where stiffness rather than the minimum
-   thickness sets the plates.
+   bearing or thread attaches) is a direction for the long-term robot, whose long members (the spine, and at 120 cm
+   the tibias) are stiffness-governed in the model; most of its plates still sit at the 3 mm minimum.
 3. **Coverings: the best value lever.** Walls about a quarter thinner save 0.31–0.35 kg (60 cm) or 0.52–0.59 kg
-   (75 cm) at no extra cost. Most of the gain is on the head and tail, where mass sits on a lever arm. The research
+   (75 cm) at about today's cost (PA12 −$0.3k to −$0.7k, PA11 +$20 to +$60). Most of the mass comes off the trunk
+   and legs (the head and tail panels are 28–29 % of it), but the largest relief is on the neck and tail servos,
+   where mass sits on a lever arm. The research
    recommends MJF **PA11** for the thinner walls instead of today's PA12: 2.5× the elongation and 1.4× the notched
    impact strength, so walls dent rather than crack, for about 30 % more per volume, which the thinner walls pay
    for. With PA11 at ×0.75 the neck servo falls from 0.76 to 0.70 of its rating (60 cm) and from 0.67 to 0.60
@@ -47,7 +50,7 @@ Every number is a model estimate. None is measured.
    need speed and turn limits for brisk walking on slippery floors. Measure the chosen pad on the owner's floors
    before relying on any of this.
 5. **Direct power (tether-only): no.** The battery is also the counterweight at the tail base (F2). Without it the
-   centre of mass moves 13–15 mm forward, the hip-pitch hold rises 14–37 %, and with the same drives the knee goes
+   centre of mass moves 12–16 mm forward, the hip-pitch hold rises 14–37 %, and with the same drives the knee goes
    past its speed limit (1.03–1.07). Keep the removable battery and add an external DC input, as P4 already asks
    ("removable battery … external-power operation"); use the tether for bench work, hung from a boom.
 6. **3–4 ft robot: battery operation is easy in mass terms.** At 100–120 cm a 0.9–1.7 kg pack gives about 50–94
@@ -68,14 +71,14 @@ Every number is a model estimate. None is measured.
 | Governing limit | knee speed 0.95 (Froude 0.05 walk) | knee speed 0.95 (Froude 0.05 walk) |
 | Highest torque ratio (leg drives) | thigh twist, sustained 0.76 | thigh twist, sustained 0.78 |
 
-Only structure and coverings (28 % and 32 %) change with material. Most 60 cm plates sit at the 3 mm minimum
+Only the structure, the coverings and the 6061 spine beam and neck spar (booked under linkage) change with material: about 30 % and 35 % of the mass, and the 6 % integration reserve follows the total. Most 60 cm plates sit at the 3 mm minimum
 thickness, so their mass is density × minimum thickness; at 75 cm the tibia and spine are stiffness-governed.
 
 ## 2. Simulated levers
 
 Same drives as the reference body (the margin view). Δ is against the reference.
 
-| Lever | 60 cm Δ mass | 60 cm: walking power / runtime | 60 cm cost Δ (nominal / high) | 75 cm Δ mass | 75 cm: walking power / runtime | 75 cm cost Δ | Knee speed (60 / 75) | Highest leg torque (60 / 75) | Neck / tail peak (60; 75) |
+| Lever | 60 cm Δ mass | 60 cm: walking power / runtime | 60 cm cost Δ (nominal / high) | 75 cm Δ mass | 75 cm: walking power / runtime | 75 cm cost Δ | Knee speed (60 / 75) | Highest leg torque (60 / 75) | Neck sustained / tail peak (60; 75) |
 |---|---|---|---|---|---|---|---|---|---|
 | Reference | 10.83 kg | 70.8 W / 46.5 min | $14.8k / $20.6k | 14.58 kg | 87.7 W / 37.6 min | $18.4k / $25.4k | 0.95 / 0.95 | 0.76 / 0.78 | 0.76 / 0.52; 0.67 / 0.89 |
 | Carbon plates, sourced 3 mm quasi-isotropic | −0.39 kg | 69.2 W / 47.6 min | +$1.6k / +$2.3k | −0.44 kg | 85.5 W / 38.6 min | +$2.1k / +$3.1k | 0.95 / 0.95 | 0.74 / 0.75 | 0.75 / 0.51; 0.66 / 0.89 |
@@ -86,12 +89,13 @@ Same drives as the reference body (the margin view). Δ is against the reference
 | **PA11 coverings, walls ×0.75 (recommended)** | −0.31 kg | 69.0 W / 47.7 min | +$20 / +$40 | −0.52 kg | 84.4 W / 39.1 min | +$30 / +$60 | 0.95 / 0.94 | 0.74 / 0.75 | 0.70 / 0.45; 0.60 / 0.77 |
 | Sourced carbon + walls ×0.75 | −0.74 kg | 67.3 W / 49.0 min | +$1.3k / +$1.8k | −1.02 kg | 81.9 W / 40.3 min | +$1.7k / +$2.4k | 0.95 / 0.94 | 0.71 / 0.72 | 0.68 / 0.43; 0.59 / 0.75 |
 | Sourced carbon + PA11 walls ×0.75 | −0.70 kg | 67.5 W / 48.8 min | +$1.6k / +$2.3k | −0.95 kg | 82.3 W / 40.1 min | +$2.1k / +$3.2k | 0.95 / 0.94 | 0.71 / 0.73 | 0.69 / 0.44; 0.60 / 0.77 |
-| Tether-only (no pack or cassette; 0.12 kg connector) | −0.61 kg | 70.4 W / tethered | −$0.1k / −$0.1k | −0.59 kg | 87.9 W / tethered | −$0.1k / −$0.0k | **1.07 / 1.03** | 0.72 / 0.82 (hip pitch) | 0.76 / 0.50; 0.67 / 0.90 |
+| Tether-only (no pack or cassette; 0.12 kg connector) | −0.61 kg | 70.4 W / tethered | −$0.1k / −$0.1k | −0.59 kg | 87.9 W / tethered | −$0.1k / −$0.0k | **1.07 / 1.03** | 0.72 (thigh twist) / 0.82 (hip pitch) | 0.76 / 0.50; 0.67 / 0.90 |
 
-Re-sized instead (the sizing loop's view, `REFINE.md` comparison table): the lighter bodies keep the same governing
-ratios, because the loop spends the saving on lighter drives. With 2 mm carbon plates the 75 cm thigh twist
-goes back to the AK45-36 (0.96); the 60 cm tether-only body takes a smaller MyActuator X4-P12-10 knee (0.91
-sustained) and ends 0.70 kg lighter; the 75 cm tether-only body takes a heavier RobStride 06 knee and ends 0.21 kg
+Re-sized instead (the sizing loop's view, `REFINE.md` comparison table): at 60 cm the loop changes no drive in the
+material cases and the governing knee speed stays 0.95; at 75 cm it spends the saving on a lighter, weaker thigh
+twist (back to the AK45-36), so the governing ratio stays high but moves (thigh twist 0.96–0.98, or knee speed 0.93
+with 2 mm carbon plates and thin walls). The 60 cm tether-only body takes a smaller MyActuator X4-P12-10 knee (0.91
+sustained) and ends 0.69 kg lighter; the 75 cm tether-only body takes a heavier RobStride 06 knee and ends 0.21 kg
 *heavier* than its reference.
 
 ## 3. Structure
@@ -124,7 +128,7 @@ aluminium for every motor mount, bearing housing and threaded part; titanium fas
 
 | Option | Areal mass (with supports) | Effect (research estimate on `60-N-H-10` / `75-M-T-10-bighead`) | Cost and lead time | Durability |
 |---|---|---|---|---|
-| MJF PA12, 1.6–1.8 mm (current) | 1.94–2.24 kg/m² | reference (shells + supports 1.42 / 2.22 kg) | covers line $1.3k / $1.8k; 3 days | notch-sensitive (notched Izod 3.5 kJ/m²); thin edges and insert bosses crack in falls |
+| MJF PA12, 1.6–1.8 mm (current) | 1.94–2.24 kg/m² | reference (shells + supports 1.42 / 2.22 kg on those bodies; 1.32 / 2.20 kg on the refined leaders) | covers line $1.3k / $1.8k ($1.2k / $1.8k on the refined leaders); 3 days | notch-sensitive (notched Izod 3.5 kJ/m²); thin edges and insert bosses crack in falls |
 | MJF PA12, graded 1.4 / 1.2 / 1.0 mm | — | −0.26 / −0.38 kg | −$234 / −$321 | 40–60 % of the knock tolerance of 1.6 mm; warp risk on the largest panels |
 | **MJF PA11, graded 1.4 / 1.2 / 1.0 mm (recommended)** | — | −0.22 / −0.31 kg | +$81 / +$130; 3 days | elongation 50 % (PA12 20 %), notched Izod 5 kJ/m²: dents and flexes instead of cracking |
 | SLS PA12 (PA 2200), graded | — | −0.35 / −0.53 kg | about the same as MJF (estimate) | 4 % strain at break across layers: orient panels |
@@ -154,13 +158,13 @@ at 0.67 it does not.
 ## 5. Foot pads and grip
 
 The carpet and turning screens assume the carpet band's lower edge, μ 0.54 (assumption A16), from a lightly loaded
-shoe on an inclined plane. The robot's pads carry 74 kPa (60 cm) and 65 kPa (75 cm) in single support.
+shoe on an inclined plane. The refined leaders' pads carry 72 kPa (60 cm) and 62 kPa (75 cm) in static single support.
 
 | Compound | Expected static μ (estimates from the sources) | Wear (DIN abrasion) | Notes |
 |---|---|---|---|
 | **Cast polyether PU, 50–60 Shore A tread on a 70–80 A core, 1.0–1.5 mm round studs (recommended)** | carpet 0.70–0.85; wood 0.8–0.9; ceramic tile 0.9–1.0; polished concrete 0.6–0.85 dry; laminate and vinyl 0.42–0.8 | 23–40 mm³ | non-marking; cast in printed moulds or printed as TPU 85 A for a fast trial |
 | Natural gum or SBR, 40 Shore A | similar grip | 80–120 mm³ | ages under ozone and UV; aged rubber becomes slippery |
-| Silicone, 30–40 Shore A | about 1.0 on clean smooth floors; unknown on carpet | poor (tear 14 N/mm) | picks up dust and lint |
+| Silicone, 30–40 Shore A | about 1.0 on clean smooth floors; unknown on carpet | poor (tear 10 N/mm at 40 Shore A) | picks up dust and lint |
 | Neoprene | no grip advantage | up to 400 mm³ | backing or bumpers only |
 | Hard pads (90 A and harder) | carpet 0.35–0.45 | — | keep hard parts (95 A TPU, printed toes and claws) off the contact path |
 
@@ -194,11 +198,12 @@ sheet data sheets; QIDI TPU friction note; Engineering ToolBox friction table; a
   from 3.11 to 4.27 N·m (+37 %) and from 8.18 to 9.35 N·m (+14 %), and the walks change: with the same drives the
   knee goes past its speed limit (1.07 at 60 cm, 1.03 at 75 cm). A tether-only body therefore needs the
   counterweight back (ballast, or the power electronics moved to the tail base), which takes back most of the
-  0.6 kg saving. Re-sized without it, the 60 cm body is 0.70 kg lighter on a smaller knee drive and the 75 cm
+  0.6 kg saving. Re-sized without it, the 60 cm body is 0.69 kg lighter on a smaller knee drive and the 75 cm
   body is 0.21 kg *heavier* on a larger one.
 * **A tether also loads the robot.** A cable drags behind a walking robot, pulls on the body as it turns and is
   a trip and snag hazard. At 24 V the demonstrator draws 3–4 A on average; the per-drive peaks of the nominal
-  walk sum to 131 W (60 cm) and 187 W (75 cm), about 6–8 A. Brief peaks in stops, pushes and falls will be higher.
+  walk sum to 129 W (60 cm) and 187 W (75 cm), about 5.4–7.8 A (6.2–8.7 A with the auxiliaries). Brief peaks in stops,
+  pushes and falls will be higher.
 
 **Recommendation for the demonstrator: battery plus an external DC input.** Keep the removable 6S pack in the
 tail-base cassette on every run, and add an external 24 V input at the tail base through a priority power path
@@ -220,7 +225,7 @@ tether supply line. The research's design:
   contactor's 6 W coil would itself cost about 3.6 min of runtime at 60 cm.
 * **Hang the tether from an overhead boom; never trail it.** Five metres of cable on the floor drags 1.2–3.6 N,
   against a single-support tip threshold of about 7.1 N at 60 cm and 9.8 N at 75 cm for a pull at the tail-base
-  cable exit, and 2 N of drag raises the 60 cm brisk walk's friction need from 0.87 to 0.92–0.97. No practical
+  cable exit, and 2 N of drag raises the 60 cm brisk walk's friction need from 0.86 to 0.90–0.95. No practical
   breakaway connector releases below the tip threshold (an Anderson Powerpole pair separates at 27–44 N). The
   balancer must carry less than the hanging cable (rated under 0.5 kg, or a counterweighted line): a stronger one
   lifts the tail base and adds nose-down hip-pitch load.
@@ -251,21 +256,23 @@ F14):
 | | | 6S2P Li-ion, 200 Wh | 0.86 kg (2.0 %) | about 50 min |
 | `120-M-H-10` (43.1 kg, 190 W) | 48 V | 12S2P Li-ion, 400 Wh | 1.72 kg (4.0 %) | about 94 min |
 
-So **yes, run the 3–4 ft robot on its battery.** About an hour of walking costs 2–4 % of its mass, against about
-6 % for the demonstrator's pack and cassette. What changes at that size is not mass but:
+So **yes, run the 3–4 ft robot on its battery.** About an hour of walking costs 2–4 % of its mass in packs (2.6–5.2 %
+with a cassette), against 3.5–4.7 % for the demonstrator's pack (4.6–6.3 % with its cassette). What changes at that size is not mass but:
 
 * **Falls and pack protection.** A fall from standing carries about 160 J at 100 cm and 300 J at 120 cm (mass ×
   g × centre-of-mass height), against 36 J and 63 J for the demonstrators. The pack needs a protected cassette
   inside the pelvis or tail-root frame and a battery-management system with temperature telemetry.
 * **Bus voltage.** At 100–120 cm the research recommends 48 V: half the current of 24 V, and a 48 V tether stays
   within the safety extra-low-voltage limit (60 V DC). It proposes about 390 Wh as two hot-swappable 12S strings,
-  each two 6S1P Li-ion modules of 97 Wh, about 1.7–2.0 kg in all (3–6 % of mass) for about 51–117 min at 345–150 W.
+  each two 6S1P Li-ion modules of 97 Wh, about 1.7–2.0 kg in all (3–7 % of mass) for about 51–117 min at 345–150 W.
   One string can be swapped while the other carries the robot. Comparable robots carry more: Boston Dynamics Spot
   carries a 605 Wh, 4.2 kg battery on 32.5 kg (13 % of mass) for about 90 min.
 * **Travel and shipping.** Spare packs of 100 Wh or less go in carry-on luggage without approval; 101–160 Wh
   needs the airline's approval (two spares at most); above 160 Wh is forbidden on passenger aircraft. Lithium-ion
-  packs over 100 Wh ship as Class 9 dangerous goods, and from January 2026 IATA requires them shipped at 30 % state
-  of charge or less. Sub-100 Wh modules avoid most of this. Every transported pack needs UN 38.3 test documents.
+  packs over 100 Wh ship as fully regulated Class 9 dangerous goods, and from January 2026 IATA requires lithium-ion
+  cells and batteries above 2.7 Wh, sub-100 Wh packs included, to ship at 30 % state of charge or less. Sub-100 Wh
+  modules avoid the over-100 Wh rules and the airline approval, not the 30 % limit. Every transported pack needs
+  UN 38.3 test documents.
 * **The tether's place.** A 28–56 kg robot needs a fall-arrest gantry during development anyway; the tether belongs
   on that gantry and on a charging dock, not on the floor. Its job (navigating, following people, voice commands)
   cannot be done on a cable.
