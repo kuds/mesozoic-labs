@@ -740,13 +740,16 @@ def questions(x: Ctx) -> str:
          ["Keep: the lower leg reads as an animal's; at 60 cm the ankle drives move down to 0.60 of the shank so the "
           "knee can bend enough for the carpet swing.",
           "Drop: exposed ankle drives and push rods, lighter, easier to service, more robotic" + calf + "."]),
-        ("Coverings material?",
-         ["MJF PA11 with graded walls about a quarter thinner (recommended: tougher, lighter, about today's cost).",
-          "Keep MJF PA12 at today's walls.",
-          "Carbon skins on the head, neck and tail as well (lighter neck payload; moulds, weeks and $1.4–4.1k, estimate)."]),
-        ("Power: battery, tether or both?",
-         ["Battery plus an external DC input (recommended; as your power requirement already asks).",
-          "Tether-only (not recommended: the pack is also the tail-base counterweight)."]),
+        ("Feet?",
+         ["Keep the round-two feet.",
+          "Longer toes (x1.15) and larger pads (x1.25): about 8 % less grip needed, a one-foot stop of 1.41–1.46 m/s² "
+          "instead of 1.20–1.25, and standing on medium pile with the servos held, for about 0.1 kg and a harder-working "
+          "upper ankle drive (0.87 instead of 0.76 at 60 cm)."]),
+        ("Materials and power?",
+         ["The recommended set: 6061 aluminium frame (2.54 mm plates where a leg bench test allows), MJF PA11 coverings "
+          "with walls about a quarter thinner, cast polyurethane pad treads measured on your floors, and the battery "
+          "plus an external DC input.",
+          "Change any of these (say which). Carbon-fibre plates and a tether-only body are not recommended."]),
         ("Head camera position",
          ["Keep it in the skull roof: a person stays in view; the near floor relies on the two ToF sensors.",
           "Add a low forward camera for the near floor (more cost, power and wiring).",
