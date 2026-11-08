@@ -40,6 +40,21 @@ from dataclasses import replace
 from pathlib import Path
 
 LEADERS_60 = ("60-M-T-10", "60-M-H-10", "60-N-T-10", "60-N-H-10")
+#: material and power levers (owner question overnight).  ``cf`` uses the provisional 2 mm carbon floor (the
+#: optimistic sensitivity); ``cfqi`` the sourced 3 mm quasi-isotropic plate (hardware.STRUCT_MATERIALS, MATERIALS.md)
+MAT_LEVERS = (("cf", (("structure_material", "cf_plate"),), "carbon-fibre frame plates (2 mm floor, optimistic)"),
+              ("cfqi", (("structure_material", "cf_qi"),), "carbon-fibre frame plates (3 mm quasi-isotropic, sourced)"),
+              ("thin", (("cover_wall_scale", 0.75),), "covering walls x0.75"),
+              ("tether", (("power_mode", "tether"),), "tether-only power"),
+              ("light", (("structure_material", "cf_plate"), ("cover_wall_scale", 0.75)),
+               "carbon plates (2 mm) + covering walls x0.75"),
+              ("lightqi", (("structure_material", "cf_qi"), ("cover_wall_scale", 0.75)),
+               "carbon plates (3 mm, sourced) + covering walls x0.75"),
+              # the research's recommended coverings: MJF PA11 (ductile) with graded 1.4 / 1.2 / 1.0 mm walls, about
+              # x0.75 of the 1.6-1.8 mm walls on average
+              ("pa11", (("cover_material", "PA11_MJF"), ("cover_wall_scale", 0.75)), "PA11 coverings, walls x0.75"),
+              ("best", (("structure_material", "cf_qi"), ("cover_material", "PA11_MJF"), ("cover_wall_scale", 0.75)),
+               "carbon plates (3 mm, sourced) + PA11 coverings, walls x0.75"))
 CASES = {
     "headroom_60": dict(ids=LEADERS_60, overrides=(), headroom=0.80, fr05=True, min_gap=0.0,
                         label="20 % headroom + Froude 0.05 sizing"),
@@ -65,18 +80,10 @@ CASES = {
     # combination; each on top of carpet_60 (60 cm) or targeted_75 (75 cm)
     **{f"mat60_{k}": dict(ids=("60-M-T-10",), overrides=(("ankle_frac", 0.60),) + ov, headroom=1.0, fr05=True,
                           walks=("fr05", "lift19"), min_gap=0.0, label=f"60 cm carpet-ready + {lab}")
-       for k, ov, lab in (("cf", (("structure_material", "cf_plate"),), "carbon-fibre frame plates"),
-                          ("thin", (("cover_wall_scale", 0.75),), "covering walls x0.75"),
-                          ("tether", (("power_mode", "tether"),), "tether-only power"),
-                          ("light", (("structure_material", "cf_plate"), ("cover_wall_scale", 0.75)),
-                           "carbon plates + covering walls x0.75"))},
+       for k, ov, lab in MAT_LEVERS},
     **{f"mat75_{k}": dict(ids=("75-M-T-10",), overrides=ov, headroom=1.0, fr05=True, min_gap=0.0,
                           headroom_by_group={"neck": 0.85, "hip_roll": 0.85}, label=f"75 cm targeted + {lab}")
-       for k, ov, lab in (("cf", (("structure_material", "cf_plate"),), "carbon-fibre frame plates"),
-                          ("thin", (("cover_wall_scale", 0.75),), "covering walls x0.75"),
-                          ("tether", (("power_mode", "tether"),), "tether-only power"),
-                          ("light", (("structure_material", "cf_plate"), ("cover_wall_scale", 0.75)),
-                           "carbon plates + covering walls x0.75"))},
+       for k, ov, lab in MAT_LEVERS},
     # targeted upgrade at 75 cm (cross-check recommendation): the what-if's Froude 0.05 sizing case plus 15 %
     # headroom on the two drives every judge found thin, the neck servo and the hip roll
     "targeted_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, min_gap=0.0,
@@ -84,8 +91,10 @@ CASES = {
                         label="75 cm: Froude 0.05 sizing + 15 % headroom on neck and hip roll"),
     # carpet-ready 75 cm: targeted_75 plus the carpet swing as a sizing walk.  The lifted-walk pass on targeted_75
     # puts the 0.06 H target (30.1-30.4 mm above the pile) at a lift of about 0.176 H, so the nominal walk is
-    # lifted to 0.18 H; the knee clears its range there (0.135 rad at 0.19 H on Tapered), so no ankle change
-    "carpet_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True,
+    # lifted to 0.18 H; the knee clears its range there (0.135 rad at 0.19 H on Tapered), so no ankle change.
+    # Result: the sizing selects exactly the targeted_75 drives (same SHA-256), so carpet_75 is not screened
+    # separately; the lifted walks are checked with ``--carpet-lift --lift-cases targeted_75 --lifts 0.175 0.18``
+    "carpet_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, screen=False,
                       walks=("fr05", "lift18"), min_gap=0.0, headroom_by_group={"neck": 0.85, "hip_roll": 0.85},
                       label="75 cm: targeted drives, sized for the 0.18 H carpet swing and Froude 0.05"),
     # knee headroom: on the carpet-ready bodies the governing limit is the knee's speed (0.95 at both sizes), a
@@ -162,7 +171,8 @@ def carpet_lift_one(a) -> dict:
     from . import carpet, clearance, round2, sizing
     from .pipeline import build_candidate
 
-    cid, r2dir, scratch = a
+    cid, r2dir, scratch = a[:3]
+    lifts = a[3] if len(a) > 3 else LIFTS
     _init(None)
     t0 = time.time()
     rec = json.loads(Path(r2dir, "candidates", f"{cid}.json").read_text())
@@ -177,7 +187,7 @@ def carpet_lift_one(a) -> dict:
     out = dict(id=cid, H_m=H, carpet_target_mm=1e3 * carpet.carpet_target(H), reference_lift=[nominal0.lift_frac, brisk0.lift_frac],
                lifts={})
     try:
-        for lift in LIFTS:
+        for lift in lifts:
             sizing.NOMINAL = replace(nominal0, lift_frac=lift)
             sizing.BRISK = replace(brisk0, lift_frac=lift)
             req = sizing.requirements(M, q0, H, layout)
@@ -238,9 +248,15 @@ def fixed_one(a) -> dict:
     t0 = time.time()
     ref_case = FIXED_REF[case.split("_")[0]]
     ref = json.loads(Path(out, ref_case, "candidates", f"{cid}.json").read_text())
-    rec = json.loads(Path(out, case, "candidates", f"{cid}.json").read_text())
+    rec_p = Path(out, case, "candidates", f"{cid}.json")
+    if rec_p.exists():  # re-sized: the case's own overrides, packaging-search changes included
+        ov = tuple(tuple(o) for o in json.loads(rec_p.read_text()).get("overrides", ()))
+    else:  # not re-sized: the reference body's overrides with the case's levers on top
+        merged = dict(tuple(o) for o in ref.get("overrides", ()))
+        merged.update(dict(CASES[case]["overrides"]))
+        ov = tuple(merged.items())
     sel = dict(ref["selection"])
-    cand = round2.candidate(cid, tuple(tuple(o) for o in rec.get("overrides", ())))
+    cand = round2.candidate(cid, ov)
     res = build_candidate(cand, Path(scratch), selection=sel, write=False)
     M, q0, design = res["model"], res["q_home"], res["design"]
     req = sizing.requirements(M, q0, design.sk.H, cand.leg_layout)
@@ -325,6 +341,8 @@ def compare(out: Path, r2: Path = Path("round2")) -> dict:
         if d:
             rows.append(dict(case="round2", **row("round two", d, rv, None, rv.get("_detail"))))
     for case, c in CASES.items():
+        if c.get("screen") is False:  # sized only (identical to another case's body)
+            continue
         for cid in c["ids"]:
             d, rv = load(out / case, cid)
             ref, _ = load(r2, cid)
@@ -367,7 +385,9 @@ def main():
     ap.add_argument("--cases", nargs="*", default=None)
     ap.add_argument("--carpet-lift", action="store_true")
     ap.add_argument("--lift-cases", nargs="*", default=None, help="run the carpet swing pass on these cases' bodies")
+    ap.add_argument("--lifts", nargs="*", type=float, default=None, help="swing lifts (fraction of H) for that pass")
     ap.add_argument("--fixed", action="store_true", help="same-drive pass over the material and power cases")
+    ap.add_argument("--fixed-cases", nargs="*", default=None, help="limit the same-drive pass to these cases (merged)")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--resume", action="store_true", help="skip bodies already sized or screened")
     a = ap.parse_args()
@@ -408,17 +428,28 @@ def main():
                 scratch = out / "carpet_lift_models"
                 todo = [(cid, "round2", str(scratch)) for cid in CARPET_LIFT_IDS] if not a.lift_cases else [
                     (cid, str(out / c), str(scratch / c)) for c in a.lift_cases for cid in CASES[c]["ids"]]
-                lift = list(pool.imap(carpet_lift_one, todo))
+                lifts = tuple(a.lifts) if a.lifts else LIFTS
+                lift = list(pool.imap(carpet_lift_one, [t + (lifts,) for t in todo]))
                 for r, t in zip(lift, todo, strict=True):
                     r["source"] = t[1]
                 name = "carpet_lift.json" if not a.lift_cases else f"carpet_lift_{'_'.join(a.lift_cases)}.json"
+                if a.lifts:
+                    name = name.replace(".json", "_" + "_".join(f"{v:.3f}" for v in lifts) + ".json")
                 (out / name).write_text(json.dumps(lift, indent=1, default=str))
                 print("carpet lift done", flush=True)
             if a.fixed:
-                todo = [(c, cid, str(out), str(out / "fixed_models" / c)) for c in CASES if c.split("_")[0] in FIXED_REF
-                        for cid in CASES[c]["ids"] if (out / c / "candidates" / f"{cid}.json").exists()]
+                names = a.fixed_cases or [c for c in CASES if c.split("_")[0] in FIXED_REF]
+                todo = [(c, cid, str(out), str(out / "fixed_models" / c)) for c in names
+                        for cid in CASES[c]["ids"]
+                        if (out / FIXED_REF[c.split("_")[0]] / "candidates" / f"{cid}.json").exists()]
                 fixed = list(pool.imap(fixed_one, todo))
-                (out / "fixed_drives.json").write_text(json.dumps(fixed, indent=1, default=str))
+                fp = out / "fixed_drives.json"
+                if a.fixed_cases and fp.exists():  # merge: keep the other cases' rows, in CASES order
+                    new_keys = {(r["case"], r["id"]) for r in fixed}
+                    keep = [r for r in json.loads(fp.read_text()) if (r["case"], r["id"]) not in new_keys]
+                    order = {c: k for k, c in enumerate(CASES)}
+                    fixed = sorted(keep + fixed, key=lambda r: (order.get(r["case"], 999), r["id"]))
+                fp.write_text(json.dumps(fixed, indent=1, default=str))
                 print("same-drive pass done", flush=True)
     cmp = compare(out)
     (out / "refine.json").write_text(json.dumps(cmp, indent=1, default=str))

@@ -63,7 +63,9 @@ COVER_MATERIALS = {
     "PA12_MJF_large": dict(density=1010.0, cost_per_kg=150.0, basis="estimate"),
     "AL_6061": dict(density=2700.0, cost_per_kg=60.0, basis="estimate"),
     # material experiments (overnight refinement; values refined from the sourced research)
-    "PA11_MJF": dict(density=1030.0, cost_per_kg=200.0, basis="estimate"),
+    # HP 3D HR PA 11 datasheet: 1050 kg/m3, elongation 50 % / 35 %, notched Izod 5 / 4.5 kJ/m2; about 30 % dearer per
+    # volume than PA12 (Xometry), i.e. 1.3 x 180 x 1010 / 1050 = $225/kg (round2/refine/MATERIALS.md)
+    "PA11_MJF": dict(density=1050.0, cost_per_kg=225.0, basis="sourced density, derived price"),
     "CF_SKIN": dict(density=1550.0, cost_per_kg=900.0, basis="estimate"),
 }
 

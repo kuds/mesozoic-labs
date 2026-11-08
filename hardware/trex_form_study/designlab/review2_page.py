@@ -98,7 +98,39 @@ class Ctx:
         self.screen = r2 / "review" / "screening"
         self.images, self.plate_no = [], 0
         self.ok = [c for c in candidate_ids() if self.D.get(c, {}).get("ok")]
-        self.rows = {r["id"]: r for r in (self.SL or {}).get("rows", [])}
+        # scorecard rows by key: a round-two id, or "<id> [<source>]" for the what-if, size-study and refinement bodies
+        self.rows = {r.get("key", r["id"]): r for r in (self.SL or {}).get("rows", [])}
+        # overnight refinement, size study and materials (round2/refine, round2/size_study)
+        rf = r2 / "refine"
+        self.RF = json.loads((rf / "refine.json").read_text()) if (rf / "refine.json").exists() else None
+        self.FX = json.loads((rf / "fixed_drives.json").read_text()) if (rf / "fixed_drives.json").exists() else []
+        ss = r2 / "size_study" / "size_study.json"
+        self.SS = json.loads(ss.read_text()) if ss.exists() else None
+        self.LIFT = {p.stem: json.loads(p.read_text()) for p in sorted(rf.glob("carpet_lift*.json"))} if rf.exists() else {}
+
+    def record(self, key: str) -> dict:
+        """Sized record behind a scorecard key: round two, or an extra directory named in the key."""
+        if "[" not in key:
+            return self.D.get(key, {})
+        cid, src = key.split(" [", 1)
+        p = self.r2.parent / src.rstrip("]") / "candidates" / f"{cid}.json"
+        if not p.exists():
+            p = self.r2 / Path(src.rstrip("]")).name / "candidates" / f"{cid}.json"
+        if not p.exists():
+            p = self.r2 / "refine" / Path(src.rstrip("]")).name / "candidates" / f"{cid}.json"
+        return json.loads(p.read_text()) if p.exists() else {}
+
+    def pick_keys(self):
+        return [p.get("key", p["id"]) for p in (self.SL or {}).get("picks", [])]
+
+    def rf_row(self, case: str, cid: str) -> dict:
+        return next((r for r in (self.RF or {}).get("rows", []) if r.get("case") == case and r.get("id") == cid), {})
+
+    def fx_row(self, case: str, cid: str) -> dict:
+        return next((r for r in self.FX if r.get("case") == case and r.get("id") == cid), {})
+
+    def ss_row(self, case: str, cid: str) -> dict:
+        return next((r for r in (self.SS or {}).get("rows", []) if r.get("case") == case and r.get("id") == cid), {})
 
     def img(self, name: str, alt: str, title: str, caption: str, src_dir: Path | None = None) -> str:
         src = (src_dir or self.plates) / name
@@ -692,8 +724,274 @@ def footer(x: Ctx) -> str:
 </footer>"""
 
 
-SECTIONS = [header, choices, bodies, sizes, behaviors, variants, whatif, inside, scorecard, corrections, questions,
-            nextsteps, footer]
+# ------------------------------------------------------------------------------------------------
+# Overnight refinement (owner questions after the round-two package)
+# ------------------------------------------------------------------------------------------------
+def _gov(r: dict) -> str:
+    g = r.get("governing") or [None, None, None]
+    return f"{K.esc(GROUP_LABEL.get(g[0], g[0] or ''))} {K.esc(g[1] or '')} {g[2]:.2f}" if g[0] else "–"
+
+
+def _fw(r: dict) -> str:
+    fw = r.get("fast_walk") or {}
+    w = fw.get("worst") or [None, None]
+    if not w[0]:
+        return "–"
+    txt = f"{K.esc(GROUP_LABEL.get(w[0], w[0]))} {w[1]:.2f}"
+    return (K.tag("within", "ok") if fw.get("ok") else K.tag("over", "bad")) + " " + txt
+
+
+def _gates(r: dict) -> str:
+    gt = r.get("gates") or {}
+    if not gt:
+        return "–"
+    if gt.get("all"):
+        return K.tag("all pass", "ok")
+    bad = [GATE_LABEL.get(k, k.replace("_", " ")) for k, v in gt.items() if v is False and k != "all"]
+    return K.tag("fails", "bad") + " " + K.esc(", ".join(bad))
+
+
+def _cmp_table(rows: list[dict], label_of) -> str:
+    out = []
+    for r in rows:
+        if not r or not r.get("ok"):
+            continue
+        out.append([mono(r["id"]), K.esc(label_of(r)), kg(r["mass_kg"]), _gov(r), _fw(r),
+                    f"{r['runtime_min']:.0f} min", f"{usd(r['cost_nominal'])} <span class='mono'>({usd(r['cost_high'])})</span>",
+                    "–" if r.get("tightest_joint_margin_rad") is None else f"{r['tightest_joint_margin_rad']:.2f} rad",
+                    "–" if r.get("total") is None else f"{r['total']:.2f}", _gates(r)])
+    return K.table(["Body", "Case", "Mass", "Governing drive", "Froude 0.05 walk", "Runtime", "Cost nominal (high)",
+                    "Tightest joint margin", "Score", "Gates (version 2)"], out, num={2, 5, 7, 8})
+
+
+def _lift_rows(name: str) -> list:
+    out = []
+    for r in x_lift(name):
+        for L, v in r["lifts"].items():
+            tj = v.get("tightest_joint") or [None, None]
+            out.append([mono(r["id"]), f"{float(L):.3f} H".replace(".170", ".175") if False else f"{L} H",
+                        f"{r['carpet_target_mm']:.1f} mm", f"{v['min_above_pile_top_mm']:.1f} mm",
+                        _ok(v["meets_target_all_piles"], "met", "not met"),
+                        f"{_ok(v['drives_within_limits'], 'within', 'over')} {K.esc(GROUP_LABEL.get(v['worst_group'], v['worst_group']))} {v['worst_ratio']:.2f}",
+                        _ok(v["walking_gates"]),
+                        "–" if tj[0] is None else f"{K.esc(tj[0].replace('_', ' '))} {tj[1]:.2f} rad"])
+    return out
+
+
+_LIFT_CACHE: dict = {}
+
+
+def x_lift(name: str) -> list:
+    return _LIFT_CACHE.get(name, [])
+
+
+def overnight(x: Ctx) -> str:
+    keys = x.pick_keys()
+    if not keys:
+        return ""
+    cards = []
+    for k, key in enumerate(keys):
+        r, d = x.rows.get(key) or {}, x.record(key)
+        if not d:
+            continue
+        src = key.split(" [", 1)[1].rstrip("]") if "[" in key else "round two"
+        g, gr, kind = _worst(d)
+        cards.append(
+            f'<div class="card"><p class="kicker">Pick {k + 1}</p><h3>{K.esc(d["id"])}</h3>'
+            f'<p class="mono" style="font-size:13px">{K.esc(src)}</p>'
+            f'<p>{K.esc(FAMILY.get(d["candidate"]["family"], ""))}, {cm(d["metrics"]["crown"])} crown; '
+            f'{kg(d["metrics"]["mass"])}, {d["runtime"]["minutes"]:.0f} min, {usd(d["cost"]["nominal"])} nominal '
+            f'({usd(d["cost"]["high"])} high).</p>'
+            f'<p>Score {r.get("total", 0):.2f}; governing drive {K.esc(GROUP_LABEL.get(g, g))} {kind} {gr:.2f}.</p></div>')
+    return f"""
+<section id="overnight">
+  <p class="kicker">Overnight · 7–8 Nov</p><h2>The refined picks</h2>
+  <div class="prose"><p>Overnight the leading bodies were refined one lever at a time, each re-sized and screened
+  exactly like the 20 candidates, and the scorecard was corrected after an independent cross-check (version 2). The
+  three bodies below are its picks among every passing body. The sections after the round-two results give the
+  refinements (<a href="#refine">Refinement</a>), your size questions (<a href="#sizestudy">Size study</a>), materials
+  and power (<a href="#materials">Materials and power</a>) and head and tail motion (<a href="#headtail">Head and tail</a>).</p></div>
+  <div class="cards">{"".join(cards)}</div>
+</section>"""
+
+
+REFINE_SHOW = ("carpet_60", "targeted_75", "knee_60", "knee_75", "no_calf", "pads_large", "toes_long", "foot_both",
+               "narrow_3mm", "headroom_60")
+
+
+def refinement(x: Ctx) -> str:
+    if not x.RF:
+        return ""
+    labels = x.RF.get("cases", {})
+    base = [r for r in x.RF["rows"] if r.get("case") == "round2" and r.get("id") in ("60-M-T-10", "60-M-H-10", "75-M-T-10", "75-M-H-10")]
+    rows = base + [r for c in REFINE_SHOW for r in x.RF["rows"] if r.get("case") == c]
+    tbl = _cmp_table(rows, lambda r: "round two" if r.get("case") == "round2" else labels.get(r["case"], r["case"]))
+    for name, data in x.LIFT.items():
+        _LIFT_CACHE[name] = data
+    lifts = []
+    for name in ("carpet_lift_carpet_60", "carpet_lift_targeted_75", "carpet_lift_targeted_75_0.175_0.180"):
+        lifts += _lift_rows(name)
+    ltbl = K.table(["Body", "Swing lift", "Carpet target", "Lowest point above a pile top", "Target", "Drives (nominal and brisk walks lifted)",
+                    "Walking clearance gates", "Tightest joint margin"], lifts, num={2, 3}) if lifts else ""
+    return f"""
+<section id="refine">
+  <p class="kicker">Overnight · Refinement</p><h2>One lever at a time on the leading bodies</h2>
+  <div class="prose">
+    <p>Each row changes one lever on a leading body, re-sizes it with the round-two rules and screens it like the
+    candidates. Version 2 of the scorecard gates the animal-like Froude 0.05 walk, so the 75 cm bodies as sized
+    fail it.</p>
+    <ul>
+      <li><b>Carpet-ready 60 cm.</b> The 60 cm knee ran out of range before the carpet swing (the thigh meets the
+      calf fairing). Lowering the ankle drives to 0.60 of the shank opens the knee to about 1.0 rad with the
+      fairing kept; sized with the carpet swing (0.19 H lift) and the Froude 0.05 walk, the drives do not change.</li>
+      <li><b>Targeted 75 cm.</b> The Froude 0.05 walk as a sizing case plus 15 % headroom on the neck and hip roll:
+      four drives change, the mass falls and every gate passes. The same body already carries a 0.18 H carpet swing.</li>
+      <li><b>Knee headroom.</b> On both refined bodies the governing limit is the knee's speed (0.95). A faster
+      RobStride 06 knee removes it but costs 0.7–0.9 kg and runtime.</li>
+      <li><b>Feet, calf fairing, narrow stance, blanket headroom:</b> see the table.</li>
+    </ul>
+  </div>
+  {tbl}
+  <h3>Carpet swing height</h3>
+  <div class="prose"><p>The carpet target is 0.06 H above the pile top (at least 15 mm). For each lift, both reference
+  walks are regenerated with that lift and checked against the selected drives and the walking clearance gates.</p></div>
+  {ltbl}
+</section>"""
+
+
+def size_study_sec(x: Ctx) -> str:
+    if not x.SS:
+        return ""
+    labels = x.SS.get("cases", {})
+    order = ("round2", "small_resized", "small_60drives", "large_headroom", "80_resized", "80_headroom")
+    rows = [r for c in order for r in x.SS["rows"] if r.get("case") == c]
+    rows += [x.rf_row("targeted_75", c) for c in ("75-M-T-10", "75-M-H-10")]
+    tbl = _cmp_table(rows, lambda r: "round two" if r.get("case") == "round2" else
+                     labels.get(r["case"], (x.RF or {}).get("cases", {}).get(r["case"], r["case"])))
+    s57 = [x.ss_row("small_resized", c) for c in ("57-M-T-10", "57-M-H-10")]
+    s54 = [x.ss_row("small_resized", c) for c in ("54-M-T-10", "54-M-H-10")]
+    b60 = [x.D.get(c, {}) for c in ("60-M-T-10", "60-M-H-10")]
+    d57 = _rng([a["mass_kg"] - b["metrics"]["mass"] for a, b in zip(s57, b60, strict=True) if a and b], lambda v: f"{-v:.2f}")
+    d54 = _rng([a["mass_kg"] - b["metrics"]["mass"] for a, b in zip(s54, b60, strict=True) if a and b], lambda v: f"{-v:.2f}")
+    return f"""
+<section id="sizestudy">
+  <p class="kicker">Overnight · Size study</p><h2>A smaller 60 cm, larger 75 cm motors, or 80 cm?</h2>
+  <div class="prose">
+    <p><b>A 5–10 % smaller 60 cm robot does not gain margin.</b> It saves only {d57} kg at 57 cm and {d54} kg at
+    54 cm, because about half the mass is catalog hardware that does not shrink. The hip-roll motor then overlaps
+    the power board and the two ToF sensors overlap, and the knee runs faster: a smaller robot steps faster for the
+    same Froude number, so at 54 cm the knee exceeds its speed limit in the animal-like walk.</p>
+    <p><b>Larger motors at 75 cm: yes, targeted, and no 80 cm needed.</b> Four drive changes fix the 75 cm body
+    (the targeted rows). Upsizing every drive by 20 % snowballs to about 20 kg and a 12S pack with no removal path;
+    80 cm hits the same limits as 75 cm and gains nothing.</p>
+  </div>
+  {tbl}
+</section>"""
+
+
+def materials(x: Ctx) -> str:
+    if not x.FX:
+        return ""
+    labels = (x.RF or {}).get("cases", {})
+    order = ("cfqi", "cf", "thin", "pa11", "lightqi", "best", "tether")
+    rows = []
+    for h, cid in ((60, "60-M-T-10"), (75, "75-M-T-10")):
+        for k in order:
+            r = x.fx_row(f"mat{h}_{k}", cid)
+            if not r:
+                continue
+            lw, rlw = r["leg_worst"], r["reference_leg_worst"]
+            rt = "tethered" if r["tether"] else f"{r['runtime_min']:.1f} min"
+            dm = r["mass_kg"] - r["reference_mass_kg"]
+            dc = (r["cost"]["nominal"] - r["reference_cost"]["nominal"]) / 1000
+            rows.append([f"{h} cm", K.esc(labels.get(r["case"], r["case"]).split(" + ", 1)[-1]),
+                         f"{dm:+.2f} kg".replace("-", "−"), f"{r['walk_w']:.0f} W", rt, f"{dc:+.1f}k".replace("-", "−").replace("+", "+$").replace("−", "−$"),
+                         f"{K.esc(GROUP_LABEL.get(lw[0], lw[0]))} {lw[2]:.2f}" + (" " + K.tag("over", "bad") if lw[2] > 1 else ""),
+                         f"{r['ratios']['neck']['cont']:.2f}", f"{r['ratios']['tail']['peak']:.2f}",
+                         f"{1e3 * r['com_ahead_of_hip_m']:.0f} mm"])
+    tbl = K.table(["Size", "Lever", "Mass change", "Walking power", "Runtime", "Cost change (nominal)",
+                   "Governing leg drive", "Neck servo", "Tail servo peak", "CoM ahead of hip"], rows, num={2, 3, 4, 5, 7, 8, 9},
+                  caption="Each lever on the carpet-ready 60 cm body (10.83 kg, 71 W, 46.5 min, $14.8k; knee speed 0.95, "
+                          "CoM 34 mm ahead of the hip) or the targeted 75 cm body (14.58 kg, 88 W, 37.6 min, $18.4k; knee "
+                          "speed 0.95, CoM 64 mm), keeping that body's drives and pack.")
+    big = []
+    for cid in ("100-M-T-10", "120-M-T-10", "120-M-H-10"):
+        p = x.r1 / "stage_a" / "candidates" / f"{cid}.json"
+        if p.exists():
+            d = json.loads(p.read_text())
+            w = d["power"]["total_w"] - d["power"]["aux"]["input_w"] + 9.5 / 0.88 + (4.0 + sum(
+                v for k, v in d["power"]["aux"]["loads"].items() if k == "sensors")) / 0.88
+            big.append((cid, d["metrics"]["mass"], w, d["selection"]["bus"]))
+    brow = []
+    packs = (("6S2P Li-ion, 200 Wh", 199.8, 0.861, 24.0), ("12S2P Li-ion, 400 Wh", 399.6, 1.721, 48.0))
+    for cid, m, w, bus in big:
+        for name, wh, pk, v in packs:
+            if (bus > 30) != (v > 30):
+                continue
+            brow.append([mono(cid), kg(m), f"{w:.0f} W", K.esc(name), f"{pk:.2f} kg ({100 * pk / m:.1f} %)",
+                         f"{60 * wh * 0.75 / w:.0f} min"])
+    btbl = K.table(["Round-one body", "Mass", "Walking power with the Pi 5", "Pack", "Pack mass (share)", "Runtime"],
+                   brow, num={1, 2, 4, 5}) if brow else ""
+    return f"""
+<section id="materials">
+  <p class="kicker">Overnight · Materials and power</p><h2>Carbon fibre, coverings, pads, and battery or tether</h2>
+  <div class="prose">
+    <p><b>Lighter materials do not move the limit that binds these bodies.</b> The governing limit on both is the
+    knee's speed in the animal-like walk, set by the walk's geometry and timing, not by mass. Lighter bodies lower
+    torques, power and the head and tail loads: torque headroom and runtime, not speed headroom.</p>
+    <ul>
+      <li><b>Carbon-fibre frame plates: not for prototype 1.</b> With the sourced 3 mm quasi-isotropic plate they
+      save about 0.4 kg for $1.6–2.1k; carbon cannot hold bearing fits or threads and hides fall damage.</li>
+      <li><b>Coverings: the best value.</b> Walls about a quarter thinner in MJF PA11 (ductile, dents instead of
+      cracking) save 0.3–0.5 kg at about today's cost, mostly off the neck and tail.</li>
+      <li><b>Foot pads:</b> a cast polyether polyurethane tread (50–60 Shore A, small round studs) is expected to grip
+      at 0.70–0.85 on carpet and 0.8–1.0 on wood and tile; laminate and vinyl can be 0.42–0.50. Measure on your floors.</li>
+      <li><b>Tether-only: no.</b> The pack is also the counterweight at the tail base; without it the centre of mass
+      moves forward and the knee goes past its speed limit with the same drives. Keep the battery and add an external
+      DC input for bench work, as your power requirement already asks.</li>
+      <li><b>3–4 ft robot: battery, yes.</b> About an hour of walking for 2–4 % of the robot's mass.</li>
+    </ul>
+  </div>
+  {tbl}
+  <h3>Battery on the 3–4 ft robot</h3>
+  {btbl}
+  <p class="note">Full note with sources: <code>round2/refine/MATERIALS.md</code>. Round one's 100 and 120 cm records
+  with the Pi 5's compute budget; every figure is a model estimate.</p>
+</section>"""
+
+
+def head_tail(x: Ctx) -> str:
+    keys = x.pick_keys()
+    rows = []
+    for key in keys:
+        d = x.record(key)
+        if not d:
+            continue
+        n, t = d["margins"]["neck"], d["margins"]["tail"]
+        rows.append([mono(key), K.esc(part(n["actuator"])), f"{max(n['cont_ratio'], n['peak_ratio'], n['speed_ratio']):.2f}",
+                     K.esc(part(t["actuator"])), f"{max(t['cont_ratio'], t['peak_ratio'], t['speed_ratio']):.2f}"])
+    tbl = K.table(["Pick", "Neck servo", "Highest ratio", "Tail servo", "Highest ratio"], rows, num={2, 4}) if rows else ""
+    return f"""
+<section id="headtail">
+  <p class="kicker">Overnight · Head and tail</p><h2>How the head and tail move</h2>
+  <div class="prose">
+    <ul>
+      <li><b>Head:</b> one nodding joint at the neck base, ±0.35 rad (±20°): the S-curved neck and skull pitch together.
+      The head does not turn side to side, the jaw is not powered yet (deferred) and the arms are fixed.</li>
+      <li><b>Tail:</b> one side-to-side joint at the tail base, ±0.45 rad (±26°). The tail is one rigid spar; the Hybrid's
+      segments are covers.</li>
+      <li><b>In the reference walk:</b> the head nods ±0.05 rad (±3°) at the step frequency and the tail sways ±0.12 rad
+      (±7°) at the stride frequency, inside the behavior spec's ±0.05–0.15 and ±0.1–0.2 rad.</li>
+      <li><b>Following limits the head:</b> the camera is in the head, and a person stays in view only with the head
+      near level.</li>
+    </ul>
+  </div>
+  {tbl}
+</section>"""
+
+
+SECTIONS = [header, overnight, choices, bodies, sizes, behaviors, variants, whatif, refinement, size_study_sec, materials,
+            head_tail, inside, scorecard, corrections, questions, nextsteps, footer]
 
 
 def build(r2: Path, r1: Path, out: Path, sections=None) -> Path:
