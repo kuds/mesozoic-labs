@@ -59,13 +59,30 @@ CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-1
 LIFTS = (0.13, 0.16, 0.19, 0.22)
 
 
+def extra_walks(names) -> dict:
+    """Extra sizing walks by name: ``fr05`` (the behavior envelope's Froude 0.05 walk) and ``lift<NN>`` (the
+    nominal walk with its swing lifted to 0.NN H, the carpet swing case)."""
+    from . import envelope, sizing
+
+    out = {}
+    for n in names:
+        if n == "fr05":
+            out[n] = envelope.FAST
+        elif n.startswith("lift"):
+            out[n] = replace(sizing.NOMINAL, lift_frac=int(n[4:]) / 100.0)
+        else:
+            raise ValueError(n)
+    return out
+
+
 def _init(case: str | None) -> None:
-    from . import envelope, gait, round2, sizing
+    from . import gait, round2, sizing
 
     gait.set_accuracy(round2.GAIT_ACCURACY)
     c = CASES.get(case) if case else None
     sizing.HEADROOM = c["headroom"] if c else 1.0
-    sizing.EXTRA_WALKS = {"fr05": envelope.FAST} if (c and c["fr05"]) else {}
+    names = (c.get("walks") or (("fr05",) if c["fr05"] else ())) if c else ()
+    sizing.EXTRA_WALKS = extra_walks(names)
     round2.TURN_SEARCH_MIN_GAP_MM = c["min_gap"] if c else 0.0
 
 
@@ -212,6 +229,7 @@ def main():
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--cases", nargs="*", default=None)
     ap.add_argument("--carpet-lift", action="store_true")
+    ap.add_argument("--lift-cases", nargs="*", default=None, help="run the carpet swing pass on these cases' bodies")
     ap.add_argument("--report-only", action="store_true")
     a = ap.parse_args()
     import designlab  # noqa: F401
@@ -238,8 +256,13 @@ def main():
                           {k: v for k, v in r.items() if k.endswith("_error") or k == "error"}, flush=True)
             if a.carpet_lift:
                 scratch = out / "carpet_lift_models"
-                lift = list(pool.imap(carpet_lift_one, [(cid, "round2", str(scratch)) for cid in CARPET_LIFT_IDS]))
-                (out / "carpet_lift.json").write_text(json.dumps(lift, indent=1, default=str))
+                todo = [(cid, "round2", str(scratch)) for cid in CARPET_LIFT_IDS] if not a.lift_cases else [
+                    (cid, str(out / c), str(scratch / c)) for c in a.lift_cases for cid in CASES[c]["ids"]]
+                lift = list(pool.imap(carpet_lift_one, todo))
+                for r, t in zip(lift, todo, strict=True):
+                    r["source"] = t[1]
+                name = "carpet_lift.json" if not a.lift_cases else f"carpet_lift_{'_'.join(a.lift_cases)}.json"
+                (out / name).write_text(json.dumps(lift, indent=1, default=str))
                 print("carpet lift done", flush=True)
     cmp = compare(out)
     (out / "refine.json").write_text(json.dumps(cmp, indent=1, default=str))
