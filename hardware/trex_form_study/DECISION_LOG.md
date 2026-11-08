@@ -37,6 +37,7 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P22 | Owner, round-two review (question 7): keep the head camera in the skull roof (a person in view; the near floor relies on the two ToF sensors). | adopted |
 | P23 | Owner, round-two review (question 8): go ahead with the Stage 1 closed-loop probe on the three bodies of P16, with the same budget each (ROUND2_REVIEW.md §13). With two review rounds complete, this meets P7; the probe is bounded and is not the verification training. | adopted |
 | P24 | Owner, 8 Nov 2026, after the gait-tuning request: see how the Stage 1 training and evaluation go before making any more changes. The design is held as decided (P16–P23); the gait-tuning study already running (`designlab/gaittune.py`) completes as information only, and Stage 1 keeps the planned animal-pace reference walk (`envelope.FAST`). | adopted |
+| P25 | Owner, 8 Nov 2026: expects a 60 cm build at about $15k to give about 80 % of the wanted behaviors and looks; continue Stage 1 (all three bodies, P16) and, once its results are in, explore what covering the remaining gap would take, accepting that it may not be worth it. | open (after Stage 1) |
 
 ## Engineering constraints and findings
 

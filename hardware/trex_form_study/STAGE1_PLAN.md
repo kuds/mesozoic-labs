@@ -160,6 +160,8 @@ The report gives:
 
 It does not show hardware effects, carpet dynamics (A16) or real self-collision. A controller-limited result says nothing about the body.
 
+For the owner's follow-up (P25), the report also gives a gap map for the 60 cm build: each behavior or look it falls short on, whether the body or the controller limits it, and the options to close it (feet, pads, knee transmission, supply voltage, a new reference walk, or the 75 cm body) with their mass, cost and risk.
+
 ## 9. Decisions taken
 
 The design study listed ten decisions. None blocks on the owner, so the defaults below are taken; the owner may
