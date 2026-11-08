@@ -246,6 +246,9 @@ def sizes(x: Ctx) -> str:
             cells.append(f"{K.esc(part(mm['actuator']))} <span class='mono'>{rr:.2f}</span>")
         drows.append(cells)
     dtbl = K.table(["Base body"] + [GROUP_LABEL[g].capitalize() for g in GROUPS], drows)
+    crows = [(cid, x.D[cid]["cost"]["low"], x.D[cid]["cost"]["nominal"], x.D[cid]["cost"]["high"]) for cid in base_ids()
+             if x.D.get(cid, {}).get("ok")]
+    chart = K.cost_chart(crows) if crows else ""
     return f"""
 <section id="sizes">
   <p class="kicker">3 · Sizes and drives</p><h2>Mass, drives, runtime and cost</h2>
@@ -258,6 +261,8 @@ def sizes(x: Ctx) -> str:
   {tbl}
   <h3>Selected drives, base bodies</h3>
   {dtbl}
+  <h3>Prototype cost, base bodies</h3>
+  {chart}
   <p class="note">Ratios are the requirement over the planning limit of the governing quantity: sustained torque at
   0.57 × rated, peak at 0.70 × vendor peak with a 1.25 margin, and speed with a 1.15 margin (assumptions A1, A2).
   Runtime is the nominal walk on the selected pack at 75 % usable energy, with no regeneration credit.</p>

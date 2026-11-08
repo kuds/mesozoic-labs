@@ -307,10 +307,17 @@ def t_packaging(D: dict) -> str:
         for st in srch:
             failed = [k.replace("interference_free_", "").replace("_", " ") for k, v in (st.get("gates") or {}).items()
                       if v is not True]
-            steps.append(("pass" if st.get("walk_gates_pass") else f"fail ({', '.join(failed)}; cause {st.get('cause')})"))
+            txt = "walks pass" if st.get("walk_gates_pass") else f"walks fail ({', '.join(failed)}; cause {st.get('cause')})"
+            if st.get("turn_gates_pass") is not None:
+                gaps = st.get("turn_min_gap_mm") or {}
+                g = min((v for v in gaps.values() if v is not None), default=None)
+                txt += (", target turns pass" if st["turn_gates_pass"] else ", target turns fail") + (
+                    f" (closest {g:.1f} mm)" if g is not None else "")
+            steps.append(txt)
         rows.append([f"`{cid}`", ", ".join(f"{k} {v}" for k, v in ov.items()) or "none", str(len(srch)),
                      "; ".join(steps) or "–"])
-    return table(["Candidate", "Packaging overrides", "Builds screened", "Walking gates per build"], rows)
+    return table(["Candidate", "Packaging overrides", "Builds screened", "Walking (and, narrow stance, target-turn) gates per build"],
+                 rows)
 
 
 def build(r2: Path, r1: Path) -> tuple[str, dict]:
