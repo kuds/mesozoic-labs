@@ -14,6 +14,8 @@ what-if and refined bodies.  Every input is still a recorded screen result; noth
 2. Margins.  Each behavior gets a 0-1 score from how far its governing quantity is from its limit,
    ``min(1, max(0, headroom / reference))``.  Each drive counts once: the leg drives (hip roll, hip pitch, thigh
    twist, knee, ankles) set natural walking, turning and endurance; the neck and tail servos set head and tail.
+   Natural walking uses the spec walks' requirement from the turning screen's like-for-like straight walks, the
+   same measure for every body whether or not it was sized with the Froude 0.05 walk, and the Froude 0.05 walk.
 3. Weights from the owner's priorities (``WEIGHTS``), unchanged.
 4. Stress test, used in the robustness score: torque ratios x 1.10 / 0.85 (robot 10 % heavier, drives 15 % weaker)
    and speed ratios / 0.85 (weaker drives; mass does not change the speed a walk needs), over the sizing walks,
@@ -100,6 +102,23 @@ def _turn_leg(det: dict) -> dict | None:
     return out
 
 
+def _spec_leg(det: dict) -> dict | None:
+    """Leg-drive ratios in the spec's walks (nominal and brisk), per group and metric, from the turning screen's
+    like-for-like straight requirement (``verdict[case][group]["straight_required"]`` over its planning limits).
+    The same measure for every body, whether or not it was sized with an extra walk (Froude 0.05)."""
+    tu = det.get("turning")
+    if not tu:
+        return None
+    case = next(c for c, v in tu["cases"].items() if v["role"] == "target")
+    out = {}
+    for g in LEG:
+        v = tu["verdict"][case].get(g)
+        if v:
+            out[g] = {k: v["straight_required"][k] / v["limits"][k] for k in ("cont", "peak_req", "speed_req")
+                      if v["limits"].get(k)}
+    return out
+
+
 def _fast_leg(det: dict) -> dict | None:
     """Leg-drive ratios in the Froude 0.05 walk (envelope), or None when inconclusive or absent."""
     ev = det.get("envelope")
@@ -135,10 +154,16 @@ def stress(doc: dict, rv: dict, det: dict | None = None) -> dict:
     / 0.85, over the sizing walks, the target turns and the Froude 0.05 walk.  Worst value and where it is."""
     det = det or {}
     vals = []
+    sp = _spec_leg(det)
     for g in LEG:
-        m = doc["margins"][g]
-        vals += [(max(m["cont_ratio"], m["peak_ratio"]) * STRESS, g, "sizing torque"),
-                 (m["speed_ratio"] * STRESS_SPEED, g, "sizing speed")]
+        if sp and g in sp:
+            r = sp[g]
+            vals += [(max(r.get("cont", 0.0), r.get("peak_req", 0.0)) * STRESS, g, "spec walks torque"),
+                     (r.get("speed_req", 0.0) * STRESS_SPEED, g, "spec walks speed")]
+        else:
+            m = doc["margins"][g]
+            vals += [(max(m["cont_ratio"], m["peak_ratio"]) * STRESS, g, "sizing torque"),
+                     (m["speed_ratio"] * STRESS_SPEED, g, "sizing speed")]
     tl = _turn_leg(det)
     if tl:
         for k, (r, g, c) in tl.items():
@@ -150,7 +175,7 @@ def stress(doc: dict, rv: dict, det: dict | None = None) -> dict:
                      (v["speed_ratio"] * STRESS_SPEED, g, "Froude 0.05 speed")]
     worst = max(vals)
     return dict(worst_stressed_ratio=worst[0], where=[worst[1], worst[2]],
-                sizing_walks_hold=max(v for v, _, w in vals if w.startswith("sizing")) <= 1.0)
+                spec_walks_hold=max(v for v, _, w in vals if w.startswith(("sizing", "spec"))) <= 1.0)
 
 
 def scores(doc: dict, rv: dict, det: dict | None = None) -> dict:
@@ -163,13 +188,14 @@ def scores(doc: dict, rv: dict, det: dict | None = None) -> dict:
     cl = rv.get("clearance") or {}
     H = doc["H"]
     s, why = {}, {}
-    # natural walking: leg-drive headroom in the sizing walks and in the Froude 0.05 walk
-    _, wr = _worst_margin(doc, LEG)
+    # natural walking: leg-drive headroom in the spec walks (nominal and brisk) and in the Froude 0.05 walk
+    sp = _spec_leg(det)
+    wr = max(max(r.values()) for r in sp.values()) if sp else _worst_margin(doc, LEG)[1]
     fl = _fast_leg(det)
     fw = max(_ratio_e(v) for v in fl.values()) if fl else None
     parts = [_clip(1.0 - wr, 0.30)] + ([_clip(1.0 - fw, 0.30)] if fw is not None else [])
     s["natural_walking"] = sum(parts) / len(parts)
-    why["natural_walking"] = dict(sizing_worst_leg_ratio=wr, fast_walk_worst_leg_ratio=fw)
+    why["natural_walking"] = dict(spec_walks_worst_leg_ratio=wr, fast_walk_worst_leg_ratio=fw)
     # turning: leg-drive headroom in the target turns, thigh-twist range used, friction needed (yaw moment included)
     if tu:
         tl = _turn_leg(det)
