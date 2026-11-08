@@ -47,12 +47,12 @@ CASES = {
                       fr05=False, min_gap=0.0, label="toes x1.15"),
     "pads_large": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10"), overrides=(("pad_scale", 1.25),), headroom=1.0,
                        fr05=False, min_gap=0.0, label="pads x1.25"),
-    "foot_both": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10", "75-M-T-10-bighead"),
+    "foot_both": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10", "75-M-T-10"),
                       overrides=(("toe_scale", 1.15), ("pad_scale", 1.25)), headroom=1.0, fr05=False, min_gap=0.0,
                       label="toes x1.15 + pads x1.25"),
     "narrow_3mm": dict(ids=("60-N-T-10", "60-N-H-10"), overrides=(), headroom=1.0, fr05=False, min_gap=3.0,
                        label="narrow stance, target turns >= 3 mm"),
-    "no_calf": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10", "75-M-T-10-bighead"), overrides=(("calf_fairing", 0),),
+    "no_calf": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10", "75-M-T-10"), overrides=(("calf_fairing", 0),),
                     headroom=1.0, fr05=False, min_gap=0.0, label="no calf fairing (exposed ankle drives)"),
 }
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
