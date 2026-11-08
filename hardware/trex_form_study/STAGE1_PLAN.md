@@ -112,6 +112,7 @@ An episode counts as a fall if the trunk tilts more than 0.6 rad, the root drops
 | Drive speed | envelope speed scale at Fr 0.05 | knee 0.93 / 0.95 / 0.93 |
 | Drive torque | torque scale | worst sustained ratio 0.76 / 0.76 / 0.77 |
 | Model doubts | kp × 0.25–1, latency 0–20 ms, mass +10 %, pile damping 0.5–2 | no Stage 0 value |
+| Pack voltage | bus 25.2 V (full), 22.2 V (nominal), 21 V (near empty) in the drive envelope | Stage 0 used 24 V; at 22.2 V the knee's rated speed (8.04 rad/s) is at the Fr 0.05 requirement (8.08–8.12 rad/s) |
 
 ## 6. Budget and seeds
 
