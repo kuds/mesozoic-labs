@@ -60,6 +60,23 @@ CASES = {
     "carpet_60": dict(ids=("60-M-T-10", "60-M-H-10"), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
                       walks=("fr05", "lift19"), min_gap=0.0,
                       label="60 cm: ankle drives at 0.60, sized for the 0.19 H carpet swing and Froude 0.05"),
+    # material and power experiments on the two refined favorites (owner question overnight): carbon-fibre frame
+    # plates (motor brackets stay aluminium), covering walls 25 % thinner, tether-only power, and the lightest
+    # combination; each on top of carpet_60 (60 cm) or targeted_75 (75 cm)
+    **{f"mat60_{k}": dict(ids=("60-M-T-10",), overrides=(("ankle_frac", 0.60),) + ov, headroom=1.0, fr05=True,
+                          walks=("fr05", "lift19"), min_gap=0.0, label=f"60 cm carpet-ready + {lab}")
+       for k, ov, lab in (("cf", (("structure_material", "cf_plate"),), "carbon-fibre frame plates"),
+                          ("thin", (("cover_wall_scale", 0.75),), "covering walls x0.75"),
+                          ("tether", (("power_mode", "tether"),), "tether-only power"),
+                          ("light", (("structure_material", "cf_plate"), ("cover_wall_scale", 0.75)),
+                           "carbon plates + covering walls x0.75"))},
+    **{f"mat75_{k}": dict(ids=("75-M-T-10",), overrides=ov, headroom=1.0, fr05=True, min_gap=0.0,
+                          headroom_by_group={"neck": 0.85, "hip_roll": 0.85}, label=f"75 cm targeted + {lab}")
+       for k, ov, lab in (("cf", (("structure_material", "cf_plate"),), "carbon-fibre frame plates"),
+                          ("thin", (("cover_wall_scale", 0.75),), "covering walls x0.75"),
+                          ("tether", (("power_mode", "tether"),), "tether-only power"),
+                          ("light", (("structure_material", "cf_plate"), ("cover_wall_scale", 0.75)),
+                           "carbon plates + covering walls x0.75"))},
     # targeted upgrade at 75 cm (cross-check recommendation): the what-if's Froude 0.05 sizing case plus 15 %
     # headroom on the two drives every judge found thin, the neck servo and the hip roll
     "targeted_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, min_gap=0.0,
