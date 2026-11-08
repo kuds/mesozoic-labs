@@ -219,3 +219,17 @@ behavior: every Froude 0.05 failure in round two is a speed ratio of 1.00–1.11
 without it. Failing the stopping or push bound shows what the ankle alone or one step cannot do, so a controller
 must add steps or double support. Passing any of them does not show that a controller can.
 
+
+**Overnight refinement (`designlab/sizestudy.py`, `designlab/refine.py`).** The size study, the what-if and every
+refinement case size their bodies with the round-two rules and run exactly the screens above, so their rows compare
+like for like with the 20 candidates (`round2/size_study/SIZE_STUDY.md`, `round2/refine/REFINE.md`). Three checks
+were added for the overnight questions, none of them a gate:
+
+* **Carpet swing pass** (`refine.carpet_lift_one`): both reference walks regenerated with a higher swing lift and
+  checked against the selected drives, the walking clearance gates and the carpet target (0.06 H above the pile top,
+  at least 15 mm). The drives check covers the two walks together; `round2/refine/nominal_lift.py` separates the
+  nominal walk at 60 cm.
+* **Same-drive pass** (`refine.fixed_one`): a material or power case rebuilt with its reference body's drives and pack
+  instead of being re-sized, so a lighter body's saving shows up as margin. Clearance is not re-run there: the shapes
+  are the reference body's apart from the covering wall thickness.
+* **Plates of round two against the refined bodies** (`refine.plates_refined`).
