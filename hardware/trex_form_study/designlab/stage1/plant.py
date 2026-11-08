@@ -21,8 +21,11 @@ After compiling:
   ``kp = sustained / carpet.SERVO_ERROR_RAD`` (0.01 rad) and ``kv = 2 zeta sqrt(kp I)``, I the drive's inertia
   with every other drive held, at the home pose (for a joint servo the diagonal of the mass matrix, as
   ``hold_servos``; for an ankle motor that of the motor coordinates).  In joint space an ankle's pitch and roll
-  are therefore twice as stiff as one joint servo would be: two motors share each axis.  The MJCF's own gains
-  (``mjcf.write_mjcf``: kp = max(5, 8 x rated torque), kv = 0.05 kp) are replaced (DECISION_LOG P23, decision 4);
+  are therefore twice as stiff as one joint servo would be: two motors share each axis (``ankle_gains="motor"``,
+  the default).  ``ankle_gains="joint"`` halves each ankle motor's kp instead, so pitch and roll get exactly the
+  joint-space stiffness ``hold_servos`` gives one ankle joint (G1 and G2 are gated on the default; see
+  ``gates``).  The MJCF's own gains (``mjcf.write_mjcf``: kp = max(5, 8 x rated torque), kv = 0.05 kp) are
+  replaced (DECISION_LOG P23, decision 4);
 * ctrl limits off: the servo target carries the feedforward, ``ctrl = G q* + (kv G qd* + f_ff) / kp`` in motor
   coordinates (``Plant.command``);
 * the torque-speed envelope (``drive.Envelope``), applied before every physics step;
@@ -62,9 +65,6 @@ IMU_SITE = "imu"
 #: Falls (plan section 4): trunk tilt from vertical above this, or the root below FALL_HEIGHT_FRAC x its home height.
 FALL_TILT_RAD = 0.6
 FALL_HEIGHT_FRAC = 0.7
-#: Data of the foot-load contact sensors: found (bit 0) and force (bit 1); reduction: net force (world frame).
-_CONTACT_DATA = (1 << int(mujoco.mjtConDataField.mjCONDATA_FOUND)) | (1 << int(mujoco.mjtConDataField.mjCONDATA_FORCE))
-_CONTACT_NETFORCE = 3
 
 
 class PlantError(RuntimeError):
@@ -264,13 +264,16 @@ class Plant:
         if root_velocity_noise:
             d.qvel[:3] = self.rng.uniform(-root_velocity_noise, root_velocity_noise, 3)
         d.ctrl[:] = self.ctrl_home
+        self.envelope.restore()
         mujoco.mj_forward(m, d)
 
     def set_state(self, qpos, qvel) -> None:
+        """Start from ``qpos`` and ``qvel`` (e.g. a reference frame), servos at home."""
         mujoco.mj_resetData(self.m, self.d)
         self.d.qpos[:] = qpos
         self.d.qvel[:] = qvel
         self.d.ctrl[:] = self.ctrl_home
+        self.envelope.restore()
         mujoco.mj_forward(self.m, self.d)
 
     # --------------------------------------------------------------- actuation
@@ -302,7 +305,11 @@ class Plant:
 
     def sensors(self) -> dict:
         """The plant's sensors: IMU (gyro rad/s, accelerometer m/s^2, trunk quaternion), encoders (joint angles and
-        rates in ``joints`` order) and foot loads (vertical force N, contact count, net force vector per foot)."""
+        rates in ``joints`` order) and foot loads (vertical force N, contact count, net force vector per foot).
+
+        MuJoCo evaluates sensors inside ``mj_step`` before it integrates, so after a step they describe the state at
+        that step's start, one physics step (2 ms) before ``d.qpos``: what a controller sampling before the step
+        sees.  They are not recomputed here, since an extra ``mj_forward`` would change the solver's warm start."""
         sd = self.d.sensordata
         enc = [self._sens[f"enc_q_{jn}"][0] for jn in self.joints]
         encv = [self._sens[f"enc_qd_{jn}"][0] for jn in self.joints]
@@ -342,13 +349,15 @@ class Plant:
         """Settle the home pose with zero command and keep it as the start of every episode."""
         m, d = self.m, self.d
         mujoco.mj_resetDataKeyframe(m, d, 0)
+        mujoco.mj_forward(m, d)
+        ncon_key = [int(v) for v in self.sensors()["foot_contacts"]]
         d.qpos[2] -= sinkage
         mujoco.mj_forward(m, d)
         ncon0 = [int(v) for v in self.sensors()["foot_contacts"]]
         self.step(int(round(seconds / m.opt.timestep)))
         s = self.sensors()
-        out = dict(seconds=seconds, start_lowered_by_m=sinkage, foot_contacts_at_keyframe=ncon0,
-                   foot_contacts_settled=[int(v) for v in s["foot_contacts"]],
+        out = dict(seconds=seconds, foot_contacts_at_keyframe=ncon_key, start_lowered_by_m=sinkage,
+                   foot_contacts_at_start=ncon0, foot_contacts_settled=[int(v) for v in s["foot_contacts"]],
                    foot_load_N=[float(v) for v in s["foot_load"]],
                    weight_N=float(m.body_subtreemass[self.trunk]) * carpet.G,
                    root_z_change_m=float(d.qpos[2] - self.z_home),
@@ -360,7 +369,7 @@ class Plant:
         return out
 
 
-def _gains(m, d, joints: list[str], G: np.ndarray, drives: list[drive.Drive]) -> dict:
+def _gains(m, d, joints: list[str], G: np.ndarray, drives: list[drive.Drive], ankle_gains: str = "motor") -> dict:
     """Hold-servo gains (module docstring) at the home pose, written into the model's position actuators."""
     d.qpos[:] = m.key_qpos[0]
     d.qvel[:] = 0
@@ -371,6 +380,10 @@ def _gains(m, d, joints: list[str], G: np.ndarray, drives: list[drive.Drive]) ->
     Ginv = np.linalg.inv(G)
     inertia = np.diag(Ginv.T @ Mfull[np.ix_(dofs, dofs)] @ Ginv).copy()
     kp = np.array([dr.sustained for dr in drives]) / carpet.SERVO_ERROR_RAD
+    if ankle_gains == "joint":  # G^T diag(kp) G on each ankle = the one-joint hold stiffness sustained / 0.01 rad
+        kp[[i for i, dr in enumerate(drives) if dr.group in drive.REPLACES]] *= 0.5
+    elif ankle_gains != "motor":
+        raise ValueError(f"ankle_gains {ankle_gains!r}: 'motor' or 'joint'")
     kv = 2.0 * carpet.SERVO_ZETA * np.sqrt(kp * inertia)
     m.actuator_gainprm[:, 0] = kp
     m.actuator_biasprm[:, 1] = -kp
@@ -380,7 +393,8 @@ def _gains(m, d, joints: list[str], G: np.ndarray, drives: list[drive.Drive]) ->
 
 
 def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, speed_scale: float = 1.0,
-          torque_scale: float = 1.0, pile_grid: float | None = None, settle: bool = True) -> Plant:
+          torque_scale: float = 1.0, pile_grid: float | None = None, settle: bool = True,
+          ankle_gains: str = "motor") -> Plant:
     """The Stage 1 plant of ``body`` on ``floor`` (``FLOORS``), settled at home unless ``settle`` is False."""
     if floor not in FLOORS:
         raise ValueError(f"floor {floor!r}: choose from {', '.join(FLOORS)}")
@@ -425,7 +439,7 @@ def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, 
     embed[:, dofs] = G
     if not np.array_equal(moment, embed):
         raise PlantError("the compiled actuator transmission differs from drive.motor_matrix")
-    gains = _gains(m, d, joints, G, drives)
+    gains = _gains(m, d, joints, G, drives, ankle_gains)
     m.key_ctrl[0] = G @ q_home[[m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)] for jn in joints]]
     env = drive.Envelope(drives, moment, enabled=envelope, speed_scale=speed_scale, torque_scale=torque_scale)
     meta = dict(body=body, floor=floor, seed=int(seed), model=check, H_m=float(rec["H"]),
@@ -435,6 +449,9 @@ def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, 
                 gains=dict(rule="carpet.hold_servos on each drive's own coordinate: kp = sustained / "
                                 f"{carpet.SERVO_ERROR_RAD} rad, kv = 2 x {carpet.SERVO_ZETA} sqrt(kp I) at home, "
                                 "I with every other drive held",
+                           ankle_gains=ankle_gains,
+                           ankle_joint_space_stiffness="2 kp (two motors per axis)" if ankle_gains == "motor" else
+                           "kp of one hold servo (each motor at half kp)",
                            drives={dr.actuator: dict(kp=float(kp), kv=float(kv), inertia_kg_m2=float(i),
                                                      coordinate=dr.coordinate)
                                    for dr, kp, kv, i in zip(drives, gains["kp"], gains["kv"], gains["inertia"],

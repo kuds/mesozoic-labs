@@ -178,7 +178,7 @@ class Envelope:
     @enabled.setter
     def enabled(self, value: bool) -> None:
         self._enabled = bool(value)
-        self._restore()
+        self.restore()
 
     def limits(self, qvel) -> np.ndarray:
         """Torque limit of each drive at the joint velocities ``qvel``."""
@@ -190,9 +190,10 @@ class Envelope:
         """Make every actuator of ``m`` force-limited at its (scaled) peak and keep views for ``update``."""
         m.actuator_forcelimited[:] = 1
         self._fr, self._qvel = m.actuator_forcerange, d.qvel
-        self._restore()
+        self.restore()
 
-    def _restore(self) -> None:
+    def restore(self) -> None:
+        """Set every force range back to the peak (a plant at rest)."""
         if self._fr is not None:
             self._fr[:, 1] = self.peak
             self._fr[:, 0] = -self.peak
@@ -214,7 +215,7 @@ class Envelope:
             self._fr[:, 0] = self._neg
             self._dirty = True
         elif self._dirty:
-            self._restore()
+            self.restore()
 
     def describe(self) -> dict:
         return dict(enabled=self.enabled, speed_scale=self.speed_scale, torque_scale=self.torque_scale,
