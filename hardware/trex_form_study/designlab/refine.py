@@ -178,25 +178,28 @@ def carpet_lift_one(a) -> dict:
 def compare(out: Path, r2: Path = Path("round2")) -> dict:
     from .sizestudy import row
 
+    from .shortlist import detail
+
     def load(base: Path, cid: str):
         p = base / "candidates" / f"{cid}.json"
         if not p.exists():
             return None, {}
         idx = base / "review" / "review_index.json"
-        return json.loads(p.read_text()), (json.loads(idx.read_text()).get(cid, {}) if idx.exists() else {})
+        rv = json.loads(idx.read_text()).get(cid, {}) if idx.exists() else {}
+        return json.loads(p.read_text()), dict(rv, _detail=detail(base, cid))
 
     rows = []
     ids = sorted({cid for c in CASES.values() for cid in c["ids"]})
     for cid in ids:
         d, rv = load(r2, cid)
         if d:
-            rows.append(dict(case="round2", **row("round two", d, rv, None)))
+            rows.append(dict(case="round2", **row("round two", d, rv, None, rv.get("_detail"))))
     for case, c in CASES.items():
         for cid in c["ids"]:
             d, rv = load(out / case, cid)
             ref, _ = load(r2, cid)
             if d:
-                rows.append(dict(case=case, **row(c["label"], d, rv, ref)))
+                rows.append(dict(case=case, **row(c["label"], d, rv, ref, rv.get("_detail"))))
     lift = json.loads((out / "carpet_lift.json").read_text()) if (out / "carpet_lift.json").exists() else None
     return dict(cases={k: v["label"] for k, v in CASES.items()}, rows=rows, carpet_lift=lift)
 

@@ -181,7 +181,7 @@ def _worst(doc):
     return best
 
 
-def row(label: str, doc: dict, rv: dict, ref: dict | None) -> dict:
+def row(label: str, doc: dict, rv: dict, ref: dict | None, det: dict | None = None) -> dict:
     from . import shortlist
 
     if not doc.get("ok"):
@@ -193,8 +193,8 @@ def row(label: str, doc: dict, rv: dict, ref: dict | None) -> dict:
     mg = cl.get("joint_range_margins") or {}
     tight = min((v for r in mg.values() for v in (r.get("margin_min"), r.get("margin_max")) if v is not None), default=None)
     g, r, kind = _worst(doc)
-    sc = shortlist.scores(doc, rv)
-    gates = shortlist.gates(doc, rv)
+    sc = shortlist.scores(doc, rv, det)
+    gates = shortlist.gates(doc, rv, det)
     cf = (doc.get("geometry_checks") or {}).get("camera_fit") or {}
     changed = {}
     if ref:
@@ -220,16 +220,19 @@ def row(label: str, doc: dict, rv: dict, ref: dict | None) -> dict:
         camera=dict(fits=cf.get("fits"), station=cf.get("station"), drop_mm=None if cf.get("drop_m") is None else 1e3 * cf["drop_m"]),
         person_in_view=((rv.get("sensors") or {}).get("torso_follow") or {}).get("home", {}).get("ok"),
         gates=gates, scores=sc["scores"], total=shortlist.total(sc["scores"]),
-        stressed=shortlist.stress(doc, rv)["worst_stressed_ratio"])
+        stressed=shortlist.stress(doc, rv, det)["worst_stressed_ratio"])
 
 
 def compare(out: Path, r2: Path = Path("round2")) -> dict:
+    from .shortlist import detail
+
     def load(base: Path, cid: str):
         p = base / "candidates" / f"{cid}.json"
         if not p.exists():
             return None, {}
         idx = base / "review" / "review_index.json"
         rv = json.loads(idx.read_text()).get(cid, {}) if idx.exists() else {}
+        rv = dict(rv, _detail=detail(base, cid))
         return json.loads(p.read_text()), rv
 
     ref = {cid: load(r2, cid)[0] for cid in ("60-M-T-10", "60-M-H-10", "75-M-T-10", "75-M-H-10")}
@@ -237,11 +240,11 @@ def compare(out: Path, r2: Path = Path("round2")) -> dict:
     for cid in ("60-M-T-10", "60-M-H-10", "75-M-T-10", "75-M-H-10"):
         d, rv = load(r2, cid)
         if d:
-            rows.append(dict(case="round2", **row("round two", d, rv, None)))
+            rows.append(dict(case="round2", **row("round two", d, rv, None, rv.get("_detail"))))
     for cid in ("75-M-T-10", "75-M-H-10"):
         d, rv = load(r2 / "whatif_fr05", cid)
         if d:
-            rows.append(dict(case="whatif_fr05", **row("75 cm, Froude 0.05 sizing (what-if)", d, rv, ref[cid])))
+            rows.append(dict(case="whatif_fr05", **row("75 cm, Froude 0.05 sizing (what-if)", d, rv, ref[cid], rv.get("_detail"))))
     for case, c in CASES.items():
         for cid in c["ids"]:
             d, rv = load(out / case, cid)
@@ -249,7 +252,7 @@ def compare(out: Path, r2: Path = Path("round2")) -> dict:
                 continue
             fam = cid.split("-")[2]
             refd = ref.get(f"60-M-{fam}-10") if cid.startswith(("54", "57")) else ref.get(f"75-M-{fam}-10")
-            rows.append(dict(case=case, **row(c["label"], d, rv, refd)))
+            rows.append(dict(case=case, **row(c["label"], d, rv, refd, rv.get("_detail"))))
     return dict(cases={k: v["label"] for k, v in CASES.items()}, rows=rows)
 
 
