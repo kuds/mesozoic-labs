@@ -54,6 +54,12 @@ CASES = {
                        label="narrow stance, target turns >= 3 mm"),
     "no_calf": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10", "75-M-T-10"), overrides=(("calf_fairing", 0),),
                     headroom=1.0, fr05=False, min_gap=0.0, label="no calf fairing (exposed ankle drives)"),
+    # carpet-ready 60 cm: the ankle drives lowered to 0.60 of the shank (knee range 0.81 -> about 1.0 rad with the
+    # calf fairing kept, found overnight) and sized for the carpet swing (nominal walk, swing lifted to 0.19 H) and
+    # the Froude 0.05 walk
+    "carpet_60": dict(ids=("60-M-T-10", "60-M-H-10"), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
+                      walks=("fr05", "lift19"), min_gap=0.0,
+                      label="60 cm: ankle drives at 0.60, sized for the 0.19 H carpet swing and Froude 0.05"),
     # targeted upgrade at 75 cm (cross-check recommendation): the what-if's Froude 0.05 sizing case plus 15 %
     # headroom on the two drives every judge found thin, the neck servo and the hip roll
     "targeted_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, min_gap=0.0,
