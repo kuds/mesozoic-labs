@@ -43,7 +43,7 @@ Every number is a model estimate. None is measured.
    centre of mass moves 13–15 mm forward, the hip-pitch hold rises 14–37 %, and with the same drives the knee goes
    past its speed limit (1.03–1.07). Keep the removable battery and add an external DC input, as P4 already asks
    ("removable battery … external-power operation"); use the tether for bench work.
-6. **3–4 ft robot: battery operation is easy in mass terms.** At 100–120 cm a 0.9–1.7 kg pack gives about 50–95
+6. **3–4 ft robot: battery operation is easy in mass terms.** At 100–120 cm a 0.9–1.7 kg pack gives about 50–94
    min of walking and is 2–4 % of the robot's mass (round-one sizing with the Pi 5's power budget). The constraints there are pack safety in falls of a 28–56 kg robot,
    transport rules for packs over 100 Wh, and charging, not mass.
 
@@ -76,7 +76,7 @@ Same drives as the reference body (the margin view). Δ is against the reference
 | Covering walls ×0.75 (PA12) | −0.35 kg | 68.8 W / 47.9 min | −$0.3k / −$0.5k | −0.59 kg | 84.0 W / 39.3 min | −$0.4k / −$0.7k | 0.95 / 0.94 | 0.74 / 0.75 | 0.69 / 0.44; 0.59 / 0.76 |
 | **PA11 coverings, walls ×0.75 (recommended)** | −0.31 kg | 69.0 W / 47.7 min | +$20 / +$40 | −0.52 kg | 84.4 W / 39.1 min | +$30 / +$60 | 0.95 / 0.94 | 0.74 / 0.75 | 0.70 / 0.45; 0.60 / 0.77 |
 | Sourced carbon + walls ×0.75 | −0.74 kg | 67.3 W / 49.0 min | +$1.3k / +$1.8k | −1.02 kg | 81.9 W / 40.3 min | +$1.7k / +$2.4k | 0.95 / 0.94 | 0.71 / 0.72 | 0.68 / 0.43; 0.59 / 0.75 |
-| Sourced carbon + PA11 walls ×0.75 | −0.70 kg | 67.5 W / 48.8 min | +$1.6k / +$2.3k | −0.95 kg | 82.3 W / 40.1 min | +$2.2k / +$3.2k | 0.95 / 0.94 | 0.71 / 0.73 | 0.69 / 0.44; 0.60 / 0.77 |
+| Sourced carbon + PA11 walls ×0.75 | −0.70 kg | 67.5 W / 48.8 min | +$1.6k / +$2.3k | −0.95 kg | 82.3 W / 40.1 min | +$2.1k / +$3.2k | 0.95 / 0.94 | 0.71 / 0.73 | 0.69 / 0.44; 0.60 / 0.77 |
 | Tether-only (no pack or cassette; 0.12 kg connector) | −0.61 kg | 70.4 W / tethered | −$0.1k / −$0.1k | −0.59 kg | 87.9 W / tethered | −$0.1k / −$0.0k | **1.07 / 1.03** | 0.72 / 0.82 (hip pitch) | 0.76 / 0.50; 0.67 / 0.90 |
 
 Re-sized instead (the sizing loop's view, `REFINE.md` comparison table): the lighter bodies keep the same governing

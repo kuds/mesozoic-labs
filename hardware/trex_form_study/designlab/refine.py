@@ -16,8 +16,8 @@ Levers (``CASES``):
 * ``narrow_3mm``: the narrow stance searched until the target turns keep at least 3 mm of closest approach
   (``round2.TURN_SEARCH_MIN_GAP_MM``), instead of merely no contact: stance width traded for build tolerance.
 * ``no_calf``: the shank left uncovered (override ``calf_fairing`` 0; owner question on the calf fairings).  On the
-  round-two bodies knee flexion stops where the upper-thigh shell meets the calf fairing (0.80 rad at 60 cm,
-  0.76 rad at 75 cm), and a higher carpet swing needs more knee flexion.
+  round-two bodies knee flexion stops where the upper-thigh shell meets the calf fairing (0.81 rad at 60 cm,
+  0.76-0.81 rad at 75 cm), and a higher carpet swing needs more knee flexion.
 
 ``carpet_lift`` (separate pass, no re-sizing): the carpet swing target needs a higher swing than the reference
 walks' 0.10-0.11 H.  For each listed body and each lift, the nominal and brisk walks are regenerated with that

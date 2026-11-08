@@ -179,7 +179,7 @@ def header(x: Ctx) -> str:
     <div class="fact"><b>{fact_rt} min</b><span>walking runtime at 60 / 75 cm on the selected pack (target 15–20 min)</span></div>
     <div class="fact"><b>{fact_cost}</b><span>nominal prototype cost at 60 / 75 cm</span></div>
     <div class="fact"><b>{n_pass} of {len(x.ok)}</b><span>round-two candidates pass every gate of scorecard version 2 (the animal-like walk is new)</span></div>
-    <div class="fact"><b>{len(picks)}</b><span>bodies proposed for verification: {", ".join(K.esc(p) for p in x.pick_keys()) or "none"}</span></div>
+    <div class="fact"><b>{len(RECOMMENDED)}</b><span>bodies recommended for verification: {", ".join(K.esc(k) for k, _ in RECOMMENDED)}</span></div>
   </div>
   <nav class="toc" aria-label="Sections">
     <a href="#overnight">Refined picks</a><a href="#choices">Your choices</a><a href="#bodies">The bodies</a>
@@ -724,8 +724,9 @@ def questions(x: Ctx) -> str:
         calf = f" (60 cm: {nc['mass_kg'] - b['metrics']['mass']:+.2f} kg)".replace("-", "−") if b else ""
     q = [
         ("Which bodies go to verification?",
-         [f"The scorecard's three: {', '.join(keys)}." if keys else "The scorecard's picks.",
-          "Swap one (name it), for example on looks or to compare the narrow stance.",
+         [f"The recommended three: {', '.join(k for k, _ in RECOMMENDED)}.",
+          f"The scorecard's own picks: {', '.join(keys)}." if keys else "The scorecard's own picks.",
+          "Swap one (name it), for example on looks or the narrow stance 60-N-T-10 to test stance width.",
           "A different set: say what matters most."]),
         ("Do the priority weights match yours?",
          ["Yes: natural walking and turning first, then robustness, following, carpet, endurance, head and tail, "
@@ -861,33 +862,54 @@ def x_lift(name: str) -> list:
     return _LIFT_CACHE.get(name, [])
 
 
+#: The review's recommended verification set (ROUND2_REVIEW.md §6), chosen from the scorecard's tied leaders for
+#: the reasons given; the scorecard's own picks are shown in its section, and the owner decides (question 1).
+RECOMMENDED = (
+    ("60-M-T-10 [refine/carpet_60]", "The 60 cm anchor: the cleanest packaging of the leaders (4 mm in every turn, "
+     "the widest joint-range margin, 0.20 rad), and with its ankle drives lowered it reaches the carpet swing target "
+     "within its drives and knee range."),
+    ("75-M-T-10 [refine/targeted_75]", "The 75 cm body after the targeted drive upgrade: every gate passes, it "
+     "carries the carpet swing at 0.18 H, and it needs the least grip of the leaders. The faster-knee variant ties "
+     "with it on the scorecard; question 3."),
+    ("60-M-H-10 [refine/carpet_60]", "The family comparison at 60 cm, where the drive margins do not hide the "
+     "difference between the bodies; the cross-check's choice for the third slot."),
+)
+
+
 def overnight(x: Ctx) -> str:
-    keys = x.pick_keys()
-    if not keys:
-        return ""
     cards = []
-    for k, key in enumerate(keys):
+    for k, (key, why) in enumerate(RECOMMENDED):
         r, d = x.rows.get(key) or {}, x.record(key)
         if not d:
             continue
         src = key.split(" [", 1)[1].rstrip("]") if "[" in key else "round two"
         g, gr, kind = _worst(d)
         cards.append(
-            f'<div class="card"><p class="kicker">Pick {k + 1}</p><h3>{K.esc(d["id"])}</h3>'
+            f'<div class="card"><p class="kicker">Recommended {k + 1}</p><h3>{K.esc(d["id"])}</h3>'
             f'<p class="mono" style="font-size:13px">{K.esc(src)}</p>'
             f'<p>{K.esc(FAMILY.get(d["candidate"]["family"], ""))}, {cm(d["metrics"]["crown"])} crown; '
             f'{kg(d["metrics"]["mass"])}, {d["runtime"]["minutes"]:.0f} min, {usd(d["cost"]["nominal"])} nominal '
             f'({usd(d["cost"]["high"])} high).</p>'
-            f'<p>Score {r.get("total", 0):.2f}; governing drive {K.esc(GROUP_LABEL.get(g, g))} {kind} {gr:.2f}.</p></div>')
+            f'<p>Score {r.get("total", 0):.2f}; governing drive {K.esc(GROUP_LABEL.get(g, g))} {kind} {gr:.2f}.</p>'
+            f'<p style="font-size:14px;color:var(--ink-2)">{K.esc(why)}</p></div>')
+    if not cards:
+        return ""
+    sk = x.pick_keys()
+    lead = [x.rows[k] for k in (x.SL or {}).get("ranking", [])[:4] if k in x.rows]
+    spread = (max(r["total"] for r in lead) - min(r["total"] for r in lead)) if lead else None
+    note = (f"The scorecard's own rule picks {', '.join(mono(k) for k in sk)}; its top four bodies are within "
+            f"{spread:.3f} of each other, a tie at its resolution. The recommendation chooses among the tied leaders "
+            f"for reasons the scorecard does not score, given on each card.") if sk and spread is not None else ""
     return f"""
 <section id="overnight">
-  <p class="kicker">Overnight · 7–8 Nov</p><h2>The refined picks</h2>
+  <p class="kicker">Overnight · 7–8 Nov</p><h2>The recommended bodies</h2>
   <div class="prose"><p>Overnight the leading bodies were refined one lever at a time, each re-sized and screened
   exactly like the 20 candidates, and the scorecard was corrected after an independent cross-check (version 2). The
-  three bodies below are its picks among every passing body. The sections after the round-two results give the
-  refinements (<a href="#refine">Refinement</a>), your size questions (<a href="#sizestudy">Size study</a>), materials
-  and power (<a href="#materials">Materials and power</a>) and head and tail motion (<a href="#headtail">Head and tail</a>).</p></div>
+  sections after the round-two results give the refinements (<a href="#refine">Refinement</a>), your size questions
+  (<a href="#sizestudy">Size study</a>), materials and power (<a href="#materials">Materials and power</a>) and head
+  and tail motion (<a href="#headtail">Head and tail</a>).</p></div>
   <div class="cards">{"".join(cards)}</div>
+  {f'<p class="note">{note}</p>' if note else ''}
 </section>"""
 
 
@@ -968,7 +990,9 @@ def size_study_sec(x: Ctx) -> str:
 def materials(x: Ctx) -> str:
     if not x.FX:
         return ""
-    labels = (x.RF or {}).get("cases", {})
+    from .refine import MAT_LEVERS
+
+    labels = {f"mat{h}_{k}": lab for h in (60, 75) for k, _, lab in MAT_LEVERS}
     order = ("cfqi", "cf", "thin", "pa11", "lightqi", "best", "tether")
     rows = []
     for h, cid in ((60, "60-M-T-10"), (75, "75-M-T-10")):
@@ -980,8 +1004,9 @@ def materials(x: Ctx) -> str:
             rt = "tethered" if r["tether"] else f"{r['runtime_min']:.1f} min"
             dm = r["mass_kg"] - r["reference_mass_kg"]
             dc = (r["cost"]["nominal"] - r["reference_cost"]["nominal"]) / 1000
-            rows.append([f"{h} cm", K.esc(labels.get(r["case"], r["case"]).split(" + ", 1)[-1]),
-                         f"{dm:+.2f} kg".replace("-", "−"), f"{r['walk_w']:.0f} W", rt, f"{dc:+.1f}k".replace("-", "−").replace("+", "+$").replace("−", "−$"),
+            dcs = (f"{1000 * dc:+.0f}" if abs(dc) < 0.1 else f"{dc:+.1f}k").replace("+", "+$").replace("-", "−$")
+            rows.append([f"{h} cm", K.esc(labels.get(r["case"], r["case"])),
+                         f"{dm:+.2f} kg".replace("-", "−"), f"{r['walk_w']:.0f} W", rt, dcs,
                          f"{K.esc(GROUP_LABEL.get(lw[0], lw[0]))} {lw[2]:.2f}" + (" " + K.tag("over", "bad") if lw[2] > 1 else ""),
                          f"{r['ratios']['neck']['cont']:.2f}", f"{r['ratios']['tail']['peak']:.2f}",
                          f"{1e3 * r['com_ahead_of_hip_m']:.0f} mm"])
