@@ -171,18 +171,21 @@ def header(x: Ctx) -> str:
   Hybrid bodies, a 10° chest-up stance and a Raspberry Pi 5 with the AI HAT+. Each of the four base bodies has
   four single-change variants: a narrower stance, a larger skull, compact proportions and the level posture.
   All {len(x.ok)} candidates were sized for loads, drives and battery, and screened for clearance, sensing,
-  turning, carpet and a behavior envelope. A scorecard built from those results proposes three bodies for
+  turning, carpet and a behavior envelope. Overnight the leading bodies were refined one lever at a time, your
+  size, materials and power questions were simulated, and a corrected scorecard proposes three bodies for
   verification. Nothing here is a final design, and no controller has been trained.</p>
   <div class="facts">
     <div class="fact"><b>{fact_mass} kg</b><span>base bodies at 60 / 75 cm (Tapered and Hybrid)</span></div>
     <div class="fact"><b>{fact_rt} min</b><span>walking runtime at 60 / 75 cm on the selected pack (target 15–20 min)</span></div>
     <div class="fact"><b>{fact_cost}</b><span>nominal prototype cost at 60 / 75 cm</span></div>
-    <div class="fact"><b>{n_pass} of {len(x.ok)}</b><span>candidates pass every round-two gate</span></div>
-    <div class="fact"><b>{len(picks)}</b><span>bodies proposed for verification: {", ".join(K.esc(p) for p in picks) or "none"}</span></div>
+    <div class="fact"><b>{n_pass} of {len(x.ok)}</b><span>round-two candidates pass every gate of scorecard version 2 (the animal-like walk is new)</span></div>
+    <div class="fact"><b>{len(picks)}</b><span>bodies proposed for verification: {", ".join(K.esc(p) for p in x.pick_keys()) or "none"}</span></div>
   </div>
   <nav class="toc" aria-label="Sections">
-    <a href="#choices">Your choices</a><a href="#bodies">The bodies</a><a href="#sizes">Sizes and drives</a>
-    <a href="#behaviors">Behaviors</a><a href="#variants">Variants</a><a href="#whatif">75 cm what-if</a><a href="#inside">Inside</a>
+    <a href="#overnight">Refined picks</a><a href="#choices">Your choices</a><a href="#bodies">The bodies</a>
+    <a href="#sizes">Sizes and drives</a><a href="#behaviors">Behaviors</a><a href="#variants">Variants</a>
+    <a href="#whatif">75 cm drives</a><a href="#refine">Refinement</a><a href="#sizestudy">Size study</a>
+    <a href="#materials">Materials and power</a><a href="#headtail">Head and tail</a><a href="#inside">Inside</a>
     <a href="#scorecard">Scorecard and picks</a><a href="#corrections">Corrections to round one</a>
     <a href="#questions">Questions for you</a><a href="#next">Next</a>
   </nav>
@@ -208,10 +211,10 @@ def choices(x: Ctx) -> str:
     ]
     return f"""
 <section id="choices">
-  <p class="kicker">1 · Your choices</p><h2>What you chose, and what round two did with it</h2>
+  <p class="kicker">Your choices</p><h2>What you chose, and what round two did with it</h2>
   {K.table(["Question", "Your answer", "Round two"], rows)}
   <p class="note">Two things changed under every number on this page. The reference walks now converge: round one's
-  walk generator left {ztxt} of error in its zero-moment point, which overstated some loads. Section 9 gives the
+  walk generator left {ztxt} of error in its zero-moment point, which overstated some loads. <a href="#corrections">Corrections to round one</a> gives the
   effect on round one. Second, the compute budget is the Pi 5's, not the Jetson's.</p>
 </section>"""
 
@@ -234,7 +237,7 @@ def bodies(x: Ctx) -> str:
                 "The same at 75 cm.")
     return f"""
 <section id="bodies">
-  <p class="kicker">2 · The bodies</p><h2>Tapered and Hybrid at 60 and 75 cm</h2>
+  <p class="kicker">The bodies</p><h2>Tapered and Hybrid at 60 and 75 cm</h2>
   <div class="prose">
     <p>Round two's shapes come from an independent visual critique of the round-one renders. Each change was
     prototyped and screened before it went in:</p>
@@ -289,7 +292,7 @@ def sizes(x: Ctx) -> str:
     chart = K.cost_chart(crows) if crows else ""
     return f"""
 <section id="sizes">
-  <p class="kicker">3 · Sizes and drives</p><h2>Mass, drives, runtime and cost</h2>
+  <p class="kicker">Sizes and drives</p><h2>Mass, drives, runtime and cost</h2>
   <div class="prose">
     <p>Every candidate was sized by the same loop as round one: loads from the single-support holds and the two
     reference walks, then the lightest-cheapest catalog drive meeting each joint group's continuous, peak and speed
@@ -354,11 +357,12 @@ def behaviors(x: Ctx) -> str:
                    "Person in view", "Hottest drive, session"], rows, num={4, 5, 7})
     return f"""
 <section id="behaviors">
-  <p class="kicker">4 · Behaviors</p><h2>Can these bodies do what you want?</h2>
+  <p class="kicker">Behaviors</p><h2>Can these bodies do what you want?</h2>
   <div class="prose">
-    <p>These are necessary-condition checks on each compiled model, with prescribed motions and simple balance
-    models. Failing one shows that no controller can produce the behavior with that body and those drives.
-    Passing one does not show that a controller can: that is the verification step.</p>
+    <p>These checks run on each compiled model with prescribed motions and simple balance models, against the
+    selected drives with the sizing margins. Failing the animal-like walk or the heat check shows that the prescribed
+    motion exceeds those drives at those margins; failing the stop or push bound shows what a controller must add
+    (a step, or both feet down). Passing one does not show that a controller can: that is the verification step.</p>
     <ul>
       <li><b>Animal-like walking</b>: a prescribed walk at Froude 0.05 (the animal's preferred walking speed class,
       stride 0.80 H), solved like the sizing walks and held against the selected drives with the sizing margins.</li>
@@ -366,7 +370,7 @@ def behaviors(x: Ctx) -> str:
       turn (stretch), with friction and yaw moments at each foot and the self-collision screen on every frame.</li>
       <li><b>Carpet</b>: low, medium and high pile from sourced compression data. The swing foot's lowest point
       (toes and claws included) must clear the pile top in mid-swing with the stance sole sunk to its 98 kPa depth,
-      and the friction needed must stay below the carpet band's lower edge (0.54).</li>
+      and the friction needed, as a force ratio, must stay below the carpet band's lower edge (0.54).</li>
       <li><b>Robustness</b>: the largest deceleration one foot can hold with the ankle alone, and the largest push
       recoverable in one step under ideal balance control (an upper bound for comparing bodies).</li>
       <li><b>Endurance</b>: runtime, and each drive's RMS torque over a following session against its sustained
@@ -379,16 +383,20 @@ def behaviors(x: Ctx) -> str:
     <ul>
       <li><b>Turning works at both sizes.</b> The swing foot must yaw through a stride's whole turn within its swing
       time, so turning in place needs {spd} rad/s of thigh twist with the margin, against {lim} rad/s from the drives.
-      At 60 cm a walking turn needs friction up to {mu60} in single support, above the carpet band's lower edge
-      (0.54), so a controller may need to slow turns on slippery carpet.</li>
-      <li><b>Carpet: the bodies fit, the gait does not yet.</b> Friction and toe clearance pass everywhere, but the
-      carpet swing target needs a swing lift of about {lift} H, against the reference walks' 0.10–0.11 H: a controller
-      change, not a body change. Standing on medium or high pile needs active ankle balance.</li>
+      </li>
+      <li><b>Grip is the 60 cm weak spot.</b> With the stance foot's yaw moment counted, the walking turn needs
+      friction up to {mu60} at 60 cm, above the carpet band's lower edge (0.54), and the brisk straight walk already
+      needs 0.73–0.88. The yaw moment on a small pad, more than the turn, sets this; pad compounds are in
+      <a href="#materials">Materials and power</a>.</li>
+      <li><b>Carpet: the bodies fit; the swing and the 60 cm knee needed work.</b> Toe clearance passes everywhere,
+      and so does friction as a force ratio, but the carpet swing target needs a lift of about {lift} H against the
+      reference walks' 0.10–0.11 H. At 60 cm the knee ran out of range first; <a href="#refine">Refinement</a> gives the
+      fix. Standing on medium or high pile needs active ankle balance.</li>
       <li><b>The 75 cm hip-pitch drive caps the walking speed.</b> Both sizes meet the spec's walking speeds; at the
-      animal's preferred Froude 0.05 every 75 cm body runs its RobStride 03 past its speed on 24 V (section 6 has the
+      animal's preferred Froude 0.05 every 75 cm body runs its RobStride 03 past its planning speed on 24 V (<a href="#whatif">75 cm drives</a> has the
       fix).</li>
-      <li><b>Hard stops need a step or both feet.</b> One foot holds {stop} m/s² with the ankle alone, against the
-      spec's 1.5 m/s².</li>
+      <li><b>Hard stops need a step or both feet.</b> One foot holds {stop} m/s² with the ankle alone, below the
+      spec's 1.5 m/s² limit, so a stop at that limit needs double support or a step.</li>
     </ul>
   </div>
   <p class="note">Every check here uses prescribed trajectories or simple balance models (no controller, no slips,
@@ -423,9 +431,9 @@ def variants(x: Ctx) -> str:
                    "Crown", "Score vs base", "All gates"], rows, num={2, 3, 4, 5, 6, 7, 8})
     return f"""
 <section id="variants">
-  <p class="kicker">5 · Variants</p><h2>What each single change buys and costs</h2>
+  <p class="kicker">Variants</p><h2>What each single change buys and costs</h2>
   <div class="prose"><p>Each variant changes one thing against its base body, so its row reads as the effect of that
-  change alone. The score column is the scorecard total (section 8) against the base's.</p></div>
+  change alone. The score column is the scorecard total (<a href="#scorecard">Scorecard</a>) against the base's.</p></div>
   {tbl}
 </section>"""
 
@@ -434,32 +442,39 @@ def whatif(x: Ctx) -> str:
     if not x.W:
         return ""
     rows = []
-    for cid, w in sorted(x.W.items()):
+    for cid in ("75-M-T-10", "75-M-H-10"):
         b = x.D.get(cid)
-        if not b or not w.get("ok"):
+        if not b:
             continue
-        ch = [f"{GROUP_LABEL[g]}: {K.esc(part(b['margins'][g]['actuator']))} → {K.esc(part(w['margins'][g]['actuator']))}"
-              for g in GROUPS if b["margins"][g]["actuator"] != w["margins"][g]["actuator"]]
-        fb = ((x.R.get(cid) or {}).get("envelope") or {}).get("fast_walk_worst") or [None, None]
-        fw = ((x.WR.get(cid) or {}).get("envelope") or {}).get("fast_walk_worst") or [None, None]
-        rows.append([mono(cid), "<br>".join(ch) or "none",
-                     f"{kg(b['metrics']['mass'])} → {kg(w['metrics']['mass'])}",
-                     f"{b['runtime']['minutes']:.1f} → {w['runtime']['minutes']:.1f} min",
-                     f"{usd(b['cost']['nominal'])} → {usd(w['cost']['nominal'])}",
-                     (f"{K.esc(GROUP_LABEL.get(fb[0], fb[0]))} {fb[1]:.2f} → {K.esc(GROUP_LABEL.get(fw[0], fw[0]))} {fw[1]:.2f}"
-                      if fb[0] and fw[0] else "–"),
-                     _ok(((x.WR.get(cid) or {}).get("clearance") or {}).get("pass", {}).get("all"))])
-    tbl = K.table(["Body", "Drives that change", "Mass", "Runtime", "Cost nominal", "Froude 0.05 walk, governing drive",
-                   "Clearance"], rows)
+        for label, w, rv in (("what-if (Froude 0.05 sizing)", x.W.get(cid), x.WR.get(cid) or {}),
+                             ("targeted upgrade (+15 % on neck and hip roll)", x.record(f"{cid} [refine/targeted_75]"),
+                              (x.rows.get(f"{cid} [refine/targeted_75]") or {}))):
+            if not w or not w.get("ok"):
+                continue
+            ch = [f"{GROUP_LABEL[g]}: {K.esc(part(b['margins'][g]['actuator']))} → {K.esc(part(w['margins'][g]['actuator']))}"
+                  for g in GROUPS if b["margins"][g]["actuator"] != w["margins"][g]["actuator"]]
+            g, r, kind = _worst(w)
+            sc = x.rows.get(f"{cid} [whatif_fr05]" if label.startswith("what") else f"{cid} [refine/targeted_75]") or {}
+            rows.append([mono(cid), K.esc(label), "<br>".join(ch) or "none",
+                         f"{kg(b['metrics']['mass'])} → {kg(w['metrics']['mass'])}",
+                         f"{b['runtime']['minutes']:.1f} → {w['runtime']['minutes']:.1f} min",
+                         f"{usd(b['cost']['nominal'])} → {usd(w['cost']['nominal'])}",
+                         f"{K.esc(GROUP_LABEL.get(g, g))} {kind} {r:.2f}",
+                         "–" if sc.get("total") is None else f"{sc['total']:.2f}"])
+    tbl = K.table(["Body", "Sizing", "Drives that change", "Mass", "Runtime", "Cost nominal", "Governing drive",
+                   "Score (v2)"], rows, num={7})
     plate = x.img("75-M-T-10_cutaway.png", "Cutaway of 75-M-T-10 sized for the Froude 0.05 walk",
                   "75-M-T-10 sized for the animal-like walk",
                   "The what-if body with its MyActuator X6-60 hip pitch and X4-36-L thigh twist.", src_dir=x.wplates)
     return f"""
 <section id="whatif">
-  <p class="kicker">6 · What-if</p><h2>75 cm, sized for the animal-like walk</h2>
+  <p class="kicker">75 cm drives</p><h2>75 cm, sized for the animal-like walk</h2>
   <div class="prose"><p>Every 75 cm body meets the spec's walking speeds but not the animal's preferred Froude 0.05: its
-  RobStride 03 hip pitch runs out of speed on the 24 V bus. Re-sizing the two 75 cm bases with that walk as a sizing
-  case keeps them on 24 V and the same pack, and fixes it. Both still pass every other gate.</p></div>
+  RobStride 03 hip pitch runs past its planning speed on the 24 V bus. Re-sizing the two 75 cm bases with that walk
+  as a sizing case (the what-if) fixes it, but the neck servo, the knee and the hip roll stay within a few per cent of
+  their limits. The targeted upgrade, which every cross-check judge asked for, adds 15 % headroom on the neck servo
+  and the hip roll: four drives change, the body gets lighter, and the 75 cm scorecard rises level with the 60 cm
+  bodies.</p></div>
   {tbl}
   {plate}
 </section>"""
@@ -501,7 +516,7 @@ def inside(x: Ctx) -> str:
                     "Nearest floor seen ahead of the toes"], crow, num={1, 2, 3, 4})
     return f"""
 <section id="inside">
-  <p class="kicker">7 · Inside</p><h2>Packaging, camera and what the search changed</h2>
+  <p class="kicker">Inside</p><h2>Packaging, camera and what the search changed</h2>
   {cut}
   {r1r2}
   <div class="prose">
@@ -527,57 +542,92 @@ def _bar(v):
             f'</span></span></span>')
 
 
+def _md(text: str) -> str:
+    """Minimal Markdown to HTML for the cross-check summary: paragraphs, `code` and **bold**."""
+    import re
+
+    out = []
+    for para in [q.strip() for q in text.split("\n\n") if q.strip()]:
+        h = K.esc(para)
+        h = re.sub(r"`([^`]+)`", r"<code>\1</code>", h)
+        h = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", h)
+        out.append(f"<p>{h}</p>")
+    return "".join(out)
+
+
+def _crosscheck(x: Ctx) -> str:
+    c = (x.XC or {}).get("compare")
+    if not c:
+        return ""
+    rows = [["Scorecard, version 1", ", ".join(mono(i) for i in c.get("scorecard_picks", []))]]
+    rows += [[f"Judge: {K.esc(k)}", ", ".join(mono(i) for i in v)] for k, v in (c.get("judge_picks") or {}).items()]
+    rows.append(["<b>Comparator's recommendation</b>", ", ".join(mono(i) for i in c.get("recommended_picks", []))])
+    errs = "".join(f"<li>{K.esc(e.split('. ')[0].rstrip('.'))}.</li>" for e in c.get("errors_found", [])[:6])
+    return f"""<h3>Independent cross-check</h3>
+  <div class="prose"><p>Three judges, each with one lens (behavior risk, hardware, your stated priorities), chose three
+  bodies blind to the scorecard; an adversarial comparator checked every disagreement against the records. Full
+  record: <code>round2/CROSSCHECK.md</code>.</p></div>
+  {K.table(["Who", "Picks"], rows)}
+  <div class="prose">{_md(c.get("summary_md", ""))}
+  <p>Errors it found (version 2 of the scorecard fixes the scorecard's own; the refined 75 cm body adds the stronger
+  neck servo the judges asked for):</p><ul>{errs}</ul></div>"""
+
+
 def scorecard(x: Ctx) -> str:
     if not x.SL:
         return ""
     sl = x.SL
     picks = sl.get("picks", [])
-    pick_ids = [p["id"] for p in picks]
+    pick_keys = [p.get("key", p["id"]) for p in picks]
     rows = []
-    for i, cid in enumerate(sl["ranking"], 1):
-        r = x.rows[cid]
-        name = mono(cid) + (" " + K.tag("pick", "ok") if cid in pick_ids else "")
+    for i, key in enumerate(sl["ranking"], 1):
+        r = x.rows[key]
+        name = mono(key) + (" " + K.tag("pick", "ok") if key in pick_keys else "")
         ws = r["stress"]["worst_stressed_ratio"]
         rows.append([str(i), name, K.esc(r["variant"]), f"<b>{r['total']:.2f}</b>"]
                     + [_bar(r["scores"].get(c)) for c in CATS] + ["–" if ws is None else f"{ws:.2f}"])
-    tbl = K.table(["Rank", "Candidate", "Variant", "Total"] + [CAT_LABEL[c] for c in CATS] + ["Worst drive ratio, stressed"],
+    tbl = K.table(["Rank", "Body", "Variant", "Total"] + [CAT_LABEL[c] for c in CATS] + ["Worst leg-drive ratio, stressed"],
                   rows, num={0, 3, len(CATS) + 4})
-    fails = "".join(f"<li>{mono(f['id'])}: {K.esc(', '.join(GATE_LABEL.get(k, k) for k in f['gates']))}</li>"
+    fails = "".join(f"<li>{mono(f.get('key', f.get('id')))}: {K.esc(', '.join(GATE_LABEL.get(k, k.replace('_', ' ')) for k in f['gates'] if k != 'all'))}</li>"
                     for f in sl.get("failing", []))
     cards = []
     for k, p in enumerate(picks):
-        r = x.rows.get(p["id"]) or {}
-        d = x.D.get(p["id"]) or {}
+        key = p.get("key", p["id"])
+        r = x.rows.get(key) or {}
+        d = x.record(key)
         sc = r.get("scores", {})
         top = sorted(((v, c) for c, v in sc.items() if v is not None), reverse=True)[:2]
         low = sorted(((v, c) for c, v in sc.items() if v is not None))[:2]
         cards.append(
-            f'<div class="card"><p class="kicker">Pick {k + 1}</p><h3>{K.esc(p["id"])}</h3>'
+            f'<div class="card"><p class="kicker">Pick {k + 1}</p><h3>{K.esc(key)}</h3>'
             f'<p>{K.esc(FAMILY.get(d.get("candidate", {}).get("family"), ""))}, {K.esc(r.get("variant", ""))}; '
             f'{kg(d["metrics"]["mass"]) if d.get("metrics") else ""}, {d.get("runtime", {}).get("minutes", 0):.0f} min, '
             f'{usd(d.get("cost", {}).get("nominal", 0))} nominal.</p>'
             f'<p>Total {r.get("total", 0):.2f}. Strongest: {", ".join(CAT_LABEL[c].lower() for _, c in top)}. '
             f'Weakest: {", ".join(CAT_LABEL[c].lower() for _, c in low)}.</p>'
             f'<p class="mono" style="font-size:13px">{K.esc(p["why"])}</p></div>')
-    xc = ""
-    if x.XC:
-        xc = f"""<h3>Independent cross-check</h3><div class="prose">{x.XC.get('html', '')}</div>"""
+    xc = _crosscheck(x)
     weights = ", ".join(f"{CAT_LABEL[c].lower()} {v:.2f}" for c, v in sl["weights"].items())
     return f"""
 <section id="scorecard">
-  <p class="kicker">8 · Scorecard and picks</p><h2>The three bodies most likely to reach the behaviors</h2>
+  <p class="kicker">Scorecard and picks</p><h2>The three bodies most likely to reach the behaviors</h2>
   <div class="prose">
-    <p>The picks come from recorded screen results only, in five steps:</p>
+    <p>Version {sl.get("version", 1)} of the scorecard, after the independent cross-check below. It ranks the 20
+    candidates together with the what-if and refined bodies, from recorded screen results only:</p>
     <ol>
       <li><b>Gates.</b> A body is out if it fails clearance, a drive limit in the sizing walks or the target turns,
-      person-in-view, 20 min runtime, the reference-walk CoP or the carpet gate.</li>
-      <li><b>Margins.</b> Each behavior scores 0–1 by how far its governing quantity sits from its limit.</li>
+      the animal-like Froude 0.05 walk within its drives (new in version 2), person-in-view, 20 min runtime, the
+      reference-walk CoP or the carpet gate.</li>
+      <li><b>Margins.</b> Each behavior scores 0–1 by how far its governing quantity sits from its limit. Each drive
+      counts once: the leg drives set walking, turning and endurance; the neck and tail servos set head and tail.</li>
       <li><b>Weights</b> from your priorities: {K.esc(weights)}.</li>
-      <li><b>Stress test.</b> Drive ratios are re-checked with the drives 15 % weaker and the robot 10 % heavier.</li>
-      <li><b>Diversity.</b> The best passing body at each height, then the best remaining body of the other family,
-      so verification compares real alternatives rather than near-twins.</li>
+      <li><b>Stress test</b>, now part of the robustness score: torque ratios with the robot 10 % heavier and the
+      drives 15 % weaker, speed ratios with the drives 15 % slower.</li>
+      <li><b>Shortlist.</b> The best passing body at each height, then the other family's counterpart of the best
+      overall, so verification compares size on one family and family at one size.</li>
     </ol>
-    <p>Looks are yours to judge and are not scored.</p>
+    <p>Looks are yours to judge and are not scored. Totals within about 0.02 of each other are ties at this
+    resolution.</p>
   </div>
   <div class="cards">{"".join(cards)}</div>
   {tbl}
@@ -600,7 +650,7 @@ def corrections(x: Ctx) -> str:
         return a if a == b else f"{a}–{b}"
 
     ch = rc.get("reselection_changed_ids") or {}
-    kinds = (("an ankle drive", ("ankle_a", "ankle_b")), ("the tail servo", ("tail",)), ("the knee", ("knee",)),
+    kinds = (("an ankle drive", ("ankle_a", "ankle_b")), ("the tail drive", ("tail",)), ("the knee", ("knee",)),
              ("the hip pitch", ("hip_pitch",)), ("the hip roll", ("hip_roll",)), ("the thigh twist", ("hip_yaw",)),
              ("the neck servo", ("neck",)))
     parts = [f"{lab} on {n}" for lab, gs in kinds if (n := sum(1 for v in ch.values() if any(g in v for g in gs)))]
@@ -618,7 +668,7 @@ def corrections(x: Ctx) -> str:
     lim_rng = _rng([t.get("hip_yaw_speed_limit") for t in tus], lambda v: f"{v:.1f}")
     return f"""
 <section id="corrections">
-  <p class="kicker">9 · Corrections to round one</p><h2>What round one got wrong, and what it changes</h2>
+  <p class="kicker">Corrections to round one</p><h2>What round one got wrong, and what it changes</h2>
   <div class="prose">
     <p><b>The reference walk did not converge.</b> Round one's walk generator stopped correcting the centre of mass at
     0.2 mm and estimated the stride boundary's derivatives, so its zero-moment-point correction never settled:
@@ -648,33 +698,54 @@ def corrections(x: Ctx) -> str:
 
 
 def questions(x: Ctx) -> str:
-    picks = x.picks()
-    w = {c: x.W[c] for c in x.W if x.W[c].get("ok") and x.D.get(c, {}).get("ok")}
-    if w:
-        mean = lambda vals: sum(vals) / len(vals)  # noqa: E731
-        dm = mean([x.W[c]["metrics"]["mass"] - x.D[c]["metrics"]["mass"] for c in w])
-        dc = mean([(x.W[c]["cost"]["nominal"] - x.D[c]["cost"]["nominal"]) / 1000 for c in w])
-        dr = mean([x.W[c]["runtime"]["minutes"] - x.D[c]["runtime"]["minutes"] for c in w])
-        sg = lambda v: "+" if v >= 0 else "−"  # noqa: E731
-        fr05 = (f"Size it for the Froude 0.05 walk (section 6: {sg(dc)}${abs(dc):.1f}k nominal, {sg(dm)}{abs(dm):.1f} kg "
-                f"and {sg(dr)}{abs(dr):.1f} min of runtime).")
-    else:
-        fr05 = "Size it for the Froude 0.05 walk."
+    keys = x.pick_keys()
+    sg = lambda v: "+" if v >= 0 else "−"  # noqa: E731
+
+    def delta(key, base):
+        d, b = x.record(key), x.D.get(base, {})
+        if not d or not b:
+            return ""
+        dm, dc = d["metrics"]["mass"] - b["metrics"]["mass"], (d["cost"]["nominal"] - b["cost"]["nominal"]) / 1000
+        dr = d["runtime"]["minutes"] - b["runtime"]["minutes"]
+        return f" ({sg(dc)}${abs(dc):.1f}k nominal, {sg(dm)}{abs(dm):.2f} kg, {sg(dr)}{abs(dr):.1f} min against round two)"
+
+    tgt = delta("75-M-T-10 [refine/targeted_75]", "75-M-T-10")
+    kn = x.record("75-M-T-10 [refine/knee_75]")
+    tg = x.record("75-M-T-10 [refine/targeted_75]")
+    knee = ""
+    if kn and tg:
+        knee = (f" The knee's speed falls from {tg['margins']['knee']['speed_ratio']:.2f} to {kn['margins']['knee']['speed_ratio']:.2f} "
+                f"of its limit, for {kn['metrics']['mass'] - tg['metrics']['mass']:+.2f} kg and "
+                f"{kn['runtime']['minutes'] - tg['runtime']['minutes']:+.1f} min.").replace("-", "−")
+    nc = x.rf_row("no_calf", "60-M-T-10")
+    calf = ""
+    if nc and nc.get("ok"):
+        b = x.D.get("60-M-T-10", {})
+        calf = f" (60 cm: {nc['mass_kg'] - b['metrics']['mass']:+.2f} kg)".replace("-", "−") if b else ""
     q = [
         ("Which bodies go to verification?",
-         [f"The scorecard's three: {', '.join(picks)}." if picks else "The scorecard's picks.",
-          "Swap one (name it), for example on looks.",
+         [f"The scorecard's three: {', '.join(keys)}." if keys else "The scorecard's picks.",
+          "Swap one (name it), for example on looks or to compare the narrow stance.",
           "A different set: say what matters most."]),
         ("Do the priority weights match yours?",
          ["Yes: natural walking and turning first, then robustness, following, carpet, endurance, head and tail, "
           "packaging and cost.",
           "Reorder them: say which behaviors matter more or less."]),
-        ("If a 75 cm body goes forward, how should it be sized?",
-         [fr05, "Also give it a stronger neck servo, for headroom (a little more cost and mass).",
-          "Keep the brisk-walk sizing (the spec's speeds, not the animal's)."]),
+        ("If a 75 cm body goes forward, which drives?",
+         [f"The targeted upgrade: Froude 0.05 sizing plus 15 % headroom on the neck servo and hip roll{tgt}.",
+          "The targeted upgrade plus a faster RobStride 06 knee, for knee-speed headroom." + knee,
+          "Keep the round-two sizing (the spec's speeds, not the animal's)."]),
         ("Calf fairings: keep or drop?",
-         ["Keep: the lower leg reads as an animal's, with tighter knee packaging.",
-          "Drop: exposed ankle drives and push rods (lighter, easier to service, more robotic)."]),
+         ["Keep: the lower leg reads as an animal's; at 60 cm the ankle drives move down to 0.60 of the shank so the "
+          "knee can bend enough for the carpet swing.",
+          "Drop: exposed ankle drives and push rods, lighter, easier to service, more robotic" + calf + "."]),
+        ("Coverings material?",
+         ["MJF PA11 with graded walls about a quarter thinner (recommended: tougher, lighter, about today's cost).",
+          "Keep MJF PA12 at today's walls.",
+          "Carbon skins on the head, neck and tail as well (lighter neck payload; moulds, weeks and $1.4–4.1k, estimate)."]),
+        ("Power: battery, tether or both?",
+         ["Battery plus an external DC input (recommended; as your power requirement already asks).",
+          "Tether-only (not recommended: the pack is also the tail-base counterweight)."]),
         ("Head camera position",
          ["Keep it in the skull roof: a person stays in view; the near floor relies on the two ToF sensors.",
           "Add a low forward camera for the near floor (more cost, power and wiring).",
@@ -687,7 +758,7 @@ def questions(x: Ctx) -> str:
                     + "".join(f"<li>{K.esc(o)}</li>" for o in opts) + "</ol></div>" for i, (t, opts) in enumerate(q))
     return f"""
 <section id="questions">
-  <p class="kicker">10 · Questions for you</p><h2>Six decisions before verification</h2>
+  <p class="kicker">Questions for you</p><h2>Eight decisions before verification</h2>
   <div class="prose"><p>A letter per question is enough. Nothing is frozen until you answer, and no controller
   training starts without your go-ahead.</p></div>
   {items}
@@ -697,14 +768,18 @@ def questions(x: Ctx) -> str:
 def nextsteps(x: Ctx) -> str:
     return """
 <section id="next">
-  <p class="kicker">11 · Next</p><h2>From screens to evidence</h2>
+  <p class="kicker">Next</p><h2>From screens to evidence</h2>
   <div class="prose">
     <ul>
       <li><b>Stage 1: closed-loop probe</b> (needs your go-ahead). A bounded controller study on the picked bodies,
       with the same budget each: walking at the target speeds, turning, start and stop, and a push test on hard floor
       and on the carpet floors from this round.</li>
+      <li><b>Bench tests that need no robot.</b> Friction and twist tests of the chosen foot-pad compound at the
+      robot's pad pressure on your floors (about a day and $100, estimate), and the Pi 5 set's draw at the converter
+      input with the detector, camera and logging running.</li>
       <li><b>Stage 2: single-leg bench.</b> One leg of the leading body on a bench: drive temperatures over a walking
-      duty cycle, the knee and ankle clearances, and the measured compute draw (bench test 1).</li>
+      duty cycle, the knee and ankle clearances with the ankle drives at their new station, and the knee's speed in
+      the animal-like walk, the limit that now governs both refined bodies.</li>
       <li><b>Verification training.</b> Equal-budget training on the finalists against <code>BEHAVIOR_SPEC.md</code>,
       then one design is chosen.</li>
       <li><b>Not yet shown by anything here:</b> walking under a controller, measured runtime, strength, thermal
@@ -718,7 +793,8 @@ def footer(x: Ctx) -> str:
     return """
 <footer>
   <p>Generated from <code>hardware/trex_form_study</code> on branch <code>claude/mesozoic-trex-design-iteration-azm2fs</code>:
-  <code>python -m designlab.round2</code>, <code>designlab.report2</code>, <code>designlab.shortlist</code>,
+  <code>python -m designlab.round2</code>, <code>designlab.report2</code>, <code>designlab.whatif</code>,
+  <code>designlab.sizestudy</code>, <code>designlab.refine</code>, <code>designlab.shortlist</code>,
   <code>designlab.recheck_r1</code> and <code>designlab.review2_page</code>. Every plate is a render of a generated
   MuJoCo model. No reference figure or photograph is reproduced.</p>
 </footer>"""
@@ -769,7 +845,7 @@ def _lift_rows(name: str) -> list:
     for r in x_lift(name):
         for L, v in r["lifts"].items():
             tj = v.get("tightest_joint") or [None, None]
-            out.append([mono(r["id"]), f"{float(L):.3f} H".replace(".170", ".175") if False else f"{L} H",
+            out.append([mono(r["id"]), f"{L} H",
                         f"{r['carpet_target_mm']:.1f} mm", f"{v['min_above_pile_top_mm']:.1f} mm",
                         _ok(v["meets_target_all_piles"], "met", "not met"),
                         f"{_ok(v['drives_within_limits'], 'within', 'over')} {K.esc(GROUP_LABEL.get(v['worst_group'], v['worst_group']))} {v['worst_ratio']:.2f}",

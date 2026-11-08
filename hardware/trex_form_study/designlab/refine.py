@@ -100,10 +100,10 @@ CASES = {
     # knee headroom: on the carpet-ready bodies the governing limit is the knee's speed (0.95 at both sizes), a
     # kinematic requirement that a lighter body does not change (same-drive pass); 15 % headroom on the knee
     # lets the sizing pick a faster knee drive instead of the lightest one that passes
-    "knee_60": dict(ids=("60-M-T-10",), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
+    "knee_60": dict(ids=("60-M-T-10", "60-M-H-10"), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
                     walks=("fr05", "lift19"), min_gap=0.0, headroom_by_group={"knee": 0.85},
                     label="60 cm carpet-ready + 15 % knee headroom"),
-    "knee_75": dict(ids=("75-M-T-10",), overrides=(), headroom=1.0, fr05=True, walks=("fr05", "lift18"), min_gap=0.0,
+    "knee_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, walks=("fr05", "lift18"), min_gap=0.0,
                     headroom_by_group={"neck": 0.85, "hip_roll": 0.85, "knee": 0.85},
                     label="75 cm carpet-ready + 15 % knee headroom"),
 }
@@ -211,7 +211,7 @@ def carpet_lift_one(a) -> dict:
                 toe[name] = dict(above_pile_top_mm={p: v["mid_swing_min_above_pile_top_mm"] for p, v in tc["piles"].items()},
                                  meets_carpet_target={p: v["meets_carpet_target"] for p, v in tc["piles"].items()},
                                  hard_mid_swing_mm=tc["hard_floor"]["mid_swing_min_mm"])
-            out["lifts"][f"{lift:.2f}"] = dict(
+            out["lifts"][f"{lift:g}"] = dict(
                 drives_within_limits=all(v <= 1.0 + 1e-9 for v in ratios.values()), worst_group=worst[0],
                 worst_ratio=worst[1], ratios=ratios, ik_ok=all(req["gaits"][k]["ik_ok"] for k in req["gaits"]),
                 clearance_pass=cl["pass"], walking_gates=all(cl["pass"].get(k) is True for k in round2.WALK_GATES),

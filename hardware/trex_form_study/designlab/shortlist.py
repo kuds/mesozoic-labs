@@ -344,11 +344,12 @@ def build(r2: Path, extra: list[Path] | None = None) -> dict:
         other = next((r for r in passing if r["key"] not in {p["key"] for p in picks} and r["height"] == anchor["height"]
                       and r["source"] == anchor["source"] and r["family"] != anchor["family"]
                       and variant_key(r["id"]) == variant_key(anchor["id"])), None)
+        why = f"the other family's counterpart of {anchor['key']} (same height and variant)"
         if other is None:
             other = next((r for r in passing if r["key"] not in {p["key"] for p in picks} and r["family"] != anchor["family"]), None)
+            why = f"the best remaining passing body of the other family (no counterpart of {anchor['key']} was run)"
         if other:
-            picks.append(dict(key=other["key"], id=other["id"],
-                              why=f"the other family's counterpart of {anchor['key']} (same height and variant)"))
+            picks.append(dict(key=other["key"], id=other["id"], why=why))
     return dict(version=VERSION, weights=WEIGHTS, stress_factor=STRESS, stress_speed_factor=STRESS_SPEED, rows=rows,
                 ranking=[r["key"] for r in passing],
                 failing=[dict(key=r["key"], gates={k: v for k, v in r["gates"].items() if v is False}) for r in rows
