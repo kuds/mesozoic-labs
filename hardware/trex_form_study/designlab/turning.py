@@ -47,10 +47,12 @@ Method (computed from the prescribed trajectory)
   a turn that needs more thigh twist than the joint allows shows up as an IK failure.  IK success is
   judged on the final pose of each frame (foot pose error <= 1e-4).
 * Convergence.  The pelvis is shifted until the model's CoM is within ``COM_TOL`` = 1e-6 m of the pendulum
-  path (``gait.generate`` stops at 2e-4 m), and the stride boundary is differenced with the exact unwrap
-  below (``gait.derivatives`` approximates the next stride's root x).  The multibody-ZMP correction converges
-  to about a millimetre only with both: with either one alone 9-71 mm of ZMP error remain on the round-one
-  bodies (output ``validation.omega0_vs_gait_generate``).
+  path (``gait.generate`` at round one's accuracy stops at 2e-4 m), and the stride boundary is differenced
+  with the exact unwrap below (``gait.derivatives`` at round one's accuracy approximates the next stride's root
+  x).  The multibody-ZMP correction converges to about a millimetre only with both: with either one alone
+  9-71 mm of ZMP error remain on the round-one bodies (output ``validation.omega0_vs_gait_generate``).  Round
+  two runs ``gait.generate`` with both (``gait.set_accuracy("r2")``), so the screen's straight walk and the
+  sizing's walk agree there.
 * Periodicity: exact unwrapping, not extra strides.  One stride is generated.  The pose after the
   last frame is D applied to the first: root position rotated about the turning centre, root
   quaternion pre-multiplied by the yaw omega T, root linear velocity (world frame) rotated, body-frame
@@ -1229,24 +1231,29 @@ def screen_model(M: statics.Model, q_home: np.ndarray, design, spec: gait.GaitSp
     ref = nominal["summary"]
     if validate:
         t1 = time.perf_counter()
-        # (1) gait.generate's settings and rules throughout: CoM 2e-4 m and 4 passes, its phase rule, its stride-
-        # boundary unwrap and statics' double-support split; this must reproduce gait.generate + inverse_dynamics
+        # (1) gait.generate's settings and rules throughout (its CoM tolerance, passes and stride-boundary unwrap
+        # as set by gait.set_accuracy, its phase rule and statics' double-support split); this must reproduce
+        # gait.generate + inverse_dynamics
+        gen_rules = dict(com_tol=gait.COM_TOL, com_iters=gait.COM_ITERS, phase_tol=0.0,
+                         unwrap="exact" if gait.EXACT_UNWRAP else "gait")
+        trr, _, srr = run(spec, split="statics", ds=False, **gen_rules)
+        # (2) round one's CoM settings (2e-4 m, 4 passes) with the exact stride-boundary unwrap (the screen's)
         rules = dict(com_tol=2e-4, com_iters=4, phase_tol=0.0)
-        trr, _, srr = run(spec, split="statics", ds=False, unwrap="gait", **rules)
-        # (2) the same with the exact stride-boundary unwrap (the screen's)
         trs_, _, sss = run(spec, split="statics", ds=False, **rules)
         # (3) the screen's CoM tolerance with gait.generate's approximate unwrap: does the ZMP loop converge?
         tru, _, ssu = run(spec, split="statics", ds=False, unwrap="gait", phase_tol=0.0)
         validation["omega0_vs_gait_generate"] = dict(
+            gait_accuracy=gait.ACCURACY,
             reproduction=summary_difference(names, srr, ref) | dict(
                 max_abs_qpos_diff=float(np.max(np.abs(trr["q"] - nominal["traj"]["q"]))),
                 zmp_error_final_m=[srr["gait"]["zmp_error_history_m"][-1], ref["gait"]["zmp_error_history_m"][-1]],
-                note="gait.generate's settings, phase rule, unwrap and split: must equal gait.generate"),
+                note="gait.generate's settings (gait_accuracy), phase rule, unwrap and split: must equal "
+                     "gait.generate"),
             same_settings_exact_unwrap=summary_difference(names, sss, ref) | dict(
                 max_abs_qpos_diff=float(np.max(np.abs(trs_["q"] - nominal["traj"]["q"]))),
                 zmp_error_final_m=sss["gait"]["zmp_error_history_m"][-1],
                 min_cop_margin_single_m=sss["min_cop_margin_single"],
-                note="as the reproduction, with the exact stride-boundary unwrap only"),
+                note="round one's CoM settings (2e-4 m, 4 passes) with the exact stride-boundary unwrap only"),
             tight_tolerance_gait_unwrap=dict(
                 zmp_error_final_m=ssu["gait"]["zmp_error_history_m"][-1],
                 zmp_error_exact_derivatives_m=tru["info"]["zmp_error_exact_final_m"],
@@ -1561,6 +1568,10 @@ def screen_candidate(cid: str, out: Path, stage_a: Path = Path("round1/stage_a")
     """Rebuild a sized candidate (Stage A, or a round-two record when ``round2`` names the round-two directory),
     screen it and write ``<out>/<id>_turning.json`` and ``.png``; models go to ``<out>/mjcf``."""
     out = Path(out)
+    if round2 is not None:  # a round-two record: the runner's walk accuracy (round2.GAIT_ACCURACY)
+        from . import round2 as r2
+
+        gait.set_accuracy(r2.GAIT_ACCURACY)
     rec, res, xml, record = _build(cid, out, stage_a, round2)
     return screen_built(cid, res["model"], res["q_home"], res["design"], xml, rec, out, record, spec)
 

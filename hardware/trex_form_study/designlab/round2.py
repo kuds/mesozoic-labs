@@ -6,7 +6,8 @@ posture the owner asked to keep researching, P15): 20 in all.  The level variant
 base (sizes are matched at 10 deg), so its crown is lower.  Every
 candidate uses generator revision 2 (``Candidate.overrides`` ``("rev", 2)``; the changes are F8-F10 in
 DECISION_LOG.md) and the Raspberry Pi 5 + AI HAT+ compute, and is sized by the same loop as Stage A
-(loads -> drives and battery -> rebuild until stable).
+(loads -> drives and battery -> rebuild until stable).  The reference walks run at round two's accuracy
+(``GAIT_ACCURACY``: exact stride-boundary unwrap, 1e-6 m centre-of-mass tolerance; DECISION_LOG F14).
 
 Run from hardware/trex_form_study:
   python -m designlab.round2 --out round2 --workers 3        # size, screen and plate everything
@@ -14,7 +15,7 @@ Run from hardware/trex_form_study:
 Outputs (under --out):
   candidates/<id>.json          sized record (same fields as a Stage A record, plus ``rev``)
   review/mjcf/<id>.json         ledger of the rebuilt model (the XML regenerates; SHA-256 checked)
-  review/screening/<id>_*.json  clearance (round-two gates), sensors, turning and carpet screens
+  review/screening/<id>_*.json  clearance (round-two gates), sensors, turning, carpet and envelope screens
   review/plates/*.png           review plates
   review/review_index.json      one entry per candidate: SHA match and screen summaries
 """
@@ -41,6 +42,10 @@ VARIANT_LABEL = {("M", "base", 10): "base", ("N", "base", 10): "narrow stance", 
                  ("M", "compact", 10): "compact", ("M", "base", 0): "level (0°)"}
 COMPUTE = "rpi5_8gb_ai_hat_plus_13tops"
 REV = 2
+#: Reference-walk accuracy of every round-two worker (``gait.set_accuracy``; DECISION_LOG F14): the exact
+#: stride-boundary unwrap and a 1e-6 m centre-of-mass tolerance, so the sized loads, the turning screen's
+#: straight walks and the carpet screen's friction all use converged walks.
+GAIT_ACCURACY = "r2"
 
 
 #: Packaging search: when a sized body fails the walking clearance gates, the cause is read from the screen
@@ -103,9 +108,10 @@ def _json(x):
 def size_one(cid: str, out: str, xml_dir: str) -> dict:
     import designlab  # noqa: F401
 
-    from . import metrics, pipeline
+    from . import gait, metrics, pipeline
     from .stage_a import _mass_by_category, _mass_by_volume_class
 
+    gait.set_accuracy(GAIT_ACCURACY)
     t0 = time.time()
     cand = candidate(cid)
     search = []
@@ -140,7 +146,8 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
                    walk_feasible=ev["walk_feasible"], geometry_checks=d.geometry_checks, notes=d.notes,
                    overrides=[list(o) for o in cand.overrides if o[0] != "rev"], packaging_search=search,
                    mass_by_category=_mass_by_category(res["rows"]),
-                   mass_by_volume_class=_mass_by_volume_class(res["rows"]), seconds=time.time() - t0, ok=True)
+                   mass_by_volume_class=_mass_by_volume_class(res["rows"]), gait_accuracy=gait.ACCURACY,
+                   seconds=time.time() - t0, ok=True)
     except Exception as e:  # keep failed cases
         doc = dict(id=cid, rev=REV, ok=False, error=repr(e), traceback=traceback.format_exc(),
                    seconds=time.time() - t0)
@@ -197,6 +204,7 @@ def screen_one(cid: str, out: Path) -> dict:
     from . import gait, metrics, mjcf, sizing
     from .pipeline import build_candidate
 
+    gait.set_accuracy(GAIT_ACCURACY)
     rec = json.loads((out / "candidates" / f"{cid}.json").read_text())
     sel = dict(rec["selection"])
     cand = candidate(cid, rec.get("overrides", ()))
@@ -214,7 +222,7 @@ def screen_one(cid: str, out: Path) -> dict:
                                                                           ("brisk", sizing.BRISK))}
     scr = rv / "screening"
     scr.mkdir(parents=True, exist_ok=True)
-    result = dict(id=cid, xml_sha256=_sha(xml), sized_sha256=rec.get("xml_sha256"))
+    result = dict(id=cid, xml_sha256=_sha(xml), sized_sha256=rec.get("xml_sha256"), gait_accuracy=gait.ACCURACY)
     result["matches_sized"] = result["xml_sha256"] == result["sized_sha256"]
     for name, fn in (("clearance", _clearance), ("sensors", _sensors), ("turning", _turning), ("carpet", _carpet),
                      ("envelope", _envelope)):

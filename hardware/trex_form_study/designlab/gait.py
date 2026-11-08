@@ -23,6 +23,26 @@ from . import statics
 
 G = 9.81
 
+#: Accuracy of the reference walk (DECISION_LOG F14).  The defaults are round one's, so round one regenerates
+#: unchanged: the per-frame centre-of-mass correction stops at 2e-4 m or after 4 passes, and the stride boundary
+#: is differenced with an approximate unwrap of the root x.  Differenced twice, the 2e-4 m residual moves the
+#: multibody ZMP by centimetres, and the approximate unwrap distorts the velocities and accelerations of frames
+#: 0, 1, n-2 and n-1.  ``set_accuracy("r2")`` (the round-two runner's workers) sets 1e-6 m, 12 passes and the
+#: exact unwrap, with which the multibody-ZMP correction converges to about a millimetre (neither change is
+#: enough alone; see turning.py).
+ACCURACY = "r1"
+EXACT_UNWRAP = False
+COM_TOL = 2e-4
+COM_ITERS = 4
+_ACCURACY_LEVELS = {"r1": (False, 2e-4, 4), "r2": (True, 1e-6, 12)}
+
+
+def set_accuracy(level: str = "r1") -> None:
+    """Select the reference-walk accuracy for this process: "r1" (round one, the default) or "r2"."""
+    global ACCURACY, EXACT_UNWRAP, COM_TOL, COM_ITERS
+    EXACT_UNWRAP, COM_TOL, COM_ITERS = _ACCURACY_LEVELS[level]
+    ACCURACY = level
+
 
 @dataclass
 class GaitSpec:
@@ -139,11 +159,11 @@ def generate(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpec):
             q[m.jnt_qposadr[tail]] = spec.tail_amp * np.sin(w * tk + np.pi / 2)
             q[0], q[1] = cx[k] - off[0], cy[k] - off[1]
             ok = False
-            for _ in range(4):
+            for _ in range(COM_ITERS):
                 q, ok = statics.leg_ik(M, q, targets, iters=120)
                 c = M.com()
                 err = np.array([cx[k], cy[k]]) - c[:2]
-                if np.linalg.norm(err) < 2e-4:
+                if np.linalg.norm(err) < COM_TOL:
                     break
                 q[0] += err[0]
                 q[1] += err[1]
@@ -157,7 +177,7 @@ def generate(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpec):
     history = []
     for it in range(spec.zmp_iters + 1):
         qs, cx, cy, ok_all, fails = solve_frames(zref)
-        qd, qdd = derivatives(M, qs, dt)
+        qd, qdd = derivatives(M, qs, dt, stride=stride)
         zmb = np.array([statics.total_zmp(M, qs[k], qd[k], qdd[k]) for k in range(n)])
         e = zmb - zmp
         history.append(float(np.nanmax(np.linalg.norm(e, axis=1))))
@@ -166,13 +186,21 @@ def generate(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpec):
         zref = zref - spec.zmp_gain * np.nan_to_num(e)
     amp = float(0.5 * (cy.max() - cy.min()))
     return dict(t=t, q=qs, phases=phases, dt=dt, zmp_ref=zmp, com_ref=np.column_stack([cx, cy]), zmp_mb=zmb,
-                info=info | dict(sway_amp=amp, lift=lift, omega=float(omega), zmp_error_history_m=history),
+                info=info | dict(sway_amp=amp, lift=lift, omega=float(omega), zmp_error_history_m=history,
+                                 accuracy=ACCURACY),
                 ik_ok=ok_all, ik_fail_frames=fails)
 
 
-def derivatives(M: statics.Model, qs: np.ndarray, dt: float):
+def derivatives(M: statics.Model, qs: np.ndarray, dt: float, stride: float | None = None):
+    """Central-difference qvel and qacc of one periodic stride of ``generate``'s straight walk.
+
+    The trajectory advances one stride in root x per period.  With ``EXACT_UNWRAP`` and ``stride`` given, the
+    pose after the last frame is the first frame moved forward one stride and the pose before the first frame
+    is the last moved back one stride, which is exact for this walk.  Otherwise (round one) the next stride's
+    root x is extrapolated from the first frame-to-frame step."""
     m = M.m
     n = len(qs)
+    exact = EXACT_UNWRAP and stride is not None
     qd = np.zeros((n, m.nv))
     for k in range(n):
         a, b = qs[(k - 1) % n], qs[(k + 1) % n]
@@ -180,9 +208,15 @@ def derivatives(M: statics.Model, qs: np.ndarray, dt: float):
         b = b.copy()
         a = a.copy()
         if k == n - 1:
-            b[0] += qs[-1][0] - qs[0][0] + (qs[1][0] - qs[0][0])
+            if exact:
+                b[0] = qs[0][0] + stride
+            else:
+                b[0] += qs[-1][0] - qs[0][0] + (qs[1][0] - qs[0][0])
         if k == 0:
-            a[0] -= qs[-1][0] - qs[0][0] + (qs[1][0] - qs[0][0])
+            if exact:
+                a[0] = qs[-1][0] - stride
+            else:
+                a[0] -= qs[-1][0] - qs[0][0] + (qs[1][0] - qs[0][0])
         v = np.zeros(m.nv)
         mujoco.mj_differentiatePos(m, v, 2 * dt, a, b)
         qd[k] = v
@@ -194,7 +228,10 @@ def derivatives(M: statics.Model, qs: np.ndarray, dt: float):
 
 def inverse_dynamics(M: statics.Model, traj: dict):
     qs, dt, phases = traj["q"], traj["dt"], traj["phases"]
-    qd, qdd = derivatives(M, qs, dt)
+    info = traj.get("info", {})
+    # the exact unwrap is a translation along x: straight walks only (a turn's trajectory carries its yaw rate)
+    stride = info.get("stride") if not info.get("yaw_rate") else None
+    qd, qdd = derivatives(M, qs, dt, stride=stride)
     n = len(qs)
     na = len(M.act_dofs)
     tau = np.zeros((n, na))

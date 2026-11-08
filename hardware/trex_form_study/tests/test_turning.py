@@ -346,7 +346,7 @@ def test_round_two_hook_feeds_the_envelope_and_the_shortlist(built, monkeypatch)
     assert shortlist._turn_worst(summ) == pytest.approx(summ["worst_ratio_targets"])
     gates = shortlist.gates(dict(margins={"x": dict(cont_ratio=0.5, peak_ratio=0.5, speed_ratio=0.5)},
                                  runtime=dict(minutes=30.0), walk_feasible=True), {"turning": summ})
-    assert gates["turning_targets"] is summ["targets_within_limits"]
+    assert gates["turning_targets"] is summ["targets_pass"]  # within limits, IK on every frame, interference-free
     assert summ["targets_pass"] == (summ["targets_within_limits"] and summ["targets_interference_free"]
                                     and summ["targets_ik_ok"])
     for c in cases:
