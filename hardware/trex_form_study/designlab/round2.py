@@ -43,11 +43,15 @@ COMPUTE = "rpi5_8gb_ai_hat_plus_13tops"
 REV = 2
 
 
-#: Narrow stance (owner P13): the leg plane is moved out in these steps until both walks pass the
-#: round-two clearance gates (no contact at home or in either walk, no part overlaps, joint-range margin),
-#: so the narrow variant is the narrowest stance that walks with this hip hardware.
+#: Packaging search: when a sized body fails the walking clearance gates, the cause is read from the screen
+#: and one packaging parameter is stepped, re-sizing each time.  Narrow stance (owner P13): the leg plane
+#: moves out, so the narrow variant is the narrowest stance that walks with this hip hardware.  Knee
+#: (thigh against the calf or the upper ankle drive): the ankle drives move down the shank.
 NARROW_STEP_M = 0.002
 NARROW_MAX_ADD_M = 0.024
+ANKLE_STEP = 0.04
+ANKLE_MAX = 0.50
+SEARCH_MAX_STEPS = 10
 WALK_GATES = ("interference_free_home", "interference_free_nominal_gait", "interference_free_brisk_gait",
               "component_overlap_free", "joint_range_margin")
 
@@ -107,16 +111,23 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
     search = []
     try:
         res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
-        if cand.width == "N":
-            add = 0.0
-            while True:
-                ok, gates = _walk_gates(cand, dict(res["selection"]), res["design"].B, Path(xml_dir))
-                search.append(dict(hip_spacing_add_m=round(add, 4), walk_gates_pass=ok, gates=gates))
-                if ok or add >= NARROW_MAX_ADD_M - 1e-9:
+        extra = {}
+        for _ in range(SEARCH_MAX_STEPS):
+            ok, gates, cause = _walk_gates(cand, dict(res["selection"]), res["design"].B, Path(xml_dir))
+            search.append(dict(overrides=dict(extra), walk_gates_pass=ok, gates=gates, cause=cause))
+            if ok or cause is None:
+                break
+            if cause == "hip_spacing" and extra.get("hip_spacing_add_m", 0.0) < NARROW_MAX_ADD_M - 1e-9:
+                extra["hip_spacing_add_m"] = round(extra.get("hip_spacing_add_m", 0.0) + NARROW_STEP_M, 4)
+            elif cause == "knee":
+                fa = extra.get("ankle_frac", res["design"]._ankle_frac())
+                if fa >= ANKLE_MAX - 1e-9:
                     break
-                add += NARROW_STEP_M
-                cand = candidate(cid, (("hip_spacing_add_m", round(add, 4)),))
-                res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
+                extra["ankle_frac"] = round(min(ANKLE_MAX, fa + ANKLE_STEP), 3)
+            else:
+                break
+            cand = candidate(cid, tuple(extra.items()))
+            res = pipeline.size_candidate(cand, Path(xml_dir), selection=start_selection(cand.height))
         meas = metrics.measure(res["model"], res["design"], res["q_home"])
         ev = res["evaluation"]
         d = res["design"]
@@ -127,7 +138,7 @@ def size_one(cid: str, out: str, xml_dir: str) -> dict:
                    metrics=meas, margins=ev["margins"], holds=ev["holds"], power=ev["power"], runtime=ev["runtime"],
                    cost=ev["cost"], gaits=ev["gaits"], sizing_history=ev["sizing_history"],
                    walk_feasible=ev["walk_feasible"], geometry_checks=d.geometry_checks, notes=d.notes,
-                   overrides=[list(o) for o in cand.overrides if o[0] != "rev"], narrow_search=search,
+                   overrides=[list(o) for o in cand.overrides if o[0] != "rev"], packaging_search=search,
                    mass_by_category=_mass_by_category(res["rows"]),
                    mass_by_volume_class=_mass_by_volume_class(res["rows"]), seconds=time.time() - t0, ok=True)
     except Exception as e:  # keep failed cases
@@ -153,8 +164,27 @@ def _walk_gates(cand, sel: dict, B: float, xml_dir: Path) -> tuple[bool, dict]:
     trajs = {n: gait.generate(res["model"], res["q_home"], H, s) for n, s in (("nominal", sizing.NOMINAL),
                                                                             ("brisk", sizing.BRISK))}
     cl = clearance.screen(str(d / f"{cand.id}.xml"), res["q_home"], trajs, H=H, gates="r2")
-    ps = cl["summary"]["pass"]
-    return all(ps.get(k) is True for k in WALK_GATES), {k: ps.get(k) for k in WALK_GATES}
+    sm = cl["summary"]
+    ps = sm["pass"]
+    ok = all(ps.get(k) is True for k in WALK_GATES)
+    return ok, {k: ps.get(k) for k in WALK_GATES}, None if ok else _cause(sm)
+
+
+def _cause(sm: dict) -> str | None:
+    """Which packaging parameter a walking-gate failure points to (None: not one the search can change)."""
+    names = []
+    for w in sm.get("worst_pairs", []):
+        if (w.get("min_mm") if isinstance(w, dict) else None) is not None and w["min_mm"] < 0:
+            names += w.get("geoms", [])
+    for j, r in (sm.get("joint_range_margins") or {}).items():
+        if any(v is not None and v < 0.10 for v in (r.get("margin_min"), r.get("margin_max"))):
+            names += sum((x or [] for x in (sm.get("joint_range_usable", {}).get(j, {}).get("limited_by") or [])), [])
+    text = " ".join(names)
+    if "pelvis_plate" in text or "pelvis_lateral" in text:
+        return "hip_spacing"
+    if "calf_fairing" in text or "ankle_motor" in text:
+        return "knee"
+    return None
 
 
 # ------------------------------------------------------------------------------------------------

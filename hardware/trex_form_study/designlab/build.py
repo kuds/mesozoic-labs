@@ -125,6 +125,17 @@ class Design:
         x_front = -(roll.envelope[1] + 0.012) if self.cand.leg_layout == "tandem" else -0.02 * self.B
         return x_front - cas_x - 0.010
 
+    def _ankle_frac(self) -> float:
+        """Upper ankle-drive station along the tibia (fraction below the knee): round one 0.30; revision 2 by
+        height (F9), or the round-two packaging search's override ``ankle_frac``."""
+        if self.rev < 2:
+            return ANKLE_MOTOR_FRAC[1]
+        ov = self.cand.override("ankle_frac")
+        if ov is not None:
+            self.geometry_checks["ankle_frac_override"] = float(ov)
+            return float(ov)
+        return ANKLE_MOTOR_FRAC_R2_BY_HEIGHT.get(self.cand.height, ANKLE_MOTOR_FRAC[2])
+
     def _camera_fit(self, cam_size) -> dict:
         """Revision 2: highest stereo-camera position inside the skull cover and clear of the eyes."""
         sk = self.sk
@@ -380,8 +391,7 @@ class Design:
                 back = back if back[0] < 0 else -back
                 pos = []
                 for k, act in enumerate((ank_a, ank_b)):
-                    f0 = (ANKLE_MOTOR_FRAC_R2_BY_HEIGHT.get(c.height, ANKLE_MOTOR_FRAC[2]) if self.rev >= 2
-                          else ANKLE_MOTOR_FRAC[1])
+                    f0 = self._ankle_frac()
                     frac_a = f0 + k * (da + 0.006) / tib_len  # below the thigh fairing at knee flexion
                     pm = knee_w + ax_t * (frac_a * tib_len) + back * (0.5 * da + 0.010)
                     pos.append(pm)
@@ -725,8 +735,13 @@ class Design:
                 if fam.get("calf") and self.rev >= 2:
                     # revision 2: a calf sized from the ankle drives, covering both of them
                     back = self.act("ankle_a").envelope[0] + fam["calf"]["clear"]
-                    low = c.height <= 60  # the upper drive sits at 0.46 of the tibia at 60 cm (F9)
-                    f0, f1 = (0.30, 1.0) if low else (0.06, 0.88)
+                    # the calf starts just above the upper drive, so knee flexion keeps the thigh clear; with the
+                    # drives low on the shank (60 cm, F9) it swells over them and runs to the hock
+                    tib = float(np.linalg.norm(sk.leg["hock"] - sk.leg["knee"]))
+                    fa = self._ankle_frac()
+                    low = fa >= 0.40
+                    f0 = max(0.06, fa - (0.5 * self.act("ankle_a").envelope[0] + 0.004) / tib)
+                    f1 = 1.0 if low else 0.88
                     panel = shapes.shank_panel(side, f0 * hock_l, f1 * hock_l, B, half_t, t, mat, colors["limb"],
                                                back_m=back, profile="r2_low" if low else "r2")
                 else:
