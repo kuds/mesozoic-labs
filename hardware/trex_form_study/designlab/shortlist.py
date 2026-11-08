@@ -66,7 +66,7 @@ def gates(doc: dict, rv: dict) -> dict:
     out = dict(
         clearance=bool(cl.get("all")),
         drives_sizing_walks=r <= 1.0 + 1e-9,
-        turning_targets=(tu.get("targets_within_limits") if tu else None),
+        turning_targets=(tu.get("targets_pass") if tu else None),
         person_in_view=bool((se.get("torso_follow") or {}).get("home", {}).get("ok")),
         runtime_20min=doc["runtime"]["minutes"] >= 20.0,
         reference_walk_cop=bool(doc.get("walk_feasible")),
@@ -86,7 +86,8 @@ def scores(doc: dict, rv: dict) -> dict:
     H = doc["H"]
     s, why = {}, {}
     # natural walking: drive headroom at Froude 0.05 and in the brisk sizing walk, nominal CoP margin
-    fw = (env.get("fast_walk_worst") or [None, None])[1]
+    # an animal-speed walk whose prescribed CoP leaves the pad is inconclusive and is not scored
+    fw = (env.get("fast_walk_worst") or [None, None])[1] if env.get("fast_walk_reference_cop_on_pad") else None
     _, wr = _worst_margin(doc)
     cop = 1000 * doc["gaits"]["nominal"]["min_cop_margin_single"]
     parts = [_clip(1.0 - wr, 0.30), _clip(cop + 10.0, 30.0)]
@@ -184,7 +185,7 @@ def stress(doc: dict, rv: dict) -> dict:
     """Worst drive ratio with drives 15 % weaker and the robot 10 % heavier."""
     _, wr = _worst_margin(doc)
     env = rv.get("envelope") or {}
-    fw = (env.get("fast_walk_worst") or [None, None])[1]
+    fw = (env.get("fast_walk_worst") or [None, None])[1] if env.get("fast_walk_reference_cop_on_pad") else None
     tu = _turn_worst(rv.get("turning") or {})
     vals = [v for v in (wr, fw, tu) if v is not None]
     worst = max(vals) * STRESS if vals else None

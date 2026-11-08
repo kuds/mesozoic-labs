@@ -67,18 +67,26 @@ def _ratios(design, bus, ms: dict) -> dict:
 
 
 def fast_walk(M: statics.Model, q_home, design, bus: float, layout: str) -> dict:
-    tr = gait.generate(M, q_home, design.sk.H, FAST)
-    idr = gait.inverse_dynamics(M, tr)
-    summ = gait.summarize(M, tr, idr)
+    # The turning module's generator at zero yaw rate: the same prescribed walk as gait.generate, but the CoM is
+    # tracked to 1e-6 m and the stride boundary is unwrapped exactly, so its multibody-ZMP correction converges
+    # (about 1 mm instead of centimetres; turning.py docstring).  A walk whose reference CoP still leaves the pad
+    # does not balance as prescribed, so its drive loads are not meaningful: the result is then inconclusive.
+    from . import turning
+
+    tr = turning.generate(M, q_home, design.sk.H, FAST, yaw_rate=0.0)
+    idr = turning.inverse_dynamics(M, tr)
+    single = [k for k, ph in enumerate(tr["phases"]) if len(ph) == 1]
+    cm = np.asarray(idr["cop_margin"], float)
+    cop_min = float(np.nanmin(cm[single])) if single and np.isfinite(cm[single]).any() else float("nan")
     ms = sizing._motor_space(M.names, idr["tau"], idr["omega"], layout)
     r = _ratios(design, bus, ms)
     worst = max(r.items(), key=lambda kv: kv[1]["worst"])
-    # drives_ok is the body's answer; the CoP of a *prescribed* walk leaving the pad limits that reference
-    # trajectory (as in the round-one sizing walks), not the body, so it is reported separately
-    return dict(spec=FAST.describe(design.sk.H), ik_ok=bool(tr["ik_ok"]), ik_fail_frames=len(tr["ik_fail_frames"]),
-                min_cop_margin_single_mm=1000 * summ["min_cop_margin_single"],
-                reference_cop_on_pad=bool(summ["min_cop_margin_single"] > -0.010), groups=r, worst_group=worst[0],
-                worst_ratio=worst[1]["worst"], drives_ok=bool(tr["ik_ok"] and worst[1]["worst"] <= 1.0))
+    on_pad = bool(np.isfinite(cop_min) and cop_min > -0.010)
+    ik = bool(tr.get("ik_ok", True))
+    return dict(spec=FAST.describe(design.sk.H), generator="turning.generate (yaw 0, CoM to 1e-6 m)", ik_ok=ik,
+                ik_fail_frames=len(tr.get("ik_fail_frames", [])), min_cop_margin_single_mm=1000 * cop_min,
+                reference_cop_on_pad=on_pad, groups=r, worst_group=worst[0], worst_ratio=worst[1]["worst"],
+                drives_ok=(bool(ik and worst[1]["worst"] <= 1.0) if on_pad else None))
 
 
 def _pad_reach(M: statics.Model, q_home, side: str) -> tuple[float, float]:
