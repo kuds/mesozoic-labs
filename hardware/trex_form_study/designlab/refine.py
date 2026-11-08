@@ -54,6 +54,11 @@ CASES = {
                        label="narrow stance, target turns >= 3 mm"),
     "no_calf": dict(ids=("60-M-T-10", "60-M-H-10", "60-N-H-10", "75-M-T-10"), overrides=(("calf_fairing", 0),),
                     headroom=1.0, fr05=False, min_gap=0.0, label="no calf fairing (exposed ankle drives)"),
+    # targeted upgrade at 75 cm (cross-check recommendation): the what-if's Froude 0.05 sizing case plus 15 %
+    # headroom on the two drives every judge found thin, the neck servo and the hip roll
+    "targeted_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, min_gap=0.0,
+                        headroom_by_group={"neck": 0.85, "hip_roll": 0.85},
+                        label="75 cm: Froude 0.05 sizing + 15 % headroom on neck and hip roll"),
 }
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
 LIFTS = (0.13, 0.16, 0.19, 0.22)
