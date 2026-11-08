@@ -137,13 +137,16 @@ def pool(kind: str, voltage: float | None = None):
 #: headroom rule sets 0.80: every requirement at most 0.80 of the part's sustained, peak and speed limit, the
 #: headroom the 60 cm bodies have without it.
 HEADROOM = 1.0
+#: Per-group headroom (group -> fraction), overriding HEADROOM for those groups; empty in rounds one and two.
+#: The refinement's targeted rule uses it for the groups the screens found thin (e.g. the 75 cm neck servo).
+HEADROOM_BY_GROUP: dict = {}
 
 
-def meets(a: catalog.Actuator, r: dict, bus: float | None = None) -> bool:
-    if HEADROOM == 1.0:
+def meets(a: catalog.Actuator, r: dict, bus: float | None = None, group: str | None = None) -> bool:
+    h = HEADROOM_BY_GROUP.get(group, HEADROOM) if group is not None else HEADROOM
+    if h == 1.0:
         return a.sustained >= r["cont"] and a.peak >= r["peak_req"] and a.speed_at(bus) >= r["speed_req"]
-    return (HEADROOM * a.sustained >= r["cont"] and HEADROOM * a.peak >= r["peak_req"]
-            and HEADROOM * a.speed_at(bus) >= r["speed_req"])
+    return h * a.sustained >= r["cont"] and h * a.peak >= r["peak_req"] and h * a.speed_at(bus) >= r["speed_req"]
 
 
 def score(a: catalog.Actuator, group: str, mass: float, layout: str) -> float:
@@ -163,7 +166,7 @@ def select(req: dict, mass: float = 15.0, layout: str = "tandem", prefer_voltage
         ok = True
         tmp = {}
         for g in ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b"):
-            cands = sorted([a for a in pool("leg", v) if meets(a, groups[g], v)],
+            cands = sorted([a for a in pool("leg", v) if meets(a, groups[g], v, g)],
                            key=lambda a: (score(a, g, mass, layout), a.mass))
             if not cands:
                 ok = False
@@ -177,7 +180,7 @@ def select(req: dict, mass: float = 15.0, layout: str = "tandem", prefer_voltage
         # nothing meets every requirement: take the strongest 48 V part for the failing groups and flag it
         bus = 48.0
         for g in ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b"):
-            cands = sorted([a for a in pool("leg", bus) if meets(a, groups[g], bus)],
+            cands = sorted([a for a in pool("leg", bus) if meets(a, groups[g], bus, g)],
                            key=lambda a: (score(a, g, mass, layout), a.mass))
             if cands:
                 choice[g] = cands[0].id
@@ -187,11 +190,11 @@ def select(req: dict, mass: float = 15.0, layout: str = "tandem", prefer_voltage
                 notes.append(f"{g}: no catalog part meets cont {groups[g]['cont']:.1f} N·m / peak "
                              f"{groups[g]['peak_req']:.1f} N·m / {groups[g]['speed_req']:.1f} rad/s; strongest used")
     for g in ("neck", "tail"):
-        cands = [a for a in pool("servo") if meets(a, groups[g])]
+        cands = [a for a in pool("servo") if meets(a, groups[g], None, g)]
         if cands:
             choice[g] = cands[0].id
         else:
-            leg = [a for a in pool("leg", bus) if meets(a, groups[g], bus)]
+            leg = [a for a in pool("leg", bus) if meets(a, groups[g], bus, g)]
             if leg:
                 choice[g] = leg[0].id
                 notes.append(f"{g}: no servo meets the load; QDD part {leg[0].id} used")

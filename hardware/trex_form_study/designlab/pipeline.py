@@ -167,11 +167,11 @@ def size_candidate(cand: Candidate, out_dir: Path, max_iter: int = 8, selection:
         for g, r in req["groups"].items():
             a = design.act(g)
             bus = sel["bus"] if a.box is None else None
-            if sizing.meets(a, r, bus):
+            if sizing.meets(a, r, bus, g):
                 continue
             kind = "servo" if a.box is not None else "leg"
             pool = sizing.pool(kind, sel["bus"] if kind == "leg" else None)
-            better = [b for b in pool if sizing.meets(b, r, sel["bus"] if kind == "leg" else None)]
+            better = [b for b in pool if sizing.meets(b, r, sel["bus"] if kind == "leg" else None, g)]
             if better:
                 if g in hw.JOINT_GROUPS:
                     sel["joints"] = dict(sel["joints"], **{g: better[0].id})

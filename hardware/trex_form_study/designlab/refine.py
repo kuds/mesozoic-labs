@@ -81,6 +81,7 @@ def _init(case: str | None) -> None:
     gait.set_accuracy(round2.GAIT_ACCURACY)
     c = CASES.get(case) if case else None
     sizing.HEADROOM = c["headroom"] if c else 1.0
+    sizing.HEADROOM_BY_GROUP = dict(c.get("headroom_by_group") or {}) if c else {}
     names = (c.get("walks") or (("fr05",) if c["fr05"] else ())) if c else ()
     sizing.EXTRA_WALKS = extra_walks(names)
     round2.TURN_SEARCH_MIN_GAP_MM = c["min_gap"] if c else 0.0
