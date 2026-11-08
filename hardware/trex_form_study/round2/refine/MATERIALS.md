@@ -31,7 +31,7 @@ Every number is a model estimate. None is measured.
    0.39 kg (60 cm) or 0.44 kg (75 cm) for $1.6k or $2.1k more (nominal, a model estimate to treat as ±50 % until
    quoted), and they take the 75 cm body to $20.5k nominal, over P4's $20k. A 3 mm carbon plate has only 0.67× the
    rigidity of today's 3 mm aluminium; at equal rigidity (3.99 mm stock) the saving shrinks to 0.20 kg (60 cm) and 0.22 kg (75 cm) for the same cost. Thinner
-   aluminium plate (2.54 mm, also stocked) gets 0.18 kg (60 cm) and 0.16 kg (75 cm) at no extra cost. Carbon cannot hold bearing fits or
+   aluminium plate (2.54 mm, also stocked) gets 0.17 kg (60 cm) and 0.16 kg (75 cm) at no extra cost. Carbon cannot hold bearing fits or
    threads, delaminates out of sight in a fall, needs bonded aluminium inserts, and the quasi-isotropic plate is not
    a stock 2–4 day part. Keep 6061-T6. A hybrid frame (carbon plates and tube spars, aluminium wherever a motor,
    bearing or thread attaches) is a direction for the long-term robot, whose long members (the spine, and at 120 cm
@@ -46,7 +46,7 @@ Every number is a model estimate. None is measured.
    (75 cm), and the 75 cm tail servo's peak from 0.89 to 0.77; cost changes by $20–60. If the thinner walls need
    more internal supports (25 % and 29 % instead of 20 % and 24 %), the saving is about 0.26 / 0.44 kg.
 4. **Foot pads: grip is the limit after the drives.** Counting the stance foot's yaw moment (F21), the narrow
-   carpet-ready 60 cm picks need friction 0.47–0.48 walking, 0.53–0.55 in the 0.35 rad/s turn and 0.73–0.75 brisk
+   carpet-ready 60 cm picks need friction 0.47–0.48 walking, 0.53–0.54 in the 0.35 rad/s turn and 0.73–0.75 brisk
    (the base-width carpet-ready bodies 0.54–0.55, 0.62–0.63 and 0.83–0.86); the targeted 75 cm Hybrid with bigger feet
    needs 0.36, 0.41 and 0.56 (the targeted bodies with round-two feet 0.39–0.40, 0.45–0.46 and 0.61–0.63). A cast
    polyether polyurethane tread (50–60 Shore A, with 1.0–1.5 mm studs) is expected to give about 0.70–0.85 on carpet
@@ -87,7 +87,7 @@ Same drives as the reference body (the margin view). Δ is against the reference
 | Reference | 10.83 kg | 70.8 W / 46.5 min | $14.8k / $20.6k | 14.58 kg | 87.7 W / 37.6 min | $18.4k / $25.4k | 0.95 / 0.95 | 0.76 / 0.78 | 0.76 / 0.52; 0.67 / 0.89 |
 | Carbon plates, sourced 3 mm quasi-isotropic | −0.39 kg | 69.2 W / 47.6 min | +$1.6k / +$2.3k | −0.44 kg | 85.5 W / 38.6 min | +$2.1k / +$3.1k | 0.95 / 0.95 | 0.74 / 0.75 | 0.75 / 0.51; 0.66 / 0.89 |
 | Carbon plates at equal rigidity (3.99 mm quasi-isotropic) | −0.20 kg | 70.1 W / 47.0 min | +$1.6k / +$2.3k | −0.22 kg | 86.7 W / 38.0 min | +$2.1k / +$3.1k | 0.95 / 0.95 | 0.76 / 0.77 | 0.76 / 0.52; 0.66 / 0.90 |
-| **6061 plates at 2.54 mm (brackets stay 3 mm)** | −0.18 kg | 70.1 W / 47.0 min | $0 / $0 | −0.16 kg | 86.9 W / 37.9 min | $0 / $0 | 0.95 / 0.95 | 0.75 / 0.77 | 0.76 / 0.52; 0.66 / 0.89 |
+| **6061 plates at 2.54 mm (brackets stay 3 mm)** | −0.17 kg | 70.1 W / 47.0 min | $0 / $0 | −0.16 kg | 86.9 W / 37.9 min | $0 / $0 | 0.95 / 0.95 | 0.75 / 0.77 | 0.76 / 0.52; 0.66 / 0.89 |
 | Carbon plates, 2 mm floor (optimistic) | −0.62 kg | 68.3 W / 48.2 min | +$1.6k / +$2.3k | −0.81 kg | 83.6 W / 39.4 min | +$2.1k / +$3.1k | 0.95 / 0.95 | 0.72 / 0.73 | 0.75 / 0.51; 0.65 / 0.89 |
 | Covering walls ×0.75 (PA12) | −0.35 kg | 68.8 W / 47.9 min | −$0.3k / −$0.5k | −0.59 kg | 84.0 W / 39.3 min | −$0.4k / −$0.7k | 0.95 / 0.94 | 0.74 / 0.75 | 0.69 / 0.44; 0.59 / 0.76 |
 | **PA11 coverings, walls ×0.75 (recommended)** | −0.31 kg | 69.0 W / 47.7 min | +$20 / +$40 | −0.52 kg | 84.4 W / 39.1 min | +$30 / +$60 | 0.95 / 0.94 | 0.74 / 0.75 | 0.70 / 0.45; 0.60 / 0.77 |
@@ -107,7 +107,7 @@ sustained) and ends 0.69 kg lighter; the 75 cm tether-only body takes a heavier 
 | Material | Density / modulus | Allowable (design) | Minimum practical thickness | Effect here | Notes |
 |---|---|---|---|---|---|
 | 6061-T6 (current) | 2700 kg/m³ / 68.9 GPa | 70 MPa (25 % of yield, 72 % of fatigue strength) | 3 mm floor in the model (laser-cut stock from 1.0 mm) | reference | cheap, 2–4 day laser cut, takes threads and H7 bearing fits, bends visibly in a fall, conducts motor heat (167 W/m·K) |
-| 6061-T6 at 2.54 mm (0.100 in) for the non-bracket plates | as above | as above | 2.54 mm; 0.61× the rigidity of 3 mm, close to 3 mm carbon's 0.67× | −0.18 / −0.16 kg, cost unchanged | the cheapest way to most of carbon's saving; brackets stay 3 mm |
+| 6061-T6 at 2.54 mm (0.100 in) for the non-bracket plates | as above | as above | 2.54 mm; 0.61× the rigidity of 3 mm, close to 3 mm carbon's 0.67× | −0.17 / −0.16 kg, cost unchanged | the cheapest saving, under half of 3 mm carbon's at a similar stiffness; brackets stay 3 mm |
 | 7075-T6 | 2810 / 71.7 GPa | 115–125 MPa | 3.175 mm (outsourced stock) | no mass saving where the floor or stiffness governs; about +10 % on 1/8 in stock (brackets: +27 g at 60 cm, +42 g at 75 cm) | 1.8× the yield of 6061: for brackets that must survive falls |
 | Carbon/epoxy, quasi-isotropic 3 mm (T700) | 1520 / 45.9 GPa | 95 MPa (estimate: open hole × fatigue and impact) | 3 mm (1.5 fittings factor for bonded inserts); equal rigidity with 3 mm 6061 needs 3.43 mm (3.99 mm stock) | −0.39 / −0.44 kg at 3 mm; −0.20 / −0.22 kg at 3.99 mm | brittle, delaminates without visible marks (tap-test after falls), no threads or bearing fits; about $240/kg raw; the reference plate is on backorder (at least 4 weeks) and the 2–4 day waterjet service stocks 2×2 twill, not quasi-isotropic plate |
 | Carbon/epoxy, 0/90 twill | 1450–1520 / 60–64 GPa on axis, shear modulus only 4.1 GPa | 110 MPa on axis | 3 mm | for the stiffness-governed 75 cm tibia | must be cut on the fibre axis |
@@ -161,9 +161,10 @@ at 0.67 it does not.
 
 ## 5. Foot pads and grip
 
-The carpet and turning screens assume the carpet band's lower edge, μ 0.54 (assumption A16), from a lightly loaded
-shoe on an inclined plane. The recommended bodies' pads carry about 72 kPa (60 cm) and 41 kPa (75 cm, with the larger
-pads; 62 kPa without them) in static single support.
+The carpet screen assumes the carpet band's lower edge, μ 0.54 (assumption A16), from a lightly loaded shoe on an
+inclined plane; the turning screen assumes μ 0.8 at the pads for its load split, and the friction needs it reports
+(below) do not depend on that value. The recommended bodies' pads carry 72–74 kPa (60 cm) and 41 kPa (75 cm, with the
+larger pads; 64 kPa on the same body without them) in static single support.
 
 | Compound | Expected static μ (estimates from the sources) | Wear (DIN abrasion) | Notes |
 |---|---|---|---|
@@ -179,16 +180,17 @@ lead for comparison:
 
 | Body | Need | Carpet (0.70–0.85) | Wood (0.8–0.9), tile (0.9–1.0) | Polished concrete (0.6–0.85) | Vinyl (about 0.50), laminate (about 0.42) |
 |---|---|---|---|---|---|
-| 60 cm narrow carpet-ready (picks 1 and 3) | 0.47–0.48 / 0.53–0.55 / 0.73–0.75 | walk and turn; brisk above the bottom of the range | all | walk and turn; brisk not assured | vinyl: the nominal walk only, barely; laminate: none |
+| 60 cm narrow carpet-ready (picks 1 and 3) | 0.47–0.48 / 0.53–0.54 / 0.73–0.75 | walk and turn; brisk above the bottom of the range | all | walk and turn; brisk not assured | vinyl: the nominal walk only, barely; laminate: none |
 | 75 cm targeted with the bigger feet (pick 2) | 0.36 / 0.41 / 0.56 | all | all | all | vinyl: walk and turn; laminate: walk, turns barely; brisk on neither |
-| 60 cm carpet-ready, base width | 0.54–0.55 / 0.62–0.63 / 0.83–0.86 | walk and turn; brisk only at the top of the range | all on tile; brisk marginal on wood | walk; turn marginal; brisk not assured | not even the nominal walk |
+| 60 cm carpet-ready, base width | 0.54–0.55 / 0.62–0.63 / 0.83–0.86 | walk and turn; brisk only at the top of the range (Hybrid 0.83) or above it (Tapered 0.86) | all on tile; brisk marginal on wood | walk; turn marginal; brisk not assured | not even the nominal walk |
 | 75 cm targeted, round-two feet | 0.39–0.40 / 0.45–0.46 / 0.61–0.63 | all | all | walk and turn; brisk marginal | vinyl: walk and turn; laminate: the walk only, barely; brisk on neither |
 
 So the controller needs floor-dependent speed and yaw-rate limits (and the tail can cancel some of the stance
 foot's yaw), and the 60 cm robot may be confined to carpet, wood, tile and polished concrete. The foot's geometry
-moves the need more than the compound can: the narrow stance needs 12–14 % less than the base width (the reason the
+also moves the need: the narrow stance needs 12–14 % less than the base width (the reason the
 60 cm picks use it), longer toes (×1.15) about 8 % less, and larger pads (×1.25) leave it unchanged but raise the
-one-foot stop to 1.33 m/s² (ROUND2_REVIEW §7.4–7.6, `round2/refine/REFINE.md`). Before relying on any
+one-foot stop to 1.33 m/s² (ROUND2_REVIEW §7.4–7.6; `round2/refine/refine.json` and the cases' turning screens,
+`round2/refine/<case>/review/screening/*_turning.json`). Before relying on any
 number, run inclined-plane and twist tests of the chosen pad at the robot's pressure on the owner's floors, dry and
 dusty, before and after two hours of walking (about one day and $100, estimate).
 
@@ -198,7 +200,10 @@ sheet data sheets; QIDI TPU friction note; Engineering ToolBox friction table; a
 
 ## 6. Power: battery, tether or both
 
-**What the model says for the demonstrator (60 and 75 cm).**
+**What the model says for the demonstrator (60 and 75 cm).** The simulated numbers in this section are for the two
+refined leaders (`60-M-T-10` carpet-ready, `75-M-T-10` targeted). On the final picks walking draws 69.3–69.6 W
+(47.4–47.6 min) at 60 cm and 89.8 W (36.7 min) at 75 cm, and the summed drive peaks are 116–118 W and 194 W (5.7–5.8 A
+and 8.9 A at 24 V with the auxiliaries).
 
 * The selected pack is a 6S 3.3 Ah LiPo (73 Wh, 0.506 kg; with its cassette 0.68 kg) at the tail base. Walking draws
   71 W (60 cm) and 88 W (75 cm) on the nominal walk, so the pack gives 46.5 and 37.6 min at 75 % usable energy,
@@ -224,7 +229,7 @@ tether supply line. The research's design:
 
 * The priority path connects one source at a time (the tether when present, after 256 ms inside its voltage
   window), so the battery rides through a tether drop-out but does not share the peaks: the tether carries them,
-  about 6.2 A at 60 cm and 8.7 A at 75 cm (summed drive peaks plus auxiliaries), against a mean of 2.9 / 3.7 A.
+  about 6.2 A at 60 cm and 8.7 A at 75 cm (summed drive peaks plus auxiliaries), against a mean of 3.0 / 3.7 A.
   5 m of SJOOW 16/2 (82 g/m, rated 13 A) drops 0.82 / 1.14 V at those peaks. If real load sharing is wanted, use an
   ideal-diode OR (LTC4359 class) with the supply current-limited near the mean. A Mean Well RSP-750-24 class supply
   (31 A, constant-current overload with auto-recovery) feeds it.
@@ -235,8 +240,10 @@ tether supply line. The research's design:
   off the power-path FETs plus a manual disconnect, or with an economised or latching contactor. A plain TE LEV100
   contactor's 6 W coil would itself cost about 3.6 min of runtime at 60 cm.
 * **Hang the tether from an overhead boom; never trail it.** Five metres of cable on the floor drags 1.2–3.6 N,
-  against a single-support tip threshold of about 7.1 N at 60 cm and 9.8 N at 75 cm for a pull at the tail-base
-  cable exit, and 2 N of drag raises the 60 cm brisk walk's friction need from 0.86 to 0.90–0.95. No practical
+  against a single-support tip threshold of about 7.1 N at 60 cm (7.1–7.2 N on the narrow picks) and 9.8 N at 75 cm
+  (12.0 N on the 75 cm pick with its bigger feet) for a pull at the tail-base cable exit, and 2 N of drag raises the
+  brisk walk's friction need from 0.86 to 0.90–0.95 on the base-width carpet-ready 60 cm body and from 0.73–0.75 to
+  0.78–0.85 on the narrow 60 cm picks. No practical
   breakaway connector releases below the tip threshold (an Anderson Powerpole pair separates at 27–44 N). The
   balancer must carry less than the hanging cable (rated under 0.5 kg, or a counterweighted line): a stronger one
   lifts the tail base and adds nose-down hip-pitch load.
@@ -267,7 +274,7 @@ F14):
 | | | 6S2P Li-ion, 200 Wh | 0.86 kg (2.0 %) | about 50 min |
 | `120-M-H-10` (43.1 kg, 190 W) | 48 V | 12S2P Li-ion, 400 Wh | 1.72 kg (4.0 %) | about 94 min |
 
-So **yes, run the 3–4 ft robot on its battery.** About an hour of walking costs 2–4 % of its mass in packs (2.6–5.2 %
+So **yes, run the 3–4 ft robot on its battery.** 50–94 min of walking costs 2–4 % of its mass in packs (2.6–5.2 %
 with a cassette), against 3.5–4.7 % for the demonstrator's pack (4.6–6.3 % with its cassette). What changes at that size is not mass but:
 
 * **Falls and pack protection.** A fall from standing carries about 160 J at 100 cm and 300 J at 120 cm (mass ×

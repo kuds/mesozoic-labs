@@ -200,9 +200,10 @@ def choices(x: Ctx) -> str:
          "Two base bodies per size. Twelve shape changes from an independent visual critique (F10)."],
         ["Posture", "10° chest-up", "Every base and variant at 10°, except the level variant (P12)."],
         ["Level posture", "Also research 0°, same body",
-         "A fifth variant per base: the same body pitched level, so its crown sits lower (P15)."],
+         "A fourth single-change variant per base: the same body pitched level, so its crown sits lower (P15)."],
         ["Proportions", "Larger skull, narrower stance, compact proportions, each separately",
-         "Three single-change variants per base (P13). The narrow stance is the narrowest the hip hardware allows."],
+         "Three single-change variants per base (P13). The narrow stance is the narrowest that walks and turns without "
+         "contact (F16)."],
         ["Compute", "Raspberry Pi 5 + AI HAT+",
          "The 31 W Jetson budget is replaced by 9.5 W (survey figures, A14). Batteries were re-sized."],
         ["Behavior checks", "Screen the behaviors now (Stage 0)",
@@ -230,8 +231,8 @@ def bodies(x: Ctx) -> str:
     v75 = x.img("variants_75_side.png", "75 cm base and variants, side view", "75 cm: base and single-change variants",
                 "The same five bodies at 75 cm.")
     f60 = x.img("variants_60_front.png", "60 cm base and variants, front view", "60 cm, front view",
-                "Front views show the stance widths. The narrow variant moves the legs in only as far as the hip "
-                "hardware allows while walking.")
+                "Front views show the stance widths. The narrow variant moves the legs in only as far as walking and "
+                "the target turns allow.")
     f75 = x.img("variants_75_front.png", "75 cm base and variants, front view", "75 cm, front view",
                 "The same at 75 cm.")
     return f"""
@@ -242,7 +243,7 @@ def bodies(x: Ctx) -> str:
     prototyped and screened before it went in:</p>
     <ul>
       <li>An S-curved neck carries the head over the chest front without raising the crown, with a fuller throat.</li>
-      <li>The skull is deeper and broader, with a longer snout, a heavier jaw and a blunt tip. Length and crown are unchanged.</li>
+      <li>The skull is deeper and broader, with a deeper snout, a heavier jaw and a blunt tip. Length and crown are unchanged.</li>
       <li>Calf fairings are sized around the ankle drives. The lower thigh is held wide enough to cover the knee's side plates.</li>
       <li>The tail tapers separately at top, bottom and width, with a full-depth root and a raised tip.</li>
       <li>The arms attach at the chest flank.</li>
@@ -387,10 +388,14 @@ def behaviors(x: Ctx) -> str:
       friction up to {mu60} at 60 cm, above the carpet band's lower edge (0.54), and the brisk straight walk already
       needs 0.73–0.88. The yaw moment on a small pad, more than the turn, sets this; pad compounds are in
       <a href="#materials">Materials and power</a>.</li>
-      <li><b>Carpet: the bodies fit; the swing and the 60 cm knee needed work.</b> Toe clearance passes everywhere,
+      <li><b>Carpet: the bodies fit; the swing and the knee needed work.</b> Toe clearance passes everywhere,
       and so does friction as a force ratio, but the carpet swing target needs a lift of about {lift} H against the
-      reference walks' 0.10–0.11 H. At 60 cm the knee ran out of range first; <a href="#refine">Refinement</a> gives the
-      fix. Standing on medium or high pile needs active ankle balance.</li>
+      reference walks' 0.10–0.11 H. On every round-two body except the two 75 cm compact ones the knee ran out of range
+      first (the thigh shell meets the calf fairing at 0.71–0.81 rad); <a href="#refine">Refinement</a> gives the fixes:
+      lowered ankle drives at 60 cm (1.00–1.05 rad) and the targeted drive set at 75 cm (0.95–1.00 rad). Servo-held,
+      every round-two body stands on low pile; on medium pile only four 75 cm bodies stand (75-M-T-10, 75-N-T-10,
+      75-M-T-00, 75-M-H-00), and on high pile none does. Standing on thick carpet otherwise needs active ankle
+      balance.</li>
       <li><b>The 75 cm hip-pitch drive caps the walking speed.</b> Both sizes meet the spec's walking speeds; at the
       animal's preferred Froude 0.05 every 75 cm body runs its RobStride 03 past its planning speed on 24 V (<a href="#whatif">75 cm drives</a> has the
       fix).</li>
@@ -471,9 +476,10 @@ def whatif(x: Ctx) -> str:
   <div class="prose"><p>Every 75 cm body meets the spec's walking speeds but not the animal's preferred Froude 0.05: its
   RobStride 03 hip pitch runs past its planning speed on the 24 V bus. Re-sizing the two 75 cm bases with that walk
   as a sizing case (the what-if) fixes it, but the neck servo, the knee and the hip roll stay within a few per cent of
-  their limits. The targeted upgrade, which every cross-check judge asked for, adds 15 % headroom on the neck servo
-  and the hip roll: four drives change, the body gets lighter, and the 75 cm scorecard rises level with the 60 cm
-  bodies.</p></div>
+  their limits. The targeted upgrade builds on the what-if drives and the stronger ROBOTIS XM540-W270 neck servo
+  every cross-check judge asked for. It adds 15 % headroom on the neck servo and the hip roll, the two drives every
+  judge found thin (the hip roll is at 0.956 in the what-if): four drives change, the body gets lighter, and the 75 cm
+  scorecard rises level with the round-two 60 cm candidates.</p></div>
   {tbl}
   {plate}
 </section>"""
@@ -519,10 +525,12 @@ def inside(x: Ctx) -> str:
   {cut}
   {r1r2}
   <div class="prose">
-    <p>When a sized body fails a walking clearance gate, the round-two runner reads the cause from the clearance
-    screen and changes one packaging parameter, re-sizing each time. A pelvis plate against the thigh moves the legs
-    out (the narrow variants: the narrowest stance this hip hardware walks with). A thigh against the calf or the
-    upper ankle drive lowers the ankle drives on the shank.</p>
+    <p>When a sized body fails a walking clearance gate or touches in a target turn, the round-two runner reads the
+    cause from the clearance screen and changes one packaging parameter, re-sizing each time. A pelvis plate against
+    the thigh, or toe against toe in a turn, moves the legs out (the narrow variants: the narrowest stance that walks
+    and makes the target turns without contact; on three of the four the turns set the last step, at 75 cm toe
+    against toe turning in place). A thigh against the calf or the upper ankle drive lowers the ankle drives on the
+    shank.</p>
   </div>
   {stbl}
   <div class="prose"><p>The head camera is now placed by a search inside the skull cover: inset by half the wall
@@ -618,12 +626,15 @@ def scorecard(x: Ctx) -> str:
       the animal-like Froude 0.05 walk within its drives (new in version 2), person-in-view, 20 min runtime, the
       reference-walk CoP or the carpet gate.</li>
       <li><b>Margins.</b> Each behavior scores 0–1 by how far its governing quantity sits from its limit. Each drive
-      counts once: the leg drives set walking, turning and endurance; the neck and tail servos set head and tail.</li>
+      group counts only in its own categories: the neck and tail servos in head and tail; the leg drives in walking,
+      turning, endurance and, through the stress test, robustness.</li>
       <li><b>Weights</b> from your priorities: {K.esc(weights)}.</li>
       <li><b>Stress test</b>, now part of the robustness score: torque ratios with the robot 10 % heavier and the
       drives 15 % weaker, speed ratios with the drives 15 % slower.</li>
       <li><b>Shortlist.</b> The best passing body at each height, then the other family's counterpart of the best
-      overall, so verification compares size on one family and family at one size.</li>
+      overall, so verification compares family at one size (60-N-T-10 against 60-N-H-10, same layout and drives)
+      and size within the Hybrid family (60-N-H-10 against 75-M-H-10), although the 75 cm body also keeps the base
+      stance and has the bigger feet.</li>
     </ol>
     <p>Looks are yours to judge and are not scored. Totals within about 0.02 of each other are ties at this
     resolution.</p>
@@ -742,11 +753,13 @@ def questions(x: Ctx) -> str:
         ("Calf fairings: keep or drop?",
          ["Keep: the lower leg reads as an animal's; at 60 cm the ankle drives move down to 0.60 of the shank so the "
           "knee can bend enough for the carpet swing.",
-          "Drop: exposed ankle drives and push rods, lighter, easier to service, more robotic" + calf + "."]),
+          "Drop: exposed ankle drives and push rods, lighter, easier to service, more robotic" + calf + ". At 60 cm "
+          "the knee then stops at 0.80–0.86 rad on the upper ankle drive, so the ankle drives must still move down for "
+          "the carpet swing."]),
         ("Feet?",
          ["As recommended: longer toes (x1.15) and larger pads (x1.25) on the 75 cm body only, for about 8 % less grip "
           "needed, a one-foot stop of 1.41 m/s² instead of 1.20 and standing on medium pile with the servos held, for "
-          "0.14 kg. The 60 cm picks keep the round-two feet: there the bigger feet load the upper ankle drive to 0.87 of "
+          "0.15 kg. The 60 cm picks keep the round-two feet: there the bigger feet load the upper ankle drive to 0.87 of "
           "its limit (0.76) and lower the score.",
           "The bigger feet on every body.",
           "The round-two feet on every body."]),
@@ -932,7 +945,9 @@ def overnight(x: Ctx) -> str:
         note = (f"These are the scorecard's own three picks (the best passing body at each height, then the other "
                 f"family's counterpart of the best). Their totals lie within {max(top3) - min(top3):.3f} of each other, "
                 f"a tie at its resolution, so the set also rests on what each body adds, given on each card. They "
-                f"replace the provisional overnight set, the base-width 60 cm and 75 cm Tapered bodies.")
+                f"replace the provisional overnight set: the base-width carpet-ready 60 cm Tapered and Hybrid bodies "
+                f"(60-M-T-10 and 60-M-H-10 [refine/carpet_60]) and the targeted 75 cm Tapered (75-M-T-10 "
+                f"[refine/targeted_75]).")
     elif sk and spread is not None:
         note = (f"The scorecard's own rule picks {', '.join(mono(k) for k in sk)}; its top four bodies are within "
                 f"{spread:.3f} of each other, a tie at its resolution. The recommendation chooses among the tied leaders "
@@ -1056,8 +1071,8 @@ def size_study_sec(x: Ctx) -> str:
     s57 = [x.ss_row("small_resized", c) for c in ("57-M-T-10", "57-M-H-10")]
     s54 = [x.ss_row("small_resized", c) for c in ("54-M-T-10", "54-M-H-10")]
     b60 = [x.D.get(c, {}) for c in ("60-M-T-10", "60-M-H-10")]
-    d57 = _rng([a["mass_kg"] - b["metrics"]["mass"] for a, b in zip(s57, b60, strict=True) if a and b], lambda v: f"{-v:.2f}")
-    d54 = _rng([a["mass_kg"] - b["metrics"]["mass"] for a, b in zip(s54, b60, strict=True) if a and b], lambda v: f"{-v:.2f}")
+    d57 = _rng([b["metrics"]["mass"] - a["mass_kg"] for a, b in zip(s57, b60, strict=True) if a and b], lambda v: f"{v:.2f}")
+    d54 = _rng([b["metrics"]["mass"] - a["mass_kg"] for a, b in zip(s54, b60, strict=True) if a and b], lambda v: f"{v:.2f}")
     return f"""
 <section id="sizestudy">
   <p class="kicker">Overnight · Size study</p><h2>A smaller 60 cm, larger 75 cm motors, or 80 cm?</h2>
@@ -1067,8 +1082,11 @@ def size_study_sec(x: Ctx) -> str:
     the power board and the two ToF sensors overlap, and the knee runs faster: a smaller robot steps faster for the
     same Froude number, so at 54 cm the knee exceeds its speed limit in the animal-like walk.</p>
     <p><b>Larger motors at 75 cm: yes, targeted, and no 80 cm needed.</b> Four drive changes fix the 75 cm body
-    (the targeted rows). Upsizing every drive by 20 % snowballs to about 20 kg and a 12S pack with no removal path;
-    80 cm hits the same limits as 75 cm and gains nothing.</p>
+    (the targeted rows). Requiring 20 % headroom on every drive snowballs to about 20 kg and a 12S pack with no
+    removal path; 80 cm hits the same limits as 75 cm and gains nothing.</p>
+    <p class="note">The <code>75-M-T-10</code> 20 % headroom row predates the bus fix (F17): its sizing alternated
+    between buses and kept a 12S pack on the 24 V bus, so the whole row (drives, mass, runtime, cost and score) is
+    indicative only. The Hybrid row (48 V, 12S pack: 20.0 kg, 69 min, $20.3k) is consistent.</p>
   </div>
   {tbl}
 </section>"""
@@ -1138,7 +1156,9 @@ def materials(x: Ctx) -> str:
       rigidity the saving roughly halves, and thinner aluminium plate (2.54 mm) gets {thin} for nothing. Carbon
       cannot hold bearing fits or threads and hides fall damage.</li>
       <li><b>Coverings: the best value.</b> Walls about a quarter thinner in MJF PA11 (ductile, dents instead of
-      cracking) save 0.3–0.5 kg at about today's cost, mostly off the neck and tail.</li>
+      cracking) save 0.3–0.5 kg at about today's cost. Most of it comes off the trunk and legs (the head and tail
+      panels are 28–29 % of it), but the largest relief is on the neck and tail servos, where that mass sits on a
+      lever arm.</li>
       <li><b>Foot pads:</b> a cast polyether polyurethane tread (50–60 Shore A, small round studs) is expected to grip
       at 0.70–0.85 on carpet and 0.8–1.0 on wood and tile, but vinyl and laminate can be 0.42–0.50. Counting the
       stance foot's spin, the recommended 60 cm bodies need about 0.48 just to walk (0.55 at base width) and the 75 cm
@@ -1147,7 +1167,7 @@ def materials(x: Ctx) -> str:
       <li><b>Tether-only: no.</b> The pack is also the counterweight at the tail base; without it the centre of mass
       moves forward and the knee goes past its speed limit with the same drives. Keep the battery and add an external
       DC input, as your power requirement already asks, with the cable hung from a boom (never trailed).</li>
-      <li><b>3–4 ft robot: battery, yes.</b> About an hour of walking for 2–4 % of the robot's mass.</li>
+      <li><b>3–4 ft robot: battery, yes.</b> 50–94 min of walking for a pack of 2–4 % of the robot's mass.</li>
     </ul>
   </div>
   {tbl}
