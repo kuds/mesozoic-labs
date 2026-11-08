@@ -913,8 +913,8 @@ def overnight(x: Ctx) -> str:
 </section>"""
 
 
-REFINE_SHOW = ("carpet_60", "targeted_75", "knee_60", "knee_75", "no_calf", "pads_large", "toes_long", "foot_both",
-               "narrow_3mm", "headroom_60")
+REFINE_SHOW = ("carpet_60", "targeted_75", "feet_60", "feet_75", "knee_60", "knee_75", "no_calf", "pads_large", "toes_long",
+               "foot_both", "narrow_3mm", "headroom_60")
 
 
 def refinement(x: Ctx) -> str:

@@ -29,6 +29,8 @@
   "mat75_best": "75 cm targeted + carbon plates (3 mm, sourced) + PA11 coverings, walls x0.75",
   "targeted_75": "75 cm: Froude 0.05 sizing + 15 % headroom on neck and hip roll",
   "carpet_75": "75 cm: targeted drives, sized for the 0.18 H carpet swing and Froude 0.05",
+  "feet_60": "60 cm carpet-ready + toes x1.15 and pads x1.25",
+  "feet_75": "75 cm targeted + toes x1.15 and pads x1.25",
   "knee_60": "60 cm carpet-ready + 15 % knee headroom",
   "knee_75": "75 cm carpet-ready + 15 % knee headroom"
  },
@@ -781,30 +783,44 @@
     "tail": 0.5161130958729251
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "hip_pitch",
+     0.7874202561013888
+    ],
+    "speed_ms": 0.4455334471635064
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.7635032661304483,
+    "worst_where": {
+     "group": "neck",
+     "metric": "cont",
+     "case": "in_place_0.50"
+    },
+    "twist_speed_in_place": 2.713820530095394,
+    "twist_speed_limit": 8.691739674931762,
+    "mu_needed": 0.7249414735169405,
+    "min_gap_mm": {
+     "walk_0.35": 1.6,
+     "in_place_0.50": 2.03,
+     "walk_0.50": 0.35
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 6.1372226734139,
+    "friction_margin": 0.26833689288701756,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.2648942033819701,
+   "push_ms": 0.5846719086923275,
+   "session_worst": [
+    "neck",
+    0.7612252818647195
+   ],
+   "clearance_all": false,
+   "tightest_joint_margin_rad": -0.0178,
    "overrides": [
     [
      "ankle_frac",
@@ -817,30 +833,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 14.000000000000009
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
     "clearance": false,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
+    "carpet": true,
     "all": false
    },
    "scores": {
     "natural_walking": 0.8542995731643521,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.577463877319036,
-    "following": 0.0,
+    "turning": 0.6904887687815716,
+    "carpet": 0.6518022439254927,
+    "robustness": 0.7530406842351368,
+    "following": 0.5196430555555556,
     "endurance": 0.8102410742072895,
     "head_and_tail": 0.8635765083050786,
-    "packaging": 1.0,
+    "packaging": 0.4666666666666666,
     "cost": 0.9812
    },
-   "total": 0.6587406129524411,
+   "total": 0.7264234282529874,
    "stressed": 1.0190144490723856
   },
   {
@@ -909,30 +925,44 @@
     "tail": 0.4562902921313125
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "hip_pitch",
+     0.809400544140012
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": false,
+    "worst": 0.7579363090388436,
+    "worst_where": {
+     "group": "neck",
+     "metric": "cont",
+     "case": "in_place_0.50"
+    },
+    "twist_speed_in_place": 2.7296452207989312,
+    "twist_speed_limit": 8.691739674931762,
+    "mu_needed": 0.7127419153228519,
+    "min_gap_mm": {
+     "walk_0.35": -0.01,
+     "in_place_0.50": 0.66,
+     "walk_0.50": -2.76
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976891327749109,
+    "friction_margin": 0.2662725484017665,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.2657377178489335,
+   "push_ms": 0.5746022942966792,
+   "session_worst": [
+    "neck",
+    0.7555797381650434
+   ],
+   "clearance_all": false,
+   "tightest_joint_margin_rad": -0.0351,
    "overrides": [
     [
      "ankle_frac",
@@ -945,30 +975,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
     "clearance": false,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": false,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
+    "carpet": true,
     "all": false
    },
    "scores": {
     "natural_walking": 0.8176657597666468,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.5063511807234905,
-    "following": 0.0,
+    "turning": 0.7034351689749575,
+    "carpet": 0.6430172915945812,
+    "robustness": 0.7258053074411758,
+    "following": 0.5504305555555555,
     "endurance": 0.8024348592396213,
     "head_and_tail": 0.876124828760361,
-    "packaging": 1.0,
+    "packaging": 0.1111111111111111,
     "cost": 0.9768
    },
-   "total": 0.6326279377483331,
+   "total": 0.7023536606081577,
    "stressed": 1.0474595277106038
   },
   {
@@ -1033,30 +1063,44 @@
     "tail": 0.48332018097177254
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "hip_pitch",
+     0.7774141317230641
+    ],
+    "speed_ms": 0.4455334471635064
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": false,
+    "worst": 0.7666021246907098,
+    "worst_where": {
+     "group": "hip_roll",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.799395705493408,
+    "twist_speed_limit": 8.691739674931762,
+    "mu_needed": 0.6186233839180206,
+    "min_gap_mm": {
+     "walk_0.35": -1.69,
+     "in_place_0.50": -1.48,
+     "walk_0.50": -3.06
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 6.137208865637051,
+    "friction_margin": 0.28837527992155215,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.2675392390766118,
+   "push_ms": 0.5844257449260561,
+   "session_worst": [
+    "neck",
+    0.7612127249718282
+   ],
+   "clearance_all": false,
+   "tightest_joint_margin_rad": -0.0674,
    "overrides": [
     [
      "hip_spacing_add_m",
@@ -1073,30 +1117,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 14.000000000000009
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
     "clearance": false,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": false,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
+    "carpet": true,
     "all": false
    },
    "scores": {
     "natural_walking": 0.7599729059770437,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.6098366326606752,
-    "following": 0.0,
+    "turning": 0.7227702937222694,
+    "carpet": 0.6851990953904886,
+    "robustness": 0.7643017255004235,
+    "following": 0.5122930555555556,
     "endurance": 0.8291760521109175,
     "head_and_tail": 0.863607383569335,
-    "packaging": 1.0,
+    "packaging": 0.0,
     "cost": 1.0
    },
-   "total": 0.642240072120098,
+   "total": 0.6972869493602002,
    "stressed": 1.00606534693573
   },
   {
@@ -1161,30 +1205,44 @@
     "tail": 0.42743473206921107
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "hip_pitch",
+     0.7976755971090651
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": false,
+    "worst": 0.7672792945983712,
+    "worst_where": {
+     "group": "hip_roll",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.816836349743704,
+    "twist_speed_limit": 8.691739674931762,
+    "mu_needed": 0.6093034462617314,
+    "min_gap_mm": {
+     "walk_0.35": -4.87,
+     "in_place_0.50": -2.85,
+     "walk_0.50": -9.1
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976887250297073,
+    "friction_margin": 0.28658582024185353,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.268574424606335,
+   "push_ms": 0.575209899477866,
+   "session_worst": [
+    "neck",
+    0.7555683737160421
+   ],
+   "clearance_all": false,
+   "tightest_joint_margin_rad": -0.131,
    "overrides": [
     [
      "hip_spacing_add_m",
@@ -1201,30 +1259,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
     "clearance": false,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": false,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
+    "carpet": true,
     "all": false
    },
    "scores": {
     "natural_walking": 0.7250751804876062,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.5442848328824362,
-    "following": 0.0,
+    "turning": 0.7315907448040537,
+    "carpet": 0.676872608746325,
+    "robustness": 0.7393718217643523,
+    "following": 0.5517777777777778,
     "endurance": 0.8214870407746139,
     "head_and_tail": 0.876152511860545,
-    "packaging": 1.0,
+    "packaging": 0.0,
     "cost": 0.9967
    },
-   "total": 0.6178787010005362,
+   "total": 0.6919968822014393,
    "stressed": 1.0322860668470255
   },
   {
@@ -1268,30 +1326,44 @@
     "tail": 0.45509662162864634
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9694480707894968
+    ],
+    "speed_ms": 0.4455334471635064
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.8818189480979132,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.6622299811849013,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5931678066072711,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 6.13723753454344,
+    "friction_margin": 0.27238562743690875,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.3634743806447902,
+   "push_ms": 0.5180509537515455,
+   "session_worst": [
+    "neck",
+    0.7611811921995975
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1955,
    "overrides": [
     [
      "toe_scale",
@@ -1304,30 +1376,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 14.000000000000009
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.3939368396736228,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2720563443891044,
-    "following": 0.0,
+    "natural_walking": 0.24788830185431676,
+    "turning": 0.6420106577771224,
+    "carpet": 0.6585506302129627,
+    "robustness": 0.6413009798891008,
+    "following": 0.5249930555555556,
     "endurance": 1.0,
-    "head_and_tail": 0.8974887886310787,
-    "packaging": 1.0,
+    "head_and_tail": 0.863680089976722,
+    "packaging": 0.8258333333333333,
     "cost": 1.0
    },
-   "total": 0.492100370035206,
+   "total": 0.6175048397631187,
    "stressed": 1.1411774622443582
   },
   {
@@ -1371,30 +1443,44 @@
     "tail": 0.4021281416520896
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9512072086576533
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.8829515898074334,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.679191825473473,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5796313654692599,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 3.43
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976901130080507,
+    "friction_margin": 0.2708242357141719,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.3641333913308162,
+   "push_ms": 0.5082053527548062,
+   "session_worst": [
+    "neck",
+    0.7555333261111293
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1474,
    "overrides": [
     [
      "toe_scale",
@@ -1407,30 +1493,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.39016136730855544,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2683919153288916,
-    "following": 0.0,
+    "natural_walking": 0.2764020025581889,
+    "turning": 0.6547736757345095,
+    "carpet": 0.6506037638596368,
+    "robustness": 0.6364879556311417,
+    "following": 0.5544013888888889,
     "endurance": 1.0,
-    "head_and_tail": 0.9069067640955586,
-    "packaging": 1.0,
+    "head_and_tail": 0.8762341470513397,
+    "packaging": 0.7456666666666667,
     "cost": 1.0
    },
-   "total": 0.49090914137974684,
+   "total": 0.6243919127417417,
    "stressed": 1.1426432338684434
   },
   {
@@ -1474,30 +1560,44 @@
     "tail": 0.3864864469628842
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9339174429511916
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.8858254311267978,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.7619912048325794,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.4845188183461581,
+    "min_gap_mm": {
+     "walk_0.35": 1.5,
+     "in_place_0.50": 1.5,
+     "walk_0.50": 1.18
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.97689720961807,
+    "friction_margin": 0.2951083266095954,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.3665517958079763,
+   "push_ms": 0.5072673824156894,
+   "session_worst": [
+    "neck",
+    0.7555244479536996
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1339,
    "overrides": [
     [
      "toe_scale",
@@ -1514,30 +1614,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.3805818962440074,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2590941934133012,
-    "following": 0.0,
+    "natural_walking": 0.300428543203351,
+    "turning": 0.7293806861708093,
+    "carpet": 0.6910771180032613,
+    "robustness": 0.6334760145837087,
+    "following": 0.5538027777777778,
     "endurance": 1.0,
-    "head_and_tail": 0.9069242214763741,
-    "packaging": 1.0,
+    "head_and_tail": 0.8762556499245832,
+    "packaging": 0.2926111111111111,
     "cost": 1.0
    },
-   "total": 0.48618102762087917,
+   "total": 0.6249906312478326,
    "stressed": 1.1463623226346795
   },
   {
@@ -1581,30 +1681,44 @@
     "tail": 0.45589557343545817
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9636841295028391
+    ],
+    "speed_ms": 0.4455334471635064
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.7785665378011042,
+    "worst_where": {
+     "group": "hip_yaw",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.703127998407111,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.6438792749059217,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 6.137212273669255,
+    "friction_margin": 0.2709643574284084,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.3302339368432867,
+   "push_ms": 0.500655458392679,
+   "session_worst": [
+    "neck",
+    0.7611667500912591
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1955,
    "overrides": [
     [
      "pad_scale",
@@ -1617,30 +1731,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 14.000000000000009
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
     "natural_walking": 0.42958222116009454,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2906349132269437,
-    "following": 0.0,
+    "turning": 0.6933118657043303,
+    "carpet": 0.6561810048363226,
+    "robustness": 0.6317922635456867,
+    "following": 0.5197305555555556,
     "endurance": 1.0,
     "head_and_tail": 0.8637166331480429,
-    "packaging": 1.0,
+    "packaging": 0.8258333333333333,
     "cost": 1.0
    },
-   "total": 0.5038535898192323,
+   "total": 0.6618109223791058,
    "stressed": 1.1337460347092225
   },
   {
@@ -1684,30 +1798,44 @@
     "tail": 0.40343478774506486
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9874575545740775
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.7883404744327959,
+    "worst_where": {
+     "group": "hip_yaw",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.720873802294555,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.629745866694235,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 3.99,
+     "walk_0.50": 3.37
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976886224210461,
+    "friction_margin": 0.2690167202713819,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.3308481921379796,
+   "push_ms": 0.4929633627144671,
+   "session_worst": [
+    "neck",
+    0.7555197662702132
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1473,
    "overrides": [
     [
      "pad_scale",
@@ -1720,30 +1848,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
     "natural_walking": 0.3722400307955957,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2207130747821251,
-    "following": 0.0,
+    "turning": 0.6971730430380391,
+    "carpet": 0.6475907412593186,
+    "robustness": 0.6058838023498759,
+    "following": 0.5517777777777778,
     "endurance": 1.0,
     "head_and_tail": 0.8762685503106971,
-    "packaging": 1.0,
+    "packaging": 0.7446666666666667,
     "cost": 1.0
    },
-   "total": 0.4733834212742469,
+   "total": 0.6467843534273418,
    "stressed": 1.16171477008715
   },
   {
@@ -1787,30 +1915,44 @@
     "tail": 0.3864864469628842
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9625685061203346
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.7592117899560524,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.808696392858824,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5281817806488103,
+    "min_gap_mm": {
+     "walk_0.35": 1.49,
+     "in_place_0.50": 1.47,
+     "walk_0.50": 1.15
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976883588090226,
+    "friction_margin": 0.29399234288127557,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.3331794044904857,
+   "push_ms": 0.49186722108858394,
+   "session_worst": [
+    "neck",
+    0.7555123979315583
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1339,
    "overrides": [
     [
      "pad_scale",
@@ -1827,31 +1969,31 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.7527214596081155,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.6687265619068891,
-    "following": 0.0,
+    "natural_walking": 0.4387465529368447,
+    "turning": 0.8310990614252599,
+    "carpet": 0.6892166910718002,
+    "robustness": 0.6302768488149136,
+    "following": 0.5517902777777778,
     "endurance": 1.0,
-    "head_and_tail": 0.9069498511919993,
-    "packaging": 1.0,
+    "head_and_tail": 0.8762861253151569,
+    "packaging": 0.17899999999999996,
     "cost": 1.0
    },
-   "total": 0.6802868125246521,
-   "stressed": 0.9825093752372444
+   "total": 0.6664114589009292,
+   "stressed": 1.1324335366121585
   },
   {
    "case": "foot_both",
@@ -1894,30 +2036,44 @@
     "tail": 0.4570624710031582
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9662097109007667
+    ],
+    "speed_ms": 0.4455334471635064
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.8741938842470606,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.664498428862122,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5918111568063769,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 6.137241028987798,
+    "friction_margin": 0.2725995543654989,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.454361567765895,
+   "push_ms": 0.533123864868925,
+   "session_worst": [
+    "neck",
+    0.7611850374337256
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.195,
    "overrides": [
     [
      "toe_scale",
@@ -1934,31 +2090,31 @@
     "station": 0.1650000000000001,
     "drop_mm": 14.000000000000009
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.4193537191764648,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.29672566861245087,
-    "following": 0.0,
+    "natural_walking": 0.2659940080869546,
+    "turning": 0.6516245409992761,
+    "carpet": 0.6589072915754247,
+    "robustness": 0.6724195727042014,
+    "following": 0.5250180555555556,
     "endurance": 1.0,
-    "head_and_tail": 0.8974789875674364,
-    "packaging": 1.0,
+    "head_and_tail": 0.8636692834519293,
+    "packaging": 0.8250000000000001,
     "cost": 1.0
    },
-   "total": 0.5046479192936179,
-   "stressed": 1.1313097325550197
+   "total": 0.627713005719682,
+   "stressed": 1.1367173069420784
   },
   {
    "case": "foot_both",
@@ -2001,30 +2157,44 @@
     "tail": 0.4043074504414019
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9481162776723561
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.8752706575950896,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.681475896859546,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5784215889916952,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 3.4
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.9769035794039524,
+    "friction_margin": 0.2703637158749209,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.454902893378364,
+   "push_ms": 0.5249770173419769,
+   "session_worst": [
+    "neck",
+    0.7555368567882563
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1468,
    "overrides": [
     [
      "toe_scale",
@@ -2041,30 +2211,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.4157644746830347,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2932419901335337,
-    "following": 0.0,
+    "natural_walking": 0.29435510788759056,
+    "turning": 0.664293007210969,
+    "carpet": 0.6498363124383333,
+    "robustness": 0.6729908870693332,
+    "following": 0.5544263888888888,
     "endurance": 1.0,
-    "head_and_tail": 0.906897639712958,
-    "packaging": 1.0,
+    "head_and_tail": 0.8762241411550206,
+    "packaging": 0.7446666666666667,
     "cost": 1.0
    },
-   "total": 0.5035486792032642,
+   "total": 0.6352375943816962,
    "stressed": 1.1327032039465865
   },
   {
@@ -2108,30 +2278,44 @@
     "tail": 0.3864864469628842
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9310261777760156
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.8782074863248597,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.7649432920752814,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.48352293232952737,
+    "min_gap_mm": {
+     "walk_0.35": 1.49,
+     "in_place_0.50": 1.49,
+     "walk_0.50": 1.17
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976899252153617,
+    "friction_margin": 0.2954941616228659,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.4574943640380764,
+   "push_ms": 0.5234900096976319,
+   "session_worst": [
+    "neck",
+    0.7555280477877382
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1334,
    "overrides": [
     [
      "toe_scale",
@@ -2152,30 +2336,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
-    "natural_walking": 0.4059750455838011,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2837404854195713,
-    "following": 0.0,
+    "natural_walking": 0.3179438931652079,
+    "turning": 0.737379952605067,
+    "carpet": 0.6917202444432304,
+    "robustness": 0.669685999452949,
+    "following": 0.5538152777777777,
     "endurance": 1.0,
-    "head_and_tail": 0.9069149499595002,
-    "packaging": 1.0,
+    "head_and_tail": 0.8762454690977356,
+    "packaging": 0.2909444444444444,
     "cost": 1.0
    },
-   "total": 0.4987168991823871,
+   "total": 0.6355070225267627,
    "stressed": 1.1365038058321715
   },
   {
@@ -2219,30 +2403,44 @@
     "tail": 0.7708844100244306
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": false,
+    "worst": [
+     "hip_pitch",
+     1.0986980929930985
+    ],
+    "speed_ms": 0.4981215370537056
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.969503167191567,
+    "worst_where": {
+     "group": "neck",
+     "metric": "cont",
+     "case": "in_place_0.50"
+    },
+    "twist_speed_in_place": 2.8322720377896693,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.3932464090415119,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 11.196497771856524,
+    "friction_margin": 0.3090444607765085,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.4132720037342108,
+   "push_ms": 0.5975160405835335,
+   "session_worst": [
+    "neck",
+    0.9658421642733703
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1752,
    "overrides": [
     [
      "toe_scale",
@@ -2259,31 +2457,31 @@
     "station": 0.1650000000000001,
     "drop_mm": 9.500000000000005
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": false,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
+    "carpet": true,
     "all": false
    },
    "scores": {
-    "natural_walking": 0.16340728205575047,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.04830706787763983,
-    "following": 0.0,
-    "endurance": 0.7033471424453236,
-    "head_and_tail": 0.43824653292124743,
-    "packaging": 1.0,
+    "natural_walking": 0.08170364102787524,
+    "turning": 0.5785175872379488,
+    "carpet": 0.8732165923952175,
+    "robustness": 0.5695128246261613,
+    "following": 0.5389402777777778,
+    "endurance": 0.8516735712226617,
+    "head_and_tail": 0.33011750608819795,
+    "packaging": 0.7919999999999999,
     "cost": 0.7504
    },
-   "total": 0.2924093678334155,
-   "stressed": 1.230677172848944
+   "total": 0.5332508943466202,
+   "stressed": 1.2925859917565865
   },
   {
    "case": "narrow_3mm",
@@ -2560,30 +2758,44 @@
     "tail": 0.4504452364056759
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9606987915789029
+    ],
+    "speed_ms": 0.4455334471635064
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.76351153546886,
+    "worst_where": {
+     "group": "neck",
+     "metric": "cont",
+     "case": "in_place_0.50"
+    },
+    "twist_speed_in_place": 2.7048340549050507,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.6293647342992204,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 6.137206748582322,
+    "friction_margin": 0.2728023013158503,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.2338447007558608,
+   "push_ms": 0.48431798032144574,
+   "session_worst": [
+    "neck",
+    0.7611460772092193
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1968,
    "overrides": [
     [
      "calf_fairing",
@@ -2596,30 +2808,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 14.000000000000009
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
     "natural_walking": 0.4458784542592518,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.2994153188855797,
-    "following": 0.0,
+    "turning": 0.728735625347837,
+    "carpet": 0.6592440604791613,
+    "robustness": 0.6054901455567148,
+    "following": 0.5197805555555556,
     "endurance": 1.0,
     "head_and_tail": 0.8637704245724444,
-    "packaging": 1.0,
+    "packaging": 0.828,
     "cost": 1.0
    },
-   "total": 0.5103950141618708,
+   "total": 0.66863293169813,
    "stressed": 1.1302338724457681
   },
   {
@@ -2663,30 +2875,44 @@
     "tail": 0.3986973624126949
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9844310286790598
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.770708540537136,
+    "worst_where": {
+     "group": "hip_yaw",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.7227477868014525,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.615363779108153,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 3.42
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.976883233865691,
+    "friction_margin": 0.2709253100226721,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.2346594342111465,
+   "push_ms": 0.4758815183404566,
+   "session_worst": [
+    "neck",
+    0.7555001406748582
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1487,
    "overrides": [
     [
      "calf_fairing",
@@ -2699,30 +2925,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
     "natural_walking": 0.38025497585487866,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.22961462153217704,
-    "following": 0.0,
+    "turning": 0.7323412068416943,
+    "carpet": 0.6507716244999766,
+    "robustness": 0.5792782798237999,
+    "following": 0.5518402777777778,
     "endurance": 1.0,
     "head_and_tail": 0.8763197332665577,
-    "packaging": 1.0,
+    "packaging": 0.7478333333333333,
     "cost": 1.0
    },
-   "total": 0.4775845358059003,
+   "total": 0.6519166276262102,
    "stressed": 1.1581541513871292
   },
   {
@@ -2766,30 +2992,44 @@
     "tail": 0.3864864469628842
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9600609516410085
+    ],
+    "speed_ms": 0.4437649522984165
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.7579384073073382,
+    "worst_where": {
+     "group": "neck",
+     "metric": "cont",
+     "case": "in_place_0.50"
+    },
+    "twist_speed_in_place": 2.80954320149023,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5170813387705658,
+    "min_gap_mm": {
+     "walk_0.35": 1.52,
+     "in_place_0.50": 1.5,
+     "walk_0.50": 1.18
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 5.9768793383067536,
+    "friction_margin": 0.29538432514259577,
+    "medium_upright": false
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.2368095320713635,
+   "push_ms": 0.4748379380720955,
+   "session_worst": [
+    "neck",
+    0.7554934529671293
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.135,
    "overrides": [
     [
      "calf_fairing",
@@ -2806,30 +3046,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 15.50000000000001
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
-    "all": false
+    "carpet": true,
+    "all": true
    },
    "scores": {
     "natural_walking": 0.4453799328878209,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.3012913187029159,
-    "following": 0.0,
+    "turning": 0.8455395031533186,
+    "carpet": 0.6915365198478848,
+    "robustness": 0.6031475068464451,
+    "following": 0.5518402777777778,
     "endurance": 1.0,
     "head_and_tail": 0.8763355964608556,
-    "packaging": 1.0,
+    "packaging": 0.29444444444444445,
     "cost": 1.0
    },
-   "total": 0.5115520917229205,
+   "total": 0.6725695005985814,
    "stressed": 1.1294834725188336
   },
   {
@@ -2873,30 +3113,44 @@
     "tail": 0.7593625265215126
    },
    "fast_walk": {
-    "ok": null,
-    "worst": null,
-    "speed_ms": null
+    "ok": false,
+    "worst": [
+     "hip_pitch",
+     1.0776356802908322
+    ],
+    "speed_ms": 0.4981215370537056
    },
    "turning": {
-    "targets_pass": null,
-    "worst": null,
-    "worst_where": null,
-    "twist_speed_in_place": null,
-    "twist_speed_limit": null,
-    "mu_needed": null,
-    "min_gap_mm": null
+    "targets_pass": true,
+    "worst": 0.9695052023678802,
+    "worst_where": {
+     "group": "neck",
+     "metric": "cont",
+     "case": "in_place_0.50"
+    },
+    "twist_speed_in_place": 2.8725717533169868,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.4183443872945336,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
    },
    "carpet": {
-    "passes": null,
-    "toe_margin_mm": null,
-    "friction_margin": null,
-    "medium_upright": null
+    "passes": true,
+    "toe_margin_mm": 11.196541245845093,
+    "friction_margin": 0.3094080370603065,
+    "medium_upright": true
    },
-   "stop_ms2": null,
-   "push_ms": null,
-   "session_worst": null,
-   "clearance_all": null,
-   "tightest_joint_margin_rad": null,
+   "stop_ms2": 1.1978517243888747,
+   "push_ms": 0.5425026719810917,
+   "session_worst": [
+    "neck",
+    0.9658051816190953
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1768,
    "overrides": [
     [
      "calf_fairing",
@@ -2909,30 +3163,30 @@
     "station": 0.1650000000000001,
     "drop_mm": 9.500000000000005
    },
-   "person_in_view": null,
+   "person_in_view": true,
    "gates": {
-    "clearance": false,
+    "clearance": true,
     "drives_sizing_walks": true,
-    "turning_targets": null,
-    "animal_walk": null,
-    "person_in_view": false,
+    "turning_targets": true,
+    "animal_walk": false,
+    "person_in_view": true,
     "runtime_20min": true,
     "reference_walk_cop": true,
-    "carpet": null,
+    "carpet": true,
     "all": false
    },
    "scores": {
     "natural_walking": 0.08728169787471207,
-    "turning": null,
-    "carpet": null,
-    "robustness": 0.0,
-    "following": 0.0,
+    "turning": 0.5748434740458878,
+    "carpet": 0.8732180415281698,
+    "robustness": 0.49812212233590686,
+    "following": 0.5346777777777778,
     "endurance": 0.8735577035100419,
     "head_and_tail": 0.34301674135846705,
-    "packaging": 1.0,
+    "packaging": 0.7946666666666666,
     "cost": 0.774
    },
-   "total": 0.2788327814198142,
+   "total": 0.5260864309729172,
    "stressed": 1.2678066826950969
   },
   {
@@ -4447,6 +4701,528 @@
    },
    "total": 0.6642415328475293,
    "stressed": 1.143125612327883
+  },
+  {
+   "case": "feet_60",
+   "label": "60 cm carpet-ready + toes x1.15 and pads x1.25",
+   "id": "60-M-T-10",
+   "ok": true,
+   "crown_m": 0.6007161153227374,
+   "H_m": 0.40468919988052376,
+   "mass_kg": 10.915341199999999,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 72.345160260151,
+   "runtime_min": 45.56904688779687,
+   "cost_nominal": 14891.0,
+   "cost_high": 20667.0,
+   "drives": {
+    "hip_roll": "cubemars_ak45_36_v3",
+    "hip_pitch": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p12_10_e",
+    "ankle_b": "myactuator_rmd_x4_p12_10_e",
+    "neck": "feetech_sts3250",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {},
+   "governing": [
+    "knee",
+    "speed",
+    0.9773965307709529
+   ],
+   "ratios": {
+    "hip_roll": 0.7048243738646304,
+    "hip_pitch": 0.9161566551739568,
+    "hip_yaw": 0.7410273294582532,
+    "knee": 0.9773965307709529,
+    "ankle_a": 0.8715634072279931,
+    "ankle_b": 0.8715206925745177,
+    "neck": 0.7615204503668169,
+    "tail": 0.5195634034678803
+   },
+   "fast_walk": {
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9773965307709461
+    ],
+    "speed_ms": 0.4455334471635064
+   },
+   "turning": {
+    "targets_pass": true,
+    "worst": 0.8715634072279931,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.6511589274386225,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.580797065423796,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
+   },
+   "carpet": {
+    "passes": true,
+    "toe_margin_mm": 6.137258374623941,
+    "friction_margin": 0.2741310525188733,
+    "medium_upright": true
+   },
+   "stop_ms2": 1.4627641103230309,
+   "push_ms": 0.5374433226898521,
+   "session_worst": [
+    "neck",
+    0.7611894045869503
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1943,
+   "overrides": [
+    [
+     "ankle_frac",
+     0.6
+    ],
+    [
+     "toe_scale",
+     1.15
+    ],
+    [
+     "pad_scale",
+     1.25
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 14.000000000000009
+   },
+   "person_in_view": true,
+   "gates": {
+    "clearance": true,
+    "drives_sizing_walks": true,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": true,
+    "all": true
+   },
+   "scores": {
+    "natural_walking": 0.2517334366684347,
+    "turning": 0.6691331950866163,
+    "carpet": 0.6614603666855869,
+    "robustness": 0.6653839753039009,
+    "following": 0.5237222222222222,
+    "endurance": 1.0,
+    "head_and_tail": 0.8636557167180365,
+    "packaging": 0.8238333333333333,
+    "cost": 1.0
+   },
+   "total": 0.6273480784843892,
+   "stressed": 1.1498782714952307
+  },
+  {
+   "case": "feet_60",
+   "label": "60 cm carpet-ready + toes x1.15 and pads x1.25",
+   "id": "60-M-H-10",
+   "ok": true,
+   "crown_m": 0.600719705981623,
+   "H_m": 0.4014828397317346,
+   "mass_kg": 11.0168072,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 72.70555618180128,
+   "runtime_min": 45.34316458231273,
+   "cost_nominal": 14935.0,
+   "cost_high": 20755.0,
+   "drives": {
+    "hip_roll": "cubemars_ak45_36_v3",
+    "hip_pitch": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p12_10_e",
+    "ankle_b": "myactuator_rmd_x4_p12_10_e",
+    "neck": "feetech_sts3250",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {},
+   "governing": [
+    "knee",
+    "speed",
+    0.9584538588817746
+   ],
+   "ratios": {
+    "hip_roll": 0.7042821723522704,
+    "hip_pitch": 0.9099711000296804,
+    "hip_yaw": 0.7517423675569903,
+    "knee": 0.9584538588817746,
+    "ankle_a": 0.8726757673197437,
+    "ankle_b": 0.8726330632000294,
+    "neck": 0.7558684262535786,
+    "tail": 0.45930176572948994
+   },
+   "fast_walk": {
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9584538588817726
+    ],
+    "speed_ms": 0.4437649522984165
+   },
+   "turning": {
+    "targets_pass": true,
+    "worst": 0.8726757673197437,
+    "worst_where": {
+     "group": "ankle_a",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.668295670228328,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.5674975528119849,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 3.38
+    }
+   },
+   "carpet": {
+    "passes": true,
+    "toe_margin_mm": 5.976915775525339,
+    "friction_margin": 0.27220474294543745,
+    "medium_upright": true
+   },
+   "stop_ms2": 1.4632902253362297,
+   "push_ms": 0.5280259011225903,
+   "session_worst": [
+    "neck",
+    0.7555405003651512
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1462,
+   "overrides": [
+    [
+     "ankle_frac",
+     0.6
+    ],
+    [
+     "toe_scale",
+     1.15
+    ],
+    [
+     "pad_scale",
+     1.25
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 15.50000000000001
+   },
+   "person_in_view": true,
+   "gates": {
+    "clearance": true,
+    "drives_sizing_walks": true,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": true,
+    "all": true
+   },
+   "scores": {
+    "natural_walking": 0.2814506229974728,
+    "turning": 0.6816129083847459,
+    "carpet": 0.6529050974265738,
+    "robustness": 0.6791162819148268,
+    "following": 0.5542263888888889,
+    "endurance": 1.0,
+    "head_and_tail": 0.8762123037569669,
+    "packaging": 0.7436666666666666,
+    "cost": 1.0
+   },
+   "total": 0.6372717734941735,
+   "stressed": 1.1293451106490802
+  },
+  {
+   "case": "feet_75",
+   "label": "75 cm targeted + toes x1.15 and pads x1.25",
+   "id": "75-M-T-10",
+   "ok": true,
+   "crown_m": 0.7507875377562617,
+   "H_m": 0.5058614998506548,
+   "mass_kg": 14.706393799999999,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 88.44126836295322,
+   "runtime_min": 37.27558481489328,
+   "cost_nominal": 18292.0,
+   "cost_high": 25369.0,
+   "drives": {
+    "hip_roll": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_pitch": "myactuator_rmd_x6_p20_60_e",
+    "hip_yaw": "cubemars_ak45_36_v3",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_b": "myactuator_rmd_x4_p36_36_e_l",
+    "neck": "robotis_xm540_w270_t",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {
+    "hip_roll": [
+     "cubemars_ak45_36_v3",
+     "myactuator_rmd_x4_p36_36_e_l"
+    ],
+    "hip_pitch": [
+     "robstride_03",
+     "myactuator_rmd_x6_p20_60_e"
+    ],
+    "neck": [
+     "robotis_xm540_w150_t",
+     "robotis_xm540_w270_t"
+    ]
+   },
+   "governing": [
+    "hip_yaw",
+    "cont",
+    0.995769303364006
+   ],
+   "ratios": {
+    "hip_roll": 0.7466563572993349,
+    "hip_pitch": 0.8384998599042188,
+    "hip_yaw": 0.995769303364006,
+    "knee": 0.9117978271386649,
+    "ankle_a": 0.6981889713781052,
+    "ankle_b": 0.6981772884347653,
+    "neck": 0.6653889691359652,
+    "tail": 0.9000117511902268
+   },
+   "fast_walk": {
+    "ok": true,
+    "worst": [
+     "hip_yaw",
+     0.9259059480259856
+    ],
+    "speed_ms": 0.4981215370537056
+   },
+   "turning": {
+    "targets_pass": true,
+    "worst": 0.995769303364006,
+    "worst_where": {
+     "group": "hip_yaw",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.8214560531200767,
+    "twist_speed_limit": 4.1887902047863905,
+    "mu_needed": 0.41643436546390217,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 4.0,
+     "walk_0.50": 4.0
+    }
+   },
+   "carpet": {
+    "passes": true,
+    "toe_margin_mm": 11.196498255774795,
+    "friction_margin": 0.30217329793837416,
+    "medium_upright": true
+   },
+   "stop_ms2": 1.412508538565764,
+   "push_ms": 0.5962944645111979,
+   "session_worst": [
+    "hip_yaw",
+    0.706502226003989
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1697,
+   "overrides": [
+    [
+     "toe_scale",
+     1.15
+    ],
+    [
+     "pad_scale",
+     1.25
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1650000000000001,
+    "drop_mm": 9.500000000000005
+   },
+   "person_in_view": true,
+   "gates": {
+    "clearance": true,
+    "drives_sizing_walks": true,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": true,
+    "all": true
+   },
+   "scores": {
+    "natural_walking": 0.1305412476833473,
+    "turning": 0.528151031237979,
+    "carpet": 0.8732166085258265,
+    "robustness": 0.5688209127508935,
+    "following": 0.5389652777777778,
+    "endurance": 0.8346746529578839,
+    "head_and_tail": 0.7777647208997479,
+    "packaging": 0.7828333333333334,
+    "cost": 0.6708
+   },
+   "total": 0.5506804548902577,
+   "stressed": 1.2886426278828313
+  },
+  {
+   "case": "feet_75",
+   "label": "75 cm targeted + toes x1.15 and pads x1.25",
+   "id": "75-M-H-10",
+   "ok": true,
+   "crown_m": 0.7507971126971413,
+   "H_m": 0.5018535496646683,
+   "mass_kg": 14.854912,
+   "bus": 24.0,
+   "battery": "lipo_6s_3300",
+   "walk_w": 89.76556920350095,
+   "runtime_min": 36.725662514613965,
+   "cost_nominal": 18521.0,
+   "cost_high": 25658.0,
+   "drives": {
+    "hip_roll": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_pitch": "myactuator_rmd_x6_p20_60_e",
+    "hip_yaw": "myactuator_rmd_x4_p36_36_e_l",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_b": "myactuator_rmd_x4_p36_36_e_l",
+    "neck": "robotis_xm540_w270_t",
+    "tail": "feetech_sts3215_c018"
+   },
+   "drives_changed_vs_ref": {
+    "hip_roll": [
+     "cubemars_ak45_36_v3",
+     "myactuator_rmd_x4_p36_36_e_l"
+    ],
+    "hip_pitch": [
+     "robstride_03",
+     "myactuator_rmd_x6_p20_60_e"
+    ],
+    "hip_yaw": [
+     "cubemars_ak45_36_v3",
+     "myactuator_rmd_x4_p36_36_e_l"
+    ],
+    "neck": [
+     "robotis_xm540_w150_t",
+     "robotis_xm540_w270_t"
+    ]
+   },
+   "governing": [
+    "knee",
+    "speed",
+    0.934718492629652
+   ],
+   "ratios": {
+    "hip_roll": 0.7489367226042353,
+    "hip_pitch": 0.8339814742435865,
+    "hip_yaw": 0.7674181246990602,
+    "knee": 0.934718492629652,
+    "ankle_a": 0.7051541798761474,
+    "ankle_b": 0.7051416416942591,
+    "neck": 0.6621723420938214,
+    "tail": 0.7932987077382947
+   },
+   "fast_walk": {
+    "ok": true,
+    "worst": [
+     "knee",
+     0.9347184926296694
+    ],
+    "speed_ms": 0.4961442996856054
+   },
+   "turning": {
+    "targets_pass": true,
+    "worst": 0.7674181246990602,
+    "worst_where": {
+     "group": "hip_yaw",
+     "metric": "cont",
+     "case": "walk_0.35"
+    },
+    "twist_speed_in_place": 2.8411360183612184,
+    "twist_speed_limit": 8.691739674931762,
+    "mu_needed": 0.409378561889616,
+    "min_gap_mm": {
+     "walk_0.35": 4.0,
+     "in_place_0.50": 3.98,
+     "walk_0.50": 3.52
+    }
+   },
+   "carpet": {
+    "passes": true,
+    "toe_margin_mm": 10.995522540794294,
+    "friction_margin": 0.3003425265776214,
+    "medium_upright": true
+   },
+   "stop_ms2": 1.4137222751065168,
+   "push_ms": 0.5885196254096319,
+   "session_worst": [
+    "neck",
+    0.6619472066206099
+   ],
+   "clearance_all": true,
+   "tightest_joint_margin_rad": 0.1689,
+   "overrides": [
+    [
+     "toe_scale",
+     1.15
+    ],
+    [
+     "pad_scale",
+     1.25
+    ]
+   ],
+   "packaging_builds": 1,
+   "camera": {
+    "fits": true,
+    "station": 0.1700000000000001,
+    "drop_mm": 10.000000000000005
+   },
+   "person_in_view": true,
+   "gates": {
+    "clearance": true,
+    "drives_sizing_walks": true,
+    "turning_targets": true,
+    "animal_walk": true,
+    "person_in_view": true,
+    "runtime_20min": true,
+    "reference_walk_cop": true,
+    "carpet": true,
+    "all": true
+   },
+   "scores": {
+    "natural_walking": 0.4964389711187839,
+    "turning": 0.7806630936322572,
+    "carpet": 0.8665174180264765,
+    "robustness": 0.6920453927686951,
+    "following": 0.5812569444444444,
+    "endurance": 0.8345132502922793,
+    "head_and_tail": 0.8963347691796727,
+    "packaging": 0.7798333333333334,
+    "cost": 0.6479
+   },
+   "total": 0.7023265271563718,
+   "stressed": 1.0996688148584346
   },
   {
    "case": "knee_60",

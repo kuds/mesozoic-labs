@@ -103,6 +103,21 @@ CASES = {
     # knee headroom: on the carpet-ready bodies the governing limit is the knee's speed (0.95 at both sizes), a
     # kinematic requirement that a lighter body does not change (same-drive pass); 15 % headroom on the knee
     # lets the sizing pick a faster knee drive instead of the lightest one that passes
+    # the narrow stance with 3 mm turn clearance tops the version-2 scorecard but keeps the round-two ankle station;
+    # combined here with the carpet-ready ankle drives (0.60 of the shank) and the carpet swing sizing
+    "narrow_carpet_60": dict(ids=("60-N-T-10", "60-N-H-10"), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
+                             walks=("fr05", "lift19"), min_gap=3.0,
+                             label="60 cm narrow stance (turns >= 3 mm) + carpet-ready ankle drives"),
+    # the foot lever on the refined bodies: longer toes (x1.15) and larger pads (x1.25) cut the friction need with the
+    # stance foot's yaw moment by about 8 % and raise the one-foot stop from 1.24 to 1.45 m/s^2 on the round-two
+    # bodies (foot_both), so they are combined here with the carpet-ready 60 cm and targeted 75 cm bodies
+    "feet_60": dict(ids=("60-M-T-10", "60-M-H-10"),
+                    overrides=(("ankle_frac", 0.60), ("toe_scale", 1.15), ("pad_scale", 1.25)), headroom=1.0, fr05=True,
+                    walks=("fr05", "lift19"), min_gap=0.0,
+                    label="60 cm carpet-ready + toes x1.15 and pads x1.25"),
+    "feet_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(("toe_scale", 1.15), ("pad_scale", 1.25)), headroom=1.0,
+                    fr05=True, min_gap=0.0, headroom_by_group={"neck": 0.85, "hip_roll": 0.85},
+                    label="75 cm targeted + toes x1.15 and pads x1.25"),
     "knee_60": dict(ids=("60-M-T-10", "60-M-H-10"), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
                     walks=("fr05", "lift19"), min_gap=0.0, headroom_by_group={"knee": 0.85},
                     label="60 cm carpet-ready + 15 % knee headroom"),
