@@ -59,7 +59,8 @@ def _rng(vals, f):
     if not vals:
         return "–"
     lo, hi = min(vals), max(vals)
-    return f(lo) if abs(hi - lo) < 1e-9 or f(lo) == f(hi) else f"{f(lo)}–{f(hi)}"
+    a, b = f(lo).replace("-", "−"), f(hi).replace("-", "−")
+    return a if abs(hi - lo) < 1e-9 or a == b else (f"{a} to {b}" if lo < 0 else f"{a}–{b}")
 
 
 def _worst(doc) -> tuple[str, float, str]:
@@ -250,7 +251,7 @@ def sizes(x: Ctx) -> str:
             rr = max(mm["cont_ratio"], mm["peak_ratio"], mm["speed_ratio"])
             cells.append(f"{K.esc(part(mm['actuator']))} <span class='mono'>{rr:.2f}</span>")
         drows.append(cells)
-    dtbl = K.table(["Base body"] + [GROUP_LABEL[g].capitalize() for g in GROUPS], drows)
+    dtbl = K.table(["Base body"] + [GROUP_LABEL[g][0].upper() + GROUP_LABEL[g][1:] for g in GROUPS], drows)
     crows = [(cid, x.D[cid]["cost"]["low"], x.D[cid]["cost"]["nominal"], x.D[cid]["cost"]["high"]) for cid in base_ids()
              if x.D.get(cid, {}).get("ok")]
     chart = K.cost_chart(crows) if crows else ""
@@ -561,9 +562,21 @@ def corrections(x: Ctx) -> str:
 
     def r_(g, k):
         v = rr.get(g, {}).get(k)
-        return "–" if not v else (f"{v[0]:.2f}" if abs(v[1] - v[0]) < 0.005 else f"{v[0]:.2f}–{v[1]:.2f}")
+        if not v:
+            return "–"
+        a, b = f"{v[0]:.2f}", f"{v[1]:.2f}"
+        return a if a == b else f"{a}–{b}"
 
-    rows = [[GROUP_LABEL[g].capitalize(), r_(g, "cont"), r_(g, "peak_req"), r_(g, "speed_req")] for g in GROUPS if g in rr]
+    ch = rc.get("reselection_changed_ids") or {}
+    kinds = (("an ankle drive", ("ankle_a", "ankle_b")), ("the tail servo", ("tail",)), ("the knee", ("knee",)),
+             ("the hip pitch", ("hip_pitch",)), ("the hip roll", ("hip_roll",)), ("the thigh twist", ("hip_yaw",)),
+             ("the neck servo", ("neck",)))
+    parts = [f"{lab} on {n}" for lab, gs in kinds if (n := sum(1 for v in ch.values() if any(g in v for g in gs)))]
+    reselect = ", ".join(parts)
+    m1 = f"{rc['nominal_cop_margin_mm_r1'][0]:+.0f} to {rc['nominal_cop_margin_mm_r1'][1]:+.0f}".replace("-", "−")
+
+    rows = [[GROUP_LABEL[g][0].upper() + GROUP_LABEL[g][1:], r_(g, "cont"), r_(g, "peak_req"), r_(g, "speed_req")]
+            for g in GROUPS if g in rr]
     tbl = K.table(["Joint group", "Continuous requirement", "Peak requirement", "Speed requirement"], rows, num={1, 2, 3},
                   caption="Requirement at round two's walk accuracy over round one's, on the same round-one models "
                           f"({rc['n_checked']} candidates).")
@@ -583,12 +596,14 @@ def corrections(x: Ctx) -> str:
     <ul>
       <li>The three walks flagged as leaving the support pad ({K.esc(inf1)}) keep their centre of pressure inside it.
       Every nominal walk now has {rc['nominal_cop_margin_mm_r2'][0]:.0f}–{rc['nominal_cop_margin_mm_r2'][1]:.0f} mm of margin
-      (round one: {rc['nominal_cop_margin_mm_r1'][0]:.0f} to {rc['nominal_cop_margin_mm_r1'][1]:.0f} mm). The flags
-      were generator artifacts, not a property of those bodies.</li>
-      <li>Continuous requirements, which set most drive choices, barely move. Peak requirements fall, most at the
-      ankles; thigh-twist speed requirements fall too, but they were small.</li>
-      <li>Re-selecting drives from the corrected requirements changes at least one leg drive on
-      {rc['reselection_changes']} of {rc['n_checked']} bodies ({K.esc(', '.join(f"{GROUP_LABEL.get(g, g)} {n}" for g, n in sorted(rc['reselection_changes_by_group'].items(), key=lambda t: -t[1])))}).</li>
+      (round one: {m1} mm), and no brisk walk leaves
+      the pad (round one: {rc['brisk_cop_off_pad_r1']} of {rc['n_checked']}). The flags were generator artifacts, not a
+      property of those bodies.</li>
+      <li>Continuous requirements, which set most drive choices, move by less than 2 %. Peak requirements fall, most
+      at the ankles and the knee; thigh-twist speed requirements fall too, but they were small.</li>
+      <li>Re-selecting parts from the corrected requirements changes at least one on {rc['reselection_changes']} of
+      {rc['n_checked']} bodies: {K.esc(reselect)}. The holds and continuous loads behind round one's size and family
+      comparisons are unchanged.</li>
     </ul>
     {tbl}
     <p><b>Turning in place needs more thigh twist than stated.</b> Round one estimated about 0.5 rad/s of thigh twist
@@ -604,10 +619,13 @@ def questions(x: Ctx) -> str:
     picks = x.picks()
     w = {c: x.W[c] for c in x.W if x.W[c].get("ok") and x.D.get(c, {}).get("ok")}
     if w:
-        dm = _rng([x.W[c]["metrics"]["mass"] - x.D[c]["metrics"]["mass"] for c in w], lambda v: f"{v:+.2f}")
-        dc = _rng([(x.W[c]["cost"]["nominal"] - x.D[c]["cost"]["nominal"]) / 1000 for c in w], lambda v: f"+${v:.1f}k")
-        dr = _rng([x.W[c]["runtime"]["minutes"] - x.D[c]["runtime"]["minutes"] for c in w], lambda v: f"{v:+.1f}")
-        fr05 = f"Size it for the Froude 0.05 walk (section 6: {dc} nominal, {dm} kg, {dr} min of runtime)."
+        mean = lambda vals: sum(vals) / len(vals)  # noqa: E731
+        dm = mean([x.W[c]["metrics"]["mass"] - x.D[c]["metrics"]["mass"] for c in w])
+        dc = mean([(x.W[c]["cost"]["nominal"] - x.D[c]["cost"]["nominal"]) / 1000 for c in w])
+        dr = mean([x.W[c]["runtime"]["minutes"] - x.D[c]["runtime"]["minutes"] for c in w])
+        sg = lambda v: "+" if v >= 0 else "−"  # noqa: E731
+        fr05 = (f"Size it for the Froude 0.05 walk (section 6: {sg(dc)}${abs(dc):.1f}k nominal, {sg(dm)}{abs(dm):.1f} kg "
+                f"and {sg(dr)}{abs(dr):.1f} min of runtime).")
     else:
         fr05 = "Size it for the Froude 0.05 walk."
     q = [
