@@ -20,6 +20,11 @@ and rocks the stance feet on their pads: on the nominal walk (60-N-T-10, R1) the
 move at 11 / 8 / 19 mm/s RMS (x / y / z) against 5 / 5 / 5 mm/s with the ramp and 5 / 4 / 5 mm/s for R0, which
 spoils the stance-leg odometry R2 relies on.
 
+A speed command (``Tracker.rate``, ``COMMAND_RATE_RULE``): the tracker plays its track ``rate`` times faster than
+real time (the tuning commands plan section 4's 5 % above the targets, rate 1.05); the reference rates, accelerations
+and DCM follow the faster clock, the inverse-dynamics torque does not.  Rate 1 (G2, G4) is the tracker as built, bit
+for bit.
+
 Ankle torque cap (``STAGE1_PLAN.md`` decision 15; ``ANKLE_CAP``, ``cap_ankle_torque``): every physics step the
 tracker limits each ankle's total commanded torque (feedforward, the servo's PD predicted from the encoders, true
 angles and rates for R1 and the last reading for R2, and the feedback) to at most one motor's peak on each axis (the
@@ -28,7 +33,8 @@ screened model's per-axis box, inside the two-motor linkage's |tau_p| + |tau_r| 
 readings are as noisy as that threshold), to what the stance pad can carry with its centre of pressure
 ``COP_INSET`` (5 mm) inside the pad (the CoP the torques imply under the foot's load, quasi-statically: ``ankle_cop``).
 The torque kept is the feasible one nearest to the command.  More torque only rolls the foot; the cap limits the
-controller, not the plant.
+controller, not the plant.  Every R1 and R2 episode records how far the realised ankle torques broke the cap on the
+true state (``CAP_RESIDUAL_RULE``, ``Tracker.cap_residual``): R2 caps on its sensor readings.
 
 The tunable gains are one named vector (``GAIN_SPEC``: name, tuning start, earlier default, CMA-ES bounds, note).  The
 tuning start (decision 16, ``START_GAINS``, the tracker's default and G4's point, decision 17) is the design-study
@@ -661,6 +667,7 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
     kd = mujoco.MjData(m)
     n = len(q)
     xi = np.zeros((n, 2))
+    cv = np.zeros((n, 2))
     feet = np.zeros((n, 2, 2))
     fyaw = np.zeros((n, 2))
     rp = np.zeros((n, 2))
@@ -672,6 +679,7 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
         mujoco.mj_comVel(m, kd)
         mujoco.mj_subtreeVel(m, kd)
         xi[k] = kd.subtree_com[p.trunk][:2] + kd.subtree_linvel[p.trunk][:2] / omega
+        cv[k] = kd.subtree_linvel[p.trunk][:2]
         for j, f in enumerate(p.feet):
             feet[k, j] = kd.xpos[f][:2]
             fyaw[k, j] = _yaw(kd.xmat[f])
@@ -694,6 +702,7 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
     poly_n = np.zeros(n, int)
     poly_rn = np.zeros(n, int)
     dcm_rel = np.zeros((n, 2))
+    comv_rel = np.zeros((n, 2))
     zmp_rel = np.zeros((n, 2))
     for k in range(n):
         if anchor[k] < 2:
@@ -702,6 +711,7 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
             pa, ya = feet[k].mean(0), float(np.mean(fyaw[k]))
         Rt = _rot2(ya).T
         dcm_rel[k] = Rt @ (xi[k] - pa)
+        comv_rel[k] = Rt @ cv[k]
         zmp_rel[k] = Rt @ (zmp_mb[k] - pa) if np.all(np.isfinite(zmp_mb[k])) else dcm_rel[k]
         for target, store, count in ((inset, poly_in, poly_n), (polys, poly_raw, poly_rn)):
             pts = np.vstack([(feet[k, j] + target[j] @ _rot2(fyaw[k, j]).T - pa) @ Rt.T for j in (0, 1)
@@ -714,8 +724,8 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
     w = np.where(tot > 0, w / np.where(tot > 0, tot, 1.0), np.where(support, 0.5, 0.0))
     per = np.broadcast_to(np.asarray(period, float), (n,)).copy()
     land_rel, land_yaw = _landings(swing, feet, fyaw, periodic)
-    return dict(anchor=anchor, swing=swing, u=u, dcm_rel=dcm_rel, zmp_rel=zmp_rel, poly=poly_in, poly_n=poly_n,
-                poly_raw=poly_raw, poly_raw_n=poly_rn, weights=w, roll_pitch=rp, yaw=yaw, period=per,
+    return dict(anchor=anchor, swing=swing, u=u, dcm_rel=dcm_rel, comv_rel=comv_rel, zmp_rel=zmp_rel, poly=poly_in,
+                poly_n=poly_n, poly_raw=poly_raw, poly_raw_n=poly_rn, weights=w, roll_pitch=rp, yaw=yaw, period=per,
                 stand=(swing < 0) & (anchor == 2), land_rel=land_rel, land_yaw=land_yaw)
 
 
@@ -868,7 +878,7 @@ class Track:
             off0 = off1 = 0.0
         out = {key: v[k0] for key, v in inf.items()}
         if a > 0 and inf["anchor"][k1] == inf["anchor"][k0]:
-            for key in ("dcm_rel", "zmp_rel", "weights", "roll_pitch"):
+            for key in ("dcm_rel", "comv_rel", "zmp_rel", "weights", "roll_pitch"):
                 out[key] = (1 - a) * inf[key][k0] + a * inf[key][k1]
             if inf["swing"][k1] == inf["swing"][k0]:
                 out["u"] = (1 - a) * inf["u"][k0] + a * inf["u"][k1]
@@ -1209,6 +1219,14 @@ class Tracker:
                 out[ix] += new - tau
         return out
 
+    def dcm_reference(self, ref: dict) -> np.ndarray:
+        """The reference DCM relative to the anchor (``frame_info``): the track played at the commanded rate moves its
+        CoM ``rate`` times as fast, so its DCM is c + rate c' / omega0 (``COMMAND_RATE_RULE``; rate 1: the
+        reference's own)."""
+        if self.rate == 1.0:
+            return ref["dcm_rel"]
+        return ref["dcm_rel"] + (self.rate - 1.0) * ref["comv_rel"] / self.track.omega
+
     def cap_residual(self, loads) -> tuple[float, float, float, int, int]:
         """How far the realised ankle torques break decision 15's cap on the true state (``CAP_RESIDUAL_RULE``): the
         largest excess of an axis over one motor's peak (N m, 0 within); over the feet carrying more than
@@ -1283,7 +1301,7 @@ class Tracker:
         a = int(ref["anchor"])
         pa, ya = self._anchor_frame(st, a)
         Ra = _rot2(ya)
-        e = Ra.T @ (xi - pa) - ref["dcm_rel"]
+        e = Ra.T @ (xi - pa) - self.dcm_reference(ref)
         self.e = e
         dtau = np.zeros(self.nj)
         sw = int(ref["swing"])
@@ -1502,7 +1520,8 @@ CAP_RESIDUAL_RULE = ("at every feedback update, the realised ankle torques (the 
 COMMAND_RATE_RULE = ("a command of r times the reference's speed plays the track r times faster than real time (the "
                      "reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times "
                      "r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the "
-                     "servo targets and the armature feedforward, the inverse-dynamics torque as the reference's")
+                     "servo targets and the armature feedforward, the reference DCM c + r c' / omega0 (the CoM moving r "
+                     "times as fast), the inverse-dynamics torque and the reference ZMP as the reference's")
 FALL_ONSET_RAD = 0.2  # the fall's onset: the last time the trunk tilt rose through this before the fall
 HIST_S = 3.0  # how far back before a fall its onset is looked for
 LIMIT_NEAR_S = 0.1  # the activity in this last part of the window before the onset is reported as well

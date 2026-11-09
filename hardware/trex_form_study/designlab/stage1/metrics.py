@@ -4,9 +4,11 @@ episode, for the tuning objective and gate G5 (``tune``), and the noise floor th
 ``Recorder`` is handed every physics step and feedback update of an episode by ``control.run`` (it only reads the
 plant): per physics step the two feet's vertical floor loads (the plant's contact sensors, net force in the world
 frame from that foot's floor contacts); per feedback update (100 Hz) the true state: time and reference time, the
-CoM and its velocity, the feet, the lowest point of each foot (every foot geom: pads, toes, claws, hallux, plate, as
-``carpet.swing_profiles`` takes it), the trunk's roll and pitch about its home attitude and its yaw, the loaded feet's
-slip speeds (``control.foot_slip_speed``), the IMU point's horizontal acceleration (the accelerometer without noise),
+CoM and its velocity, the feet, each foot's sole centre (the mean of its pads' bottom corners, ``estimator.
+sole_corners``) and load, the root (the trunk's origin), the lowest point of each foot (every foot geom: pads, toes,
+claws, hallux, plate, as ``carpet.swing_profiles`` takes it), the trunk's roll and pitch about its home attitude and
+its yaw, the loaded feet's slip speeds (``control.foot_slip_speed``), the IMU point's horizontal acceleration (the
+accelerometer without noise),
 the joint angles, the true DCM error against the reference (relative to the anchor foot in its frame, as the
 feedback's) and, when asked, the pose every ``legs_every`` updates for the leg-to-leg check (``legs.LegGap``).  Every
 time is that of the state the derived quantities describe: the start of the physics step just taken.
@@ -25,8 +27,12 @@ readings:
 * toe clearance: per swing of the reference (its swing foot and swing progress at the update's reference time), the
   lowest point of that foot over the swing's middle half (``clearance.MID_SWING``, as the screens measured it on the
   gait's own clock), within the window; the worst swing;
-* slip: per stance (a contact run) within the window, the loaded contacts' slip speed integrated over it (a foot
-  carrying less than ``control.SLIP_LOAD_FRAC`` of the weight counts as not slipping); the median and the worst;
+* slip ("foot site vs contact point", BEHAVIOR_SPEC section 1): per stance (a contact run) within the window, how far
+  the foot's sole centre moves horizontally while the foot carries more than ``control.SLIP_LOAD_FRAC`` of the weight,
+  from where it was when that load came on (the largest distance); the median and the worst stance.  The sole centre
+  lies on the pads' bottom, so a foot rocking on a pad edge barely moves it sideways, and a foot spinning on its pads
+  moves it as the pads slide.  Reported beside it: the loaded contacts' slip speed (``control.foot_slip_speed``, the
+  fastest loaded contact) integrated over the stance, a path length that also gathers the contacts' jitter;
 * speed: the CoM's displacement along the episode's starting heading over the window, over its duration; yaw rate:
   pi over the time the trunk takes to turn through 180 deg from the window's start (the window's mean rate when it
   does not get there);
@@ -51,7 +57,7 @@ import mujoco
 import numpy as np
 
 from .. import carpet, clearance, statics
-from . import control
+from . import control, estimator
 
 DEBOUNCE_S = 0.02
 START_SPEED_FRAC = 0.9
@@ -59,7 +65,8 @@ ACCEL_LP_HZ = 1.0
 ACCEL_LP_ORDER = 2
 #: Columns of a recorder's per-update rows.
 COLS = ("t", "t_ref", "com_x", "com_y", "v_x", "v_y", "foot0_x", "foot0_y", "foot1_x", "foot1_y", "low0", "low1",
-        "roll", "pitch", "yaw", "slip0", "slip1", "acc_x", "acc_y", "e_x", "e_y", "ref_swing", "ref_u")
+        "roll", "pitch", "yaw", "slip0", "slip1", "acc_x", "acc_y", "e_x", "e_y", "ref_swing", "ref_u", "sole0_x",
+        "sole0_y", "sole1_x", "sole1_y", "load0", "load1", "root_x", "root_y")
 C = {name: i for i, name in enumerate(COLS)}
 
 
@@ -111,6 +118,7 @@ class Recorder:
         self._lidx = np.array([p._sens[f"{s}_foot_load"][0] + 3 for s in statics.SIDES])
         self._acc = p._sens["imu_accel"][0]
         self._boxes, self._caps = _lowest_point_tables(m, p.feet)
+        self._sole = [c.mean(0) for c in estimator.sole_corners(m, p.feet)]  # each foot's sole centre, foot frame
         self.rows = 0
         self.steps = 0
 
@@ -138,10 +146,14 @@ class Recorder:
             pa = 0.5 * (f0[:2] + f1[:2])
             ya = math.atan2(math.sin(fy[0]) + math.sin(fy[1]), math.cos(fy[0]) + math.cos(fy[1]))
         xi = com[:2] + v[:2] / tk.track.omega
-        e = control._rot2(ya).T @ (xi - pa) - ref["dcm_rel"]
+        e = control._rot2(ya).T @ (xi - pa) - tk.dcm_reference(ref)
+        s0 = f0 + d.xmat[p.feet[0]].reshape(3, 3) @ self._sole[0]
+        s1 = f1 + d.xmat[p.feet[1]].reshape(3, 3) @ self._sole[1]
+        root = d.xpos[p.trunk]
         i = self.rows
         self.U[i] = (d.time - self.dt, t_ref, com[0], com[1], v[0], v[1], f0[0], f0[1], f1[0], f1[1], low[0], low[1],
-                     roll, pitch, yaw, slip_v[0], slip_v[1], acc[0], acc[1], e[0], e[1], ref["swing"], ref["u"])
+                     roll, pitch, yaw, slip_v[0], slip_v[1], acc[0], acc[1], e[0], e[1], ref["swing"], ref["u"], s0[0],
+                     s0[1], s1[0], s1[1], loads[0], loads[1], root[0], root[1])
         self.Q[i] = d.qpos[p.qadr]
         if self.poses is not None and i % self.legs_every == 0:
             self.poses.append(d.qpos.copy())
@@ -260,15 +272,20 @@ def window(rec: Recorder, ta: float, tb: float, heading: float, H: float, yaw_ta
     out["swings"] = len(mins)
     out["toe_clearance_m"] = float(min(mins)) if mins else None
     # slip: stances within the window
-    slips = []
+    slips, paths = [], []
+    heavy = control.SLIP_LOAD_FRAC * rec.weight
     for i, a, b in stances:
         if a * dt < ta - 1e-9 or b * dt > tb + 1e-9:
             continue
         m = (t >= a * dt - 1e-9) & (t < b * dt - 1e-9)
-        slips.append(float(np.sum(U[m, C[f"slip{i}"]]) * control.FEEDBACK_EVERY * dt))
+        paths.append(float(np.sum(U[m, C[f"slip{i}"]]) * control.FEEDBACK_EVERY * dt))
+        sole = U[m][:, [C[f"sole{i}_x"], C[f"sole{i}_y"]]][U[m, C[f"load{i}"]] > heavy]
+        slips.append(float(np.max(np.linalg.norm(sole - sole[0], axis=1))) if len(sole) else 0.0)
     out["stances"] = len(slips)
     out["slip_median_m"] = float(np.median(slips)) if slips else None
     out["slip_worst_m"] = float(max(slips)) if slips else None
+    out["slip_contact_path_median_m"] = float(np.median(paths)) if paths else None
+    out["slip_contact_path_worst_m"] = float(max(paths)) if paths else None
     # speed and heading
     cx, cy = np.interp([ta, tb], t, rec.col("com_x")), np.interp([ta, tb], t, rec.col("com_y"))
     dxy = np.array([cx[1] - cx[0], cy[1] - cy[0]])

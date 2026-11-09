@@ -4697,66 +4697,6 @@
    "single": "the one unperturbed run of each gated condition reaches its threshold (reported)"
   },
   "judged_at": "start",
-  "decided": {
-   "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decisions 15-20",
-   "decisions": [
-    {
-     "decision": 15,
-     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 15",
-     "choice": "ankle_cap",
-     "title": "Ankle torque in the tracker: each axis at most one motor's peak, a loaded foot's CoP 5 mm inside its pad",
-     "taken": "box+pad",
-     "used": "box+pad",
-     "follows": true
-    },
-    {
-     "decision": 16,
-     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 16",
-     "choice": "gains",
-     "title": "Tuning start: the prototype's terms, heading and phase-rate gains zero",
-     "taken": "start",
-     "used": "start",
-     "follows": true
-    },
-    {
-     "decision": 17,
-     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 17",
-     "choice": "g4_rule",
-     "title": "G4 judged at that start with decision 13's panel rule",
-     "taken": "panel",
-     "used": "panel",
-     "follows": true
-    },
-    {
-     "decision": 18,
-     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 18",
-     "choice": "stop_reading",
-     "title": "Stopped within 1.5 strides: forward speed below 5 % of the command within 1.5 strides of the stop command",
-     "taken": "forward_5pct_of_command",
-     "used": "forward_5pct_of_command",
-     "follows": true
-    },
-    {
-     "decision": 19,
-     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 19",
-     "choice": "estimator_stance_point",
-     "title": "Estimator stance point: the loaded pad's contact point",
-     "taken": "loaded_pad_contact_point",
-     "used": "loaded_pad_contact_point",
-     "follows": true
-    },
-    {
-     "decision": 20,
-     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 20",
-     "choice": "attribution_and_inward_bound",
-     "title": "Fall attribution over the condition's starts; the inward bound the swing pad 5 mm from the stance pad",
-     "taken": "panel_attribution+pad_clearance",
-     "used": "panel_attribution+pad_clearance",
-     "follows": true
-    }
-   ],
-   "follows_all": true
-  },
   "tracker": {
    "gains": {
     "k_dcm": {
@@ -4905,7 +4845,8 @@
      "pad"
     ],
     "contact_load_frac": 0.02,
-    "rule": "decision 15: each ankle's total torque command (feedforward, the servo's PD predicted from the encoders, the feedback) at most one motor's peak on each axis, and on a loaded foot no more than puts its CoP 5 mm inside its pad; the nearest such torque is commanded (control.cap_ankle_torque)"
+    "rule": "decision 15: each ankle's total torque command (feedforward, the servo's PD predicted from the encoders, the feedback) at most one motor's peak on each axis, and on a loaded foot no more than puts its CoP 5 mm inside its pad; the nearest such torque is commanded (control.cap_ankle_torque)",
+    "residual": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact"
    },
    "inward_bound": {
     "bound": "pad_clearance",
@@ -5656,7 +5597,8 @@
      "k_accel_tilt": 0.05,
      "k_leg_velocity": Infinity,
      "contact_on": 0.2,
-     "contact_off": 0.1
+     "contact_off": 0.1,
+     "stance_point": "loaded_pad_contact_point"
     },
     "noise": {
      "gyro_sigma": 0.003,
@@ -5712,7 +5654,7 @@
     "slip_speed_m_s": 0.05,
     "slip_load_frac": 0.2,
     "candidates": "the hardware limits (HW_LIMITS) active at an update of the 0.5 s before the fall's onset (the last time the trunk tilt rose through 0.2 rad)",
-    "attribution": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE).  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, must not improve survival significantly itself, else the condition is 'undetermined'; otherwise its falls are controller-limited.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label"
+    "attribution": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label"
    },
    "stop_reading": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported"
   },
@@ -5770,7 +5712,15 @@
         "ankle_cap_pad": 0.214766201804758,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.993605777301127e-15,
+        "pad_frac": 0.09729286300246104,
+        "pad_max_excess_Nm": 3.0018416123453457,
+        "heavy_pad_frac": 0.0649712879409352,
+        "heavy_pad_max_excess_Nm": 0.7335198590604735
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5783,7 +5733,15 @@
         "ankle_cap_pad": 0.21214109926168992,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 8.881784197001252e-15,
+        "pad_frac": 0.09811320754716982,
+        "pad_max_excess_Nm": 2.9581110187586908,
+        "heavy_pad_frac": 0.06316652994257588,
+        "heavy_pad_max_excess_Nm": 0.9350158269950294
+       }
       },
       {
        "strides": 43.277968677312465,
@@ -5798,7 +5756,15 @@
         "ankle_cap_pad": 0.2329390354868062,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.993605777301127e-15,
+        "pad_frac": 0.11305732484076433,
+        "pad_max_excess_Nm": 3.4986951108251487,
+        "heavy_pad_frac": 0.07825295723384895,
+        "heavy_pad_max_excess_Nm": 3.4986951108251487
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5811,7 +5777,15 @@
         "ankle_cap_pad": 0.20820344544708777,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 5.329070518200751e-15,
+        "pad_frac": 0.09860541427399508,
+        "pad_max_excess_Nm": 3.1666378786354743,
+        "heavy_pad_frac": 0.06825266611977031,
+        "heavy_pad_max_excess_Nm": 1.3778213280967906
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5824,7 +5798,15 @@
         "ankle_cap_pad": 0.21132075471698114,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 4.440892098500626e-15,
+        "pad_frac": 0.10090237899917966,
+        "pad_max_excess_Nm": 3.194989416597805,
+        "heavy_pad_frac": 0.06743232157506153,
+        "heavy_pad_max_excess_Nm": 1.7367439610646906
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5837,7 +5819,15 @@
         "ankle_cap_pad": 0.21230516817063166,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 9.769962616701378e-15,
+        "pad_frac": 0.10287120590648072,
+        "pad_max_excess_Nm": 3.334736590816041,
+        "heavy_pad_frac": 0.06989335520918787,
+        "heavy_pad_max_excess_Nm": 0.5838525526119335
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5850,7 +5840,15 @@
         "ankle_cap_pad": 0.20492206726825266,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 5.329070518200751e-15,
+        "pad_frac": 0.09614438063986874,
+        "pad_max_excess_Nm": 2.7434192092306735,
+        "heavy_pad_frac": 0.06628383921246923,
+        "heavy_pad_max_excess_Nm": 1.1383661964429461
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5863,7 +5861,15 @@
         "ankle_cap_pad": 0.2065627563576702,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.09598031173092698,
+        "pad_max_excess_Nm": 2.854852538123273,
+        "heavy_pad_frac": 0.06316652994257588,
+        "heavy_pad_max_excess_Nm": 1.2253498180523168
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5876,7 +5882,15 @@
         "ankle_cap_pad": 0.20705496308449547,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.105427357601002e-15,
+        "pad_frac": 0.09663658736669402,
+        "pad_max_excess_Nm": 3.0460490429682423,
+        "heavy_pad_frac": 0.06480721903199343,
+        "heavy_pad_max_excess_Nm": 0.4874100166481429
+       }
       },
       {
        "strides": 37.845332270704795,
@@ -5891,7 +5905,15 @@
         "ankle_cap_pad": 0.24687825182101977,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 2.1316282072803006e-14,
+        "pad_frac": 0.11238293444328824,
+        "pad_max_excess_Nm": 2.9858225369168307,
+        "heavy_pad_frac": 0.07804370447450572,
+        "heavy_pad_max_excess_Nm": 1.0048224824644418
+       }
       },
       {
        "strides": 42.41945853839222,
@@ -5907,7 +5929,15 @@
         "ankle_cap_pad": 0.23578556509631005,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 2.1316282072803006e-14,
+        "pad_frac": 0.11023439313065676,
+        "pad_max_excess_Nm": 3.273532828988642,
+        "heavy_pad_frac": 0.0749593873288466,
+        "heavy_pad_max_excess_Nm": 0.9123165341984174
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5920,7 +5950,15 @@
         "ankle_cap_pad": 0.2095159967186218,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 6.217248937900877e-15,
+        "pad_frac": 0.10319934372436423,
+        "pad_max_excess_Nm": 2.9548586831991055,
+        "heavy_pad_frac": 0.07202625102543068,
+        "heavy_pad_max_excess_Nm": 1.2144358311823225
+       }
       },
       {
        "strides": 44.146324115990964,
@@ -5935,7 +5973,15 @@
         "ankle_cap_pad": 0.22145405887600356,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 8.881784197001252e-15,
+        "pad_frac": 0.10704727921498662,
+        "pad_max_excess_Nm": 5.334580905875853,
+        "heavy_pad_frac": 0.0756021409455843,
+        "heavy_pad_max_excess_Nm": 5.334580905875853
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5948,7 +5994,15 @@
         "ankle_cap_pad": 0.20721903199343725,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 4.440892098500626e-15,
+        "pad_frac": 0.09680065627563576,
+        "pad_max_excess_Nm": 2.5960984894967467,
+        "heavy_pad_frac": 0.06480721903199343,
+        "heavy_pad_max_excess_Nm": 2.1674522573130117
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5961,7 +6015,15 @@
         "ankle_cap_pad": 0.21804757998359311,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 8.881784197001252e-15,
+        "pad_frac": 0.09909762100082034,
+        "pad_max_excess_Nm": 2.3480314389399455,
+        "heavy_pad_frac": 0.06579163248564397,
+        "heavy_pad_max_excess_Nm": 1.206011373612661
+       }
       },
       {
        "strides": 43.97107778029394,
@@ -5977,7 +6039,15 @@
         "ankle_cap_pad": 0.22072979628385941,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.4210854715202004e-14,
+        "pad_frac": 0.1018580702932617,
+        "pad_max_excess_Nm": 4.297526960626445,
+        "heavy_pad_frac": 0.06850235057085292,
+        "heavy_pad_max_excess_Nm": 4.297526960626445
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -5990,7 +6060,15 @@
         "ankle_cap_pad": 0.21640689089417556,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.105427357601002e-15,
+        "pad_frac": 0.1018867924528302,
+        "pad_max_excess_Nm": 2.699760812917257,
+        "heavy_pad_frac": 0.06677604593929451,
+        "heavy_pad_max_excess_Nm": 2.6217162133057905
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6003,7 +6081,15 @@
         "ankle_cap_pad": 0.21443806398687448,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.993605777301127e-15,
+        "pad_frac": 0.10270713699753897,
+        "pad_max_excess_Nm": 2.7314825021589955,
+        "heavy_pad_frac": 0.07005742411812961,
+        "heavy_pad_max_excess_Nm": 1.4127482075699738
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6016,7 +6102,15 @@
         "ankle_cap_pad": 0.20623461853978672,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 5.329070518200751e-15,
+        "pad_frac": 0.09975389663658736,
+        "pad_max_excess_Nm": 2.8135850206220354,
+        "heavy_pad_frac": 0.06562756357670221,
+        "heavy_pad_max_excess_Nm": 1.1685975971343332
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6029,7 +6123,15 @@
         "ankle_cap_pad": 0.20672682526661199,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.105427357601002e-15,
+        "pad_frac": 0.09302707136997539,
+        "pad_max_excess_Nm": 2.7021992458351436,
+        "heavy_pad_frac": 0.05922887612797375,
+        "heavy_pad_max_excess_Nm": 0.4304787969081846
+       }
       }
      ]
     },
@@ -6045,6 +6147,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 60.942000000028514,
      "strides": 59.99922578674063,
      "reference_strides": 59.99922578674063,
@@ -6092,9 +6195,24 @@
       "ankle_cap_pad": 0.20787530762920425,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 6095,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 3.552713678800501e-15,
+      "loaded_foot_updates": 7461,
+      "pad_updates": 618,
+      "pad_frac": 0.10139458572600492,
+      "pad_max_excess_Nm": 2.412127341542864,
+      "heavy_foot_updates": 7079,
+      "heavy_pad_updates": 415,
+      "heavy_pad_frac": 0.06808859721082855,
+      "heavy_pad_max_excess_Nm": 1.0389655780393554
+     },
      "stops": null,
-     "wall_s": 10.22602868299873,
-     "steps_per_s": 2979.7491230060323,
+     "wall_s": 10.226984676999564,
+     "steps_per_s": 2979.47058320417,
      "relaxed": []
     },
     "unperturbed_pass": true
@@ -6156,7 +6274,15 @@
         "ankle_cap_pad": 0.2425039452919516,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 2.1316282072803006e-14,
+        "pad_frac": 0.11046817464492373,
+        "pad_max_excess_Nm": 2.3205115019077094,
+        "heavy_pad_frac": 0.07496054708048396,
+        "heavy_pad_max_excess_Nm": 1.0217956397351733
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6169,7 +6295,15 @@
         "ankle_cap_pad": 0.21575061525840852,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.2434497875801753e-14,
+        "pad_frac": 0.10237899917965546,
+        "pad_max_excess_Nm": 4.139450501711249,
+        "heavy_pad_frac": 0.06694011484823625,
+        "heavy_pad_max_excess_Nm": 0.4953580159558358
+       }
       },
       {
        "strides": 59.93424680833612,
@@ -6185,7 +6319,15 @@
         "ankle_cap_pad": 0.21583442838370565,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.993605777301127e-15,
+        "pad_frac": 0.10463206307490144,
+        "pad_max_excess_Nm": 2.5794948842952063,
+        "heavy_pad_frac": 0.07128777923784495,
+        "heavy_pad_max_excess_Nm": 1.5720939247982937
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6198,7 +6340,15 @@
         "ankle_cap_pad": 0.22083675143560294,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.10287120590648072,
+        "pad_max_excess_Nm": 2.4715025623473714,
+        "heavy_pad_frac": 0.06644790812141099,
+        "heavy_pad_max_excess_Nm": 0.6182765904782901
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6211,7 +6361,15 @@
         "ankle_cap_pad": 0.2129614438063987,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.993605777301127e-15,
+        "pad_frac": 0.10139458572600492,
+        "pad_max_excess_Nm": 2.607178365629986,
+        "heavy_pad_frac": 0.06923707957342083,
+        "heavy_pad_max_excess_Nm": 1.4765623496302533
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6224,7 +6382,15 @@
         "ankle_cap_pad": 0.21410992616899097,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.10287120590648072,
+        "pad_max_excess_Nm": 3.064861798984014,
+        "heavy_pad_frac": 0.06595570139458573,
+        "heavy_pad_max_excess_Nm": 0.6672188258813792
+       }
       },
       {
        "strides": 21.009869684099456,
@@ -6240,7 +6406,15 @@
         "ankle_cap_pad": 0.24039362699156513,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.1077788191190253,
+        "pad_max_excess_Nm": 2.304238962486679,
+        "heavy_pad_frac": 0.07591377694470477,
+        "heavy_pad_max_excess_Nm": 1.0379159409846663
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6253,7 +6427,15 @@
         "ankle_cap_pad": 0.21558654634946678,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 9.769962616701378e-15,
+        "pad_frac": 0.10401968826907301,
+        "pad_max_excess_Nm": 2.608665090608923,
+        "heavy_pad_frac": 0.07005742411812961,
+        "heavy_pad_max_excess_Nm": 1.0184926963232455
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6266,7 +6448,15 @@
         "ankle_cap_pad": 0.21378178835110748,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 5.329070518200751e-15,
+        "pad_frac": 0.10090237899917966,
+        "pad_max_excess_Nm": 2.7179925996025447,
+        "heavy_pad_frac": 0.06661197703035275,
+        "heavy_pad_max_excess_Nm": 1.6460511012401708
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6279,7 +6469,15 @@
         "ankle_cap_pad": 0.21082854799015588,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.1036915504511895,
+        "pad_max_excess_Nm": 2.3637184860648888,
+        "heavy_pad_frac": 0.06776045939294503,
+        "heavy_pad_max_excess_Nm": 2.0393676660170814
+       }
       },
       {
        "strides": 15.486656519725376,
@@ -6295,7 +6493,15 @@
         "ankle_cap_pad": 0.2670057215511761,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.2434497875801753e-14,
+        "pad_frac": 0.11633820724729815,
+        "pad_max_excess_Nm": 4.491519029586203,
+        "heavy_pad_frac": 0.08582326764144946,
+        "heavy_pad_max_excess_Nm": 4.491519029586203
+       }
       },
       {
        "strides": 9.91421685655537,
@@ -6311,7 +6517,15 @@
         "ankle_cap_pad": 0.33664349553128103,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.4210854715202004e-14,
+        "pad_frac": 0.14895729890764647,
+        "pad_max_excess_Nm": 1.9223092133898323,
+        "heavy_pad_frac": 0.11817279046673287,
+        "heavy_pad_max_excess_Nm": 1.0445346669148143
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6324,7 +6538,15 @@
         "ankle_cap_pad": 0.21607875307629204,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.5987211554602254e-14,
+        "pad_frac": 0.10648072190319935,
+        "pad_max_excess_Nm": 2.58628297623858,
+        "heavy_pad_frac": 0.07169811320754717,
+        "heavy_pad_max_excess_Nm": 0.761898024221408
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6337,7 +6559,15 @@
         "ankle_cap_pad": 0.21443806398687448,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 7.105427357601002e-15,
+        "pad_frac": 0.10598851517637407,
+        "pad_max_excess_Nm": 2.909336847291383,
+        "heavy_pad_frac": 0.06726825266611977,
+        "heavy_pad_max_excess_Nm": 1.2892442539533224
+       }
       },
       {
        "strides": 18.49931824574771,
@@ -6353,7 +6583,15 @@
         "ankle_cap_pad": 0.2543906333155934,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.11442256519425226,
+        "pad_max_excess_Nm": 6.447964290375159,
+        "heavy_pad_frac": 0.08249068653539117,
+        "heavy_pad_max_excess_Nm": 6.447964290375159
+       }
       },
       {
        "strides": 59.99922578674063,
@@ -6366,7 +6604,15 @@
         "ankle_cap_pad": 0.21706316652994256,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.10270713699753897,
+        "pad_max_excess_Nm": 1.8510649948031304,
+        "heavy_pad_frac": 0.06890894175553733,
+        "heavy_pad_max_excess_Nm": 0.575853484805428
+       }
       },
       {
        "strides": 23.229000249607235,
@@ -6383,7 +6629,15 @@
         "ankle_cap_pad": 0.2584745762711864,
         "leg_to_leg_clearance": 0.0029661016949152543
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.4210854715202004e-14,
+        "pad_frac": 0.13008474576271187,
+        "pad_max_excess_Nm": 4.877944144467849,
+        "heavy_pad_frac": 0.09067796610169492,
+        "heavy_pad_max_excess_Nm": 4.877944144467849
+       }
       },
       {
        "strides": 59.84563911051178,
@@ -6398,7 +6652,15 @@
         "ankle_cap_pad": 0.23424905412074354,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.0658141036401503e-14,
+        "pad_frac": 0.11268300707353184,
+        "pad_max_excess_Nm": 4.831248141128223,
+        "heavy_pad_frac": 0.07846685310083895,
+        "heavy_pad_max_excess_Nm": 4.831248141128223
+       }
       },
       {
        "strides": 45.172204350801614,
@@ -6413,7 +6675,15 @@
         "ankle_cap_pad": 0.24733057310960993,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.7763568394002505e-14,
+        "pad_frac": 0.11701895837873175,
+        "pad_max_excess_Nm": 4.6208128996380875,
+        "heavy_pad_frac": 0.08476792329483547,
+        "heavy_pad_max_excess_Nm": 4.6208128996380875
+       }
       },
       {
        "strides": 36.54378364266287,
@@ -6429,7 +6699,15 @@
         "ankle_cap_pad": 0.22925646551724138,
         "leg_to_leg_clearance": 0.0
        },
-       "relaxed": []
+       "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 1.5987211554602254e-14,
+        "pad_frac": 0.10452586206896551,
+        "pad_max_excess_Nm": 7.53013954790341,
+        "heavy_pad_frac": 0.07327586206896551,
+        "heavy_pad_max_excess_Nm": 7.53013954790341
+       }
       }
      ]
     },
@@ -6445,6 +6723,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 27.345999999995723,
      "strides": 26.92295671889969,
      "reference_strides": 26.92295671889969,
@@ -6544,9 +6823,24 @@
       "ankle_cap_pad": 0.24753199268738574,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 2735,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 2.1316282072803006e-14,
+      "loaded_foot_updates": 3333,
+      "pad_updates": 315,
+      "pad_frac": 0.11517367458866545,
+      "pad_max_excess_Nm": 2.70182132452079,
+      "heavy_foot_updates": 3153,
+      "heavy_pad_updates": 213,
+      "heavy_pad_frac": 0.07787934186471664,
+      "heavy_pad_max_excess_Nm": 1.6518671721023057
+     },
      "stops": null,
-     "wall_s": 4.6305593279976165,
-     "steps_per_s": 2952.775038930899,
+     "wall_s": 4.995843111995782,
+     "steps_per_s": 2736.8753768846423,
      "relaxed": []
     },
     "unperturbed_pass": true
@@ -6600,6 +6894,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0014766201804757998,
+        "box_max_excess_Nm": 0.4592710691621864,
+        "pad_frac": 0.055291222313371614,
+        "pad_max_excess_Nm": 3.162354992446689,
+        "heavy_pad_frac": 0.012961443806398687,
+        "heavy_pad_max_excess_Nm": 2.643392262259432
+       },
        "estimator_com_vel_err_rms_m_s": 0.01359145947634223,
        "estimator_com_rel_feet_err_rms_mm": 0.951913858776356
       },
@@ -6615,6 +6917,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0009844134536505333,
+        "box_max_excess_Nm": 0.31836696290111366,
+        "pad_frac": 0.05299425758818704,
+        "pad_max_excess_Nm": 3.676050616259818,
+        "heavy_pad_frac": 0.010008203445447087,
+        "heavy_pad_max_excess_Nm": 3.175456818796812
+       },
        "estimator_com_vel_err_rms_m_s": 0.013695097193863168,
        "estimator_com_rel_feet_err_rms_mm": 0.9089224810753096
       },
@@ -6630,6 +6940,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.00016406890894175554,
+        "box_max_excess_Nm": 0.040428748421633465,
+        "pad_frac": 0.053486464315012305,
+        "pad_max_excess_Nm": 3.5295363840144707,
+        "heavy_pad_frac": 0.012305168170631665,
+        "heavy_pad_max_excess_Nm": 1.2894513974195085
+       },
        "estimator_com_vel_err_rms_m_s": 0.013610028094616151,
        "estimator_com_rel_feet_err_rms_mm": 0.9056238018738024
       },
@@ -6645,6 +6963,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0004922067268252667,
+        "box_max_excess_Nm": 0.24014772145331076,
+        "pad_frac": 0.0475799835931091,
+        "pad_max_excess_Nm": 3.516532285806321,
+        "heavy_pad_frac": 0.010172272354388842,
+        "heavy_pad_max_excess_Nm": 2.410500801747583
+       },
        "estimator_com_vel_err_rms_m_s": 0.013189722272324466,
        "estimator_com_rel_feet_err_rms_mm": 0.9152798856605218
       },
@@ -6660,6 +6986,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0,
+        "box_max_excess_Nm": 0.0,
+        "pad_frac": 0.04954881050041017,
+        "pad_max_excess_Nm": 3.1213535456787125,
+        "heavy_pad_frac": 0.01066447908121411,
+        "heavy_pad_max_excess_Nm": 3.1213535456787125
+       },
        "estimator_com_vel_err_rms_m_s": 0.013400523444060774,
        "estimator_com_rel_feet_err_rms_mm": 0.941609850668093
       },
@@ -6675,6 +7009,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0004922067268252667,
+        "box_max_excess_Nm": 0.24368590397312317,
+        "pad_frac": 0.05053322395406071,
+        "pad_max_excess_Nm": 3.840845473198796,
+        "heavy_pad_frac": 0.009844134536505332,
+        "heavy_pad_max_excess_Nm": 3.3522434572228947
+       },
        "estimator_com_vel_err_rms_m_s": 0.013422820075189634,
        "estimator_com_rel_feet_err_rms_mm": 0.89246977104761
       },
@@ -6690,6 +7032,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.001804757998359311,
+        "box_max_excess_Nm": 0.47307311168298494,
+        "pad_frac": 0.05479901558654635,
+        "pad_max_excess_Nm": 3.1702475990082064,
+        "heavy_pad_frac": 0.011156685808039376,
+        "heavy_pad_max_excess_Nm": 2.726013191864747
+       },
        "estimator_com_vel_err_rms_m_s": 0.013673154478735608,
        "estimator_com_rel_feet_err_rms_mm": 0.914496719655288
       },
@@ -6705,6 +7055,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0022969647251845776,
+        "box_max_excess_Nm": 0.397997308641612,
+        "pad_frac": 0.05184577522559475,
+        "pad_max_excess_Nm": 3.1804595522108023,
+        "heavy_pad_frac": 0.011156685808039376,
+        "heavy_pad_max_excess_Nm": 1.300520875390342
+       },
        "estimator_com_vel_err_rms_m_s": 0.013524574033849353,
        "estimator_com_rel_feet_err_rms_mm": 0.9260186823123198
       },
@@ -6720,6 +7078,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0006562756357670221,
+        "box_max_excess_Nm": 0.47961156550414596,
+        "pad_frac": 0.051353568498769486,
+        "pad_max_excess_Nm": 3.5495595866841056,
+        "heavy_pad_frac": 0.009844134536505332,
+        "heavy_pad_max_excess_Nm": 3.2423232213455657
+       },
        "estimator_com_vel_err_rms_m_s": 0.013760108197829203,
        "estimator_com_rel_feet_err_rms_mm": 0.9012464632092243
       },
@@ -6735,6 +7101,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0013125512715340443,
+        "box_max_excess_Nm": 0.2881620818948365,
+        "pad_frac": 0.05709598031173093,
+        "pad_max_excess_Nm": 3.013697929303183,
+        "heavy_pad_frac": 0.00918785890073831,
+        "heavy_pad_max_excess_Nm": 2.9176738947073515
+       },
        "estimator_com_vel_err_rms_m_s": 0.013509903384633037,
        "estimator_com_rel_feet_err_rms_mm": 0.8911183641754697
       },
@@ -6750,6 +7124,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0011484823625922888,
+        "box_max_excess_Nm": 0.262516088803439,
+        "pad_frac": 0.05184577522559475,
+        "pad_max_excess_Nm": 3.4862500773800793,
+        "heavy_pad_frac": 0.010172272354388842,
+        "heavy_pad_max_excess_Nm": 1.2227394433517436
+       },
        "estimator_com_vel_err_rms_m_s": 0.01371870313856366,
        "estimator_com_rel_feet_err_rms_mm": 0.9234251182288392
       },
@@ -6765,6 +7147,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0008203445447087777,
+        "box_max_excess_Nm": 0.41926155520985287,
+        "pad_frac": 0.051681706316652996,
+        "pad_max_excess_Nm": 2.7664296579925214,
+        "heavy_pad_frac": 0.010828547990155866,
+        "heavy_pad_max_excess_Nm": 2.5205512305692714
+       },
        "estimator_com_vel_err_rms_m_s": 0.013635021545822756,
        "estimator_com_rel_feet_err_rms_mm": 0.8845355927310424
       },
@@ -6780,6 +7170,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0013125512715340443,
+        "box_max_excess_Nm": 0.5141924307425052,
+        "pad_frac": 0.0502050861361772,
+        "pad_max_excess_Nm": 3.269748032315045,
+        "heavy_pad_frac": 0.010992616899097621,
+        "heavy_pad_max_excess_Nm": 3.269748032315045
+       },
        "estimator_com_vel_err_rms_m_s": 0.013538049248880645,
        "estimator_com_rel_feet_err_rms_mm": 0.9126477190311982
       },
@@ -6795,6 +7193,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0004922067268252667,
+        "box_max_excess_Nm": 0.23710126267640685,
+        "pad_frac": 0.054306808859721084,
+        "pad_max_excess_Nm": 3.274950403391743,
+        "heavy_pad_frac": 0.013453650533223954,
+        "heavy_pad_max_excess_Nm": 1.2304204853280605
+       },
        "estimator_com_vel_err_rms_m_s": 0.013520912036072214,
        "estimator_com_rel_feet_err_rms_mm": 0.9252345760585465
       },
@@ -6810,6 +7216,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0011484823625922888,
+        "box_max_excess_Nm": 0.43919528958706344,
+        "pad_frac": 0.054306808859721084,
+        "pad_max_excess_Nm": 3.7869370227572743,
+        "heavy_pad_frac": 0.012961443806398687,
+        "heavy_pad_max_excess_Nm": 3.5351124167154224
+       },
        "estimator_com_vel_err_rms_m_s": 0.013406923792944246,
        "estimator_com_rel_feet_err_rms_mm": 0.9016872724906998
       },
@@ -6825,6 +7239,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0014766201804757998,
+        "box_max_excess_Nm": 0.400999380524798,
+        "pad_frac": 0.055291222313371614,
+        "pad_max_excess_Nm": 3.5086617665067648,
+        "heavy_pad_frac": 0.012797374897456932,
+        "heavy_pad_max_excess_Nm": 2.950629046290353
+       },
        "estimator_com_vel_err_rms_m_s": 0.013508641719797404,
        "estimator_com_rel_feet_err_rms_mm": 0.9047380370470345
       },
@@ -6840,6 +7262,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0004922067268252667,
+        "box_max_excess_Nm": 0.2418834286234839,
+        "pad_frac": 0.051681706316652996,
+        "pad_max_excess_Nm": 3.4781674583193753,
+        "heavy_pad_frac": 0.010992616899097621,
+        "heavy_pad_max_excess_Nm": 2.365081629914837
+       },
        "estimator_com_vel_err_rms_m_s": 0.013574098366491389,
        "estimator_com_rel_feet_err_rms_mm": 0.940442309259235
       },
@@ -6855,6 +7285,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0008203445447087777,
+        "box_max_excess_Nm": 0.28366943814525847,
+        "pad_frac": 0.052830188679245285,
+        "pad_max_excess_Nm": 3.2959696538567727,
+        "heavy_pad_frac": 0.010992616899097621,
+        "heavy_pad_max_excess_Nm": 2.8383319510229783
+       },
        "estimator_com_vel_err_rms_m_s": 0.01365426387010851,
        "estimator_com_rel_feet_err_rms_mm": 0.8855169547797215
       },
@@ -6870,6 +7308,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.0009844134536505333,
+        "box_max_excess_Nm": 0.4731622456515856,
+        "pad_frac": 0.055291222313371614,
+        "pad_max_excess_Nm": 3.3939059543581003,
+        "heavy_pad_frac": 0.014109926168990976,
+        "heavy_pad_max_excess_Nm": 2.4956091521376527
+       },
        "estimator_com_vel_err_rms_m_s": 0.013631256508047867,
        "estimator_com_rel_feet_err_rms_mm": 0.8920911754053549
       },
@@ -6885,6 +7331,14 @@
         "leg_to_leg_clearance": 0.0
        },
        "relaxed": [],
+       "ankle_cap_residual": {
+        "box_frac": 0.002132895816242822,
+        "box_max_excess_Nm": 0.42414933499030205,
+        "pad_frac": 0.04905660377358491,
+        "pad_max_excess_Nm": 4.003296751940882,
+        "heavy_pad_frac": 0.010008203445447087,
+        "heavy_pad_max_excess_Nm": 2.210140199690187
+       },
        "estimator_com_vel_err_rms_m_s": 0.013649326791624292,
        "estimator_com_rel_feet_err_rms_mm": 0.9165129519007068
       }
@@ -6902,6 +7356,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 60.942000000028514,
      "strides": 59.99922578674063,
      "reference_strides": 59.99922578674063,
@@ -6949,9 +7404,24 @@
       "ankle_cap_pad": 0.2159146841673503,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 6095,
+      "box_updates": 4,
+      "box_frac": 0.0006562756357670221,
+      "box_max_excess_Nm": 0.47099497574718985,
+      "loaded_foot_updates": 7459,
+      "pad_updates": 310,
+      "pad_frac": 0.05086136177194422,
+      "pad_max_excess_Nm": 3.111674912233346,
+      "heavy_foot_updates": 7156,
+      "heavy_pad_updates": 66,
+      "heavy_pad_frac": 0.010828547990155866,
+      "heavy_pad_max_excess_Nm": 1.9843009830884355
+     },
      "stops": null,
-     "wall_s": 14.538330980001774,
-     "steps_per_s": 2095.9077105834526,
+     "wall_s": 13.004282861998945,
+     "steps_per_s": 2343.1511236226806,
      "estimator": {
       "updates": 6095,
       "com_rel_feet_err_rms_mm": 0.9426256603962055,
@@ -6971,6 +7441,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       }
      },
      "relaxed": []
@@ -6984,6 +7462,7 @@
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 23.193999999998024,
     "strides": 22.83518825927755,
     "reference_strides": 22.83518825927755,
@@ -7084,15 +7563,17 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 1.157829206000315,
-    "steps_per_s": 10016.157771716154,
+    "wall_s": 1.4596786740003154,
+    "steps_per_s": 7944.899248420132,
     "relaxed": []
    },
    "brisk": {
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 6.82999999999947,
     "strides": 8.609938088029551,
     "reference_strides": 8.609938088029551,
@@ -7192,15 +7673,17 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 0.36363059699942823,
-    "steps_per_s": 9391.398931166867,
+    "wall_s": 0.4722159480006667,
+    "steps_per_s": 7231.8607926286695,
     "relaxed": []
    },
    "fr05": {
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 1.6340000000000012,
     "strides": 2.2576056193962204,
     "reference_strides": 2.2576056193962204,
@@ -7309,15 +7792,17 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 0.07738070100458572,
-    "steps_per_s": 10558.188145020593,
+    "wall_s": 0.07535440699575702,
+    "steps_per_s": 10842.09978649295,
     "relaxed": []
    },
    "walk_0.35_left": {
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 30.449999999994002,
     "strides": 29.978937763858053,
     "reference_strides": 29.978937763858053,
@@ -7420,15 +7905,17 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 1.6923623839975335,
-    "steps_per_s": 8996.300168310872,
+    "wall_s": 1.6612522469949909,
+    "steps_per_s": 9164.773156840105,
     "relaxed": []
    },
    "walk_0.35_right": {
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 40.62800000000369,
     "strides": 39.999483857812,
     "reference_strides": 39.999483857812,
@@ -7476,15 +7963,17 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 2.1509110840052017,
-    "steps_per_s": 9444.369946791754,
+    "wall_s": 2.0380567149986746,
+    "steps_per_s": 9967.337930540962,
     "relaxed": []
    },
    "in_place_0.50_left": {
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 40.62800000000369,
     "strides": 39.999483857812,
     "reference_strides": 39.999483857812,
@@ -7532,15 +8021,17 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 1.9881076780002331,
-    "steps_per_s": 10217.75642475921,
+    "wall_s": 2.1020426699979,
+    "steps_per_s": 9663.93322549456,
     "relaxed": []
    },
    "in_place_0.50_right": {
     "mode": "R0",
     "terms": [],
     "start": "frame",
+    "rate": 1.0,
     "seconds": 40.62800000000369,
     "strides": 39.999483857812,
     "reference_strides": 39.999483857812,
@@ -7588,9 +8079,10 @@
      "ankle_cap_pad": 0.0,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": null,
     "stops": null,
-    "wall_s": 2.1639410060015507,
-    "steps_per_s": 9387.50175890213,
+    "wall_s": 2.2516014160064515,
+    "steps_per_s": 9022.023105683547,
     "relaxed": []
    }
   },
@@ -7607,6 +8099,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 21.90199999999874,
      "strides": 27.609789751687703,
      "reference_strides": 27.609789751687703,
@@ -7702,9 +8195,24 @@
       "ankle_cap_pad": 0.23870378822455499,
       "leg_to_leg_clearance": 0.004107713372889092
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 2191,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 7.105427357601002e-15,
+      "loaded_foot_updates": 2594,
+      "pad_updates": 249,
+      "pad_frac": 0.11364673664993154,
+      "pad_max_excess_Nm": 2.512288689304615,
+      "heavy_foot_updates": 2450,
+      "heavy_pad_updates": 171,
+      "heavy_pad_frac": 0.07804655408489275,
+      "heavy_pad_max_excess_Nm": 0.7320846448731457
+     },
      "stops": null,
-     "wall_s": 4.032932098998572,
-     "steps_per_s": 2715.394093225441,
+     "wall_s": 3.8763753860039287,
+     "steps_per_s": 2825.0617934320207,
      "relaxed": []
     },
     "fr05": {
@@ -7718,6 +8226,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 1.8260000000000014,
      "strides": 2.5228811878932063,
      "reference_strides": 2.5228811878932063,
@@ -7821,9 +8330,24 @@
       "ankle_cap_pad": 0.825136612021858,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 183,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 1.0658141036401503e-14,
+      "loaded_foot_updates": 198,
+      "pad_updates": 75,
+      "pad_frac": 0.4098360655737705,
+      "pad_max_excess_Nm": 5.324950797750207,
+      "heavy_foot_updates": 178,
+      "heavy_pad_updates": 69,
+      "heavy_pad_frac": 0.3770491803278688,
+      "heavy_pad_max_excess_Nm": 5.324950797750207
+     },
      "stops": null,
-     "wall_s": 0.4995116159989266,
-     "steps_per_s": 1827.7853222175358,
+     "wall_s": 0.4293064459998277,
+     "steps_per_s": 2126.685980392585,
      "relaxed": []
     },
     "walk_0.35_left": {
@@ -7837,6 +8361,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -7884,9 +8409,24 @@
       "ankle_cap_pad": 0.2055131676101403,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 1.687538997430238e-14,
+      "loaded_foot_updates": 4994,
+      "pad_updates": 370,
+      "pad_frac": 0.09106571498892443,
+      "pad_max_excess_Nm": 3.1345722572954924,
+      "heavy_foot_updates": 4750,
+      "heavy_pad_updates": 249,
+      "heavy_pad_frac": 0.06128476495200591,
+      "heavy_pad_max_excess_Nm": 2.415979635311317
+     },
      "stops": null,
-     "wall_s": 6.261754499995732,
-     "steps_per_s": 3244.1386834973882,
+     "wall_s": 6.494881225997233,
+     "steps_per_s": 3127.693839679256,
      "relaxed": []
     },
     "walk_0.35_right": {
@@ -7900,6 +8440,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -7947,9 +8488,24 @@
       "ankle_cap_pad": 0.20477479694806794,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 9.769962616701378e-15,
+      "loaded_foot_updates": 4984,
+      "pad_updates": 359,
+      "pad_frac": 0.08835835589465912,
+      "pad_max_excess_Nm": 2.9363384982727108,
+      "heavy_foot_updates": 4750,
+      "heavy_pad_updates": 240,
+      "heavy_pad_frac": 0.059069652965788824,
+      "heavy_pad_max_excess_Nm": 0.5332197452897603
+     },
      "stops": null,
-     "wall_s": 6.584998220998386,
-     "steps_per_s": 3084.8907347039626,
+     "wall_s": 7.321467353001935,
+     "steps_per_s": 2774.5804250115093,
      "relaxed": []
     },
     "in_place_0.50_left": {
@@ -7963,6 +8519,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -8010,9 +8567,24 @@
       "ankle_cap_pad": 0.15505783903519565,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 0.0,
+      "loaded_foot_updates": 5013,
+      "pad_updates": 130,
+      "pad_frac": 0.03199606202313562,
+      "pad_max_excess_Nm": 0.5171906894421152,
+      "heavy_foot_updates": 4782,
+      "heavy_pad_updates": 33,
+      "heavy_pad_frac": 0.008122077282795964,
+      "heavy_pad_max_excess_Nm": 0.14242184631959642
+     },
      "stops": null,
-     "wall_s": 6.6479570739975316,
-     "steps_per_s": 3055.6755667775155,
+     "wall_s": 6.782042623999587,
+     "steps_per_s": 2995.262802996096,
      "relaxed": []
     },
     "in_place_0.50_right": {
@@ -8026,6 +8598,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -8073,9 +8646,24 @@
       "ankle_cap_pad": 0.1530888506030027,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 0.0,
+      "loaded_foot_updates": 5014,
+      "pad_updates": 137,
+      "pad_frac": 0.03371892690130446,
+      "pad_max_excess_Nm": 0.49442153334214556,
+      "heavy_foot_updates": 4792,
+      "heavy_pad_updates": 42,
+      "heavy_pad_frac": 0.010337189269013045,
+      "heavy_pad_max_excess_Nm": 0.05093500374703574
+     },
      "stops": null,
-     "wall_s": 6.0687593890033895,
-     "steps_per_s": 3347.3068707929056,
+     "wall_s": 6.660664739996719,
+     "steps_per_s": 3049.8457425752385,
      "relaxed": []
     }
    },
@@ -8091,6 +8679,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 31.729999999993293,
      "strides": 39.999024236184646,
      "reference_strides": 39.999024236184646,
@@ -8138,9 +8727,24 @@
       "ankle_cap_pad": 0.21525370312007563,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 3173,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 0.0,
+      "loaded_foot_updates": 3736,
+      "pad_updates": 172,
+      "pad_frac": 0.054207374724235736,
+      "pad_max_excess_Nm": 3.2938409486264746,
+      "heavy_foot_updates": 3574,
+      "heavy_pad_updates": 47,
+      "heavy_pad_frac": 0.01481248030255279,
+      "heavy_pad_max_excess_Nm": 2.83999894066517
+     },
      "stops": null,
-     "wall_s": 6.903266765999433,
-     "steps_per_s": 2298.1872985322934,
+     "wall_s": 7.7172455830004765,
+     "steps_per_s": 2055.7852966280316,
      "estimator": {
       "updates": 3173,
       "com_rel_feet_err_rms_mm": 1.0418663415932292,
@@ -8160,6 +8764,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       }
      },
      "relaxed": []
@@ -8175,6 +8787,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 10.474000000000167,
      "strides": 14.47133491894515,
      "reference_strides": 14.47133491894515,
@@ -8277,9 +8890,24 @@
       "ankle_cap_pad": 0.3301526717557252,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 1048,
+      "box_updates": 49,
+      "box_frac": 0.046755725190839696,
+      "box_max_excess_Nm": 6.004559641047271,
+      "loaded_foot_updates": 1174,
+      "pad_updates": 132,
+      "pad_frac": 0.12595419847328243,
+      "pad_max_excess_Nm": 6.537886757844256,
+      "heavy_foot_updates": 1112,
+      "heavy_pad_updates": 79,
+      "heavy_pad_frac": 0.07538167938931298,
+      "heavy_pad_max_excess_Nm": 6.537886757844256
+     },
      "stops": null,
-     "wall_s": 2.3623910719979904,
-     "steps_per_s": 2216.8217879230347,
+     "wall_s": 2.815354252998077,
+     "steps_per_s": 1860.1566727963657,
      "estimator": {
       "updates": 1048,
       "com_rel_feet_err_rms_mm": 9.004492964954059,
@@ -8299,6 +8927,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       },
       "before_fall": {
        "until_s": 9.391999999999973,
@@ -8338,6 +8974,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -8385,9 +9022,24 @@
       "ankle_cap_pad": 0.2175732217573222,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 1,
+      "box_frac": 0.0002461235540241201,
+      "box_max_excess_Nm": 0.17617367271801054,
+      "loaded_foot_updates": 4994,
+      "pad_updates": 214,
+      "pad_frac": 0.052670440561161706,
+      "pad_max_excess_Nm": 2.8228756710396476,
+      "heavy_foot_updates": 4801,
+      "heavy_pad_updates": 50,
+      "heavy_pad_frac": 0.012306177701206006,
+      "heavy_pad_max_excess_Nm": 2.699162775610098
+     },
      "stops": null,
-     "wall_s": 8.508529685001122,
-     "steps_per_s": 2387.486528466795,
+     "wall_s": 9.17075202200067,
+     "steps_per_s": 2215.0855187520756,
      "estimator": {
       "updates": 4063,
       "com_rel_feet_err_rms_mm": 0.9121287907730469,
@@ -8407,6 +9059,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       }
      },
      "relaxed": []
@@ -8422,6 +9082,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -8469,9 +9130,24 @@
       "ankle_cap_pad": 0.2217573221757322,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 0.0,
+      "loaded_foot_updates": 4986,
+      "pad_updates": 200,
+      "pad_frac": 0.049224710804824025,
+      "pad_max_excess_Nm": 3.2361562077679222,
+      "heavy_foot_updates": 4785,
+      "heavy_pad_updates": 36,
+      "heavy_pad_frac": 0.008860447944868325,
+      "heavy_pad_max_excess_Nm": 0.8266140017545746
+     },
      "stops": null,
-     "wall_s": 10.208688513994275,
-     "steps_per_s": 1989.8736230567874,
+     "wall_s": 10.077104834999773,
+     "steps_per_s": 2015.8567696393782,
      "estimator": {
       "updates": 4063,
       "com_rel_feet_err_rms_mm": 0.8916066235613653,
@@ -8491,6 +9167,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       }
      },
      "relaxed": []
@@ -8506,6 +9190,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -8553,9 +9238,24 @@
       "ankle_cap_pad": 0.12724587743047008,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 0.0,
+      "loaded_foot_updates": 4998,
+      "pad_updates": 156,
+      "pad_frac": 0.038395274427762735,
+      "pad_max_excess_Nm": 1.1212489184262553,
+      "heavy_foot_updates": 4840,
+      "heavy_pad_updates": 24,
+      "heavy_pad_frac": 0.005906965296578882,
+      "heavy_pad_max_excess_Nm": 0.4607212872294761
+     },
      "stops": null,
-     "wall_s": 8.9112309849952,
-     "steps_per_s": 2279.5952696327668,
+     "wall_s": 8.53828406699904,
+     "steps_per_s": 2379.1665679658963,
      "estimator": {
       "updates": 4063,
       "com_rel_feet_err_rms_mm": 0.7036631917867363,
@@ -8575,6 +9275,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       }
      },
      "relaxed": []
@@ -8590,6 +9298,7 @@
       "trunk"
      ],
      "start": "frame",
+     "rate": 1.0,
      "seconds": 40.62800000000369,
      "strides": 39.999483857812,
      "reference_strides": 39.999483857812,
@@ -8637,9 +9346,24 @@
       "ankle_cap_pad": 0.12724587743047008,
       "leg_to_leg_clearance": 0.0
      },
+     "ankle_cap_residual": {
+      "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+      "updates": 4063,
+      "box_updates": 0,
+      "box_frac": 0.0,
+      "box_max_excess_Nm": 0.0,
+      "loaded_foot_updates": 4997,
+      "pad_updates": 153,
+      "pad_frac": 0.03765690376569038,
+      "pad_max_excess_Nm": 2.2151712442018523,
+      "heavy_foot_updates": 4842,
+      "heavy_pad_updates": 21,
+      "heavy_pad_frac": 0.005168594634506522,
+      "heavy_pad_max_excess_Nm": 0.4969375248585182
+     },
      "stops": null,
-     "wall_s": 8.181880945994635,
-     "steps_per_s": 2482.8031761992984,
+     "wall_s": 8.262916742001835,
+     "steps_per_s": 2458.453913342782,
      "estimator": {
       "updates": 4063,
       "com_rel_feet_err_rms_mm": 0.6422472257465016,
@@ -8659,6 +9383,14 @@
        "foot_load_sigma_frac": 0.02,
        "scale": 1.0,
        "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+      },
+      "gains": {
+       "k_leg_tilt": 2.0,
+       "k_accel_tilt": 0.05,
+       "k_leg_velocity": Infinity,
+       "contact_on": 0.2,
+       "contact_off": 0.1,
+       "stance_point": "loaded_pad_contact_point"
       }
      },
      "relaxed": []
@@ -8677,6 +9409,7 @@
      "trunk"
     ],
     "start": "stance",
+    "rate": 1.0,
     "seconds": 33.47199999999494,
     "strides": 32.954187350801405,
     "reference_strides": 32.954187350801405,
@@ -8724,12 +9457,29 @@
      "ankle_cap_pad": 0.16427718040621267,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": {
+     "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+     "updates": 3348,
+     "box_updates": 0,
+     "box_frac": 0.0,
+     "box_max_excess_Nm": 5.329070518200751e-15,
+     "loaded_foot_updates": 4700,
+     "pad_updates": 277,
+     "pad_frac": 0.08273596176821983,
+     "pad_max_excess_Nm": 2.712239431367531,
+     "heavy_foot_updates": 4529,
+     "heavy_pad_updates": 191,
+     "heavy_pad_frac": 0.05704898446833931,
+     "heavy_pad_max_excess_Nm": 1.1077637474971036
+    },
     "stops": [
      {
       "name": "stop",
       "command_ref_s": 28.424253870362946,
       "command_s": 28.43199999999512,
       "command_speed_m_s": 0.21739953977219864,
+      "rest_speed_m_s": 0.001,
+      "rest_rule": null,
       "reached": true,
       "samples": 505,
       "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
@@ -8740,8 +9490,8 @@
       "at_rest_s": 1.5899999999991188
      }
     ],
-    "wall_s": 5.384463790993323,
-    "steps_per_s": 3108.201791233989,
+    "wall_s": 6.113649859995348,
+    "steps_per_s": 2737.4809456315074,
     "relaxed": []
    },
    "R2": {
@@ -8755,6 +9505,7 @@
      "trunk"
     ],
     "start": "stance",
+    "rate": 1.0,
     "seconds": 33.47199999999494,
     "strides": 32.954187350801405,
     "reference_strides": 32.954187350801405,
@@ -8802,24 +9553,41 @@
      "ankle_cap_pad": 0.16606929510155316,
      "leg_to_leg_clearance": 0.0
     },
+    "ankle_cap_residual": {
+     "rule": "at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot carrying more than 0.02 of the weight (its true load; also reported for 0.2, where R2's contact detection switches on) whose torques put its quasi-static CoP outside its pad's 5 mm inset, measured as the distance from the torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an excess over 1e-06 N m counts.  The check uses the loads and kinematics of the step the torques acted in; the cap had those of the step before (what the sensors give), so a load that changes within a step leaves a residual even for R1, which caps on the true joint state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in contact",
+     "updates": 3348,
+     "box_updates": 1,
+     "box_frac": 0.0002986857825567503,
+     "box_max_excess_Nm": 0.1259898354511213,
+     "loaded_foot_updates": 4685,
+     "pad_updates": 145,
+     "pad_frac": 0.043309438470728795,
+     "pad_max_excess_Nm": 2.9913131950845497,
+     "heavy_foot_updates": 4544,
+     "heavy_pad_updates": 35,
+     "heavy_pad_frac": 0.01045400238948626,
+     "heavy_pad_max_excess_Nm": 2.3261498670712477
+    },
     "stops": [
      {
       "name": "stop",
       "command_ref_s": 28.424253870362946,
       "command_s": 28.43199999999512,
       "command_speed_m_s": 0.21739953977219864,
+      "rest_speed_m_s": 0.0035,
+      "rest_rule": "R2 counts as at rest below the largest horizontal CoM speed R2 shows standing still from the settled stance with its sensor noise (metrics.standing_noise_floor: 20 seeds x 10 s per body, all three bodies; 3.15 mm/s), rounded up to 0.5 mm/s: 3.5 mm/s; R0 and R1 keep 1 mm/s",
       "reached": true,
       "samples": 505,
       "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
       "stride_s": 1.0157131063101588,
       "forward_stopped_strides": 0.5316461869448458,
       "within": true,
-      "at_rest_strides": 4.883268680088426,
-      "at_rest_s": 4.959999999999724
+      "at_rest_strides": 1.3389607671203525,
+      "at_rest_s": 1.3599999999992463
      }
     ],
-    "wall_s": 7.419571018996066,
-    "steps_per_s": 2255.656015307544,
+    "wall_s": 7.253479013998003,
+    "steps_per_s": 2307.306599729911,
     "estimator": {
      "updates": 3348,
      "com_rel_feet_err_rms_mm": 0.802275608167681,
@@ -8839,6 +9607,14 @@
       "foot_load_sigma_frac": 0.02,
       "scale": 1.0,
       "source": "STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias after a standstill calibration within +-2e-4 rad/s (about 40 deg/h); accelerometer 0.03 m/s^2 per sample (about 0.2 mg/sqrt(Hz)) and a bias within +-0.05 m/s^2; 14-bit absolute joint encoders; joint-rate noise 0.02 rad/s; foot-load noise 2 % of the weight"
+     },
+     "gains": {
+      "k_leg_tilt": 2.0,
+      "k_accel_tilt": 0.05,
+      "k_leg_velocity": Infinity,
+      "contact_on": 0.2,
+      "contact_off": 0.1,
+      "stance_point": "loaded_pad_contact_point"
      }
     },
     "relaxed": []
@@ -8847,7 +9623,67 @@
   "single_rule_pass": true,
   "panel_rule_pass": true,
   "pass": true,
-  "seconds": 192.57501358300215,
+  "decided": {
+   "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decisions 15-20",
+   "decisions": [
+    {
+     "decision": 15,
+     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 15",
+     "choice": "ankle_cap",
+     "title": "Ankle torque in the tracker: each axis at most one motor's peak, a loaded foot's CoP 5 mm inside its pad",
+     "taken": "box+pad",
+     "used": "box+pad",
+     "follows": true
+    },
+    {
+     "decision": 16,
+     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 16",
+     "choice": "gains",
+     "title": "Tuning start: the prototype's terms, heading and phase-rate gains zero",
+     "taken": "start",
+     "used": "start",
+     "follows": true
+    },
+    {
+     "decision": 17,
+     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 17",
+     "choice": "g4_rule",
+     "title": "G4 judged at that start with decision 13's panel rule",
+     "taken": "panel",
+     "used": "panel",
+     "follows": true
+    },
+    {
+     "decision": 18,
+     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 18",
+     "choice": "stop_reading",
+     "title": "Stopped within 1.5 strides: forward speed below 5 % of the command within 1.5 strides of the stop command",
+     "taken": "forward_5pct_of_command",
+     "used": "forward_5pct_of_command",
+     "follows": true
+    },
+    {
+     "decision": 19,
+     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 19",
+     "choice": "estimator_stance_point",
+     "title": "Estimator stance point: the loaded pad's contact point",
+     "taken": "loaded_pad_contact_point",
+     "used": "loaded_pad_contact_point",
+     "follows": true
+    },
+    {
+     "decision": 20,
+     "source": "STAGE1_PLAN.md, section 9, 'Decisions taken during the build (steps 4-5, 9 Nov)', decision 20",
+     "choice": "attribution_and_inward_bound",
+     "title": "Fall attribution over the condition's starts; the inward bound the swing pad 5 mm from the stance pad",
+     "taken": "panel_attribution+pad_clearance",
+     "used": "panel_attribution+pad_clearance",
+     "follows": true
+    }
+   ],
+   "follows_all": true
+  },
+  "seconds": 200.63561860199843,
   "provenance": {
    "versions": {
     "python": "3.13.18",
@@ -8859,11 +9695,19 @@
     "torch": "2.15.0"
    },
    "git": {
-    "commit": "917cf3e09eb619f7601591897bec172983ffa07a",
-    "dirty": true
+    "commit": "1920f88a804b8f4f5989064d018e135b30e6a17e",
+    "dirty": true,
+    "dirty_paths": [
+     " M hardware/trex_form_study/designlab/stage1/control.py",
+     " M hardware/trex_form_study/designlab/stage1/gates.py",
+     " M hardware/trex_form_study/designlab/stage1/metrics.py",
+     " M hardware/trex_form_study/designlab/stage1/tune.py",
+     " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/gates.json",
+     " M hardware/trex_form_study/tests/test_stage1.py"
+    ]
    },
    "stage1_sources": {
-    "sha256": "bde306a85591e94186b3cf37a330dd822ff9d2ed25ac51f6df31e9e2f612120e",
+    "sha256": "1370dc3ae94554db11bf00c164f0bb9b515816575606048c7830a5607615c607",
     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
     "files": [
      "__init__.py",
@@ -8873,9 +9717,11 @@
      "estimator.py",
      "gates.py",
      "legs.py",
+     "metrics.py",
      "plant.py",
      "refs.py",
-     "transitions.py"
+     "transitions.py",
+     "tune.py"
     ],
     "unchanged_during_run": true
    }

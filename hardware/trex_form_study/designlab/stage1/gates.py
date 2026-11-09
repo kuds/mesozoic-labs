@@ -874,7 +874,9 @@ def g4(body: str, out_dir: Path, procs: int | None = None, attribution: bool = T
     failing condition is attributed by decision 20 (``attribute``) when ``attribution``.  Reported, not gated: R0's
     strides, R1 and R2 on the brisk walk, the Fr 0.05 walk and the target turns, a start-walk-stop from the settled
     stance with its stop read by decision 18, what the turn gap is (``control.turn_gap_info``) and what the inward
-    bound allows (``control.inward_step_clearance``)."""
+    bound allows (``control.inward_step_clearance``).  Every run records how far its realised ankle torques broke the
+    cap (``control.CAP_RESIDUAL_RULE``); ``decided`` reads what the run used from the runs and the rule that decided
+    ``pass`` (``G4_RULE``; the estimator's stance point from the R2 runs' records)."""
     from . import control, estimator
     from . import transitions as tr
 

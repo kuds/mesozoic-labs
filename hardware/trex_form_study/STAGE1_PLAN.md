@@ -245,3 +245,16 @@ the two-motor ankle, which lets one axis take up to twice a motor's peak torque 
     the swing foot. The inward swing-foot bound is the leg-to-leg clearance: the swing pad stays at least 5 mm from
     the stance pad (the legs are 32–58 mm apart at the reference stance). This supersedes §2's "turn gap minus
     1 mm" and §4's turn-gap entry in the body-limited list.
+
+### Budget re-planned (9 Nov, before the fit)
+
+21. **Budget.** Measured on the built code, the Python tracker runs at 0.24 wall-s per simulated s per core, about
+    2.4× the plan's assumption (MuJoCo's step is only about 16 % of the cost). The CMA-ES fit as planned (2 × 720
+    evaluations per body) takes about 16 core-hours, about 6.5 h of wall clock for the three bodies in parallel, and a
+    residual-PPO environment would run at about 200–235 env steps/s against G6a's 600. Plan §6's 10 h cap (12 h with
+    the policy-only ablation) cannot hold. The stage cap becomes **24 h of wall clock in all**, still equal per body:
+    the fit runs as planned; a faster tracker is built meanwhile in an isolated copy and merged only after the fit,
+    once it reproduces recorded evaluations bit for bit; PPO (two seeds per body) and the policy-only ablation then
+    get an equal per-body share of the time left (5M steps per seed if the faster tracker lands, otherwise cut
+    equally); if the cap is reached, every body is judged at the last checkpoint all of them reached (§6). The owner
+    may set a different cap.

@@ -1544,10 +1544,20 @@ def test_g4_records(body):
         assert a["label"] == ("body-limited: " + ", ".join(sig) if sig else "controller-limited")
     assert g4["R0"]["nominal"]["strides"] == doc["G2"]["nominal_strides_with_envelope"]  # R0 is G2's replay
     assert set(g4["R0"]) == {"nominal", *gates.G4_REPORTED} and set(g4["reported"]["R2"]) == set(gates.G4_REPORTED)
-    for r in g4["stance_start_stop"].values():  # decision 18 on the start-walk-stop runs
+    for mode, r in g4["stance_start_stop"].items():  # decision 18 on the start-walk-stop runs
         assert len(r["stops"]) == 1 and r["stops"][0]["name"] == "stop"
         if r["stops"][0]["reached"]:
             assert r["stops"][0]["rule"] == transitions.STOP_RULE
+            assert r["stops"][0]["rest_speed_m_s"] == control.rest_speed(mode)  # R2's own rest speed
+    assert prov["git"]["dirty_paths"] is not None and prov["git"]["dirty"] == bool(prov["git"]["dirty_paths"])
+    used = {d["choice"]: d["used"] for d in g4["decided"]["decisions"]}
+    assert used["g4_rule"] == g4["rule_name"] == gates.G4_RULE and used["estimator_stance_point"] == (
+        g4["gated"]["R2_nominal_hard"]["unperturbed"]["estimator"]["gains"]["stance_point"])
+    for key, g in g4["gated"].items():  # the realised ankle torques against the cap, every run (decision 15)
+        c = g["unperturbed"]["ankle_cap_residual"]
+        assert c["rule"] == control.CAP_RESIDUAL_RULE and all(r["ankle_cap_residual"] for r in g["panel"]["rows"])
+        if key.startswith("R1"):
+            assert c["box_max_excess_Nm"] < 1e-9  # R1 predicts its servo torque exactly
     ev = g4["evidence"]["earlier_defaults"]  # the untuned defaults' result, as recorded before decisions 15-20
     assert ev["record_names_code"] is False and ev["committed_in"].startswith("3731e98")
     at = plant.sources_sha256_at(ev["committed_in"])  # None where git does not hold that commit (a shallow clone)
@@ -1588,6 +1598,22 @@ def test_recorder_changes_nothing_and_the_commanded_rate_runs_the_clock_faster(h
     hard.reset()
 
 
+def test_the_commanded_rate_moves_the_reference_dcm(hard, nominal_ref):
+    """A track played r times faster moves its CoM r times as fast: the reference DCM is c + r c' / omega0 (rate 1:
+    the reference's own, bit for bit)."""
+    t1, t5 = _tracker(hard, nominal_ref), _tracker(hard, nominal_ref, rate=1.05)
+    for t in (0.1, 0.37, 0.8):
+        _, ref = t1.track.info(t)
+        assert t1.dcm_reference(ref) is ref["dcm_rel"]
+        want = ref["dcm_rel"] + (1.05 - 1.0) * ref["comv_rel"] / t5.track.omega
+        assert np.array_equal(t5.dcm_reference(ref), want)
+    inf = t1.track.segments[0].info
+    k = 40
+    v = (nominal_ref.com[k + 1] - nominal_ref.com[k - 1]) / (2 * nominal_ref.step)  # central difference
+    assert np.linalg.norm(inf["comv_rel"][k]) == pytest.approx(np.linalg.norm(v[:2]), rel=0.05)  # in the anchor frame
+    hard.reset()
+
+
 def test_walk_measures_on_a_short_walk(hard, nominal_ref):
     """Plan section 4's walk measures on three strides of R1's nominal walk: they read the reference's gait."""
     tk = _tracker(hard, nominal_ref, strides=6.0)
@@ -1602,8 +1628,12 @@ def test_walk_measures_on_a_short_walk(hard, nominal_ref):
     assert w["stride_H"] == pytest.approx(stride / H, rel=0.03)
     assert w["speed_m_s"] == pytest.approx(stride / nominal_ref.period, rel=0.03)
     assert 0.04 * H <= w["toe_clearance_m"] < 0.06 * H  # the reference keeps 0.05 H in mid-swing
-    assert w["slip_worst_m"] < tune.SLIP_WORST_M and w["roll_peak_deg"] < 1.0 and w["grf_peak_bw"] < 1.6
-    assert w["dcm_error_rms_m"] < 0.01 and w["swings"] >= 4
+    assert w["slip_worst_m"] < tune.SLIP_MEDIAN_M and w["roll_peak_deg"] < 1.0 and w["grf_peak_bw"] < 1.6
+    assert 0.0 <= w["slip_median_m"] <= w["slip_worst_m"] and w["slip_contact_path_worst_m"] > 0.0
+    assert w["dcm_error_rms_m"] < 0.01 and w["swings"] >= 4 and w["stances"] >= 3
+    sole = rec.U[:, [metrics.C["sole0_x"], metrics.C["sole0_y"]]] - rec.U[:, [metrics.C["foot0_x"], metrics.C["foot0_y"]]]
+    assert np.all(np.linalg.norm(sole, axis=1) < 0.1)  # the sole centre lies under the foot
+    assert np.allclose(rec.col("load0") + rec.col("load1"), rec.loads[::control.FEEDBACK_EVERY].sum(1))
     c = r["ankle_cap_residual"]  # R1 predicts the servo's torque exactly: no box excess
     assert c["rule"] == control.CAP_RESIDUAL_RULE and c["box_max_excess_Nm"] < 1e-9 and c["updates"] == rec.rows
     hard.reset()

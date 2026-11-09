@@ -9,7 +9,7 @@ an evaluation (47 simulated s on hard floor: the nominal walk with a 0.4x push, 
 plus 8 s on low pile; "time survived first, then tracking and drive-duty penalties") without a formula, so the
 objective takes its order (survival first, then tracking and the limits, drive duty among them) and plan section 6's
 budget unit (about 55 simulated s) over a fixed mix of the behaviours G5 judges, plus start and stop.  Every evaluation
-is three episodes on hard floor (mu 0.9), each from the settled stance (``MIX``):
+is three episodes on hard floor (mu 0.9), each from the settled stance (``EPISODES``, ``episode_plan``):
 
 * ``walk``: start, the nominal walk ``WALK_STRIDES`` strides, stop;
 * ``walking_turn``: start, the 0.35 rad/s walking turn's entry, ``TURN_STRIDES`` strides of it and its exit (at least
@@ -149,8 +149,10 @@ TERMS_RULE = (
     "tracking: dcm = RMS of the true DCM error against the reference over the episode (relative to the anchor foot, "
     f"as the feedback's) / {SCALES['dcm_m']:g} m; walk speed = |10 s mean speed - command| / ({SCALES['speed_frac']:g} "
     f"command); walk heading = |heading change over the 10 s window| / {SCALES['heading_rad']:g} rad; turn yaw_rate = "
-    f"|yaw rate over the 180 deg turn - command| / ({SCALES['yaw_rate_frac']:g} command); in-place drift = CoM "
-    f"displacement from the episode's first stand to its last / {SCALES['drift_m']:g} m.  Limits (plan section 4) as "
+    f"|yaw rate over the 180 deg turn - command| / ({SCALES['yaw_rate_frac']:g} command); in-place drift = the root's "
+    "displacement from the episode's first stand to its last (the in-place reference turns about the root, which "
+    "stays put; its CoM, 34-67 mm ahead of the root, swings 66-131 mm round a 204 deg turn) / "
+    f"{SCALES['drift_m']:g} m.  Limits (plan section 4) as "
     f"hinges, 0 within: roll and pitch RMS about home over {ROLL_PITCH_RMS_DEG:g} deg and peaks over "
     f"{ROLL_PITCH_PEAK_DEG:g} deg (scale: the limit); each foot's duty outside {DUTY[0]:g}-{DUTY[1]:g} (scale "
     f"{SCALES['duty']:g}); flight time (scale {SCALES['flight_s']:g} s); peak GRF over {GRF_BW:g} BW (scale: the limit); "
@@ -177,8 +179,10 @@ SUCCESS_RULE = (
     f"{WALK_RANGE_RAD:g} rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at "
     "least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) hold over its steady "
     "turning, the drives hold, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at "
-    f"50 Hz) and, in place, the drift is at most {DRIFT_M:g} m.  Cadence and stride are judged at nominal only (the "
-    "Walk row's 'at nominal')")
+    f"50 Hz) and, in place, the drift (the root's displacement) is at most {DRIFT_M:g} m.  Cadence and stride are judged "
+    "at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the "
+    "reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement "
+    "over each loaded stance")
 
 
 def hinge(x, limit: float, scale: float) -> float:
@@ -372,8 +376,8 @@ def measure(spec: EpisodeSpec, rec: metrics.Recorder, out: dict, lg=None) -> dic
     e = rec.U[:, [metrics.C["e_x"], metrics.C["e_y"]]] if rec.rows else np.zeros((1, 2))
     dcm = float(np.sqrt(np.mean(np.sum(e**2, axis=1))))
     drift = None
-    if kind == "in_place_turn" and rec.rows:
-        c = rec.U[:, [metrics.C["com_x"], metrics.C["com_y"]]]
+    if kind == "in_place_turn" and rec.rows:  # the turning centre: the reference turns about the root, at rest
+        c = rec.U[:, [metrics.C["root_x"], metrics.C["root_y"]]]
         drift = float(np.linalg.norm(c[-1] - c[0]))
     legs = metrics.leg_gap(rec, lg) if (lg is not None and kind != "walk") else None
     res.update(window=w, start=st, stop_reading=sp, dcm_error_rms_m=dcm, drift_m=drift, legs=legs,
@@ -880,7 +884,7 @@ def _validation_record(r: dict) -> dict:
             "complete", "t_start_s", "t_end_s", "speed_m_s", "lateral_m", "heading_change_rad", "yaw_rate_rad_s",
             "turned_180", "duty", "flight_s", "cadence_steps_s", "stride_H", "grf_peak_bw", "roll_rms_deg",
             "pitch_rms_deg", "roll_peak_deg", "pitch_peak_deg", "toe_clearance_m", "slip_median_m", "slip_worst_m",
-            "swings", "stances", "unloaded_steps")}
+            "slip_contact_path_median_m", "slip_contact_path_worst_m", "swings", "stances", "unloaded_steps")}
     return dict(episode=r["episode_seed"], J=r["J"], S=r["S"], P=r["P"], T=r["T"], L=r["L"], groups=r["groups"],
                 falls=r["falls"], terms=r["terms"], episodes=eps, wall_s=r["wall_s"])
 
