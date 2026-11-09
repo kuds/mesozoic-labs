@@ -368,3 +368,77 @@ change no body (P24).
     - **The reading must hold.** Each push episode runs 2 s past the 3 s, so the reading holds for at least 2 s. A fall
       before the end means the body has not recovered. An update at the pulse's end itself is recorded as "never left
       the command".
+31. **How the panels read §4** (`designlab/stage1/panels.py`; each rule is copied into every record).
+    - **Rows.**
+      - R0 is the tracker with every feedback term and the ankle cap off. It commands R0's targets on the 1.05 clock,
+        and at rate 1 it equals R0 exactly.
+      - R1 runs on the true CoM with the body-level G5 gains.
+      - R2/42 and R2/43 each use their own CMA-ES seed's G5 selection.
+      - R0 and R1 run every hard-floor condition, the μ 0.54 walks included. The R2 rows run all of them.
+    - **Floors and friction.**
+      - μ 0.9 is the plant as compiled, so G5's episodes reproduce exactly; μ 0.54 is set as G4 set it.
+      - The carpet walk sets μ 0.54, as the env does.
+      - Piles are §2's 4 mm evaluation piles, not the 8 mm training grid.
+      - Medium and high pile are not run on the 60 cm bodies: no 60 cm body has a settled stance on them (round two:
+        none stands passively there).
+    - **Walks.** Brisk and Fr 0.05 have no stop reference of their own, so each ends in its gait and is judged over its
+      last 10 s. Cadence, stride and peak GRF are judged at nominal speed only, as §4 says.
+    - **Turns** have a fixed direction per condition.
+    - **Start and stop.** One nominal stride separates the start from the stop, with 2 s standing between the two
+      cycles and at the end. Each stop is read by decision 18, from its own command until the next start.
+    - **Pushes.** Each of the 4 directions, standing and walking, is its own 20-episode condition.
+      - The force is the body's mass × 0.5 × the Stage 0 forward bound / 0.1 s, at the trunk's CoM.
+      - The onset is drawn from the episode's seed and is the same for every row; walking pushes land at a uniform phase
+        within the second stride.
+      - Recovery follows decision 30.
+    - **Carpet.** Judged as a nominal walk. "Above the pile" means above the uncompressed pile top, and a toe catch is
+      the lowest point at or below the pile top in mid-swing.
+    - **Limits.** Stands, pushes and start/stop judge the drive and range limits over the whole episode; walks and turns
+      judge them over tune's windows.
+    - **Attribution** (decision 20) runs on a condition's falls only when there are at least 5 of them, because the
+      sign test cannot reach p < 0.05 with fewer. It runs with no null run.
+      - A fall whose only candidate cannot be lifted (the CoP at a pad edge with the ankle saturated) is labelled
+        controller-limited with that candidate named.
+      - A success failure without a fall is labelled by its terms' class. Hardware terms: drive RMS, drive speed, joint
+        range, leg interference. Controller terms: all the others.
+    - **Verdicts per controller.** R2's come from R2/42 and R2/43, R3's from R3/42 and R3/43; R4 is at most provisional.
+      The carpet condition is reported for R0–R2 and gated for R3 and R4 (decision 23).
+    - **G7 gate.** Stage 0's sway (2 × the reference's sway amplitude / H) and cadence (2 / period) are read from the
+      references themselves. This is a kinematic check, not a physics run.
+    - **Failed episodes.** An episode that raised, or whose worker was lost, is counted apart from falls and is re-run on
+      resume. Every episode keeps a 50 Hz trace (git-ignored).
+
+### Decisions taken during training (9 Nov)
+
+32. **G6b and its one fix** (`train.FIX_RULE`). At 1,007,616 steps, G6b failed on five of the six R3 runs: R3's mean
+    survival over the monitor was below R2's.
+
+    | Run | R3 (s) | R2 (s) | Cause |
+    |---|---|---|---|
+    | `60-N-T-10` seed 42 | 14.1 | 16.0 | falls on the brisk walk |
+    | `60-N-T-10` seed 43 | 15.4 | 16.0 | falls on the brisk walk |
+    | `60-N-H-10` seed 42 | 15.0 | 15.5 | falls on the brisk walk |
+    | `75-M-H-10` seed 42 | 17.99 | 18.0 | carpet falls 0.1 s earlier than R2's |
+    | `75-M-H-10` seed 43 | 16.9 | 18.0 | falls on the brisk walk |
+
+    `60-N-H-10` seed 43 passed (15.9 s against 15.5). R3 falls on the brisk walk in 1–3 of 3 episodes, where R2 falls
+    in at most one. On the hard-floor tasks R3 gains up to 0.02 reward per step. On carpet and pile it falls as R2 does,
+    at nearly the same times.
+
+    The policy's actions are small. On `60-N-T-10` seed 42 the joint residual is 0.012 of its range RMS (about
+    2.4 mrad) and the clock rate −0.2 %. So the brisk falls show how close R2's brisk walk on the 60 cm bodies is to its
+    stability edge. The panels agree: on `60-N-T-10`, 17/20 and 0/20 survive with its two fit seeds; on `60-N-H-10`,
+    5/20 and 20/20.
+
+    The plan's consequence is to make one fix, then stop:
+    - **The fix.** The brisk and Fr 0.05 walks are weighted ×2 in the task mix (weights 1, 1, 1, 1, 1, 2, 2, 1, 1 over
+      the walk, the four turns, brisk, Fr 0.05, the stand and the carpet walk).
+    - **Where it applies.** Every R3 run, from its 1,007,616-step checkpoint, so every body and seed keeps one recipe.
+      The steps the 60 cm runs had trained past that checkpoint are discarded.
+    - **The check after it.** G6b runs again 1M steps later (`G6b_after_fix`). A run that fails it stops there, and its
+      body's R3 is judged with R2. G6c stays at 2.5M steps.
+
+    Other fixes were considered and rejected:
+    - A fall penalty: a fall already forfeits the value of the episode's remaining reward.
+    - Fewer carpet and pile episodes: this would give up decision 23's carpet experiment.
+    - A smaller residual: it is already small.

@@ -336,10 +336,18 @@ def _training(a) -> int:
         return 0
     config = dict(tune_json=a.tune_json) if a.tune_json else None
     steps = train.BUDGET_ASKED if a.steps is None else a.steps
+    fix = None
+    if a.fix_task_weights:
+        from . import env as env_mod
+
+        w = tuple(float(x) for x in a.fix_task_weights.split(","))
+        if len(w) != len(env_mod.TASKS) or min(w) < 0 or not sum(w) > 0:
+            raise SystemExit(f"--fix-task-weights: {len(env_mod.TASKS)} non-negative weights over {list(env_mod.TASKS)}")
+        fix = dict(task_weights=w)
     doc = train.train(a.body, a.seed, mode=a.mode, steps=steps, out=Path(a.out), resume=a.resume, n_envs=a.n_envs,
                       vec=a.vec, checkpoint_every=a.checkpoint_every, g6=not a.no_g6, log_std_init=a.log_std_init,
                       allow_untuned=a.allow_untuned, allow_source_change=a.allow_source_change, config=config,
-                      log=lambda msg: print(msg, flush=True))
+                      fix=fix, fix_reason=a.fix_reason, log=lambda msg: print(msg, flush=True))
     g6 = doc.get("g6", {})
     print(f"{a.body} {a.mode} seed {a.seed}: {doc.get('num_timesteps')} steps ({doc['status']}); G6: "
           + ("; ".join(f"{k} {'pass' if v.get('pass_', v.get('identical')) else 'FAIL'}" for k, v in g6.items())
@@ -431,6 +439,9 @@ def main(argv=None) -> int:
                     help="train R3 although tune.json is missing or no seed passes G5 (env.GAINS_RULE; flagged)")
     tp.add_argument("--allow-source-change", action="store_true",
                     help="resume although the Stage 1 sources differ from the run's first session (flagged)")
+    tp.add_argument("--fix-task-weights", default=None,
+                    help="G6b's one fix (train.FIX_RULE): comma-separated task weights over env.TASKS, from this resume on")
+    tp.add_argument("--fix-reason", default=None, help="why the fix (recorded with it)")
     tp.add_argument("--tune-json", default=None, help="the G5 record R3's gains come from (default: <out>/<body>/"
                                                       "tune.json)")
     tp.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")

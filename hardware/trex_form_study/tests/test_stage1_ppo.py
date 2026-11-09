@@ -579,6 +579,61 @@ def test_training_checkpoints_and_resumes(tmp_path, monkeypatch):
                     allow_untuned=True)
 
 
+def test_g6bs_one_fix_changes_the_task_weights_and_stops_on_a_second_failure(tmp_path, monkeypatch):
+    """FIX_RULE: one fix on resume (task weights only), recorded with the configs before it; G6b again at the fix's
+    checkpoint + G6B_STEPS; a second failure stops the run, which then refuses to resume."""
+    _need_run()
+    out = _out(tmp_path)
+    monkeypatch.setattr(train, "G6A_MEASURE_STEPS", 16)
+    monkeypatch.setattr(train, "G6A_CHECK", dict(task="walk", seconds=0.2, episode_seed=7))
+    ppo = dict(n_steps=16, batch_size=16, n_epochs=1)
+    cfg = dict(tasks=("walk", "stand"), max_seconds=1.0)
+    kw = dict(out=out, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo, allow_untuned=True, log=lambda *_: None)
+    train.train(BODY, 42, steps=32, **kw)
+    rd = train.run_dir_of(out, BODY, "R3", 42)
+    with pytest.raises(SystemExit, match="only on resume"):
+        train.train(BODY, 43, steps=32, fix=dict(task_weights=(1.0, 2.0)), **kw)
+    with pytest.raises(SystemExit, match="task_weights"):
+        train.train(BODY, 42, steps=64, resume=True, fix=dict(push_prob=0.0), **kw)
+    seen = []
+
+    def failing_monitor(model, vecnorm, body, mode, config):
+        seen.append(config.task_weights)
+        return dict(mean_survival_s=dict(policy=1.0, zero=2.0), policy_beats_zero_on=[], rows={}, summary={},
+                    g6c_by_condition={})
+
+    monkeypatch.setattr(train, "monitor", failing_monitor)
+    monkeypatch.setattr(train, "G6B_STEPS", 16)
+    doc = train.train(BODY, 42, steps=96, resume=True, fix=dict(task_weights=(1.0, 2.0)), fix_reason="test", **kw)
+    assert doc["fix"]["from_checkpoint"] == 32 and doc["fix"]["overrides"] == {"task_weights": [1.0, 2.0]}
+    assert doc["fix"]["reason"] == "test" and doc["fix"]["env_configs_before"][0]["task_weights"] is None
+    assert doc["env_configs"][0]["task_weights"] == [1.0, 2.0] and doc["sessions"][-1]["fix"]["from_checkpoint"] == 32
+    assert doc["g6"]["G6b"]["at_steps"] == 32  # the original G6b (G6B_STEPS patched to 16 for this session)
+    after = doc["g6"]["G6b_after_fix"]
+    assert after["at_steps"] == 48 and after["fix_from"] == 32 and not after["pass_"]
+    assert seen and all(w == (1.0, 2.0) for w in seen)  # the monitor ran on the fixed configs
+    assert doc["status"] == "stopped_g6b" and doc["stopped"]["at_steps"] == 48 and train.checkpoints(rd)[-1] == 48
+    with pytest.raises(SystemExit, match="stopped"):
+        train.train(BODY, 42, steps=96, resume=True, **kw)
+
+
+def test_a_fixed_run_keeps_its_fix_on_later_resumes(tmp_path, monkeypatch):
+    _need_run()
+    out = _out(tmp_path)
+    monkeypatch.setattr(train, "G6A_MEASURE_STEPS", 16)
+    monkeypatch.setattr(train, "G6A_CHECK", dict(task="walk", seconds=0.2, episode_seed=7))
+    ppo = dict(n_steps=16, batch_size=16, n_epochs=1)
+    cfg = dict(tasks=("walk", "stand"), max_seconds=1.0)
+    kw = dict(out=out, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo, allow_untuned=True, log=lambda *_: None)
+    train.train(BODY, 42, steps=32, **kw)
+    train.train(BODY, 42, steps=48, resume=True, fix=dict(task_weights=(1.0, 3.0)), **kw)
+    with pytest.raises(SystemExit, match="one fix"):
+        train.train(BODY, 42, steps=64, resume=True, fix=dict(task_weights=(1.0, 1.0)), **kw)
+    doc = train.train(BODY, 42, steps=64, resume=True, **kw)
+    assert doc["num_timesteps"] == 64 and doc["env_configs"][0]["task_weights"] == [1.0, 3.0]
+    assert doc["sessions"][-1]["env"]["config"]["task_weights"] == [1.0, 3.0]
+
+
 def test_two_ppo_seeds_and_a_resume_draw_disjoint_episode_seeds(tmp_path, monkeypatch):
     """SEED_RULE through SB3 itself (its constructor and PPO.load reseed the vec env with seed + i): every episode the
     envs draw in training, per run and session, from its own stream."""

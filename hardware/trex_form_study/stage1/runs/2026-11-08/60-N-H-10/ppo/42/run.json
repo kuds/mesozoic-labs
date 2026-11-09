@@ -1064,29 +1064,32 @@
    "episode_streams": [
     {
      "reset_seed": 420000,
-     "episodes": 134,
+     "episodes": 530,
      "first_episode_seed": 420000000000
     },
     {
      "reset_seed": 420001,
-     "episodes": 136,
+     "episodes": 532,
      "first_episode_seed": 420001000000
     },
     {
      "reset_seed": 420002,
-     "episodes": 269,
+     "episodes": 1127,
      "first_episode_seed": 420002000000
     },
     {
      "reset_seed": 420003,
-     "episodes": 298,
+     "episodes": 1189,
      "first_episode_seed": 420003000000
     }
    ]
   }
  ],
  "checkpoints": [
-  253952
+  253952,
+  507904,
+  753664,
+  1007616
  ],
  "throughput": [
   {
@@ -1188,10 +1191,596 @@
    "judged_on": "env steps per wall second of the job",
    "pass_": false,
    "consequence_if_failed": "cut the steps equally for every body"
+  },
+  "G6b": {
+   "at_steps": 1007616,
+   "pass_": false,
+   "consequence_if_failed": "make one fix, then stop",
+   "monitor": {
+    "rows": {
+     "policy": {
+      "walk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 16.44,
+        "mean_reward": 0.817800244945147,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 16.44,
+        "mean_reward": 0.8198697820899306,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 16.44,
+        "mean_reward": 0.8195028601527293,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8107382827917067,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8106775092139009,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8093079014694488,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8085267171650615,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8063175472068016,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8068240671547435,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8659183000269434,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8597833787389935,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8650402836182317,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8515236720504453,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.846964303154376,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8509092044517199,
+        "fall_cause": null
+       }
+      ],
+      "brisk": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 18.740000000000002,
+        "mean_reward": 0.7275558072952003,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 26.48,
+        "mean_reward": 0.7830242269258703,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 12.52,
+        "mean_reward": 0.7536121627552811,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on robot_floor_carpet": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 3.7600000000000002,
+        "mean_reward": 0.7732647425147394,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 3.74,
+        "mean_reward": 0.7640626380508551,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 3.84,
+        "mean_reward": 0.7671945038698337,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on low": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 3.4,
+        "mean_reward": 0.7632358972995741,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 3.4,
+        "mean_reward": 0.7520419029531391,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 3.38,
+        "mean_reward": 0.7629813931347751,
+        "fall_cause": "tilt"
+       }
+      ]
+     },
+     "zero": {
+      "walk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 16.44,
+        "mean_reward": 0.8259330302051751,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 16.44,
+        "mean_reward": 0.8221228064223878,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 16.44,
+        "mean_reward": 0.8238012389101045,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8088542378781268,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8124903186538442,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8108388933917278,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8167668250935392,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.8141981185208192,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 26.12,
+        "mean_reward": 0.809702940527273,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8621001844857963,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8569263822563744,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8601778704238586,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8619469930333691,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8575362087690948,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 12.58,
+        "mean_reward": 0.8601835943379211,
+        "fall_cause": null
+       }
+      ],
+      "brisk": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 16.18,
+        "mean_reward": 0.7302369459343065,
+        "fall_cause": "proxy cl_tail_seg_20_0"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 26.48,
+        "mean_reward": 0.7840923268669604,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 26.48,
+        "mean_reward": 0.7836817820098742,
+        "fall_cause": null
+       }
+      ],
+      "carpet_walk on robot_floor_carpet": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 3.72,
+        "mean_reward": 0.781924152816217,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 3.7600000000000002,
+        "mean_reward": 0.7692627819129219,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 3.7600000000000002,
+        "mean_reward": 0.7759724399981598,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on low": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 3.24,
+        "mean_reward": 0.7805479379974287,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 3.2800000000000002,
+        "mean_reward": 0.7656368314127268,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 3.2600000000000002,
+        "mean_reward": 0.7738827992799894,
+        "fall_cause": "tilt"
+       }
+      ]
+     }
+    },
+    "summary": {
+     "policy": {
+      "walk": {
+       "falls": 0,
+       "survival_s": 16.44,
+       "mean_reward": 0.8190576290626024
+      },
+      "walking_turn_left": {
+       "falls": 0,
+       "survival_s": 26.12,
+       "mean_reward": 0.8102412311583521
+      },
+      "walking_turn_right": {
+       "falls": 0,
+       "survival_s": 26.12,
+       "mean_reward": 0.8072227771755355
+      },
+      "in_place_turn_left": {
+       "falls": 0,
+       "survival_s": 12.58,
+       "mean_reward": 0.8635806541280561
+      },
+      "in_place_turn_right": {
+       "falls": 0,
+       "survival_s": 12.58,
+       "mean_reward": 0.8497990598855137
+      },
+      "brisk": {
+       "falls": 2,
+       "survival_s": 19.246666666666666,
+       "mean_reward": 0.7547307323254505
+      },
+      "carpet_walk on robot_floor_carpet": {
+       "falls": 3,
+       "survival_s": 3.78,
+       "mean_reward": 0.768173961478476
+      },
+      "carpet_walk on low": {
+       "falls": 3,
+       "survival_s": 3.393333333333333,
+       "mean_reward": 0.7594197311291628
+      }
+     },
+     "zero": {
+      "walk": {
+       "falls": 0,
+       "survival_s": 16.44,
+       "mean_reward": 0.8239523585125558
+      },
+      "walking_turn_left": {
+       "falls": 0,
+       "survival_s": 26.12,
+       "mean_reward": 0.810727816641233
+      },
+      "walking_turn_right": {
+       "falls": 0,
+       "survival_s": 26.12,
+       "mean_reward": 0.8135559613805438
+      },
+      "in_place_turn_left": {
+       "falls": 0,
+       "survival_s": 12.58,
+       "mean_reward": 0.8597348123886764
+      },
+      "in_place_turn_right": {
+       "falls": 0,
+       "survival_s": 12.58,
+       "mean_reward": 0.8598889320467951
+      },
+      "brisk": {
+       "falls": 1,
+       "survival_s": 23.046666666666667,
+       "mean_reward": 0.7660036849370471
+      },
+      "carpet_walk on robot_floor_carpet": {
+       "falls": 3,
+       "survival_s": 3.7466666666666666,
+       "mean_reward": 0.7757197915757663
+      },
+      "carpet_walk on low": {
+       "falls": 3,
+       "survival_s": 3.2600000000000002,
+       "mean_reward": 0.7733558562300482
+      }
+     }
+    },
+    "mean_survival_s": {
+     "policy": 15.0325,
+     "zero": 15.486666666666668
+    },
+    "g6c_by_condition": {
+     "walk": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       -0.00813278526002803,
+       -0.0022530243324572208,
+       -0.004298378757375154
+      ],
+      "mean_gain": -0.004894729449953468,
+      "r2_spread": 0.003810223782787281,
+      "gain_needed": 0.01
+     },
+     "walking_turn_left": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.001884044913579852,
+       -0.0018128094399433303,
+       -0.0015309919222790125
+      ],
+      "mean_gain": -0.00048658548288083026,
+      "r2_spread": 0.0036360807757174207,
+      "gain_needed": 0.01
+     },
+     "walking_turn_right": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       -0.008240107928477625,
+       -0.007880571314017648,
+       -0.0028788733725294557
+      ],
+      "mean_gain": -0.0063331842050082425,
+      "r2_spread": 0.007063884566266165,
+      "gain_needed": 0.01
+     },
+     "in_place_turn_left": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.0038181155411470824,
+       0.0028569964826190564,
+       0.004862413194373083
+      ],
+      "mean_gain": 0.0038458417393797406,
+      "r2_spread": 0.0051738022294218755,
+      "gain_needed": 0.01
+     },
+     "in_place_turn_right": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       -0.010423320982923756,
+       -0.010571905614718768,
+       -0.009274389886201218
+      ],
+      "mean_gain": -0.010089872161281247,
+      "r2_spread": 0.004410784264274326,
+      "gain_needed": 0.01
+     },
+     "brisk": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 2,
+      "falls_r2": 1,
+      "gains": [
+       -0.0026811386391062397,
+       -0.0010680999410901393,
+       -0.03006961925459306
+      ],
+      "mean_gain": -0.01127295261159648,
+      "r2_spread": 0.05385538093265385,
+      "gain_needed": 0.05385538093265385
+     },
+     "carpet_walk on robot_floor_carpet": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 3,
+      "falls_r2": 3,
+      "gains": [
+       -0.008659410301477544,
+       -0.005200143862066797,
+       -0.008777936128326114
+      ],
+      "mean_gain": -0.0075458300972901515,
+      "r2_spread": 0.01266137090329511,
+      "gain_needed": 0.01266137090329511
+     },
+     "carpet_walk on low": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 3,
+      "falls_r2": 3,
+      "gains": [
+       -0.017312040697854636,
+       -0.013594928459587652,
+       -0.010901406145214287
+      ],
+      "mean_gain": -0.013936125100885524,
+      "r2_spread": 0.01491110658470196,
+      "gain_needed": 0.01491110658470196
+     }
+    },
+    "policy_beats_zero_on": []
+   }
   }
  },
  "status": "running",
  "budget": 4005888,
  "budget_asked": 4000000,
- "num_timesteps": 253952
+ "num_timesteps": 1007616
 }
