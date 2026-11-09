@@ -136,10 +136,10 @@
    "success": {
     "criterion": "success",
     "status": "incomplete",
-    "threshold": 0.9,
-    "works": 0.9,
+    "threshold": 0.8,
+    "works": 0.8,
     "fails": 0.7,
-    "halvings": 2,
+    "halvings": 3,
     "values": [
      {
       "value": 0.9,
@@ -156,6 +156,10 @@
      {
       "value": 0.7,
       "ok": false
+     },
+     {
+      "value": 0.8,
+      "ok": true
      }
     ],
     "binding": {
@@ -211,10 +215,10 @@
    "success": {
     "criterion": "success",
     "status": "incomplete",
-    "threshold": 0.5,
-    "works": 0.5,
+    "threshold": 0.4,
+    "works": 0.4,
     "fails": 0.3,
-    "halvings": 2,
+    "halvings": 3,
     "values": [
      {
       "value": 0.9,
@@ -231,6 +235,10 @@
      {
       "value": 0.3,
       "ok": false
+     },
+     {
+      "value": 0.4,
+      "ok": true
      }
     ],
     "binding": {
@@ -256,10 +264,10 @@
    "survival": {
     "criterion": "survival",
     "status": "incomplete",
-    "threshold": 0.3,
-    "works": 0.3,
+    "threshold": 0.2,
+    "works": 0.2,
     "fails": 0.1,
-    "halvings": 2,
+    "halvings": 3,
     "values": [
      {
       "value": 0.9,
@@ -275,6 +283,10 @@
      },
      {
       "value": 0.3,
+      "ok": true
+     },
+     {
+      "value": 0.2,
       "ok": true
      }
     ],
@@ -324,8 +336,8 @@
     "status": "incomplete",
     "threshold": 0.5,
     "works": 0.5,
-    "fails": 0.3,
-    "halvings": 2,
+    "fails": 0.4,
+    "halvings": 3,
     "values": [
      {
       "value": 0.9,
@@ -342,46 +354,39 @@
      {
       "value": 0.3,
       "ok": false
+     },
+     {
+      "value": 0.4,
+      "ok": false
      }
     ],
     "binding": {
-     "falls": 1,
-     "fall_causes": {
-      "tilt": 1
-     },
-     "fall_candidates": {
-      "leg_drive_at_torque_limit": 1,
-      "slip": 1,
-      "cop_at_pad_edge_with_ankle_saturated": 1
-     },
-     "lifts": {
-      "drive_torque": null,
-      "slip": null
-     },
-     "untestable": [
-      "cop_at_pad_edge_with_ankle_saturated"
-     ],
+     "falls": 0,
+     "fall_causes": {},
+     "fall_candidates": {},
+     "lifts": {},
+     "untestable": [],
      "success_failures": 1,
      "failed_terms": {
-      "yaw_rate": {
+      "grf": {
        "count": 1,
        "cls": "controller"
       }
      },
      "hardware_terms": [],
      "success_label": "controller-limited",
-     "falls_label": "falls: lifts of drive_torque, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
-     "label": "falls: lifts of drive_torque, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "falls_label": null,
+     "label": "controller-limited",
      "relative_to_nominal": true
     }
    },
    "survival": {
     "criterion": "survival",
     "status": "incomplete",
-    "threshold": 0.5,
-    "works": 0.5,
+    "threshold": 0.4,
+    "works": 0.4,
     "fails": 0.3,
-    "halvings": 2,
+    "halvings": 3,
     "values": [
      {
       "value": 0.9,
@@ -398,6 +403,10 @@
      {
       "value": 0.3,
       "ok": false
+     },
+     {
+      "value": 0.4,
+      "ok": true
      }
     ],
     "binding": {
@@ -564,12 +573,12 @@
    "walk_nominal": {
     "success": {
      "status": "incomplete",
-     "threshold": 0.9,
+     "threshold": 0.8,
      "fails": 0.7,
      "resolution": null,
      "search": null,
      "label": "controller-limited",
-     "evaluated": 4,
+     "evaluated": 5,
      "panels": null,
      "flag": null
     },
@@ -588,23 +597,23 @@
    "turn_left": {
     "success": {
      "status": "incomplete",
-     "threshold": 0.5,
+     "threshold": 0.4,
      "fails": 0.3,
      "resolution": null,
      "search": null,
      "label": "controller-limited",
-     "evaluated": 4,
+     "evaluated": 5,
      "panels": null,
      "flag": null
     },
     "survival": {
      "status": "incomplete",
-     "threshold": 0.3,
+     "threshold": 0.2,
      "fails": 0.1,
      "resolution": null,
      "search": null,
      "label": "falls: lifts of drive_torque, envelope, ankle_linkage, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
-     "evaluated": 4,
+     "evaluated": 5,
      "panels": null,
      "flag": null
     }
@@ -613,22 +622,22 @@
     "success": {
      "status": "incomplete",
      "threshold": 0.5,
-     "fails": 0.3,
+     "fails": 0.4,
      "resolution": null,
      "search": null,
-     "label": "falls: lifts of drive_torque, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
-     "evaluated": 4,
+     "label": "controller-limited",
+     "evaluated": 5,
      "panels": null,
      "flag": null
     },
     "survival": {
      "status": "incomplete",
-     "threshold": 0.5,
+     "threshold": 0.4,
      "fails": 0.3,
      "resolution": null,
      "search": null,
      "label": "falls: lifts of drive_torque, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
-     "evaluated": 4,
+     "evaluated": 5,
      "panels": null,
      "flag": null
     }
@@ -890,6 +899,170 @@
    "cpu_s": 6.957452721000003,
    "simulated_s": 32.13200000000074,
    "at": "2026-11-09T19:33:49+00:00"
+  },
+  "turn/walking_0.35_left|friction=0.15000000000000002": {
+   "condition": "turn/walking_0.35_left",
+   "variant": {
+    "kind": "friction",
+    "value": 0.15000000000000002
+   },
+   "relax": [],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": false,
+     "failed_terms": [
+      "grf",
+      "slip_median",
+      "slip_worst"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8293598216995016
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799698360291421
+     ],
+     "joint_shortfall_rad": -0.0069274353228439,
+     "joint_worst": "right_hip_yaw",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.03436573404661673,
+      "yaw_rate_rad_s": 0.35903422216529196,
+      "duty": [
+       0.6143896523848019,
+       0.6400565885206144
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.01035429997413417,
+      "slip_worst_m": 0.020506816773296195,
+      "grf_peak_bw": 1.769878694700395,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8418491847729889
+      ]
+     },
+     "wall_s": 4.9567009519996645,
+     "cpu_s": 4.9081569720000005
+    },
+    {
+     "seed": 3043,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": false,
+     "failed_terms": [
+      "grf",
+      "toe_clearance",
+      "slip_median",
+      "slip_worst",
+      "joint_range"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8321614922408787
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799532789414719
+     ],
+     "joint_shortfall_rad": 0.015254936013698345,
+     "joint_worst": "right_hip_yaw",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.028123664590110124,
+      "yaw_rate_rad_s": 0.35050200564159695,
+      "duty": [
+       0.6162861184077592,
+       0.6463932107496464
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.013481602183079106,
+      "slip_worst_m": 0.019958436684527684,
+      "grf_peak_bw": 1.9393121137705573,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8476592228307823
+      ]
+     },
+     "wall_s": 4.876646345000154,
+     "cpu_s": 4.875578078999993
+    },
+    {
+     "seed": 3044,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": false,
+     "failed_terms": [
+      "slip_median",
+      "slip_worst"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8296854969338072
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5796689447194427
+     ],
+     "joint_shortfall_rad": -0.009711515819539634,
+     "joint_worst": "right_hip_yaw",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.03545102007591236,
+      "yaw_rate_rad_s": 0.35865803538144264,
+      "duty": [
+       0.6150737522731865,
+       0.6397251970094968
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.012699428315253586,
+      "slip_worst_m": 0.018865440517595006,
+      "grf_peak_bw": 1.590574766308802,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8439915375129616
+      ]
+     },
+     "wall_s": 4.86469232699983,
+     "cpu_s": 4.864196538000002
+    }
+   ],
+   "succeeded": 0,
+   "survived": 3,
+   "errors": 0,
+   "succeeds_all": false,
+   "survives": true,
+   "valid": "83fd32e8f537f65d3daae96383de2a1765935f241c028495cb1d2b68d8baed92",
+   "wall_s": 14.698039623999648,
+   "cpu_s": 14.647931588999995,
+   "simulated_s": 78.66599999998904,
+   "at": "2026-11-09T22:27:44+00:00"
   },
   "turn/walking_0.35_left|friction=0.2": {
    "condition": "turn/walking_0.35_left",
@@ -1213,6 +1386,157 @@
    "cpu_s": 14.567164596000026,
    "simulated_s": 78.66599999998904,
    "at": "2026-11-09T19:37:43+00:00"
+  },
+  "turn/walking_0.35_left|friction=0.35": {
+   "condition": "turn/walking_0.35_left",
+   "variant": {
+    "kind": "friction",
+    "value": 0.35
+   },
+   "relax": [],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8227620556779662
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799079427242306
+     ],
+     "joint_shortfall_rad": -0.02050040840019196,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.05007483474106521,
+      "yaw_rate_rad_s": 0.3592594820834223,
+      "duty": [
+       0.591151167554281,
+       0.6110200737402703
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.0021560056818468593,
+      "slip_worst_m": 0.002809619294820833,
+      "grf_peak_bw": 1.4492640830097163,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.836460543106475
+      ]
+     },
+     "wall_s": 4.296037545999752,
+     "cpu_s": 4.271993720000005
+    },
+    {
+     "seed": 3043,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.823272398164268
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799958390299932
+     ],
+     "joint_shortfall_rad": -0.018370056037992938,
+     "joint_worst": "right_hip_yaw",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.04750479792009195,
+      "yaw_rate_rad_s": 0.3583434137103905,
+      "duty": [
+       0.5880786562884064,
+       0.6136829168373618
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.002229609893980707,
+      "slip_worst_m": 0.002836916336217445,
+      "grf_peak_bw": 1.5145815591745055,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8357505150498665
+      ]
+     },
+     "wall_s": 4.446056313000554,
+     "cpu_s": 4.402500072999999
+    },
+    {
+     "seed": 3044,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8229438407981885
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5796243504533118
+     ],
+     "joint_shortfall_rad": -0.020582316798754274,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.04850362873395166,
+      "yaw_rate_rad_s": 0.362127052598605,
+      "duty": [
+       0.5901370984243912,
+       0.6122365459382034
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.0021834377988652447,
+      "slip_worst_m": 0.002446318508940497,
+      "grf_peak_bw": 1.417192687757311,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8361866987675408
+      ]
+     },
+     "wall_s": 4.278621122999539,
+     "cpu_s": 4.244223767999998
+    }
+   ],
+   "succeeded": 3,
+   "survived": 3,
+   "errors": 0,
+   "succeeds_all": true,
+   "survives": true,
+   "valid": "a9c12663359aee46edb92a57d435df9e13c887aac57d40505b8db042aa6df2f9",
+   "wall_s": 13.020714981999845,
+   "cpu_s": 12.918717561000001,
+   "simulated_s": 78.66599999998904,
+   "at": "2026-11-09T22:27:44+00:00"
   },
   "turn/walking_0.35_left|friction=0.4": {
    "condition": "turn/walking_0.35_left",
@@ -1971,6 +2295,157 @@
    "simulated_s": 74.80399999999118,
    "at": "2026-11-09T19:37:43+00:00"
   },
+  "turn/walking_0.35_right|friction=0.35": {
+   "condition": "turn/walking_0.35_right",
+   "variant": {
+    "kind": "friction",
+    "value": 0.35
+   },
+   "relax": [],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8233112528537567
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799079427242306
+     ],
+     "joint_shortfall_rad": -0.019421333625119455,
+     "joint_worst": "right_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.04597221575951932,
+      "yaw_rate_rad_s": 0.36768640298608746,
+      "duty": [
+       0.605489553461696,
+       0.5936091765669808
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.002240117709180687,
+      "slip_worst_m": 0.003518678740262474,
+      "grf_peak_bw": 1.443235890222345,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.837002855544036
+      ]
+     },
+     "wall_s": 4.220992698000373,
+     "cpu_s": 4.2060133609999895
+    },
+    {
+     "seed": 3043,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8238679379745407
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799958390299932
+     ],
+     "joint_shortfall_rad": -0.019199825253451278,
+     "joint_worst": "right_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.04720186081530273,
+      "yaw_rate_rad_s": 0.36272428232338666,
+      "duty": [
+       0.6070038910505836,
+       0.594716362891665
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.002218866351523397,
+      "slip_worst_m": 0.0034144720945953203,
+      "grf_peak_bw": 1.3509218513642216,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8371361287185121
+      ]
+     },
+     "wall_s": 4.303994419999981,
+     "cpu_s": 4.270180875000008
+    },
+    {
+     "seed": 3044,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8232176842341479
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5796243504533118
+     ],
+     "joint_shortfall_rad": -0.019230215393888292,
+     "joint_worst": "right_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.04299747323997481,
+      "yaw_rate_rad_s": 0.36036205923303244,
+      "duty": [
+       0.6151484135107472,
+       0.586489252814739
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.001969925261956625,
+      "slip_worst_m": 0.0037634808679671036,
+      "grf_peak_bw": 1.4992891095696081,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8370722230250457
+      ]
+     },
+     "wall_s": 4.1993680899995525,
+     "cpu_s": 4.0993558370000045
+    }
+   ],
+   "succeeded": 3,
+   "survived": 3,
+   "errors": 0,
+   "succeeds_all": true,
+   "survives": true,
+   "valid": "62268b326fc204865450ef2c27e9c15cb64780d15d791a15b4b5c39d0542d038",
+   "wall_s": 12.724355207999906,
+   "cpu_s": 12.575550073000002,
+   "simulated_s": 78.66599999998904,
+   "at": "2026-11-09T22:27:44+00:00"
+  },
   "turn/walking_0.35_right|friction=0.4": {
    "condition": "turn/walking_0.35_right",
    "variant": {
@@ -2123,6 +2598,157 @@
    "cpu_s": 12.940945103000004,
    "simulated_s": 78.66599999998904,
    "at": "2026-11-09T22:26:45+00:00"
+  },
+  "turn/walking_0.35_right|friction=0.45": {
+   "condition": "turn/walking_0.35_right",
+   "variant": {
+    "kind": "friction",
+    "value": 0.45
+   },
+   "relax": [],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8236542279242037
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5798632945929003
+     ],
+     "joint_shortfall_rad": -0.019486923435669393,
+     "joint_worst": "right_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.04557675220638754,
+      "yaw_rate_rad_s": 0.36887601543619825,
+      "duty": [
+       0.610826327660447,
+       0.5946278449866721
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.00204597948801144,
+      "slip_worst_m": 0.00400383583261142,
+      "grf_peak_bw": 1.497268063634482,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8379302846167932
+      ]
+     },
+     "wall_s": 4.006527616999847,
+     "cpu_s": 4.003559628999994
+    },
+    {
+     "seed": 3043,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8239938976768223
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5799903508373021
+     ],
+     "joint_shortfall_rad": -0.01933035603527579,
+     "joint_worst": "right_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.046003948676319316,
+      "yaw_rate_rad_s": 0.36485718336583356,
+      "duty": [
+       0.6082410824108241,
+       0.5914309143091431
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.002139004864526151,
+      "slip_worst_m": 0.0026962015341936295,
+      "grf_peak_bw": 1.439403404059058,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8377545359905444
+      ]
+     },
+     "wall_s": 4.410970634999103,
+     "cpu_s": 4.377901657999999
+    },
+    {
+     "seed": 3044,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 26.221999999996346,
+     "planned_s": 26.22242397953739,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8236595786197184
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5795298604347776
+     ],
+     "joint_shortfall_rad": -0.019258181450772335,
+     "joint_worst": "right_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": -0.048193405467335186,
+      "yaw_rate_rad_s": 0.3631485116309925,
+      "duty": [
+       0.6036497847037113,
+       0.5948328890711503
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.0018860587712853745,
+      "slip_worst_m": 0.003109280030192631,
+      "grf_peak_bw": 1.374104200110927,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8383898086284876
+      ]
+     },
+     "wall_s": 4.221809052999561,
+     "cpu_s": 4.209364766000007
+    }
+   ],
+   "succeeded": 3,
+   "survived": 3,
+   "errors": 0,
+   "succeeds_all": true,
+   "survives": true,
+   "valid": "e85859992438b55eaf9b6ea7d56808d59e7f466389aee7e32d6a3da32b8ed8cc",
+   "wall_s": 12.63930730499851,
+   "cpu_s": 12.590826053,
+   "simulated_s": 78.66599999998904,
+   "at": "2026-11-09T22:27:44+00:00"
   },
   "turn/walking_0.35_right|friction=0.5": {
    "condition": "turn/walking_0.35_right",
@@ -3379,6 +4005,157 @@
    "simulated_s": 49.53000000000519,
    "at": "2026-11-09T19:37:43+00:00"
   },
+  "walk/nominal|friction=0.75": {
+   "condition": "walk/nominal",
+   "variant": {
+    "kind": "friction",
+    "value": 0.75
+   },
+   "relax": [],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 16.510000000001728,
+     "planned_s": 16.510415098228762,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8168569424495206
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5792750727500388
+     ],
+     "joint_shortfall_rad": -0.03332510388783996,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": 0.2237427281672399,
+      "yaw_rate_rad_s": null,
+      "duty": [
+       0.6120775844831033,
+       0.5964807038592281
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.0021860783855624753,
+      "slip_worst_m": 0.0027993644016044337,
+      "grf_peak_bw": 1.5141481912332164,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8390719954027518
+      ]
+     },
+     "wall_s": 2.3220061160000114,
+     "cpu_s": 2.2944155879999997
+    },
+    {
+     "seed": 3043,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 16.510000000001728,
+     "planned_s": 16.510415098228762,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8150538813114362
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5787275877475055
+     ],
+     "joint_shortfall_rad": -0.03335406191803211,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": 0.22322129877538655,
+      "yaw_rate_rad_s": null,
+      "duty": [
+       0.6124775044991002,
+       0.5932813437312537
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.0020867899706301127,
+      "slip_worst_m": 0.0030176409783712224,
+      "grf_peak_bw": 1.4089430432631453,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8382622303924917
+      ]
+     },
+     "wall_s": 2.135661753000022,
+     "cpu_s": 2.1289896660000025
+    },
+    {
+     "seed": 3044,
+     "fell": false,
+     "fall_time_s": null,
+     "fall_cause": null,
+     "fall_onset_s": null,
+     "fall_candidates": null,
+     "survival_s": 16.510000000001728,
+     "planned_s": 16.510415098228762,
+     "succeeded": true,
+     "failed_terms": [],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8162705439753235
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.5784719853739886
+     ],
+     "joint_shortfall_rad": -0.033314856205772986,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": true,
+      "speed_m_s": 0.22346135146273727,
+      "yaw_rate_rad_s": null,
+      "duty": [
+       0.6134773045390922,
+       0.5934813037392521
+      ],
+      "flight_s": 0.0,
+      "slip_median_m": 0.002057546316351008,
+      "slip_worst_m": 0.0034547474412252675,
+      "grf_peak_bw": 1.3730058836663692,
+      "drive_sustained_worst": [
+       "neck_pitch_servo",
+       0.8379736817375428
+      ]
+     },
+     "wall_s": 2.137371200000416,
+     "cpu_s": 2.1367824179999957
+    }
+   ],
+   "succeeded": 3,
+   "survived": 3,
+   "errors": 0,
+   "succeeds_all": true,
+   "survives": true,
+   "valid": "a3328aeeef161695bc8489301c10bac18344a26fc4b880f6c18637b6a556285f",
+   "wall_s": 6.59503906900045,
+   "cpu_s": 6.560187671999998,
+   "simulated_s": 49.53000000000519,
+   "at": "2026-11-09T22:27:44+00:00"
+  },
   "walk/nominal|friction=0.8": {
    "condition": "walk/nominal",
    "variant": {
@@ -3830,15 +4607,15 @@
   }
  },
  "cost": {
-  "evaluations": 19,
-  "episodes": 57,
-  "simulated_s": 1195.0559999999296,
-  "wall_s": 566.5370317430425,
-  "cpu_s": 204.6039235490001,
+  "evaluations": 24,
+  "episodes": 72,
+  "simulated_s": 1559.2499999998909,
+  "wall_s": 626.2144879310408,
+  "cpu_s": 263.8971364970001,
   "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
  },
  "session": {
   "started_at": "2026-11-09T22:25:53+00:00"
  },
- "written_at": "2026-11-09T22:26:45+00:00"
+ "written_at": "2026-11-09T22:27:44+00:00"
 }
