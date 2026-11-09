@@ -17,6 +17,14 @@ R2). These tests pin the resulting contract:
   saturate the leg actuators, so the force caps bound impact/reset spikes
   rather than learnable gaits.
 
+The life-size plant of physics r5 (the maintainer's decision of 2026-11-08)
+keeps both ratios on its 17 position servos: the legs at kp 180 / 120 / 216 /
+120 (hip pitch, hip roll, knee, ankle; forcerange 270 / 96 / 324 / 180), the
+neck, head, tail and the bounded sickle claw (kp 5, 4 N.m; r4's claw was an
+unbounded motor) at 0.8x.  Measured on r5 by these tests' own protocols: 0.0%
+clipping on every actuator under the home controls (1000 steps), the moderate
+gait (2000 steps) and the sprint excitation (3.5 Hz, full amplitude).
+
 Run ``environments/velociraptor_mongoliensis/scripts/actuator_saturation_report.py``
 for the full per-actuator numbers on the current model.
 """
@@ -116,8 +124,9 @@ class TestDynamicSaturation:
             hip = max(clip_fraction(frac, model, f"{s}_hip_pitch_act") for s in "rl")
             ankle = max(clip_fraction(frac, model, f"{s}_ankle_act") for s in "rl")
             # Measured at 1.5x kp: 0.0% on both groups (was hips 0.34-0.40,
-            # ankles 0.22-0.25 at 0.8x kp). Thresholds keep margin for
-            # timestep/integrator jitter while catching any real regression.
+            # ankles 0.22-0.25 at 0.8x kp), on r4 and again on the life-size
+            # r5 plant. Thresholds keep margin for timestep/integrator jitter
+            # while catching any real regression.
             assert hip < 0.10, f"hip saturation {hip:.1%} — plant lost gait headroom, stage 2 will clip"
             assert ankle < 0.05, f"ankle saturation {ankle:.1%} — plant lost gait headroom, stage 2 will clip"
         finally:
@@ -131,8 +140,10 @@ class TestDynamicSaturation:
         sprint-like excitation (3-4 Hz, full amplitude) — the same
         clipped-torque signature that collapsed stage 2 at the hips. At
         1.5x kp (±270) the same sprint excitation measures 0.0% on the
-        knee. Hips/ankles (already 1.5x) measure ~11%/~2% at this regime,
-        which is their physical envelope, so only the knee is pinned here.
+        knee. Hips/ankles (already 1.5x) measured ~11%/~2% at this regime
+        on r4, their physical envelope then, so only the knee is pinned
+        here; on the life-size plant of physics r5 (knee kp 216, ±324) all
+        three measure 0.0%.
         """
         env = VelociraptorMongoliensisAnatomicalEnv()
         try:

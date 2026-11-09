@@ -14,24 +14,30 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
 The stance node certifies stance quality, not reward: since physics r3 its gate judges every episode of a 40-episode
-panel on the floor's force under each foot (no hop at reset, both feet planted, both toes and the metatarsal head
-loaded, no splay, drift or turn, no actuator held at its limit), and since policy interface r13 (the maintainer's decision of 2026-11-06) it is
+panel on the floor's force under each foot (no hop at reset, both feet planted, every support of each foot loaded, no
+splay, drift or turn, no actuator held at its limit), and since policy interface r13 (the maintainer's decision of 2026-11-06) it is
 the six-heading certificate `stance_quality_heading/v1`: the panel is rolled with the whole scene turned -90, -45, 0,
 45, 90 and 180 degrees, and the stance certifies when at least 37 of the 40 seeds are clean at every heading. Its
 observation reads no world heading (projected gravity and the root velocity and prey direction in the animal's own
-frame), as the T-Rex's does, and its stance training starts at a small action noise (std 0.07), at the edge of what
-the standing statue survives (at that noise it falls in about 1 episode in 20). Velociraptor trains on Stable-Baselines3 only.
+frame), as the T-Rex's does, and its stance training starts at a small action noise (std 0.10), at the edge of what
+the standing statue survives (at that noise it falls in 5 episodes of 120). Velociraptor trains on Stable-Baselines3 only.
+
+Since physics r5 (the maintainer's decision of 2026-11-08) the model is the animal at life size, built like the T-Rex:
+15 kg, with the femur, tibia and metatarsus of the specimen IGM 100/986 (238, 255 and 99 mm), a level trunk and a
+crouched, bird-like leg posture. Every earlier velociraptor policy is refused by the plant contract, so its stance
+retrains on this plant.
 
 <SpeciesCatalog species={MODEL} />
 
 ## Anatomy
 
-- **Torso** - Elongated body with simplified head/neck
-- **Legs** - Digitigrade hind limbs (hip pitch/roll, knee, ankle, 2 toe digits per leg); since physics r3 the leg springs are anchored at the standing pose and the toes stand flat, so the leg servos hold the stance
-- **Feet** - Touch sensors on both toes and the metatarsus of each foot, summed into one contact reading per foot; an elliptic friction cone since physics r4, the one friction model of every species
-- **Sickle claws** - Actuated claw geom on digit 2 of each foot
-- **Arms** - Stub forelimbs with shoulder pitch/roll actuators
-- **Tail** - 5-segment counterbalance (4 actuated segments)
+- **Torso** - Level trunk (dorsal torso, low belly and ribcage capsules), 7.1 of the animal's 15 kg
+- **Neck and head** - Separate neck and skull bodies with neck pitch, neck yaw and head pitch servos, which hold the head up at the standing pose; the neck does not collide, the skull does
+- **Legs** - Digitigrade hind limbs (hip pitch/roll, knee, ankle), the leg springs anchored at the standing pose, so the leg servos hold the stance
+- **Feet** - Each foot stands on a rounded pad under the metatarsophalangeal joints and on digits III and IV, which are passive sprung hinges; a touch sensor on each of the three, each its own observation channel; an elliptic friction cone since physics r4, the one friction model of every species
+- **Sickle claws** - Digit II rides raised on a passive sprung hinge; its claw is a bounded position servo that only the prey collides with
+- **Arms** - Folded forelimbs welded to the body and non-colliding, with no joints or actuators, as the T-Rex's
+- **Tail** - 5-segment counterbalance (4 servos on the mobile segments), its weight carried by spring preloads
 
 ## Diagnostic Metrics (behavior node, hunt)
 

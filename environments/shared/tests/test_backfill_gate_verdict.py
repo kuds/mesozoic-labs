@@ -533,7 +533,7 @@ class TestStanceReports:
         stages = load_all_stages(model_id)
         current = {**stages[1]["curriculum_kwargs"], "gate_kind": "stance_quality/v2"}
         rail = current["min_avg_reward"]
-        assert rail == 1850.0
+        assert rail == 2000.0
         served = {**stages, 1: {**stages[1], "curriculum_kwargs": current}}
         monkeypatch.setattr(config_module, "load_all_stages", lambda species: served)
         older = {**current, "min_avg_reward": 900.0}

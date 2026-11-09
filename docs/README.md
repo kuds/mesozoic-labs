@@ -134,7 +134,11 @@ Archived point-in-time reviews in [`reviews/`](reviews/) —
 (2026-07-27, anatomy and mechanics audit of the raptor plant against published
 *Velociraptor* measurements; execution was deferred until the T-Rex clears
 stages 1–3, and its appended outcome records what velociraptor physics r3,
-D-D25 of 2026-10-06, fixed and what stays open),
+D-D25 of 2026-10-06, fixed and what stays open; its dated status note of
+2026-11-09 records that velociraptor physics r5, the life-size plant of the
+maintainer's decision of 2026-11-08, closes every finding still open, and that
+recommendation R7, the nosedive threshold's constructor argument, is not
+done),
 [REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md),
 [REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md),
 [TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md](reviews/TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md)

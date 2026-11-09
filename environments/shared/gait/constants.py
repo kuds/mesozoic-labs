@@ -5,13 +5,19 @@ threshold key: ``min_all_feet_support = 0.98`` means "0.98 of the window's
 steps had every leg's floor force above :data:`CONTACT_THRESHOLD_N` on at
 least :data:`DOWN_SUBSTEP_FRACTION` of the substeps", and the same bar under
 another threshold is another gate.  So the constants are versioned together:
-changing any one of them after a stage adopts the kind, or changing a
-model's registry entry (its env class's ``FOOT_SUPPORT``,
-:func:`.morphology.support_entry`), needs a new
+changing any one of them after a stage adopts the kind, or changing what a
+registry entry or a metric means for every model, needs a new
 :data:`MEASUREMENT_VERSION`, and the gate refuses a report measured under a
 manifest other than the one it re-derives (the gate map's "measurement
 block").  :func:`measurement_manifest` is that manifest, and
-:func:`measurement_sha256` its digest.
+:func:`measurement_sha256` its digest.  Editing ONE model's registry entry
+(its env class's ``FOOT_SUPPORT``, :func:`.morphology.support_entry`) after
+its stance adopts the kind needs no global bump: the entry is one of
+:data:`MEASUREMENT_DEFINITION_KEYS`, so that model's
+:func:`measurement_definition_sha256` moves and its old reports are refused by
+the gate's registry block and by publication, while every other model's
+reports stay valid (the maintainer's decision of 2026-11-09, first used for
+the velociraptor's physics-r5 support set).
 
 Pure: no mujoco import, so the pure gate module
 (``curriculum/stance_gate_v2.py``) and the reporting layer can read the
@@ -74,15 +80,18 @@ if TYPE_CHECKING:
     from .morphology import Morphology
 
 #: The version of the definitions in this package.  Bump it (and say why in
-#: the CHANGELOG) whenever a constant, a registry entry or a metric
-#: definition changes what an adopted ``stance_quality/v2`` key means.
+#: the CHANGELOG) whenever a constant, the registry's schema or a metric
+#: definition changes what an adopted ``stance_quality/v2`` key means for
+#: every model; one model's registry-entry edit is bound by that model's
+#: measurement-definition digest instead (the module docstring, the
+#: maintainer's decision of 2026-11-09).
 #: ``floor-truth/v2`` (2026-10-16): the registry entry gains the foot's
 #: ``ankle`` and its declared support span (``heel_line``, ``toe_line``;
 #: declared by the T. rex), and the recorder the whole-foot centre of
 #: pressure measured from that ankle (``EpisodeTrace.foot_cop``).  No
 #: constant changes and no adopted key's reading moves -- a re-rolled panel
 #: scores every v1 key bit for bit -- but a registry entry an adopted stage
-#: reads did change, and the module docstring versions any change to a
+#: reads did change, and the module docstring then versioned any change to a
 #: model's registry entry; a report or panel measured under v1 is refused
 #: and re-rolled, never re-scored.
 MEASUREMENT_VERSION = "floor-truth/v2"

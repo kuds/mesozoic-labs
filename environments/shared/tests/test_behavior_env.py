@@ -47,7 +47,7 @@ MODEL_IDS = (
     COMPSOGNATHUS_LONGIPES_ROBOT,
 )
 SPEEDS = {
-    VELOCIRAPTOR_MONGOLIENSIS: 2.0,
+    VELOCIRAPTOR_MONGOLIENSIS: 2.1,
     BRACHIOSAURUS_ALTITHORAX: 0.75,
     DIBOTHROSUCHUS_ELAPHROS: 0.9,
     COMPSOGNATHUS_LONGIPES: 0.08,
@@ -55,6 +55,12 @@ SPEEDS = {
     TYRANNOSAURUS_REX: 1.05,
 }
 RECIPES = Path(__file__).resolve().parents[3] / "configs"
+#: The species whose non-colliding neck the behavior env probes for terrain penetration
+#: (``_terrain_contact_probe_geoms``): the T-Rex's, and the life-size raptor's since its physics r5.
+PROBE_GEOMS = {
+    TYRANNOSAURUS_REX: ("neck_geom",),
+    VELOCIRAPTOR_MONGOLIENSIS: ("neck_geom", "neck_upper_geom"),
+}
 # Height-derived reward/info keys; every species reports at least pelvis_height.
 HEIGHT_KEYS = (
     "reward_height",
@@ -136,7 +142,7 @@ def test_factory_preserves_canonical_inheritance(model_id):
     assert "forward_vel_weight" in inspect.signature(canonical).parameters
     assert behavior is get_behavior_env_class(model_id)
     # The species declaration must not be hidden by a mixin default earlier in the MRO.
-    assert behavior._terrain_contact_probe_geoms == (("neck_geom",) if model_id == TYRANNOSAURUS_REX else ())
+    assert behavior._terrain_contact_probe_geoms == PROBE_GEOMS.get(model_id, ())
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -271,7 +277,9 @@ def test_rewards_and_terminations_follow_a_translated_surface(make_env, model_id
 
 
 @pytest.mark.parametrize(
-    "model_id", [TYRANNOSAURUS_REX, DIBOTHROSUCHUS_ELAPHROS], ids=lambda m: f"{m.species}-{m.embodiment}"
+    "model_id",
+    [TYRANNOSAURUS_REX, DIBOTHROSUCHUS_ELAPHROS, VELOCIRAPTOR_MONGOLIENSIS],
+    ids=lambda m: f"{m.species}-{m.embodiment}",
 )
 def test_substep_height_minima_are_surface_relative(make_env, model_id):
     """BaseDinoEnv.step aggregates head/snout clearance, not world z, on a raised surface."""
@@ -288,7 +296,7 @@ def test_substep_height_minima_are_surface_relative(make_env, model_id):
     kind, entity = raised._substep_height_checks[0]
     world_z = (raised.data.site_xpos if kind == "site" else raised.data.xpos)[entity, 2]
     assert raised._substep_min_heights[0] < world_z - 0.7
-    raised._substep_min_heights[0] = 0.03  # a dip below both species' head-contact thresholds
+    raised._substep_min_heights[0] = 0.03  # a dip below every listed species' head-contact threshold
     terminated, info = raised._is_terminated()
     assert terminated and info["termination_reason"] == "head_contact"
 
@@ -307,12 +315,16 @@ def test_small_species_cannot_pass_a_walk_command_while_stationary(make_env, mod
     assert env.tracking_velocity_sigma == pytest.approx(env.direction_controller.config.speed_scale / 6)
 
 
+@pytest.mark.parametrize("model_id", list(PROBE_GEOMS), ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("on_terrain", [False, True])
-def test_neck_probe_detects_penetration_without_adding_physical_support(make_env, on_terrain):
-    env = make_env(TYRANNOSAURUS_REX, terrain=terrain() if on_terrain else None, reset_noise_scale=0.0)
+def test_neck_probe_detects_penetration_without_adding_physical_support(make_env, model_id, on_terrain):
+    env = make_env(model_id, terrain=terrain() if on_terrain else None, reset_noise_scale=0.0)
     env.reset(seed=1)
-    (neck,) = env._probe_geom_ids
-    assert neck == mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "neck_geom")
+    probes = [mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, name) for name in PROBE_GEOMS[model_id]]
+    assert list(env._probe_geom_ids) == probes
+    # The neck's base capsule, its lowest: lowered 3 cm into the surface, it alone penetrates (the raptor's upper
+    # neck capsule then sits 0.11 m clear).
+    neck = probes[0]
     assert env._substep_probe_hook == env._probe_terrain_contacts
     assert env.model.geom_contype[neck] == 0
     assert env.model.geom_conaffinity[neck] == 0
@@ -414,7 +426,7 @@ def test_behavior_pools_leave_an_independent_canonical_environment_unchanged(mak
             )
         }
         env = make_env(model_id, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), reset_noise_scale=0.05)
-        assert (env._substep_probe_hook is not None) == hasattr(env, "_probe_model") == (model_id == TYRANNOSAURUS_REX)
+        assert (env._substep_probe_hook is not None) == hasattr(env, "_probe_model") == (model_id in PROBE_GEOMS)
         seeds = _mixed_surface_seeds(env)
         props = np.flatnonzero(env.model.body_mocapid >= 0)
         for is_plane in (True, False, True):

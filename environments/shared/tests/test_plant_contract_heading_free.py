@@ -3,7 +3,8 @@
 The T-Rex (policy interface r14) and the anatomical Compsognathus (r4) are the
 schema's two species.  Its policy-interface payload differs from the legacy
 schemas' in four ways, each pinned here: the observation segments name their
-frames, sources and thresholds and describe the feet per foot, so their widths
+frames, sources and thresholds and describe the feet per foot (the velociraptor's
+per site since its policy interface r14, plant_versions note 22), so their widths
 sum to the observation width (checked, with the command last); the frame
 helpers ``_get_obs`` calls are hashed beside it
 (``interface_implementations.heading_free_observation``), so editing one moves
@@ -48,17 +49,23 @@ HEADING_FREE = (
         VELOCIRAPTOR_MONGOLIENSIS, VelociraptorMongoliensisAnatomicalEnv, id="velociraptor_mongoliensis-anatomical"
     ),
 )
-#: Each model's per-foot touch-sensor groups, right foot first: the T-Rex sums its plantar pad and three digits.
+#: Each model's foot-contact channels' touch-sensor groups, right foot first: the T-Rex sums its plantar pad and
+#: three digits per foot; the velociraptor observes each of its six sensors as its own channel.
 FOOT_GROUPS = {
     TYRANNOSAURUS_REX: [
         ["r_foot_touch", "r_toe_d2_touch", "r_toe_d3_touch", "r_toe_d4_touch"],
         ["l_foot_touch", "l_toe_d2_touch", "l_toe_d3_touch", "l_toe_d4_touch"],
     ],
     COMPSOGNATHUS_LONGIPES: [["r_foot_touch"], ["l_foot_touch"]],
-    # Digit III (the foot site's own sensor) first, then the metatarsus and digit IV (plant_versions note 14).
+    # One channel per load-bearing site since policy interface r14 (plant_versions note 22): the MTP pad (the foot
+    # site's own sensor), digit III and digit IV, right foot first (r11-r13 summed d3, metatarsus and d4 per foot).
     VELOCIRAPTOR_MONGOLIENSIS: [
-        ["r_foot_touch", "r_meta_touch", "r_d4_touch"],
-        ["l_foot_touch", "l_meta_touch", "l_d4_touch"],
+        ["r_foot_touch"],
+        ["r_toe_d3_touch"],
+        ["r_toe_d4_touch"],
+        ["l_foot_touch"],
+        ["l_toe_d3_touch"],
+        ["l_toe_d4_touch"],
     ],
 }
 
@@ -113,7 +120,8 @@ def test_heading_free_payload_records_segments_frames_and_helper(animal):
     assert segments["pelvis_angular_velocity"]["frame"] == "gyro-site"
     assert segments["pelvis_linear_acceleration"]["frame"] == "accelerometer-site"
     assert segments["prey_direction_body"]["frame"] == "pelvis"
-    assert segments["foot_contact"] == {"name": "foot_contact", "width": 2, "groups": FOOT_GROUPS[model_id]}
+    groups = FOOT_GROUPS[model_id]
+    assert segments["foot_contact"] == {"name": "foot_contact", "width": len(groups), "groups": groups}
     widths = [stop.stop - stop.start for stop in _offsets(payload).values()]
     assert sum(widths) == env.observation_space.shape[0] == payload["observation"]["shape"][0]
 
@@ -186,6 +194,68 @@ def test_foot_groups_must_name_touch_sensors(animal, monkeypatch):
     monkeypatch.setattr(env, "_foot_sensor_groups", ((env._sensor_gyro_start,), (env._sensor_gyro_start + 1,)))
     with pytest.raises(PlantContractError, match="start no touch sensor"):
         _payload(model_id, env)
+
+
+@pytest.fixture
+def velociraptor_mongoliensis_env():
+    env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
+    yield env
+    env.close()
+
+
+def _drop_the_last_site(env):
+    return {"_foot_observation_groups": env._foot_observation_groups[:-1]}
+
+
+def _read_a_site_twice(env):
+    return {"_foot_observation_groups": (*env._foot_observation_groups, env._foot_observation_groups[0])}
+
+
+def _read_a_site_no_foot_reads(env):
+    # The per-foot groups lose the left digit IV; the per-site channels still read it.
+    right, left = env._foot_sensor_groups
+    return {"_foot_sensor_groups": (right, left[:-1])}
+
+
+def _read_a_gyro_channel(env):
+    return {"_foot_observation_groups": (*env._foot_observation_groups[:-1], (env._sensor_gyro_start,))}
+
+
+def _add_an_empty_channel(env):
+    return {"_foot_observation_groups": (*env._foot_observation_groups, ())}
+
+
+def _declare_no_channel(env):
+    return {"_foot_observation_groups": ()}
+
+
+@pytest.mark.parametrize(
+    ("edit", "message"),
+    [
+        pytest.param(_drop_the_last_site, "must read exactly the touch sensors of _foot_sensor_groups", id="drop"),
+        pytest.param(_read_a_site_twice, "must read exactly the touch sensors of _foot_sensor_groups", id="twice"),
+        pytest.param(
+            _read_a_site_no_foot_reads, "must read exactly the touch sensors of _foot_sensor_groups", id="add"
+        ),
+        pytest.param(
+            _read_a_gyro_channel, r"_foot_observation_groups=.*addresses that start no touch sensor: \[\d+\]", id="gyro"
+        ),
+        pytest.param(_add_an_empty_channel, r"none empty; _foot_observation_groups=.*\[\]\], addresses", id="empty"),
+        pytest.param(_declare_no_channel, r"none empty; _foot_observation_groups=\[\], addresses", id="none"),
+    ],
+)
+def test_the_per_site_channels_must_read_exactly_the_feets_touch_sensors(
+    velociraptor_mongoliensis_env, monkeypatch, edit, message
+):
+    """The velociraptor's ``_foot_observation_groups`` (policy interface r14): each channel a non-empty group of
+    touch sensors, together reading every sensor of the per-foot ``_foot_sensor_groups`` once and nothing else.
+    The per-foot check alone (test_foot_groups_must_name_touch_sensors) cannot see a per-site channel dropped,
+    doubled or added."""
+    env = velociraptor_mongoliensis_env
+    for name, value in edit(env).items():
+        monkeypatch.setattr(env, name, value)
+    with pytest.raises(PlantContractError, match=message):
+        _payload(VELOCIRAPTOR_MONGOLIENSIS, env)
 
 
 def test_heading_free_probe_normalizes_the_synthetic_quaternion(animal, monkeypatch):

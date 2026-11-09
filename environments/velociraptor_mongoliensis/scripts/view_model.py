@@ -33,7 +33,9 @@ if __name__ == "__main__":
             model_path=model_id.asset_path(ENVIRONMENTS_ROOT),
             species_name=str(model_id),
             height_label="Pelvis height",
-            camera_distance=2.0,
-            camera_lookat_z=0.3,
+            # The r4 plant's 2.0 m and 0.3 m, scaled with the life-size
+            # footprint (x 1.16) and hip height (x 1.09) of physics r5.
+            camera_distance=2.3,
+            camera_lookat_z=0.33,
         )
     )

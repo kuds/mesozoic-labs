@@ -162,8 +162,8 @@ REWARD_NOISE_STEPS, REWARD_KICK_STEPS = 300, 200
 #: world x beyond max_tilt_angle or None, every limited neck/head hinge at its upper limit).  Each is scored
 #: without a physics step.  The angles are sized by the stage's own threshold but applied on top of the reset
 #: orientation (world pre-multiplication), as dz is added to the reset height, so a stage whose reset pose leans
-#: is offset by that lean: velociraptor's home keyframe leans about 20 degrees forward, so its fwd_in ends past
-#: max_tilt_angle and its back_out inside it.  The margin test checks the actual distances from the thresholds.
+#: is offset by that lean (the velociraptor's home keyframe leaned about 20 degrees forward before its physics r5,
+#: whose keyframe is level).  The margin test checks the actual distances from the thresholds.
 REWARD_TILT_MARGIN = 0.15
 REWARD_POSES: tuple[tuple[str, float, tuple[int, str], float | None, bool], ...] = (
     ("low", -0.5, (1, "zero"), None, False),

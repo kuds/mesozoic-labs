@@ -50,7 +50,8 @@ def test_visual_only_material_change_only_changes_visual_layer(velociraptor_mong
 
 def test_mass_change_changes_physics_without_changing_interface(velociraptor_mongoliensis_layers):
     source, interface, version, original = velociraptor_mongoliensis_layers
-    changed_source = source.replace('mass="4.0" material="body_mat"', 'mass="4.1" material="body_mat"', 1)
+    # The dorsal torso capsule of the physics-r5 plant (r4 edited its 4.0 kg torso).
+    changed_source = source.replace('mass="3.2" material="body_mat"', 'mass="3.3" material="body_mat"', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
 
@@ -62,7 +63,8 @@ def test_mass_change_changes_physics_without_changing_interface(velociraptor_mon
 
 def test_home_control_change_updates_policy_and_physics_fingerprints(velociraptor_mongoliensis_layers):
     source, interface, version, original = velociraptor_mongoliensis_layers
-    changed_source = source.replace('ctrl="0.652647', 'ctrl="0.650000', 1)
+    # The keyframe's first home control, neck_pitch's gravity preload on the physics-r5 plant.
+    changed_source = source.replace('ctrl="-0.081417', 'ctrl="-0.080000', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
 
@@ -192,7 +194,8 @@ def test_camera_resolution_changes_only_visual_fingerprint(velociraptor_mongolie
 
 def test_control_range_change_changes_interface_and_physics(velociraptor_mongoliensis_layers):
     source, interface, version, original = velociraptor_mongoliensis_layers
-    changed_source = source.replace('ctrlrange="-1.0472 1.5708"', 'ctrlrange="-1.0 1.5708"', 1)
+    # r_hip_pitch_act's range on the physics-r5 plant (the first of the two hip-pitch servos).
+    changed_source = source.replace('ctrlrange="-1.74533 0.5236"', 'ctrlrange="-1.7 0.5236"', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
 
@@ -204,9 +207,10 @@ def test_control_range_change_changes_interface_and_physics(velociraptor_mongoli
 
 def test_touch_site_shape_change_changes_interface_and_visual_layers(velociraptor_mongoliensis_layers):
     source, interface, version, original = velociraptor_mongoliensis_layers
+    # The right MTP pad's box touch site on the physics-r5 plant, 1 mm deeper.
     changed_source = source.replace(
-        '<site name="r_foot" pos="0.05 0 0" size="0.08" group="4"/>',
-        '<site name="r_foot" pos="0.05 0 0" size="0.085" group="4"/>',
+        '<site name="r_foot" type="box" pos="0.004648 -0.011837 -0.111773" size="0.03 0.03 0.016" group="4"/>',
+        '<site name="r_foot" type="box" pos="0.004648 -0.011837 -0.111773" size="0.03 0.03 0.017" group="4"/>',
         1,
     )
     assert changed_source != source
@@ -222,7 +226,8 @@ def test_touch_site_shape_change_changes_interface_and_visual_layers(velocirapto
 def test_cached_observation_body_mapping_changes_interface_fingerprint(velociraptor_mongoliensis_layers):
     _source, env, version, original = velociraptor_mongoliensis_layers
     original_pelvis_id = env.pelvis_id
-    env.pelvis_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, "head")
+    env.pelvis_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, "skull")
+    assert env.pelvis_id >= 0  # the physics-r5 skull body (r4's was "head")
     try:
         changed = fingerprint_model_layers(env.model, env, version)
     finally:

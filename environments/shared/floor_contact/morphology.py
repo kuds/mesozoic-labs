@@ -47,9 +47,14 @@ D-D33: a new embodiment needs no edit here).  ``tests/test_gait_morphology.py``
 pins each difference from the generic answer.  The registry is MEASUREMENT
 data, not plant data: it is recorded in the gait package's
 :func:`~environments.shared.gait.constants.measurement_manifest`, not in
-``plant_versions.toml``, and editing an entry after a stage adopts
-``stance_quality/v2`` needs a new
-:data:`~environments.shared.gait.constants.MEASUREMENT_VERSION`.  A
+``plant_versions.toml``.  Editing one model's entry after its stage adopts
+``stance_quality/v2`` moves that model's
+:func:`~environments.shared.gait.constants.measurement_definition_sha256`, so
+the gate's registry block and publication refuse its old reports; it needs
+no global
+:data:`~environments.shared.gait.constants.MEASUREMENT_VERSION` bump, which
+stays for changes to the constants, the registry's schema or a metric
+definition (the maintainer's decision of 2026-11-09).  A
 model with no entry falls back to the generic rule, and the manifest records
 ``registry: None``.
 

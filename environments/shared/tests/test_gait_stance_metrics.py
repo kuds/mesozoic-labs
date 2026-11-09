@@ -553,7 +553,7 @@ def test_the_shared_reduction_is_the_metric():
 
 
 def test_a_support_geom_held_off_the_floor_has_zero_duty():
-    # The velociraptor 0922 hack never loads its right d4 toe; its statue loads d3/d4/metatarsus 0.56/0.18/0.26.
+    # The velociraptor 0922 hack never loads its right d4 toe; its r2 statue loads d3/d4/metatarsus 0.56/0.18/0.26.
     trace = statue_trace()
     loads = np.column_stack([trace.support_floor_mean, np.zeros(400)])  # a second geom on the left foot
     loaded = np.column_stack([trace.support_loaded_frac, np.full(400, 0.2)])  # loaded on 1 substep in 5

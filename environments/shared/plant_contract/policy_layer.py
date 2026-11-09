@@ -369,21 +369,44 @@ def _segment_width(segment: Mapping[str, Any]) -> int:
     return len(segment["components"]) if "components" in segment else int(segment["width"])
 
 
+def _touch_sensor_groups(source: str, declared: Any, touch_by_address: Mapping[int, str]) -> list[list[int]]:
+    """The env's touch-sensor groups named *source*, as sensordata addresses; refused empty or off a touch sensor."""
+    groups = [[int(address) for address in group] for group in declared]
+    unknown = sorted({address for group in groups for address in group} - set(touch_by_address))
+    if not groups or not all(groups) or unknown:
+        raise PlantContractError(
+            f"the foot_contact segment needs touch-sensor groups, none empty; {source}={groups}, "
+            f"addresses that start no touch sensor: {unknown}"
+        )
+    return groups
+
+
 def _foot_contact_groups(model: mujoco.MjModel, env: Any) -> list[list[str]]:
-    """Each foot channel's touch sensors, by name, from the env's ``_foot_sensor_groups`` sensordata addresses."""
+    """Each foot channel's touch sensors, by name, from the env's sensordata addresses.
+
+    The channels are the env's ``_foot_observation_groups`` when it declares them (the velociraptor's per-site
+    channels since its policy interface r14), which must read exactly the touch sensors of its per-foot
+    ``_foot_sensor_groups`` (the rewards' feet), and the per-foot groups otherwise, so every other model's segment
+    is unchanged.
+    """
     sensor_names = _names(model, mujoco.mjtObj.mjOBJ_SENSOR, model.nsensor)
     touch_by_address = {
         int(model.sensor_adr[index]): sensor_names[index]
         for index in range(model.nsensor)
         if int(model.sensor_type[index]) == int(mujoco.mjtSensor.mjSENS_TOUCH)
     }
-    groups = [[int(address) for address in group] for group in getattr(env, "_foot_sensor_groups", ())]
-    unknown = sorted({address for group in groups for address in group} - set(touch_by_address))
-    if not groups or unknown:
-        raise PlantContractError(
-            f"the foot_contact segment needs per-foot touch-sensor groups; _foot_sensor_groups={groups}, "
-            f"addresses that start no touch sensor: {unknown}"
-        )
+    per_foot = _touch_sensor_groups("_foot_sensor_groups", getattr(env, "_foot_sensor_groups", ()), touch_by_address)
+    declared = getattr(env, "_foot_observation_groups", None)
+    groups = per_foot
+    if declared is not None:
+        groups = _touch_sensor_groups("_foot_observation_groups", declared, touch_by_address)
+        if sorted(address for group in groups for address in group) != sorted(
+            address for group in per_foot for address in group
+        ):
+            raise PlantContractError(
+                f"_foot_observation_groups={groups} must read exactly the touch sensors of "
+                f"_foot_sensor_groups={per_foot}"
+            )
     return [[touch_by_address[address] for address in group] for group in groups]
 
 
@@ -397,10 +420,12 @@ def _heading_free_observation_segments(
 
     The three root blocks are named for their frame and source, with the
     fallback and normalization thresholds the helpers apply, and the foot
-    channels are described per foot (each a sum over its listed touch
-    sensors), so the widths sum to the observation width -- the legacy
-    table's ``foot_contact`` lists every touch sensor instead, and the caller
-    checks the sum on this schema only.
+    channels are described by their touch sensors: one per foot (a sum over
+    its listed sensors), or one per group of the env's
+    ``_foot_observation_groups`` where it declares them (the velociraptor's
+    per-site channels since its policy interface r14), so the widths sum to
+    the observation width -- the legacy table's ``foot_contact`` lists every
+    touch sensor instead, and the caller checks the sum on this schema only.
     """
     foot_groups = _foot_contact_groups(model, env)
     return [

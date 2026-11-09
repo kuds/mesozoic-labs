@@ -242,6 +242,7 @@ _REWARD_KEY_TO_CONFIG_WEIGHTS: dict[str, tuple[str, ...]] = {
     "reward_head_clearance": ("head_clearance_weight",),
     "reward_neck_posture": ("neck_posture_weight",),
     "reward_tail_home_pose": ("tail_home_pose_weight",),
+    "reward_neck_home_pose": ("neck_home_pose_weight",),
     "reward_foot_flatness": ("foot_flatness_weight",),
     "reward_stance_width": ("stance_width_weight",),
     "reward_floor_impact": ("floor_impact_weight",),

@@ -103,8 +103,11 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77/53/43 -> 70/64/86/80/56/46.
         # The heading-free observation (plant_versions note 18) replaced the
         # trex's and the anatomical compsognathus's 4-wide quaternion with
-        # 3-wide projected gravity: 64/56 -> 63/55.
-        VELOCIRAPTOR_MONGOLIENSIS: (69, 22, 31, 30, 22, 13.5),
+        # 3-wide projected gravity: 64/56 -> 63/55 (the velociraptor's 70 -> 69,
+        # note 21).  The velociraptor's life-size plant (note 22, the
+        # maintainer's decision of 2026-11-08): 23 hinges, 17 servos, six
+        # per-site foot channels, 15 kg (r4: 69, 22, 31, 30, 22, 13.5).
+        VELOCIRAPTOR_MONGOLIENSIS: (71, 17, 30, 29, 17, 15.0),
         TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
         BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
         DIBOTHROSUCHUS_ELAPHROS: (80, 27, 35, 34, 27, 8.65),
@@ -245,8 +248,10 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # tail pitch springs: PHYSICS only, policy and visual unchanged.
     # Velociraptor heading-free observations (plant_versions note 21,
     # the maintainer's decision of 2026-11-06): POLICY only, physics and visual unchanged.
+    # The velociraptor's life-size plant (note 22, the maintainer's decision of
+    # 2026-11-08): PHYSICS, POLICY and VISUAL.
     expected_policy_revisions = {
-        VELOCIRAPTOR_MONGOLIENSIS: 13,
+        VELOCIRAPTOR_MONGOLIENSIS: 14,
         TYRANNOSAURUS_REX: 15,
         BRACHIOSAURUS_ALTITHORAX: 9,
         DIBOTHROSUCHUS_ELAPHROS: 8,
@@ -254,13 +259,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
     expected_physics_revisions = {
-        VELOCIRAPTOR_MONGOLIENSIS: 4,
+        VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 10,
         BRACHIOSAURUS_ALTITHORAX: 5,
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     expected_visual_revisions = {
-        VELOCIRAPTOR_MONGOLIENSIS: 4,
+        VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 4,
         BRACHIOSAURUS_ALTITHORAX: 2,
         DIBOTHROSUCHUS_ELAPHROS: 1,
@@ -333,8 +338,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # width; 3495.2 on r7 with the 20260810 shaping pack:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
-    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3091.3 (physics
-    # r4 with the 2026-11-06 tail, impact and airborne terms; 2843.0 on r4
+    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 3341.0 (the
+    # life-size physics r5 with the neck home pose beside the tail, impact and
+    # airborne terms; 3091.3 on r4 with the 2026-11-06 terms, 2843.0 on r4
     # before them, 2842.8 on r3 with its stance-quality terms, 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8; 1738.4 on physics r5),
@@ -366,9 +372,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 3756.8, x0.60 = 2254.1 -> 2250, and for physics r10 (D-D44): statue
         # 3766.6, x0.60 = 2260.0 -> 2260.
         TYRANNOSAURUS_REX: 2260.0,
-        # 0.60 x 3091.3 = 1854.8 -> 1850 nearest-10 (the 2026-11-06 [env]; 1710 on 2842.8 before it, 1050 on the
-        # r2 plant).
-        VELOCIRAPTOR_MONGOLIENSIS: 1850.0,
+        # 0.60 x 3341.0 = 2004.6 -> 2000 nearest-10 (physics r5; 1850 on r4's 3091.3, 1710 on 2842.8 before the
+        # 2026-11-06 [env], 1050 on the r2 plant).
+        VELOCIRAPTOR_MONGOLIENSIS: 2000.0,
         BRACHIOSAURUS_ALTITHORAX: 1040.0,
         DIBOTHROSUCHUS_ELAPHROS: 1560.0,
     }
@@ -435,9 +441,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Velociraptor 1a's block (configs/velociraptor_mongoliensis/anatomical/stance.toml,
     # D-D25): no box sole, so the flatness bars are the support-geom duty and
     # coverage, with the settle-window width change and the statue's own
-    # load share beside them; the sole keys export null. The foot bars and the
-    # settle peak sit mid-gap between the statue and the audited hacks, so a
-    # statue with command jitter stays clean.
+    # load share beside them; the sole keys export null. The foot bars sit
+    # mid-gap between the statue and the audited hacks, so a statue with
+    # command jitter stays clean; on the life-size plant of physics r5 the
+    # settle peak no longer does (kept and flagged in stance.toml). Every bar
+    # was kept on r5's six-heading statue panels (720/720 episodes clean).
     velociraptor_mongoliensis_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
         "min_clean_stance_lcb": 0.80,
         "settle_steps": 100,
@@ -661,7 +669,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     def _gate(model_id: ModelId, number: int) -> dict:
         return next(stage["advancement_gate"] for stage in models[model_id]["stages"] if stage["number"] == number)
 
-    assert _gate(VELOCIRAPTOR_MONGOLIENSIS, 2)["min_avg_forward_velocity"] == 2.0
+    # 2.1 since physics r5: r4's 2.0 Froude-matched to the life-size hip height (x 1.042).
+    assert _gate(VELOCIRAPTOR_MONGOLIENSIS, 2)["min_avg_forward_velocity"] == 2.1
     assert _gate(TYRANNOSAURUS_REX, 2)["min_avg_forward_velocity"] == 1.0
     assert _gate(BRACHIOSAURUS_ALTITHORAX, 2)["min_avg_forward_velocity"] == 0.75
     # No species gates stage 3 on speed. The 2.0 m/s capability target that
@@ -2081,11 +2090,12 @@ def test_catalog_page_blocks_differ_from_the_root_renderings_only_in_their_links
 
 def test_check_catalog_refuses_a_stale_or_missing_catalog_page(tmp_path: Path) -> None:
     """A hand edit of a generated cell, or a missing page, fails ``--check`` (cleanup CU-17)."""
+    # The velociraptor's row: 71 since its policy interface r14 (69 before).
     page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
-    assert "| Observation dimension | 69 |" in page
+    assert "| Observation dimension | 71 |" in page
     edited = tmp_path / "SPECIES_CATALOG.md"
     edited.write_text(
-        page.replace("| Observation dimension | 69 |", "| Observation dimension | 71 |", 1), encoding="utf-8"
+        page.replace("| Observation dimension | 71 |", "| Observation dimension | 72 |", 1), encoding="utf-8"
     )
     with pytest.raises(CatalogError, match="species catalog page is stale"):
         check_catalog(catalog_page_path=edited)
@@ -2117,7 +2127,7 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
     assert main([*paths, "--check"]) == 0
     capsys.readouterr()
     edited = page.read_text(encoding="utf-8").replace(
-        "| Observation dimension | 69 |", "| Observation dimension | 71 |", 1
+        "| Observation dimension | 71 |", "| Observation dimension | 72 |", 1
     )
     page.write_text(edited, encoding="utf-8")
     with pytest.raises(SystemExit) as stale:

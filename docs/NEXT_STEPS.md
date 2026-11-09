@@ -162,7 +162,44 @@ maintainer's stance-landing decision of 2026-11-06) on `main`:
 six-heading certificate and the fresh-seed audit, and the second's bundle
 counts both (section 2). The sessions on that stance (`recover`, `walk`,
 `hunt`) follow with `CRITIC_PHASE = False`; which comes first, and its trunk,
-are the maintainer's (section 3).* Section 2 labels each
+are the maintainer's (section 3).* *2026-11-09: the maintainer decided on
+2026-11-08 to rebuild the velociraptor life size, of equivalent nature to
+the T. rex (no decision id yet: the next records change numbers it):
+physics r4 → r5, policy interface r13 → r14 (69 → 71 wide, 22 → 17
+actions) and visual r4 → r5 (`configs/plant_versions.toml` note 22), IGM
+100/986's proportions on the T. rex's topology with a level trunk, a
+separate neck and skull, welded passive arms, passive sprung toes and one
+observation channel per foot touch site. Every velociraptor checkpoint is
+refused and none can be widened, any r4 run of the 2026-11-06 recipe
+included, and none had certified, so the velociraptor stance must be
+retrained on physics r5. Its stance keeps today's terms with every
+statue-derived constant re-measured on the r5 statue: it starts at action
+std 0.10 (`log_std_init` −2.30, the r5 statue's noise cliff: 40/40 to σ
+0.09, 38/40 at 0.10, 19/40 at 0.135), the new neck home-pose term is on,
+floor impacts are priced from 3.0 body weights, the statue reference is
+3341.0 and `min_avg_reward` 2000, and the walk gate is 2.1 m/s. The
+2026-11-06 note's procedure stands: two seeds, each judged on its
+certificate and re-judged on 7042–7081, final and archived checkpoints
+judged too, offline tail traces, and the noise scan of the trained stance
+in the locomotion env before the first walk (the walk inherits a learned
+std of at most about 0.10 now; the T. rex's −2.0 reset, std 0.135, is one
+the r5 statue survives on 19/40). The next step after the body is the port
+of the T. rex's LTSB stance recipe, which this change leaves out. The
+velociraptor port plan of 2026-11-08 (scratch work, measured on the r4
+handoffs, not committed) ranks its candidates: first, a per-site load
+floor, the gate's own support statistic read as reward with load guards,
+as the T. rex's centre-of-pressure band reads its gate's (on the r4
+handoffs a digit-IV load-share floor separated clean from unclean episodes
+at AUC 0.999, costing the statue 0.25 per episode); second, passive toes,
+which r5 now builds into the plant (on r4, holding the four toe actions at
+zero loaded every support geom on 40/40 and 39/40 seeds of two handoffs);
+third, mirror-KL PPO, once a velociraptor mirror map is committed beside
+the T. rex's (`configs/tyrannosaurus_rex/anatomical/mirror_map.json`; on r4
+the mirror-symmetrised policies of two handoffs were clean on 4 and 6 more
+seeds of 40, and on a third checkpoint on 3 fewer, and the plan judges that
+it would not remove an offset both feet share). None of those figures is an
+r5 one: each candidate is re-measured on the r5 statue first, and the order
+is the maintainer's.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -287,6 +324,9 @@ the plant contract refuses every run below and none is reused; the first
 column is each run's Drive species directory, named by the ID of its date.*
 *2026-10-25: and since D-D44 the T-Rex is physics r10 (note 20), which would
 strand the T-Rex runs below again; they were stranded already.*
+*2026-11-09: and since the maintainer's decision of 2026-11-08 the
+velociraptor is physics r5 (note 22), which would strand the velociraptor
+runs below again; they were stranded already.*
 
 | Drive species directory | Run id | Seed | Interface | Stance | Locomotion | What it needs next |
 |---|---|---|---|---|---|---|

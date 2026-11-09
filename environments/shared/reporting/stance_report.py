@@ -470,9 +470,9 @@ def _actuator_joint_names(env: Any) -> list[str]:
 def _is_angular_position_control(model: Any, index: int, joint_id: int) -> bool:
     """Whether actuator control values are directly interpretable as radians.
 
-    A joint transmission alone is not enough: Velociraptor's claw actuators
-    are geared motors, where ``ctrl=1`` is a dimensionless motor command rather
-    than a one-radian target.  Restrict degree fields to the canonical direct,
+    A joint transmission alone is not enough: a geared motor (the Velociraptor's
+    claws before its physics r5) takes ``ctrl=1`` as a dimensionless motor command
+    rather than a one-radian target.  Restrict degree fields to the canonical direct,
     unit-gear hinge position servo compiled by MuJoCo's ``<position>`` shortcut.
     Anything else keeps normalized and native-control statistics only.
     """

@@ -15,8 +15,10 @@ the declaration in the ways that each fail differently:
    the settle window non-empty after the spawn grace at the stage's own
    control step, no v1 key left behind.
 2. **The foot, settle and width bars are declared.**  The raptor has no box
-   sole, so its flatness bars are the support-geom duty and coverage of the
-   middle toe, the outer toe and the metatarsal head.  They are optional in
+   sole, so its flatness bars are the support-geom duty and coverage of its
+   support geoms (on the life-size foot of physics r5 the MTP pad and digits
+   III and IV; r2-r4 the middle toe, the outer toe and the metatarsal head;
+   the recorded episodes below are r2 / r3).  They are optional in
    the kind, and so is the settle-window width change; on the raptor each
    family, like actuator saturation and the required settle bars, refuses
    every audited episode on its own, while the window bars admit the
@@ -25,10 +27,17 @@ the declaration in the ways that each fail differently:
    final checkpoint's seed-3043 episode, which clears every window bar, is
    refused by exactly those families, and the r3 statue's least favourable
    episode is clean.
-4. **The foot bars and the settle peak sit mid-gap**: the statue with
+4. **The foot bars and the settle peak sit mid-gap**: the r3 statue with
    N(0, 0.05) command jitter, whose lightly loaded digit IV unloads on part
    of the window, is clean, though the bars first set at the statue's edge
-   refused it.
+   refused it.  On the life-size plant of physics r5 the foot bars still sit
+   mid-gap (the jittered statue's worst duty 0.621, coverage 0.873), but the
+   settle peak no longer does: the jittered r5 statue is clean on 39/40 seeds
+   at sigma 0.03 and 10/40 at 0.05, all 30 refusals
+   ``max_settle_peak_floor_force_bw`` (median 2.11, worst 2.59 BW against
+   2.0).  The bar stays at 2.0 as a settle-window chatter screen (it admits
+   sigma 0.02-0.03), by the maintainer's decision of 2026-11-09; the
+   life-size port is the maintainer's decision of 2026-11-08.
 5. **The bar and the rails agree with the numbers they were derived from**,
    recomputed here rather than copied: the bound admits 37/40 and refuses
    36/40, the reward rail is its fraction of the statue reference the stage
@@ -206,7 +215,8 @@ def test_the_settle_window_is_scored_after_the_spawn_grace(stage, curriculum):
     control_dt = float(env.get("timestep", 0.002)) * int(env.get("frame_skip", 5))
     grace = spawn_grace_steps(control_dt)
     # 10 grace steps at 0.01 s; the r3 statue has both feet down by step 5 and its floor force within
-    # 10% of its weight by step 15, while the audited stance's reset hop lands inside steps 10-99.
+    # 10% of its weight by step 15 (the r5 statue by steps 6 and 11 at the latest, seeds 3042-3081), while the audited
+    # stance's reset hop lands inside steps 10-99.
     assert (grace, curriculum["settle_steps"]) == (10, 100)
     assert curriculum["max_settle_airborne_substeps"] == 0
 
@@ -252,14 +262,14 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
 def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
     """min_avg_reward is 0.60 of the statue, rounded to 10; the ratio states 0.60 itself; the floor is relative.
 
-    The reference is the r4 statue's standing reward under the 2026-11-06 [env] (3091.32, 40 episodes, seeds
-    3042-3081: the 2843.00 of the r4 plant plus the tail term's 248.3), pinned to the physics revision it was
-    last measured on (test_statue_constant_freshness.py checks the pin).  The collapse floor is the T-Rex's
+    The reference is the r5 (life-size) statue's standing reward under its [env] (3341.03, 40 episodes, seeds
+    3042-3081; r4 3091.32 under the 2026-11-06 [env], the r5 neck term adding 249.5), pinned to the physics
+    revision it was last measured on (test_statue_constant_freshness.py checks the pin).  The collapse floor is the T-Rex's
     relative 0.45 of it behind a 1M-step peak warm-up: an explicit collapse_peak_floor would win over the pair
     in collapse_settings_from_config, so the absolute key is gone, not shadowed.
     """
     reference = curriculum["collapse_peak_floor_reference"]
-    assert reference == 3091.3 and curriculum["statue_constants_physics_revision"] == 4
+    assert reference == 3341.0 and curriculum["statue_constants_physics_revision"] == 5
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
     assert "collapse_peak_floor" not in curriculum
     assert curriculum["collapse_peak_floor_fraction"] == 0.45

@@ -23,7 +23,9 @@ if __name__ == "__main__":
     run_actuator_test(
         ActuatorTestConfig(
             model_path=model_id.asset_path(ENVIRONMENTS_ROOT),
-            camera_distance=2.5,
-            motor_keywords=["claw"],
+            # 2.5 m on the r4 plant, scaled with the life-size footprint (x 1.16,
+            # physics r5).  No motor_keywords: since physics r5 the sickle claws
+            # are bounded position servos, so every actuator sweeps its ctrlrange.
+            camera_distance=2.9,
         )
     )

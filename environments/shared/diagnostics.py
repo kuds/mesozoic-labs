@@ -141,6 +141,9 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_head_clearance",
         "reward_neck_posture",
         "reward_tail_home_pose",
+        # The velociraptor's opt-in neck and head carriage term (physics r5, the maintainer's decision of
+        # 2026-11-08), paid by its stance; the env emits it only while neck_home_pose_weight is above 0.
+        "reward_neck_home_pose",
         "reward_foot_flatness",
         "reward_stance_width",
         "reward_floor_impact",

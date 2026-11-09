@@ -916,8 +916,9 @@ def heading_free_observation_keys(env: Any) -> tuple[list[tuple[Any, ...]], list
 
     The layout is the plant contract's (``policy_layer._heading_free_observation_segments``): ``qpos[7:]``,
     ``qvel[6:]``, the root's projected gravity, the gyro, the heading-frame root velocity (forward, left, up), the
-    accelerometer, one summed touch channel per foot (``env._foot_sensor_groups``), the target direction in root
-    coordinates, the target distance and the body-relative command.
+    accelerometer, one summed touch channel per foot (``env._foot_sensor_groups``; one per group of
+    ``env._foot_observation_groups`` where the env declares them, the velociraptor's per-site channels), the target
+    direction in root coordinates, the target distance and the body-relative command.
     """
     m = env.model
     free = [j for j in range(m.njnt) if int(m.jnt_type[j]) == _FREE]
@@ -950,7 +951,8 @@ def heading_free_observation_keys(env: Any) -> tuple[list[tuple[Any, ...]], list
     accel = _name(m, _OBJ.mjOBJ_SENSOR, _sensor_at(m, env._sensor_accel_start, mujoco.mjtSensor.mjSENS_ACCELEROMETER))
     for c, axis in enumerate("xyz"):
         add(("sensor", accel, c), f"{accel}.{axis}")
-    for group in env._foot_sensor_groups:
+    channels = getattr(env, "_foot_observation_groups", None)
+    for group in env._foot_sensor_groups if channels is None else channels:
         sensors = tuple(_name(m, _OBJ.mjOBJ_SENSOR, _sensor_at(m, address)) for address in group)
         add(("sensor_sum", sensors), "foot_contact." + "+".join(sensors))
     for c, axis in enumerate("xyz"):

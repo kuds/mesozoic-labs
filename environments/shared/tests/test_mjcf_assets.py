@@ -30,7 +30,8 @@ EXPECTED_MODELS = {
     ModelId("compsognathus_longipes", "robot"): ModelExpectations(19, 18, 12, 1.5856),
     ModelId("dibothrosuchus_elaphros", "anatomical"): ModelExpectations(35, 34, 27, 8.65),
     ModelId("tyrannosaurus_rex", "anatomical"): ModelExpectations(28, 27, 15, 85.72),
-    ModelId("velociraptor_mongoliensis", "anatomical"): ModelExpectations(31, 30, 22, 13.5),
+    # The life-size plant of physics r5 (IGM 100/986, 15 kg): 23 hinges, 17 servos (r4: 31, 30, 22, 13.5).
+    ModelId("velociraptor_mongoliensis", "anatomical"): ModelExpectations(30, 29, 17, 15.0),
 }
 
 

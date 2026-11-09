@@ -4,15 +4,22 @@ Velociraptor Gymnasium Environment
 A bipedal dinosaur locomotion environment with predatory strike behavior.
 
 Observation space (bipedal-target-heading-free/v1 since policy interface r13, the
-maintainer's decision of 2026-11-06; the total dimension is generated in the
-public species catalog):
-    - Joint positions (qpos[7:]) — 24 hinge joints excluding root freejoint
-    - Joint velocities (qvel[6:]) — 24 hinge joints excluding root freejoint
+maintainer's decision of 2026-11-06; the life-size plant of physics r5 and
+policy interface r14, the maintainer's decision of 2026-11-08, 71 values; the
+total dimension is generated in the public species catalog):
+    - Joint positions (qpos[7:]) — 23 hinge joints excluding root freejoint, in
+      qpos order: neck pitch, neck yaw, head pitch; tail 1 pitch, tail 1 yaw,
+      tail 2 pitch, tail 3 pitch; then per leg (right, left) hip pitch, hip roll,
+      knee, ankle, digit II (MTP-II, passive), sickle claw, digit III and digit IV
+      (MTP, passive)
+    - Joint velocities (qvel[6:]) — the same 23 joints
     - Pelvis projected gravity (unit down vector in pelvis coordinates) — 3
     - Pelvis angular velocity (gyroscope, its own site frame) — 3
     - Pelvis linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
     - Pelvis acceleration (accelerometer, its own site frame) — 3
-    - Foot contact — 2 (per-foot sum of the toe d3, metatarsus and toe d4 touch sensors)
+    - Foot contact — 6, one channel per load-bearing site since policy interface
+      r14: the right foot's MTP pad, digit III and digit IV touch sensors, then
+      the left foot's (the per-foot sums they replace are their totals)
     - Prey direction in pelvis coordinates (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
@@ -23,16 +30,18 @@ free root's own quaternion through environments/shared/heading_observation.py
 anatomical Compsognathus (D-D31), so turning the whole scene about vertical
 leaves the observation unchanged.
 
-Action space (total dimension is generated in the public species catalog):
+Action space (17 position servos since physics r5; the total dimension is
+generated in the public species catalog):
     - Actions are residuals around the named XML ``home`` keyframe controls
     - Zero commands home; -1/+1 command each actuator's lower/upper limit
-    - Right leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
-    - Right sickle claw (1)
-    - Left leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
+    - Neck: pitch, yaw; head pitch (3)
+    - Right leg: hip pitch/roll, knee, ankle (4)
+    - Right sickle claw (1, bounded at 4 N.m)
+    - Left leg: hip pitch/roll, knee, ankle (4)
     - Left sickle claw (1)
     - Tail: pitch 1, yaw 1, pitch 2, pitch 3 (4)
-    - Right arm: shoulder pitch/roll (2)
-    - Left arm: shoulder pitch/roll (2)
+    The forelimbs are welded passive bodies (no joints, no actuators), and
+    digits II-IV hinge passively on springs, as on the T-Rex.
 
 Reward components:
     - Forward velocity
@@ -47,7 +56,7 @@ Reward components:
     - Approach shaping (distance to prey)
     - Proximity bonus (continuous reward for being close to prey)
     - Claw proximity shaping (reward for positioning claw tip near prey)
-    - Posture (continuous deviation from the natural forward lean)
+    - Posture (continuous deviation from the natural pitch, level since physics r5)
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -55,6 +64,8 @@ Reward components:
     - Action saturation (penalize commands parked at their range limits)
     - Leg home pose (soft retention of the home keyframe leg stance)
     - Tail home pose (the tail joints around the statue's settled tail; off by default)
+    - Neck home pose (the neck and head joints around the statue's settled
+      carriage; off by default)
     - Floor impact (summed foot force above a body-weight multiple, the excess
       capped) and airborne substeps, read per physics substep (off by default)
     - Spin penalty (penalize pelvis angular velocity)
@@ -106,14 +117,19 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     SUCCESS_KEYS = ("strike_success",)
 
     # SB3-only since policy-interface revision 11 (plant_versions note 14).
-    # The foot observation sums three touch sensors per foot, and the frozen
+    # The foot observation summed three touch sensors per foot, and the frozen
     # MJX registration (D-D17) reads the toe-d3 sensor alone and is never
     # edited, so the two backends would observe different feet; KNOWN_ISSUES
     # and CLEANUP_PLAN_2026_09 section 4.1 prescribe exactly this exit at the
-    # species' next policy-interface revision.
+    # species' next policy-interface revision.  The heading-free observation
+    # (r13) and the per-site foot channels (r14) have no MJX builder either.
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
-    _camera_distance = 2.0
+    # 2.0 m on the r4 plant, scaled by the footprint radius (every animal
+    # geom's horizontal reach from the root plus its bounding radius, at the
+    # home keyframe: 0.776 -> 0.901 m on the life-size plant of physics r5),
+    # rounded: the whole animal stays in frame.
+    _camera_distance = 2.3
     _camera_azimuth = 135
     _camera_elevation = -20
     _camera_track_body = "pelvis"
@@ -122,28 +138,54 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: (switch, off value, the kwargs the switch makes inert).  Off, they change
     #: no reward, info key, trajectory or reset draw, so a stage that leaves
     #: them off keeps its task_sha256 (task_fingerprint.inert_opt_in_env_kwargs,
-    #: the T-Rex's lateral-lean pattern).  The stance stage turns all three on
-    #: (the maintainer's decision of 2026-11-06); locomotion, strike and the behaviors leave them off.
+    #: the T-Rex's lateral-lean pattern).  The stance stage turns all four on:
+    #: the first three by the maintainer's decision of 2026-11-06, the neck
+    #: home pose with the life-size plant (physics r5, the maintainer's
+    #: decision of 2026-11-08); locomotion, strike and the behaviors leave all
+    #: four off.
     OPT_IN_TASK_KWARGS = (
         ("tail_home_pose_weight", 0.0, ("tail_home_pose_weight", "tail_home_pose_tolerance")),
         ("floor_impact_weight", 0.0, ("floor_impact_weight", "floor_impact_threshold_bw")),
         ("airborne_substep_weight", 0.0, ("airborne_substep_weight",)),
+        ("neck_home_pose_weight", 0.0, ("neck_home_pose_weight", "neck_home_pose_tolerance")),
     )
     #: The tail joints the tail_home_pose term prices, and their target: the
-    #: noise-free statue's post-settle pose (seed 0, steps 200-999, physics r4;
-    #: TestSettledTailTargetTracksTheStatue re-measures it).  The tail servos
-    #: hold the keyframe zeros against gravity only to within their kp: under
-    #: the home controller the statue's tail settles 4.5 deg down at tail_1
-    #: (2.7 / 1.3 deg at tail_2 / tail_3), 0.17-0.24 rad clear of every stop
-    #: (tail_1_yaw's at +-10 deg, the pitch joints' at +-15 deg; the per-seed
-    #: window means at reset noise 0.05 within 4.1e-4 rad, 1.2e-4 on the pitch
-    #: joints, and their pooled mean within 1e-5).  So, as
-    #: on the T-Rex through physics r9, the target is the statue's own droop:
-    #: pricing the keyframe would cap the ideal statue below full quality.
-    #: Unlike the T-Rex r9 tail, no joint rests on a stop, so the droop needs
-    #: no spring preload (the T-Rex's D-D44).
+    #: noise-free statue's post-settle pose (seed 0, steps 200-999;
+    #: TestSettledPoseTargetsTrackTheStatue re-measures it).  Since physics r5
+    #: each tail pitch joint carries its gravity torque in a springref preload
+    #: (the T-Rex's tail since its physics r10, D-D44), so the servos hold
+    #: about 0 N.m at home and the statue settles on the keyframe zeros
+    #: instead of drooping (r4: 4.5 deg down at tail_1, -0.07851 / 0.0 /
+    #: -0.04639 / -0.02307 rad).  Measured on r5 by the protocol above (env
+    #: defaults, reset noise 0, seed 0): every joint within 4.3e-7 rad of
+    #: zero, and the 5000-step roll's last 1000 steps within 6.9e-7; each
+    #: joint 0.209 rad (tail_3: 0.175) clear of its stops.  On the stance
+    #: [env] (reset noise 0.05) the 120 statue seeds of 3042-3081, 3082-3121
+    #: and 7042-7081 hold their window means (steps 200-999) within 2.9e-4 rad
+    #: of it (tail_1_yaw; 1.7e-5 on the pitch joints), pooled within 6e-6.
     _TAIL_HOME_JOINTS = ("tail_1_pitch", "tail_1_yaw", "tail_2_pitch", "tail_3_pitch")
-    _TAIL_SETTLED_QPOS = (-0.07851, 0.0, -0.04639, -0.02307)
+    _TAIL_SETTLED_QPOS = (0.0, 0.0, 0.0, 0.0)
+    #: The neck and head joints the neck_home_pose term prices (the T-Rex's
+    #: neck_posture joints), and their target: the noise-free statue's
+    #: post-settle carriage, measured the way _TAIL_SETTLED_QPOS is.  The neck
+    #: and head servos carry a gravity preload in the home ctrl (ctrl - qpos =
+    #: tau_g / kp, -4.665 / -4.628 deg on neck_pitch / head_pitch), so the
+    #: statue holds the reconstructed carriage, where the T-Rex's unpreloaded
+    #: neck settles 12 deg low (its _NECK_SETTLED_QPOS): -2.78e-5 / 0.0 /
+    #: 1.69e-5 rad (steps 200-999; steps 4000-4999 of a 5000-step roll agree
+    #: to 7e-7), 0.35 rad or more clear of every stop.  On the stance [env]
+    #: the 120 statue seeds above hold their window means within 3.1e-4 rad
+    #: of it (neck_yaw; 2.8e-4 neck_pitch, 7e-5 head_pitch), pooled within
+    #: 4.3e-5 (neck_pitch).
+    _NECK_HOME_JOINTS = ("neck_pitch", "neck_yaw", "head_pitch")
+    _NECK_SETTLED_QPOS = (-0.00003, 0.0, 0.00002)
+    #: The observation's per-site foot channels (BaseDinoEnv declares the
+    #: attribute, None on every other species); set in _cache_ids.
+    _foot_observation_groups: tuple[tuple[int, ...], ...]
+    # The neck never collides since physics r5 (contype/conaffinity 0, as the
+    # T-Rex's); the behavior env ends an episode when either neck capsule
+    # penetrates the terrain.  Inert in this env.
+    _terrain_contact_probe_geoms = ("neck_geom", "neck_upper_geom")
     #: A foot (or the pair) reads as airborne at or below this touch force, in
     #: N: the floor-truth library's contact threshold (gait.constants
     #: CONTACT_THRESHOLD_N, which a species env may not import).
@@ -173,7 +215,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         strike_claw_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
-        natural_pitch: float = 0.35,
+        natural_pitch: float = 0.002,
         gait_symmetry_weight: float = 0.0,
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
@@ -202,13 +244,22 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # that predates them bit for bit and emits none of their info keys.
         tail_home_pose_weight: float = 0.0,
         tail_home_pose_tolerance: float = 0.05,
+        # The neck and head carriage term of the life-size plant (physics r5,
+        # the maintainer's decision of 2026-11-08), shaped as the tail term and
+        # likewise off by default and carved out while off.
+        neck_home_pose_weight: float = 0.0,
+        neck_home_pose_tolerance: float = 0.05,
         floor_impact_weight: float = 0.0,
         floor_impact_threshold_bw: float = 3.0,
         airborne_substep_weight: float = 0.0,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
-        healthy_z_range: tuple[float, float] = (0.3, 1.0),
+        # The pelvis-height fall / launch bounds: the r4 plant's (0.3, 1.0) m,
+        # 0.593 / 1.978 of its 0.5055 m statue, scaled with the life-size hip
+        # height (0.5488 m at the physics-r5 keyframe, x 1.0856) and rounded to
+        # the centimetre.
+        healthy_z_range: tuple[float, float] = (0.33, 1.09),
         reset_noise_scale: float = 0.01,
         perturbation_capture_velocity_multiple: float = 0.0,
         perturbation_interval: float = 2.0,
@@ -250,6 +301,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         self.leg_home_pose_tolerance = leg_home_pose_tolerance
         self.tail_home_pose_weight = tail_home_pose_weight
         self.tail_home_pose_tolerance = tail_home_pose_tolerance
+        self.neck_home_pose_weight = neck_home_pose_weight
+        self.neck_home_pose_tolerance = neck_home_pose_tolerance
         self.floor_impact_weight = floor_impact_weight
         self.floor_impact_threshold_bw = floor_impact_threshold_bw
         self.airborne_substep_weight = airborne_substep_weight
@@ -258,6 +311,10 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             raise ValueError("tail_home_pose_weight must be finite and non-negative")
         if not 0.0 < self.tail_home_pose_tolerance < np.inf:
             raise ValueError("tail_home_pose_tolerance must be a positive, finite angle")
+        if not 0.0 <= self.neck_home_pose_weight < np.inf:
+            raise ValueError("neck_home_pose_weight must be finite and non-negative")
+        if not 0.0 < self.neck_home_pose_tolerance < np.inf:
+            raise ValueError("neck_home_pose_tolerance must be a positive, finite angle")
         if not 0.0 <= self.floor_impact_weight < np.inf:
             raise ValueError("floor_impact_weight must be finite and non-negative")
         if not 0.0 < self.floor_impact_threshold_bw < np.inf:
@@ -273,15 +330,25 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         if self.leg_home_pose_tolerance <= 0.0:
             raise ValueError("leg_home_pose_tolerance must be positive")
 
-        # Natural forward pitch (~20°). Posture shaping, the nosedive penalty,
-        # and nosedive termination are measured relative to this angle so the
-        # raptor is not rewarded for abandoning its biomechanically supported
-        # forward lean.  Measured, not authored: the physics-r3 statue settles
-        # at 20.10° (0.3508 rad over 40 seeds at reset noise 0.05; the r4 one,
-        # on the elliptic cone, at 20.02°, 0.3494 rad), where the
-        # r2 plant settled at 24.0° and the statue paid -95 per episode of
-        # nosedive charge for standing still.  TestNaturalPitchTracksStance
-        # pins the default to the settled stance.
+        # Natural pitch of the pelvis frame, nose-down positive.  Posture
+        # shaping, the nosedive penalty and nosedive termination are measured
+        # relative to this angle, so the statue is not charged for the stance
+        # it holds.  Measured, not authored: the r2 plant settled at 24.0 deg
+        # and its statue paid -95 per episode of nosedive charge for standing
+        # still against the 0.35 rad of the time; the r3 / r4 statues leaned
+        # 20.10 / 20.02 deg (0.3508 / 0.3494 rad) and 0.35 was right.  The
+        # life-size plant of physics r5 authors the trunk level (sacrum
+        # horizontal, its home keyframe), and its statue settles 0.002 rad
+        # (0.115 deg) nose-down: 0.00202 rad over 40 seeds at reset noise
+        # 0.05 (the stance [env], seeds 3042-3081, each seed's mean over steps
+        # 200-999, as r4's 0.3494; per seed -0.0021 to 0.0064), 0.00152 over
+        # the 120 seeds of 3042-3081, 3082-3121 and 7042-7081, and 0.00234
+        # noise-free (TestNaturalPitchTracksStance's protocol: env defaults,
+        # reset noise 0, seed 0, 600 zero-action steps).
+        # With it the 0.5 nosedive margin of _is_terminated ends an episode at
+        # forward_z < -0.502, 30.1 deg nose-down, where the T-Rex stance's
+        # 0.503 ends at 31.3 deg.  TestNaturalPitchTracksStance pins the
+        # default to the settled stance.
         self._natural_forward_z = -np.sin(natural_pitch)
 
         # Raptor-specific env settings
@@ -325,11 +392,14 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             command_config=command_config,
         )
 
-        # Leg-pose target for the leg_home_pose term, hips to toes: the named
-        # home keyframe, which is the standing equilibrium since physics
-        # revision 3 (springs anchored there, servos preloaded against
-        # gravity) -- the noise-free statue settles within 0.1 deg of it on
-        # every leg joint.  Resolved here rather than in _cache_ids, whose
+        # Leg-pose target for the leg_home_pose term: the named home keyframe,
+        # which is the standing equilibrium since physics revision 3 (springs
+        # anchored there, servos preloaded against gravity) -- the noise-free
+        # physics-r5 statue settles within 0.003 deg of it.  The eight
+        # servoed leg joints, hips to ankles, as on the T-Rex: since physics r5
+        # digits II-IV are passive springs whose angle the ground sets (r4
+        # priced its servoed digits III and IV here too), and the sickle claw
+        # is the strike's.  Resolved here rather than in _cache_ids, whose
         # tokens are part of this SB3-only species' policy-interface digest:
         # a reward target is not part of what a checkpoint observes.
         leg_home_joint_names = (
@@ -337,14 +407,10 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             "r_hip_roll",
             "r_knee",
             "r_ankle",
-            "r_toe_d3_joint",
-            "r_toe_d4_joint",
             "l_hip_pitch",
             "l_hip_roll",
             "l_knee",
             "l_ankle",
-            "l_toe_d3_joint",
-            "l_toe_d4_joint",
         )
         self._leg_home_qpos_indices = self._joint_qpos_indices(leg_home_joint_names)
         self._leg_home_qpos = self.model.key_qpos[self.home_keyframe_id][self._leg_home_qpos_indices].copy()
@@ -358,10 +424,18 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # 95% of steps).
         self._tail_home_qpos_indices = self._joint_qpos_indices(self._TAIL_HOME_JOINTS)
         self._tail_home_qpos = np.asarray(self._TAIL_SETTLED_QPOS, dtype=np.float64)
+        # The neck_home_pose term's joints and its statue-measured target
+        # (_NECK_SETTLED_QPOS), resolved here for the same reason.  The
+        # posture term reads only the pelvis frame, so a policy could carry the
+        # head anywhere for free; this prices the carriage itself, centred on
+        # what the statue holds so the statue keeps full quality.
+        self._neck_home_qpos_indices = self._joint_qpos_indices(self._NECK_HOME_JOINTS)
+        self._neck_home_qpos = np.asarray(self._NECK_SETTLED_QPOS, dtype=np.float64)
         # The animal's weight in N, for the floor-impact term: the pelvis
         # subtree is the whole animal (the prey is a separate mocap body), so
-        # this is the 13.5 kg x 9.81 = 132.4 N the floor-truth library and the
-        # stance gate's peak-force bars divide by.
+        # this is the 15.0 kg x 9.81 = 147.15 N (physics r5; r4 13.5 kg,
+        # 132.4 N) the floor-truth library and the stance gate's peak-force
+        # bars divide by.
         self._body_weight_n = float(self.model.body_subtreemass[self.pelvis_id] * abs(self.model.opt.gravity[2]))
 
     def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
@@ -374,76 +448,140 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             indices.append(int(self.model.jnt_qposadr[joint_id]))
         return np.asarray(indices, dtype=np.int32)
 
+    def _required_id(self, kind: mujoco.mjtObj, name: str) -> int:
+        """Resolve a named MuJoCo element, failing on model drift.
+
+        ``mj_name2id`` returns -1 for a missing name and nothing downstream
+        notices: a renamed claw geom silently disables the strike, a renamed
+        head geom silently drops out of the termination set, and
+        ``site_xpos[-1]`` silently reads the model's LAST site.  Every name
+        ``_cache_ids`` reads goes through here.
+        """
+        element_id = mujoco.mj_name2id(self.model, kind, name)
+        if element_id < 0:
+            raise ValueError(f"Velociraptor model must define {kind.name.removeprefix('mjOBJ_').lower()} {name!r}")
+        return int(element_id)
+
+    def _require_sensor_address(self, name: str, address: int) -> None:
+        """Fail unless the named sensor starts at *address* of sensordata (the shared IMU block's positions)."""
+        actual = int(self.model.sensor_adr[self._required_id(mujoco.mjtObj.mjOBJ_SENSOR, name)])
+        if actual != address:
+            raise ValueError(f"Velociraptor sensor {name!r} must start at sensordata {address}, not {actual}")
+
+    def _touch_sensor_address(self, name: str) -> int:
+        """The sensordata address of the named touch sensor, failing on model drift."""
+        sensor_id = self._required_id(mujoco.mjtObj.mjOBJ_SENSOR, name)
+        if int(self.model.sensor_type[sensor_id]) != int(mujoco.mjtSensor.mjSENS_TOUCH):
+            raise ValueError(f"Velociraptor sensor {name!r} must be a touch sensor")
+        return int(self.model.sensor_adr[sensor_id])
+
     def _cache_ids(self):
-        """Cache MuJoCo IDs for bodies, geoms, and sites."""
+        """Cache MuJoCo IDs for bodies, geoms, sites and sensors, every one by name and failing closed."""
         # The raptor policy commands residuals around the biomechanically
         # balanced XML home pose.  Cache the controls once so action zero can
         # preserve that pose without a keyframe lookup on every environment
         # step.
         self._cache_home_keyframe("Velociraptor")
+        body, geom, site = mujoco.mjtObj.mjOBJ_BODY, mujoco.mjtObj.mjOBJ_GEOM, mujoco.mjtObj.mjOBJ_SITE
 
         # Body IDs
-        self.pelvis_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
+        self.pelvis_id = self._required_id(body, "pelvis")
+        self.skull_body_id = self._required_id(body, "skull")
 
-        # Geom IDs for contact detection
-        self.prey_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")
-        self.r_claw_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "r_claw_geom")
-        self.l_claw_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "l_claw_geom")
-        self.torso_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso")
-        self.neck_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "neck")
-        self.head_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "head")
-        self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        # Geom IDs for contact detection.  The sickle claws are contype /
+        # conaffinity 2/2 against the floor's 1/1: they meet only the prey.
+        self.prey_geom_id = self._required_id(geom, "prey_geom")
+        self.r_claw_geom_id = self._required_id(geom, "r_claw_geom")
+        self.l_claw_geom_id = self._required_id(geom, "l_claw_geom")
+        self.floor_geom_id = self._required_id(geom, "floor")
+        # The trunk since physics r5: the dorsal torso, the low belly and the
+        # pectoral ribcage capsules (r4 had the torso alone).
+        self.torso_geom_id = self._required_id(geom, "torso")
+        self.belly_geom_id = self._required_id(geom, "belly")
+        self.ribcage_geom_id = self._required_id(geom, "ribcage")
+        # The head's colliding geoms, on the separate skull body since physics
+        # r5 (the T-Rex's names); the neck capsules and the mandible never
+        # collide (contype/conaffinity 0), so they produce no floor contact.
+        self.skull_upper_geom_id = self._required_id(geom, "skull_upper")
+        self.snout_geom_id = self._required_id(geom, "snout")
 
         # Tail geom IDs (distal segments that should not contact floor)
-        self.tail_3_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_3_geom")
-        self.tail_4_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_4_geom")
-        self.tail_5_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_5_geom")
+        self.tail_3_geom_id = self._required_id(geom, "tail_3_geom")
+        self.tail_4_geom_id = self._required_id(geom, "tail_4_geom")
+        self.tail_5_geom_id = self._required_id(geom, "tail_5_geom")
 
         # Geoms that should terminate the episode on ground contact
         self._body_ground_geoms = {
             self.torso_geom_id,
-            self.neck_geom_id,
-            self.head_geom_id,
+            self.belly_geom_id,
+            self.ribcage_geom_id,
+            self.skull_upper_geom_id,
+            self.snout_geom_id,
             self.tail_3_geom_id,
             self.tail_4_geom_id,
             self.tail_5_geom_id,
         }
+        self._head_ground_geoms = {self.skull_upper_geom_id, self.snout_geom_id}
         self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id, self.tail_5_geom_id}
 
         # Site IDs for sensors
-        self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
-        self.r_foot_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "r_foot")
-        self.l_foot_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "l_foot")
-        self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
+        self.imu_site_id = self._required_id(site, "imu")
+        self.r_foot_site_id = self._required_id(site, "r_foot")
+        self.l_foot_site_id = self._required_id(site, "l_foot")
+        self.tail_tip_site_id = self._required_id(site, "tail_tip")
+        self.head_tip_site_id = self._required_id(site, "head_tip")
+        # Height terminations sampled at every physics substep by the base
+        # step loop (the T-Rex's): _is_terminated reads the per-check MIN so a
+        # head dip between the control-step samples still terminates.  Order
+        # is consumed by index there.
+        self._substep_height_checks = (
+            ("site", self.head_tip_site_id),
+            ("body", self.skull_body_id),
+        )
 
         # Mocap body for prey
-        self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
+        self.prey_mocap_id = self._required_id(body, "prey")
 
         # Claw tip site IDs (for claw-to-prey proximity shaping)
-        self.r_claw_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "r_claw_tip")
-        self.l_claw_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "l_claw_tip")
+        self.r_claw_tip_site_id = self._required_id(site, "r_claw_tip")
+        self.l_claw_tip_site_id = self._required_id(site, "l_claw_tip")
 
-        # Sensor indices (order matches MJCF definition)
-        # _sensor_gyro_start, _sensor_accel_start, _sensor_quat_start
-        # are inherited from BaseDinoEnv (0, 3, 6 respectively).
-        self._sensor_r_foot = 10
-        self._sensor_l_foot = 11
-        # The toe-d3 sensors above see that digit only: a touch sensor sums
-        # contacts on geoms of its site's own body, and the metatarsal head
-        # and digit 4 are other bodies.  Their own sensors are appended after
-        # the tail block, so d3 + metatarsus + d4 is the force the foot
-        # actually transmits -- at the settled stance 36.0 + 18.7 + 11.6 N
-        # against 66.2 N of floor contact, where d3 alone reads 54%.
-        self._sensor_r_foot_aux = (27, 28)
-        self._sensor_l_foot_aux = (29, 30)
-        # Per-foot groups for the base class's substep MIN aggregation, d3
-        # first (the pinned group[0] + sum(rest) order).  They feed the
-        # observation, the contact-shaped rewards and the r/l_foot_contact
-        # info keys alike.
-        self._foot_sensor_groups = (
-            (self._sensor_r_foot, *self._sensor_r_foot_aux),
-            (self._sensor_l_foot, *self._sensor_l_foot_aux),
+        # Sensor addresses, resolved by NAME since physics r5 (r4 hard-coded
+        # them by position).  The shared IMU block stays at the addresses
+        # BaseDinoEnv's _sensor_gyro_start, _sensor_accel_start and
+        # _sensor_quat_start (0, 3, 6) declare, which shared code reads.
+        self._require_sensor_address("pelvis_gyro", self._sensor_gyro_start)
+        self._require_sensor_address("pelvis_accel", self._sensor_accel_start)
+        self._require_sensor_address("pelvis_orientation", self._sensor_quat_start)
+        # One touch sensor per load-bearing body (a touch sensor sums only the
+        # contacts on geoms of its site's own body): the MTP pad on the
+        # metatarsus (the r/l_foot site), digit III and digit IV.  At the
+        # settled stance their sum is the floor force under the foot (the
+        # metatarsus shaft and the raised digit II never touch).
+        self._sensor_r_foot = self._touch_sensor_address("r_foot_touch")
+        self._sensor_l_foot = self._touch_sensor_address("l_foot_touch")
+        self._sensor_r_foot_digits = (
+            self._touch_sensor_address("r_toe_d3_touch"),
+            self._touch_sensor_address("r_toe_d4_touch"),
         )
+        self._sensor_l_foot_digits = (
+            self._touch_sensor_address("l_toe_d3_touch"),
+            self._touch_sensor_address("l_toe_d4_touch"),
+        )
+        # Per-foot groups for the base class's substep MIN aggregation, pad
+        # first (the pinned group[0] + sum(rest) order).  They feed the
+        # contact-shaped rewards and the r/l_foot_contact info keys.
+        self._foot_sensor_groups = (
+            (self._sensor_r_foot, *self._sensor_r_foot_digits),
+            (self._sensor_l_foot, *self._sensor_l_foot_digits),
+        )
+        # The observation's foot channels since policy interface r14: one per
+        # touch sensor, in the per-foot groups' order (right pad, d3, d4, then
+        # left), so a policy sees where under each foot its load sits.  #608's
+        # per-site channels, which plant_versions note 21 set aside unbuilt and
+        # this checkpoint-stranding change adds (note 22); the plant contract
+        # records each channel's sensor in the foot_contact segment.
+        self._foot_observation_groups = tuple((address,) for group in self._foot_sensor_groups for address in group)
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -470,7 +608,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct the bipedal-target-heading-free/v1 observation vector (69 values).
+        """Construct the bipedal-target-heading-free/v1 observation vector (71 values since policy interface r14).
 
         Since policy interface r13 (the maintainer's decision of 2026-11-06) no channel carries the
         world heading: the pelvis orientation is projected gravity, the pelvis
@@ -479,7 +617,9 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         root's own quaternion qpos[3:7] (environments/shared/heading_observation.py),
         never from the orientation sensor, which is still zero when the
         constructor calls this before any forward pass.  The T-Rex's layout
-        (D-D31), on this species' joints and feet.
+        (D-D31), on this species' joints and feet, with one foot-contact
+        channel per load-bearing site (``_foot_observation_groups``) since
+        policy interface r14 (the maintainer's decision of 2026-11-08).
         """
         # Joint positions (exclude root freejoint: first 7 values are pos + quat)
         qpos = self.data.qpos[7:].copy()
@@ -491,8 +631,16 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         pelvis_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
         pelvis_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
 
-        # Foot contact (from touch sensors: d3 + metatarsus + d4 per foot)
-        foot_contact = np.array(self._foot_contact_forces())
+        # Foot contact, one channel per touch sensor (MTP pad, digit III,
+        # digit IV; right foot first), each its group's sum in the pinned
+        # group[0] + sum(rest) order of BaseDinoEnv._foot_contact_forces.
+        sensordata = self.data.sensordata
+        foot_contact = np.array(
+            [
+                sensordata[group[0]] + sum(sensordata[index] for index in group[1:])
+                for group in self._foot_observation_groups
+            ]
+        )
 
         # Prey info (relative to pelvis)
         pelvis_pos = self.data.xpos[self.pelvis_id]
@@ -518,7 +666,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
                 pelvis_gyro,  # Angular velocity
                 heading_velocity,  # Linear velocity (forward, left, up)
                 pelvis_accel,  # Accelerometer
-                foot_contact,  # Foot contacts (2)
+                foot_contact,  # Foot contacts (6: per site)
                 prey_direction_body,  # Direction to prey (unit vector, pelvis frame)
                 [prey_distance],  # Distance to prey (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
@@ -542,7 +690,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         )
 
         # 1d. Bilateral support.  Since physics revision 3 the per-foot touch
-        # sum (d3 + metatarsus + d4) IS the floor force under that foot, so
+        # sum (the MTP pad + d3 + d4 since physics r5; r3 / r4 d3 + metatarsus
+        # + d4) IS the floor force under that foot, so
         # the weaker-loaded foot's fraction of the saturation force is a
         # floor-true support quality; saturating it keeps an impact spike
         # from being worth more than quiet support.  Substep-MIN aggregated:
@@ -630,7 +779,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info["claw_proximity"] = claw_proximity
         info["reward_claw_proximity"] = reward_claw_proximity
 
-        # 7. Continuous posture reward centred on the natural forward lean.
+        # 7. Continuous posture reward centred on the natural pitch (the
+        # statue's settled pelvis pitch; 0.115 deg nose-down since physics r5).
         # The returned tilt remains absolute (relative to world-up) for
         # diagnostics and termination parity.
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
@@ -648,7 +798,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         info["pelvis_height"] = self._clearance(self.data.xpos[self.pelvis_id])
 
-        # 8b2. Soft leg-pose retention around the home keyframe, hips to toes.
+        # 8b2. Soft leg-pose retention around the home keyframe, hips to
+        # ankles (the eight servoed leg joints since physics r5).
         # The mean per-joint Gaussian gives corrective signal without
         # hard-locking a joint, and averaging keeps one joint from dominating.
         _, leg_rms_error, leg_quality = _reward_soft_home_pose_pure(
@@ -682,6 +833,23 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             info["tail_home_pose_error"] = float(tail_rms_error)
             info["tail_home_pose_quality"] = float(tail_quality)
             info["reward_tail_home_pose"] = reward_tail_home_pose
+
+        # 8b4. Neck home pose (off unless neck_home_pose_weight > 0; its info
+        # keys exist only then).  The same soft Gaussian as the tail term, on
+        # the neck and head joints around the statue's settled carriage
+        # (_NECK_SETTLED_QPOS; the maintainer's decision of 2026-11-08).
+        reward_neck_home_pose = 0.0
+        if self.neck_home_pose_weight > 0.0:
+            _, neck_rms_error, neck_quality = _reward_soft_home_pose_pure(
+                self.data.qpos[self._neck_home_qpos_indices],
+                self._neck_home_qpos,
+                self.neck_home_pose_tolerance,
+                1.0,
+            )
+            reward_neck_home_pose = self.neck_home_pose_weight * float(neck_quality)
+            info["neck_home_pose_error"] = float(neck_rms_error)
+            info["neck_home_pose_quality"] = float(neck_quality)
+            info["reward_neck_home_pose"] = reward_neck_home_pose
 
         # 8c. Pelvis angular velocity (for spinning detection in eval metrics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
@@ -791,6 +959,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # Added only when enabled, so the legacy sum keeps its exact order.
         if self.tail_home_pose_weight > 0.0:
             total_reward += reward_tail_home_pose
+        if self.neck_home_pose_weight > 0.0:
+            total_reward += reward_neck_home_pose
         if self.floor_impact_weight > 0.0:
             total_reward += reward_floor_impact
         if self.airborne_substep_weight > 0.0:
@@ -808,6 +978,26 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         if terminated:
             return True, info
 
+        # Head-height terminations (the T-Rex's, since physics r5 gave the
+        # raptor its own skull body and head_tip site), each read at the
+        # substep MIN (indices match _substep_height_checks) so a dip that
+        # recovers between control-boundary samples still terminates; the info
+        # key keeps the boundary sample.  The thresholds are the T-Rex's 0.12 m
+        # and 0.45 m at the same fraction of the home height they guard
+        # (0.098 of its 1.227 m head tip, 0.367 of its 1.227 m skull origin):
+        # 0.098 x 0.724 m = 0.071 and 0.367 x 0.756 m = 0.278 on this plant,
+        # rounded.  At 0.07 m with the head level the snout sits 0.047 m and
+        # the visual mandible 0.032 m above the floor.
+        head_tip_z = self._clearance(self.data.site_xpos[self.head_tip_site_id])
+        info["head_tip_z"] = head_tip_z
+        if self._aggregated_min_height(0, head_tip_z) < 0.07:
+            info["termination_reason"] = "head_contact"
+            return True, info
+        skull_z = self._clearance(self.data.xpos[self.skull_body_id])
+        if self._aggregated_min_height(1, skull_z) < 0.28:
+            info["termination_reason"] = "skull_low"
+            return True, info
+
         # Success: sickle claw contacted prey (only terminate when striking is rewarded)
         claw_geoms = {self.r_claw_geom_id, self.l_claw_geom_id}
         if self.strike_bonus > 0 and self._contact_geom(claw_geoms, self.prey_geom_id) is not None:
@@ -815,11 +1005,12 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
             info["success"] = True
             return True, info
 
-        # Floor contact termination (shared)
+        # Floor contact termination (shared): tail_contact, head_contact for
+        # the skull's geoms (the T-Rex's category), body_contact for the trunk.
         terminated, reason = self._check_floor_contact(
             self._body_ground_geoms,
             self.floor_geom_id,
-            geom_categories={"tail": self._tail_ground_geoms},
+            geom_categories={"tail": self._tail_ground_geoms, "head": self._head_ground_geoms},
         )
         if terminated:
             info["termination_reason"] = reason
@@ -829,6 +1020,11 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
 
     def _spawn_target(self):
         """Spawn prey at random location ahead of raptor."""
+        # The 0.15 m sphere's centre at 0.3 m, as on the r4 plant: the strike is
+        # claw-to-sphere, and the life-size claw rests where r4's did (tip
+        # 0.068 m high at home, r4 0.071) and reaches as high (0.76 m over its
+        # leg's joint ranges, r4 0.80), so the sphere's lower edge stays 0.08 m
+        # above the resting claw.
         prey_pos = self._spawn_target_2d(self.prey_distance_range, self.prey_lateral_range, 0.3)
         self._initial_prey_dir_2d = self._compute_initial_direction_2d(prey_pos)
         self._initial_pos_2d = self.data.qpos[0:2].copy()

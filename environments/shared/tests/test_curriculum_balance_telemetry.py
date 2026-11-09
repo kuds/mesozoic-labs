@@ -64,6 +64,9 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 #: The reward keys the r10 LTSB stance recipe (the stance-landing decision of 2026-11-06) added to
 #: DiagnosticsCallback.REWARD_KEYS.
 LTSB_REWARD_KEYS = ("reward_lateral_lean", "reward_stance_stagger", "reward_stance_cop_band")
+#: The velociraptor's neck home-pose term (its physics r5, the maintainer's decision of 2026-11-08), which joined
+#: DiagnosticsCallback.REWARD_KEYS after the base below was pinned; the T. rex env never emits it.
+NECK_HOME_POSE_REWARD_KEY = "reward_neck_home_pose"
 EPISODES = 2
 STEPS = 768
 #: The K3 panel at test scale: every 128 steps (128, 384 and 640 inside a rollout of 256 steps; 512 on the checkpoint
@@ -241,11 +244,15 @@ def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) 
     monkeypatch.setattr(train_base, "_eval_episodes_for_stage", lambda config: EPISODES)
     # The three stance-option reward keys joined DiagnosticsCallback.REWARD_KEYS with the LTSB recipe (the
     # stance-landing decision of 2026-11-06); the stance trained here pays none of them (above), so neither run records
-    # them, as before they were listed.
+    # them, as before they were listed.  The same holds for the velociraptor's neck term, which no T. rex env emits.
     monkeypatch.setattr(
         DiagnosticsCallback,
         "REWARD_KEYS",
-        [key for key in DiagnosticsCallback.REWARD_KEYS if key not in LTSB_REWARD_KEYS],
+        [
+            key
+            for key in DiagnosticsCallback.REWARD_KEYS
+            if key not in LTSB_REWARD_KEYS and key != NECK_HOME_POSE_REWARD_KEY
+        ],
     )
     if not additions:
         monkeypatch.setattr(StageAwareEvalCallback, "report_extensions", False)

@@ -363,10 +363,148 @@ canonical_mujoco_version = "3.10.0"
 #     plant check compares the interface digest and the observation width)
 #     and none can be widened: the width moves by -1, not by a command
 #     segment.  The velociraptor has no recovery calibration to restamp.
+#
+# 22. The velociraptor rebuilt life size, of equivalent nature to the T-Rex
+#     (the maintainer's decision of 2026-11-08).  The r4 plant was a sketch of
+#     the animal: 13.5 kg on a 0.506 m hip, its trunk 20 deg nose-down, neck
+#     and head welded to the pelvis as two colliding geoms, the metatarsal
+#     head on the floor beside servoed digits III and IV (a part-plantigrade
+#     foot), hinged shoulders on four servos, an unbounded gear-50 claw motor
+#     and a tail that drooped 4.5 deg on its servos.  The new MJCF is
+#     IGM 100/986 at life size (Norell & Makovicky 1999: femur 238,
+#     tibiotarsus 255, MT III 99.1 mm) on the T-Rex's topology and
+#     conventions, and cites each number's source or the [design] rule and
+#     measurement that set it:
+#
+#     a) Body.  15.0 kg (Dececchi et al. 2020): trunk 7.1 kg in a dorsal
+#        torso, a low belly and a pectoral ribcage capsule; tail 2.05 kg; each
+#        leg 1.80; neck and skull 1.65; each arm 0.30.  The trunk is authored
+#        level (sacrum horizontal) and every joint's ref is its home angle, so
+#        qpos0 is the stance.  Bishop et al. 2018's paravian leg posture
+#        (femur 35 deg from vertical, knee 125 and ankle 151.5 deg interior,
+#        4 deg abduction; hips 85 mm apart).  Measured at home: hip 0.5488 m,
+#        the CoM 0.113 m ahead of and 0.032 m below it, the head tip 0.176 m
+#        above it, m.g.h 76.1 N.m (r4 62.2 at its home keyframe; 76.1 and
+#        61.3 after 3000 steps on the home ctrl).
+#     b) Neck and skull, separate bodies under the T-Rex's names (neck_pitch,
+#        neck_yaw, head_pitch; body skull; site head_tip).  The two neck
+#        capsules never collide (contype 0, as the T-Rex's neck); skull_upper
+#        and snout do.  The neck and head servos carry a gravity preload in
+#        the home ctrl (-4.665 / -4.628 deg), so the statue holds the
+#        carriage the T-Rex's unpreloaded neck lets sag 12 deg.
+#     c) Tail.  tail_1 (pitch, yaw), tail_2 and tail_3 servoed on the mobile
+#        caudals, tail_4 and tail_5 fused (r4: six hinges).  The gravity
+#        torque sits in a springref preload on each pitch joint (45.30 /
+#        28.49 / 17.91 deg, the T-Rex's tail since note 20) rather than in the
+#        home ctrl, so each tail servo holds 0.0 % of its forcerange at home,
+#        its home ctrl is its ctrlrange midpoint, and commanded alone to +-1 in
+#        stance it reaches 0.84-0.90 of its range.  The tail took 0.40 kg from
+#        the trunk to keep the CoM inside Macaulay et al. 2023's band (the
+#        MJCF's tail comment).  Both depart from the prototype's design brief,
+#        which put the tail's gravity torque in its home ctrl as on the neck
+#        and gave the tail 1.65 kg of a 7.5 kg trunk; the maintainer accepted
+#        both on 2026-11-09.
+#     d) Foot, functionally didactyl (Xing et al. 2013): a rounded MTP pad
+#        capsule on the metatarsus, digits III and IV on PASSIVE sprung MTP
+#        hinges (k 120; the T-Rex's toes since note 9), each body with its
+#        own touch site and sensor (notes 3 and 14d); the metatarsus shaft
+#        14.4 mm clear of the floor.  Digit II rides raised on a passive
+#        sprung MTP-II hinge (k 20, -50..-31 deg) with visual phalanges; the
+#        sickle claw is an actuated position servo bounded at 4 N.m (r4: an
+#        unbounded motor), its geom still 2/2 (prey only), 19.6 mm clear of
+#        the floor at home and at least 3.3 mm above the floor plane over
+#        digit II's whole range.
+#     e) Arms welded and non-colliding: no joints, no actuators (the T-Rex's).
+#     f) 17 position servos (r4 22): leg gains the r4 raptor's x 1.2 (the
+#        m.g.h ratio 1.22 at the two home keyframes, 1.24 settled, rounded);
+#        forcerange 1.5 x kp on hip pitch, knee and ankle; ctrlrange = the
+#        joint range; home ctrl = pose + tau_g / kp on the neck, head, legs
+#        and claws (note 14c), = the pose on the tail.
+#
+#     The screens behind four [design] values the MJCF cites here, run in raw
+#     MuJoCo on the prototype builds (reset to home with U(+-0.05) on the
+#     joints and velocities, the home ctrl held, 1000 control steps; action
+#     noise N(0, sigma) clipped to +-1 on the residual, seeds 3042-3061; a
+#     fall is the pelvis outside (0.3, 1.0) m, tilt past 60 deg, a nosedive or
+#     a non-support floor contact).  Toe stiffness: at k 30 (the first build)
+#     the four toe springs, 120 N.m/rad against m.g.h ~76, let the whole body
+#     pitch about the MTP line, a ~5 s mode that drifted 2.3 deg; k 120 settles
+#     within 0.004 deg, and on the abduction-4 / digit-IV-20 build at sigma
+#     0.07, k 80 stood 18/20 and k 200 (armature 0.006) 17/20 against k 120's
+#     19/20.  Abduction and digit IV: at Bishop's 3 deg, digit IV yawed 15 deg
+#     (III-IV divarication 19 deg, the first build) and leg damping 10, sigma
+#     0.07 stood 16/20 (three tilts, one nosedive: leg-length noise on the
+#     flexed limb rolls the body over its base); abduction 5 or 7 stood 19/20,
+#     digit IV yawed 22 deg 20/20, abduction 4 with digit IV yawed 20 deg
+#     (divarication 24 deg) 19/20, and that with leg damping 15 20/20, the
+#     build adopted (leg damping then 15 -> 25 for the rocking mode, damping
+#     ratio 0.25 -> 0.35; the final plant stands 20/20 at sigma 0.07, below).
+#     Tail: on the k 20 build (its gravity torque in the home ctrl; kp 30 /
+#     25 / 30 / 50 on tail_1 pitch / yaw / tail_2 / tail_3), each servo
+#     commanded to +-1 in stance reached 31 / 56 / 33 / 47 % of its range on
+#     its weaker side; with k 6 and the springref preload, 84-90 % both ways.
+#
+#     Measured through the env on the stance config (zero action, 1000
+#     steps, seeds 3042-3081 unless stated; r4 figures from note 17 unless
+#     stated): the statue stands 40/40 (r4 40/40), 40/40 with every hip,
+#     knee and ankle spring deleted, and 20/20 under N(0, sigma) action noise
+#     at sigma 0.05, 0.07 and 0.10 (seeds 3042-3061).  The noise-free statue
+#     settles within 0.0032 deg of the keyframe on every joint and 0.134 deg
+#     nose-down (r4 20.02), its reset peak 1.003 BW, its servos holding at
+#     most 3.4 % of forcerange on the legs, 10.2 % on the neck and head (the
+#     gravity torque they carry) and 0.0 % on the tail, the CoM 0.060 m inside
+#     the hull of its 12 floor contacts; the authored contact is -0.500 mm.
+#     The six touch sensors sum to the floor normal force at every physics
+#     substep to 5.8e-16 (6.4e-16 at sigma 0.07), nothing else touches the
+#     floor, and the statue stands on pad / d3 / d4 at 0.300 / 0.357 / 0.343
+#     of each foot's load with every site loaded on every step after the
+#     settle (at least 3.1 N).  The reset pop over steps 0-9 is 1.69 BW at
+#     the median and 2.25 at most (the stiff passive toe springs answering
+#     their reset noise; r4 1.30 and 1.77 on the same seeds, measured on
+#     origin/main's tree, and 2.02 at most over its stance.toml's 120 seeds);
+#     no claw is ever the reset's lowest geom.
+#
+#     POLICY INTERFACE r13 -> r14, observation 69 -> 71, action 22 -> 17.
+#     joint_position / joint_velocity 24 -> 23 each (+3 neck and head, +1
+#     digit II hinge per leg, -2 fused tail, -4 arms); foot_contact 2 -> 6:
+#     one channel per touch sensor (right pad, d3, d4, then left), #608's
+#     per-site channels, which note 21 set aside unbuilt (so its revision
+#     stranded no checkpoint) and this checkpoint-stranding change adds.  The
+#     schema stays bipedal-target-heading-free/v1, as the repository's rule
+#     has it: a segment's composition is recorded in the policy-interface
+#     digest, not in the schema name (note 14's summed foot and note 12's
+#     command segment renamed none, D-C6).  The plant contract's
+#     foot_contact segment and the symmetry layout read the channels from the
+#     env's _foot_observation_groups, which only the velociraptor declares, so
+#     no other model's segments, digests or mirror map moved; the rewards, info
+#     keys and substep MIN stay per foot.  _cache_ids now resolves every name,
+#     sensors included, and fails closed on a missing one (r4 hard-coded
+#     sensordata 10/11/27-30, and mj_name2id's -1 passed silently).
+#
+#     PHYSICS (6b4dfb.. -> dd8483..), POLICY INTERFACE (0566d4.. ->
+#     88c11f..), VISUAL (1bf243.. -> 240630..) and the source closure
+#     (62f142.. -> 4bb36b..) move.  Every velociraptor checkpoint is refused
+#     (the plant check compares the physics and interface digests and the
+#     widths) and none can be widened: widen_checkpoint only appends a command
+#     segment.  No r4 stance was certified (stages.toml), so none is
+#     stranded.  The env's statue constants were re-measured on this plant:
+#     natural_pitch 0.35 -> 0.002 rad (0.00202 over 40 seeds at reset noise
+#     0.05; 0.00234 noise-free), _TAIL_SETTLED_QPOS -> the keyframe zeros,
+#     the new neck_home_pose target _NECK_SETTLED_QPOS, healthy_z_range
+#     (0.3, 1.0) -> (0.33, 1.09) m, the new head_contact / skull_low
+#     terminations at 0.07 / 0.28 m, the reward probe amplitude 0.1 -> 0.13.
+#     So were the stages' (statue_constants_physics_revision 5): the stance's
+#     foot saturation 50 -> 55 N, floor-impact threshold 2.5 -> 3.0 BW (the
+#     reset pop reaches 2.56 BW on 3000 seeds), the neck term on (0.25,
+#     tolerance 0.05 rad), log_std_init -2.66 -> -2.30 (the noise cliff
+#     moved from 0.07 to 0.10), the statue reference 3091.3 -> 3341.0 (rail
+#     1850 -> 2000); the walk's statue 796.0 -> 796.6 and its gate, cap and
+#     the behaviours' speeds Froude-matched to the hip height (x 1.042:
+#     2.0 -> 2.1 m/s).
 [plants.velociraptor_mongoliensis.anatomical]
-physics_revision = 4
-policy_interface_revision = 13
-visual_revision = 4
+physics_revision = 5
+policy_interface_revision = 14
+visual_revision = 5
 observation_schema = "bipedal-target-heading-free/v1"
 
 # 4. The T-Rex theropod stance correction.  The home keyframe stood the animal

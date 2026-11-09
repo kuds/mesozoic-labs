@@ -47,9 +47,11 @@ MODEL_ENVS = [
 # (BEHAVIOR_RECIPES_PLAN §4.6) appended the 3-dim body-relative command
 # segment to every species: 67/61/83/77 -> 70/64/86/80.  The trex's
 # heading-free observation (plant_versions note 18) then took it to 63, and the
-# velociraptor's (note 21, 2026-11-06) to 69.
+# velociraptor's (note 21, 2026-11-06) to 69; the velociraptor's life-size plant
+# (note 22, 2026-11-08) to 71 (six per-site foot channels for two per-foot sums,
+# 23 joints for 24) and its action to 17.
 SPECIES_DIMS = {
-    VELOCIRAPTOR_MONGOLIENSIS: {"obs": 69, "act": 22},
+    VELOCIRAPTOR_MONGOLIENSIS: {"obs": 71, "act": 17},
     TYRANNOSAURUS_REX: {"obs": 63, "act": 15},
     BRACHIOSAURUS_ALTITHORAX: {"obs": 86, "act": 30},
     DIBOTHROSUCHUS_ELAPHROS: {"obs": 80, "act": 27},

@@ -136,7 +136,24 @@ def test_layout_matches_segments_and_command_is_last(animal):
     np.testing.assert_array_equal(
         obs[layout["pelvis_linear_acceleration"]], data.sensordata[accel : accel + 3].astype(as32)
     )
-    np.testing.assert_array_equal(obs[layout["foot_contact"]], np.asarray(env._foot_contact_forces()).astype(as32))
+    # The foot segment: one channel per foot (its summed touch), or per group of the env's _foot_observation_groups
+    # where it declares them (the velociraptor's six per-site channels since policy interface r14), each summed in
+    # the pinned group[0] + sum(rest) order.
+    channels = getattr(env, "_foot_observation_groups", None)
+    expected_foot = (
+        env._foot_contact_forces()
+        if channels is None
+        else tuple(
+            float(data.sensordata[group[0]] + sum(data.sensordata[index] for index in group[1:])) for group in channels
+        )
+    )
+    np.testing.assert_array_equal(obs[layout["foot_contact"]], np.asarray(expected_foot).astype(as32))
+    if channels is not None:  # per-site channels still total the per-foot sums
+        totals = [
+            sum(expected_foot[i] for i, group in enumerate(channels) if set(group) <= set(foot))
+            for foot in env._foot_sensor_groups
+        ]
+        np.testing.assert_allclose(totals, env._foot_contact_forces(), rtol=1e-12)
     distance = np.linalg.norm(_target(env) - data.xpos[env.pelvis_id])
     np.testing.assert_array_equal(obs[layout["prey_distance"]], [as32(distance)])
     np.testing.assert_array_equal(obs[layout[COMMAND_SEGMENT_NAME]], np.zeros(COMMAND_WIDTH))

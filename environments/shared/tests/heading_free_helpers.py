@@ -123,9 +123,10 @@ def zero_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.nda
 
 
 #: The linear policy's weight scale per environment class, small enough to stand the whole horizon.  0.003
-#: unless listed: the velociraptor's statue falls past an action noise of about 0.07 (the 2026-11-06 cliff panel),
-#: and at 0.003 its seed-3042 actions reach 0.135 and it ends on its tail at step 204; at 0.001 they stay under
-#: 0.045 and seeds 3042-3043 stand all 1000 steps.
+#: unless listed: the velociraptor's statue falls past an action noise of about 0.10 (physics r5, the life-size
+#: plant; about 0.07 on r4, the 2026-11-06 cliff panel), and on r5 (observation 71) at 0.003 its seed-3042 actions
+#: reach 0.20 and it nosedives at step 132 (0.002: 0.136, step 202); at 0.001 they stay under 0.073 and seeds
+#: 3042-3043 stand all 1000 steps (r4: under 0.045).
 LINEAR_POLICY_GAINS: dict[type, float] = {VelociraptorMongoliensisAnatomicalEnv: 0.001}
 
 

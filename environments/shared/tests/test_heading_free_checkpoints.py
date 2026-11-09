@@ -77,8 +77,9 @@ PRE_MIGRATION: dict[ModelId, dict[str, Any]] = {
         "policy_interface_sha256": "sha256:c11825a0f66004b93b86b855b802a48a5890f3d43848b622ea00419230c129f1",
     },
 }
-#: Current widths: the 4-wide quaternion became 3-wide projected gravity.
-CURRENT_WIDTH = {TYRANNOSAURUS_REX: 63, COMPSOGNATHUS_LONGIPES: 55, VELOCIRAPTOR_MONGOLIENSIS: 69}
+#: Current widths: the 4-wide quaternion became 3-wide projected gravity (the velociraptor's 69 at policy interface
+#: r13 became 71 at r14, the life-size plant's six per-site foot channels for its two per-foot sums, note 22).
+CURRENT_WIDTH = {TYRANNOSAURUS_REX: 63, COMPSOGNATHUS_LONGIPES: 55, VELOCIRAPTOR_MONGOLIENSIS: 71}
 PPO_KWARGS: dict[str, Any] = {
     "n_steps": 64,
     "batch_size": 32,

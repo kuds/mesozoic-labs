@@ -10,6 +10,39 @@ scheduled after the T-Rex clears stages 1–3 on the corrected stance (PR #464).
 Open items are mirrored into [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) per the
 `docs/reviews/` convention.
 
+> **Status note (2026-11-09).** Velociraptor physics r5 (the maintainer's decision of 2026-11-08, cited by date: it
+> has no decision id yet; `configs/plant_versions.toml` note 22) replaces the reviewed body with a life-size one, IGM
+> 100/986 on the T. rex's topology, and with it closes every finding the 2026-10-06 outcome (the appendix) left
+> open; none of the eleven is open now. Measured on the r5 MJCF by this review's protocol (home keyframe, `key_ctrl`
+> held, 3000 MuJoCo steps), r4 in brackets:
+>
+> - **Finding 4 (R8):** femur 238.0, tibia 255.0 and MT III 99.1 mm joint to joint, MT III / femur 0.416 [0.741],
+>   tibia / femur 1.071 [1.110]. The metatarsus shaft is 14.4 mm clear of the floor and carries nothing [28.5% of the
+>   foot]; each foot stands on an MTP pad under the metatarsophalangeal joints and on digits III and IV, at 0.299 /
+>   0.365 / 0.336 of its load [digit III 0.547, digit IV 0.168], which also answers §6's last question: the r4
+>   ball-of-foot contact was the overlong metatarsus.
+> - **Finding 6 (R5):** each claw is a position servo bounded at ±4 N·m, 65 N at the farthest point of its geom from
+>   the claw joint, 0.44 body weights [the gear-50 motor's ±50 N·m: 609 N there, 4.6 body weights; §3.3's 693 N used
+>   the geom length as the lever]. No actuator of any committed plant is unbounded.
+> - **Findings 8 and 9:** hip pitch, knee and ankle each settle at 50.0% of their ranges [ankle 30.6%]; knee 125.0° and
+>   ankle 151.5° interior [167.9°, 138.3°], femur 35.1° from vertical [13.7°], 7.8° of knee per centimetre of hip height
+>   [11.3°, both by a ±0.005 rad finite difference on the settled pose]. The posture is Bishop et al. 2018's paravian
+>   one, not the T-Rex correction §3.5 advises against porting; the env still has no height term.
+> - **Finding 10:** `neck_pitch`, `neck_yaw` and `head_pitch` on separate neck and skull bodies under the T. rex's
+>   names, servoed with a gravity preload in the home control; the neck capsules do not collide, the skull does.
+> - **Finding 11:** the arms are welded and non-colliding, with no joints or actuators, as the T. rex's are [two
+>   shoulder servos each]: humerus 160, forearm 120 and hand 175 mm, 0.30 kg each, 77% of femur + tibia + MT III
+>   [§2.6's 25%].
+> - **§6's tail question:** the tail is 2.05 of 15.0 kg (13.7%), between the two published estimates the MJCF's tail
+>   comment cites (Macaulay et al. 2023's ≤ 10% for short tails, Grossi et al. 2014's about 15%), with its gravity
+>   torque in spring preloads, as the T. rex's tail since note 20.
+>
+> R7 (a constructor argument for the nosedive threshold) is not done; the threshold is the shared 0.5 in
+> `_is_terminated`, on the one path left since the MJX runtime retired (D-D17). Every velociraptor checkpoint is
+> refused by the plant contract on r5, and none can be widened. The r5 plant's residuals (the MJCF's comments) are
+> in [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) ("Velociraptor plant"). The review below is unchanged and describes the plant
+> as reviewed.
+
 Every claim below is either a number measured on the committed plant or a
 published figure with a citation. Where a recommendation rests on a judgement
 call rather than a measurement, it says so.
