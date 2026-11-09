@@ -12,6 +12,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import math
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -32,6 +33,7 @@ BODY = "60-N-T-10"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 needs_run = pytest.mark.skipif(not (RUN / BODY / "refs" / "nominal.npz").exists(),
                                reason="the run directory's references are not generated (designlab.stage1 prepare)")
+slow = pytest.mark.skipif(not os.environ.get("STAGE1_SLOW"), reason="a full-length episode; set STAGE1_SLOW=1")
 COND = {c.key: c for c in panels.conditions()}
 
 
@@ -70,8 +72,18 @@ def test_conditions_and_the_gated_split():
     for c in cs:  # every success needs the drives and the joint range (LIMITS_RULE)
         terms = panels.terms_of(c)
         assert terms[0] == "survived" and {"drive_sustained", "drive_speed", "joint_range"} <= set(terms)
-    assert "cadence" in panels.terms_of(COND["walk/nominal"]) and "cadence" not in panels.terms_of(COND["walk/brisk"])
+    for key in ("walk/nominal", "walk/nominal_mu0.54", "carpet/low", "carpet/robot_floor_carpet"):
+        assert {"cadence", "stride", "grf"} <= set(panels.terms_of(COND[key])), key
+    for key in ("walk/brisk", "walk/fr05", "walk/brisk_mu0.54", "walk/fr05_mu0.54"):  # 'at nominal' (WALK_RULE)
+        assert not {"cadence", "stride", "grf"} & set(panels.terms_of(COND[key])), key
     assert {"toe_target", "no_toe_catch", "cadence"} <= set(panels.terms_of(COND["carpet/low"]))
+    # decision 23: the carpet walk is reported for R0-R2 and gated for the policy rows (GATING_RULE)
+    for c in cs:
+        for row in ("R0", "R1", "R2/42", "R2/43"):
+            assert panels.gated_for(row, c) == (c.gated and c.behavior != "carpet"), (row, c.key)
+        assert panels.gated_for("R3/42", c) == c.gated == panels.gated_for("R4/42", c)
+    assert every.gated(COND["carpet/low"]) is False and every.gated(COND["walk/nominal"]) is True
+    assert panels.TrackerRow("R3/42", "R2").gated(COND["carpet/low"]) is True
     assert panels.select(cs, ["walk"], ["walk/nominal", "brisk"]) == [COND["walk/nominal"], COND["walk/brisk"]]
     with pytest.raises(ValueError):
         panels.select(cs, ["swim"])
@@ -113,10 +125,10 @@ def test_planned_lengths_are_the_built_tracks():
         key = tuple(tuple(x) for x in r["plan"])
         if key not in seen:
             seen[key] = control.build_track(p, run, r["plan"], om).t_end
-        if c.judge in ("stand", "push_stand"):
-            assert r["seconds"] < seen[key]  # the hold outlasts the stand
+        if c.judge in ("stand", "push_stand"):  # the hold outlasts the episode at the fastest clock (STAND_RULE)
+            assert r["plan"][0][0] == "hold" and r["plan"][0][1] >= panels.CLOCK_MAX * r["seconds"]
         elif c.judge == "push_walk":
-            assert seen[key] >= (1 + panels.CLOCK_SLACK) * panels.RATE * r["seconds"]
+            assert seen[key] >= panels.CLOCK_MAX * r["seconds"]
         else:
             assert r["seconds"] == seen[key] / panels.RATE, c.key
         if c.judge == "walk" and c.gait != "nominal":
@@ -129,6 +141,24 @@ def test_planned_lengths_are_the_built_tracks():
     ss = pl.resolve(COND["start_stop/twice"])
     assert len(ss["starts_ref_s"]) == panels.START_STOP_CYCLES and ss["starts_ref_s"][0] > 0
     assert set(panels.files_of(COND["walk/fr05"])) >= {"refs/fr05.npz", "transitions/brisk_to_fr05.npz"}
+
+
+@needs_run
+def test_stands_hold_at_the_fastest_clock():
+    """A policy row may run the reference clock up to CLOCK_MAX (the commanded rate, the phase-rate term and env's rate
+    residual): at that rate the reference time at a stand's or standing push's end is still in its hold, and a walking
+    push's strides outlast it."""
+    run = RUN / BODY
+    _, docs = tune.read_inputs(run, panels.panel_files())
+    pl = panels.Planner(run, docs["refs.json"]["references"], docs["transitions.json"]["transitions"])
+    assert panels.CLOCK_MAX == pytest.approx(1.05 * 1.05 * (1 + env.RESIDUAL_RATE))
+    for key in ("stand/hard", "push/standing_left"):
+        r = pl.resolve(COND[key])
+        times = pl.segment_times(r["plan"])
+        assert r["plan"][0][0] == "hold" and panels.CLOCK_MAX * r["seconds"] < times[1][0], key
+    r = pl.resolve(COND["push/walking_left"])
+    t0, dur = pl.segment_times(r["plan"])[-1]
+    assert panels.CLOCK_MAX * r["seconds"] < t0 + dur
 
 
 @pytest.mark.parametrize("body", ["60-N-T-10", "75-M-H-10"])
@@ -169,6 +199,11 @@ def test_counts_and_the_pass_rule():
     assert not c["pass_"] and c["falls"] == 1 and round(c["survival_lcb"], 3) == round(panels.lcb(19, 20), 3)
     c = panels.counts([_ep(s) for s in panels.SEEDS[:5]], panels.SEEDS[:5])
     assert not c["judged"] and c["pass_"] is None
+    # FAILED_EPISODE_RULE: an episode that failed to run is no fall and leaves the record unjudged
+    eps = [_ep(s) for s in panels.SEEDS]
+    eps[3] = panels.failed_episode(COND["walk/nominal"], panels.SEEDS[3], "worker lost: died")
+    c = panels.counts(eps)
+    assert c["errors"] == 1 and c["falls"] == 0 and c["survived"] == 19 and not c["judged"] and c["pass_"] is None
 
 
 def test_success_failures_are_labelled_by_their_terms():
@@ -182,9 +217,26 @@ def test_success_failures_are_labelled_by_their_terms():
     eps[-2] = _ep(eps[-2]["seed"], ok=False, terms=["speed"])
     assert panels.success_label(eps)["label"] == "controller-limited"  # drive_speed in 2 of 4 failed episodes
     f = panels.failure("R2/42", eps, None, False)
-    assert f["kind"] == "success" and f["label"] == "controller-limited"
+    assert f["kind"] == "success" and f["label"] == "controller-limited" and f["falls_label"] is None
     assert panels.failure("R2/42", eps, None, True) is None and panels.failure("R2/42", eps, None, None) is None
     assert panels.term_class("survived") is None and panels.term_class("slip_worst") == "hardware"
+
+
+def test_the_failure_label_follows_most_failures():
+    """FAILURE_LABEL_RULE: both labels are kept; the falls' decides when the success failures alone would not fail
+    the record, else the kind with more failed episodes (the falls' on a tie)."""
+    def record(n_falls, n_hw):
+        eps = [_ep(s, fell=True, strides=2.0) for s in panels.SEEDS[:n_falls]]
+        eps += [_ep(s, ok=False, terms=["slip_worst"]) for s in panels.SEEDS[n_falls : n_falls + n_hw]]
+        eps += [_ep(s) for s in panels.SEEDS[n_falls + n_hw :]]
+        return panels.failure("R2/42", eps, None, False)
+
+    f = record(1, 3)  # 3 success failures alone would not fail it (17 succeed)
+    assert f["kind"] == "falls" and f["label"].startswith("not attributed") and f["success_label"] == (
+        "body-limited: slip_worst")
+    f = record(2, 6)  # both fail it: the success failures are the majority
+    assert f["kind"] == "success" and f["label"] == "body-limited: slip_worst" and f["falls_label"].startswith("not")
+    assert record(5, 5)["kind"] == "falls" and record(0, 4)["kind"] == "success"
 
 
 def test_falls_are_labelled_by_the_attribution():
@@ -201,7 +253,27 @@ def test_falls_are_labelled_by_the_attribution():
     assert a["lifted"]["slip"]["sign_test"] == dict(better=6, worse=0, tied=14, p=1 / 64)
     few = [_ep(s, fell=i < 3, strides=3.0 if i < 3 else 10.0) for i, s in enumerate(panels.SEEDS)]
     a3 = panels.attribution_record(dict(episodes=few), ["slip"], {"slip": [_ep(e["seed"]) for e in few]}, 1.0)
-    assert a3["label"] == "controller-limited" and a3["lifted"]["slip"]["sign_test"]["p"] == 1 / 8
+    assert a3["decision_20_label"] == "controller-limited" and a3["lifted"]["slip"]["sign_test"]["p"] == 1 / 8
+    assert a3["label"].startswith("controller-limited (decision 20; 3 falls: the sign test needs 5")
+    assert panels.ATTRIBUTION_MIN_FALLS == 5 and panels.attribution_plan(dict(episodes=few)) == (["slip"], [])
+    # a candidate the plant cannot relax: nothing to lift, the label says it was untestable
+    cop = [dict(e, fall_candidates=["cop_at_pad_edge_with_ankle_saturated"] if e["fell"] else None) for e in base]
+    cands, lift = panels.attribution_plan(dict(episodes=cop))
+    assert cands == ["cop_at_pad_edge_with_ankle_saturated"] and lift == []
+    ac = panels.attribution_record(dict(episodes=cop), cands, {}, 0.0)
+    assert ac["label"] == ("controller-limited (decision 20; untestable candidates: "
+                           "cop_at_pad_edge_with_ankle_saturated)") and ac["episodes"] == 0
+    f = panels.failure("R2/42", cop, ac, False)
+    assert f["untestable"] == ["cop_at_pad_edge_with_ankle_saturated"]
+    v = panels.verdict([dict(row="R2/42", status="done", counts=dict(judged=True, pass_=False), failure=f)] * 2)
+    assert v["verdict"] == "controller-limited" and v["untestable"] == ["cop_at_pad_edge_with_ankle_saturated"]
+    # lifted runs that failed to run: left out of the pairs, and the attribution is run again
+    lost = [_ep(e["seed"]) for e in base]
+    lost[0] = panels.failed_episode(COND["push/standing_left"], base[0]["seed"], "worker lost: died", ("slip",))
+    ae = panels.attribution_record(rec, ["slip"], {"slip": lost}, 1.0)
+    assert ae["pairs"] == 19 and ae["lifted_errors"] == 1 and ae["label"].startswith("not attributed")
+    assert panels._attribution_needed(dict(row="R2/42", status="done", counts=dict(falls=6, errors=0),
+                                           attribution=ae), True)
     assert panels.failure("R2/42", base, a, False)["label"] == "body-limited: slip"
     assert panels.failure("R2/42", base, None, False)["label"].startswith("not attributed (falls; run eval")
     assert panels.failure("R0", base, None, False)["label"].startswith("not attributed (falls; attribution is applied")
@@ -225,6 +297,11 @@ def test_verdict_logic():
     assert panels.verdict([P, None])["verdict"] == "incomplete"
     assert panels.verdict([P, _record(True, judged=False)])["verdict"] == "incomplete"
     assert panels.verdict([_record(None, status="not run"), _record(None, status="not run")])["verdict"] == "not run"
+    err = dict(_record(True, judged=False), counts=dict(judged=False, pass_=None, errors=2))
+    assert panels.verdict([P, err]) == dict(panels.verdict([P, err]), verdict="incomplete", errors=[0, 2])
+    assert panels.VERDICT_ROWS == {"R2": ("R2/42", "R2/43"), "R3": ("R3/42", "R3/43")}
+    assert panels.verdict_controller({"R2/42", "R0"})[0] == "R2" and "interim" in panels.verdict_controller(set())[1]
+    assert panels.verdict_controller({"R2/42", "R3/43"})[0] == "R3"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -276,38 +353,61 @@ def test_stand_success():
     q[100, 3] = 0.95  # 0.05 rad from the range: short of the 0.10 rad
     e = panels.judge(b, _out(), _trace(np.arange(0, 20, 0.01), np.zeros((2000, 2)), q=q), 1)
     assert e["failed_terms"] == ["joint_range"] and e["joint_worst"] == "j3"
-    e = panels.judge(b, _out(fell=True, tilt=40.0), rec, 1)
-    assert e["failed_terms"] == list(panels.terms_of(b.cond)) and not e["success"]["survived"]
+    e = panels.judge(b, _out(fell=True, tilt=40.0), rec, 1)  # a fall fails every term; its failed term is the fall
+    assert e["failed_terms"] == ["survived"] and not any(e["success"].values())
+
+
+def _walk(t, v):
+    """CoM positions of a walk at velocities ``v`` (n x 2) from the origin."""
+    return np.vstack([[0.0, 0.0], np.cumsum(v[1:] * np.diff(t)[:, None], axis=0)])
 
 
 def test_push_recovery_rule():
-    """RECOVERY_RULE: standing, the CoM speed below 5 % of the nominal command from a time within 3 s of the pulse's
-    end to the episode's end; walking, the stride-averaged speed along the starting heading at least 90 % of the
-    command; a trace a fall cut short has not recovered."""
+    """RECOVERY_RULE (decision 29): standing, the CoM speed below 5 % of the nominal command from a time within 3 s of
+    the pulse's end to the episode's end; walking, the CoM's mean velocity over every stride ahead 90-110 % of the
+    command along the starting heading and at most 10 % across; a trace a fall cut short has not recovered."""
     t = np.arange(0.0, 8.1, 0.01)
-    t_end = 2.6
+    t_end, V, S = 2.6, 0.23, 0.97
     for back_after, ok in ((2.0, True), (3.5, False)):
         v = np.where((t > t_end) & (t < t_end + back_after), 0.1, 0.004)
-        r = panels.recovery(_trace(t, np.zeros((len(t), 2)), np.column_stack([v, 0 * v])), t_end, True, 0.23, 0.97,
+        r = panels.recovery(_trace(t, np.zeros((len(t), 2)), np.column_stack([v, 0 * v])), t_end, True, V, S,
                             until_s=8.1)
         assert r["recovered"] == ok and r["after_s"] == pytest.approx(back_after, abs=0.011)
-        assert r["threshold_m_s"] == pytest.approx(0.05 * 0.23)
+        assert r["threshold_m_s"] == pytest.approx(0.05 * V) and not r["never_left_command"]
     cut = t <= 5.0
     v = np.where((t > t_end) & (t < t_end + 1.0), 0.1, 0.004)[cut]
-    r = panels.recovery(_trace(t[cut], np.zeros((cut.sum(), 2)), np.column_stack([v, 0 * v])), t_end, True, 0.23,
-                        0.97, until_s=8.1)
-    assert r["after_s"] is not None and not r["recovered"]
-    # walking at the command, a second at half of it after the pulse, then the command again
-    vx = np.where((t > t_end) & (t < t_end + 1.0), 0.5 * 0.23, 0.23)
-    x = np.concatenate([[0.0], np.cumsum(vx[1:] * np.diff(t))])
-    r = panels.recovery(_trace(t, np.column_stack([x, 0 * x]), yaw=np.zeros(len(t))), t_end, False, 0.23, 0.97,
+    r = panels.recovery(_trace(t[cut], np.zeros((cut.sum(), 2)), np.column_stack([v, 0 * v])), t_end, True, V, S,
                         until_s=8.1)
-    assert r["recovered"] and 1.0 < r["after_s"] < 2.0 and r["threshold_m_s"] == pytest.approx(0.9 * 0.23)
-    # the same walk heading off at 30 deg from the starting heading: never 90 % along it
-    xy = np.column_stack([x * math.cos(0.52), x * math.sin(0.52)])
-    xy[t <= t_end] = np.column_stack([x, 0 * x])[t <= t_end]
-    r = panels.recovery(_trace(t, xy, yaw=np.zeros(len(t))), t_end, False, 0.23, 0.97, until_s=8.1)
-    assert not r["recovered"]
+    assert r["after_s"] is not None and not r["recovered"]
+
+    def walking(vel, until=8.1, yaw0=0.0):
+        sel = t <= until + 1e-9
+        rec = _trace(t[sel], _walk(t, vel)[sel], yaw=np.full(sel.sum(), yaw0))
+        return panels.recovery(rec, t_end, False, V, S, until_s=8.1)
+
+    steady = np.column_stack([np.full(len(t), V), np.zeros(len(t))])
+    r = walking(steady)  # a push that changed nothing: never left the command
+    assert r["recovered"] and r["after_s"] == pytest.approx(0.0, abs=1e-9) and r["never_left_command"]
+    assert r["along_m_s"] == pytest.approx([0.9 * V, 1.1 * V]) and r["across_max_m_s"] == pytest.approx(0.1 * V)
+    slow = steady.copy()  # a second at half speed: the strides ahead read it until it has passed
+    slow[(t > t_end) & (t < t_end + 1.0), 0] = 0.5 * V
+    r = walking(slow)
+    assert r["recovered"] and not r["never_left_command"] and r["after_s"] == pytest.approx(1.0 - 0.2 * S, abs=0.02)
+    side = steady.copy()  # a second sideways at 0.1 m/s (43 % of the command across)
+    side[(t > t_end) & (t < t_end + 1.0), 1] = 0.1
+    r = walking(side)
+    assert r["recovered"] and r["after_s"] == pytest.approx(1.0 - V * S, abs=0.02)  # 0.1 x overlap / S <= 0.1 V
+    assert r["across_max_m_s"] < r["across_max_after_pulse_m_s"]
+    fast = steady.copy()  # left 30 % faster than commanded
+    fast[t > t_end, 0] = 1.3 * V
+    assert not walking(fast)["recovered"] and walking(fast)["after_s"] is None
+    turned = steady.copy()  # walking on at 30 deg from the starting heading: neither along nor across holds
+    turned[t > t_end] = V * np.array([math.cos(0.52), math.sin(0.52)])
+    assert not walking(turned)["recovered"]
+    r = walking(steady, until=5.0)  # a fall cut the trace short
+    assert r["never_left_command"] and not r["recovered"]
+    r = walking(np.column_stack([np.zeros(len(t)), np.full(len(t), V)]), yaw0=math.pi / 2)  # along its own heading
+    assert r["recovered"] and r["never_left_command"] and r["heading_rad"] == pytest.approx(math.pi / 2)
 
 
 def test_carpet_toe_terms():
@@ -338,6 +438,41 @@ def test_start_and_stop_terms():
     assert [k for k, v in ok.items() if not v] == ["start2_speed_up", "start2_acceleration", "stop2_stopped",
                                                    "stop2_acceleration"]
     assert tuple(ok) == panels.START_STOP_TERMS
+
+
+def test_each_stop_is_read_over_its_own_part():
+    """START_STOP_RULE: decision 18 reads each stop from its command to the beginning of the next start transition
+    (the last to the episode's end), so the first stop reads stopped although the second start walks on afterwards;
+    control.run's own reading, which gives every later update to the latest stop, is kept beside it."""
+    dt, V, S, rate = 0.002, 0.23, 0.97, 1.05
+    t = np.round(np.arange(0.0, 17.0, 0.01), 10)  # the recorder's update times (each update's physics step start)
+    ramp = np.clip
+    vx = V * (ramp((t - 1.0) / 0.5, 0, 1) * (1 - ramp((t - 5.0) / 0.5, 0, 1))
+              + ramp((t - 9.0) / 0.5, 0, 1) * (1 - ramp((t - 14.0) / 0.5, 0, 1)))
+    rec = _trace(t, _walk(t, np.column_stack([vx, 0 * vx])), np.column_stack([vx, 0 * vx]), yaw=np.zeros(len(t)))
+    rec.U[:, metrics.C["t_ref"]] = rate * t
+    rec.dt = dt
+    seg = SimpleNamespace
+    track = SimpleNamespace(segments=[seg(kind="finite", name="start", t0=0.0), seg(kind="periodic", name="nominal", t0=1.6),
+                                      seg(kind="finite", name="stop", t0=4.0), seg(kind="hold", name="stand", t0=7.0),
+                                      seg(kind="finite", name="start", t0=9.0), seg(kind="periodic", name="nominal",
+                                                                                    t0=10.6),
+                                      seg(kind="finite", name="stop", t0=13.0), seg(kind="hold", name="stand", t0=16.0)])
+    b = SimpleNamespace(stride_s=S, speed_cmd=V, resolved=dict(starts_ref_s=[rate * 1.0, rate * 9.0]), track=track)
+    own = dict(forward_stopped_strides=None, within=None, at_rest_strides=None, at_rest_s=None)
+    stops = [dict(name="stop", reached=True, command_ref_s=rate * c, command_s=c + dt, command_speed_m_s=V, stride_s=S,
+                  rest_speed_m_s=1e-3, samples=0, **own) for c in (5.0, 14.0)]
+    st = panels.start_stop(b, dict(stops=stops), rec)
+    want = (5.48 - 5.0) / S  # below 5 % of the command from 0.48 s after it (the ramp's last 5 %)
+    for r, end in zip(st["stops"], (round(9.0 / rate - 0.005, 2) + dt, 16.99 + dt), strict=True):
+        assert r["within"] and r["forward_stopped_strides"] == pytest.approx(want, abs=1e-9)
+        assert r["part_to_s"] == pytest.approx(end) and r["command_update_offset_s"] == pytest.approx(0.0, abs=1e-12)
+        assert r["control_reading"]["within"] is None
+    assert st["ok"]["stop1_stopped"] and st["ok"]["stop2_stopped"]
+    # control.run gives stop 1 every update until stop 2's command, walking included: never stopped
+    assert panels.stop_part_reading(rec, stops[0], rate * 14.0)["forward_stopped_strides"] is None
+    assert panels.stop_part_reading(rec, stops[0], None)["within"] is False  # to the end: only after the second stop
+    assert not panels.stop_part_reading(rec, dict(name="stop", reached=False), None)["reached"]
 
 
 def test_sway_on_a_synthetic_walk():
@@ -373,7 +508,7 @@ def test_rows_are_the_g5_selections(rows):
         r = rows[f"R2/{s}"]
         want = [doc["seeds"][s]["selected_gains"][n] for n in control.GAIN_NAMES]
         assert r.gains.tolist() == want and r.gains_info["candidate"] == doc["seeds"][s]["selected"]
-        assert not r.hard_only and r.mode == "R2" and r.terms == control.TERMS
+        assert not r.hard_only and r.mode == "R2" and r.terms == control.TERMS and r.sources() == {}
         assert panels.row_from_spec(r.spec()).describe() == r.describe()
     key = panels._portable(rows["R1"].describe())
     assert not any(str(v).startswith("/") for v in key["gains_info"].values())
@@ -407,6 +542,9 @@ def test_one_tiny_episode_per_row_type(ctx, rows):
     for k in EPISODE_KEYS - {"wall_s"}:
         assert a[k] == b[k], k
     assert r3.describe()["policy"] == dict(policy="ZeroResidual") and r3.spec()["zero_residual"]
+    src = r3.sources()  # a policy row names its policy's module and env.py in its key (RESUME_RULE)
+    assert set(src) == {"designlab/stage1/env.py", "designlab/stage1/panels.py"}
+    assert src["designlab/stage1/env.py"] == plant.sha256(ROOT / "designlab" / "stage1" / "env.py")
 
 
 @needs_run
@@ -439,7 +577,8 @@ def test_new_behaviours_on_real_episodes(ctx, rows):
     rec = panels.condition_record(BODY, rows["R2/42"], cp, [ec], dict(plan=[], seconds=1.5, inputs=dict(
         files={}, records={})), panels.SEEDS[:1], {}, dict(dir="x"), 1.0)
     assert json.loads(json.dumps(panels._jsonable(rec)))["counts"]["judged"] is False
-    assert set(rec["rules"]) >= {"carpet", "walk", "success", "look", "pass_", "verdict"}
+    assert set(rec["rules"]) >= {"carpet", "walk", "success", "look", "pass_", "verdict", "gating"}
+    assert rec["gated"] is False and rec["plan_gated"] is True  # decision 23: reported for R2
 
 
 @needs_run
@@ -477,7 +616,9 @@ def tiny(monkeypatch):
 
 @needs_run
 def test_records_and_resume(tmp_path, tiny, monkeypatch):
-    """A condition's record is written with its key and skipped while the key holds; a changed source re-runs it."""
+    """A condition's record is written with its key and skipped while the key holds; an episode that failed to run is
+    run again alone; a changed source re-runs the record; each episode leaves its trace; the summary shows R2's
+    verdicts as interim."""
     log = []
     doc = panels.evaluate(BODY, tmp_path, rows=("R0", "R2/42"), episodes=2, inputs=RUN, log=log.append)
     s = doc["sessions"][-1]
@@ -487,12 +628,38 @@ def test_records_and_resume(tmp_path, tiny, monkeypatch):
     assert rec["counts"]["episodes"] == 2 and rec["counts"]["pass_"] is None and rec["seeds"] == [3042, 3043]
     assert rec["key"]["sources"] == panels.panel_sources()["sha256"] and rec["key"]["seeds"] == [3042, 3043]
     assert rec["key"]["inputs"]["files"] == {f: plant.sha256(RUN / BODY / f) for f in panels.files_of(tiny)}
+    ctx_ = rec["key"]["context"]
+    assert set(ctx_["versions"]) == {"python", "numpy", "mujoco", "scipy"} and ctx_["versions"]["numpy"] == np.__version__
+    assert ctx_["plant_inputs"]["mjcf"].startswith("993c5ac5") and set(ctx_["plant_inputs"]) == {
+        "record", "mjcf", "ledger", "clearance"}
+    assert ctx_["env"]["push_bound_m_s"] == 0.487 and ctx_["env"]["carpet_friction"] == 0.54
+    assert rec["gated"] is True and rec["counts"]["errors"] == 0
+    # the trace (TRACE_RULE)
+    e = rec["episodes"][0]
+    tr = tmp_path / BODY / "eval" / "traces" / e["trace"]["path"]
+    assert e["trace"]["path"] == "R2/42/stand/hard/3042.npz" and plant.sha256(tr) == e["trace"]["sha256"]
+    with np.load(tr) as z:
+        assert z["rows"].shape == (e["trace"]["rows"], len(metrics.COLS)) and z["q"].shape[1] == 14
+        assert list(z["cols"]) == list(metrics.COLS) and np.all(np.diff(z["t"]) == pytest.approx(0.02))
     assert doc["grid"]["stand"]["hard"]["rows"]["R2/42"]["survived"] == 2 and doc["G7"]["pass_"]
+    assert doc["verdict_controller"] == "R2" and "interim" in doc["verdict_controller_note"]
+    assert set(doc["grid"]["stand"]["hard"]["verdicts"]) == {"R2"}
+    assert doc["grid"]["stand"]["hard"]["verdict"]["verdict"] == "incomplete"  # R2/43 missing, 2 seeds
     doc = panels.evaluate(BODY, tmp_path, rows=("R0", "R2/42"), episodes=2, inputs=RUN, log=log.append)
     assert doc["sessions"][-1]["episodes_run"] == 0 and len(doc["sessions"][-1]["skipped"]) == 2
-    monkeypatch.setattr(panels, "panel_sources", lambda files=None: dict(sha256="changed", rule="", modules=[]))
+    # FAILED_EPISODE_RULE: an episode that failed to run is run again (alone), the others kept
+    bad = dict(rec)
+    bad["episodes"] = [rec["episodes"][0], panels.failed_episode(tiny, 3043, "worker lost: died")]
+    path.write_text(json.dumps(bad))
     doc = panels.evaluate(BODY, tmp_path, rows=("R2/42",), episodes=2, inputs=RUN, log=log.append)
-    assert doc["sessions"][-1]["episodes_run"] == 2 and len(doc["sessions"]) == 3
+    s = doc["sessions"][-1]
+    assert s["episodes_run"] == 1 and s["rerun_failed"] == ["R2/42 stand/hard: seeds [3043]"]
+    again = json.loads(path.read_text())
+    assert again["counts"]["errors"] == 0 and again["episodes"][0] == rec["episodes"][0]
+    assert again["episodes"][1]["seed"] == 3043 and "error" not in again["episodes"][1]
+    monkeypatch.setattr(panels, "panel_sources", lambda files=None: dict(sha256="changed", rule="", modules=[]))
+    doc = panels.evaluate(BODY, tmp_path, rows=("R2/42",), episodes=2, inputs=RUN, log=log.append, traces=False)
+    assert doc["sessions"][-1]["episodes_run"] == 2 and len(doc["sessions"]) == 4
 
 
 @needs_run
@@ -521,19 +688,40 @@ def test_g7_gate_and_the_panel_sources():
     assert g["measured"]["stride_H"] == pytest.approx(0.55, abs=0.005)
     assert g["measured"]["head_amplitude_rad"] == pytest.approx(0.05, abs=1e-3)
     assert g["measured"]["tail_amplitude_rad"] == pytest.approx(0.12, abs=1e-3)
-    mods = panels.panel_sources()["modules"]
-    assert {"panels.py", "env.py", "gates.py", "tune.py", "control.py", "metrics.py"} <= set(mods)
-    assert "train.py" not in mods and "policy.py" not in mods
+    src = panels.panel_sources()
+    mods = src["modules"]
+    assert {"panels.py", "tune.py", "control.py", "metrics.py", "plant.py", "transitions.py"} <= set(mods)
+    assert not {"env.py", "gates.py", "train.py", "policy.py"} & set(mods)  # PANEL_SOURCES_RULE
+    assert {"carpet.py", "statics.py", "clearance.py", "sizing.py", "gait.py"} <= set(src["designlab_modules"])
+    assert not {"round2.py", "pipeline.py", "report.py", "round1.py"} & set(src["designlab_modules"])
+    files = tune.package_files()
+    files["env.py"] = files["env.py"] + b"\n# an edit to the training code\n"
+    assert panels.panel_sources(files)["sha256"] == src["sha256"]  # env.py's training code is not in the key
+    files["control.py"] = files["control.py"] + b"\n"
+    assert panels.panel_sources(files)["sha256"] != src["sha256"]
+    dl = panels.designlab_files()
+    dl["carpet.py"] = dl["carpet.py"] + b"\n"
+    assert panels.panel_sources(dl_files=dl)["sha256"] != src["sha256"]
 
 
 @needs_run
 def test_attribution_runs_on_the_falls_of_r2_rows(tmp_path, monkeypatch):
     """--attribute lifts each candidate limit of an R2 condition's falls over the same seeds (PANEL_ATTRIBUTION_RULE);
-    here a standing push eight times the plan's (monkeypatched) makes R2 fall within a tiny episode."""
+    here a standing push eight times the plan's (monkeypatched) makes R2 fall within a tiny episode.  With fewer
+    falls than the sign test needs (5) nothing is lifted and the label says so; with the minimum lowered, the lifts
+    run."""
     cut = dataclasses.replace(COND["push/standing_forward"], push_at=0.3, push_spread=0.0, recovery_s=0.8, hold_s=0.2)
     monkeypatch.setattr(panels, "conditions", lambda: [cut])
     monkeypatch.setattr(panels, "PUSH_FRAC", 4.0)
-    doc = panels.evaluate(BODY, tmp_path, rows=("R2/42",), episodes=2, attribute=True, inputs=RUN, log=lambda m: None)
+    doc = panels.evaluate(BODY, tmp_path / "few", rows=("R2/42",), episodes=2, attribute=True, inputs=RUN,
+                          log=lambda m: None, traces=False)
+    rec = json.loads(panels.record_path(tmp_path / "few", BODY, "R2/42", cut).read_text())
+    a = rec["attribution"]
+    assert rec["counts"]["falls"] == 2 and a["episodes"] == 0 == doc["sessions"][-1]["attribution_episodes_run"]
+    assert a["label"].startswith("controller-limited (decision 20; 2 falls: the sign test needs 5")
+    monkeypatch.setattr(panels, "ATTRIBUTION_MIN_FALLS", 1)
+    doc = panels.evaluate(BODY, tmp_path, rows=("R2/42",), episodes=2, attribute=True, inputs=RUN, log=lambda m: None,
+                          traces=False)
     rec = json.loads(panels.record_path(tmp_path, BODY, "R2/42", cut).read_text())
     assert rec["counts"]["falls"] == 2 and rec["attribution"] is not None
     cands, lift = panels.attribution_plan(rec)
@@ -541,9 +729,42 @@ def test_attribution_runs_on_the_falls_of_r2_rows(tmp_path, monkeypatch):
     assert a["candidates"] == cands and set(a["lifted"]) == set(lift) and a["null"] is None
     assert a["episodes"] == 2 * len(lift) == doc["sessions"][-1]["attribution_episodes_run"]
     assert all(len(v) == 2 and all(x["seed"] in (3042, 3043) for x in v) for v in a["runs"].values())
-    assert a["label"] == "controller-limited" or a["label"].startswith("body-limited")
-    again = panels.evaluate(BODY, tmp_path, rows=("R2/42",), episodes=2, attribute=True, inputs=RUN, log=lambda m: None)
+    assert a["label"].startswith("controller-limited") or a["label"].startswith("body-limited")
+    assert a["gates_sha256"] == plant.sha256(ROOT / "designlab" / "stage1" / "gates.py") and a["lifted_errors"] == 0
+    again = panels.evaluate(BODY, tmp_path, rows=("R2/42",), episodes=2, attribute=True, inputs=RUN, log=lambda m: None,
+                            traces=False)
     assert again["sessions"][-1]["episodes_run"] == again["sessions"][-1]["attribution_episodes_run"] == 0
+
+
+def test_a_worker_refuses_other_panel_sources():
+    """A worker (a replacement included) refuses to start on other panel sources than the session's, so it never
+    runs other code than the records' key names (PANEL_SOURCES_RULE)."""
+    with pytest.raises(tune.PoolError, match="changed during the session"):
+        panels.PanelWorker(BODY, str(RUN / BODY), sources="0" * 64)
+    fp = panels.fingerprint(panels.panel_sources()["sha256"], panels.key_context(BODY))
+    ctx_ = panels.key_context(BODY)
+    ctx_["env"] = dict(ctx_["env"], residual_rate=0.5)  # an edit to a value the panels take from env.py
+    assert panels.fingerprint(panels.panel_sources()["sha256"], ctx_) != fp
+
+
+@needs_run
+def test_rows_from_another_module(monkeypatch):
+    """register_rows: a row module adds its controller's rows to tracker_rows (and eval --rows) without a change to
+    panels; the panels' own rows cannot be replaced."""
+    monkeypatch.setattr(panels, "ROW_FACTORIES", {})
+    made = []
+
+    def factory(body, run_dir, name):
+        made.append((body, name))
+        return panels.TrackerRow(name, "R2", control.START_GAINS, dict(source="test"), policy=panels.ZeroResidual())
+
+    panels.register_rows("R3", factory)
+    rows = panels.tracker_rows(BODY, RUN / BODY, ("R2/42", "R3/42"))
+    assert made == [(BODY, "R3/42")] and rows["R3/42"].gated(COND["carpet/low"]) and "R3" in panels.ATTRIBUTED
+    with pytest.raises(ValueError):
+        panels.register_rows("R2", factory)
+    with pytest.raises(ValueError, match="registered"):
+        panels.tracker_rows(BODY, RUN / BODY, ("R4/42",))
 
 
 @needs_run
@@ -566,3 +787,19 @@ def test_a_policy_acts_every_env_step(ctx, rows):
     row = panels.TrackerRow("R3/count", "R2", rows["R2/42"].gains, policy=pol)
     row.run(ctx, dataclasses.replace(COND["stand/hard"], seconds=0.1), 3042)
     assert pol.begun == 1 and pol.steps == [9, 19, 29, 39, 49] and pol.every == env.ENV_SUBSTEPS
+
+
+@slow
+@needs_run
+def test_a_real_start_and_stop_reads_both_stops(ctx, rows):
+    """START_STOP_RULE on a whole start_stop/twice episode (R1, seed 3042, 25 s simulated): both stops are read stopped
+    within 1.5 strides and the episode succeeds; control.run's own reading of the first stop runs on through the
+    second start and never reads stopped; the last stop's reading is control.run's own."""
+    e = rows["R1"].run(ctx, COND["start_stop/twice"], 3042)
+    st = e["measures"]["start_stop"]
+    assert not e["fell"] and e["succeeded"] and [s["within"] for s in st["stops"]] == [True, True]
+    assert st["stops"][0]["control_reading"]["within"] is None and st["stops"][0]["part_ends"] == "the next start transition"
+    last = st["stops"][-1]
+    assert last["part_ends"] == "the episode's end" and last["samples"] == last["control_reading"]["samples"]
+    for k in panels.STOP_READING_KEYS:
+        assert last[k] == last["control_reading"][k], k

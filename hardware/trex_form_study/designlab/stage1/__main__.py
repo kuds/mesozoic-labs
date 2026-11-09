@@ -15,7 +15,8 @@ Run from hardware/trex_form_study:
   python -m designlab.stage1 noise   [--body 75-M-H-10] [--tune-json PATH] [--out stage1/runs/2026-11-08]
   python -m designlab.stage1 eval    --body 60-N-T-10 [--body ...] [--rows R0,R1,R2/42,R2/43] [--behaviors stand,...]
                                     [--conditions walk/nominal,...] [--workers 1] [--attribute] [--dry-run]
-                                    [--episodes 20] [--inputs DIR] --out stage1/runs/2026-11-08
+                                    [--episodes 20] [--row-module MODULE] [--no-traces] [--inputs DIR]
+                                    --out stage1/runs/2026-11-08
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
@@ -50,9 +51,12 @@ cap stopped training) into their run.json; ``noise`` measures R3's survival unde
 (``train.action_noise_survival``) into ``<out>/ppo_action_noise.json``, the record ``policy.LOG_STD_INIT`` comes from.
 ``eval`` is plan section 3 step 8's behaviour panels (``panels``): the rows R0 and R1 (hard floor) and R2/42 and
 R2/43 (every condition) on every condition of plan section 4, 20 episodes each (seeds 3042-3061), one record per row and
-condition in ``<out>/<body>/eval/<row>/<behavior>/<condition>.json`` and the grid with the verdicts and gate G7 in
-``<out>/<body>/eval/summary.json``; ``--attribute`` adds decision 20's fall attribution to the R2 rows' conditions with
-falls; a condition whose record is up to date is skipped (``panels.RESUME_RULE``); ``--dry-run`` lists every episode and
+condition in ``<out>/<body>/eval/<row>/<behavior>/<condition>.json``, each episode's 50 Hz trace under
+``<out>/<body>/eval/traces/`` (``panels.TRACE_RULE``; not with ``--no-traces``) and the grid with the verdicts and gate
+G7 in ``<out>/<body>/eval/summary.json``; plan section 7's ``--seed`` is a row here (``--rows R2/42``);
+``--attribute`` adds decision 20's fall attribution to the R2 rows' conditions with falls; a condition whose record is
+up to date is skipped and an episode that failed to run is run again (``panels.RESUME_RULE``); ``--row-module``
+imports a module that adds rows (``panels.register_rows``: the R3 and R4 rows); ``--dry-run`` lists every episode and
 estimates the core-hours from a cost per simulated second measured on each floor (``panels.COST_RULE``).
 ``sweep``, ``report`` and ``all`` are later steps of the plan (8-9) and are not implemented yet.
 """
@@ -65,6 +69,7 @@ for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_var, "1")  # one core per process: the step-rate gate is per core
 
 import argparse  # noqa: E402
+import importlib  # noqa: E402
 import json  # noqa: E402
 import sys  # noqa: E402
 import time  # noqa: E402
@@ -337,16 +342,18 @@ def _evaluation(a) -> int:
     """``eval`` (plan section 3 step 8): the behaviour panels (``panels``), or their dry run."""
     from . import panels
 
+    for mod in a.row_module or ():
+        importlib.import_module(mod)  # it registers its rows (panels.register_rows)
     rows = tuple(x for x in a.rows.split(",") if x)
     behaviors = tuple(a.behaviors.split(",")) if a.behaviors else None
     names = tuple(a.conditions.split(",")) if a.conditions else None
     for body in a.body:
         if a.dry_run:
             panels.dry_run(body, Path(a.out), rows, behaviors, names, a.episodes, a.inputs, measure=not a.no_measure,
-                           log=lambda msg: print(msg, flush=True))
+                           workers=a.workers, log=lambda msg: print(msg, flush=True))
             continue
         doc = panels.evaluate(body, Path(a.out), rows, behaviors, names, a.workers, a.attribute, a.episodes, a.inputs,
-                              log=lambda msg: print(msg, flush=True))
+                              traces=not a.no_traces, log=lambda msg: print(msg, flush=True))
         print(panels.summary_text(doc), flush=True)
     return 0
 
@@ -400,6 +407,9 @@ def main(argv=None) -> int:
     ep.add_argument("--no-measure", action="store_true", help="dry run without measuring the cost per simulated s")
     ep.add_argument("--episodes", type=int, default=20,
                     help="seeds per condition from 3042 (default 20; fewer is a smoke check, not judged)")
+    ep.add_argument("--row-module", action="append", default=None,
+                    help="a module to import first that adds rows (panels.register_rows), e.g. the R3 and R4 rows'")
+    ep.add_argument("--no-traces", action="store_true", help="write no 50 Hz episode traces (panels.TRACE_RULE)")
     ep.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: --out)")
     ep.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-08")
     for name in ("tune", "g5"):

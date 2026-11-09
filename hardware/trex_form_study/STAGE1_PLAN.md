@@ -338,3 +338,21 @@ change no body (P24).
     - **When.** Both run at the first rollout start at or past the plan's 1M and 2.5M steps.
 28. **R4.** One seed (42) per body, with R3's settings, floors and budget. R4 is judged over its own runs. G6 does not
     apply to R4, because G6 compares a policy with R2.
+
+### Decisions taken for the panels (9 Nov)
+
+29. **Back to the command after a push** (`panels.RECOVERY_RULE`). §4 asks that a pushed body be "back to the command
+    within 3 s". The panels read this from the end of the pulse:
+    - **Standing:** the true CoM's horizontal speed is below 5 % of the nominal command (decision 18's "stopped") at
+      every feedback update from some time at most 3 s after the pulse's end to the end of the episode.
+    - **Walking:** from some update at most 3 s after the pulse's end, the CoM's mean velocity over every stride-long
+      window that starts at an update and ends within the episode is 90–110 % of the commanded speed along the walk's
+      starting heading and at most 10 % of it across. The 90 % is the start's reading (§4 Start and stop); 110 % and
+      10 % bound a push that leaves the body faster or moving sideways by the same margin. Unpushed R2 walks read
+      96.1–98.6 % along and at most 2.8 % across (R2/42 on all three bodies, about 7 s of steady walking each).
+    - **The window looks ahead from the pulse's end.** A trailing window averages the stride before each update, so
+      just after the pulse it mostly measures the walking before it. It read the body back on its command 0.001 s and
+      0.008 s after the pulse in two episodes that then fell about 0.9 s later.
+    - **The reading must hold.** Each push episode runs 2 s past the 3 s, so the reading holds for at least 2 s. A fall
+      before the end means the body has not recovered. An update at the pulse's end itself is recorded as "never left
+      the command".
