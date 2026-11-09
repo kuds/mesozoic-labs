@@ -1,0 +1,1172 @@
+{
+ "schema": 3,
+ "body": "60-N-T-10",
+ "seed": 43,
+ "mode": "R3",
+ "settings": {
+  "body": "60-N-T-10",
+  "seed": 43,
+  "mode": "R3",
+  "n_envs": 4,
+  "design2": {
+   "net_arch": [
+    256,
+    256
+   ],
+   "n_envs": 4,
+   "n_steps": 2048,
+   "batch_size": 256,
+   "n_epochs": 5,
+   "gamma": 0.99,
+   "gae_lambda": 0.95,
+   "clip_range": 0.2,
+   "lr_start": 0.0001,
+   "lr_end": 3e-05,
+   "target_kl": 0.03,
+   "clip_obs": 10.0,
+   "clip_reward": 50.0
+  },
+  "learning_rate": {
+   "start": 1e-05,
+   "end": 3e-06,
+   "schedule": "linear",
+   "rule": "learning rate 1e-5 -> 3e-6 (linear over the run), design 2's 1e-4 -> 3e-5 x 0.1, target_kl 0.03 kept: at sigma 0.02 design 2's 1e-4 stops each update after 1-9 of its 160 minibatch steps (the KL stop, 1.5 x target_kl), and without the stop the update diverges (KL 3.5, clip fraction 0.92); measured on R3 75-M-H-10 (its G5 selection, the job's 4 envs and floors, seed 42) over the first 6 updates at a constant rate, 1e-5 runs every minibatch step of every update (KL 0.019-0.023, clip fraction 0.23-0.27) and its critic's explained variance turns positive by the fourth update, while 3e-6 runs every step too but its explained variance stays negative (LR_PROBE_RECORD); the end rate 3e-6 keeps design 2's 0.3 end-to-start ratio; R4 takes the same schedule (equal settings)"
+  },
+  "log_std_init": -3.912023005428146,
+  "ppo_overrides": {},
+  "config": {},
+  "checkpoint_every": 250000,
+  "checkpoint_rule": "a checkpoint is saved at the first rollout start at or past each multiple of the checkpoint interval, after the previous update, so model_<n> is the policy trained on the run's first n steps (every run with the same rollout size saves at the same n), and once more when learn() returns, after the last update; the G6b and G6c monitors run on the policy at a rollout start too",
+  "floor_rule": "env i of a job runs on FLOOR_SPREAD[i % 4]: hard, hard, robot_floor_carpet, low pile (carpet.pile_floor grid 0.008 m, plan section 2's training pile), so with 4 envs half the experience is on hard floor, where most behaviours are judged, and a quarter on each floor plan section 4 judges the carpet condition (and the stand) on; a run whose config names a floor puts every env on it",
+  "seed_rule": "right before learn() in every session (k = 0 for a new run, one more per resume), model.set_random_seed(10,000 s + 100 k) for PPO seed s: torch, numpy, random and the action space take that seed and the vec env's env i is reset with 10,000 s + 100 k + i (sessions below 100, at most 100 envs); SB3's own seeding (PPO's constructor and PPO.load both reseed the vec env with s + i) would give seeds 42 and 43 three of their four env streams in common and replay a run's streams on resume.  Each env then draws its episode seeds by env.EPISODE_SEED_RULE (1,000,000 x its reset seed + the episode's index), so no two runs, sessions or envs share an episode seed"
+ },
+ "env_configs": [
+  {
+   "body": "60-N-T-10",
+   "floor": "hard",
+   "pile_grid": 0.008,
+   "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+   "gains": "tuned",
+   "tune_json": null,
+   "tasks": [
+    "walk",
+    "walking_turn_left",
+    "walking_turn_right",
+    "in_place_turn_left",
+    "in_place_turn_right",
+    "brisk",
+    "fr05",
+    "stand",
+    "carpet_walk"
+   ],
+   "task_weights": null,
+   "rate": 1.05,
+   "max_seconds": 30.0,
+   "randomize": true,
+   "friction": [
+    0.54,
+    1.25
+   ],
+   "mass": [
+    0.9,
+    1.1
+   ],
+   "kp": [
+    0.8,
+    1.2
+   ],
+   "latency_steps": [
+    0,
+    10
+   ],
+   "noise_scale": [
+    0.5,
+    1.5
+   ],
+   "push_prob": 0.5,
+   "push_frac": [
+    0.0,
+    1.0
+   ],
+   "push_s": 0.1,
+   "start_joint_noise": 0.01,
+   "start_root_velocity_noise": 0.02
+  },
+  {
+   "body": "60-N-T-10",
+   "floor": "hard",
+   "pile_grid": 0.008,
+   "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+   "gains": "tuned",
+   "tune_json": null,
+   "tasks": [
+    "walk",
+    "walking_turn_left",
+    "walking_turn_right",
+    "in_place_turn_left",
+    "in_place_turn_right",
+    "brisk",
+    "fr05",
+    "stand",
+    "carpet_walk"
+   ],
+   "task_weights": null,
+   "rate": 1.05,
+   "max_seconds": 30.0,
+   "randomize": true,
+   "friction": [
+    0.54,
+    1.25
+   ],
+   "mass": [
+    0.9,
+    1.1
+   ],
+   "kp": [
+    0.8,
+    1.2
+   ],
+   "latency_steps": [
+    0,
+    10
+   ],
+   "noise_scale": [
+    0.5,
+    1.5
+   ],
+   "push_prob": 0.5,
+   "push_frac": [
+    0.0,
+    1.0
+   ],
+   "push_s": 0.1,
+   "start_joint_noise": 0.01,
+   "start_root_velocity_noise": 0.02
+  },
+  {
+   "body": "60-N-T-10",
+   "floor": "robot_floor_carpet",
+   "pile_grid": 0.008,
+   "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+   "gains": "tuned",
+   "tune_json": null,
+   "tasks": [
+    "walk",
+    "walking_turn_left",
+    "walking_turn_right",
+    "in_place_turn_left",
+    "in_place_turn_right",
+    "brisk",
+    "fr05",
+    "stand",
+    "carpet_walk"
+   ],
+   "task_weights": null,
+   "rate": 1.05,
+   "max_seconds": 30.0,
+   "randomize": true,
+   "friction": [
+    0.54,
+    1.25
+   ],
+   "mass": [
+    0.9,
+    1.1
+   ],
+   "kp": [
+    0.8,
+    1.2
+   ],
+   "latency_steps": [
+    0,
+    10
+   ],
+   "noise_scale": [
+    0.5,
+    1.5
+   ],
+   "push_prob": 0.5,
+   "push_frac": [
+    0.0,
+    1.0
+   ],
+   "push_s": 0.1,
+   "start_joint_noise": 0.01,
+   "start_root_velocity_noise": 0.02
+  },
+  {
+   "body": "60-N-T-10",
+   "floor": "low",
+   "pile_grid": 0.008,
+   "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+   "gains": "tuned",
+   "tune_json": null,
+   "tasks": [
+    "walk",
+    "walking_turn_left",
+    "walking_turn_right",
+    "in_place_turn_left",
+    "in_place_turn_right",
+    "brisk",
+    "fr05",
+    "stand",
+    "carpet_walk"
+   ],
+   "task_weights": null,
+   "rate": 1.05,
+   "max_seconds": 30.0,
+   "randomize": true,
+   "friction": [
+    0.54,
+    1.25
+   ],
+   "mass": [
+    0.9,
+    1.1
+   ],
+   "kp": [
+    0.8,
+    1.2
+   ],
+   "latency_steps": [
+    0,
+    10
+   ],
+   "noise_scale": [
+    0.5,
+    1.5
+   ],
+   "push_prob": 0.5,
+   "push_frac": [
+    0.0,
+    1.0
+   ],
+   "push_s": 0.1,
+   "start_joint_noise": 0.01,
+   "start_root_velocity_noise": 0.02
+  }
+ ],
+ "gains": {
+  "values": {
+   "k_dcm": 4.574500527016146,
+   "cop_x": 0.04206077387538906,
+   "cop_y": 0.02499683538946664,
+   "k_step": 0.0,
+   "step_x": 0.06824406222841883,
+   "step_out": 0.021878760875926932,
+   "decay": 0.9327647844662051,
+   "k_trunk": 80.13359667101032,
+   "d_trunk": 0.0,
+   "k_yaw": 0.2732805000632633,
+   "ki_yaw": 0.0,
+   "k_phase": 0.10788128524581518,
+   "ki_phase": 0.8292725240079336,
+   "capture_margin": 0.0
+  },
+  "candidate": "seed42_gen20",
+  "cma_seed": 42,
+  "status": "passed",
+  "flag": null,
+  "source": "tune.json: CMA-ES seed 42's G5 selection seed42_gen20",
+  "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+  "tune_json": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+  "tune_json_sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+  "allow_untuned": false
+ },
+ "final_rule": "the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops training first, every body is judged at the last checkpoint all of them reached",
+ "judged_rule": "the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops training first, every body is judged at the last checkpoint all of them reached; the runs: every body x PPO seeds 42 and 43 for R3, every body x seed 42 for R4, each mode judged over its own runs; provisional (final false) until every run holds its budget's checkpoint or `judge --final` records that the stage's cap stopped training",
+ "g6_rule": "G6a: before training, a zero residual reproduces R2 exactly (env.zero_residual_check, env.ZERO_RESIDUAL_RULE: every physics step's qpos, qvel, ctrl and sensordata to R2's end or fall, and the same end) and the job runs at least 600 env steps per wall second (the training loop, PPO updates included, over its first 16384 steps, with the number of env processes stated; the CPU seconds of the job's processes, env worker processes included, beside it); otherwise the steps are cut equally for every body (decision 23: G6a is judged per wall second of the job; BUDGET_RULE).  G6b at the first rollout start at or past 1000000 steps: on the monitor (the deterministic policy and the zero residual on the same episodes: walk on hard, walking_turn_left on hard, walking_turn_right on hard, in_place_turn_left on hard, in_place_turn_right on hard, brisk on hard, carpet_walk on robot_floor_carpet, carpet_walk on low, episode seeds (5001, 5002, 5003), nominal plant, no push) R3's mean survival time over every condition is at least R2's; otherwise make one fix, then stop.  G6c at the first rollout start at or past 2500000 steps: R3 beats R2 on at least one monitor condition: fewer falls, or as many falls and, paired by episode seed, a higher mean reward per step on every seed with a mean gain of at least 0.01 per step (about 1 % of the reward's 0.9 ceiling) and at least the spread (largest minus smallest) of R2's per-seed mean rewards; otherwise skip seed 43 and judge with R2",
+ "seed_rule": "right before learn() in every session (k = 0 for a new run, one more per resume), model.set_random_seed(10,000 s + 100 k) for PPO seed s: torch, numpy, random and the action space take that seed and the vec env's env i is reset with 10,000 s + 100 k + i (sessions below 100, at most 100 envs); SB3's own seeding (PPO's constructor and PPO.load both reseed the vec env with s + i) would give seeds 42 and 43 three of their four env streams in common and replay a run's streams on resume.  Each env then draws its episode seeds by env.EPISODE_SEED_RULE (1,000,000 x its reset seed + the episode's index), so no two runs, sessions or envs share an episode seed",
+ "budget_rule": "every run of R3 and R4, every body, trains 4,000,000 env steps rounded up to whole rollouts (4,005,888 with 4 envs x 2,048 steps), STAGE1_PLAN.md decision 23 (G6a's consequence: the plan's 5M cut equally for every body to fit decision 21's cap on 4 cores)",
+ "sessions": [
+  {
+   "index": 0,
+   "started_at": "2026-11-09T13:52:42+00:00",
+   "provenance": {
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1",
+     "gymnasium": "1.3.0",
+     "stable-baselines3": "2.9.0",
+     "torch": "2.9.0+cpu"
+    },
+    "git": {
+     "commit": "238550f9f6a046f98843070d68f7faae1149bf82",
+     "dirty": false,
+     "dirty_paths": []
+    },
+    "stage1_sources": {
+     "sha256": "76befec13b55f633fe5857aa40b69a162be8c48810cf6396ba43d7f85450a369",
+     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+     "files": [
+      "__init__.py",
+      "__main__.py",
+      "control.py",
+      "drive.py",
+      "env.py",
+      "estimator.py",
+      "gates.py",
+      "legs.py",
+      "metrics.py",
+      "plant.py",
+      "policy.py",
+      "refs.py",
+      "replay.py",
+      "train.py",
+      "transitions.py",
+      "tune.py"
+     ]
+    }
+   },
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1",
+    "torch": "2.9.0+cpu",
+    "stable_baselines3": "2.9.0",
+    "gymnasium": "1.3.0"
+   },
+   "ppo_venv": {
+    "torch": "2.9.0+cpu",
+    "stable_baselines3": "2.9.0",
+    "gymnasium": "1.3.0"
+   },
+   "matches_ppo_venv": true,
+   "vec": "dummy",
+   "env_processes": 1,
+   "n_envs": 4,
+   "torch_threads": 1,
+   "solve2": "numpy.linalg._umath_linalg.solve1",
+   "gains": {
+    "values": {
+     "k_dcm": 4.574500527016146,
+     "cop_x": 0.04206077387538906,
+     "cop_y": 0.02499683538946664,
+     "k_step": 0.0,
+     "step_x": 0.06824406222841883,
+     "step_out": 0.021878760875926932,
+     "decay": 0.9327647844662051,
+     "k_trunk": 80.13359667101032,
+     "d_trunk": 0.0,
+     "k_yaw": 0.2732805000632633,
+     "ki_yaw": 0.0,
+     "k_phase": 0.10788128524581518,
+     "ki_phase": 0.8292725240079336,
+     "capture_margin": 0.0
+    },
+    "candidate": "seed42_gen20",
+    "cma_seed": 42,
+    "status": "passed",
+    "flag": null,
+    "source": "tune.json: CMA-ES seed 42's G5 selection seed42_gen20",
+    "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+    "tune_json": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+    "tune_json_sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+    "allow_untuned": false
+   },
+   "env": {
+    "mode": "R3",
+    "config": {
+     "body": "60-N-T-10",
+     "floor": "hard",
+     "pile_grid": 0.008,
+     "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+     "gains": "tuned",
+     "tune_json": null,
+     "tasks": [
+      "walk",
+      "walking_turn_left",
+      "walking_turn_right",
+      "in_place_turn_left",
+      "in_place_turn_right",
+      "brisk",
+      "fr05",
+      "stand",
+      "carpet_walk"
+     ],
+     "task_weights": null,
+     "rate": 1.05,
+     "max_seconds": 30.0,
+     "randomize": true,
+     "friction": [
+      0.54,
+      1.25
+     ],
+     "mass": [
+      0.9,
+      1.1
+     ],
+     "kp": [
+      0.8,
+      1.2
+     ],
+     "latency_steps": [
+      0,
+      10
+     ],
+     "noise_scale": [
+      0.5,
+      1.5
+     ],
+     "push_prob": 0.5,
+     "push_frac": [
+      0.0,
+      1.0
+     ],
+     "push_s": 0.1,
+     "start_joint_noise": 0.01,
+     "start_root_velocity_noise": 0.02
+    },
+    "floor": "hard",
+    "floor_params": null,
+    "settled": "settled",
+    "gains": {
+     "k_dcm": 4.574500527016146,
+     "cop_x": 0.04206077387538906,
+     "cop_y": 0.02499683538946664,
+     "k_step": 0.0,
+     "step_x": 0.06824406222841883,
+     "step_out": 0.021878760875926932,
+     "decay": 0.9327647844662051,
+     "k_trunk": 80.13359667101032,
+     "d_trunk": 0.0,
+     "k_yaw": 0.2732805000632633,
+     "ki_yaw": 0.0,
+     "k_phase": 0.10788128524581518,
+     "ki_phase": 0.8292725240079336,
+     "capture_margin": 0.0
+    },
+    "gains_info": {
+     "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+     "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+     "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+     "body_pass": true,
+     "seeds_passing": [
+      42,
+      43
+     ],
+     "ranking": {
+      "42": [
+       0,
+       0.0,
+       0.05350094882390953,
+       0.05350094882390953,
+       42
+      ],
+      "43": [
+       0,
+       0.0,
+       0.05527153496231152,
+       0.05527153496231152,
+       43
+      ]
+     },
+     "status": "passed",
+     "flag": null,
+     "cma_seed": 42,
+     "candidate": "seed42_gen20",
+     "source": "tune.json: CMA-ES seed 42's G5 selection seed42_gen20"
+    },
+    "obs": {
+     "blocks": {
+      "q": [
+       0,
+       14
+      ],
+      "qd": [
+       14,
+       28
+      ],
+      "gravity": [
+       28,
+       31
+      ],
+      "gyro": [
+       31,
+       34
+      ],
+      "foot_load": [
+       34,
+       36
+      ],
+      "phase": [
+       36,
+       38
+      ],
+      "support": [
+       38,
+       40
+      ],
+      "command": [
+       40,
+       42
+      ],
+      "prev_action": [
+       42,
+       57
+      ],
+      "root_vel": [
+       57,
+       60
+      ],
+      "height": [
+       60,
+       61
+      ],
+      "roll_pitch": [
+       61,
+       63
+      ],
+      "dcm_error": [
+       63,
+       65
+      ],
+      "joint_error": [
+       65,
+       79
+      ],
+      "heading_error": [
+       79,
+       80
+      ],
+      "friction": [
+       80,
+       81
+      ],
+      "floor": [
+       81,
+       84
+      ],
+      "push": [
+       84,
+       87
+      ],
+      "plant_factors": [
+       87,
+       90
+      ]
+     },
+     "actor_dim": 57,
+     "critic_dim": 90
+    },
+    "actor_obs": [
+     [
+      "q",
+      14
+     ],
+     [
+      "qd",
+      14
+     ],
+     [
+      "gravity",
+      3
+     ],
+     [
+      "gyro",
+      3
+     ],
+     [
+      "foot_load",
+      2
+     ],
+     [
+      "phase",
+      2
+     ],
+     [
+      "support",
+      2
+     ],
+     [
+      "command",
+      2
+     ],
+     [
+      "prev_action",
+      15
+     ]
+    ],
+    "critic_obs": [
+     [
+      "root_vel",
+      3
+     ],
+     [
+      "height",
+      1
+     ],
+     [
+      "roll_pitch",
+      2
+     ],
+     [
+      "dcm_error",
+      2
+     ],
+     [
+      "joint_error",
+      14
+     ],
+     [
+      "heading_error",
+      1
+     ],
+     [
+      "friction",
+      1
+     ],
+     [
+      "floor",
+      3
+     ],
+     [
+      "push",
+      3
+     ],
+     [
+      "plant_factors",
+      3
+     ]
+    ],
+    "action_dim": 15,
+    "substeps": 10,
+    "filter_hz": 10.0,
+    "filter_alpha": 0.7153904566639707,
+    "reward": "0.55 exp(-mean_j ((q_j - q_ref_j) / 0.1 rad)^2) (true joints, the reference at the env step's end) + 0.35 gaussian_tracking_reward(|v - v_cmd|, |w - w_cmd|) (the CoM's forward speed and the trunk's yaw rate over the env step against the reference's, at the commanded clock rate) - the penalties, each in [0, 1]: duty (each foot's contact share over the last stride outside 0.55-0.65, over 0.05, while the reference walks), slip (a foot carrying 20 % of the weight sliding faster than 0.05 m/s at a loaded contact, the excess over 0.05 m/s), flight (the share of the env step's physics steps with neither foot carrying 2 % of the weight), impact (the peak floor load over 1.6 BW, the excess over 1.6 BW), clearance (the reference's swing foot in mid-swing below 0.04 H, the shortfall over 0.04 H), tilt (roll or pitch about home beyond 4 deg, the excess over 4 deg); the weight and BW are the episode's true ones (its trunk-mass factor); weights duty 0.02, slip 0.02, flight 0.05, impact 0.02, clearance 0.02, tilt 0.02",
+    "penalties": {
+     "duty": 0.02,
+     "slip": 0.02,
+     "flight": 0.05,
+     "impact": 0.02,
+     "clearance": 0.02,
+     "tilt": 0.02
+    },
+    "tasks": {
+     "walk": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "nominal",
+        7
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "walking_turn_left": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "transition",
+        "enter_walk_0.35_left"
+       ],
+       [
+        "ref",
+        "walk_0.35_left",
+        5
+       ],
+       [
+        "transition",
+        "exit_walk_0.35_left"
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "walking_turn_right": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "transition",
+        "enter_walk_0.35_right"
+       ],
+       [
+        "ref",
+        "walk_0.35_right",
+        5
+       ],
+       [
+        "transition",
+        "exit_walk_0.35_right"
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "in_place_turn_left": [
+      [
+       [
+        "transition",
+        "start_in_place_0.50_left"
+       ],
+       [
+        "ref",
+        "in_place_0.50_left",
+        3
+       ],
+       [
+        "transition",
+        "stop_in_place_0.50_left"
+       ]
+      ],
+      "nominal"
+     ],
+     "in_place_turn_right": [
+      [
+       [
+        "transition",
+        "start_in_place_0.50_right"
+       ],
+       [
+        "ref",
+        "in_place_0.50_right",
+        3
+       ],
+       [
+        "transition",
+        "stop_in_place_0.50_right"
+       ]
+      ],
+      "nominal"
+     ],
+     "brisk": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "nominal_to_brisk"
+       ],
+       [
+        "ref",
+        "brisk",
+        6
+       ],
+       [
+        "transition",
+        "brisk_to_nominal"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "fr05": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "nominal_to_brisk"
+       ],
+       [
+        "ref",
+        "brisk",
+        1
+       ],
+       [
+        "transition",
+        "brisk_to_fr05"
+       ],
+       [
+        "ref",
+        "fr05",
+        6
+       ],
+       [
+        "transition",
+        "fr05_to_brisk"
+       ],
+       [
+        "ref",
+        "brisk",
+        1
+       ],
+       [
+        "transition",
+        "brisk_to_nominal"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "stand": [
+      [
+       [
+        "hold",
+        12.0
+       ],
+       [
+        "transition",
+        "start"
+       ]
+      ],
+      "nominal"
+     ],
+     "carpet_walk": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "carpet",
+        7
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "carpet"
+     ]
+    },
+    "task_friction": {
+     "carpet_walk": 0.54
+    },
+    "carpet_join": "the carpet walk runs the start and stop transitions of the nominal walk: they join it at its phase 0, where the carpet swing's frame differs from the nominal's by at most 0.43 mrad in joint angle and 0.083 rad/s in joint rate (the swing leg's lift-off; refs carpet.npz against nominal.npz on all three bodies), so the track joins the carpet reference to them directly",
+    "mass_rule": "the trunk's mass and inertia x the episode's factor, then every constant MuJoCo derives from the masses recomputed (mujoco.mj_setConst on a scratch MjData: the subtree masses behind subtree_com and every CoM reading, the constraint solver's invweight0 scales, dof_M0, actuator_acc0, the model's mean mass and inertia), so the plant is the model MuJoCo compiles with that trunk; every reset restores the nominal masses and constants the same way (mj_setConst leaves the nominal model unchanged bit for bit, checked when the env is built).  The controller keeps the nominal model (control.Tracker.model: the tracker's mass; R2's estimator, which computes the nominal model's CoM at its estimated pose; its sensors' noise scale): a deliberate model error, as a real robot's estimator has",
+    "kp_rule": "training draws the servos' stiffness factor from 0.8-1.2 (EnvConfig.kp; the controller keeps the nominal gains); plan section 5's kp x 0.25-1 is the margin ledger's sweep on the evaluation, not a training range",
+    "episode_seed_rule": "an episode given no seed is the env's k-th since its last seeded reset (k = 0, 1, ...): its seed is 1,000,000 x that reset's seed + k, so envs reset with different seeds never draw the same episode seed (train.SEED_RULE gives every run, session and env its own); the start's noise and the sensors' noise come from it (numpy SeedSequence([episode, 0]) and ([episode, 1])); the task, the plant factors and the push from the env's own generator",
+    "nominal_weight_N": 106.062612192,
+    "solve2": "numpy.linalg._umath_linalg.solve1"
+   },
+   "other_envs": [
+    {},
+    {
+     "config": {
+      "body": "60-N-T-10",
+      "floor": "robot_floor_carpet",
+      "pile_grid": 0.008,
+      "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+      "gains": "tuned",
+      "tune_json": null,
+      "tasks": [
+       "walk",
+       "walking_turn_left",
+       "walking_turn_right",
+       "in_place_turn_left",
+       "in_place_turn_right",
+       "brisk",
+       "fr05",
+       "stand",
+       "carpet_walk"
+      ],
+      "task_weights": null,
+      "rate": 1.05,
+      "max_seconds": 30.0,
+      "randomize": true,
+      "friction": [
+       0.54,
+       1.25
+      ],
+      "mass": [
+       0.9,
+       1.1
+      ],
+      "kp": [
+       0.8,
+       1.2
+      ],
+      "latency_steps": [
+       0,
+       10
+      ],
+      "noise_scale": [
+       0.5,
+       1.5
+      ],
+      "push_prob": 0.5,
+      "push_frac": [
+       0.0,
+       1.0
+      ],
+      "push_s": 0.1,
+      "start_joint_noise": 0.01,
+      "start_root_velocity_noise": 0.02
+     },
+     "floor": "robot_floor_carpet",
+     "floor_params": {
+      "solref": [
+       0.024,
+       1.2
+      ],
+      "solimp": [
+       0.65,
+       0.94,
+       0.004,
+       0.5,
+       2.0
+      ],
+      "friction": [
+       0.95,
+       0.009,
+       0.0005
+      ],
+      "condim": 6
+     }
+    },
+    {
+     "config": {
+      "body": "60-N-T-10",
+      "floor": "low",
+      "pile_grid": 0.008,
+      "run_dir": "stage1/runs/2026-11-08/60-N-T-10",
+      "gains": "tuned",
+      "tune_json": null,
+      "tasks": [
+       "walk",
+       "walking_turn_left",
+       "walking_turn_right",
+       "in_place_turn_left",
+       "in_place_turn_right",
+       "brisk",
+       "fr05",
+       "stand",
+       "carpet_walk"
+      ],
+      "task_weights": null,
+      "rate": 1.05,
+      "max_seconds": 30.0,
+      "randomize": true,
+      "friction": [
+       0.54,
+       1.25
+      ],
+      "mass": [
+       0.9,
+       1.1
+      ],
+      "kp": [
+       0.8,
+       1.2
+      ],
+      "latency_steps": [
+       0,
+       10
+      ],
+      "noise_scale": [
+       0.5,
+       1.5
+      ],
+      "push_prob": 0.5,
+      "push_frac": [
+       0.0,
+       1.0
+      ],
+      "push_s": 0.1,
+      "start_joint_noise": 0.01,
+      "start_root_velocity_noise": 0.02
+     },
+     "floor": "low",
+     "floor_params": {
+      "kind": "pile",
+      "k_A_N_per_m3": 32879150.975693256,
+      "stiffness_kPa_per_mm": 32.87915097569326,
+      "depth_m": 0.002921,
+      "height_m": 0.00635,
+      "grid_m": 0.008,
+      "solimp": [
+       0.5,
+       0.5,
+       0.002921,
+       0.5,
+       2.0
+      ],
+      "friction": [
+       0.54,
+       0.009,
+       0.0005
+      ],
+      "condim": 3,
+      "dampratio": 1.0,
+      "A_hat_per_kg": 1.3413129246516684,
+      "timestep": 0.002,
+      "full_cell_probe": {
+       "K_N_per_m": 2104.2656624443684,
+       "solref": [
+        0.02661948560660555,
+        1.0
+       ],
+       "damping_N_s_per_m": 112.02893902782431
+      },
+      "pad_stiffness_per_foot_N_per_m": 48462.430152648434,
+      "regularisation_inertia_kg_per_contact": 0.745538182493615
+     }
+    }
+   ],
+   "floors": [
+    "hard",
+    "hard",
+    "robot_floor_carpet",
+    "low"
+   ],
+   "seed_base": 430000,
+   "env_seeds": [
+    430000,
+    430001,
+    430002,
+    430003
+   ]
+  }
+ ],
+ "checkpoints": [],
+ "throughput": [
+  {
+   "first_rollouts": true,
+   "session": 0,
+   "env_steps": 16384,
+   "n_envs": 4,
+   "vec": "dummy",
+   "env_processes": 1,
+   "wall_s": 204.250605912006,
+   "cpu_s_main": 80.129393785,
+   "cpu_s_env_workers": 0.0,
+   "cpu_s": 80.129393785,
+   "env_steps_per_wall_s": 80.21518431655696,
+   "env_steps_per_cpu_s": 204.46928681328723,
+   "load_average": [
+    10.06591796875,
+    6.5615234375,
+    4.37451171875
+   ],
+   "cores": 4
+  }
+ ],
+ "g6": {
+  "G6a_zero_residual": {
+   "rule": "R2 (control.run) runs the episode first, to its end or its fall, then R3 with a zero action on the same plant (its model factors applied as R3's episode applies them, MASS_RULE), stance, seeds and gains; sha256 of qpos, qvel, ctrl and sensordata after every physics step: R3's must equal R2's at every step R2 ran (to the physics step R2 fell in), and R3 must end where R2 did: if R2 fell, R3 terminates in the env step that holds R2's fall step (falls are read at the env step's end); if R2 did not fall, R3 does not terminate and runs as many physics steps",
+   "body": "60-N-T-10",
+   "task": "walk",
+   "floor": "hard",
+   "seconds": 16.510415098228762,
+   "episode_seed": 7,
+   "factors": {},
+   "model_rule": "the trunk's mass and inertia x the episode's factor, then every constant MuJoCo derives from the masses recomputed (mujoco.mj_setConst on a scratch MjData: the subtree masses behind subtree_com and every CoM reading, the constraint solver's invweight0 scales, dof_M0, actuator_acc0, the model's mean mass and inertia), so the plant is the model MuJoCo compiles with that trunk; every reset restores the nominal masses and constants the same way (mj_setConst leaves the nominal model unchanged bit for bit, checked when the env is built).  The controller keeps the nominal model (control.Tracker.model: the tracker's mass; R2's estimator, which computes the nominal model's CoM at its estimated pose; its sensors' noise scale): a deliberate model error, as a real robot's estimator has",
+   "reference_steps": 8260,
+   "reference_fell": false,
+   "reference_fall_cause": null,
+   "reference_fall_time_s": null,
+   "fall_env_step": null,
+   "physics_steps": 8260,
+   "env_steps": 826,
+   "r3_terminated": false,
+   "r3_fall_cause": null,
+   "compared_steps": 8260,
+   "first_difference": null,
+   "ends_alike": true,
+   "identical": true,
+   "gains_info": {
+    "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+    "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+    "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+    "body_pass": true,
+    "seeds_passing": [
+     42,
+     43
+    ],
+    "ranking": {
+     "42": [
+      0,
+      0.0,
+      0.05350094882390953,
+      0.05350094882390953,
+      42
+     ],
+     "43": [
+      0,
+      0.0,
+      0.05527153496231152,
+      0.05527153496231152,
+      43
+     ]
+    },
+    "status": "passed",
+    "flag": null,
+    "cma_seed": 42,
+    "candidate": "seed42_gen20",
+    "source": "tune.json: CMA-ES seed 42's G5 selection seed42_gen20"
+   }
+  },
+  "G6a_rate": {
+   "first_rollouts": true,
+   "session": 0,
+   "env_steps": 16384,
+   "n_envs": 4,
+   "vec": "dummy",
+   "env_processes": 1,
+   "wall_s": 204.250605912006,
+   "cpu_s_main": 80.129393785,
+   "cpu_s_env_workers": 0.0,
+   "cpu_s": 80.129393785,
+   "env_steps_per_wall_s": 80.21518431655696,
+   "env_steps_per_cpu_s": 204.46928681328723,
+   "load_average": [
+    10.06591796875,
+    6.5615234375,
+    4.37451171875
+   ],
+   "cores": 4,
+   "threshold": 600,
+   "judged_on": "env steps per wall second of the job",
+   "pass_": false,
+   "consequence_if_failed": "cut the steps equally for every body"
+  }
+ },
+ "status": "running",
+ "budget": 4005888,
+ "budget_asked": 4000000
+}
