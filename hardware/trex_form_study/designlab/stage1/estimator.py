@@ -8,7 +8,8 @@ white noise on the gyro, accelerometer and joint rates, a constant bias per epis
 (drawn uniformly within the given bounds), encoder angles quantised to ``encoder_bits`` per turn, and white noise on
 the foot loads.  ``STAGE1_PLAN.md`` randomises IMU noise but sources no values; the defaults are MEMS-class
 assumptions (``NOISE_SOURCE``).  The estimator also knows the robot's own kinematic and inertial model (the plant's
-MJCF) and the time step.
+MJCF, or the model it is given: the nominal one when a PPO env randomises the plant's masses, a model error) and the
+time step.
 
 Method:
 
@@ -113,14 +114,16 @@ def _span(adr) -> slice | np.ndarray:
 class NoisySensors:
     """``plant.Plant.sensors`` with ``SensorNoise`` applied, from one seeded generator per episode."""
 
-    def __init__(self, p: plant_mod.Plant, noise: SensorNoise, seed: int):
+    def __init__(self, p: plant_mod.Plant, noise: SensorNoise, seed: int, weight: float | None = None):
+        """``weight`` (N) scales the foot-load noise (default: the plant model's weight; a controller with a model of
+        its own passes that model's: the sensors' noise does not follow a randomised mass)."""
         self.p, self.noise = p, noise
         self.rng = np.random.default_rng(seed)
         s = noise.scale
         self.gyro_b = s * self.rng.uniform(-noise.gyro_bias, noise.gyro_bias, 3)
         self.accel_b = s * self.rng.uniform(-noise.accel_bias, noise.accel_bias, 3)
         self.q_step = 2 * math.pi / 2**noise.encoder_bits if noise.encoder_bits else 0.0
-        self.weight = float(p.m.body_subtreemass[p.trunk]) * 9.81
+        self.weight = float(p.m.body_subtreemass[p.trunk]) * 9.81 if weight is None else float(weight)
         m, sd = p.m, p._sens
         self._gyro = sd["imu_gyro"][0]
         self._accel = sd["imu_accel"][0]
@@ -231,31 +234,38 @@ class Estimator:
     """CoM and velocity from encoders, IMU and stance-leg kinematics (module docstring).
 
     ``step(reading)`` every physics step; ``update()`` at the feedback rate; then ``view`` holds the estimated
-    kinematic data (``d``: an MjData of the plant's model at the estimated pose, kinematics, CoM and velocities
-    computed) and the estimates."""
+    kinematic data (``d``: an MjData of the estimator's model at the estimated pose, kinematics, CoM and velocities
+    computed) and the estimates.  ``model`` is the robot model the estimator knows (default: the plant's own; it must
+    have the plant's structure): given the nominal model while the plant's masses are randomised, its CoM is the
+    nominal model's at the estimated pose, a model error."""
 
-    def __init__(self, p: plant_mod.Plant, gains: EstimatorGains | None = None):
+    def __init__(self, p: plant_mod.Plant, gains: EstimatorGains | None = None, model: mujoco.MjModel | None = None):
         self.p = p
         self.g = gains or EstimatorGains()
         if self.g.stance_point not in STANCE_POINTS:
             raise ValueError(f"stance point {self.g.stance_point!r}: choose from {', '.join(STANCE_POINTS)}")
-        self.m = p.m
-        self.d = mujoco.MjData(p.m)
+        m = p.m if model is None else model
+        if model is not None and any(getattr(model, k) != getattr(p.m, k) for k in ("nq", "nv", "nbody", "ngeom",
+                                                                                      "nsite", "njnt")):
+            raise ValueError("the estimator's model must have the plant's structure (nq, nv, bodies, geoms, sites, "
+                             "joints)")
+        self.m = m
+        self.d = mujoco.MjData(m)
         self._views = MjViews(self.d)
         self._qs, self._vs = _span(p.qadr), _span(p.dofs)
         self._kv = 0  # the kinematics' version: a new number at every _kin (control's cap reuses them between)
         self._Rb = np.zeros(9)  # step's attitude matrix buffer
-        self.dt = float(p.m.opt.timestep)
-        self.weight = float(p.m.body_subtreemass[p.trunk]) * 9.81
+        self.dt = float(m.opt.timestep)
+        self.weight = float(m.body_subtreemass[p.trunk]) * 9.81
         self.trunk, self.feet = p.trunk, p.feet
-        imu = mujoco.mj_name2id(p.m, mujoco.mjtObj.mjOBJ_SITE, plant_mod.IMU_SITE)
-        self.r_imu = p.m.site_pos[imu].copy()  # trunk frame (the site has no rotation)
+        imu = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, plant_mod.IMU_SITE)
+        self.r_imu = m.site_pos[imu].copy()  # trunk frame (the site has no rotation)
         self.qadr, self.dofs = p.qadr, p.dofs
-        self.sole = sole_corners(p.m, self.feet)  # per foot: its pads' bottom corners in the foot frame
+        self.sole = sole_corners(m, self.feet)  # per foot: its pads' bottom corners in the foot frame
         self._res = np.zeros(6)
         self._kin(p.q_settled[:3], p.q_settled[3:7], p.q_settled[self.qadr])
         self.foot_z0 = float(np.mean([self.d.xpos[f][2] for f in self.feet])) - p.z_floor  # feet on the floor
-        self.reset(p.d.qpos.copy(), np.zeros(p.m.nv))
+        self.reset(p.d.qpos.copy(), np.zeros(m.nv))
 
     # ------------------------------------------------------------------ initialisation
     def reset(self, qpos, qvel, reading: dict | None = None) -> None:

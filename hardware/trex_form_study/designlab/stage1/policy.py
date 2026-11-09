@@ -12,11 +12,13 @@ alone (the deploy interface): the privileged part is then filled with zeros, whi
 of the critic that way would be meaningless, and the deploy path asks none.
 
 A model saves its ``actor_dim`` with its other constructor arguments, so ``PPO.load`` rebuilds the same policy.
-``DESIGN2`` holds design 2's network and PPO settings (plan section 2: "SB3 PPO uses Design 2's settings").
+``DESIGN2`` holds design 2's network and PPO settings (plan section 2: "SB3 PPO uses Design 2's settings");
+``LOG_STD_INIT`` the initial action noise, measured on R3 (``LOG_STD_RULE``).
 """
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -32,6 +34,19 @@ from torch import nn
 #: VecNormalize (clip_obs 10, clip_reward 50).
 DESIGN2 = dict(net_arch=(256, 256), n_envs=4, n_steps=2048, batch_size=256, n_epochs=5, gamma=0.99, gae_lambda=0.95,
                clip_range=0.2, lr_start=1e-4, lr_end=3e-5, target_kl=0.03, clip_obs=10.0, clip_reward=50.0)
+
+#: The initial action noise (SB3's ``log_std_init``: every action's standard deviation is exp of it at the start, then
+#: learned), from the measurement in ``ACTION_NOISE_RECORD`` (``LOG_STD_RULE``; ``train.action_noise_survival``).
+ACTION_NOISE_SIGMA = 0.02
+LOG_STD_INIT = math.log(ACTION_NOISE_SIGMA)  # -3.912
+ACTION_NOISE_RECORD = "stage1/runs/2026-11-08/ppo_action_noise.json"
+LOG_STD_RULE = (
+    "log_std_init = ln(sigma) for the largest measured sigma at and below which R3 keeps at least 18 of 20 nominal "
+    "walks (train.NOISE_RULE: 75-M-H-10, 10 episodes at the tuning start and 10 at its G5 selection, every action "
+    "N(0, sigma) per env step through the env's clip and 10 Hz filter): survival 20, 20, 19, 19, 17, 12, 9 of 20 at "
+    "sigma 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04 (the tuning start 10, 10, 9, 9, 7, 2, 0 of 10; the G5 selection "
+    "10, 10, 10, 10, 10, 10, 9), so sigma 0.02, log_std_init -3.91 (the build's earlier -1.0, sigma 0.37, lies far "
+    "beyond the measured range).  R4 takes the same value (equal settings; not measured on R4)")
 
 
 class PrivilegedError(ValueError):
@@ -123,7 +138,7 @@ def linear_schedule(start: float, end: float):
     return schedule
 
 
-def model_kwargs(actor_dim: int, *, net_arch=DESIGN2["net_arch"], log_std_init: float = -1.0) -> dict[str, Any]:
+def model_kwargs(actor_dim: int, *, net_arch=DESIGN2["net_arch"], log_std_init: float = LOG_STD_INIT) -> dict[str, Any]:
     """The PPO constructor arguments of design 2 with the privileged critic (``n_envs`` is the vec env's)."""
     d = DESIGN2
     return dict(policy=PrivilegedCriticPolicy,
@@ -134,5 +149,5 @@ def model_kwargs(actor_dim: int, *, net_arch=DESIGN2["net_arch"], log_std_init: 
                 learning_rate=linear_schedule(d["lr_start"], d["lr_end"]), target_kl=d["target_kl"])
 
 
-__all__ = ["DESIGN2", "PrivilegedCriticPolicy", "PrivilegedError", "PrivilegedMlpExtractor", "linear_schedule",
-           "model_kwargs"]
+__all__ = ["ACTION_NOISE_RECORD", "ACTION_NOISE_SIGMA", "DESIGN2", "LOG_STD_INIT", "LOG_STD_RULE", "PrivilegedCriticPolicy",
+           "PrivilegedError", "PrivilegedMlpExtractor", "linear_schedule", "model_kwargs"]

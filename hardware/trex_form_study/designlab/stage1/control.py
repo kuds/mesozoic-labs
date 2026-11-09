@@ -8,6 +8,10 @@
 * **R2**: the tracker on the estimate (``estimator``: encoders, IMU with noise, stance-leg kinematics at the loaded
   pad's contact point, decision 19).
 
+The controller's own model of the robot (``Tracker.model``) is the plant's unless one is given: the PPO envs randomise
+the plant's trunk mass and give the tracker the nominal model (its mass, R2's estimator and its sensors' weight), a
+deliberate model error (``env.MASS_RULE``).
+
 Servo target (plan section 2), every physics step (500 Hz), in joint space and set in motor coordinates by
 ``plant.Plant.command``::
 
@@ -122,7 +126,6 @@ from pathlib import Path
 
 import mujoco
 import numpy as np
-from numpy.linalg import _umath_linalg
 from scipy.spatial import ConvexHull
 
 from .. import statics
@@ -132,6 +135,16 @@ from .refs import Reference
 from .transitions import N_FRAMES, TRANSITIONS, Transition, stop_command_phase
 
 _Views = est_mod.MjViews
+
+try:  # the LAPACK gufunc behind np.linalg.solve (``_solve2``): numpy's private module, so used only where it exists
+    from numpy.linalg import _umath_linalg as _np_umath_linalg
+
+    _SOLVE1 = _np_umath_linalg.solve1
+except (ImportError, AttributeError):  # pragma: no cover - a numpy without the private gufunc
+    _SOLVE1 = None
+#: The solve ``_solve2`` runs: numpy's gufunc directly, or ``np.linalg.solve`` where numpy has no such private module
+#: (the same LAPACK call and results on the pinned numpy 2.5.4, only with numpy's argument checks; recorded with runs).
+SOLVE2_PATH = "numpy.linalg._umath_linalg.solve1" if _SOLVE1 is not None else "numpy.linalg.solve"
 
 FEEDBACK_EVERY = 5
 #: How the 100 Hz feedback reaches the 500 Hz servo targets: "ramp" (first-order hold: each update's offsets are
@@ -455,8 +468,10 @@ def _solve2(A: np.ndarray, rhs: np.ndarray) -> np.ndarray:
     """``np.linalg.solve(A, rhs)`` for a float64 (n, n) matrix and a float64 (n,) vector: the same LAPACK gufunc numpy
     calls (``_umath_linalg.solve1``, signature dd->d), without numpy's argument checks.  A result that is not finite
     (a singular matrix, or an overflow) is recomputed by ``np.linalg.solve`` itself, which raises or returns as it
-    did."""
-    r = _umath_linalg.solve1(A, rhs, signature="dd->d")
+    did.  Where numpy has no such private gufunc (``SOLVE2_PATH``), ``np.linalg.solve`` throughout."""
+    if _SOLVE1 is None:  # pragma: no cover - a numpy without the private gufunc
+        return np.linalg.solve(A, rhs)
+    r = _SOLVE1(A, rhs, signature="dd->d")
     for v in r.tolist():
         if not math.isfinite(v):
             return np.linalg.solve(A, rhs)
@@ -1158,12 +1173,17 @@ class Tracker:
 
     def __init__(self, p: plant.Plant, track: Track, mode: str = "R1", gains=None, terms=TERMS,
                  noise: est_mod.SensorNoise | None = None, seed: int = 0, est_gains: est_mod.EstimatorGains | None = None,
-                 inward_bound: str | None = INWARD_BOUNDS[0], ankle_cap=ANKLE_CAP, rate: float = 1.0):
+                 inward_bound: str | None = INWARD_BOUNDS[0], ankle_cap=ANKLE_CAP, rate: float = 1.0,
+                 model: mujoco.MjModel | None = None):
         if mode not in MODES:
             raise ValueError(f"mode {mode!r}: choose from {', '.join(MODES)}")
         if not (rate > 0.0 and math.isfinite(rate)) or (mode == "R0" and rate != 1.0):
             raise ValueError(f"rate {rate!r}: a positive clock rate, and 1 for R0 (G2's replay clock)")
         self.p, self.track, self.mode = p, track, mode
+        #: The controller's own model of the robot (None: the plant's model): the mass the tracker works with, and R2's
+        #: estimator's kinematic and inertial model and its sensors' weight.  A plant whose masses are randomised
+        #: (``env.py``) keeps the nominal model here: a deliberate model error, as a real robot's controller has.
+        self.model = model
         #: The commanded clock rate (``COMMAND_RATE_RULE``): the track runs this much faster than real time, the
         #: phase-rate term's +-5 % about it; 1 is the references' own timing (G4).
         self.rate = float(rate)
@@ -1179,7 +1199,7 @@ class Tracker:
         self.damp = m.dof_damping[p.dofs].copy()
         self.fric = m.dof_frictionloss[p.dofs].copy()
         self.extra = p.armature_extra if np.any(p.armature_extra) else None
-        self.mass = float(m.body_subtreemass[p.trunk])
+        self.mass = float((m if model is None else model).body_subtreemass[p.trunk])
         self.H = float(p.meta["H_m"])
         if inward_bound not in INWARD_BOUNDS:
             raise ValueError(f"inward bound {inward_bound!r}: choose from {INWARD_BOUNDS}")
@@ -1306,8 +1326,9 @@ class Tracker:
         self.step_off = [np.zeros(2), np.zeros(2)]  # the swing foot's touchdown offset (anchor frame, m)
         self.sensors = self.est = None
         if self.mode == "R2":
-            self.sensors = est_mod.NoisySensors(p, self.noise, noise_seed)
-            self.est = est_mod.Estimator(p, self.est_gains)
+            self.sensors = est_mod.NoisySensors(p, self.noise, noise_seed,
+                                                weight=None if self.model is None else self.mass * G)
+            self.est = est_mod.Estimator(p, self.est_gains, model=self.model)
             if start == "frame":  # the start state is the commanded one (the estimate's world frame)
                 self.est.reset(p.d.qpos.copy(), p.d.qvel.copy(), self.sensors.read())
             else:  # at rest: from the sensors; the start's heading and position define the estimate's world frame
@@ -1354,10 +1375,10 @@ class Tracker:
             for k, v in snap["est"].items():
                 setattr(e, k, copy.deepcopy(v))
             e.d.qpos[:], e.d.qvel[:] = snap["est_qpos"], snap["est_qvel"]
-            mujoco.mj_kinematics(m, e.d)
-            mujoco.mj_comPos(m, e.d)
-            mujoco.mj_comVel(m, e.d)
-            mujoco.mj_subtreeVel(m, e.d)
+            mujoco.mj_kinematics(e.m, e.d)  # (the estimator's own model: the plant's unless the tracker has a model)
+            mujoco.mj_comPos(e.m, e.d)
+            mujoco.mj_comVel(e.m, e.d)
+            mujoco.mj_subtreeVel(e.m, e.d)
             self.sensors.rng.bit_generator.state = copy.deepcopy(snap["rng"])
 
     # ------------------------------------------------------------------ one physics step
