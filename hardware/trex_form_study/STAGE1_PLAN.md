@@ -368,3 +368,42 @@ change no body (P24).
     - **The reading must hold.** Each push episode runs 2 s past the 3 s, so the reading holds for at least 2 s. A fall
       before the end means the body has not recovered. An update at the pulse's end itself is recorded as "never left
       the command".
+31. **How the panels read §4** (`designlab/stage1/panels.py`; each rule is copied into every record).
+    - **Rows.**
+      - R0 is the tracker with every feedback term and the ankle cap off. It commands R0's targets on the 1.05 clock,
+        and at rate 1 it equals R0 exactly.
+      - R1 runs on the true CoM with the body-level G5 gains.
+      - R2/42 and R2/43 each use their own CMA-ES seed's G5 selection.
+      - R0 and R1 run every hard-floor condition, the μ 0.54 walks included. The R2 rows run all of them.
+    - **Floors and friction.**
+      - μ 0.9 is the plant as compiled, so G5's episodes reproduce exactly; μ 0.54 is set as G4 set it.
+      - The carpet walk sets μ 0.54, as the env does.
+      - Piles are §2's 4 mm evaluation piles, not the 8 mm training grid.
+      - Medium and high pile are not run on the 60 cm bodies: no 60 cm body has a settled stance on them (round two:
+        none stands passively there).
+    - **Walks.** Brisk and Fr 0.05 have no stop reference of their own, so each ends in its gait and is judged over its
+      last 10 s. Cadence, stride and peak GRF are judged at nominal speed only, as §4 says.
+    - **Turns** have a fixed direction per condition.
+    - **Start and stop.** One nominal stride separates the start from the stop, with 2 s standing between the two
+      cycles and at the end. Each stop is read by decision 18, from its own command until the next start.
+    - **Pushes.** Each of the 4 directions, standing and walking, is its own 20-episode condition.
+      - The force is the body's mass × 0.5 × the Stage 0 forward bound / 0.1 s, at the trunk's CoM.
+      - The onset is drawn from the episode's seed and is the same for every row; walking pushes land at a uniform phase
+        within the second stride.
+      - Recovery follows decision 30.
+    - **Carpet.** Judged as a nominal walk. "Above the pile" means above the uncompressed pile top, and a toe catch is
+      the lowest point at or below the pile top in mid-swing.
+    - **Limits.** Stands, pushes and start/stop judge the drive and range limits over the whole episode; walks and turns
+      judge them over tune's windows.
+    - **Attribution** (decision 20) runs on a condition's falls only when there are at least 5 of them, because the
+      sign test cannot reach p < 0.05 with fewer. It runs with no null run.
+      - A fall whose only candidate cannot be lifted (the CoP at a pad edge with the ankle saturated) is labelled
+        controller-limited with that candidate named.
+      - A success failure without a fall is labelled by its terms' class. Hardware terms: drive RMS, drive speed, joint
+        range, leg interference. Controller terms: all the others.
+    - **Verdicts per controller.** R2's come from R2/42 and R2/43, R3's from R3/42 and R3/43; R4 is at most provisional.
+      The carpet condition is reported for R0–R2 and gated for R3 and R4 (decision 23).
+    - **G7 gate.** Stage 0's sway (2 × the reference's sway amplitude / H) and cadence (2 / period) are read from the
+      references themselves. This is a kinematic check, not a physics run.
+    - **Failed episodes.** An episode that raised, or whose worker was lost, is counted apart from falls and is re-run on
+      resume. Every episode keeps a 50 Hz trace (git-ignored).
