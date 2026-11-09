@@ -258,3 +258,13 @@ the two-motor ankle, which lets one axis take up to twice a motor's peak torque 
     get an equal per-body share of the time left (5M steps per seed if the faster tracker lands, otherwise cut
     equally); if the cap is reached, every body is judged at the last checkpoint all of them reached (§6). The owner
     may set a different cap.
+
+22. **The fit's rules** (objective `stage1-tune-v2`, `designlab/stage1/tune.py`). CMA-ES fits 13 gains; the capture
+    step's margin is held at its decision-16 start value, 0.0, because the fit's behavior mix has no standing push and
+    the objective cannot see it (the gated push panels later use 0.0). G5 selects the candidate with the fewest
+    validation falls, then the lower mean survival penalty, then the lower mean performance penalty, so survival
+    dominates as §4 requires. Drive RMS is judged over the same window as the other walk and turn limits. During the
+    fit and until G5 has run, the ten modules the tuner hashes (`__init__`, `control`, `drive`, `estimator`, `legs`,
+    `metrics`, `plant`, `refs`, `transitions`, `tune`), the run directory's reference and transition files, the
+    library versions, `designlab/*.py` and `round2/` stay unchanged; the faster tracker of decision 21 is built in a
+    separate working tree.

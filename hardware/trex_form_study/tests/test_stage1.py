@@ -10,11 +10,14 @@ nominal replay and its panel) take minutes and run only with STAGE1_SLOW=1 (the 
 
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 import os
 import re
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import mujoco
@@ -1639,6 +1642,41 @@ def test_walk_measures_on_a_short_walk(hard, nominal_ref):
     hard.reset()
 
 
+def test_drive_rms_is_judged_over_the_window(hard, nominal_ref):
+    """The drives' motor-space RMS is read over the same window as the other limits: the recorder keeps every physics
+    step's motor forces (over the whole episode they give control.run's own reading), and the tuner judges and scores
+    the window's RMS, reporting the episode's beside it."""
+    tk = _tracker(hard, nominal_ref, strides=6.0)
+    rec = metrics.Recorder()
+    T = nominal_ref.period
+    r = control.run(tk, 4 * T, recorder=rec)
+    H, heading = hard.meta["H_m"], float(rec.col("yaw")[0])
+    assert rec.force_sq.shape == (rec.steps, hard.m.nu) and not r["fell"]
+    whole = metrics.window(rec, 0.0, rec.steps * rec.dt, heading, H)["drive_sustained_worst"]
+    assert whole[0] == r["worst_sustained_ratio"][0] and whole[1] == pytest.approx(r["worst_sustained_ratio"][1],
+                                                                                  rel=1e-12)
+    ta, tb = 1.0, 4 * T - 0.01
+    w = metrics.window(rec, ta, tb, heading, H, 1.0)
+    k0, k1 = int(np.ceil(ta / rec.dt - 1e-9)), int(np.floor(tb / rec.dt + 1e-9)) + 1
+    ratio = np.sqrt(np.mean(rec.force_sq[k0:k1], axis=0)) / np.array([dr.sustained for dr in hard.drives])
+    assert w["drive_sustained_worst"] == [hard.drives[int(np.argmax(ratio))].actuator, float(ratio.max())]
+    assert w["drive_sustained_worst"][1] != whole[1]
+    spec = tune.EpisodeSpec(kind="walking_turn", direction="left", plan=[], track=tk.track, seconds=4 * T, period_s=T,
+                            stride_s=T, speed_cmd=0.2, speed_target=0.2, yaw_cmd=0.35, yaw_target=0.35, sign=1.0,
+                            start_ref=0.5, stop_ref=4 * T, window_ref=(ta, tb), ref_margins=np.full(14, 0.5),
+                            required_margins=np.zeros(14), info=dict(lo=tk.lo, hi=tk.hi, H=H, weight=1.0,
+                                                                     turned_ref_rad=None))
+    res = tune.measure(spec, rec, r)
+    sus = w["drive_sustained_worst"][1]
+    assert res["window"]["complete"] and res["window_sustained_ratio"] == w["drive_sustained_worst"]
+    assert res["worst_sustained_ratio"] == r["worst_sustained_ratio"]  # the episode's, reported
+    assert res["limits"]["drive_sustained"] == tune.hinge(sus, 1.0, 1.0)
+    assert res["success"]["drive_sustained"] == (sus <= 1.0)
+    assert "drive RMS is judged over the same window as the other limits" in tune.SUCCESS_RULE
+    assert "motor-space RMS over the window" in tune.TERMS_RULE
+    hard.reset()
+
+
 def test_foot_lowest_point_is_exact(hard):
     hard.reset()
     m, d = hard.m, hard.d
@@ -1750,9 +1788,210 @@ def test_episode_seeds_directions_and_training_order():
     assert tune.candidate_generations(60) == [20, 40, 60] and tune.candidate_generations(2) == [1, 2]
     assert tune.BUDGET % tune.POPSIZE == 0 and tune.BUDGET // tune.POPSIZE == 60 and tune.SEEDS == (42, 43)
     x = tune.to_unit(control.START_GAINS)
-    assert np.allclose(tune.from_unit(x), control.START_GAINS) and tune.repair_penalty(x) == 0.0
+    assert x.shape == (13,) and np.allclose(tune.from_unit(x), control.START_GAINS) and tune.repair_penalty(x) == 0.0
     assert tune.repair_penalty(np.r_[x[:-1], 1.2]) == pytest.approx(0.04)
-    assert np.all(tune.from_unit(np.full(14, 2.0)) == control.GAIN_BOUNDS[:, 1])  # evaluated at the projection
+    top = tune.from_unit(np.full(13, 2.0))  # evaluated at the projection; the fixed gain at its start
+    searched = [control.GAIN_NAMES.index(n) for n in tune.SEARCHED]
+    assert np.all(top[searched] == control.GAIN_BOUNDS[searched, 1]) and top[13] == 0.0
+    with pytest.raises(ValueError):
+        tune.from_unit(np.full(14, 0.5))
+
+
+def test_capture_margin_is_held_at_its_start():
+    """The fit's mix has no standing push, so the capture margin is not searched: it stays at decision 16's start
+    (0.0), which the gated push panels use.  The four gains that start on their lower bound are the heading and
+    phase-rate terms, which G5's diagnostic sets to zero."""
+    assert tune.FIXED_GAINS == {"capture_margin": 0.0} == {"capture_margin": control.gains_dict()["capture_margin"]}
+    assert tune.SEARCHED == tuple(n for n in control.GAIN_NAMES if n != "capture_margin") and len(tune.SEARCHED) == 13
+    g = tune.from_unit(np.random.default_rng(0).uniform(-0.5, 1.5, 13))
+    assert g[control.GAIN_NAMES.index("capture_margin")] == 0.0 and g.shape == control.START_GAINS.shape
+    assert tune.CMA_SETTINGS["searched"] == list(tune.SEARCHED) and tune.CMA_SETTINGS["fixed"] == tune.FIXED_GAINS
+    i = [control.GAIN_NAMES.index(n) for n in tune.SEARCHED]
+    assert tune.CMA_SETTINGS["bounds"] == control.GAIN_BOUNDS[i].tolist()
+    assert tune.OBJECTIVE["gains"] == list(tune.SEARCHED) and tune.OBJECTIVE["fixed_gains"] == tune.FIXED_GAINS
+    assert "no standing push" in tune.FIXED_RULE and "push panels later use 0.0" in tune.FIXED_RULE
+    assert tune.FIXED_RECORD == dict(gains=tune.FIXED_GAINS, rule=tune.FIXED_RULE)
+    assert tune.LOWER_BOUND_START == ("k_yaw", "ki_yaw", "k_phase", "ki_phase")
+    z = tune.zeroed(control.EARLIER_DEFAULTS)
+    four = [control.GAIN_NAMES.index(n) for n in tune.LOWER_BOUND_START]
+    rest = [j for j in range(14) if j not in four]
+    assert np.all(z[four] == 0.0) and np.array_equal(z[rest], control.EARLIER_DEFAULTS[rest])
+    assert np.array_equal(tune.zeroed(control.START_GAINS), control.START_GAINS)
+
+
+def test_tuner_sources_are_the_modules_the_tuner_imports():
+    """The resume guard and G5 compare the designlab/stage1 modules the tuner imports, and only those: new files
+    (env.py, policy.py, train.py), the command line and gates.py may change while a fit runs; a change to any module
+    the tuner imports, or a new module it starts to import, changes the hash."""
+    ts = tune.tuner_sources()
+    want = ["__init__.py", "control.py", "drive.py", "estimator.py", "legs.py", "metrics.py", "plant.py", "refs.py",
+            "transitions.py", "tune.py"]
+    assert ts["modules"] == want and ts["rule"] == tune.TUNER_SOURCES_RULE and len(ts["sha256"]) == 64
+    files = tune.package_files()
+    assert ts["sha256"] == plant.sources_sha256({m: files[m] for m in want}) != plant.sources_sha256(files)
+    grown = dict(files, **{"env.py": b"from . import control, plant\n", "policy.py": b"from .env import X\n",
+                           "train.py": b"from . import env, policy\n"})
+    grown["__main__.py"] = files["__main__.py"] + b"\n# a train command\n"
+    grown["gates.py"] = files["gates.py"] + b"\n# G6a\n"
+    assert tune.tuner_sources(grown)["sha256"] == ts["sha256"]
+    for m in want:
+        assert tune.tuner_sources(dict(files, **{m: files[m] + b"\n"}))["sha256"] != ts["sha256"], m
+    pulled = dict(grown, **{"metrics.py": files["metrics.py"] + b"\n\ndef _late():\n    from .env import X\n"})
+    mods = tune.tuner_modules(pulled)  # a module the tuner starts to import joins the hash (not the ones importing it)
+    assert "env.py" in mods and "policy.py" not in mods and "train.py" not in mods
+    with pytest.raises(ValueError, match="not modules"):
+        tune.tuner_modules(dict(files, **{"tune.py": files["tune.py"] + b"\nfrom .nowhere import x\n"}))
+    # the closure holds every designlab/stage1 module a fresh import of the tuner loads
+    code = "import sys, designlab.stage1.tune; print(sorted(m for m in sys.modules if m.startswith('designlab.stage1')))"
+    run = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True,
+                         env=dict(os.environ, PYTHONPATH=str(ROOT)))
+    loaded = {"__init__.py" if m == "designlab.stage1" else m.split(".")[2] + ".py"
+              for m in ast.literal_eval(run.stdout.strip().splitlines()[-1])}
+    assert "tune.py" in loaded and loaded <= set(want)
+
+
+def _input_dir(root: Path) -> Path:
+    """A run directory with a stand-in for every file the mix loads, listed with its sha256 in refs.json and
+    transitions.json as ``refs.prepare`` and ``transitions.prepare`` list them."""
+    run = root / BODY
+    docs = {"refs.json": {"references": {}}, "transitions.json": {"transitions": {}}}
+    for f in tune.mix_files():
+        p = run / f
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(f.encode())
+        doc = docs["refs.json"]["references"] if f.startswith("refs/") else docs["transitions.json"]["transitions"]
+        doc[Path(f).stem] = dict(name=Path(f).stem, file=f, sha256=plant.sha256(p))
+    for name, doc in docs.items():
+        (run / name).write_text(json.dumps(doc))
+    return run
+
+
+def test_inputs_are_checked_against_their_records(tmp_path):
+    """Every reference and transition file the mix loads is checked against the sha256 that refs.json or
+    transitions.json lists for it before the evaluator loads it; both records are hashed; two input records are
+    compared file by file."""
+    files = tune.mix_files()
+    assert len(files) == 15 and "refs/nominal.npz" in files  # nominal also sets omega0
+    for kind in tune.EPISODES:
+        for d in ((None,) if kind == "walk" else ("left", "right")):
+            for item in tune.episode_plan(kind, d):
+                assert f"{'refs' if item[0] == 'ref' else 'transitions'}/{item[1]}.npz" in files
+    run = _input_dir(tmp_path)
+    rec = tune.verify_inputs(run)
+    assert sorted(rec["files"]) == files and rec["rule"] == tune.INPUTS_RULE
+    assert rec["records"] == {n: plant.sha256(run / n) for n in ("refs.json", "transitions.json")}
+    assert rec["files"]["transitions/stop.npz"] == plant.sha256(run / "transitions" / "stop.npz")
+    assert tune.input_differences(rec, json.loads(json.dumps(dict(rec, dir="elsewhere")))) == []
+    other = json.loads(json.dumps(rec))
+    other["files"]["refs/nominal.npz"] = "f" * 64
+    other["records"]["transitions.json"] = "e" * 64
+    diff = tune.input_differences(rec, other)
+    assert len(diff) == 2 and diff[0].startswith("refs/nominal.npz") and diff[1].startswith("transitions.json")
+    assert tune.input_differences(None, rec) == ["no record of the inputs"] == tune.input_differences(rec, {})
+    (run / "transitions" / "stop.npz").write_bytes(b"regenerated")  # a file that is not the one its record names
+    with pytest.raises(tune.InputError, match=r"transitions/stop.npz has sha256 .*transitions.json records"):
+        tune.verify_inputs(run)
+    (run / "transitions" / "stop.npz").write_bytes(b"transitions/stop.npz")
+    assert tune.verify_inputs(run) == rec
+    (run / "refs" / "walk_0.35_left.npz").unlink()
+    with pytest.raises(tune.InputError, match="walk_0.35_left.npz is missing"):
+        tune.verify_inputs(run)
+    run2 = _input_dir(tmp_path / "b")
+    doc = json.loads((run2 / "refs.json").read_text())
+    del doc["references"]["nominal"]
+    (run2 / "refs.json").write_text(json.dumps(doc))
+    with pytest.raises(tune.InputError, match="refs/nominal.npz is not listed"):
+        tune.verify_inputs(run2)
+
+
+def test_failures_score_as_the_worst_case(hard):
+    """An evaluation that raises scores as every episode a fall at its start (J = 7), with its traceback in the log;
+    an episode during which MuJoCo warned (it resets the state and runs on) counts as a fall at its start."""
+    worst = tune.failed_evaluation(1001, "Traceback: boom", {"walk": 30.0})
+    assert (worst["J"], worst["S"], worst["P"], worst["falls"]) == (7.0, 6.0, 1.0, 3)
+    assert worst["error"] == "Traceback: boom" and worst["directions"] == tune.directions(1001)
+    assert all(e["fell"] and e["fall_time_s"] == 0.0 and not e["succeeded"] for e in worst["episodes"].values())
+    assert worst["terms"] == [1.0] * len(tune.TERM_ORDER) and worst["episodes"]["walk"]["planned_seconds"] == 30.0
+    line = tune._eval_line(0, 0, np.zeros(13), worst["J"], worst)
+    assert line["error"] == "Traceback: boom" and json.loads(json.dumps(line)) == line
+    assert "error" not in tune._eval_line(0, 0, np.zeros(13), 0.0, _stub_eval(control.START_GAINS, 1000))
+    ev = tune.Evaluator.__new__(tune.Evaluator)  # an evaluator whose episodes raise (it holds no episode specs)
+    ev.specs = {}
+    r = ev.evaluate(control.START_GAINS, 1000)
+    assert r["J"] == 7.0 and r["error"].startswith("Traceback") and "KeyError" in r["error"]
+    rec = tune._validation_record(r)
+    assert rec["error"] == r["error"] and tune._validation_summary([r])["errors"] == 1
+    assert set(tune.SIM_WARNINGS) == {f"mjWARN_{w}" for w in ("INERTIA", "CONTACTFULL", "CNSTRFULL", "BADQPOS",
+                                                             "BADQVEL", "BADQACC", "BADCTRL")}
+    hard.reset()
+    assert tune.sim_warnings(hard.d) == {}
+    hard.d.qvel[0] = np.nan
+    mujoco.mj_step(hard.m, hard.d)  # MuJoCo warns, resets the data and runs on as if nothing had happened
+    w = tune.sim_warnings(hard.d)
+    assert set(w) == {"BADQVEL"} and w["BADQVEL"]["number"] == 1 and hard.d.time < 0.01
+    out = tune.warned_fall(dict(fell=False, fall_time_s=None, fall_cause=None, seconds=5.0), w)
+    assert out["fell"] and out["fall_time_s"] == 0.0 and "BADQVEL" in out["fall_cause"] and out["mujoco_warnings"] == w
+    assert tune.warned_fall(dict(fell=False), {}) == dict(fell=False)
+    hard.reset()
+    assert tune.sim_warnings(hard.d) == {}  # every episode starts from a reset: its own warnings only
+
+
+class _ScriptedEvaluator:
+    """A worker's evaluator for the pool test: a job's seed says what it does (last digit 0: answer; 2: kill its
+    process on every attempt; 3: kill it on the first attempt only; 4: hang on the first attempt only), the attempts
+    marked in files under ``run_dir``."""
+
+    def __init__(self, body, run_dir, mode, rate, expected_inputs):
+        self.dir = Path(run_dir)
+        self.inputs = dict(files={"refs/nominal.npz": "0" * 64}, records={"refs.json": "1" * 64})
+        if expected_inputs is not None and tune.input_differences(expected_inputs, self.inputs):
+            raise tune.InputError("not the inputs the pool started on")
+        if (self.dir / "fail_start").exists():
+            raise RuntimeError("no evaluator")
+
+    def describe(self):
+        return {"walk": {"seconds": 30.0}}
+
+    def evaluate(self, gains, seed):
+        mark = self.dir / f"attempt_{seed}_{len(list(self.dir.glob(f'attempt_{seed}_*')))}"
+        mark.touch()
+        first = mark.name.endswith("_0")
+        if seed % 10 == 2 or (seed % 10 == 3 and first):
+            os._exit(3)
+        if seed % 10 == 4 and first:
+            time.sleep(60)
+        return dict(J=float(np.sum(gains)), episode_seed=int(seed), pid=os.getpid())
+
+
+def _scripted_evaluator(*args):
+    return _ScriptedEvaluator(*args)
+
+
+def test_worker_pool_replaces_lost_workers_instead_of_hanging(tmp_path):
+    """A worker that dies or hangs is replaced and its evaluation run again; one that is lost twice scores as the
+    worst case with the reason; every incident is recorded; results come back in job order; a worker that cannot be
+    started raises instead of hanging."""
+    pool = tune.Pool(BODY, tmp_path, workers=2, timeout_s=3.0, factory=_scripted_evaluator)
+    try:
+        assert pool.inputs["files"] == {"refs/nominal.npz": "0" * 64} and pool.describe() == {"walk": {"seconds": 30.0}}
+        assert pool.sources == tune.tuner_sources()["sha256"]  # what every worker, a replacement too, runs
+        seeds = [10, 22, 33, 44, 50]
+        res = pool.map([(np.full(3, 0.5), s) for s in seeds])
+    finally:
+        pool.close()
+    assert [r["episode_seed"] for r in res] == seeds
+    assert [r["J"] for r in res] == [1.5, 7.0, 1.5, 1.5, 1.5]
+    assert "died" in res[1]["error"] and "2 attempts" in res[1]["error"] and res[1]["falls"] == 3
+    assert res[1]["episodes"]["walk"]["planned_seconds"] == 30.0
+    lost = [(x["episode"], x["attempt"], x["then"]) for x in pool.incidents]
+    assert (22, 1, "run again in a fresh worker") in lost and (22, 2, "scored as the worst case (FAILURE_RULE)") in lost
+    assert (33, 1, "run again in a fresh worker") in lost and len(pool.incidents) == 4
+    hung = [x for x in pool.incidents if x["episode"] == 44]
+    assert len(hung) == 1 and "no answer within 3 s" in hung[0]["what"]
+    assert len(list(tmp_path.glob("attempt_22_*"))) == 2 and len(list(tmp_path.glob("attempt_10_*"))) == 1
+    (tmp_path / "fail_start").touch()
+    with pytest.raises(tune.PoolError, match="could not build its evaluator"):
+        tune.Pool(BODY, tmp_path, workers=2, factory=_scripted_evaluator)
 
 
 def test_cma_es_converges_and_round_trips_exactly():
@@ -1775,11 +2014,19 @@ def test_cma_es_converges_and_round_trips_exactly():
     assert tune.CMA(np.zeros(14), 0.1, 12, 7).ask().tolist() == tune.CMA(np.zeros(14), 0.1, 12, 7).ask().tolist()
 
 
+STUB_INPUTS = dict(dir="stub", rule=tune.INPUTS_RULE, files={"refs/nominal.npz": "0" * 64},
+                   records={"refs.json": "1" * 64, "transitions.json": "2" * 64})
+
+
 class _StubPool:
     """``tune.Pool`` on an analytic objective (fast): the checkpoints, the log and the selection without simulation."""
 
+    inputs = STUB_INPUTS
+
     def __init__(self, body, src, workers=1, *args, **kw):
-        self.src = src
+        self.src, self.workers, self.incidents = src, workers, []
+        self.inputs = json.loads(json.dumps(type(self).inputs))
+        self.sources = tune.tuner_sources()["sha256"]
 
     def describe(self):
         return {"stub": str(self.src)}
@@ -1806,7 +2053,8 @@ def _log(path):
 
 def test_tune_checkpoints_every_generation_and_resumes_exactly(tmp_path, monkeypatch):
     """A run stopped after a generation (and one that crashed with evaluations logged past its checkpoint) resumes
-    to exactly the uninterrupted run; a run is not restarted over, nor resumed on changed sources."""
+    to exactly the uninterrupted run; a run is not restarted over, nor resumed on changed tuner sources or inputs, but
+    it is resumed when only other designlab/stage1 files changed (new modules for the later steps)."""
     monkeypatch.setattr(tune, "Pool", _StubPool)
     a = tune.tune(BODY, 42, evals=36, out=tmp_path / "a", log=lambda m: None)
     assert a["evals"] == 36 and len(a["history"]) == 3 and a["status"] == "partial"
@@ -1818,6 +2066,12 @@ def test_tune_checkpoints_every_generation_and_resumes_exactly(tmp_path, monkeyp
     assert _log(d / "evals.jsonl") == _log(tune.run_dir_of(tmp_path / "a", BODY, 42) / "evals.jsonl")
     assert b["state"] == a["state"] and [h["mean"] for h in b["history"]] == [h["mean"] for h in a["history"]]
     assert len(b["sessions"]) == 2 and b["sessions"][1]["from_generation"] == 1 and b["inputs"].endswith(BODY)
+    for s in b["sessions"]:  # each session names the tuner's modules and the inputs it ran on
+        assert s["tuner_sources"] == tune.tuner_sources() and s["inputs"] == STUB_INPUTS and s["incidents"] == []
+        assert s["tuner_sources_unchanged_during_session"] and s["workers"] == 1
+    assert b["fixed_gains"] == tune.FIXED_RECORD and b["objective"]["name"] == "stage1-tune-v2"
+    assert all(h["mean_gains"][13] == 0.0 and h["best_gains"][13] == 0.0 for h in b["history"])
+    assert all(len(r["x"]) == 13 for r in _log(d / "evals.jsonl"))
     eps = [h["episode"] for h in b["history"]]
     assert eps == [int(x) for x in tune.training_order(42)[:3]]
     rows = _log(d / "evals.jsonl")
@@ -1825,37 +2079,112 @@ def test_tune_checkpoints_every_generation_and_resumes_exactly(tmp_path, monkeyp
     assert all(r["episode"] == eps[r["gen"]] for r in rows)  # common random numbers within a generation
     with pytest.raises(SystemExit, match="exists"):
         tune.tune(BODY, 42, evals=48, out=tmp_path / "b", log=lambda m: None)
-    real = plant.provenance
+    before = (d / "cma.json").read_text()
+    real = tune.tuner_sources
+    monkeypatch.setattr(tune, "tuner_sources", lambda: dict(real(), sha256="0" * 64))
+    with pytest.raises(SystemExit, match="tuner's sources changed"):
+        tune.tune(BODY, 42, evals=48, resume=True, out=tmp_path / "b", log=lambda m: None)
+    monkeypatch.setattr(tune, "tuner_sources", real)
+    monkeypatch.setattr(_StubPool, "inputs", dict(STUB_INPUTS, files={"refs/nominal.npz": "9" * 64}))
+    with pytest.raises(SystemExit, match=r"inputs changed .*refs/nominal.npz"):
+        tune.tune(BODY, 42, evals=48, resume=True, out=tmp_path / "b", log=lambda m: None)
+    assert (d / "cma.json").read_text() == before  # a refused resume changes nothing
+    monkeypatch.setattr(_StubPool, "inputs", STUB_INPUTS)
+    prov = plant.provenance
 
-    def changed():
-        p_ = real()
+    def grown():  # other designlab/stage1 files added or changed: the package hash moves, the tuner's does not
+        p_ = prov()
         p_["stage1_sources"]["sha256"] = "0" * 64
         return p_
 
-    monkeypatch.setattr(plant, "provenance", changed)
-    with pytest.raises(SystemExit, match="sources changed"):
-        tune.tune(BODY, 42, evals=48, resume=True, out=tmp_path / "b", log=lambda m: None)
+    monkeypatch.setattr(plant, "provenance", grown)
+    c = tune.tune(BODY, 42, evals=48, resume=True, out=tmp_path / "b", log=lambda m: None)
+    assert c["evals"] == 48 and len(c["sessions"]) == 3 and not c["sessions"][2]["package_sources_unchanged_during_session"]
+
+
+class _ScriptedG5Pool(_StubPool):
+    """``tune.Pool`` for the selection test: each candidate's validation outcome is scripted by its gains
+    (``outcomes``: gains -> mean P and the episodes it falls on, with the share survived); other gains (the zeroed
+    diagnostic) score P 0.5 without falls."""
+
+    outcomes: dict = {}
+
+    def map(self, jobs):
+        out = []
+        for g, s in jobs:
+            o = self.outcomes.get(tuple(np.asarray(g, float).tolist()), dict(P=0.5, falls={}))
+            fell = s in o["falls"]
+            surv = o["falls"].get(s, 1.0)
+            eps = {k: dict(direction=None, fell=fell and k == "walk", fall_time_s=None, fall_cause=None,
+                           survived_frac=surv if k == "walk" else 1.0, succeeded=not (fell and k == "walk"), window={})
+                   for k in tune.EPISODES}
+            S = (1.0 + (1.0 - surv)) if fell else 0.0
+            out.append(dict(J=S + o["P"], S=S, P=o["P"], T=o["P"], L=o["P"], groups={}, falls=int(fell), episodes=eps,
+                            terms=[o["P"]], simulated_s=1.0, wall_s=0.0, episode_seed=int(s)))
+        return out
 
 
 def test_g5_selects_on_the_validation_objective(tmp_path, monkeypatch):
+    """Selection is lexicographic: fewer validation falls first, then the lower mean S, then the lower mean P (mean J
+    and the candidate's order break ties), not the lowest mean J, which spreads a fall over the 20 episodes.  G5 judges
+    a seed only on the tuner sources and the inputs its fit ran on, and reports the selection with its four
+    lower-bound-start gains at zero as a diagnostic."""
     monkeypatch.setattr(tune, "Pool", _StubPool)
     for seed in tune.SEEDS:
         tune.tune(BODY, seed, evals=36, out=tmp_path, log=lambda m: None)
+    gains = {"start": tuple(control.START_GAINS.tolist())}
+    for seed in tune.SEEDS:
+        hist = json.loads((tune.run_dir_of(tmp_path, BODY, seed) / "cma.json").read_text())["history"]
+        gains.update({f"seed{seed}_gen{g}": tuple(hist[g - 1]["mean_gains"]) for g in tune.candidate_generations(3)})
+    script = {"start": dict(P=0.0, falls={2001: 0.5, 2002: 0.5, 2003: 0.5}),  # three falls, the lowest P
+              # seed 42: gen3 has the lowest mean J (one late fall spread over 20 episodes); gen1 has no fall
+              "seed42_gen1": dict(P=0.20, falls={}), "seed42_gen2": dict(P=0.25, falls={}),
+              "seed42_gen3": dict(P=0.05, falls={2003: 0.9}),
+              # seed 43: one fall each for gen1 (early) and gen2 (late: the lower S); gen3 two falls, the lowest J
+              "seed43_gen1": dict(P=0.10, falls={2004: 0.1}), "seed43_gen2": dict(P=0.30, falls={2004: 0.9}),
+              "seed43_gen3": dict(P=0.01, falls={2005: 0.5, 2006: 0.5})}
+    monkeypatch.setattr(_ScriptedG5Pool, "outcomes", {gains[n]: o for n, o in script.items()})
+    monkeypatch.setattr(tune, "Pool", _ScriptedG5Pool)
     doc = tune.g5(BODY, out=tmp_path, require_done=False, log=lambda m: None)
     assert doc["validation_episodes"] == list(range(2000, 2020)) and doc["pass_"] is True
+    assert doc["selection_rule"] == tune.SELECTION_RULE and "fewer falls" in doc["selection_rule"]
+    assert doc["fixed_gains"] == tune.FIXED_RECORD and doc["seeds_refused"] == [] and doc["inputs"] == STUB_INPUTS
+    want = {42: "seed42_gen1", 43: "seed43_gen2"}
     for seed in tune.SEEDS:
         v = doc["seeds"][str(seed)]
         names = ["start"] + [f"seed{seed}_gen{g}" for g in tune.candidate_generations(3)]
-        assert [x["candidate"] for x in v["selection"]] == names
-        best = min(v["selection"], key=lambda x: x["J_mean"])
-        assert v["selected"] == best["candidate"] != "start"  # the fit moved toward the stub's optimum
-        assert v["pass_"] and all(c["successes"] == 20 for c in v["conditions"].values())
+        assert [x["candidate"] for x in v["selection"]] == names and v["sources_match"] and v["inputs_match"]
+        assert v["selected"] == want[seed] != min(v["selection"], key=lambda x: x["J_mean"])["candidate"]
+        ranked = sorted(v["selection"], key=lambda x: (x["falls"], x["S_mean"], x["P_mean"], x["J_mean"],
+                                                       names.index(x["candidate"])))
+        assert [x["candidate"] for x in ranked] == [x["candidate"] for x in sorted(v["selection"],
+                                                                                   key=lambda x: x["rank"])]
+        assert v["pass_"] and v["judged"] and all(c["successes"] >= 19 for c in v["conditions"].values())
+        zd = v["zeroed_diagnostic"]  # the selection with the heading and phase-rate gains at zero
+        assert zd["zeroed"] == list(tune.LOWER_BOUND_START) and not zd["identical_to_selected"]
+        assert zd["gains"] == control.gains_dict(tune.zeroed(gains[want[seed]]))
+        assert zd["validation"]["P_mean"] == 0.5 and len(zd["runs"]) == 20
+    assert doc["candidates"]["seed42_gen3"]["validation"]["falls"] == 1
     saved = json.loads((tmp_path / BODY / "tune.json").read_text())
     assert saved["seeds"] == json.loads(json.dumps(doc["seeds"])) and saved["gate"] == "G5"
+    assert saved["tuner_sources"]["sha256"] == tune.tuner_sources()["sha256"]
     smoke = tune.g5(BODY, out=tmp_path, episodes=2, require_done=False, log=lambda m: None)
     assert smoke["pass_"] is None and smoke["seeds"]["42"]["pass_"] is None  # fewer than 20 episodes: no verdict
     unfinished = tune.g5(BODY, out=tmp_path, log=lambda m: None)  # 36 of 720 evaluations: nothing to judge
     assert unfinished["pass_"] is None and not unfinished["seeds"]["42"]["judged"]
+    # a fit made by other tuner sources (or on other inputs) is not judged
+    path = tune.run_dir_of(tmp_path, BODY, 43) / "cma.json"
+    fit = json.loads(path.read_text())
+    fit["sessions"][0]["tuner_sources"]["sha256"] = "0" * 64
+    path.write_text(json.dumps(fit))
+    other = tune.g5(BODY, out=tmp_path, require_done=False, log=lambda m: None)
+    v = other["seeds"]["43"]
+    assert not v["sources_match"] and v["refused"] and not v["judged"] and "selected" not in v
+    assert "refusing to judge" in v["reason"] and other["seeds_refused"] == [43] and other["pass_"] is True
+    assert "seed43_gen2" not in other["candidates"] and other["seeds"]["42"]["sources_match"]
+    monkeypatch.setattr(_ScriptedG5Pool, "inputs", dict(STUB_INPUTS, records={"refs.json": "3" * 64}))
+    moved = tune.g5(BODY, out=tmp_path, require_done=False, log=lambda m: None)
+    assert not moved["seeds"]["42"]["inputs_match"] and moved["seeds_refused"] == [42, 43] and moved["pass_"] is None
 
 
 def test_tune_and_g5_command_line(tmp_path, monkeypatch):
@@ -1868,6 +2197,10 @@ def test_tune_and_g5_command_line(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         cli(["tune", *base, "--seed", "42", "--evals", "48"])
     assert cli(["g5", *base, "--seeds", "42", "--partial"]) == 0
+    path = tune.run_dir_of(tmp_path, BODY, 42) / "cma.json"
+    doc["sessions"][1]["tuner_sources"]["sha256"] = "0" * 64  # a resumed session on other sources
+    path.write_text(json.dumps(doc))
+    assert cli(["g5", *base, "--seeds", "42", "--partial"]) == 1  # refused: no silent pass
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1949,13 +2282,25 @@ def test_rest_threshold_record_reproduces():
 
 
 @slow
-def test_an_evaluation_is_deterministic_and_independent_of_the_ones_before():
+def test_an_evaluation_is_deterministic_and_independent_of_the_ones_before(monkeypatch):
     """One evaluation of the mix (three episodes from the settled stance) gives the same objective and terms on a
     fresh evaluator and after other evaluations on the same plant: the run does not depend on the worker count or on
     a restart."""
     if not (RUN / BODY / "refs" / "nominal.npz").exists():
         pytest.skip("the run directory's references are not generated (python -m designlab.stage1 prepare ...)")
+    loaded = []
+    for cls in (refs.Reference, transitions.Transition):
+        real = cls.__dict__["load"].__func__
+
+        def spy(c, path, _real=real):
+            loaded.append(Path(path).resolve().relative_to((RUN / BODY).resolve()).as_posix())
+            return _real(c, path)
+
+        monkeypatch.setattr(cls, "load", classmethod(spy))
     ev = tune.Evaluator(BODY)
+    monkeypatch.undo()
+    assert ev.inputs == tune.verify_inputs(RUN / BODY) and sorted(ev.inputs["files"]) == tune.mix_files()
+    assert set(loaded) == ev.loaded_files() == set(ev.inputs["files"])  # every file it loaded was checked first
     a = ev.evaluate(control.START_GAINS, 1001)
     ev.evaluate(tune.from_unit(tune.to_unit(control.START_GAINS) + 0.05), 1002)
     b = ev.evaluate(control.START_GAINS, 1001)
@@ -1964,3 +2309,6 @@ def test_an_evaluation_is_deterministic_and_independent_of_the_ones_before():
         assert x["J"] == a["J"] and x["terms"] == a["terms"]
     assert a["directions"] == tune.directions(1001) and set(a["episodes"]) == set(tune.EPISODES)
     assert 54.0 < a["simulated_s"] < 56.0  # the mix on a 60 cm body
+    assert "error" not in a and all(not e.get("mujoco_warnings") for e in a["episodes"].values())
+    for e in a["episodes"].values():  # the drives' RMS over the window, and over the episode beside it
+        assert e["window"]["complete"] == (e["window_sustained_ratio"] is not None)

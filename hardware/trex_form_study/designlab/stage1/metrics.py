@@ -3,8 +3,9 @@ episode, for the tuning objective and gate G5 (``tune``), and the noise floor th
 
 ``Recorder`` is handed every physics step and feedback update of an episode by ``control.run`` (it only reads the
 plant): per physics step the two feet's vertical floor loads (the plant's contact sensors, net force in the world
-frame from that foot's floor contacts); per feedback update (100 Hz) the true state: time and reference time, the
-CoM and its velocity, the feet, each foot's sole centre (the mean of its pads' bottom corners, ``estimator.
+frame from that foot's floor contacts) and every drive's squared motor-space force (``actuator_force``, as
+``control.run`` sums it for the episode's RMS); per feedback update (100 Hz) the true state: time and reference
+time, the CoM and its velocity, the feet, each foot's sole centre (the mean of its pads' bottom corners, ``estimator.
 sole_corners``) and load, the root (the trunk's origin), the lowest point of each foot (every foot geom: pads, toes,
 claws, hallux, plate, as ``carpet.swing_profiles`` takes it), the trunk's roll and pitch about its home attitude and
 its yaw, the loaded feet's slip speeds (``control.foot_slip_speed``), the IMU point's horizontal acceleration (the
@@ -23,6 +24,8 @@ readings:
 * duty: each foot's share of the window's steps in contact; cadence: 2 over the mean interval between a foot's
   successive touchdowns in the window; stride: the mean distance between a foot's successive touchdown positions,
   over H; GRF: the largest total vertical floor load over the weight;
+* drive RMS: each drive's motor-space RMS force over the window's physics steps over its sustained torque (the window
+  form of ``control.run``'s ``worst_sustained_ratio``), the worst drive;
 * roll and pitch about home: RMS and peak over the window's updates (``control._roll_pitch`` of R R_home^T);
 * toe clearance: per swing of the reference (its swing foot and swing progress at the update's reference time), the
   lowest point of that foot over the swing's middle half (``clearance.MID_SWING``, as the screens measured it on the
@@ -111,6 +114,9 @@ class Recorder:
         self.dt = float(m.opt.timestep)
         self.weight = float(m.body_subtreemass[p.trunk]) * control.G
         self.loads = np.zeros((n, 2))
+        self.force_sq = np.zeros((n, m.nu))
+        self.sustained = np.array([dr.sustained for dr in p.drives], float)
+        self.actuators = [dr.actuator for dr in p.drives]
         rows = n // control.FEEDBACK_EVERY + 1
         self.U = np.full((rows, len(COLS)), np.nan)
         self.Q = np.zeros((rows, len(p.joints)))
@@ -123,7 +129,9 @@ class Recorder:
         self.steps = 0
 
     def step(self, k: int) -> None:
-        self.loads[k] = self.tk.p.d.sensordata[self._lidx]
+        d = self.tk.p.d
+        self.loads[k] = d.sensordata[self._lidx]
+        np.square(d.actuator_force, out=self.force_sq[k])
 
     def update(self, k: int, loads, slip_v, Rr, yaw: float) -> None:
         tk = self.tk
@@ -162,6 +170,7 @@ class Recorder:
     def end(self, steps: int, out: dict) -> None:
         self.steps = int(steps)
         self.loads = self.loads[:steps]
+        self.force_sq = self.force_sq[:steps]
         self.U = self.U[: self.rows]
         self.Q = self.Q[: self.rows]
         self.out = out
@@ -236,6 +245,9 @@ def window(rec: Recorder, ta: float, tb: float, heading: float, H: float, yaw_ta
     out["longest_flight_s"] = float(max([(b - a) * dt for a, b, x in zip(s, e, v, strict=True) if x], default=0.0))
     out["unloaded_steps"] = int(np.sum(~raw[k0:k1, 0] & ~raw[k0:k1, 1]))  # before the debounce (contact chatter)
     out["grf_peak_bw"] = float(np.max(rec.loads[k0:k1].sum(1)) / rec.weight)
+    ratio = np.sqrt(np.mean(rec.force_sq[k0:k1], axis=0)) / rec.sustained  # each drive's RMS over the window's steps
+    j = int(np.argmax(ratio))
+    out["drive_sustained_worst"] = [rec.actuators[j], float(ratio[j])]
     rp = U[sel][:, [C["roll"], C["pitch"]]]
     out["roll_rms_deg"], out["pitch_rms_deg"] = (float(np.degrees(np.sqrt(np.mean(rp[:, j] ** 2)))) for j in (0, 1))
     out["roll_peak_deg"], out["pitch_peak_deg"] = (float(np.degrees(np.max(np.abs(rp[:, j])))) for j in (0, 1))

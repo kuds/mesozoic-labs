@@ -27,9 +27,11 @@ stop).
 
 ``tune`` is plan section 3 step 6 (``tune``): the CMA-ES fit of one body and seed, checkpointed every generation to
 ``<out>/<body>/tune/<seed>/cma.json`` with every evaluation in ``evals.jsonl``; ``--resume`` continues a checkpointed
-run exactly (``--evals`` may raise its budget).  ``g5`` selects each finished seed's gains on the validation episodes
-and judges gate G5 into ``<out>/<body>/tune.json`` (exit status 1 if no seed passes).  One process per (body, seed) by
-default; ``--workers`` evaluates a generation (or the validation episodes) in that many processes.  ``train``,
+run exactly (``--evals`` may raise its budget; refused if the tuner's own modules, ``tune.TUNER_SOURCES_RULE``, or its
+inputs, ``tune.INPUTS_RULE``, changed).  ``g5`` selects each finished seed's gains on the validation episodes and judges
+gate G5 into ``<out>/<body>/tune.json`` (exit status 1 if no seed passes, or if a seed is refused because its fit ran
+on other tuner sources or inputs).  One process per (body, seed) by default; ``--workers`` evaluates a generation (or
+the validation episodes) in that many processes (a worker that dies or hangs is replaced, ``tune.Pool``).  ``train``,
 ``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (7-9) and are not implemented yet.
 """
 
@@ -277,6 +279,8 @@ def _tuning(a) -> int:
     doc = tune.g5(a.body, out=out, seeds=seeds, workers=a.workers, episodes=a.episodes,
                   require_done=not a.partial, inputs=a.inputs, log=lambda msg: print(msg, flush=True))
     print(tune.g5_summary(doc), flush=True)
+    if doc["seeds_refused"]:  # a fit on other tuner sources or inputs: no verdict, and not a silent one
+        return 1
     return 0 if doc["pass_"] or doc["pass_"] is None else 1
 
 
