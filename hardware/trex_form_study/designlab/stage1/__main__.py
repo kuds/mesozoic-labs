@@ -313,9 +313,11 @@ def _training(a) -> int:
               f"{doc['log_std_init']}", flush=True)
         return 0
     config = dict(tune_json=a.tune_json) if a.tune_json else None
-    doc = train.train(a.body, a.seed, mode=a.mode, steps=a.steps, out=Path(a.out), resume=a.resume, n_envs=a.n_envs,
+    steps = train.BUDGET_ASKED if a.steps is None else a.steps
+    doc = train.train(a.body, a.seed, mode=a.mode, steps=steps, out=Path(a.out), resume=a.resume, n_envs=a.n_envs,
                       vec=a.vec, checkpoint_every=a.checkpoint_every, g6=not a.no_g6, log_std_init=a.log_std_init,
-                      allow_untuned=a.allow_untuned, config=config, log=lambda msg: print(msg, flush=True))
+                      allow_untuned=a.allow_untuned, allow_source_change=a.allow_source_change, config=config,
+                      log=lambda msg: print(msg, flush=True))
     g6 = doc.get("g6", {})
     print(f"{a.body} {a.mode} seed {a.seed}: {doc.get('num_timesteps')} steps ({doc['status']}); G6: "
           + ("; ".join(f"{k} {'pass' if v.get('pass_', v.get('identical')) else 'FAIL'}" for k, v in g6.items())
@@ -333,7 +335,8 @@ def main(argv=None) -> int:
     tp.add_argument("--body", choices=sorted(BODIES), required=True)
     tp.add_argument("--seed", type=int, required=True, help="PPO seed (plan section 6: 42, 43)")
     tp.add_argument("--mode", choices=("R3", "R4"), default="R3")
-    tp.add_argument("--steps", type=int, default=5_000_000)
+    tp.add_argument("--steps", type=int, default=None,
+                    help="env steps, rounded up to whole rollouts (default: train.BUDGET_ASKED, train.BUDGET_RULE)")
     tp.add_argument("--resume", action="store_true", help="continue from the newest checkpoint")
     tp.add_argument("--n-envs", type=int, default=None, help="envs per job (default: design 2's 4)")
     tp.add_argument("--vec", choices=("dummy", "subproc"), default="dummy",
@@ -345,6 +348,8 @@ def main(argv=None) -> int:
                     help="initial action noise (default: policy.LOG_STD_INIT, measured: policy.LOG_STD_RULE)")
     tp.add_argument("--allow-untuned", action="store_true",
                     help="train R3 although tune.json is missing or no seed passes G5 (env.GAINS_RULE; flagged)")
+    tp.add_argument("--allow-source-change", action="store_true",
+                    help="resume although the Stage 1 sources differ from the run's first session (flagged)")
     tp.add_argument("--tune-json", default=None, help="the G5 record R3's gains come from (default: <out>/<body>/"
                                                       "tune.json)")
     tp.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")

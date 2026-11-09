@@ -268,3 +268,73 @@ the two-motor ankle, which lets one axis take up to twice a motor's peak torque 
     `metrics`, `plant`, `refs`, `transitions`, `tune`), the run directory's reference and transition files, the
     library versions, `designlab/*.py` and `round2/` stay unchanged; the faster tracker of decision 21 is built in a
     separate working tree.
+
+### Decisions taken before training (9 Nov, after G5)
+
+G5 passes on all three bodies with both CMA-ES seeds. Training uses each body's selection by `env.GAINS_RULE`:
+`60-N-T-10` seed42_gen20, `60-N-H-10` seed43_gen60, `75-M-H-10` seed43_gen40. The faster tracker of decision 21 was
+merged only after this. It reproduces recorded evaluations exactly: two fit evaluations, checked at every physics step,
+and two G5 validation episodes of each body's selection, checked on every recorded value. A zero residual reproduces R2
+at every physics step, also with the trunk's mass changed (G6a). The checks before training found the following; they
+change no body (P24).
+
+23. **Carpet and pile.** The fit and G5 ran on hard floor only. On robot_floor_carpet and on the low pile, R2 fell in
+    each of the 3 starts tried per floor:
+    - `60-N-T-10` at the tuning start: 3.3–3.5 s on carpet, 3.0–3.1 s on low pile;
+    - `75-M-H-10` at its G5 selection: 4.9–5.0 s on carpet, 4.4 s on low pile.
+
+    Sliding friction alone is not the cause: at μ 0.54 on hard floor, R2 walks the whole carpet walk.
+
+    A refit with carpet in the fit mix and in G5 would take about as long as the fit did (about 6.5 h on the 4 cores)
+    and cannot fit within decision 21's cap beside PPO. So:
+    - R3 and R4 train on the planned floor spread: hard, hard, robot_floor_carpet, low pile (`env.FLOOR_RULE`).
+    - The carpet condition is reported for R0–R2 with its fall attribution (decision 20). Its verdict for R3 and R4
+      rests on what the policy learned.
+    - The report states that the tracker was never fitted on carpet.
+    - A carpet-aware fit is the first follow-up if R3 does not walk on carpet.
+    - G6's monitor includes the carpet condition (decision 27).
+24. **Learning rate** (`policy.LR_RULE`). The learning rate is 1e-5 → 3e-6 (linear), which is design 2's schedule
+    × 0.1; target_kl stays 0.03. The measured action noise, σ 0.02 (`policy.LOG_STD_RULE`), is 18× smaller than the
+    build's earlier e^-1, and PPO's KL per step grows as 1/σ²:
+    - At design 2's 1e-4, each update stopped after 1–9 of its 160 minibatch steps. Without the stop, the update
+      diverged (KL 3.5).
+    - At 1e-5, every minibatch step of 6 updates ran (KL 0.019–0.023 against the 0.045 stop; clip fraction 0.23–0.27),
+      and the critic's explained variance turned positive by the fourth update.
+    - At 3e-6, every step also ran, but the explained variance stayed negative.
+
+    Measured on R3 `75-M-H-10` (`stage1/runs/2026-11-08/ppo_lr_probe.json`). R4 takes the same settings.
+25. **Rules from the PPO build**, each recorded in the code and in every run.json:
+    - **Trunk mass** (`env.MASS_RULE`). The trunk mass factor 0.9–1.1 scales the trunk's mass and inertia, and MuJoCo's
+      derived constants are recomputed. The controller and R2's estimator keep the nominal model.
+    - **Servo stiffness** (`env.KP_RULE`). Training draws kp × 0.8–1.2. The ledger's kp × 0.25–1 is an evaluation sweep.
+    - **Floors** (`env.FLOOR_RULE`). Env i runs on hard, hard, robot_floor_carpet and low pile (8 mm grid), in turn.
+    - **Seeds** (`train.SEED_RULE`, `env.EPISODE_SEED_RULE`). Env i of session k of PPO seed s is reset with
+      10,000 s + 100 k + i, and its episodes draw seeds from that. No two runs, sessions or envs share an episode.
+    - **Gains** (`env.GAINS_RULE`). Both PPO seeds train on the body-level G5 selection. A resume is refused if the
+      settings, env configs, gains, libraries or Stage 1 sources changed. A change of sources is allowed only when
+      flagged.
+    - **Action noise** (`policy.LOG_STD_RULE`). σ 0.02 was measured on `75-M-H-10` only, the one body with a G5 record
+      at the time; R4 takes the same value.
+    - **Judging** (`train.JUDGED_RULE`). There is no best-model selection: each mode is judged over its own runs at the
+      budget's checkpoint, or at the last checkpoint every run reached if the cap stops training.
+26. **G6a and the budget** (`train.BUDGET_RULE`, `train.CHECKPOINT_RULE`). G6a's rate is judged per wall second of the
+    job, with its process count. One R3 job runs about 200 env steps/s, against G6a's 600:
+    - 4 envs in one process: 204/s at load 4.2 and 199/s on an idle machine;
+    - one env alone: 358/s on hard floor, 234/s on carpet and 135/s on low pile.
+
+    The plan's consequence applies: the steps are cut equally for every body. Nine jobs (6 R3, 3 R4) share the 4 cores
+    and must leave the panels time before the cap (08:00 UTC, 10 Nov). Every run of R3 and R4 therefore trains 4M env
+    steps instead of 5M (4,005,888 in whole rollouts).
+
+    Checkpoints are saved at rollout starts, after the previous update. The last one is saved after the last update, so
+    the judged policy has trained on every step.
+27. **G6b and G6c** (`train.G6_RULE`).
+    - **Conditions.** The monitor runs the six hard-floor tasks plus the carpet walk on robot_floor_carpet and on low
+      pile, with 3 episode seeds each.
+    - **G6b** compares the mean survival over every condition.
+    - **G6c** needs, on some condition, fewer falls than R2. Failing that, it needs as many falls and, paired by
+      episode seed, a higher mean reward per step on every seed, with a mean gain of at least 0.01 per step and at
+      least R2's own spread across the seeds. A 0.004 gain after one Adam step no longer passes.
+    - **When.** Both run at the first rollout start at or past the plan's 1M and 2.5M steps.
+28. **R4.** One seed (42) per body, with R3's settings, floors and budget. R4 is judged over its own runs. G6 does not
+    apply to R4, because G6 compares a policy with R2.

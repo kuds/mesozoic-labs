@@ -418,6 +418,69 @@ def test_the_judged_checkpoint_is_over_every_run_of_a_mode(tmp_path):
                                 for d in runs.values())
 
 
+def test_the_budget_is_4m_steps_in_whole_rollouts():
+    assert train.whole_rollouts(4_000_000) == 4_005_888 == train.BUDGET_STEPS and train.BUDGET_ASKED == 4_000_000
+    assert train.whole_rollouts(32, 16) == 32 and train.whole_rollouts(33, 16) == 48 and train.whole_rollouts(1, 16) == 16
+    assert train.BUDGET_STEPS % (policy.DESIGN2["n_envs"] * policy.DESIGN2["n_steps"]) == 0
+
+
+def test_the_learning_rate_is_design_2s_x_01():
+    kw = policy.model_kwargs(env_mod.ACTOR_DIM)
+    assert (policy.LR_START, policy.LR_END) == (1e-5, 3e-6) and kw["target_kl"] == policy.DESIGN2["target_kl"] == 0.03
+    assert kw["learning_rate"](1.0) == pytest.approx(1e-5) and kw["learning_rate"](0.0) == pytest.approx(3e-6)
+    assert policy.LR_START == pytest.approx(0.1 * policy.DESIGN2["lr_start"])
+    assert policy.LR_END == pytest.approx(0.1 * policy.DESIGN2["lr_end"])
+
+
+def _mon_rows(rewards, falls):
+    return [dict(episode_seed=5001 + i, mean_reward=r, fell=f) for i, (r, f) in enumerate(zip(rewards, falls))]
+
+
+def test_g6c_needs_fewer_falls_or_a_paired_gain_beyond_the_margin():
+    z = _mon_rows([0.700, 0.702, 0.701], [False] * 3)
+    # the verifier's case: a 0.0039 gain after one Adam step is not a win
+    assert not train.beats_r2(_mon_rows([0.7039, 0.7059, 0.7049], [False] * 3), z)["beats"]
+    assert train.beats_r2(_mon_rows([0.712, 0.714, 0.713], [False] * 3), z)["beats"]  # +0.012 on every seed
+    assert not train.beats_r2(_mon_rows([0.730, 0.699, 0.730], [False] * 3), z)["beats"]  # one seed worse
+    wide = _mon_rows([0.60, 0.70, 0.65], [False] * 3)  # R2's spread 0.10: the gain must reach it
+    assert not train.beats_r2(_mon_rows([0.62, 0.72, 0.67], [False] * 3), wide)["beats"]
+    r = train.beats_r2(_mon_rows([0.71, 0.81, 0.76], [False] * 3), wide)
+    assert r["beats"] and r["gain_needed"] == pytest.approx(0.10) and r["mean_gain"] == pytest.approx(0.11)
+    fall = _mon_rows([0.5, 0.5, 0.5], [True] * 3)
+    assert train.beats_r2(_mon_rows([0.2, 0.5, 0.5], [False, True, True]), fall)["fewer_falls"]  # fewer falls wins
+    assert not train.beats_r2(_mon_rows([0.6, 0.6, 0.6], [True, True, True]), _mon_rows([0.5] * 3, [True, True, False]))[
+        "beats"]  # more falls never wins
+
+
+def test_the_monitor_runs_each_condition_on_its_floor(monkeypatch):
+    _need_run()
+    monkeypatch.setattr(train, "MONITOR", dict(conditions=(("walk", "hard"), ("carpet_walk", "robot_floor_carpet")),
+                                               episode_seeds=(5001,)))
+    floors = []
+    real = env_mod.make
+
+    def make(mode, cfg):
+        floors.append((cfg.tasks, cfg.floor, cfg.randomize, cfg.push_prob))
+        return real(mode, cfg)
+
+    monkeypatch.setattr(env_mod, "make", make)
+
+    class Zero:
+        def predict(self, obs, deterministic=True):
+            return np.zeros((1, env_mod.ACTION_DIM), np.float32), None
+
+    class Same:
+        def normalize_obs(self, obs):
+            return obs
+
+    cfg = train.env_configs(BODY, 1, dict(max_seconds=0.4), RUN)[0]
+    mon = train.monitor(Zero(), Same(), BODY, "R3", cfg)
+    assert floors == [(("walk",), "hard", False, 0.0), (("carpet_walk",), "robot_floor_carpet", False, 0.0)]
+    assert set(mon["summary"]["policy"]) == {"walk", "carpet_walk on robot_floor_carpet"}
+    assert mon["rows"]["policy"] == mon["rows"]["zero"]  # a zero policy is R2
+    assert mon["policy_beats_zero_on"] == [] and not any(v["beats"] for v in mon["g6c_by_condition"].values())
+
+
 def test_env_configs_spread_the_floors():
     cfgs = train.env_configs(BODY, 6, dict(max_seconds=1.0), Path("/x"))
     assert [c.floor for c in cfgs] == ["hard", "hard", "robot_floor_carpet", "low", "hard", "hard"]
@@ -456,10 +519,22 @@ def test_training_checkpoints_and_resumes(tmp_path, monkeypatch):
     monkeypatch.setattr(train, "G6A_CHECK", dict(task="walk", seconds=0.2, episode_seed=7))
     ppo = dict(n_steps=16, batch_size=16, n_epochs=1)
     cfg = dict(tasks=("walk",), max_seconds=1.0)
-    doc = train.train(BODY, 42, steps=32, out=out, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo,
+    written = []
+    real_write = train._write_json
+    monkeypatch.setattr(train, "_write_json", lambda path, d: (written.append(copy.deepcopy(d)), real_write(path, d)))
+    doc = train.train(BODY, 42, steps=30, out=out, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo,
                       allow_untuned=True, log=lambda *_: None)
     rd = train.run_dir_of(out, BODY, "R3", 42)
     assert doc["status"] == "done" and doc["num_timesteps"] == 32 and train.checkpoints(rd) == [16, 32]
+    assert doc["budget"] == 32 and doc["budget_asked"] == 30  # BUDGET_RULE: whole rollouts
+    # CHECKPOINT_RULE: saved at the rollout start after the first update, and after the last update; the streams with
+    # every checkpoint (a killed session keeps them)
+    at16 = next(d for d in written if d.get("checkpoints") == [16])
+    assert at16["sessions"][0]["episode_streams"][0]["reset_seed"] == 420000
+    from stable_baselines3 import PPO
+    w16, w32 = (PPO.load(str(rd / "checkpoints" / f"model_{n}.zip"), device="cpu").policy.state_dict() for n in (16, 32))
+    assert any(not th.equal(w16[k], w32[k]) for k in w16)  # the last update is saved
+    assert doc["settings"]["learning_rate"]["start"] == 1e-5 and "rollout start" in doc["settings"]["checkpoint_rule"]
     assert doc["gains"]["flag"] == "untuned" and doc["gains"]["allow_untuned"]
     assert doc["settings"]["design2"]["n_steps"] == 2048 and doc["settings"]["ppo_overrides"] == ppo
     assert doc["settings"]["log_std_init"] == policy.LOG_STD_INIT
@@ -486,6 +561,18 @@ def test_training_checkpoints_and_resumes(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="settings"):  # other settings: refused
         train.train(BODY, 42, steps=96, out=out, resume=True, n_envs=1, checkpoint_every=32, config=cfg, ppo=ppo,
                     allow_untuned=True)
+    prov = plant.provenance()
+    other = copy.deepcopy(prov)
+    other["stage1_sources"]["sha256"] = "0" * 64
+    monkeypatch.setattr(plant, "provenance", lambda: copy.deepcopy(other))
+    with pytest.raises(SystemExit, match="Stage 1 sources"):  # other sources: refused unless allowed (flagged)
+        train.train(BODY, 42, steps=96, out=out, resume=True, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo,
+                    allow_untuned=True)
+    doc = train.train(BODY, 42, steps=80, out=out, resume=True, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo,
+                      allow_untuned=True, allow_source_change=True, log=lambda *_: None)
+    assert doc["num_timesteps"] == 80 and doc["sessions"][-1]["source_change"] == dict(
+        allowed=True, first_session=prov["stage1_sources"]["sha256"], this_session="0" * 64)
+    monkeypatch.setattr(plant, "provenance", lambda: copy.deepcopy(prov))
     (out / BODY / "tune.json").write_text(json.dumps(_tune_doc({42: (True, 0, 0.0, 0.05, 0.05, 0.3)})))
     with pytest.raises(SystemExit, match="gains changed"):  # tune.json now selects other gains: refused
         train.train(BODY, 42, steps=96, out=out, resume=True, n_envs=1, checkpoint_every=16, config=cfg, ppo=ppo,

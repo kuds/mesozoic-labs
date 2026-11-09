@@ -1,0 +1,183 @@
+{
+ "schema": 1,
+ "purpose": "the learning rate for log_std_init ln(0.02) (policy.LR_RULE; STAGE1_PLAN.md decision 23; verifier wexnig2an's blocking item)",
+ "setup": {
+  "body": "75-M-H-10",
+  "mode": "R3",
+  "gains": "tune.json's body-level G5 selection (seed43_gen40, sha256 d451e7c58039...)",
+  "envs": "train.env_configs(body, 4): hard, hard, robot_floor_carpet, low pile; the training randomisation",
+  "vec": "DummyVecEnv, one process; torch threads 1",
+  "ppo": "policy.model_kwargs (design 2: 4 x 2,048 steps per rollout, batch 256, 5 epochs = 160 minibatch steps per update, clip 0.2, target_kl 0.03) with the learning rate held constant at the rate probed (the start of a run's schedule, its highest rate)",
+  "seeds": "PPO(seed=42), then model.set_random_seed(4242)",
+  "updates": 6,
+  "code": "worktree commit 4321177 (clean) with the probe script scratchpad/lrprobe/probe.py; SB3 2.9.0, torch 2.9.0+cpu, gymnasium 1.3.0",
+  "counted": "optimizer.step calls per update (the KL stop skips the rest of an update)"
+ },
+ "earlier": {
+  "source": "verifier wexnig2an (worktree 4321177 smoke and probes)",
+  "lr_1e_4_with_target_kl": "1, 3 and 9 of 160 minibatch steps per update; std stuck at 0.02000",
+  "lr_1e_4_without_target_kl": "KL 3.5, clip fraction 0.92",
+  "log_std_init_minus_1": "160 of 160"
+ },
+ "runs": [
+  {
+   "lr": 1e-05,
+   "updates": [
+    {
+     "update": 1,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.023077839985489845,
+     "clip_fraction": 0.273779296875,
+     "explained_variance": -0.16780555248260498,
+     "value_loss": 1.131531693600118,
+     "std": 0.020000198855996132,
+     "lr": 1e-05,
+     "train_s": 0.7966819160064915
+    },
+    {
+     "update": 2,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.0206511951982975,
+     "clip_fraction": 0.22646484375,
+     "explained_variance": -0.9394830465316772,
+     "value_loss": 0.41409151814877987,
+     "std": 0.019998958334326744,
+     "lr": 1e-05,
+     "train_s": 0.7889985579968197
+    },
+    {
+     "update": 3,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.019393477588891983,
+     "clip_fraction": 0.2255859375,
+     "explained_variance": -0.09041488170623779,
+     "value_loss": 0.3768015729263425,
+     "std": 0.01999715156853199,
+     "lr": 1e-05,
+     "train_s": 0.6462071130081313
+    },
+    {
+     "update": 4,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.0229155533015728,
+     "clip_fraction": 0.248583984375,
+     "explained_variance": 0.31482505798339844,
+     "value_loss": 0.3468863036483526,
+     "std": 0.019995424896478653,
+     "lr": 1e-05,
+     "train_s": 0.6477138360060053
+    },
+    {
+     "update": 5,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.0194746945053339,
+     "clip_fraction": 0.2298828125,
+     "explained_variance": 0.3264371156692505,
+     "value_loss": 0.3196133695542812,
+     "std": 0.019994471222162247,
+     "lr": 1e-05,
+     "train_s": 0.8151061120006489
+    },
+    {
+     "update": 6,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.021535277366638184,
+     "clip_fraction": 0.2431884765625,
+     "explained_variance": 0.4495347738265991,
+     "value_loss": 0.29945100620388987,
+     "std": 0.019996045157313347,
+     "lr": 1e-05,
+     "train_s": 0.888632806003443
+    }
+   ],
+   "env_steps": 49152,
+   "wall_s": 247.21056717599276
+  },
+  {
+   "lr": 3e-06,
+   "updates": [
+    {
+     "update": 1,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.012114414013922215,
+     "clip_fraction": 0.106494140625,
+     "explained_variance": -0.16780555248260498,
+     "value_loss": 1.2109669465571642,
+     "std": 0.019999675452709198,
+     "lr": 3e-06,
+     "train_s": 0.6500280900072539
+    },
+    {
+     "update": 2,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.012344207614660263,
+     "clip_fraction": 0.1089111328125,
+     "explained_variance": -1.4690334796905518,
+     "value_loss": 0.5301589956507087,
+     "std": 0.01999926194548607,
+     "lr": 3e-06,
+     "train_s": 0.7924446789984358
+    },
+    {
+     "update": 3,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.011121010407805443,
+     "clip_fraction": 0.092431640625,
+     "explained_variance": -1.2085108757019043,
+     "value_loss": 0.47793492674827576,
+     "std": 0.019998878240585327,
+     "lr": 3e-06,
+     "train_s": 0.771570768993115
+    },
+    {
+     "update": 4,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.010716607794165611,
+     "clip_fraction": 0.0912353515625,
+     "explained_variance": -0.7522807121276855,
+     "value_loss": 0.48454237915575504,
+     "std": 0.01999863237142563,
+     "lr": 3e-06,
+     "train_s": 0.7986371739971219
+    },
+    {
+     "update": 5,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.011347968131303787,
+     "clip_fraction": 0.094384765625,
+     "explained_variance": -0.6196308135986328,
+     "value_loss": 0.4759014992043376,
+     "std": 0.01999819651246071,
+     "lr": 3e-06,
+     "train_s": 0.6425722889980534
+    },
+    {
+     "update": 6,
+     "steps_run": 160,
+     "of": 160,
+     "approx_kl": 0.010638298466801643,
+     "clip_fraction": 0.0935546875,
+     "explained_variance": -0.9388138055801392,
+     "value_loss": 0.436126752384007,
+     "std": 0.019998112693428993,
+     "lr": 3e-06,
+     "train_s": 0.8192313889885554
+    }
+   ],
+   "env_steps": 49152,
+   "wall_s": 251.22400525800185
+  }
+ ],
+ "result": "1e-5: every minibatch step of all 6 updates runs (KL 0.019-0.023 against the 0.045 stop, clip fraction 0.23-0.27) and the critic's explained variance turns positive by update 4 (0.45 at update 6); 3e-6: every step runs (KL 0.011-0.012, clip fraction 0.09-0.11) but the explained variance stays negative through update 4; chosen: 1e-5 -> 3e-6 (design 2's schedule x 0.1)"
+}

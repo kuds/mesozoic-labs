@@ -48,6 +48,19 @@ LOG_STD_RULE = (
     "10, 10, 10, 10, 10, 10, 9), so sigma 0.02, log_std_init -3.91 (the build's earlier -1.0, sigma 0.37, lies far "
     "beyond the measured range).  R4 takes the same value (equal settings; not measured on R4)")
 
+#: The learning rate (STAGE1_PLAN.md decision 23): design 2's schedule x 0.1, because the measured action noise is
+#: 18x smaller than the build's earlier -1.0 and PPO's KL per step grows as 1/sigma^2 (``LR_RULE``).
+LR_START, LR_END = 1e-5, 3e-6
+LR_PROBE_RECORD = "stage1/runs/2026-11-08/ppo_lr_probe.json"
+LR_RULE = (
+    "learning rate 1e-5 -> 3e-6 (linear over the run), design 2's 1e-4 -> 3e-5 x 0.1, target_kl 0.03 kept: at sigma "
+    "0.02 design 2's 1e-4 stops each update after 1-9 of its 160 minibatch steps (the KL stop, 1.5 x target_kl), and "
+    "without the stop the update diverges (KL 3.5, clip fraction 0.92); measured on R3 75-M-H-10 (its G5 selection, "
+    "the job's 4 envs and floors, seed 42) over the first 6 updates at a constant rate, 1e-5 runs every minibatch step "
+    "of every update (KL 0.019-0.023, clip fraction 0.23-0.27) and its critic's explained variance turns positive by "
+    "the fourth update, while 3e-6 runs every step too but its explained variance stays negative (LR_PROBE_RECORD); "
+    "the end rate 3e-6 keeps design 2's 0.3 end-to-start ratio; R4 takes the same schedule (equal settings)")
+
 
 class PrivilegedError(ValueError):
     """The policy cannot be built or asked as requested."""
@@ -146,8 +159,9 @@ def model_kwargs(actor_dim: int, *, net_arch=DESIGN2["net_arch"], log_std_init: 
                                    log_std_init=float(log_std_init)),
                 n_steps=d["n_steps"], batch_size=d["batch_size"], n_epochs=d["n_epochs"], gamma=d["gamma"],
                 gae_lambda=d["gae_lambda"], clip_range=d["clip_range"],
-                learning_rate=linear_schedule(d["lr_start"], d["lr_end"]), target_kl=d["target_kl"])
+                learning_rate=linear_schedule(LR_START, LR_END), target_kl=d["target_kl"])
 
 
-__all__ = ["ACTION_NOISE_RECORD", "ACTION_NOISE_SIGMA", "DESIGN2", "LOG_STD_INIT", "LOG_STD_RULE", "PrivilegedCriticPolicy",
-           "PrivilegedError", "PrivilegedMlpExtractor", "linear_schedule", "model_kwargs"]
+__all__ = ["ACTION_NOISE_RECORD", "ACTION_NOISE_SIGMA", "DESIGN2", "LOG_STD_INIT", "LOG_STD_RULE", "LR_END",
+           "LR_PROBE_RECORD", "LR_RULE", "LR_START", "PrivilegedCriticPolicy", "PrivilegedError", "PrivilegedMlpExtractor",
+           "linear_schedule", "model_kwargs"]
