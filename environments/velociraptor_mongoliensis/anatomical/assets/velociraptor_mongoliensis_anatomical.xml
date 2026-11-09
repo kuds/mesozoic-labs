@@ -1,43 +1,88 @@
 <mujoco model="velociraptor_mongoliensis_anatomical">
+  <!-- Physics r5 (the maintainer's decision of 2026-11-08): life-size Velociraptor mongoliensis at the scale
+       of IGM 100/986 (Norell & Makovicky 1999, "N&M 1999"), rebuilt "of equivalent nature" to the anatomical
+       T. rex plant.  Every number is cited inline to its primary source, marked [design] with the rule that
+       set it, or measured on this model (the measurement is quoted).  configs/plant_versions.toml note 22
+       records the derivation and the screens behind each [design] value.  This file is the source of truth
+       (no generator is committed): edit the numbers here and re-measure every constant listed at the
+       keyframe.
+       Every body frame is world-aligned at the home pose and every joint's ref IS its home angle, so the
+       geometry below is authored in the standing pose itself (qpos0 = the stance, unlike the T. rex's
+       columnar qpos0) and each joint reads an anatomical angle:
+         hip_pitch  femur angle from vertical (negative = knee ahead of the hip; home -35)
+         knee       flexion from a straight limb (home 55, i.e. 125 deg interior)
+         ankle      metatarsus relative to the tibiotarsus line (negative = flexed; home -28.5)
+         toe_d3/d4  digit relative to the metatarsus (home -81.5: the digits lie level)
+         toe_d2     MTP-II, negative = extension (home -35: Bishop 2019 resting extension)
+         claw       ungual II on II-2, positive = flexion/strike (home -21: resting extension)
+       Hinge axes are world y (pitch), x (roll) and z (yaw) on both sides, as on the T. rex, except digits III
+       and IV: their axes are horizontal and perpendicular to each digit, so each flexes in its own vertical
+       plane (the left axis is the right one mirrored as an axial vector, (x, y, z) -> (-x, y, -z)). -->
   <compiler angle="degree" autolimits="true"/>
 
-  <!-- Elliptic friction cone since physics r4 (plant_versions note 17,
-       D-D30): one friction model for every species.  The floor contacts
-       here are capsules (metatarsus, digits III and IV), whose contact
-       tangent frames turn with the foot, so under MuJoCo's default pyramidal
-       cone the standing statue was already heading-invariant; a fall onto
-       the ellipsoid head was not (under random commands a 45 deg turn of the
-       whole scene separated the joints by 5e-3 rad once it fell).  The
-       elliptic cone is isotropic, so every heading is physically identical
-       for any geom, as on T. rex and Compsognathus; test_friction_cone.py
-       pins both.
-       The other solver options already match theirs on MuJoCo 3.10.0
+  <!-- Options as the r4 raptor (plant_versions note 17, D-D30) and the T. rex (note 16): 2 ms,
+       implicitfast, the isotropic elliptic cone so every heading is physically identical; solver defaults
        (Newton, 100 iterations, impratio 1). -->
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">
     <flag warmstart="enable"/>
   </option>
 
+
   <default>
-    <joint limited="true" damping="5.0" armature="0.01"/>
+    <!-- No joint dynamics by default: every hinge sets its own damping and armature below (the free root
+         joint takes none). -->
+    <joint limited="true"/>
+    <!-- contype/conaffinity 1/1 and friction 1.2 as the T. rex and the r4 raptor; condim 3, solref and
+         solimp at MuJoCo defaults. -->
     <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
-    <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: firm support for grounded locomotion.  The passive spring
-         is anchored at the standing pose by a springref on each leg joint
-         below; it cannot live here because every joint stands at its own
-         angle, and MuJoCo's default springref is 0, not ref. -->
+    <!-- Hip, knee, ankle.  stiffness 24 N.m/rad: the r4 raptor's leg spring 20 (plant_versions
+         note 17) x this plant's m.g.h ratio 76.1 / 61.3 N.m, rounded to 1.2.  springref is the
+         home angle on every leg joint, so the spring is a declared compliance neutral at the stance, never
+         the support (plant_versions note 14a; measured: the statue stands with these springs deleted, 40/40
+         at reset noise 0.05, seeds 3042-3081).  armature 0.05 as
+         the r4 raptor.  damping 25 (r4 10) [design]: it is set by the whole-body fore-aft
+         rocking mode on the passive toes (0.69 Hz in the linearised statue), whose damping ratio
+         it raises to 0.35 (measured: 0.25 with damping 15; the r4 raptor 0.36); single-joint damping
+         ratios (servo kp + k against the home-pose inertia) 2.18 / 2.97 / 4.61 at hip / knee / ankle. -->
     <default class="leg_joint">
-      <joint damping="10.0" armature="0.05" stiffness="20.0"/>
+      <joint damping="25" armature="0.05" stiffness="24"/>
     </default>
 
-    <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->
-    <default class="tail_joint">
-      <joint damping="15.0" stiffness="40.0" armature="0.03" range="-15 15"/>
+    <!-- Load-bearing digits III and IV: PASSIVE sprung MTP hinges (T. rex note 9).  The CoM stands over the
+         digits, so the four toe springs set the whole body's pitch stiffness about the MTP line:
+         4 x 120 = 480 N.m/rad = 6.3 x m.g.h [design]; k 30 left a slow 2 deg pitch drift,
+         and k 80 and k 200 stood fewer action-noise statues than 120 (note 22).  The static load is a
+         springref preload on each toe joint, not stiffness.  armature 0.004 dominates the 11-17 g digit and
+         sets omega.dt 0.34 at 2 ms (the plant's largest; the compsognathus MTP servo rang at 0.85, note 15e);
+         damping 4: damping ratio 2.85 (overdamped, as the T. rex toes). -->
+    <default class="toe_joint">
+      <joint damping="4" armature="0.004" stiffness="120"/>
     </default>
 
-    <!-- Sickle claw: high torque capability -->
+    <!-- Digit II, MTP-II: passive, held raised (hyperextended) by its spring, standing in for the passive
+         structures that hold the digit aloft (Bishop 2019).  stiffness 20 [design]: the claw servo's
+         whole 4 N.m reaction deflects it 11.5 deg, inside its 15 deg extension travel.
+         damping 0.3 / armature 0.001 [design]: damping ratio 1.03, omega.dt 0.28. -->
+    <default class="d2_joint">
+      <joint damping="0.3" armature="0.001" stiffness="20"/>
+    </default>
+
+    <!-- Sickle claw (ungual II on II-2, IP2): an actuated, BOUNDED position servo (the r4 claw was an
+         unbounded gear-50 motor).  damping 0.15 / armature 0.001 [design]: damping ratio 1.05 and
+         omega.dt 0.14 at kp 5. -->
     <default class="claw_joint">
-      <joint damping="5.0" armature="0.005"/>
+      <joint damping="0.15" armature="0.001"/>
+    </default>
+
+    <!-- Mobile proximal tail (caudals 1-9, N&M 1999 pp. 24-25), servoed.  Its gravity torque is carried by a
+         springref PRELOAD on each pitch joint (the T. rex's tail since physics r10, plant_versions note 20, D-D44), so each servo
+         holds about 0 at home, its home ctrl is the pose (the ctrlrange midpoint) and the residual action is
+         symmetric.  stiffness 6 [design], kp/6 on tail_1 and tail_2: a servo reaches kp/(kp + k) of its
+         range, so k 20 against kp 30 left 31-56 % (measured on a k 20 build, note 22); k 6 gives 84-90 %.  damping
+         3 / armature 0.01 [design]: damping ratios 0.51 / 0.66 / 0.73 (pitch 1-3), 0.55 (yaw). -->
+    <default class="tail_joint">
+      <joint damping="3" stiffness="6" armature="0.01"/>
     </default>
   </default>
 
@@ -46,437 +91,403 @@
     <texture name="grid" type="2d" builtin="checker" rgb1="0.4 0.4 0.4" rgb2="0.3 0.3 0.3" width="512" height="512"/>
     <material name="grid_mat" texture="grid" texrepeat="8 8" reflectance="0.1"/>
     <material name="body_mat" rgba="0.6 0.5 0.4 1"/>
+    <material name="belly_mat" rgba="0.66 0.57 0.46 1"/>
+    <material name="head_mat" rgba="0.55 0.45 0.36 1"/>
+    <material name="pad_mat" rgba="0.42 0.36 0.30 1"/>
     <material name="claw_mat" rgba="0.2 0.2 0.2 1"/>
   </asset>
 
   <worldbody>
-    <!-- Ground plane -->
     <geom name="floor" type="plane" size="50 50 0.1" material="grid_mat" conaffinity="1" contype="1"/>
 
-    <!-- Prey target (mocap body - can be repositioned without recompiling) -->
+    <!-- Prey target (mocap body), as on the r4 raptor: the life-size animal is about the r4 plant's size, so the
+         0.15 m sphere at 0.3 m stays the strike task scale.  contype/conaffinity 2: it meets only the
+         claws. -->
     <body name="prey" mocap="true" pos="5 0 0.3">
-      <geom name="prey_geom" type="sphere" size="0.15" rgba="0.8 0.2 0.2 0.8"
-            contype="2" conaffinity="2"/>
+      <geom name="prey_geom" type="sphere" size="0.15" rgba="0.8 0.2 0.2 0.8" contype="2" conaffinity="2"/>
     </body>
 
-    <!-- ==================== RAPTOR BODY ==================== -->
-    <!--
-    Coordinate system:
-      +X = forward (direction of travel)
-      +Y = left
-      +Z = up
-
-    Approximate dimensions (scaled to ~2m nose-to-tail):
-      Body length: 0.6m
-      Hip height: 0.5m (in neutral crouch)
-      Tail length: 0.8m
-      Total mass: ~13.5kg
-    -->
-
-    <body name="pelvis" pos="0 0 0.50">
+    <!-- ==================== VELOCIRAPTOR (IGM 100/986, life size) ====================
+         +X forward, +Y left, +Z up.  The pelvis origin is the midpoint of the two acetabula, so root z is hip
+         height and "CoM ahead of the hip" is the CoM x in this frame.  The frame is authored LEVEL (sacrum
+         horizontal: Senter & Robins 2015; N&M 1999 "the horizontal sacral axis") and the keyframe is that level,
+         authored pose; the noise-free statue settles 0.134 deg nose-down from it (the measured natural pitch).
+         Measured at home: hip height 0.5488 m; CoM 0.1129 m ahead of the hip and
+         0.0317 m below it in this standing crouch; in Macaulay et al. 2023's standardised neutral posture
+         (legs straight and vertical, neck and head horizontal, arms hanging) 0.103 m ahead and
+         0.056 m below, against their 0.086-0.109 / 0.065-0.078 m scaled to 15 kg by mass^(1/3)
+         (CC_CoM 34.8-44.2 and DV_CoM -26.5 to -31.8 mm/kg^0.33, Fig. 2a and Suppl. Figs 4, 15).  Head tip
+         0.176 m above hip height; snout to tail tip 1.736 m; animal mass 15 kg
+         (body_subtreemass of pelvis; mj_getTotalmass also counts the 14.14 kg prey sphere).
+         Body mass 15 kg (Dececchi et al. 2020 Table 1, IGM 100/986).  Trunk 7.1 kg (Macaulay et al. 2023
+         iterations 1-4 torso 40-58 %, Suppl. Fig. 14), placed low (a belly capsule, as the T. rex's): the dorsal torso (column, lungs, air sacs;
+         3.2 kg, 872 kg/m3 against Macaulay's torso 850) ends at the
+         postacetabular ilium (68.2 mm, N&M 1999 Table 4); the ventral belly (gut, retroverted pubis,
+         3.4 kg, 884 kg/m3); the pectoral ribcage capsule (0.5 kg, 544 kg/m3).  Depth
+         0.193 m and width 0.110-0.120 m [design: Linheraptor furcula 110 mm x 1.035, Dececchi et al.
+         2016; sternal plates and pubis, N&M 1999]; at the acetabulum the silhouette is the thighs' 0.157 m. -->
+    <body name="pelvis" pos="0 0 0.548794">
       <freejoint name="root"/>
-
-      <!-- Main body: elongated ellipsoid -->
-      <geom name="torso" type="capsule" fromto="-0.15 0 0.05  0.25 0 0.05" size="0.08"
-            mass="4.0" material="body_mat"/>
-
-      <!-- Head/neck (simplified) -->
-      <geom name="neck" type="capsule" fromto="0.25 0 0.05  0.4 0 0.12" size="0.04"
-            mass="0.8" material="body_mat"/>
-      <geom name="head" type="ellipsoid" pos="0.5 0 0.12" size="0.12 0.04 0.05"
-            mass="0.5" material="body_mat"/>
-
-      <!-- IMU sensor site (for observations) -->
-      <site name="imu" pos="0 0 0.05" size="0.02"/>
-
-      <!-- ==================== TAIL ==================== -->
-      <!-- 5 segments, hinge joints, acts as rigid counterbalance -->
-
-      <body name="tail_1" pos="-0.15 0 0.05">
-        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-        <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-10 10"/>
-        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.02" size="0.045"
-              mass="1.0" material="body_mat"/>
-
-        <body name="tail_2" pos="-0.15 0 -0.02">
-          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.01" size="0.04"
-                mass="0.8" material="body_mat"/>
-
-          <body name="tail_3" pos="-0.15 0 -0.01">
-            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.15 0 0" size="0.035"
-                  mass="0.6" material="body_mat"/>
-
-            <body name="tail_4" pos="-0.15 0 0">
-              <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.12 0 0.01" size="0.025"
-                    mass="0.4" material="body_mat"/>
-
-              <body name="tail_5" pos="-0.12 0 0.01">
-                <joint name="tail_5_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-                <geom name="tail_5_geom" type="capsule" fromto="0 0 0  -0.1 0 0.02" size="0.015"
-                      mass="0.2" material="body_mat"/>
-                <!-- Tail tip sensor for stability reward -->
-                <site name="tail_tip" pos="-0.1 0 0.02" size="0.01"/>
+      <geom name="torso" type="capsule" fromto="-0.013 0 0.028  0.3 0 0.028" size="0.055" mass="3.2" material="body_mat"/>
+      <geom name="belly" type="capsule" fromto="-0.03 0 -0.05  0.23 0 -0.05" size="0.06" mass="3.4" material="belly_mat"/>
+      <geom name="ribcage" type="capsule" fromto="0.22 0 -0.025  0.33 0 -0.025" size="0.042" mass="0.5" material="body_mat"/>
+      <site name="imu" type="sphere" pos="0.1 0 0" size="0.02"/>
+      <!-- ==================== NECK + SKULL ====================
+             Neck base at the cervicodorsal joint, 0.37 m ahead of the acetabulum ([design]: first dorsal to
+             acetabulum 0.345-0.38 m from the Linheraptor trunk, Xu et al. 2010, x 1.035, plus the preacetabular
+             sacrum).  S-curved neck (Ostrom 1969 p. 49; Linheraptor neural spines, Xu et al. 2010), 0.32 m along its
+             curve (Linheraptor cervical series x 1.035 = 0.331 m): a steep base (55 deg) and a flatter
+             upper neck (22 deg), chord 35.3 deg above horizontal ([design] base 45-60, chord
+             30-40 deg after Senter & Robins 2015 Fig. 5B; no quantitative Velociraptor carriage is published).
+             0.9 kg (6 %: Macaulay et al. 2023 neck 4.3-10.4 %); radii 32 / 26 mm give 990 / 734 kg/m3
+             (Macaulay neck 800).  NON-colliding like the T. rex neck (contype 0).
+             neck_pitch / head_pitch servos hold the carriage from a gravity preload in the home ctrl (the T. rex
+             neck, unpreloaded, sags 12 deg: TyrannosaurusRexEnv._NECK_SETTLED_QPOS).  Ranges: the T. rex widths (neck pitch 70, yaw 40 deg,
+             tyrannosaurus_rex_anatomical.xml) centred on the stance.  damping 3 / 2, armature 0.01 [design]: damping
+             ratios 0.63 / 0.67, omega.dt 0.03 / 0.03. -->
+      <body name="neck" pos="0.37 0 0.03">
+        <joint name="neck_pitch" type="hinge" axis="0 1 0" range="-35 35" damping="3" armature="0.01"/>
+        <joint name="neck_yaw" type="hinge" axis="0 0 1" range="-20 20" damping="2" armature="0.01"/>
+        <geom name="neck_geom" type="capsule" fromto="0 0 0  0.074565 0 0.10649" size="0.032" mass="0.55" material="body_mat" contype="0" conaffinity="0"/>
+        <geom name="neck_upper_geom" type="capsule" fromto="0.074565 0 0.10649  0.25073 0 0.177665" size="0.026" mass="0.35" material="body_mat" contype="0" conaffinity="0"/>
+        <!-- Skull 0.23 m (GIN 100/25, Barsbold & Osmolska 1999 Table 1; Linheraptor 233 mm x 1.035), long axis
+                 8 deg nose-down ([design] 0-15 deg, Senter & Robins 2015 Fig. 5B).  Low and narrow: cranium
+                 ellipsoid 116 x 76 x 76 mm (temporal width 77, cranial depth 66 mm plus the jaw adductors), snout ellipsoid
+                 148 x 34 x 50 mm (snout 22 mm wide and 45 deep in bone), mandible and throat capsule r 14 mm: 0.61 L holding
+                 the 0.75 kg (5 %: Macaulay et al. 2023 head 4.9-5.2 %) at 1254 / 1215 / 1196 kg/m3 (implied densities checked as note 15a asks); 0.61 L is under
+                 the ~0.7 L Macaulay's hull implies.  skull_upper and snout collide (head-floor termination, as on the T. rex);
+                 the mandible is visual.  head_pitch range: the T. rex width 60 deg centred on the stance; damping 0.5,
+                 armature 0.005 [design]: damping ratio 0.76, omega.dt 0.05. -->
+        <body name="skull" pos="0.25073 0 0.177665">
+          <joint name="head_pitch" type="hinge" axis="0 1 0" range="-30 30" damping="0.5" armature="0.005"/>
+          <geom name="skull_upper" type="ellipsoid" pos="0.056568 0 0.000128" size="0.058 0.038 0.038" quat="0.997564 0 0.069756 0" mass="0.44" material="head_mat"/>
+          <geom name="snout" type="ellipsoid" pos="0.155627 0 -0.027931" size="0.074 0.017 0.025" quat="0.997564 0 0.069756 0" mass="0.16" material="head_mat"/>
+          <geom name="mandible" type="capsule" fromto="0.015909 0 -0.030511  0.199108 0 -0.056258" size="0.014" mass="0.15" material="head_mat" contype="0" conaffinity="0"/>
+          <site name="head_tip" type="sphere" pos="0.227762 0 -0.03201" size="0.01"/>
+        </body>
+      </body>
+      <!-- ==================== TAIL ====================
+             0.82 m, 40 caudals (IGM 100/986 Ca1-Ca25 sum 597 mm, N&M 1999 Table 5, tapered on to 40 caudals:
+             Deinonychus "no less than 36 and probably no more than 40", Ostrom 1969 p. 60; IGM 100/25 has 43).  Joints
+             only where the vertebrae are mobile, Ca1-Ca9 (0.206 m: normal zygapophyses and chevrons; the
+             prezygapophyseal rods begin at Ca10, N&M 1999 pp. 24-25):
+               tail_1 = Ca1-5 (0.105 m), pitch + yaw     tail_2 = Ca6-9 (0.101 m), pitch
+               tail_3 = Ca10-17 (0.209 m), pitch: the rod base.  The Ca10+ rods reach forward to Ca6 (N&M 1999 p. 25)
+                        and resist dorsoventral bending most (Persons & Currie 2012), so this joint (kept: the T. rex
+                        body tree has one) is the stiffest tail servo, kp 50.
+               tail_4 = Ca18-27 and tail_5 = Ca28-40: FUSED (no joint), the stiffened rod (Ostrom 1969 "a single
+                        rigid body"), as the T. rex's ossified-tendon distal tail.
+             2.05 kg (13.7 %: between Macaulay et al. 2023's short-tailed <= 10 % and Grossi et al. 2014's
+             ~15 %; a frustum of radius 45 -> 8 mm over 0.82 m at 1000 kg/m3 holds 2.1 kg), split
+             0.683 / 0.497 / 0.497 / 0.273 / 0.1 kg, the caudofemoralis-heavy base first; radii 40 / 33 / 26 / 18.5 / 12.5 mm
+             give 858 / 1002 / 960 / 1038 / 1010 kg/m3.  The tail took 0.40 kg from the trunk:
+             with the 1.65 kg tail, the trimmed torso and the arms moved forward the neutral-posture CoM would sit at
+             0.115 m, past the 0.109 m end of the mass-scaled band (above).  Held horizontal on the sacral line (Senter &
+             Robins 2015 Fig. 5B) by a springref preload on each pitch joint (tail_joint class).  Ranges: the T. rex
+             tail_joint width +-12 deg (tail_3 +-10, the rod base); every joint settles more than 0.15 rad from its
+             stops. -->
+      <body name="tail_1" pos="-0.068 0 0.03">
+        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0" range="-12 12" springref="45.296437"/>
+        <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-12 12" springref="0"/>
+        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.105 0 0" size="0.04" mass="0.683" material="body_mat"/>
+        <body name="tail_2" pos="-0.105 0 0">
+          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0" range="-12 12" springref="28.491327"/>
+          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.101 0 0" size="0.033" mass="0.497" material="body_mat"/>
+          <body name="tail_3" pos="-0.101 0 0">
+            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0" range="-10 10" springref="17.908679"/>
+            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.209 0 0" size="0.026" mass="0.497" material="body_mat"/>
+            <body name="tail_4" pos="-0.209 0 0">
+              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.22 0 0" size="0.0185" mass="0.273" material="body_mat"/>
+              <body name="tail_5" pos="-0.22 0 0">
+                <geom name="tail_5_geom" type="capsule" fromto="0 0 0  -0.185 0 0" size="0.0125" mass="0.1" material="body_mat"/>
+                <site name="tail_tip" type="sphere" pos="-0.185 0 0" size="0.01"/>
               </body>
             </body>
           </body>
         </body>
       </body>
-
-      <!-- ==================== RIGHT LEG ==================== -->
-      <!--
-      Reading the leg joints.  ``ref``, ``springref`` and the home ``ctrl``
-      name three different poses here, and the difference is deliberate:
-
-        ref        the joint value at which the bodies sit exactly as the
-                   geoms below author them: hip 38, knee -50, ankle 100,
-                   toes 10.  MuJoCo applies the rotation (qpos - ref) and the
-                   observation reports qpos, so ref is left alone; moving it
-                   would re-label every leg angle the policy reads.
-        springref  the standing pose of the home keyframe: hip 38, knee -50,
-                   ankle 90.5536, toe_d3 -0.5536, toe_d4 0.6464.  The leg
-                   spring (stiffness 20, leg_joint class) is therefore
-                   neutral where the animal actually stands.  Before physics
-                   revision 3 no leg joint set one, and the default is 0, not
-                   ref: the springs pulled the settled hip, knee and ankle
-                   (34.0 / -45.2 / 80.2 deg) back toward zero with 11.9 /
-                   15.8 / 28.0 N.m, and the statue stood by spending 10.4 /
-                   15.1 / 34.5 N.m of servo torque mostly cancelling them.
-                   The old keyframe note credited ref with making "joint
-                   springs hold this pose at rest"; ref never moves a spring.
-        home ctrl  carries the load the springs no longer do: each servo is
-                   commanded a small preload past the pose, sized so that its
-                   steady-state error is the gravity torque.  See the
-                   KEYFRAMES block.
-      -->
-
-      <body name="r_thigh" pos="0 -0.08 0">
-        <!-- Hip: 2 DOF (flexion/extension + abduction) -->
-        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"
-               springref="38"/>
-        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30" springref="0"/>
-        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
-              mass="1.2" material="body_mat"/>
-
-        <body name="r_tibia" pos="0.02 0 -0.18">
-          <!-- Knee: 1 DOF (Expanded extension limit from -10 to -5 deg) -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"
-                 springref="-50"/>
-          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
-                mass="0.8" material="body_mat"/>
-
-          <body name="r_metatarsus" pos="-0.02 0 -0.2">
-            <!-- Ankle: 1 DOF (digitigrade stance) -->
-            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"
-                   springref="90.5536"/>
-            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
-                  mass="0.3" material="body_mat"/>
-            <!-- Metatarsal-head touch volume.  A touch sensor only sums
-                 contacts on geoms of its site's OWN body, and the toes are
-                 child bodies, so r_foot on toe_d3 cannot see this capsule
-                 however large it is made.  At the settled stance the
-                 metatarsal head carries about 28% of the foot's load. -->
-            <site name="r_meta_touch" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.045" group="4"/>
-
-            <!-- Toes: 3 separate digits (anatomically correct) -->
-            <!-- Digit 3 (central, longest — primary weight-bearing) -->
-            <body name="r_toe_d3" pos="0.06 0 -0.12">
-              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
-                     springref="-0.5536"/>
-              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
-                    mass="0.06" material="body_mat"/>
-              <!-- Foot contact sensor (on primary weight-bearing digit).
-                   The site must envelop the whole toe capsule: a lying capsule
-                   contacts the floor near its ENDS, and a touch sensor only
-                   counts contact points inside the site volume. The original
-                   r=0.02 sphere at the capsule midpoint missed both end
-                   contacts, so the sensor read 0 during normal stance.
-                   This digit alone carries about 54% of the foot's load; the
-                   metatarsal-head and digit-4 sensors carry the rest, and the
-                   env sums all three into the one contact value per foot. -->
-              <site name="r_foot" pos="0.05 0 0" size="0.08" group="4"/>
-              <!-- group="4": sensor volume only — groups 3+ are hidden in
-                   default rendering, so the enlarged site doesn't draw as a
-                   large gray ball on the foot in videos. Toggle site group 4
-                   in an interactive viewer to visualize the touch volume. -->
+      <!-- ==================== RIGHT LEG ====================
+             IGM 100/986: femur 0.238, tibiotarsus 0.255, MT III 0.0991 m (N&M 1999 Tables 2-3).  Hip joint centres
+             85 mm apart: 0.355 x femur (Macaulay et al. 2023 Suppl. Fig. 13, femur-scaled).  Scaled by mass^(1/3)
+             as the CoM is, they would be 59 mm apart, which the 72 mm thighs cannot clear, so 85 mm is also the
+             girth lower bound.
+             POSTURE: Bishop et al. 2018's Troodon "characteristic posture" (cancellous-bone alignment, Fig. 5; Allen
+             et al. 2013 Velociraptor soft tissues): femur 35 deg from vertical, knee flexion 55 (interior
+             125), ankle flexion 28.5 (interior 151.5), abduction 4 (Bishop: 3; [design] +1:
+             with 3 deg the action-noise statue stood 16/20 at sigma 0.07 and with 4 deg, digit IV yawed 20 deg and leg
+             damping 15, 20/20; note 22).  Chosen over the T. rex recipe (135 deg knee, hip over ankle) because it is
+             the paravian evidence and it puts the MTP joint 0.064 m ahead of the hip, under a CoM 0.113 m
+             ahead; hip-over-ankle was a constraint for re-posing an existing plant, not anatomy.  Leg-length
+             authority at the knee 0.114 m/rad (the T. rex 135 deg knee: 0.134; the singular 172 deg knee: 0.024, note 4).
+             Thigh 1.11 / shank 0.57 / metatarsus 0.07 / digits 0.05 kg: Bishop et al. 2018 Fig. 2D's 61.9 / 31.6 /
+             3.7 / 2.8 % split of a 1.80 kg leg (12 % of the body; Macaulay et al. 2023 both hindlimbs 20-29 %).  The
+             thigh capsule (r 36 mm, 1089 kg/m3) stops at 85 % of the femur so its mass sits proximally, as
+             the thigh muscles do; shank r 25 mm (1083 kg/m3). -->
+      <body name="r_thigh" pos="0 -0.0425 0">
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-100 30" ref="-35" springref="-35"/>
+        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25" springref="0"/>
+        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.116035 -0.01156 -0.165311" size="0.036" mass="1.11" material="body_mat"/>
+        <body name="r_tibia" pos="0.136511 -0.0136 -0.194483">
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="5 105" ref="55" springref="55"/>
+          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.080238 -0.015378 -0.219915" size="0.025" mass="0.57" material="body_mat"/>
+          <!-- Metatarsus (MT III 99.1, MT II 84.8, MT IV 91.6 mm, N&M 1999 Table 3) ending in the MTP pad.  Its
+                       shaft capsule (r 11 mm) ends 8 mm short of the MTP condyle, 14.4 mm clear of the floor at
+                       home (a metatarsus on the floor makes the foot part-plantigrade; note 15b).  FOOT, functionally didactyl (Xing et al. 2013, track formula x-1-3-4-x): a rounded MTP
+                       pad under distal MT III-IV, digit III and digit IV pads; digit II raised; no hallux contact. -->
+          <body name="r_metatarsus" pos="-0.087215 -0.016715 -0.239038">
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-78.5 21.5" ref="-28.5" springref="-28.5"/>
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.013465 -0.006285 -0.08988" size="0.011" mass="0.055" material="body_mat"/>
+            <!-- MTP pad: a capsule lying across MT III-IV (40 x 30 mm; the track pad is 33 x 31 mm in 13-16 cm
+                           tracks, Xing et al. 2013), centred 10 mm behind the MTP III joint and 5 mm toward MT IV
+                           ("a large, rounded metatarsophalangeal pad").  Rounded, not a box: a box loads only at its corners
+                           (docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md). -->
+            <geom name="r_mtp_pad" type="capsule" fromto="0.004648 -0.016837 -0.100773  0.004648 -0.006837 -0.100773" size="0.015" mass="0.015" material="pad_mat"/>
+            <site name="r_foot" type="box" pos="0.004648 -0.011837 -0.111773" size="0.03 0.03 0.016" group="4"/>
+            <!-- Digit II held raised in Bishop 2019's resting pose: MTP-II 35 deg extension, IP1 76, IP2
+                           21 deg (Table 1, Eqs. 1-2: the posture-1 threshold, metatarsus 8.5 deg from vertical).  II-1 26.6,
+                           II-2 28.0 mm (N&M 1999 Table 3).  The phalanges are visual (contype 0) so digit II never loads the
+                           floor or the reset settle; the MTP-II hinge is passive and sprung (d2_joint class).  Range
+                           -50 to -31 deg [design]: the flexion stop keeps the claw at least 3.3 mm above the
+                           floor plane at any claw angle over digit II's whole range, and +-2.9 deg reset noise stays inside it. -->
+            <body name="r_toe_d2" pos="0.012534 0.00515 -0.083664">
+              <joint name="r_toe_d2_joint" class="d2_joint" type="hinge" axis="0 1 0" range="-50 -31" ref="-35" springref="-35.023179"/>
+              <geom name="r_toe_d2_p1" type="capsule" fromto="0 0 0  0.018351 0.000575 -0.019248" size="0.0065" mass="0.005" material="body_mat" contype="0" conaffinity="0"/>
+              <geom name="r_toe_d2_p2" type="capsule" fromto="0.018351 0.000575 -0.019248  0.042487 0.004079 -0.005494" size="0.0055" mass="0.004" material="body_mat" contype="0" conaffinity="0"/>
+              <!-- Sickle claw: ungual II, 70 mm along the curve (55 mm chord; IGM 100/982 66.3, IGM 100/985 64.8 mm, scaled
+                               by the 23.4 mm proximal height of IGM 100/986, N&M 1999 Table 3), on IP2.  contype/conaffinity 2/2 (prey
+                               only, as on r4).  Range -38 to +40 deg: Bishop 2019's IP2 extension limit, and a
+                               flexion limit that keeps the tip 10 mm above the floor with digit II at rest; 19.6 mm clear
+                               at home.  Only IP2 is actuated (MTP-II passive, IP1 fused into the digit II body), so the strike is an
+                               ungual flick of 61 deg from rest against ~70 deg of anatomical IP2 flexion (Bishop 2019). -->
+              <body name="r_toe_claw" pos="0.042487 0.004079 -0.005494">
+                <joint name="r_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-38 40" ref="-21"/>
+                <geom name="r_claw_geom" type="capsule" fromto="0 0 0  0.034483 0.006601 0.042336" size="0.0065" mass="0.011" material="claw_mat" contype="2" conaffinity="2"/>
+                <site name="r_claw_tip" type="sphere" pos="0.034483 0.006601 0.042336" size="0.008"/>
+              </body>
             </body>
-
-            <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
-            <body name="r_toe_d4" pos="0.06 -0.015 -0.12">
-              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
-                     springref="0.6464"/>
-              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.08 -0.01 0" size="0.018"
-                    mass="0.04" material="body_mat"/>
-              <!-- Digit-4 touch volume, on its own body for the same reason;
-                   it envelops the whole capsule like r_foot does for d3. -->
-              <site name="r_d4_touch" pos="0.04 -0.005 0" size="0.07" group="4"/>
+            <!-- Digit III (III-1 44.0, III-2 27.4 mm, N&M 1999 Table 3; III-3 ~23.6 and ungual ~35.5 mm estimated from
+                           Linheraptor, Deinonychus and IGM 100/985 ratios): ONE segment on a passive sprung MTP hinge.  The
+                           contact capsule runs 35-115 mm ahead of the joint: the III-2 and III-3 pads and the ungual's
+                           contact (track impressions run to the claw tip); III-1 is visual, since "the proximal part of digit
+                           III often does not touch" (Xing et al. 2013).  Yawed 4 deg medially; hinge axis perpendicular to
+                           the digit.  r 8.5 mm: 579 kg/m3, the light end of the plant (the 0.05 kg digit budget). -->
+            <body name="r_toe_d3" pos="0.014648 -0.006837 -0.097773">
+              <joint name="r_toe_d3_joint" class="toe_joint" type="hinge" axis="-0.069756 0.997564 0" range="-119 -44" ref="-81.5" springref="-80.415656"/>
+              <geom name="r_toe_d3_geom" type="capsule" fromto="0.034915 0.002441 -0.0095  0.11472 0.008022 -0.0095" size="0.0085" mass="0.012" material="pad_mat"/>
+              <geom name="r_toe_d3_prox" type="capsule" fromto="0 0 0  0.034915 0.002441 -0.0085" size="0.007" mass="0.003" material="body_mat" contype="0" conaffinity="0"/>
+              <geom name="r_toe_d3_ungual" type="capsule" fromto="0.11472 0.008022 -0.0095  0.128686 0.008999 -0.011" size="0.0035" mass="0.001" material="claw_mat" contype="0" conaffinity="0"/>
+              <site name="r_toe_d3_site" type="box" pos="0.074817 0.005232 -0.014" size="0.06 0.022 0.016" quat="0.999391 0 0 0.034899" group="4"/>
             </body>
-
-            <!-- Sickle claw (digit 2) - THE WEAPON -->
-            <body name="r_toe_claw" pos="0.06 0.02 -0.12">
-              <joint name="r_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-90 30"/>
-              <geom name="r_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01"
-                    mass="0.05" material="claw_mat" contype="2" conaffinity="2"/>
-              <!-- Claw tip for strike detection -->
-              <site name="r_claw_tip" pos="0.04 0 0.06" size="0.015"/>
+            <!-- Digit IV (IV-1..IV-4 30.1 / 23.0 / 18.6 / 18.6 mm, N&M 1999 Table 3; ungual ~35.8 mm): its four pads and
+                           the ungual base make the contact capsule run 12-105 mm from the joint; the visual ungual tip
+                           brings the digit to 125 mm (126.1 mm).  Same radius and bottom height as digit III (the r4 d4
+                           is 2 mm thinner and hovers).  Yawed 20 deg laterally: III-IV divarication 24 deg
+                           (Velociraptorichnus 21-28 deg, Xing et al. 2013; 19 deg screened first, note 22).  Its hinge axis is
+                           horizontal and perpendicular to the digit, so it flexes in its own plane. -->
+            <body name="r_toe_d4" pos="0.013539 -0.01632 -0.090373">
+              <joint name="r_toe_d4_joint" class="toe_joint" type="hinge" axis="0.34202 0.939693 0" range="-119 -44" ref="-81.5" springref="-80.658413"/>
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0.011276 -0.004104 -0.0169  0.098668 -0.035912 -0.0169" size="0.0085" mass="0.011" material="pad_mat"/>
+              <geom name="r_toe_d4_prox" type="capsule" fromto="0 0 0  0.011276 -0.004104 -0.0159" size="0.007" mass="0.002" material="body_mat" contype="0" conaffinity="0"/>
+              <geom name="r_toe_d4_ungual" type="capsule" fromto="0.098668 -0.035912 -0.0169  0.117462 -0.042753 -0.0184" size="0.0035" mass="0.001" material="claw_mat" contype="0" conaffinity="0"/>
+              <site name="r_toe_d4_site" type="box" pos="0.054972 -0.020008 -0.0214" size="0.0665 0.022 0.016" quat="0.984808 0 0 -0.173648" group="4"/>
             </body>
           </body>
         </body>
       </body>
-
-      <!-- ==================== LEFT LEG ==================== -->
-
-      <body name="l_thigh" pos="0 0.08 0">
-        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"
-               springref="38"/>
-        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30" springref="0"/>
-        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
-              mass="1.2" material="body_mat"/>
-
-        <body name="l_tibia" pos="0.02 0 -0.18">
-          <!-- Knee: 1 DOF (Expanded extension limit from -10 to -5 deg) -->
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"
-                 springref="-50"/>
-          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
-                mass="0.8" material="body_mat"/>
-
-          <body name="l_metatarsus" pos="-0.02 0 -0.2">
-            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"
-                   springref="90.5536"/>
-            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
-                  mass="0.3" material="body_mat"/>
-            <!-- Same own-body rationale as r_meta_touch above. -->
-            <site name="l_meta_touch" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.045" group="4"/>
-
-            <!-- Toes: 3 separate digits (anatomically correct) -->
-            <!-- Digit 3 (central, longest — primary weight-bearing) -->
-            <body name="l_toe_d3" pos="0.06 0 -0.12">
-              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
-                     springref="-0.5536"/>
-              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
-                    mass="0.06" material="body_mat"/>
-              <!-- Same coverage and group="4" rationale as r_foot above. -->
-              <site name="l_foot" pos="0.05 0 0" size="0.08" group="4"/>
+      <body name="l_thigh" pos="0 0.0425 0">
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-100 30" ref="-35" springref="-35"/>
+        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25" springref="0"/>
+        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.116035 0.01156 -0.165311" size="0.036" mass="1.11" material="body_mat"/>
+        <body name="l_tibia" pos="0.136511 0.0136 -0.194483">
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="5 105" ref="55" springref="55"/>
+          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.080238 0.015378 -0.219915" size="0.025" mass="0.57" material="body_mat"/>
+          <body name="l_metatarsus" pos="-0.087215 0.016715 -0.239038">
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-78.5 21.5" ref="-28.5" springref="-28.5"/>
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.013465 0.006285 -0.08988" size="0.011" mass="0.055" material="body_mat"/>
+            <geom name="l_mtp_pad" type="capsule" fromto="0.004648 0.016837 -0.100773  0.004648 0.006837 -0.100773" size="0.015" mass="0.015" material="pad_mat"/>
+            <site name="l_foot" type="box" pos="0.004648 0.011837 -0.111773" size="0.03 0.03 0.016" group="4"/>
+            <body name="l_toe_d2" pos="0.012534 -0.00515 -0.083664">
+              <joint name="l_toe_d2_joint" class="d2_joint" type="hinge" axis="0 1 0" range="-50 -31" ref="-35" springref="-35.023179"/>
+              <geom name="l_toe_d2_p1" type="capsule" fromto="0 0 0  0.018351 -0.000575 -0.019248" size="0.0065" mass="0.005" material="body_mat" contype="0" conaffinity="0"/>
+              <geom name="l_toe_d2_p2" type="capsule" fromto="0.018351 -0.000575 -0.019248  0.042487 -0.004079 -0.005494" size="0.0055" mass="0.004" material="body_mat" contype="0" conaffinity="0"/>
+              <body name="l_toe_claw" pos="0.042487 -0.004079 -0.005494">
+                <joint name="l_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-38 40" ref="-21"/>
+                <geom name="l_claw_geom" type="capsule" fromto="0 0 0  0.034483 -0.006601 0.042336" size="0.0065" mass="0.011" material="claw_mat" contype="2" conaffinity="2"/>
+                <site name="l_claw_tip" type="sphere" pos="0.034483 -0.006601 0.042336" size="0.008"/>
+              </body>
             </body>
-
-            <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
-            <body name="l_toe_d4" pos="0.06 0.015 -0.12">
-              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
-                     springref="0.6464"/>
-              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.08 0.01 0" size="0.018"
-                    mass="0.04" material="body_mat"/>
-              <site name="l_d4_touch" pos="0.04 0.005 0" size="0.07" group="4"/>
+            <body name="l_toe_d3" pos="0.014648 0.006837 -0.097773">
+              <joint name="l_toe_d3_joint" class="toe_joint" type="hinge" axis="0.069756 0.997564 0" range="-119 -44" ref="-81.5" springref="-80.415656"/>
+              <geom name="l_toe_d3_geom" type="capsule" fromto="0.034915 -0.002441 -0.0095  0.11472 -0.008022 -0.0095" size="0.0085" mass="0.012" material="pad_mat"/>
+              <geom name="l_toe_d3_prox" type="capsule" fromto="0 0 0  0.034915 -0.002441 -0.0085" size="0.007" mass="0.003" material="body_mat" contype="0" conaffinity="0"/>
+              <geom name="l_toe_d3_ungual" type="capsule" fromto="0.11472 -0.008022 -0.0095  0.128686 -0.008999 -0.011" size="0.0035" mass="0.001" material="claw_mat" contype="0" conaffinity="0"/>
+              <site name="l_toe_d3_site" type="box" pos="0.074817 -0.005232 -0.014" size="0.06 0.022 0.016" quat="0.999391 0 0 -0.034899" group="4"/>
             </body>
-
-            <!-- Sickle claw (digit 2) - THE WEAPON -->
-            <body name="l_toe_claw" pos="0.06 -0.02 -0.12">
-              <joint name="l_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-90 30"/>
-              <geom name="l_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01"
-                    mass="0.05" material="claw_mat" contype="2" conaffinity="2"/>
-              <site name="l_claw_tip" pos="0.04 0 0.06" size="0.015"/>
+            <body name="l_toe_d4" pos="0.013539 0.01632 -0.090373">
+              <joint name="l_toe_d4_joint" class="toe_joint" type="hinge" axis="-0.34202 0.939693 0" range="-119 -44" ref="-81.5" springref="-80.658413"/>
+              <geom name="l_toe_d4_geom" type="capsule" fromto="0.011276 0.004104 -0.0169  0.098668 0.035912 -0.0169" size="0.0085" mass="0.011" material="pad_mat"/>
+              <geom name="l_toe_d4_prox" type="capsule" fromto="0 0 0  0.011276 0.004104 -0.0159" size="0.007" mass="0.002" material="body_mat" contype="0" conaffinity="0"/>
+              <geom name="l_toe_d4_ungual" type="capsule" fromto="0.098668 0.035912 -0.0169  0.117462 0.042753 -0.0184" size="0.0035" mass="0.001" material="claw_mat" contype="0" conaffinity="0"/>
+              <site name="l_toe_d4_site" type="box" pos="0.054972 0.020008 -0.0214" size="0.0665 0.022 0.016" quat="0.984808 0 0 0.173648" group="4"/>
             </body>
           </body>
         </body>
       </body>
-
-      <!-- ==================== FORELIMBS (stubs) ==================== -->
-      <!-- Simplified for now - can expand for grappling behavior later -->
-
-      <body name="r_arm" pos="0.2 -0.06 0.02">
-        <joint name="r_shoulder_pitch" type="hinge" axis="0 1 0" damping="2.0" range="-30 45"/>
-        <joint name="r_shoulder_roll" type="hinge" axis="1 0 0" damping="2.0" range="-20 20"/>
-        <geom name="r_arm_geom" type="capsule" fromto="0 0 0  0.08 -0.02 -0.1" size="0.015"
-              mass="0.15" material="body_mat"/>
+      <!-- ==================== FORELIMBS (welded, passive) ====================
+             Humerus 0.160 (Linheraptor 155 mm x 1.035, Xu et al. 2010), forearm 0.120 (radius 0.114 / ulna 0.123),
+             hand 0.175 (MC II + digit II chord, N&M 1999 Table 1), 0.30 kg per arm (Macaulay et al. 2023 both
+             forelimbs 3.5-7.9 %).  Glenoid [design] 0.36 m ahead of the acetabulum (shoulder region 0.345-0.38 m),
+             20 mm above hip height and 60 mm lateral, on the torso wall.  Folded as Senter & Robins
+             2015 Tables 5-6: humerus back along the chest 33 deg below horizontal, the strongly acute elbow
+             (forearm 13 deg below horizontal, forward), hand hanging, palm medial.  No joints and no actuators
+             (the T. rex's arms are jointless bodies: joints with no function cost observation width), and NON-colliding (contype 0) so they never load the floor or the legs; they
+             keep their mass.  Visual only: the hand meets the shank once the hip flexes 19.5 deg past the
+             stance with the knee straightened, and the arm meets the leg at 29 deg with the knee and ankle at home. -->
+      <body name="r_arm" pos="0.36 -0.06 0.02">
+        <geom name="r_upper_arm_geom" type="capsule" fromto="0 0 0  -0.134187 -0.012 -0.087142" size="0.017" mass="0.15" material="body_mat" contype="0" conaffinity="0"/>
+        <body name="r_forearm" pos="-0.134187 -0.012 -0.087142">
+          <geom name="r_forearm_geom" type="capsule" fromto="0 0 0  0.116924 0.005 -0.026994" size="0.0145" mass="0.09" material="body_mat" contype="0" conaffinity="0"/>
+          <body name="r_hand" pos="0.116924 0.005 -0.026994">
+            <geom name="r_hand_geom" type="capsule" fromto="0 0 0  0 0 -0.175" size="0.01" mass="0.06" material="claw_mat" contype="0" conaffinity="0"/>
+          </body>
+        </body>
       </body>
-
-      <body name="l_arm" pos="0.2 0.06 0.02">
-        <joint name="l_shoulder_pitch" type="hinge" axis="0 1 0" damping="2.0" range="-30 45"/>
-        <joint name="l_shoulder_roll" type="hinge" axis="1 0 0" damping="2.0" range="-20 20"/>
-        <geom name="l_arm_geom" type="capsule" fromto="0 0 0  0.08 0.02 -0.1" size="0.015"
-              mass="0.15" material="body_mat"/>
+      <body name="l_arm" pos="0.36 0.06 0.02">
+        <geom name="l_upper_arm_geom" type="capsule" fromto="0 0 0  -0.134187 0.012 -0.087142" size="0.017" mass="0.15" material="body_mat" contype="0" conaffinity="0"/>
+        <body name="l_forearm" pos="-0.134187 0.012 -0.087142">
+          <geom name="l_forearm_geom" type="capsule" fromto="0 0 0  0.116924 -0.005 -0.026994" size="0.0145" mass="0.09" material="body_mat" contype="0" conaffinity="0"/>
+          <body name="l_hand" pos="0.116924 -0.005 -0.026994">
+            <geom name="l_hand_geom" type="capsule" fromto="0 0 0  0 0 -0.175" size="0.01" mass="0.06" material="claw_mat" contype="0" conaffinity="0"/>
+          </body>
+        </body>
       </body>
-
-    </body> <!-- end pelvis -->
+    </body>
   </worldbody>
 
-  <!-- ==================== ACTUATORS ==================== -->
-  <!-- Position actuators for locomotion, motor for claws -->
-
   <actuator>
-    <!-- NOTE: ctrlrange must be in radians — the compiler angle="degree" setting
-         does NOT convert actuator attributes, only joint attributes. -->
-
-    <!-- Right leg -->
-    <!-- Hip pitch, knee, and ankle forcerange sized at 1.5x kp (was 0.8x from
-         156a933): the 0.8x caps clipped 34-40%/22-25% of a moderate gait cycle
-         on hips/ankles and broke stage-2 locomotion. The knee measured 0% at
-         the moderate 2.5 Hz/0.8-amplitude regime but 30-46% at sprint-like
-         excitation (3-4 Hz, full amplitude), so it carries the same 1.5x
-         headroom before faster-gait training.
-         1.5x keeps impact spikes bounded while leaving gait
-         torques unclipped. See docs/investigations/STAGE2_RECOMMENDATIONS.md R2.
-         Standing costs these servos almost nothing: from the gravity-preloaded
-         home ctrl (see the keyframe) the settled statue holds hip / knee /
-         ankle / toe_d3 at 1.60 / 0.48 / 5.56 / 2.33 N.m, 0.2-5.8% of
-         forcerange, where the pre-r3 stance spent 10.4 / 15.1 / 34.5 / 4.3 N.m
-         fighting springs anchored at qpos 0. -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="150" forcerange="-225 225" ctrlrange="-1.0472 1.5708"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
-    <position name="r_knee_act" joint="r_knee" kp="180" forcerange="-270 270" ctrlrange="-2.0944 -0.0872"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="100" forcerange="-150 150" ctrlrange="1.0472 2.7925"/>
-    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
-    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
-    <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
-
-    <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="150" forcerange="-225 225" ctrlrange="-1.0472 1.5708"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
-    <position name="l_knee_act" joint="l_knee" kp="180" forcerange="-270 270" ctrlrange="-2.0944 -0.0872"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="100" forcerange="-150 150" ctrlrange="1.0472 2.7925"/>
-    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
-    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
-    <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
-
-    <!-- Tail actuators for active balance control -->
-    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="60" forcerange="-50 50" ctrlrange="-0.2618 0.2618"/>
-    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="50" forcerange="-40 40" ctrlrange="-0.1745 0.1745"/>
-    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="50" forcerange="-40 40" ctrlrange="-0.2618 0.2618"/>
-    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="40" forcerange="-32 32" ctrlrange="-0.2618 0.2618"/>
-
-    <!-- Forelimb actuators (lightweight — for grappling/balance assist) -->
-    <position name="r_shoulder_pitch_act" joint="r_shoulder_pitch" kp="15" forcerange="-12 12" ctrlrange="-0.5236 0.7854"/>
-    <position name="r_shoulder_roll_act" joint="r_shoulder_roll" kp="15" forcerange="-12 12" ctrlrange="-0.3491 0.3491"/>
-    <position name="l_shoulder_pitch_act" joint="l_shoulder_pitch" kp="15" forcerange="-12 12" ctrlrange="-0.5236 0.7854"/>
-    <position name="l_shoulder_roll_act" joint="l_shoulder_roll" kp="15" forcerange="-12 12" ctrlrange="-0.3491 0.3491"/>
+    <!-- 17 position servos (kp only, as the T. rex).  ctrlrange in RADIANS = the joint range (the compiler's
+         angle="degree" does not convert actuator attributes).  GAIN RULE [design]: the r4 raptor's gains
+         (plant_versions note 17) x this plant's m.g.h ratio 76.1 / 61.3 N.m = 1.24, rounded to 1.2, for the legs
+         (hip pitch 150, roll 100, knee 180, ankle 100 on r4); tail servos x their own subtree gravity-torque ratio
+         against r4's (60 / 50 / 50 / 40 -> 36 / 30 / 36 / 40), with tail_3 raised to 50 as the rod base; neck /
+         head kp ~ 12 x tau_g (preload ~4.7 deg; no counterpart on r4, whose neck is welded); the claw
+         5 N.m/rad, bounded at 4 N.m (~70 N at the tip).  forcerange 1.5 x kp on hip pitch, knee and ankle (gait
+         headroom: 0.8 x kp clipped the r2 raptor's gait torque, docs/KNOWN_ISSUES.md), 0.8 x kp on everything else.  Hip roll: 2 x (kp + k) = 288 N.m/rad against m.g.h
+         76.1 (3.79 x; the T. rex's bar 1.5 x, note 13).  Home ctrl: the pose plus tau_g/kp on the neck, head and legs;
+         the pose itself on the tail, whose gravity torque sits in its springref (see the keyframe). -->
+    <position name="neck_pitch_act" joint="neck_pitch" kp="40" forcerange="-32 32" ctrlrange="-0.61087 0.61087"/>
+    <position name="neck_yaw_act" joint="neck_yaw" kp="20" forcerange="-16 16" ctrlrange="-0.34907 0.34907"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="8" forcerange="-6.4 6.4" ctrlrange="-0.5236 0.5236"/>
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="180" forcerange="-270 270" ctrlrange="-1.74533 0.5236"/>
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="120" forcerange="-96 96" ctrlrange="-0.43633 0.43633"/>
+    <position name="r_knee_act" joint="r_knee" kp="216" forcerange="-324 324" ctrlrange="0.08727 1.8326"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="120" forcerange="-180 180" ctrlrange="-1.37008 0.37525"/>
+    <position name="r_claw_act" joint="r_claw" kp="5" forcerange="-4 4" ctrlrange="-0.66323 0.69813"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="180" forcerange="-270 270" ctrlrange="-1.74533 0.5236"/>
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="120" forcerange="-96 96" ctrlrange="-0.43633 0.43633"/>
+    <position name="l_knee_act" joint="l_knee" kp="216" forcerange="-324 324" ctrlrange="0.08727 1.8326"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="120" forcerange="-180 180" ctrlrange="-1.37008 0.37525"/>
+    <position name="l_claw_act" joint="l_claw" kp="5" forcerange="-4 4" ctrlrange="-0.66323 0.69813"/>
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="36" forcerange="-28.8 28.8" ctrlrange="-0.20944 0.20944"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" forcerange="-24 24" ctrlrange="-0.20944 0.20944"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="36" forcerange="-28.8 28.8" ctrlrange="-0.20944 0.20944"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="50" forcerange="-40 40" ctrlrange="-0.17453 0.17453"/>
   </actuator>
 
-  <!-- ==================== SENSORS ==================== -->
-
   <sensor>
-    <!-- WARNING: the Python env indexes sensordata by POSITION (gyro 0-2,
-         accel 3-5, quat 6-9, touch 10-11 and 27-30, ...).  Do not reorder or
-         insert sensors without updating VelociraptorMongoliensisEnv._cache_ids, whose foot
-         sensor groups the plant contract fingerprints. -->
-    <!-- IMU-like sensors -->
+    <!-- 0-9 are the shared IMU block, which shared code indexes by POSITION (gyro 0-2, accel 3-5, quat 6-9):
+             keep it first.  Touch sensors: one per LOAD-BEARING BODY (a touch sensor only sums contacts on
+             geoms of its site's own body: notes 3 and 14d): r/l_foot = the MTP pad (metatarsus body) at 10/11,
+             digits III and IV at 24-27.  Their sum equals the floor force (the MT shaft and digit II never
+             touch).  head_tip 12-14 and tail tip 15-23 as the T. rex; claw tips 28-33: kept as the r4 raptor's
+             claw telemetry (the env's claw reward reads site_xpos, so nothing consumes them).
+             VelociraptorMongoliensisEnv._cache_ids resolves every sensor it reads BY NAME and fails closed on a
+             missing one, so a reorder moves no observation channel; a rename or a new touch sensor needs its
+             foot groups updated, and the plant contract fingerprints the foot channels by sensor name. -->
     <gyro name="pelvis_gyro" site="imu"/>
     <accelerometer name="pelvis_accel" site="imu"/>
     <framequat name="pelvis_orientation" objtype="site" objname="imu"/>
-
-    <!-- Foot contact forces.  These two see digit 3 ONLY: a touch sensor
-         sums contacts on geoms of its site's own body, and the metatarsus
-         and digit 4 are other bodies.  Alone they read about 54% of the
-         floor load.  The metatarsal-head and digit-4 sensors at the end of
-         this block carry the rest; the env sums d3 + metatarsus + d4 into one
-         contact value per foot, which equals the floor force. -->
     <touch name="r_foot_touch" site="r_foot"/>
     <touch name="l_foot_touch" site="l_foot"/>
-
-    <!-- Claw tip positions (for strike detection) -->
-    <framepos name="r_claw_pos" objtype="site" objname="r_claw_tip"/>
-    <framepos name="l_claw_pos" objtype="site" objname="l_claw_tip"/>
-
-    <!-- Tail tip for stability monitoring -->
+    <framepos name="head_tip_pos" objtype="site" objname="head_tip"/>
     <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
     <velocimeter name="tail_tip_linvel" site="tail_tip"/>
     <gyro name="tail_tip_angvel" site="tail_tip"/>
-
-    <!-- Metatarsal-head and digit-4 contact forces (indices 27-30, right
-         foot first).  Appended last so every index above stays put. -->
-    <touch name="r_meta_touch" site="r_meta_touch"/>
-    <touch name="r_d4_touch" site="r_d4_touch"/>
-    <touch name="l_meta_touch" site="l_meta_touch"/>
-    <touch name="l_d4_touch" site="l_d4_touch"/>
+    <touch name="r_toe_d3_touch" site="r_toe_d3_site"/>
+    <touch name="r_toe_d4_touch" site="r_toe_d4_site"/>
+    <touch name="l_toe_d3_touch" site="l_toe_d3_site"/>
+    <touch name="l_toe_d4_touch" site="l_toe_d4_site"/>
+    <framepos name="r_claw_pos" objtype="site" objname="r_claw_tip"/>
+    <framepos name="l_claw_pos" objtype="site" objname="l_claw_tip"/>
   </sensor>
 
-  <!-- ==================== CONTACT EXCLUSIONS ==================== -->
-  <!-- Prevent self-collision in tail chain -->
-
   <contact>
-    <exclude body1="pelvis" body2="tail_1"/>
+    <!-- Every non-parent pair that overlaps at home or in a hip-pitch x knee x hip-roll sweep (both legs
+             in phase and anti-phase) is excluded (note 6), plus sibling digits, tail_1-thighs (T. rex note 6) and
+             thigh-thigh.  Leg-to-leg pairs below the thigh and foot-to-tail stay colliding. -->
+    <exclude body1="pelvis" body2="neck"/>  <!-- parent-child, explicit as the T. rex -->
+    <exclude body1="neck" body2="skull"/>  <!-- parent-child -->
+    <exclude body1="pelvis" body2="tail_1"/>  <!-- parent-child -->
     <exclude body1="tail_1" body2="tail_2"/>
     <exclude body1="tail_2" body2="tail_3"/>
     <exclude body1="tail_3" body2="tail_4"/>
     <exclude body1="tail_4" body2="tail_5"/>
-
-    <!-- Prevent thigh-torso collision -->
-    <exclude body1="pelvis" body2="r_thigh"/>
+    <exclude body1="pelvis" body2="r_thigh"/>  <!-- parent-child -->
     <exclude body1="pelvis" body2="l_thigh"/>
-
-    <!-- Adjacent toe digits interpenetrate at rest (d3 r=0.02 at y=0, d4
-         r=0.018 at y=-/+0.015): without an exclude the solver holds a large
-         constant repulsion force between them that also pollutes the foot
-         touch sensors. The digits are anatomically side-by-side; they never
-         need to collide with each other. -->
-    <exclude body1="r_toe_d3" body2="r_toe_d4"/>
-    <exclude body1="l_toe_d3" body2="l_toe_d4"/>
+    <exclude body1="tail_1" body2="r_thigh"/>  <!-- sibling: the T. rex lesson (16.3 kN through every reset, note 6) -->
+    <exclude body1="tail_1" body2="l_thigh"/>
+    <exclude body1="r_thigh" body2="l_thigh"/>  <!-- siblings 13 mm apart at the 85 mm hips: touch under small adduction -->
+    <exclude body1="pelvis" body2="r_arm"/>  <!-- parent-child; arms are non-colliding anyway -->
+    <exclude body1="pelvis" body2="l_arm"/>
+    <exclude body1="r_toe_d3" body2="r_toe_d4"/>  <!-- sibling digits (note 6) -->
+    <exclude body1="r_toe_d2" body2="r_toe_d3"/>
+    <exclude body1="r_toe_d2" body2="r_toe_d4"/>
+    <exclude body1="l_toe_d3" body2="l_toe_d4"/>  <!-- sibling digits (note 6) -->
+    <exclude body1="l_toe_d2" body2="l_toe_d3"/>
+    <exclude body1="l_toe_d2" body2="l_toe_d4"/>
+    <exclude body1="r_toe_claw" body2="l_toe_claw"/>  <!-- claws are 2/2 (prey-only) but would meet each other -->
+    <exclude body1="l_tibia" body2="pelvis"/>  <!-- overlaps: sweep hip -100 knee 5 roll -3 phase -->
+    <exclude body1="pelvis" body2="r_tibia"/>  <!-- overlaps: sweep hip -100 knee 5 roll -3 phase -->
   </contact>
 
-  <!-- ==================== KEYFRAMES ==================== -->
-  <!-- Standing pose with forward-leaning torso (20 deg pelvis pitch), matching
-       dromaeosaurid biomechanics: horizontal torso counterbalanced by tail,
-       with the CoM balanced over flat digitigrade feet and a shallow (0.5 mm)
-       floor contact.  The leg ctrl carries a preload against gravity.
-
-       Leg qpos, in degrees:  hip 38   knee -50       ankle 90.5536
-                              toe_d3 -0.5536   toe_d4 0.6464
-       Leg ctrl, in degrees:  hip 37.3939   knee -49.8339   ankle 93.7599
-                              toe_d3 2.0971    toe_d4 1.7735
-
-       Hip and knee stay at ref (38 = 18 deg of crouch + 20 deg of lean
-       compensation), which is what puts the feet under the CoM: it projects
-       0.05 m inside the floor-contact hull, mid-way along digit 3.  The
-       ankle and toes flatten the foot instead: the pelvis pitch plus every
-       rotation from ref along hip, knee, ankle and toe sums to zero, so
-       digit 3 lies level.  The earlier keyframe kept every joint at ref and
-       stood on toes tipped 20 deg toe-down, 44.6 mm inside the floor, and
-       every reset settles to the keyframe's own clearance.  Re-posing the
-       hip to 18 deg flattens the toes too, but moves the support 7.6 cm
-       ahead of the CoM and the statue falls backward in 0.66 s.  Digit 4 is
-       keyed 1.2 deg toe-down of digit 3: its capsule is 2 mm thinner, so a
-       level digit 4 hovers; 1.2 deg gives each foot d3 / metatarsus / d4
-       loads of 0.272 / 0.141 / 0.087 BW at the settled stance.  Root z
-       0.505543 is the height at which digit 3 and the metatarsal head sit
-       0.5 mm into the floor (digit 4 0.17 mm) at this pose; it is a
-       consequence of the joint values, not an independent choice, and must
-       be re-solved if they change.
-
-       ctrl - qpos is tau_g / kp: the gravity torque each servo must hold,
-       measured with the leg servos temporarily near-rigid (kp x 20), over
-       its kp.  A position servo holds torque only through its error, so
-       with the springs neutral at this pose (see the leg block) a ctrl equal
-       to the pose lets the joints sag 3-4 deg and the statue falls onto its
-       body within 1.1-1.34 s.  Preloaded, the nominal servos hold the pose
-       within 0.1 deg on every leg joint, and still do with every leg spring
-       deleted.
-
-       Under the home controller this settles to 20.02 deg of pelvis pitch
-       (0.3494 rad over 40 seeds at reset noise 0.05) and pelvis 0.5055 m
-       (20.10 deg, 0.3508 rad and 0.5052 m on physics r3).
-       Those are load-bearing constants elsewhere and must be re-measured
-       together with any edit here, along with the ctrl preload
-       (re-measure tau_g):
-         velociraptor_mongoliensis/base_env.py
-                        natural_pitch (0.35), the leg_home_pose target (this
-                        key)
-         configs/velociraptor_mongoliensis/anatomical/stance.toml
-                        the stance-quality weights and min_avg_reward /
-                        collapse_peak_floor (statue-derived)
-       environments/velociraptor_mongoliensis/tests/test_anatomical_static_balance.py
-       (TestHomeKeyframeStance) and test_anatomical_env.py
-       (TestNaturalPitchTracksStance) pin them to the settled stance. -->
-
   <keyframe>
+    <!-- Home: the level-trunk statue at the AUTHORED contact.  Every joint's qpos is its ref (the authored
+         stance), so the joint part of qpos0 IS this pose, and the root is the authored one too: z 0.548794, level,
+         every support (MTP pads, digits III and IV) exactly 0.5 mm into the floor (notes 6 and 14b); every
+         reset settles back to this clearance.  Noise-free, the statue settles 0.134 deg nose-down and 0.13 mm
+         higher (the digits sink deeper than the pads): that is natural_pitch, measured on the pelvis frame the
+         posture reward reads; the joints settle within 0.003 deg of the keyframe (note 14c).
+         ctrl = pose + tau/kp on the neck, head, leg and claw servos (the raptor r3 method, note 14c): tau measured
+         with every servo at kp x20 (passive springs x5) at ctrl = pose, then a torque-matching
+         fixed point on this model (settle, read each joint's holding torque, re-preload) until the noise-free
+         statue settles on the keyframe.  Servo pose -> home ctrl, deg:
+           neck_pitch 0.000->-4.665   neck_yaw 0.000->-0.000   head_pitch 0.000->-4.628
+           r_hip_pitch -35.000->-32.760   r_hip_roll 0.000->1.577   r_knee 55.000->54.626
+           r_ankle -28.500->-26.247   r_claw -21.000->-21.021   l_hip_pitch -35.000->-32.760
+           l_hip_roll 0.000->-1.577   l_knee 55.000->54.626   l_ankle -28.500->-26.247
+           l_claw -21.000->-21.021   tail_1_pitch 0.000->0.000   tail_1_yaw 0.000->0.000
+           tail_2_pitch 0.000->0.000   tail_3_pitch 0.000->0.000
+         Springref preloads carry the passive and spring-held torques instead (pose -> springref, deg; right side):
+           toe_d3 -81.500->-80.416   toe_d4 -81.500->-80.658   toe_d2 -35.000->-35.023
+           tail_1_pitch 0.000->45.296   tail_2_pitch 0.000->28.491   tail_3_pitch 0.000->17.909
+         so the digits press into the floor with the share of the load the settled statue gives them and the
+         tail servos hold about 0 N.m at home (tail home ctrl = the pose = the ctrlrange midpoint).
+         LOAD-BEARING CONSTANTS measured on this statue; re-measure each one if any mass, posture, foot or contact
+         value in this file changes: natural_pitch (0.134 deg); _TAIL_SETTLED_QPOS (the settled tail joints)
+         and _NECK_SETTLED_QPOS (the settled neck and head); the leg_home_pose reward target (the keyframe legs);
+         body weight 147.15 N and the foot-force saturation scaled from it; FOOT_SUPPORT and the six per-site
+         foot channels (the touch sensors _cache_ids resolves by name); healthy_z_range and the head-height
+         terminations; the floor-impact threshold (above the statue's reset pop); the stance and locomotion
+         gate rails and statue references (statue_constants_physics_revision); the CoM calibration pins
+         (test_com_stance_quality.py); and the toe and tail springref preloads above. -->
     <key name="home"
-         qpos="0 0 0.505543 0.984808 0 0.173648 0
-               0 0 0 0 0 0
-               0.663225 0 -0.872665 1.580458 -0.009662 0.011282 0
-               0.663225 0 -0.872665 1.580458 -0.009662 0.011282 0
-               0 0 0 0"
-         ctrl="0.652647 0 -0.869766 1.636419 0.036602 0.030953 0
-               0.652647 0 -0.869766 1.636419 0.036602 0.030953 0
-               0 0 0 0
+         qpos="0 0 0.548794 1 0 0 0
+               0 0 0 0 0 0 0
+               -0.610865 0 0.959931 -0.497419 -0.610865 -0.366519 -1.422443 -1.422443
+               -0.610865 0 0.959931 -0.497419 -0.610865 -0.366519 -1.422443 -1.422443"
+         ctrl="-0.081417 0 -0.080782
+               -0.571767 0.02752 0.953399 -0.458098 -0.366892
+               -0.571767 -0.02752 0.953399 -0.458098 -0.366892
                0 0 0 0"/>
   </keyframe>
 

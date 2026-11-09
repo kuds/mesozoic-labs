@@ -128,6 +128,15 @@ class BaseDinoEnv(gym.Env, ABC):
     # the running sum of the rest (the pinned order in the class docstring),
     # so keep the pad first and leave no group empty.
     _foot_sensor_groups: "tuple[tuple[int, ...], ...]" = ()
+    # The observation's foot-contact channels, as touch-sensor groups
+    # (sensordata addresses; each channel is its group's summed touch), for a
+    # species whose observation does not carry one summed channel per foot.
+    # None means it does: the channels are _foot_sensor_groups.  Only the
+    # velociraptor declares them (one channel per touch sensor, since its
+    # policy interface r14).  Read by the plant contract's heading-free
+    # foot_contact segment and the symmetry module's observation layout; the
+    # rewards, the info keys and the substep aggregation above stay per foot.
+    _foot_observation_groups: "tuple[tuple[int, ...], ...] | None" = None
 
     # Substep aggregation state, populated by step()'s frame-skip loop.
     # Tagged with the _step_count it was measured at rather than cleared in
@@ -1451,10 +1460,11 @@ class BaseDinoEnv(gym.Env, ABC):
         ground, which is the hover this method exists to prevent.  Every
         species carries some: cosmetic surface detail (``brow_ridge``,
         ``crest``, ``sagittal_crest``, dibothrosuchus' twelve ``scute``\\s) and
-        the necks that are deliberately non-collidable on every species except
-        velociraptor.  None of them is currently the lowest geom at any shipped
-        noise level, so this filter is behaviour-preserving today; it stops the
-        probe from disagreeing with its own definition of "the ground".
+        the necks that are deliberately non-collidable on every species (the
+        velociraptor's since its physics r5).  None of them is currently the
+        lowest geom at any shipped noise level, so this filter is
+        behaviour-preserving today; it stops the probe from disagreeing with
+        its own definition of "the ground".
         """
         if self._root_subtree_geom_ids is not None:
             return self._root_subtree_geom_ids
