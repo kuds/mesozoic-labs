@@ -407,3 +407,38 @@ change no body (P24).
       references themselves. This is a kinematic check, not a physics run.
     - **Failed episodes.** An episode that raised, or whose worker was lost, is counted apart from falls and is re-run on
       resume. Every episode keeps a 50 Hz trace (git-ignored).
+
+### Decisions taken during training (9 Nov)
+
+32. **G6b and its one fix** (`train.FIX_RULE`). At 1,007,616 steps, G6b failed on five of the six R3 runs: R3's mean
+    survival over the monitor was below R2's.
+
+    | Run | R3 (s) | R2 (s) | Cause |
+    |---|---|---|---|
+    | `60-N-T-10` seed 42 | 14.1 | 16.0 | falls on the brisk walk |
+    | `60-N-T-10` seed 43 | 15.4 | 16.0 | falls on the brisk walk |
+    | `60-N-H-10` seed 42 | 15.0 | 15.5 | falls on the brisk walk |
+    | `75-M-H-10` seed 42 | 17.99 | 18.0 | carpet falls 0.1 s earlier than R2's |
+    | `75-M-H-10` seed 43 | 16.9 | 18.0 | falls on the brisk walk |
+
+    `60-N-H-10` seed 43 passed (15.9 s against 15.5). R3 falls on the brisk walk in 1–3 of 3 episodes, where R2 falls
+    in at most one. On the hard-floor tasks R3 gains up to 0.02 reward per step. On carpet and pile it falls as R2 does,
+    at nearly the same times.
+
+    The policy's actions are small. On `60-N-T-10` seed 42 the joint residual is 0.012 of its range RMS (about
+    2.4 mrad) and the clock rate −0.2 %. So the brisk falls show how close R2's brisk walk on the 60 cm bodies is to its
+    stability edge. The panels agree: on `60-N-T-10`, 17/20 and 0/20 survive with its two fit seeds; on `60-N-H-10`,
+    5/20 and 20/20.
+
+    The plan's consequence is to make one fix, then stop:
+    - **The fix.** The brisk and Fr 0.05 walks are weighted ×2 in the task mix (weights 1, 1, 1, 1, 1, 2, 2, 1, 1 over
+      the walk, the four turns, brisk, Fr 0.05, the stand and the carpet walk).
+    - **Where it applies.** Every R3 run, from its 1,007,616-step checkpoint, so every body and seed keeps one recipe.
+      The steps the 60 cm runs had trained past that checkpoint are discarded.
+    - **The check after it.** G6b runs again 1M steps later (`G6b_after_fix`). A run that fails it stops there, and its
+      body's R3 is judged with R2. G6c stays at 2.5M steps.
+
+    Other fixes were considered and rejected:
+    - A fall penalty: a fall already forfeits the value of the episode's remaining reward.
+    - Fewer carpet and pile episodes: this would give up decision 23's carpet experiment.
+    - A smaller residual: it is already small.

@@ -89,6 +89,13 @@ G6B_STEPS = 1_000_000
 G6C_STEPS = 2_500_000
 #: G6c's margin on a condition with as many falls (G6_RULE): the mean per-step reward gain, paired by episode seed.
 G6C_MIN_GAIN = 0.01
+#: G6b's consequence, "make one fix, then stop" (STAGE1_PLAN.md decision 32): the env-config fields a fix may change.
+FIX_FIELDS = frozenset({"task_weights"})
+FIX_RULE = ("G6b's consequence (plan section 3 step 7: make one fix, then stop; decision 32): one change to the env "
+            "configs (FIX_FIELDS), applied on resume from the run's newest checkpoint and kept for the rest of the run "
+            "(run.json 'fix', with the configs before it); G6b is checked again (G6b_after_fix) at the first rollout "
+            f"start at or past the fix's checkpoint + {G6B_STEPS:,} steps, and if it fails the run stops there (status "
+            "'stopped_g6b'); a run holds at most one fix")
 #: The PPO venv's library versions (decision 2's "validated versions where they install"; recorded per session).
 PPO_VENV = {"torch": "2.9.0+cpu", "stable_baselines3": "2.9.0", "gymnasium": "1.3.0"}
 #: The monitor of G6b and G6c: these conditions (task, floor), each on these episode seeds, on the nominal plant (no
@@ -307,11 +314,13 @@ def monitor(model, vecnorm, body: str, mode: str, config) -> dict:
 def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out: Path | None = None,
           resume: bool = False, n_envs: int | None = None, vec: str = "dummy", checkpoint_every: int = CHECKPOINT_EVERY,
           g6: bool = True, config: dict | None = None, log_std_init: float | None = None, ppo: dict | None = None,
-          allow_untuned: bool = False, allow_source_change: bool = False, log=print) -> dict:
+          allow_untuned: bool = False, allow_source_change: bool = False, fix: dict | None = None,
+          fix_reason: str | None = None, log=print) -> dict:
     """One PPO run (module docstring); returns its run.json.  ``config`` overrides ``env.EnvConfig`` fields for every
     env and ``ppo`` design 2's PPO arguments (for smoke checks; both are recorded in the settings);
     ``allow_untuned`` trains R3 on gains without a G5 pass (flagged); ``allow_source_change`` resumes although the
-    Stage 1 sources differ from the run's first session (flagged in the session)."""
+    Stage 1 sources differ from the run's first session (flagged in the session); ``fix`` (with ``fix_reason``) is
+    G6b's one fix (``FIX_RULE``): env-config overrides applied from this resume on."""
     import torch
     from stable_baselines3 import PPO
     from stable_baselines3.common.callbacks import BaseCallback
@@ -332,22 +341,35 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
     rd = run_dir_of(out, body, mode, seed)
     ck = rd / "checkpoints"
     path = rd / "run.json"
-    cfg_objs = env_configs(body, n_envs, config, out)
+    doc = json.loads(path.read_text()) if path.exists() else None
+    recorded_fix = (doc or {}).get("fix")
+    if fix is not None:
+        if not (resume and doc):
+            raise SystemExit("G6b's fix (FIX_RULE) applies only on resume of an existing run")
+        if recorded_fix:
+            raise SystemExit(f"{path}: the run already holds its one fix ({recorded_fix['overrides']}); FIX_RULE")
+        bad = set(fix) - FIX_FIELDS
+        if bad:
+            raise SystemExit(f"a fix may change {sorted(FIX_FIELDS)} only, not {sorted(bad)} (FIX_RULE)")
+    overrides = dict(fix) if fix is not None else dict((recorded_fix or {}).get("overrides") or {})
+    cfgs_before_fix = _jsonable([c.describe() for c in env_configs(body, n_envs, config, out)])
+    cfg_objs = env_configs(body, n_envs, {**(config or {}), **overrides}, out)
     cfgs = _jsonable([c.describe() for c in cfg_objs])
     settings = _jsonable(dict(body=body, seed=int(seed), mode=mode, n_envs=n_envs, design2=DESIGN2,
                               learning_rate=dict(start=LR_START, end=LR_END, schedule="linear", rule=LR_RULE),
                               log_std_init=log_std_init, ppo_overrides=dict(ppo or {}), config=dict(config or {}),
                               checkpoint_every=checkpoint_every, checkpoint_rule=CHECKPOINT_RULE,
                               floor_rule=env_mod.FLOOR_RULE, seed_rule=SEED_RULE))
-    doc = json.loads(path.read_text()) if path.exists() else None
     if doc and not resume:
         raise SystemExit(f"{path} exists: pass --resume to continue it (or remove it to start over)")
     if resume:
         if not doc:
             raise SystemExit(f"{path}: nothing to resume")
+        if doc.get("stopped"):
+            raise SystemExit(f"{path}: the run was stopped ({doc['stopped']['reason']}); FIX_RULE ends it there")
         if doc["settings"] != settings:
             raise SystemExit(f"{path}: its settings differ from this run's; refusing to resume")
-        if doc.get("env_configs") != cfgs:
+        if doc.get("env_configs") != (cfgs_before_fix if fix is not None else cfgs):
             raise SystemExit(f"{path}: its env configs differ from this run's; refusing to resume")
     # R3's tracker gains (env.GAINS_RULE), before any env is built
     gains_rec = None
@@ -412,6 +434,14 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
         model = PPO.load(str(ck / f"model_{last}.zip"), env=vecnorm, device="cpu")
         session["resumed_from"] = last
         doc["sessions"].append(session)
+        if fix is not None:  # FIX_RULE
+            g6b = doc["g6"].get("G6b") or {}
+            doc["fix"] = _jsonable(dict(rule=FIX_RULE, overrides=dict(fix), reason=fix_reason, session=session_k,
+                                        from_checkpoint=int(last), at=_now(),
+                                        g6b_before=dict(at_steps=g6b.get("at_steps"), pass_=g6b.get("pass_")),
+                                        env_configs_before=cfgs_before_fix))
+            doc["env_configs"] = cfgs
+            session["fix"] = dict(overrides=dict(fix), from_checkpoint=int(last))
     else:
         vecnorm = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=DESIGN2["clip_obs"],
                                clip_reward=DESIGN2["clip_reward"], gamma=DESIGN2["gamma"])
@@ -453,6 +483,7 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
             self.t0, self.c0, self.n0 = time.perf_counter(), cpu_now(), None
             self.next_ck = (model.num_timesteps // checkpoint_every + 1) * checkpoint_every
             self.measured = any(t.get("first_rollouts") for t in doc["throughput"])
+            self.halt = False
 
         def _save(self, n: int) -> None:
             ck.mkdir(parents=True, exist_ok=True)
@@ -484,8 +515,24 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
                         res = dict(at_steps=n, pass_=ok, consequence_if_failed="skip seed 43 and judge with R2")
                     doc["g6"][key] = dict(res, monitor=mon)
                     _write_json(path, doc)
+            fx = doc.get("fix")
+            if (g6 and mode == "R3" and fx and "G6b_after_fix" not in doc["g6"]
+                    and n >= int(fx["from_checkpoint"]) + G6B_STEPS):  # FIX_RULE
+                if n not in doc["checkpoints"]:
+                    self._save(n)
+                log(f"{body} seed {seed}: G6b after the fix, monitor at {n} steps")
+                mon = monitor(model, vecnorm, body, mode, cfg_objs[0])
+                ok = mon["mean_survival_s"]["policy"] >= mon["mean_survival_s"]["zero"]
+                doc["g6"]["G6b_after_fix"] = dict(at_steps=n, pass_=bool(ok), fix_from=int(fx["from_checkpoint"]),
+                                                  consequence_if_failed="stop the run (FIX_RULE)", monitor=mon)
+                if not ok:
+                    self.halt = True
+                    doc["stopped"] = dict(at_steps=n, reason="G6b failed again after the fix (FIX_RULE)", at=_now())
+                _write_json(path, doc)
 
         def _on_step(self) -> bool:
+            if self.halt:
+                return False
             n = int(self.num_timesteps)
             if self.n0 is None:
                 self.n0 = n - self.training_env.num_envs
@@ -516,7 +563,7 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
         model.learn(total_timesteps=remaining, callback=cb, reset_num_timesteps=False, progress_bar=False)
     wall, c1 = time.perf_counter() - t0, cpu_now()
     n = int(model.num_timesteps)
-    if n not in checkpoints(rd):  # CHECKPOINT_RULE: the last update's policy (no rollout start follows it)
+    if n not in checkpoints(rd) and not cb.halt:  # CHECKPOINT_RULE: the last update's policy (no rollout start follows)
         cb._save(n)
     cpu_main, cpu_workers = c1[0] - c0[0], c1[1] - c0[1]
     doc["throughput"].append(dict(session=session_k, env_steps=n - n0, n_envs=n_envs, vec=vec,
@@ -526,7 +573,7 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
                                   env_steps_per_cpu_s=(n - n0) / max(cpu_main + cpu_workers, 1e-9),
                                   load_average=list(os.getloadavg())))
     session["episode_streams"] = _jsonable(venv.env_method("episode_stream"))
-    doc["status"] = "done" if n >= int(steps) else "partial"
+    doc["status"] = "stopped_g6b" if doc.get("stopped") else ("done" if n >= int(steps) else "partial")
     doc["judged_checkpoint"] = judged_checkpoint(out, mode, int(steps))
     session["ended_at"] = _now()
     _write_json(path, doc)
