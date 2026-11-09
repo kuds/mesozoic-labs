@@ -8,6 +8,11 @@ Run from hardware/trex_form_study:
   python -m designlab.stage1 tune    --body 60-N-T-10 --seed 42 [--evals 720] [--resume] [--workers 1]
                                     [--out stage1/runs/2026-11-08]
   python -m designlab.stage1 g5      --body 60-N-T-10 [--workers 1] [--out stage1/runs/2026-11-08]
+  python -m designlab.stage1 train   --body 60-N-T-10 --seed 42 [--mode R3|R4] [--steps 5000000] [--resume]
+                                    [--n-envs 4] [--vec dummy|subproc] [--allow-untuned] [--tune-json PATH]
+                                    [--out stage1/runs/2026-11-08]
+  python -m designlab.stage1 judge   [--mode R3|R4] [--final] [--out stage1/runs/2026-11-08]
+  python -m designlab.stage1 noise   [--body 75-M-H-10] [--tune-json PATH] [--out stage1/runs/2026-11-08]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
@@ -31,8 +36,16 @@ run exactly (``--evals`` may raise its budget; refused if the tuner's own module
 inputs, ``tune.INPUTS_RULE``, changed).  ``g5`` selects each finished seed's gains on the validation episodes and judges
 gate G5 into ``<out>/<body>/tune.json`` (exit status 1 if no seed passes, or if a seed is refused because its fit ran
 on other tuner sources or inputs).  One process per (body, seed) by default; ``--workers`` evaluates a generation (or
-the validation episodes) in that many processes (a worker that dies or hangs is replaced, ``tune.Pool``).  ``train``,
-``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (7-9) and are not implemented yet.
+the validation episodes) in that many processes (a worker that dies or hangs is replaced, ``tune.Pool``).
+
+``train`` is plan section 3 step 7 (``train``): one PPO run of R3 (the residual on R2, ``env.ResidualEnv``) or R4
+(policy only, ``env.PolicyOnlyEnv``) into ``<out>/<body>/ppo/<seed>/`` (``policy_only`` for R4), checkpointed, with
+``--resume`` and the G6 checks; it needs Stable-Baselines3, Gymnasium and torch (the PPO venv).  R3 trains on
+tune.json's body-level G5 selection (``env.GAINS_RULE``) and is refused without a G5 pass unless ``--allow-untuned``.
+``judge`` writes the checkpoint every run of a mode is judged at (``train.JUDGED_RULE``; ``--final`` once the stage's
+cap stopped training) into their run.json; ``noise`` measures R3's survival under the initial action noise
+(``train.action_noise_survival``) into ``<out>/ppo_action_noise.json``, the record ``policy.LOG_STD_INIT`` comes from.
+``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (8-9) and are not implemented yet.
 """
 
 from __future__ import annotations
@@ -52,8 +65,7 @@ import designlab  # noqa: E402,F401  (selects the offscreen GL backend before mu
 
 from . import BODIES  # noqa: E402
 
-LATER = {"train": "plan section 3 step 7 (residual PPO)",
-         "eval": "plan section 3 step 8 (evaluation panels)",
+LATER = {"eval": "plan section 3 step 8 (evaluation panels)",
          "sweep": "plan section 3 step 8 (margin sweeps)",
          "report": "plan section 3 step 9 (STAGE1_PROBE.md)",
          "all": "every step of plan section 3"}
@@ -284,12 +296,72 @@ def _tuning(a) -> int:
     return 0 if doc["pass_"] or doc["pass_"] is None else 1
 
 
+def _training(a) -> int:
+    """``train`` (plan section 3 step 7): one PPO run of R3 or R4 (``train``); ``judge``; ``noise``."""
+    from . import train
+
+    if a.cmd == "judge":
+        rec = train.judge(Path(a.out), a.mode, a.budget, a.final)
+        print(f"{a.mode}: judged at {rec['steps']} steps ({'final' if rec['final'] else 'provisional'}); "
+              + ", ".join(f"{k} {v['last_checkpoint']}" for k, v in rec["runs"].items()), flush=True)
+        return 0
+    if a.cmd == "noise":
+        doc = train.action_noise_survival(a.body, run_dir=str(Path(a.out) / a.body), tune_json=a.tune_json,
+                                          log=lambda msg: print(msg, flush=True))
+        _write(Path(a.out) / "ppo_action_noise.json", doc)
+        print(f"{a.body}: survival {doc['survived']} of {doc['of']}; sigma {doc['sigma']}, log_std_init "
+              f"{doc['log_std_init']}", flush=True)
+        return 0
+    config = dict(tune_json=a.tune_json) if a.tune_json else None
+    steps = train.BUDGET_ASKED if a.steps is None else a.steps
+    doc = train.train(a.body, a.seed, mode=a.mode, steps=steps, out=Path(a.out), resume=a.resume, n_envs=a.n_envs,
+                      vec=a.vec, checkpoint_every=a.checkpoint_every, g6=not a.no_g6, log_std_init=a.log_std_init,
+                      allow_untuned=a.allow_untuned, allow_source_change=a.allow_source_change, config=config,
+                      log=lambda msg: print(msg, flush=True))
+    g6 = doc.get("g6", {})
+    print(f"{a.body} {a.mode} seed {a.seed}: {doc.get('num_timesteps')} steps ({doc['status']}); G6: "
+          + ("; ".join(f"{k} {'pass' if v.get('pass_', v.get('identical')) else 'FAIL'}" for k, v in g6.items())
+             or "not run"), flush=True)
+    return 0
+
+
 def main(argv=None) -> int:
     from . import gates, plant, tune
 
     ap = argparse.ArgumentParser(prog="python -m designlab.stage1", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    tp = sub.add_parser("train", help="plan section 3 step 7: PPO of R3 (the residual on R2) or R4 (policy only)")
+    tp.add_argument("--body", choices=sorted(BODIES), required=True)
+    tp.add_argument("--seed", type=int, required=True, help="PPO seed (plan section 6: 42, 43)")
+    tp.add_argument("--mode", choices=("R3", "R4"), default="R3")
+    tp.add_argument("--steps", type=int, default=None,
+                    help="env steps, rounded up to whole rollouts (default: train.BUDGET_ASKED, train.BUDGET_RULE)")
+    tp.add_argument("--resume", action="store_true", help="continue from the newest checkpoint")
+    tp.add_argument("--n-envs", type=int, default=None, help="envs per job (default: design 2's 4)")
+    tp.add_argument("--vec", choices=("dummy", "subproc"), default="dummy",
+                    help="the envs in this process (default: one env process per job, the plan's per-job rate) or one "
+                         "process each")
+    tp.add_argument("--checkpoint-every", type=int, default=250_000)
+    tp.add_argument("--no-g6", action="store_true", help="skip the G6 checks")
+    tp.add_argument("--log-std-init", type=float, default=None,
+                    help="initial action noise (default: policy.LOG_STD_INIT, measured: policy.LOG_STD_RULE)")
+    tp.add_argument("--allow-untuned", action="store_true",
+                    help="train R3 although tune.json is missing or no seed passes G5 (env.GAINS_RULE; flagged)")
+    tp.add_argument("--allow-source-change", action="store_true",
+                    help="resume although the Stage 1 sources differ from the run's first session (flagged)")
+    tp.add_argument("--tune-json", default=None, help="the G5 record R3's gains come from (default: <out>/<body>/"
+                                                      "tune.json)")
+    tp.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")
+    jp = sub.add_parser("judge", help="the judged checkpoint (train.JUDGED_RULE) into every run.json of a mode")
+    jp.add_argument("--mode", choices=("R3", "R4"), default="R3")
+    jp.add_argument("--budget", type=int, default=5_000_000)
+    jp.add_argument("--final", action="store_true", help="the stage's cap stopped training: the judgement is final")
+    jp.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")
+    npr = sub.add_parser("noise", help="R3's survival under the initial action noise (policy.LOG_STD_RULE)")
+    npr.add_argument("--body", choices=sorted(BODIES), default="75-M-H-10")
+    npr.add_argument("--tune-json", default=None, help="the G5 record (default: <out>/<body>/tune.json)")
+    npr.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")
     for name in ("tune", "g5"):
         p = sub.add_parser(name)
         p.add_argument("--body", choices=sorted(BODIES), required=True)
@@ -336,10 +408,12 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd in ("tune", "g5"):
         return _tuning(a)
+    if a.cmd in ("train", "judge", "noise"):
+        return _training(a)
     if a.cmd in LATER:
         raise NotImplementedError(f"'{a.cmd}' is {LATER[a.cmd]}, not implemented yet; this package implements plan "
-                                  "section 3 steps 2-6 (prepare: plant, references and transitions; gates G1-G4; "
-                                  "tune and g5)")
+                                  "section 3 steps 2-7 (prepare: plant, references and transitions; gates G1-G4; "
+                                  "tune and g5; train)")
     plant_kw = dict(ankle_gains=a.ankle_gains, ankle_armature=a.ankle_armature)
     status = 0
     for body in a.body:

@@ -1,0 +1,1395 @@
+{
+ "rule": "R3 on the nominal walk (env.TASKS['walk']: start, 7 strides, stop, at the commanded rate 1.05; hard floor, the nominal plant, no push) under the initial policy's action noise: every env step a = clip(sigma z, -1, 1), z a standard normal per action (the same z for every sigma, common random numbers, from default_rng(episode seed)), through the env's clip and 10 Hz low-pass; zero mean (SB3 initialises the action net's last layer at gain 0.01); 10 episodes (seeds 7000-7009) at each of two gain sets on 75-M-H-10, the one body with a G5 record: the tuning start (decision 16) and tune.json's body-level G5 selection (env.GAINS_RULE), 20 episodes per sigma; an episode survives if it reaches the task's end",
+ "choice": "the largest sigma at and below which every measured sigma keeps at least 18/20 episodes surviving; log_std_init = ln(sigma)",
+ "body": "75-M-H-10",
+ "sigmas": [
+  0.005,
+  0.01,
+  0.015,
+  0.02,
+  0.025,
+  0.03,
+  0.04
+ ],
+ "episodes": [
+  7000,
+  7001,
+  7002,
+  7003,
+  7004,
+  7005,
+  7006,
+  7007,
+  7008,
+  7009
+ ],
+ "gains": {
+  "start": {
+   "values": {
+    "k_dcm": 2.0,
+    "cop_x": 0.02,
+    "cop_y": 0.012,
+    "k_step": 1.0,
+    "step_x": 0.05,
+    "step_out": 0.03,
+    "decay": 1.0,
+    "k_trunk": 40.0,
+    "d_trunk": 2.0,
+    "k_yaw": 0.0,
+    "ki_yaw": 0.0,
+    "k_phase": 0.0,
+    "ki_phase": 0.0,
+    "capture_margin": 0.0
+   },
+   "info": {
+    "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+    "source": "STAGE1_PLAN.md decision 16 (the tuning start)",
+    "status": "asked",
+    "flag": "untuned (asked for)",
+    "candidate": "start",
+    "cma_seed": null
+   }
+  },
+  "tuned": {
+   "values": {
+    "k_dcm": 4.976176377548853,
+    "cop_x": 0.020538306901909067,
+    "cop_y": 0.016780837878417502,
+    "k_step": 0.0590505254728369,
+    "step_x": 0.046758376703625995,
+    "step_out": 0.03596157997982125,
+    "decay": 0.9550952543757751,
+    "k_trunk": 28.71612209823043,
+    "d_trunk": 1.6238998213930684,
+    "k_yaw": 0.0,
+    "ki_yaw": 0.0,
+    "k_phase": 0.30592392098442006,
+    "ki_phase": 0.0,
+    "capture_margin": 0.0
+   },
+   "info": {
+    "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+    "file": "/home/user/mesozoic-labs/hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/tune.json",
+    "sha256": "d451e7c580396a2644f4270f148b7120892e60f93e034c9245a286218702ba62",
+    "body_pass": true,
+    "seeds_passing": [
+     42,
+     43
+    ],
+    "ranking": {
+     "42": [
+      0,
+      0.0,
+      0.04623131936808982,
+      0.04623131936808982,
+      42
+     ],
+     "43": [
+      0,
+      0.0,
+      0.042873068439801335,
+      0.042873068439801335,
+      43
+     ]
+    },
+    "status": "passed",
+    "flag": null,
+    "cma_seed": 43,
+    "candidate": "seed43_gen40",
+    "source": "tune.json: CMA-ES seed 43's G5 selection seed43_gen40"
+   }
+  }
+ },
+ "results": {
+  "start": {
+   "0.005": {
+    "sigma": 0.005,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.01": {
+    "sigma": 0.01,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.015": {
+    "sigma": 0.015,
+    "survived": 9,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": false,
+      "env_steps": 356,
+      "of": 919,
+      "survival_s": 7.12,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.02": {
+    "sigma": 0.02,
+    "survived": 9,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": false,
+      "env_steps": 518,
+      "of": 919,
+      "survival_s": 10.36,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.025": {
+    "sigma": 0.025,
+    "survived": 7,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": false,
+      "env_steps": 544,
+      "of": 919,
+      "survival_s": 10.88,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7001,
+      "survived": false,
+      "env_steps": 302,
+      "of": 919,
+      "survival_s": 6.04,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": false,
+      "env_steps": 656,
+      "of": 919,
+      "survival_s": 13.120000000000001,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.03": {
+    "sigma": 0.03,
+    "survived": 2,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": false,
+      "env_steps": 245,
+      "of": 919,
+      "survival_s": 4.9,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7001,
+      "survived": false,
+      "env_steps": 301,
+      "of": 919,
+      "survival_s": 6.0200000000000005,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7002,
+      "survived": false,
+      "env_steps": 504,
+      "of": 919,
+      "survival_s": 10.08,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7003,
+      "survived": false,
+      "env_steps": 429,
+      "of": 919,
+      "survival_s": 8.58,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7004,
+      "survived": false,
+      "env_steps": 467,
+      "of": 919,
+      "survival_s": 9.34,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7005,
+      "survived": false,
+      "env_steps": 436,
+      "of": 919,
+      "survival_s": 8.72,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7006,
+      "survived": false,
+      "env_steps": 332,
+      "of": 919,
+      "survival_s": 6.640000000000001,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7007,
+      "survived": false,
+      "env_steps": 648,
+      "of": 919,
+      "survival_s": 12.96,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.04": {
+    "sigma": 0.04,
+    "survived": 0,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": false,
+      "env_steps": 214,
+      "of": 919,
+      "survival_s": 4.28,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7001,
+      "survived": false,
+      "env_steps": 312,
+      "of": 919,
+      "survival_s": 6.24,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7002,
+      "survived": false,
+      "env_steps": 381,
+      "of": 919,
+      "survival_s": 7.62,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7003,
+      "survived": false,
+      "env_steps": 263,
+      "of": 919,
+      "survival_s": 5.26,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7004,
+      "survived": false,
+      "env_steps": 464,
+      "of": 919,
+      "survival_s": 9.28,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7005,
+      "survived": false,
+      "env_steps": 306,
+      "of": 919,
+      "survival_s": 6.12,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7006,
+      "survived": false,
+      "env_steps": 358,
+      "of": 919,
+      "survival_s": 7.16,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7007,
+      "survived": false,
+      "env_steps": 715,
+      "of": 919,
+      "survival_s": 14.3,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7008,
+      "survived": false,
+      "env_steps": 222,
+      "of": 919,
+      "survival_s": 4.44,
+      "fall_cause": "tilt"
+     },
+     {
+      "episode_seed": 7009,
+      "survived": false,
+      "env_steps": 464,
+      "of": 919,
+      "survival_s": 9.28,
+      "fall_cause": "tilt"
+     }
+    ]
+   }
+  },
+  "tuned": {
+   "0.005": {
+    "sigma": 0.005,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.01": {
+    "sigma": 0.01,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.015": {
+    "sigma": 0.015,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.02": {
+    "sigma": 0.02,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.025": {
+    "sigma": 0.025,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.03": {
+    "sigma": 0.03,
+    "survived": 10,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     }
+    ]
+   },
+   "0.04": {
+    "sigma": 0.04,
+    "survived": 9,
+    "episodes": 10,
+    "runs": [
+     {
+      "episode_seed": 7000,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7001,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7002,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7003,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7004,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7005,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7006,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7007,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7008,
+      "survived": true,
+      "env_steps": 919,
+      "of": 919,
+      "survival_s": 18.38,
+      "fall_cause": null
+     },
+     {
+      "episode_seed": 7009,
+      "survived": false,
+      "env_steps": 773,
+      "of": 919,
+      "survival_s": 15.46,
+      "fall_cause": "tilt"
+     }
+    ]
+   }
+  }
+ },
+ "survived": {
+  "0.005": 20,
+  "0.01": 20,
+  "0.015": 19,
+  "0.02": 19,
+  "0.025": 17,
+  "0.03": 12,
+  "0.04": 9
+ },
+ "of": 20,
+ "passing": [
+  0.005,
+  0.01,
+  0.015,
+  0.02
+ ],
+ "sigma": 0.02,
+ "log_std_init": -3.912023005428146,
+ "filter_alpha": 0.7153904566639707,
+ "residual_leg_rad": 0.2,
+ "residual_rate": 0.25,
+ "seconds": 333.1654155219876,
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.3.0",
+   "stable-baselines3": "2.9.0",
+   "torch": "2.9.0+cpu"
+  },
+  "git": {
+   "commit": "719efa26c659094cded2d48ae6c263f9fffb8d42",
+   "dirty": true,
+   "dirty_paths": [
+    " M hardware/trex_form_study/designlab/stage1/__main__.py",
+    " M hardware/trex_form_study/designlab/stage1/control.py",
+    " M hardware/trex_form_study/designlab/stage1/env.py",
+    " M hardware/trex_form_study/designlab/stage1/estimator.py",
+    " M hardware/trex_form_study/designlab/stage1/policy.py",
+    " M hardware/trex_form_study/designlab/stage1/train.py",
+    " M hardware/trex_form_study/tests/test_stage1_ppo.py"
+   ]
+  },
+  "stage1_sources": {
+   "sha256": "f746491c5cc065d1f027824dc2c19c143f75b8bc433ef35634897c4b889350b2",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "legs.py",
+    "metrics.py",
+    "plant.py",
+    "policy.py",
+    "refs.py",
+    "replay.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  }
+ }
+}

@@ -125,46 +125,48 @@ class Recorder:
         self._acc = p._sens["imu_accel"][0]
         self._boxes, self._caps = _lowest_point_tables(m, p.feet)
         self._sole = [c.mean(0) for c in estimator.sole_corners(m, p.feet)]  # each foot's sole centre, foot frame
+        self._v = p._v  # the plant's views (plant.MjViews): the same arrays as p.d's attributes
         self.rows = 0
         self.steps = 0
 
     def step(self, k: int) -> None:
-        d = self.tk.p.d
-        self.loads[k] = d.sensordata[self._lidx]
-        np.square(d.actuator_force, out=self.force_sq[k])
+        v = self._v
+        self.loads[k] = v.sensordata[self._lidx]
+        np.square(v.actuator_force, out=self.force_sq[k])
 
     def update(self, k: int, loads, slip_v, Rr, yaw: float) -> None:
         tk = self.tk
         p = tk.p
-        m, d = p.m, p.d
+        m, d, vw = p.m, p.d, self._v
+        xpos, xmat = vw.xpos, vw.xmat
         mujoco.mj_subtreeVel(m, d)
-        com, v = d.subtree_com[p.trunk], d.subtree_linvel[p.trunk]
+        com, v = vw.subtree_com[p.trunk], vw.subtree_linvel[p.trunk]
         t_ref = tk.tau_ref - self.dt * tk.rate * (1.0 + tk.delta)  # the reference time of the step's start state
-        f0, f1 = d.xpos[p.feet[0]], d.xpos[p.feet[1]]
+        f0, f1 = xpos[p.feet[0]], xpos[p.feet[1]]
         low = foot_lowest(m, d, self._boxes, self._caps) - p.z_floor
         roll, pitch = control._roll_pitch(Rr)
-        R = d.xmat[p.trunk].reshape(3, 3)
-        acc = R @ d.sensordata[self._acc : self._acc + 3]
+        R = xmat[p.trunk].reshape(3, 3)
+        acc = R @ vw.sensordata[self._acc : self._acc + 3]
         _, ref = tk.track.info(t_ref)
         a = int(ref["anchor"])
         if a < 2:
-            pa, ya = d.xpos[p.feet[a]][:2], control._yaw(d.xmat[p.feet[a]])
+            pa, ya = xpos[p.feet[a]][:2], control._yaw(xmat[p.feet[a]])
         else:
-            fy = [control._yaw(d.xmat[f]) for f in p.feet]
+            fy = [control._yaw(xmat[f]) for f in p.feet]
             pa = 0.5 * (f0[:2] + f1[:2])
             ya = math.atan2(math.sin(fy[0]) + math.sin(fy[1]), math.cos(fy[0]) + math.cos(fy[1]))
         xi = com[:2] + v[:2] / tk.track.omega
         e = control._rot2(ya).T @ (xi - pa) - tk.dcm_reference(ref)
-        s0 = f0 + d.xmat[p.feet[0]].reshape(3, 3) @ self._sole[0]
-        s1 = f1 + d.xmat[p.feet[1]].reshape(3, 3) @ self._sole[1]
-        root = d.xpos[p.trunk]
+        s0 = f0 + xmat[p.feet[0]].reshape(3, 3) @ self._sole[0]
+        s1 = f1 + xmat[p.feet[1]].reshape(3, 3) @ self._sole[1]
+        root = xpos[p.trunk]
         i = self.rows
         self.U[i] = (d.time - self.dt, t_ref, com[0], com[1], v[0], v[1], f0[0], f0[1], f1[0], f1[1], low[0], low[1],
                      roll, pitch, yaw, slip_v[0], slip_v[1], acc[0], acc[1], e[0], e[1], ref["swing"], ref["u"], s0[0],
                      s0[1], s1[0], s1[1], loads[0], loads[1], root[0], root[1])
-        self.Q[i] = d.qpos[p.qadr]
+        self.Q[i] = vw.qpos[p.qadr]
         if self.poses is not None and i % self.legs_every == 0:
-            self.poses.append(d.qpos.copy())
+            self.poses.append(vw.qpos.copy())
         self.rows = i + 1
 
     def end(self, steps: int, out: dict) -> None:

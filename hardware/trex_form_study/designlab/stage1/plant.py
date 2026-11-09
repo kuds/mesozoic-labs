@@ -481,6 +481,21 @@ def ankle_joint_space(joints: list[str], G: np.ndarray, kp, kv, hold: dict) -> d
 # ------------------------------------------------------------------------------------------------
 # Plant
 # ------------------------------------------------------------------------------------------------
+class MjViews:
+    """Numpy views of an MjData's fixed-size arrays.  Each attribute access of the MuJoCo bindings builds a new view
+    object; the buffers behind these live as long as the MjData, so the views can be kept (not the contact or
+    constraint arrays, which are rebuilt every step)."""
+
+    NAMES = ("qpos", "qvel", "ctrl", "xpos", "xmat", "xaxis", "xanchor", "sensordata", "actuator_force",
+             "subtree_com", "subtree_linvel", "cvel", "geom_xpos", "geom_xmat", "xfrc_applied")
+    __slots__ = ("d",) + NAMES
+
+    def __init__(self, d: mujoco.MjData):
+        self.d = d
+        for name in self.NAMES:
+            setattr(self, name, getattr(d, name))
+
+
 class Plant:
     """One body on one floor: ``m``, ``d``, the drives and their envelope, the settled home pose and metadata.
 
@@ -533,8 +548,24 @@ class Plant:
         self._toe_size = m.geom_size[self._toes].copy()
         self._toe_capsule = m.geom_type[self._toes] == mujoco.mjtGeom.mjGEOM_CAPSULE
         self.q_settled = self.q_home.copy()
+        # addresses for the per-step methods (which read through ``_v``, the views ``d``'s setter keeps)
+        self._load_adr = np.array([self._sens[f"{s}_foot_load"][0] + 3 for s in statics.SIDES])
+        self._cl_z = 3 * self._cl + 2  # the cl_* proxies' z in the flattened geom_xpos
+        self._cl_buf = np.empty(len(self._cl))
+        self._cmd_t = np.empty(m.nu)
 
     # --------------------------------------------------------------- state
+    @property
+    def d(self) -> mujoco.MjData:
+        """The plant's MjData.  Assigning another one also renews the views the per-step methods read (``_v``); the
+        envelope follows it on the next reset."""
+        return self._d
+
+    @d.setter
+    def d(self, value: mujoco.MjData) -> None:
+        self._d = value
+        self._v = MjViews(value)
+
     def _trunk_R(self, q) -> np.ndarray:
         R = np.zeros(9)
         mujoco.mju_quat2Mat(R, q[3:7])
@@ -581,12 +612,23 @@ class Plant:
     def command(self, q=None, qd=None, tau=None) -> None:
         """Joint-space servo targets: angle ``q`` (home if None), rate ``qd`` and feedforward torque ``tau``, set
         in motor coordinates as ``ctrl = G q + (kv G qd + G^-T tau) / kp``."""
+        if q is not None and qd is not None and tau is not None:  # (the same operations, into buffers and d.ctrl)
+            ctrl, t = self._v.ctrl, self._cmd_t
+            np.matmul(self.G, np.asarray(q, float), out=ctrl)
+            np.matmul(self.G, np.asarray(qd, float), out=t)
+            np.multiply(self.kv, t, out=t)
+            np.divide(t, self.kp, out=t)
+            np.add(ctrl, t, out=ctrl)
+            np.matmul(self._GinvT, np.asarray(tau, float), out=t)
+            np.divide(t, self.kp, out=t)
+            np.add(ctrl, t, out=ctrl)
+            return
         ctrl = self.ctrl_home.copy() if q is None else self.G @ np.asarray(q, float)
         if qd is not None:
             ctrl += self.kv * (self.G @ np.asarray(qd, float)) / self.kp
         if tau is not None:
             ctrl += (self._GinvT @ np.asarray(tau, float)) / self.kp
-        self.d.ctrl[:] = ctrl
+        self._v.ctrl[:] = ctrl
 
     def hold(self) -> None:
         """Zero command: every servo at its home target, no feedforward."""
@@ -621,7 +663,7 @@ class Plant:
 
     def tilt(self) -> float:
         """Trunk tilt from vertical (rad): the angle between the trunk's z axis and the world's."""
-        return math.acos(max(-1.0, min(1.0, float(self.d.xmat[self.trunk][8]))))
+        return math.acos(max(-1.0, min(1.0, float(self._v.xmat[self.trunk, 8]))))
 
     def tilt_from_home(self) -> float:
         """Trunk tilt relative to the home orientation (rad), as ``carpet.standing_check`` measures it."""
@@ -634,7 +676,7 @@ class Plant:
         d = self.d
         if not len(self._cl):
             return None
-        z = d.geom_xpos[self._cl, 2] - self._cl_r
+        z = np.subtract(self._v.geom_xpos.reshape(-1)[self._cl_z], self._cl_r, out=self._cl_buf)
         if z.min() > self.z_floor:
             return None
         for g in self._cl[z <= self.z_floor]:
@@ -646,7 +688,7 @@ class Plant:
         """Why the episode counts as a fall (plan section 4), or None: "tilt", "height" or "proxy <geom>"."""
         if self.tilt() > FALL_TILT_RAD:
             return "tilt"
-        if float(self.d.qpos[2]) < FALL_HEIGHT_FRAC * self.z_home:
+        if float(self._v.qpos[2]) < FALL_HEIGHT_FRAC * self.z_home:
             return "height"
         g = self.proxy_below_floor()
         return None if g is None else f"proxy {g}"
@@ -682,7 +724,7 @@ class Plant:
         return best - self.z_floor, self._gname[at]
 
     def foot_loads(self) -> np.ndarray:
-        return np.array([self.d.sensordata[self._sens[f"{s}_foot_load"][0] + 3] for s in statics.SIDES])
+        return self._v.sensordata[self._load_adr]
 
     # --------------------------------------------------------------- settle
     def _predicted_sinkage(self, floor: dict | None, info: dict | None) -> float:
