@@ -7,6 +7,7 @@ Run from hardware/trex_form_study in the PPO venv (torch, Stable-Baselines3 and 
                                     [--attribute] [--workers 4] --out stage1/runs/2026-11-08
     python -m designlab.stage1.policy_rows verdicts --body 60-N-T-10 --out stage1/runs/2026-11-08
     python -m designlab.stage1.policy_rows check --body 75-M-H-10 --row R3/42 [--condition walk/nominal]
+                                                 [--variant mass=1.1]
     python -m designlab.stage1.policy_rows costs --body 75-M-H-10 [--rows R3/42,R4/42] [--floors hard,low]
 
 ``--row-module`` imports this module, which registers the controllers R3 and R4 (``panels.register_rows``).  The
@@ -26,7 +27,8 @@ Importing it needs no torch; building a row needs the PPO venv.
   view of the panel episode (``ResidualView`` for R3; for R4 ``PolicyOnlyTracker`` is its own view, as
   ``env.PolicyOnlyEnv`` is), at env.py's physics steps, on the nominal model, latency 0, the deterministic action.
 * Equivalence (``EQUIVALENCE_RULE``, ``equivalence_check``): a row's episode against training's env, every physics
-  step's state hashed (``tests/test_stage1_policy_rows.py``).
+  step's state hashed (``tests/test_stage1_policy_rows.py``); also under the margin ledger's variants that env.py
+  draws as factors (``VARIANT_FACTORS``: the ledger's R3 row is this module's R3/42, ``ledger.ROWS_RULE``).
 * Verdicts (``R4_VERDICT_RULE``, ``policy_verdicts``): R3's are the panels' (R3/42 and R3/43, ``panels.VERDICT_RULE``);
   R4's, from its one seed, are at most provisional.
 * Costs (``POLICY_COST_RULE``, ``measure_costs``, ``project``): CPU and wall seconds per simulated second, and the
@@ -45,7 +47,7 @@ import pickle
 import sys
 import time
 import types
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from importlib import metadata
 from pathlib import Path
 
@@ -103,10 +105,14 @@ CHECKPOINT_SELECTION_RULE = (
     "versions)")
 POLICY_RULE = (
     "a policy row acts as training's env acts (env.Stage1Env.step) on the nominal model (no randomisation: the "
-    "condition's friction, trunk mass and servo stiffness x 1, sensor-noise scale 1, latency 0): before the first "
+    "condition's friction, trunk mass and servo stiffness x 1, sensor-noise scale 1, latency 0; the margin ledger's "
+    "variants change the plant under it as env.py's randomised factors do, ledger.VARIANT_RULE): before the first "
     f"physics step and after every {env.ENV_SUBSTEPS}th (50 Hz), the observation is env.Stage1Env._observation over "
     "the panel episode (the estimator's encoder angles and rates, IMU gravity and gyro and foot loads over the nominal "
-    "weight; the reference clock's phase over PERIOD_RULE's period, the reference's support flags and its command at "
+    "weight, the controller's: the trunk subtree mass of its tracker's model, control.Tracker.mass, which is the "
+    "plant's own on the panels' nominal plant and the nominal model's under the ledger's trunk-mass variant, as "
+    "env.py keeps the nominal weight under env.MASS_RULE; the reference clock's phase over PERIOD_RULE's period, the "
+    "reference's support flags and its command at "
     "the commanded rate; the previous action; then the privileged inputs, filled where the panel episode has them, "
     "which the actor never reads, policy.PrivilegedMlpExtractor), normalised by the checkpoint's VecNormalize "
     "(normalize_obs: its saved statistics, unchanged; clip 10); the action is the checkpoint's "
@@ -138,12 +144,16 @@ R4_RULE = (
     "(env.POLICY_ONLY_SPAN_RULE; the evaluation piles' settled stances, not the 8 mm training pile's); the targets are "
     "env.PolicyOnlyEnv._apply_action's (home + a_f x span, clipped to the usable range).  control.run reads its falls, "
     "onsets, candidates (the CoP-at-pad-edge and leg-to-leg candidates are the tracker's and never active), stops and "
-    "drive statistics as for any row; the estimator's model is the plant's own, as the panels' R2 and R3 rows have it "
-    "(env.py's copy of it holds the same values on the nominal plant)")
+    "drive statistics as for any row; the estimator's model is the controller's (control.Tracker's model): the "
+    "plant's own, as the panels' R2 and R3 rows have it (env.py's copy of it holds the same values on the nominal "
+    "plant), or the nominal model when one is given (the ledger's trunk-mass variant, as env.PolicyOnlyEnv keeps it "
+    "under env.MASS_RULE), and the sensors' weight is that model's (POLICY_RULE)")
 EQUIVALENCE_RULE = (
     "a policy row's episode of a panel condition against training's env (env.ResidualEnv for R3, env.PolicyOnlyEnv "
     "for R4) on the env task whose plan the condition's plan is, on the condition's floor (a pile: the panels' 4 mm "
-    "evaluation pile, EnvConfig pile_grid None) and friction, randomize False, push None, latency 0, the same "
+    "evaluation pile, EnvConfig pile_grid None) and friction, randomize False, push None, latency 0 (or with one of "
+    "the margin ledger's variants that env.py also draws as a factor, VARIANT_FACTORS: the panel episode inside "
+    "ledger.LedgerContext.variant and the env with that factor, its other factors nominal), the same "
     "checkpoint asked the same way (train.monitor's call); the env's episode starts from the panel episode's start "
     "and sensor-noise seeds (its _begin given them: the harness's alignment) with the same start noise and, for R4, "
     "the run's env tasks (the span's tracks); sha256 of qpos, qvel, ctrl and sensordata after every physics step "
@@ -378,16 +388,19 @@ def residual_scale(p: plant.Plant) -> np.ndarray:
     return np.where(legs, env.RESIDUAL_LEG_RAD, env.RESIDUAL_NECK_TAIL_RAD)
 
 
-def episode_attrs(view, built: panels.Built, seed: int, task: str, period: dict, cfg: env.EnvConfig) -> None:
+def episode_attrs(view, built: panels.Built, seed: int, task: str, period: dict, cfg: env.EnvConfig,
+                  mass: float) -> None:
     """The attributes env.py's observation functions read of an env, set on ``view`` for one panel episode: the
     nominal weight and model factors (no randomisation), the condition's floor, friction and push, the phase's
-    period (``PERIOD_RULE``)."""
+    period (``PERIOD_RULE``).  The weight is the controller's: ``mass`` is its tracker's (``control.Tracker.mass``,
+    from the tracker's model), the plant's own on the panels' nominal plant and the nominal model's when the trunk
+    mass is changed under it (the ledger's mass variant), as env.py keeps the nominal weight (``POLICY_RULE``)."""
     p = built.p
     view.nj = len(p.joints)
     view.dt = float(p.m.opt.timestep)
     view.dt_env = env.ENV_SUBSTEPS * view.dt
     view.H = float(p.meta["H_m"])
-    view.weight = float(p.m.body_subtreemass[p.trunk]) * env.GRAVITY
+    view.weight = float(mass) * env.GRAVITY
     view.omega = built.track.omega
     view._R_home = p._R_home
     view.cfg = cfg
@@ -410,7 +423,7 @@ class ResidualView:
     def __init__(self, tk: control.Tracker, built: panels.Built, seed: int, task: str, period: dict,
                  cfg: env.EnvConfig, **_):
         self.tk, self.p, self.track = tk, tk.p, tk.track
-        episode_attrs(self, built, seed, task, period, cfg)
+        episode_attrs(self, built, seed, task, period, cfg, tk.mass)
         self.residual_scale = residual_scale(tk.p)
 
 
@@ -431,8 +444,10 @@ class PolicyOnlyTracker(control.Tracker):
     def __init__(self, built: panels.Built, seed: int, q_home, span, task: str, period: dict, cfg: env.EnvConfig,
                  **_):
         super().__init__(built.p, built.track, "R2", terms=(), ankle_cap=(), rate=cfg.rate)
-        episode_attrs(self, built, seed, task, period, cfg)
-        self.nominal_model = built.p.m  # the estimator's model (R4_RULE)
+        episode_attrs(self, built, seed, task, period, cfg, self.mass)
+        # the estimator's model (R4_RULE): the controller's, the plant's own unless one is given (the ledger's mass
+        # variant gives the nominal model, as env.PolicyOnlyEnv keeps it)
+        self.nominal_model = built.p.m if self.model is None else self.model
         self.q_home, self.span = np.asarray(q_home, float), np.asarray(span, float)
         self.q_target = self.q_home.copy()
         self.tau = 0.0
@@ -773,10 +788,17 @@ def _aligned(cls, seeds: dict):
     return Aligned
 
 
+#: The margin ledger's variants that env.py also draws as randomised factors (``EQUIVALENCE_RULE``): the ledger's
+#: variant kind -> env.Stage1Env's factor.
+VARIANT_FACTORS = {"friction": "friction", "kp": "kp", "latency_steps": "latency_steps", "mass": "mass"}
+
+
 def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nominal", seed: int = panels.SEEDS[0],
-                      run_dir: Path | None = None, seconds: float | None = None, choice=None) -> dict:
+                      run_dir: Path | None = None, seconds: float | None = None, choice=None,
+                      variant: tuple | None = None) -> dict:
     """``EQUIVALENCE_RULE`` for one row, condition and episode seed; ``seconds`` cuts the condition (and the env's
-    horizon) there."""
+    horizon) there; ``variant`` (kind, value) runs the panel episode under one of the margin ledger's variants
+    (``ledger.LedgerContext.variant``) and the env with the same factor (``VARIANT_FACTORS``)."""
     t0 = time.perf_counter()
     run_dir = Path(run_dir) if run_dir is not None else tune.RUN / body
     r = policy_row(body, run_dir, row, choice)
@@ -785,13 +807,25 @@ def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nomi
     if seconds is not None:
         cond = dataclasses.replace(cond, seconds=float(seconds))
     _, docs = tune.read_inputs(run_dir, panels.panel_files())
-    ctx = panels.Context(body, run_dir, docs)
+    var = None
+    if variant is None:
+        ctx = panels.Context(body, run_dir, docs)
+    else:
+        from . import ledger
+
+        kind, value = variant
+        if kind not in VARIANT_FACTORS:
+            raise PolicyRowError(f"variant {kind!r}: env.py draws only {', '.join(VARIANT_FACTORS)} as factors "
+                                 "(EQUIVALENCE_RULE)")
+        var = ledger.Variant(kind, int(value) if kind == "latency_steps" else float(value))
+        ctx = ledger.LedgerContext(body, run_dir, docs)
     b = ctx.built(cond)
     task, _ = env_task(b.plan)
     if task is None:
         raise PolicyRowError(f"{condition}: no env task runs its plan (EQUIVALENCE_RULE needs one)")
     panel = []
-    with digesting(b.p, panel):
+    var_info: dict = {}
+    with digesting(b.p, panel), (ctx.variant(cond, var) if var is not None else nullcontext(var_info)) as var_info:
         _, out, _ = r.episode(ctx, cond, int(seed))
     # training's env on the same floor, friction, seeds and checkpoint
     s = panels.episode_seeds(cond, int(seed))
@@ -806,6 +840,8 @@ def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nomi
     factors = {}
     if cond.friction is not None and task not in env.TASK_FRICTION:
         factors["friction"] = float(cond.friction)
+    if var is not None:
+        factors[VARIANT_FACTORS[var.kind]] = var.value
     trained = []
     e._step_hook = lambda p_: trained.append(env._state_digest(p_.d))
     term = trunc = False
@@ -839,6 +875,7 @@ def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nomi
                     steps=c["steps"], selection=c["selection"], model=c["files"]["model"],
                     vecnormalize=c["files"]["vecnormalize"]),
                 condition=condition, cut_s=seconds, task=task, floor=cond.floor, friction=cond.friction,
+                variant=None if var is None else dict(var.describe(), env_factors=dict(e.factors), info=var_info),
                 episode_seed=int(seed), seeds=s, panel_seconds=float(b.seconds), env_seconds=float(e.seconds),
                 panel_physics_steps=n_p, panel_planned_physics_steps=planned, env_physics_steps=n_e,
                 env_horizon_physics_steps=horizon, common_horizon_physics_steps=common, env_steps=e.k_env,
@@ -1016,6 +1053,9 @@ def main(argv=None) -> int:
     cp.add_argument("--seconds", type=float, default=None, help="cut the condition here (default: its whole length)")
     cp.add_argument("--checkpoint", default=None, help=f"judged, newest or a step count (default: {CHECKPOINT_ENV})")
     cp.add_argument("--inputs", default=str(tune.RUN), help="run directory holding <body>/refs and transitions")
+    cp.add_argument("--variant", default=None,
+                    help=f"KIND=VALUE: a margin ledger variant env.py also draws ({', '.join(VARIANT_FACTORS)}), "
+                         "e.g. mass=1.1 (the env takes the same factor)")
     kp = sub.add_parser("costs", help="POLICY_COST_RULE: CPU and wall seconds per simulated second, and core-hours")
     kp.add_argument("--body", action="append", choices=sorted(panels.BODIES), required=True)
     kp.add_argument("--rows", default="R3/42,R4/42")
@@ -1036,8 +1076,14 @@ def main(argv=None) -> int:
                   f"{json.dumps(doc['checkpoints'])}", flush=True)
         return 0
     if a.cmd == "check":
+        variant = None
+        if a.variant:
+            kind, sep, value = a.variant.partition("=")
+            if not sep:
+                raise SystemExit(f"--variant {a.variant!r}: KIND=VALUE, e.g. mass=1.1")
+            variant = (kind.strip(), value.strip())
         res = equivalence_check(a.body, a.row, a.condition, a.episode_seed, Path(a.inputs) / a.body, a.seconds,
-                                a.checkpoint)
+                                a.checkpoint, variant)
         print(json.dumps(res, indent=1, default=str), flush=True)
         return 0 if res["identical"] else 1
     docs = {}

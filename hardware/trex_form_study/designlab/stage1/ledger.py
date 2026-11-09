@@ -9,12 +9,13 @@ Run from hardware/trex_form_study::
                                      [--inputs DIR] --out stage1/runs/2026-11-08
 
 Rows (``ROWS_RULE``): R2 is the panels' row of the CMA-ES seed the body-level G5 selection comes from (``--rows R2``),
-R3 is R3/42 from the policy rows' module (``--row-module``, ``panels.register_rows``); any row ``panels.tracker_rows``
-knows can be named.  Margins (``margins``, plan section 5's table; ``MARGIN_RULES``): grip, push, stop, drive speed,
-drive torque, the model doubts (servo kp, latency, trunk mass, pile damping) and pack voltage.  Each margin is one or
-more searches (``Search``: one parameter on one panel condition, from its nominal value toward the far end of a stated
-interval) and points (``Point``: one value).  How each parameter enters the plant: ``VARIANT_RULE`` and the margin's
-own rule.
+R3 is the policy rows' R3/42 (``policy_rows.r3_row``, registered through ``panels.register_rows``:
+``register_policy_rows`` registers the policy rows' R3 and R4 when a row of theirs is asked for and no module has
+registered it; run it in the PPO venv); any row ``panels.tracker_rows`` knows can be named.  Margins (``margins``, plan
+section 5's table; ``MARGIN_RULES``): grip, push, stop, drive speed, drive torque, the model doubts (servo kp, latency,
+trunk mass, pile damping) and pack voltage.  Each margin is one or more searches (``Search``: one parameter on one
+panel condition, from its nominal value toward the far end of a stated interval) and points (``Point``: one value).
+How each parameter enters the plant: ``VARIANT_RULE`` and the margin's own rule.
 
 A search (``SEARCH_RULE``, ``Bisect``) evaluates the nominal value, then the far end, then halves the bracket 7 times;
 a value works when all three episodes succeed by the panels' judgement (``WORKS_RULE``), and every search is also run
@@ -92,9 +93,13 @@ ROWS_RULE = (
     "plan section 5 bisects on R2 and R3: R2 is the panels' row of the CMA-ES seed the body-level G5 selection comes "
     "from (env.tuned_gains, env.GAINS_RULE: 60-N-T-10 R2/42, 60-N-H-10 R2/43, 75-M-H-10 R2/43; the row name 'R2' "
     "names it), the tracker on the estimate with that seed's own G5 selection (panels.R2_GAINS_RULE); R3 is R3/42, the "
-    "residual policy at its judged checkpoint (train.JUDGED_RULE), a row of the policy rows' module (panels."
-    "register_rows, --row-module); any row panels.tracker_rows knows can be named, and a row that runs the hard floor "
-    "only (R0, R1) has no pile search")
+    "policy rows' row (policy_rows.r3_row, policy_rows.POLICY_ROWS_RULE: R2 of the body-level G5 selection plus PPO "
+    "seed 42's residual policy acting as training's env acts) at its judged checkpoint (train.JUDGED_RULE, "
+    "policy_rows.CHECKPOINT_SELECTION_RULE), registered through panels.register_rows: the ledger registers the policy "
+    "rows' R3 and R4 (policy_rows.ROW_FACTORIES) when a row of theirs is asked for and no module has registered that "
+    "controller (a --row-module may register another, which is kept); a policy row is built only in the PPO venv "
+    "(its run's libraries); any row panels.tracker_rows knows can be named, and a row that runs the hard floor only "
+    "(R0, R1) has no pile search")
 SEEDS_RULE = (
     f"episode seeds {SEEDS[0]}-{SEEDS[-1]} (panels.SEEDS' first three, plan section 5); each episode is the panels' "
     "episode of its condition on that seed (panels.EPISODE_RULE: the start noise, the sensor noise and a push's timing "
@@ -157,8 +162,10 @@ COST_RULE = (
     f"run's keys: at most 2 + {HALVINGS} on success (an integer search: 2 + its halvings) and as many more on survival "
     "(none when the two agree), each x 3 seeds at the condition's planned seconds (panels.Planner); a point once (a "
     "value two searches share, such as the nominal walk's nominal value, is counted in each and run once); the "
-    "cost per simulated second is panels.COST_RULE's (R2/42 walking on each floor, measured now; a policy row's "
-    "network adds its own); core-hours = simulated seconds x CPU seconds per simulated second / 3600")
+    "cost per simulated second is panels.COST_RULE's for a tracker row (R2/42 walking on each floor, measured now) "
+    "and a policy row's own for R3 and R4 (policy_rows.POLICY_COST_RULE: the row, its network included, on the "
+    "nominal walk on each floor its searches still need, measured now); core-hours = simulated seconds x CPU seconds "
+    "per simulated second / 3600")
 GRIP_RULE = (
     "the lowest sliding friction that works: every colliding geom's sliding friction set to mu (control.set_friction, "
     f"as the panels set mu 0.54) on the nominal walk (walk/nominal), the 0.35 rad/s walking turn left and right "
@@ -208,8 +215,9 @@ MASS_RULE = (
     "the trunk's mass and inertia x f in the plant (env.set_trunk_mass, env.MASS_RULE: MuJoCo's derived constants "
     "recomputed), the controller keeping the nominal model (every control.Tracker the row builds during the episode "
     "gets the plant's nominal model when its caller gives none, as env.ResidualEnv builds R3's: the tracker's mass, "
-    "R2's estimator and its sensors' weight; each episode records the trunk mass its controller worked with and the "
-    "plant's), the judgement on the true body "
+    "R2's estimator and its sensors' weight, and a policy row's observed weight and R4's estimator, which are its "
+    "tracker's, policy_rows.POLICY_RULE and R4_RULE, as env.py keeps them; each episode records the trunk mass its "
+    "controller worked with and the plant's), the judgement on the true body "
     f"(metrics.Recorder reads the plant's mass: the GRF over the true weight), on the nominal walk: f {MASS_POINT:g} "
     f"(plan section 5's +10 %: works or not) and the largest f that works from 1 up to {MASS_FAR:g}")
 PILE_DAMPING_RULE = (
@@ -1050,6 +1058,25 @@ def _brief(res: dict | None) -> dict | None:
 # ------------------------------------------------------------------------------------------------
 # Rows, records, keys
 # ------------------------------------------------------------------------------------------------
+#: The controllers the policy rows' module defines (``policy_rows.ROW_FACTORIES``, ``ROWS_RULE``).
+POLICY_CONTROLLERS = ("R3", "R4")
+
+
+def register_policy_rows(names) -> list[str]:
+    """``ROWS_RULE``: the policy rows' R3 and R4 (``policy_rows.ROW_FACTORIES``) registered through
+    ``panels.register_rows`` for the rows of ``names`` whose controller no module has registered; a controller another
+    module registered (``--row-module``) keeps its rows.  Returns the controllers it registered."""
+    missing = sorted(({panels.controller_of(n) for n in names} & set(POLICY_CONTROLLERS)) - set(panels.ROW_FACTORIES))
+    if missing:
+        before = dict(panels.ROW_FACTORIES)
+        from . import policy_rows  # (its first import registers R3 and R4)
+
+        panels.ROW_FACTORIES.update(before)
+        for c in missing:
+            panels.register_rows(c, policy_rows.ROW_FACTORIES[c])
+    return missing
+
+
 def resolve_rows(body: str, run_dir: Path, names) -> list[str]:
     """``ROWS_RULE``: 'R2' -> the body-level G5 selection's R2 row, 'R3' -> R3/42; other names as given."""
     out = []
@@ -1098,6 +1125,7 @@ class Session:
         self.planner = panels.Planner(self.run_dir, docs["refs.json"]["references"],
                                       docs["transitions.json"]["transitions"])
         self.row_names = resolve_rows(body, self.run_dir, rows)
+        self.registered = register_policy_rows(self.row_names)
         self.rows = panels.tracker_rows(body, self.run_dir, self.row_names)
         self.margins = select_margins(margins(body), names)
         by_key = {c.key: c for c in panels.conditions()}
@@ -1331,6 +1359,25 @@ def summary_lines(summary: dict | None, kinds: dict | None = None) -> list[str]:
 # ------------------------------------------------------------------------------------------------
 # Dry run
 # ------------------------------------------------------------------------------------------------
+def policy_costs(ses: Session, lines: list[dict], log=print) -> dict:
+    """``COST_RULE``: each policy row's own cost per simulated second on the floors its searches still need
+    (``policy_rows.measure_costs``: the row, its network included, on the nominal walk), {row: {floor: cost}}."""
+    need: dict[str, set] = {}
+    for x in lines:
+        if x.get("floor") and x["values_max"] and panels.controller_of(x["row"]) in POLICY_CONTROLLERS:
+            need.setdefault(x["row"], set()).add(x["floor"])
+    if not need:
+        return {}
+    from . import policy_rows
+
+    out = {}
+    for row, floors in sorted(need.items()):
+        m = policy_rows.measure_costs(ses.body, ses.run_dir, (row,), tuple(sorted(floors)), r2=False, log=log)
+        out[row] = {f: dict(cpu_per_sim_s=v["cpu_per_sim_s"], wall_per_sim_s=v["wall_per_sim_s"],
+                            checkpoint=(m.get("checkpoints") or {}).get(row)) for f, v in m["rows"][row].items()}
+    return out
+
+
 def dry_run(body: str, out: Path, rows=DEFAULT_ROWS, names=None, inputs: Path | None = None,
             cut_s: float | None = None, halvings: int = HALVINGS, measure: bool = True, costs: dict | None = None,
             workers: int = 1, log=print) -> dict:
@@ -1372,12 +1419,13 @@ def dry_run(body: str, out: Path, rows=DEFAULT_ROWS, names=None, inputs: Path | 
                               values_min=todo, values_max=todo, seconds=ses.resolved[p.condition]["seconds"]))
     floors = sorted({x["floor"] for x in lines if x.get("floor") and x["values_max"]})
     if costs is None and measure and floors:
-        costs = panels.measure_costs(body, ses.run_dir, floors, log=log)
+        costs = dict(panels.measure_costs(body, ses.run_dir, floors, log=log), rows=policy_costs(ses, lines, log))
     fl = (costs or {}).get("floors") or {}
+    per_row = (costs or {}).get("rows") or {}
     total = Counter()
     for x in lines:
         n_min, n_max = len(SEEDS) * x["values_min"], len(SEEDS) * x["values_max"]
-        c = (fl.get(x.get("floor")) or {}).get("cpu_per_sim_s")
+        c = ((per_row.get(x["row"]) or fl).get(x.get("floor")) or {}).get("cpu_per_sim_s")
         x.update(episodes_min=n_min, episodes_max=n_max, simulated_s_max=n_max * x["seconds"],
                  core_h_max=None if c is None else n_max * x["seconds"] * c / 3600,
                  core_h_min=None if c is None else n_min * x["seconds"] * c / 3600)
@@ -1405,5 +1453,5 @@ def dry_run(body: str, out: Path, rows=DEFAULT_ROWS, names=None, inputs: Path | 
 
 __all__ = ["Bisect", "DEFAULT_ROWS", "HALVINGS", "LedgerContext", "LedgerWorker", "MARGIN_NAMES", "Margin", "NOMINAL",
            "Point", "PushedBuilt", "RULES", "SEEDS", "STAGE0", "Search", "Session", "Variant", "binding", "dry_run",
-           "margins", "record_path", "resolve_rows", "select_margins", "stage0", "stop_reference", "summarize",
-           "sweep", "worse"]
+           "margins", "record_path", "register_policy_rows", "resolve_rows", "select_margins", "stage0",
+           "stop_reference", "summarize", "sweep", "worse"]

@@ -514,8 +514,11 @@ def test_dry_run_counts(tmp_path):
 
 @needs_run
 def test_sweep_command_line(tmp_path, capsys, monkeypatch):
-    """``sweep --dry-run`` lists and runs nothing; ``sweep`` of the stop writes its record with no episode; an R3 row
-    without its module is refused with the hint."""
+    """``sweep --dry-run`` lists and runs nothing; ``sweep`` of the stop writes its record with no episode; R3/42 with
+    no --row-module is the policy rows' row (ROWS_RULE), refused with the hint where its run cannot be read; a row of
+    a controller no module registers is refused with the --row-module hint."""
+    from designlab.stage1 import policy_rows
+
     assert cli(["sweep", "--body", BODY, "--rows", "R2", "--margins", "kp,stop", "--dry-run", "--no-measure",
                 "--inputs", str(RUN), "--out", str(tmp_path)]) == 0
     out = capsys.readouterr().out
@@ -524,9 +527,64 @@ def test_sweep_command_line(tmp_path, capsys, monkeypatch):
                 str(tmp_path)]) == 0
     assert ledger.record_path(tmp_path, BODY, "R2/42", "stop").exists()
     monkeypatch.setattr(panels, "ROW_FACTORIES", {})
-    with pytest.raises(SystemExit, match="row-module"):
+    monkeypatch.setenv(policy_rows.RUNS_ENV, str(tmp_path / "no_training_run"))
+    with pytest.raises(SystemExit, match="PPO venv"):
         cli(["sweep", "--body", BODY, "--rows", "R3/42", "--margins", "stop", "--inputs", str(RUN), "--out",
              str(tmp_path)])
+    assert panels.ROW_FACTORIES["R3"] is policy_rows.r3_row
+    with pytest.raises(SystemExit, match="row-module"):
+        cli(["sweep", "--body", BODY, "--rows", "R5/1", "--margins", "stop", "--inputs", str(RUN), "--out",
+             str(tmp_path)])
+
+
+def test_the_ledgers_r3_is_the_policy_rows_row(monkeypatch):
+    """ROWS_RULE: with no module registering R3 or R4, the ledger registers the policy rows' (policy_rows.r3_row and
+    r4_row) through panels.register_rows for the rows asked for; a controller another module registered keeps its
+    rows, and R2 needs nothing."""
+    from designlab.stage1 import policy_rows
+
+    monkeypatch.setattr(panels, "ROW_FACTORIES", {})
+    assert ledger.register_policy_rows(["R2/42"]) == [] and panels.ROW_FACTORIES == {}
+    assert ledger.register_policy_rows(["R2/42", "R3/42"]) == ["R3"]
+    assert panels.ROW_FACTORIES == {"R3": policy_rows.r3_row}
+    assert ledger.register_policy_rows(["R3/42", "R4/42"]) == ["R4"]
+    assert panels.ROW_FACTORIES == {"R3": policy_rows.r3_row, "R4": policy_rows.r4_row}
+
+    def other(body, run_dir, name):
+        raise AssertionError("not built here")
+
+    monkeypatch.setattr(panels, "ROW_FACTORIES", {"R3": other})
+    assert ledger.register_policy_rows(["R3/42", "R4/42"]) == ["R4"] and panels.ROW_FACTORIES["R3"] is other
+    assert ledger.DEFAULT_ROWS == ("R2", "R3/42") and ledger.R3_ROW == "R3/42"
+
+
+@needs_run
+def test_dry_run_costs_a_policy_row_at_its_own_cost(tmp_path, r3_stand_in, monkeypatch):
+    """COST_RULE: a policy row's searches are costed at its own measured cost per simulated second
+    (policy_rows.measure_costs on the floors they still need), a tracker row's at R2/42's (panels.measure_costs)."""
+    from designlab.stage1 import policy_rows
+
+    calls = []
+
+    def r2_cost(body, run_dir, floors, log=print):
+        return dict(floors={f: dict(cpu_per_sim_s=0.1, wall_per_sim_s=0.3) for f in floors})
+
+    def policy_cost(body, run_dir, rows, floors, r2=True, log=print, **kw):
+        calls.append((tuple(rows), tuple(floors), r2))
+        return dict(rows={r: {f: dict(cpu_per_sim_s=0.2, wall_per_sim_s=0.6) for f in floors} for r in rows},
+                    checkpoints={r: dict(steps=1, selection="a test's") for r in rows})
+
+    monkeypatch.setattr(panels, "measure_costs", r2_cost)
+    monkeypatch.setattr(policy_rows, "measure_costs", policy_cost)
+    doc = ledger.dry_run(BODY, tmp_path, rows=("R2", "R3/42"), names=("kp", "pile_damping"), inputs=RUN,
+                         log=lambda m: None)
+    assert calls == [(("R3/42",), ("hard", "low"), False)]
+    assert doc["costs"]["rows"]["R3/42"]["low"]["cpu_per_sim_s"] == 0.2
+    lines = [x for x in doc["lines"] if x["values_max"]]
+    assert {x["row"] for x in lines} == {"R2/42", "R3/42"} and {x["floor"] for x in lines} == {"hard", "low"}
+    for x in lines:
+        cost = 0.2 if x["row"] == "R3/42" else 0.1
+        assert x["core_h_max"] == pytest.approx(x["episodes_max"] * x["seconds"] * cost / 3600), x
 
 
 def test_records_are_json_and_rules_are_text():

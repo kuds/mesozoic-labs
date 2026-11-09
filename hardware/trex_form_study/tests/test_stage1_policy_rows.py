@@ -7,7 +7,8 @@ The PPO checkpoints are git-ignored: ``STAGE1_POLICY_RUNS`` names the directory 
 checkout's stage1/runs/2026-11-08), and the tests that need a checkpoint skip cleanly without one; the tests that run
 episodes also need the run directory's references and transitions.  Every test is short: the equivalence with
 training's env (policy_rows.EQUIVALENCE_RULE) runs a few simulated seconds of each episode, and the whole episodes
-with STAGE1_SLOW=1.
+with STAGE1_SLOW=1.  The margin ledger's R3 is this module's R3/42: its variants that env.py also draws are checked
+against the env with the same factor, a tiny sweep runs the real row, and the report reads the rows' real records.
 """
 
 from __future__ import annotations
@@ -38,6 +39,9 @@ R4_BODY = "60-N-T-10"
 COND = {c.key: c for c in panels.conditions()}
 #: A short cut of each episode the equivalence tests compare (whole episodes with STAGE1_SLOW=1).
 CUT_S = None if SLOW else 3.0
+#: The margin ledger's variants env.py also draws, checked against the env with the same factor (ledger.VARIANT_RULE).
+VARIANTS = (("mass", 1.1), ("kp", 0.8), ("latency_steps", 3))
+VARIANT_CUT_S = None if SLOW else 1.0
 EPISODE_KEYS = {"seed", "fell", "fall_time_s", "fall_cause", "fall_onset_s", "fall_candidates", "limits_before_onset",
                 "survival_s", "planned_s", "strides", "worst_sustained_ratio", "worst_speed_ratio",
                 "tilt_from_home_max_deg", "joint_margin_min_rad", "joint_shortfall_rad", "joint_worst", "estimator",
@@ -273,6 +277,82 @@ def test_r4_is_training_env_on_the_walk(runs):
     _assert_identical(res)
 
 
+def test_r3_under_the_ledgers_variants_is_training_env_with_that_factor(runs):
+    """The margin ledger's R3 is this module's R3/42 (ledger.ROWS_RULE): under the ledger's trunk-mass, servo-kp and
+    latency variants (ledger.LedgerContext.variant) its episode is env.ResidualEnv's with the same factor at every
+    physics step (EQUIVALENCE_RULE); under the mass variant its one tracker took the nominal model (and with it the
+    observation's weight, POLICY_RULE), as env.MASS_RULE has it."""
+    n = _newest(R4_BODY, "R3")
+    for kind, value in VARIANTS:
+        res = policy_rows.equivalence_check(R4_BODY, "R3/42", "walk/nominal", run_dir=RUN / R4_BODY,
+                                            seconds=VARIANT_CUT_S, choice=n, variant=(kind, value))
+        _assert_identical(res)
+        v = res["variant"]
+        assert (v["kind"], v["value"]) == (kind, value) and v["env_factors"][kind] == value
+        if kind == "mass":
+            cm = v["info"]["controller_model"]
+            assert cm["nominal"] and cm["trackers"] == 1 and cm["plant_trunk_mass_kg"] > cm["nominal_trunk_mass_kg"]
+
+
+def test_r4_under_the_ledgers_mass_variant_is_training_env_with_that_factor(runs):
+    """R4/42 under the ledger's trunk-mass variant is env.PolicyOnlyEnv with the same factor: its estimator and the
+    sensors' and observation's weight keep the nominal model (R4_RULE)."""
+    n = _newest(R4_BODY, "R4")
+    res = policy_rows.equivalence_check(R4_BODY, "R4/42", "walk/nominal", run_dir=RUN / R4_BODY,
+                                        seconds=VARIANT_CUT_S, choice=n, variant=("mass", 1.1))
+    _assert_identical(res)
+    assert res["variant"]["info"]["controller_model"]["nominal"]
+
+
+def test_the_variant_check_is_sensitive(runs, monkeypatch):
+    """The variant check is not vacuous: with the kp or latency variant applied to the panel episode only (the env
+    given no such factor) R3 departs from training's env within the first env steps; with the observation's weight
+    read from the plant (its trunk x 1.1) instead of the controller's model, so does the mass variant; a variant
+    env.py does not draw is refused."""
+    n = _newest(R4_BODY, "R3")
+    for kind, value in (("kp", 0.8), ("latency_steps", 3)):
+        with monkeypatch.context() as m:
+            m.setitem(policy_rows.VARIANT_FACTORS, kind, "not_an_env_factor")
+            res = policy_rows.equivalence_check(R4_BODY, "R3/42", "walk/nominal", run_dir=RUN / R4_BODY,
+                                                seconds=0.2, choice=n, variant=(kind, value))
+        assert not res["identical"] and res["first_difference"] is not None and res["first_difference"] < 20, kind
+    attrs = policy_rows.episode_attrs
+
+    def plant_weight(view, built, *a, **k):
+        attrs(view, built, *a, **k)
+        view.weight = float(built.p.m.body_subtreemass[built.p.trunk]) * env.GRAVITY
+
+    monkeypatch.setattr(policy_rows, "episode_attrs", plant_weight)
+    res = policy_rows.equivalence_check(R4_BODY, "R3/42", "walk/nominal", run_dir=RUN / R4_BODY, seconds=0.2,
+                                        choice=n, variant=("mass", 1.1))
+    assert not res["identical"] and res["first_difference"] is not None and res["first_difference"] < 20
+    with pytest.raises(policy_rows.PolicyRowError, match="factors"):
+        policy_rows.equivalence_check(R4_BODY, "R3/42", "walk/nominal", run_dir=RUN / R4_BODY, seconds=0.2,
+                                      choice=n, variant=("torque_scale", 0.5))
+
+
+def test_the_ledger_sweeps_the_policy_rows_r3(tmp_path, runs, monkeypatch):
+    """With no --row-module, the ledger's R3 is this module's R3/42 (registered through panels.register_rows): a tiny
+    sweep (the kp margin, episodes cut to 0.6 s, one halving) writes its record with the policy's checkpoint in the
+    row's description, and a second sweep reuses every evaluation."""
+    from designlab.stage1 import ledger
+
+    n3 = _newest(R4_BODY, "R3")
+    monkeypatch.setattr(panels, "ROW_FACTORIES", {})
+    monkeypatch.setenv(policy_rows.CHECKPOINT_ENV, f"R3={n3}")
+    doc = ledger.sweep(R4_BODY, tmp_path, rows=("R3",), names=("kp",), cut_s=0.6, halvings=1, inputs=RUN,
+                       log=lambda m: None)
+    s = doc["sessions"][-1]
+    assert panels.ROW_FACTORIES["R3"] is policy_rows.r3_row and s["rows"] == ["R3/42"] and s["episodes_run"] > 0
+    rec = json.loads(ledger.record_path(tmp_path, R4_BODY, "R3/42", "kp").read_text())
+    assert rec["status"] == "done" and rec["controller"]["policy"]["checkpoint"]["steps"] == n3
+    assert rec["controller"]["policy"]["policy"] == "TrainedPolicy" and rec["controller"]["tracker_mode"] == "R2"
+    assert rec["evaluations"] and all(e["errors"] == 0 and len(e["episodes"]) == 3 for e in rec["evaluations"].values())
+    again = ledger.sweep(R4_BODY, tmp_path, rows=("R3",), names=("kp",), cut_s=0.6, halvings=1, inputs=RUN,
+                         log=lambda m: None)
+    assert again["sessions"][-1]["episodes_run"] == 0 and again["sessions"][-1]["skipped"] == ["R3/42 kp"]
+
+
 def test_the_check_sees_another_filter(runs, monkeypatch):
     """The comparison is sensitive: without the 10 Hz filter (alpha 1) the row departs from training's env at once."""
     n = _newest(R3_BODY, "R3")
@@ -360,6 +440,15 @@ def test_eval_runs_and_resumes_the_policy_rows(tmp_path, runs, monkeypatch):
         rec = json.loads(panels.record_path(tmp_path, R4_BODY, name, cut[0]).read_text())
         assert rec["controller"]["policy"]["checkpoint"]["steps"] == n and rec["gated"] is True
         assert "designlab/stage1/policy_rows.py" in rec["key"]["row_sources"] and len(rec["episodes"]) == 1
+    from designlab.stage1 import report  # the report reads these records: the checkpoint, its flag, the verdicts
+
+    g = report.grid(tmp_path, R4_BODY)
+    c = g["behaviors"]["stand"]["hard"]
+    for name, n in (("R3/42", n3), ("R4/42", n4)):
+        assert c["cells"][name]["checkpoint"] == n and c["cells"][name]["checkpoint_final"] is False
+        assert c["cells"][name]["flags"] == ["not judged", "checkpoint provisional"]
+    assert g["verdict_controller"] == "R3" and c["verdicts"]["R3"]["verdict"] == "incomplete"  # one episode, no R3/43
+    assert c["verdicts"]["R4"]["verdict"] == "incomplete"
     doc = panels.evaluate(R4_BODY, tmp_path, rows=("R3/42", "R4/42"), episodes=1, inputs=RUN, traces=False,
                           log=lambda m: None)
     assert doc["sessions"][-1]["episodes_run"] == 0 and len(doc["sessions"][-1]["skipped"]) == 2

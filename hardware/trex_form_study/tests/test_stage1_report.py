@@ -225,6 +225,66 @@ def test_report_on_a_synthetic_run(tmp_path):
     assert not (run / report.MARKDOWN).exists()
 
 
+def policy_controller(row, steps, final, selection="the judged checkpoint (train.judged_checkpoint)"):
+    """A policy row's controller description as policy_rows writes it (the policy's checkpoint, nested)."""
+    return dict(row=row, controller=f"{row}: a policy row", tracker_mode="R2" if row.startswith("R3") else None,
+                policy=dict(policy="TrainedPolicy", mode=row.split("/")[0], ppo_seed=int(row.split("/")[1]),
+                            checkpoint=dict(steps=steps, selection=selection, final=final, judged=None,
+                                            model=dict(file=f"x/model_{steps}.zip", sha256="0" * 64),
+                                            vecnormalize=dict(file=f"x/vecnormalize_{steps}.pkl", sha256="0" * 64))))
+
+
+def test_the_policy_rows_cells_and_verdicts(tmp_path):
+    """The R3 and R4 rows' records as policy_rows writes them: a cell names the checkpoint its record ran and is
+    flagged by that checkpoint (final or not, whatever run.json's judged checkpoint says); R3's verdicts are the
+    panels' on R3/42 and R3/43 (shown once both pass), R4's policy_rows.R4_VERDICT_RULE's on R4/42 (at most
+    provisional), each counted over the conditions gated for it (the carpet walk too, decision 23)."""
+    from designlab.stage1 import policy_rows
+
+    assert report.SINGLE_SEED["R4"] == policy_rows.R4_ROWS and report.CONTROLLERS == ("R2", "R3", "R4")
+    run = make_run(tmp_path / "run")  # run.json: R3/42's judged checkpoint provisional, R4/42's final
+    rows = {"R3/42": (4005888, True), "R3/43": (4005888, True), "R4/42": (1007616, False)}
+    for key in ("walk/nominal", "carpet/low"):
+        for row, (steps, final) in rows.items():
+            sel = "the judged checkpoint (train.judged_checkpoint)" if final else "the run's newest complete checkpoint"
+            write(panels.record_path(run, BODY, row, COND[key]),
+                  panel_record(row, key, 20, 18, controller=policy_controller(row, steps, final, sel)))
+    kp = {m.name: m for m in ledger.margins(BODY)}["kp"]
+    write(ledger.record_path(run, BODY, "R3/42", "kp"), dict(
+        row="R3/42", margin="kp", status="done", cut_s=None, halvings=7, definition=kp.describe(),
+        summary=ledger.margin_summary(kp, {"walk_nominal": bisected(kp.searches[0], 0.6)}, {}),
+        cost=dict(cpu_s=60.0, wall_s=90.0),
+        controller=policy_controller("R3/42", 1007616, False, "the run's newest complete checkpoint")))
+    doc = report.collect(run, (BODY,))
+    g = doc["bodies"][BODY]["grid"]
+    walk, carpet = g["behaviors"]["walk"]["nominal"], g["behaviors"]["carpet"]["low"]
+    c3, c4 = walk["cells"]["R3/42"], walk["cells"]["R4/42"]
+    assert c3["checkpoint"] == 4005888 and c3["checkpoint_final"] is True and c3["flags"] == []
+    assert c4["checkpoint"] == 1007616 and c4["checkpoint_final"] is False and c4["flags"] == ["checkpoint provisional"]
+    assert c4["checkpoint_selection"] == "the run's newest complete checkpoint"
+    assert walk["verdicts"]["R3"]["verdict"] == "shown" and walk["verdicts"]["R4"]["verdict"] == "provisional"
+    assert walk["verdicts"]["R4"]["read_from"] == "shown" and walk["shown"] == "shown"  # R3's verdicts are shown
+    assert carpet["verdicts"]["R3"]["gated"] and carpet["verdicts"]["R4"]["gated"]
+    assert not carpet["verdicts"]["R2"]["gated"] and carpet["cells"]["R4/42"]["gated"]
+    assert g["verdict_controller"] == "R3" and g["gated_verdicts"]["R3"]["shown"] == 2
+    assert g["gated_verdicts"]["R4"]["provisional"] == 2 and "shown" not in g["gated_verdicts"]["R4"]
+    assert g["single_seed"]["R4"]["pass"] == 2
+    assert walk["verdicts"]["R4"]["verdict"] == policy_rows.r4_verdict(
+        [json.loads(panels.record_path(run, BODY, "R4/42", COND["walk/nominal"]).read_text())])["verdict"]
+    assert g["behaviors"]["stand"]["hard"]["verdicts"]["R4"]["verdict"] == "not run"
+    md = report.markdown(doc)
+    assert "| R2 verdict | R3 verdict (shown) | R4 verdict |" in md
+    line = next(x for x in md.splitlines() if x.startswith("| nominal | all |"))
+    assert line.endswith("| provisional | shown | provisional |") and "pass 20,18 (0.86,0.72) * |" in line
+    assert "- R4/42 walk/nominal: flags: checkpoint provisional; checkpoint 1007616" in md
+    assert next(x for x in md.splitlines() if x.startswith("| R4 |")).startswith("| R4 | 0 | 2 |")
+    assert "R4 has one seed (decisions 3 and 28): its verdicts are at most provisional" in md
+    lt = doc["bodies"][BODY]["ledger"]  # the ledger's R3 row names its checkpoint too
+    assert lt["rows"][:2] == ["R2/42", "R3/42"] and lt["checkpoints"] == {"R3/42": [dict(steps=1007616, final=False)]}
+    assert lt["margins"]["kp"]["rows"]["R3/42"]["checkpoint"]["selection"] == "the run's newest complete checkpoint"
+    assert "- R3/42 ran checkpoint 1007616 (provisional) *: not the final judged checkpoint (FLAGS_RULE)" in md
+
+
 def test_a_running_ppo_session_is_estimated(tmp_path):
     """A session still running has no CPU total: its wall to the record's last write x its first rollouts' CPU per
     wall second."""

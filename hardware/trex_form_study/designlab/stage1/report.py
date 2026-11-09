@@ -9,11 +9,12 @@ It reads ``--out`` and writes only ``<dest>/STAGE1_TABLES.md`` and ``<dest>/stag
 ``--out``).  Per body (``collect``):
 
 * the verdict grid (``GRID_RULE``): behaviour x condition x the rows R0, R1, R2/42, R2/43, R3/42, R3/43 and R4/42,
-  each cell the panels' record (``panels.record_path``): pass, the survival and success counts with their
-  Clopper-Pearson lower bounds, the failure label, gated or reported for that row, and the interim flags
-  (``FLAGS_RULE``); one table per behaviour group;
+  each cell the panels' record (``panels.record_path``; the policy rows' R3 and R4 records are ``policy_rows``'): pass,
+  the survival and success counts with their Clopper-Pearson lower bounds, the failure label, gated or reported for
+  that row, the checkpoint a policy row ran, and the interim flags (``FLAGS_RULE``); one table per behaviour group;
 * the verdicts per controller (``VERDICTS_RULE``: ``panels.verdict`` on R2's and R3's two seeds' records, the controller
-  the summary shows by ``panels.verdict_controller``; R4 has one seed and no verdict) and gate G7 (``eval/g7.json``);
+  the summary shows by ``panels.verdict_controller``; R4's from its one seed by ``policy_rows.R4_VERDICT_RULE``, at most
+  provisional) and gate G7 (``eval/g7.json``);
 * the margin ledger (``ledger``'s records, ``sweeps/<row>/<margin>.json``) for its rows (R2 of the body-level G5
   selection and R3/42, and any other row with records), with plan section 5's Stage 0 values beside
   (``LEDGER_TABLE_RULE``);
@@ -38,9 +39,11 @@ from . import BODIES, panels, tune
 SCHEMA = 1
 ROWS = ("R0", "R1", "R2/42", "R2/43", "R3/42", "R3/43", "R4/42")
 HARD_ONLY = ("R0", "R1")
-#: The controllers with verdicts (``panels.VERDICT_ROWS``) and R4's one seed.
+#: The controllers with verdicts from two seeds (``panels.VERDICT_ROWS``) and R4's one seed (``policy_rows.R4_ROWS``).
 VERDICT_CONTROLLERS = tuple(panels.VERDICT_ROWS)
 SINGLE_SEED = {"R4": ("R4/42",)}
+#: Every controller the grid gives verdicts (``VERDICTS_RULE``).
+CONTROLLERS = VERDICT_CONTROLLERS + tuple(SINGLE_SEED)
 PPO_RUNS = (("R3", 42), ("R3", 43), ("R4", 42))
 VERDICTS = ("shown", "provisional", "body-limited", "controller-limited", "not attributed", "incomplete", "not run")
 BEHAVIOR_TITLES = {"stand": "Stand", "walk": "Walk", "turn": "Turn", "start_stop": "Start and stop", "push": "Push",
@@ -59,20 +62,26 @@ GRID_RULE = (
 FLAGS_RULE = (
     "a cell is flagged interim when its record is not judged (fewer than 20 episodes or an episode that failed to "
     "run), its falls are not attributed yet (decision 20, eval --attribute), its key's panel sources differ from the "
-    "sources read now (panels.PANEL_SOURCES_RULE: made by other code), or its row is a policy row whose runs' judged "
-    "checkpoint is provisional (train.JUDGED_RULE: run.json's judged_checkpoint not final)")
+    "sources read now (panels.PANEL_SOURCES_RULE: made by other code), or its row is a policy row (R3, R4) that ran a "
+    "checkpoint that is not final: the checkpoint its record names (the controller's policy checkpoint, "
+    "policy_rows.CHECKPOINT_SELECTION_RULE: an interim one, STAGE1_POLICY_CHECKPOINT, or the judged one before every "
+    "run reached its budget or 'judge --final' recorded it), or, for a record that names none, its runs' judged "
+    "checkpoint in run.json (train.JUDGED_RULE: judged_checkpoint not final); the cell names the checkpoint's steps")
 VERDICTS_RULE = (
     "per condition, panels.verdict on each controller's two seeds' records (panels.VERDICT_ROWS: R2 from R2/42 and "
     "R2/43, R3 from R3/42 and R3/43; panels.VERDICT_RULE), 'not run' when neither record exists; the counts are over "
     "the conditions gated for the controller's rows; the controller the grid's verdict column shows is "
-    "panels.verdict_controller's (R3 once its records exist, else R2, interim); R4 has one seed (decision 3), so its "
-    "conditions show its record's pass and no verdict")
+    "panels.verdict_controller's (R3 once its records exist, else R2, interim); R4 trains one seed (decisions 3 and "
+    "28), so its verdict is policy_rows.R4_VERDICT_RULE's on R4/42's record (panels.verdict with 'shown' read as "
+    "'provisional': at most provisional; 'not run' when no record exists), counted over the conditions gated for "
+    "R4/42, and its records' results on those conditions are counted beside")
 LEDGER_TABLE_RULE = (
     "per margin and search (ledger.RULES), each ledger row's record <out>/<body>/sweeps/<row>/<margin>.json: the "
     "threshold on success ('works': the last value at which all 3 seeds succeed) and on survival ('survives'), each "
     "with the nearest value that fails and the label at it (ledger.LABEL_RULE), or 'fails at nominal', 'works across "
     "the interval' (to its far end), 'not run'; points show works and survives; plan section 5's Stage 0 value "
-    "beside (ledger.STAGE0)")
+    "beside (ledger.STAGE0); a policy row's results (R3/42, policy_rows) name the checkpoints its records ran, "
+    "listed under the table and marked provisional when one is not final (FLAGS_RULE)")
 PPO_RULE = (
     "per run (R3 seeds 42 and 43, R4 seed 42) its run.json: status, env steps trained of the budget "
     "(train.BUDGET_RULE), the last checkpoint, the judged checkpoint (train.JUDGED_RULE: steps, final or provisional), "
@@ -144,8 +153,22 @@ def _policy_runs(out: Path, body: str) -> dict:
     return out_
 
 
+def _policy_checkpoint(controller: dict | None) -> dict | None:
+    """The checkpoint a policy row's record ran, as ``policy_rows`` describes it (the controller's policy's
+    checkpoint: steps, selection, final, ...), or None."""
+    if not isinstance(controller, dict):
+        return None
+    pol = controller.get("policy")
+    ck = pol.get("checkpoint") if isinstance(pol, dict) else None
+    return ck if isinstance(ck, dict) else None
+
+
 def _checkpoint_of(controller: dict | None):
-    """A policy row's checkpoint as its record's controller description names it (any key with 'checkpoint')."""
+    """A policy row's checkpoint as its record's controller description names it: the step count of
+    ``policy_rows``' checkpoint, else any key with 'checkpoint' that holds a value."""
+    ck = _policy_checkpoint(controller)
+    if ck is not None:
+        return ck.get("steps")
     if not isinstance(controller, dict):
         return None
     for d in (controller, controller.get("policy") if isinstance(controller.get("policy"), dict) else {}):
@@ -176,8 +199,12 @@ def cell(rec: dict | None, row: str, cond: panels.Condition, sources_now: str | 
     if sources_now is not None and (rec.get("key") or {}).get("sources") not in (None, sources_now):
         flags.append("other panel sources")
     ctrl = panels.controller_of(row)
-    if ctrl in ("R3", "R4") and not (policy_runs.get(row) or {}).get("final"):
-        flags.append("checkpoint provisional")
+    ck = _policy_checkpoint(rec.get("controller")) if ctrl in ("R3", "R4") else None
+    final = None
+    if ctrl in ("R3", "R4"):
+        final = bool(ck.get("final")) if ck is not None else bool((policy_runs.get(row) or {}).get("final"))
+        if not final:
+            flags.append("checkpoint provisional")
     result = "unjudged" if c.get("pass_") is None else ("pass" if c["pass_"] else "FAIL")
     n, surv, succ = c.get("episodes"), c.get("survived"), c.get("succeeded")
     text = (f"{result} {surv},{succ}" + (f" of {n}" if n != panels.RUNS else "")
@@ -188,19 +215,22 @@ def cell(rec: dict | None, row: str, cond: panels.Condition, sources_now: str | 
                 kind=f.get("kind"), falls_label=f.get("falls_label"), success_label=f.get("success_label"),
                 untestable=f.get("untestable") or None, flags=flags, text=text,
                 checkpoint=_checkpoint_of(rec.get("controller")) if ctrl in ("R3", "R4") else None,
+                checkpoint_selection=ck.get("selection") if ck is not None else None, checkpoint_final=final,
                 wall_s=rec.get("wall_s"), episode_wall_s=rec.get("episode_wall_s"),
                 attribution_wall_s=(rec.get("attribution") or {}).get("wall_s"))
 
 
 def grid(out: Path, body: str, sources_now: str | None = None) -> dict:
     """The verdict grid of a body (``GRID_RULE``, ``VERDICTS_RULE``)."""
+    from .policy_rows import r4_verdict
+
     edir = Path(out) / body / "eval"
     found = sorted({"/".join(q.relative_to(edir).parts[:-2]) for q in edir.glob("**/*.json")
                     if len(q.relative_to(edir).parts) >= 3 and q.relative_to(edir).parts[0] != "traces"})
     rows = list(ROWS) + [r for r in found if r and r not in ROWS]
     shown, note = panels.verdict_controller(found)
     runs = _policy_runs(out, body)
-    behaviors, counts, single = {}, {c: Counter() for c in VERDICT_CONTROLLERS}, {c: Counter() for c in SINGLE_SEED}
+    behaviors, counts, single = {}, {c: Counter() for c in CONTROLLERS}, {c: Counter() for c in SINGLE_SEED}
     for cond in panels.conditions():
         recs = {r: _read(panels.record_path(out, body, r, cond)) for r in rows}
         cells = {r: cell(recs[r], r, cond, sources_now, runs) for r in rows}
@@ -215,8 +245,13 @@ def grid(out: Path, body: str, sources_now: str | None = None) -> dict:
                 counts[ctrl][v["verdict"]] += 1
         for ctrl, (r,) in SINGLE_SEED.items():
             x = cells[r]
+            v = dict(verdict="not run") if recs[r] is None else r4_verdict([recs[r]])
+            verdicts[ctrl] = dict(verdict=v["verdict"], gated=x["gated"], labels=v.get("labels"),
+                                  passes=v.get("passes"), untestable=v.get("untestable") or None,
+                                  read_from=v.get("read_from"))
             if x["gated"]:
                 single[ctrl][x.get("result") or x["status"]] += 1
+                counts[ctrl][v["verdict"]] += 1
         behaviors.setdefault(cond.behavior, {})[cond.name] = dict(
             key=cond.key, plan_gated=cond.gated, floor=cond.floor, friction=cond.friction,
             gated_for=[r for r in ROWS if panels.gated_for(r, cond)], cells=cells, verdicts=verdicts,
@@ -273,13 +308,22 @@ def ledger_table(out: Path, body: str) -> dict:
             if rec is None:
                 per_row[r] = dict(status="not run")
                 continue
+            ck = _policy_checkpoint(rec.get("controller"))
+            if ck is not None:
+                ck = dict(steps=ck.get("steps"), final=bool(ck.get("final")), selection=ck.get("selection"))
             per_row[r] = dict(status=rec.get("status"), summary=rec.get("summary"), cut_s=rec.get("cut_s"),
                               halvings=rec.get("halvings"), cost=rec.get("cost"),
                               not_run=rec.get("not_run"), reference_stop=rec.get("reference_stop"),
-                              panel_reading=rec.get("panel_reading"))
+                              panel_reading=rec.get("panel_reading"), checkpoint=ck)
         margins[m.name] = dict(title=m.title, swept=m.swept, definition=m.describe(),
                                stage0=ledger.stage0(body, m.name), rows=per_row)
-    return dict(rows=rows, margins=margins)
+    checkpoints = {}
+    for r in rows:
+        cks = {(x["checkpoint"]["steps"], x["checkpoint"]["final"]) for m in margins.values()
+               for x in [m["rows"][r]] if x.get("checkpoint")}
+        if cks:
+            checkpoints[r] = [dict(steps=n, final=f) for n, f in sorted(cks, key=lambda t: (t[0] is None, t))]
+    return dict(rows=rows, margins=margins, checkpoints=checkpoints)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -486,11 +530,12 @@ def _grid_md(g: dict) -> list[str]:
     shown = g["verdict_controller"]
     lines = [f"Verdicts shown: {g['verdict_controller_note']}.  Cells: result, survived,succeeded of 20 (their "
              "one-sided 95 % Clopper-Pearson lower bounds); '(rep.)' reported, not gated, for that row; '*' interim "
-             "(listed below each table); 'not run' no record; 'n/a' the row does not run there.", ""]
+             "(listed below each table); 'not run' no record; 'n/a' the row does not run there; R4's verdict is at "
+             "most provisional (one seed).", ""]
     for beh, conds in g["behaviors"].items():
         lines += [f"#### {BEHAVIOR_TITLES.get(beh, beh)}", ""]
         head = ["Condition", "Gated for"] + rows + [f"{c} verdict" + (" (shown)" if c == shown else "")
-                                                    for c in VERDICT_CONTROLLERS]
+                                                    for c in CONTROLLERS]
         lines.append("| " + " | ".join(head) + " |")
         lines.append("|" + "---|" * len(head))
         notes = []
@@ -508,7 +553,7 @@ def _grid_md(g: dict) -> list[str]:
                 if lab:
                     notes.append(f"- {r} {beh}/{name}: {lab}")
             vs = [c["verdicts"][v]["verdict"] + ("" if c["verdicts"][v]["gated"] else " (rep.)")
-                  for v in VERDICT_CONTROLLERS]
+                  for v in CONTROLLERS]
             lines.append("| " + " | ".join([name, gtxt] + cells + vs) + " |")
         lines.append("")
         if notes:
@@ -622,6 +667,10 @@ def _ledger_md(lt: dict) -> list[str]:
             lines.append("| " + " | ".join([m["title"], f"{p['name']}"] + cells_w + cells_s + ["-"]) + " |")
         if m["stage0"].get("text") and name == "voltage":
             extra.append(f"- {m['title']}: Stage 0: {m['stage0']['text']}")
+    for r, cks in (lt.get("checkpoints") or {}).items():
+        extra.append(f"- {r} ran checkpoint " + ", ".join(
+            f"{_g(c['steps'])} ({'final' if c['final'] else 'provisional'})" for c in cks)
+            + ("" if all(c["final"] for c in cks) else " *: not the final judged checkpoint (FLAGS_RULE)"))
     lines.append("")
     return lines + extra + ([""] if extra else [])
 
@@ -705,8 +754,9 @@ def markdown(doc: dict) -> str:
                                            + [str(cnt.get(v, 0)) for v in VERDICTS]) + " |")
         lines += ["", "Counts over the conditions gated for each controller's rows."]
         for ctrl, cnt in g["single_seed"].items():
-            lines.append(f"{ctrl} has one seed (decision 3) and no verdict; its gated conditions: "
-                         + ", ".join(f"{k} {v}" for k, v in sorted(cnt.items())) + ".")
+            lines.append(f"{ctrl} has one seed (decisions 3 and 28): its verdicts are at most provisional "
+                         "(policy_rows.R4_VERDICT_RULE); its record on each gated condition: "
+                         + (", ".join(f"{k} {v}" for k, v in sorted(cnt.items())) or "none") + ".")
         lines.append("")
         x = b["g7"]
         if x["status"] == "done":

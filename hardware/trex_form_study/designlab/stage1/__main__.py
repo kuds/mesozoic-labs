@@ -63,10 +63,11 @@ up to date is skipped and an episode that failed to run is run again (``panels.R
 imports a module that adds rows (``panels.register_rows``: the R3 and R4 rows); ``--dry-run`` lists every episode and
 estimates the core-hours from a cost per simulated second measured on each floor (``panels.COST_RULE``).
 ``sweep`` is plan section 5's margin ledger (``ledger``): each margin bisected to failure on the rows R2 (the body-level
-G5 selection's CMA-ES seed, ``--rows R2``) and R3/42 (a row of ``--row-module``'s), on seeds 3042-3044, one record per
-row and margin in ``<out>/<body>/sweeps/<row>/<margin>.json``, resumed from the evaluations the records hold
-(``ledger.RESUME_RULE``); ``--dry-run`` lists every search with the episodes it can still need and their cost
-(``ledger.COST_RULE``).  ``report`` writes the machine-made tables of plan section 8 (``report``) from whatever records
+G5 selection's CMA-ES seed, ``--rows R2``) and R3/42 (the policy rows' row, ``policy_rows``, which the ledger registers
+when no ``--row-module`` has: run it in the PPO venv), on seeds 3042-3044, one record per row and margin in
+``<out>/<body>/sweeps/<row>/<margin>.json``, resumed from the evaluations the records hold (``ledger.RESUME_RULE``);
+``--dry-run`` lists every search with the episodes it can still need and their cost (``ledger.COST_RULE``: a policy
+row's own).  ``report`` writes the machine-made tables of plan section 8 (``report``) from whatever records
 ``--out`` holds into ``<dest>/STAGE1_TABLES.md`` and ``<dest>/stage1_tables.json`` (``--dest`` default: ``--out``).
 ``all`` is not implemented yet.
 """
@@ -384,8 +385,14 @@ def _sweeping(a) -> int:
                          log=lambda msg: print(msg, flush=True))
         except ValueError as exc:
             if "register_rows" in str(exc):
-                raise SystemExit(f"{exc}\n(the R3 and R4 rows come from their own module: pass --row-module, e.g. "
-                                 "--row-module designlab.stage1.policy_rows, or --rows R2)") from None
+                raise SystemExit(f"{exc}\n(a row of another controller comes from its own module: pass --row-module, "
+                                 "or --rows R2)") from None
+            from .policy_rows import PolicyRowError  # (imported already if it raised one)
+
+            if isinstance(exc, PolicyRowError):  # the policy rows' R3 or R4 could not be built
+                raise SystemExit(f"{exc}\n(the R3 and R4 rows are the policy rows' (designlab.stage1.policy_rows): "
+                                 "run them in the PPO venv with the training run's checkpoints, STAGE1_POLICY_RUNS, "
+                                 "or sweep --rows R2)") from None
             raise
     return 0
 
@@ -456,7 +463,8 @@ def main(argv=None) -> int:
     sp = sub.add_parser("sweep", help="plan section 5: the margin ledger (each margin bisected to failure)")
     sp.add_argument("--body", action="append", choices=sorted(BODIES), required=True)
     sp.add_argument("--rows", default="R2,R3/42",
-                    help="comma-separated rows (default: R2,R3/42; R2 is the body-level G5 selection's CMA-ES seed)")
+                    help="comma-separated rows (default: R2,R3/42; R2 is the body-level G5 selection's CMA-ES seed, "
+                         "R3/42 the policy rows' row: the PPO venv)")
     sp.add_argument("--margins", default=None, help="comma-separated margins (default: all of grip, push, stop, "
                                                     "drive_speed, drive_torque, kp, latency, mass, pile_damping, "
                                                     "voltage; model_doubts names kp, latency, mass and pile_damping)")
@@ -464,7 +472,8 @@ def main(argv=None) -> int:
     sp.add_argument("--dry-run", action="store_true", help="list the searches and estimate the core-hours; run none")
     sp.add_argument("--no-measure", action="store_true", help="dry run without measuring the cost per simulated s")
     sp.add_argument("--row-module", action="append", default=None,
-                    help="a module to import first that adds rows (panels.register_rows), e.g. the R3 rows'")
+                    help="a module to import first that adds rows (panels.register_rows); the policy rows' R3 and R4 "
+                         "need none (ledger.register_policy_rows)")
     sp.add_argument("--cut-seconds", type=float, default=None,
                     help="cut every condition to this many simulated seconds (a smoke check; its keys differ)")
     sp.add_argument("--halvings", type=int, default=7, help="halvings per search (default 7, the plan's; fewer is a "
