@@ -629,3 +629,283 @@ def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES, rule: str = RU
     out["pass"] = bool(out["all_match"] and (out["single_run_pass"] if rule == "single" else out["panel_pass"]))
     out["seconds"] = time.perf_counter() - t0
     return out
+
+
+# ------------------------------------------------------------------------------------------------
+# G3: transitions
+# ------------------------------------------------------------------------------------------------
+def g3(body: str, out_dir: Path) -> dict:
+    """G3 (plan section 3 step 4) from ``transitions.json`` (``transitions.prepare``): every transition's last output
+    stride within ``transitions.G3_COM_MM`` of the periodic walk's CoM and ``G3_ZMP_MM`` of its multibody ZMP, every
+    frame's IK solved.  The transitions that fail would fall back to Design 3's amplitude ramps (``fallback``)."""
+    from . import transitions as tr
+
+    doc = json.loads((Path(out_dir) / "transitions.json").read_text())
+    rows = {}
+    for name, e in doc["transitions"].items():
+        rows[name] = dict(from_=e["from_"], to=e["to"], kind=e["kind"], pass_=e["g3"]["pass_"],
+                          com_max_mm=e["g3"]["com_max_mm"], zmp_max_mm=e["g3"]["zmp_max_mm"], ik_ok=e["ik_ok"],
+                          first_stride_com_max_mm=e["join_a"]["com_max_mm"],
+                          first_stride_zmp_max_mm=e["join_a"]["zmp_max_mm"], join_first_frame=e["join_a"]["at_join"],
+                          join_last_frame=e["join_b"]["at_join"], zmp_error_final_m=e["zmp_error_history_m"][-1],
+                          min_cop_margin_single_m=e["min_cop_margin_single_m"], stop=e["stop"], file=e["file"],
+                          sha256=e["sha256"])
+    missing = [n for n in tr.TRANSITIONS if n not in rows]
+    failed = [n for n, r in rows.items() if not r["pass_"]]
+    worst_c = max(rows, key=lambda n: rows[n]["com_max_mm"])
+    worst_z = max(rows, key=lambda n: rows[n]["zmp_max_mm"])
+    return dict(rule=f"the last output stride of each transition within {tr.G3_COM_MM:g} mm of the periodic walk's CoM "
+                     f"(3D) and {tr.G3_ZMP_MM:g} mm of its multibody ZMP (the home stance for a stop), every frame's IK "
+                     "solved; else that transition falls back to Design 3's amplitude ramps (plan section 3 step 4)",
+                method=doc.get("method"), transitions=rows, missing=missing, failed=failed, fallback=failed,
+                worst_com=dict(transition=worst_c, mm=rows[worst_c]["com_max_mm"]),
+                worst_zmp=dict(transition=worst_z, mm=rows[worst_z]["zmp_max_mm"]),
+                stops=stop_criterion(rows), pass_=bool(not failed and not missing))
+
+
+#: Plan section 4, Start and stop: "stopped within 1.5 strides (double support or a step allowed)".
+STOP_WITHIN_STRIDES = 1.5
+
+
+def stop_criterion(rows: dict) -> dict:
+    """Reported with G3, not gated: each stop reference's own stopping time (``transitions.stop_time``, strides from
+    the last lift-off) against plan section 4's "stopped within 1.5 strides", under both readings of "stopped" (the
+    forward speed below 1 % of the walk's, or the CoM at rest), which the plan does not choose between: a perfect
+    tracker of a reference that fails a reading fails the behaviour under it."""
+    out = {}
+    for name, r in rows.items():
+        s = r.get("stop")
+        if not s:
+            continue
+        fwd, rest = s.get("forward_stopped_strides"), s.get("at_rest_strides")
+        out[name] = dict(forward_stopped_strides=fwd, at_rest_strides=rest,
+                         forward_within=None if fwd is None else bool(fwd <= STOP_WITHIN_STRIDES),
+                         at_rest_within=None if rest is None else bool(rest <= STOP_WITHIN_STRIDES))
+    return dict(rule=f"plan section 4: stopped within {STOP_WITHIN_STRIDES:g} strides of the last lift-off; 'stopped' "
+                     "read as forward motion ended (forward_within) or as the CoM at rest within 1 mm and 1 mm/s "
+                     "(at_rest_within); the plan does not say which (finding for the owner)",
+                limit_strides=STOP_WITHIN_STRIDES, stops=out,
+                every_forward_within=all(v["forward_within"] for v in out.values() if v["forward_within"] is not None),
+                every_at_rest_within=all(v["at_rest_within"] for v in out.values() if v["at_rest_within"] is not None))
+
+
+# ------------------------------------------------------------------------------------------------
+# G4: the tracker
+# ------------------------------------------------------------------------------------------------
+G4_STRIDES = 60.0  # run length of the gated runs (strides), judged against the thresholds
+G4_THRESHOLDS = {"R1_nominal_hard": 40.0, "R1_nominal_mu054": 20.0, "R2_nominal_hard": 20.0}
+G4_MU = 0.54
+G4_REPORTED = ("brisk", "fr05", "walk_0.35_left", "walk_0.35_right", "in_place_0.50_left", "in_place_0.50_right")
+G4_REPORTED_STRIDES = 40.0
+G4_NOISE_SEEDS = 0  # R2's sensor-noise seeds: G4_NOISE_SEEDS + run index (not the plan's tuning or panel seeds)
+G4_STANCE_STRIDES = 20.0
+
+
+def _compact(r: dict) -> dict:
+    """A panel run's outcome: strides, the fall and its label with the counterfactual's verdicts, the estimator's
+    errors (over the episode and before the fall)."""
+    out = {k: r[k] for k in ("strides", "fell", "fall_cause", "fall_label", "dcm_error_rms_mm")}
+    cf = r.get("counterfactual")
+    if cf:
+        out.update(candidates=cf.get("candidates"), binding=cf.get("binding"), reproduces=cf.get("reproduces"),
+                   null_avoided=(cf.get("null") or {}).get("avoided"),
+                   every_relaxation_avoided=(cf.get("every_relaxation") or {}).get("avoided"))
+    e = r.get("estimator")
+    if e:
+        out.update(estimator_com_vel_err_rms_m_s=e["com_vel_err_rms_m_s"],
+                   estimator_com_rel_feet_err_rms_mm=e["com_rel_feet_err_rms_mm"])
+        b = e.get("before_fall")
+        if b and b.get("updates"):
+            out.update(estimator_before_fall_com_vel_err_rms_m_s=b["com_vel_err_rms_m_s"],
+                       estimator_before_fall_com_rel_feet_err_rms_mm=b["com_rel_feet_err_rms_mm"])
+    return out
+
+
+def _g4_job(job: dict) -> list[dict]:
+    """Worker: one plant and track, the episodes of ``job`` (``g4``)."""
+    from . import control
+
+    p = plant.build(job["body"], "hard", settle=job.get("start") == "stance")
+    if job.get("mu") is not None:
+        control.set_friction(p, job["mu"])
+    first = Reference.load(Path(job["run"]) / "refs" / "nominal.npz")
+    omega = control.omega0(p, first.q_home)
+    track = control.build_track(p, job["run"], job["plan"], omega)
+    tk = control.Tracker(p, track, job["mode"], terms=job.get("terms", control.TERMS), inward=job.get("inward"))
+    tk.ankle_limit = job.get("ankle_limit")
+    out = []
+    period = Reference.load(Path(job["run"]) / "refs" / f"{job['period_ref']}.npz").period
+    for off, seed in zip(job["offsets"], job["seeds"], strict=True):
+        r = control.run(tk, job["seconds"], start=job.get("start", "frame"), velocity_offset=off, seed=seed,
+                        period=period, relax=job.get("relax", ()))
+        out.append(r if job.get("full", True) else _compact(r))
+    return out
+
+
+def label_class(label: str | None) -> str | None:
+    """A fall label's class: body-limited, controller-limited, undetermined, unconfirmed or not labelled."""
+    return None if label is None else label.split(":")[0].split(" (")[0]
+
+
+def _panel(rows: list[dict], threshold: float) -> dict:
+    v = np.array([r["strides"] for r in rows])
+    labels, classes = {}, {}
+    for r in rows:
+        if r["fall_label"]:
+            labels[r["fall_label"]] = labels.get(r["fall_label"], 0) + 1
+            c = label_class(r["fall_label"])
+            classes[c] = classes.get(c, 0) + 1
+    return dict(runs=len(v), strides=[float(x) for x in v], median=float(np.median(v)), min=float(v.min()),
+                max=float(v.max()), runs_at_least_threshold=int(np.sum(v >= threshold)), threshold=threshold,
+                median_at_least_threshold=bool(np.median(v) >= threshold), fall_labels=labels, fall_classes=classes,
+                fall_causes=sorted({r["fall_cause"] for r in rows if r["fall_cause"]}))
+
+
+def g4(body: str, out_dir: Path, procs: int | None = None, diagnostics: bool = True) -> dict:
+    """G4 (plan section 3 step 5) on the saved references and transitions of ``out_dir``: R1 walks the nominal walk at
+    least 40 strides on hard floor and 20 at friction 0.54, R2 at least 20 on hard floor (one unperturbed run each from
+    the reference's first frame, as the design-study prototype ran), with a 20-start panel of each (the G2 panel's
+    offsets) reported beside the verdict; reported, not gated: R0's strides, R1 and R2 on the brisk walk, the Fr 0.05
+    walk and the target turns, a start-walk-stop from the settled stance, what the turn gap is and what the inward
+    step clamp protects (``control.turn_gap_info``, ``control.inward_step_clearance``), and (``diagnostics``) the
+    gated conditions' panels with the two-motor ankle's torque limited ("box", "cop": ``control.ANKLE_LIMITS``), with
+    the design-study prototype's terms only (ankle and step), with both, with the inward step bound mirrored to the
+    outward one (``step_out``) instead of the turn-gap clamp, and with every hardware limit relaxed for the whole run
+    (``control.relaxed``: whether the failures need the body's limits at all).  Every fall is labelled by the
+    counterfactual rule of ``control`` (``control.LABEL_RULE``)."""
+    from . import control, estimator
+
+    t0 = time.perf_counter()
+    run_dir = Path(out_dir)
+    refs_doc = json.loads((run_dir / "refs.json").read_text())
+    period = {n: e["period_s"] for n, e in refs_doc["references"].items()}
+    offsets = _offsets()
+    jobs, keys = [], []
+
+    def add(key, mode, ref, strides, offs, seeds, **kw):
+        plan = kw.pop("plan", None) or [("ref", ref, strides + 1.0)]
+        jobs.append(dict(body=body, run=str(run_dir), mode=mode, plan=plan, period_ref=kw.pop("period_ref", ref),
+                         seconds=strides * period[kw.pop("period_name", ref)], offsets=offs, seeds=seeds, **kw))
+        keys.append(key)
+
+    gated = {"R1_nominal_hard": ("R1", None), "R1_nominal_mu054": ("R1", G4_MU), "R2_nominal_hard": ("R2", None)}
+    for key, (mode, mu) in gated.items():
+        add(("gated", key), mode, "nominal", G4_STRIDES, [None], [G4_NOISE_SEEDS], mu=mu)
+        for i in range(0, PANEL_RUNS, PANEL_CHUNK):
+            add(("panel", key, i), mode, "nominal", G4_STRIDES, offsets[i : i + PANEL_CHUNK],
+                [G4_NOISE_SEEDS + j for j in range(i, i + PANEL_CHUNK)], mu=mu, full=False)
+    for name in ("nominal",) + G4_REPORTED:
+        add(("R0", name), "R0", name, G4_REPORTED_STRIDES if name != "nominal" else G4_STRIDES, [None], [0])
+    for mode in ("R1", "R2"):
+        for name in G4_REPORTED:
+            add(("reported", mode, name), mode, name, G4_REPORTED_STRIDES, [None], [G4_NOISE_SEEDS])
+        stance_plan = [("hold", 1.0), ("transition", "start"), ("ref", "nominal", G4_STANCE_STRIDES),
+                       ("transition", "stop"), ("hold", 2.0)]
+        dur = 1.0 + G4_STANCE_STRIDES * period["nominal"] + 2.0 + 2 * 5 * period["nominal"]
+        add(("stance", mode), mode, "nominal", dur / period["nominal"], [None], [G4_NOISE_SEEDS], start="stance",
+            plan=stance_plan)
+    if diagnostics:
+        for limit in ("box", "cop"):
+            for key, (mode, mu) in gated.items():
+                for i in range(0, PANEL_RUNS, PANEL_CHUNK):
+                    add(("diag_limit", limit, key, i), mode, "nominal", G4_STRIDES, offsets[i : i + PANEL_CHUNK],
+                        [G4_NOISE_SEEDS + j for j in range(i, i + PANEL_CHUNK)], mu=mu, full=False, ankle_limit=limit)
+        for key, (mode, mu) in gated.items():
+            for limit in (None, "box"):
+                for i in range(0, PANEL_RUNS, PANEL_CHUNK):
+                    add(("diag_terms", limit, key, i), mode, "nominal", G4_STRIDES, offsets[i : i + PANEL_CHUNK],
+                        [G4_NOISE_SEEDS + j for j in range(i, i + PANEL_CHUNK)], mu=mu, full=False,
+                        terms=("ankle", "step"), ankle_limit=limit)
+        step_out = control.gains_dict()["step_out"]
+        for key, (mode, mu) in gated.items():
+            for i in range(0, PANEL_RUNS, PANEL_CHUNK):
+                seeds = [G4_NOISE_SEEDS + j for j in range(i, i + PANEL_CHUNK)]
+                add(("diag_inward", key, i), mode, "nominal", G4_STRIDES, offsets[i : i + PANEL_CHUNK], seeds, mu=mu,
+                    full=False, inward=step_out)
+                add(("diag_relaxed", key, i), mode, "nominal", G4_STRIDES, offsets[i : i + PANEL_CHUNK], seeds, mu=mu,
+                    full=False, relax=control.RELAXATIONS)
+    procs = min(procs or os.cpu_count() or 1, len(jobs))
+    if procs <= 1:
+        res = [_g4_job(j) for j in jobs]
+    else:
+        with mp.get_context("spawn").Pool(procs) as pool:
+            res = pool.map(_g4_job, jobs, chunksize=1)
+    R = dict(zip(keys, res, strict=True))
+
+    def panel_of(prefix, key, threshold):
+        rows = [r for i in range(0, PANEL_RUNS, PANEL_CHUNK) for r in R[prefix + (key, i)]]
+        return _panel(rows, threshold)
+
+    gated_out = {}
+    for key in gated:
+        single = R[("gated", key)][0]
+        thr = G4_THRESHOLDS[key]
+        gated_out[key] = dict(threshold_strides=thr, unperturbed=single, unperturbed_pass=bool(single["strides"] >= thr),
+                              panel=panel_of(("panel",), key, thr))
+    reported = {mode: {name: R[("reported", mode, name)][0] for name in G4_REPORTED} for mode in ("R1", "R2")}
+    r0 = {name: R[("R0", name)][0] for name in ("nominal",) + G4_REPORTED}
+    stance = {mode: R[("stance", mode)][0] for mode in ("R1", "R2")}
+    diag = None
+    if diagnostics:
+        diag = dict(ankle_torque_limit={limit: {key: panel_of(("diag_limit", limit), key, G4_THRESHOLDS[key])
+                                                for key in gated} for limit in ("box", "cop")},
+                    prototype_terms={key: panel_of(("diag_terms", None), key, G4_THRESHOLDS[key]) for key in gated},
+                    prototype_terms_box={key: panel_of(("diag_terms", "box"), key, G4_THRESHOLDS[key])
+                                         for key in gated},
+                    inward_step_out={key: panel_of(("diag_inward",), key, G4_THRESHOLDS[key]) for key in gated},
+                    every_limit_relaxed={key: panel_of(("diag_relaxed",), key, G4_THRESHOLDS[key]) for key in gated},
+                    note="not the gate: the gated conditions' panels with the tracker's ankle torque limited (box: each "
+                         "ankle axis's total torque capped at one motor's peak, the screened model's per-joint limit; "
+                         "cop: the CoP the total ankle torque implies kept 5 mm inside the pad), with the design-study "
+                         "prototype's terms only (ankle and step), with both (prototype_terms_box), with the inward "
+                         f"step bound {1e3 * step_out:g} mm (step_out mirrored) instead of the turn gap less 1 mm "
+                         "(inward_step_out), and with every hardware limit relaxed for the whole run "
+                         f"(every_limit_relaxed: {', '.join(control.RELAXATIONS)}; control.relaxed)")
+    gap = control.turn_gap(body)
+    tk_doc = dict(gains={n: dict(default=float(d_), bounds=[float(lo), float(hi)], note=note)
+                         for n, d_, lo, hi, note in control.GAIN_SPEC},
+                  terms=list(control.TERMS), feedback_hz=1.0 / (control.FEEDBACK_EVERY * 0.002),
+                  feedback_hold=control.FEEDBACK_HOLD, cop_inset_m=control.COP_INSET,
+                  inward_step_limit_m=gap - control.TURN_GAP_MARGIN, turn_gap_m=gap,
+                  turn_gap=dict(cases=control.turn_gap_info(body), counted_as_hardware_limit=False,
+                                note="the turn gap (the smaller of the target turns' smallest gaps) is between the "
+                                     "trunk's pelvis and the same-side upper thigh, not between the legs (pair, "
+                                     "leg_to_leg; lateral_gap_mm is the screen's leg-to-leg gap); the inward step "
+                                     "clamp is kept as plan section 2 words it, pending the owner's choice of what "
+                                     "bounds the inward step, and is the controller's own clip, not a hardware limit "
+                                     "(inward_step_clearance: what moving the swing foot inward does to the turn "
+                                     "gap's pair and to the leg-to-leg pairs)"),
+                  inward_step_clearance=control.inward_step_clearance(body, run_dir),
+                  phase_rate_limit=control.PHASE_RATE_LIMIT, ankle_limit=None,
+                  estimator=dict(gains=estimator.EstimatorGains().__dict__, noise=estimator.SensorNoise().describe()),
+                  falls=dict(onset_rad=control.FALL_ONSET_RAD, window_s=control.LIMIT_WINDOW_S,
+                             hardware_limits=list(control.HW_LIMITS), reported_limits=list(control.REPORTED_LIMITS),
+                             relaxations=list(control.RELAXATIONS), relaxes=control.RELAXES,
+                             branch_before_onset_s=control.CF_BRANCH_S, horizon_after_fall_s=control.CF_HORIZON_S,
+                             null_root_velocity_m_s=control.CF_NULL_M_S, relaxed_friction=control.CF_FRICTION,
+                             relaxed_range_rad=control.CF_RANGE_RAD, slip_speed_m_s=control.SLIP_SPEED,
+                             slip_load_frac=control.SLIP_LOAD_FRAC, rule=control.LABEL_RULE,
+                             replaces="the build's first rule: any limit (neck and tail drives and the turn-gap clamp "
+                                      "included) active in 5 % of the window's updates, slip read from the foot "
+                                      "body's own velocity (at its centre of mass above the pads); plan section 4 "
+                                      "names the limits but not the test (the owner to confirm)"))
+    out = dict(rule="R1 reproduces the design-study prototype: the nominal walk on hard floor at least "
+                    f"{G4_THRESHOLDS['R1_nominal_hard']:g} strides and at least {G4_THRESHOLDS['R1_nominal_mu054']:g} at "
+                    f"friction {G4_MU}; R2 at least {G4_THRESHOLDS['R2_nominal_hard']:g} strides on the estimated CoM; "
+                    f"each an unperturbed run from the reference's first frame (as the prototype ran), {G4_STRIDES:g} "
+                    "strides long; the 20-start panels (G2's offsets) are reported beside the verdict",
+               tracker=tk_doc, gated=gated_out, R0=r0, reported=reported, stance_start_stop=stance, diagnostics=diag,
+               unperturbed_pass=bool(all(g["unperturbed_pass"] for g in gated_out.values())),
+               panel_medians_pass=bool(all(g["panel"]["median_at_least_threshold"] for g in gated_out.values())))
+    classes = {}
+    falls = ([g["unperturbed"] for g in gated_out.values()] + [r for rows in reported.values() for r in rows.values()]
+             + list(stance.values()))
+    for r in falls:
+        c = label_class(r["fall_label"])
+        if c:
+            classes[c] = classes.get(c, 0) + 1
+    out["fall_classes"] = dict(unperturbed_reported_and_stance=classes,
+                               gated_panels={key: g["panel"]["fall_classes"] for key, g in gated_out.items()})
+    out["pass"] = out["unperturbed_pass"]
+    out["seconds"] = time.perf_counter() - t0
+    return out

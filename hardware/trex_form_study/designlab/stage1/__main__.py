@@ -3,16 +3,20 @@
 Run from hardware/trex_form_study:
 
   python -m designlab.stage1 prepare --body 60-N-T-10 [--body ...] --out stage1/runs/<run> [--no-gates]
-  python -m designlab.stage1 gates   --body 60-N-T-10 --out stage1/runs/<run> [--only g1|g2]
+                                    [--parts plant,refs,transitions] [--transitions start,stop,...]
+  python -m designlab.stage1 gates   --body 60-N-T-10 --out stage1/runs/<run> [--only g1|g2|g3|g4]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
-library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``) and, unless ``--no-gates``,
-``gates.json`` (``gates``: G1 and G2 of plan section 3).  ``gates`` reruns G1 and G2 on the saved references.
+library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
+``transitions/<name>.npz`` (``transitions``: starts, stops, speed changes and turn entries and exits) and, unless
+``--no-gates``, ``gates.json`` (``gates``: G1-G4 of plan section 3; G4 runs the tracker R0-R2 of ``control``).
+``--parts`` limits ``prepare`` to some of its products (the others must exist for the later ones).  ``gates``
+reruns the gates (or one) on the saved products.
 ``--ankle-gains``, ``--ankle-armature`` and ``--g2-rule`` set the choices G2 depends on; the defaults are the ones
 ``STAGE1_PLAN.md`` decided during the build (decisions 11-13: joint-space ankle gains, the linkage's armature, the
 20-start panel), and the others stay available for comparison.  They are recorded in plant.json and gates.json
 (``G2.decided`` says whether a run follows the decisions).  The exit status is 1 if a gate fails (plan section 3:
-stop).  ``tune``, ``train``, ``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan and are not
+stop).  ``tune``, ``train``, ``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (6-9) and are not
 implemented yet.
 """
 
@@ -88,10 +92,14 @@ def plant_doc(body: str, plant_kw: dict | None = None) -> dict:
     return doc
 
 
+GATES = ("g1", "g2", "g3", "g4")
+
+
 def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | None = None,
               rule: str | None = None) -> dict:
-    """G1 and G2 (or one of them) into ``<out>/gates.json``; ``rule`` is G2's (default: ``gates.RULES[0]``, the
-    plan's decision 13)."""
+    """G1-G4 (or one of them) into ``<out>/gates.json``; ``rule`` is G2's (default: ``gates.RULES[0]``, the plan's
+    decision 13).  G3 and G4 run on the decided plant (``plant.build``'s defaults).  ``pass`` needs every gate
+    recorded so far to pass (and G1 and G2 on the same plant)."""
     from . import gates
 
     plant_kw = plant_kw or {}
@@ -102,10 +110,16 @@ def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | No
         doc["G1"] = gates.g1(body, out, **plant_kw)
     if only in (None, "g2"):
         doc["G2"] = gates.g2(body, out, rule=rule, **plant_kw)
+    if only in (None, "g3"):
+        doc["G3"] = gates.g3(body, out)
+    if only in (None, "g4"):
+        doc["G4"] = gates.g4(body, out)
     same = (doc.get("G1", {}).get("plant_options") is not None
             and doc.get("G1", {}).get("plant_options") == doc.get("G2", {}).get("plant_options"))
     doc["same_plant_options"] = same
-    doc["pass"] = bool(same and doc.get("G1", {}).get("pass") and doc.get("G2", {}).get("pass"))
+    passes = [doc[g]["pass" if g in ("G1", "G2", "G4") else "pass_"] for g in ("G1", "G2", "G3", "G4") if g in doc]
+    plant_gates = "G1" in doc or "G2" in doc  # G1 and G2 must then both be there, on the same plant
+    doc["pass"] = bool(passes and all(passes) and (same or not plant_gates))
     _write(path, doc)
     return doc
 
@@ -151,6 +165,31 @@ def summary(doc: dict) -> str:
             lines.append("   decided (STAGE1_PLAN.md): " + "; ".join(
                 f"({d['decision']}) {d['choice']} = {d['taken']}"
                 + ("" if d["follows"] else f", NOT FOLLOWED: this run used {d['used']}") for d in dec["decisions"]))
+    g3 = doc.get("G3")
+    if g3:
+        lines.append(f"G3 {'pass' if g3['pass_'] else 'FAIL'}: {len(g3['transitions'])} transitions; worst CoM "
+                     f"{g3['worst_com']['mm']:.3f} mm ({g3['worst_com']['transition']}), worst ZMP "
+                     f"{g3['worst_zmp']['mm']:.3f} mm ({g3['worst_zmp']['transition']}); failed: "
+                     f"{', '.join(g3['failed']) or 'none'} (fall back to amplitude ramps: {', '.join(g3['fallback']) or 'none'})")
+    g4 = doc.get("G4")
+    if g4:
+        parts = []
+        for key, g in g4["gated"].items():
+            u, pnl = g["unperturbed"], g["panel"]
+            parts.append(f"{key} {u['strides']:.1f} (>= {g['threshold_strides']:g}: {g['unperturbed_pass']}; panel median "
+                         f"{pnl['median']:.1f}, {pnl['runs_at_least_threshold']}/{pnl['runs']})")
+        lines.append(f"G4 {'pass' if g4['pass'] else 'FAIL'}: " + "; ".join(parts))
+        lines.append("   R0: " + ", ".join(f"{n} {r['strides']:.1f}" for n, r in g4["R0"].items()))
+        for mode, rows in g4["reported"].items():
+            lines.append(f"   {mode}: " + ", ".join(f"{n} {r['strides']:.1f}" + (f" ({r['fall_label']})" if r["fell"] else "")
+                                               for n, r in rows.items()))
+        fc = g4.get("fall_classes")
+        if fc:
+            lines.append("   fall labels (counterfactuals): unperturbed, reported and stance runs "
+                         + (", ".join(f"{k} {v}" for k, v in fc["unperturbed_reported_and_stance"].items()) or "no falls")
+                         + "; gated panels " + "; ".join(f"{key} " + (", ".join(f"{k} {v}" for k, v in c.items())
+                                                                      or "no falls")
+                                                         for key, c in fc["gated_panels"].items()))
     return "\n".join(lines)
 
 
@@ -176,29 +215,41 @@ def main(argv=None) -> int:
                            help="G2 replay criterion: the median of the 20-start panel (default, decision 13) or the "
                                 "one unperturbed run (the plan's original wording)")
         if name == "prepare":
-            p.add_argument("--no-gates", action="store_true", help="skip G1 and G2")
+            p.add_argument("--no-gates", action="store_true", help="skip the gates")
             p.add_argument("--refs", default=None, help="comma-separated reference names (default: all)")
+            p.add_argument("--parts", default="plant,refs,transitions",
+                           help="comma-separated products to make: plant, refs, transitions (default: all)")
+            p.add_argument("--transitions", default=None, help="comma-separated transition names (default: all)")
         if name == "gates":
-            p.add_argument("--only", choices=("g1", "g2"), default=None)
+            p.add_argument("--only", choices=GATES, default=None)
         if name == "all":
             p.add_argument("--cap-hours", type=float, default=None)
     a = ap.parse_args(argv)
     if a.cmd in LATER:
         raise NotImplementedError(f"'{a.cmd}' is {LATER[a.cmd]}, not implemented yet; this package implements plan "
-                                  "section 3 steps 2 and 3 (prepare: plant and references, gates G1 and G2)")
+                                  "section 3 steps 2-5 (prepare: plant, references and transitions; gates G1-G4)")
     plant_kw = dict(ankle_gains=a.ankle_gains, ankle_armature=a.ankle_armature)
     status = 0
     for body in a.body:
         out = Path(a.out) / body
         t0 = time.perf_counter()
         if a.cmd == "prepare":
-            from . import refs
+            from . import refs, transitions
 
-            _write(out / "plant.json", plant_doc(body, plant_kw))
-            print(f"{body}: plant.json written", flush=True)
-            names = a.refs.split(",") if a.refs else None
-            doc = refs.prepare(body, out, names)
-            print(f"{body}: {len(doc['references'])} references, records match: {doc['matches_records']}", flush=True)
+            parts = set(a.parts.split(","))
+            if parts - {"plant", "refs", "transitions"}:
+                raise SystemExit(f"--parts: unknown {sorted(parts - {'plant', 'refs', 'transitions'})}")
+            if "plant" in parts:
+                _write(out / "plant.json", plant_doc(body, plant_kw))
+                print(f"{body}: plant.json written", flush=True)
+            if "refs" in parts:
+                names = a.refs.split(",") if a.refs else None
+                doc = refs.prepare(body, out, names)
+                print(f"{body}: {len(doc['references'])} references, records match: {doc['matches_records']}", flush=True)
+            if "transitions" in parts:
+                names = a.transitions.split(",") if a.transitions else None
+                doc = transitions.prepare(body, out, names)
+                print(f"{body}: {len(doc['transitions'])} transitions", flush=True)
             if a.no_gates:
                 continue
         doc = run_gates(body, out, getattr(a, "only", None), plant_kw, a.g2_rule)

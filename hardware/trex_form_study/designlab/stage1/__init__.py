@@ -13,8 +13,13 @@ Modules (plan section 2):
 * ``refs``: the reference walks and turns with their inverse-dynamics feedforward, regenerated and checked
   against the records;
 * ``legs``: leg-to-leg proximity on simulated traces (only the foot pads collide in the plant);
-* ``gates``: the fail-fast checks G1 (plant) and G2 (references) of plan section 3, with the choices G2 depends on
-  as the plan decided them during the build (decisions 11-13, ``gates.decided``) and the evidence it keeps.
+* ``transitions``: starts, stops, speed changes and turn entries and exits, by ZMP preview control on the designlab
+  model with ``statics.leg_ik``, joined to the periodic references;
+* ``control``: the tracker (R0: feedforward and PD; R1: DCM feedback on the true state; R2: on the estimate) and its
+  episodes; ``estimator``: CoM and velocity from encoders, IMU and stance-leg kinematics;
+* ``gates``: the fail-fast checks G1 (plant), G2 (references), G3 (transitions) and G4 (tracker) of plan section 3,
+  with the choices G2 depends on as the plan decided them during the build (decisions 11-13, ``gates.decided``) and
+  the evidence it keeps.
 
 Run from hardware/trex_form_study:
     python -m designlab.stage1 prepare --body 60-N-T-10 --out stage1/runs/<run>

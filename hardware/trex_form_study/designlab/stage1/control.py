@@ -1,0 +1,1651 @@
+"""Stage 1 tracker: controllers R0, R1 and R2 (``STAGE1_PLAN.md`` section 2; section 3 step 5, gate G4).
+
+* **R0**: the reference with feedforward and servo PD only.  Every 2 ms the servos get the reference joint angles
+  and rates and the feedforward torque: the inverse-dynamics torque, the MJCF's passive joint terms (damping x qd_ref
+  + frictionloss x tanh(qd_ref / 0.05)) and the plant's extra ankle armature x qdd_ref, exactly as G2's replay
+  (``gates.replay``).
+* **R1**: the tracker on the true (privileged) state: CoM, its velocity, the feet, the trunk's orientation and rate.
+* **R2**: the tracker on the estimate (``estimator``: encoders, IMU with noise, stance-leg kinematics).
+
+Servo target (plan section 2), every physics step (500 Hz), in joint space and set in motor coordinates by
+``plant.Plant.command``::
+
+    ctrl = q_ref + dq + (kv qd_ref + tau_ff + dtau) / kp
+
+tau_ff is R0's feedforward; dq and dtau come from the feedback.  The feedback is computed at 100 Hz (every
+``FEEDBACK_EVERY`` steps) and reaches the servo targets through a first-order hold (``FEEDBACK_HOLD``: each update's
+dq and dtau are approached linearly over the next 10 ms).  A zero-order hold steps the stiff ankle servos every 10 ms
+and rocks the stance feet on their pads: on the nominal walk (60-N-T-10, R1) the loaded feet's contact points then
+move at 11 / 8 / 19 mm/s RMS (x / y / z) against 5 / 5 / 5 mm/s with the ramp and 5 / 4 / 5 mm/s for R0, which
+spoils the stance-leg odometry R2 relies on.
+
+The feedback acts on the divergent component of motion xi = c + c' / omega0 (omega0 the references' sqrt(g / z_c)):
+its error e against the reference, both relative to the anchor foot (the stance foot; in double support the foot that
+landed last, before the first step the first stance foot; in a stand the midpoint of the feet) and in its frame:
+
+* ankle: the ZMP is shifted by dp = clip(k_dcm e, +-(cop_x, cop_y)), the shifted ZMP kept ``COP_INSET`` (5 mm) inside
+  the support (the stance pad polygon, in double support the hull of both), realised as ankle torque on each stance
+  foot in proportion to the reference's normal forces (plan section 2: "DCM feedback drives the ankle CoP, 5 mm
+  inside the pad");
+* step: the swing foot's touchdown moves by clip(k_step e) (+-step_x forward, step_out outward, inward at most the
+  turn gap minus ``TURN_GAP_MARGIN``: the target turns' smallest gap in the turning screen, ``turn_gap``) through the
+  swing leg's Jacobian, frozen after 80 % of the swing; the offset blends in over the swing (minimum jerk) and decays
+  over the following stance (``decay``: e^-decay of it remains at lift-off).  The turn gap is not a gap between the
+  legs: on every body it is a gap between the trunk's pelvis and the same-side upper thigh (``turn_gap_info``: on the
+  60 cm bodies the pelvis plate against the upper-thigh shell in both target turns; on 75-M-H-10 the walking turn's
+  smallest gap is the two hip brackets, which sit 4 mm apart at every pose, and the in-place turn's, the smaller, is
+  pelvis against thigh), while the screen's leg-to-leg lateral gap is 32-58 mm.  Moving the swing foot inward by the
+  clamp changes the swinging side's pelvis-thigh distance by a few tenths of a millimetre; 30 mm inward leaves the
+  moving leg parts at least 9 mm apart on the 60 cm bodies, in the in-place turn too, but on 75-M-H-10's in-place
+  turn 20 mm leaves 2 mm and 30 mm makes the legs interfere (``inward_step_clearance``).  The clamp is kept as plan
+  section 2 words it, pending the owner's choice of what bounds the inward step; it is the controller's own clip, not
+  a hardware limit;
+* trunk: roll and pitch PD (k_trunk, d_trunk) about the reference attitude through the stance hips;
+* heading: a PI on the trunk heading error (averaged over the last stride and sampled at each lift-off; k_yaw is the
+  fraction corrected per step) through the swing leg's hip yaw, which then decays in stance like the step offset;
+* phase rate: a PI on the forward DCM error (k_phase, ki_phase) sets the reference's clock rate, within
+  +-``PHASE_RATE_LIMIT`` (5 %); reference rates and accelerations are scaled with it;
+* capture step: standing, if the DCM leaves the support polygon by more than ``capture_margin``, the foot on the
+  side it leaves toward (the less loaded one for a push along the feet) steps so that its pad centre lands on the
+  DCM's predicted position at touchdown (diverging from the support edge it crossed; for a push along the feet the foot
+  keeps its place sideways), kept out of the other foot's way (``CAPTURE_*``); the body then stands on the new
+  stance.
+
+The tunable gains are one vector (``GAIN_SPEC``: name, default, CMA-ES bounds, note); the defaults are the design-study
+prototype's (``track_proto.py``: k_dcm 2.0, cop 0.020 / 0.012 m, k_step 1.0, step 0.05 / 0.03 m, decay 1.0, trunk 40 /
+2.0, heading 0.5) and, for the terms it did not have, values chosen before any run (``GAIN_SPEC`` notes).
+
+``Tracker.ankle_limit`` (diagnostics, not the plan's tracker): the two-motor ankle reaches |tau_p| + |tau_r| <= 2 peak,
+twice the screened model's per-axis box on one axis, while a loaded foot carries far less (the pads reach only 15 mm
+behind the ankle axis on the 60 cm bodies).  "box" caps each ankle axis's total torque (feedforward, the servo's PD,
+predicted from the encoders, and the feedback) at one motor's peak, the screened model's limit; "cop" keeps the CoP that
+total implies (``ankle_cop``) ``COP_INSET`` inside the pad.
+
+Falls are ``plant.Plant.fall_cause`` (trunk tilt over 0.6 rad, root below 0.7 x home height, a ``cl_*`` proxy below the
+floor).  The fall's onset is the last time the tilt from home rose through ``FALL_ONSET_RAD`` (0.2 rad) before it: by
+the 0.6 rad of the fall itself every drive is fighting it.  Every feedback update records which of plan section 4's
+hardware limits were active (``HW_LIMITS``): a leg drive at its torque limit, a leg drive at a limit the envelope had
+narrowed, the ankle linkage (both motors of an ankle at their limits), slip (a foot carrying more than
+``SLIP_LOAD_FRAC`` of the weight sliding faster than ``SLIP_SPEED`` at one of its pad contacts that carries load: the
+foot's velocity at the contact point, ``foot_slip_speed``, so that a foot rocking or turning on its pad is not counted),
+the CoP at a pad edge with the ankle saturated (the commanded ZMP clipped into the pad while an ankle motor is at its
+limit), joint range, and in the ankle-limit diagnostics only the tracker's own cap on the ankle torque (``ankle_limit``:
+the screened model's box or the pad's CoP, which the build first counted as the CoP at a pad edge).  Recorded beside
+them, not counted as hardware limits
+(``REPORTED_LIMITS``): neck and tail drives at their limits (they saturate in falls, but in the G4 walks that do not
+fall never at the nominal speed, and only the tail, in 1 % of the steps, in 75-M-H-10's Fr 0.05 walk), the turn-gap
+clamp (it protects no clearance, above), the step clips and the phase-rate limit (the controller's own).
+
+A hardware limit active at any update of the ``LIMIT_WINDOW_S`` (0.5 s, plan section 4) before the onset is a
+candidate, and it binds if lifting it avoids the fall (``LABEL_RULE``): the episode is restored to its state
+``CF_BRANCH_S`` (1 s) before the onset (``Tracker.save`` and ``Tracker.load``: MuJoCo's integration state, every
+controller and estimator variable and the sensor-noise generator, so that the continuation without any change repeats
+the fall bit for bit) and continued with the limit relaxed (``relaxed``: the leg drives' torque limits lifted, the
+envelope off, the ankle motors' limits lifted, friction ``CF_FRICTION``, the hinges' ranges widened by
+``CF_RANGE_RAD``, the diagnostic ankle cap off) until ``CF_HORIZON_S`` after the original fall; the fall is avoided if the continuation has not
+fallen and is upright (tilt below ``FALL_ONSET_RAD``) then.  The label is "body-limited: <limits>" for the candidates
+whose relaxation alone avoids the fall, "body-limited: <limits> together" if only relaxing the candidates together
+does, and "controller-limited" otherwise; every relaxation at once is run as well and recorded.  A null continuation,
+the root velocity changed by ``CF_NULL_M_S`` (1 mm/s, the G2 panel's start offsets) at the branch, tells whether the fall
+is chaotic there: if it avoids the fall too, the label is "undetermined", as it is if the unchanged continuation does
+not repeat the fall.  The CoP at a pad edge cannot be relaxed in the plant (the pads' size), so a fall where it was a
+candidate and no relaxation avoids it is "unconfirmed".
+
+Why 1 s: branching at the window's start is too late for a limit that binds throughout, since the body is already lost
+there (a plant at 0.2 or 0.3 of its drive torque still fell with its drives freed at the window's start, and did not
+when they were freed 1 s before the onset); and on four gated G4 falls the 1 mm/s null avoided none from 1 s before
+the onset (it moved them by under 0.02 s), but from 2 s before it delayed one by 1.1 s.
+
+This replaces the build's first rule (any limit, the neck, tail and turn-gap clamp included, active in 5 % of the
+window's updates, slip read from the foot body's own velocity, at its centre of mass above the pads), which labelled
+nearly every fall body-limited; plan section 4 names the limits but not the test, so the rule is the owner's to
+confirm.  The counterfactual tests a fall's last second; whether a condition needs the body's limits at all over a
+whole episode is a separate question (``run``'s ``relax``; G4's ``every_limit_relaxed`` panels).
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+import math
+import time
+from collections import deque
+from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass
+from pathlib import Path
+
+import mujoco
+import numpy as np
+from scipy.spatial import ConvexHull
+
+from .. import statics
+from . import case_dir, plant
+from . import estimator as est_mod
+from .refs import Reference
+from .transitions import N_FRAMES, Transition
+
+FEEDBACK_EVERY = 5
+#: How the 100 Hz feedback reaches the 500 Hz servo targets: "ramp" (first-order hold: each update's offsets are
+#: reached linearly over the next ``FEEDBACK_EVERY`` steps) or "hold" (zero-order hold: steps every 10 ms).
+FEEDBACK_HOLD = "ramp"
+FRICTION_SMOOTH = 0.05
+COP_INSET = 0.005
+TURN_GAP_MARGIN = 0.001
+PHASE_RATE_LIMIT = 0.05
+SWING_FREEZE_U = 0.8
+LIMIT_WINDOW_S = 0.5
+SLIP_SPEED = 0.05  # m/s: a loaded stance foot sliding faster than this slips
+SLIP_LOAD_FRAC = 0.2
+#: A foot carrying more than this fraction of the weight is in contact: its ankle torque is CoP-limited.
+CONTACT_LOAD_FRAC = 0.02
+CAPTURE_SWING_S = 0.25  # s, the capture step's swing
+CAPTURE_LIFT_H = 0.08  # x H
+CAPTURE_MIN_WIDTH = 0.6  # x the home stance width, kept between the feet
+G = 9.81
+LEGS = ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_pitch", "ankle_roll")
+TERMS = ("ankle", "step", "trunk", "heading", "phase", "capture")
+ANKLE_LIMITS = (None, "cop", "box")
+MODES = ("R0", "R1", "R2")
+
+#: (name, default, CMA-ES lower bound, upper bound, note).
+GAIN_SPEC = (
+    ("k_dcm", 2.0, 0.0, 6.0, "ankle: ZMP shift per unit DCM error (prototype)"),
+    ("cop_x", 0.020, 0.0, 0.05, "ankle: ZMP shift limit forward/back, m (prototype)"),
+    ("cop_y", 0.012, 0.0, 0.03, "ankle: ZMP shift limit sideways, m (prototype)"),
+    ("k_step", 1.0, 0.0, 3.0, "step: touchdown offset per unit DCM error (prototype)"),
+    ("step_x", 0.05, 0.0, 0.10, "step: offset limit forward/back, m (prototype)"),
+    ("step_out", 0.03, 0.0, 0.06, "step: offset limit outward, m (prototype; inward is the turn gap less 1 mm)"),
+    ("decay", 1.0, 0.0, 3.0, "step and heading offsets' decay over a stance (prototype)"),
+    ("k_trunk", 40.0, 0.0, 150.0, "trunk roll/pitch P, N m/rad (prototype)"),
+    ("d_trunk", 2.0, 0.0, 10.0, "trunk roll/pitch D, N m s/rad (prototype)"),
+    ("k_yaw", 0.5, 0.0, 1.0, "heading P: fraction of the stride-mean error corrected per step (prototype's value)"),
+    ("ki_yaw", 0.1, 0.0, 0.5, "heading I per step (a fifth of the P gain; chosen before any run)"),
+    ("k_phase", 2.0, 0.0, 10.0, "phase rate P, 1/m: 2 % per cm of forward DCM error (chosen before any run)"),
+    ("ki_phase", 1.0, 0.0, 10.0, "phase rate I, 1/(m s) (chosen before any run)"),
+    ("capture_margin", 0.0, -0.02, 0.05, "capture step: DCM distance outside the support that triggers it, m"),
+)
+GAIN_NAMES = tuple(g[0] for g in GAIN_SPEC)
+DEFAULT_GAINS = np.array([g[1] for g in GAIN_SPEC])
+GAIN_BOUNDS = np.array([(g[2], g[3]) for g in GAIN_SPEC])
+
+
+def gains_dict(x=None) -> dict:
+    """The gain vector as a dict (None: the defaults)."""
+    x = DEFAULT_GAINS if x is None else np.asarray(x, float)
+    if x.shape != DEFAULT_GAINS.shape:
+        raise ValueError(f"{len(x)} gains; the tracker has {len(DEFAULT_GAINS)} ({', '.join(GAIN_NAMES)})")
+    return dict(zip(GAIN_NAMES, (float(v) for v in x), strict=True))
+
+
+TURN_CASES = ("walk_0.35", "in_place_0.50")  # the target turns (plan section 4)
+
+
+def _turning_screen(body: str) -> dict:
+    return json.loads((case_dir(body) / "review" / "screening" / f"{body}_turning.json").read_text())
+
+
+def turn_gap(body: str) -> float:
+    """The target turns' smallest gap between screened parts (m), from the turning screen (``shortlist``'s rule)."""
+    doc = _turning_screen(body)
+    gaps = [c["min_gap_mm"] for name, c in doc["clearance"]["cases"].items()
+            if name in TURN_CASES and c.get("min_gap_mm") is not None]
+    return 1e-3 * float(min(gaps))
+
+
+def turn_gap_info(body: str) -> dict:
+    """What the turn gap is (module docstring): per target turn, the turning screen's smallest gap, the pair of parts
+    it is between (geoms, bodies, class, where) and the screen's lateral gap between the legs."""
+    cases = _turning_screen(body)["clearance"]["cases"]
+    out = {}
+    for name in TURN_CASES:
+        c = cases[name]
+        deep = c.get("deepest") or {}
+        bodies = deep.get("bodies") or []
+        out[name] = dict(min_gap_mm=c.get("min_gap_mm"), pair=deep.get("geoms"), bodies=bodies,
+                         pair_class=deep.get("class"), at=deep.get("at"), lateral_gap_mm=c.get("lateral_gap_mm"),
+                         leg_to_leg=bool(len(bodies) == 2 and all(b.startswith(("left_", "right_")) for b in bodies)
+                                         and bodies[0].split("_")[0] != bodies[1].split("_")[0]))
+    return out
+
+
+def _inward(side: int, yaw: float) -> np.ndarray:
+    """The inward direction (toward the stance foot) of the swinging foot ``side`` in the frame of yaw ``yaw``: the
+    left foot's outward is +y (``Tracker.feedback``)."""
+    return (-1.0 if side == 0 else 1.0) * np.array([-math.sin(yaw), math.cos(yaw)])
+
+
+def inward_step_clearance(body: str, run_dir: Path, deltas=None, swing_u=(0.6, 0.8, 1.0), references=None) -> dict:
+    """What the inward step clamp protects (module docstring), with the clearance screen's geometry and distance
+    oracle (``legs.LegGap``): on the poses at ``swing_u`` of each swing (near touchdown, where the tracker's step
+    offset is blended in) of the nominal walk and of the turns the turning screen found its smallest gaps on, the
+    swing foot is moved inward (toward the stance foot, in its frame) by each of ``deltas`` (m) through the swing
+    leg's Jacobian as ``Tracker.feedback`` moves it, and the smallest distance is measured of the turning screen's
+    pairs (the turn gap's), of the leg-to-leg pairs that only come close in motion (``LegGap.moving``), and of every
+    leg-to-leg pair (distances beyond ``LegGap.cap`` read as the cap).  ``references`` names other references of
+    ``run_dir`` to use instead."""
+    from .legs import LegGap
+
+    info = turn_gap_info(body)
+    inward = turn_gap(body) - TURN_GAP_MARGIN
+    deltas = (0.0, inward, 0.01, 0.02, gains_dict()["step_out"]) if deltas is None else tuple(deltas)
+    lg = LegGap(body)
+    S = lg.S
+    m = S.m
+    d = mujoco.MjData(m)
+    jacp, jacr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
+    feet = [statics.bid(m, f"{s}_foot") for s in statics.SIDES]
+    jids = [[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"{s}_{x}") for x in LEGS] for s in statics.SIDES]
+    dofs = [np.array([m.jnt_dofadr[j] for j in js]) for js in jids]
+    qadr = [np.array([m.jnt_qposadr[j] for j in js]) for js in jids]
+    mov = np.flatnonzero(lg.moving)
+    refs_ = {"nominal": None}
+    for name, c in info.items():
+        if c["at"] and c["at"].get("gait"):
+            refs_[c["at"]["gait"]] = name
+    if references is not None:
+        refs_ = {name: refs_.get(name) for name in references}
+    out = dict(rule="near touchdown (the given fractions of each swing) the swing foot is moved inward by each delta "
+                    "through the swing leg's Jacobian; smallest distance, by the clearance screen's oracle, of the "
+                    "turning screen's pair (the turn gap), of the leg-to-leg pairs that only come close in motion, and "
+                    "of every leg-to-leg pair (capped)",
+               inward_clamp_m=inward, deltas_m=list(deltas), swing_u=list(swing_u), cap_mm=1e3 * lg.cap, references={})
+    for refname, case in refs_.items():
+        ref = Reference.load(Path(run_dir) / "refs" / f"{refname}.npz")
+        cases = [case] if case else list(info)
+        pairs = {cs: [S.gid(g) for g in info[cs]["pair"]] for cs in cases if info[cs]["pair"]}
+        rows = {}
+        for side in (0, 1):
+            fr = np.flatnonzero(~ref.support[:, side])
+            if not len(fr):
+                continue
+            runs = np.split(fr, np.flatnonzero(np.diff(fr) > 1) + 1)
+            pick = [int(r[int(round(u * (len(r) - 1)))]) for r in runs for u in swing_u]
+            per = []
+            for delta in deltas:
+                best = dict(moving_leg_pairs_mm=math.inf, all_leg_pairs_mm=math.inf)
+                who = dict(moving_leg_pairs=None, all_leg_pairs=None)
+                pair_mm = {cs: math.inf for cs in pairs}
+                for k in pick:
+                    q = ref.q[k].copy()
+                    d.qpos[:] = q
+                    mujoco.mj_kinematics(m, d)
+                    mujoco.mj_comPos(m, d)
+                    Rst = d.xmat[feet[1 - side]].reshape(3, 3)
+                    mujoco.mj_jacBody(m, d, jacp, jacr, feet[side])
+                    J = np.vstack([jacp, jacr])[:, dofs[side]]
+                    dfw = delta * _inward(side, math.atan2(Rst[1, 0], Rst[0, 0]))
+                    q[qadr[side]] += np.linalg.solve(J.T @ J + 1e-6 * np.eye(6), J.T @ np.r_[dfw, 0.0, 0.0, 0.0, 0.0])
+                    dist = lg.at(q)
+                    for cs, (gi, gj) in pairs.items():
+                        pair_mm[cs] = min(pair_mm[cs], 1e3 * min(S.dist(gi, gj, lg.cap), lg.cap))
+                    ia = int(np.argmin(dist))
+                    if 1e3 * dist[ia] < best["all_leg_pairs_mm"]:
+                        best["all_leg_pairs_mm"], who["all_leg_pairs"] = 1e3 * float(dist[ia]), lg.pair(ia)
+                    if len(mov):
+                        im = int(mov[np.argmin(dist[mov])])
+                        if 1e3 * dist[im] < best["moving_leg_pairs_mm"]:
+                            best["moving_leg_pairs_mm"], who["moving_leg_pairs"] = 1e3 * float(dist[im]), lg.pair(im)
+                per.append(dict(inward_m=float(delta), turn_gap_pair_mm={cs: float(v) for cs, v in pair_mm.items()},
+                                **{k_: float(v) for k_, v in best.items()}, moving_pair=who["moving_leg_pairs"],
+                                all_pair=who["all_leg_pairs"]))
+            rows[f"{statics.SIDES[side]}_swing"] = per
+        out["references"][refname] = dict(turn_gap_case=cases, turn_gap_pair={cs: info[cs]["pair"] for cs in pairs},
+                                          poses_per_swing=len(swing_u), swings=rows)
+    return out
+
+
+def _min_jerk(u: float) -> float:
+    u = min(max(u, 0.0), 1.0)
+    return u**3 * (10 - 15 * u + 6 * u * u)
+
+
+def _rot2(a: float) -> np.ndarray:
+    c, s = math.cos(a), math.sin(a)
+    return np.array([[c, -s], [s, c]])
+
+
+def _yaw(R) -> float:
+    R = np.asarray(R).reshape(3, 3)
+    return math.atan2(R[1, 0], R[0, 0])
+
+
+def _roll_pitch(R) -> tuple[float, float]:
+    """Roll and pitch of R = Rz(yaw) Ry(pitch) Rx(roll) (relative to the heading frame)."""
+    R = np.asarray(R).reshape(3, 3)
+    return math.atan2(R[2, 1], R[2, 2]), math.asin(-max(-1.0, min(1.0, R[2, 0])))
+
+
+def _wrap(a: float) -> float:
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+# ------------------------------------------------------------------------------------------------
+# Support polygons
+# ------------------------------------------------------------------------------------------------
+def pad_polygons(m) -> list[np.ndarray]:
+    """Per foot, the pads' bottom-face polygon in the foot body's frame (xy, convex hull, counter-clockwise).  The
+    pads are the foot's box geoms named ``*_pad_*`` (on every floor: a pile model turns their contype off)."""
+    out = []
+    for side in statics.SIDES:
+        b = statics.bid(m, f"{side}_foot")
+        pts = []
+        for g in range(m.ngeom):
+            name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or ""
+            if m.geom_bodyid[g] != b or m.geom_type[g] != mujoco.mjtGeom.mjGEOM_BOX or "_pad_" not in name:
+                continue
+            R = np.zeros(9)
+            mujoco.mju_quat2Mat(R, m.geom_quat[g])
+            R = R.reshape(3, 3)
+            h = m.geom_size[g]
+            for sx in (-1, 1):
+                for sy in (-1, 1):
+                    pts.append((m.geom_pos[g] + R @ np.array([sx * h[0], sy * h[1], -h[2]]))[:2])
+        pts = np.array(pts)
+        out.append(pts[ConvexHull(pts).vertices])
+    return out
+
+
+def halfplanes(poly: np.ndarray, inset: float = 0.0):
+    """Outward normals N and offsets d of a counter-clockwise convex polygon (N x <= d inside), moved in by
+    ``inset``."""
+    a, b = poly, np.roll(poly, -1, axis=0)
+    e = b - a
+    n = np.column_stack([e[:, 1], -e[:, 0]])
+    n /= np.linalg.norm(n, axis=1)[:, None]
+    return n, np.einsum("ij,ij->i", n, a) - inset
+
+
+def shrink(poly: np.ndarray, inset: float) -> np.ndarray:
+    """The polygon moved in by ``inset`` (vertices of the offset edges' intersections)."""
+    N, d = halfplanes(poly, inset)
+    out = []
+    k = len(poly)
+    for i in range(k):
+        j = (i - 1) % k
+        A = np.vstack([N[j], N[i]])
+        out.append(np.linalg.solve(A, np.array([d[j], d[i]])))
+    return np.array(out)
+
+
+def project_into(poly: np.ndarray, x: np.ndarray) -> tuple[np.ndarray, bool]:
+    """The point of a convex polygon closest to x (x itself if inside); and whether x was outside."""
+    N, d = halfplanes(poly)
+    if np.all(N @ x - d <= 0.0):
+        return x, False
+    best, bd = x, math.inf
+    for i in range(len(poly)):
+        a, b = poly[i], poly[(i + 1) % len(poly)]
+        e = b - a
+        t = min(1.0, max(0.0, float((x - a) @ e) / float(e @ e)))
+        c = a + t * e
+        dist = float(np.linalg.norm(x - c))
+        if dist < bd:
+            best, bd = c, dist
+    return best, True
+
+
+def _ankle_rows(kd, jids) -> tuple[np.ndarray, np.ndarray]:
+    """The linear map between a foot's CoP c (world xy) and its ankle torques: tau / Fz = -(A c + b), from the moment
+    of a vertical floor load at c about each ankle axis (quasi-static foot: the ankle torques balance it)."""
+    A, b = np.zeros((2, 2)), np.zeros(2)
+    for r, jid in enumerate(jids):
+        ax, an = kd.xaxis[jid], kd.xanchor[jid]
+        A[r] = (-ax[1], ax[0])
+        b[r] = -an[1] * ax[0] + an[0] * ax[1]
+    return A, b
+
+
+def ankle_cop(kd, jids, tau, Fz: float) -> np.ndarray:
+    """The CoP (world xy) that ankle torques ``tau`` (pitch, roll; on the foot) imply under a vertical load ``Fz``."""
+    A, b = _ankle_rows(kd, jids)
+    return np.linalg.solve(A, -np.asarray(tau, float) / Fz - b)
+
+
+def ankle_torque(kd, jids, cop, Fz: float) -> np.ndarray:
+    """The ankle torques (pitch, roll) that put the CoP of a vertical load ``Fz`` at ``cop`` (``ankle_cop``'s
+    inverse)."""
+    A, b = _ankle_rows(kd, jids)
+    return -Fz * (A @ np.asarray(cop, float) + b)
+
+
+def signed_distance(poly: np.ndarray, x: np.ndarray) -> float:
+    """Distance of x outside the polygon (negative inside: minus the distance to the nearest edge line)."""
+    N, d = halfplanes(poly)
+    s = N @ x - d
+    if np.all(s <= 0):
+        return float(np.max(s))
+    return float(np.linalg.norm(x - project_into(poly, x)[0]))
+
+
+# ------------------------------------------------------------------------------------------------
+# Track: the reference sequence the tracker follows
+# ------------------------------------------------------------------------------------------------
+@dataclass
+class Segment:
+    """One piece of a track: a periodic reference repeated ``strides`` times, a transition (finite frames), or a
+    held frame.  ``S`` stacks the joint arrays per frame ([q, qd, tau, qdd], each in the plant's joint order),
+    ``info`` the feedback's reference quantities per frame (``frame_info``)."""
+
+    kind: str
+    name: str
+    t0: float
+    duration: float
+    S: np.ndarray
+    info: dict
+    step: float = 0.0  # periodic: frame interval
+    n: int = 0  # periodic: frames per stride
+    t: np.ndarray | None = None  # finite: frame times (with the next segment's first frame appended)
+    period: float = 1.0
+    duty: float = 0.6
+    yaw_per_stride: float = 0.0
+
+
+def _swing_of(support: np.ndarray) -> np.ndarray:
+    """Per frame, the swinging foot (0 left, 1 right, -1 none)."""
+    swing = np.full(len(support), -1)
+    for j in (0, 1):
+        swing[~support[:, j]] = j
+    return swing
+
+
+def _swing_progress(swing: np.ndarray, periodic: bool) -> np.ndarray:
+    """Swing progress per frame from the run of swing frames it belongs to (0 at lift-off; a periodic run may wrap
+    across the stride boundary)."""
+    n = len(swing)
+    u = np.zeros(n)
+    idx = np.arange(n)
+    for j in (0, 1):
+        on = swing == j
+        if not on.any():
+            continue
+        if periodic and on.all():
+            continue
+        start = np.flatnonzero(on & ~np.roll(on, 1)) if periodic else np.flatnonzero(on & ~np.r_[False, on[:-1]])
+        for k0 in start:
+            k1 = k0
+            while on[k1 % n] and (periodic or k1 < n) and k1 - k0 < n:
+                k1 += 1
+                if not periodic and k1 >= n:
+                    break
+            ks = idx[np.arange(k0, k1) % n]
+            u[ks] = np.arange(k1 - k0) / (k1 - k0)
+    return u
+
+
+def _anchor(swing: np.ndarray, periodic: bool, half: int) -> np.ndarray:
+    """Anchor per frame (module docstring): the stance foot; in double support the foot that landed last (within
+    half a stride), else the next stance foot (within half a stride), else 2 (a stand: the feet's midpoint)."""
+    n = len(swing)
+    anchor = np.full(n, 2)
+    for k in range(n):
+        if swing[k] >= 0:
+            anchor[k] = 1 - swing[k]
+            continue
+        back = fwd = None
+        for dk in range(1, (n if periodic else k + 1)):
+            kk = k - dk
+            if not periodic and kk < 0:
+                break
+            if swing[kk % n] >= 0:
+                back = (dk, int(swing[kk % n]))
+                break
+        for dk in range(1, (n if periodic else n - k)):
+            kk = k + dk
+            if not periodic and kk >= n:
+                break
+            if swing[kk % n] >= 0:
+                fwd = (dk, int(swing[kk % n]))
+                break
+        if back is not None and back[0] <= half:
+            anchor[k] = back[1]
+        elif fwd is not None and fwd[0] <= half:
+            anchor[k] = 1 - fwd[1]
+    return anchor
+
+
+def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarray, zmp_mb: np.ndarray,
+               normal: np.ndarray, omega: float, periodic: bool, swing_u: np.ndarray | None = None,
+               period: np.ndarray | float = 1.0, frames_per_stride: int = 160) -> dict:
+    """The feedback's reference quantities per frame (module docstring): anchor (0 left, 1 right, 2 the feet's
+    midpoint), swinging foot (-1 none) and its progress, the DCM and the ZMP relative to the anchor in its frame,
+    the support polygon there (``COP_INSET`` inside, and as is), the normal-force split, the trunk's roll, pitch and
+    (unwrapped) yaw, the local stride period."""
+    m = p.m
+    kd = mujoco.MjData(m)
+    n = len(q)
+    xi = np.zeros((n, 2))
+    feet = np.zeros((n, 2, 2))
+    fyaw = np.zeros((n, 2))
+    rp = np.zeros((n, 2))
+    yaw = np.zeros(n)
+    for k in range(n):
+        kd.qpos[:], kd.qvel[:] = q[k], qd[k]
+        mujoco.mj_kinematics(m, kd)
+        mujoco.mj_comPos(m, kd)
+        mujoco.mj_comVel(m, kd)
+        mujoco.mj_subtreeVel(m, kd)
+        xi[k] = kd.subtree_com[p.trunk][:2] + kd.subtree_linvel[p.trunk][:2] / omega
+        for j, f in enumerate(p.feet):
+            feet[k, j] = kd.xpos[f][:2]
+            fyaw[k, j] = _yaw(kd.xmat[f])
+        rp[k] = _roll_pitch(kd.xmat[p.trunk])
+        yaw[k] = _yaw(kd.xmat[p.trunk])
+    yaw = np.unwrap(yaw)
+    fyaw = np.unwrap(fyaw, axis=0)
+    swing = _swing_of(support)
+    if swing_u is not None:
+        u = np.array([float(swing_u[k, swing[k]]) if swing[k] >= 0 else 0.0 for k in range(n)])
+        u = np.nan_to_num(u)
+    else:
+        u = _swing_progress(swing, periodic)
+    anchor = _anchor(swing, periodic, frames_per_stride // 2)
+    polys = pad_polygons(m)
+    inset = [shrink(P, COP_INSET) for P in polys]
+    vmax = 2 * max(len(P) for P in polys)
+    poly_in = np.full((n, vmax, 2), np.nan)
+    poly_raw = np.full((n, vmax, 2), np.nan)
+    poly_n = np.zeros(n, int)
+    poly_rn = np.zeros(n, int)
+    dcm_rel = np.zeros((n, 2))
+    zmp_rel = np.zeros((n, 2))
+    for k in range(n):
+        if anchor[k] < 2:
+            pa, ya = feet[k, anchor[k]], fyaw[k, anchor[k]]
+        else:
+            pa, ya = feet[k].mean(0), float(np.mean(fyaw[k]))
+        Rt = _rot2(ya).T
+        dcm_rel[k] = Rt @ (xi[k] - pa)
+        zmp_rel[k] = Rt @ (zmp_mb[k] - pa) if np.all(np.isfinite(zmp_mb[k])) else dcm_rel[k]
+        for target, store, count in ((inset, poly_in, poly_n), (polys, poly_raw, poly_rn)):
+            pts = np.vstack([(feet[k, j] + target[j] @ _rot2(fyaw[k, j]).T - pa) @ Rt.T for j in (0, 1)
+                             if support[k, j]])
+            hull = pts[ConvexHull(pts).vertices]
+            store[k, : len(hull)] = hull
+            count[k] = len(hull)
+    w = np.where(support, np.maximum(normal, 0.0), 0.0)
+    tot = w.sum(1, keepdims=True)
+    w = np.where(tot > 0, w / np.where(tot > 0, tot, 1.0), np.where(support, 0.5, 0.0))
+    per = np.broadcast_to(np.asarray(period, float), (n,)).copy()
+    return dict(anchor=anchor, swing=swing, u=u, dcm_rel=dcm_rel, zmp_rel=zmp_rel, poly=poly_in, poly_n=poly_n,
+                poly_raw=poly_raw, poly_raw_n=poly_rn, weights=w, roll_pitch=rp, yaw=yaw, period=per,
+                stand=(swing < 0) & (anchor == 2))
+
+
+def _joint_stack(p: plant.Plant, q, qd, tau, qdd) -> np.ndarray:
+    return np.hstack([q[:, p.qadr], qd[:, p.dofs], tau, qdd[:, p.dofs]])
+
+
+def omega0(p: plant.Plant, q_home, crouch_frac: float = 0.03) -> float:
+    """The references' LIPM frequency sqrt(g / z_c), z_c the home CoM height less the crouch (``gait.generate``)."""
+    kd = mujoco.MjData(p.m)
+    kd.qpos[:] = q_home
+    mujoco.mj_kinematics(p.m, kd)
+    mujoco.mj_comPos(p.m, kd)
+    return math.sqrt(G / (float(kd.subtree_com[p.trunk][2]) - crouch_frac * float(p.meta["H_m"])))
+
+
+class Track:
+    """A sequence of segments on one time axis (``Segment``): ``joint(t)`` interpolates the joint arrays (as
+    ``refs.Reference.interp`` for a periodic segment, so R0 on a periodic track is G2's replay bit for bit),
+    ``info(t)`` the feedback's reference quantities.  ``q0`` and ``qd0`` are the first frame's full state."""
+
+    def __init__(self, p: plant.Plant, omega: float):
+        self.p, self.omega = p, omega
+        self.segments: list[Segment] = []
+        self.t_end = 0.0
+        self.q0 = self.qd0 = None
+        self._i = 0
+
+    # ------------------------------------------------------------------ building
+    def add_periodic(self, ref: Reference, strides: float, name: str | None = None) -> "Track":
+        p = self.p
+        if list(ref.joints) != p.joints:
+            raise ValueError("reference and plant joints differ")
+        S = _joint_stack(p, ref.q, ref.qd, ref.tau, ref.qdd)
+        info = frame_info(p, ref.q, ref.qd, ref.support, ref.zmp_mb, ref.normal, self.omega, periodic=True,
+                          period=ref.period, frames_per_stride=ref.n)
+        seg = Segment("periodic", name or ref.name, self.t_end, strides * ref.period, S, info, step=ref.step, n=ref.n,
+                      period=ref.period, duty=float(np.mean(ref.support[:, 0])),
+                      yaw_per_stride=float(ref.stride_motion[0]))
+        self._append(seg, ref.q[0], ref.qd[0])
+        return self
+
+    def add_transition(self, tr: Transition, next_frame: np.ndarray | None = None, next_dt: float | None = None) -> "Track":
+        """A transition; ``next_frame`` (a ``_joint_stack`` row) is the following segment's first frame, ``next_dt``
+        after the transition's last, for interpolation across the join (default: the last frame held)."""
+        p = self.p
+        S = _joint_stack(p, tr.q, tr.qd, tr.tau, tr.qdd)
+        per = np.diff(tr.t) * N_FRAMES
+        per = np.r_[per, per[-1]]
+        info = frame_info(p, tr.q, tr.qd, tr.support, tr.zmp_mb, tr.normal, self.omega, periodic=False,
+                          swing_u=tr.swing_u, period=per)
+        dt_last = float(tr.t[-1] - tr.t[-2]) if next_dt is None else float(next_dt)
+        S = np.vstack([S, S[-1:] if next_frame is None else np.asarray(next_frame)[None]])
+        t = np.concatenate([tr.t, [tr.t[-1] + dt_last]])
+        seg = Segment("finite", tr.name, self.t_end, float(t[-1]), S, info, t=t, period=float(per[-1]),
+                      duty=float(np.mean(tr.support[:, 0])))
+        self._append(seg, tr.q[0], tr.qd[0])
+        return self
+
+    def add_hold(self, q, tau, zmp, seconds: float, name: str = "stand", period: float = 1.0) -> "Track":
+        """Hold one pose (``q`` full qpos, feedforward ``tau``) at rest for ``seconds``: both feet down."""
+        p = self.p
+        q = np.asarray(q, float)[None]
+        qd = np.zeros((1, p.m.nv))
+        S = _joint_stack(p, q, qd, np.asarray(tau, float)[None], qd)
+        info = frame_info(p, q, qd, np.ones((1, 2), bool), np.asarray(zmp, float)[None], np.ones((1, 2)), self.omega,
+                          periodic=False, period=period)
+        seg = Segment("hold", name, self.t_end, float(seconds), S, info, period=period)
+        self._append(seg, q[0], qd[0])
+        return self
+
+    def _append(self, seg: Segment, q0, qd0) -> None:
+        if self.segments:  # the reference yaw continues across the join
+            seg.info["yaw"] = seg.info["yaw"] - seg.info["yaw"][0] + self._yaw_at_end(self.segments[-1])
+        else:
+            self.q0, self.qd0 = np.asarray(q0, float).copy(), np.asarray(qd0, float).copy()
+        self.segments.append(seg)
+        self.t_end = seg.t0 + seg.duration
+
+    @staticmethod
+    def _yaw_at_end(seg: Segment) -> float:
+        y = seg.info["yaw"]
+        if seg.kind == "periodic":
+            strides = seg.duration / seg.period
+            whole = math.floor(strides + 1e-9)
+            k = int(round((strides - whole) * seg.n)) % seg.n
+            return float(y[k] + whole * seg.yaw_per_stride)
+        if seg.kind == "finite":
+            return float(y[-1] + (y[-1] - y[-2]))
+        return float(y[-1])
+
+    # ------------------------------------------------------------------ lookup
+    def segment(self, t: float) -> Segment:
+        i = self._i
+        segs = self.segments
+        if t < segs[i].t0:
+            i = 0
+        while i + 1 < len(segs) and t >= segs[i + 1].t0:
+            i += 1
+        self._i = i
+        return segs[i]
+
+    def joint(self, t: float) -> np.ndarray:
+        seg = self.segment(t)
+        tl = t - seg.t0
+        if seg.kind == "periodic":
+            s = (tl / seg.step) % seg.n
+            k0 = int(s) % seg.n
+            a = s - int(s)
+            return (1 - a) * seg.S[k0] + a * seg.S[(k0 + 1) % seg.n]
+        if seg.kind == "hold":
+            return seg.S[0]
+        tt = seg.t
+        k0 = min(max(int(np.searchsorted(tt, tl, side="right")) - 1, 0), len(tt) - 2)
+        a = min(max((tl - tt[k0]) / (tt[k0 + 1] - tt[k0]), 0.0), 1.0)
+        return (1 - a) * seg.S[k0] + a * seg.S[k0 + 1]
+
+    def info(self, t: float) -> tuple[Segment, dict]:
+        """The reference quantities at t: the frame at or before t, with the DCM, ZMP, weights, attitude and yaw
+        interpolated toward the next frame when it has the same anchor."""
+        seg = self.segment(t)
+        tl = t - seg.t0
+        inf = seg.info
+        if seg.kind == "periodic":
+            s = tl / seg.step
+            strides = math.floor(s / seg.n)
+            k0 = int(s) % seg.n
+            k1 = (k0 + 1) % seg.n
+            a = s - math.floor(s)
+            off0 = strides * seg.yaw_per_stride
+            off1 = off0 + (seg.yaw_per_stride if k1 == 0 else 0.0)
+        elif seg.kind == "hold":
+            k0 = k1 = 0
+            a = off0 = off1 = 0.0
+        else:
+            nf = len(inf["anchor"])
+            k0 = min(max(int(np.searchsorted(seg.t, tl, side="right")) - 1, 0), nf - 1)
+            k1 = min(k0 + 1, nf - 1)
+            a = 0.0 if k1 == k0 else min(max((tl - seg.t[k0]) / (seg.t[k1] - seg.t[k0]), 0.0), 1.0)
+            off0 = off1 = 0.0
+        out = {key: v[k0] for key, v in inf.items()}
+        if a > 0 and inf["anchor"][k1] == inf["anchor"][k0]:
+            for key in ("dcm_rel", "zmp_rel", "weights", "roll_pitch"):
+                out[key] = (1 - a) * inf[key][k0] + a * inf[key][k1]
+            if inf["swing"][k1] == inf["swing"][k0]:
+                out["u"] = (1 - a) * inf["u"][k0] + a * inf["u"][k1]
+        out["yaw"] = (1 - a) * (inf["yaw"][k0] + off0) + a * (inf["yaw"][k1] + off1)
+        return seg, out
+
+
+def build_track(p: plant.Plant, run_dir: Path, plan: list, omega: float) -> Track:
+    """A track from saved references and transitions (``run_dir``/refs, /transitions): ``plan`` lists ("ref", name,
+    strides), ("transition", name) and ("hold", seconds) items in order.  A hold holds the next transition's first
+    frame if it comes first, else the previous segment's last frame, at rest."""
+    run_dir = Path(run_dir)
+    objs = []
+    for item in plan:
+        if item[0] == "ref":
+            objs.append(Reference.load(run_dir / "refs" / f"{item[1]}.npz"))
+        elif item[0] == "transition":
+            objs.append(Transition.load(run_dir / "transitions" / f"{item[1]}.npz"))
+        elif item[0] == "hold":
+            objs.append(None)
+        else:
+            raise ValueError(f"track item {item!r}")
+    tr = Track(p, omega)
+    for i, (item, obj) in enumerate(zip(plan, objs, strict=True)):
+        if item[0] == "ref":
+            tr.add_periodic(obj, item[2])
+        elif item[0] == "transition":
+            nxt = objs[i + 1] if i + 1 < len(objs) else None
+            if isinstance(nxt, Reference):
+                tr.add_transition(obj, _joint_stack(p, nxt.q[:1], nxt.qd[:1], nxt.tau[:1], nxt.qdd[:1])[0], nxt.step)
+            else:
+                tr.add_transition(obj)
+        else:
+            src = objs[i + 1] if i == 0 else objs[i - 1]
+            k = 0 if i == 0 else -1
+            period = float(np.median(np.diff(src.t))) * N_FRAMES if isinstance(src, Transition) else src.period
+            tr.add_hold(src.q[k], src.tau[k], src.zmp_mb[k], item[1], period=period)
+    return tr
+
+
+# ------------------------------------------------------------------------------------------------
+# State views
+# ------------------------------------------------------------------------------------------------
+class TrueState:
+    """R1's privileged state, from the plant's data after the last step (positions as of that step's start, like
+    the sensors; no extra ``mj_forward``)."""
+
+    def __init__(self, p: plant.Plant):
+        self.p = p
+
+    def view(self) -> dict:
+        p, m, d = self.p, self.p.m, self.p.d
+        mujoco.mj_subtreeVel(m, d)
+        return dict(d=d, com=d.subtree_com[p.trunk].copy(), com_vel=d.subtree_linvel[p.trunk].copy(),
+                    feet=np.array([d.xpos[f][:2] for f in p.feet]), feet_yaw=np.array([_yaw(d.xmat[f]) for f in p.feet]),
+                    R=d.xmat[p.trunk].reshape(3, 3).copy(), omega=d.cvel[p.trunk][:3].copy())
+
+
+class EstimatedState:
+    """R2's state: the estimator's view."""
+
+    def __init__(self, est: est_mod.Estimator):
+        self.est = est
+
+    def view(self) -> dict:
+        e = self.est
+        return dict(d=e.d, com=e.com.copy(), com_vel=e.com_vel.copy(), feet=e.foot[:, :2].copy(),
+                    feet_yaw=e.foot_yaw.copy(), R=e.R.copy(), omega=e.omega_world.copy())
+
+
+# ------------------------------------------------------------------------------------------------
+# Tracker
+# ------------------------------------------------------------------------------------------------
+class Tracker:
+    """R0, R1 or R2 on a plant following a track (module docstring)."""
+
+    def __init__(self, p: plant.Plant, track: Track, mode: str = "R1", gains=None, terms=TERMS,
+                 noise: est_mod.SensorNoise | None = None, seed: int = 0, est_gains: est_mod.EstimatorGains | None = None,
+                 inward: float | None = None):
+        if mode not in MODES:
+            raise ValueError(f"mode {mode!r}: choose from {', '.join(MODES)}")
+        self.p, self.track, self.mode = p, track, mode
+        self.g = gains_dict(gains)
+        self.terms = frozenset(() if mode == "R0" else terms)
+        unknown = self.terms - set(TERMS)
+        if unknown:
+            raise ValueError(f"unknown feedback terms {sorted(unknown)}")
+        m = p.m
+        self.dt = float(m.opt.timestep)
+        self.nj = len(p.joints)
+        self.damp = m.dof_damping[p.dofs].copy()
+        self.fric = m.dof_frictionloss[p.dofs].copy()
+        self.extra = p.armature_extra if np.any(p.armature_extra) else None
+        self.mass = float(m.body_subtreemass[p.trunk])
+        self.H = float(p.meta["H_m"])
+        self.inward = (turn_gap(p.body) - TURN_GAP_MARGIN) if inward is None else float(inward)
+        self.idx = {jn: i for i, jn in enumerate(p.joints)}
+        self.jid = {jn: mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in p.joints}
+        self.leg = [np.array([self.idx[f"{s}_{x}"] for x in LEGS]) for s in statics.SIDES]
+        self.leg_dofs = [p.dofs[ix] for ix in self.leg]
+        self.leg_qadr = [p.qadr[ix] for ix in self.leg]
+        self.lo = m.jnt_range[[self.jid[jn] for jn in p.joints], 0].copy()
+        self.hi = m.jnt_range[[self.jid[jn] for jn in p.joints], 1].copy()
+        self.noise = noise if noise is not None else est_mod.SensorNoise()
+        self.seed = int(seed)
+        self.est_gains = est_gains
+        self.pads = pad_polygons(m)
+        self.pads_in = [shrink(P, COP_INSET) for P in self.pads]
+        self.pad_centre = [P.mean(0) for P in self.pads]
+        self._jacp, self._jacr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
+        self._ik = mujoco.MjData(m)
+        self.hold = FEEDBACK_HOLD
+        #: Diagnostics (not the plan's tracker): ``cop_clip`` False drops the pad clip; ``ds_weights`` "equal" splits
+        #: double support 50/50 as the design-study prototype did.
+        self.cop_clip = True
+        self.ds_weights = "normal"
+        #: A limit on the total ankle torque of each foot in contact (feedforward, the servo's PD and the feedback),
+        #: beyond the plan's tracker (which limits the feedback's CoP shift only; None, the default): "cop" keeps the
+        #: CoP the total implies ``COP_INSET`` inside the pad, "box" caps each ankle axis at one motor's peak (the
+        #: screened model's per-joint box).  Diagnostics of the two-motor ankle (``ANKLE_LIMITS``).
+        self.ankle_limit = None
+        Gm, kp, kv = p.G, p.kp, p.kv
+        self.ankle_ix, self.ankle_K, self.ankle_D, self.ankle_jid = [], [], [], []
+        for side in statics.SIDES:
+            ix = np.array([self.idx[f"{side}_ankle_pitch"], self.idx[f"{side}_ankle_roll"]])
+            K = Gm.T @ np.diag(kp) @ Gm
+            D = Gm.T @ np.diag(kv) @ Gm
+            self.ankle_ix.append(ix)
+            self.ankle_K.append(K[np.ix_(ix, ix)])
+            self.ankle_D.append(D[np.ix_(ix, ix)])
+            self.ankle_jid.append([self.jid[f"{side}_ankle_pitch"], self.jid[f"{side}_ankle_roll"]])
+        self.ankle_peak = np.array([[p.drives[i].peak for i in ix] for ix in self.ankle_ix])
+        #: The leg drives (every drive but the neck's and the tail's) and the ankle motors, by actuator.
+        self.leg_act = np.array([dr.group not in ("neck", "tail") for dr in p.drives])
+        self.ankle_act = np.array([dr.group in ("ankle_a", "ankle_b") for dr in p.drives])
+        self.hinge_jid = np.array([self.jid[jn] for jn in p.joints])
+        self.foot_of = foot_geoms(p)
+        #: Everything set so far is configuration; what ``reset`` adds is the episode's state (``save``).
+        self._config = frozenset(self.__dict__) | {"_config", "sensors", "est", "state"}
+
+    # ------------------------------------------------------------------ episode
+    def reset(self, start: str = "frame", velocity_offset=None, joint_noise: float = 0.0, seed: int | None = None) -> None:
+        """``start="frame"``: the track's first frame, already moving (as G2's replay and the design-study
+        prototype start); ``"stance"``: the plant's settled stance at rest.  ``velocity_offset`` (m/s, world) is
+        added to the root velocity of a frame start."""
+        p = self.p
+        seed = self.seed if seed is None else int(seed)
+        if start == "frame":
+            qd0 = self.track.qd0.copy()
+            if velocity_offset is not None:
+                qd0[:3] += np.asarray(velocity_offset, float)
+            p.set_state(self.track.q0, qd0)
+        elif start == "stance":
+            p.reset(joint_noise=joint_noise, seed=seed)
+        else:
+            raise ValueError(f"start {start!r}: 'frame' or 'stance'")
+        self.start = start
+        self.track._i = 0
+        self.tau_ref = 0.0
+        self.delta = 0.0
+        self.k = 0
+        nj = self.nj
+        self.dq, self.dtau = np.zeros(nj), np.zeros(nj)
+        self.step_tgt = [np.zeros(6), np.zeros(6)]
+        self.step_land = [np.zeros(6), np.zeros(6)]
+        self.yaw_tgt = [0.0, 0.0]
+        self.yaw_land = [0.0, 0.0]
+        self.prev_sw = -1
+        self.I_yaw = self.I_x = 0.0
+        self.yaw_buf = []
+        self.yaw_prev = None
+        self.yaw_unwrapped = 0.0
+        self.yaw0_ref = None
+        self.capture = None
+        self.capture_log = []
+        self.flags = {}
+        self.e = np.zeros(2)
+        self.dq_prev, self.dtau_prev = np.zeros(nj), np.zeros(nj)
+        self.ankle_clipped = False
+        self.sensors = self.est = None
+        if self.mode == "R2":
+            self.sensors = est_mod.NoisySensors(p, self.noise, seed)
+            self.est = est_mod.Estimator(p, self.est_gains)
+            if start == "frame":  # the start state is the commanded one (the estimate's world frame)
+                self.est.reset(p.d.qpos.copy(), p.d.qvel.copy(), self.sensors.read())
+            else:  # at rest: from the sensors; the start's heading and position define the estimate's world frame
+                self.est.reset_at_rest(self.sensors.read(), yaw=_yaw(p.d.xmat[p.trunk]), base_xy=p.d.qpos[:2].copy())
+            self.state = EstimatedState(self.est)
+        else:
+            self.state = TrueState(p)
+
+    # ------------------------------------------------------------------ episode state (counterfactuals)
+    def save(self, prev_state: np.ndarray) -> dict:
+        """The episode's state for ``load``.  ``prev_state`` is MuJoCo's integration state (``MJ_STATE``: physics,
+        inputs and the solver's warm start) at the start of the physics step just taken (``run`` keeps it), so that
+        ``load`` can replay that step and every derived quantity (positions, contacts, sensors, which MuJoCo leaves at
+        the step's start) is as it was; with it the servo command, every controller variable (all that ``reset``
+        sets), the estimator's state and the sensor-noise generator's."""
+        d = self.p.d
+        snap = dict(prev=np.array(prev_state, copy=True), ctrl=d.ctrl.copy(), time=float(d.time),
+                    tracker={k: copy.deepcopy(v) for k, v in self.__dict__.items() if k not in self._config},
+                    track_i=self.track._i)
+        if self.est is not None:
+            e = self.est
+            snap["est"] = {k: copy.deepcopy(v) for k, v in e.__dict__.items() if k not in EST_STATIC}
+            snap["est_qpos"], snap["est_qvel"] = e.d.qpos.copy(), e.d.qvel.copy()
+            snap["rng"] = copy.deepcopy(self.sensors.rng.bit_generator.state)
+        return snap
+
+    def load(self, snap: dict) -> None:
+        """Back to a state ``save`` took: MuJoCo's state before the step that led to it, that step replayed with its
+        command (the envelope set from the drive speeds as ``Plant.step`` sets it), then the controller's, the
+        estimator's (its kinematic view recomputed from the pose it held) and the noise generator's state."""
+        p = self.p
+        m, d = p.m, p.d
+        mujoco.mj_setState(m, d, snap["prev"], MJ_STATE)
+        d.ctrl[:] = snap["ctrl"]
+        p.envelope.restore()
+        p.step()
+        if float(d.time) != snap["time"]:
+            raise RuntimeError(f"replayed step reached t = {d.time!r}, the snapshot was taken at {snap['time']!r}")
+        for k, v in snap["tracker"].items():
+            setattr(self, k, copy.deepcopy(v))
+        self.track._i = snap["track_i"]
+        if self.est is not None:
+            e = self.est
+            for k, v in snap["est"].items():
+                setattr(e, k, copy.deepcopy(v))
+            e.d.qpos[:], e.d.qvel[:] = snap["est_qpos"], snap["est_qvel"]
+            mujoco.mj_kinematics(m, e.d)
+            mujoco.mj_comPos(m, e.d)
+            mujoco.mj_comVel(m, e.d)
+            mujoco.mj_subtreeVel(m, e.d)
+            self.sensors.rng.bit_generator.state = copy.deepcopy(snap["rng"])
+
+    # ------------------------------------------------------------------ one physics step
+    def step(self) -> None:
+        p = self.p
+        t_ref = p.d.time if self.mode == "R0" else self.tau_ref
+        x = self.track.joint(t_ref)
+        nj = self.nj
+        q, qd, tau = x[:nj], x[nj : 2 * nj], x[2 * nj : 3 * nj]
+        s = 1.0 + self.delta
+        qd_c = s * qd if self.delta else qd
+        ff = tau + self.damp * qd_c + self.fric * np.tanh(qd_c / FRICTION_SMOOTH)
+        if self.extra is not None:
+            ff += self.extra @ (s * s * x[3 * nj :] if self.delta else x[3 * nj :])
+        if self.mode == "R0":
+            p.command(q, qd, ff)
+        else:
+            j = self.k % FEEDBACK_EVERY
+            if j == 0:
+                self.dq_prev, self.dtau_prev = self.dq, self.dtau
+                self.feedback(t_ref, q)
+            if self.hold == "ramp":
+                a = (j + 1) / FEEDBACK_EVERY
+                dq = self.dq_prev + a * (self.dq - self.dq_prev)
+                dtau = self.dtau_prev + a * (self.dtau - self.dtau_prev)
+            else:
+                dq, dtau = self.dq, self.dtau
+            if self.ankle_limit and "ankle" in self.terms:
+                dtau = self._ankle_torque_limit(q + dq, qd_c, ff + dtau, dtau)
+            p.command(q + dq, qd_c, ff + dtau)
+        p.step()
+        self.k += 1
+        self.tau_ref += self.dt * s
+        if self.est is not None:
+            self.est.step(self.sensors.read())
+
+    # ------------------------------------------------------------------ ankle torque limit (500 Hz)
+    def _ankle_torque_limit(self, q_cmd, qd_cmd, tau_cmd, dtau):
+        """``dtau`` with each loaded foot's total ankle torque limited (``ankle_limit``): the servo's PD torque is
+        predicted from the encoders (true angles and rates for R1, the last reading for R2), the CoP the total implies
+        (quasi-static foot: the floor's vertical load at the CoP balances the ankle torques about each ankle axis) is
+        projected into the pad polygon ``COP_INSET`` inside, and the torque that CoP implies replaces it."""
+        p = self.p
+        if self.est is not None:
+            q, qd, kd = self.est.q, self.est.qd, self.est.d
+            loads = self.est.load
+        else:
+            d = p.d
+            q, qd, kd = d.qpos[p.qadr], d.qvel[p.dofs], d
+            loads = p.foot_loads()
+        out = dtau
+        clipped = False
+        for i in (0, 1):
+            Fz = float(loads[i])
+            if Fz < CONTACT_LOAD_FRAC * self.mass * G:
+                continue
+            ix = self.ankle_ix[i]
+            tau = self.ankle_K[i] @ (q_cmd[ix] - q[ix]) + self.ankle_D[i] @ (qd_cmd[ix] - qd[ix]) + tau_cmd[ix]
+            if self.ankle_limit == "box":
+                lim = self.ankle_peak[i]
+                new = np.clip(tau, -lim, lim)
+            else:
+                c = ankle_cop(kd, self.ankle_jid[i], tau, Fz)
+                f = p.feet[i]
+                poly = kd.xpos[f][:2] + self.pads_in[i] @ _rot2(_yaw(kd.xmat[f])).T
+                c2, outside = project_into(poly, c)
+                if not outside:
+                    continue
+                new = ankle_torque(kd, self.ankle_jid[i], c2, Fz)
+            if np.any(new != tau):
+                if out is dtau:
+                    out = dtau.copy()
+                out[ix] += new - tau
+                clipped = True
+        self.ankle_clipped = self.ankle_clipped or clipped
+        return out
+
+    # ------------------------------------------------------------------ feedback (100 Hz)
+    def _anchor_frame(self, st: dict, a: int):
+        if a < 2:
+            return st["feet"][a], float(st["feet_yaw"][a])
+        fy = st["feet_yaw"]
+        return st["feet"].mean(0), math.atan2(float(np.mean(np.sin(fy))), float(np.mean(np.cos(fy))))
+
+    def _leg_jacobian(self, kd, side: int) -> np.ndarray:
+        mujoco.mj_jacBody(self.p.m, kd, self._jacp, self._jacr, self.p.feet[side])
+        return np.vstack([self._jacp, self._jacr])[:, self.leg_dofs[side]]
+
+    def feedback(self, t_ref: float, q_ref: np.ndarray) -> None:
+        g = self.g
+        dt_fb = FEEDBACK_EVERY * self.dt
+        if self.est is not None:
+            self.est.update(dt_fb)
+        seg, ref = self.track.info(t_ref)
+        st = self.state.view()
+        kd, R = st["d"], st["R"]
+        roll, pitch = _roll_pitch(R)
+        yaw = _yaw(R)
+        if self.yaw_prev is None:
+            self.yaw_prev, self.yaw0_ref = yaw, float(ref["yaw"])
+        self.yaw_unwrapped += _wrap(yaw - self.yaw_prev)
+        self.yaw_prev = yaw
+        xi = st["com"][:2] + st["com_vel"][:2] / self.track.omega
+        a = int(ref["anchor"])
+        pa, ya = self._anchor_frame(st, a)
+        Ra = _rot2(ya)
+        e = Ra.T @ (xi - pa) - ref["dcm_rel"]
+        self.e = e
+        dtau = np.zeros(self.nj)
+        sw = int(ref["swing"])
+        flags = dict(cop_clip=False, step_clip=False, turn_gap_clamp=False, phase_rate_saturated=False, capture=False)
+        if "capture" in self.terms:
+            self._capture(ref, st, xi, q_ref)
+        cap = self.capture
+        if cap is not None:
+            sw = cap["side"]
+            flags["capture"] = True
+        stance = [1 - sw] if sw >= 0 else [0, 1]
+        # --- ankle: ZMP shift within the support, COP_INSET inside the pads
+        if "ankle" in self.terms:
+            dp = np.clip(g["k_dcm"] * e, [-g["cop_x"], -g["cop_y"]], [g["cop_x"], g["cop_y"]])
+            if cap is not None:  # single support on the capture step's stance foot
+                o = stance[0]
+                poly = (st["feet"][o] + self.pads_in[o] @ _rot2(float(st["feet_yaw"][o])).T - pa) @ Ra
+                w = np.zeros(2)
+                w[o] = 1.0
+                z_rel = Ra.T @ (st["feet"][o] + _rot2(float(st["feet_yaw"][o])) @ self.pad_centre[o] - pa)
+            else:
+                poly = ref["poly"][: int(ref["poly_n"])]
+                w = ref["weights"] if self.ds_weights == "normal" or sw >= 0 else np.array([0.5, 0.5])
+                z_rel = ref["zmp_rel"]
+            cmd, clipped = project_into(poly, z_rel + dp) if self.cop_clip else (z_rel + dp, False)
+            flags["cop_clip"] = clipped
+            dpw = Ra @ (cmd - z_rel)
+            Fz = self.mass * G
+            for i in (0, 1):
+                if w[i] > 0:
+                    M = w[i] * Fz * np.array([-dpw[1], dpw[0], 0.0])
+                    for x in ("ankle_pitch", "ankle_roll"):
+                        jn = f"{statics.SIDES[i]}_{x}"
+                        dtau[self.idx[jn]] += float(kd.xaxis[self.jid[jn]] @ M)
+        # --- trunk attitude through the stance hips
+        if "trunk" in self.terms:
+            cy, sy = math.cos(yaw), math.sin(yaw)
+            Rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
+            w_h = Rz.T @ st["omega"]
+            er, ep = roll - float(ref["roll_pitch"][0]), pitch - float(ref["roll_pitch"][1])
+            Mw = Rz @ np.array([-g["k_trunk"] * er - g["d_trunk"] * w_h[0], -g["k_trunk"] * ep - g["d_trunk"] * w_h[1], 0.0])
+            for s_ in stance:
+                for x in ("hip_pitch", "hip_roll"):
+                    jn = f"{statics.SIDES[s_]}_{x}"
+                    dtau[self.idx[jn]] -= float(kd.xaxis[self.jid[jn]] @ Mw) / len(stance)
+        # --- heading error, averaged over the last stride
+        e_yaw = _wrap(self.yaw_unwrapped - (float(ref["yaw"]) - self.yaw0_ref))
+        self.yaw_buf.append(e_yaw)
+        nbuf = max(1, int(round(float(ref["period"]) / dt_fb)))
+        if len(self.yaw_buf) > nbuf:
+            del self.yaw_buf[: len(self.yaw_buf) - nbuf]
+        # --- events: a touchdown keeps the swing leg's offsets, a lift-off sets the heading target
+        if cap is None and sw != self.prev_sw:
+            if self.prev_sw >= 0:
+                self.step_land[self.prev_sw] = self.step_tgt[self.prev_sw].copy()
+                self.yaw_land[self.prev_sw] = self.yaw_tgt[self.prev_sw]
+            if sw >= 0:
+                self.step_tgt[sw] = self.step_land[sw].copy()
+                self.yaw_tgt[sw] = self.yaw_land[sw]
+                if "heading" in self.terms:
+                    em = float(np.mean(self.yaw_buf))
+                    self.I_yaw = float(np.clip(self.I_yaw + em, -0.5, 0.5))
+                    ax = float(kd.xaxis[self.jid[f"{statics.SIDES[sw]}_hip_yaw"]][2])
+                    corr = -(g["k_yaw"] * em + g["ki_yaw"] * self.I_yaw)
+                    self.yaw_tgt[sw] = corr / ax if abs(ax) > 0.2 else 0.0
+            self.prev_sw = sw
+        # --- step: the swing foot's touchdown offset through the swing leg's Jacobian
+        u = float(ref["u"])
+        if "step" in self.terms and cap is None and sw >= 0 and u < SWING_FREEZE_U:
+            df = g["k_step"] * e
+            dfx = float(np.clip(df[0], -g["step_x"], g["step_x"]))
+            out_sign = 1.0 if sw == 0 else -1.0  # the left foot's outward is +y in the anchor's frame
+            lat = out_sign * float(df[1])
+            dfy = out_sign * float(np.clip(lat, -self.inward, g["step_out"]))
+            flags["turn_gap_clamp"] = lat < -self.inward
+            flags["step_clip"] = abs(float(df[0])) > g["step_x"] or lat > g["step_out"]
+            dfw = Ra @ np.array([dfx, dfy])
+            J = self._leg_jacobian(kd, sw)
+            self.step_tgt[sw] = np.linalg.solve(J.T @ J + 1e-6 * np.eye(6), J.T @ np.r_[dfw, 0.0, 0.0, 0.0, 0.0])
+        # --- the swing leg's offsets blend in over the swing, the stance legs' decay
+        dq = np.zeros(self.nj)
+        decay = min(1.0, max(0.0, 1.0 - g["decay"] * dt_fb / max(1e-6, float(ref["period"]) * seg.duty)))
+        for s_ in (0, 1):
+            iy = self.idx[f"{statics.SIDES[s_]}_hip_yaw"]
+            if cap is not None and s_ == cap["side"]:
+                dq[self.leg[s_]] = cap["dq"]
+            elif s_ == sw:
+                b = _min_jerk(u)
+                dq[self.leg[s_]] = (1 - b) * self.step_land[s_] + b * self.step_tgt[s_]
+                dq[iy] += (1 - b) * self.yaw_land[s_] + b * self.yaw_tgt[s_]
+            else:
+                self.step_land[s_] = self.step_land[s_] * decay
+                self.yaw_land[s_] *= decay
+                dq[self.leg[s_]] = self.step_land[s_]
+                dq[iy] += self.yaw_land[s_]
+        # --- phase rate
+        if "phase" in self.terms and not bool(ref["stand"]) and cap is None:
+            lim = PHASE_RATE_LIMIT
+            self.I_x += float(e[0]) * dt_fb
+            if g["ki_phase"] > 0:
+                self.I_x = float(np.clip(self.I_x, -lim / g["ki_phase"], lim / g["ki_phase"]))
+            raw = g["k_phase"] * float(e[0]) + g["ki_phase"] * self.I_x
+            self.delta = float(np.clip(raw, -lim, lim))
+            flags["phase_rate_saturated"] = abs(raw) > lim
+        else:
+            self.delta = 0.0
+        self.dq, self.dtau, self.flags = dq, dtau, flags
+
+    # ------------------------------------------------------------------ capture step
+    def _capture(self, ref: dict, st: dict, xi: np.ndarray, q_ref: np.ndarray) -> None:
+        """Standing: trigger, swing and land a capture step (module docstring)."""
+        p, kd = self.p, st["d"]
+        dt_fb = FEEDBACK_EVERY * self.dt
+        c = self.capture
+        if c is None:
+            if not bool(ref["stand"]):
+                return
+            pa, ya = self._anchor_frame(st, int(ref["anchor"]))
+            x_rel = _rot2(ya).T @ (xi - pa)
+            out = signed_distance(ref["poly_raw"][: int(ref["poly_raw_n"])], x_rel)
+            if out <= self.g["capture_margin"]:
+                return
+            width = float(np.linalg.norm(st["feet"][0] - st["feet"][1]))
+            lat = float(x_rel[1])
+            sideways = abs(lat) > 0.25 * width
+            side = (0 if lat > 0 else 1) if sideways else int(np.argmin(np.asarray(ref["weights"])))
+            other = 1 - side
+            # where the DCM will be at touchdown (LIPM, diverging from the support's edge it left, along the direction
+            # it left in: the stance foot's lateral CoP shift is not modelled), and the stepping foot's pad centre
+            # lands there; sideways the stepping foot keeps at least CAPTURE_MIN_WIDTH of the stance width
+            n_r = int(ref["poly_raw_n"])
+            edge, _ = project_into(ref["poly_raw"][:n_r], x_rel)
+            xi_td_rel = edge + (x_rel - edge) * math.exp(self.track.omega * CAPTURE_SWING_S)
+            xi_td = pa + _rot2(ya) @ xi_td_rel
+            yaw_f = float(st["feet_yaw"][side])
+            to = xi_td - _rot2(yaw_f) @ self.pad_centre[side]
+            nrm = _rot2(ya) @ np.array([0.0, 1.0 if side == 0 else -1.0])  # outward for the stepping foot
+            if not sideways:  # a push along the feet: the foot steps along them, keeping its place sideways
+                to = to + float((st["feet"][side] - to) @ nrm) * nrm
+            gap = float((to - st["feet"][other]) @ nrm)
+            need = CAPTURE_MIN_WIDTH * width
+            if gap < need:
+                to = to + (need - gap) * nrm
+            self.capture = c = dict(side=side, t=0.0, landed=0.0, frm=st["feet"][side].copy(), to=to, yaw=yaw_f,
+                                    z0=float(kd.xpos[p.feet[side]][2]), dq=self.step_land[side].copy())
+            self.capture_log.append(dict(t_s=float(p.d.time), side=statics.SIDES[side], dcm_outside_m=out,
+                                         target=[float(v) for v in to]))
+        c["t"] += dt_fb
+        u = min(1.0, c["t"] / CAPTURE_SWING_S)
+        b = _min_jerk(u)
+        target = np.r_[(1 - b) * c["frm"] + b * c["to"], c["z0"] + CAPTURE_LIFT_H * self.H * math.sin(math.pi * u) ** 2]
+        # IK of the swing leg at the current trunk pose, from the commanded angles: the offsets to the reference
+        side = c["side"]
+        ik = self._ik
+        ik.qpos[:] = kd.qpos
+        ik.qpos[self.leg_qadr[side]] = q_ref[self.leg[side]] + c["dq"]
+        R_t = np.array([[math.cos(c["yaw"]), -math.sin(c["yaw"]), 0.0], [math.sin(c["yaw"]), math.cos(c["yaw"]), 0.0],
+                        [0.0, 0.0, 1.0]])
+        for _ in range(3):
+            mujoco.mj_kinematics(p.m, ik)
+            mujoco.mj_comPos(p.m, ik)
+            f = p.feet[side]
+            Rf = ik.xmat[f].reshape(3, 3)
+            E = R_t @ Rf.T
+            err = np.r_[target - ik.xpos[f], 0.5 * np.array([E[2, 1] - E[1, 2], E[0, 2] - E[2, 0], E[1, 0] - E[0, 1]])]
+            mujoco.mj_jacBody(p.m, ik, self._jacp, self._jacr, f)
+            J = np.vstack([self._jacp, self._jacr])[:, self.leg_dofs[side]]
+            ik.qpos[self.leg_qadr[side]] += J.T @ np.linalg.solve(J @ J.T + 1e-6 * np.eye(6), err)
+        c["dq"] = ik.qpos[self.leg_qadr[side]] - q_ref[self.leg[side]]
+        if u >= 1.0:
+            c["landed"] += dt_fb
+            if c["landed"] >= 0.2:  # standing on the new stance: its offsets become the leg's held offsets
+                self.step_land[side] = c["dq"].copy()
+                self.yaw_land[side] = 0.0
+                self.capture = None
+
+
+# ------------------------------------------------------------------------------------------------
+# Episodes
+# ------------------------------------------------------------------------------------------------
+#: MuJoCo's integration state: what ``mj_step`` depends on (physics, inputs, the solver's warm start).
+MJ_STATE = mujoco.mjtState.mjSTATE_INTEGRATION
+#: The estimator's attributes that are configuration, not state (``Tracker.save``).
+EST_STATIC = frozenset({"p", "g", "m", "d", "dt", "weight", "trunk", "feet", "r_imu", "qadr", "dofs", "_res",
+                        "foot_z0"})
+#: Plan section 4's hardware limits, measured at every feedback update (module docstring).
+HW_LIMITS = ("leg_drive_at_torque_limit", "leg_drive_at_envelope_limit", "ankle_linkage", "slip",
+             "cop_at_pad_edge_with_ankle_saturated", "joint_range", "diagnostic_ankle_limit")
+#: Recorded beside them, not hardware limits (module docstring).
+REPORTED_LIMITS = ("neck_tail_at_torque_limit", "turn_gap_clamp", "step_clip", "phase_rate_saturated")
+#: The counterfactuals' relaxations (``relaxed``), and the one that lifts each hardware limit (None: not relaxable).
+RELAXATIONS = ("drive_torque", "envelope", "ankle_linkage", "slip", "joint_range", "diagnostic_ankle_limit")
+RELAXES = {"leg_drive_at_torque_limit": "drive_torque", "leg_drive_at_envelope_limit": "envelope",
+           "ankle_linkage": "ankle_linkage", "slip": "slip", "cop_at_pad_edge_with_ankle_saturated": None,
+           "joint_range": "joint_range", "diagnostic_ankle_limit": "diagnostic_ankle_limit"}
+FALL_ONSET_RAD = 0.2  # the fall's onset: the last time the trunk tilt rose through this before the fall
+HIST_S = 3.0  # how far back before a fall its onset is looked for
+LIMIT_NEAR_S = 0.1  # the activity in this last part of the window before the onset is reported as well
+CF_EVERY = 25  # physics steps between the snapshots a counterfactual branches from (50 ms)
+CF_BRANCH_S = 1.0  # a counterfactual branches this long before the fall's onset
+CF_KEEP_S = HIST_S + CF_BRANCH_S + 0.5  # how long snapshots are kept
+CF_HORIZON_S = 1.0  # a counterfactual runs until this long after the original fall
+CF_NULL_M_S = 1e-3  # the null counterfactual: the root velocity changed by this (world x) at the branch
+CF_FRICTION = 5.0  # the "slip" relaxation: sliding friction of every colliding geom
+CF_RANGE_RAD = 1.0  # the "joint_range" relaxation: every hinge's range widened by this on each side
+LABEL_RULE = (f"a hardware limit (HW_LIMITS) active at an update of the {LIMIT_WINDOW_S:g} s before the fall's onset "
+              f"is a candidate; it binds if the episode, restored to {CF_BRANCH_S:g} s before the onset and continued "
+              f"with that limit relaxed, has not fallen and is upright (tilt below the onset's) {CF_HORIZON_S:g} s "
+              "after the original fall (a counterfactual): 'body-limited: <limits>' for the candidates whose "
+              "relaxation alone does that, '... together' if only the candidates relaxed together do, else "
+              "'controller-limited'; 'undetermined' if the unchanged continuation does not repeat the fall or if a "
+              f"{1e3 * CF_NULL_M_S:g} mm/s change of the root velocity at the branch avoids it too (the fall is chaotic "
+              "there); 'unconfirmed' if only a limit the plant cannot relax was a candidate")
+
+
+def set_friction(p: plant.Plant, mu: float) -> None:
+    """Every colliding geom's sliding friction set to ``mu`` (MuJoCo takes the larger of a pair's, so the pads' floor
+    contacts get ``mu``), as the design-study prototype set it."""
+    cg = (p.m.geom_contype | p.m.geom_conaffinity) > 0
+    p.m.geom_friction[cg, 0] = mu
+
+
+def foot_geoms(p: plant.Plant) -> np.ndarray:
+    """Per geom of ``p.m``: the foot it belongs to (0 left, 1 right), else -1."""
+    out = np.full(p.m.ngeom, -1)
+    for i, f in enumerate(p.feet):
+        out[p.m.geom_bodyid == f] = i
+    return out
+
+
+def _normal_forces(m, d, idx: np.ndarray) -> np.ndarray:
+    """The normal force of each contact ``idx``."""
+    if int(m.opt.cone) == int(mujoco.mjtCone.mjCONE_ELLIPTIC):  # the cone's first row is the normal force
+        adr = np.asarray(d.contact.efc_address)[idx]
+        return np.where(adr >= 0, d.efc_force[np.maximum(adr, 0)], 0.0)
+    f6 = np.zeros(6)
+    out = np.zeros(len(idx))
+    for j, i in enumerate(idx):
+        mujoco.mj_contactForce(m, d, int(i), f6)
+        out[j] = f6[0]
+    return out
+
+
+def foot_slip_speed(p: plant.Plant, feet=(0, 1), foot_of: np.ndarray | None = None) -> np.ndarray:
+    """Per foot (left, right): the largest horizontal speed of the foot, relative to what it touches, at its contacts
+    that carry load (positive normal force); 0 for a foot without one or not in ``feet``.  As of the last step's start,
+    like the sensors.  A foot that rocks on its pad's edge or rolls over it moves its body (its origin on the ankle
+    axis is 20-25 mm above the floor) but not its loaded contacts, so it does not slip here."""
+    m, d = p.m, p.d
+    out = np.zeros(2)
+    n = d.ncon
+    if not n:
+        return out
+    foot_of = foot_geoms(p) if foot_of is None else foot_of
+    g = np.asarray(d.contact.geom)[:n]
+    f1, f2 = foot_of[g[:, 0]], foot_of[g[:, 1]]
+    idx = np.flatnonzero((f1 >= 0) != (f2 >= 0))  # a foot against something else (not foot on foot)
+    if not len(idx):
+        return out
+    foot = np.where(f1[idx] >= 0, f1[idx], f2[idx])
+    other = m.geom_bodyid[np.where(f1[idx] >= 0, g[idx, 1], g[idx, 0])]
+    loaded = _normal_forces(m, d, idx) > 0.0
+    pos = np.asarray(d.contact.pos)[:n][idx]
+    v6 = np.zeros(6)
+    for f in feet:
+        sel = np.flatnonzero((foot == f) & loaded)
+        if not len(sel):
+            continue
+        b = p.feet[f]
+        mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, b, v6, 0)  # at the body frame's origin, xpos
+        v = v6[3:] + np.cross(v6[:3], pos[sel] - d.xpos[b])
+        for j, ob in enumerate(other[sel]):
+            if ob != 0:  # a moving body (a pile probe): less its own velocity at the contact
+                mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, int(ob), v6, 0)
+                v[j] -= v6[3:] + np.cross(v6[:3], pos[sel[j]] - d.xpos[ob])
+        out[f] = float(np.max(np.hypot(v[:, 0], v[:, 1])))
+    return out
+
+
+@contextmanager
+def relaxed(tk: Tracker, names):
+    """The plant with the hardware limits ``names`` (``RELAXATIONS``) lifted, for a counterfactual: "drive_torque" the
+    leg drives' torque limits (peak and envelope), "envelope" the torque-speed envelope (every drive at its peak at
+    any speed), "ankle_linkage" the ankle motors' torque limits, "slip" friction ``CF_FRICTION`` on every colliding
+    geom, "joint_range" every hinge's range widened by ``CF_RANGE_RAD`` on each side, "diagnostic_ankle_limit" the
+    tracker's own cap on the ankle torque in the ankle-limit diagnostics (``Tracker.ankle_limit``, standing for the
+    screened model's per-axis box or for the pad's CoP limit).  Restored on exit."""
+    names = set(names)
+    if names - set(RELAXATIONS):
+        raise ValueError(f"unknown relaxations {sorted(names - set(RELAXATIONS))}: choose from {', '.join(RELAXATIONS)}")
+    p = tk.p
+    m, env = p.m, p.envelope
+    saved = (m.actuator_forcelimited.copy(), m.geom_friction.copy(), m.jnt_range.copy(), env.enabled, tk.ankle_limit)
+    try:
+        if "envelope" in names:
+            env.enabled = False
+        if "drive_torque" in names:
+            m.actuator_forcelimited[tk.leg_act] = 0
+        if "ankle_linkage" in names:
+            m.actuator_forcelimited[tk.ankle_act] = 0
+        if "slip" in names:
+            m.geom_friction[(m.geom_contype | m.geom_conaffinity) > 0, 0] = CF_FRICTION
+        if "joint_range" in names:
+            m.jnt_range[tk.hinge_jid, 0] -= CF_RANGE_RAD
+            m.jnt_range[tk.hinge_jid, 1] += CF_RANGE_RAD
+        if "diagnostic_ankle_limit" in names:
+            tk.ankle_limit = None
+        yield
+    finally:
+        m.actuator_forcelimited[:] = saved[0]
+        m.geom_friction[:] = saved[1]
+        m.jnt_range[:] = saved[2]
+        env.enabled = saved[3]  # (and the force ranges back to the peaks)
+        tk.ankle_limit = saved[4]
+
+
+def _apply_push(p: plant.Plant, push) -> None:
+    if push is not None:
+        p.d.xfrc_applied[p.trunk, :2] = push[2:4] if push[0] <= p.d.time < push[0] + push[1] else 0.0
+
+
+def _continue(tk: Tracker, snap: dict, until_s: float, push, null: bool = False) -> dict:
+    """``snap`` restored (with ``null`` the root velocity changed by ``CF_NULL_M_S``) and run on to ``until_s`` or a
+    fall; avoided: no fall and the tilt from home below ``FALL_ONSET_RAD`` at the end."""
+    p = tk.p
+    d = p.d
+    tk.load(snap)
+    if null:
+        d.qvel[0] += CF_NULL_M_S
+    cause = fell = None
+    for _ in range(max(0, int(round((until_s - float(d.time)) / tk.dt)))):
+        _apply_push(p, push)
+        tk.step()
+        cause = p.fall_cause()
+        if cause is not None:
+            fell = float(d.time)
+            break
+    tilt = p.tilt_from_home()
+    return dict(fell=fell is not None, fall_time_s=fell, fall_cause=cause, tilt_end_deg=math.degrees(tilt),
+                avoided=bool(fell is None and tilt < FALL_ONSET_RAD), q_end=d.qpos.copy())
+
+
+def _confirm(tk: Tracker, ring, final: dict, onset: float, fell_at: float, cause: str, q_fall: np.ndarray, push,
+             candidates: list[str]) -> dict:
+    """The counterfactual test of a fall's candidate limits (module docstring, ``LABEL_RULE``); ``tk`` is back at
+    the fall after it."""
+    t0 = time.perf_counter()
+    t_branch = onset - CF_BRANCH_S
+    snaps = list(ring)
+    snap = next((s for s in reversed(snaps) if s["time"] <= t_branch + 1e-9), snaps[0] if snaps else None)
+    tests = [r for r in RELAXATIONS if any(RELAXES[c] == r for c in candidates)]
+    untested = [c for c in candidates if RELAXES[c] is None]
+    until = fell_at + CF_HORIZON_S
+    out = dict(candidates=list(candidates), relaxations=tests, not_relaxable=untested,
+               branch_s=None if snap is None else snap["time"], branch_wanted_s=t_branch, horizon_s=until)
+
+    def strip(r):
+        return {k: v for k, v in r.items() if k != "q_end"}
+
+    if snap is None:
+        out.update(reproduces=False, label="undetermined: no snapshot to branch from")
+        return out
+    base = _continue(tk, snap, until, push)
+    out["reproduces"] = bool(base["fell"] and base["fall_time_s"] == fell_at and base["fall_cause"] == cause
+                             and np.array_equal(base["q_end"], q_fall))
+    if not out["reproduces"]:
+        tk.load(final)
+        out.update(unchanged=strip(base), label="undetermined: the restored episode did not repeat the fall",
+                   wall_s=time.perf_counter() - t0)
+        return out
+    out["null"] = strip(_continue(tk, snap, until, push, null=True))
+    alone = {}
+    for r in tests:
+        with relaxed(tk, (r,)):
+            alone[r] = strip(_continue(tk, snap, until, push))
+    together = None
+    if len(tests) > 1:
+        with relaxed(tk, tests):
+            together = strip(_continue(tk, snap, until, push))
+    with relaxed(tk, RELAXATIONS):
+        every = strip(_continue(tk, snap, until, push))
+    tk.load(final)
+    binding = [r for r in tests if alone[r]["avoided"]]
+    if out["null"]["avoided"]:
+        label = "undetermined: chaotic (the null change avoids the fall)"
+    elif binding:
+        label = "body-limited: " + ", ".join(binding)
+    elif together is not None and together["avoided"]:
+        label = "body-limited: " + " + ".join(tests) + " together"
+    elif untested:
+        label = "unconfirmed: " + ", ".join(untested) + " (not relaxable in the plant)"
+    else:
+        label = "controller-limited"
+    out.update(alone=alone, together=together, every_relaxation=every, binding=binding, label=label,
+               wall_s=time.perf_counter() - t0)
+    return out
+
+
+def _activity(hist: list, onset: float, drives) -> dict:
+    """The limits active in the window before the onset (fractions of its feedback updates)."""
+    win = [h for h in hist if onset - LIMIT_WINDOW_S <= h[0] <= onset]
+    near = [h for h in win if h[0] >= onset - LIMIT_NEAR_S]
+
+    def frac(rows, col, j):
+        return float(np.mean([h[col][j] for h in rows])) if rows else 0.0
+
+    def last(j):
+        t = [h[0] for h in win if h[2][j]]
+        return float(onset - max(t)) if t else None
+
+    return dict(window_s=LIMIT_WINDOW_S, updates=len(win), near_onset_s=LIMIT_NEAR_S,
+                hardware={k: frac(win, 2, j) for j, k in enumerate(HW_LIMITS)},
+                hardware_near_onset={k: frac(near, 2, j) for j, k in enumerate(HW_LIMITS)},
+                hardware_last_active_before_onset_s={k: last(j) for j, k in enumerate(HW_LIMITS)},
+                reported={k: frac(win, 3, j) for j, k in enumerate(REPORTED_LIMITS)},
+                leg_drives=sorted({drives[i].actuator for h in win for i in h[4]}),
+                neck_tail_drives=sorted({drives[i].actuator for h in win for i in h[5]}))
+
+
+def _estimator_stats(E: np.ndarray) -> dict:
+    """Estimator errors over rows (t, CoM relative to the feet m, CoM velocity m/s, tilt rad, yaw rad, CoM height m)."""
+    return dict(updates=len(E), com_rel_feet_err_rms_mm=1e3 * float(np.sqrt(np.mean(E[:, 1] ** 2))),
+                com_rel_feet_err_max_mm=1e3 * float(E[:, 1].max()),
+                com_vel_err_rms_m_s=float(np.sqrt(np.mean(E[:, 2] ** 2))),
+                tilt_err_rms_deg=float(np.degrees(np.sqrt(np.mean(E[:, 3] ** 2)))),
+                tilt_err_max_deg=float(np.degrees(E[:, 3].max())), yaw_err_end_deg=float(np.degrees(E[-1, 4])),
+                com_height_err_rms_mm=1e3 * float(np.sqrt(np.mean(E[:, 5] ** 2))))
+
+
+def run(tk: Tracker, seconds: float, start: str = "frame", velocity_offset=None, push=None, seed: int | None = None,
+        period: float | None = None, confirm: bool = True, relax=()) -> dict:
+    """One episode: reset, then ``seconds`` of simulated time or until a fall.  ``push`` = (t0, duration, fx, fy) N
+    on the trunk.  Returns the outcome; a fall's cause (``plant.Plant.fall_cause``), its onset (the last time the
+    tilt rose through ``FALL_ONSET_RAD``), the limits active in the ``LIMIT_WINDOW_S`` before the onset and the fall's
+    label (module docstring: with ``confirm`` from the counterfactuals, else "unconfirmed" with the candidates);
+    tracking and drive statistics; for R2 the estimator's errors against the true state, over the episode and, for a
+    fall, up to the window before its onset.  ``period`` is the stride count's unit (default: the first periodic
+    segment's period).  ``relax`` lifts hardware limits (``relaxed``) for the whole episode, a diagnostic: its falls
+    are not labelled."""
+    tk.reset(start, velocity_offset=velocity_offset, seed=seed)
+    relax = tuple(relax or ())
+    if relax:
+        confirm = False
+    with relaxed(tk, relax) if relax else nullcontext():
+        out, _, fall = _episode(tk, seconds, push, period, confirm)
+    if fall is not None and confirm:
+        cf = _confirm(tk, *fall)
+        out.update(fall_label=cf["label"], counterfactual=cf)
+    elif relax and out["fell"]:
+        out["fall_label"] = "not labelled (hardware limits relaxed: " + ", ".join(relax) + ")"
+    out.update(start=start, relaxed=list(relax))
+    return out
+
+
+def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: bool):
+    """``run``'s episode loop (the tracker reset): the outcome, the fall's onset, and with ``confirm`` what
+    ``_confirm`` needs of a fall."""
+    p = tk.p
+    m, d, env = p.m, p.d, p.envelope
+    per = period or next((sg.period for sg in tk.track.segments if sg.kind == "periodic"), 1.0)
+    n = int(round(seconds / tk.dt))
+    nu = m.nu
+    peak = env.peak
+    tau_sq, w, wmax, sat_steps = np.zeros(nu), np.zeros(nu), np.zeros(nu), np.zeros(nu)
+    pairs = [(tk.idx[f"{s}_ankle_pitch"], tk.idx[f"{s}_ankle_roll"]) for s in statics.SIDES]  # their motors a, b
+    hist = deque(maxlen=int(round(HIST_S / (FEEDBACK_EVERY * tk.dt))))  # per feedback update: time, tilt, limits
+    ring = deque(maxlen=max(1, int(math.ceil(CF_KEEP_S / (CF_EVERY * tk.dt)))))  # snapshots (counterfactuals)
+    bufs = [np.empty(mujoco.mj_stateSize(m, MJ_STATE)) for _ in range(2)]
+    leg, neck_tail = tk.leg_act, ~tk.leg_act
+    weight = tk.mass * G
+    x0 = d.qpos[:2].copy()
+    R_home = p._R_home
+    yaw_prev, yaw_turned = _yaw(d.xmat[p.trunk]), 0.0
+    tilts, rolls, pitches, deltas, est_err, e_dcm = [], [], [], [], [], []
+    fell_at = cause = q_fall = final = None
+    clamp = np.zeros(nu, bool)
+    sat_any = np.zeros(nu, bool)
+    t0 = time.perf_counter()
+    k = 0
+    for k in range(n):
+        _apply_push(p, push)
+        if confirm:
+            bufs.reverse()  # bufs[0]: the state at this step's start, bufs[1]: at the last one's
+            mujoco.mj_getState(m, d, bufs[0], MJ_STATE)
+            if k % CF_EVERY == 1:
+                ring.append(tk.save(bufs[1]))
+        np.dot(env.moment, d.qvel, out=w)
+        tk.step()
+        f = d.actuator_force
+        tau_sq += f * f
+        np.maximum(wmax, np.abs(w), out=wmax)
+        fr = m.actuator_forcerange
+        sat = (f >= fr[:, 1] - 1e-9) | (f <= fr[:, 0] + 1e-9)
+        sat_steps += sat
+        sat_any |= sat
+        if env.active:
+            clamp |= sat & ((fr[:, 1] < peak - 1e-12) | (fr[:, 0] > -peak + 1e-12))
+        if k % FEEDBACK_EVERY == 0:
+            qj = d.qpos[p.qadr]
+            loads = p.foot_loads()
+            loaded = [i for i in (0, 1) if loads[i] > SLIP_LOAD_FRAC * weight]
+            slip = bool(loaded) and bool(np.any(foot_slip_speed(p, loaded, tk.foot_of) > SLIP_SPEED))
+            fl = tk.flags
+            ankle_sat = any(sat_any[i] or sat_any[j_] for i, j_ in pairs)
+            cop_edge = bool(fl.get("cop_clip")) and ankle_sat
+            diag_ankle = bool(tk.ankle_clipped)
+            tk.ankle_clipped = False
+            R = d.xmat[p.trunk].reshape(3, 3)
+            Rr = R @ R_home.T
+            tilt = float(np.arccos(np.clip(Rr[2, 2], -1, 1)))
+            hw = (bool((sat_any & leg).any()), bool((clamp & leg).any()),
+                  any(sat_any[i] and sat_any[j_] for i, j_ in pairs), slip, cop_edge,
+                  bool(np.any((qj <= tk.lo + 1e-3) | (qj >= tk.hi - 1e-3))), diag_ankle)
+            rep = (bool((sat_any & neck_tail).any()), bool(fl.get("turn_gap_clamp")), bool(fl.get("step_clip")),
+                   bool(fl.get("phase_rate_saturated")))
+            hist.append((float(d.time), tilt, hw, rep, tuple(np.flatnonzero(sat_any & leg)),
+                         tuple(np.flatnonzero(sat_any & neck_tail))))
+            clamp[:] = False
+            sat_any[:] = False
+            tilts.append(tilt)
+            r_, p_ = _roll_pitch(Rr)
+            rolls.append(r_)
+            pitches.append(p_)
+            deltas.append(tk.delta)
+            e_dcm.append(float(np.linalg.norm(tk.e)))
+            yaw = _yaw(R)
+            yaw_turned += _wrap(yaw - yaw_prev)
+            yaw_prev = yaw
+            if tk.est is not None:
+                mujoco.mj_subtreeVel(m, d)
+                es = tk.est
+                ft = np.array([d.xpos[fb][:2] for fb in p.feet])
+                est_err.append((float(d.time),
+                                float(np.linalg.norm((es.com[:2] - es.foot[:, :2].mean(0))
+                                                     - (d.subtree_com[p.trunk][:2] - ft.mean(0)))),
+                                float(np.linalg.norm(es.com_vel[:2] - d.subtree_linvel[p.trunk][:2])),
+                                float(np.arccos(np.clip(float(es.R[:, 2] @ R[:, 2]), -1.0, 1.0))),
+                                abs(_wrap(_yaw(es.R) - yaw)), float(es.com[2] - es.foot[:, 2].mean())
+                                - float(d.subtree_com[p.trunk][2] - np.mean([d.xpos[fb][2] for fb in p.feet]))))
+        cause = p.fall_cause()
+        if cause is not None:
+            fell_at = float(d.time)
+            if confirm:
+                q_fall, final = d.qpos.copy(), tk.save(bufs[0])
+            break
+    wall = time.perf_counter() - t0
+    steps = k + 1
+    dur = float(d.time)
+    heading0 = _yaw(R_home)
+    dxy = d.qpos[:2] - x0
+    fwd = np.array([math.cos(heading0), math.sin(heading0)])
+    rms = np.sqrt(tau_sq / steps)
+    sustained = np.array([dr.sustained for dr in p.drives])
+    ratio_w = wmax / env.rated
+    out = dict(mode=tk.mode, terms=sorted(tk.terms), start=tk.start, seconds=dur, strides=dur / per,
+               reference_strides=(tk.tau_ref if tk.mode != "R0" else dur) / per, fell=fell_at is not None,
+               fall_time_s=fell_at, fall_cause=cause, fall_onset_s=None, fall_label=None, limits_before_onset=None,
+               counterfactual=None, mean_forward_speed_m_s=float(dxy @ fwd / max(dur, 1e-9)),
+               lateral_drift_m=float(dxy @ np.array([-fwd[1], fwd[0]])), yaw_turned_deg=float(np.degrees(yaw_turned)),
+               mean_yaw_rate_rad_s=yaw_turned / max(dur, 1e-9),
+               tilt_from_home_max_deg=float(np.degrees(max(tilts))) if tilts else 0.0,
+               roll_rms_deg=float(np.degrees(np.sqrt(np.mean(np.square(rolls))))) if rolls else 0.0,
+               pitch_rms_deg=float(np.degrees(np.sqrt(np.mean(np.square(pitches))))) if pitches else 0.0,
+               roll_peak_deg=float(np.degrees(np.max(np.abs(rolls)))) if rolls else 0.0,
+               pitch_peak_deg=float(np.degrees(np.max(np.abs(pitches)))) if pitches else 0.0,
+               dcm_error_rms_mm=1e3 * float(np.sqrt(np.mean(np.square(e_dcm)))) if e_dcm else 0.0,
+               phase_rate_range=[float(min(deltas)), float(max(deltas))] if deltas else [0.0, 0.0],
+               saturated_frac={p.drives[i].actuator: float(sat_steps[i] / steps) for i in np.flatnonzero(sat_steps)},
+               worst_sustained_ratio=[p.drives[int(np.argmax(rms / sustained))].actuator, float(np.max(rms / sustained))],
+               worst_speed_ratio=[p.drives[int(np.argmax(ratio_w))].actuator, float(np.max(ratio_w))],
+               captures=list(tk.capture_log), segment_reached=tk.track.segment(tk.tau_ref if tk.mode != "R0" else dur).name,
+               reference_time_s=float(tk.tau_ref if tk.mode != "R0" else dur), wall_s=wall, steps_per_s=steps / wall)
+    onset = fall = None
+    if fell_at is not None:
+        hist = list(hist)
+        i_on = len(hist) - 1
+        while i_on > 0 and hist[i_on - 1][1] >= FALL_ONSET_RAD:
+            i_on -= 1
+        onset = hist[i_on][0]
+        active = _activity(hist, onset, p.drives)
+        candidates = [key for key in HW_LIMITS if active["hardware"][key] > 0.0]
+        if confirm:
+            fall = (ring, final, onset, fell_at, cause, q_fall, push, candidates)
+        label = "unconfirmed: " + (", ".join(candidates) if candidates else "no hardware limit active")
+        out.update(fall_onset_s=onset, fall_label=label, limits_before_onset=active)
+    if est_err:
+        E = np.array(est_err)
+        out["estimator"] = dict(_estimator_stats(E), noise=tk.noise.describe())
+        if onset is not None:
+            cut = onset - LIMIT_WINDOW_S
+            pre = E[E[:, 0] <= cut]
+            out["estimator"]["before_fall"] = dict(
+                until_s=cut, rule=f"updates up to {LIMIT_WINDOW_S:g} s before the fall's onset",
+                **(_estimator_stats(pre) if len(pre) else dict(updates=0)))
+            upto = E[E[:, 0] <= onset]
+            out["estimator"]["until_onset"] = dict(until_s=onset, rule="updates up to the fall's onset",
+                                                   **(_estimator_stats(upto) if len(upto) else dict(updates=0)))
+    return out, onset, fall

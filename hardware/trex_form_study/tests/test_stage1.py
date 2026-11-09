@@ -13,6 +13,7 @@ from __future__ import annotations
 import inspect
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -25,11 +26,12 @@ sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
 from designlab import carpet, catalog, mjcf, statics  # noqa: E402
-from designlab.stage1 import BODIES, drive, gates, legs, plant, refs  # noqa: E402
+from designlab.stage1 import BODIES, control, drive, estimator, gates, legs, plant, refs, transitions  # noqa: E402
 from designlab.stage1.__main__ import main as cli  # noqa: E402
 
 BODY = "60-N-T-10"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
+G4_RUN_STRIDES = gates.G4_STRIDES - 1e-3  # a gated run that walked its full length did not fall
 slow = pytest.mark.skipif(not os.environ.get("STAGE1_SLOW"), reason="full-length gate check; set STAGE1_SLOW=1")
 
 
@@ -670,6 +672,580 @@ def test_gate_records_follow_the_build_decisions(body):
     assert pj["options"] == g1["plant_options"] and pj["gains"]["ankle_gains_source"] == "STAGE1_PLAN.md decision 11"
     assert set(pj["gains"]["ankle_joint_space"]) >= set(statics.SIDES)
     assert all("pile_probe_damping_ratio" in f for f in pj["ankle"]["armature"]["feet"].values())
+
+
+# ------------------------------------------------------------------------------------------------
+# Transitions (plan section 3 step 4, G3)
+# ------------------------------------------------------------------------------------------------
+def _plan(src: dict, name: str):
+    a, b = (transitions.gait_of(BODY, n, src["H"]) for n in transitions.TRANSITIONS[name])
+    geo = transitions.Geometry.of(src["M"], src["q_home"], (b if a.stand else a).crouch)
+    return transitions.plan(name, a, b, geo), geo
+
+
+def test_transition_plans_are_continuous(nominal):
+    src, _ = nominal
+    for name in transitions.TRANSITIONS:  # every plan (no IK: fast)
+        pl, _ = _plan(src, name)
+        dt = np.diff(pl.t)
+        assert np.all(dt > 0) and len(pl.phase) == pl.t.size
+        assert np.diff(pl.phase) == pytest.approx(np.full(len(pl.phase) - 1, 1 / transitions.N_FRAMES))
+        # the feet, the ZMP target, the heading, the height, the neck and the tail move without jumps: no faster than
+        # in the periodic walks' own strides (the first and last output strides; the stand for a start or a stop)
+        n = transitions.N_FRAMES
+        walk = [sl for sl, g in ((slice(pl.out.start, pl.out.start + n), pl.a), (slice(pl.out.stop - n, pl.out.stop),
+                                                                                  pl.b)) if not g.stand]
+        for arr in (pl.foot_pos, pl.zmp):
+            speed = np.linalg.norm(np.diff(arr, axis=0), axis=-1) / (dt[:, None] if arr.ndim == 3 else dt)
+            assert speed.max() <= 1.05 * max(speed[sl].max() for sl in walk), name
+        assert np.abs(np.diff(pl.heading) / dt).max() <= max(abs(pl.a.yaw_rate), abs(pl.b.yaw_rate)) + 1e-6, name
+        assert np.abs(np.diff(pl.root_z) / dt).max() < 0.05 and np.abs(np.diff(pl.tail) / dt).max() < 2.0, name
+        z0 = transitions.Geometry.of(src["M"], src["q_home"], 0.0).feet0
+        for side, lo, td, lift, f0, f1 in pl.swings:  # each swing starts on one footprint and lands on the next
+            j = statics.SIDES.index(side)
+            for p_, f in ((lo, f0), (td, f1)):  # at the frames that fall on the events (a ramp's may fall between)
+                k = int(round((p_ - pl.phase[0]) * transitions.N_FRAMES))
+                if 0 <= k < len(pl.phase) and abs(pl.phase[k] - p_) < 1e-9:
+                    assert pl.foot_pos[k, j, :2] == pytest.approx(f[0], abs=1e-9)
+                    assert pl.foot_pos[k, j, 2] == pytest.approx(z0[side][2], abs=1e-12)
+
+
+def test_start_and_stop_steps(nominal):
+    src, g = nominal
+    S = g["traj"]["info"]["stride"]
+    pl, geo = _plan(src, "start")
+    steps = [(s[0], s[1], float(np.linalg.norm(s[5][0] - s[4][0]))) for s in pl.swings
+             if pl.first - 0.5 <= s[1] < pl.last]  # the swings of the output window (as transitions.summary lists them)
+    assert steps[0][:2] == ("left", 0.0) and steps[0][2] == pytest.approx(0.5 * S, rel=1e-9)  # half a stride first
+    assert all(length == pytest.approx(S, rel=1e-9) for _, lo, length in steps[1:])  # then the periodic walk's
+    k0 = int(round((-transitions.SHIFT_STRIDES - pl.phase[0]) * transitions.N_FRAMES))
+    assert np.all(pl.zmp[:k0] == pl.stand_point["initial"]) and np.all(~pl.swing[: k0 + 1])  # stand, then shift
+    assert pl.stand_point["initial"] == pytest.approx(geo.com0[:2])
+    st, _ = _plan(src, "stop")
+    last = st.swings[-1]
+    assert last[:2] == ("left", 0.0) and float(np.linalg.norm(last[5][0] - last[4][0])) == pytest.approx(0.5 * S)
+    fl, fr = st.foot_pos[-1, 0, :2], st.foot_pos[-1, 1, :2]  # one step, then the home stance (plan section 4)
+    assert fl - fr == pytest.approx(geo.feet0["left"][:2] - geo.feet0["right"][:2], abs=1e-12)
+    assert st.zmp[-1] == pytest.approx(st.stand_point["final"]) and not st.swing[-transitions.N_FRAMES:].any()
+
+
+def test_transition_plan_steady_part_is_the_periodic_walk(nominal):
+    src, g = nominal
+    arrays = refs.arrays(src, g)
+    n = transitions.N_FRAMES
+    pl, _ = _plan(src, "start")
+    ref = refs.Reference("nominal", arrays)
+    mot = transitions._align(pl, float(pl.last - 1), ref)  # the last output stride against the walk's stride 0
+    sel = slice(pl.out.stop - n, pl.out.stop)
+    assert pl.zmp[sel] == pytest.approx(transitions._move(ref.zmp_ref, mot), abs=1e-9)  # the ZMP target
+    assert pl.foot_pos[sel][:, :, :2] == pytest.approx(transitions._move(ref.feet[:, :, :2], mot), abs=2e-4)  # IK tol.
+    assert np.array_equal(pl.swing[sel], ~ref.support)
+
+
+def test_preview_control_reproduces_the_periodic_lipm(nominal):
+    _, g = nominal
+    tr = g["traj"]
+    c, dt, S, om = tr["com_ref"], tr["dt"], tr["info"]["stride"], tr["info"]["omega"]
+    n = len(c)
+    lam = 2 * np.pi * np.fft.fftfreq(n, d=dt)
+    cx = c[:, 0] - S / (n * dt) * np.arange(n) * dt
+    cdd = np.real(np.fft.ifft(-(lam**2) * np.fft.fft(cx)))
+    cd = np.real(np.fft.ifft(1j * lam * np.fft.fft(cx))) + S / (n * dt)
+    zx = c[:, 0] - cdd / om**2  # the ZMP whose periodic LIPM solution is gait.generate's CoM
+    gains = transitions.preview_gains(dt, om)
+    reps = 8 + gains["N"] // n + 2
+    xs, _ = transitions.preview_run(gains, np.concatenate([zx + j * S for j in range(reps)]),
+                                    np.array([c[0, 0], cd[0], cdd[0]]))
+    err = max(np.abs(xs[j * n : (j + 1) * n, 0] - (c[:, 0] + j * S)).max() for j in range(8))
+    assert err < 2e-5  # m: 4 um here
+
+
+def test_transition_derivatives_on_a_nonuniform_grid(nominal):
+    src, _ = nominal
+    m = src["M"].m
+    t = np.cumsum(np.r_[0.0, np.linspace(0.006, 0.004, 30)])  # a speed change's shrinking frame interval
+    qs = np.tile(src["q_home"], (len(t), 1))
+    a = np.linspace(0.1, 0.5, m.nv - 6)
+    qs[:, 7:] += 0.3 * t[:, None] + a[None, :] * t[:, None] ** 2  # quadratic in time: the scheme is exact
+    qd, qdd = transitions.derivatives(m, qs, t)
+    assert qd[1:-1, 6:] == pytest.approx(0.3 + 2 * a[None, :] * t[1:-1, None], abs=1e-9)
+    assert qdd[2:-2, 6:] == pytest.approx(np.tile(2 * a, (len(t) - 4, 1)), abs=1e-6)
+    assert np.isnan(qd[0]).all() and np.isnan(qdd[1]).all()
+
+
+@pytest.mark.parametrize("body", sorted(BODIES))
+def test_transition_records_pass_g3(body):
+    """The committed transitions (``transitions.json``) and their G3 record in ``gates.json``."""
+    doc = json.loads((RUN / body / "transitions.json").read_text())
+    rows = doc["transitions"]
+    assert set(rows) == set(transitions.TRANSITIONS)
+    for name, e in rows.items():
+        assert (e["from_"], e["to"]) == transitions.TRANSITIONS[name] and e["ik_ok"]
+        assert e["g3"]["com_max_mm"] <= transitions.G3_COM_MM and e["g3"]["zmp_max_mm"] <= transitions.G3_ZMP_MM
+        assert e["g3"]["pass_"] and e["join_a"]["at_join"]["com_mm"] < 0.1 and e["com_tracking_max_m"] < 1e-5
+        if e["kind"] == "stop":  # one step, then double support until at rest within about 1.5 strides
+            assert e["stop"]["at_rest_strides"] < 1.6 and e["steps"][-1]["lift_off_phase"] == 0.0
+    g3 = json.loads((RUN / body / "gates.json").read_text())["G3"]
+    assert g3["pass_"] and not g3["failed"] and not g3["fallback"] and set(g3["transitions"]) == set(rows)
+    # plan section 4's "stopped within 1.5 strides": the stop references end their forward motion in time but come to
+    # rest just after 1.5 strides, so the reading of "stopped" decides (reported for the owner, not gated)
+    st = g3["stops"]
+    assert st["limit_strides"] == gates.STOP_WITHIN_STRIDES == 1.5
+    assert set(st["stops"]) == {n for n, e in rows.items() if e["kind"] == "stop"}
+    assert st["every_forward_within"] and not st["every_at_rest_within"]
+    for name, s in st["stops"].items():
+        assert s["at_rest_strides"] == rows[name]["stop"]["at_rest_strides"]
+        assert s["at_rest_within"] == (s["at_rest_strides"] <= 1.5)
+
+
+def test_g3_cli_reproduces_the_record(tmp_path):
+    out = tmp_path / BODY
+    out.mkdir()
+    (out / "transitions.json").write_text((RUN / BODY / "transitions.json").read_text())
+    assert cli(["gates", "--body", BODY, "--out", str(tmp_path), "--only", "g3"]) == 0
+    got = json.loads((out / "gates.json").read_text())["G3"]
+    assert got == json.loads((RUN / BODY / "gates.json").read_text())["G3"]
+
+
+# ------------------------------------------------------------------------------------------------
+# Tracker (plan section 3 step 5, G4): control law and estimator
+# ------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def nominal_ref(nominal_npz):
+    return refs.Reference.load(nominal_npz)
+
+
+def _tracker(p, ref, mode="R1", strides=3.0, **kw):
+    track = control.Track(p, control.omega0(p, ref.q_home)).add_periodic(ref, strides)
+    return control.Tracker(p, track, mode, **kw)
+
+
+def test_tracker_gains_are_one_vector():
+    assert len(control.GAIN_NAMES) == 14 == len(control.DEFAULT_GAINS) == len(set(control.GAIN_NAMES))
+    lo, hi = control.GAIN_BOUNDS.T
+    assert np.all(lo <= control.DEFAULT_GAINS) and np.all(control.DEFAULT_GAINS <= hi)
+    g = control.gains_dict()  # the design-study prototype's values (track_proto.py)
+    assert (g["k_dcm"], g["cop_x"], g["cop_y"], g["k_step"], g["step_x"], g["step_out"], g["decay"], g["k_trunk"],
+            g["d_trunk"], g["k_yaw"]) == (2.0, 0.02, 0.012, 1.0, 0.05, 0.03, 1.0, 40.0, 2.0, 0.5)
+    assert control.gains_dict(control.DEFAULT_GAINS * 2)["k_step"] == 2.0
+    with pytest.raises(ValueError):
+        control.gains_dict(np.ones(13))
+    assert control.turn_gap(BODY) == pytest.approx(3.43e-3)  # the target turns' smallest gap (turning screen)
+
+
+@pytest.mark.parametrize("body", sorted(BODIES))
+def test_turn_gap_is_a_pelvis_to_thigh_gap(body):
+    """The turn gap the inward step clamp uses is between the trunk's pelvis and the same-side thigh, not between the
+    legs (the screen's leg-to-leg gap is tens of millimetres)."""
+    info = control.turn_gap_info(body)
+    assert set(info) == set(control.TURN_CASES)
+    case = min(info, key=lambda c: info[c]["min_gap_mm"])
+    assert 1e-3 * info[case]["min_gap_mm"] == pytest.approx(control.turn_gap(body))
+    trunk, thigh = info[case]["bodies"]
+    assert trunk == "trunk" and thigh.endswith("_thigh") and not info[case]["leg_to_leg"]
+    assert _side_letter(info[case]["pair"][0]) == thigh[0]  # the pelvis part on the thigh's own side
+    assert all(c["lateral_gap_mm"] > 30.0 for c in info.values())
+
+
+def _side_letter(geom: str) -> str | None:
+    m = re.search(r"_([lr])(_|$)", geom)
+    return m.group(1) if m else None
+
+
+def test_inward_step_clamp_protects_no_clearance(nominal_npz, tmp_path):
+    """Near touchdown in the nominal walk, the clamp's 2.4 mm inward moves the swinging side's pelvis-thigh pair by
+    under 0.5 mm and 30 mm inward still leaves every leg part that comes close in motion 25 mm (the cap) apart."""
+    (tmp_path / "refs").mkdir()
+    (tmp_path / "refs" / "nominal.npz").write_bytes(nominal_npz.read_bytes())
+    r = control.inward_step_clearance(BODY, tmp_path, references=("nominal",))
+    assert r["inward_clamp_m"] == pytest.approx(control.turn_gap(BODY) - control.TURN_GAP_MARGIN)
+    assert r["deltas_m"][1] == r["inward_clamp_m"] and r["deltas_m"][-1] == control.gains_dict()["step_out"]
+    for side, rows in r["references"]["nominal"]["swings"].items():
+        own = next(cs for cs, pair in r["references"]["nominal"]["turn_gap_pair"].items()
+                   if _side_letter(pair[0]) == side[0])
+        d0, d_clamp, d30 = (rows[i]["turn_gap_pair_mm"][own] for i in (0, 1, -1))
+        assert 0.0 < d0 - d_clamp < 0.5 and d30 > 5.0  # 9.1 / 8.9 / 6.6 mm
+        assert all(x["moving_leg_pairs_mm"] >= 0.999 * r["cap_mm"] for x in rows)
+
+
+def test_r0_is_g2s_replay_bit_for_bit(nominal_ref):
+    p = plant.build(BODY, "hard", settle=False)
+    r = control.run(_tracker(p, nominal_ref, "R0"), nominal_ref.period)
+    q_r0 = p.d.qpos.copy()
+    p2 = plant.build(BODY, "hard", settle=False)
+    g = gates.replay(p2, nominal_ref, strides=1.0)
+    assert r["strides"] == g["strides"] and np.array_equal(q_r0, p2.d.qpos)
+
+
+def test_servo_target_law(hard, nominal_ref):
+    """ctrl = q_ref + dq + (kv qd_ref + tau_ff + dtau) / kp in motor coordinates (plan section 2)."""
+    tk = _tracker(hard, nominal_ref)
+    tk.hold = "hold"
+    tk.reset("frame")
+    rng = np.random.default_rng(4)
+    dq, dtau = rng.uniform(-0.01, 0.01, tk.nj), rng.uniform(-0.5, 0.5, tk.nj)
+
+    def fixed(t_ref, q_ref):
+        tk.dq, tk.dtau = dq, dtau
+
+    tk.feedback = fixed
+    seen = {}
+    step = hard.step
+    hard.step = lambda n=1: seen.setdefault("ctrl", hard.d.ctrl.copy())
+    try:
+        tk.step()
+    finally:
+        hard.step = step
+    x = nominal_ref.interp(0.0, np.hstack(nominal_ref.joint_series(hard.qadr, hard.dofs)
+                                          + (nominal_ref.qdd_series(hard.dofs),)))
+    nj = tk.nj
+    q, qd, tau, qdd = x[:nj], x[nj : 2 * nj], x[2 * nj : 3 * nj], x[3 * nj :]
+    ff = tau + tk.damp * qd + tk.fric * np.tanh(qd / gates.FRICTION_SMOOTH) + hard.armature_extra @ qdd
+    want = hard.G @ (q + dq) + (hard.kv * (hard.G @ qd) + np.linalg.solve(hard.G.T, ff + dtau)) / hard.kp
+    assert seen["ctrl"] == pytest.approx(want, rel=1e-12, abs=1e-12)
+    hard.reset()
+
+
+def test_ankle_feedback_shifts_the_cop(hard, nominal_ref):
+    """A DCM error e gives the stance ankle the torque of a ZMP shift clip(k_dcm e) under the body's weight."""
+    tk = _tracker(hard, nominal_ref, terms=("ankle",))
+    tk.reset("frame")
+    k = 30  # left foot in swing: the right foot alone carries the body
+    assert not nominal_ref.support[k, 0] and nominal_ref.support[k, 1]
+    hard.set_state(nominal_ref.q[k], nominal_ref.qd[k])
+    t = k * nominal_ref.step
+    view = tk.state.view
+
+    def shifted():
+        v = view()
+        _, ref = tk.track.info(t)
+        pa, ya = tk._anchor_frame(v, int(ref["anchor"]))
+        v["com"] = v["com"].copy()  # put the DCM 3 mm ahead and 2 mm to the left of the reference
+        v["com"][:2] = pa + control._rot2(ya) @ (ref["dcm_rel"] + [0.003, 0.002]) - v["com_vel"][:2] / tk.track.omega
+        return v
+
+    tk.state.view = shifted
+    tk.feedback(t, None)
+    dp = control._rot2(tk._anchor_frame(view(), 1)[1]) @ np.clip(2.0 * np.array([0.003, 0.002]), -0.012, 0.012)
+    Fz = tk.mass * control.G
+    M = Fz * np.array([-dp[1], dp[0], 0.0])
+    d = hard.d
+    for x in ("ankle_pitch", "ankle_roll"):
+        i = tk.idx[f"right_{x}"]
+        assert tk.dtau[i] == pytest.approx(float(d.xaxis[tk.jid[f"right_{x}"]] @ M), rel=1e-9)
+        assert tk.dtau[tk.idx[f"left_{x}"]] == 0.0
+    assert np.allclose(np.delete(tk.dtau, [tk.idx[f"{s}_{x}"] for s in statics.SIDES
+                                           for x in ("ankle_pitch", "ankle_roll")]), 0.0)
+    hard.reset()
+
+
+def test_ankle_torques_imply_the_contact_cop(hard):
+    hard.reset()
+    m, d = hard.m, hard.d
+    q = hard.q_home[hard.qadr].copy()
+    for s in statics.SIDES:
+        q[hard.joints.index(f"{s}_ankle_pitch")] += 0.02
+        q[hard.joints.index(f"{s}_ankle_roll")] -= 0.01
+    hard.command(q)
+    hard.step(1000)
+    mujoco.mj_forward(m, d)
+    tau = d.qfrc_actuator[hard.dofs] + d.qfrc_passive[hard.dofs]
+    for i, (side, f) in enumerate(zip(statics.SIDES, hard.feet, strict=True)):
+        jids = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"{side}_ankle_{x}") for x in ("pitch", "roll")]
+        t2 = tau[[hard.joints.index(f"{side}_ankle_{x}") for x in ("pitch", "roll")]]
+        Fz, cs = 0.0, np.zeros(3)
+        for k in range(d.ncon):
+            c = d.contact[k]
+            if f in (m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]):
+                fr = np.zeros(6)
+                mujoco.mj_contactForce(m, d, k, fr)
+                Fz, cs = Fz + fr[0], cs + fr[0] * c.pos
+        cop = control.ankle_cop(d, jids, t2, Fz)
+        assert cop == pytest.approx(cs[:2] / Fz, abs=2e-3)  # quasi-static: within 2 mm of MuJoCo's contact CoP
+        assert control.ankle_torque(d, jids, cop, Fz) == pytest.approx(t2, rel=1e-9, abs=1e-12)
+    hard.reset()
+
+
+def test_support_polygon_helpers():
+    sq = np.array([[0.0, 0.0], [0.1, 0.0], [0.1, 0.1], [0.0, 0.1]])
+    assert control.shrink(sq, 0.01) == pytest.approx(np.array([[0.01, 0.01], [0.09, 0.01], [0.09, 0.09], [0.01, 0.09]]))
+    assert control.project_into(sq, np.array([0.05, 0.05])) == (pytest.approx([0.05, 0.05]), False)
+    x, out = control.project_into(sq, np.array([0.13, 0.05]))
+    assert out and x == pytest.approx([0.1, 0.05])
+    assert control.signed_distance(sq, np.array([0.05, 0.13])) == pytest.approx(0.03)
+    assert control.signed_distance(sq, np.array([0.05, 0.02])) == pytest.approx(-0.02)
+    sup = np.array([[True, True]] * 3 + [[False, True]] * 4 + [[True, True]] * 2 + [[True, False]] * 4 + [[True, True]])
+    sw = control._swing_of(sup)
+    assert list(sw[3:7]) == [0] * 4 and list(sw[9:13]) == [1] * 4
+    assert list(control._swing_progress(sw, periodic=False)[3:7]) == pytest.approx([0, 0.25, 0.5, 0.75])
+    anc = control._anchor(sw, periodic=False, half=3)  # stance foot; the foot that landed last; the next stance foot
+    assert list(anc) == [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1]
+
+
+def test_r1_tracks_a_few_strides(hard, nominal_ref):
+    tk = _tracker(hard, nominal_ref, strides=4.0)
+    r = control.run(tk, 3 * nominal_ref.period)
+    assert not r["fell"] and r["strides"] == pytest.approx(3.0, abs=1e-3)
+    assert max(abs(v) for v in r["phase_rate_range"]) <= control.PHASE_RATE_LIMIT
+    assert r["dcm_error_rms_mm"] < 30.0 and r["segment_reached"] == "nominal"
+    hard.reset()
+
+
+@pytest.mark.parametrize("mode", ["R1", "R2"])
+def test_saved_episode_state_repeats_bit_for_bit(hard, nominal_ref, mode):
+    """``Tracker.load`` of a ``Tracker.save`` taken mid-walk (``run``'s way: MuJoCo's state at the start of the step
+    just taken) continues exactly as the episode did: the counterfactuals' unchanged continuation."""
+    tk = _tracker(hard, nominal_ref, mode)
+    tk.reset("frame", seed=3)
+    m, d = hard.m, hard.d
+    bufs = [np.empty(mujoco.mj_stateSize(m, control.MJ_STATE)) for _ in range(2)]
+    snap = None
+    for k in range(352):  # a snapshot off the feedback updates' phase
+        bufs.reverse()
+        mujoco.mj_getState(m, d, bufs[0], control.MJ_STATE)
+        if k == 351:
+            snap = tk.save(bufs[1])
+            break
+        tk.step()
+    for _ in range(400):
+        tk.step()
+    want = (d.qpos.copy(), d.qvel.copy(), d.sensordata.copy(), tk.dq.copy(), tk.e.copy(), tk.delta)
+    with control.relaxed(tk, control.RELAXATIONS):  # a relaxed branch in between leaves nothing behind
+        tk.load(snap)
+        for _ in range(200):
+            tk.step()
+    tk.load(snap)
+    for _ in range(400):
+        tk.step()
+    got = (d.qpos.copy(), d.qvel.copy(), d.sensordata.copy(), tk.dq.copy(), tk.e.copy(), tk.delta)
+    for a, b in zip(want, got, strict=True):
+        assert np.array_equal(a, b)
+    hard.reset()
+
+
+def test_relaxations_lift_the_limits_and_are_undone(hard, nominal_ref):
+    tk = _tracker(hard, nominal_ref)
+    tk.reset("frame")
+    m = hard.m
+    before = (m.actuator_forcelimited.copy(), m.geom_friction.copy(), m.jnt_range.copy())
+    with control.relaxed(tk, control.RELAXATIONS):
+        assert not m.actuator_forcelimited[tk.leg_act].any() and m.actuator_forcelimited[~tk.leg_act].all()
+        assert not hard.envelope.enabled
+        cg = (m.geom_contype | m.geom_conaffinity) > 0
+        assert np.all(m.geom_friction[cg, 0] == control.CF_FRICTION)
+        assert m.jnt_range[tk.hinge_jid] == pytest.approx(before[2][tk.hinge_jid] + [-1.0, 1.0])
+    assert hard.envelope.enabled
+    for a, b in zip(before, (m.actuator_forcelimited, m.geom_friction, m.jnt_range), strict=True):
+        assert np.array_equal(a, b)
+    tk.ankle_limit = "cop"  # the ankle-limit diagnostics' own cap is lifted and put back too
+    with control.relaxed(tk, ("diagnostic_ankle_limit",)):
+        assert tk.ankle_limit is None
+    assert tk.ankle_limit == "cop"
+    tk.ankle_limit = None
+    with pytest.raises(ValueError):
+        with control.relaxed(tk, ("pads",)):
+            pass
+    assert set(control.RELAXES) == set(control.HW_LIMITS) and set(control.RELAXES.values()) - {None} == set(
+        control.RELAXATIONS)
+    assert "turn_gap_clamp" not in control.HW_LIMITS and "neck_tail_at_torque_limit" in control.REPORTED_LIMITS
+    assert not tk.ankle_act[~tk.leg_act].any() and tk.ankle_act.sum() == 4
+    hard.reset()
+
+
+def test_slip_is_measured_at_the_loaded_contacts(hard):
+    """A foot pivoting on the floor moves its body origin (on the ankle axis) but does not slip; a foot sliding does."""
+    hard.reset()
+    m, d = hard.m, hard.d
+    base = d.qpos.copy()
+
+    def at(v_root, w_world, pivot):
+        d.qpos[:] = base
+        d.qvel[:] = 0.0
+        R = d.xmat[hard.trunk].reshape(3, 3).copy()
+        d.qvel[:3] = np.asarray(v_root) + np.cross(w_world, d.qpos[:3] - pivot)  # the whole body turning about pivot
+        d.qvel[3:6] = R.T @ np.asarray(w_world)  # (a free joint's angular velocity is in its body frame)
+        mujoco.mj_forward(m, d)
+        v6 = np.zeros(6)
+        mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, hard.feet[0], v6, 0)  # the foot's origin
+        return control.foot_slip_speed(hard), float(np.linalg.norm(v6[3:5]))
+
+    mujoco.mj_forward(m, d)
+    pivot = np.r_[d.xpos[hard.feet[0]][:2], hard.z_floor]  # under the left foot's origin, on the floor
+    slip, origin = at([0.1, 0.0, 0.0], np.zeros(3), pivot)
+    assert slip == pytest.approx([0.1, 0.1], abs=1e-9) and origin == pytest.approx(0.1)
+    slip, origin = at(np.zeros(3), np.array([0.0, 4.0, 0.0]), pivot)  # rocking about a line on the floor
+    assert origin == pytest.approx(4.0 * (d.xpos[hard.feet[0]][2] - hard.z_floor), rel=1e-6)  # 80 mm/s
+    assert origin > control.SLIP_SPEED and slip[0] < 0.2 * control.SLIP_SPEED
+    hard.reset()
+
+
+def test_fall_labels_come_from_counterfactuals(nominal_ref):
+    """A plant whose drives are too weak (30 % of their torque) falls body-limited by its drives: lifting their
+    limits a second before the onset avoids the fall, a 1 mm/s nudge there does not, and the unchanged continuation
+    repeats the fall bit for bit.  Neck, tail and the turn-gap clamp are reported, never labels."""
+    p = plant.build(BODY, "hard", settle=False, torque_scale=0.3)
+    tk = _tracker(p, nominal_ref, strides=11.0)
+    r = control.run(tk, 10 * nominal_ref.period)
+    assert r["fell"] and r["fall_onset_s"] < r["fall_time_s"]
+    cf = r["counterfactual"]
+    assert cf["reproduces"] and not cf["null"]["avoided"] and cf["branch_s"] <= r["fall_onset_s"] - control.CF_BRANCH_S
+    assert "drive_torque" in cf["binding"] and cf["alone"]["drive_torque"]["avoided"]
+    assert r["fall_label"] == "body-limited: " + ", ".join(cf["binding"])
+    act = r["limits_before_onset"]
+    assert set(act["hardware"]) == set(control.HW_LIMITS) and set(act["reported"]) == set(control.REPORTED_LIMITS)
+    assert act["hardware"]["leg_drive_at_torque_limit"] > 0.5 and set(cf["candidates"]) <= set(control.HW_LIMITS)
+    assert all(not a.startswith(("neck", "tail")) for a in act["leg_drives"])
+    q_end = p.d.qpos.copy()  # the episode is left at its fall after the counterfactuals
+    assert p.fall_cause() == r["fall_cause"] and p.d.time == r["fall_time_s"]
+    r2 = control.run(tk, 10 * nominal_ref.period, confirm=False)  # without them: the same episode, unconfirmed
+    assert r2["strides"] == r["strides"] and r2["fall_label"].startswith("unconfirmed") and np.array_equal(
+        p.d.qpos, q_end)
+    r3 = control.run(tk, 10 * nominal_ref.period, relax=control.RELAXATIONS)  # every limit lifted, the whole episode
+    assert not r3["fell"] and r3["relaxed"] == list(control.RELAXATIONS) and np.all(p.m.actuator_forcelimited)
+
+
+def _recorded_walk(p, ref, seconds: float) -> list:
+    """Sensor readings (noise-free) and the true state of an R1 walk, every physics step."""
+    tk = _tracker(p, ref, strides=seconds / ref.period + 1)
+    tk.reset("frame")
+    clean = estimator.NoisySensors(p, estimator.SensorNoise.none(), 0)
+    rec = [dict(qpos=p.d.qpos.copy(), qvel=p.d.qvel.copy(), reading=clean.read())]
+    for _ in range(int(round(seconds / p.m.opt.timestep))):
+        tk.step()
+        mujoco.mj_subtreeVel(p.m, p.d)
+        d = p.d
+        rec.append(dict(reading=clean.read(), com=d.subtree_com[p.trunk].copy(), com_vel=d.subtree_linvel[p.trunk].copy(),
+                        feet=np.array([d.xpos[f].copy() for f in p.feet]), R=d.xmat[p.trunk].reshape(3, 3).copy()))
+    return rec
+
+
+def _replay_estimator(p, rec, noise: estimator.SensorNoise, seed: int = 1) -> np.ndarray:
+    """The estimator on a recorded walk; errors every 10 ms: CoM relative to the feet's midpoint (mm), CoM velocity
+    (m/s, horizontal), tilt (deg)."""
+    est = estimator.Estimator(p)
+    rng = np.random.default_rng(seed)
+    corrupt = estimator.NoisySensors(p, noise, seed)
+
+    def noisy(r):
+        out = {k: np.array(v, float) for k, v in r.items()}
+        n, s = noise, noise.scale
+        if s:
+            out["gyro"] += corrupt.gyro_b + s * n.gyro_sigma * rng.standard_normal(3)
+            out["accel"] += corrupt.accel_b + s * n.accel_sigma * rng.standard_normal(3)
+            out["qd"] += s * n.joint_rate_sigma * rng.standard_normal(len(out["qd"]))
+            out["foot_load"] += s * n.foot_load_sigma_frac * corrupt.weight * rng.standard_normal(2)
+        if corrupt.q_step:
+            out["q"] = np.round(out["q"] / corrupt.q_step) * corrupt.q_step
+        return out
+
+    est.reset(rec[0]["qpos"], rec[0]["qvel"], noisy(rec[0]["reading"]))
+    errs = []
+    for k, r in enumerate(rec[1:], start=1):
+        est.step(noisy(r["reading"]))
+        if k % control.FEEDBACK_EVERY == 0:
+            est.update(control.FEEDBACK_EVERY * p.m.opt.timestep)
+            rel = (est.com[:2] - est.foot[:, :2].mean(0)) - (r["com"][:2] - r["feet"][:, :2].mean(0))
+            tilt = np.degrees(np.arccos(np.clip(est.R[:, 2] @ r["R"][:, 2], -1, 1)))
+            errs.append((1e3 * np.linalg.norm(rel), np.linalg.norm(est.com_vel[:2] - r["com_vel"][:2]), tilt))
+    return np.array(errs)
+
+
+def test_estimator_on_a_recorded_walk(hard, nominal_ref):
+    rec = _recorded_walk(hard, nominal_ref, 2.0)
+    rms = lambda E: np.sqrt(np.mean(E**2, axis=0))  # noqa: E731
+    clean = rms(_replay_estimator(hard, rec, estimator.SensorNoise.none()))
+    noisy = rms(_replay_estimator(hard, rec, estimator.SensorNoise()))
+    assert clean[0] < 2.0 and clean[1] < 0.012 and clean[2] < 0.2  # mm, m/s, deg
+    assert noisy[0] < 3.0 and noisy[1] < 0.02 and noisy[2] < 0.3
+    assert set(estimator.NoisySensors(hard, estimator.SensorNoise(), 0).read()) == {"gyro", "accel", "q", "qd",
+                                                                                     "foot_load"}  # no imu_quat
+    hard.reset()
+
+
+def test_estimator_tilt_correction_pulls_toward_the_flat_feet(hard):
+    hard.reset()
+    hard.hold()
+    hard.step(5)
+    sens = estimator.NoisySensors(hard, estimator.SensorNoise.none(), 0)
+    est = estimator.Estimator(hard)
+    q = hard.d.qpos.copy()
+    tilt = np.zeros(4)
+    mujoco.mju_axisAngle2Quat(tilt, np.array([1.0, 0.0, 0.0]), np.radians(3.0))
+    mujoco.mju_mulQuat(q[3:7], q[3:7].copy(), tilt)  # start 3 deg off in roll
+    est.reset(q, np.zeros(hard.m.nv), sens.read())
+    R = hard.d.xmat[hard.trunk].reshape(3, 3)
+
+    def err():
+        return np.degrees(np.arccos(np.clip(est.R[:, 2] @ R[:, 2], -1, 1)))
+
+    e0 = err()
+    for k in range(1000):
+        hard.step()
+        est.step(sens.read())
+        if k % 5 == 4:
+            est.update(0.01)
+    assert e0 == pytest.approx(3.0, abs=0.1) and err() < 0.1  # the 2/s leg-tilt correction: e^-4 of it after 2 s
+    rest = estimator.Estimator(hard)
+    rest.reset_at_rest(sens.read(), yaw=0.0, base_xy=hard.d.qpos[:2])  # from the sensors alone at rest
+    assert np.degrees(np.arccos(np.clip(rest.R[:, 2] @ R[:, 2], -1, 1))) < 0.2
+    hard.reset()
+
+
+@pytest.mark.parametrize("body", sorted(BODIES))
+def test_g4_records(body):
+    """The committed G4 record: the gated runs as the gate's rule reads them, the panels, the reported runs."""
+    g4 = json.loads((RUN / body / "gates.json").read_text())["G4"]
+    assert set(g4["gated"]) == set(gates.G4_THRESHOLDS)
+    for key, g in g4["gated"].items():
+        assert g["threshold_strides"] == gates.G4_THRESHOLDS[key]
+        assert g["unperturbed_pass"] == (g["unperturbed"]["strides"] >= g["threshold_strides"])
+        assert g["panel"]["runs"] == gates.PANEL_RUNS == len(g["panel"]["strides"])
+        assert g["unperturbed"]["mode"] == key[:2]
+    assert g4["pass"] == g4["unperturbed_pass"] == all(g["unperturbed_pass"] for g in g4["gated"].values())
+    assert set(g4["R0"]) == {"nominal", *gates.G4_REPORTED} and set(g4["reported"]["R2"]) == set(gates.G4_REPORTED)
+    assert {n: v["default"] for n, v in g4["tracker"]["gains"].items()} == control.gains_dict()
+    g2 = json.loads((RUN / body / "gates.json").read_text())["G2"]  # R0 is G2's replay
+    assert g4["R0"]["nominal"]["strides"] == g2["nominal_strides_with_envelope"]
+    for rows in g4["reported"].values():
+        for r in rows.values():
+            assert (r["fall_label"] is None) == (not r["fell"])
+    # the turn gap is recorded for what it is, and is not a hardware limit
+    tr = g4["tracker"]
+    assert tr["turn_gap"]["counted_as_hardware_limit"] is False and set(tr["turn_gap"]["cases"]) == set(control.TURN_CASES)
+    assert tr["inward_step_limit_m"] == pytest.approx(control.turn_gap(body) - control.TURN_GAP_MARGIN)
+    assert tr["falls"]["hardware_limits"] == list(control.HW_LIMITS) and tr["falls"]["rule"] == control.LABEL_RULE
+    assert "turn_gap_clamp" in tr["falls"]["reported_limits"] and "inward_step_clearance" in tr
+    # every fall's label follows from its counterfactuals (control.LABEL_RULE)
+    runs = ([g["unperturbed"] for g in g4["gated"].values()] + [r for rows in g4["reported"].values() for r in rows.values()]
+            + list(g4["stance_start_stop"].values()))
+    classes = {}
+    for r in runs:
+        if not r["fell"]:
+            continue
+        cf, act = r["counterfactual"], r["limits_before_onset"]
+        assert cf["reproduces"] and cf["branch_wanted_s"] == pytest.approx(r["fall_onset_s"] - control.CF_BRANCH_S)
+        assert cf["branch_s"] <= max(cf["branch_wanted_s"], 0.01) + 1e-9  # (or the episode's first snapshot)
+        assert set(cf["candidates"]) == {k for k, v in act["hardware"].items() if v > 0.0}
+        cls = gates.label_class(r["fall_label"])
+        classes[cls] = classes.get(cls, 0) + 1
+        if cls == "body-limited":
+            assert not cf["null"]["avoided"] and (all(cf["alone"][b]["avoided"] for b in cf["binding"]) if cf["binding"]
+                                                  else cf["together"]["avoided"])
+        elif cls == "controller-limited":
+            assert not cf["null"]["avoided"] and not cf["binding"] and not (cf["together"] or {}).get("avoided")
+        else:
+            assert cls in ("undetermined", "unconfirmed"), r["fall_label"]
+        if r["mode"] == "R2":  # the estimator's errors up to the window before the onset and to it, beside the episode's
+            e = r["estimator"]
+            assert e["before_fall"]["until_s"] == pytest.approx(r["fall_onset_s"] - control.LIMIT_WINDOW_S)
+            assert e["until_onset"]["until_s"] == r["fall_onset_s"]
+            assert e["before_fall"]["updates"] <= e["until_onset"]["updates"] <= e["updates"]
+    assert classes == g4["fall_classes"]["unperturbed_reported_and_stance"]
+    for g in g4["gated"].values():
+        pnl = g["panel"]
+        assert sum(pnl["fall_classes"].values()) == sum(pnl["fall_labels"].values()) == sum(
+            s < G4_RUN_STRIDES for s in pnl["strides"])
+    assert {"inward_step_out", "every_limit_relaxed"} <= set(g4["diagnostics"])
 
 
 def test_later_steps_are_not_implemented(tmp_path):
