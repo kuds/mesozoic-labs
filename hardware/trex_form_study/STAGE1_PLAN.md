@@ -508,3 +508,15 @@ the code as a rule that every record carries.
       every step); the panels' part is `<body>/eval/summary.json`.
     - **Wall clock.** The PPO wall clock per body is the union of its runs' sessions (elapsed); their sum is given as
       job-hours, since the runs share the cores.
+35. **Training stops at 01:00 UTC**, not 03:00 (decision 29). After training, the policy rows still need:
+    - their panels: 3 rows × 28 conditions × 20 episodes per body;
+    - R3's fall attribution;
+    - R3's margin ledger.
+
+    Together that is about 12 core-hours at the measured costs. The report and its check need about 2.5 h more, all
+    before the 08:00 cap. At the measured rates, every R3 run passes G6c's 2.5M steps by about 00:45 (the 75 cm runs
+    last).
+
+    A run that has not reached 2.5M steps by 01:00 trains on alone until it does, but not past 01:30. Every mode is then
+    judged at the last checkpoint all of its runs reached (`train.JUDGED_RULE`, `train.R2_JUDGED_RULE`). R3 thus
+    trains about 2.5M of the 4M steps planned and R4 fewer (decision 29). The report states both.
