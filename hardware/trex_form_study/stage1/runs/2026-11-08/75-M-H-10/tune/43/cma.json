@@ -1,0 +1,859 @@
+{
+ "schema": 2,
+ "body": "75-M-H-10",
+ "seed": 43,
+ "settings": {
+  "body": "75-M-H-10",
+  "seed": 43,
+  "mode": "R2",
+  "rate": 1.05,
+  "cma": {
+   "popsize": 12,
+   "sigma0": 0.1,
+   "searched": [
+    "k_dcm",
+    "cop_x",
+    "cop_y",
+    "k_step",
+    "step_x",
+    "step_out",
+    "decay",
+    "k_trunk",
+    "d_trunk",
+    "k_yaw",
+    "ki_yaw",
+    "k_phase",
+    "ki_phase"
+   ],
+   "fixed": {
+    "capture_margin": 0.0
+   },
+   "x0": "the tuning start (decision 16) of the searched gains in the [0, 1] scaling of their control.GAIN_BOUNDS",
+   "bounds": [
+    [
+     0.0,
+     6.0
+    ],
+    [
+     0.0,
+     0.05
+    ],
+    [
+     0.0,
+     0.03
+    ],
+    [
+     0.0,
+     3.0
+    ],
+    [
+     0.0,
+     0.1
+    ],
+    [
+     0.0,
+     0.06
+    ],
+    [
+     0.0,
+     3.0
+    ],
+    [
+     0.0,
+     150.0
+    ],
+    [
+     0.0,
+     10.0
+    ],
+    [
+     0.0,
+     1.0
+    ],
+    [
+     0.0,
+     0.5
+    ],
+    [
+     0.0,
+     10.0
+    ],
+    [
+     0.0,
+     10.0
+    ]
+   ],
+   "box": "evaluate the projection into [0, 1]; add the squared distance (repair penalty)",
+   "weights": "log((lambda + 1) / 2) - log(i), i = 1..mu, normalised",
+   "c_m": 1.0,
+   "train_episodes": [
+    1000,
+    2000
+   ],
+   "validation_episodes": [
+    2000,
+    2020
+   ],
+   "common_random_numbers": "every member of a generation on the same training episode",
+   "episode_order": "1000 + permutation(1000) from default_rng([seed, 1])"
+  },
+  "objective": "stage1-tune-v2"
+ },
+ "objective": {
+  "name": "stage1-tune-v2",
+  "defined": "before any tuning run (design_1.md gives the order and the episode budget, no formula)",
+  "revisions": [
+   "v1 (8 Nov): the first build, run only in smoke checks",
+   "v2 (9 Nov, before the fit, after an independent review of the tuner): capture_margin held at 0.0 (FIXED_RULE); the drives' motor-space RMS read over the same window as the other limits (SUCCESS_RULE); evaluations that fail scored by FAILURE_RULE; the mix, the other terms and the score unchanged"
+  ],
+  "controller": "R2",
+  "gains": [
+   "k_dcm",
+   "cop_x",
+   "cop_y",
+   "k_step",
+   "step_x",
+   "step_out",
+   "decay",
+   "k_trunk",
+   "d_trunk",
+   "k_yaw",
+   "ki_yaw",
+   "k_phase",
+   "ki_phase"
+  ],
+  "fixed_gains": {
+   "capture_margin": 0.0
+  },
+  "fixed_rule": "capture_margin is held at its tuning start, 0.0 (decision 16), and not searched: the capture step acts only while the reference stands, and the fit's mix has no standing push (its only stands are the starts' first and the stops' last moments, under the start noise), so the objective has nothing to fit the margin on; the gated push panels later use 0.0",
+  "mix": {
+   "episodes": [
+    "walk",
+    "walking_turn",
+    "in_place_turn"
+   ],
+   "plans": {
+    "walk": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      7
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "walking_turn": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "transition",
+      "enter_walk_0.35_left"
+     ],
+     [
+      "ref",
+      "walk_0.35_left",
+      5
+     ],
+     [
+      "transition",
+      "exit_walk_0.35_left"
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "in_place_turn": [
+     [
+      "transition",
+      "start_in_place_0.50_left"
+     ],
+     [
+      "ref",
+      "in_place_0.50_left",
+      3
+     ],
+     [
+      "transition",
+      "stop_in_place_0.50_left"
+     ]
+    ]
+   },
+   "strides": {
+    "walk": 7,
+    "walking_turn": 5,
+    "in_place_turn": 3
+   },
+   "directions": "episode seed even: walking turn left, in-place turn right; odd: the reverse",
+   "start": "the settled stance, joint angles +-0.01 rad and root velocity +-0.02 m/s (uniform, plant.Plant.reset), drawn from derived_seed(episode, j, 0); R2's sensor noise (estimator.SensorNoise defaults) from derived_seed(episode, j, 1)",
+   "floor": "hard (mu 0.9)",
+   "command_margin": 0.05,
+   "command_rule": "a command of r times the reference's speed plays the track r times faster than real time (the reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the servo targets and the armature feedforward, the reference DCM c + r c' / omega0 (the CoM moving r times as fast), the inverse-dynamics torque and the reference ZMP as the reference's",
+   "walk_window_s": 10.0
+  },
+  "score": "J = S + P; S = sum over fallen episodes of (1 + unsurvived share); P = 0.5 T + 0.5 L, T the mean tracking term, L the mean over behaviour groups (walk, walking_turn, in_place_turn, start, stop) of (max + mean) / 2 of the group's limit terms; a fallen episode scores 1 on every term; CMA-ES fitness J + 1 x the squared distance of the sample to its projection into the [0, 1] box",
+  "terms": "tracking: dcm = RMS of the true DCM error against the reference over the episode (relative to the anchor foot, as the feedback's) / 0.02 m; walk speed = |10 s mean speed - command| / (0.1 command); walk heading = |heading change over the 10 s window| / 0.1 rad; turn yaw_rate = |yaw rate over the 180 deg turn - command| / (0.1 command); in-place drift = the root's displacement from the episode's first stand to its last (the in-place reference turns about the root, which stays put; its CoM, 34-67 mm ahead of the root, swings 66-131 mm round a 204 deg turn) / 0.1 m.  Limits (plan section 4) as hinges, 0 within, read over the window (the walk's 10 s before the stop command, the turns' steady turning): roll and pitch RMS about home over 4 deg and peaks over 8 deg (scale: the limit); each foot's duty outside 0.55-0.65 (scale 0.05); flight time (scale 0.05 s); peak GRF over 1.6 BW (scale: the limit); toe clearance under 0.04 H (scale: the limit); slip median over 5 mm and worst over 15 mm (scale: the limit); walk cadence outside 1.6-2.2 steps/s (scale 0.3), stride outside 0.5-0.65 H (scale 0.075 H), 10 s mean speed under the target (scale 0.05 target); turn yaw rate under the target (scale 0.05 target); every drive's motor-space RMS over the window above its sustained torque (scale: the limit).  Over the episode: in-place drift over 0.1 m (scale: the limit); leg interference depth (scale 5 mm); every drive's peak speed above speed_at(24 V) (scale: the limit); the joint range's shortfall under the required margin (walks 0.1 rad; turns decision 14: min(0.1, the episode track's own smallest margin of that joint - 0.02), at least 0.001; scale 0.1 rad); start: strides to 90 % of the commanded speed over 2 (scale: the limit; not reached: 1); stop: decision 18's strides to stopped over 1.5 (scale: the limit; not reached: 1); start and stop forward acceleration low-passed at 1 Hz over 1.5 m/s^2 (decision 10; scale: the limit)",
+  "success": "plan section 4 on each validation episode: the nominal walk succeeds if it survives and over the 10 s before the stop command its mean speed is at least the nominal speed, each foot's duty is 0.55-0.65, there is no flight, the cadence is 1.6-2.2 steps/s, the stride 0.5-0.65 H, the peak GRF at most 1.6 BW, roll and pitch about home at most 4 deg RMS and 8 deg peak, the toe clearance at least 0.04 H, the slip at most 5 mm median and 15 mm worst and every drive's motor-space RMS at most its sustained torque (the drive RMS is judged over the same window as the other limits), and over the whole episode every drive's peak speed is at most speed_at(24 V) and every joint keeps 0.1 rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) and the drive RMS hold over its steady turning (the same window), the drives' peak speeds hold over the episode, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at 50 Hz) and, in place, the drift (the root's displacement) is at most 0.1 m.  Cadence and stride are judged at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement over each loaded stance, the drive RMS over the window's physics steps",
+  "term_order": [
+   "walk.tracking.dcm",
+   "walk.tracking.speed",
+   "walk.tracking.heading",
+   "walking_turn.tracking.dcm",
+   "walking_turn.tracking.yaw_rate",
+   "in_place_turn.tracking.dcm",
+   "in_place_turn.tracking.yaw_rate",
+   "in_place_turn.tracking.drift",
+   "walk.limits.roll_rms",
+   "walk.limits.pitch_rms",
+   "walk.limits.roll_peak",
+   "walk.limits.pitch_peak",
+   "walk.limits.duty_left",
+   "walk.limits.duty_right",
+   "walk.limits.flight",
+   "walk.limits.grf",
+   "walk.limits.toe_clearance",
+   "walk.limits.slip_median",
+   "walk.limits.slip_worst",
+   "walk.limits.cadence",
+   "walk.limits.stride",
+   "walk.limits.speed",
+   "walk.limits.drive_sustained",
+   "walk.limits.drive_speed",
+   "walk.limits.joint_range",
+   "walking_turn.limits.roll_rms",
+   "walking_turn.limits.pitch_rms",
+   "walking_turn.limits.roll_peak",
+   "walking_turn.limits.pitch_peak",
+   "walking_turn.limits.duty_left",
+   "walking_turn.limits.duty_right",
+   "walking_turn.limits.flight",
+   "walking_turn.limits.grf",
+   "walking_turn.limits.toe_clearance",
+   "walking_turn.limits.slip_median",
+   "walking_turn.limits.slip_worst",
+   "walking_turn.limits.yaw_rate",
+   "walking_turn.limits.leg_interference",
+   "walking_turn.limits.drive_sustained",
+   "walking_turn.limits.drive_speed",
+   "walking_turn.limits.joint_range",
+   "in_place_turn.limits.roll_rms",
+   "in_place_turn.limits.pitch_rms",
+   "in_place_turn.limits.roll_peak",
+   "in_place_turn.limits.pitch_peak",
+   "in_place_turn.limits.duty_left",
+   "in_place_turn.limits.duty_right",
+   "in_place_turn.limits.flight",
+   "in_place_turn.limits.grf",
+   "in_place_turn.limits.toe_clearance",
+   "in_place_turn.limits.slip_median",
+   "in_place_turn.limits.slip_worst",
+   "in_place_turn.limits.yaw_rate",
+   "in_place_turn.limits.drift",
+   "in_place_turn.limits.leg_interference",
+   "in_place_turn.limits.drive_sustained",
+   "in_place_turn.limits.drive_speed",
+   "in_place_turn.limits.joint_range",
+   "walk.start.speed_up",
+   "walk.start.acceleration",
+   "walk.stop.stopped",
+   "walk.stop.acceleration",
+   "walking_turn.start.speed_up",
+   "walking_turn.start.acceleration",
+   "walking_turn.stop.stopped",
+   "walking_turn.stop.acceleration"
+  ],
+  "scales": {
+   "dcm_m": 0.02,
+   "speed_frac": 0.1,
+   "heading_rad": 0.1,
+   "yaw_rate_frac": 0.1,
+   "drift_m": 0.1,
+   "flight_s": 0.05,
+   "leg_interference_m": 0.005,
+   "joint_range_rad": 0.1,
+   "duty": 0.05,
+   "cadence": 0.3,
+   "stride_H": 0.075,
+   "speed_limit_frac": 0.05,
+   "yaw_rate_limit_frac": 0.05
+  },
+  "failures": "an evaluation that raises scores as the worst case: every episode a fall at its start (survived share 0, S = 2 per episode, every term 1, J = 7), with its traceback in the evaluation log; an episode during which MuJoCo warned (mjWARN_INERTIA, mjWARN_CONTACTFULL, mjWARN_CNSTRFULL, mjWARN_BADQPOS, mjWARN_BADQVEL, mjWARN_BADQACC, mjWARN_BADCTRL; counted after the episode) counts as a fall at its start, the warnings recorded; a worker process that dies or does not answer within 900 s is replaced by a fresh one (on the same inputs and tuner sources, else the run stops) and its evaluation run again, up to 2 attempts, after which it scores as the worst case with the reason; every such incident is kept in the session record",
+  "sketch_in_design_1": "47 simulated s on hard floor (nominal walk with a 0.4x push, Fr 0.05, both turns, start and stop) plus 8 s on low pile; score: time survived first, then tracking and drive-duty penalties.  Kept: the order (survival, then tracking and limits, drive duty among them) and the about 55 s budget.  Not kept: the push, Fr 0.05 and low pile, which G5 does not judge (the task's fixed mix of G5's behaviours plus start and stop)"
+ },
+ "fixed_gains": {
+  "gains": {
+   "capture_margin": 0.0
+  },
+  "rule": "capture_margin is held at its tuning start, 0.0 (decision 16), and not searched: the capture step acts only while the reference stands, and the fit's mix has no standing push (its only stands are the starts' first and the stops' last moments, under the start noise), so the objective has nothing to fit the margin on; the gated push panels later use 0.0"
+ },
+ "sessions": [
+  {
+   "started_at": "2026-11-09T09:31:30+00:00",
+   "from_generation": 0,
+   "workers": 2,
+   "provenance": {
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1",
+     "gymnasium": "1.4.0",
+     "stable-baselines3": "2.9.2",
+     "torch": "2.15.0"
+    },
+    "git": {
+     "commit": "ce1a901449c328681357dc0b43517484ac41000a",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/tune/42/cma.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/tune/42/evals.jsonl",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/tune/42/cma.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/tune/42/evals.jsonl",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/tune/42/cma.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/tune/42/evals.jsonl"
+     ]
+    },
+    "stage1_sources": {
+     "sha256": "3dd045052a4db06607c72295d6a864aa2cd5abe0bb9615e680e8469723f337ea",
+     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+     "files": [
+      "__init__.py",
+      "__main__.py",
+      "control.py",
+      "drive.py",
+      "estimator.py",
+      "gates.py",
+      "legs.py",
+      "metrics.py",
+      "plant.py",
+      "refs.py",
+      "transitions.py",
+      "tune.py"
+     ]
+    }
+   },
+   "tuner_sources": {
+    "sha256": "c8b112cfa53a9078bc2cf596905072e704f3464aba774c9735d94ea93d3003f8",
+    "rule": "sha256 over the designlab/stage1 modules the tuner imports, in the form of plant.SOURCES_RULE (each file's name, a NUL byte, its bytes and a NUL byte, in path order): tune.py, the package's __init__.py and every designlab/stage1 module they reach through their imports, at module level or inside functions, followed transitively (read from the sources with ast); the module list is recorded beside the hash.  Other designlab/stage1 files (the command line __main__.py, gates.py, the later steps' modules) are not in it, so they may be added or changed while a fit runs; the designlab modules outside designlab/stage1 are named by each session's commit and dirty paths (plant.provenance), not hashed here",
+    "modules": [
+     "__init__.py",
+     "control.py",
+     "drive.py",
+     "estimator.py",
+     "legs.py",
+     "metrics.py",
+     "plant.py",
+     "refs.py",
+     "transitions.py",
+     "tune.py"
+    ]
+   },
+   "inputs": {
+    "dir": "stage1/runs/2026-11-08/75-M-H-10",
+    "rule": "before the evaluator loads them, every refs/*.npz and transitions/*.npz file the mix uses (the episodes' tracks, both directions of each turn, and refs/nominal.npz, which sets omega0) is hashed (sha256) and checked against the sha256 that refs.json or transitions.json records for it, and both JSON files are hashed; a mismatch stops the build; every session records {file: sha256} and the JSON files' hashes, --resume is refused on any difference from the run's first session, and G5 judges a seed only on the inputs its fit used",
+    "files": {
+     "refs/in_place_0.50_left.npz": "27279514ff30ab28f6df82c8182b95840cd142d907f424e24baa1cb6bed4b2f4",
+     "refs/in_place_0.50_right.npz": "a8b3ce5d0b43fccbe30a1a5151834f69772d8aba594366060fb1ee4d9047815a",
+     "refs/nominal.npz": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75",
+     "refs/walk_0.35_left.npz": "4ab4acdaab452de4fb8233f48bd1f1db0cfc4ad3917106172ae39235e456837d",
+     "refs/walk_0.35_right.npz": "8ba85bc63224d7f849cfb1aeba7f4eb0e81c3f6e2bd210a58ddd01fee0b2089d",
+     "transitions/enter_walk_0.35_left.npz": "739cf2f5e2dc902594f53f032b9a570d32abefe389e1711ed13708ab903fb953",
+     "transitions/enter_walk_0.35_right.npz": "1b9622b1031009407889d3a87b9c275da94c44016c00325ceac1b02dc96a4659",
+     "transitions/exit_walk_0.35_left.npz": "1ff24f9b8d8f0c29457e3b82b28f29c425b6f6eddb3f8433d8721c1eab5786a1",
+     "transitions/exit_walk_0.35_right.npz": "51aac34197d4fa710abce1a4194557591dd14c15aae266ca95964aced1eb13ae",
+     "transitions/start.npz": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3",
+     "transitions/start_in_place_0.50_left.npz": "a13bfc2e6a9168c3cc55e405abe80973cd46913a09ea0377a75ef40498bf6327",
+     "transitions/start_in_place_0.50_right.npz": "a7fbfbbde6a4df808b6eeba7ae7b199e41371b934da5e9a748a66600e6795888",
+     "transitions/stop.npz": "63a770357b628fc6a2057245bfeed46509d89ddaa0ec23af781d0e3d1740f9be",
+     "transitions/stop_in_place_0.50_left.npz": "b16c30e187f3f50dd13bada94d1ed4b40fdf00259b167ec37a8607cddf897fdc",
+     "transitions/stop_in_place_0.50_right.npz": "b5063f01426b27b0909ff7c75ea3520de81d4867c1f0cf6952701d7239c406c8"
+    },
+    "records": {
+     "refs.json": "bd926c70fba26ffb7f6b289872d7060822a12be17cfd0a8545a869d749e7753c",
+     "transitions.json": "a3e038cc338591fda56b55dd20b34690a2879b1b3be9b3af2569fef34d8f5061"
+    }
+   },
+   "incidents": []
+  }
+ ],
+ "history": [],
+ "evals": 0,
+ "status": "running",
+ "state": {
+  "n": 13,
+  "popsize": 12,
+  "generation": 0,
+  "mean": [
+   0.3333333333333333,
+   0.39999999999999997,
+   0.4,
+   0.3333333333333333,
+   0.5,
+   0.5,
+   0.3333333333333333,
+   0.26666666666666666,
+   0.2,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "sigma": 0.1,
+  "C": [
+   [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ],
+  "B": [
+   [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ],
+  "D": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "pc": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "ps": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "rng": {
+   "bit_generator": "PCG64",
+   "state": {
+    "state": 82603460112531164776355945615041298124,
+    "inc": 25065611243303971628957076795638243391
+   },
+   "has_uint32": 0,
+   "uinteger": 0
+  }
+ }
+}
