@@ -35,7 +35,9 @@ Run from hardware/trex_form_study, in the PPO venv (``PPO_VENV``: torch 2.9.0+cp
   (the sources only with ``--allow-source-change``, flagged in the session).
 * Final-checkpoint rule (``FINAL_RULE``, ``JUDGED_RULE``): the policy judged is the checkpoint at the budget, with no
   best-model selection; if the stage's cap stops training first, every body is judged at the last checkpoint all of
-  them reached (``final_checkpoint``, ``judged_checkpoint``; ``judge --final`` writes it into every run.json).
+  them reached (``final_checkpoint``, ``judged_checkpoint``; ``judge --final`` writes it into every run.json).  The R3
+  runs of a body judged with R2 (``R2_JUDGED_RULE``, ``judged_with_r2``: seed 42 failed G6c, or FIX_RULE stopped one of
+  its runs) are left out, so a run stopped early does not cap the other bodies.
 * G6 (plan section 3 step 7, ``G6_RULE``): G6a before training -- a zero residual reproduces R2 exactly
   (``env.zero_residual_check``) and the job's env steps per wall second (the training loop's, over its first rollouts,
   with the number of env processes) at least ``G6A_ENV_STEPS_PER_S``; G6b at ``G6B_STEPS`` -- on the monitor episodes
@@ -107,9 +109,18 @@ MONITOR = dict(conditions=(("walk", "hard"), ("walking_turn_left", "hard"), ("wa
                episode_seeds=(5001, 5002, 5003))
 FINAL_RULE = ("the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops "
               "training first, every body is judged at the last checkpoint all of them reached")
+R2_JUDGED_RULE = (
+    "a body's R3 is judged with R2 (its R2 verdicts stand for the body and its R3 runs are not judged) when its PPO "
+    "seed 42 run failed G6c (plan section 3 step 7: 'otherwise skip seed 43 and judge with R2'; decision 29 stops seed "
+    "43's run then) or when one of its R3 runs was stopped by FIX_RULE (G6b failed again after the one fix: decision "
+    "32, 'its body's R3 is judged with R2'); until seed 42 reaches G6c, with no run stopped, its R3 is judged "
+    "(provisionally: 'G6c not reached').  Read from each run's run.json (g6.G6c, 'stopped'; STAGE1_PLAN.md decision "
+    "34)")
 JUDGED_RULE = (FINAL_RULE + "; the runs: every body x PPO seeds 42 and 43 for R3, every body x seed 42 for R4, each mode "
-               "judged over its own runs; provisional (final false) until every run holds its budget's checkpoint or "
-               "`judge --final` records that the stage's cap stopped training")
+               "judged over its own runs, leaving out the R3 runs of a body judged with R2 (R2_JUDGED_RULE: a run that "
+               "G6c or FIX_RULE stopped early does not cap the other bodies' checkpoint; decision 34); provisional "
+               "(final false) until every run judged holds its budget's checkpoint or `judge --final` records that the "
+               "stage's cap stopped training")
 #: Env seeds (``env_seeds``): env i of session k of PPO seed s is reset with SEED_BASE s + 100 k + i.
 SEED_BASE = 10_000
 SEED_RULE = (f"right before learn() in every session (k = 0 for a new run, one more per resume), "
@@ -192,14 +203,57 @@ def expected_runs(out: Path, mode: str) -> dict:
     return {f"{b}/{s}": run_dir_of(out, b, mode, s) for b in BODIES for s in seeds}
 
 
+def run_doc(out: Path, body: str, mode: str, seed: int) -> dict:
+    """A run's run.json under ``out`` ({} if it cannot be read)."""
+    try:
+        return json.loads((run_dir_of(out, body, mode, seed) / "run.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def judged_with_r2(out: Path, body: str) -> dict:
+    """``R2_JUDGED_RULE`` for ``body`` from its R3 runs' run.json under ``out``: ``with_r2`` (True: the body's R3 is
+    judged with R2), the ``reason``, seed 42's G6c (``state``: 'passed', 'failed' or 'not reached') and the runs
+    FIX_RULE stopped."""
+    g6c = (run_doc(out, body, "R3", 42).get("g6") or {}).get("G6c")
+    if g6c is None or g6c.get("pass_") is None:
+        g = dict(state="not reached", at_steps=None, pass_=None)
+    else:
+        g = dict(state="passed" if g6c["pass_"] else "failed", at_steps=g6c.get("at_steps"), pass_=bool(g6c["pass_"]))
+    stopped = {}
+    for s in SEEDS:
+        doc = run_doc(out, body, "R3", s)
+        if doc.get("stopped") or doc.get("status") == "stopped_g6b":
+            st = doc.get("stopped") or {}
+            stopped[f"R3/{s}"] = dict(at_steps=st.get("at_steps"), reason=st.get("reason") or doc.get("status"))
+    reasons = []
+    if g["state"] == "failed":
+        reasons.append(f"seed 42 failed G6c at {g['at_steps']} steps (plan section 3 step 7)")
+    for name, st in stopped.items():
+        reasons.append(f"{name} stopped at {st['at_steps']} steps: {st['reason']} (decision 32)")
+    return dict(rule=R2_JUDGED_RULE, body=body, with_r2=bool(reasons), reason="; ".join(reasons) or None, g6c=g,
+                stopped=stopped)
+
+
 def judged_checkpoint(out: Path, mode: str, budget: int = BUDGET_STEPS, final: bool = False) -> dict:
     """``JUDGED_RULE``: the checkpoint every run of ``mode`` is judged at, as of now (``final`` False: provisional
-    unless every run holds its budget's checkpoint)."""
+    unless every run judged holds its budget's checkpoint); R3's runs of a body judged with R2 (``judged_with_r2``)
+    are left out (``left_out``: run -> why)."""
     runs = expected_runs(out, mode)
     have = {k: checkpoints(d) for k, d in runs.items()}
-    return dict(rule=JUDGED_RULE, steps=final_checkpoint(list(runs.values()), budget), budget=int(budget),
-                final=bool(final or all(budget in v for v in have.values())),
-                runs={k: dict(last_checkpoint=v[-1] if v else None, has_budget=budget in v) for k, v in have.items()})
+    left_out = {}
+    if mode == "R3":
+        for b in BODIES:
+            j = judged_with_r2(out, b)
+            if j["with_r2"]:
+                left_out.update({f"{b}/{s}": f"{b}'s R3 is judged with R2: {j['reason']}" for s in SEEDS})
+    judged = [k for k in runs if k not in left_out]
+    steps = final_checkpoint([runs[k] for k in judged], budget)
+    return dict(rule=JUDGED_RULE, steps=steps, budget=int(budget),
+                final=bool(steps is not None and (final or all(budget in have[k] for k in judged))),
+                runs={k: dict(last_checkpoint=v[-1] if v else None, has_budget=budget in v,
+                              left_out=left_out.get(k)) for k, v in have.items()},
+                left_out=left_out)
 
 
 def judge(out: Path, mode: str = "R3", budget: int = BUDGET_STEPS, final: bool = False) -> dict:
