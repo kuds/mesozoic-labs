@@ -3,15 +3,19 @@
 Run from hardware/trex_form_study:
 
   python -m designlab.stage1 prepare --body 60-N-T-10 [--body ...] --out stage1/runs/<run> [--no-gates]
-                                    [--parts plant,refs,transitions] [--transitions start,stop,...]
+                                    [--parts plant,refs,transitions,stops] [--transitions start,stop,...]
   python -m designlab.stage1 gates   --body 60-N-T-10 --out stage1/runs/<run> [--only g1|g2|g3|g4]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
 ``transitions/<name>.npz`` (``transitions``: starts, stops, speed changes and turn entries and exits) and, unless
 ``--no-gates``, ``gates.json`` (``gates``: G1-G4 of plan section 3; G4 runs the tracker R0-R2 of ``control``).
-``--parts`` limits ``prepare`` to some of its products (the others must exist for the later ones).  ``gates``
-reruns the gates (or one) on the saved products.
+``--parts`` limits ``prepare`` to some of its products (the others must exist for the later ones); ``stops`` re-reads
+the saved stop transitions' stops under ``STAGE1_PLAN.md`` decision 18 (``transitions.reread_stops``) without
+regenerating them.  ``gates`` reruns the gates (or one) on the saved products.  Every gate record carries the
+provenance of the code that made it (``plant.provenance``: commit, dirty flag, the hash of the designlab/stage1
+sources).  G4 is judged at the tracker's tuning start with the panel rule (decisions 16 and 17); a G4 record made at
+the build's earlier defaults is kept in ``G4.evidence.earlier_defaults``.
 ``--ankle-gains``, ``--ankle-armature`` and ``--g2-rule`` set the choices G2 depends on; the defaults are the ones
 ``STAGE1_PLAN.md`` decided during the build (decisions 11-13: joint-space ankle gains, the linkage's armature, the
 20-start panel), and the others stay available for comparison.  They are recorded in plant.json and gates.json
@@ -95,11 +99,52 @@ def plant_doc(body: str, plant_kw: dict | None = None) -> dict:
 GATES = ("g1", "g2", "g3", "g4")
 
 
+def earlier_g4_evidence(prev: dict | None, gates_path: Path) -> dict | None:
+    """The G4 record of the build's earlier defaults, kept as evidence (``STAGE1_PLAN.md`` decision 17): carried over
+    from a record that already keeps it, or taken from a record made before decisions 15-20 (no ``judged_at``) with
+    a note of the code it was committed with (that record names none)."""
+    from . import plant
+
+    if not prev:
+        return None
+    if prev.get("judged_at"):
+        return (prev.get("evidence") or {}).get("earlier_defaults")
+    commit = None
+    try:
+        import subprocess
+
+        commit = subprocess.run(["git", "-C", str(plant.STUDY), "log", "-1", "--format=%H", "--",
+                                 str(Path(gates_path).resolve())], capture_output=True, text=True,
+                                check=True).stdout.strip() or None
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return dict(note="G4 as the build first ran it, before decisions 15-20: the tracker at its earlier (untuned) "
+                     "defaults (control.EARLIER_DEFAULTS: heading 0.5 / 0.1, phase rate 2.0 / 1.0), no ankle cap, "
+                     "the inward step clamped at the turn gap less 1 mm, the estimator's stance odometry at the foot's "
+                     "centre of mass, every fall labelled by the episode-level counterfactual, judged on the "
+                     "unperturbed runs; kept as evidence (decision 17)",
+                record_names_code=False, committed_in=commit,
+                committed_sources_sha256=plant.sources_sha256_at(commit) if commit else None,
+                sources_rule=plant.SOURCES_RULE, record=prev)
+
+
+def _provenanced(fn, *args, **kw) -> dict:
+    """``fn(*args, **kw)`` with the provenance of the code that ran it (``plant.provenance``, taken before the run),
+    and whether the Stage 1 sources were still the same when it finished (``unchanged_during_run``)."""
+    from . import plant
+
+    prov = plant.provenance()
+    out = fn(*args, **kw)
+    prov["stage1_sources"]["unchanged_during_run"] = plant.sources_sha256() == prov["stage1_sources"]["sha256"]
+    return dict(out, provenance=prov)
+
+
 def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | None = None,
               rule: str | None = None) -> dict:
     """G1-G4 (or one of them) into ``<out>/gates.json``; ``rule`` is G2's (default: ``gates.RULES[0]``, the plan's
-    decision 13).  G3 and G4 run on the decided plant (``plant.build``'s defaults).  ``pass`` needs every gate
-    recorded so far to pass (and G1 and G2 on the same plant)."""
+    decision 13).  G3 and G4 run on the decided plant (``plant.build``'s defaults).  Each gate record gets the
+    provenance of the code that ran it (``_provenanced``).  ``pass`` needs every gate recorded so far to pass (and G1
+    and G2 on the same plant)."""
     from . import gates
 
     plant_kw = plant_kw or {}
@@ -107,13 +152,14 @@ def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | No
     path = out / "gates.json"
     doc = json.loads(path.read_text()) if path.exists() else dict(body=body)
     if only in (None, "g1"):
-        doc["G1"] = gates.g1(body, out, **plant_kw)
+        doc["G1"] = _provenanced(gates.g1, body, out, **plant_kw)
     if only in (None, "g2"):
-        doc["G2"] = gates.g2(body, out, rule=rule, **plant_kw)
+        doc["G2"] = _provenanced(gates.g2, body, out, rule=rule, **plant_kw)
     if only in (None, "g3"):
-        doc["G3"] = gates.g3(body, out)
+        doc["G3"] = _provenanced(gates.g3, body, out)
     if only in (None, "g4"):
-        doc["G4"] = gates.g4(body, out)
+        evidence = earlier_g4_evidence(doc.get("G4"), path)
+        doc["G4"] = dict(_provenanced(gates.g4, body, out), evidence=dict(earlier_defaults=evidence))
     same = (doc.get("G1", {}).get("plant_options") is not None
             and doc.get("G1", {}).get("plant_options") == doc.get("G2", {}).get("plant_options"))
     doc["same_plant_options"] = same
@@ -171,25 +217,32 @@ def summary(doc: dict) -> str:
                      f"{g3['worst_com']['mm']:.3f} mm ({g3['worst_com']['transition']}), worst ZMP "
                      f"{g3['worst_zmp']['mm']:.3f} mm ({g3['worst_zmp']['transition']}); failed: "
                      f"{', '.join(g3['failed']) or 'none'} (fall back to amplitude ramps: {', '.join(g3['fallback']) or 'none'})")
+        st = g3.get("stops", {}).get("stops", {})
+        if st:
+            lines.append("   stops (decision 18, strides from the command): " + "; ".join(
+                f"{n} forward {'-' if s.get('forward_stopped_strides') is None else format(s['forward_stopped_strides'], '.3f')}"
+                f" (within {s.get('within')}), rest {s.get('at_rest_strides', float('nan')):.3f}" for n, s in st.items()))
     g4 = doc.get("G4")
-    if g4:
+    if g4 and g4.get("judged_at"):
         parts = []
         for key, g in g4["gated"].items():
             u, pnl = g["unperturbed"], g["panel"]
-            parts.append(f"{key} {u['strides']:.1f} (>= {g['threshold_strides']:g}: {g['unperturbed_pass']}; panel median "
-                         f"{pnl['median']:.1f}, {pnl['runs_at_least_threshold']}/{pnl['runs']})")
-        lines.append(f"G4 {'pass' if g4['pass'] else 'FAIL'}: " + "; ".join(parts))
+            parts.append(f"{key} panel median {pnl['median']:.1f} (>= {g['threshold_strides']:g}: {g['panel_pass']}; "
+                         f"{pnl['runs_at_least_threshold']}/{pnl['runs']} reach it, {pnl['survived']} survive); "
+                         f"unperturbed {u['strides']:.1f}")
+        lines.append(f"G4 {'pass' if g4['pass'] else 'FAIL'} (panel rule, at the tuning start): " + "; ".join(parts))
+        for key, a in (g4.get("attribution") or {}).items():
+            tests = ", ".join(f"{r} p {t['sign_test']['p']:.3g} ({t['survived']} survive)" for r, t in a["lifted"].items())
+            lines.append(f"   {key}: {a['label']}; candidates {', '.join(a['candidates']) or 'none'}; lifted: "
+                         f"{tests or 'nothing relaxable'}; null p {a['null']['sign_test']['p']:.3g}")
         lines.append("   R0: " + ", ".join(f"{n} {r['strides']:.1f}" for n, r in g4["R0"].items()))
         for mode, rows in g4["reported"].items():
-            lines.append(f"   {mode}: " + ", ".join(f"{n} {r['strides']:.1f}" + (f" ({r['fall_label']})" if r["fell"] else "")
-                                               for n, r in rows.items()))
-        fc = g4.get("fall_classes")
-        if fc:
-            lines.append("   fall labels (counterfactuals): unperturbed, reported and stance runs "
-                         + (", ".join(f"{k} {v}" for k, v in fc["unperturbed_reported_and_stance"].items()) or "no falls")
-                         + "; gated panels " + "; ".join(f"{key} " + (", ".join(f"{k} {v}" for k, v in c.items())
-                                                                      or "no falls")
-                                                         for key, c in fc["gated_panels"].items()))
+            lines.append(f"   {mode}: " + ", ".join(f"{n} {r['strides']:.1f}" for n, r in rows.items()))
+        for mode, r in g4["stance_start_stop"].items():
+            stop = (r.get("stops") or [{}])[0]
+            lines.append(f"   {mode} start-walk-stop: {r['strides']:.1f} strides, fell {r['fell']}; stop "
+                         + (f"forward {stop.get('forward_stopped_strides')} strides (within {stop.get('within')}), rest "
+                            f"{stop.get('at_rest_strides')}" if stop.get("reached") else "not reached"))
     return "\n".join(lines)
 
 
@@ -218,7 +271,8 @@ def main(argv=None) -> int:
             p.add_argument("--no-gates", action="store_true", help="skip the gates")
             p.add_argument("--refs", default=None, help="comma-separated reference names (default: all)")
             p.add_argument("--parts", default="plant,refs,transitions",
-                           help="comma-separated products to make: plant, refs, transitions (default: all)")
+                           help="comma-separated products to make: plant, refs, transitions (default), and stops "
+                                "(re-read the saved stops, decision 18)")
             p.add_argument("--transitions", default=None, help="comma-separated transition names (default: all)")
         if name == "gates":
             p.add_argument("--only", choices=GATES, default=None)
@@ -237,8 +291,8 @@ def main(argv=None) -> int:
             from . import refs, transitions
 
             parts = set(a.parts.split(","))
-            if parts - {"plant", "refs", "transitions"}:
-                raise SystemExit(f"--parts: unknown {sorted(parts - {'plant', 'refs', 'transitions'})}")
+            if parts - {"plant", "refs", "transitions", "stops"}:
+                raise SystemExit(f"--parts: unknown {sorted(parts - {'plant', 'refs', 'transitions', 'stops'})}")
             if "plant" in parts:
                 _write(out / "plant.json", plant_doc(body, plant_kw))
                 print(f"{body}: plant.json written", flush=True)
@@ -250,6 +304,11 @@ def main(argv=None) -> int:
                 names = a.transitions.split(",") if a.transitions else None
                 doc = transitions.prepare(body, out, names)
                 print(f"{body}: {len(doc['transitions'])} transitions", flush=True)
+            if "stops" in parts:
+                doc = transitions.reread_stops(out)
+                print(f"{body}: stops re-read (decision 18): " + ", ".join(
+                    f"{n} {e['stop']['forward_stopped_strides']}" for n, e in doc["transitions"].items()
+                    if e["kind"] == "stop"), flush=True)
             if a.no_gates:
                 continue
         doc = run_gates(body, out, getattr(a, "only", None), plant_kw, a.g2_rule)

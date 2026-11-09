@@ -5,7 +5,8 @@
   + frictionloss x tanh(qd_ref / 0.05)) and the plant's extra ankle armature x qdd_ref, exactly as G2's replay
   (``gates.replay``).
 * **R1**: the tracker on the true (privileged) state: CoM, its velocity, the feet, the trunk's orientation and rate.
-* **R2**: the tracker on the estimate (``estimator``: encoders, IMU with noise, stance-leg kinematics).
+* **R2**: the tracker on the estimate (``estimator``: encoders, IMU with noise, stance-leg kinematics at the loaded
+  pad's contact point, decision 19).
 
 Servo target (plan section 2), every physics step (500 Hz), in joint space and set in motor coordinates by
 ``plant.Plant.command``::
@@ -19,6 +20,23 @@ and rocks the stance feet on their pads: on the nominal walk (60-N-T-10, R1) the
 move at 11 / 8 / 19 mm/s RMS (x / y / z) against 5 / 5 / 5 mm/s with the ramp and 5 / 4 / 5 mm/s for R0, which
 spoils the stance-leg odometry R2 relies on.
 
+Ankle torque cap (``STAGE1_PLAN.md`` decision 15; ``ANKLE_CAP``, ``cap_ankle_torque``): every physics step the
+tracker limits each ankle's total commanded torque (feedforward, the servo's PD predicted from the encoders, true
+angles and rates for R1 and the last reading for R2, and the feedback) to at most one motor's peak on each axis (the
+screened model's per-axis box, inside the two-motor linkage's |tau_p| + |tau_r| <= 2 peak) and, on a loaded foot
+(R1: carrying more than ``CONTACT_LOAD_FRAC`` of the weight; R2: in contact by its estimator's detection, whose load
+readings are as noisy as that threshold), to what the stance pad can carry with its centre of pressure
+``COP_INSET`` (5 mm) inside the pad (the CoP the torques imply under the foot's load, quasi-statically: ``ankle_cop``).
+The torque kept is the feasible one nearest to the command.  More torque only rolls the foot; the cap limits the
+controller, not the plant.
+
+The tunable gains are one named vector (``GAIN_SPEC``: name, tuning start, earlier default, CMA-ES bounds, note).  The
+tuning start (decision 16, ``START_GAINS``, the tracker's default and G4's point, decision 17) is the design-study
+prototype's terms (``track_proto.py``): ankle and step feedback and trunk PD at its values (k_dcm 2.0, cop 0.020 /
+0.012 m, k_step 1.0, step 0.05 / 0.03 m, decay 1.0, trunk 40 / 2.0), the heading and phase-rate PI gains zero.  The
+build's untuned defaults (``EARLIER_DEFAULTS``: heading 0.5 / 0.1, phase rate 2.0 / 1.0, chosen before any run) stay
+available for the record (``GAIN_SETS``).
+
 The feedback acts on the divergent component of motion xi = c + c' / omega0 (omega0 the references' sqrt(g / z_c)):
 its error e against the reference, both relative to the anchor foot (the stance foot; in double support the foot that
 landed last, before the first step the first stance foot; in a stand the midpoint of the feet) and in its frame:
@@ -26,20 +44,13 @@ landed last, before the first step the first stance foot; in a stand the midpoin
 * ankle: the ZMP is shifted by dp = clip(k_dcm e, +-(cop_x, cop_y)), the shifted ZMP kept ``COP_INSET`` (5 mm) inside
   the support (the stance pad polygon, in double support the hull of both), realised as ankle torque on each stance
   foot in proportion to the reference's normal forces (plan section 2: "DCM feedback drives the ankle CoP, 5 mm
-  inside the pad");
-* step: the swing foot's touchdown moves by clip(k_step e) (+-step_x forward, step_out outward, inward at most the
-  turn gap minus ``TURN_GAP_MARGIN``: the target turns' smallest gap in the turning screen, ``turn_gap``) through the
-  swing leg's Jacobian, frozen after 80 % of the swing; the offset blends in over the swing (minimum jerk) and decays
-  over the following stance (``decay``: e^-decay of it remains at lift-off).  The turn gap is not a gap between the
-  legs: on every body it is a gap between the trunk's pelvis and the same-side upper thigh (``turn_gap_info``: on the
-  60 cm bodies the pelvis plate against the upper-thigh shell in both target turns; on 75-M-H-10 the walking turn's
-  smallest gap is the two hip brackets, which sit 4 mm apart at every pose, and the in-place turn's, the smaller, is
-  pelvis against thigh), while the screen's leg-to-leg lateral gap is 32-58 mm.  Moving the swing foot inward by the
-  clamp changes the swinging side's pelvis-thigh distance by a few tenths of a millimetre; 30 mm inward leaves the
-  moving leg parts at least 9 mm apart on the 60 cm bodies, in the in-place turn too, but on 75-M-H-10's in-place
-  turn 20 mm leaves 2 mm and 30 mm makes the legs interfere (``inward_step_clearance``).  The clamp is kept as plan
-  section 2 words it, pending the owner's choice of what bounds the inward step; it is the controller's own clip, not
-  a hardware limit;
+  inside the pad"), and capped as above;
+* step: the swing foot's touchdown moves by clip(k_step e) (+-step_x forward, step_out outward) through the swing
+  leg's Jacobian, frozen after 80 % of the swing; the offset blends in over the swing (minimum jerk) and decays over
+  the following stance (``decay``: e^-decay of it remains at lift-off).  Inward the bound is the leg-to-leg clearance
+  (decision 20, ``inward_room``): the swing pad, at its reference touchdown pose relative to the stance foot moved by
+  the offset, stays at least ``PAD_CLEARANCE`` (5 mm) from the stance pad.  (The turning screen's turn gap, the
+  pelvis plate's clearance to the same-side thigh, ``turn_gap_info``, bounds nothing: decision 20.);
 * trunk: roll and pitch PD (k_trunk, d_trunk) about the reference attitude through the stance hips;
 * heading: a PI on the trunk heading error (averaged over the last stride and sampled at each lift-off; k_yaw is the
   fraction corrected per step) through the swing leg's hip yaw, which then decays in stance like the step offset;
@@ -51,16 +62,6 @@ landed last, before the first step the first stance foot; in a stand the midpoin
   keeps its place sideways), kept out of the other foot's way (``CAPTURE_*``); the body then stands on the new
   stance.
 
-The tunable gains are one vector (``GAIN_SPEC``: name, default, CMA-ES bounds, note); the defaults are the design-study
-prototype's (``track_proto.py``: k_dcm 2.0, cop 0.020 / 0.012 m, k_step 1.0, step 0.05 / 0.03 m, decay 1.0, trunk 40 /
-2.0, heading 0.5) and, for the terms it did not have, values chosen before any run (``GAIN_SPEC`` notes).
-
-``Tracker.ankle_limit`` (diagnostics, not the plan's tracker): the two-motor ankle reaches |tau_p| + |tau_r| <= 2 peak,
-twice the screened model's per-axis box on one axis, while a loaded foot carries far less (the pads reach only 15 mm
-behind the ankle axis on the 60 cm bodies).  "box" caps each ankle axis's total torque (feedforward, the servo's PD,
-predicted from the encoders, and the feedback) at one motor's peak, the screened model's limit; "cop" keeps the CoP that
-total implies (``ankle_cop``) ``COP_INSET`` inside the pad.
-
 Falls are ``plant.Plant.fall_cause`` (trunk tilt over 0.6 rad, root below 0.7 x home height, a ``cl_*`` proxy below the
 floor).  The fall's onset is the last time the tilt from home rose through ``FALL_ONSET_RAD`` (0.2 rad) before it: by
 the 0.6 rad of the fall itself every drive is fighting it.  Every feedback update records which of plan section 4's
@@ -68,39 +69,27 @@ hardware limits were active (``HW_LIMITS``): a leg drive at its torque limit, a 
 narrowed, the ankle linkage (both motors of an ankle at their limits), slip (a foot carrying more than
 ``SLIP_LOAD_FRAC`` of the weight sliding faster than ``SLIP_SPEED`` at one of its pad contacts that carries load: the
 foot's velocity at the contact point, ``foot_slip_speed``, so that a foot rocking or turning on its pad is not counted),
-the CoP at a pad edge with the ankle saturated (the commanded ZMP clipped into the pad while an ankle motor is at its
-limit), joint range, and in the ankle-limit diagnostics only the tracker's own cap on the ankle torque (``ankle_limit``:
-the screened model's box or the pad's CoP, which the build first counted as the CoP at a pad edge).  Recorded beside
-them, not counted as hardware limits
-(``REPORTED_LIMITS``): neck and tail drives at their limits (they saturate in falls, but in the G4 walks that do not
-fall never at the nominal speed, and only the tail, in 1 % of the steps, in 75-M-H-10's Fr 0.05 walk), the turn-gap
-clamp (it protects no clearance, above), the step clips and the phase-rate limit (the controller's own).
+the CoP at a pad edge with the ankle saturated (the cap holding a loaded foot's CoP at the pad's 5 mm inset, or the
+feedback's ZMP clipped into the pad while an ankle motor is at its limit), the leg-to-leg clearance (the inward step
+bound clipping the step, decision 20) and joint range.  Recorded beside them, not hardware limits
+(``REPORTED_LIMITS``): neck and tail drives at their limits, the cap's per-axis box (the controller's own: the plant's
+linkage reaches twice it on one axis), the step clips and the phase-rate limit.  The hardware limits active at any
+update of the ``LIMIT_WINDOW_S`` (0.5 s, plan section 4) before a fall's onset are its candidates.
 
-A hardware limit active at any update of the ``LIMIT_WINDOW_S`` (0.5 s, plan section 4) before the onset is a
-candidate, and it binds if lifting it avoids the fall (``LABEL_RULE``): the episode is restored to its state
-``CF_BRANCH_S`` (1 s) before the onset (``Tracker.save`` and ``Tracker.load``: MuJoCo's integration state, every
-controller and estimator variable and the sensor-noise generator, so that the continuation without any change repeats
-the fall bit for bit) and continued with the limit relaxed (``relaxed``: the leg drives' torque limits lifted, the
-envelope off, the ankle motors' limits lifted, friction ``CF_FRICTION``, the hinges' ranges widened by
-``CF_RANGE_RAD``, the diagnostic ankle cap off) until ``CF_HORIZON_S`` after the original fall; the fall is avoided if the continuation has not
-fallen and is upright (tilt below ``FALL_ONSET_RAD``) then.  The label is "body-limited: <limits>" for the candidates
-whose relaxation alone avoids the fall, "body-limited: <limits> together" if only relaxing the candidates together
-does, and "controller-limited" otherwise; every relaxation at once is run as well and recorded.  A null continuation,
-the root velocity changed by ``CF_NULL_M_S`` (1 mm/s, the G2 panel's start offsets) at the branch, tells whether the fall
-is chaotic there: if it avoids the fall too, the label is "undetermined", as it is if the unchanged continuation does
-not repeat the fall.  The CoP at a pad edge cannot be relaxed in the plant (the pads' size), so a fall where it was a
-candidate and no relaxation avoids it is "unconfirmed".
+Attribution is by condition (decision 20, ``gates.attribute``): a condition's falls are body-limited by a hardware
+limit only if lifting that limit from the start (``run``'s ``relax``, ``relaxed``: the leg drives' torque limits
+lifted, the envelope off, the ankle motors' limits lifted, friction ``CF_FRICTION``, the inward bound lifted with the
+feet's pads passing through each other, the hinges' ranges widened by ``CF_RANGE_RAD``) improves survival over the
+condition's 20 starts significantly in a paired test; otherwise they are controller-limited.  A 1 mm/s null (the
+same starts, nothing lifted) is reported beside the label as a chaos diagnostic.  The CoP at a pad edge cannot be
+lifted in the plant (the pads' size).
 
-Why 1 s: branching at the window's start is too late for a limit that binds throughout, since the body is already lost
-there (a plant at 0.2 or 0.3 of its drive torque still fell with its drives freed at the window's start, and did not
-when they were freed 1 s before the onset); and on four gated G4 falls the 1 mm/s null avoided none from 1 s before
-the onset (it moved them by under 0.02 s), but from 2 s before it delayed one by 1.1 s.
-
-This replaces the build's first rule (any limit, the neck, tail and turn-gap clamp included, active in 5 % of the
-window's updates, slip read from the foot body's own velocity, at its centre of mass above the pads), which labelled
-nearly every fall body-limited; plan section 4 names the limits but not the test, so the rule is the owner's to
-confirm.  The counterfactual tests a fall's last second; whether a condition needs the body's limits at all over a
-whole episode is a separate question (``run``'s ``relax``; G4's ``every_limit_relaxed`` panels).
+The episode-level counterfactual of the build (``run``'s ``confirm``; ``EPISODE_CF_RULE``) stays as a diagnostic: the
+episode is restored to its state ``CF_BRANCH_S`` (1 s) before the onset (``Tracker.save`` and ``Tracker.load``:
+MuJoCo's integration state, every controller and estimator variable and the sensor-noise generator, so that the
+continuation without any change repeats the fall bit for bit) and continued with each candidate relaxed until
+``CF_HORIZON_S`` after the original fall, beside a null continuation with the root velocity changed by
+``CF_NULL_M_S`` (1 mm/s).  It tests a fall's last second; decision 20 judges a condition over its starts instead.
 """
 
 from __future__ import annotations
@@ -122,7 +111,7 @@ from .. import statics
 from . import case_dir, plant
 from . import estimator as est_mod
 from .refs import Reference
-from .transitions import N_FRAMES, Transition
+from .transitions import N_FRAMES, TRANSITIONS, Transition, stop_command_phase
 
 FEEDBACK_EVERY = 5
 #: How the 100 Hz feedback reaches the 500 Hz servo targets: "ramp" (first-order hold: each update's offsets are
@@ -130,7 +119,15 @@ FEEDBACK_EVERY = 5
 FEEDBACK_HOLD = "ramp"
 FRICTION_SMOOTH = 0.05
 COP_INSET = 0.005
-TURN_GAP_MARGIN = 0.001
+#: ``STAGE1_PLAN.md`` decision 20: the inward swing-foot bound, the leg-to-leg clearance: the swing pad stays at least
+#: this far from the stance pad.
+PAD_CLEARANCE = 0.005
+#: Decision 15: the tracker's cap on each ankle's total torque command, "box" (each axis at most one motor's peak) and
+#: "pad" (a loaded foot's CoP ``COP_INSET`` inside its pad); the decided cap first, the others for diagnostics.
+ANKLE_CAP = ("box", "pad")
+ANKLE_CAPS = (ANKLE_CAP, ("box",), ("pad",), ())
+#: Decision 20: what bounds the swing foot's inward step; None (no bound) is the leg-to-leg clearance lifted.
+INWARD_BOUNDS = ("pad_clearance", None)
 PHASE_RATE_LIMIT = 0.05
 SWING_FREEZE_U = 0.8
 LIMIT_WINDOW_S = 0.5
@@ -144,36 +141,54 @@ CAPTURE_MIN_WIDTH = 0.6  # x the home stance width, kept between the feet
 G = 9.81
 LEGS = ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_pitch", "ankle_roll")
 TERMS = ("ankle", "step", "trunk", "heading", "phase", "capture")
-ANKLE_LIMITS = (None, "cop", "box")
 MODES = ("R0", "R1", "R2")
 
-#: (name, default, CMA-ES lower bound, upper bound, note).
+#: The tracker's named parameter vector: (name, tuning start, earlier default, CMA-ES lower bound, upper bound, note).
+#: The tuning start is ``STAGE1_PLAN.md`` decision 16: the design-study prototype's terms (ankle and step feedback
+#: and trunk PD at its values; heading and phase-rate gains at zero), from which CMA-ES may move every gain.  The
+#: earlier defaults are the build's untuned defaults (G4's first run), kept for the record.
 GAIN_SPEC = (
-    ("k_dcm", 2.0, 0.0, 6.0, "ankle: ZMP shift per unit DCM error (prototype)"),
-    ("cop_x", 0.020, 0.0, 0.05, "ankle: ZMP shift limit forward/back, m (prototype)"),
-    ("cop_y", 0.012, 0.0, 0.03, "ankle: ZMP shift limit sideways, m (prototype)"),
-    ("k_step", 1.0, 0.0, 3.0, "step: touchdown offset per unit DCM error (prototype)"),
-    ("step_x", 0.05, 0.0, 0.10, "step: offset limit forward/back, m (prototype)"),
-    ("step_out", 0.03, 0.0, 0.06, "step: offset limit outward, m (prototype; inward is the turn gap less 1 mm)"),
-    ("decay", 1.0, 0.0, 3.0, "step and heading offsets' decay over a stance (prototype)"),
-    ("k_trunk", 40.0, 0.0, 150.0, "trunk roll/pitch P, N m/rad (prototype)"),
-    ("d_trunk", 2.0, 0.0, 10.0, "trunk roll/pitch D, N m s/rad (prototype)"),
-    ("k_yaw", 0.5, 0.0, 1.0, "heading P: fraction of the stride-mean error corrected per step (prototype's value)"),
-    ("ki_yaw", 0.1, 0.0, 0.5, "heading I per step (a fifth of the P gain; chosen before any run)"),
-    ("k_phase", 2.0, 0.0, 10.0, "phase rate P, 1/m: 2 % per cm of forward DCM error (chosen before any run)"),
-    ("ki_phase", 1.0, 0.0, 10.0, "phase rate I, 1/(m s) (chosen before any run)"),
-    ("capture_margin", 0.0, -0.02, 0.05, "capture step: DCM distance outside the support that triggers it, m"),
+    ("k_dcm", 2.0, 2.0, 0.0, 6.0, "ankle: ZMP shift per unit DCM error (prototype)"),
+    ("cop_x", 0.020, 0.020, 0.0, 0.05, "ankle: ZMP shift limit forward/back, m (prototype)"),
+    ("cop_y", 0.012, 0.012, 0.0, 0.03, "ankle: ZMP shift limit sideways, m (prototype)"),
+    ("k_step", 1.0, 1.0, 0.0, 3.0, "step: touchdown offset per unit DCM error (prototype)"),
+    ("step_x", 0.05, 0.05, 0.0, 0.10, "step: offset limit forward/back, m (prototype)"),
+    ("step_out", 0.03, 0.03, 0.0, 0.06, "step: offset limit outward, m (prototype; inward: the swing pad 5 mm from the "
+                                        "stance pad, decision 20)"),
+    ("decay", 1.0, 1.0, 0.0, 3.0, "step and heading offsets' decay over a stance (prototype)"),
+    ("k_trunk", 40.0, 40.0, 0.0, 150.0, "trunk roll/pitch P, N m/rad (prototype)"),
+    ("d_trunk", 2.0, 2.0, 0.0, 10.0, "trunk roll/pitch D, N m s/rad (prototype)"),
+    ("k_yaw", 0.0, 0.5, 0.0, 1.0, "heading P: fraction of the stride-mean error corrected per step (start: zero, "
+                                  "decision 16; earlier default: the prototype's value)"),
+    ("ki_yaw", 0.0, 0.1, 0.0, 0.5, "heading I per step (start: zero; earlier default: a fifth of the P gain, chosen "
+                                   "before any run)"),
+    ("k_phase", 0.0, 2.0, 0.0, 10.0, "phase rate P, 1/m (start: zero; earlier default: 2 % per cm of forward DCM "
+                                     "error, chosen before any run)"),
+    ("ki_phase", 0.0, 1.0, 0.0, 10.0, "phase rate I, 1/(m s) (start: zero; earlier default chosen before any run)"),
+    ("capture_margin", 0.0, 0.0, -0.02, 0.05, "capture step: DCM distance outside the support that triggers it, m "
+                                              "(standing only)"),
 )
 GAIN_NAMES = tuple(g[0] for g in GAIN_SPEC)
-DEFAULT_GAINS = np.array([g[1] for g in GAIN_SPEC])
-GAIN_BOUNDS = np.array([(g[2], g[3]) for g in GAIN_SPEC])
+START_GAINS = np.array([g[1] for g in GAIN_SPEC])
+EARLIER_DEFAULTS = np.array([g[2] for g in GAIN_SPEC])
+#: The named gain sets: the tuning start (decision 16, the tracker's default) and the build's earlier defaults.
+GAIN_SETS = {"start": START_GAINS, "earlier_defaults": EARLIER_DEFAULTS}
+DEFAULT_GAINS = START_GAINS
+GAIN_BOUNDS = np.array([(g[3], g[4]) for g in GAIN_SPEC])
+GAINS_SOURCE = {"start": "STAGE1_PLAN.md decision 16 (the tuning start)",
+                "earlier_defaults": "the build's untuned defaults (G4's first run), kept for the record"}
 
 
 def gains_dict(x=None) -> dict:
-    """The gain vector as a dict (None: the defaults)."""
-    x = DEFAULT_GAINS if x is None else np.asarray(x, float)
-    if x.shape != DEFAULT_GAINS.shape:
-        raise ValueError(f"{len(x)} gains; the tracker has {len(DEFAULT_GAINS)} ({', '.join(GAIN_NAMES)})")
+    """The gain vector as a dict: None (the tuning start), a set name of ``GAIN_SETS``, or the values in
+    ``GAIN_NAMES`` order."""
+    if x is None or isinstance(x, str):
+        if x is not None and x not in GAIN_SETS:
+            raise ValueError(f"gain set {x!r}: choose from {', '.join(GAIN_SETS)}")
+        x = GAIN_SETS[x or "start"]
+    x = np.asarray(x, float)
+    if x.shape != START_GAINS.shape:
+        raise ValueError(f"{len(x)} gains; the tracker has {len(START_GAINS)} ({', '.join(GAIN_NAMES)})")
     return dict(zip(GAIN_NAMES, (float(v) for v in x), strict=True))
 
 
@@ -193,8 +208,9 @@ def turn_gap(body: str) -> float:
 
 
 def turn_gap_info(body: str) -> dict:
-    """What the turn gap is (module docstring): per target turn, the turning screen's smallest gap, the pair of parts
-    it is between (geoms, bodies, class, where) and the screen's lateral gap between the legs."""
+    """What the turn gap is: per target turn, the turning screen's smallest gap, the pair of parts it is between
+    (geoms, bodies, class, where) and the screen's lateral gap between the legs.  The pair is the trunk's pelvis plate
+    and the same-side thigh, not two legs, so the turn gap is no hardware limit and bounds no step (decision 20)."""
     cases = _turning_screen(body)["clearance"]["cases"]
     out = {}
     for name in TURN_CASES:
@@ -214,26 +230,42 @@ def _inward(side: int, yaw: float) -> np.ndarray:
     return (-1.0 if side == 0 else 1.0) * np.array([-math.sin(yaw), math.cos(yaw)])
 
 
-def inward_step_clearance(body: str, run_dir: Path, deltas=None, swing_u=(0.6, 0.8, 1.0), references=None) -> dict:
-    """What the inward step clamp protects (module docstring), with the clearance screen's geometry and distance
-    oracle (``legs.LegGap``): on the poses at ``swing_u`` of each swing (near touchdown, where the tracker's step
-    offset is blended in) of the nominal walk and of the turns the turning screen found its smallest gaps on, the
-    swing foot is moved inward (toward the stance foot, in its frame) by each of ``deltas`` (m) through the swing
-    leg's Jacobian as ``Tracker.feedback`` moves it, and the smallest distance is measured of the turning screen's
-    pairs (the turn gap's), of the leg-to-leg pairs that only come close in motion (``LegGap.moving``), and of every
-    leg-to-leg pair (distances beyond ``LegGap.cap`` read as the cap).  ``references`` names other references of
-    ``run_dir`` to use instead."""
+def _swing_runs(swing_mask: np.ndarray, periodic: bool) -> list[np.ndarray]:
+    """The runs of consecutive frames where ``swing_mask`` holds (a periodic run that wraps across the stride
+    boundary is one run, in time order)."""
+    fr = np.flatnonzero(swing_mask)
+    if not len(fr):
+        return []
+    runs = np.split(fr, np.flatnonzero(np.diff(fr) > 1) + 1)
+    n = len(swing_mask)
+    if periodic and len(runs) > 1 and runs[0][0] == 0 and runs[-1][-1] == n - 1:
+        runs = [np.concatenate([runs[-1], runs[0]])] + runs[1:-1]
+    return runs
+
+
+def inward_step_clearance(body: str, run_dir: Path, deltas=(0.0, 0.01, 0.02, 0.03, 0.05), swing_u=(0.6, 0.8, 1.0),
+                          references=None) -> dict:
+    """What the inward bound (decision 20) allows, with the clearance screen's geometry and distance oracle
+    (``legs.LegGap``), on the nominal walk and on the turns the turning screen found its smallest gaps on: per swing,
+    the bound at the reference touchdown (``inward_room``: how far inward the swing pad may land before it is within
+    ``PAD_CLEARANCE`` of the stance pad); and on the poses at ``swing_u`` of each swing (near touchdown, where the
+    tracker's step offset is blended in), with the swing foot moved inward (toward the stance foot, in its frame) by
+    each of ``deltas`` and by the side's smallest bound (m) through the swing leg's Jacobian as ``Tracker.feedback``
+    moves it, the smallest distance of the turning screen's pair (the turn gap's), of the leg-to-leg pairs that only
+    come close in motion (``LegGap.moving``), and of every leg-to-leg pair (distances beyond ``LegGap.cap`` read as
+    the cap).  Only the pads collide in the plant, so these show whether other leg parts meet within the bound.
+    ``references`` names other references of ``run_dir`` to use instead."""
     from .legs import LegGap
 
     info = turn_gap_info(body)
-    inward = turn_gap(body) - TURN_GAP_MARGIN
-    deltas = (0.0, inward, 0.01, 0.02, gains_dict()["step_out"]) if deltas is None else tuple(deltas)
+    deltas = tuple(float(x) for x in deltas)
     lg = LegGap(body)
     S = lg.S
     m = S.m
     d = mujoco.MjData(m)
     jacp, jacr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     feet = [statics.bid(m, f"{s}_foot") for s in statics.SIDES]
+    pads = pad_polygons(m)
     jids = [[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"{s}_{x}") for x in LEGS] for s in statics.SIDES]
     dofs = [np.array([m.jnt_dofadr[j] for j in js]) for js in jids]
     qadr = [np.array([m.jnt_qposadr[j] for j in js]) for js in jids]
@@ -244,32 +276,47 @@ def inward_step_clearance(body: str, run_dir: Path, deltas=None, swing_u=(0.6, 0
             refs_[c["at"]["gait"]] = name
     if references is not None:
         refs_ = {name: refs_.get(name) for name in references}
-    out = dict(rule="near touchdown (the given fractions of each swing) the swing foot is moved inward by each delta "
-                    "through the swing leg's Jacobian; smallest distance, by the clearance screen's oracle, of the "
-                    "turning screen's pair (the turn gap), of the leg-to-leg pairs that only come close in motion, and "
-                    "of every leg-to-leg pair (capped)",
-               inward_clamp_m=inward, deltas_m=list(deltas), swing_u=list(swing_u), cap_mm=1e3 * lg.cap, references={})
+    out = dict(rule="per swing, the inward bound at the reference touchdown (the swing pad at least "
+                    f"{1e3 * PAD_CLEARANCE:g} mm from the stance pad, decision 20); near touchdown (the given fractions "
+                    "of each swing) the swing foot moved inward by each delta and by the side's smallest bound through "
+                    "the swing leg's Jacobian; smallest distance, by the clearance screen's oracle, of the turning "
+                    "screen's pair (the turn gap), of the leg-to-leg pairs that only come close in motion, and of "
+                    "every leg-to-leg pair (capped)",
+               pad_clearance_m=PAD_CLEARANCE, deltas_m=list(deltas), swing_u=list(swing_u), cap_mm=1e3 * lg.cap,
+               references={})
+
+    def pose(q):
+        d.qpos[:] = q
+        mujoco.mj_kinematics(m, d)
+        mujoco.mj_comPos(m, d)
+
     for refname, case in refs_.items():
         ref = Reference.load(Path(run_dir) / "refs" / f"{refname}.npz")
+        n = ref.n
         cases = [case] if case else list(info)
         pairs = {cs: [S.gid(g) for g in info[cs]["pair"]] for cs in cases if info[cs]["pair"]}
         rows = {}
         for side in (0, 1):
-            fr = np.flatnonzero(~ref.support[:, side])
-            if not len(fr):
+            runs = _swing_runs(~ref.support[:, side], periodic=True)
+            if not runs:
                 continue
-            runs = np.split(fr, np.flatnonzero(np.diff(fr) > 1) + 1)
+            bounds = []
+            for r in runs:  # the bound at each swing's touchdown, in the stance foot's frame
+                pose(ref.q[(int(r[-1]) + 1) % n])
+                ys, yw = _yaw(d.xmat[feet[1 - side]]), _yaw(d.xmat[feet[side]])
+                rel = _rot2(ys).T @ (d.xpos[feet[side]][:2] - d.xpos[feet[1 - side]][:2])
+                swing_pad = pads[side] @ _rot2(_wrap(yw - ys)).T + rel
+                bounds.append(inward_room(pads[1 - side], swing_pad, _inward(side, 0.0)))
+            bound = float(min(bounds))
             pick = [int(r[int(round(u * (len(r) - 1)))]) for r in runs for u in swing_u]
             per = []
-            for delta in deltas:
+            for delta in deltas + ((bound,) if math.isfinite(bound) else ()):
                 best = dict(moving_leg_pairs_mm=math.inf, all_leg_pairs_mm=math.inf)
                 who = dict(moving_leg_pairs=None, all_leg_pairs=None)
                 pair_mm = {cs: math.inf for cs in pairs}
                 for k in pick:
                     q = ref.q[k].copy()
-                    d.qpos[:] = q
-                    mujoco.mj_kinematics(m, d)
-                    mujoco.mj_comPos(m, d)
+                    pose(q)
                     Rst = d.xmat[feet[1 - side]].reshape(3, 3)
                     mujoco.mj_jacBody(m, d, jacp, jacr, feet[side])
                     J = np.vstack([jacp, jacr])[:, dofs[side]]
@@ -285,10 +332,11 @@ def inward_step_clearance(body: str, run_dir: Path, deltas=None, swing_u=(0.6, 0
                         im = int(mov[np.argmin(dist[mov])])
                         if 1e3 * dist[im] < best["moving_leg_pairs_mm"]:
                             best["moving_leg_pairs_mm"], who["moving_leg_pairs"] = 1e3 * float(dist[im]), lg.pair(im)
-                per.append(dict(inward_m=float(delta), turn_gap_pair_mm={cs: float(v) for cs, v in pair_mm.items()},
+                per.append(dict(inward_m=float(delta), at_bound=bool(len(per) == len(deltas)),
+                                turn_gap_pair_mm={cs: float(v) for cs, v in pair_mm.items()},
                                 **{k_: float(v) for k_, v in best.items()}, moving_pair=who["moving_leg_pairs"],
                                 all_pair=who["all_leg_pairs"]))
-            rows[f"{statics.SIDES[side]}_swing"] = per
+            rows[f"{statics.SIDES[side]}_swing"] = dict(bound_m=bound, bounds_m=[float(b) for b in bounds], rows=per)
         out["references"][refname] = dict(turn_gap_case=cases, turn_gap_pair={cs: info[cs]["pair"] for cs in pairs},
                                           poses_per_swing=len(swing_u), swings=rows)
     return out
@@ -417,6 +465,89 @@ def signed_distance(poly: np.ndarray, x: np.ndarray) -> float:
     return float(np.linalg.norm(x - project_into(poly, x)[0]))
 
 
+def clip_polygon(poly: np.ndarray, N: np.ndarray, d: np.ndarray) -> np.ndarray:
+    """The convex polygon ``poly`` (counter-clockwise) cut to the half-planes N x <= d (Sutherland-Hodgman); an empty
+    result has shape (0, 2)."""
+    out = np.asarray(poly, float)
+    for n, c in zip(N, d, strict=True):
+        if not len(out):
+            break
+        s = out @ n - c
+        nxt = []
+        k = len(out)
+        for i in range(k):
+            j = (i + 1) % k
+            if s[i] <= 0:
+                nxt.append(out[i])
+            if (s[i] <= 0) != (s[j] <= 0):
+                nxt.append(out[i] + (out[j] - out[i]) * (s[i] / (s[i] - s[j])))
+        out = np.array(nxt) if nxt else np.zeros((0, 2))
+    return out
+
+
+def minkowski_difference(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """The convex polygon {x - y : x in a, y in b} of two convex polygons (counter-clockwise)."""
+    pts = (np.asarray(a, float)[:, None, :] - np.asarray(b, float)[None, :, :]).reshape(-1, 2)
+    return pts[ConvexHull(pts).vertices]
+
+
+def inward_room(stance: np.ndarray, swing: np.ndarray, inward, clearance: float = PAD_CLEARANCE) -> float:
+    """Decision 20's inward bound: how far the convex polygon ``swing`` (the swing pad at its touchdown) may move
+    along the unit vector ``inward`` before it comes within ``clearance`` of the convex polygon ``stance`` (the stance
+    pad): 0 if it already is, inf if it never comes that close.  The clearance is taken around the polygons' edge
+    lines (sharp corners), so the bound keeps at least ``clearance`` everywhere and a little more near corners.
+
+    The swing pad moved by t along ``inward`` is within the clearance of the stance pad when -t ``inward`` lies in
+    their Minkowski difference grown by the clearance; the ray enters that convex polygon at the bound."""
+    N, d = halfplanes(minkowski_difference(swing, stance), -clearance)
+    nu = N @ -np.asarray(inward, float)
+    lo, hi = -math.inf, math.inf
+    for a, b in zip(nu, d, strict=True):
+        if a > 1e-15:
+            hi = min(hi, b / a)
+        elif a < -1e-15:
+            lo = max(lo, b / a)
+        elif b < 0.0:
+            return math.inf  # moving along an edge that stays outside: never within the clearance
+    if lo > hi or hi < 0.0:
+        return math.inf
+    return max(lo, 0.0)
+
+
+def cap_ankle_torque(tau, peak=None, Fz: float | None = None, A=None, b=None, pad=None) -> tuple[np.ndarray, bool, bool]:
+    """Decision 15: the ankle torques ``tau`` (pitch, roll, on the foot) limited to the box |tau_i| <= ``peak``_i (one
+    motor's peak per axis; None: no box) and, for a loaded foot (``Fz`` > 0 and ``pad``: the pad polygon
+    ``COP_INSET`` inside, world xy, counter-clockwise), to the torques whose CoP under ``Fz`` lies in ``pad`` (``A``,
+    ``b``: ``_ankle_rows``, tau = -Fz (A c + b)).  Returns the feasible torques nearest to ``tau`` (Euclidean, N m),
+    and whether ``tau`` broke the box and the pad limit."""
+    tau = np.asarray(tau, float)
+    box = peak is not None and bool(np.any(np.abs(tau) > peak))
+    loaded = Fz is not None and Fz > 0.0 and pad is not None
+    pad_out = False
+    if loaded:
+        A = np.asarray(A, float)
+        c = np.linalg.solve(A, -tau / Fz - np.asarray(b, float))
+        N, d = halfplanes(pad)
+        pad_out = bool(np.any(N @ c - d > 0.0))
+    if not (box or pad_out):
+        return tau, False, False
+    clipped = np.clip(tau, -peak, peak) if peak is not None else tau
+    if not loaded:
+        return clipped, box, False
+    V = -Fz * (np.asarray(pad, float) @ A.T + np.asarray(b, float))  # the pad's torques (a convex polygon)
+    if np.linalg.det(A) < 0.0:
+        V = V[::-1]  # keep it counter-clockwise
+    Nt, dt = halfplanes(V)
+    if np.all(Nt @ clipped - dt <= 1e-12):  # the box's nearest point already in the pad: the nearest feasible one
+        return clipped, box, pad_out
+    if peak is not None:
+        p = np.asarray(peak, float) * np.ones(2)
+        V = clip_polygon(V, np.array([[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]]), np.r_[p[0], p[0], p[1], p[1]])
+        if len(V) < 3:  # no torque meets both (not met on these feet: no torque, the CoP under the ankle, does)
+            return clipped, box, pad_out
+    return project_into(V, tau)[0], box, pad_out
+
+
 # ------------------------------------------------------------------------------------------------
 # Track: the reference sequence the tracker follows
 # ------------------------------------------------------------------------------------------------
@@ -503,13 +634,29 @@ def _anchor(swing: np.ndarray, periodic: bool, half: int) -> np.ndarray:
     return anchor
 
 
+def _landings(swing: np.ndarray, feet: np.ndarray, fyaw: np.ndarray, periodic: bool) -> tuple[np.ndarray, np.ndarray]:
+    """Per frame of a swing: the swing foot's touchdown pose relative to the stance foot, in the stance foot's frame
+    (xy and yaw; NaN outside the swings).  The touchdown is the first frame after the swing's run (wrapping for a
+    periodic reference; a run that reaches the end of a finite segment lands at its last frame)."""
+    n = len(swing)
+    rel, yaw = np.full((n, 2), np.nan), np.full(n, np.nan)
+    for j in (0, 1):
+        for r in _swing_runs(swing == j, periodic):
+            k = (int(r[-1]) + 1) % n if periodic else min(int(r[-1]) + 1, n - 1)
+            s = 1 - j
+            rel[r] = _rot2(fyaw[k, s]).T @ (feet[k, j] - feet[k, s])
+            yaw[r] = _wrap(fyaw[k, j] - fyaw[k, s])
+    return rel, yaw
+
+
 def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarray, zmp_mb: np.ndarray,
                normal: np.ndarray, omega: float, periodic: bool, swing_u: np.ndarray | None = None,
                period: np.ndarray | float = 1.0, frames_per_stride: int = 160) -> dict:
     """The feedback's reference quantities per frame (module docstring): anchor (0 left, 1 right, 2 the feet's
     midpoint), swinging foot (-1 none) and its progress, the DCM and the ZMP relative to the anchor in its frame,
     the support polygon there (``COP_INSET`` inside, and as is), the normal-force split, the trunk's roll, pitch and
-    (unwrapped) yaw, the local stride period."""
+    (unwrapped) yaw, the local stride period, and in a swing the swing foot's touchdown pose relative to the stance
+    foot (``_landings``: the inward bound of decision 20)."""
     m = p.m
     kd = mujoco.MjData(m)
     n = len(q)
@@ -566,9 +713,10 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
     tot = w.sum(1, keepdims=True)
     w = np.where(tot > 0, w / np.where(tot > 0, tot, 1.0), np.where(support, 0.5, 0.0))
     per = np.broadcast_to(np.asarray(period, float), (n,)).copy()
+    land_rel, land_yaw = _landings(swing, feet, fyaw, periodic)
     return dict(anchor=anchor, swing=swing, u=u, dcm_rel=dcm_rel, zmp_rel=zmp_rel, poly=poly_in, poly_n=poly_n,
                 poly_raw=poly_raw, poly_raw_n=poly_rn, weights=w, roll_pitch=rp, yaw=yaw, period=per,
-                stand=(swing < 0) & (anchor == 2))
+                stand=(swing < 0) & (anchor == 2), land_rel=land_rel, land_yaw=land_yaw)
 
 
 def _joint_stack(p: plant.Plant, q, qd, tau, qdd) -> np.ndarray:
@@ -592,6 +740,8 @@ class Track:
     def __init__(self, p: plant.Plant, omega: float):
         self.p, self.omega = p, omega
         self.segments: list[Segment] = []
+        #: Commands on the reference clock: a stop transition's stop command (decision 18, ``add_transition``).
+        self.events: list[dict] = []
         self.t_end = 0.0
         self.q0 = self.qd0 = None
         self._i = 0
@@ -624,6 +774,14 @@ class Track:
         t = np.concatenate([tr.t, [tr.t[-1] + dt_last]])
         seg = Segment("finite", tr.name, self.t_end, float(t[-1]), S, info, t=t, period=float(per[-1]),
                       duty=float(np.mean(tr.support[:, 0])))
+        if TRANSITIONS.get(tr.name, (None, None))[1] == "stand" and "phase" in tr.arrays:
+            # a stop: its command is where its path speed starts to ramp down (the first gait's duty and speed)
+            n0 = min(N_FRAMES, len(tr.t) - 1)
+            duty = float(np.mean(tr.support[:n0, 0]))
+            ph = stop_command_phase(duty)
+            speed = float(np.linalg.norm(tr.path[1] - tr.path[0]) / (tr.t[1] - tr.t[0]))
+            self.events.append(dict(kind="stop", name=tr.name, t_ref=self.t_end + float(np.interp(ph, tr.phase, tr.t)),
+                                    command_phase=ph, speed_m_s=speed, period_s=float(tr.t[n0] - tr.t[0])))
         self._append(seg, tr.q[0], tr.qd[0])
         return self
 
@@ -789,11 +947,12 @@ class Tracker:
 
     def __init__(self, p: plant.Plant, track: Track, mode: str = "R1", gains=None, terms=TERMS,
                  noise: est_mod.SensorNoise | None = None, seed: int = 0, est_gains: est_mod.EstimatorGains | None = None,
-                 inward: float | None = None):
+                 inward_bound: str | None = INWARD_BOUNDS[0], ankle_cap=ANKLE_CAP):
         if mode not in MODES:
             raise ValueError(f"mode {mode!r}: choose from {', '.join(MODES)}")
         self.p, self.track, self.mode = p, track, mode
         self.g = gains_dict(gains)
+        self.gain_set = gains if isinstance(gains, str) else "start" if gains is None else "given"
         self.terms = frozenset(() if mode == "R0" else terms)
         unknown = self.terms - set(TERMS)
         if unknown:
@@ -806,7 +965,10 @@ class Tracker:
         self.extra = p.armature_extra if np.any(p.armature_extra) else None
         self.mass = float(m.body_subtreemass[p.trunk])
         self.H = float(p.meta["H_m"])
-        self.inward = (turn_gap(p.body) - TURN_GAP_MARGIN) if inward is None else float(inward)
+        if inward_bound not in INWARD_BOUNDS:
+            raise ValueError(f"inward bound {inward_bound!r}: choose from {INWARD_BOUNDS}")
+        #: Decision 20: the swing foot's inward step keeps its pad ``PAD_CLEARANCE`` from the stance pad (None: lifted).
+        self.inward_bound = inward_bound
         self.idx = {jn: i for i, jn in enumerate(p.joints)}
         self.jid = {jn: mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in p.joints}
         self.leg = [np.array([self.idx[f"{s}_{x}"] for x in LEGS]) for s in statics.SIDES]
@@ -820,6 +982,7 @@ class Tracker:
         self.pads = pad_polygons(m)
         self.pads_in = [shrink(P, COP_INSET) for P in self.pads]
         self.pad_centre = [P.mean(0) for P in self.pads]
+        self.pads_in_hp = [halfplanes(P) for P in self.pads_in]  # foot frame: the cap's quick inside test
         self._jacp, self._jacr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
         self._ik = mujoco.MjData(m)
         self.hold = FEEDBACK_HOLD
@@ -827,11 +990,11 @@ class Tracker:
         #: double support 50/50 as the design-study prototype did.
         self.cop_clip = True
         self.ds_weights = "normal"
-        #: A limit on the total ankle torque of each foot in contact (feedforward, the servo's PD and the feedback),
-        #: beyond the plan's tracker (which limits the feedback's CoP shift only; None, the default): "cop" keeps the
-        #: CoP the total implies ``COP_INSET`` inside the pad, "box" caps each ankle axis at one motor's peak (the
-        #: screened model's per-joint box).  Diagnostics of the two-motor ankle (``ANKLE_LIMITS``).
-        self.ankle_limit = None
+        #: Decision 15: the cap on each ankle's total torque command (``ANKLE_CAP``; the others of ``ANKLE_CAPS`` are
+        #: diagnostics, () none).
+        if tuple(ankle_cap) not in ANKLE_CAPS:
+            raise ValueError(f"ankle cap {ankle_cap!r}: choose from {ANKLE_CAPS}")
+        self.ankle_cap = tuple(ankle_cap)
         Gm, kp, kv = p.G, p.kp, p.kv
         self.ankle_ix, self.ankle_K, self.ankle_D, self.ankle_jid = [], [], [], []
         for side in statics.SIDES:
@@ -889,7 +1052,8 @@ class Tracker:
         self.flags = {}
         self.e = np.zeros(2)
         self.dq_prev, self.dtau_prev = np.zeros(nj), np.zeros(nj)
-        self.ankle_clipped = False
+        self.cap_bound = [False, False]  # the cap's box and pad bound since the last feedback update
+        self.step_off = [np.zeros(2), np.zeros(2)]  # the swing foot's touchdown offset (anchor frame, m)
         self.sensors = self.est = None
         if self.mode == "R2":
             self.sensors = est_mod.NoisySensors(p, self.noise, seed)
@@ -971,8 +1135,8 @@ class Tracker:
                 dtau = self.dtau_prev + a * (self.dtau - self.dtau_prev)
             else:
                 dq, dtau = self.dq, self.dtau
-            if self.ankle_limit and "ankle" in self.terms:
-                dtau = self._ankle_torque_limit(q + dq, qd_c, ff + dtau, dtau)
+            if self.ankle_cap:
+                dtau = self._ankle_cap(q + dq, qd_c, ff + dtau, dtau)
             p.command(q + dq, qd_c, ff + dtau)
         p.step()
         self.k += 1
@@ -980,45 +1144,54 @@ class Tracker:
         if self.est is not None:
             self.est.step(self.sensors.read())
 
-    # ------------------------------------------------------------------ ankle torque limit (500 Hz)
-    def _ankle_torque_limit(self, q_cmd, qd_cmd, tau_cmd, dtau):
-        """``dtau`` with each loaded foot's total ankle torque limited (``ankle_limit``): the servo's PD torque is
-        predicted from the encoders (true angles and rates for R1, the last reading for R2), the CoP the total implies
-        (quasi-static foot: the floor's vertical load at the CoP balances the ankle torques about each ankle axis) is
-        projected into the pad polygon ``COP_INSET`` inside, and the torque that CoP implies replaces it."""
+    # ------------------------------------------------------------------ ankle torque cap (500 Hz)
+    def _ankle_cap(self, q_cmd, qd_cmd, tau_cmd, dtau):
+        """``dtau`` with each ankle's total torque command capped (decision 15, ``cap_ankle_torque``): the servo's PD
+        torque is predicted from the encoders (true angles and rates for R1, the last reading for R2) and added to the
+        feedforward and the feedback; each axis is held to one motor's peak, and a foot carrying more than
+        ``CONTACT_LOAD_FRAC`` of the weight (the foot loads: true for R1, read for R2) to the torques that put its
+        CoP (quasi-static foot, ``ankle_cop``) ``COP_INSET`` inside its pad; the nearest such torque replaces the
+        total.  R2 takes its loaded feet from the estimator's contact detection (``EstimatorGains.contact_on`` /
+        ``contact_off``, its odometry's), since its load readings carry noise of the same size as the 2 % threshold,
+        and their loads from the readings (at least that threshold)."""
         p = self.p
+        floor_load = CONTACT_LOAD_FRAC * self.mass * G
         if self.est is not None:
             q, qd, kd = self.est.q, self.est.qd, self.est.d
-            loads = self.est.load
+            loads = np.maximum(self.est.load, floor_load)
+            in_contact = self.est.contact
         else:
             d = p.d
             q, qd, kd = d.qpos[p.qadr], d.qvel[p.dofs], d
             loads = p.foot_loads()
+            in_contact = loads >= floor_load
+        box_on, pad_on = "box" in self.ankle_cap, "pad" in self.ankle_cap
         out = dtau
-        clipped = False
         for i in (0, 1):
-            Fz = float(loads[i])
-            if Fz < CONTACT_LOAD_FRAC * self.mass * G:
-                continue
             ix = self.ankle_ix[i]
             tau = self.ankle_K[i] @ (q_cmd[ix] - q[ix]) + self.ankle_D[i] @ (qd_cmd[ix] - qd[ix]) + tau_cmd[ix]
-            if self.ankle_limit == "box":
-                lim = self.ankle_peak[i]
-                new = np.clip(tau, -lim, lim)
-            else:
-                c = ankle_cop(kd, self.ankle_jid[i], tau, Fz)
+            peak = self.ankle_peak[i] if box_on else None
+            Fz = float(loads[i])
+            loaded = pad_on and bool(in_contact[i])
+            A = b = Rz = None
+            inside = True
+            if loaded:  # quick test in the foot's (yaw) frame, where the pad polygon is fixed, before the exact cap
+                A, b = _ankle_rows(kd, self.ankle_jid[i])
                 f = p.feet[i]
-                poly = kd.xpos[f][:2] + self.pads_in[i] @ _rot2(_yaw(kd.xmat[f])).T
-                c2, outside = project_into(poly, c)
-                if not outside:
-                    continue
-                new = ankle_torque(kd, self.ankle_jid[i], c2, Fz)
+                Rz = _rot2(_yaw(kd.xmat[f]))
+                cf = Rz.T @ (np.linalg.solve(A, -tau / Fz - b) - kd.xpos[f][:2])
+                N, dd = self.pads_in_hp[i]
+                inside = bool(np.all(N @ cf <= dd))
+            if inside and (peak is None or bool(np.all(np.abs(tau) <= peak))):
+                continue
+            poly = kd.xpos[p.feet[i]][:2] + self.pads_in[i] @ Rz.T if loaded else None
+            new, box_b, pad_b = cap_ankle_torque(tau, peak, Fz if loaded else None, A, b, poly)
+            self.cap_bound[0] = self.cap_bound[0] or box_b
+            self.cap_bound[1] = self.cap_bound[1] or pad_b
             if np.any(new != tau):
                 if out is dtau:
                     out = dtau.copy()
                 out[ix] += new - tau
-                clipped = True
-        self.ankle_clipped = self.ankle_clipped or clipped
         return out
 
     # ------------------------------------------------------------------ feedback (100 Hz)
@@ -1027,6 +1200,16 @@ class Tracker:
             return st["feet"][a], float(st["feet_yaw"][a])
         fy = st["feet_yaw"]
         return st["feet"].mean(0), math.atan2(float(np.mean(np.sin(fy))), float(np.mean(np.cos(fy))))
+
+    def _inward_room(self, ref: dict, sw: int, dfx: float) -> float:
+        """Decision 20: how far inward the swing foot ``sw`` may step, its touchdown moved forward by ``dfx``, before
+        its pad comes within ``PAD_CLEARANCE`` of the stance pad: the reference touchdown pose relative to the stance
+        foot (``frame_info``'s ``land_rel``, ``land_yaw``), both pads in the stance foot's frame (the anchor's)."""
+        rel, yaw = ref["land_rel"], float(ref["land_yaw"])
+        if not (np.all(np.isfinite(rel)) and math.isfinite(yaw)):
+            return math.inf
+        swing = self.pads[sw] @ _rot2(yaw).T + np.asarray(rel) + np.array([dfx, 0.0])
+        return inward_room(self.pads[1 - sw], swing, _inward(sw, 0.0))
 
     def _leg_jacobian(self, kd, side: int) -> np.ndarray:
         mujoco.mj_jacBody(self.p.m, kd, self._jacp, self._jacr, self.p.feet[side])
@@ -1054,7 +1237,8 @@ class Tracker:
         self.e = e
         dtau = np.zeros(self.nj)
         sw = int(ref["swing"])
-        flags = dict(cop_clip=False, step_clip=False, turn_gap_clamp=False, phase_rate_saturated=False, capture=False)
+        flags = dict(cop_clip=False, step_clip=False, leg_to_leg_clearance=False, phase_rate_saturated=False,
+                     capture=False)
         if "capture" in self.terms:
             self._capture(ref, st, xi, q_ref)
         cap = self.capture
@@ -1124,9 +1308,11 @@ class Tracker:
             dfx = float(np.clip(df[0], -g["step_x"], g["step_x"]))
             out_sign = 1.0 if sw == 0 else -1.0  # the left foot's outward is +y in the anchor's frame
             lat = out_sign * float(df[1])
-            dfy = out_sign * float(np.clip(lat, -self.inward, g["step_out"]))
-            flags["turn_gap_clamp"] = lat < -self.inward
+            room = self._inward_room(ref, sw, dfx) if self.inward_bound == "pad_clearance" else math.inf
+            dfy = out_sign * float(np.clip(lat, -room, g["step_out"]))
+            flags["leg_to_leg_clearance"] = lat < -room
             flags["step_clip"] = abs(float(df[0])) > g["step_x"] or lat > g["step_out"]
+            self.step_off[sw] = np.array([dfx, dfy])
             dfw = Ra @ np.array([dfx, dfy])
             J = self._leg_jacobian(kd, sw)
             self.step_tgt[sw] = np.linalg.solve(J.T @ J + 1e-6 * np.eye(6), J.T @ np.r_[dfw, 0.0, 0.0, 0.0, 0.0])
@@ -1235,17 +1421,18 @@ class Tracker:
 MJ_STATE = mujoco.mjtState.mjSTATE_INTEGRATION
 #: The estimator's attributes that are configuration, not state (``Tracker.save``).
 EST_STATIC = frozenset({"p", "g", "m", "d", "dt", "weight", "trunk", "feet", "r_imu", "qadr", "dofs", "_res",
-                        "foot_z0"})
-#: Plan section 4's hardware limits, measured at every feedback update (module docstring).
+                        "foot_z0", "sole"})
+#: Plan section 4's hardware limits as decisions 15 and 20 leave them, measured at every feedback update (module
+#: docstring).
 HW_LIMITS = ("leg_drive_at_torque_limit", "leg_drive_at_envelope_limit", "ankle_linkage", "slip",
-             "cop_at_pad_edge_with_ankle_saturated", "joint_range", "diagnostic_ankle_limit")
-#: Recorded beside them, not hardware limits (module docstring).
-REPORTED_LIMITS = ("neck_tail_at_torque_limit", "turn_gap_clamp", "step_clip", "phase_rate_saturated")
-#: The counterfactuals' relaxations (``relaxed``), and the one that lifts each hardware limit (None: not relaxable).
-RELAXATIONS = ("drive_torque", "envelope", "ankle_linkage", "slip", "joint_range", "diagnostic_ankle_limit")
+             "cop_at_pad_edge_with_ankle_saturated", "leg_to_leg_clearance", "joint_range")
+#: Recorded beside them, not hardware limits (module docstring): the cap's per-axis box is the controller's own.
+REPORTED_LIMITS = ("neck_tail_at_torque_limit", "ankle_cap_box", "step_clip", "phase_rate_saturated")
+#: The relaxations that lift hardware limits (``relaxed``), and the one that lifts each limit (None: not relaxable).
+RELAXATIONS = ("drive_torque", "envelope", "ankle_linkage", "slip", "leg_to_leg_clearance", "joint_range")
 RELAXES = {"leg_drive_at_torque_limit": "drive_torque", "leg_drive_at_envelope_limit": "envelope",
            "ankle_linkage": "ankle_linkage", "slip": "slip", "cop_at_pad_edge_with_ankle_saturated": None,
-           "joint_range": "joint_range", "diagnostic_ankle_limit": "diagnostic_ankle_limit"}
+           "leg_to_leg_clearance": "leg_to_leg_clearance", "joint_range": "joint_range"}
 FALL_ONSET_RAD = 0.2  # the fall's onset: the last time the trunk tilt rose through this before the fall
 HIST_S = 3.0  # how far back before a fall its onset is looked for
 LIMIT_NEAR_S = 0.1  # the activity in this last part of the window before the onset is reported as well
@@ -1256,14 +1443,18 @@ CF_HORIZON_S = 1.0  # a counterfactual runs until this long after the original f
 CF_NULL_M_S = 1e-3  # the null counterfactual: the root velocity changed by this (world x) at the branch
 CF_FRICTION = 5.0  # the "slip" relaxation: sliding friction of every colliding geom
 CF_RANGE_RAD = 1.0  # the "joint_range" relaxation: every hinge's range widened by this on each side
-LABEL_RULE = (f"a hardware limit (HW_LIMITS) active at an update of the {LIMIT_WINDOW_S:g} s before the fall's onset "
-              f"is a candidate; it binds if the episode, restored to {CF_BRANCH_S:g} s before the onset and continued "
-              f"with that limit relaxed, has not fallen and is upright (tilt below the onset's) {CF_HORIZON_S:g} s "
-              "after the original fall (a counterfactual): 'body-limited: <limits>' for the candidates whose "
-              "relaxation alone does that, '... together' if only the candidates relaxed together do, else "
-              "'controller-limited'; 'undetermined' if the unchanged continuation does not repeat the fall or if a "
-              f"{1e3 * CF_NULL_M_S:g} mm/s change of the root velocity at the branch avoids it too (the fall is chaotic "
-              "there); 'unconfirmed' if only a limit the plant cannot relax was a candidate")
+#: The candidates of a fall (decision 20 attributes conditions, not falls; ``gates.attribute``).
+CANDIDATE_RULE = (f"the hardware limits (HW_LIMITS) active at an update of the {LIMIT_WINDOW_S:g} s before the fall's "
+                  f"onset (the last time the trunk tilt rose through {FALL_ONSET_RAD:g} rad)")
+#: The build's episode-level counterfactual (``run``'s ``confirm``), a diagnostic since decision 20.
+EPISODE_CF_RULE = (f"a candidate binds if the episode, restored to {CF_BRANCH_S:g} s before the onset and continued "
+                   f"with that limit relaxed, has not fallen and is upright (tilt below the onset's) {CF_HORIZON_S:g} s "
+                   "after the original fall: 'body-limited: <limits>' for the candidates whose relaxation alone does "
+                   "that, '... together' if only the candidates relaxed together do, else 'controller-limited'; "
+                   "'undetermined' if the unchanged continuation does not repeat the fall or if a "
+                   f"{1e3 * CF_NULL_M_S:g} mm/s change of the root velocity at the branch avoids it too; 'unconfirmed' "
+                   "if only a limit the plant cannot relax was a candidate (a diagnostic: decision 20 attributes "
+                   "conditions over their starts)")
 
 
 def set_friction(p: plant.Plant, mu: float) -> None:
@@ -1332,18 +1523,19 @@ def foot_slip_speed(p: plant.Plant, feet=(0, 1), foot_of: np.ndarray | None = No
 
 @contextmanager
 def relaxed(tk: Tracker, names):
-    """The plant with the hardware limits ``names`` (``RELAXATIONS``) lifted, for a counterfactual: "drive_torque" the
-    leg drives' torque limits (peak and envelope), "envelope" the torque-speed envelope (every drive at its peak at
-    any speed), "ankle_linkage" the ankle motors' torque limits, "slip" friction ``CF_FRICTION`` on every colliding
-    geom, "joint_range" every hinge's range widened by ``CF_RANGE_RAD`` on each side, "diagnostic_ankle_limit" the
-    tracker's own cap on the ankle torque in the ankle-limit diagnostics (``Tracker.ankle_limit``, standing for the
-    screened model's per-axis box or for the pad's CoP limit).  Restored on exit."""
+    """The plant with the hardware limits ``names`` (``RELAXATIONS``) lifted: "drive_torque" the leg drives' torque
+    limits (peak and envelope), "envelope" the torque-speed envelope (every drive at its peak at any speed),
+    "ankle_linkage" the ankle motors' torque limits, "slip" friction ``CF_FRICTION`` on every colliding geom,
+    "leg_to_leg_clearance" the inward step bound (``Tracker.inward_bound`` None) with the two feet's pads no longer
+    colliding with each other (they still meet the floor), "joint_range" every hinge's range widened by
+    ``CF_RANGE_RAD`` on each side.  The tracker's own limits (the ankle cap, the step clips) stay.  Restored on exit."""
     names = set(names)
     if names - set(RELAXATIONS):
         raise ValueError(f"unknown relaxations {sorted(names - set(RELAXATIONS))}: choose from {', '.join(RELAXATIONS)}")
     p = tk.p
     m, env = p.m, p.envelope
-    saved = (m.actuator_forcelimited.copy(), m.geom_friction.copy(), m.jnt_range.copy(), env.enabled, tk.ankle_limit)
+    saved = (m.actuator_forcelimited.copy(), m.geom_friction.copy(), m.jnt_range.copy(), env.enabled, tk.inward_bound,
+             m.geom_contype.copy())
     try:
         if "envelope" in names:
             env.enabled = False
@@ -1353,18 +1545,21 @@ def relaxed(tk: Tracker, names):
             m.actuator_forcelimited[tk.ankle_act] = 0
         if "slip" in names:
             m.geom_friction[(m.geom_contype | m.geom_conaffinity) > 0, 0] = CF_FRICTION
+        if "leg_to_leg_clearance" in names:
+            tk.inward_bound = None
+            pads = (tk.foot_of >= 0) & (m.geom_contype == 1) & (m.geom_conaffinity == 1)
+            m.geom_contype[pads] = 2  # pad on floor: floor contype 1 & pad conaffinity 1; pad on pad: none
         if "joint_range" in names:
             m.jnt_range[tk.hinge_jid, 0] -= CF_RANGE_RAD
             m.jnt_range[tk.hinge_jid, 1] += CF_RANGE_RAD
-        if "diagnostic_ankle_limit" in names:
-            tk.ankle_limit = None
         yield
     finally:
         m.actuator_forcelimited[:] = saved[0]
         m.geom_friction[:] = saved[1]
         m.jnt_range[:] = saved[2]
         env.enabled = saved[3]  # (and the force ranges back to the peaks)
-        tk.ankle_limit = saved[4]
+        tk.inward_bound = saved[4]
+        m.geom_contype[:] = saved[5]
 
 
 def _apply_push(p: plant.Plant, push) -> None:
@@ -1395,8 +1590,8 @@ def _continue(tk: Tracker, snap: dict, until_s: float, push, null: bool = False)
 
 def _confirm(tk: Tracker, ring, final: dict, onset: float, fell_at: float, cause: str, q_fall: np.ndarray, push,
              candidates: list[str]) -> dict:
-    """The counterfactual test of a fall's candidate limits (module docstring, ``LABEL_RULE``); ``tk`` is back at
-    the fall after it."""
+    """The episode-level counterfactual test of a fall's candidate limits (a diagnostic, ``EPISODE_CF_RULE``);
+    ``tk`` is back at the fall after it."""
     t0 = time.perf_counter()
     t_branch = onset - CF_BRANCH_S
     snaps = list(ring)
@@ -1480,16 +1675,46 @@ def _estimator_stats(E: np.ndarray) -> dict:
                 com_height_err_rms_mm=1e3 * float(np.sqrt(np.mean(E[:, 5] ** 2))))
 
 
+def _stop_sample(tk: Tracker, stops: list, yaw: float) -> None:
+    """At a feedback update: a stop's command is reached once the reference clock passes it (its forward direction
+    the trunk's heading then); after it, the true CoM's speed along that direction and its horizontal speed."""
+    p = tk.p
+    t_ref = tk.tau_ref if tk.mode != "R0" else float(p.d.time)
+    for s in stops:
+        if s["t_sim"] is None and t_ref >= s["t_ref"] - 1e-12:
+            s["t_sim"], s["fwd"] = float(p.d.time), np.array([math.cos(yaw), math.sin(yaw)])
+    live = [s for s in stops if s["t_sim"] is not None]
+    if live:
+        mujoco.mj_subtreeVel(p.m, p.d)
+        v = p.d.subtree_linvel[p.trunk][:2]
+        s = live[-1]  # samples belong to the latest stop reached
+        s["samples"].append((float(p.d.time), float(v @ s["fwd"]), float(np.hypot(v[0], v[1]))))
+
+
+def _stop_result(s: dict) -> dict:
+    """Decision 18's reading of one stop of an episode (None values: not reached, or not stopped by the end)."""
+    from .transitions import REST_SPEED_M_S, stop_reading
+
+    head = dict(name=s["name"], command_ref_s=s["t_ref"], command_s=s["t_sim"], command_speed_m_s=s["speed_m_s"])
+    if s["t_sim"] is None or not s["samples"]:
+        return dict(head, reached=False)
+    t, v, vh = (np.array(x) for x in zip(*s["samples"], strict=True))
+    out = stop_reading(t, v, s["speed_m_s"], s["t_sim"], s["period_s"], rest=vh < REST_SPEED_M_S)
+    return dict(head, reached=True, samples=len(t), **out)
+
+
 def run(tk: Tracker, seconds: float, start: str = "frame", velocity_offset=None, push=None, seed: int | None = None,
-        period: float | None = None, confirm: bool = True, relax=()) -> dict:
+        period: float | None = None, confirm: bool = False, relax=()) -> dict:
     """One episode: reset, then ``seconds`` of simulated time or until a fall.  ``push`` = (t0, duration, fx, fy) N
     on the trunk.  Returns the outcome; a fall's cause (``plant.Plant.fall_cause``), its onset (the last time the
-    tilt rose through ``FALL_ONSET_RAD``), the limits active in the ``LIMIT_WINDOW_S`` before the onset and the fall's
-    label (module docstring: with ``confirm`` from the counterfactuals, else "unconfirmed" with the candidates);
-    tracking and drive statistics; for R2 the estimator's errors against the true state, over the episode and, for a
-    fall, up to the window before its onset.  ``period`` is the stride count's unit (default: the first periodic
-    segment's period).  ``relax`` lifts hardware limits (``relaxed``) for the whole episode, a diagnostic: its falls
-    are not labelled."""
+    tilt rose through ``FALL_ONSET_RAD``), the limits active in the ``LIMIT_WINDOW_S`` before the onset and the
+    fall's candidates (``CANDIDATE_RULE``; decision 20 attributes conditions, ``gates.attribute``); tracking and drive
+    statistics, how often the ankle cap and the inward bound bound; each stop's reading (decision 18,
+    ``transitions.stop_reading``) when the track holds a stop; for R2 the estimator's errors against the true state,
+    over the episode and, for a fall, up to the window before its onset.  ``period`` is the stride count's unit
+    (default: the first periodic segment's period).  ``relax`` lifts hardware limits (``relaxed``) for the whole
+    episode.  ``confirm`` runs the build's episode-level counterfactual on a fall (a diagnostic, ``EPISODE_CF_RULE``)
+    and labels the fall by it."""
     tk.reset(start, velocity_offset=velocity_offset, seed=seed)
     relax = tuple(relax or ())
     if relax:
@@ -1499,8 +1724,6 @@ def run(tk: Tracker, seconds: float, start: str = "frame", velocity_offset=None,
     if fall is not None and confirm:
         cf = _confirm(tk, *fall)
         out.update(fall_label=cf["label"], counterfactual=cf)
-    elif relax and out["fell"]:
-        out["fall_label"] = "not labelled (hardware limits relaxed: " + ", ".join(relax) + ")"
     out.update(start=start, relaxed=list(relax))
     return out
 
@@ -1528,6 +1751,9 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
     fell_at = cause = q_fall = final = None
     clamp = np.zeros(nu, bool)
     sat_any = np.zeros(nu, bool)
+    bound = np.zeros(3)  # feedback intervals with the cap's box, its pad, the inward bound binding
+    stops = [dict(ev, t_sim=None, samples=[]) for ev in tk.track.events if ev["kind"] == "stop"]
+    tk.cap_bound = [False, False]
     t0 = time.perf_counter()
     k = 0
     for k in range(n):
@@ -1555,16 +1781,18 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
             slip = bool(loaded) and bool(np.any(foot_slip_speed(p, loaded, tk.foot_of) > SLIP_SPEED))
             fl = tk.flags
             ankle_sat = any(sat_any[i] or sat_any[j_] for i, j_ in pairs)
-            cop_edge = bool(fl.get("cop_clip")) and ankle_sat
-            diag_ankle = bool(tk.ankle_clipped)
-            tk.ankle_clipped = False
+            cap_box, cap_pad = tk.cap_bound
+            tk.cap_bound = [False, False]
+            inward = bool(fl.get("leg_to_leg_clearance"))
+            bound += (cap_box, cap_pad, inward)
+            cop_edge = cap_pad or (bool(fl.get("cop_clip")) and ankle_sat)
             R = d.xmat[p.trunk].reshape(3, 3)
             Rr = R @ R_home.T
             tilt = float(np.arccos(np.clip(Rr[2, 2], -1, 1)))
             hw = (bool((sat_any & leg).any()), bool((clamp & leg).any()),
-                  any(sat_any[i] and sat_any[j_] for i, j_ in pairs), slip, cop_edge,
-                  bool(np.any((qj <= tk.lo + 1e-3) | (qj >= tk.hi - 1e-3))), diag_ankle)
-            rep = (bool((sat_any & neck_tail).any()), bool(fl.get("turn_gap_clamp")), bool(fl.get("step_clip")),
+                  any(sat_any[i] and sat_any[j_] for i, j_ in pairs), slip, cop_edge, inward,
+                  bool(np.any((qj <= tk.lo + 1e-3) | (qj >= tk.hi - 1e-3))))
+            rep = (bool((sat_any & neck_tail).any()), cap_box, bool(fl.get("step_clip")),
                    bool(fl.get("phase_rate_saturated")))
             hist.append((float(d.time), tilt, hw, rep, tuple(np.flatnonzero(sat_any & leg)),
                          tuple(np.flatnonzero(sat_any & neck_tail))))
@@ -1579,6 +1807,8 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
             yaw = _yaw(R)
             yaw_turned += _wrap(yaw - yaw_prev)
             yaw_prev = yaw
+            if stops:
+                _stop_sample(tk, stops, yaw)
             if tk.est is not None:
                 mujoco.mj_subtreeVel(m, d)
                 es = tk.est
@@ -1622,7 +1852,11 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
                worst_sustained_ratio=[p.drives[int(np.argmax(rms / sustained))].actuator, float(np.max(rms / sustained))],
                worst_speed_ratio=[p.drives[int(np.argmax(ratio_w))].actuator, float(np.max(ratio_w))],
                captures=list(tk.capture_log), segment_reached=tk.track.segment(tk.tau_ref if tk.mode != "R0" else dur).name,
-               reference_time_s=float(tk.tau_ref if tk.mode != "R0" else dur), wall_s=wall, steps_per_s=steps / wall)
+               reference_time_s=float(tk.tau_ref if tk.mode != "R0" else dur), fall_candidates=None,
+               ankle_cap=list(tk.ankle_cap), inward_bound=tk.inward_bound,
+               bound_frac=dict(zip(("ankle_cap_box", "ankle_cap_pad", "leg_to_leg_clearance"),
+                                   (float(v) for v in bound / max(1, len(tilts))), strict=True)),
+               stops=[_stop_result(s) for s in stops] if stops else None, wall_s=wall, steps_per_s=steps / wall)
     onset = fall = None
     if fell_at is not None:
         hist = list(hist)
@@ -1634,8 +1868,7 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
         candidates = [key for key in HW_LIMITS if active["hardware"][key] > 0.0]
         if confirm:
             fall = (ring, final, onset, fell_at, cause, q_fall, push, candidates)
-        label = "unconfirmed: " + (", ".join(candidates) if candidates else "no hardware limit active")
-        out.update(fall_onset_s=onset, fall_label=label, limits_before_onset=active)
+        out.update(fall_onset_s=onset, fall_candidates=candidates, limits_before_onset=active)
     if est_err:
         E = np.array(est_err)
         out["estimator"] = dict(_estimator_stats(E), noise=tk.noise.describe())

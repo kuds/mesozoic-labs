@@ -208,8 +208,42 @@ def imu_position(ledger: Path) -> list:
     return [float(v) for v in rows[0]["com_body"]]
 
 
+#: The Stage 1 package's sources (``sources_sha256``): the code a run record names.
+SOURCES = Path(__file__).resolve().parent
+SOURCES_RULE = ("sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a "
+                "NUL byte, its bytes and a NUL byte")
+
+
+def sources_sha256(files: dict[str, bytes] | None = None) -> str:
+    """The hash of the Stage 1 sources (``SOURCES_RULE``): ``files`` maps each relative path to its bytes (default:
+    the package's ``*.py`` files as they are on disk)."""
+    if files is None:
+        files = {p.name: p.read_bytes() for p in SOURCES.glob("*.py")}
+    h = hashlib.sha256()
+    for name in sorted(files):
+        h.update(name.encode() + b"\0" + files[name] + b"\0")
+    return h.hexdigest()
+
+
+def sources_sha256_at(commit: str) -> str | None:
+    """``sources_sha256`` of the package as committed in ``commit`` (None if git cannot tell)."""
+    rel = SOURCES.relative_to(STUDY).as_posix()
+    try:
+        names = subprocess.run(["git", "-C", str(STUDY), "ls-tree", "--name-only", commit, f"{rel}/"],
+                               capture_output=True, text=True, check=True).stdout.split()
+        files = {}
+        for path in names:
+            if path.endswith(".py") and "/" not in path[len(rel) + 1:]:
+                files[path[len(rel) + 1:]] = subprocess.run(["git", "-C", str(STUDY), "show", f"{commit}:./{path}"],
+                                                            capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return sources_sha256(files) if files else None
+
+
 def provenance() -> dict:
-    """Library versions and the repository commit."""
+    """Library versions, the repository commit with a dirty flag (any change under hardware/trex_form_study), and the
+    hash of the Stage 1 sources that ran (``sources_sha256``), which names the code even in a dirty tree."""
     vers = {"python": platform.python_version(), "numpy": np.__version__, "mujoco": mujoco.__version__}
     for pkg in ("scipy", "gymnasium", "stable-baselines3", "torch"):
         try:
@@ -225,7 +259,8 @@ def provenance() -> dict:
         git["dirty"] = bool(st.strip())
     except (OSError, subprocess.CalledProcessError):
         pass
-    return dict(versions=vers, git=git)
+    return dict(versions=vers, git=git, stage1_sources=dict(sha256=sources_sha256(), rule=SOURCES_RULE,
+                                                            files=sorted(p.name for p in SOURCES.glob("*.py"))))
 
 
 # ------------------------------------------------------------------------------------------------

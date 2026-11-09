@@ -405,9 +405,14 @@
    "min_cop_margin_m": -0.021983656710326264,
    "max_friction_ratio": 0.22840166992050326,
    "stop": {
-    "rule": "forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: within 1 mm of the final stand and slower than 1 mm/s from then on",
-    "forward_stopped_strides": 0.7625,
-    "at_rest_strides": 1.55,
+    "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+    "command_speed_m_s": 0.21826592177876797,
+    "stride_s": 1.019760932537567,
+    "forward_stopped_strides": 0.5187500000003461,
+    "within": true,
+    "at_rest_strides": 1.550000000001034,
+    "at_rest_s": 1.5806294454342833,
+    "command_phase": 0.0,
     "last_touchdown_phase": 0.4,
     "single_step": true
    },
@@ -459,7 +464,14 @@
    },
    "seconds": 58.437854699001036,
    "file": "transitions/stop.npz",
-   "sha256": "970c1391c0b0b749b130e131d952d7aac213a5fe4f40628dc81c91526b3ae234"
+   "sha256": "970c1391c0b0b749b130e131d952d7aac213a5fe4f40628dc81c91526b3ae234",
+   "stop_before_decision_18": {
+    "rule": "forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: within 1 mm of the final stand and slower than 1 mm/s from then on",
+    "forward_stopped_strides": 0.7625,
+    "at_rest_strides": 1.55,
+    "last_touchdown_phase": 0.4,
+    "single_step": true
+   }
   },
   "nominal_to_brisk": {
    "name": "nominal_to_brisk",
@@ -5172,9 +5184,14 @@
    "min_cop_margin_m": -0.00589509373363089,
    "max_friction_ratio": 0.18650628208287984,
    "stop": {
-    "rule": "forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: within 1 mm of the final stand and slower than 1 mm/s from then on",
+    "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+    "command_speed_m_s": 0.0,
+    "stride_s": 1.019760932537567,
     "forward_stopped_strides": null,
-    "at_rest_strides": 1.55,
+    "within": null,
+    "at_rest_strides": 1.550000000001034,
+    "at_rest_s": 1.5806294454342833,
+    "command_phase": 0.0,
     "last_touchdown_phase": 0.4,
     "single_step": true
    },
@@ -5226,7 +5243,14 @@
    },
    "seconds": 60.36036690399851,
    "file": "transitions/stop_in_place_0.50_left.npz",
-   "sha256": "b26ffb2678a554cb154b8a28a55ff6292e07d4d9c9afef758115a841a40e141c"
+   "sha256": "b26ffb2678a554cb154b8a28a55ff6292e07d4d9c9afef758115a841a40e141c",
+   "stop_before_decision_18": {
+    "rule": "forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: within 1 mm of the final stand and slower than 1 mm/s from then on",
+    "forward_stopped_strides": null,
+    "at_rest_strides": 1.55,
+    "last_touchdown_phase": 0.4,
+    "single_step": true
+   }
   },
   "stop_in_place_0.50_right": {
    "name": "stop_in_place_0.50_right",
@@ -5405,9 +5429,14 @@
    "min_cop_margin_m": -0.005862588940013821,
    "max_friction_ratio": 0.19210221456741458,
    "stop": {
-    "rule": "forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: within 1 mm of the final stand and slower than 1 mm/s from then on",
+    "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+    "command_speed_m_s": 0.0,
+    "stride_s": 1.019760932537567,
     "forward_stopped_strides": null,
-    "at_rest_strides": 1.54375,
+    "within": null,
+    "at_rest_strides": 1.54375000000103,
+    "at_rest_s": 1.5742559396059193,
+    "command_phase": 0.0,
     "last_touchdown_phase": 0.4,
     "single_step": true
    },
@@ -5459,7 +5488,14 @@
    },
    "seconds": 58.464117511997756,
    "file": "transitions/stop_in_place_0.50_right.npz",
-   "sha256": "5e9fc7d955c827118130f1c7d3d8373e77fe7a4c81682df94adab6bb208e9011"
+   "sha256": "5e9fc7d955c827118130f1c7d3d8373e77fe7a4c81682df94adab6bb208e9011",
+   "stop_before_decision_18": {
+    "rule": "forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: within 1 mm of the final stand and slower than 1 mm/s from then on",
+    "forward_stopped_strides": null,
+    "at_rest_strides": 1.54375,
+    "last_touchdown_phase": 0.4,
+    "single_step": true
+   }
   }
  },
  "method": "Stage 1 transitions: starts, stops, speed changes and turn entries (``STAGE1_PLAN.md`` section 2, section 3\nstep 4, gate G3).",
@@ -5502,6 +5538,41 @@
   "git": {
    "commit": "307d2f2bcca814fe0325ad68534aa5c17caebca6",
    "dirty": true
+  }
+ },
+ "stop_reading": {
+  "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+  "reread_from_arrays": true,
+  "provenance": {
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0"
+   },
+   "git": {
+    "commit": "917cf3e09eb619f7601591897bec172983ffa07a",
+    "dirty": true
+   },
+   "stage1_sources": {
+    "sha256": "bde306a85591e94186b3cf37a330dd822ff9d2ed25ac51f6df31e9e2f612120e",
+    "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+    "files": [
+     "__init__.py",
+     "__main__.py",
+     "control.py",
+     "drive.py",
+     "estimator.py",
+     "gates.py",
+     "legs.py",
+     "plant.py",
+     "refs.py",
+     "transitions.py"
+    ]
+   }
   }
  }
 }

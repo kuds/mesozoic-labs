@@ -757,30 +757,96 @@ def compare(g: dict, ref: refs.Reference | None, side: str, q_home=None) -> dict
     return out
 
 
+#: ``STAGE1_PLAN.md`` decision 18: "stopped within 1.5 strides" means the forward speed below ``STOP_SPEED_FRAC`` of the
+#: command within ``STOP_WITHIN_STRIDES`` of the stop command; the time to rest is reported (``REST_SPEED_M_S``).
+STOP_SPEED_FRAC = 0.05
+STOP_WITHIN_STRIDES = 1.5
+REST_SPEED_M_S = 1e-3
+REST_DISTANCE_M = 1e-3
+STOP_RULE = (f"decision 18: stopped = the forward CoM speed below {100 * STOP_SPEED_FRAC:g} % of the commanded speed "
+             f"from then on, within {STOP_WITHIN_STRIDES:g} strides of the stop command (the start of the stop's "
+             "speed ramp, the last lift-off); the time to rest (CoM slower than "
+             f"{1e3 * REST_SPEED_M_S:g} mm/s from then on, for a reference also within {1e3 * REST_DISTANCE_M:g} mm "
+             "of its final stand) is reported")
+
+
+def stop_command_phase(duty: float) -> float:
+    """The phase of a stop's command: where its path speed starts to ramp down (``_param_fns``: phi_c - h)."""
+    return 0.5 - duty / 2 - PATH_HALF_WIDTH
+
+
+def _settled_from(t: np.ndarray, flags: np.ndarray, t0: float) -> float | None:
+    """The first time at or after ``t0`` from which every flag holds, or None."""
+    ok = np.flatnonzero(t >= t0 - 1e-12)
+    tail = np.flip(np.logical_and.accumulate(np.flip(flags)))  # tail[i]: flags[i:] all hold
+    k = next((int(i) for i in ok if tail[i]), None)
+    return None if k is None else float(t[k])
+
+
+def stop_reading(t, v_forward, command_speed: float, t_command: float, period: float, rest=None) -> dict:
+    """Decision 18 on a sampled stop (``STOP_RULE``): ``v_forward`` the CoM speed along the walk at times ``t``,
+    ``command_speed`` the commanded walking speed (0: an in-place turn, no forward reading), ``t_command`` the stop
+    command, ``period`` the stride, ``rest`` per sample whether the body counts as at rest.  Strides from the command:
+    to forward speed below ``STOP_SPEED_FRAC`` of the command from then on (``within`` 1.5 strides) and to rest."""
+    t, v = np.asarray(t, float), np.asarray(v_forward, float)
+    fwd = None
+    if command_speed > 0:
+        s = _settled_from(t, np.abs(v) < STOP_SPEED_FRAC * command_speed, t_command)
+        fwd = None if s is None else (s - t_command) / period
+    rest_s = None if rest is None else _settled_from(t, np.asarray(rest, bool), t_command)
+    return dict(rule=STOP_RULE, command_speed_m_s=float(command_speed), stride_s=float(period),
+                forward_stopped_strides=fwd, within=None if fwd is None else bool(fwd <= STOP_WITHIN_STRIDES),
+                at_rest_strides=None if rest_s is None else (rest_s - t_command) / period,
+                at_rest_s=None if rest_s is None else rest_s - t_command)
+
+
+def stop_time_arrays(phase, t, com_ref, heading_final: float, stand_final, speed: float, period: float,
+                     duty: float) -> dict:
+    """``stop_reading`` of a stop reference's planned CoM (``com_ref``, at the frames' ``phase`` and ``t``), the
+    forward direction its final heading, the command its first gait's speed, rest within ``REST_DISTANCE_M`` of the
+    final stand and slower than ``REST_SPEED_M_S``; strides from the stop command (``stop_command_phase``)."""
+    ph, t, c = np.asarray(phase, float), np.asarray(t, float), np.asarray(com_ref, float)
+    v = np.gradient(c, t, axis=0)
+    fwd = np.array([math.cos(heading_final), math.sin(heading_final)])
+    rest = ((np.linalg.norm(c - np.asarray(stand_final, float), axis=1) < REST_DISTANCE_M)
+            & (np.linalg.norm(v, axis=1) < REST_SPEED_M_S))
+    p_cmd = stop_command_phase(duty)
+    out = stop_reading(t, v @ fwd, speed, float(np.interp(p_cmd, ph, t)), period, rest)
+    return dict(out, command_phase=p_cmd, last_touchdown_phase=float(1.0 - duty), single_step=True)
+
+
 def stop_time(g: dict) -> dict | None:
-    """A stop's reference, in strides from the last lift-off (phase 0): when the forward CoM speed stays below 1 % of
-    the walk's speed, and when the CoM comes to rest at the final stand (within 1 mm, under 1 mm/s, from then on)."""
+    """A stop reference's own stop (decision 18, ``stop_time_arrays``)."""
     pl = g["plan"]
     if pl.kind != "stop":
         return None
-    ph, t = pl.phase[pl.out], pl.t[pl.out]
-    c = g["com_ref"]
-    v = np.gradient(c, t, axis=0)
-    th_f = pl.pose_fn(float(pl.last))[1]
-    fwd = np.array([math.cos(th_f), math.sin(th_f)])
-    walk_speed = max(pl.a.speed, 1e-9)
-    slow = np.abs(v @ fwd) < 0.01 * walk_speed if pl.a.speed > 0 else np.zeros(len(ph), bool)
-    d = np.linalg.norm(c - pl.stand_point["final"], axis=1)
-    rest = (d < 1e-3) & (np.linalg.norm(v, axis=1) < 1e-3)
+    return stop_time_arrays(pl.phase[pl.out], pl.t[pl.out], g["com_ref"], pl.pose_fn(float(pl.last))[1],
+                            pl.stand_point["final"], pl.a.speed, pl.a.period, pl.a.duty)
 
-    def settled(flags):
-        k = next((i for i in range(len(flags)) if ph[i] >= 0.0 and flags[i:].all()), None)
-        return None if k is None else float(ph[k])
 
-    return dict(rule="forward: reference CoM speed along the walk below 1 % of the walk's speed from then on; rest: "
-                     "within 1 mm of the final stand and slower than 1 mm/s from then on",
-                forward_stopped_strides=settled(slow) if pl.a.speed > 0 else None, at_rest_strides=settled(rest),
-                last_touchdown_phase=float(1.0 - pl.a.duty), single_step=True)
+def reread_stops(out_dir: Path) -> dict:
+    """Decision 18 applied to the saved stops: each stop entry of ``<out_dir>/transitions.json`` re-read from its
+    arrays (``transitions/<name>.npz``, checked against the entry's sha256) with ``stop_time_arrays``; the transitions
+    are not regenerated.  The entry's earlier reading is kept under ``stop_before_decision_18``."""
+    out_dir = Path(out_dir)
+    path = out_dir / "transitions.json"
+    doc = json.loads(path.read_text())
+    for name, e in doc["transitions"].items():
+        if e["kind"] != "stop":
+            continue
+        npz = out_dir / e["file"]
+        if _sha(npz) != e["sha256"]:
+            raise ValueError(f"{npz}: sha256 differs from transitions.json; regenerate the transitions")
+        tr = Transition.load(npz)
+        a = e["gaits"]["a"]
+        new = stop_time_arrays(tr.phase, tr.t, tr.com_ref, float(tr.heading[-1]), tr.stand_point[1], a["speed"],
+                               a["period"], a["duty"])
+        if "stop_before_decision_18" not in e:
+            e["stop_before_decision_18"] = e.get("stop")
+        e["stop"] = new
+    doc["stop_reading"] = dict(rule=STOP_RULE, reread_from_arrays=True, provenance=plant.provenance())
+    path.write_text(json.dumps(refs._plain(doc), indent=1))
+    return doc
 
 
 # ------------------------------------------------------------------------------------------------

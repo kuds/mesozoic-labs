@@ -18,13 +18,18 @@ Method:
   complementary filter with gain ``k_leg_tilt`` (1/s), and weakly toward the accelerometer's gravity direction
   (``k_accel_tilt``).  Yaw is the gyro's alone (no magnetometer).
 * Contacts: a foot is in contact while its load exceeds ``contact_on`` x the weight (and until it drops below
-  ``contact_off`` x the weight).  At touchdown its position is set from the current base estimate and the encoders;
-  it is then held fixed while in contact (leg odometry).
-* Base position: the load-weighted mean over the contact feet of foot position minus the foot's offset from the
-  base (orientation estimate and encoders).
-* Velocity: the velocity the contact feet imply (a stance foot does not move: base velocity = minus the foot
-  velocity the gyro and joint rates produce), load-weighted, at every ``update``.  An accelerometer-propagated
-  complementary filter is available (``k_leg_velocity`` finite: the IMU point's velocity predicted with the
+  ``contact_off`` x the weight).  The stance-leg odometry works at the loaded pad's contact point
+  (``STAGE1_PLAN.md`` decision 19), not at the foot body's centre of mass, which sits about 11 mm above the floor
+  and moves when the foot rocks on its pads while the contact does not: the contact point is the mean of the foot's
+  pad bottom corners that lie within ``CONTACT_TOL`` of its lowest one, in the estimate (the whole sole when the foot
+  lies flat, an edge or a pad when it rocks), a point of the foot.  At touchdown its position is set from the
+  current base estimate and the encoders; it is then held fixed while in contact, and when the contact moves to
+  other corners (the foot rolling) the held point moves with it along the foot.
+* Base position: the load-weighted mean over the contact feet of the held contact point minus its offset from the
+  base (orientation estimate and encoders); the feet the controller sees are the foot origins this implies.
+* Velocity: the velocity the contact feet imply (a stance foot's contact point does not move: base velocity = minus
+  the velocity of that point of the foot the gyro and joint rates produce), load-weighted, at every ``update``.
+  An accelerometer-propagated complementary filter is available (``k_leg_velocity`` finite: the IMU point's velocity predicted with the
   accelerometer every step and pulled toward the legs' with that gain) but is off by default, because integrating
   the simulated accelerometer drifts.  Its gravity direction is right: at rest it reads R^T g to within 5e-4 m/s^2.
   But with MuJoCo's implicitfast integrator and the stiff servo damping, each step's change of the IMU point's
@@ -55,6 +60,9 @@ import numpy as np
 
 from .. import statics
 from . import plant as plant_mod
+
+#: Decision 19: a pad bottom corner within this of the foot's lowest one (in the estimate) is in contact.
+CONTACT_TOL = 1e-3
 
 NOISE_SOURCE = ("STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro "
                 "white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias "
@@ -138,6 +146,24 @@ def _mat(q):
     return R.reshape(3, 3)
 
 
+def sole_corners(m, feet) -> list[np.ndarray]:
+    """Per foot body: the bottom corners of its pads (its box geoms named ``*_pad_*``) in the foot's frame."""
+    out = []
+    for f in feet:
+        pts = []
+        for g in range(m.ngeom):
+            name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or ""
+            if m.geom_bodyid[g] != f or m.geom_type[g] != mujoco.mjtGeom.mjGEOM_BOX or "_pad_" not in name:
+                continue
+            R = _mat(m.geom_quat[g])
+            h = m.geom_size[g]
+            pts += [m.geom_pos[g] + R @ np.array([sx * h[0], sy * h[1], -h[2]]) for sx in (-1, 1) for sy in (-1, 1)]
+        if not pts:
+            raise ValueError(f"body {f} has no pads")
+        out.append(np.array(pts))
+    return out
+
+
 @dataclass
 class EstimatorGains:
     k_leg_tilt: float = 2.0  # 1/s
@@ -165,6 +191,7 @@ class Estimator:
         imu = mujoco.mj_name2id(p.m, mujoco.mjtObj.mjOBJ_SITE, plant_mod.IMU_SITE)
         self.r_imu = p.m.site_pos[imu].copy()  # trunk frame (the site has no rotation)
         self.qadr, self.dofs = p.qadr, p.dofs
+        self.sole = sole_corners(p.m, self.feet)  # per foot: its pads' bottom corners in the foot frame
         self._res = np.zeros(6)
         self._kin(p.q_settled[:3], p.q_settled[3:7], p.q_settled[self.qadr])
         self.foot_z0 = float(np.mean([self.d.xpos[f][2] for f in self.feet])) - p.z_floor  # feet on the floor
@@ -188,6 +215,8 @@ class Estimator:
         self.contact = self.load > self.g.contact_on * self.weight
         self.foot = np.array([self.d.xpos[f].copy() for f in self.feet])
         self.foot_yaw = np.array([self._yaw(self.d.xmat[f]) for f in self.feet])
+        self.contact_local = np.array([self.contact_point(i) for i in range(2)])
+        self.contact_world = np.array([self._point_world(i, self.contact_local[i]) for i in range(2)])
         self._finish()
 
     def reset_at_rest(self, reading: dict, yaw: float = 0.0, base_xy=(0.0, 0.0)) -> None:
@@ -209,6 +238,16 @@ class Estimator:
         self.reset(qpos, np.zeros(self.m.nv), reading)
 
     # ------------------------------------------------------------------ helpers
+    def contact_point(self, i: int) -> np.ndarray:
+        """Decision 19: foot ``i``'s contact point in its own frame at the current estimated pose: the mean of its pad
+        bottom corners within ``CONTACT_TOL`` of the lowest one."""
+        z = self.sole[i] @ self.d.xmat[self.feet[i]].reshape(3, 3)[2]
+        return self.sole[i][z <= z.min() + CONTACT_TOL].mean(0)
+
+    def _point_world(self, i: int, local: np.ndarray) -> np.ndarray:
+        f = self.feet[i]
+        return self.d.xpos[f] + self.d.xmat[f].reshape(3, 3) @ local
+
     @staticmethod
     def _yaw(xmat) -> float:
         R = np.asarray(xmat).reshape(3, 3)
@@ -267,13 +306,19 @@ class Estimator:
         qvel[3:6], qvel[self.dofs] = self.gyro, self.qd
         self._kin(self.base, self.quat, self.q, qvel)
         d = self.d
-        feet_now = np.array([d.xpos[f].copy() for f in self.feet])
         yaw_now = np.array([self._yaw(d.xmat[f]) for f in self.feet])
+        point_now = np.zeros((2, 3))  # each foot's contact point where the kinematics put it (base at self.base)
         for i in range(2):
-            if new_contact[i] and not self.contact[i]:  # touchdown: the foot is placed where the estimate puts it
-                self.foot[i], self.foot_yaw[i] = feet_now[i], yaw_now[i]
-            elif not new_contact[i]:
-                self.foot[i], self.foot_yaw[i] = feet_now[i], yaw_now[i]
+            local = self.contact_point(i)
+            point_now[i] = self._point_world(i, local)
+            if new_contact[i] and self.contact[i]:  # in contact: held, moving along the foot with the contact
+                if not np.array_equal(local, self.contact_local[i]):
+                    R_f = d.xmat[self.feet[i]].reshape(3, 3)
+                    self.contact_world[i] = self.contact_world[i] + R_f @ (local - self.contact_local[i])
+            else:  # touchdown (placed where the estimate puts it) or swing
+                self.contact_world[i] = point_now[i]
+                self.foot_yaw[i] = yaw_now[i]
+            self.contact_local[i] = local
         self.contact = new_contact
         w = np.where(self.contact, np.maximum(self.load, 1e-6), 0.0)
         R = _mat(self.quat)
@@ -285,13 +330,21 @@ class Estimator:
             for i, f in enumerate(self.feet):
                 if w[i] == 0:
                     continue
-                base += w[i] * (self.foot[i] - (feet_now[i] - self.base))
-                mujoco.mj_objectVelocity(self.m, d, mujoco.mjtObj.mjOBJ_BODY, f, self._res, 0)
-                v_base += w[i] * (-self._res[3:])
+                base += w[i] * (self.contact_world[i] - (point_now[i] - self.base))
+                mujoco.mj_objectVelocity(self.m, d, mujoco.mjtObj.mjOBJ_XBODY, f, self._res, 0)  # at the foot origin
+                r = point_now[i] - d.xpos[f]
+                v_base += w[i] * -(self._res[3:] + np.cross(self._res[:3], r))  # the contact point's velocity
+            shift = base - self.base
             self.base = base
             v_imu_leg = v_base + np.cross(w_world, r_imu_w)
             gain = 1.0 if math.isinf(g.k_leg_velocity) else min(1.0, g.k_leg_velocity * dt_update)
             self.v_imu = self.v_imu + gain * (v_imu_leg - self.v_imu)
+        else:
+            shift = np.zeros(3)
+        for i, f in enumerate(self.feet):  # the foot origins the controller sees: a contact foot's from its held point
+            R_f = d.xmat[f].reshape(3, 3)
+            self.foot[i] = (self.contact_world[i] - R_f @ self.contact_local[i] if self.contact[i]
+                            else d.xpos[f] + shift)
         self._finish()
 
     def _finish(self) -> None:

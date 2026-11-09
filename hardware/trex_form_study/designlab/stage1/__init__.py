@@ -16,10 +16,12 @@ Modules (plan section 2):
 * ``transitions``: starts, stops, speed changes and turn entries and exits, by ZMP preview control on the designlab
   model with ``statics.leg_ik``, joined to the periodic references;
 * ``control``: the tracker (R0: feedforward and PD; R1: DCM feedback on the true state; R2: on the estimate) and its
-  episodes; ``estimator``: CoM and velocity from encoders, IMU and stance-leg kinematics;
+  episodes, with the ankle torque cap, the tuning start and the inward step bound of decisions 15, 16 and 20;
+  ``estimator``: CoM and velocity from encoders, IMU and stance-leg kinematics at the loaded pad's contact point
+  (decision 19);
 * ``gates``: the fail-fast checks G1 (plant), G2 (references), G3 (transitions) and G4 (tracker) of plan section 3,
-  with the choices G2 depends on as the plan decided them during the build (decisions 11-13, ``gates.decided``) and
-  the evidence it keeps.
+  with the choices they depend on as the plan decided them during the build (decisions 11-13, ``gates.decided``;
+  15-20, ``gates.g4_decided``) and the evidence they keep.
 
 Run from hardware/trex_form_study:
     python -m designlab.stage1 prepare --body 60-N-T-10 --out stage1/runs/<run>
