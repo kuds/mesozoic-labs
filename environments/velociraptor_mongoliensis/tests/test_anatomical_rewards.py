@@ -5,6 +5,7 @@ step, zero forward weight) are tested in
 environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 """
 
+import mujoco
 import numpy as np
 import pytest
 
@@ -75,23 +76,31 @@ class TestVelociraptorMongoliensisRewardComponents:
     def test_posture_reward_negative_or_zero(self, env):
         assert_posture_reward_non_positive(env)
 
-    def test_posture_reward_prefers_xml_home_lean_to_vertical(self, env):
-        home_quat = env.model.key_qpos[env.home_keyframe_id, 3:7]
-        home_reward, home_tilt = env._compute_lean_aware_posture_reward(
-            home_quat,
-            1.0,
-            env._natural_forward_z,
-        )
-        upright_reward, upright_tilt = env._compute_lean_aware_posture_reward(
-            np.array([1.0, 0.0, 0.0, 0.0]),
-            1.0,
-            env._natural_forward_z,
-        )
+    def test_posture_reward_centres_on_the_settled_pitch_beside_the_level_home(self, env):
+        """The posture target is the statue's settled pitch, 0.002 rad nose-down of the level home keyframe.
 
-        assert home_reward == pytest.approx(0.0, abs=1e-5)
-        assert home_reward > upright_reward
-        assert home_tilt == pytest.approx(np.deg2rad(20.0), abs=1e-5)
-        assert upright_tilt == pytest.approx(0.0, abs=1e-6)
+        Since physics r5 the keyframe authors the trunk level (the r4 home leaned 20 deg nose-down
+        and its statue settled there), so the home pose is the upright one, and the target sits
+        0.002 rad from it: the level home pays 4.0e-6 of the unit weight, and r4's 20 deg lean
+        pays 0.119 of it (measured).
+        """
+
+        def posture(pitch):
+            quat = np.array([np.cos(pitch / 2.0), 0.0, np.sin(pitch / 2.0), 0.0])
+            return env._compute_lean_aware_posture_reward(quat, 1.0, env._natural_forward_z)
+
+        home_quat = env.model.key_qpos[env.home_keyframe_id, 3:7]
+        np.testing.assert_array_equal(home_quat, [1.0, 0.0, 0.0, 0.0])
+        home_reward, home_tilt = env._compute_lean_aware_posture_reward(home_quat, 1.0, env._natural_forward_z)
+        settled_reward, settled_tilt = posture(0.002)
+        r4_reward, _ = posture(np.deg2rad(20.0))
+
+        assert settled_reward == pytest.approx(0.0, abs=1e-12)
+        assert settled_tilt == pytest.approx(0.002, abs=1e-9)
+        assert home_tilt == pytest.approx(0.0, abs=1e-6)
+        assert -1e-5 < home_reward < settled_reward
+        assert r4_reward < -0.1 and r4_reward < home_reward
+        assert posture(-0.05)[0] < home_reward and posture(0.05)[0] < settled_reward
 
     def test_step_reports_lean_aware_posture_reward(self, env):
         env.reset(seed=42)
@@ -255,10 +264,28 @@ class TestVelociraptorMongoliensisRewardWeightEffects:
         env.close()
 
     def test_actuator_count(self):
-        """All actuators should be enabled (22 total: 14 legs + 4 tail + 4 arms)."""
+        """17 position servos since physics r5: neck and head 3, per leg 4 + the claw, tail 4.
+
+        The arms are welded passive bodies and digits II-IV hinge passively on springs, as on
+        the T-Rex (r4: 22, with servoed digits III / IV and four arm actuators).
+        """
         env = VelociraptorMongoliensisAnatomicalEnv()
-        assert env.model.nu == 22, f"Expected 22 actuators, got {env.model.nu}"
-        assert env.action_space.shape == (22,)
+        assert env.model.nu == 17, f"Expected 17 actuators, got {env.model.nu}"
+        assert env.action_space.shape == (17,)
+        names = [mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_ACTUATOR, i) for i in range(env.model.nu)]
+        assert names == [
+            "neck_pitch_act",
+            "neck_yaw_act",
+            "head_pitch_act",
+            *(f"{side}_{joint}_act" for side in "rl" for joint in ("hip_pitch", "hip_roll", "knee", "ankle", "claw")),
+            "tail_1_pitch_act",
+            "tail_1_yaw_act",
+            "tail_2_pitch_act",
+            "tail_3_pitch_act",
+        ]
+        assert set(env.model.actuator_trntype) == {mujoco.mjtTrn.mjTRN_JOINT}
+        assert set(env.model.actuator_gaintype) == {mujoco.mjtGain.mjGAIN_FIXED}
+        assert set(env.model.actuator_biastype) == {mujoco.mjtBias.mjBIAS_AFFINE}
         env.close()
 
 
@@ -379,14 +406,15 @@ class TestStanceQualityRewards:
             env.close()
 
     def test_quiet_statue_earns_full_support_credit_at_the_stage_saturation(self):
-        """The settled statue's weaker foot clears stage 1's 50 N saturation.
+        """The settled statue's weaker foot clears the stance stage's 55 N saturation.
 
-        Each foot carries half of the 132.4 N animal (66.2 N) once the summed
-        touch reads the whole foot, so the stage's saturation force pays the
-        statue full credit; the old toe-d3-only reading (36 N) could not.
+        Each foot carries half of the 147.15 N animal of physics r5 (73.6 N measured at step
+        200 noise-free; r4 66.2 N of 132.4) once the summed touch reads the whole foot, so the
+        stage's saturation force pays the statue full credit; the old toe-d3-only reading (36 N
+        on r2) could not.
         """
         env = VelociraptorMongoliensisAnatomicalEnv(
-            bilateral_support_weight=1.0, foot_contact_saturation_force=50.0, reset_noise_scale=0.0
+            bilateral_support_weight=1.0, foot_contact_saturation_force=55.0, reset_noise_scale=0.0
         )
         try:
             env.reset(seed=0)
@@ -394,7 +422,7 @@ class TestStanceQualityRewards:
             for _ in range(200):
                 _, _, terminated, _, info = env.step(action)
                 assert not terminated
-            assert min(info["r_foot_contact"], info["l_foot_contact"]) > 60.0
+            assert min(info["r_foot_contact"], info["l_foot_contact"]) > 70.0
             assert info["bilateral_support_quality"] == pytest.approx(1.0)
         finally:
             env.close()
@@ -408,7 +436,13 @@ class TestStanceQualityRewards:
             env.reset(seed=0)
             home = env.model.key_qpos[env.home_keyframe_id]
             np.testing.assert_array_equal(env._leg_home_qpos, home[env._leg_home_qpos_indices])
-            assert len(env._leg_home_qpos_indices) == 12
+            # The eight servoed leg joints, hips to ankles (physics r5, as the T-Rex): the passive digits' angle
+            # is the ground's, and the claw is the strike's (r4 priced 12, its servoed digits III / IV too).
+            names = [
+                mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_JOINT, env.model.jnt_qposadr.tolist().index(int(i)))
+                for i in env._leg_home_qpos_indices
+            ]
+            assert names == [f"{side}_{joint}" for side in "rl" for joint in ("hip_pitch", "hip_roll", "knee", "ankle")]
             home_info = self._reward_info(env)
             assert home_info["leg_home_pose_error"] == pytest.approx(0.0)
             assert home_info["leg_home_pose_quality"] == pytest.approx(1.0)
@@ -416,8 +450,8 @@ class TestStanceQualityRewards:
 
             env.data.qpos[env._leg_home_qpos_indices[0]] += tolerance
             displaced_info = self._reward_info(env)
-            assert displaced_info["leg_home_pose_error"] == pytest.approx(tolerance / np.sqrt(12.0))
-            assert displaced_info["leg_home_pose_quality"] == pytest.approx((11.0 + np.exp(-1.0)) / 12.0)
+            assert displaced_info["leg_home_pose_error"] == pytest.approx(tolerance / np.sqrt(8.0))
+            assert displaced_info["leg_home_pose_quality"] == pytest.approx((7.0 + np.exp(-1.0)) / 8.0)
             assert 0.0 < displaced_info["reward_leg_home_pose"] < 3.0
         finally:
             env.close()
@@ -513,20 +547,30 @@ class TestPortedStanceTerms:
 
     Each is off by default and declared in ``OPT_IN_TASK_KWARGS``: off, it emits
     no info key and leaves the reward and the task fingerprint as they were;
-    the stance stage turns all three on.
+    the stance stage turns all three on.  The neck home pose of physics r5 (the
+    maintainer's decision of 2026-11-08) joined them; TestNeckHomePose covers it.
     """
 
-    #: Every info key the three terms emit while on.
+    #: Every info key the four terms emit while on.
     ON_KEYS = (
         "tail_home_pose_error",
         "tail_home_pose_quality",
         "reward_tail_home_pose",
+        "neck_home_pose_error",
+        "neck_home_pose_quality",
+        "reward_neck_home_pose",
         "peak_foot_force_bw",
         "reward_floor_impact",
         "airborne_substeps",
         "reward_airborne_substeps",
     )
-    ON = {"tail_home_pose_weight": 0.25, "floor_impact_weight": 0.5, "airborne_substep_weight": 1.0}
+    #: The stance stage's weights (configs/velociraptor_mongoliensis/anatomical/stance.toml).
+    ON = {
+        "tail_home_pose_weight": 0.25,
+        "neck_home_pose_weight": 0.25,
+        "floor_impact_weight": 0.5,
+        "airborne_substep_weight": 1.0,
+    }
 
     def test_off_by_default_they_emit_no_info_key(self):
         env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
@@ -550,10 +594,11 @@ class TestPortedStanceTerms:
                 expected = info[TestStanceQualityRewards.LEGACY_TERMS[0]]
                 for key in TestStanceQualityRewards.LEGACY_TERMS[1:]:
                     expected = expected + info[key]
-                # The D-D25 terms, in the order _get_reward_info sums them, are inert here.
+                # The opt-in terms, in the order _get_reward_info sums them.
                 expected = (
                     expected
                     + info["reward_tail_home_pose"]
+                    + info["reward_neck_home_pose"]
                     + info["reward_floor_impact"]
                     + info["reward_airborne_substeps"]
                 )
@@ -567,13 +612,14 @@ class TestPortedStanceTerms:
         finally:
             env.close()
 
-    def test_the_statue_earns_the_tail_term_and_pays_neither_contact_term(self):
+    def test_the_statue_earns_the_pose_terms_and_pays_neither_contact_term(self):
         env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0, **self.ON)
         try:
             env.reset(seed=0)
             infos = [env.step(np.zeros(env.action_space.shape, dtype=np.float32))[4] for _ in range(300)]
             window = infos[200:]
             assert min(info["tail_home_pose_quality"] for info in window) > 0.999
+            assert min(info["neck_home_pose_quality"] for info in window) > 0.999
             assert all(info["reward_airborne_substeps"] == 0.0 for info in infos)
             assert all(info["reward_floor_impact"] == 0.0 for info in infos)
         finally:
@@ -585,24 +631,28 @@ class TestPortedStanceTerms:
             env.reset(seed=0)
             env.data.qpos[env._tail_home_qpos_indices] = env._tail_home_qpos
             settled = env._get_reward_info(np.zeros(env.model.nu))[1]["tail_home_pose_quality"]
-            env.data.qpos[env._tail_home_qpos_indices[0]] = -np.deg2rad(15.0)  # tail_1_pitch on its ventral stop
+            tail_1_pitch = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_JOINT, "tail_1_pitch")
+            ventral_stop = float(env.model.jnt_range[tail_1_pitch, 0])
+            assert ventral_stop == pytest.approx(-np.deg2rad(12.0))  # physics r5 (r4: -15 deg)
+            env.data.qpos[env._tail_home_qpos_indices[0]] = ventral_stop  # tail_1_pitch on its ventral stop
             parked = env._get_reward_info(np.zeros(env.model.nu))[1]
             assert settled == pytest.approx(1.0)
-            # One joint of four 0.18 rad off a 0.05 rad tolerance: that joint's Gaussian is ~0, so a quarter goes.
+            # One joint of four 0.21 rad off a 0.05 rad tolerance: that joint's Gaussian is ~0, so a quarter goes.
             assert parked["tail_home_pose_quality"] == pytest.approx(0.75, abs=1e-4)
             assert parked["reward_tail_home_pose"] == parked["tail_home_pose_quality"]
         finally:
             env.close()
 
     def test_impact_prices_the_peak_above_the_threshold_with_the_excess_capped(self, monkeypatch):
-        env = VelociraptorMongoliensisAnatomicalEnv(
-            reset_noise_scale=0.0, floor_impact_weight=0.5, floor_impact_threshold_bw=2.5
-        )
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0, floor_impact_weight=0.5)
         try:
             env.reset(seed=0)
+            # The 15.0 kg life-size animal of physics r5 (r4 13.5 kg); the default threshold is the stance's
+            # 3.0 BW, above the 2.56 BW the reset pop reaches on 3000 seeds.
             weight = env._body_weight_n
-            assert weight == pytest.approx(13.5 * 9.81, rel=0.01)
-            for peak_bw, excess in ((2.0, 0.0), (3.0, 0.5), (12.0, 1.0)):
+            assert weight == pytest.approx(15.0 * 9.81, rel=1e-12)
+            assert env.floor_impact_threshold_bw == 3.0
+            for peak_bw, excess in ((2.56, 0.0), (3.5, 0.5), (12.0, 1.0)):
                 block = np.array([[0.5, 0.5], [peak_bw / 2, peak_bw / 2], [0.4, 0.6]]) * weight
                 monkeypatch.setattr(env, "_substep_foot_force_block", lambda block=block: block.copy())
                 info = env._get_reward_info(np.zeros(env.model.nu))[1]
@@ -632,6 +682,10 @@ class TestPortedStanceTerms:
             ({"floor_impact_weight": float("inf")}, "floor_impact_weight"),
             ({"floor_impact_threshold_bw": 0.0}, "floor_impact_threshold_bw"),
             ({"airborne_substep_weight": -1.0}, "airborne_substep_weight"),
+            ({"neck_home_pose_weight": -0.1}, "neck_home_pose_weight"),
+            ({"neck_home_pose_weight": float("nan")}, "neck_home_pose_weight"),
+            ({"neck_home_pose_tolerance": 0.0}, "neck_home_pose_tolerance"),
+            ({"neck_home_pose_tolerance": float("inf")}, "neck_home_pose_tolerance"),
         ],
     )
     def test_invalid_settings_fail_fast(self, kwargs, message):
@@ -647,6 +701,8 @@ class TestPortedStanceTerms:
         assert names == {
             "tail_home_pose_weight",
             "tail_home_pose_tolerance",
+            "neck_home_pose_weight",
+            "neck_home_pose_tolerance",
             "floor_impact_weight",
             "floor_impact_threshold_bw",
             "airborne_substep_weight",
@@ -654,3 +710,108 @@ class TestPortedStanceTerms:
         assert names <= set(stage_task_fingerprint(model_id, "stance")["env"])
         for stage in ("locomotion", "behavior"):
             assert not names & set(stage_task_fingerprint(model_id, stage)["env"]), stage
+
+
+class TestNeckHomePose:
+    """The neck and head carriage term of the life-size plant (physics r5, the maintainer's decision of 2026-11-08).
+
+    Shaped as the tail term: the mean per-joint Gaussian of (neck_pitch, neck_yaw,
+    head_pitch) around the statue's settled carriage (``_NECK_SETTLED_QPOS``;
+    TestSettledPoseTargetsTrackTheStatue re-measures it).  The posture term reads only the
+    pelvis frame, so without it a policy carries the head anywhere for free: stage 2 measured
+    a 0.10 rad head raise earning +0.85 per episode with the term off, and with the stance's
+    0.25 / 0.05 rad on a drooped or raised head losing 85-176 per episode against the statue,
+    which keeps 0.998 of the term's maximum.  Off by default and in ``OPT_IN_TASK_KWARGS``:
+    off it emits no info key, changes no reward bit and stays out of the task fingerprint
+    (TestPortedStanceTerms).
+    """
+
+    @staticmethod
+    def _neck_indices(env):
+        return env._neck_home_qpos_indices
+
+    def test_its_joints_and_target_are_the_neck_and_head(self, env):
+        adr = env.model.jnt_qposadr.tolist()
+        names = [
+            mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_JOINT, adr.index(int(i)))
+            for i in env._neck_home_qpos_indices
+        ]
+        assert names == ["neck_pitch", "neck_yaw", "head_pitch"]
+        np.testing.assert_array_equal(env._neck_home_qpos, VelociraptorMongoliensisAnatomicalEnv._NECK_SETTLED_QPOS)
+        assert (env.neck_home_pose_weight, env.neck_home_pose_tolerance) == (0.0, 0.05)
+
+    def test_off_its_tolerance_is_inert_bit_for_bit(self):
+        """Off, the tolerance changes nothing: observations, rewards and every info value equal, exactly."""
+        envs = [
+            VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.05),
+            VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.05, neck_home_pose_tolerance=0.2),
+        ]
+        try:
+            for env in envs:
+                env.reset(seed=3042)
+            rng = np.random.default_rng(0)
+            for _ in range(200):
+                action = rng.uniform(-1.0, 1.0, envs[0].action_space.shape).astype(np.float32)
+                (obs_a, reward_a, term_a, trunc_a, info_a), (obs_b, reward_b, term_b, trunc_b, info_b) = (
+                    env.step(action) for env in envs
+                )
+                np.testing.assert_array_equal(obs_a, obs_b)
+                assert reward_a == reward_b and (term_a, trunc_a) == (term_b, trunc_b)
+                assert info_a.keys() == info_b.keys() and all(
+                    np.array_equal(info_a[key], info_b[key]) for key in info_a
+                )
+                assert not {key for key in info_a if key.startswith(("neck_home_pose", "reward_neck_home_pose"))}
+                if term_a or trunc_a:
+                    for env in envs:
+                        env.reset(seed=3043)
+        finally:
+            for env in envs:
+                env.close()
+
+    def test_on_it_is_the_soft_gaussian_around_the_settled_carriage(self):
+        weight, tolerance = 0.25, 0.05
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            reset_noise_scale=0.0, neck_home_pose_weight=weight, neck_home_pose_tolerance=tolerance
+        )
+        try:
+            env.reset(seed=0)
+            indices = env._neck_home_qpos_indices
+            env.data.qpos[indices] = env._neck_home_qpos
+            info = env._get_reward_info(np.zeros(env.model.nu))[1]
+            assert info["neck_home_pose_error"] == pytest.approx(0.0, abs=1e-15)
+            assert info["neck_home_pose_quality"] == pytest.approx(1.0)
+            assert info["reward_neck_home_pose"] == pytest.approx(weight)
+
+            env.data.qpos[indices[2]] += 0.10  # head_pitch 0.10 rad nose-down: a drooped head
+            info = env._get_reward_info(np.zeros(env.model.nu))[1]
+            assert info["neck_home_pose_error"] == pytest.approx(0.10 / np.sqrt(3.0))
+            assert info["neck_home_pose_quality"] == pytest.approx((2.0 + np.exp(-((0.10 / tolerance) ** 2))) / 3.0)
+            assert info["reward_neck_home_pose"] == pytest.approx(weight * info["neck_home_pose_quality"])
+        finally:
+            env.close()
+
+    def test_the_statue_keeps_the_term_and_a_drooped_head_forfeits_it(self):
+        """Zero action holds the carriage; a held head-pitch residual droops the head and pays for it.
+
+        The head_pitch residual +0.3 commands 0.101 rad (the home ctrl is -0.081, the gravity
+        preload); the head settles 0.178 rad nose-down and the window's mean quality falls to
+        0.667, where the statue's is 1.000 (noise-free, seed 0, steps 200-299, measured).
+        """
+        qualities = {}
+        for label, residual in (("statue", 0.0), ("drooped", 0.3)):
+            env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0, neck_home_pose_weight=0.25)
+            try:
+                env.reset(seed=0)
+                action = np.zeros(env.action_space.shape, dtype=np.float32)
+                action[2] = residual  # head_pitch_act
+                window = []
+                for step in range(300):
+                    _, _, terminated, _, info = env.step(action)
+                    assert not terminated
+                    if step >= 200:
+                        window.append(info["neck_home_pose_quality"])
+                qualities[label] = float(np.mean(window))
+            finally:
+                env.close()
+        assert qualities["statue"] > 0.999
+        assert qualities["drooped"] < 0.8

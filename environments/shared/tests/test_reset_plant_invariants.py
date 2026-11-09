@@ -243,8 +243,9 @@ def test_settle_ignores_geoms_that_cannot_touch_the_ground(env_cls):
     exist to catch -- and every species carries some: cosmetic detail
     (``brow_ridge``, ``crest``, ``sagittal_crest``, dibothrosuchus' twelve
     ``scute``\\s) plus the necks that are non-collidable on every species
-    except velociraptor, whose neck IS real and terminates the episode on
-    ground contact.
+    (the velociraptor's too since its physics r5, whose neck capsules, like
+    the T-Rex's, the behavior env probes for terrain penetration instead),
+    and the velociraptor's mandible and passive arms.
     """
     env = make_env(env_cls)
     try:

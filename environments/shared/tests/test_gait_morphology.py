@@ -1,7 +1,7 @@
 """Tests for the floor-truth morphology: the explicit six-model registry, and the measurement manifest.
 
 The anchors are the current plants (``61a3424``, mujoco 3.10.0): body weights
-840.91 / 132.44 / 9.81 / 15.55 / 84.86 / 1719.69 N, every sole frame normal
+840.91 / 147.15 (the velociraptor since its physics r5) / 9.81 / 15.55 / 84.86 / 1719.69 N, every sole frame normal
 ``-z`` and forward ``+x``, brachiosaurus' authored sole tilt 19.22 degrees
 (fore) and 15.78 (hind).  The registry is explicit for all six models, and
 :data:`GENERIC_ONLY` / :data:`REGISTRY_ONLY` name every place it departs from
@@ -49,7 +49,7 @@ MODEL_IDS = (
 )
 BODY_WEIGHT_N = {
     TYRANNOSAURUS_REX: 840.91,
-    VELOCIRAPTOR_MONGOLIENSIS: 132.44,
+    VELOCIRAPTOR_MONGOLIENSIS: 147.15,  # 15.0 kg since physics r5 (r4 13.5 kg, 132.44 N)
     COMPSOGNATHUS_LONGIPES: 9.81,
     COMPSOGNATHUS_LONGIPES_ROBOT: 15.55,
     DIBOTHROSUCHUS_ELAPHROS: 84.86,
@@ -75,9 +75,10 @@ ROOT = {
 #: Per foot, the support geoms the generic rule takes and the registry drops ...
 GENERIC_ONLY = {
     TYRANNOSAURUS_REX: ("{s}_metatarsus_geom",),  # the capsule above the plantar box: 0 statue load
-    # Digit II's sickle claw hangs off the metatarsus, a touch-site body since physics r3 (D-D25): it
-    # is held clear of the floor and bears no statue load.
-    VELOCIRAPTOR_MONGOLIENSIS: ("{s}_claw_geom",),
+    # Since physics r5 the MTP pad shares the metatarsus body with the shaft capsule, which ends 8 mm short
+    # of the condyle and stands 14.4 mm clear at home, and digit II's sickle claw hangs off that body (2/2
+    # against the floor's 1/1): neither touches the floor, so neither bears statue load.
+    VELOCIRAPTOR_MONGOLIENSIS: ("{s}_metatarsus_geom", "{s}_claw_geom"),
     COMPSOGNATHUS_LONGIPES: (),
     COMPSOGNATHUS_LONGIPES_ROBOT: ("{side}_roll_cheek_-1", "{side}_roll_cheek_1"),  # a cheek down is a rolled foot
     DIBOTHROSUCHUS_ELAPHROS: (),
@@ -87,7 +88,8 @@ GENERIC_ONLY = {
 REGISTRY_ONLY = {
     TYRANNOSAURUS_REX: (),
     # Before physics r3 the toe_d3 site was the foot's only touch site, so the generic rule missed digit IV
-    # and the metatarsus (0.18 and 0.26 of the r2 statue's foot load); the r3 sensors made it see both.
+    # and the metatarsus (0.18 and 0.26 of the r2 statue's foot load); the r3 sensors made it see both, and
+    # the r5 pad, digit III and digit IV each carry their own.
     VELOCIRAPTOR_MONGOLIENSIS: (),
     COMPSOGNATHUS_LONGIPES: (),
     COMPSOGNATHUS_LONGIPES_ROBOT: (),
@@ -300,8 +302,10 @@ def test_an_unknown_model_is_refused_and_an_empty_registry_gets_the_generic_rule
         Morphology.from_env(env, ModelId("not_a_species", "anatomical"))
     generic = Morphology.from_env(env, VELOCIRAPTOR_MONGOLIENSIS, registry={})
     assert generic.model_id == VELOCIRAPTOR_MONGOLIENSIS and generic.registry_entry is None
-    # Digit III, digit IV, the metatarsus and the claw it carries: the touch-site bodies since physics r3.
-    assert [len(foot.support_geoms) for foot in generic.feet] == [4, 4]
+    # The MTP pad and the metatarsus shaft (the pad's body), the claw it carries, digits III and IV: the
+    # touch-site bodies' colliding geoms on the physics-r5 foot (r3 / r4: digit III, digit IV, the
+    # metatarsus and the claw, 4).
+    assert [len(foot.support_geoms) for foot in generic.feet] == [5, 5]
 
 
 def test_building_a_morphology_leaves_the_env_untouched(stance_env):

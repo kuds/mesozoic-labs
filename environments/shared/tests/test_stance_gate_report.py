@@ -2623,10 +2623,37 @@ class TestControlTargetsInDegrees:
         assert by_joint["r_ankle"]["home_preload_deg"] == pytest.approx(5.5, abs=0.1)
 
     def test_motor_controls_are_not_mislabeled_as_degrees(self):
+        """A geared motor's ``ctrl = 1`` is a dimensionless command, not a one-radian target: no degree fields.
+
+        The velociraptor's gear-50 sickle-claw motors were the repository's last motors; since its physics r5
+        (plant_versions note 22) the claws are bounded unit-gear position servos, so a two-actuator model carries
+        the motor beside a position servo here, and the next test shows the raptor's claw now reads in degrees.
+        """
+        import mujoco
+
+        from environments.shared.reporting.stance_report import _is_angular_position_control
+
+        model = mujoco.MjModel.from_xml_string(
+            """<mujoco><worldbody><body><joint name="hinge" type="hinge" axis="0 1 0" range="-1 1"/>
+            <geom type="capsule" size="0.01 0.05"/></body></worldbody>
+            <actuator><motor name="claw_motor" joint="hinge" gear="50" ctrlrange="-1 1"/>
+            <motor name="unit_motor" joint="hinge" ctrlrange="-1 1"/>
+            <position name="servo" joint="hinge" kp="5" ctrlrange="-1 1"/></actuator></mujoco>"""
+        )
+        joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "hinge")
+        assert [_is_angular_position_control(model, index, joint_id) for index in range(model.nu)] == [
+            False,
+            False,
+            True,
+        ]
+
+    def test_the_velociraptor_mongoliensis_claw_servos_report_in_degrees(self):
+        """The physics-r5 claws (actions 7 and 12 of 17) are position servos: a saturated strike command reads
+        61.0 deg past the home ctrl over a 78.0 deg range (measured)."""
         from environments.shared.reporting.stance_report import run_panel
 
-        action = np.zeros(22, dtype=np.float32)
-        action[[6, 13]] = 1.0  # r/l claw motors, each with gear=50
+        action = np.zeros(17, dtype=np.float32)
+        action[[7, 12]] = 1.0  # r/l sickle-claw servos (kp 5, 4 N.m)
         result = run_panel(
             VELOCIRAPTOR_MONGOLIENSIS,
             predict=lambda obs: action,
@@ -2641,10 +2668,10 @@ class TestControlTargetsInDegrees:
         for joint in ("r_claw", "l_claw"):
             entry = by_joint[joint]
             assert entry["dc"] == pytest.approx(1.0)
-            assert entry["ctrl_mean"] == pytest.approx(1.0)
             assert entry["ctrl_ac_rms"] == pytest.approx(0.0)
-            assert not entry["angular_position_ctrl"]
-            assert not {"dc_deg", "ac_rms_deg", "range_deg", "home_qpos", "home_preload_deg"} & entry.keys()
+            assert entry["angular_position_ctrl"]
+            assert entry["dc_deg"] == pytest.approx(61.02, abs=0.01)
+            assert entry["range_deg"] == pytest.approx(78.0, abs=0.01)
 
         assert by_joint["r_hip_pitch"]["angular_position_ctrl"]
         assert "dc_deg" in by_joint["r_hip_pitch"]

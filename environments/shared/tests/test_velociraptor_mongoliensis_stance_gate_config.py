@@ -15,8 +15,10 @@ the declaration in the ways that each fail differently:
    the settle window non-empty after the spawn grace at the stage's own
    control step, no v1 key left behind.
 2. **The foot, settle and width bars are declared.**  The raptor has no box
-   sole, so its flatness bars are the support-geom duty and coverage of the
-   middle toe, the outer toe and the metatarsal head.  They are optional in
+   sole, so its flatness bars are the support-geom duty and coverage of its
+   support geoms (on the life-size foot of physics r5 the MTP pad and digits
+   III and IV; r2-r4 the middle toe, the outer toe and the metatarsal head;
+   the recorded episodes below are r2 / r3).  They are optional in
    the kind, and so is the settle-window width change; on the raptor each
    family, like actuator saturation and the required settle bars, refuses
    every audited episode on its own, while the window bars admit the
@@ -25,10 +27,17 @@ the declaration in the ways that each fail differently:
    final checkpoint's seed-3043 episode, which clears every window bar, is
    refused by exactly those families, and the r3 statue's least favourable
    episode is clean.
-4. **The foot bars and the settle peak sit mid-gap**: the statue with
+4. **The foot bars and the settle peak sit mid-gap**: the r3 statue with
    N(0, 0.05) command jitter, whose lightly loaded digit IV unloads on part
    of the window, is clean, though the bars first set at the statue's edge
-   refused it.
+   refused it.  On the life-size plant of physics r5 the foot bars still sit
+   mid-gap (the jittered statue's worst duty 0.621, coverage 0.873), but the
+   settle peak no longer does: the jittered r5 statue is clean on 39/40 seeds
+   at sigma 0.03 and 10/40 at 0.05, all 30 refusals
+   ``max_settle_peak_floor_force_bw`` (median 2.11, worst 2.59 BW against
+   2.0).  The bar is kept and flagged in stance.toml: moving it is a gate
+   decision (stage 2 of the life-size port, the maintainer's decision of
+   2026-11-08).
 5. **The bar and the rails agree with the numbers they were derived from**,
    recomputed here rather than copied: the bound admits 37/40 and refuses
    36/40, the reward rail is its fraction of the statue reference the stage
@@ -206,7 +215,8 @@ def test_the_settle_window_is_scored_after_the_spawn_grace(stage, curriculum):
     control_dt = float(env.get("timestep", 0.002)) * int(env.get("frame_skip", 5))
     grace = spawn_grace_steps(control_dt)
     # 10 grace steps at 0.01 s; the r3 statue has both feet down by step 5 and its floor force within
-    # 10% of its weight by step 15, while the audited stance's reset hop lands inside steps 10-99.
+    # 10% of its weight by step 15 (the r5 statue by steps 6 and 11 at the latest, seeds 3042-3081), while the audited
+    # stance's reset hop lands inside steps 10-99.
     assert (grace, curriculum["settle_steps"]) == (10, 100)
     assert curriculum["max_settle_airborne_substeps"] == 0
 

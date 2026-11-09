@@ -74,10 +74,12 @@ EXPECTED = {
             "rl": ("rl_hip_roll", 1.0),
         },
     ),
+    # Since physics r5 the raptor carries the T-Rex's head names: a head_tip site, a neck_pitch hinge and a skull
+    # on its own head_pitch hinge (r4 had none, so its head columns read NaN).
     ModelId("velociraptor_mongoliensis", "anatomical"): (
-        None,
-        (),
-        None,
+        "head_tip",
+        ("neck_pitch",),
+        "head_pitch",
         {"r": ("r_hip_roll", -1.0), "l": ("l_hip_roll", 1.0)},
     ),
 }

@@ -103,12 +103,16 @@ _POSE_REASONS = {
         "head_contact",
     },
     ModelId("tyrannosaurus_rex", "anatomical"): {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact"},
+    # Since the life-size plant of physics r5 (level trunk, separate skull, non-colliding neck) the forward probe
+    # reaches nosedive and the neck probe head_contact (the head-tip height), and no probe reaches the trunk's
+    # body_contact (measured on the stage-2 scratch snapshot of the port).
     ModelId("velociraptor_mongoliensis", "anatomical"): {
         "fallen",
         "too_high",
         "excessive_tilt",
+        "nosedive",
         "tail_contact",
-        "body_contact",
+        "head_contact",
     },
 }
 

@@ -3,7 +3,8 @@
 The T-Rex (policy interface r14) and the anatomical Compsognathus (r4) are the
 schema's two species.  Its policy-interface payload differs from the legacy
 schemas' in four ways, each pinned here: the observation segments name their
-frames, sources and thresholds and describe the feet per foot, so their widths
+frames, sources and thresholds and describe the feet per foot (the velociraptor's
+per site since its policy interface r14, plant_versions note 22), so their widths
 sum to the observation width (checked, with the command last); the frame
 helpers ``_get_obs`` calls are hashed beside it
 (``interface_implementations.heading_free_observation``), so editing one moves
@@ -48,17 +49,23 @@ HEADING_FREE = (
         VELOCIRAPTOR_MONGOLIENSIS, VelociraptorMongoliensisAnatomicalEnv, id="velociraptor_mongoliensis-anatomical"
     ),
 )
-#: Each model's per-foot touch-sensor groups, right foot first: the T-Rex sums its plantar pad and three digits.
+#: Each model's foot-contact channels' touch-sensor groups, right foot first: the T-Rex sums its plantar pad and
+#: three digits per foot; the velociraptor observes each of its six sensors as its own channel.
 FOOT_GROUPS = {
     TYRANNOSAURUS_REX: [
         ["r_foot_touch", "r_toe_d2_touch", "r_toe_d3_touch", "r_toe_d4_touch"],
         ["l_foot_touch", "l_toe_d2_touch", "l_toe_d3_touch", "l_toe_d4_touch"],
     ],
     COMPSOGNATHUS_LONGIPES: [["r_foot_touch"], ["l_foot_touch"]],
-    # Digit III (the foot site's own sensor) first, then the metatarsus and digit IV (plant_versions note 14).
+    # One channel per load-bearing site since policy interface r14 (plant_versions note 22): the MTP pad (the foot
+    # site's own sensor), digit III and digit IV, right foot first (r11-r13 summed d3, metatarsus and d4 per foot).
     VELOCIRAPTOR_MONGOLIENSIS: [
-        ["r_foot_touch", "r_meta_touch", "r_d4_touch"],
-        ["l_foot_touch", "l_meta_touch", "l_d4_touch"],
+        ["r_foot_touch"],
+        ["r_toe_d3_touch"],
+        ["r_toe_d4_touch"],
+        ["l_foot_touch"],
+        ["l_toe_d3_touch"],
+        ["l_toe_d4_touch"],
     ],
 }
 
@@ -113,7 +120,8 @@ def test_heading_free_payload_records_segments_frames_and_helper(animal):
     assert segments["pelvis_angular_velocity"]["frame"] == "gyro-site"
     assert segments["pelvis_linear_acceleration"]["frame"] == "accelerometer-site"
     assert segments["prey_direction_body"]["frame"] == "pelvis"
-    assert segments["foot_contact"] == {"name": "foot_contact", "width": 2, "groups": FOOT_GROUPS[model_id]}
+    groups = FOOT_GROUPS[model_id]
+    assert segments["foot_contact"] == {"name": "foot_contact", "width": len(groups), "groups": groups}
     widths = [stop.stop - stop.start for stop in _offsets(payload).values()]
     assert sum(widths) == env.observation_space.shape[0] == payload["observation"]["shape"][0]
 

@@ -37,7 +37,9 @@ def test_runtime_environment_binding_rejects_control_cadence_override():
 
 def test_compiled_backend_binding_rejects_different_model(velociraptor_mongoliensis_layers):
     source, _interface, _version, _original = velociraptor_mongoliensis_layers
-    changed_source = source.replace('mass="4.0" material="body_mat"', 'mass="4.1" material="body_mat"', 1)
+    # The dorsal torso capsule of the physics-r5 plant (r4 edited its 4.0 kg torso); the edit must land.
+    changed_source = source.replace('mass="3.2" material="body_mat"', 'mass="3.3" material="body_mat"', 1)
+    assert changed_source != source
     current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
 
     with pytest.raises(PlantCompatibilityError, match="physics_sha256"):
