@@ -29,7 +29,7 @@ from their own module (``register_rows``, ``eval --row-module``), without a chan
 
 Episodes (``EPISODE_RULE``): seeds 3042-3061, each from the settled stance with tune's start noise and R2's sensor
 noise drawn from ``tune.derived_seed``, commanded 5 % above (``tune.COMMAND_RATE``).  Judgement: ``judge`` with
-``STAND_RULE``, ``WALK_RULE``, ``TURN_RULE``, ``START_STOP_RULE``, ``PUSH_RULE`` and ``RECOVERY_RULE`` (decision 29),
+``STAND_RULE``, ``WALK_RULE``, ``TURN_RULE``, ``START_STOP_RULE``, ``PUSH_RULE`` and ``RECOVERY_RULE`` (decision 30),
 ``CARPET_RULE``, ``LIMITS_RULE``; reported metrics ``LOOK_RULE``.  Each condition and row gives one record
 ``<out>/<body>/eval/<row>/<behavior>/<condition>.json`` (``record_path``): per-episode metrics and failed terms, the
 counts with their one-sided Clopper-Pearson lower bounds (``LCB_RULE``), the pass (``PASS_RULE``), the failure label
@@ -102,7 +102,7 @@ PUSH_WALK_AT_STRIDES = 1.0  # walking: this many commanded strides after the sta
 PUSH_WALK_SPREAD_STRIDES = 1.0  # ... plus up to one more stride, drawn per seed (the gait phase it lands in)
 RECOVERY_S = 3.0
 PUSH_HOLD_S = 2.0
-#: Back to the command (``RECOVERY_RULE``, decision 29): standing, the CoM's speed below this share of the nominal
+#: Back to the command (``RECOVERY_RULE``, decision 30): standing, the CoM's speed below this share of the nominal
 #: command; walking, the CoM's mean velocity over the stride ahead within these shares of the command, along the
 #: starting heading (low, high) and across it.
 STAND_STOPPED_FRAC = STOP_SPEED_FRAC
@@ -253,7 +253,7 @@ PUSH_RULE = (
     f"seed; the episode runs to the latest such start + {PUSH_S:g} s + {RECOVERY_S:g} s + {PUSH_HOLD_S:g} s.  "
     "Success: no fall, back to the command within 3 s (RECOVERY_RULE), with LIMITS_RULE")
 RECOVERY_RULE = (
-    "STAGE1_PLAN.md decision 29: back to the command within "
+    "STAGE1_PLAN.md decision 30: back to the command within "
     f"{RECOVERY_S:g} s means a feedback update at most {RECOVERY_S:g} s after the pulse's end (at or after it) from "
     f"which the body is on its command to the episode's end (at least {PUSH_HOLD_S:g} s more).  Standing, on command "
     f"at an update: the true CoM's horizontal speed below {100 * STAND_STOPPED_FRAC:g} % of the nominal walk's "
@@ -1270,7 +1270,7 @@ def stride_velocity(t: np.ndarray, com: np.ndarray, heading: float, stride_s: fl
 
 def recovery(rec: metrics.Recorder, t_end: float, standing: bool, speed_cmd: float, stride_s: float,
              limit_s: float = RECOVERY_S, until_s: float | None = None) -> dict:
-    """``RECOVERY_RULE`` (decision 29) on a recorded episode: from when after the pulse's end ``t_end`` the body is
+    """``RECOVERY_RULE`` (decision 30) on a recorded episode: from when after the pulse's end ``t_end`` the body is
     on its command to the end, and whether that was within ``limit_s``; ``until_s`` is the episode's planned end,
     which the trace must reach (to the last feedback update, within two): a trace a fall cut short has not
     recovered."""

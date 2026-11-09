@@ -341,7 +341,7 @@ change no body (P24).
 
 ### Decisions taken for the panels (9 Nov)
 
-29. **Back to the command after a push** (`panels.RECOVERY_RULE`). §4 asks that a pushed body be "back to the command
+30. **Back to the command after a push** (`panels.RECOVERY_RULE`). §4 asks that a pushed body be "back to the command
     within 3 s". The panels read this from the end of the pulse:
     - **Standing:** the true CoM's horizontal speed is below 5 % of the nominal command (decision 18's "stopped") at
       every feedback update from some time at most 3 s after the pulse's end to the end of the episode.

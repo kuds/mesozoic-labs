@@ -363,7 +363,7 @@ def _walk(t, v):
 
 
 def test_push_recovery_rule():
-    """RECOVERY_RULE (decision 29): standing, the CoM speed below 5 % of the nominal command from a time within 3 s of
+    """RECOVERY_RULE (decision 30): standing, the CoM speed below 5 % of the nominal command from a time within 3 s of
     the pulse's end to the episode's end; walking, the CoM's mean velocity over every stride ahead 90-110 % of the
     command along the starting heading and at most 10 % across; a trace a fall cut short has not recovered."""
     t = np.arange(0.0, 8.1, 0.01)
