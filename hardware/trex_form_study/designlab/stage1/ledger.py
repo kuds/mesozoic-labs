@@ -2,28 +2,37 @@
 Stage 0 margin bisected to failure on a controller row, on episode seeds 3042-3044, with the behaviour panels' runner,
 conditions and judgement (``panels``).
 
-Run from hardware/trex_form_study::
+Run from hardware/trex_form_study of the main checkout (see the end of this docstring), in the PPO venv for R3::
 
-    python -m designlab.stage1 sweep --body 60-N-T-10 [--body ...] [--rows R2,R3/42] [--margins grip,push,...]
+    python -m designlab.stage1 sweep --body 60-N-T-10 [--body ...] [--rows R2,R3] [--margins grip,push,...]
                                      [--workers 4] [--dry-run] [--no-measure] [--row-module MODULE]
-                                     [--inputs DIR] --out stage1/runs/2026-11-08
+                                     [--inputs DIR] [--allow-rebuilt-models] --out stage1/runs/2026-11-08
 
 Rows (``ROWS_RULE``): R2 is the panels' row of the CMA-ES seed the body-level G5 selection comes from (``--rows R2``),
-R3 is the policy rows' R3/42 (``policy_rows.r3_row``, registered through ``panels.register_rows``:
+R3 is the policy rows' R3/42 (``--rows R3``; ``policy_rows.r3_row``, registered through ``panels.register_rows``:
 ``register_policy_rows`` registers the policy rows' R3 and R4 when a row of theirs is asked for and no module has
-registered it; run it in the PPO venv); any row ``panels.tracker_rows`` knows can be named.  Margins (``margins``, plan
-section 5's table; ``MARGIN_RULES``): grip, push, stop, drive speed, drive torque, the model doubts (servo kp, latency,
-trunk mass, pile damping) and pack voltage.  Each margin is one or more searches (``Search``: one parameter on one
-panel condition, from its nominal value toward the far end of a stated interval) and points (``Point``: one value).
-How each parameter enters the plant: ``VARIANT_RULE`` and the margin's own rule.
+registered it; run it in the PPO venv), left out for a body whose R3 is judged with R2 (``train.R2_JUDGED_RULE``); any
+row ``panels.tracker_rows`` knows can be named.  Margins (``margins``, plan section 5's table; ``MARGIN_RULES``):
+grip, push, stop, drive speed, drive torque, the model doubts (servo kp, latency, trunk mass, pile damping) and pack
+voltage.  Each margin is one or more searches (``Search``: one parameter on one panel condition, from its nominal value
+toward the far end of a stated interval) and points (``Point``: one value).  How each parameter enters the plant:
+``VARIANT_RULE`` and the margin's own rule.  How the ledger reads plan section 5 where it is not explicit:
+STAGE1_PLAN.md decision 33.
 
 A search (``SEARCH_RULE``, ``Bisect``) evaluates the nominal value, then the far end, then halves the bracket 7 times;
-a value works when all three episodes succeed by the panels' judgement (``WORKS_RULE``), and every search is also run
-on survival alone, sharing the evaluations.  The value that bounds a threshold is labelled by what failed there
-(``LABEL_RULE``).  Each (body, row, margin) gives one record ``<out>/<body>/sweeps/<row>/<margin>.json``
+a value works when all three episodes survive and none fails a success term its seed passed at the nominal value
+(``WORKS_RULE``), and every search is also run on survival alone, sharing the evaluations.  The value that bounds a
+threshold is labelled by what failed there (``LABEL_RULE``), its falls by lifting each candidate hardware limit on the
+same 3 seeds (``LIFT_RULE``).  Each (body, row, margin) gives one record ``<out>/<body>/sweeps/<row>/<margin>.json``
 (``RECORD_RULE``), written after every round of evaluations; a sweep resumes from the evaluations its records hold
 (``RESUME_RULE``).  ``dry_run`` lists every search with the episodes it can still need and their cost
 (``COST_RULE``).
+
+Sweep from the checkout whose run directory the records join (the main checkout): every evaluation key holds the
+panels' record key, which holds the sha256 of the round-two model files the plant reads (``panels.key_context``); a
+checkout without the git-ignored ``round2/refine/<case>/models`` rebuilds them into ``stage1/models`` with another
+model-ledger JSON, so its keys differ from the main checkout's and everything it records would be run again there
+(``sweep`` refuses such a checkout unless ``--allow-rebuilt-models``; copy ``round2/refine/*/models`` in instead).
 """
 
 from __future__ import annotations
@@ -35,6 +44,7 @@ import hashlib
 import inspect
 import json
 import math
+import os
 import time
 import traceback
 from collections import Counter, deque
@@ -45,17 +55,17 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from .. import carpet
-from . import BODIES, control, drive, env, metrics, panels, plant, tune
+from .. import carpet, sizing
+from . import BODIES, STUDY, case_dir, control, drive, env, metrics, panels, plant, tune
 from .transitions import TRANSITIONS, Transition
 
-SCHEMA = 1
+SCHEMA = 2
 #: Plan section 5: the ledger's episode seeds, the panels' first three (``SEEDS_RULE``).
 SEEDS = panels.SEEDS[:3]
 HALVINGS = 7
 CRITERIA = ("success", "survival")
 #: The rows plan section 5 bisects on: "R2" is the body-level G5 selection's row, "R3" R3/42 (``ROWS_RULE``).
-DEFAULT_ROWS = ("R2", "R3/42")
+DEFAULT_ROWS = ("R2", "R3")
 R3_ROW = "R3/42"
 #: The intervals (each search's far end; the nominal value is the panels' condition as it runs).
 MU_NOMINAL, MU_FAR = 0.9, 0.1
@@ -64,8 +74,15 @@ SCALE_FAR = 0.25
 KP_FAR = 0.25
 LATENCY_MAX_STEPS = 10  # physics steps of 2 ms: 20 ms
 MASS_POINT, MASS_FAR = 1.1, 1.3
+#: Each body's trunk body and whole-robot mass (kg; the screened MJCF's body_mass and body_subtreemass of 'trunk',
+#: the root: checked against the model in the tests), for MASS_RULE's two readings of plan section 5's '+10 %'.
+MASSES = {"60-N-T-10": (4.6998, 10.8117), "60-N-H-10": (4.8028, 10.9066), "75-M-H-10": (6.1609, 14.8549)}
+#: The trunk factor that adds 10 % of the robot's mass (1 + 0.1 robot / trunk, 3 decimals; MASS_RULE).
+ROBOT_MASS_POINT = {b: round(1.0 + 0.1 * robot / trunk, 3) for b, (trunk, robot) in MASSES.items()}
 DAMPING_LOW, DAMPING_HIGH = 0.5, 2.0
 VOLTAGES = (25.2, 22.2, 21.0)
+#: The plan's decision that reads plan section 5 for the ledger (stop, works, labels, seeds, mass, pile damping).
+DECISION = 33
 #: The parameter a variant changes: name and unit (for the records and the report).
 PARAMETERS = {"friction": ("sliding friction mu", ""), "push_dv": ("push velocity change", "m/s"),
               "speed_scale": ("envelope speed scale", ""), "torque_scale": ("drive torque scale", ""),
@@ -73,18 +90,41 @@ PARAMETERS = {"friction": ("sliding friction mu", ""), "push_dv": ("push velocit
               "mass": ("trunk mass factor", ""), "pile_damping": ("pile damping factor", ""),
               "bus_v": ("bus voltage", "V")}
 KINDS = tuple(PARAMETERS)
-#: Plan section 5's Stage 0 column, per body (the round-two screens' values as the plan's table gives them).
+#: Plan section 5's Stage 0 column, per body (STAGE0_RULE): the round-two screens' values as the plan's table gives
+#: them, its grip cell read per body as walk / turn / brisk (ROUND2_REVIEW.md 7.4 and 7.6, 'Friction need: walk / turn /
+#: brisk'), and beside the drives' the values the ledger's own limits compare (no speed margin; the walk's RMS alone).
 STAGE0 = {
-    "60-N-T-10": dict(grip_walk_nominal=0.48, grip_turn=0.47, grip_walk_brisk=0.36, push_forward=0.487,
-                      stop_one_foot=1.25, drive_speed_knee=0.93, drive_torque_sustained=0.76),
-    "60-N-H-10": dict(grip_walk_nominal=0.54, grip_turn=0.53, grip_walk_brisk=0.41, push_forward=0.478,
-                      stop_one_foot=1.25, drive_speed_knee=0.95, drive_torque_sustained=0.76),
-    "75-M-H-10": dict(grip_walk_nominal=0.75, grip_turn=0.73, grip_walk_brisk=0.56, push_forward=0.589,
-                      stop_one_foot=1.41, drive_speed_knee=0.93, drive_torque_sustained=0.77),
+    "60-N-T-10": dict(grip_walk_nominal=0.48, grip_turn=0.54, grip_walk_brisk=0.75, push_forward=0.487,
+                      stop_one_foot=1.25, drive_speed_knee=0.93, drive_speed_knee_no_margin=0.81,
+                      drive_torque_sustained=0.76, drive_torque_walk_rms=0.76),
+    "60-N-H-10": dict(grip_walk_nominal=0.47, grip_turn=0.53, grip_walk_brisk=0.73, push_forward=0.478,
+                      stop_one_foot=1.25, drive_speed_knee=0.95, drive_speed_knee_no_margin=0.83,
+                      drive_torque_sustained=0.76, drive_torque_walk_rms=0.76),
+    "75-M-H-10": dict(grip_walk_nominal=0.36, grip_turn=0.41, grip_walk_brisk=0.56, push_forward=0.589,
+                      stop_one_foot=1.41, drive_speed_knee=0.93, drive_speed_knee_no_margin=0.81,
+                      drive_torque_sustained=0.77, drive_torque_walk_rms=0.66),
 }
 STAGE0_VOLTAGE = ("Stage 0 used 24 V; at 22.2 V the knee's rated speed (8.04 rad/s) equals the Fr 0.05 requirement "
                   "including the screens' 15 % speed margin (8.08-8.12 rad/s; the peak swing speed itself is about "
                   "7.0 rad/s)")
+#: The turning screen's runs behind the grip values (``screens``).
+TURNING_RUNS = dict(walk_nominal="straight", turn_left="walk_0.35_left", turn_right="walk_0.35_right",
+                    walk_brisk="straight_brisk")
+STAGE0_RULE = (
+    f"plan section 5's Stage 0 column per body, from the round-two records (STAGE1_PLAN.md decision {DECISION}): grip, "
+    "the friction the turning screen requires in single support (<case>/review/screening/<body>_turning.json, the "
+    "worse foot's runs.<run>.feet.*.single_support.mu_req_max: 'straight' for the nominal walk, 'walk_0.35_left' and "
+    "'_right' for the 0.35 rad/s walking turn, the worse direction for 'turn', 'straight_brisk' for the brisk walk; "
+    "the plan's grip cell is laid out per body, walk / turn / brisk, as ROUND2_REVIEW.md 7.4 and 7.6 give it); push, "
+    "the envelope screen's forward bound; stop, the one-foot deceleration; drive speed, the knee's sizing speed ratio "
+    f"at Fr 0.05 (<case>/candidates/<body>.json margins.knee.speed_ratio = {sizing.SPEED_MARGIN:g} x the peak speed / "
+    "the rated speed at 24 V: it includes the screens' 15 % speed margin, sizing.SPEED_MARGIN; the value without it, "
+    "the peak speed over the rated speed, is what the ledger's limit compares, peak speed <= corner speed x s, so "
+    "equal performance gives s near it: 0.81 / 0.83 / 0.81); drive torque, the worst drive's sustained-torque ratio "
+    "margins.<drive>.cont_ratio = the larger of the nominal walk's RMS and the one-foot hold over the sustained torque "
+    "(sizing.requirements: cont = max(rms, hold)), with the nominal walk's worst RMS ratio beside (what the ledger's "
+    "RMS limit on the walk compares: 0.76 / 0.76 / 0.66); each record holds the screens' unrounded values and the "
+    "files' sha256 (screens)")
 
 # ------------------------------------------------------------------------------------------------
 # Rules (each copied into every record)
@@ -98,19 +138,29 @@ ROWS_RULE = (
     "policy_rows.CHECKPOINT_SELECTION_RULE), registered through panels.register_rows: the ledger registers the policy "
     "rows' R3 and R4 (policy_rows.ROW_FACTORIES) when a row of theirs is asked for and no module has registered that "
     "controller (a --row-module may register another, which is kept); a policy row is built only in the PPO venv "
-    "(its run's libraries); any row panels.tracker_rows knows can be named, and a row that runs the hard floor only "
-    "(R0, R1) has no pile search")
+    "(its run's libraries).  The row name 'R3' leaves R3 out for a body judged with R2 (train.R2_JUDGED_RULE: G6c "
+    "failed on seed 42, or FIX_RULE stopped one of its R3 runs), recorded in the session; R3/42 named explicitly is "
+    "built as asked.  Any row panels.tracker_rows knows can be named, and a row that runs the hard floor only (R0, R1) "
+    "has no pile search.  One seed per controller (the body-level selection's CMA-ES seed for R2, PPO seed 42 for R3), "
+    f"not plan section 6's 'R2 and R3 on 2 seeds each': the budget of decision 21 (STAGE1_PLAN.md decision "
+    f"{DECISION})")
 SEEDS_RULE = (
     f"episode seeds {SEEDS[0]}-{SEEDS[-1]} (panels.SEEDS' first three, plan section 5); each episode is the panels' "
     "episode of its condition on that seed (panels.EPISODE_RULE: the start noise, the sensor noise and a push's timing "
     "from the seed), on the panels' plant and track with the search's variant applied (VARIANT_RULE), so the nominal "
     "value of a condition the variant leaves unchanged is the panels' own episode bit for bit; no traces are written")
 WORKS_RULE = (
-    "a value works if all 3 episodes succeed by the panels' judgement of the condition (panels.judge: its success "
-    "terms with panels.LIMITS_RULE; a push succeeds if the body is back on its command within 3 s, decision 30, "
-    "panels.RECOVERY_RULE), and survives if none of the 3 falls (plant.Plant.fall_cause, an episode with a MuJoCo "
-    "warning counting as a fall, tune.FAILURE_RULE); an episode that failed to run (panels.FAILED_EPISODE_RULE) leaves "
-    "the value unjudged: the search waits, and the next sweep runs that value again")
+    "a value works if none of the 3 episodes falls and none fails a success term that its seed passed at the search's "
+    "nominal value (a point: its condition's nominal evaluation, which it then needs as well), by the panels' "
+    "judgement of the condition (panels.judge: its success terms with panels.LIMITS_RULE; a push succeeds if the body "
+    "is back on its command within 3 s, decision 30, panels.RECOVERY_RULE).  The margin is how far the parameter moves "
+    "before the row loses something it had at nominal: a term a seed already fails at nominal does not end the search "
+    "(60-N-T-10's R2/42 nominal walk passes the panels 20/20 survived and 18/20 succeeded, and seed 3042 fails the "
+    "peak GRF alone; read outright, every margin on that walk would end 'fails at nominal'), and at the nominal value "
+    "itself works is survives.  Every evaluation also records the outright reading (how many of the 3 succeed, and "
+    "whether all do).  A value survives if none of the 3 falls (plant.Plant.fall_cause, an episode with a MuJoCo "
+    "warning counting as a fall, tune.FAILURE_RULE).  An episode that failed to run (panels.FAILED_EPISODE_RULE) "
+    f"leaves the value unjudged: the search waits, and the next sweep runs that value again (decision {DECISION})")
 SEARCH_RULE = (
     "each search moves one parameter on one panel condition from its nominal value (the condition as the panels run "
     "it) toward the far end of its interval: the nominal value first, and if it does not work the search ends 'fails "
@@ -127,51 +177,66 @@ VARIANT_RULE = (
     "exactly after it (the same model arrays bit for bit): friction (control.set_friction), servo kp (the actuators' "
     "gain and bias), trunk mass (env.set_trunk_mass), pile damping (the probes' solref), latency (a delayed servo "
     "command), the drives (the envelope and the drive ratings), each by its margin's rule; a push's velocity change "
-    "replaces the panels' half bound in the pulse's force (PushedBuilt)")
+    "replaces the panels' half bound in the pulse's force (PushedBuilt); a lift (LIFT_RULE) runs inside the variant "
+    "(control.run enters control.relaxed after its reset and restores it before the variant is undone)")
 LABEL_RULE = (
-    "a threshold names what failed at its fails end (the nearest value that does not work): the success failures' "
-    "failed terms classed as panels.SUCCESS_LABEL_RULE classes them (body-limited by the hardware terms that failed in "
-    "more than half of the episodes that survived but failed, else controller-limited) and the falls' causes and "
-    "candidate limits (control.CANDIDATE_RULE: the hardware limits active in the 0.5 s before the onset; falls with "
-    "none are controller-limited by decision 20, nothing could be lifted); the label is the success failures' when "
-    "they are at least as many as the falls, else the falls' (a survival search: the falls').  Decision 20 attributes "
-    "falls over 20 starts and its sign test needs at least "
-    f"{panels.ATTRIBUTION_MIN_FALLS} falls (panels.ATTRIBUTION_MIN_FALLS), so the ledger's 3 seeds do not attribute: a "
-    "fall's candidates are named, not tested")
+    "a threshold names what failed at its fails end (the nearest value that does not work, or does not survive): its "
+    "success failures (episodes that survive but fail a term their seed passed at nominal, WORKS_RULE) by those new "
+    "failed terms, classed as panels.SUCCESS_LABEL_RULE classes them (body-limited by the hardware terms that failed "
+    "in more than half of those episodes, else controller-limited), and its falls by LIFT_RULE; the label is the "
+    "success failures' when nothing falls, else that of the kind with more failed episodes, the falls' on a tie, as "
+    "panels.FAILURE_LABEL_RULE breaks it (plan section 4: a hardware limit binds before most failures); a survival "
+    "search takes the falls' label.  A search that fails at nominal also cites the panels' own reading of the row and "
+    "condition (its 20-seed record: pass, counts, failure label with decision 20's attribution), when the record "
+    "exists, and is flagged if that record passes")
+LIFT_RULE = (
+    "decision 20 attributes falls over 20 starts and its sign test needs at least "
+    f"{panels.ATTRIBUTION_MIN_FALLS} falls (panels.ATTRIBUTION_MIN_FALLS), which 3 seeds cannot give; so at a fails "
+    "end (and a point) whose episodes fall, the value is run again on the same 3 seeds once for each relaxable "
+    "hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE: the limits active in the "
+    "0.5 s before the onset; each lifted from the start by control.relaxed, control.RELAXES, as the panels' "
+    "attribution lifts it), and its falls are body-limited by the lifts under which all 3 seeds survive, else "
+    "controller-limited (lifting none of the candidates saves them); a candidate the plant cannot relax "
+    "(cop_at_pad_edge_with_ankle_saturated) is named untestable, and falls with no candidate are controller-limited "
+    f"with nothing to lift (decision 20).  Each lift is an evaluation of its own, keyed with its relaxation "
+    f"(STAGE1_PLAN.md decision {DECISION})")
 RECORD_RULE = (
     "one record per (body, row, margin): <out>/<body>/sweeps/<row>/<margin>.json (a row 'R2/43' is two directories) "
     "with each search's two results (status, the threshold and the nearest failing value, every value evaluated, the "
-    "label at the fails end), the points' outcomes, every evaluation the margin used (its condition, variant, seeds "
-    "and each episode's outcome: the fall, its cause and candidates, the failed terms, the readings the margin turns "
-    "on, wall and CPU seconds), Stage 0's value (plan section 5), the rules, the key, the provenance and the cost; "
-    "written after every round of evaluations, so an interrupted sweep keeps what it ran; "
+    "label at the fails end with its lifts, the panels' reading at 'fails at nominal'), the points' outcomes, every "
+    "evaluation the margin used (its condition, variant, lift, seeds and each episode's outcome: the fall, its cause "
+    "and candidates, the failed terms, the readings the margin turns on, wall and CPU seconds), Stage 0's values (plan "
+    "section 5, STAGE0_RULE), the rules, the key, the panel sources and key context it was made with, the provenance "
+    "and the cost; written after every round of evaluations, so an interrupted sweep keeps what it ran; "
     "<out>/<body>/sweeps/summary.json lists the sessions and every record's state")
 RESUME_RULE = (
     "a margin whose record holds this run's key and is done is skipped; otherwise every evaluation that any record of "
     "the row holds under this run's evaluation key is reused: the sha256 of the panels' record key of its condition on "
     "the ledger's seeds (panels.record_key: the row and its sources, the condition and its plan, the inputs, the "
-    "plant's round-two files, the library versions, the panels' sources, panels.RESUME_RULE) with its variant and the "
-    "ledger's sources (SOURCES_RULE); evaluations that failed to run are run again.  A search replays its evaluations "
-    "in order, so a resumed sweep ends where an uninterrupted one would.  The margin's key adds its definition "
-    "(searches, intervals, points, seeds, halvings)")
+    "plant's round-two files, the library versions, the panels' sources, panels.RESUME_RULE) with its variant, its "
+    "lift (LIFT_RULE) and the ledger's sources (SOURCES_RULE); evaluations that failed to run are run again.  A search "
+    "replays its evaluations in order, so a resumed sweep ends where an uninterrupted one would.  The margin's key "
+    "adds its definition (searches, intervals, points, seeds, halvings)")
 SOURCES_RULE = ("the ledger's sources: the sha256 of designlab/stage1/ledger.py (its margins, variants and searches); "
                 "the panels' sources are in each evaluation's panel key (panels.PANEL_SOURCES_RULE); every worker "
                 "checks both against the session's, so a worker started after an edit refuses to run")
 COST_RULE = (
     "the dry run counts, per search, the values it can still need after replaying the evaluations recorded under this "
     f"run's keys: at most 2 + {HALVINGS} on success (an integer search: 2 + its halvings) and as many more on survival "
-    "(none when the two agree), each x 3 seeds at the condition's planned seconds (panels.Planner); a point once (a "
-    "value two searches share, such as the nominal walk's nominal value, is counted in each and run once); the "
-    "cost per simulated second is panels.COST_RULE's for a tracker row (R2/42 walking on each floor, measured now) "
-    "and a policy row's own for R3 and R4 (policy_rows.POLICY_COST_RULE: the row, its network included, on the "
-    "nominal walk on each floor its searches still need, measured now); core-hours = simulated seconds x CPU seconds "
-    "per simulated second / 3600")
+    "(none when the two agree), each x 3 seeds at the condition's planned seconds (panels.Planner); a point once, with "
+    "its condition's nominal evaluation (a value two searches share, such as the nominal walk's nominal value, is "
+    "counted in each and run once); the lifts (LIFT_RULE) as an upper bound beside: every relaxation at each "
+    "criterion's fails end; the cost per simulated second is panels.COST_RULE's for a tracker row (R2/42 walking on "
+    "each floor, measured now) and a policy row's own for R3 and R4 (policy_rows.POLICY_COST_RULE: the row, its "
+    "network included, on the nominal walk on each floor its searches still need, measured now); core-hours = "
+    "simulated seconds x CPU seconds per simulated second / 3600")
 GRIP_RULE = (
     "the lowest sliding friction that works: every colliding geom's sliding friction set to mu (control.set_friction, "
     f"as the panels set mu 0.54) on the nominal walk (walk/nominal), the 0.35 rad/s walking turn left and right "
     "(turn/walking_0.35_left and _right; the report gives the worse of the two, the higher mu) and the brisk walk "
     f"(walk/brisk), from mu {MU_NOMINAL:g} (the hard floor as compiled, every colliding geom at 0.9: the panels' "
-    f"condition) down to {MU_FAR:g}; Stage 0: the friction the round-two screens require (plan section 5)")
+    f"condition) down to {MU_FAR:g}; Stage 0: the friction the round-two turning screen requires in single support, "
+    "per body walk / turn / brisk (STAGE0_RULE)")
 PUSH_RULE = (
     "the largest push recovered: the panels' push conditions (standing and walking; forward, backward, left and right; "
     "the pulse's timing and the episode's length as panels.PUSH_RULE) with the pulse's velocity change dv in place of "
@@ -180,26 +245,32 @@ PUSH_RULE = (
     "command within 3 s (decision 30, panels.RECOVERY_RULE) with the limits; Stage 0: the forward bound (round two's "
     "one-step capturability bound; it has no other direction)")
 STOP_RULE = (
-    "the deceleration a stop holds needs stop references that decelerate at other rates; the run holds one stop "
-    "transition from the walk to the stand (transitions.TRANSITIONS 'stop', its speed ramp fixed by "
-    "transitions.PATH_HALF_WIDTH; the in-place turns' stops end a turn), so this margin is not run: another stop would "
-    "be a new reference, not this plan's.  Recorded beside it: the deceleration the existing stop asks for (its "
-    "reference CoM's forward acceleration on the commanded clock, low-passed at 1 Hz as decision 10 reads "
-    "acceleration, metrics.lowpass) and, when the row's start-and-stop panel record exists, what its episodes read "
-    "(each stop's acceleration peak and whether it stopped within 1.5 strides, panels.START_STOP_RULE)")
+    f"not run, a deviation from plan section 5 (STAGE1_PLAN.md decision {DECISION}, for the owner): the deceleration a "
+    "stop holds needs stop references that decelerate at other rates; the run holds one stop transition from the walk "
+    "to the stand (transitions.TRANSITIONS 'stop', its speed ramp fixed by transitions.PATH_HALF_WIDTH; the in-place "
+    "turns' stops end a turn), and another stop would be a new reference, not this plan's; sweeping the stop "
+    "transition's own clock rate instead would change its stepping as well as its deceleration and needs a reference "
+    "clock whose rate changes by segment, which control.Track does not have.  Recorded beside "
+    "it: the deceleration the existing stop asks for (its reference CoM's forward acceleration on the commanded clock, "
+    "low-passed at 1 Hz as decision 10 reads acceleration, metrics.lowpass) and, when the row's start-and-stop panel "
+    "record exists, what its episodes read (each stop's acceleration peak and whether it stopped within 1.5 strides, "
+    "panels.START_STOP_RULE)")
 DRIVE_SPEED_RULE = (
     "the smallest scale s on every drive's speed limits at which the Fr 0.05 walk (walk/fr05) works: each drive's "
     "corner and no-load speeds x s in the torque-speed envelope (drive.Envelope's speed_scale, as plant.build("
     "speed_scale=s) builds it), and with them the success limit on peak speed (panels.LIMITS_RULE reads the envelope's "
     f"corner speed: control.run's worst_speed_ratio), from 1 down to {SCALE_FAR:g}; peak torques unchanged; Stage 0: "
-    "the knee's speed need at Fr 0.05 over its rated speed (plan section 5)")
+    "the knee's speed need at Fr 0.05 over its rated speed (plan section 5), including the screens' 15 % speed margin "
+    "(0.93 / 0.95 / 0.93); without it 0.81 / 0.83 / 0.81, which is what this limit compares (STAGE0_RULE)")
 DRIVE_TORQUE_RULE = (
     "the smallest scale s on every drive's torque at which the nominal walk (walk/nominal) works: each drive's peak "
     "torque x s in the envelope (drive.Envelope's torque_scale, as plant.build(torque_scale=s)) and in the drive "
     "ratings the controller and the judgement read (plant.Plant.drives: the tracker's ankle cap, decision 15, at the "
     "scaled peak; the success limit on each drive's RMS torque at its sustained torque x s, panels.LIMITS_RULE), the "
     "servo gains unchanged (kp = the nominal sustained torque / 0.01 rad: the kp margin sweeps them), from 1 down to "
-    f"{SCALE_FAR:g}; Stage 0: the worst drive's sustained-torque ratio on the nominal walk (plan section 5)")
+    f"{SCALE_FAR:g}; Stage 0: the worst drive's sustained-torque ratio, the larger of the nominal walk's RMS and the "
+    "one-foot hold (0.76 / 0.76 / 0.77; on 75-M-H-10 the hip yaw's one-foot hold), with the nominal walk's own worst "
+    "RMS ratio beside (0.76 / 0.76 / 0.66), which is what this limit compares (STAGE0_RULE)")
 KP_RULE = (
     "the lowest servo stiffness factor f at which the nominal walk works: every drive's servo kp (the actuator's gain "
     "and its proportional bias) x f in the plant, kv unchanged, the controller keeping the nominal gains (env.KP_RULE: "
@@ -217,15 +288,23 @@ MASS_RULE = (
     "gets the plant's nominal model when its caller gives none, as env.ResidualEnv builds R3's: the tracker's mass, "
     "R2's estimator and its sensors' weight, and a policy row's observed weight and R4's estimator, which are its "
     "tracker's, policy_rows.POLICY_RULE and R4_RULE, as env.py keeps them; each episode records the trunk mass its "
-    "controller worked with and the plant's), the judgement on the true body "
-    f"(metrics.Recorder reads the plant's mass: the GRF over the true weight), on the nominal walk: f {MASS_POINT:g} "
-    f"(plan section 5's +10 %: works or not) and the largest f that works from 1 up to {MASS_FAR:g}")
+    "controller worked with and the plant's, and with them the whole robot's mass change), the judgement on the true "
+    "body (metrics.Recorder reads the plant's mass: the GRF over the true weight), on the nominal walk.  Plan section "
+    f"5's '+10 %' is read both ways, as two points: the trunk x {MASS_POINT:g} (env.MASS_RULE's factor, the trunk "
+    "alone: +4.15-4.40 % of the robot's mass) and the trunk factor that adds 10 % of the robot's mass (MASSES, "
+    "ROBOT_MASS_POINT: x 1.230 / 1.227 / 1.241); and the largest f that works from 1 up to "
+    f"{MASS_FAR:g} (+12-13 % of the robot: beyond the plan's +10 %, to find the margin; STAGE1_PLAN.md decision "
+    f"{DECISION})")
 PILE_DAMPING_RULE = (
     "every pile probe's contact damping x f with its stiffness unchanged: each probe's solref (time constant tc, "
     "damping ratio z) becomes (tc / f, z f), so MuJoCo's reference-acceleration damping B = 2 / (dmax tc) is x f and "
     "its stiffness K = 1 / (dmax^2 tc^2 z^2) is unchanged (tc / f must stay above MuJoCo's 2-step floor, checked); "
-    "on the carpet walk on low pile (carpet/low: plan section 4's evaluation pile, mu 0.54), from 1 down to "
-    f"{DAMPING_LOW:g} and from 1 up to {DAMPING_HIGH:g} (plan section 5; carpet damping is not sourced, A16)")
+    f"from 1 down to {DAMPING_LOW:g} and from 1 up to {DAMPING_HIGH:g} (plan section 5; carpet damping is not "
+    "sourced, A16), on low pile (plan section 4's evaluation pile): the 20 s stand (stand/low), which R2 passes on "
+    "every body, and the carpet walk at mu 0.54 (carpet/low), which decision 23 found R2 falling on in every start "
+    "tried, so R2's carpet searches end 'fails at nominal' at the cost of one evaluation while its stand searches "
+    "measure the damping margin; both for every row that runs the pile, R3's carpet walk among them (STAGE1_PLAN.md "
+    f"decision {DECISION})")
 VOLTAGE_RULE = (
     "the pack's bus voltage V in place of the record's 24 V for every leg drive, as plant.build(bus=V) builds it "
     "(drive.drives(bus=V)): each leg drive's corner speed is Actuator.speed_at(V) = its rated speed x min(1, V / its "
@@ -239,9 +318,10 @@ MARGIN_RULES = dict(grip=GRIP_RULE, push=PUSH_RULE, stop=STOP_RULE, drive_speed=
                     drive_torque=DRIVE_TORQUE_RULE, kp=KP_RULE, latency=LATENCY_RULE, mass=MASS_RULE,
                     pile_damping=PILE_DAMPING_RULE, voltage=VOLTAGE_RULE)
 RULES = dict(rows=ROWS_RULE, seeds=SEEDS_RULE, works=WORKS_RULE, search=SEARCH_RULE, variant=VARIANT_RULE,
-             label=LABEL_RULE, record=RECORD_RULE, resume=RESUME_RULE, sources=SOURCES_RULE, cost=COST_RULE,
-             success=tune.SUCCESS_RULE, limits=panels.LIMITS_RULE, recovery=panels.RECOVERY_RULE,
-             candidates=control.CANDIDATE_RULE, failed_episode=panels.FAILED_EPISODE_RULE)
+             label=LABEL_RULE, lift=LIFT_RULE, record=RECORD_RULE, resume=RESUME_RULE, sources=SOURCES_RULE,
+             cost=COST_RULE, stage0=STAGE0_RULE, success=tune.SUCCESS_RULE, limits=panels.LIMITS_RULE,
+             recovery=panels.RECOVERY_RULE, candidates=control.CANDIDATE_RULE,
+             failed_episode=panels.FAILED_EPISODE_RULE)
 MODEL_DOUBTS = ("kp", "latency", "mass", "pile_damping")
 
 
@@ -372,8 +452,8 @@ def margins(body: str) -> list[Margin]:
                searches=tuple(S(f"{mode}_{d}", f"push/{mode}_{d}", "push_dv", 0.0, push_far)
                               for mode in ("standing", "walking") for d in panels.PUSH_DIRECTIONS)),
         Margin("stop", "Stop", "the deceleration held", not_run=(
-            "the deceleration a stop holds needs stop references that decelerate at other rates, and the run holds one "
-            "stop transition (STOP_RULE)")),
+            f"not run (plan deviation, decision {DECISION}): the deceleration a stop holds needs stop references that "
+            "decelerate at other rates, and the run holds one stop transition (STOP_RULE)")),
         Margin("drive_speed", "Drive speed", "the smallest envelope speed scale at which the Fr 0.05 walk works",
                searches=(S("walk_fr05", fr05, "speed_scale", 1.0, SCALE_FAR),)),
         Margin("drive_torque", "Drive torque", "the smallest torque scale at which the nominal walk works",
@@ -382,12 +462,16 @@ def margins(body: str) -> list[Margin]:
                searches=(S("walk_nominal", walk, "kp", 1.0, KP_FAR),)),
         Margin("latency", "Model doubt: latency", "the largest latency at which the nominal walk works",
                searches=(S("walk_nominal", walk, "latency_steps", 0, LATENCY_MAX_STEPS, integer=True),)),
-        Margin("mass", "Model doubt: trunk mass", "+10 %, and the largest trunk mass factor at which the nominal walk "
-               "works", searches=(S("walk_nominal", walk, "mass", 1.0, MASS_FAR),),
-               points=(Point("walk_nominal_x1.1", walk, "mass", MASS_POINT),)),
+        Margin("mass", "Model doubt: trunk mass", "+10 % (the trunk x 1.1, and the trunk factor that adds 10 % of the "
+               "robot's mass), and the largest trunk mass factor at which the nominal walk works",
+               searches=(S("walk_nominal", walk, "mass", 1.0, MASS_FAR),),
+               points=(Point("walk_nominal_trunk_x1.1", walk, "mass", MASS_POINT),
+                       Point("walk_nominal_robot_x1.1", walk, "mass", ROBOT_MASS_POINT[body]))),
         Margin("pile_damping", "Model doubt: pile damping", "the lowest and largest pile damping factor at which the "
-               "carpet walk on low pile works",
-               searches=(S("carpet_low_down", "carpet/low", "pile_damping", 1.0, DAMPING_LOW),
+               "stand and the carpet walk on low pile work",
+               searches=(S("stand_low_down", "stand/low", "pile_damping", 1.0, DAMPING_LOW),
+                         S("stand_low_up", "stand/low", "pile_damping", 1.0, DAMPING_HIGH),
+                         S("carpet_low_down", "carpet/low", "pile_damping", 1.0, DAMPING_LOW),
                          S("carpet_low_up", "carpet/low", "pile_damping", 1.0, DAMPING_HIGH))),
         Margin("voltage", "Pack voltage", "the nominal and Fr 0.05 walks at 25.2, 22.2 and 21 V",
                points=tuple(Point(f"{n}_{v:g}V", key, "bus_v", v) for n, key in (("walk_nominal", walk),
@@ -413,13 +497,41 @@ def select_margins(ms: list[Margin], names=None) -> list[Margin]:
     return [m for m in ms if m.name in want]
 
 
+@functools.lru_cache(maxsize=None)
+def screens(body: str) -> dict:
+    """``STAGE0_RULE``: the round-two screens' unrounded Stage 0 values of a body (the turning screen's friction need,
+    the candidate record's knee speed ratio and drive torque ratios), with the files' sha256."""
+    cd = case_dir(body)
+    tpath, cpath = cd / "review" / "screening" / f"{body}_turning.json", cd / "candidates" / f"{body}.json"
+    turning, cand = json.loads(tpath.read_text()), json.loads(cpath.read_text())
+    grip = {k: max(float(turning["runs"][run]["feet"][f]["single_support"]["mu_req_max"]) for f in ("left", "right"))
+            for k, run in TURNING_RUNS.items()}
+    grip["turn"] = max(grip["turn_left"], grip["turn_right"])
+    m = cand["margins"]
+    worst = max(m, key=lambda g: (m[g]["cont_ratio"], g))
+    worst_rms = max(m, key=lambda g: (m[g]["rms"] / m[g]["sustained"], g))
+    knee = float(m["knee"]["speed_ratio"])
+    return dict(grip=grip, grip_runs=dict(TURNING_RUNS),
+                drive_speed=dict(knee_speed_ratio=knee, knee_peak_over_rated=knee / sizing.SPEED_MARGIN,
+                                 speed_margin=sizing.SPEED_MARGIN),
+                drive_torque=dict(drive=worst, cont_ratio=float(m[worst]["cont_ratio"]),
+                                  by=("one-foot hold" if m[worst]["hold"] >= m[worst]["rms"] else "nominal walk RMS"),
+                                  walk_rms_drive=worst_rms,
+                                  walk_rms_ratio=float(m[worst_rms]["rms"] / m[worst_rms]["sustained"])),
+                files={str(p.relative_to(STUDY)): plant.sha256(p) for p in (tpath, cpath)}, rule=STAGE0_RULE)
+
+
 def stage0(body: str, margin: str) -> dict:
-    """Plan section 5's Stage 0 value(s) of a margin, with what they are."""
+    """Plan section 5's Stage 0 value(s) of a margin, with what they are (``STAGE0_RULE``) and the screens' unrounded
+    values (``screens``)."""
     v = STAGE0[body]
     if margin == "grip":
+        sc = screens(body)
         return dict(values=dict(walk_nominal=v["grip_walk_nominal"], turn=v["grip_turn"], turn_left=v["grip_turn"],
                                 turn_right=v["grip_turn"], walk_brisk=v["grip_walk_brisk"]),
-                    text="the lowest friction the round-two screens require: nominal walk, 0.35 rad/s turn, brisk walk")
+                    screens=dict(sc["grip"], runs=sc["grip_runs"], files=sc["files"]),
+                    text="the lowest friction the round-two turning screen requires in single support, per body: "
+                         "nominal walk / 0.35 rad/s walking turn (the worse direction) / brisk walk (STAGE0_RULE)")
     if margin == "push":
         return dict(values={f"{m}_forward": v["push_forward"] for m in ("standing", "walking")},
                     forward_bound_m_s=v["push_forward"],
@@ -427,11 +539,22 @@ def stage0(body: str, margin: str) -> dict:
     if margin == "stop":
         return dict(values=dict(one_foot_m_s2=v["stop_one_foot"]), text="the deceleration held on one foot (m/s^2)")
     if margin == "drive_speed":
+        sc = screens(body)
         return dict(values=dict(walk_fr05=v["drive_speed_knee"]),
-                    text="the knee's speed need at Fr 0.05 over its rated speed (the envelope speed scale)")
+                    without_margin=dict(walk_fr05=v["drive_speed_knee_no_margin"]),
+                    screens=dict(sc["drive_speed"], files=sc["files"]),
+                    text="the knee's speed need at Fr 0.05 over its rated speed, including the screens' 15 % speed "
+                         f"margin; without it {v['drive_speed_knee_no_margin']:g} (0.81 / 0.83 / 0.81), which is what "
+                         "the ledger's limit compares (STAGE0_RULE)")
     if margin == "drive_torque":
+        sc = screens(body)["drive_torque"]
         return dict(values=dict(walk_nominal=v["drive_torque_sustained"]),
-                    text="the worst drive's sustained-torque ratio (the torque scale)")
+                    walk_rms=dict(walk_nominal=v["drive_torque_walk_rms"]),
+                    screens=dict(sc, files=screens(body)["files"]),
+                    text=f"the worst drive's sustained-torque ratio, the larger of the nominal walk's RMS and the "
+                         f"one-foot hold ({sc['drive']}'s {sc['by']}); the nominal walk's RMS alone "
+                         f"{v['drive_torque_walk_rms']:g} ({sc['walk_rms_drive']}), which is what the ledger's limit "
+                         "compares (STAGE0_RULE)")
     if margin == "voltage":
         return dict(values={}, text=STAGE0_VOLTAGE)
     return dict(values={}, text="no Stage 0 value (a model doubt)")
@@ -753,11 +876,13 @@ class LedgerContext(panels.Context):
             if nominal is not None:
                 with controller_model(nominal) as made:
                     yield info
-                m0 = float(nominal.body_subtreemass[p.trunk])
+                m0, m1 = float(nominal.body_subtreemass[p.trunk]), float(p.m.body_subtreemass[p.trunk])
                 info["controller_model"] = dict(
                     nominal=bool(made) and all(mass == m0 for _, mass in made), trackers=len(made),
                     given_by_row=sum(1 for g, _ in made if g), trunk_mass_kg=[mass for _, mass in made],
-                    nominal_trunk_mass_kg=m0, plant_trunk_mass_kg=float(p.m.body_subtreemass[p.trunk]))
+                    nominal_trunk_mass_kg=m0, plant_trunk_mass_kg=m1,
+                    trunk_body_kg=float(nominal.body_mass[p.trunk]), plant_trunk_body_kg=float(p.m.body_mass[p.trunk]),
+                    robot_mass_change=m1 / m0 - 1.0)  # (the trunk is the root: its subtree is the whole robot)
             else:
                 yield info
         finally:
@@ -804,9 +929,10 @@ def episode_summary(e: dict, cpu_s: float | None = None, extra: dict | None = No
 
 
 class LedgerWorker(panels.PanelWorker):
-    """A worker for ``tune.Pool``: ``evaluate((row, condition, kind, value), seed)`` runs one episode of a row on a
-    condition with a variant (``LedgerContext``) and returns its summary.  It refuses to start on other panel sources,
-    key context or ledger sources than the session's (``SOURCES_RULE``)."""
+    """A worker for ``tune.Pool``: ``evaluate((row, condition, kind, value[, relax]), seed)`` runs one episode of a row
+    on a condition with a variant (``LedgerContext``) and the hardware limits ``relax`` lifted (``LIFT_RULE``) and
+    returns its summary.  It refuses to start on other panel sources, key context or ledger sources than the session's
+    (``SOURCES_RULE``)."""
 
     def __init__(self, body: str, run_dir: str, mode: str = "ledger", rate: float = panels.RATE,
                  expected_inputs: dict | None = None, rows=(), sources: str | None = None, ledger: str | None = None):
@@ -816,15 +942,16 @@ class LedgerWorker(panels.PanelWorker):
         self.ctx = LedgerContext.of(self.ctx)
 
     def evaluate(self, job, seed) -> dict:
-        row, cond, kind, value = job
+        row, cond, kind, value, *rest = job
+        relax = tuple(rest[0]) if rest else ()
         c0 = time.process_time()
         info: dict = {}
         try:
             with self.ctx.variant(cond, Variant(kind, value)) as info:
-                e = self.rows[row].run(self.ctx, cond, int(seed), (), trace_root=None)
+                e = self.rows[row].run(self.ctx, cond, int(seed), relax, trace_root=None)
         except Exception:
-            e = panels.failed_episode(cond, int(seed), traceback.format_exc())
-        return episode_summary(e, time.process_time() - c0, info)
+            e = panels.failed_episode(cond, int(seed), traceback.format_exc(), relax)
+        return episode_summary(e, time.process_time() - c0, dict(info, relaxed=list(relax)) if relax else info)
 
 
 def _worker(body, run_dir, mode, rate, expected_inputs=None, rows=(), sources=None, ledger=None):
@@ -832,8 +959,9 @@ def _worker(body, run_dir, mode, rate, expected_inputs=None, rows=(), sources=No
 
 
 def _lost(job, reason: str) -> dict:
-    (row, cond, kind, value), seed = job
-    return episode_summary(panels.failed_episode(cond, int(seed), f"worker lost: {reason}"), None)
+    (row, cond, kind, value, *rest), seed = job
+    relax = tuple(rest[0]) if rest else ()
+    return episode_summary(panels.failed_episode(cond, int(seed), f"worker lost: {reason}", relax), None)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -849,43 +977,110 @@ def _sha(x) -> str:
     return hashlib.sha256(json.dumps(panels._jsonable(x), sort_keys=True).encode()).hexdigest()
 
 
-def evaluation_entry(cond_key: str, var: Variant, episodes: list[dict], valid: str) -> dict:
-    """One evaluation (a condition with a variant on the ledger's seeds): its episodes and outcomes (``WORKS_RULE``)."""
+def evaluation_entry(cond_key: str, var: Variant, episodes: list[dict], valid: str, relax=()) -> dict:
+    """One evaluation (a condition with a variant, and any lift, on the ledger's seeds): its episodes and outright
+    outcomes (``succeeds_all``: every episode succeeds; ``survives``: none falls).  Whether it works is judged against
+    its condition's nominal evaluation (``works``, ``WORKS_RULE``)."""
     errors = int(sum(1 for e in episodes if e.get("error")))
     judged = errors == 0 and len(episodes) == len(SEEDS)
-    return dict(condition=cond_key, variant=var.describe(), seeds=[int(e["seed"]) for e in episodes],
+    return dict(condition=cond_key, variant=var.describe(), relax=list(relax), seeds=[int(e["seed"]) for e in episodes],
                 episodes=episodes, succeeded=int(sum(bool(e["succeeded"]) for e in episodes)),
                 survived=int(sum(not e["fell"] for e in episodes)), errors=errors,
-                works=bool(all(e["succeeded"] for e in episodes)) if judged else None,
+                succeeds_all=bool(all(e["succeeded"] for e in episodes)) if judged else None,
                 survives=bool(not any(e["fell"] for e in episodes)) if judged else None, valid=valid,
                 wall_s=float(sum(e.get("wall_s") or 0.0 for e in episodes)),
                 cpu_s=float(sum(e.get("cpu_s") or 0.0 for e in episodes)),
                 simulated_s=float(sum(e.get("survival_s") or 0.0 for e in episodes)), at=tune._now())
 
 
-def binding(entry: dict | None, criterion: str) -> dict | None:
-    """``LABEL_RULE`` at a search's fails end (an evaluation that did not work)."""
+def new_terms(entry: dict, ref: dict | None) -> dict[int, list[str]]:
+    """Per seed, the success terms an evaluation's surviving episode failed that its seed passed in ``ref`` (the
+    condition's nominal evaluation; ``WORKS_RULE``); every failed term without a reference."""
+    base = {int(e["seed"]): set(e.get("failed_terms") or ()) for e in (ref or {}).get("episodes") or ()}
+    return {int(e["seed"]): [t for t in e.get("failed_terms") or () if t not in base.get(int(e["seed"]), set())]
+            for e in entry["episodes"] if not e.get("error") and not e["fell"]}
+
+
+def works(entry: dict | None, ref: dict | None) -> bool | None:
+    """``WORKS_RULE``: none of the episodes falls and none fails a term its seed passed in ``ref`` (the condition's
+    nominal evaluation on the same seeds; ``entry`` itself at the nominal value); None while either is unjudged."""
+    if entry is None or ref is None or entry.get("errors") or ref.get("errors") or entry.get("survives") is None:
+        return None
+    if [int(s) for s in entry["seeds"]] != [int(s) for s in ref["seeds"]]:
+        raise ValueError(f"{entry['condition']}: its seeds {entry['seeds']} are not its reference's {ref['seeds']}")
+    return bool(entry["survives"] and not any(new_terms(entry, ref).values()))
+
+
+def lifts_of(entry: dict | None) -> tuple[list[str], list[str]]:
+    """``LIFT_RULE``: the relaxations that lift the candidates of an evaluation's falls (``control.RELAXATIONS``
+    order), and its candidates the plant cannot relax."""
+    if not entry or entry.get("errors"):
+        return [], []
+    cands = {c for e in entry["episodes"] if e["fell"] for c in (e.get("fall_candidates") or ())}
+    lifts = [r for r in control.RELAXATIONS if any(control.RELAXES.get(c) == r for c in cands)]
+    return lifts, sorted(c for c in cands if control.RELAXES.get(c) is None)
+
+
+def falls_label(entry: dict, lifted: dict | None) -> tuple[str | None, dict]:
+    """``LIFT_RULE``'s label of an evaluation's falls from its lifts (relaxation -> the lifted evaluation, or None
+    while it is not known), and what each lift gave."""
+    falls = [e for e in entry["episodes"] if e["fell"] and not e.get("error")]
+    if not falls:
+        return None, {}
+    lifts, untestable = lifts_of(entry)
+    got = {r: (lifted or {}).get(r) for r in lifts}
+    tests = {r: None if (x is None or x.get("errors")) else dict(survives=bool(x["survives"]), survived=x["survived"])
+             for r, x in got.items()}
+    note = f"; untestable: {', '.join(untestable)}" if untestable else ""
+    if not lifts:
+        return ("controller-limited (falls with no relaxable hardware limit active before the onset: nothing to "
+                f"lift, decision 20{note})"), tests
+    if any(t is None for t in tests.values()):
+        return f"falls: lifts of {', '.join(lifts)} pending (LIFT_RULE{note})", tests
+    body = [r for r in lifts if tests[r]["survives"]]
+    if body:
+        return f"body-limited: {', '.join(body)} (lifted, all 3 seeds survive{note})", tests
+    return f"controller-limited (lifting {', '.join(lifts)} saves none of the falls{note})", tests
+
+
+def binding(entry: dict | None, criterion: str, ref: dict | None = None, lifted: dict | None = None) -> dict | None:
+    """``LABEL_RULE`` at a search's fails end (an evaluation that did not work, or did not survive): ``ref`` is the
+    condition's nominal evaluation (``WORKS_RULE``) and ``lifted`` its lifts (``LIFT_RULE``)."""
     if entry is None:
         return None
     eps = [e for e in entry["episodes"] if not e.get("error")]
     falls = [e for e in eps if e["fell"]]
-    failed = [e for e in eps if not e["fell"] and not e["succeeded"]]
+    terms = new_terms(dict(entry, episodes=eps), ref)
+    failed = [dict(e, failed_terms=terms[int(e["seed"])]) for e in eps if not e["fell"] and terms[int(e["seed"])]]
     cands = Counter(c for e in falls for c in (e.get("fall_candidates") or ()))
-    if falls:
-        falls_label = ("controller-limited (falls with no hardware limit active before the onset)" if not cands else
-                       "falls: candidates " + ", ".join(f"{c} x{n}" for c, n in cands.most_common())
-                       + " (not attributed: 3 seeds)")
-    else:
-        falls_label = None
-    sl = panels.success_label(eps)
+    f_label, tests = falls_label(dict(entry, episodes=eps), lifted)
+    sl = panels.success_label(failed)
     if criterion == "survival" or not failed:
-        label = falls_label
-    else:
-        label = sl["label"] if len(failed) >= len(falls) else falls_label
+        label = f_label
+    elif not falls:
+        label = sl["label"]
+    else:  # panels.FAILURE_LABEL_RULE's tie-break: the falls'
+        label = f_label if len(falls) >= len(failed) else sl["label"]
+    lifts, untestable = lifts_of(dict(entry, episodes=eps))
     return dict(falls=len(falls), fall_causes=dict(Counter(str(e["fall_cause"]) for e in falls)),
-                fall_candidates=dict(cands), success_failures=len(failed), failed_terms=sl["terms"],
-                hardware_terms=sl["hardware_terms"], success_label=sl["label"] if failed else None,
-                falls_label=falls_label, label=label)
+                fall_candidates=dict(cands), lifts=tests, untestable=untestable, success_failures=len(failed),
+                failed_terms=sl["terms"], hardware_terms=sl["hardware_terms"],
+                success_label=sl["label"] if failed else None, falls_label=f_label, label=label,
+                relative_to_nominal=ref is not None)
+
+
+def panel_reading(out: Path, body: str, row: str, cond_key: str) -> dict | None:
+    """``LABEL_RULE``'s citation at 'fails at nominal': the panels' 20-seed record of the row and condition (pass,
+    counts, failure label with decision 20's attribution), or None if it does not exist."""
+    cond = next((c for c in panels.conditions() if c.key == cond_key), None)
+    rec = panels._read(panels.record_path(out, body, row, cond)) if cond is not None else None
+    if not rec or rec.get("status") != "done":
+        return None
+    c, f, a = rec.get("counts") or {}, rec.get("failure") or {}, rec.get("attribution") or {}
+    return dict(record=str(panels.record_path(Path(""), body, row, cond)), pass_=c.get("pass_"),
+                episodes=c.get("episodes"), survived=c.get("survived"), succeeded=c.get("succeeded"),
+                label=f.get("label"), falls_label=f.get("falls_label"), success_label=f.get("success_label"),
+                attribution=a.get("label"), decision_20_label=a.get("decision_20_label"))
 
 
 def stop_reference(run_dir: Path, rate: float = panels.RATE) -> dict:
@@ -932,8 +1127,8 @@ def stop_panel_reading(out: Path, body: str, row: str) -> dict | None:
 # One margin of one row
 # ------------------------------------------------------------------------------------------------
 class MarginRun:
-    """One margin on one row: its searches' bisections on both criteria and its points, advanced over the
-    evaluations known (``advance``)."""
+    """One margin on one row: its searches' bisections on both criteria, its points and the lifts at their fails ends
+    (``LIFT_RULE``), advanced over the evaluations known (``advance``)."""
 
     def __init__(self, row: panels.Row, margin: Margin, conds: dict, point_variants: dict, halvings: int = HALVINGS):
         self.row, self.margin, self.halvings = row, margin, int(halvings)
@@ -942,54 +1137,90 @@ class MarginRun:
         self.bisects = {(s.name, c): Bisect(s, c, halvings) for s in margin.searches for c in CRITERIA
                         if self.applicable[s.name]}
         self.point_variants = point_variants
-        self.points: dict[str, dict | None] = {p.name: None for p in margin.points if self.applicable[p.name]}
+        #: A point's (evaluation, its condition's nominal evaluation) once both are known.
+        self.points: dict[str, tuple | None] = {p.name: None for p in margin.points if self.applicable[p.name]}
         self.waiting: set = set()  # (search or point, criterion): an evaluation failed to run this session
-        self.used: dict[str, tuple] = {}  # evaluation id -> (condition, variant)
+        self.lifts_pending: set = set()  # (search or point, criterion, relaxation): a lift not known yet
+        self.used: dict[str, tuple] = {}  # evaluation id -> (condition, variant, relax)
 
     @property
     def done(self) -> bool:
         return (self.margin.not_run is not None
-                or (all(b.done for b in self.bisects.values()) and all(v is not None for v in self.points.values())))
+                or (all(b.done for b in self.bisects.values()) and all(v is not None for v in self.points.values())
+                    and not self.lifts_pending))
+
+    def _get(self, lookup, cond: str, var: Variant, relax=()):
+        self.used[eval_id(cond, var, relax)] = (cond, var, tuple(relax))
+        return lookup(cond, var, tuple(relax))
+
+    def _lift(self, lookup, cond: str, var: Variant, need: list, who: tuple) -> None:
+        """``LIFT_RULE``: the lifts a fails end (or a point) with falls needs."""
+        for r in lifts_of(lookup(cond, var, ()))[0]:
+            x = self._get(lookup, cond, var, (r,))
+            if x is None:
+                need.append((cond, var, (r,)))
+            if x is None or x["errors"]:
+                self.lifts_pending.add(who + (r,))
 
     def advance(self, lookup) -> list[tuple]:
-        """Feed every bisection and point from ``lookup(condition, variant)`` (an evaluation entry or None) as far as
-        the known evaluations go; the (condition, variant) pairs still needed."""
+        """Feed every bisection and point from ``lookup(condition, variant, relax)`` (an evaluation entry or None) as
+        far as the known evaluations go; the (condition, variant, relax) evaluations still needed."""
         need = []
+        self.lifts_pending = set()
         for (name, crit), b in self.bisects.items():
+            s = b.search
             while not b.done:
                 v = b.need()
-                var = b.search.variant(v)
-                e = lookup(b.search.condition, var)
-                self.used[eval_id(b.search.condition, var)] = (b.search.condition, var)
+                var = s.variant(v)
+                e = self._get(lookup, s.condition, var)
                 if e is None:
-                    need.append((b.search.condition, var))
+                    need.append((s.condition, var, ()))
                     break
                 if e["errors"]:
                     self.waiting.add((name, crit))
                     break
                 self.waiting.discard((name, crit))
-                b.feed(v, e["works"] if crit == "success" else e["survives"])
+                if crit == "survival":
+                    ok = e["survives"]
+                else:  # WORKS_RULE: against the search's nominal value, the first one evaluated
+                    ok = works(e, e if not b.trail else lookup(s.condition, s.variant(s.nominal), ()))
+                b.feed(v, ok)
+            if b.done and b.fails is not None:
+                self._lift(lookup, s.condition, s.variant(b.fails), need, (name, crit))
         for p in self.margin.points:
-            if p.name not in self.points or self.points[p.name] is not None:
+            if p.name not in self.points:
                 continue
             var = self.point_variants[p.name]
-            e = lookup(p.condition, var)
-            self.used[eval_id(p.condition, var)] = (p.condition, var)
-            if e is None:
-                need.append((p.condition, var))
-            elif e["errors"]:
-                self.waiting.add((p.name, None))
-            else:
+            if self.points[p.name] is None:
+                e = self._get(lookup, p.condition, var)
+                ref = e if var == NOMINAL else self._get(lookup, p.condition, NOMINAL)
+                missing = [x for x, got in dict.fromkeys(((var, e is None), (NOMINAL, ref is None))) if got]
+                if missing:
+                    need.extend((p.condition, x, ()) for x in missing)
+                    continue
+                if e["errors"] or ref["errors"]:
+                    self.waiting.add((p.name, None))
+                    continue
                 self.waiting.discard((p.name, None))
-                self.points[p.name] = e
+                self.points[p.name] = (e, ref)
+            e, ref = self.points[p.name]
+            if not works(e, ref):
+                self._lift(lookup, p.condition, var, need, (p.name, None))
         return need
 
 
-def eval_id(cond_key: str, var: Variant) -> str:
-    return f"{cond_key}|{var.key}"
+def eval_id(cond_key: str, var: Variant, relax=()) -> str:
+    return f"{cond_key}|{var.key}" + (f"|lift={'+'.join(relax)}" if relax else "")
 
 
-def _search_results(mr: MarginRun, lookup) -> dict:
+def _lifted(lookup, cond: str, var: Variant) -> dict:
+    """The lifts known of an evaluation's falls (``LIFT_RULE``): relaxation -> its evaluation or None."""
+    return {r: lookup(cond, var, (r,)) for r in lifts_of(lookup(cond, var, ()))[0]}
+
+
+def _search_results(mr: MarginRun, lookup, panel=None) -> dict:
+    """Each search's two results with the label at the fails end; at 'fails at nominal', ``panel(condition)`` (the
+    panels' reading of the row and condition, ``panel_reading``) is cited (``LABEL_RULE``)."""
     out = {}
     for s in mr.margin.searches:
         if not mr.applicable[s.name]:
@@ -997,34 +1228,48 @@ def _search_results(mr: MarginRun, lookup) -> dict:
                                                                         f"{s.condition} is not on it")
             continue
         r = dict(s.describe())
+        ref = lookup(s.condition, s.variant(s.nominal), ())
         for crit in CRITERIA:
             b = mr.bisects[(s.name, crit)]
             res = b.result()
             if (s.name, crit) in mr.waiting:
                 res["waiting"] = "an episode failed to run (WORKS_RULE): the next sweep runs it again"
-            fails = None if b.fails is None else lookup(s.condition, s.variant(b.fails))
-            res["binding"] = binding(fails, crit) if fails is not None else None
+            res["binding"] = None
+            if b.fails is not None:
+                var = s.variant(b.fails)
+                fails = lookup(s.condition, var, ())
+                res["binding"] = binding(fails, crit, ref, _lifted(lookup, s.condition, var)) if fails else None
+            if res["status"] == "fails at nominal" and panel is not None:
+                pr = panel(s.condition)
+                res["panels"] = pr
+                if pr and pr.get("pass_"):
+                    res["flag"] = (f"the panels pass {s.condition} ({pr['survived']}/{pr['episodes']} survive, "
+                                   f"{pr['succeeded']} succeed), the ledger's 3 seeds fail at nominal")
             r[crit] = res
         out[s.name] = r
     return out
 
 
-def _point_results(mr: MarginRun) -> dict:
+def _point_results(mr: MarginRun, lookup) -> dict:
     out = {}
     for p in mr.margin.points:
         if p.name not in mr.points:
             out[p.name] = dict(p.describe(), status="not run", reason=f"{mr.row.name} does not run {p.condition}")
             continue
-        e = mr.points[p.name]
         var = mr.point_variants[p.name]
         base = dict(p.describe(), variant=var.describe(),
                     same_as_nominal=var == NOMINAL and p.kind != "push_dv")
-        if e is None:
+        if mr.points[p.name] is None:
             out[p.name] = dict(base, status="waiting" if (p.name, None) in mr.waiting else "incomplete")
             continue
-        out[p.name] = dict(base, status="done", works=e["works"], survives=e["survives"], succeeded=e["succeeded"],
-                           survived=e["survived"], binding=None if e["works"] else binding(
-                               e, "success" if e["survives"] else "survival"))
+        e, ref = mr.points[p.name]
+        w = works(e, ref)
+        cm = next((x.get("controller_model") for x in e["episodes"] if x.get("controller_model")), None)
+        out[p.name] = dict(base, status="done", works=w, works_outright=e["succeeds_all"], survives=e["survives"],
+                           succeeded=e["succeeded"], survived=e["survived"],
+                           robot_mass_change=(cm or {}).get("robot_mass_change"),
+                           binding=None if w else binding(e, "success" if e["survives"] else "survival", ref,
+                                                          _lifted(lookup, p.condition, var)))
     return out
 
 
@@ -1041,9 +1286,9 @@ def margin_summary(margin: Margin, searches: dict, points: dict) -> dict:
         if all(searches[s.name].get("status") != "not run" for s in specs):
             rows[name] = {c: _brief(worse({s.name: searches[s.name][c] for s in specs}, specs)) for c in CRITERIA}
             rows[name]["of"] = list(group)
-    pts = {n: {k: p.get(k) for k in ("status", "value", "condition", "works", "survives", "succeeded", "survived",
-                                     "same_as_nominal")} | {"label": (p.get("binding") or {}).get("label")}
-           for n, p in points.items()}
+    pts = {n: {k: p.get(k) for k in ("status", "value", "condition", "works", "works_outright", "survives",
+                                     "succeeded", "survived", "same_as_nominal", "robot_mass_change")}
+           | {"label": (p.get("binding") or {}).get("label")} for n, p in points.items()}
     return dict(searches=rows, points=pts)
 
 
@@ -1052,7 +1297,8 @@ def _brief(res: dict | None) -> dict | None:
         return None
     return dict(status=res.get("status"), threshold=res.get("threshold"), fails=res.get("fails"),
                 resolution=res.get("resolution"), search=res.get("search"),
-                label=(res.get("binding") or {}).get("label"), evaluated=len(res.get("values") or ()))
+                label=(res.get("binding") or {}).get("label"), evaluated=len(res.get("values") or ()),
+                panels=res.get("panels"), flag=res.get("flag"))
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1077,8 +1323,18 @@ def register_policy_rows(names) -> list[str]:
     return missing
 
 
-def resolve_rows(body: str, run_dir: Path, names) -> list[str]:
-    """``ROWS_RULE``: 'R2' -> the body-level G5 selection's R2 row, 'R3' -> R3/42; other names as given."""
+def runs_root(run_dir: Path) -> Path:
+    """The training run directory a policy row reads (``policy_rows.runs_dir``: ``STAGE1_POLICY_RUNS``, default the
+    parent of ``<run>/<body>``), without importing policy_rows (its import registers its rows, ``ROWS_RULE``)."""
+    v = os.environ.get("STAGE1_POLICY_RUNS")
+    return Path(v) if v else Path(run_dir).parent
+
+
+def resolve_rows(body: str, run_dir: Path, names, left_out: dict | None = None) -> list[str]:
+    """``ROWS_RULE``: 'R2' -> the body-level G5 selection's R2 row, 'R3' -> R3/42 unless the body's R3 is judged with
+    R2 (``train.judged_with_r2``: then left out, the reason in ``left_out``); other names as given."""
+    from . import train
+
     out = []
     for n in names:
         if n == "R2":
@@ -1088,6 +1344,11 @@ def resolve_rows(body: str, run_dir: Path, names) -> list[str]:
                                  "row (R2/42 or R2/43)")
             n = f"R2/{int(info['cma_seed'])}"
         elif n == "R3":
+            j = train.judged_with_r2(runs_root(run_dir), body)
+            if j["with_r2"]:
+                if left_out is not None:
+                    left_out[R3_ROW] = f"{body}'s R3 is judged with R2: {j['reason']} (train.R2_JUDGED_RULE)"
+                continue
             n = R3_ROW
         if n not in out:
             out.append(n)
@@ -1124,7 +1385,8 @@ class Session:
         self.inputs, docs = tune.read_inputs(self.run_dir, panels.panel_files())
         self.planner = panels.Planner(self.run_dir, docs["refs.json"]["references"],
                                       docs["transitions.json"]["transitions"])
-        self.row_names = resolve_rows(body, self.run_dir, rows)
+        self.left_out: dict[str, str] = {}
+        self.row_names = resolve_rows(body, self.run_dir, rows, self.left_out)
         self.registered = register_policy_rows(self.row_names)
         self.rows = panels.tracker_rows(body, self.run_dir, self.row_names)
         self.margins = select_margins(margins(body), names)
@@ -1156,17 +1418,20 @@ class Session:
                     k = entry.get("condition")
                     if k not in self.conds or entry.get("errors"):
                         continue
-                    var = Variant(**entry["variant"])
-                    if entry.get("valid") == self.valid(r, k, var):
-                        self.cache[(r, k, var.key)] = entry
+                    var, relax = Variant(**entry["variant"]), tuple(entry.get("relax") or ())
+                    if entry.get("valid") == self.valid(r, k, var, relax):
+                        self.cache[(r, k, var.key, relax)] = entry
         self.runs = {(r, m.name): MarginRun(row, m, self.conds, {p.name: self.point_variants[(m.name, p.name)]
                                                                   for p in m.points}, self.halvings)
                      for r, row in self.rows.items() for m in self.margins}
 
-    def valid(self, row: str, cond_key: str, var: Variant) -> str:
-        """``RESUME_RULE``'s evaluation key."""
-        return _sha(dict(panel=self.panel_keys[(row, cond_key)], variant=var.describe(), seeds=list(SEEDS),
-                         ledger=self.ledger["sha256"]))
+    def valid(self, row: str, cond_key: str, var: Variant, relax=()) -> str:
+        """``RESUME_RULE``'s evaluation key (a lift's relaxation added, ``LIFT_RULE``)."""
+        key = dict(panel=self.panel_keys[(row, cond_key)], variant=var.describe(), seeds=list(SEEDS),
+                   ledger=self.ledger["sha256"])
+        if relax:
+            key["relax"] = list(relax)
+        return _sha(key)
 
     def key(self, row: str, m: Margin) -> dict:
         """A margin record's key (``RESUME_RULE``)."""
@@ -1181,24 +1446,25 @@ class Session:
         return bool(rec and rec.get("key") == self.key(row, m) and rec.get("status") in ("done", "not run"))
 
     def lookup(self, row: str):
-        return lambda cond_key, var: self.cache.get((row, cond_key, var.key))
+        return lambda cond_key, var, relax=(): self.cache.get((row, cond_key, var.key, tuple(relax)))
 
     def advance(self) -> dict:
         """Every margin run fed from the evaluations known; the evaluations still needed: (row, condition, variant
-        key) -> (row, condition, variant)."""
+        key, relax) -> (row, condition, variant, relax)."""
         need = {}
         for (r, _), mr in self.runs.items():
-            for k, var in mr.advance(self.lookup(r)):
-                need[(r, k, var.key)] = (r, k, var)
+            for k, var, relax in mr.advance(self.lookup(r)):
+                need[(r, k, var.key, tuple(relax))] = (r, k, var, tuple(relax))
         return need
 
     def record(self, row: str, m: Margin, prov: dict, session: dict) -> dict:
         """The margin's record (``RECORD_RULE``)."""
         mr = self.runs[(row, m.name)]
         lookup = self.lookup(row)
-        searches, points = _search_results(mr, lookup), _point_results(mr)
-        evals = {i: self.cache[(row, k, var.key)] for i, (k, var) in sorted(mr.used.items())
-                 if (row, k, var.key) in self.cache}
+        searches = _search_results(mr, lookup, lambda k: panel_reading(self.out, self.body, row, k))
+        points = _point_results(mr, lookup)
+        evals = {i: self.cache[(row, k, var.key, relax)] for i, (k, var, relax) in sorted(mr.used.items())
+                 if (row, k, var.key, relax) in self.cache}
         if m.not_run:
             status = "not run"
         elif mr.done:
@@ -1210,12 +1476,19 @@ class Session:
                    controller=row_obj.describe(), seeds=list(SEEDS), halvings=self.halvings, cut_s=self.cut_s,
                    definition=m.describe(), rule=m.rule, searches=searches, points=points,
                    summary=margin_summary(m, searches, points), stage0=stage0(self.body, m.name),
-                   evaluations=evals, rules=RULES, key=self.key(row, m), provenance=prov,
+                   evaluations=evals, rules=RULES, key=self.key(row, m), panel_sources=self.sources["sha256"],
+                   key_context=panels.fingerprint(self.sources["sha256"], self.context), provenance=prov,
                    cost=dict(evaluations=len(evals), episodes=int(sum(len(e["episodes"]) for e in evals.values())),
                              simulated_s=float(sum(e["simulated_s"] for e in evals.values())),
                              wall_s=float(sum(e["wall_s"] for e in evals.values())),
-                             cpu_s=float(sum(e["cpu_s"] for e in evals.values()))),
+                             cpu_s=float(sum(e["cpu_s"] for e in evals.values())),
+                             note="each evaluation's own cost; one shared with another margin of the row is in both "
+                                  "records (the report counts it once, by its key)"),
                    session=dict(started_at=session["started_at"]), written_at=tune._now())
+        if m.name == "mass":
+            trunk, robot = MASSES[self.body]
+            doc["masses"] = dict(trunk_body_kg=trunk, robot_kg=robot, trunk_share=trunk / robot,
+                                 robot_point=ROBOT_MASS_POINT[self.body], rule=MASS_RULE)
         if m.not_run:
             doc["not_run"] = m.not_run
             if m.name == "stop":
@@ -1240,9 +1513,12 @@ def sweep(body: str, out: Path, rows=DEFAULT_ROWS, names=None, workers: int = 1,
     t_start = time.perf_counter()
     ses = Session(body, out, rows, names, inputs, cut_s, halvings)
     prov = plant.provenance()
-    session = dict(started_at=tune._now(), rows=list(ses.row_names), margins=[m.name for m in ses.margins],
-                   workers=int(workers), cut_s=cut_s, halvings=ses.halvings, seeds=list(SEEDS), rounds=0,
-                   episodes_run=0, evaluations_reused=len(ses.cache), skipped=[], incidents=[])
+    session = dict(started_at=tune._now(), rows=list(ses.row_names), rows_left_out=dict(ses.left_out),
+                   margins=[m.name for m in ses.margins], workers=int(workers), cut_s=cut_s, halvings=ses.halvings,
+                   seeds=list(SEEDS), rounds=0, episodes_run=0, evaluations_reused=len(ses.cache), skipped=[],
+                   incidents=[])
+    for r, why in ses.left_out.items():
+        log(f"{body}: {r} left out: {why}")
     todo = []
     for r in ses.rows:
         for m in ses.margins:
@@ -1269,19 +1545,20 @@ def sweep(body: str, out: Path, rows=DEFAULT_ROWS, names=None, workers: int = 1,
                                                            sources=panels.fingerprint(ses.sources["sha256"],
                                                                                       ses.context),
                                                            ledger=ses.ledger["sha256"]))
-            jobs = [((r, ses.conds[k], var.kind, var.value), s) for (r, k, var) in need.values() for s in SEEDS]
+            jobs = [((r, ses.conds[k], var.kind, var.value, relax), s) for (r, k, var, relax) in need.values()
+                    for s in SEEDS]
             results = pool.map(jobs, failed=_lost)
             session["rounds"] += 1
             session["episodes_run"] += len(jobs)
             n = len(SEEDS)
-            for i, (key, (r, k, var)) in enumerate(need.items()):
-                entry = evaluation_entry(k, var, results[n * i: n * (i + 1)], ses.valid(r, k, var))
+            for i, (key, (r, k, var, relax)) in enumerate(need.items()):
+                entry = evaluation_entry(k, var, results[n * i: n * (i + 1)], ses.valid(r, k, var, relax), relax)
                 ses.cache[key] = entry
                 if entry["errors"]:
                     failed.add(key)
             write_all()
             log(f"{body} round {session['rounds']}: {len(need)} evaluations ({len(jobs)} episodes): "
-                + "; ".join(f"{r} {k} {var.key}" for r, k, var in list(need.values())[:6])
+                + "; ".join(f"{r} {eval_id(k, var, relax)}" for r, k, var, relax in list(need.values())[:6])
                 + (" ..." if len(need) > 6 else ""))
         ses.advance()
         write_all()
@@ -1351,8 +1628,8 @@ def summary_lines(summary: dict | None, kinds: dict | None = None) -> list[str]:
         lines.append(f"{name}: " + "; ".join(parts))
     for name, p in (summary.get("points") or {}).items():
         lines.append(f"{name}: " + ("not run" if p.get("status") == "not run" else
-                                    f"works {p.get('works')}, survives {p.get('survives')}"
-                                    + (f" ({p['label']})" if p.get("label") else "")))
+                                    f"works {p.get('works')} (outright {p.get('works_outright')}), survives "
+                                    f"{p.get('survives')}" + (f" ({p['label']})" if p.get("label") else "")))
     return lines
 
 
@@ -1382,42 +1659,66 @@ def dry_run(body: str, out: Path, rows=DEFAULT_ROWS, names=None, inputs: Path | 
             cut_s: float | None = None, halvings: int = HALVINGS, measure: bool = True, costs: dict | None = None,
             workers: int = 1, log=print) -> dict:
     """Every search and point the sweep would run, the evaluations it can still need after replaying the recorded
-    ones, and their cost (``COST_RULE``); runs nothing (except the cost measurement)."""
+    ones, and their cost (``COST_RULE``; the lifts, ``LIFT_RULE``, as an upper bound beside); runs nothing (except the
+    cost measurement)."""
     ses = Session(body, out, rows, names, inputs, cut_s, halvings)
     ses.advance()
     lines = []
+    n_relax = len(control.RELAXATIONS)
+    for r, why in ses.left_out.items():
+        log(f"{body}: {r} left out: {why}")
     for (r, mname), mr in ses.runs.items():
         m = mr.margin
         up = ses.up_to_date(r, m)
         if m.not_run:
             lines.append(dict(row=r, margin=m.name, search=None, status="not run", reason=m.not_run, values_min=0,
-                              values_max=0, condition=None, floor=None, seconds=0.0))
+                              values_max=0, lifts_max=0, condition=None, floor=None, seconds=0.0))
             continue
+        covered = set()  # conditions whose nominal evaluation a search or a point of the row's margins makes
+        for mm in ses.margins:
+            covered |= {s.condition for s in mm.searches if s.variant(s.nominal) == NOMINAL}
+            covered |= {p.condition for p in mm.points if ses.point_variants[(mm.name, p.name)] == NOMINAL}
         for s in m.searches:
             if not mr.applicable[s.name]:
                 lines.append(dict(row=r, margin=m.name, search=s.name, status="not applicable", values_min=0,
-                                  values_max=0, condition=s.condition, floor=ses.conds[s.condition].floor, seconds=0.0))
+                                  values_max=0, lifts_max=0, condition=s.condition, floor=ses.conds[s.condition].floor,
+                                  seconds=0.0))
                 continue
             left = {c: 0 if up else s.max_values(halvings) - len(mr.bisects[(s.name, c)].trail) for c in CRITERIA}
+            lifts = 0
             for c in CRITERIA:
                 if mr.bisects[(s.name, c)].done:
                     left[c] = 0
+                elif not up:
+                    lifts += n_relax  # an upper bound: every relaxation at this criterion's fails end
+            if not up:
+                lifts += sum(1 for w in mr.lifts_pending if w[0] == s.name)
             lines.append(dict(row=r, margin=m.name, search=s.name, condition=s.condition,
                               floor=ses.conds[s.condition].floor, interval=[s.nominal, s.far], kind=s.kind,
                               status="up to date" if up else "to run",
                               known_values={c: len(mr.bisects[(s.name, c)].trail) for c in CRITERIA},
-                              values_min=max(left.values()), values_max=sum(left.values()),
+                              values_min=max(left.values()), values_max=sum(left.values()), lifts_max=lifts,
                               seconds=ses.resolved[s.condition]["seconds"]))
+        refs = set()
         for p in m.points:
             if p.name not in mr.points:
                 continue
             todo = 0 if up or mr.points[p.name] is not None else 1
+            lifts = 0 if up else (n_relax if mr.points[p.name] is None
+                                  else sum(1 for w in mr.lifts_pending if w[0] == p.name))
             lines.append(dict(row=r, margin=m.name, search=p.name, condition=p.condition,
                               floor=ses.conds[p.condition].floor, point=p.value, kind=p.kind,
                               variant=mr.point_variants[p.name].describe(),
                               status="up to date" if not todo else "to run",
-                              values_min=todo, values_max=todo, seconds=ses.resolved[p.condition]["seconds"]))
-    floors = sorted({x["floor"] for x in lines if x.get("floor") and x["values_max"]})
+                              values_min=todo, values_max=todo, lifts_max=lifts,
+                              seconds=ses.resolved[p.condition]["seconds"]))
+            if todo and p.condition not in covered and ses.lookup(r)(p.condition, NOMINAL) is None:
+                refs.add(p.condition)
+        for k in sorted(refs):  # WORKS_RULE: a point's reference no search or point of the session makes
+            lines.append(dict(row=r, margin=m.name, search=f"{k} nominal", condition=k, floor=ses.conds[k].floor,
+                              kind=None, variant=NOMINAL.describe(), status="to run (a point's reference)",
+                              values_min=1, values_max=1, lifts_max=0, seconds=ses.resolved[k]["seconds"]))
+    floors = sorted({x["floor"] for x in lines if x.get("floor") and (x["values_max"] or x["lifts_max"])})
     if costs is None and measure and floors:
         costs = dict(panels.measure_costs(body, ses.run_dir, floors, log=log), rows=policy_costs(ses, lines, log))
     fl = (costs or {}).get("floors") or {}
@@ -1425,33 +1726,40 @@ def dry_run(body: str, out: Path, rows=DEFAULT_ROWS, names=None, inputs: Path | 
     total = Counter()
     for x in lines:
         n_min, n_max = len(SEEDS) * x["values_min"], len(SEEDS) * x["values_max"]
+        n_lift = len(SEEDS) * x["lifts_max"]
         c = ((per_row.get(x["row"]) or fl).get(x.get("floor")) or {}).get("cpu_per_sim_s")
         x.update(episodes_min=n_min, episodes_max=n_max, simulated_s_max=n_max * x["seconds"],
                  core_h_max=None if c is None else n_max * x["seconds"] * c / 3600,
-                 core_h_min=None if c is None else n_min * x["seconds"] * c / 3600)
+                 core_h_min=None if c is None else n_min * x["seconds"] * c / 3600,
+                 lift_episodes_max=n_lift, lift_core_h_max=None if c is None else n_lift * x["seconds"] * c / 3600)
         total["episodes_min"] += n_min
         total["episodes_max"] += n_max
+        total["lift_episodes_max"] += n_lift
         total["simulated_s_max"] += x["simulated_s_max"]
-        for k in ("core_h_min", "core_h_max"):
+        for k in ("core_h_min", "core_h_max", "lift_core_h_max"):
             total[k] += x[k] or 0.0
         if x["search"] is not None:
             log(f"{x['row']:7s} {x['margin']:13s} {x['search']:22s} {x['condition'] or '':28s} "
-                f"{x['episodes_min']:3d}-{x['episodes_max']:3d} episodes x {x['seconds']:6.2f} s  "
+                f"{x['episodes_min']:3d}-{x['episodes_max']:3d} episodes (lifts up to {n_lift}) "
+                f"x {x['seconds']:6.2f} s  "
                 + (f"{x['core_h_max']:.3f} core-h at most" if x["core_h_max"] is not None else "cost not measured")
                 + f"  [{x['status']}]")
         else:
             log(f"{x['row']:7s} {x['margin']:13s} {x['status']}: {x['reason']}")
     w_n = max(1, int(workers))
-    log(f"{body}: {total['episodes_min']}-{total['episodes_max']} episodes ({len(ses.cache)} evaluations recorded "
-        f"under this run's keys), at most {total['simulated_s_max'] / 3600:.2f} simulated h, "
-        + (f"{total['core_h_min']:.2f}-{total['core_h_max']:.2f} core-h (CPU), about "
-           f"{total['core_h_max'] / w_n:.2f} h of wall clock at most with {w_n} worker{'s' if w_n > 1 else ''}"
+    log(f"{body}: {total['episodes_min']}-{total['episodes_max']} episodes and up to {total['lift_episodes_max']} "
+        f"lifted ({len(ses.cache)} evaluations recorded under this run's keys), at most "
+        f"{total['simulated_s_max'] / 3600:.2f} simulated h, "
+        + (f"{total['core_h_min']:.2f}-{total['core_h_max']:.2f} core-h (CPU) and up to {total['lift_core_h_max']:.2f} "
+           f"for the lifts, about {total['core_h_max'] / w_n:.2f} h of wall clock at most with {w_n} "
+           f"worker{'s' if w_n > 1 else ''} before the lifts"
            if fl else "cost not measured"))
-    return dict(body=body, rule=COST_RULE, rows=list(ses.row_names), margins=[m.name for m in ses.margins],
-                lines=lines, costs=costs, totals=dict(total), workers=w_n, evaluations_recorded=len(ses.cache))
+    return dict(body=body, rule=COST_RULE, rows=list(ses.row_names), rows_left_out=dict(ses.left_out),
+                margins=[m.name for m in ses.margins], lines=lines, costs=costs, totals=dict(total), workers=w_n,
+                evaluations_recorded=len(ses.cache))
 
 
-__all__ = ["Bisect", "DEFAULT_ROWS", "HALVINGS", "LedgerContext", "LedgerWorker", "MARGIN_NAMES", "Margin", "NOMINAL",
-           "Point", "PushedBuilt", "RULES", "SEEDS", "STAGE0", "Search", "Session", "Variant", "binding", "dry_run",
-           "margins", "record_path", "register_policy_rows", "resolve_rows", "select_margins", "stage0",
-           "stop_reference", "summarize", "sweep", "worse"]
+__all__ = ["Bisect", "DEFAULT_ROWS", "HALVINGS", "LedgerContext", "LedgerWorker", "MARGIN_NAMES", "MASSES", "Margin",
+           "NOMINAL", "Point", "PushedBuilt", "ROBOT_MASS_POINT", "RULES", "SEEDS", "STAGE0", "Search", "Session",
+           "Variant", "binding", "dry_run", "margins", "record_path", "register_policy_rows", "resolve_rows", "screens",
+           "select_margins", "stage0", "stop_reference", "summarize", "sweep", "works", "worse"]

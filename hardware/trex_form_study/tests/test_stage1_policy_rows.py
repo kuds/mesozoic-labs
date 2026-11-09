@@ -13,11 +13,13 @@ against the env with the same factor, a tiny sweep runs the real row, and the re
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 import os
 import pickle
 import sys
+import types
 from pathlib import Path
 
 import numpy as np
@@ -172,6 +174,61 @@ def test_the_judged_checkpoint_and_an_interim_one(tmp_path, monkeypatch):
         policy_rows.resolve("60-N-T-10", "R3", 43, rd, "judged")
 
 
+def test_a_body_judged_with_r2_leaves_its_r3_runs_out(tmp_path, monkeypatch):
+    """train.R2_JUDGED_RULE: when a body's seed 42 failed G6c, or FIX_RULE stopped one of its R3 runs, its R3 runs are
+    left out of the judged checkpoint (a run stopped early does not cap the other bodies) and its R3 rows have no
+    judged checkpoint (refused, the reason given); an explicit checkpoint still builds one."""
+    monkeypatch.delenv(policy_rows.RUNS_ENV, raising=False)
+    stopped = ("60-N-H-10", 43)
+    steps = {k: (253952, 507904, 753664) for k in [(b, s) for b in panels.BODIES for s in train.SEEDS]}
+    steps[stopped] = (253952,)
+    root = _fake_runs(tmp_path, steps)
+    assert policy_rows.resolve("60-N-T-10", "R3", 42, root / "60-N-T-10", "judged")["steps"] == 253952
+    path = train.run_dir_of(root, *stopped[:1], "R3", stopped[1]) / "run.json"
+    doc = json.loads(path.read_text())
+    path.write_text(json.dumps(dict(doc, status="stopped_g6b", stopped=dict(at_steps=253952, reason="G6b failed again "
+                                                                             "after the fix (FIX_RULE)"))))
+    c = policy_rows.resolve("60-N-T-10", "R3", 42, root / "60-N-T-10", "judged")
+    assert c["steps"] == 753664 and set(c["judged"]["left_out"]) == {"60-N-H-10/42", "60-N-H-10/43"}
+    with pytest.raises(policy_rows.PolicyRowError, match="judged with R2"):
+        policy_rows.resolve("60-N-H-10", "R3", 42, root / "60-N-H-10", "judged")
+    assert policy_rows.resolve("60-N-H-10", "R3", 42, root / "60-N-H-10", 507904)["steps"] == 507904
+    g6c = train.run_dir_of(root, "75-M-H-10", "R3", 42) / "run.json"
+    g6c.write_text(json.dumps(dict(json.loads(g6c.read_text()), g6=dict(G6c=dict(at_steps=2506752, pass_=False)))))
+    j = train.judged_checkpoint(root, "R3")
+    assert set(j["left_out"]) == {f"{b}/{s}" for b in ("60-N-H-10", "75-M-H-10") for s in train.SEEDS}
+    assert "G6c" in j["left_out"]["75-M-H-10/43"] and j["steps"] == 753664
+
+
+def test_the_run_settings_are_the_checkpoints_own(tmp_path, monkeypatch):
+    """CHECKPOINT_SELECTION_RULE: a checkpoint at or before G6b's fix names the env configs it was trained with (the
+    configs before the fix), one after it the fixed configs and the fix; the description, and so the record key, names
+    the checkpoint by its steps and files, not by its selection or whether it is final; a checkpoint past the fix whose
+    files predate it (the steps the fix discarded) is refused."""
+    monkeypatch.delenv(policy_rows.RUNS_ENV, raising=False)
+    root = _fake_runs(tmp_path, {("60-N-T-10", 42): (253952, 507904, 753664)})
+    path = train.run_dir_of(root, "60-N-T-10", "R3", 42) / "run.json"
+    doc = json.loads(path.read_text())
+    before = doc["env_configs"]
+    fixed = [dict(c, task_weights=[1, 1, 1, 1, 1, 2, 2, 1, 1]) for c in before]
+    path.write_text(json.dumps(dict(doc, env_configs=fixed, fix=dict(
+        rule="FIX_RULE", overrides=dict(task_weights=[1, 1, 1, 1, 1, 2, 2, 1, 1]), reason="test",
+        from_checkpoint=507904, at="2000-01-01T00:00:00+00:00", env_configs_before=before))))
+    rd = root / "60-N-T-10"
+    pre = policy_rows.resolve("60-N-T-10", "R3", 42, rd, 507904)["run"]
+    post = policy_rows.resolve("60-N-T-10", "R3", 42, rd, 753664)["run"]
+    assert pre["env"]["task_weights"] is None and pre["fix"]["in_force"] is False
+    assert post["env"]["task_weights"] == [1, 1, 1, 1, 1, 2, 2, 1, 1] and post["fix"]["from_checkpoint"] == 507904
+    assert post["fix"]["in_force"] is True
+    ck = policy_rows.TrainedPolicy(policy_rows.resolve("60-N-T-10", "R3", 42, rd, 753664)).describe()["checkpoint"]
+    assert ck["steps"] == 753664 and ck["model"]["sha256"] and not {"final", "selection", "judged"} & set(ck)
+    path.write_text(json.dumps(dict(json.loads(path.read_text()), fix=dict(
+        json.loads(path.read_text())["fix"], at="2100-01-01T00:00:00+00:00"))))  # every file predates the fix
+    with pytest.raises(policy_rows.PolicyRowError, match="discarded"):
+        policy_rows.resolve("60-N-T-10", "R3", 42, rd, 753664)
+    assert policy_rows.resolve("60-N-T-10", "R3", 42, rd, 507904)["steps"] == 507904  # at the fix: before it
+
+
 def test_rows_name_their_checkpoint_run_and_sources(runs, monkeypatch):
     """R3/42 and R4/42 through panels.tracker_rows: each names its model and VecNormalize with their sha256, the step
     count, the run's settings and, for R3, the gains the run trained on; its key names env.py, policy_rows.py and
@@ -185,7 +242,8 @@ def test_rows_name_their_checkpoint_run_and_sources(runs, monkeypatch):
         ck = d["policy"]["checkpoint"]
         rd = train.run_dir_of(RUNS, R3_BODY, mode, 42)
         doc = json.loads((rd / "run.json").read_text())
-        assert ck["steps"] == n and ck["final"] is False and "interim" in ck["selection"]
+        assert ck["steps"] == n and not {"final", "selection", "judged"} & set(ck)  # the key: steps and files only
+        assert row.policy.ckpt["final"] is False and "interim" in row.policy.ckpt["selection"]
         assert ck["model"]["sha256"] == plant.sha256(rd / "checkpoints" / f"model_{n}.zip")
         assert ck["vecnormalize"]["sha256"] == plant.sha256(rd / "checkpoints" / f"vecnormalize_{n}.pkl")
         assert d["policy"]["run"]["log_std_init"] == doc["settings"]["log_std_init"]
@@ -195,6 +253,9 @@ def test_rows_name_their_checkpoint_run_and_sources(runs, monkeypatch):
                                       "designlab/stage1/policy.py"}
         again = panels.row_from_spec(pickle.loads(pickle.dumps(row.spec())))
         assert type(again) is type(row) and again.describe() == d and again.sources() == row.sources()
+        other = dict(row.spec(), sources=dict(row.sources(), **{"designlab/stage1/env.py": "0" * 64}))
+        with pytest.raises(policy_rows.PolicyRowError, match="sources changed"):  # a worker on other sources
+            panels.row_from_spec(other)
         assert row.gated(COND["carpet/low"]) and not row.hard_only  # decision 23: carpet gated for R3 and R4
     r3 = rows["R3/42"]
     gains = json.loads((train.run_dir_of(RUNS, R3_BODY, "R3", 42) / "run.json").read_text())["gains"]
@@ -302,6 +363,52 @@ def test_r4_under_the_ledgers_mass_variant_is_training_env_with_that_factor(runs
                                         seconds=VARIANT_CUT_S, choice=n, variant=("mass", 1.1))
     _assert_identical(res)
     assert res["variant"]["info"]["controller_model"]["nominal"]
+
+
+def test_r3_is_training_env_on_pushes_and_a_relaxed_walk(runs):
+    """EQUIVALENCE_RULE beyond the env tasks' plans: a standing push and a walking push (the env on the condition's
+    own track with the panel episode's push), and a relaxed brisk walk (its own track; control.relaxed entered after
+    the env's reset, as control.run enters it): every physics step, as on the env tasks."""
+    n = _newest(R3_BODY, "R3")
+    quick = dict(push_spread=0.0, recovery_s=0.3, hold_s=0.2)
+    for cond, over, relax in (("push/standing_forward", dict(quick, push_at=0.3), ()),
+                              ("push/walking_left", dict(quick, push_at=0.0), ()),
+                              ("walk/brisk", None, ("slip",))):
+        res = policy_rows.equivalence_check(R3_BODY, "R3/42", cond, run_dir=RUN / R3_BODY, choice=n, relax=relax,
+                                            overrides=over, seconds=None if over else 1.5)
+        _assert_identical(res)
+        assert res["own_track"] and res["relax"] == list(relax), cond
+        assert (res["push"] is not None) == cond.startswith("push/"), cond
+        if res["push"] is not None:  # the pulse lies inside the compared horizon
+            assert res["push"][0] + res["push"][1] < res["compared_steps"] * 0.002, cond
+
+
+def test_the_push_and_relaxation_checks_are_sensitive(runs, monkeypatch):
+    """Not vacuous: the env given no push departs from the pushed panel episode once the pulse starts, and the env
+    without the relaxation departs from the relaxed panel episode."""
+    n = _newest(R3_BODY, "R3")
+    real = env.Stage1Env.reset
+    with monkeypatch.context() as m:
+        m.setattr(env.Stage1Env, "reset", lambda self, *, seed=None, options=None: real(
+            self, seed=seed, options=dict(options or {}, push=None)))
+        res = policy_rows.equivalence_check(R3_BODY, "R3/42", "push/standing_forward", run_dir=RUN / R3_BODY, choice=n,
+                                            overrides=dict(push_at=0.3, push_spread=0.0, recovery_s=0.3, hold_s=0.2))
+    assert not res["identical"] and res["first_difference"] is not None
+    assert res["first_difference"] >= int(res["push"][0] / 0.002) - 1  # identical up to the pulse
+    no_relax = types.SimpleNamespace(**dict(vars(control), relaxed=lambda tk, names: contextlib.nullcontext()))
+    with monkeypatch.context() as m:
+        m.setattr(policy_rows, "control", no_relax)  # the env's side only (the panel's control.run keeps it)
+        res = policy_rows.equivalence_check(R3_BODY, "R3/42", "walk/brisk", run_dir=RUN / R3_BODY, choice=n,
+                                            relax=("slip",), seconds=0.5)
+    assert not res["identical"] and res["first_difference"] is not None
+
+
+def test_r4_is_training_env_on_a_standing_push(runs):
+    n = _newest(R4_BODY, "R4")
+    res = policy_rows.equivalence_check(R4_BODY, "R4/42", "push/standing_left", run_dir=RUN / R4_BODY, choice=n,
+                                        overrides=dict(push_at=0.3, push_spread=0.0, recovery_s=0.3, hold_s=0.2))
+    _assert_identical(res)
+    assert res["own_track"] and res["task"] == "stand" and res["push"] is not None
 
 
 def test_the_variant_check_is_sensitive(runs, monkeypatch):
@@ -434,7 +541,7 @@ def test_eval_runs_and_resumes_the_policy_rows(tmp_path, runs, monkeypatch):
     from designlab.stage1.__main__ import main as cli
 
     args = ["eval", "--body", R4_BODY, "--rows", "R3/42,R4/42", "--episodes", "1", "--no-traces", "--row-module",
-            "designlab.stage1.policy_rows", "--inputs", str(RUN), "--out", str(tmp_path)]
+            "designlab.stage1.policy_rows", "--inputs", str(RUN), "--out", str(tmp_path), "--allow-rebuilt-models"]
     assert cli(args) == 0
     for name, n in (("R3/42", n3), ("R4/42", n4)):
         rec = json.loads(panels.record_path(tmp_path, R4_BODY, name, cut[0]).read_text())
@@ -471,12 +578,14 @@ def _record(row, pass_, label=None, falls=0):
     return dict(status="done", row=row, counts=c, episodes=eps, failure=fail)
 
 
-def test_r4_is_at_most_provisional(tmp_path):
-    """R4_VERDICT_RULE: one seed's pass is provisional; failures read as the panels read them (R4's falls are not
-    attributed); policy_verdicts writes R3's (the panels' VERDICT_RULE) and R4's per condition."""
+def test_r4_is_at_most_provisional(tmp_path, monkeypatch):
+    """R4_VERDICT_RULE: one seed's pass is provisional; R4's falls are never attributed, a settled verdict; other
+    failures read as the panels read them; policy_verdicts writes R3's (the panels' VERDICT_RULE; R2's for a body
+    judged with R2) and R4's per condition, each record's checkpoint final when its run.json says so."""
+    monkeypatch.delenv(policy_rows.RUNS_ENV, raising=False)
     assert policy_rows.r4_verdict([_record("R4/42", True)])["verdict"] == "provisional"
     v = policy_rows.r4_verdict([_record("R4/42", False, falls=3)])
-    assert v["verdict"] == "not attributed" and v["rule"] == policy_rows.R4_VERDICT_RULE
+    assert v["verdict"] == policy_rows.R4_FALLS_VERDICT and v["rule"] == policy_rows.R4_VERDICT_RULE
     assert policy_rows.r4_verdict([_record("R4/42", False, label="body-limited: slip")])["verdict"] == "body-limited"
     assert policy_rows.r4_verdict([None])["verdict"] == "incomplete"
     cond = COND["carpet/low"]
@@ -484,10 +593,23 @@ def test_r4_is_at_most_provisional(tmp_path):
         rec = _record(row, ok, label=None if ok else "controller-limited")
         rec["controller"] = dict(policy=dict(checkpoint=dict(steps=753664, selection="judged", final=True)))
         panels._write_json(panels.record_path(tmp_path, R4_BODY, row, cond), rec)
+    rd = train.run_dir_of(tmp_path, R4_BODY, "R4", 42)
+    rd.mkdir(parents=True)
+    (rd / "run.json").write_text(json.dumps(dict(judged_checkpoint=dict(steps=753664, final=True))))
     doc = policy_rows.policy_verdicts(R4_BODY, tmp_path)
     cell = doc["grid"]["carpet"]["low"]
     assert cell["R3"]["verdict"] == "provisional" and cell["R4"]["verdict"] == "provisional"
     assert cell["R3"]["gated"] and cell["R4"]["gated"]  # decision 23: the carpet walk is gated for R3 and R4
-    assert doc["checkpoints"]["R4/42"] == [dict(steps=753664, selection="judged", final=True)]
+    assert doc["checkpoints"]["R4/42"] == [dict(steps=753664, final=True)]
+    assert doc["checkpoints"]["R3/42"] == [dict(steps=753664, final=False)]  # its run.json judges nothing
     assert (tmp_path / R4_BODY / "eval" / "policy_rows.json").exists()
     assert doc["grid"]["walk"]["nominal"]["R4"]["verdict"] == "incomplete"
+    rd = train.run_dir_of(tmp_path, R4_BODY, "R3", 42)  # seed 42 failed G6c: the body is judged with R2
+    rd.mkdir(parents=True)
+    (rd / "run.json").write_text(json.dumps(dict(g6=dict(G6c=dict(at_steps=2506752, pass_=False)))))
+    for row in ("R2/42", "R2/43"):
+        panels._write_json(panels.record_path(tmp_path, R4_BODY, row, cond), _record(row, True))
+    doc = policy_rows.policy_verdicts(R4_BODY, tmp_path)
+    cell = doc["grid"]["carpet"]["low"]["R3"]
+    assert cell["verdict"] == "shown" and cell["judged_with"] == "R2" and cell["r3_verdict"] == "provisional"
+    assert "G6c" in cell["note"] and cell["gated"] is False  # R2's gating: the carpet walk is reported for R2

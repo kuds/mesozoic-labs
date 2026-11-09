@@ -671,7 +671,7 @@ def test_eval_command_line(tmp_path, tiny, capsys):
     assert "R2/43" in out and "stand/hard" in out and "1 episodes" in out and "to run" in out
     assert not (tmp_path / BODY / "eval").exists()
     assert cli(["eval", "--body", BODY, "--rows", "R2/43", "--episodes", "1", "--inputs", str(RUN), "--out",
-                str(tmp_path)]) == 0
+                str(tmp_path), "--allow-rebuilt-models"]) == 0  # (a checkout without round2's models: a scratch run)
     out = capsys.readouterr().out
     assert "stand/hard" in out and "G7 pass" in out
     assert panels.record_path(tmp_path, BODY, "R2/43", tiny).exists()

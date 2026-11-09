@@ -16,10 +16,10 @@ Run from hardware/trex_form_study:
   python -m designlab.stage1 eval    --body 60-N-T-10 [--body ...] [--rows R0,R1,R2/42,R2/43] [--behaviors stand,...]
                                     [--conditions walk/nominal,...] [--workers 1] [--attribute] [--dry-run]
                                     [--episodes 20] [--row-module MODULE] [--no-traces] [--inputs DIR]
-                                    --out stage1/runs/2026-11-08
-  python -m designlab.stage1 sweep   --body 60-N-T-10 [--body ...] [--rows R2,R3/42] [--margins grip,push,...]
+                                    [--allow-rebuilt-models] --out stage1/runs/2026-11-08
+  python -m designlab.stage1 sweep   --body 60-N-T-10 [--body ...] [--rows R2,R3] [--margins grip,push,...]
                                     [--workers 1] [--dry-run] [--no-measure] [--row-module MODULE] [--inputs DIR]
-                                    --out stage1/runs/2026-11-08
+                                    [--allow-rebuilt-models] --out stage1/runs/2026-11-08
   python -m designlab.stage1 report  --out stage1/runs/2026-11-08 [--dest DIR] [--body ...]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
@@ -63,13 +63,22 @@ up to date is skipped and an episode that failed to run is run again (``panels.R
 imports a module that adds rows (``panels.register_rows``: the R3 and R4 rows); ``--dry-run`` lists every episode and
 estimates the core-hours from a cost per simulated second measured on each floor (``panels.COST_RULE``).
 ``sweep`` is plan section 5's margin ledger (``ledger``): each margin bisected to failure on the rows R2 (the body-level
-G5 selection's CMA-ES seed, ``--rows R2``) and R3/42 (the policy rows' row, ``policy_rows``, which the ledger registers
-when no ``--row-module`` has: run it in the PPO venv), on seeds 3042-3044, one record per row and margin in
+G5 selection's CMA-ES seed, ``--rows R2``) and R3/42 (``--rows R3``: the policy rows' row, ``policy_rows``, which the
+ledger registers when no ``--row-module`` has: run it in the PPO venv; left out for a body whose R3 is judged with R2,
+``train.R2_JUDGED_RULE``), on seeds 3042-3044, one record per row and margin in
 ``<out>/<body>/sweeps/<row>/<margin>.json``, resumed from the evaluations the records hold (``ledger.RESUME_RULE``);
 ``--dry-run`` lists every search with the episodes it can still need and their cost (``ledger.COST_RULE``: a policy
 row's own).  ``report`` writes the machine-made tables of plan section 8 (``report``) from whatever records
 ``--out`` holds into ``<dest>/STAGE1_TABLES.md`` and ``<dest>/stage1_tables.json`` (``--dest`` default: ``--out``).
 ``all`` is not implemented yet.
+
+``eval`` and ``sweep`` write records whose keys hold the sha256 of the round-two model files the plant reads
+(``panels.key_context``): run them from the checkout whose run directory they write (the main checkout).  A checkout
+without the git-ignored ``round2/refine/<case>/models`` rebuilds the models into ``stage1/models`` with another
+model-ledger JSON, so its keys differ: it would treat the run directory's records as stale and run (and overwrite)
+them again, and its own would be run again from the main checkout.  ``eval`` and ``sweep`` (not their dry runs)
+therefore refuse such a checkout unless ``--allow-rebuilt-models`` (for tests and scratch directories); copying
+``round2/refine/*/models`` from the main checkout makes its keys the main checkout's.
 """
 
 from __future__ import annotations
@@ -355,10 +364,34 @@ def _training(a) -> int:
     return 0
 
 
+def round_two_models(body: str) -> bool:
+    """Whether this checkout holds a body's round-two model files (``round2/refine/<case>/models``, git-ignored), which
+    the plant reads and the record keys hash (``plant.model_files``: without them it rebuilds the models elsewhere,
+    with another model-ledger JSON)."""
+    from . import case_dir
+
+    xml = case_dir(body) / "models" / f"{body}.xml"
+    return xml.exists() and xml.with_suffix(".json").exists()
+
+
+def _check_models(a) -> None:
+    """``eval`` and ``sweep`` refuse a checkout without the round-two model files (module docstring)."""
+    if a.dry_run or a.allow_rebuilt_models:
+        return
+    missing = [b for b in a.body if not round_two_models(b)]
+    if missing:
+        raise SystemExit(f"{', '.join(missing)}: this checkout has no round2/refine/<case>/models (git-ignored), so "
+                         "the plant would rebuild the models into stage1/models with another model-ledger JSON and "
+                         "every record key would differ from the main checkout's (panels.key_context): run from the "
+                         "main checkout, copy round2/refine/*/models here, or pass --allow-rebuilt-models (tests, "
+                         "scratch directories)")
+
+
 def _evaluation(a) -> int:
     """``eval`` (plan section 3 step 8): the behaviour panels (``panels``), or their dry run."""
     from . import panels
 
+    _check_models(a)
     for mod in a.row_module or ():
         importlib.import_module(mod)  # it registers its rows (panels.register_rows)
     rows = tuple(x for x in a.rows.split(",") if x)
@@ -379,6 +412,7 @@ def _sweeping(a) -> int:
     """``sweep`` (plan section 5's margin ledger, ``ledger``), or its dry run."""
     from . import ledger
 
+    _check_models(a)
     for mod in a.row_module or ():
         importlib.import_module(mod)  # it registers its rows (panels.register_rows)
     rows = tuple(x for x in a.rows.split(",") if x)
@@ -469,13 +503,16 @@ def main(argv=None) -> int:
     ep.add_argument("--row-module", action="append", default=None,
                     help="a module to import first that adds rows (panels.register_rows), e.g. the R3 and R4 rows'")
     ep.add_argument("--no-traces", action="store_true", help="write no 50 Hz episode traces (panels.TRACE_RULE)")
+    ep.add_argument("--allow-rebuilt-models", action="store_true",
+                    help="run although this checkout has no round2/refine/<case>/models (its record keys differ from "
+                         "the main checkout's: tests and scratch directories only)")
     ep.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: --out)")
     ep.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-08")
     sp = sub.add_parser("sweep", help="plan section 5: the margin ledger (each margin bisected to failure)")
     sp.add_argument("--body", action="append", choices=sorted(BODIES), required=True)
-    sp.add_argument("--rows", default="R2,R3/42",
-                    help="comma-separated rows (default: R2,R3/42; R2 is the body-level G5 selection's CMA-ES seed, "
-                         "R3/42 the policy rows' row: the PPO venv)")
+    sp.add_argument("--rows", default="R2,R3",
+                    help="comma-separated rows (default: R2,R3; R2 is the body-level G5 selection's CMA-ES seed, "
+                         "R3 the policy rows' R3/42, left out for a body judged with R2: the PPO venv)")
     sp.add_argument("--margins", default=None, help="comma-separated margins (default: all of grip, push, stop, "
                                                     "drive_speed, drive_torque, kp, latency, mass, pile_damping, "
                                                     "voltage; model_doubts names kp, latency, mass and pile_damping)")
@@ -490,6 +527,9 @@ def main(argv=None) -> int:
     sp.add_argument("--halvings", type=int, default=7, help="halvings per search (default 7, the plan's; fewer is a "
                                                             "smoke check)")
     sp.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: --out)")
+    sp.add_argument("--allow-rebuilt-models", action="store_true",
+                    help="sweep although this checkout has no round2/refine/<case>/models (its keys differ from the "
+                         "main checkout's: tests and scratch directories only)")
     sp.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-08")
     rp = sub.add_parser("report", help="plan section 8: the machine-made tables from whatever records exist")
     rp.add_argument("--out", required=True, help="the run directory to read, e.g. stage1/runs/2026-11-08")

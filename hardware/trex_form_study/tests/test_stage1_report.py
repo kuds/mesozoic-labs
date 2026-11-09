@@ -118,9 +118,11 @@ def make_run(root: Path) -> Path:
     write(ledger.record_path(root, BODY, "R2/42", "mass"), dict(
         row="R2/42", margin="mass", status="partial", summary=ledger.margin_summary(
             mass, {"walk_nominal": bisected(mass.searches[0], 1.2)},
-            {"walk_nominal_x1.1": dict(status="done", value=1.1, condition="walk/nominal", works=True, survives=True,
-                                       succeeded=3, survived=3, same_as_nominal=False)}),
-        definition=mass.describe(), cost=dict(cpu_s=360.0, wall_s=400.0)))
+            {"walk_nominal_trunk_x1.1": dict(status="done", value=1.1, condition="walk/nominal", works=True,
+                                             works_outright=False, survives=True, succeeded=2, survived=3,
+                                             same_as_nominal=False)}),
+        definition=mass.describe(), cost=dict(cpu_s=360.0, wall_s=400.0),
+        masses=dict(trunk_body_kg=4.6998, robot_kg=10.8117, trunk_share=4.6998 / 10.8117)))
     write(b / "sweeps" / "summary.json", dict(sessions=[dict(wall_s=7200.0)]))
     first = dict(first_rollouts=True, session=0, wall_s=100.0, cpu_s=50.0, env_processes=1)
     write(b / "ppo" / "42" / "run.json", dict(
@@ -145,7 +147,8 @@ def test_cells_and_their_flags():
     """GRID_RULE and FLAGS_RULE on single records: n/a off the hard floor for R0 and R1, not run, a floor with no
     settled stance, pass and FAIL with their counts and bounds, the interim flags."""
     walk, low = COND["walk/nominal"], COND["carpet/low"]
-    runs = {"R3/42": dict(final=False), "R4/42": dict(final=True)}
+    runs = {"R3/42": dict(judged_checkpoint=dict(steps=7, final=False)),
+            "R4/42": dict(judged_checkpoint=dict(steps=7, final=True))}
     assert report.cell(None, "R0", low, SRC, runs)["text"] == "n/a"
     assert report.cell(None, "R2/42", low, SRC, runs)["text"] == "not run"
     c = report.cell(panel_record("R2/42", "walk/nominal", 20, 18), "R2/42", walk, SRC, runs)
@@ -162,7 +165,18 @@ def test_cells_and_their_flags():
     assert c["flags"] == ["checkpoint provisional"] and c["checkpoint"] == 7 and c["gated"]  # decision 23: gated
     assert report.cell(panel_record("R2/42", "carpet/low", 20, 20), "R2/42", low, SRC, runs)["gated"] is False
     nr = dict(panel_record("R2/42", "stand/low", 0, 0), status="not run")
-    assert report.cell(nr, "R2/42", COND["stand/low"], SRC, runs)["text"] == "not run"
+    assert report.cell(nr, "R2/42", COND["stand/low"], SRC, runs)["text"] == "no stance"  # a result, not a gap
+    c = report.cell(panel_record("R4/42", "carpet/low", 20, 20, controller=dict(checkpoint_steps=7)), "R4/42", low,
+                    SRC, runs)
+    assert c["flags"] == [] and c["checkpoint_final"] is True  # run.json: final at the record's steps
+    falls = "not attributed (falls; attribution is applied to R2, R3 rows)"
+    c = report.cell(panel_record("R0", "walk/nominal", 15, 15, label=falls, kind="falls", falls_label=falls), "R0",
+                    walk, SRC, runs)
+    assert c["flags"] == [] and c["attribution_by_design"] and "(by design)" in report._cell_label(c)
+    c = report.cell(panel_record("R2/42", "walk/nominal", 15, 15, label="not attributed (falls; run eval --attribute)",
+                                 kind="falls", falls_label="not attributed (falls; run eval --attribute)"), "R2/42",
+                    walk, SRC, runs)
+    assert c["flags"] == ["not attributed"] and not c["attribution_by_design"]  # pending: R2 is attributed
 
 
 def test_report_on_a_synthetic_run(tmp_path):
@@ -201,15 +215,21 @@ def test_report_on_a_synthetic_run(tmp_path):
     assert "| Grip | turn (worse of turn_left, turn_right) |" in md
     assert "| Push | standing_left | not run | not run | not run | not run | (forward 0.487) |" in md
     assert "the existing stop reference decelerates at 0.430 m/s^2" in md
-    mass = next(x for x in md.splitlines() if x.startswith("| Model doubt: trunk mass | walk_nominal_x1.1 |"))
-    assert "works 3/3" in mass
+    assert "| Stop | - | not run (plan deviation, decision 33) |" in md
+    mass = next(x for x in md.splitlines() if x.startswith("| Model doubt: trunk mass | walk_nominal_trunk_x1.1 "))
+    assert "(trunk x1.1: robot +4.3 %)" in mass and "works 2/3; outright fails" in mass  # WORKS_RULE beside outright
     line = next(x for x in md.splitlines() if x.startswith("| Model doubt: trunk mass | walk_nominal |"))
-    assert line.count("*") == 2  # the search is not finished (a partial record)
+    assert line.count("*") == 2 and "(robot +" in line  # the search is not finished (a partial record)
+    assert "| Drive speed | walk_fr05 |" in md and "0.93 (0.81 without the 15 % margin) |" in md
+    assert "0.76 (walk RMS 0.76) |" in md
+    assert report.CARPET_NOTE in md and "Provenance of each row" in md
+    assert "- R2/42 = R2/42" in md or "- R2/42 = " in md
     p = js["bodies"][BODY]["ppo"]
-    assert p["R3/42"]["judged_checkpoint"] == dict(steps=507904, final=False, budget=4005888)
+    assert p["R3/42"]["judged_checkpoint"] == dict(steps=507904, final=False, budget=4005888, recorded=True)
     assert p["R3/42"]["g6b"]["pass_"] and p["R3/43"]["status"] == "not run" and p["R4/42"]["status"] == "done"
     assert ("| R3/42 | running | 507904 / 4005888 | 507904 | 507904 (provisional) | yes | 83 (FAIL) | pass at 1007616"
             in md)
+    assert "Elapsed PPO wall clock" in md and "job-hours" in md
     f = js["bodies"][BODY]["fit"]
     assert f["body_level"]["cma_seed"] == 42 and f["seeds"]["43"]["conditions"]["walk"]["successes"] == 18
     assert "| 42 | done | 720 | 0.0600 | seed42_gen20 | 18/20 (surv 20) | 17/20 (surv 20) | 20/20 (surv 20) |" in md
@@ -242,7 +262,11 @@ def test_the_policy_rows_cells_and_verdicts(tmp_path):
     from designlab.stage1 import policy_rows
 
     assert report.SINGLE_SEED["R4"] == policy_rows.R4_ROWS and report.CONTROLLERS == ("R2", "R3", "R4")
-    run = make_run(tmp_path / "run")  # run.json: R3/42's judged checkpoint provisional, R4/42's final
+    run = make_run(tmp_path / "run")  # run.json: R3's judged checkpoint final at the budget, R4/42's too
+    for seed in (42, 43):
+        path = run / BODY / "ppo" / str(seed) / "run.json"
+        doc = json.loads(path.read_text()) if path.exists() else dict(mode="R3", seed=seed, status="done")
+        write(path, dict(doc, judged_checkpoint=dict(steps=4005888, final=True, budget=4005888)))
     rows = {"R3/42": (4005888, True), "R3/43": (4005888, True), "R4/42": (1007616, False)}
     for key in ("walk/nominal", "carpet/low"):
         for row, (steps, final) in rows.items():
@@ -261,7 +285,6 @@ def test_the_policy_rows_cells_and_verdicts(tmp_path):
     c3, c4 = walk["cells"]["R3/42"], walk["cells"]["R4/42"]
     assert c3["checkpoint"] == 4005888 and c3["checkpoint_final"] is True and c3["flags"] == []
     assert c4["checkpoint"] == 1007616 and c4["checkpoint_final"] is False and c4["flags"] == ["checkpoint provisional"]
-    assert c4["checkpoint_selection"] == "the run's newest complete checkpoint"
     assert walk["verdicts"]["R3"]["verdict"] == "shown" and walk["verdicts"]["R4"]["verdict"] == "provisional"
     assert walk["verdicts"]["R4"]["read_from"] == "shown" and walk["shown"] == "shown"  # R3's verdicts are shown
     assert carpet["verdicts"]["R3"]["gated"] and carpet["verdicts"]["R4"]["gated"]
@@ -281,7 +304,8 @@ def test_the_policy_rows_cells_and_verdicts(tmp_path):
     assert "R4 has one seed (decisions 3 and 28): its verdicts are at most provisional" in md
     lt = doc["bodies"][BODY]["ledger"]  # the ledger's R3 row names its checkpoint too
     assert lt["rows"][:2] == ["R2/42", "R3/42"] and lt["checkpoints"] == {"R3/42": [dict(steps=1007616, final=False)]}
-    assert lt["margins"]["kp"]["rows"]["R3/42"]["checkpoint"]["selection"] == "the run's newest complete checkpoint"
+    assert lt["margins"]["kp"]["rows"]["R3/42"]["checkpoint"] == dict(steps=1007616, final=False)
+    assert "R3/42 = R3/42: a policy row; checkpoint 4005888 steps (final)" in md  # PROVENANCE_RULE
     assert "- R3/42 ran checkpoint 1007616 (provisional) *: not the final judged checkpoint (FLAGS_RULE)" in md
 
 
@@ -300,6 +324,88 @@ def test_a_running_ppo_session_is_estimated(tmp_path):
     c = report.costs(run, BODY)["steps"]["ppo"]
     assert c["running"] == ["R3/42"] and c["running_estimate_h"] == pytest.approx(1.0)
     assert c["core_h"] == pytest.approx((1800 + 7000) / 3600 + 1.0)
+    # PPO_RULE: the elapsed wall clock is the union of the sessions, not the sum of the concurrent jobs' hours
+    write(run / BODY / "ppo" / "43" / "run.json", dict(mode="R3", seed=43, status="partial", sessions=[dict(
+        index=0, started_at="2026-11-09T13:30:00+00:00", ended_at="2026-11-09T14:30:00+00:00")]))
+    w = report.ppo_wall(run, BODY)
+    assert w["elapsed_s"] == pytest.approx(3.5 * 3600) and w["job_s"] == pytest.approx(4 * 3600)
+    assert report.costs(run, BODY)["steps"]["ppo"]["wall_h"] == pytest.approx(3.5)
+
+
+def test_a_stale_run_and_an_unrecorded_judged_checkpoint(tmp_path):
+    """PPO_RULE: a 'running' run whose run.json has not been written for two checkpoint intervals at its measured
+    rate is marked 'stopped?'; with no judged checkpoint in run.json the table shows train.judged_checkpoint's now,
+    'not yet recorded'; each G6 failure shows the plan's consequence."""
+    run = make_run(tmp_path / "run")
+    path = run / BODY / "ppo" / "42" / "run.json"
+    doc = json.loads(path.read_text())
+    doc.pop("judged_checkpoint")
+    doc["g6"]["G6b"] = dict(at_steps=1007616, pass_=False, consequence_if_failed="make one fix, then stop")
+    doc["fix"] = dict(from_checkpoint=1007616, overrides=dict(task_weights=[1, 1, 1, 1, 1, 2, 2, 1, 1]))
+    now = datetime.datetime.now(datetime.timezone.utc)
+    t = now - datetime.timedelta(seconds=4000)  # the last write; the session trained 507904 steps in 5079.04 s
+    doc["sessions"] = [dict(index=0, started_at=(t - datetime.timedelta(seconds=5079.04)).isoformat())]
+    path.write_text(json.dumps(doc))
+    os.utime(path, (t.timestamp(), t.timestamp()))
+    r = report.ppo(run, BODY, now=now)["R3/42"]  # 100 steps/s: a checkpoint every 2500 s, 'stopped?' after 7500 s
+    assert r["write"]["stopped"] is False and r["write"]["limit_s"] == pytest.approx(7500.0)
+    t = now - datetime.timedelta(seconds=8000)
+    doc["sessions"] = [dict(index=0, started_at=(t - datetime.timedelta(seconds=5079.04)).isoformat())]
+    path.write_text(json.dumps(doc))
+    os.utime(path, (t.timestamp(), t.timestamp()))
+    p = report.ppo(run, BODY, now=now)
+    assert p["R3/42"]["write"]["stopped"] is True and p["R3/42"]["judged_checkpoint"]["recorded"] is False
+    md = "\n".join(report._ppo_md(p))
+    assert "| R3/42 | running (stopped?) |" in md and "(provisional, not yet recorded)" in md
+    assert "FAIL at 1007616: make one fix, then stop" in md and "from 1007616 (task_weights 1,1,1,1,1,2,2,1,1)" in md
+
+
+def test_a_body_judged_with_r2(tmp_path):
+    """VERDICTS_RULE: when seed 42 failed G6c the grid shows R2's verdicts, flagged, and R3's column reads 'not
+    judged'; before G6c the note says 'G6c not reached'."""
+    run = make_run(tmp_path / "run")
+    g = report.grid(run, BODY, SRC)
+    assert g["verdict_controller"] == "R3" and "G6c not reached" in g["verdict_controller_note"]
+    path = run / BODY / "ppo" / "42" / "run.json"
+    doc = json.loads(path.read_text())
+    doc["g6"]["G6c"] = dict(at_steps=2506752, pass_=False, consequence_if_failed="skip seed 43 and judge with R2")
+    path.write_text(json.dumps(doc))
+    g = report.grid(run, BODY, SRC)
+    assert g["verdict_controller"] == "R2" and "G6c at 2506752" in g["verdict_controller_note"]
+    walk = g["behaviors"]["walk"]["nominal"]
+    assert walk["shown"] == walk["verdicts"]["R2"]["verdict"] and walk["verdicts"]["R3"]["judged"] is False
+    assert "R3" not in [k for k, v in g["gated_verdicts"].items() if v]
+    md = "\n".join(report._grid_md(g))
+    assert "R3 verdict (not judged: G6c)" in md and "R2 verdict (shown)" in md
+    lt = report.ledger_table(run, BODY)
+    assert "G6c" in lt["r3_judged_with_r2"] and "its ledger row is not run" in "\n".join(report._ledger_md(lt))
+
+
+def test_looks_and_ledger_flags(tmp_path, monkeypatch):
+    """LOOKS_RULE: sway and head and tail amplitude per row on the walks and carpet walks; LEDGER_TABLE_RULE: a record
+    made by other ledger sources is flagged, and so is a search that fails at nominal where the panels pass."""
+    run = make_run(tmp_path / "run")
+    rec = json.loads(panels.record_path(run, BODY, "R2/42", COND["walk/nominal"]).read_text())
+    look = dict(sway=dict(mean_H=0.17, max_H=0.18), head=dict(amplitude_rad=0.05), tail=dict(amplitude_rad=0.12))
+    rec["episodes"] = [dict(seed=s, measures=dict(look=look)) for s in panels.SEEDS[:2]]
+    rec["episodes"].append(dict(seed=3044, measures={}))
+    write(panels.record_path(run, BODY, "R2/42", COND["walk/nominal"]), rec)
+    lk = report.looks(run, BODY)["conditions"]["walk/nominal"]["R2/42"]
+    assert lk["episodes"] == 3 and lk["sway"]["read"] == 2 and lk["sway"]["mean_H"] == pytest.approx(0.17)
+    assert lk["head"]["in_band"] == 2 and lk["tail"]["mean_rad"] == pytest.approx(0.12)
+    assert "| walk/nominal | R2/42 | 0.170 / 0.180 |" in "\n".join(report._looks_md(report.looks(run, BODY)))
+    path = ledger.record_path(run, BODY, "R2/42", "grip")
+    doc = json.loads(path.read_text())
+    doc["key"] = dict(ledger="an older ledger.py")
+    s = doc["summary"]["searches"]["walk_brisk"]
+    s["success"] = dict(s["success"], status="fails at nominal", flag="the panels pass walk/brisk (20/20 survive, 17 "
+                                                                     "succeed), the ledger's 3 seeds fail at nominal")
+    path.write_text(json.dumps(doc))
+    lt = report.ledger_table(run, BODY)
+    assert lt["margins"]["grip"]["rows"]["R2/42"]["flags"] == ["other ledger sources"]
+    assert any("other ledger sources" in n for n in lt["notes"]) and any("panels pass" in n for n in lt["notes"])
+    md = "\n".join(report._ledger_md(lt))
+    assert "- * R2/42 grip: other ledger sources" in md
 
 
 def test_report_command_line(tmp_path, capsys):

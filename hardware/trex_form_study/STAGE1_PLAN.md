@@ -106,11 +106,11 @@ An episode counts as a fall if the trunk tilts more than 0.6 rad, the root drops
 
 | Margin | Swept | Stage 0: 60-N-T-10 / 60-N-H-10 / 75-M-H-10 |
 |---|---|---|
-| Grip | lowest friction μ that still works: nominal walk; 0.35 rad/s turn; brisk walk | 0.48 / 0.54 / 0.75; 0.47 / 0.53 / 0.73; 0.36 / 0.41 / 0.56 |
+| Grip | lowest friction μ that still works: nominal walk; 0.35 rad/s turn; brisk walk | per body, walk / turn / brisk: `60-N-T-10` 0.48 / 0.54 / 0.75; `60-N-H-10` 0.47 / 0.53 / 0.73; `75-M-H-10` 0.36 / 0.41 / 0.56 (this cell groups by body, not by condition; decision 33) |
 | Push | Δv per direction, standing and walking | forward bound 0.487 / 0.478 / 0.589 m/s |
 | Stop | deceleration held | one foot 1.25 / 1.25 / 1.41 m/s² |
-| Drive speed | envelope speed scale at Fr 0.05 | knee 0.93 / 0.95 / 0.93 |
-| Drive torque | torque scale | worst sustained ratio 0.76 / 0.76 / 0.77 |
+| Drive speed | envelope speed scale at Fr 0.05 | knee 0.93 / 0.95 / 0.93, including the screens' 15 % speed margin; without it 0.81 / 0.83 / 0.81 (decision 33) |
+| Drive torque | torque scale | worst sustained ratio 0.76 / 0.76 / 0.77, the larger of the nominal walk's RMS and the one-foot hold; the nominal walk's RMS alone 0.76 / 0.76 / 0.66 (decision 33) |
 | Model doubts | kp × 0.25–1, latency 0–20 ms, mass +10 %, pile damping 0.5–2 | no Stage 0 value |
 | Pack voltage | bus 25.2 V (full), 22.2 V (nominal), 21 V (near empty) in the drive envelope | Stage 0 used 24 V; at 22.2 V the knee's rated speed (8.04 rad/s) equals the Fr 0.05 requirement including the screens' 15 % speed margin (8.08–8.12 rad/s; the peak swing speed itself is about 7.0 rad/s) |
 
@@ -442,3 +442,69 @@ change no body (P24).
     - A fall penalty: a fall already forfeits the value of the episode's remaining reward.
     - Fewer carpet and pile episodes: this would give up decision 23's carpet experiment.
     - A smaller residual: it is already small.
+
+### Decisions taken for the margin ledger and the report (9 Nov)
+
+These were settled before any sweep ran and before the R3 and R4 panels; they change no body (P24). Each is recorded in
+the code as a rule that every record carries.
+
+33. **How the margin ledger reads §5** (`designlab/stage1/ledger.py`).
+    - **Rows and seeds** (`ledger.ROWS_RULE`). R2 is the CMA-ES seed of the body-level G5 selection and R3 is R3/42:
+      one seed per controller, not §6's "R2 and R3 on 2 seeds each", within decision 21's cap. A body whose R3 is
+      judged with R2 (decision 34) has no R3 row. The episodes are the panels' first three (3042–3044).
+    - **What "works" means** (`ledger.WORKS_RULE`). A value works if none of the 3 episodes falls and none fails a
+      success term that its seed passed at the search's nominal value. Read outright (all 3 succeed), a term one seed
+      already fails at nominal ends every search there: `60-N-T-10`'s R2/42 nominal walk passes the panels (20/20
+      survive, 18/20 succeed), and seed 3042 fails only the peak GRF, so the grip, drive-torque, kp, latency and mass
+      margins would all read "fails at nominal". At the nominal value itself, works is survives. Each evaluation also
+      records the outright reading.
+    - **The binding limit** (`ledger.LABEL_RULE`, `ledger.LIFT_RULE`). Decision 20's sign test needs at least 5 falls,
+      which 3 seeds cannot give. So at each fails end (and point) with falls, the value is run again on the same 3
+      seeds once for each relaxable hardware limit that is a candidate of one of its falls. The falls are body-limited
+      by the limits whose lifting makes all 3 seeds survive, else controller-limited. Success failures are labelled by
+      their new terms' classes (`panels.SUCCESS_LABEL_RULE`). When both occur, the label is that of the kind with more
+      failed episodes, the falls' on a tie, as `panels.FAILURE_LABEL_RULE` breaks it. A search that fails at nominal
+      also cites the panels' 20-seed label of the same row and condition, and is flagged if that record passes.
+    - **Stop: not run, a deviation from §5 for the owner** (`ledger.STOP_RULE`). The deceleration a stop holds needs
+      stop references that decelerate at other rates. The run holds one stop transition, and another would be a new
+      reference, not this plan's. Sweeping the stop transition's own clock rate instead would change its stepping as
+      well as its deceleration, and needs a reference clock whose rate changes by segment, which `control.Track` does
+      not have. Each stop record keeps the existing stop reference's deceleration (1 Hz low-pass) and the row's
+      start-and-stop panel readings. The report labels the row "not run (plan deviation, decision 33)".
+    - **Stage 0 values** (`ledger.STAGE0_RULE`). §5's grip cell groups by body (";") and by condition ("/"): walk / turn
+      / brisk per body, as `ROUND2_REVIEW.md` §7.4 and §7.6 give it and the turning screens' single-support friction
+      need shows (runs `straight`, `walk_0.35_left`/`_right`, `straight_brisk`). The drive-speed value includes the
+      screens' 15 % speed margin (`sizing.SPEED_MARGIN`); without it, which is what the ledger's limit compares, it is
+      0.81 / 0.83 / 0.81. The drive-torque value is the larger of the nominal walk's RMS and the one-foot hold (on
+      `75-M-H-10`, the hip yaw's hold); the nominal walk's RMS alone is 0.76 / 0.76 / 0.66. The report shows both
+      numbers.
+    - **Trunk mass "+10 %"** (`ledger.MASS_RULE`). Read both ways, as two points: the trunk × 1.1 (`env.MASS_RULE`'s
+      factor: +4.15–4.40 % of the robot's mass) and the trunk factor that adds 10 % of the robot's mass (× 1.230 /
+      1.227 / 1.241). The search for the largest factor that works goes up to × 1.3 (+12–13 % of the robot), beyond
+      the plan's +10 %, to find the margin; it is extra compute within the cap. Records and the report give the whole
+      robot's mass change beside each factor.
+    - **Pile damping** (`ledger.PILE_DAMPING_RULE`). Both directions on the 20 s stand on low pile, which R2 passes on
+      every body, and on the carpet walk on low pile, where decision 23 found R2 falling in every start tried (its
+      carpet searches then end "fails at nominal" for one evaluation). Both run for every row that runs the pile.
+    - **Where it runs.** Every record key holds the sha256 of the round-two model files the plant reads. A checkout
+      without the git-ignored `round2/refine/<case>/models` rebuilds them elsewhere with another model-ledger JSON, so
+      its keys differ from the main checkout's. The ledger, the R3 and R4 panels and any eval run from the main
+      checkout; `eval` and `sweep` refuse a checkout without those files unless `--allow-rebuilt-models`.
+34. **Judging after G6 failures, and the report** (`train.R2_JUDGED_RULE`, `train.JUDGED_RULE`,
+    `designlab/stage1/policy_rows.py`, `designlab/stage1/report.py`).
+    - **A body judged with R2.** When a body's PPO seed 42 fails G6c (§3 step 7, decision 29) or one of its R3 runs is
+      stopped by G6b's second failure (decision 32), its R3 is judged with R2. Its R3 runs are then left out of the
+      judged checkpoint, so a run stopped early does not cap the other bodies' checkpoint. Its R3 rows have no judged
+      checkpoint (an explicit one can still be run for the record), the ledger leaves its R3 row out, and the report
+      shows R2's verdicts, flagged, with R3's column marked "not judged". Until seed 42 reaches G6c the report says
+      "G6c not reached".
+    - **A policy row's checkpoint in the keys.** The R3 and R4 records' keys name the checkpoint by its step count and
+      its files' sha256, with the run's env configs as they were for that checkpoint (before or after G6b's fix). They
+      do not name how it was selected or whether it was final, so records made before `judge --final` stay valid.
+      The report reads final from run.json's judged checkpoint at the same step count.
+    - **R4's falls.** Decision 20's attribution is applied to R2 and R3 only, so a condition R4 fails by falls reads
+      "fails by falls (R4: not attributed)", a settled verdict; the report does not flag the by-design case as interim.
+    - **The body summary.** §7's `<body>/summary.json` is the report's `stage1_tables.json` (every body's tables from
+      every step); the panels' part is `<body>/eval/summary.json`.
+    - **Wall clock.** The PPO wall clock per body is the union of its runs' sessions (elapsed); their sum is given as
+      job-hours, since the runs share the cores.

@@ -1,7 +1,8 @@
 """Stage 1 policy rows R3 and R4 for the behaviour panels (``STAGE1_PLAN.md`` section 2's R3 and R4, section 3 step 8,
 section 4; the ``panels.Row`` interface): the trained PPO policies, run as training ran them, on every panel condition.
 
-Run from hardware/trex_form_study in the PPO venv (torch, Stable-Baselines3 and gymnasium, ``train.PPO_VENV``)::
+Run from hardware/trex_form_study of the main checkout (see below) in the PPO venv (torch, Stable-Baselines3 and
+gymnasium, ``train.PPO_VENV``)::
 
     python -m designlab.stage1 eval --body 60-N-T-10 --rows R3/42,R3/43,R4/42 --row-module designlab.stage1.policy_rows
                                     [--attribute] [--workers 4] --out stage1/runs/2026-11-08
@@ -15,22 +16,32 @@ panels are unchanged, and so are the R0-R2 records' keys: this module is not amo
 (``panels.PANEL_SOURCES_RULE``) and enters only the policy rows' keys, through ``Row.sources`` and ``Row.describe``.
 Importing it needs no torch; building a row needs the PPO venv.
 
+Run the R3 and R4 panels from the checkout whose records they join (the main checkout): every record key holds the
+sha256 of the round-two model files the plant reads (``panels.key_context``), and a checkout without the git-ignored
+``round2/refine/<case>/models`` rebuilds them into ``stage1/models`` with another model-ledger JSON, so its keys differ
+from the main checkout's and its records would be run again there (``eval`` and ``sweep`` refuse such a checkout
+unless ``--allow-rebuilt-models``; copying ``round2/refine/*/models`` in makes the keys the main checkout's).
+
 * Rows (``POLICY_ROWS_RULE``): ``R3/<s>`` is a ``panels.TrackerRow`` in mode R2 with the body-level G5 gains and
   ``TrainedPolicy``, PPO seed s's residual policy; ``R4/<s>`` is ``PolicyOnlyRow``, which runs PPO seed s's
   policy-only policy on ``PolicyOnlyTracker`` (``R4_RULE``) through ``control.run``, so both have control.run's
   outcome (falls, onsets, candidates, stops, drive ratios), both take ``relax`` (decision 20's attribution, which
   the panels apply to R3, ``panels.ATTRIBUTED``) and both are judged as every row is.
-* Checkpoint (``CHECKPOINT_SELECTION_RULE``): the mode's judged checkpoint by default (``train.judged_checkpoint``);
-  ``STAGE1_POLICY_CHECKPOINT`` selects another for tests and interim runs; ``STAGE1_POLICY_RUNS`` names the
-  training run directory (the checkpoints are git-ignored and live where training ran).
+* Checkpoint (``CHECKPOINT_SELECTION_RULE``): the mode's judged checkpoint by default (``train.judged_checkpoint``,
+  which leaves out the R3 runs of a body judged with R2, ``train.R2_JUDGED_RULE``); ``STAGE1_POLICY_CHECKPOINT``
+  selects another for tests and interim runs; ``STAGE1_POLICY_RUNS`` names the training run directory (the checkpoints
+  are git-ignored and live where training ran).  A record names its checkpoint by its step count and its files'
+  sha256, not by whether it was final: the report reads that from run.json's judged checkpoint at the same steps.
 * Acting (``POLICY_RULE``, ``PERIOD_RULE``): env.py's own observation, action and physics-step functions, bound to a
   view of the panel episode (``ResidualView`` for R3; for R4 ``PolicyOnlyTracker`` is its own view, as
   ``env.PolicyOnlyEnv`` is), at env.py's physics steps, on the nominal model, latency 0, the deterministic action.
 * Equivalence (``EQUIVALENCE_RULE``, ``equivalence_check``): a row's episode against training's env, every physics
-  step's state hashed (``tests/test_stage1_policy_rows.py``); also under the margin ledger's variants that env.py
-  draws as factors (``VARIANT_FACTORS``: the ledger's R3 row is this module's R3/42, ``ledger.ROWS_RULE``).
-* Verdicts (``R4_VERDICT_RULE``, ``policy_verdicts``): R3's are the panels' (R3/42 and R3/43, ``panels.VERDICT_RULE``);
-  R4's, from its one seed, are at most provisional.
+  step's state hashed (``tests/test_stage1_policy_rows.py``); also on the conditions whose plan is no env task's (the
+  env on the condition's own track), with a push, with decision 20's relaxations, and under the margin ledger's
+  variants that env.py draws as factors (``VARIANT_FACTORS``: the ledger's R3 row is this module's R3/42,
+  ``ledger.ROWS_RULE``).
+* Verdicts (``R4_VERDICT_RULE``, ``policy_verdicts``): R3's are the panels' (R3/42 and R3/43, ``panels.VERDICT_RULE``),
+  or R2's for a body judged with R2 (``train.R2_JUDGED_RULE``); R4's, from its one seed, are at most provisional.
 * Costs (``POLICY_COST_RULE``, ``measure_costs``, ``project``): CPU and wall seconds per simulated second, and the
   panels' core-hours at those costs (``panels.dry_run``).
 """
@@ -83,26 +94,33 @@ POLICY_ROWS_RULE = (
     "(panels.CONDITIONS_RULE; the carpet walk is gated for them, panels.GATING_RULE, decision 23) from the panels' "
     "episode seeds and start noise (panels.EPISODE_RULE), with any relaxation (control.relaxed; the panels attribute "
     "R3's falls by decision 20, not R4's: panels.ATTRIBUTED), and are judged by the panels' judge unchanged; each "
-    "names its checkpoint, run settings and sources (env.py, policy_rows.py, policy.py) in its description and key.  "
+    "names its checkpoint, run settings and sources (env.py, policy_rows.py, policy.py) in its description and key, "
+    "and a worker rebuilding the row from its spec refuses to run on other sources than the ones the spec names.  "
     "The panels' recorder reads each feedback update's reference time as the clock less one physics step at the "
     "commanded rate and the phase-rate term (metrics.Recorder.update), not counting a policy's rate factor: for these "
     "rows that reading is off by at most 2 ms x 1.05 x 1.05 x 0.25 = 0.55 ms of reference time (a quarter of a "
     "physics step; R4 at the track's end, where its clock stops, by one step), which the judgement takes as it is")
 CHECKPOINT_SELECTION_RULE = (
-    "a policy row runs, by default, its mode's judged checkpoint: train.judged_checkpoint over every run of the mode "
-    "(train.JUDGED_RULE: the budget's checkpoint, or the last checkpoint every run reached), final if every run holds "
-    "its budget's checkpoint or the run's run.json holds a 'judge --final' record at the same step count, else "
-    f"provisional.  The environment variable {CHECKPOINT_ENV} selects another for tests and interim runs: a step "
-    "count N (model_N, every policy row), 'newest' (each run's newest complete checkpoint) or per mode, e.g. "
-    "'R3=newest,R4=1007616' (a mode it does not name keeps the judged one); such a checkpoint is never final.  The "
-    f"runs are read from {RUNS_ENV} (the training run directory holding <body>/ppo/<s> and <body>/policy_only/<s>; "
-    "default: the panels' run directory, eval's --inputs or --out).  A row names its model zip and VecNormalize pkl "
-    "(paths relative to that directory) with their sha256, the step count, the selection and judgement, and the "
-    "run's settings (log_std_init, the learning-rate rule, design 2's settings, the env config, R3's gains); a worker "
-    "refuses a file whose sha256 differs from the row's.  A row is refused unless this process's libraries are the "
-    "run's (its run.json's first session: python, numpy, mujoco, scipy, torch, stable_baselines3, gymnasium; "
-    "train.PPO_VENV), so the policy computes as it did in training (the fit's venv has other torch, SB3 and gymnasium "
-    "versions)")
+    "a policy row runs, by default, its mode's judged checkpoint: train.judged_checkpoint over the runs of the mode "
+    "(train.JUDGED_RULE: the budget's checkpoint, or the last checkpoint every run judged reached; the R3 runs of a "
+    "body judged with R2, train.R2_JUDGED_RULE, are left out, and such a body's R3 rows have no judged checkpoint: "
+    f"they are refused unless {CHECKPOINT_ENV} names one), final if every run judged holds its budget's checkpoint or "
+    "the run's run.json holds a 'judge --final' record at the same step count, else provisional.  The environment "
+    f"variable {CHECKPOINT_ENV} selects another for tests and interim runs: a step count N (model_N, every policy "
+    "row), 'newest' (each run's newest complete checkpoint) or per mode, e.g. 'R3=newest,R4=1007616' (a mode it does "
+    "not name keeps the judged one); such a checkpoint is never final.  The runs are read from "
+    f"{RUNS_ENV} (the training run directory holding <body>/ppo/<s> and <body>/policy_only/<s>; default: the panels' "
+    "run directory, eval's --inputs or --out).  A row's description, and with it every record key, names the "
+    "checkpoint by its step count and its model zip and VecNormalize pkl (paths relative to that directory) with their "
+    "sha256, and the run's settings as they were for that checkpoint (log_std_init, the learning-rate rule, design 2's "
+    "settings, the env configs in force when it was trained: before G6b's one fix for a step count at or below the "
+    "fix's checkpoint, train.FIX_RULE, with the fix named after it; R3's gains); not how it was selected nor whether "
+    "it is final, so a record made before 'judge --final' stays valid and the report reads final from run.json's "
+    "judged checkpoint at the same step count.  A checkpoint past a fix's checkpoint whose files are older than the "
+    "fix (the steps the fix discarded, decision 32) is refused; a worker refuses a file whose sha256 differs from the "
+    "row's.  A row is refused unless this process's libraries are the run's (its run.json's first session: python, "
+    "numpy, mujoco, scipy, torch, stable_baselines3, gymnasium; train.PPO_VENV), so the policy computes as it did in "
+    "training (the fit's venv has other torch, SB3 and gymnasium versions)")
 POLICY_RULE = (
     "a policy row acts as training's env acts (env.Stage1Env.step) on the nominal model (no randomisation: the "
     "condition's friction, trunk mass and servo stiffness x 1, sensor-noise scale 1, latency 0; the margin ledger's "
@@ -151,23 +169,33 @@ R4_RULE = (
 EQUIVALENCE_RULE = (
     "a policy row's episode of a panel condition against training's env (env.ResidualEnv for R3, env.PolicyOnlyEnv "
     "for R4) on the env task whose plan the condition's plan is, on the condition's floor (a pile: the panels' 4 mm "
-    "evaluation pile, EnvConfig pile_grid None) and friction, randomize False, push None, latency 0 (or with one of "
+    "evaluation pile, EnvConfig pile_grid None) and friction, randomize False, latency 0 (or with one of "
     "the margin ledger's variants that env.py also draws as a factor, VARIANT_FACTORS: the panel episode inside "
-    "ledger.LedgerContext.variant and the env with that factor, its other factors nominal), the same "
-    "checkpoint asked the same way (train.monitor's call); the env's episode starts from the panel episode's start "
-    "and sensor-noise seeds (its _begin given them: the harness's alignment) with the same start noise and, for R4, "
-    "the run's env tasks (the span's tracks); sha256 of qpos, qvel, ctrl and sensordata after every physics step "
+    "ledger.LedgerContext.variant and the env with that factor, its other factors nominal); a condition whose plan is "
+    "no env task's (the stands, brisk and Fr 0.05 walks, start and stop, pushes) runs the env on the condition's own "
+    "track in place of the 'stand' task's (a plan that starts with a hold) or the 'walk' task's, built as the env "
+    "builds its tracks (control.build_track on the env's plant; R3: with that track's tracker as "
+    "env.ResidualEnv._setup builds it), whose phase runs over the nominal walk's period as the panels' does "
+    "(PERIOD_RULE); the env takes the panel episode's push (Built.push; none without one) and a relaxation is entered "
+    "after the env's reset (control.relaxed, as control.run enters it after its reset; R3 on the env's tracker); the "
+    "same checkpoint asked the same way (train.monitor's call); the env's episode starts from the panel episode's "
+    "start and sensor-noise seeds (its _begin given them: the harness's alignment) with the same start noise and, for "
+    "R4, the run's env tasks (the span's tracks); sha256 of qpos, qvel, ctrl and sensordata after every physics step "
     "(env.ZERO_RESIDUAL_RULE's digest): equal at every physics step both ran, over the shorter horizon (control.run "
     "runs round(seconds / 2 ms) physics steps, the env round(seconds / 20 ms) env steps of 10, so the two may differ "
     "by up to 5 physics steps) or to the panel's fall, and the same end: a panel fall at physics step k within the "
     "shorter horizon is an env termination in the env step that holds k (the env reads falls at its steps' ends); "
     "without one, both run through the shorter horizon and the env does not terminate within it")
+R4_FALLS_VERDICT = "fails by falls (R4: not attributed)"
 R4_VERDICT_RULE = (
     "R4 trains one PPO seed per body (train.R4_SEEDS, decision 28), so its verdict on a condition is panels.verdict on "
     "R4/42's record alone with 'shown' (both seeds pass, panels.VERDICT_RULE) read as 'provisional' (one seed passes): "
-    "at most provisional; the other verdicts as panels.verdict gives them (R4's falls are not attributed, "
-    "panels.ATTRIBUTED, so a condition it fails by falls reads 'not attributed').  R3's verdicts are the panels' own "
-    "(panels.VERDICT_ROWS: R3/42 and R3/43)")
+    "at most provisional; the other verdicts as panels.verdict gives them, except that a condition R4 fails by "
+    f"unattributed falls reads '{R4_FALLS_VERDICT}': decision 20's attribution is applied to R2 and R3 only "
+    "(panels.ATTRIBUTED), so for R4 that is a settled verdict, not the panels' interim 'not attributed' that waits for "
+    "eval --attribute.  R3's verdicts are the panels' own (panels.VERDICT_ROWS: R3/42 and R3/43), and a body judged "
+    "with R2 (train.R2_JUDGED_RULE: G6c failed on seed 42, or FIX_RULE stopped one of its R3 runs) shows R2's "
+    "verdicts in R3's place, flagged 'judged with R2'")
 POLICY_COST_RULE = (
     "per row and floor: the nominal walk on that floor (the panels' cost condition, panels.COST_RULE) from the "
     f"settled stance on seed {panels.SEEDS[0]}, in this process, at the time of measuring (the machine shared with "
@@ -230,14 +258,15 @@ def _rel(path: Path, root: Path) -> str:
 
 
 def judged_record(root: Path, mode: str, doc: dict) -> dict:
-    """The mode's judged checkpoint now (``train.judged_checkpoint``) and whether it is final: every run at its
-    budget, or a 'judge --final' record in this run's run.json at the same step count."""
+    """The mode's judged checkpoint now (``train.judged_checkpoint``) and whether it is final: every run judged at its
+    budget, or a 'judge --final' record in this run's run.json at the same step count; the runs left out (a body
+    judged with R2, ``train.R2_JUDGED_RULE``)."""
     now = train.judged_checkpoint(Path(root), mode)
     rec = doc.get("judged_checkpoint") or {}
     recorded = bool(rec.get("final")) and now["steps"] is not None and rec.get("steps") == now["steps"]
     return dict(rule=train.JUDGED_RULE, steps=now["steps"], budget=int(now["budget"]), runs=sorted(now["runs"]),
                 every_run_at_budget=bool(now["final"]), judge_final_recorded=recorded,
-                final=bool(now["final"] or recorded))
+                final=bool(now["final"] or recorded), left_out=dict(now.get("left_out") or {}))
 
 
 ENV_CONFIG_KEYS = ("rate", "tasks", "task_weights", "max_seconds", "randomize", "friction", "mass", "kp",
@@ -245,11 +274,21 @@ ENV_CONFIG_KEYS = ("rate", "tasks", "task_weights", "max_seconds", "randomize", 
                    "start_root_velocity_noise", "gains", "pile_grid")
 
 
-def run_settings(doc: dict, path: Path, root: Path) -> dict:
-    """What a row names of its run (run.json): the settings it trained with, its env config (the same in every env
-    but the floor) and R3's gains."""
+def run_settings(doc: dict, path: Path, root: Path, steps: int | None = None) -> dict:
+    """What a row names of its run (run.json) for its checkpoint at ``steps``: the settings it trained with, its env
+    config (the same in every env but the floor) as it was for that checkpoint (``CHECKPOINT_SELECTION_RULE``: before
+    G6b's one fix, ``train.FIX_RULE``, for a step count at or below the fix's checkpoint, with the fix named after it)
+    and R3's gains."""
     s = doc["settings"]
     cfgs = doc["env_configs"]
+    fix = doc.get("fix")
+    fix_info = None
+    if fix:
+        before = steps is not None and int(steps) <= int(fix["from_checkpoint"])
+        if before:
+            cfgs = fix["env_configs_before"]
+        fix_info = dict(rule=fix.get("rule"), overrides=fix.get("overrides"), reason=fix.get("reason"),
+                        from_checkpoint=int(fix["from_checkpoint"]), in_force=not before)
     c0 = cfgs[0]
     for c in cfgs[1:]:
         diff = [k for k in ENV_CONFIG_KEYS if c.get(k) != c0.get(k)]
@@ -260,7 +299,23 @@ def run_settings(doc: dict, path: Path, root: Path) -> dict:
                 config=s.get("config"), checkpoint_every=s.get("checkpoint_every"), budget=doc.get("budget"),
                 env=dict({k: c0.get(k) for k in ENV_CONFIG_KEYS}, floors=[c["floor"] for c in cfgs],
                          floor_rule=s.get("floor_rule")),
-                gains=doc.get("gains"), versions=dict((doc.get("sessions") or [{}])[0].get("versions") or {}))
+                fix=fix_info, gains=doc.get("gains"),
+                versions=dict((doc.get("sessions") or [{}])[0].get("versions") or {}))
+
+
+def _discarded(doc: dict, steps: int, model: Path) -> bool:
+    """Whether a checkpoint past G6b's fix predates it (the steps the fix discarded, decision 32): its model file was
+    written before the fix was applied."""
+    fix = doc.get("fix")
+    if not fix or int(steps) <= int(fix["from_checkpoint"]) or not fix.get("at"):
+        return False
+    import datetime
+
+    try:
+        at = datetime.datetime.fromisoformat(fix["at"]).timestamp()
+    except ValueError:
+        return False
+    return model.exists() and model.stat().st_mtime < at
 
 
 def resolve(body: str, mode: str, seed: int, run_dir: Path, choice=None) -> dict:
@@ -284,6 +339,10 @@ def resolve(body: str, mode: str, seed: int, run_dir: Path, choice=None) -> dict
         judged = judged_record(root, mode, doc)
         steps, final = judged["steps"], judged["final"]
         selection = "the judged checkpoint (train.judged_checkpoint)"
+        why = judged["left_out"].get(f"{body}/{int(seed)}")
+        if why:
+            raise PolicyRowError(f"{mode} {body} seed {seed}: no judged checkpoint: {why} (train.R2_JUDGED_RULE); set "
+                                 f"{CHECKPOINT_ENV} to run one for the record")
         if steps is None:
             raise PolicyRowError(f"{root}: no checkpoint every {mode} run reached (train.JUDGED_RULE); set "
                                  f"{CHECKPOINT_ENV} for an interim run")
@@ -299,7 +358,10 @@ def resolve(body: str, mode: str, seed: int, run_dir: Path, choice=None) -> dict
     if steps not in have:
         raise PolicyRowError(f"{rd}: no complete checkpoint at {steps} steps (complete: {have or 'none'}; the "
                              f"checkpoints are git-ignored: {RUNS_ENV} names the directory training wrote them to)")
-    run = run_settings(doc, path, root)
+    if _discarded(doc, steps, rd / "checkpoints" / f"model_{steps}.zip"):
+        raise PolicyRowError(f"{rd}: model_{steps} predates G6b's fix from {doc['fix']['from_checkpoint']} steps "
+                             "(the steps the fix discarded, decision 32; train.FIX_RULE)")
+    run = run_settings(doc, path, root, steps)
     e = run["env"]
     bad = []
     if e["rate"] != panels.RATE:
@@ -499,12 +561,14 @@ class TrainedPolicy(panels.Policy):
         self.marks = None
 
     def describe(self) -> dict:
+        """The policy as the records name it (and their keys hash it): the checkpoint by its steps and files' sha256,
+        not by its selection or whether it is final (``CHECKPOINT_SELECTION_RULE``)."""
         c = self.ckpt
         return dict(policy=type(self).__name__, rule=POLICY_RULE, rows_rule=POLICY_ROWS_RULE, period_rule=PERIOD_RULE,
                     r4_rule=R4_RULE if self.mode == "R4" else None, mode=c["mode"], body=c["body"], ppo_seed=c["seed"],
-                    checkpoint=dict(steps=c["steps"], selection=c["selection"], final=c["final"], judged=c["judged"],
-                                    model=c["files"]["model"], vecnormalize=c["files"]["vecnormalize"],
-                                    rule=CHECKPOINT_SELECTION_RULE, checkpoint_rule=train.CHECKPOINT_RULE),
+                    checkpoint=dict(steps=c["steps"], model=c["files"]["model"],
+                                    vecnormalize=c["files"]["vecnormalize"], rule=CHECKPOINT_SELECTION_RULE,
+                                    checkpoint_rule=train.CHECKPOINT_RULE),
                     run=c["run"], observation=dict(actor_dim=env.ACTOR_DIM, obs_dim=env.OBS_DIM,
                                                    actor=[list(x) for x in env.ACTOR_OBS],
                                                    critic=[list(x) for x in env.CRITIC_OBS]),
@@ -603,6 +667,16 @@ def _policy_sources() -> dict:
     return {**panels.module_sha256(env), **_file_sha256(Path(__file__)), **_file_sha256(POLICY_MODULE)}
 
 
+def check_sources(spec: dict) -> None:
+    """``POLICY_ROWS_RULE``: a row rebuilt from its spec (a worker) refuses to run on other sources (env.py,
+    policy_rows.py, policy.py) than the ones the spec names, which are the ones its records' keys name."""
+    want, have = spec.get("sources"), _policy_sources()
+    if want != have:
+        diff = sorted(k for k in set(want or {}) | set(have) if (want or {}).get(k) != have.get(k))
+        raise PolicyRowError(f"{spec.get('name')}: the policy rows' sources changed during the session "
+                             f"({', '.join(diff)}): restore them and run again")
+
+
 class PolicyTrackerRow(panels.TrackerRow):
     """R3/<s> (``POLICY_ROWS_RULE``): ``panels.TrackerRow`` in mode R2 with a ``TrainedPolicy``; its episodes are the
     tracker row's (``TrackerRow.episode``) after the policy's ``prepare``."""
@@ -616,10 +690,11 @@ class PolicyTrackerRow(panels.TrackerRow):
     def spec(self) -> dict:
         return dict(cls=f"{type(self).__module__}.{type(self).__qualname__}", name=self.name,
                     gains=self.gains.tolist(), gains_info=self.gains_info, controller=self.controller,
-                    ckpt=self.policy.ckpt)
+                    ckpt=self.policy.ckpt, sources=self.sources())
 
     @classmethod
     def from_spec(cls, s: dict) -> "PolicyTrackerRow":
+        check_sources(s)
         return cls(s["name"], s["gains"], s["gains_info"], TrainedPolicy(s["ckpt"]), s["controller"])
 
     def episode(self, ctx, cond, seed, relax=()):
@@ -666,10 +741,11 @@ class PolicyOnlyRow(panels.Row):
 
     def spec(self) -> dict:
         return dict(cls=f"{type(self).__module__}.{type(self).__qualname__}", name=self.name, ckpt=self.policy.ckpt,
-                    span_inputs=self.span_inputs)
+                    span_inputs=self.span_inputs, sources=self.sources())
 
     @classmethod
     def from_spec(cls, s: dict) -> "PolicyOnlyRow":
+        check_sources(s)
         return cls(s["name"], TrainedPolicy(s["ckpt"]), s["span_inputs"])
 
     def mapping(self, ctx: panels.Context, built: panels.Built) -> tuple[np.ndarray, np.ndarray]:
@@ -795,17 +871,23 @@ VARIANT_FACTORS = {"friction": "friction", "kp": "kp", "latency_steps": "latency
 
 def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nominal", seed: int = panels.SEEDS[0],
                       run_dir: Path | None = None, seconds: float | None = None, choice=None,
-                      variant: tuple | None = None) -> dict:
+                      variant: tuple | None = None, relax=(), overrides: dict | None = None) -> dict:
     """``EQUIVALENCE_RULE`` for one row, condition and episode seed; ``seconds`` cuts the condition (and the env's
     horizon) there; ``variant`` (kind, value) runs the panel episode under one of the margin ledger's variants
-    (``ledger.LedgerContext.variant``) and the env with the same factor (``VARIANT_FACTORS``)."""
+    (``ledger.LedgerContext.variant``) and the env with the same factor (``VARIANT_FACTORS``); ``relax`` lifts
+    hardware limits in both (``control.relaxed``, decision 20's attribution); ``overrides`` changes the condition's
+    fields (a push's timing, to keep a check short).  A condition whose plan is no env task's runs the env on its own
+    track (and its push, if any)."""
     t0 = time.perf_counter()
     run_dir = Path(run_dir) if run_dir is not None else tune.RUN / body
     r = policy_row(body, run_dir, row, choice)
     mode = panels.controller_of(row)
     cond = {c.key: c for c in panels.conditions()}[condition]
+    if overrides:
+        cond = dataclasses.replace(cond, **overrides)
     if seconds is not None:
         cond = dataclasses.replace(cond, seconds=float(seconds))
+    relax = tuple(relax)
     _, docs = tune.read_inputs(run_dir, panels.panel_files())
     var = None
     if variant is None:
@@ -821,12 +903,13 @@ def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nomi
         ctx = ledger.LedgerContext(body, run_dir, docs)
     b = ctx.built(cond)
     task, _ = env_task(b.plan)
-    if task is None:
-        raise PolicyRowError(f"{condition}: no env task runs its plan (EQUIVALENCE_RULE needs one)")
+    own = task is None  # EQUIVALENCE_RULE: the env on the condition's own track, in place of a task's
+    if own:
+        task = "stand" if b.plan[0][0] == "hold" else "walk"
     panel = []
     var_info: dict = {}
     with digesting(b.p, panel), (ctx.variant(cond, var) if var is not None else nullcontext(var_info)) as var_info:
-        _, out, _ = r.episode(ctx, cond, int(seed))
+        _, out, _ = r.episode(ctx, cond, int(seed), relax)
     # training's env on the same floor, friction, seeds and checkpoint
     s = panels.episode_seeds(cond, int(seed))
     e_cfg = r.policy.ckpt["run"]["env"]
@@ -837,21 +920,30 @@ def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nomi
                         start_root_velocity_noise=tune.START_ROOT_VELOCITY_NOISE_M_S)
     E = _aligned(env.ResidualEnv if mode == "R3" else env.PolicyOnlyEnv, dict(start=s["start"], noise=s["noise"]))
     e = E(cfg)
+    if own:  # built as env.Stage1Env and env.ResidualEnv._setup build a task's track and tracker
+        e.tracks[task] = control.build_track(e.p, run_dir, b.plan, e.omega)
+        if mode == "R3":
+            e.trackers[task] = control.Tracker(e.p, e.tracks[task], "R2", gains=e.gains, rate=e.cfg.rate,
+                                               model=e.nominal_model)
     factors = {}
     if cond.friction is not None and task not in env.TASK_FRICTION:
         factors["friction"] = float(cond.friction)
     if var is not None:
         factors[VARIANT_FACTORS[var.kind]] = var.value
+    push = b.push(int(seed))
     trained = []
     e._step_hook = lambda p_: trained.append(env._state_digest(p_.d))
     term = trunc = False
     info = {}
     try:
-        obs, _ = e.reset(seed=0, options=dict(task=task, push=None, factors=factors, episode_seed=0))
-        while True:
-            obs, _, term, trunc, info = e.step(r.policy.action(obs))
-            if term or trunc:
-                break
+        obs, _ = e.reset(seed=0, options=dict(task=task, push=push, factors=factors, episode_seed=0))
+        handle = e.tk if mode == "R3" else control.Tracker(e.p, e.tracks[task], "R2", terms=(), ankle_cap=(),
+                                                           rate=e.cfg.rate)
+        with control.relaxed(handle, relax) if relax else nullcontext():  # after the reset, as control.run enters it
+            while True:
+                obs, _, term, trunc, info = e.step(r.policy.action(obs))
+                if term or trunc:
+                    break
     finally:
         e._step_hook = None
     n_p, n_e = len(panel), len(trained)
@@ -874,7 +966,8 @@ def equivalence_check(body: str, row: str = "R3/42", condition: str = "walk/nomi
     return dict(rule=EQUIVALENCE_RULE, body=body, row=row, mode=mode, checkpoint=dict(
                     steps=c["steps"], selection=c["selection"], model=c["files"]["model"],
                     vecnormalize=c["files"]["vecnormalize"]),
-                condition=condition, cut_s=seconds, task=task, floor=cond.floor, friction=cond.friction,
+                condition=condition, cut_s=seconds, task=task, own_track=own, push=push, relax=list(relax),
+                overrides=dict(overrides or {}), floor=cond.floor, friction=cond.friction,
                 variant=None if var is None else dict(var.describe(), env_factors=dict(e.factors), info=var_info),
                 episode_seed=int(seed), seeds=s, panel_seconds=float(b.seconds), env_seconds=float(e.seconds),
                 panel_physics_steps=n_p, panel_planned_physics_steps=planned, env_physics_steps=n_e,
@@ -898,12 +991,26 @@ def r4_verdict(records: list) -> dict:
     out = dict(v, rule=R4_VERDICT_RULE, panels_rule=v["rule"])
     if v["verdict"] == "shown":
         out.update(verdict="provisional", read_from="shown")
+    elif v["verdict"] == "not attributed":
+        out.update(verdict=R4_FALLS_VERDICT, read_from="not attributed")
     return out
 
 
+def checkpoint_final(steps, judged: dict | None) -> bool:
+    """Whether a record's checkpoint is final: its run's run.json holds a final judged checkpoint at the same step
+    count (``CHECKPOINT_SELECTION_RULE``: the records' keys do not say)."""
+    return bool(steps is not None and judged and judged.get("final") and judged.get("steps") == steps)
+
+
 def policy_verdicts(body: str, out: Path) -> dict:
-    """Per condition, R3's verdict (``panels.verdict`` on R3/42 and R3/43, as the panels' summary has it) and R4's
-    (``r4_verdict``), with the checkpoints the records ran, into ``<out>/<body>/eval/policy_rows.json``."""
+    """Per condition, R3's verdict (``panels.verdict`` on R3/42 and R3/43, as the panels' summary has it; R2's for a
+    body judged with R2, ``train.R2_JUDGED_RULE``) and R4's (``r4_verdict``), with the checkpoints the records ran and
+    whether each is final (run.json's judged checkpoint at the same steps), into
+    ``<out>/<body>/eval/policy_rows.json``."""
+    root = runs_dir(Path(out) / body)
+    with_r2 = train.judged_with_r2(root, body)
+    judged = {f"{m}/{s}": train.run_doc(root, body, m, s).get("judged_checkpoint")
+              for m, seeds in (("R3", train.SEEDS), ("R4", train.R4_SEEDS)) for s in seeds}
     grid = {}
     ckpts = {}
     for cond in panels.conditions():
@@ -911,12 +1018,17 @@ def policy_verdicts(body: str, out: Path) -> dict:
         for ctrl, names in (("R3", panels.VERDICT_ROWS["R3"]), ("R4", R4_ROWS)):
             recs = [panels._read(panels.record_path(out, body, r, cond)) for r in names]
             v = panels.verdict(recs) if ctrl == "R3" else r4_verdict(recs)
-            rows[ctrl] = dict(v, gated=panels.gated_for(names[0], cond))
+            gated = panels.gated_for(names[0], cond)
+            if ctrl == "R3" and with_r2["with_r2"]:
+                r2 = panels.VERDICT_ROWS["R2"]
+                v = dict(panels.verdict([panels._read(panels.record_path(out, body, r, cond)) for r in r2]),
+                         judged_with="R2", r3_verdict=v["verdict"], note=f"judged with R2: {with_r2['reason']}")
+                gated = panels.gated_for(r2[0], cond)
+            rows[ctrl] = dict(v, gated=gated)
             for r, rec in zip(names, recs, strict=True):
                 pol = ((rec or {}).get("controller") or {}).get("policy") or {}
                 if pol.get("checkpoint"):
-                    ckpts.setdefault(r, set()).add((pol["checkpoint"]["steps"], pol["checkpoint"]["selection"],
-                                                    bool(pol["checkpoint"]["final"])))
+                    ckpts.setdefault(r, set()).add(pol["checkpoint"]["steps"])
         grid.setdefault(cond.behavior, {})[cond.name] = rows
     counts = {ctrl: {} for ctrl in ("R3", "R4")}
     for conds in grid.values():
@@ -925,8 +1037,9 @@ def policy_verdicts(body: str, out: Path) -> dict:
                 if v["gated"]:
                     counts[ctrl][v["verdict"]] = counts[ctrl].get(v["verdict"], 0) + 1
     doc = dict(body=body, rule=R4_VERDICT_RULE, verdict_rule=panels.VERDICT_RULE, gating_rule=panels.GATING_RULE,
+               r2_judged_rule=train.R2_JUDGED_RULE, judged_with_r2=with_r2,
                r3_rows=list(panels.VERDICT_ROWS["R3"]), r4_rows=list(R4_ROWS), gated_verdicts=counts,
-               checkpoints={r: [dict(steps=s, selection=sel, final=f) for s, sel, f in sorted(v)]
+               checkpoints={r: [dict(steps=s, final=checkpoint_final(s, judged.get(r))) for s in sorted(v)]
                             for r, v in sorted(ckpts.items())},
                grid=grid, written_at=tune._now())
     panels._write_json(Path(out) / body / "eval" / "policy_rows.json", doc)
@@ -1056,6 +1169,8 @@ def main(argv=None) -> int:
     cp.add_argument("--variant", default=None,
                     help=f"KIND=VALUE: a margin ledger variant env.py also draws ({', '.join(VARIANT_FACTORS)}), "
                          "e.g. mass=1.1 (the env takes the same factor)")
+    cp.add_argument("--relax", default="",
+                    help=f"comma-separated relaxations lifted in both ({', '.join(control.RELAXATIONS)})")
     kp = sub.add_parser("costs", help="POLICY_COST_RULE: CPU and wall seconds per simulated second, and core-hours")
     kp.add_argument("--body", action="append", choices=sorted(panels.BODIES), required=True)
     kp.add_argument("--rows", default="R3/42,R4/42")
@@ -1083,7 +1198,7 @@ def main(argv=None) -> int:
                 raise SystemExit(f"--variant {a.variant!r}: KIND=VALUE, e.g. mass=1.1")
             variant = (kind.strip(), value.strip())
         res = equivalence_check(a.body, a.row, a.condition, a.episode_seed, Path(a.inputs) / a.body, a.seconds,
-                                a.checkpoint, variant)
+                                a.checkpoint, variant, tuple(x for x in a.relax.split(",") if x))
         print(json.dumps(res, indent=1, default=str), flush=True)
         return 0 if res["identical"] else 1
     docs = {}

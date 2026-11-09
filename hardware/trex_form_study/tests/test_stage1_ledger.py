@@ -103,20 +103,52 @@ class FakeRow:
         return not self.hard_only or cond.floor == "hard"
 
 
-def synthetic(margin, outcome):
-    """A margin run fed by ``outcome(condition, variant) -> (works, survives)`` through its lookup; returns the run
-    and every evaluation made, in order."""
+def episode(seed, outcome):
+    """A ledger episode summary: outcome "ok", a list of failed terms, or ("fell", candidates)."""
+    if outcome == "ok":
+        return dict(seed=seed, fell=False, succeeded=True, failed_terms=[], fall_cause=None, fall_candidates=None)
+    if isinstance(outcome, tuple):
+        return dict(seed=seed, fell=True, succeeded=False, failed_terms=["survived"], fall_cause="tilt",
+                    fall_candidates=list(outcome[1]))
+    return dict(seed=seed, fell=False, succeeded=False, failed_terms=list(outcome), fall_cause=None,
+                fall_candidates=None)
+
+
+def entry(cond, var, outcomes, relax=()):
+    """An evaluation of the ledger's 3 seeds with these outcomes (``episode``)."""
+    return ledger.evaluation_entry(cond, var, [episode(s, o) for s, o in zip(ledger.SEEDS, outcomes, strict=True)],
+                                   "valid", relax)
+
+
+def outcomes(works, survives, cands=()):
+    """Per-seed outcomes that work, survive but fail a term, or fall (with these candidates)."""
+    if not survives:
+        return [("fell", cands), "ok", "ok"]
+    return ["ok"] * 3 if works else [["speed"], "ok", "ok"]
+
+
+def lookup_of(cache):
+    return lambda k, v, relax=(): cache.get((k, v.key, tuple(relax)))
+
+
+def synthetic(margin, outcome, lift=None):
+    """A margin run fed by ``outcome(condition, variant) -> (works, survives)`` through its lookup (and a lift by
+    ``lift(condition, variant, relaxation) -> survives``; falls name 'slip' as their candidate); returns the run and
+    every evaluation made, in order."""
     conds = {k: COND[k] for k in margin.conditions()}
     mr = ledger.MarginRun(FakeRow(), margin, conds, {p.name: ledger.Variant(p.kind, p.value) for p in margin.points})
     cache, made = {}, []
     while True:
-        need = mr.advance(lambda k, v: cache.get((k, v.key)))
+        need = mr.advance(lookup_of(cache))
         if not need:
             return mr, cache, made
-        for k, var in dict.fromkeys(need):
-            w, s = outcome(k, var)
-            cache[(k, var.key)] = dict(errors=0, works=w, survives=s, episodes=[])
-            made.append((k, var.key))
+        for k, var, relax in dict.fromkeys(need):
+            if relax:
+                cache[(k, var.key, relax)] = entry(k, var, outcomes(True, lift(k, var, relax[0])), relax)
+            else:
+                w, s = outcome(k, var)
+                cache[(k, var.key, ())] = entry(k, var, outcomes(w, s, ("slip",)))
+            made.append((k, var.key, relax))
 
 
 def test_success_and_survival_share_their_evaluations():
@@ -128,24 +160,27 @@ def test_success_and_survival_share_their_evaluations():
         mu = 0.9 if var.kind is None else var.value
         return mu >= 0.6, mu >= 0.3
 
-    mr, cache, made = synthetic(m, outcome)
-    assert len(made) == len(set(made)) and 9 < len(made) <= 16
+    mr, cache, made = synthetic(m, outcome, lift=lambda k, v, r: True)
+    values = [x for x in made if not x[2]]
+    assert len(made) == len(set(made)) and 9 < len(values) <= 16
     ok, surv = mr.bisects[("walk", "success")], mr.bisects[("walk", "survival")]
     assert ok.result()["threshold"] >= 0.6 > ok.result()["fails"] and surv.result()["threshold"] >= 0.3 > surv.fails
     assert [v for v, _ in ok.trail[:2]] == [v for v, _ in surv.trail[:2]] == [0.9, 0.1]
-    assert made[0] == ("walk/nominal", "nominal")  # the nominal value is the panels' condition as it is
+    assert made[0] == ("walk/nominal", "nominal", ())  # the nominal value is the panels' condition as it is
+    assert [x for x in made if x[2]] == [("walk/nominal", f"friction={surv.fails!r}", ("slip",))]  # LIFT_RULE
     again = ledger.MarginRun(FakeRow(), m, {"walk/nominal": COND["walk/nominal"]}, {})
-    assert again.advance(lambda k, v: cache.get((k, v.key))) == [] and again.done
+    assert again.advance(lookup_of(cache)) == [] and again.done
     assert again.bisects[("walk", "survival")].result() == surv.result()
 
 
 def test_a_value_that_failed_to_run_makes_its_search_wait():
     m = ledger.Margin("kp", "kp", "kp", searches=(ledger.Search("walk", "walk/nominal", "kp", 1.0, 0.25),))
     mr = ledger.MarginRun(FakeRow(), m, {"walk/nominal": COND["walk/nominal"]}, {})
-    cache = {("walk/nominal", "nominal"): dict(errors=1, works=None, survives=None, episodes=[])}
-    assert mr.advance(lambda k, v: cache.get((k, v.key))) == [] and not mr.done
+    cache = {("walk/nominal", "nominal", ()): dict(errors=1, works=None, survives=None, episodes=[])}
+    assert mr.advance(lookup_of(cache)) == [] and not mr.done
     assert mr.waiting == {("walk", "success"), ("walk", "survival")}
-    hard = ledger.MarginRun(FakeRow(hard_only=True), ledger.margins(BODY)[8], {"carpet/low": COND["carpet/low"]}, {})
+    piles = ledger.margins(BODY)[8]
+    hard = ledger.MarginRun(FakeRow(hard_only=True), piles, {k: COND[k] for k in piles.conditions()}, {})
     assert hard.done and hard.bisects == {} and not any(hard.applicable.values())  # R0, R1: no pile search
 
 
@@ -165,22 +200,85 @@ def test_worse_of_two_directions():
 
 
 def test_labels_at_the_fails_end():
-    """LABEL_RULE: success failures by their term classes, falls by their candidates (named, not attributed), falls
-    with no candidate controller-limited; a survival search takes the falls' label."""
-
-    def ep(fell, terms=(), cands=None):
-        return dict(seed=1, fell=fell, succeeded=False, failed_terms=["survived"] if fell else list(terms),
-                    fall_cause="tilt" if fell else None, fall_candidates=cands)
-
-    e = dict(episodes=[ep(False, ("slip_worst", "speed")), ep(False, ("slip_worst",)), ep(True, cands=["slip"])])
+    """LABEL_RULE: success failures by their new terms' classes, falls by LIFT_RULE (body-limited by the lifts under
+    which all 3 seeds survive, else controller-limited; pending until the lifts are known), falls with no candidate
+    controller-limited; the falls' label on a tie (panels.FAILURE_LABEL_RULE); a survival search takes the falls'."""
+    v = ledger.Variant("friction", 0.3)
+    e = entry("walk/nominal", v, [["slip_worst", "speed"], ["slip_worst"], ("fell", ["slip", "joint_range"])])
+    assert ledger.lifts_of(e) == (["slip", "joint_range"], [])
     lab = ledger.binding(e, "success")
     assert lab["label"] == "body-limited: slip_worst" and lab["falls"] == 1 and lab["success_failures"] == 2
-    assert ledger.binding(e, "survival")["label"] == "falls: candidates slip x1 (not attributed: 3 seeds)"
-    e = dict(episodes=[ep(True, cands=[]), ep(True, cands=[]), ep(False, ("speed",))])
-    assert ledger.binding(e, "success")["label"].startswith("controller-limited (falls with no hardware")
-    e = dict(episodes=[ep(False, ("speed", "duty")), ep(False, ("cadence",)), ep(False, ())])
+    assert ledger.binding(e, "survival")["label"] == "falls: lifts of slip, joint_range pending (LIFT_RULE)"
+    lifted = {"slip": entry("walk/nominal", v, ["ok"] * 3, ("slip",)),
+              "joint_range": entry("walk/nominal", v, [("fell", ["slip"]), "ok", "ok"], ("joint_range",))}
+    lab = ledger.binding(e, "survival", lifted=lifted)
+    assert lab["label"] == "body-limited: slip (lifted, all 3 seeds survive)"
+    assert lab["lifts"] == {"slip": dict(survives=True, survived=3), "joint_range": dict(survives=False, survived=2)}
+    lifted["slip"] = lifted["joint_range"]
+    assert ledger.binding(e, "survival", lifted=lifted)["label"].startswith(
+        "controller-limited (lifting slip, joint_range saves none")
+    e = entry("walk/nominal", v, [("fell", ["cop_at_pad_edge_with_ankle_saturated"]), ("fell", []), ["speed"]])
+    lab = ledger.binding(e, "success")
+    assert lab["label"].startswith("controller-limited (falls with no relaxable")
+    assert "untestable: cop_at" in lab["label"]
+    e = entry("walk/nominal", v, [["speed", "duty"], ["cadence"], "ok"])
     assert ledger.binding(e, "success")["label"] == "controller-limited"
+    tie = entry("walk/nominal", v, [["slip_worst"], ("fell", []), "ok"])  # one each: the falls' label
+    assert ledger.binding(tie, "success")["label"].startswith("controller-limited (falls")
     assert ledger.binding(None, "success") is None
+
+
+def test_works_is_judged_against_the_nominal_value():
+    """WORKS_RULE: a value works if no seed falls and none fails a term it passed at nominal; at nominal itself,
+    works is survives (60-N-T-10's R2/42 nominal walk: seed 3042 fails the peak GRF alone); the outright reading is
+    kept beside."""
+    nom = entry("walk/nominal", ledger.NOMINAL, [["grf"], "ok", "ok"])
+    assert nom["succeeds_all"] is False and ledger.works(nom, nom) is True
+    same = entry("walk/nominal", ledger.Variant("kp", 0.5), [["grf"], "ok", "ok"])
+    assert ledger.works(same, nom) is True and same["succeeds_all"] is False
+    assert ledger.works(entry("walk/nominal", ledger.Variant("kp", 0.4), [["grf", "slip_worst"], "ok", "ok"]),
+                        nom) is False
+    assert ledger.works(entry("walk/nominal", ledger.Variant("kp", 0.4), ["ok", ["grf"], "ok"]), nom) is False
+    assert ledger.works(entry("walk/nominal", ledger.Variant("kp", 0.4), ["ok", "ok", ("fell", [])]), nom) is False
+    assert ledger.works(None, nom) is None
+    assert ledger.binding(entry("walk/nominal", ledger.Variant("kp", 0.4), [["grf", "slip_worst"], "ok", "ok"]),
+                          "success", nom)["failed_terms"] == {"slip_worst": dict(count=1, cls="hardware")}
+    m = ledger.Margin("kp", "kp", "kp", searches=(ledger.Search("walk", "walk/nominal", "kp", 1.0, 0.25),))
+
+    def outcome(k, var):
+        f = 1.0 if var.kind is None else var.value
+        return f >= 0.5, True
+
+    cache = {}
+    mr = ledger.MarginRun(FakeRow(), m, {"walk/nominal": COND["walk/nominal"]}, {})
+    while True:
+        need = mr.advance(lookup_of(cache))
+        if not need:
+            break
+        for k, var, _ in need:  # every seed 3042 fails the GRF, as at nominal; below 0.5 seed 3043 slips too
+            w, _ = outcome(k, var)
+            cache[(k, var.key, ())] = entry(k, var, [["grf"], "ok" if w else ["slip_worst"], "ok"])
+    r = mr.bisects[("walk", "success")].result()
+    assert r["status"] == "bisected" and r["threshold"] >= 0.5 > r["fails"]
+
+
+def test_a_point_is_judged_against_its_conditions_nominal_evaluation():
+    """A point needs its condition's nominal evaluation (WORKS_RULE) and its falls' lifts (LIFT_RULE)."""
+    m = ledger.Margin("mass", "mass", "mass", points=(ledger.Point("x", "walk/nominal", "mass", 1.2),))
+    mr = ledger.MarginRun(FakeRow(), m, {"walk/nominal": COND["walk/nominal"]}, {"x": ledger.Variant("mass", 1.2)})
+    need = mr.advance(lookup_of({}))
+    assert [(k, v.key, r) for k, v, r in need] == [("walk/nominal", "mass=1.2", ()), ("walk/nominal", "nominal", ())]
+    cache = {("walk/nominal", "nominal", ()): entry("walk/nominal", ledger.NOMINAL, [["grf"], "ok", "ok"]),
+             ("walk/nominal", "mass=1.2", ()): entry("walk/nominal", ledger.Variant("mass", 1.2),
+                                                     [["grf"], "ok", ("fell", ["leg_drive_at_torque_limit"])])}
+    need = mr.advance(lookup_of(cache))
+    assert [(v.key, r) for _, v, r in need] == [("mass=1.2", ("drive_torque",))] and not mr.done
+    cache[("walk/nominal", "mass=1.2", ("drive_torque",))] = entry("walk/nominal", ledger.Variant("mass", 1.2),
+                                                                   ["ok"] * 3, ("drive_torque",))
+    assert mr.advance(lookup_of(cache)) == [] and mr.done
+    p = ledger._point_results(mr, lookup_of(cache))["x"]
+    assert p["works"] is False and p["survives"] is False and p["works_outright"] is False
+    assert p["binding"]["label"] == "body-limited: drive_torque (lifted, all 3 seeds survive)"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -210,15 +308,22 @@ def test_margins_follow_plan_section_5():
         lat = ms["latency"].searches[0]
         assert (lat.kind, lat.nominal, lat.far, lat.integer) == ("latency_steps", 0, 10, True)
         assert [(s.kind, s.far) for s in ms["mass"].searches] == [("mass", 1.3)]
-        assert [(x.kind, x.value) for x in ms["mass"].points] == [("mass", 1.1)]
-        assert [(s.condition, s.far) for s in ms["pile_damping"].searches] == [("carpet/low", 0.5), ("carpet/low", 2.0)]
+        assert [(x.kind, x.value) for x in ms["mass"].points] == [("mass", 1.1),
+                                                                  ("mass", ledger.ROBOT_MASS_POINT[body])]
+        assert [(s.condition, s.far) for s in ms["pile_damping"].searches] == [
+            ("stand/low", 0.5), ("stand/low", 2.0), ("carpet/low", 0.5), ("carpet/low", 2.0)]
+        assert "plan deviation, decision 33" in ms["stop"].not_run
         assert sorted((x.condition, x.value) for x in ms["voltage"].points) == sorted(
             (c, v) for c in ("walk/nominal", "walk/fr05") for v in (25.2, 22.2, 21.0))
         st0 = ledger.STAGE0[body]
         assert st0["push_forward"] == env.PUSH_BOUND_M_S[body]
         assert ledger.stage0(body, "grip")["values"]["turn"] == st0["grip_turn"]
         assert ledger.stage0(body, "kp")["values"] == {}
-    assert ledger.STAGE0["60-N-H-10"]["grip_walk_brisk"] == 0.41 and ledger.STAGE0["75-M-H-10"]["stop_one_foot"] == 1.41
+    # plan section 5's grip cell per body, walk / turn / brisk (ROUND2_REVIEW.md 7.4 and 7.6)
+    assert [tuple(ledger.STAGE0[b][f"grip_{k}"] for k in ("walk_nominal", "turn", "walk_brisk"))
+            for b in ("60-N-T-10", "60-N-H-10", "75-M-H-10")] == [(0.48, 0.54, 0.75), (0.47, 0.53, 0.73),
+                                                                  (0.36, 0.41, 0.56)]
+    assert ledger.STAGE0["60-N-H-10"]["grip_walk_brisk"] == 0.73 and ledger.STAGE0["75-M-H-10"]["stop_one_foot"] == 1.41
     names = [m.name for m in ledger.select_margins(ledger.margins(BODY), ["model_doubts", "grip"])]
     assert names == ["grip", "kp", "latency", "mass", "pile_damping"]
     with pytest.raises(ValueError):
@@ -229,6 +334,43 @@ def test_margins_follow_plan_section_5():
     assert push.variant(0.0) == ledger.Variant("push_dv", 0.0)  # a zero pulse, not the panels' half bound
     with pytest.raises(ValueError):
         ledger.Variant("gravity", 2.0)
+
+
+def test_stage0_is_the_screens_values():
+    """STAGE0_RULE: every grip, drive speed and drive torque value is the round-two screens' rounded to the plan's
+    digits: the turning screen's single-support friction need (the worse foot; the worse turn direction), the knee's
+    sizing speed ratio (with the 15 % margin, and without it), the worst sustained-torque ratio (the larger of the
+    nominal walk's RMS and the one-foot hold) and the walk's worst RMS ratio."""
+    for body in ledger.BODIES:
+        st0, sc = ledger.STAGE0[body], ledger.screens(body)
+        for k in ("walk_nominal", "turn", "walk_brisk"):
+            assert round(sc["grip"][k], 2) == st0[f"grip_{k}"], (body, k)
+        assert round(sc["drive_speed"]["knee_speed_ratio"], 2) == st0["drive_speed_knee"]
+        assert round(sc["drive_speed"]["knee_peak_over_rated"], 2) == st0["drive_speed_knee_no_margin"]
+        assert round(sc["drive_torque"]["cont_ratio"], 2) == st0["drive_torque_sustained"]
+        assert round(sc["drive_torque"]["walk_rms_ratio"], 2) == st0["drive_torque_walk_rms"]
+        g = ledger.stage0(body, "grip")
+        assert g["values"]["turn_left"] == g["values"]["turn"] == st0["grip_turn"] and g["screens"]["files"]
+        assert ledger.stage0(body, "drive_speed")["without_margin"]["walk_fr05"] == st0["drive_speed_knee_no_margin"]
+        assert ledger.stage0(body, "drive_torque")["walk_rms"]["walk_nominal"] == st0["drive_torque_walk_rms"]
+    assert ledger.screens("75-M-H-10")["drive_torque"]["drive"] == "hip_yaw"  # its 0.77 is the one-foot hold
+    assert ledger.screens("75-M-H-10")["drive_torque"]["by"] == "one-foot hold"
+    assert ledger.screens("75-M-H-10")["drive_torque"]["walk_rms_drive"] == "neck"
+
+
+def test_the_trunk_mass_points():
+    """MASS_RULE: the trunk x 1.1 and the trunk factor that adds 10 % of the robot's mass, from each body's trunk and
+    robot mass (the screened MJCF's trunk body and its subtree, the whole robot)."""
+    for body, (trunk, robot) in ledger.MASSES.items():
+        xml, _ = ledger.plant.model_files(body)
+        m = mujoco.MjModel.from_xml_path(str(xml))
+        t = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "trunk")
+        assert m.body_parentid[t] == 0  # the root: its subtree is the whole robot
+        assert m.body_mass[t] == pytest.approx(trunk, abs=1e-4)
+        assert m.body_subtreemass[t] == pytest.approx(robot, abs=1e-4)
+        f = ledger.ROBOT_MASS_POINT[body]
+        assert (f - 1.0) * trunk / robot == pytest.approx(0.10, abs=5e-4) and 1.2 < f < ledger.MASS_FAR
+        assert 0.04 < 0.1 * trunk / robot < 0.045  # the trunk x 1.1: about +4.3 % of the robot
 
 
 def test_rows_and_the_bus_voltage_rule():
@@ -243,6 +385,39 @@ def test_rows_and_the_bus_voltage_rule():
     assert ledger.bus_changes("75-M-H-10", 25.2)  # its hip pitch is a 48 V drive: credit up to 48 V
     a = catalog.actuator("myactuator_rmd_x4_p36_36_e_l")
     assert a.speed_at(22.2) == pytest.approx(8.04, abs=0.005)  # plan section 5's knee at 22.2 V
+
+
+def test_r3_is_left_out_for_a_body_judged_with_r2(tmp_path, monkeypatch):
+    """ROWS_RULE and train.R2_JUDGED_RULE: 'R3' leaves R3/42 out, with the reason, when the body's seed 42 failed G6c
+    or FIX_RULE stopped one of its R3 runs; R3/42 named explicitly is kept; G6c not reached keeps R3."""
+    from designlab.stage1 import train
+
+    monkeypatch.delenv("STAGE1_POLICY_RUNS", raising=False)
+    root = tmp_path / "run"
+    rd = root / BODY
+    if not (RUN / BODY / "tune.json").exists():
+        pytest.skip("no tune.json in the run directory")
+    rd.mkdir(parents=True)
+    (rd / "tune.json").write_text((RUN / BODY / "tune.json").read_text())
+
+    def run(seed, **doc):
+        d = train.run_dir_of(root, BODY, "R3", seed)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "run.json").write_text(json.dumps(dict(dict(status="running", g6={}), **doc)))
+
+    run(42)
+    run(43)
+    left = {}
+    assert ledger.resolve_rows(BODY, rd, ("R2", "R3"), left)[-1] == "R3/42" and left == {}
+    run(42, g6=dict(G6c=dict(at_steps=2506752, pass_=False)))
+    assert ledger.resolve_rows(BODY, rd, ("R2", "R3"), left) == ["R2/42"] and "G6c" in left["R3/42"]
+    assert ledger.resolve_rows(BODY, rd, ("R3/42",)) == ["R3/42"]
+    run(42, g6=dict(G6c=dict(at_steps=2506752, pass_=True)))
+    run(43, status="stopped_g6b", stopped=dict(at_steps=2015232, reason="G6b failed again after the fix (FIX_RULE)"))
+    left = {}
+    assert ledger.resolve_rows(BODY, rd, ("R3",), left) == [] and "R3/43 stopped" in left["R3/42"]
+    j = train.judged_checkpoint(root, "R3")
+    assert set(j["left_out"]) == {f"{BODY}/42", f"{BODY}/43"} and j["runs"][f"{BODY}/43"]["left_out"]
 
 
 def test_new_modules_leave_the_existing_keys():
@@ -411,6 +586,10 @@ def test_the_nominal_evaluation_is_the_panels_episode(worker):
     for k in ledger.EPISODE_KEYS:
         assert a[k] == e[k], k
     assert a["cpu_s"] > 0 and "error" not in a
+    lifted = worker.evaluate(("R2/42", walk, None, None, ("slip",)), 3043)  # LIFT_RULE: the panels' relaxation
+    e = rows["R2/42"].run(panels.Context(BODY, RUN / BODY, docs), walk, 3043, ("slip",))
+    assert all(lifted[k] == e[k] for k in ledger.EPISODE_KEYS) and lifted["relaxed"] == ["slip"]
+    assert worker.ctx.plant("hard", None).m.geom_friction[0, 0] != control.CF_FRICTION  # restored
     r3 = panels.TrackerRow("R3/zero", "R2", rows["R2/42"].gains, rows["R2/42"].gains_info,
                            policy=panels.ZeroResidual())
     worker.rows["R3/zero"] = r3
@@ -462,8 +641,17 @@ def test_a_tiny_sweep_writes_records_and_resumes(tmp_path, r3_stand_in, monkeypa
     recs = {r: json.loads(ledger.record_path(tmp_path, BODY, r, "kp").read_text()) for r in ("R2/42", "R3/42")}
     a, b = recs["R2/42"], recs["R3/42"]
     assert a["status"] == b["status"] == "done" and a["cut_s"] == 0.6 and a["halvings"] == 1
-    assert a["searches"]["walk_nominal"]["success"]["status"] == "fails at nominal"  # cut before the walk's window
-    assert a["summary"] == b["summary"]
+    # cut before the walk's window every seed fails the same terms at every kp: works (WORKS_RULE) is survives
+    ws = a["searches"]["walk_nominal"]
+    assert ws["success"]["status"] == ws["survival"]["status"] == "works across the interval"
+    nominal = a["evaluations"]["walk/nominal|nominal"]
+    assert nominal["succeeds_all"] is False and nominal["survives"] and nominal["variant"] == ledger.NOMINAL.describe()
+    assert set(a["evaluations"]) == {"walk/nominal|nominal", "walk/nominal|kp=0.25"}
+    assert a["summary"] == b["summary"] and a["panel_sources"] == panels.panel_sources()["sha256"]
+    from designlab.stage1 import report  # LEDGER_TABLE_RULE: the report recomputes the same panel keys
+
+    assert report.current_panel_keys(RUN, BODY, "R2/42", ["walk/nominal"], 0.6) == a["key"]["panel_keys"]
+    assert report.current_panel_keys(RUN, BODY, "R2/42", ["walk/nominal"]) != a["key"]["panel_keys"]  # uncut
     for e in a["evaluations"].values():
         assert e["seeds"] == [3042, 3043, 3044] and len(e["episodes"]) == 3 and e["errors"] == 0
         assert e["valid"] and e["cpu_s"] > 0
@@ -495,6 +683,44 @@ def test_a_tiny_sweep_writes_records_and_resumes(tmp_path, r3_stand_in, monkeypa
 
 
 @needs_run
+def test_lifts_are_recorded_and_resumed(tmp_path):
+    """LIFT_RULE through a Session (synthetic evaluations, no episode): the fails end's falls are lifted once for
+    both criteria, the lift is recorded under its own id and key, labels the threshold, and a new session reloads it
+    (RESUME_RULE: the key holds the relaxation)."""
+    ses = ledger.Session(BODY, tmp_path, rows=("R2",), names=("kp",), inputs=RUN)
+    row, m = "R2/42", ses.margins[0]
+
+    def fill(s):
+        made = []
+        while True:
+            need = s.advance()
+            if not need:
+                return made
+            for key, (r, k, var, relax) in need.items():
+                f = 1.0 if var.kind is None else var.value
+                outs = ["ok"] * 3 if relax or f >= 0.5 else [("fell", ["slip"]), ["grf"], "ok"]
+                e = entry(k, var, outs, relax)
+                e["valid"] = s.valid(r, k, var, relax)
+                s.cache[key] = e
+                made.append(key)
+
+    made = fill(ses)
+    lifts = [k for k in made if k[3]]
+    assert len(lifts) == 1 and lifts[0][3] == ("slip",)
+    rec = ses.record(row, m, dict(commit="x"), dict(started_at="now"))
+    res = rec["searches"]["walk_nominal"]
+    assert rec["status"] == "done" and res["success"]["fails"] == res["survival"]["fails"] < 0.5
+    lift_id = f"walk/nominal|kp={res['survival']['fails']!r}|lift=slip"
+    assert [i for i in rec["evaluations"] if "|lift=" in i] == [lift_id]
+    for crit in ("success", "survival"):
+        assert res[crit]["binding"]["label"] == "body-limited: slip (lifted, all 3 seeds survive)", crit
+    assert ses.valid(row, "walk/nominal", ledger.NOMINAL, ("slip",)) != ses.valid(row, "walk/nominal", ledger.NOMINAL)
+    panels._write_json(ledger.record_path(tmp_path, BODY, row, "kp"), rec)
+    again = ledger.Session(BODY, tmp_path, rows=("R2",), names=("kp",), inputs=RUN)
+    assert again.advance() == {} and again.runs[(row, "kp")].done and len(again.cache) == len(made)
+
+
+@needs_run
 def test_dry_run_counts(tmp_path):
     """The dry run lists every search with its condition and the episodes it can still need (success alone at least,
     both criteria at most), points once, the stop not run; nothing runs."""
@@ -509,6 +735,8 @@ def test_dry_run_counts(tmp_path):
     assert len(v) == 6 and all(x["episodes_max"] == 3 for x in v)
     assert {x["variant"]["kind"] for x in v if x["point"] == 25.2} == {None}  # the 24 V drives get no credit
     assert lines[("stop", None)]["status"] == "not run" and doc["totals"]["episodes_min"] == 4 * 27 + 18 + 18
+    assert g["lifts_max"] == 2 * len(control.RELAXATIONS) and lines[("stop", None)]["lifts_max"] == 0  # LIFT_RULE
+    assert doc["totals"]["lift_episodes_max"] == 3 * (5 * 2 * len(control.RELAXATIONS) + 6 * len(control.RELAXATIONS))
     assert not (tmp_path / BODY).exists()
 
 
@@ -523,18 +751,25 @@ def test_sweep_command_line(tmp_path, capsys, monkeypatch):
                 "--inputs", str(RUN), "--out", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert "R2/42" in out and "walk/nominal" in out and "not run" in out and not (tmp_path / BODY).exists()
+    from designlab.stage1 import __main__ as main_mod
+
+    monkeypatch.setattr(main_mod, "round_two_models", lambda body: False)  # a checkout without round2's models
+    with pytest.raises(SystemExit, match="round2/refine"):
+        cli(["sweep", "--body", BODY, "--rows", "R2", "--margins", "stop", "--inputs", str(RUN), "--out",
+             str(tmp_path)])
+    assert not (tmp_path / BODY).exists()
     assert cli(["sweep", "--body", BODY, "--rows", "R2", "--margins", "stop", "--inputs", str(RUN), "--out",
-                str(tmp_path)]) == 0
+                str(tmp_path), "--allow-rebuilt-models"]) == 0
     assert ledger.record_path(tmp_path, BODY, "R2/42", "stop").exists()
     monkeypatch.setattr(panels, "ROW_FACTORIES", {})
     monkeypatch.setenv(policy_rows.RUNS_ENV, str(tmp_path / "no_training_run"))
     with pytest.raises(SystemExit, match="PPO venv"):
         cli(["sweep", "--body", BODY, "--rows", "R3/42", "--margins", "stop", "--inputs", str(RUN), "--out",
-             str(tmp_path)])
+             str(tmp_path), "--allow-rebuilt-models"])
     assert panels.ROW_FACTORIES["R3"] is policy_rows.r3_row
     with pytest.raises(SystemExit, match="row-module"):
         cli(["sweep", "--body", BODY, "--rows", "R5/1", "--margins", "stop", "--inputs", str(RUN), "--out",
-             str(tmp_path)])
+             str(tmp_path), "--allow-rebuilt-models"])
 
 
 def test_the_ledgers_r3_is_the_policy_rows_row(monkeypatch):
@@ -555,7 +790,7 @@ def test_the_ledgers_r3_is_the_policy_rows_row(monkeypatch):
 
     monkeypatch.setattr(panels, "ROW_FACTORIES", {"R3": other})
     assert ledger.register_policy_rows(["R3/42", "R4/42"]) == ["R4"] and panels.ROW_FACTORIES["R3"] is other
-    assert ledger.DEFAULT_ROWS == ("R2", "R3/42") and ledger.R3_ROW == "R3/42"
+    assert ledger.DEFAULT_ROWS == ("R2", "R3") and ledger.R3_ROW == "R3/42"
 
 
 @needs_run
