@@ -520,3 +520,20 @@ the code as a rule that every record carries.
     A run that has not reached 2.5M steps by 01:00 trains on alone until it does, but not past 01:30. Every mode is then
     judged at the last checkpoint all of its runs reached (`train.JUDGED_RULE`, `train.R2_JUDGED_RULE`). R3 thus
     trains about 2.5M of the 4M steps planned and R4 fewer (decision 29). The report states both.
+36. **Restart after the machine went down** (about 20:37 UTC). The machine restarted, probably because memory ran out.
+    The panels and the ledger keep every built condition's simulation in memory for the life of a process. With nine
+    training jobs, three panel processes and three ledger processes, free memory had fallen to about 3 GB and was
+    dropping by about 70 MB a minute.
+
+    Every job stopped, but the checkpoints and the finished records survived: R3 at 1,253,376–1,507,328 steps, R4 at
+    1,253,376–1,507,328, every R2 panel and part of R1's. To fit the cap (this supersedes decision 35's stop time):
+    - **R4** stops where it is and is judged at its last common checkpoint, 1,253,376 steps (decision 28's ablation).
+      The report states the short budget.
+    - **R3.** The six runs resume alone on the 4 cores, by 01:00 at the latest. Each runs until it has its G6c record at
+      2,506,752 steps, passing `G6b_after_fix` at 2,015,232 on the way. R3 is judged at 2,506,752, or with R2 where
+      `G6b_after_fix` or G6c fails.
+    - **Then the evaluations:** the policy rows' panels, R3's and R2's ledgers, and the rest of R1 and R0.
+      - Each panel process runs one behaviour group and exits.
+      - At most seven processes run at a time.
+      - A guard stops the largest evaluation process if free memory falls below 1.5 GB. Its finished records stay, and
+        its work resumes.
