@@ -92,11 +92,12 @@ robustness, **LOW** = cosmetic / QoL.
   −2.30), at the r5 statue's cliff (40/40 to σ 0.09, 38/40 at 0.10, 19/40 at
   0.135, 0/40 from 0.20), and every statue constant was re-measured on it.
   Still open: the per-site load shaping (with the T. rex's LTSB recipe, a
-  later change; `docs/NEXT_STEPS.md`), the settle-peak bar, which on r5 the
-  statue under N(0, 0.05) command noise breaks on 30 of 40 seeds while the
-  impact term prices only from 3.0 body weights (kept and flagged in
-  `stance.toml`; moving it is a gate decision), and this entry until a
-  velociraptor stance certifies on r5: nothing has trained on it.
+  later change; `docs/NEXT_STEPS.md`) and this entry until a velociraptor
+  stance certifies on r5: nothing has trained on it. The settle-peak bar,
+  which on r5 the statue under N(0, 0.05) command noise breaks on 30 of 40
+  seeds while the impact term prices only from 3.0 body weights, stays at
+  2.0 by the maintainer's decision of 2026-11-09, as a settle-window chatter
+  screen (it admits σ 0.02–0.03; `stance.toml`).
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in

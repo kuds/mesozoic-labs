@@ -35,9 +35,9 @@ the declaration in the ways that each fail differently:
    settle peak no longer does: the jittered r5 statue is clean on 39/40 seeds
    at sigma 0.03 and 10/40 at 0.05, all 30 refusals
    ``max_settle_peak_floor_force_bw`` (median 2.11, worst 2.59 BW against
-   2.0).  The bar is kept and flagged in stance.toml: moving it is a gate
-   decision (stage 2 of the life-size port, the maintainer's decision of
-   2026-11-08).
+   2.0).  The bar stays at 2.0 as a settle-window chatter screen (it admits
+   sigma 0.02-0.03), by the maintainer's decision of 2026-11-09; the
+   life-size port is the maintainer's decision of 2026-11-08.
 5. **The bar and the rails agree with the numbers they were derived from**,
    recomputed here rather than copied: the bound admits 37/40 and refuses
    36/40, the reward rail is its fraction of the statue reference the stage

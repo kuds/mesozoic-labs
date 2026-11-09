@@ -375,8 +375,14 @@ timesteps = 12000000
 # command noise (the noisy start crosses 3 BW; floor_impact_threshold_bw), so
 # a stance that jitters like that is refused on a peak its reward, priced
 # from 3.0 BW, does not shape. The foot bars stay mid-gap (duty 0.621 and
-# coverage 0.873 at 0.05). Kept, for the maintainer to decide: the hacks the
-# bars were set against load only on r2, so no r5 separation can be measured.
+# coverage 0.873 at 0.05). Kept at 2.0 by the maintainer's decision of
+# 2026-11-09, as a settle-window chatter screen: it admits white command noise
+# up to sigma 0.02-0.03 (0/40 and 1/40 over), more than T. rex stances that
+# passed their certificate needed (the r9 stance5 LTSB s52 and s60 screens
+# settle between their statue's sigma 0.01 and 0.02 peaks), and
+# the certificate rolls the deterministic policy, so the training std never
+# enters a judged episode. The hacks the bars were set against load only on
+# r2, so no r5 separation can be measured.
 #
 # Superseded, kept for the record as it read under reward_and_length/v1:
 # min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.
@@ -443,7 +449,7 @@ max_settle_peak_floor_force_bw = 2.0     # Peak total floor force in steps 10-99
                                          # 1.163 (1.177 out of sample; its reset pop, up to 2.46, ends inside the
                                          # spawn grace), but its jittered statue peaks at 2.02 at sigma 0.03 (1 of
                                          # 40 over) and 2.59 at 0.05 (30 of 40 over): on r5 this bar is no longer
-                                         # mid-gap (above).
+                                         # mid-gap, and it is kept as a chatter screen (above; 2026-11-09).
 min_support_geom_duty = 0.50             # The flatness bar of a foot with no box sole: the least-loaded support geom
                                          # of either foot (toe_d3, toe_d4 and the metatarsus; since r5 the MTP pad,
                                          # digit III and digit IV; the gait library's

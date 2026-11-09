@@ -2756,28 +2756,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (stagger, the centre-of-pressure band, lateral lean, the settled leg
     reference at 1.0 / 0.05, mirror-KL PPO) and the per-site load floor
     measured on the r4 handoffs; this change builds the body.
-  - **Open, for the maintainer:** `max_settle_peak_floor_force_bw` (2.0) is
-    no longer mid-gap on r5: the statue under N(0, 0.05) command noise
-    fails it on 30 of 40 seeds (median 2.11, worst 2.59 body weights), and
-    the impact term prices only from 3.0, so no reward steers a policy away
-    from it; it is kept and flagged in `stance.toml`, since moving it is a
-    gate decision. `MEASUREMENT_VERSION` is not bumped: it is global, and
-    the velociraptor's own digests already refuse every r4 panel (its
-    `measurement_definition_sha256` and the gate's registry-block check),
-    though the rule `gait/constants.py` and `floor_contact/morphology.py`
-    state asks for a bump on any edit to a model's registry entry after its
-    stance adopts `stance_quality/v2` (the velociraptor's did with physics
-    r3, D-D25): either the rule is amended or the version moves to
-    `floor-truth/v3`. Two departures from the prototype's design brief that
-    no ruling has accepted: the tail's gravity torque sits in spring
-    preloads on its pitch joints, not in the home control as on the neck,
-    so each tail servo reaches 84–90% of its range (31–56% on its weaker
-    side on the k 20 build with the preload in the control); and 0.40 kg
-    moved from the trunk to the tail (tail 2.05 kg, trunk 7.1, where the
-    brief gave 1.65 and 7.5), which keeps the centre of mass inside Macaulay
-    et al. 2023's band. The statue pays 0.10 per episode for its airborne
-    substeps at the spawn (r4 nothing), before a foot lands, which no
-    command reaches.
+  - **Decided (the maintainer's decisions of 2026-11-09):**
+    `max_settle_peak_floor_force_bw` stays 2.0. It is no longer mid-gap on
+    r5 (the statue under N(0, 0.05) command noise fails it on 30 of 40
+    seeds, median 2.11, worst 2.59 body weights, and the impact term prices
+    only from 3.0), but it is kept as a settle-window chatter screen: it
+    admits white command noise up to σ 0.02–0.03 (0/40 and 1/40 over), and
+    the certificate rolls the deterministic policy. `MEASUREMENT_VERSION`
+    stays `floor-truth/v2`, and the rule in `gait/constants.py` and
+    `floor_contact/morphology.py` is amended: editing one model's registry
+    entry after its stance adopts `stance_quality/v2` (the velociraptor's
+    did with physics r3, D-D25) moves that model's
+    `measurement_definition_sha256`, which the gate's registry block and
+    publication already refuse, so it needs no global bump; the bump stays
+    for changes to the constants, the registry's schema or a metric
+    definition, and no other species' panel or certificate moves. Two
+    departures from the prototype's design brief are accepted: the tail's
+    gravity torque sits in spring preloads on its pitch joints, not in the
+    home control as on the neck, so each tail servo reaches 84–90% of its
+    range (31–56% on its weaker side on the k 20 build with the preload in
+    the control); and 0.40 kg moved from the trunk to the tail (tail
+    2.05 kg, trunk 7.1, where the brief gave 1.65 and 7.5), which keeps the
+    centre of mass inside Macaulay et al. 2023's band. The metatarsus shaft
+    stays collidable: it meets the floor only in violent collapses (2–3
+    live steps in 300 episodes at σ 1.0, none at σ 0.3).
+  - **Still open:** the review's R7 (the nosedive threshold as a
+    constructor argument; `docs/KNOWN_ISSUES.md`). The statue pays 0.10
+    per episode for its airborne substeps at the spawn (r4 nothing), before
+    a foot lands, which no command reaches.
   - **Tests:** the velociraptor's tests and the shared ones that pinned r4
     facts are re-pinned on r5, each number measured, and the T. rex's plant
     acceptance tests are ported: lateral sway, the passive preloads carrying
