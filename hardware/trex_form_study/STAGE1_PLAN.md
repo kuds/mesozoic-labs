@@ -338,6 +338,18 @@ change no body (P24).
     - **When.** Both run at the first rollout start at or past the plan's 1M and 2.5M steps.
 28. **R4.** One seed (42) per body, with R3's settings, floors and budget. R4 is judged over its own runs. G6 does not
     apply to R4, because G6 compares a policy with R2.
+29. **Training order, priority and stop** (decided during training). Plan §3 trains seed 42, then 43, but the cap
+    does not allow that order. All nine runs (R3 seeds 42 and 43 and R4 seed 42, on each body) therefore started
+    together at 13:51 UTC on the 4 cores. G6c's consequence ("skip seed 43 and judge with R2") then stops seed 43's
+    run if seed 42 fails G6c.
+
+    At 15:00 the work left exceeded the time left before the cap: PPO at the measured rates (R3 76–87 env steps/s per
+    job and R4 105–121, with nine jobs sharing), the panels, and the margin ledger. So:
+    - R4, the ablation, runs at a lower CPU priority (nice 4) than R3, so that R3 reaches more of its budget.
+    - Training stops at 03:00 UTC at the latest, leaving the policy rows' panels and the report time before 08:00.
+
+    Each mode is then judged at the last checkpoint all of its runs reached (`train.JUDGED_RULE`, decision 21). R4's
+    may be lower than R3's, and the report says so.
 
 ### Decisions taken for the panels (9 Nov)
 
