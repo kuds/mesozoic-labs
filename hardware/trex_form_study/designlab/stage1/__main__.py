@@ -17,6 +17,10 @@ Run from hardware/trex_form_study:
                                     [--conditions walk/nominal,...] [--workers 1] [--attribute] [--dry-run]
                                     [--episodes 20] [--row-module MODULE] [--no-traces] [--inputs DIR]
                                     --out stage1/runs/2026-11-08
+  python -m designlab.stage1 sweep   --body 60-N-T-10 [--body ...] [--rows R2,R3/42] [--margins grip,push,...]
+                                    [--workers 1] [--dry-run] [--no-measure] [--row-module MODULE] [--inputs DIR]
+                                    --out stage1/runs/2026-11-08
+  python -m designlab.stage1 report  --out stage1/runs/2026-11-08 [--dest DIR] [--body ...]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
@@ -58,7 +62,13 @@ G7 in ``<out>/<body>/eval/summary.json``; plan section 7's ``--seed`` is a row h
 up to date is skipped and an episode that failed to run is run again (``panels.RESUME_RULE``); ``--row-module``
 imports a module that adds rows (``panels.register_rows``: the R3 and R4 rows); ``--dry-run`` lists every episode and
 estimates the core-hours from a cost per simulated second measured on each floor (``panels.COST_RULE``).
-``sweep``, ``report`` and ``all`` are later steps of the plan (8-9) and are not implemented yet.
+``sweep`` is plan section 5's margin ledger (``ledger``): each margin bisected to failure on the rows R2 (the body-level
+G5 selection's CMA-ES seed, ``--rows R2``) and R3/42 (a row of ``--row-module``'s), on seeds 3042-3044, one record per
+row and margin in ``<out>/<body>/sweeps/<row>/<margin>.json``, resumed from the evaluations the records hold
+(``ledger.RESUME_RULE``); ``--dry-run`` lists every search with the episodes it can still need and their cost
+(``ledger.COST_RULE``).  ``report`` writes the machine-made tables of plan section 8 (``report``) from whatever records
+``--out`` holds into ``<dest>/STAGE1_TABLES.md`` and ``<dest>/stage1_tables.json`` (``--dest`` default: ``--out``).
+``all`` is not implemented yet.
 """
 
 from __future__ import annotations
@@ -79,9 +89,7 @@ import designlab  # noqa: E402,F401  (selects the offscreen GL backend before mu
 
 from . import BODIES  # noqa: E402
 
-LATER = {"sweep": "plan section 3 step 8 (margin sweeps)",
-         "report": "plan section 3 step 9 (STAGE1_PROBE.md)",
-         "all": "every step of plan section 3"}
+LATER = {"all": "every step of plan section 3"}
 #: PPO env steps per second at 50 Hz on 2 ms physics are at most a tenth of the physics rate (plan section 3, G6a).
 ENV_SUBSTEPS = 10
 G6A_ENV_STEPS_PER_S = 600
@@ -358,6 +366,39 @@ def _evaluation(a) -> int:
     return 0
 
 
+def _sweeping(a) -> int:
+    """``sweep`` (plan section 5's margin ledger, ``ledger``), or its dry run."""
+    from . import ledger
+
+    for mod in a.row_module or ():
+        importlib.import_module(mod)  # it registers its rows (panels.register_rows)
+    rows = tuple(x for x in a.rows.split(",") if x)
+    names = tuple(a.margins.split(",")) if a.margins else None
+    for body in a.body:
+        try:
+            if a.dry_run:
+                ledger.dry_run(body, Path(a.out), rows, names, a.inputs, a.cut_seconds, a.halvings,
+                               measure=not a.no_measure, workers=a.workers, log=lambda msg: print(msg, flush=True))
+                continue
+            ledger.sweep(body, Path(a.out), rows, names, a.workers, a.inputs, a.cut_seconds, a.halvings,
+                         log=lambda msg: print(msg, flush=True))
+        except ValueError as exc:
+            if "register_rows" in str(exc):
+                raise SystemExit(f"{exc}\n(the R3 and R4 rows come from their own module: pass --row-module, e.g. "
+                                 "--row-module designlab.stage1.policy_rows, or --rows R2)") from None
+            raise
+    return 0
+
+
+def _reporting(a) -> int:
+    """``report`` (plan section 8's tables, ``report``)."""
+    from . import report
+
+    doc = report.write(Path(a.out), Path(a.dest) if a.dest else None, tuple(a.body) if a.body else None)
+    print(f"{doc['paths']['markdown']} and {doc['paths']['json']} written ({', '.join(doc['bodies'])})", flush=True)
+    return 0
+
+
 def main(argv=None) -> int:
     from . import gates, plant, tune
 
@@ -412,6 +453,29 @@ def main(argv=None) -> int:
     ep.add_argument("--no-traces", action="store_true", help="write no 50 Hz episode traces (panels.TRACE_RULE)")
     ep.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: --out)")
     ep.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-08")
+    sp = sub.add_parser("sweep", help="plan section 5: the margin ledger (each margin bisected to failure)")
+    sp.add_argument("--body", action="append", choices=sorted(BODIES), required=True)
+    sp.add_argument("--rows", default="R2,R3/42",
+                    help="comma-separated rows (default: R2,R3/42; R2 is the body-level G5 selection's CMA-ES seed)")
+    sp.add_argument("--margins", default=None, help="comma-separated margins (default: all of grip, push, stop, "
+                                                    "drive_speed, drive_torque, kp, latency, mass, pile_damping, "
+                                                    "voltage; model_doubts names kp, latency, mass and pile_damping)")
+    sp.add_argument("--workers", type=int, default=1, help="episode processes (default 1)")
+    sp.add_argument("--dry-run", action="store_true", help="list the searches and estimate the core-hours; run none")
+    sp.add_argument("--no-measure", action="store_true", help="dry run without measuring the cost per simulated s")
+    sp.add_argument("--row-module", action="append", default=None,
+                    help="a module to import first that adds rows (panels.register_rows), e.g. the R3 rows'")
+    sp.add_argument("--cut-seconds", type=float, default=None,
+                    help="cut every condition to this many simulated seconds (a smoke check; its keys differ)")
+    sp.add_argument("--halvings", type=int, default=7, help="halvings per search (default 7, the plan's; fewer is a "
+                                                            "smoke check)")
+    sp.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: --out)")
+    sp.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-08")
+    rp = sub.add_parser("report", help="plan section 8: the machine-made tables from whatever records exist")
+    rp.add_argument("--out", required=True, help="the run directory to read, e.g. stage1/runs/2026-11-08")
+    rp.add_argument("--dest", default=None, help="where STAGE1_TABLES.md and stage1_tables.json go (default: --out)")
+    rp.add_argument("--body", action="append", choices=sorted(BODIES), default=None,
+                    help="a body to report (default: every body)")
     for name in ("tune", "g5"):
         p = sub.add_parser(name)
         p.add_argument("--body", choices=sorted(BODIES), required=True)
@@ -462,10 +526,15 @@ def main(argv=None) -> int:
         return _training(a)
     if a.cmd == "eval":
         return _evaluation(a)
+    if a.cmd == "sweep":
+        return _sweeping(a)
+    if a.cmd == "report":
+        return _reporting(a)
     if a.cmd in LATER:
         raise NotImplementedError(f"'{a.cmd}' is {LATER[a.cmd]}, not implemented yet; this package implements plan "
                                   "section 3 steps 2-7 (prepare: plant, references and transitions; gates G1-G4; "
-                                  "tune and g5; train) and step 8's behaviour panels (eval)")
+                                  "tune and g5; train), step 8's behaviour panels (eval) and margin ledger (sweep), "
+                                  "and step 9's tables (report)")
     plant_kw = dict(ankle_gains=a.ankle_gains, ankle_armature=a.ankle_armature)
     status = 0
     for body in a.body:
