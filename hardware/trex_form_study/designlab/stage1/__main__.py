@@ -13,6 +13,9 @@ Run from hardware/trex_form_study:
                                     [--out stage1/runs/2026-11-08]
   python -m designlab.stage1 judge   [--mode R3|R4] [--final] [--out stage1/runs/2026-11-08]
   python -m designlab.stage1 noise   [--body 75-M-H-10] [--tune-json PATH] [--out stage1/runs/2026-11-08]
+  python -m designlab.stage1 eval    --body 60-N-T-10 [--body ...] [--rows R0,R1,R2/42,R2/43] [--behaviors stand,...]
+                                    [--conditions walk/nominal,...] [--workers 1] [--attribute] [--dry-run]
+                                    [--episodes 20] [--inputs DIR] --out stage1/runs/2026-11-08
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
@@ -45,7 +48,13 @@ tune.json's body-level G5 selection (``env.GAINS_RULE``) and is refused without 
 ``judge`` writes the checkpoint every run of a mode is judged at (``train.JUDGED_RULE``; ``--final`` once the stage's
 cap stopped training) into their run.json; ``noise`` measures R3's survival under the initial action noise
 (``train.action_noise_survival``) into ``<out>/ppo_action_noise.json``, the record ``policy.LOG_STD_INIT`` comes from.
-``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (8-9) and are not implemented yet.
+``eval`` is plan section 3 step 8's behaviour panels (``panels``): the rows R0 and R1 (hard floor) and R2/42 and
+R2/43 (every condition) on every condition of plan section 4, 20 episodes each (seeds 3042-3061), one record per row and
+condition in ``<out>/<body>/eval/<row>/<behavior>/<condition>.json`` and the grid with the verdicts and gate G7 in
+``<out>/<body>/eval/summary.json``; ``--attribute`` adds decision 20's fall attribution to the R2 rows' conditions with
+falls; a condition whose record is up to date is skipped (``panels.RESUME_RULE``); ``--dry-run`` lists every episode and
+estimates the core-hours from a cost per simulated second measured on each floor (``panels.COST_RULE``).
+``sweep``, ``report`` and ``all`` are later steps of the plan (8-9) and are not implemented yet.
 """
 
 from __future__ import annotations
@@ -65,8 +74,7 @@ import designlab  # noqa: E402,F401  (selects the offscreen GL backend before mu
 
 from . import BODIES  # noqa: E402
 
-LATER = {"eval": "plan section 3 step 8 (evaluation panels)",
-         "sweep": "plan section 3 step 8 (margin sweeps)",
+LATER = {"sweep": "plan section 3 step 8 (margin sweeps)",
          "report": "plan section 3 step 9 (STAGE1_PROBE.md)",
          "all": "every step of plan section 3"}
 #: PPO env steps per second at 50 Hz on 2 ms physics are at most a tenth of the physics rate (plan section 3, G6a).
@@ -325,6 +333,24 @@ def _training(a) -> int:
     return 0
 
 
+def _evaluation(a) -> int:
+    """``eval`` (plan section 3 step 8): the behaviour panels (``panels``), or their dry run."""
+    from . import panels
+
+    rows = tuple(x for x in a.rows.split(",") if x)
+    behaviors = tuple(a.behaviors.split(",")) if a.behaviors else None
+    names = tuple(a.conditions.split(",")) if a.conditions else None
+    for body in a.body:
+        if a.dry_run:
+            panels.dry_run(body, Path(a.out), rows, behaviors, names, a.episodes, a.inputs, measure=not a.no_measure,
+                           log=lambda msg: print(msg, flush=True))
+            continue
+        doc = panels.evaluate(body, Path(a.out), rows, behaviors, names, a.workers, a.attribute, a.episodes, a.inputs,
+                              log=lambda msg: print(msg, flush=True))
+        print(panels.summary_text(doc), flush=True)
+    return 0
+
+
 def main(argv=None) -> int:
     from . import gates, plant, tune
 
@@ -362,6 +388,20 @@ def main(argv=None) -> int:
     npr.add_argument("--body", choices=sorted(BODIES), default="75-M-H-10")
     npr.add_argument("--tune-json", default=None, help="the G5 record (default: <out>/<body>/tune.json)")
     npr.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")
+    ep = sub.add_parser("eval", help="plan section 3 step 8: the behaviour panels of R0, R1 and R2, and G7")
+    ep.add_argument("--body", action="append", choices=sorted(BODIES), required=True)
+    ep.add_argument("--rows", default="R0,R1,R2/42,R2/43", help="comma-separated rows (default: R0,R1,R2/42,R2/43)")
+    ep.add_argument("--behaviors", default=None, help="comma-separated behaviours (default: all of stand, walk, turn, "
+                                                      "start_stop, push, carpet)")
+    ep.add_argument("--conditions", default=None, help="comma-separated conditions, e.g. walk/nominal (default: all)")
+    ep.add_argument("--workers", type=int, default=1, help="episode processes (default 1)")
+    ep.add_argument("--attribute", action="store_true", help="decision 20's fall attribution of the R2 rows' falls")
+    ep.add_argument("--dry-run", action="store_true", help="list the episodes and estimate the core-hours; run none")
+    ep.add_argument("--no-measure", action="store_true", help="dry run without measuring the cost per simulated s")
+    ep.add_argument("--episodes", type=int, default=20,
+                    help="seeds per condition from 3042 (default 20; fewer is a smoke check, not judged)")
+    ep.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: --out)")
+    ep.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-08")
     for name in ("tune", "g5"):
         p = sub.add_parser(name)
         p.add_argument("--body", choices=sorted(BODIES), required=True)
@@ -410,10 +450,12 @@ def main(argv=None) -> int:
         return _tuning(a)
     if a.cmd in ("train", "judge", "noise"):
         return _training(a)
+    if a.cmd == "eval":
+        return _evaluation(a)
     if a.cmd in LATER:
         raise NotImplementedError(f"'{a.cmd}' is {LATER[a.cmd]}, not implemented yet; this package implements plan "
                                   "section 3 steps 2-7 (prepare: plant, references and transitions; gates G1-G4; "
-                                  "tune and g5; train)")
+                                  "tune and g5; train) and step 8's behaviour panels (eval)")
     plant_kw = dict(ankle_gains=a.ankle_gains, ankle_armature=a.ankle_armature)
     status = 0
     for body in a.body:

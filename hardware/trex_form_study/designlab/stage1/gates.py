@@ -839,10 +839,12 @@ def sign_test(base: list[dict], other: list[dict]) -> dict:
     return dict(better=better, worse=worse, tied=tied, p=float(p))
 
 
-def attribute(baseline: list[dict], lifted: dict, null: list[dict], candidates: list[str], together=None) -> dict:
+def attribute(baseline: list[dict], lifted: dict, null: list[dict] | None, candidates: list[str],
+              together=None) -> dict:
     """Decision 20 (``ATTRIBUTION_RULE``) on a failing condition: ``baseline`` its 20 runs, ``lifted`` relaxation ->
-    the same starts with that hardware limit lifted from the start, ``null`` the starts changed by 1 mm/s,
-    ``candidates`` the hardware limits its falls had, ``together`` the starts with every relaxable candidate lifted."""
+    the same starts with that hardware limit lifted from the start, ``null`` the starts changed by 1 mm/s (None: not
+    run; it is a diagnostic and does not change the label), ``candidates`` the hardware limits its falls had,
+    ``together`` the starts with every relaxable candidate lifted."""
     from . import control
 
     def side(rows):
@@ -852,8 +854,10 @@ def attribute(baseline: list[dict], lifted: dict, null: list[dict], candidates: 
     tests = {r: dict(side(rows), sign_test=sign_test(baseline, rows)) for r, rows in lifted.items()}
     for t in tests.values():
         t["significant"] = bool(t["sign_test"]["p"] < ATTRIBUTION_ALPHA)
-    nt = dict(side(null), offset_m_s=ATTRIBUTION_NULL_M_S, sign_test=sign_test(baseline, null))
-    nt["significant"] = bool(nt["sign_test"]["p"] < ATTRIBUTION_ALPHA)
+    nt = None
+    if null is not None:
+        nt = dict(side(null), offset_m_s=ATTRIBUTION_NULL_M_S, sign_test=sign_test(baseline, null))
+        nt["significant"] = bool(nt["sign_test"]["p"] < ATTRIBUTION_ALPHA)
     binding = [r for r, t in tests.items() if t["significant"]]
     label = "body-limited: " + ", ".join(binding) if binding else "controller-limited"  # decision 20; the null is reported
     tog = None

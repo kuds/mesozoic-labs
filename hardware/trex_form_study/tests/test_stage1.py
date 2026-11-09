@@ -1623,8 +1623,9 @@ def test_g4_records(body):
 
 
 def test_later_steps_are_not_implemented(tmp_path):
-    """Plan section 3 steps 8-9 (``train``, step 7, is ``tests/test_stage1_ppo.py``'s)."""
-    for cmd in ("eval", "sweep", "report"):
+    """Plan section 3 steps 8-9 (``train``, step 7, is ``tests/test_stage1_ppo.py``'s; ``eval``, step 8's panels,
+    ``tests/test_stage1_panels.py``'s)."""
+    for cmd in ("sweep", "report"):
         with pytest.raises(NotImplementedError, match="not implemented yet"):
             cli([cmd, "--body", BODY, "--out", str(tmp_path)])
 

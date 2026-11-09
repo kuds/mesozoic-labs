@@ -414,11 +414,12 @@ def _imports(name: str, files: dict[str, bytes]) -> set[str]:
     return out
 
 
-def tuner_modules(files: dict[str, bytes] | None = None) -> list[str]:
+def tuner_modules(files: dict[str, bytes] | None = None, root: str = TUNER_ROOT) -> list[str]:
     """The designlab/stage1 modules the tuner imports (``TUNER_SOURCES_RULE``), from ``files`` (name -> bytes;
-    default: the package on disk)."""
+    default: the package on disk); ``root`` another module whose imports to follow the same way (the behaviour
+    panels', ``panels.PANEL_SOURCES_RULE``)."""
     files = package_files() if files is None else files
-    seen, todo = set(), ["__init__.py", TUNER_ROOT]
+    seen, todo = set(), ["__init__.py", root]
     while todo:
         name = todo.pop()
         if name not in seen:
@@ -466,9 +467,15 @@ def _phase_time(seg: control.Segment, tr: Transition, phase: float) -> float:
 
 
 def build_spec(p: plant.Plant, run_dir: Path, kind: str, direction: str | None, omega: float, refs_doc: dict,
-               tr_doc: dict, rate: float = COMMAND_RATE) -> EpisodeSpec:
+               tr_doc: dict, rate: float = COMMAND_RATE, plan: list | None = None, case: str | None = None,
+               gait: str | None = None) -> EpisodeSpec:
+    """The spec of one episode of the mix (``episode_plan``).  The behaviour panels (``panels``) may give their own
+    track ``plan`` (items as ``control.build_track`` takes them; a walk's plan may end without a stop, its window is
+    then given to ``measure``), the turn ``case`` (default ``TURN[kind]``) and the reference ``gait`` whose speed and
+    period a walk or a walking turn targets (default the nominal walk).  Without them the spec is the mix's."""
     run_dir = Path(run_dir)
-    plan = episode_plan(kind, direction)
+    custom = plan is not None
+    plan = episode_plan(kind, direction) if plan is None else [tuple(x) for x in plan]
     track = control.build_track(p, run_dir, plan, omega)
     trs = {seg.name: Transition.load(run_dir / "transitions" / f"{seg.name}.npz") for seg in track.segments
            if seg.kind == "finite"}
@@ -477,20 +484,20 @@ def build_spec(p: plant.Plant, run_dir: Path, kind: str, direction: str | None, 
     duty_b = float(tr_doc[first.name]["gaits"]["b"]["duty"])
     start_ref = _phase_time(first, trs[first.name], stop_command_phase(duty_b))
     stops = [ev for ev in track.events if ev["kind"] == "stop"]
-    if len(stops) != 1:
+    if len(stops) != 1 and not (custom and kind == "walk" and not stops):
         raise ValueError(f"{kind}: expected one stop, the track has {len(stops)}")
-    stop_ref = float(stops[0]["t_ref"])
-    nominal = refs_doc["nominal"]
+    stop_ref = float(stops[0]["t_ref"]) if stops else None
+    nominal = refs_doc[gait or "nominal"]
     period = float(nominal["period_s"])
     window = None
     if kind == "walk":
         steady = _phase_time(first, trs[first.name], 1.0)
-        if stop_ref - WALK_WINDOW_S * rate < steady:
+        if stop_ref is not None and stop_ref - WALK_WINDOW_S * rate < steady:
             raise ValueError(f"walk: {WALK_WINDOW_S:g} s before the stop command reaches into the start's ramp")
         speed_cmd, target = float(nominal["speed_m_s"]) * rate, float(nominal["speed_m_s"])
         yaw_cmd, yaw_target, sign = 0.0, 0.0, 0.0
     else:
-        c = f"{TURN[kind]}_{direction}"
+        c = f"{case or TURN[kind]}_{direction}"
         yr = float(refs_doc[c]["yaw_rate_rad_s"])
         yaw_cmd, yaw_target, sign = yr * rate, abs(yr), math.copysign(1.0, yr)
         if kind == "walking_turn":
@@ -529,8 +536,10 @@ def _terms_failed(kind: str) -> tuple[dict, dict, dict, dict]:
     return tracking, limits, start, stop
 
 
-def measure(spec: EpisodeSpec, rec: metrics.Recorder, out: dict, lg=None) -> dict:
-    """An episode's measures, its objective terms and its plan section 4 success (module docstring)."""
+def measure(spec: EpisodeSpec, rec: metrics.Recorder, out: dict, lg=None, window: tuple | None = None) -> dict:
+    """An episode's measures, its objective terms and its plan section 4 success (module docstring).  ``window``
+    (simulated seconds, from, to) replaces the spec's window (the walk's 10 s before the stop command, a turn's
+    steady turning): the behaviour panels judge a walk that ends without a stop over its last 10 s."""
     kind, inf = spec.kind, spec.info
     H = inf["H"]
     fell = bool(out["fell"])
@@ -543,7 +552,9 @@ def measure(spec: EpisodeSpec, rec: metrics.Recorder, out: dict, lg=None) -> dic
     stop = next((s for s in (out.get("stops") or []) if s["name"] in ("stop", f"stop_{TURN.get(kind)}_{spec.direction}")),
                 None)
     heading = float(rec.col("yaw")[0]) if rec.rows else 0.0
-    if kind == "walk":
+    if window is not None:
+        ta, tb = window
+    elif kind == "walk":
         tb = stop.get("command_s") if stop and stop.get("reached") else None
         ta = None if tb is None else tb - WALK_WINDOW_S
     else:
@@ -982,10 +993,15 @@ class Pool:
         mix = self.mix or {}
         return {k: (mix.get(k + (f"_{d}" if d else "")) or {}).get("seconds") for k, d in directions(seed).items()}
 
-    def map(self, jobs: list) -> list:
+    def map(self, jobs: list, failed=None) -> list:
+        """The results of ``jobs``, (gains, episode seed) pairs, in job order.  ``failed`` (the job, the reason) ->
+        the result of a job whose worker was lost on every attempt; with it the jobs go to the evaluator as they are
+        (the behaviour panels send their own jobs, ``panels``).  Without it each job is made a float array and an
+        int and a lost one scores as the worst case (``failed_evaluation``)."""
         if self.local is not None:
             return [self.local.evaluate(g, s) for g, s in jobs]
-        jobs = [(np.asarray(g, float), int(s)) for g, s in jobs]
+        if failed is None:
+            jobs = [(np.asarray(g, float), int(s)) for g, s in jobs]
         results = [None] * len(jobs)
         todo, tries = deque(range(len(jobs))), [0] * len(jobs)
         while todo or any(w.job is not None for w in self._ws):
@@ -1035,6 +1051,8 @@ class Pool:
                 again = tries[i] < ATTEMPTS
                 if again:
                     todo.appendleft(i)
+                elif failed is not None:
+                    results[i] = failed(jobs[i], f"{what}, on each of {tries[i]} attempts")
                 else:
                     results[i] = failed_evaluation(jobs[i][1], f"{what}, on each of {tries[i]} attempts",
                                                    self._planned(jobs[i][1]))

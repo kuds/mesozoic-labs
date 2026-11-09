@@ -101,10 +101,14 @@ def foot_lowest(m, d, boxes, caps) -> np.ndarray:
 
 
 class Recorder:
-    """An episode's traces for the measures (module docstring); hand it to ``control.run(..., recorder=)``."""
+    """An episode's traces for the measures (module docstring); hand it to ``control.run(..., recorder=)``.
+    ``foot_tables`` (model, feet) -> (boxes, capsules) picks each foot's geoms for its lowest point (default
+    ``_lowest_point_tables``, every foot geom; on a pile the behaviour panels pass ``env.foot_tables``, which leaves
+    out the pile's probe spheres)."""
 
-    def __init__(self, legs_every: int = 0):
+    def __init__(self, legs_every: int = 0, foot_tables=None):
         self.legs_every = int(legs_every)
+        self.foot_tables = foot_tables
 
     # ------------------------------------------------------------------ control.run's hooks
     def begin(self, tk: control.Tracker, n: int) -> None:
@@ -123,7 +127,7 @@ class Recorder:
         self.poses = [] if self.legs_every else None
         self._lidx = np.array([p._sens[f"{s}_foot_load"][0] + 3 for s in statics.SIDES])
         self._acc = p._sens["imu_accel"][0]
-        self._boxes, self._caps = _lowest_point_tables(m, p.feet)
+        self._boxes, self._caps = (self.foot_tables or _lowest_point_tables)(m, p.feet)
         self._sole = [c.mean(0) for c in estimator.sole_corners(m, p.feet)]  # each foot's sole centre, foot frame
         self._v = p._v  # the plant's views (plant.MjViews): the same arrays as p.d's attributes
         self.rows = 0
