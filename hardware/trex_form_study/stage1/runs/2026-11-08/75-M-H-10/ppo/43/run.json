@@ -2809,25 +2809,26 @@
    "episode_streams": [
     {
      "reset_seed": 430200,
-     "episodes": 175,
+     "episodes": 253,
      "first_episode_seed": 430200000000
     },
     {
      "reset_seed": 430201,
-     "episodes": 197,
+     "episodes": 302,
      "first_episode_seed": 430201000000
     },
     {
      "reset_seed": 430202,
-     "episodes": 413,
+     "episodes": 623,
      "first_episode_seed": 430202000000
     },
     {
      "reset_seed": 430203,
-     "episodes": 484,
+     "episodes": 736,
      "first_episode_seed": 430203000000
     }
-   ]
+   ],
+   "ended_at": "2026-11-09T22:49:15+00:00"
   }
  ],
  "checkpoints": [
@@ -2837,7 +2838,9 @@
   1007616,
   1253376,
   1507328,
-  1753088
+  1753088,
+  2007040,
+  2015232
  ],
  "throughput": [
   {
@@ -2859,6 +2862,24 @@
     4.4814453125
    ],
    "cores": 4
+  },
+  {
+   "session": 2,
+   "env_steps": 761860,
+   "n_envs": 4,
+   "vec": "dummy",
+   "env_processes": 1,
+   "wall_s": 5151.497922442,
+   "cpu_s_main": 3903.7221688769996,
+   "cpu_s_env_workers": 0.0,
+   "cpu_s": 3903.7221688769996,
+   "env_steps_per_wall_s": 147.8909652047089,
+   "env_steps_per_cpu_s": 195.16245445796352,
+   "load_average": [
+    2.0615234375,
+    2.61376953125,
+    3.69873046875
+   ]
   }
  ],
  "g6": {
@@ -3529,13 +3550,618 @@
      "walking_turn_right",
      "in_place_turn_right"
     ]
+   },
+   "amended": {
+    "rule": "decision 39: at least R2 within one env step (0.02 s)",
+    "pass_": false,
+    "recorded_pass": false,
+    "at": "2026-11-09T23:15:41+00:00"
+   }
+  },
+  "G6b_after_fix": {
+   "at_steps": 2015232,
+   "pass_": false,
+   "fix_from": 1007616,
+   "consequence_if_failed": "stop the run (FIX_RULE)",
+   "monitor": {
+    "rows": {
+     "policy": {
+      "walk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8735132678895301,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.872033566655572,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8720573472909935,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.86805110527297,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8669668220082806,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8662956124418864,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8646207495756187,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8636446636706251,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8640924925691789,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8720685273443939,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8709166303201681,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8718669270560325,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8775622314875683,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8758333291306456,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8772517214166261,
+        "fall_cause": null
+       }
+      ],
+      "brisk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8460776185492187,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8440477247190363,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8463201829062084,
+        "fall_cause": null
+       }
+      ],
+      "carpet_walk on robot_floor_carpet": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 5.0600000000000005,
+        "mean_reward": 0.7781184379413535,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 5.0200000000000005,
+        "mean_reward": 0.7790035471384917,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 5.04,
+        "mean_reward": 0.7763757000318815,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on low": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 4.4,
+        "mean_reward": 0.7858162125229157,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 4.5,
+        "mean_reward": 0.7776901750461295,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 4.4,
+        "mean_reward": 0.7832479259354759,
+        "fall_cause": "tilt"
+       }
+      ]
+     },
+     "zero": {
+      "walk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8568269244907749,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8549881285537108,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8558245064468768,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8456825782475216,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8456011811884938,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8452850100028523,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8460143762669391,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8441341876227864,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8464018504832262,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8635171577881726,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8625193888461866,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8631650695800854,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8636051394241592,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8622420311884023,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8631439536920575,
+        "fall_cause": null
+       }
+      ],
+      "brisk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8233217927890075,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8226737061930405,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8240693101818948,
+        "fall_cause": null
+       }
+      ],
+      "carpet_walk on robot_floor_carpet": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 4.98,
+        "mean_reward": 0.7770296042224343,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 5.1000000000000005,
+        "mean_reward": 0.7658052289537106,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 5.0600000000000005,
+        "mean_reward": 0.7727808637424354,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on low": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 4.4,
+        "mean_reward": 0.7754454709551607,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 4.54,
+        "mean_reward": 0.7706871418421605,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 4.42,
+        "mean_reward": 0.7712410089330205,
+        "fall_cause": "tilt"
+       }
+      ]
+     }
+    },
+    "summary": {
+     "policy": {
+      "walk": {
+       "falls": 0,
+       "survival_s": 18.38,
+       "mean_reward": 0.8725347272786985
+      },
+      "walking_turn_left": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8671045132410455
+      },
+      "walking_turn_right": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8641193019384742
+      },
+      "in_place_turn_left": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.8716173615735315
+      },
+      "in_place_turn_right": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.8768824273449467
+      },
+      "brisk": {
+       "falls": 0,
+       "survival_s": 29.600000000000005,
+       "mean_reward": 0.8454818420581546
+      },
+      "carpet_walk on robot_floor_carpet": {
+       "falls": 3,
+       "survival_s": 5.04,
+       "mean_reward": 0.7778325617039089
+      },
+      "carpet_walk on low": {
+       "falls": 3,
+       "survival_s": 4.433333333333334,
+       "mean_reward": 0.7822514378348403
+      }
+     },
+     "zero": {
+      "walk": {
+       "falls": 0,
+       "survival_s": 18.38,
+       "mean_reward": 0.8558798531637875
+      },
+      "walking_turn_left": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8455229231462892
+      },
+      "walking_turn_right": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8455168047909839
+      },
+      "in_place_turn_left": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.863067205404815
+      },
+      "in_place_turn_right": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.862997041434873
+      },
+      "brisk": {
+       "falls": 0,
+       "survival_s": 29.600000000000005,
+       "mean_reward": 0.823354936387981
+      },
+      "carpet_walk on robot_floor_carpet": {
+       "falls": 3,
+       "survival_s": 5.046666666666668,
+       "mean_reward": 0.7718718989728601
+      },
+      "carpet_walk on low": {
+       "falls": 3,
+       "survival_s": 4.453333333333334,
+       "mean_reward": 0.7724578739101139
+      }
+     }
+    },
+    "mean_survival_s": {
+     "policy": 17.99666666666667,
+     "zero": 18.0
+    },
+    "g6c_by_condition": {
+     "walk": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.016686343398755188,
+       0.01704543810186121,
+       0.01623284084411669
+      ],
+      "mean_gain": 0.01665487411491103,
+      "r2_spread": 0.0018387959370641527,
+      "gain_needed": 0.01
+     },
+     "walking_turn_left": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.022368527025448448,
+       0.021365640819786758,
+       0.021010602439034076
+      ],
+      "mean_gain": 0.021581590094756426,
+      "r2_spread": 0.00039756824466929963,
+      "gain_needed": 0.01
+     },
+     "walking_turn_right": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.018606373308679647,
+       0.019510476047838732,
+       0.017690642085952613
+      ],
+      "mean_gain": 0.01860249714749033,
+      "r2_spread": 0.0022676628604398896,
+      "gain_needed": 0.01
+     },
+     "in_place_turn_left": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.008551369556221267,
+       0.008397241473981465,
+       0.008701857475947095
+      ],
+      "mean_gain": 0.008550156168716608,
+      "r2_spread": 0.0009977689419859992,
+      "gain_needed": 0.01
+     },
+     "in_place_turn_right": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.013957092063409116,
+       0.013591297942243341,
+       0.014107767724568565
+      ],
+      "mean_gain": 0.013885385910073674,
+      "r2_spread": 0.0013631082357569158,
+      "gain_needed": 0.01
+     },
+     "brisk": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.02275582576021118,
+       0.021374018525995853,
+       0.022250872724313586
+      ],
+      "mean_gain": 0.02212690567017354,
+      "r2_spread": 0.0013956039888542993,
+      "gain_needed": 0.01
+     },
+     "carpet_walk on robot_floor_carpet": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 3,
+      "falls_r2": 3,
+      "gains": [
+       0.0010888337189192132,
+       0.013198318184781122,
+       0.003594836289446124
+      ],
+      "mean_gain": 0.00596066273104882,
+      "r2_spread": 0.011224375268723663,
+      "gain_needed": 0.011224375268723663
+     },
+     "carpet_walk on low": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 3,
+      "falls_r2": 3,
+      "gains": [
+       0.01037074156775497,
+       0.007003033203969,
+       0.012006917002455375
+      ],
+      "mean_gain": 0.009793563924726448,
+      "r2_spread": 0.004758329113000226,
+      "gain_needed": 0.01
+     }
+    },
+    "policy_beats_zero_on": [
+     "walk",
+     "walking_turn_left",
+     "walking_turn_right",
+     "in_place_turn_right",
+     "brisk"
+    ]
+   },
+   "amended": {
+    "rule": "decision 39: at least R2 within one env step (0.02 s)",
+    "pass_": true,
+    "recorded_pass": false,
+    "at": "2026-11-09T23:15:41+00:00"
    }
   }
  },
  "status": "running",
  "budget": 4005888,
  "budget_asked": 4000000,
- "num_timesteps": 1753088,
+ "num_timesteps": 2015232,
  "fix": {
   "rule": "G6b's consequence (plan section 3 step 7: make one fix, then stop; decision 32): one change to the env configs (FIX_FIELDS), applied on resume from the run's newest checkpoint and kept for the rest of the run (run.json 'fix', with the configs before it); G6b is checked again (G6b_after_fix) at the first rollout start at or past the fix's checkpoint + 1,000,000 steps, and if it fails the run stops there (status 'stopped_g6b'); a run holds at most one fix",
   "overrides": {
@@ -3765,5 +4391,60 @@
     "start_root_velocity_noise": 0.02
    }
   ]
+ },
+ "judged_checkpoint": {
+  "rule": "the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops training first, every body is judged at the last checkpoint all of them reached; the runs: every body x PPO seeds 42 and 43 for R3, every body x seed 42 for R4, each mode judged over its own runs, leaving out the R3 runs of a body judged with R2 (R2_JUDGED_RULE: a run that G6c or FIX_RULE stopped early does not cap the other bodies' checkpoint; decision 34); provisional (final false) until every run judged holds its budget's checkpoint or `judge --final` records that the stage's cap stopped training",
+  "steps": null,
+  "budget": 4005888,
+  "final": false,
+  "runs": {
+   "60-N-T-10/42": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "60-N-T-10/43": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "60-N-H-10/42": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "60-N-H-10/43": {
+    "last_checkpoint": 1753088,
+    "has_budget": false,
+    "left_out": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "75-M-H-10/42": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)"
+   },
+   "75-M-H-10/43": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)"
+   }
+  },
+  "left_out": {
+   "60-N-T-10/42": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "60-N-T-10/43": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "60-N-H-10/42": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "60-N-H-10/43": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "75-M-H-10/42": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)",
+   "75-M-H-10/43": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)"
+  }
+ },
+ "unstopped": {
+  "at": "2026-11-09T23:15:41+00:00",
+  "was": {
+   "at_steps": 2015232,
+   "reason": "G6b failed again after the fix (FIX_RULE)",
+   "at": "2026-11-09T22:49:15+00:00"
+  },
+  "reason": "decision 39: G6b after the fix passes within one env step (its carpet falls 0.01-0.02 s before R2s, both falling in every carpet episode); the run resumes to G6c"
  }
 }

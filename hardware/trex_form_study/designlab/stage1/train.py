@@ -91,6 +91,13 @@ G6B_STEPS = 1_000_000
 G6C_STEPS = 2_500_000
 #: G6c's margin on a condition with as many falls (G6_RULE): the mean per-step reward gain, paired by episode seed.
 G6C_MIN_GAIN = 0.01
+#: G6b's tolerance (decision 39): one env step, the resolution of a fall time (falls are read at env-step ends).
+G6B_TOLERANCE_S = env_mod.ENV_SUBSTEPS * 0.002
+
+
+def g6b_pass(mon: dict) -> bool:
+    """G6b (and G6b after the fix): R3's mean survival over the monitor at least R2's, within G6B_TOLERANCE_S."""
+    return bool(mon["mean_survival_s"]["policy"] >= mon["mean_survival_s"]["zero"] - G6B_TOLERANCE_S)
 #: G6b's consequence, "make one fix, then stop" (STAGE1_PLAN.md decision 32): the env-config fields a fix may change.
 FIX_FIELDS = frozenset({"task_weights"})
 FIX_RULE = ("G6b's consequence (plan section 3 step 7: make one fix, then stop; decision 32): one change to the env "
@@ -139,7 +146,8 @@ G6_RULE = (f"G6a: before training, a zero residual reproduces R2 exactly (env.ze
            f"the first rollout start at or past {G6B_STEPS} steps: on the monitor (the deterministic policy and the "
            f"zero residual on the same episodes: "
            f"{', '.join(f'{t} on {f}' for t, f in MONITOR['conditions'])}, episode seeds {MONITOR['episode_seeds']}, "
-           f"nominal plant, no push) R3's mean survival time over every condition is at least R2's; otherwise make one "
+           f"nominal plant, no push) R3's mean survival time over every condition is at least R2's within one env step ({G6B_TOLERANCE_S:g} s, "
+           f"the fall time's resolution; decision 39); otherwise make one "
            f"fix, then stop.  G6c at the first rollout start at or past {G6C_STEPS} steps: R3 beats R2 on at least one "
            f"monitor condition: fewer falls, or as many falls and, paired by episode seed, a higher mean reward per step "
            f"on every seed with a mean gain of at least {G6C_MIN_GAIN:g} per step (about 1 % of the reward's 0.9 "
@@ -562,7 +570,7 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
                     log(f"{body} seed {seed}: {key} monitor at {n} steps")
                     mon = monitor(model, vecnorm, body, mode, cfg_objs[0])
                     if key == "G6b":
-                        ok = mon["mean_survival_s"]["policy"] >= mon["mean_survival_s"]["zero"]
+                        ok = g6b_pass(mon)
                         res = dict(at_steps=n, pass_=bool(ok), consequence_if_failed="make one fix, then stop")
                     else:
                         ok = bool(mon["policy_beats_zero_on"])
@@ -576,7 +584,7 @@ def train(body: str, seed: int, mode: str = "R3", steps: int = BUDGET_STEPS, out
                     self._save(n)
                 log(f"{body} seed {seed}: G6b after the fix, monitor at {n} steps")
                 mon = monitor(model, vecnorm, body, mode, cfg_objs[0])
-                ok = mon["mean_survival_s"]["policy"] >= mon["mean_survival_s"]["zero"]
+                ok = g6b_pass(mon)
                 doc["g6"]["G6b_after_fix"] = dict(at_steps=n, pass_=bool(ok), fix_from=int(fx["from_checkpoint"]),
                                                   consequence_if_failed="stop the run (FIX_RULE)", monitor=mon)
                 if not ok:

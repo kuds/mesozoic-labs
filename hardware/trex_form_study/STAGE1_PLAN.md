@@ -563,3 +563,18 @@ the code as a rule that every record carries.
     75 cm runs get the cores.
 
     R4 is judged at 1,253,376 steps (`judge --final`).
+39. **G6b's tolerance** (`train.g6b_pass`; decided after seeing the result, and said so). Decision 27 put carpet and
+    pile conditions into the monitor. On them R2 and R3 fall in every episode, so G6b's mean-survival comparison turns
+    on fall-time differences below the measurement's resolution.
+
+    `75-M-H-10` seed 43 failed G6b after the fix, with 17.997 s against R2's 18.000 s:
+    - On hard floor it fell in none of its 18 episodes, and it beat R2 by at least G6c's margin (0.01 reward per step)
+      on 5 of 6 conditions, brisk included.
+    - On carpet it fell 0.01–0.02 s before R2.
+
+    G6b is therefore judged within one env step (0.02 s) for every run. That is the resolution of a fall time: falls
+    are read at env-step ends. Re-judged this way, two outcomes change, neither on a 60 cm body:
+    - `75-M-H-10` seed 42 at 1M steps (17.988 s against 18.0) now passes. The fix had applied to it anyway.
+    - `75-M-H-10` seed 43 after the fix now passes. It resumes from 2,015,232 steps to G6c.
+
+    `75-M-H-10`'s R3 is judged if seed 42 passes G6c. Both readings stay in run.json (`g6.*.amended`).
