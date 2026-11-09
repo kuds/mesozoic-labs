@@ -1623,11 +1623,11 @@ def test_g4_records(body):
 
 
 def test_later_steps_are_not_implemented(tmp_path):
-    """Plan section 3 steps 8-9 (``train``, step 7, is ``tests/test_stage1_ppo.py``'s; ``eval``, step 8's panels,
-    ``tests/test_stage1_panels.py``'s)."""
-    for cmd in ("sweep", "report"):
-        with pytest.raises(NotImplementedError, match="not implemented yet"):
-            cli([cmd, "--body", BODY, "--out", str(tmp_path)])
+    """Plan section 7's ``all`` (``train``, step 7, is ``tests/test_stage1_ppo.py``'s; ``eval``, step 8's panels,
+    ``tests/test_stage1_panels.py``'s; ``sweep``, step 8's margin ledger, ``tests/test_stage1_ledger.py``'s; ``report``,
+    step 9's tables, ``tests/test_stage1_report.py``'s)."""
+    with pytest.raises(NotImplementedError, match="not implemented yet"):
+        cli(["all", "--body", BODY, "--out", str(tmp_path)])
 
 
 # ------------------------------------------------------------------------------------------------
