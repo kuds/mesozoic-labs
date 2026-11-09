@@ -1054,5 +1054,29 @@
  "status": "running",
  "budget": 4005888,
  "budget_asked": 4000000,
- "num_timesteps": 1253376
+ "num_timesteps": 1253376,
+ "judged_checkpoint": {
+  "rule": "the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops training first, every body is judged at the last checkpoint all of them reached; the runs: every body x PPO seeds 42 and 43 for R3, every body x seed 42 for R4, each mode judged over its own runs, leaving out the R3 runs of a body judged with R2 (R2_JUDGED_RULE: a run that G6c or FIX_RULE stopped early does not cap the other bodies' checkpoint; decision 34); provisional (final false) until every run judged holds its budget's checkpoint or `judge --final` records that the stage's cap stopped training",
+  "steps": 1253376,
+  "budget": 5000000,
+  "final": true,
+  "runs": {
+   "60-N-T-10/42": {
+    "last_checkpoint": 1507328,
+    "has_budget": false,
+    "left_out": null
+   },
+   "60-N-H-10/42": {
+    "last_checkpoint": 1507328,
+    "has_budget": false,
+    "left_out": null
+   },
+   "75-M-H-10/42": {
+    "last_checkpoint": 1253376,
+    "has_budget": false,
+    "left_out": null
+   }
+  },
+  "left_out": {}
+ }
 }

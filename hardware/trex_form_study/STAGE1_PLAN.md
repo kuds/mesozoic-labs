@@ -546,3 +546,20 @@ the code as a rule that every record carries.
     A check on robot_floor_carpet at its own friction (0.95, not the carpet condition's 0.54) shows that grip is not
     why R2 falls there. R2 falls on the nominal walk at the same moment as on the carpet walk: 3.72–3.76 s on both
     60 cm bodies and 5.0–5.1 s on `75-M-H-10`, 3 starts each.
+38. **G6b after the fix, and R3 on the 60 cm bodies.** At 2,015,232 steps, 1M steps after decision 32's fix:
+
+    | Run | R3 (s) | R2 (s) | Brisk falls (R3 / R2) | Result |
+    |---|---|---|---|---|
+    | `60-N-T-10` seed 42 | 15.2 | 16.0 | 2 / 0 | failed, run stopped |
+    | `60-N-H-10` seed 42 | 14.3 | 15.5 | 3 / 1 | failed, run stopped |
+    | `60-N-T-10` seed 43 | 16.0 | 16.0 | 0 / 0 | passed; gains of 0.013–0.031 reward per step on the walk, the walking turns and brisk |
+
+    The R3 figures are mean survival over the monitor. Carpet and pile were unchanged: R3 falls with R2 at the same
+    times.
+
+    By decision 32 (`train.R2_JUDGED_RULE`), both 60 cm bodies' R3 is therefore judged with R2: R2's verdicts stand for
+    those bodies, and their R3 rows get no panels and no ledger. Their seed 43 runs could no longer change a verdict,
+    so they were stopped and marked so in run.json: `60-N-T-10` at 2,015,232 steps, `60-N-H-10` at 1,753,088. The two
+    75 cm runs get the cores.
+
+    R4 is judged at 1,253,376 steps (`judge --final`).
