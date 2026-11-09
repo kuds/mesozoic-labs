@@ -199,8 +199,9 @@ plant matrix and the 20-start panels).
 11. **Ankle servo gains: joint space.** `carpet.hold_servos` defines one hold servo per joint for the screened model,
     which drives each ankle axis with one motor. Applying that rule to each of the linkage's two motors doubles the
     ankle's stiffness in joint space; giving each motor half the gain reproduces the screened stiffness exactly.
-    (Per-motor damping then comes out equal on pitch and roll, 0.73 N·m·s/rad on `60-N-T-10` against the screened
-    0.80 / 0.65; recorded in `plant.json`.)
+    (Per-motor damping then comes out equal on pitch and roll: with the linkage armature of decision 12 it is
+    0.94 N·m·s/rad on the 60 cm bodies and 4.16 on `75-M-H-10`, against `hold_servos`' 0.80 / 0.65 and 3.28 / 2.90 on
+    pitch / roll, so 17–27 % more damping on pitch and 44–45 % more on roll; recorded in `plant.json`.)
 12. **Ankle armature: the linkage's.** Both motors' rotors are geared to both ankle axes, so each axis carries twice
     the screened single-motor armature. This is the physical two-motor ankle the plan specifies.
 13. **G2 replay rule: a 20-start panel.** An open-loop replay has no feedback, so its fall time is chaotic: start
@@ -214,3 +215,33 @@ plant matrix and the 20-start panels).
 
 With choices 11–13, G2's replays reach 60.0 / 22.8 / 60.0 strides unperturbed and panel medians of 33.6 / 24.2 / 60
 (`60-N-T-10` / `60-N-H-10` / `75-M-H-10`).
+
+### Decisions taken during the build (steps 4–5, 9 Nov)
+
+The transitions pass G3 on all three bodies. The tracker passes G4 on `75-M-H-10` but fails it on both 60 cm bodies
+with its untuned defaults (R1 hard / R1 at μ 0.54 / R2: 14.1 / 5.0 / 2.2 and 30.5 / 12.0 / 7.5 strides against
+40 / 20 / 20), and every fall is the controller's: lifting every hardware limit does not change panel survival
+significantly. Two things separate it from the prototype that walked: the default heading and phase-rate terms, and
+the two-motor ankle, which lets one axis take up to twice a motor's peak torque while a 60 cm foot's pads reach only
+15 mm behind the ankle axis. With the prototype's terms and the screened per-axis torque box, R1 walks 60 strides in
+19 and 17 of 20 starts. These decisions follow; none changes a body (P24).
+
+15. **Ankle torque in the tracker.** The tracker commands each ankle axis at most one motor's peak torque (the
+    screened per-axis box) and no more than the stance pad can carry with its centre of pressure 5 mm inside the pad,
+    as §2 already asks of the DCM feedback. More torque only rolls the foot. This limits the controller, not the plant.
+16. **Tuning start.** CMA-ES starts from the prototype's terms (ankle and step feedback and trunk PD at its values;
+    heading and phase-rate gains at zero) and may move every gain.
+17. **G4 is judged at that start**, with the panel rule of decision 13. G4 checks that the tracker reproduces the
+    prototype; the untuned defaults' result stays recorded.
+18. **"Stopped within 1.5 strides"** means forward speed below 5 % of the command within 1.5 strides of the stop
+    command. The stop reference ends forward motion after 0.76–0.79 strides and reaches full rest after 1.55–1.57
+    strides; the time to rest is reported.
+19. **Estimator stance point.** The stance-leg odometry uses the loaded pad's contact point, not the foot body's
+    centre of mass (about 11 mm above the floor, which moves while the contact does not).
+20. **Fall attribution and the inward step.** A condition is body-limited by a hardware limit only if lifting that
+    limit from the start, over the condition's 20 starts, improves survival significantly (paired test, p < 0.05);
+    otherwise its falls are controller-limited. The turning screen's "turn gap" is the pelvis plate's clearance to the
+    same-side thigh in the turning pose, not a gap between the legs, so it is not a hardware limit and does not bound
+    the swing foot. The inward swing-foot bound is the leg-to-leg clearance: the swing pad stays at least 5 mm from
+    the stance pad (the legs are 32–58 mm apart at the reference stance). This supersedes §2's "turn gap minus
+    1 mm" and §4's turn-gap entry in the body-limited list.
