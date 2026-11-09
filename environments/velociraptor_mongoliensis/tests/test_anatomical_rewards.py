@@ -815,3 +815,30 @@ class TestNeckHomePose:
                 env.close()
         assert qualities["statue"] > 0.999
         assert qualities["drooped"] < 0.8
+
+    def test_the_training_telemetry_records_every_reward_key_the_stance_emits(self):
+        """The stance pays the term, so its training telemetry must keep it.
+
+        ``DiagnosticsCallback.REWARD_KEYS`` is the list every consumer reads (the TensorBoard
+        ``diagnostics/*`` scalars, ``diagnostics.npz``, the W&B ``reward/*`` metrics,
+        ``LocomotionMetrics`` and the reward-decomposition plot); a key the env emits that it
+        does not list is dropped without a warning.  The plot shows the term on the stance by
+        its weight.
+        """
+        from environments.shared.config import load_stage_config
+        from environments.shared.diagnostics import DiagnosticsCallback
+        from environments.shared.model_id import ModelId
+        from environments.shared.visualization import _REWARD_KEY_TO_CONFIG_WEIGHTS
+
+        kwargs = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["env_kwargs"]
+        assert kwargs["neck_home_pose_weight"] > 0.0
+        env = VelociraptorMongoliensisAnatomicalEnv(**kwargs)
+        try:
+            env.reset(seed=3042)
+            _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+        finally:
+            env.close()
+        emitted = {key for key in info if key.startswith("reward_")}
+        assert "reward_neck_home_pose" in emitted
+        assert emitted - set(DiagnosticsCallback.REWARD_KEYS) == set()
+        assert _REWARD_KEY_TO_CONFIG_WEIGHTS["reward_neck_home_pose"] == ("neck_home_pose_weight",)

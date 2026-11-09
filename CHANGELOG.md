@@ -2706,9 +2706,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     2 (kp + k) = 288 N·m/rad is 3.79 × m·g·h (bar 1.5 ×).
   - **Observation:** `foot_contact` 2 → 6, one channel per touch sensor
     (right pad, digit III, digit IV, then the left foot's), the per-site
-    channels #608 proposed and note 21 deferred to this checkpoint-stranding
-    change; each equals the floor's normal force on its geom at every physics
-    substep (to 5.8e-16 of the floor force). The schema stays
+    channels #608 proposed, which note 21 set aside unbuilt and this
+    checkpoint-stranding change adds; each equals the floor's normal force
+    on its geom at every physics substep (to 5.8e-16 of the floor force).
+    The schema stays
     `bipedal-target-heading-free/v1`: a segment's composition is in the
     policy-interface digest, not the schema name (notes 12 and 14, D-C6). The
     plant contract's `foot_contact` segment and the symmetry layout read the
@@ -2721,11 +2722,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     T. rex's set; a new opt-in neck home-pose term (`neck_home_pose_weight`,
     `neck_home_pose_tolerance`), shaped like the tail's, off by default,
     declared in `OPT_IN_TASK_KWARGS` and emitting its info keys only when on,
-    centred on the statue's settled neck and head; two head terminations at
-    the T. rex's fractions of the home height, checked at every physics
-    substep (the head tip below 0.07 m ends the episode as `head_contact`,
-    the skull below 0.28 m as `skull_low`); the neck capsules are the
-    behavior env's terrain probes. Re-measured on the statue:
+    centred on the statue's settled neck and head, and recorded with the
+    other reward terms (`DiagnosticsCallback.REWARD_KEYS`, so the training
+    diagnostics, W&B and the reward-decomposition plot by its weight); two
+    head terminations at the T. rex's fractions of the home height, checked
+    at every physics substep (the head tip below 0.07 m ends the episode as
+    `head_contact`, the skull below 0.28 m as `skull_low`); the neck
+    capsules are the behavior env's terrain probes. Re-measured on the statue:
     `natural_pitch` 0.35 → 0.002 rad, the tail's settled target → the
     keyframe's zeros, `healthy_z_range` (0.3, 1.0) → (0.33, 1.09) m.
   - **Stance (the body first, on today's terms):** every statue-derived
@@ -2759,9 +2762,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the impact term prices only from 3.0, so no reward steers a policy away
     from it; it is kept and flagged in `stance.toml`, since moving it is a
     gate decision. `MEASUREMENT_VERSION` is not bumped: it is global, and
-    the velociraptor's own digests already refuse every r4 panel. The statue
-    pays 0.10 per episode for its airborne substeps at the spawn (r4
-    nothing), before a foot lands, which no command reaches.
+    the velociraptor's own digests already refuse every r4 panel (its
+    `measurement_definition_sha256` and the gate's registry-block check),
+    though the rule `gait/constants.py` and `floor_contact/morphology.py`
+    state asks for a bump on any edit to a model's registry entry after its
+    stance adopts `stance_quality/v2` (the velociraptor's did with physics
+    r3, D-D25): either the rule is amended or the version moves to
+    `floor-truth/v3`. Two departures from the prototype's design brief that
+    no ruling has accepted: the tail's gravity torque sits in spring
+    preloads on its pitch joints, not in the home control as on the neck,
+    so each tail servo reaches 84–90% of its range (31–56% on its weaker
+    side on the k 20 build with the preload in the control); and 0.40 kg
+    moved from the trunk to the tail (tail 2.05 kg, trunk 7.1, where the
+    brief gave 1.65 and 7.5), which keeps the centre of mass inside Macaulay
+    et al. 2023's band. The statue pays 0.10 per episode for its airborne
+    substeps at the spawn (r4 nothing), before a foot lands, which no
+    command reaches.
   - **Tests:** the velociraptor's tests and the shared ones that pinned r4
     facts are re-pinned on r5, each number measured, and the T. rex's plant
     acceptance tests are ported: lateral sway, the passive preloads carrying

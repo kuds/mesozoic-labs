@@ -196,6 +196,68 @@ def test_foot_groups_must_name_touch_sensors(animal, monkeypatch):
         _payload(model_id, env)
 
 
+@pytest.fixture
+def velociraptor_mongoliensis_env():
+    env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
+    yield env
+    env.close()
+
+
+def _drop_the_last_site(env):
+    return {"_foot_observation_groups": env._foot_observation_groups[:-1]}
+
+
+def _read_a_site_twice(env):
+    return {"_foot_observation_groups": (*env._foot_observation_groups, env._foot_observation_groups[0])}
+
+
+def _read_a_site_no_foot_reads(env):
+    # The per-foot groups lose the left digit IV; the per-site channels still read it.
+    right, left = env._foot_sensor_groups
+    return {"_foot_sensor_groups": (right, left[:-1])}
+
+
+def _read_a_gyro_channel(env):
+    return {"_foot_observation_groups": (*env._foot_observation_groups[:-1], (env._sensor_gyro_start,))}
+
+
+def _add_an_empty_channel(env):
+    return {"_foot_observation_groups": (*env._foot_observation_groups, ())}
+
+
+def _declare_no_channel(env):
+    return {"_foot_observation_groups": ()}
+
+
+@pytest.mark.parametrize(
+    ("edit", "message"),
+    [
+        pytest.param(_drop_the_last_site, "must read exactly the touch sensors of _foot_sensor_groups", id="drop"),
+        pytest.param(_read_a_site_twice, "must read exactly the touch sensors of _foot_sensor_groups", id="twice"),
+        pytest.param(
+            _read_a_site_no_foot_reads, "must read exactly the touch sensors of _foot_sensor_groups", id="add"
+        ),
+        pytest.param(
+            _read_a_gyro_channel, r"_foot_observation_groups=.*addresses that start no touch sensor: \[\d+\]", id="gyro"
+        ),
+        pytest.param(_add_an_empty_channel, r"none empty; _foot_observation_groups=.*\[\]\], addresses", id="empty"),
+        pytest.param(_declare_no_channel, r"none empty; _foot_observation_groups=\[\], addresses", id="none"),
+    ],
+)
+def test_the_per_site_channels_must_read_exactly_the_feets_touch_sensors(
+    velociraptor_mongoliensis_env, monkeypatch, edit, message
+):
+    """The velociraptor's ``_foot_observation_groups`` (policy interface r14): each channel a non-empty group of
+    touch sensors, together reading every sensor of the per-foot ``_foot_sensor_groups`` once and nothing else.
+    The per-foot check alone (test_foot_groups_must_name_touch_sensors) cannot see a per-site channel dropped,
+    doubled or added."""
+    env = velociraptor_mongoliensis_env
+    for name, value in edit(env).items():
+        monkeypatch.setattr(env, name, value)
+    with pytest.raises(PlantContractError, match=message):
+        _payload(VELOCIRAPTOR_MONGOLIENSIS, env)
+
+
 def test_heading_free_probe_normalizes_the_synthetic_quaternion(animal, monkeypatch):
     """The probe's linspace qpos gives a non-unit quaternion; the helper normalizes it, so scaling changes nothing
     and the probe still reads a real tilt rather than the upright (0, 0, -1)."""

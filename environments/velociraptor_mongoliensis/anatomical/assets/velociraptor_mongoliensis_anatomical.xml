@@ -3,8 +3,8 @@
        of IGM 100/986 (Norell & Makovicky 1999, "N&M 1999"), rebuilt "of equivalent nature" to the anatomical
        T. rex plant.  Every number is cited inline to its primary source, marked [design] with the rule that
        set it, or measured on this model (the measurement is quoted).  configs/plant_versions.toml note 22
-       records the derivation and the screens behind each [design] value.  This file is the source of truth
-       (no generator is committed): edit the numbers here and re-measure every constant listed at the
+       records the derivation, and the screens behind the [design] values cited to it here.  This file is the
+       source of truth (no generator is committed): edit the numbers here and re-measure every constant listed at the
        keyframe.
        Every body frame is world-aligned at the home pose and every joint's ref IS its home angle, so the
        geometry below is authored in the standing pose itself (qpos0 = the stance, unlike the T. rex's
@@ -37,7 +37,8 @@
     <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
 
     <!-- Hip, knee, ankle.  stiffness 24 N.m/rad: the r4 raptor's leg spring 20 (plant_versions
-         note 17) x this plant's m.g.h ratio 76.1 / 61.3 N.m, rounded to 1.2.  springref is the
+         note 17) x this plant's m.g.h ratio 76.1 / 62.2 N.m (1.22, both at the home keyframe; 1.24 settled),
+         rounded to 1.2.  springref is the
          home angle on every leg joint, so the spring is a declared compliance neutral at the stance, never
          the support (plant_versions note 14a; measured: the statue stands with these springs deleted, 40/40
          at reset noise 0.05, seeds 3042-3081).  armature 0.05 as
@@ -111,7 +112,8 @@
          +X forward, +Y left, +Z up.  The pelvis origin is the midpoint of the two acetabula, so root z is hip
          height and "CoM ahead of the hip" is the CoM x in this frame.  The frame is authored LEVEL (sacrum
          horizontal: Senter & Robins 2015; N&M 1999 "the horizontal sacral axis") and the keyframe is that level,
-         authored pose; the noise-free statue settles 0.134 deg nose-down from it (the measured natural pitch).
+         authored pose; the noise-free statue settles 0.134 deg nose-down from it, and natural_pitch (0.002 rad,
+         0.115 deg) is the 40-seed mean at reset noise 0.05 (the keyframe comment).
          Measured at home: hip height 0.5488 m; CoM 0.1129 m ahead of the hip and
          0.0317 m below it in this standing crouch; in Macaulay et al. 2023's standardised neutral posture
          (legs straight and vertical, neck and head horizontal, arms hanging) 0.103 m ahead and
@@ -367,7 +369,8 @@
   <actuator>
     <!-- 17 position servos (kp only, as the T. rex).  ctrlrange in RADIANS = the joint range (the compiler's
          angle="degree" does not convert actuator attributes).  GAIN RULE [design]: the r4 raptor's gains
-         (plant_versions note 17) x this plant's m.g.h ratio 76.1 / 61.3 N.m = 1.24, rounded to 1.2, for the legs
+         (plant_versions note 17) x this plant's m.g.h ratio 76.1 / 62.2 N.m = 1.22 (both at the home keyframe;
+         1.24 settled), rounded to 1.2, for the legs
          (hip pitch 150, roll 100, knee 180, ankle 100 on r4); tail servos x their own subtree gravity-torque ratio
          against r4's (60 / 50 / 50 / 40 -> 36 / 30 / 36 / 40), with tail_3 raised to 50 as the rod base; neck /
          head kp ~ 12 x tau_g (preload ~4.7 deg; no counterpart on r4, whose neck is welded); the claw
@@ -398,8 +401,12 @@
     <!-- 0-9 are the shared IMU block, which shared code indexes by POSITION (gyro 0-2, accel 3-5, quat 6-9):
              keep it first.  Touch sensors: one per LOAD-BEARING BODY (a touch sensor only sums contacts on
              geoms of its site's own body: notes 3 and 14d): r/l_foot = the MTP pad (metatarsus body) at 10/11,
-             digits III and IV at 24-27.  Their sum equals the floor force (the MT shaft and digit II never
-             touch).  head_tip 12-14 and tail tip 15-23 as the T. rex; claw tips 28-33: kept as the r4 raptor's
+             digits III and IV at 24-27.  Their sum equals the floor force on the six supports: digit II's
+             phalanges are visual and its claw 2/2, so they never touch, and the MT shaft stays clear at and near
+             the stance (exact on every live step at action noise 0.3, stance config, 100 seeds).  Only in a
+             collapse does the shaft load the floor (at action noise 1.0, 2 of 18216 live steps of 300 seeds, at
+             most 33 N), and the pad's channel then reads what of it falls inside the pad's touch site.
+             head_tip 12-14 and tail tip 15-23 as the T. rex; claw tips 28-33: kept as the r4 raptor's
              claw telemetry (the env's claw reward reads site_xpos, so nothing consumes them).
              VelociraptorMongoliensisEnv._cache_ids resolves every sensor it reads BY NAME and fails closed on a
              missing one, so a reorder moves no observation channel; a rename or a new touch sensor needs its

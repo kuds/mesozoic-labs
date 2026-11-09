@@ -138,10 +138,11 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: (switch, off value, the kwargs the switch makes inert).  Off, they change
     #: no reward, info key, trajectory or reset draw, so a stage that leaves
     #: them off keeps its task_sha256 (task_fingerprint.inert_opt_in_env_kwargs,
-    #: the T-Rex's lateral-lean pattern).  The stance stage turns the first
-    #: three on (the maintainer's decision of 2026-11-06); locomotion, strike and the behaviors leave them off.
-    #: The neck home pose joined them with the life-size plant (physics r5,
-    #: the maintainer's decision of 2026-11-08).
+    #: the T-Rex's lateral-lean pattern).  The stance stage turns all four on:
+    #: the first three by the maintainer's decision of 2026-11-06, the neck
+    #: home pose with the life-size plant (physics r5, the maintainer's
+    #: decision of 2026-11-08); locomotion, strike and the behaviors leave all
+    #: four off.
     OPT_IN_TASK_KWARGS = (
         ("tail_home_pose_weight", 0.0, ("tail_home_pose_weight", "tail_home_pose_tolerance")),
         ("floor_impact_weight", 0.0, ("floor_impact_weight", "floor_impact_threshold_bw")),
@@ -150,7 +151,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     )
     #: The tail joints the tail_home_pose term prices, and their target: the
     #: noise-free statue's post-settle pose (seed 0, steps 200-999;
-    #: TestSettledTailTargetTracksTheStatue re-measures it).  Since physics r5
+    #: TestSettledPoseTargetsTrackTheStatue re-measures it).  Since physics r5
     #: each tail pitch joint carries its gravity torque in a springref preload
     #: (the T-Rex's tail since its physics r10, D-D44), so the servos hold
     #: about 0 N.m at home and the statue settles on the keyframe zeros
@@ -577,9 +578,9 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # The observation's foot channels since policy interface r14: one per
         # touch sensor, in the per-foot groups' order (right pad, d3, d4, then
         # left), so a policy sees where under each foot its load sits.  #608's
-        # per-site channels, which plant_versions note 21 deferred to the next
-        # change that strands every checkpoint; the plant contract records each
-        # channel's sensor in the foot_contact segment.
+        # per-site channels, which plant_versions note 21 set aside unbuilt and
+        # this checkpoint-stranding change adds (note 22); the plant contract
+        # records each channel's sensor in the foot_contact segment.
         self._foot_observation_groups = tuple((address,) for group in self._foot_sensor_groups for address in group)
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
@@ -797,7 +798,8 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         info["pelvis_height"] = self._clearance(self.data.xpos[self.pelvis_id])
 
-        # 8b2. Soft leg-pose retention around the home keyframe, hips to toes.
+        # 8b2. Soft leg-pose retention around the home keyframe, hips to
+        # ankles (the eight servoed leg joints since physics r5).
         # The mean per-joint Gaussian gives corrective signal without
         # hard-locking a joint, and averaging keeps one joint from dominating.
         _, leg_rms_error, leg_quality = _reward_soft_home_pose_pure(

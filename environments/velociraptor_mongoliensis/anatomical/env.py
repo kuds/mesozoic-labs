@@ -24,10 +24,15 @@ class VelociraptorMongoliensisAnatomicalEnv(VelociraptorMongoliensisEnv):
     #: (on the metatarsus) and its passive digits III and IV, each with its
     #: own touch site, so the generic rule finds all three, and with them the
     #: metatarsus shaft capsule and digit II's sickle claw, which hang off the
-    #: touch-site bodies and are dropped here: the shaft ends 8 mm short of
-    #: the MTP condyle and sits 14.4 mm clear of the floor at home, and the
-    #: claw is contype/conaffinity 2/2 against the floor's 1/1, so neither
-    #: ever touches the floor (digit II's phalanges are visual, contype 0).
+    #: touch-site bodies and are dropped here.  The claw is contype/conaffinity
+    #: 2/2 against the floor's 1/1, so it never touches the floor (digit II's
+    #: phalanges are visual, contype 0).  The shaft ends 8 mm short of the MTP
+    #: condyle and sits 14.4 mm clear of the floor at home, and stays clear at
+    #: and near the stance (every live step at action noise 0.3 on the stance
+    #: config, 100 seeds); only in a collapse does it load the floor (at action
+    #: noise 1.0, 2 of 18216 live steps of 300 seeds, at most 33 N), which this
+    #: floor truth then leaves out and the pad's touch channel counts as far as
+    #: the contact falls inside the pad's touch site.
     #: The statue stands on pad / d3 / d4 at 0.300 / 0.357 / 0.343 of each
     #: foot's load (40-episode means over steps 100-999, the stance config,
     #: seeds 3042-3081; r4 stood on d3 / d4 / metatarsus at 0.540 / 0.176 /

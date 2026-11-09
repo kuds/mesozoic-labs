@@ -48,11 +48,12 @@ side.  A hinge more than about 45 degrees off the axis it should turn about
 (:data:`AXIS_MIN_ALIGNMENT`) is not read.
 
 What a model does not have reads NaN, with the reason kept in
-:attr:`PostureLayout.reasons`: no head-tip site (the velociraptor), no neck
-pitch hinge (the compsognathus robot, the velociraptor), no ``head_pitch``
-hinge (the anatomical compsognathus, whose head turns on the neck alone),
-no hip roll hinge on a leg.  The columns themselves are the same on every
-model with the same feet.  An empty window (``T <= settle_steps``) and a
+:attr:`PostureLayout.reasons`: no head-tip site, no neck pitch hinge (the
+compsognathus robot), no ``head_pitch`` hinge (the anatomical compsognathus,
+whose head turns on the neck alone), no hip roll hinge on a leg.  (The
+velociraptor had neither a head-tip site nor a neck hinge before its physics
+r5, which gave it both and a ``head_pitch`` hinge.)  The columns themselves
+are the same on every model with the same feet.  An empty window (``T <= settle_steps``) and a
 trace without the head-tip capture read NaN too.
 
 Nothing here is a gate criterion, a reward, an observation, a

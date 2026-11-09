@@ -35,7 +35,8 @@ from environments.shared.tests.static_balance_helpers import (
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 #: The geoms the floor carries the animal on since physics r5: each foot's MTP pad and passive digits III and IV
-#: (FOOT_SUPPORT in anatomical/env.py).  The metatarsus shaft and digit II never touch.
+#: (FOOT_SUPPORT in anatomical/env.py).  Digit II never touches; the metatarsus shaft stays clear at and near the
+#: stance and loads the floor only in a collapse (FOOT_SUPPORT's comment).
 SUPPORT_GEOM_NAMES = {side: (f"{side}_mtp_pad", f"{side}_toe_d3_geom", f"{side}_toe_d4_geom") for side in ("r", "l")}
 FOOT_GEOM_NAMES = [name for names in SUPPORT_GEOM_NAMES.values() for name in names]
 ROOT_BODY = "pelvis"

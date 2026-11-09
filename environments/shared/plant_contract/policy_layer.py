@@ -420,10 +420,12 @@ def _heading_free_observation_segments(
 
     The three root blocks are named for their frame and source, with the
     fallback and normalization thresholds the helpers apply, and the foot
-    channels are described per foot (each a sum over its listed touch
-    sensors), so the widths sum to the observation width -- the legacy
-    table's ``foot_contact`` lists every touch sensor instead, and the caller
-    checks the sum on this schema only.
+    channels are described by their touch sensors: one per foot (a sum over
+    its listed sensors), or one per group of the env's
+    ``_foot_observation_groups`` where it declares them (the velociraptor's
+    per-site channels since its policy interface r14), so the widths sum to
+    the observation width -- the legacy table's ``foot_contact`` lists every
+    touch sensor instead, and the caller checks the sum on this schema only.
     """
     foot_groups = _foot_contact_groups(model, env)
     return [

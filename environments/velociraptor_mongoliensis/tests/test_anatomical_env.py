@@ -43,24 +43,32 @@ class TestTailFloorTermination:
         assert terminated, f"Expected termination but got info={info}"
 
     def test_tail_contact_reason_is_reported(self, env):
-        """When the distal tail contacts the floor the reason should be 'tail_contact'."""
+        """When the distal tail contacts the floor the reason should be 'tail_contact'.
+
+        Since physics r5 the servoed tail pitch joints are tail_1..3 (tail_4 and tail_5 are fused),
+        and at their ventral stops (-12 / -12 / -10 deg) the statue's tail tip stays 0.174 m up: the
+        tail alone cannot reach the floor.  So the animal also sits back 20 deg on its hips, well
+        inside max_tilt_angle (60 deg), which puts the tail tip 0.067 m below the floor plane with
+        the pelvis at hip height (measured; 10 deg leaves it 0.046 m clear).
+        """
         env.reset(seed=42)
 
-        # Pitch the tail down aggressively so distal segments hit the floor
-        # while keeping pelvis in healthy range
-        tail_joint_names = ["tail_1_pitch", "tail_2_pitch", "tail_3_pitch", "tail_4_pitch", "tail_5_pitch"]
-        for name in tail_joint_names:
+        for name in ("tail_1_pitch", "tail_2_pitch", "tail_3_pitch"):
             jid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_JOINT, name)
-            qadr = env.model.jnt_qposadr[jid]
-            env.data.qpos[qadr] = -0.26  # pitch downward (radians)
+            assert jid >= 0, name
+            env.data.qpos[env.model.jnt_qposadr[jid]] = env.model.jnt_range[jid, 0]  # its ventral stop
+        back = np.deg2rad(20.0)  # nose-up: a negative pitch about +y
+        env.data.qpos[3:7] = (np.cos(-back / 2), 0.0, np.sin(-back / 2), 0.0)
 
         # Step physics to resolve contacts
         mujoco.mj_step(env.model, env.data)
         mujoco.mj_forward(env.model, env.data)
 
+        low, high = env.healthy_z_range
+        assert low < env.data.qpos[2] < high
         terminated, info = env._is_terminated()
-        if terminated and "termination_reason" in info:
-            assert info["termination_reason"] in ("tail_contact", "body_contact", "fallen", "excessive_tilt")
+        assert terminated
+        assert info["termination_reason"] == "tail_contact"
 
 
 class TestStrikeTerminationGating:
@@ -308,7 +316,7 @@ class TestFootContactSensors:
     so each carries its own sensor (since physics r3, when the r2 toe-d3 site read 54% of the
     load) and the env sums each foot's three for the support rewards.  Since policy interface
     r14 the observation carries the three sites separately (#608's per-site channels, which
-    plant_versions note 21 deferred to this checkpoint-stranding change).  These assert
+    plant_versions note 21 set aside unbuilt and this checkpoint-stranding change adds).  These assert
     against the measured contact forces rather than a threshold.
     """
 
@@ -372,8 +380,9 @@ class TestFootContactSensors:
 
         Stage 1 measured the identity at 5.8e-16 relative on 40 seeds; this samples every
         substep of a settle and a small random-action roll, and checks that nothing but the six
-        support geoms touches the floor (the shaft, digit II and the non-colliding neck and arms
-        never do).
+        support geoms touches the floor (digit II and the non-colliding neck and arms never can;
+        the metatarsus shaft stays clear at and near the stance, see the exploration-noise test
+        below for where that ends).
         """
         env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
@@ -406,6 +415,62 @@ class TestFootContactSensors:
             env.close()
         assert worst[0] < 1e-9
         assert seen == set(addresses), f"non-support floor contact: {sorted(seen - set(addresses))}"
+
+    def test_the_identity_holds_on_every_live_step_under_exploration_noise(self):
+        """The per-site identity and the six-support floor, on the stance config under clip(N(0, 0.3)) actions.
+
+        Three times the stance's action std (0.10), so most of these episodes fall; every substep of
+        every live (non-terminal) step is checked.  Where it ends (measured, stance config, seeds
+        4000-4299, action rng 10000 + seed): exact on all 12116 live steps of 100 episodes at sigma
+        0.3; at sigma 1.0 the right metatarsus shaft loaded the floor on 2 of 18216 live steps (one
+        collapsing episode, at most 33 N, 2.2 % of the floor force), inside the pad's touch site, so
+        the pad's channel and the per-foot sum then counted it and the support-geom floor truth did
+        not.  The shaft is a support of neither, by design (the foot registry's comment).
+        """
+        from environments.shared.config import load_stage_config
+        from environments.shared.model_id import ModelId
+
+        kwargs = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["env_kwargs"]
+        env = VelociraptorMongoliensisAnatomicalEnv(**kwargs)
+        try:
+            addresses = {
+                geom: int(env.model.sensor_adr[mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, sensor)])
+                for side in ("r", "l")
+                for geom, sensor in zip(FOOT_SUPPORT_GEOMS[side], FOOT_TOUCH_SENSORS[side], strict=True)
+            }
+            step_worst = [0.0]
+            step_seen: set[str] = set()
+
+            def probe():
+                loads = _floor_force_by_geom(env)
+                step_seen.update(loads)
+                for geom, address in addresses.items():
+                    error = abs(float(env.data.sensordata[address]) - loads.get(geom, 0.0))
+                    step_worst[0] = max(step_worst[0], error / max(1.0, loads.get(geom, 0.0)))
+
+            env._substep_probe_hook = probe
+            worst, seen, live = 0.0, set(), 0
+            for seed in (4000, 4001, 4002):
+                rng = np.random.default_rng(10_000 + seed)
+                env.reset(seed=seed)
+                for _ in range(300):
+                    step_worst[0] = 0.0
+                    step_seen.clear()
+                    action = np.clip(rng.normal(0.0, 0.3, env.action_space.shape), -1.0, 1.0).astype(np.float32)
+                    _, _, terminated, truncated, _ = env.step(action)
+                    if terminated:
+                        break
+                    live += 1
+                    worst = max(worst, step_worst[0])
+                    seen |= step_seen
+                    if truncated:
+                        break
+        finally:
+            env._substep_probe_hook = None
+            env.close()
+        assert live > 100
+        assert worst < 1e-9
+        assert seen <= set(addresses), f"non-support floor contact: {sorted(seen - set(addresses))}"
 
     def test_sensors_read_zero_airborne(self):
         env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
@@ -845,8 +910,33 @@ class TestCacheIdsFailsClosed:
                 ],
                 "'pelvis_gyro' must start at sensordata 0",
             ),
+            (
+                [('site name="head_tip"', 'site name="head_point"'), ('objname="head_tip"', 'objname="head_point"')],
+                "must define site 'head_tip'",
+            ),
+            (
+                [
+                    ('site name="r_claw_tip"', 'site name="r_ungual_tip"'),
+                    ('objname="r_claw_tip"', 'objname="r_ungual_tip"'),
+                ],
+                "must define site 'r_claw_tip'",
+            ),
+            (
+                [('joint name="neck_pitch"', 'joint name="neck_flex"'), ('joint="neck_pitch"', 'joint="neck_flex"')],
+                "must define joint 'neck_pitch'",
+            ),
         ],
-        ids=["head geom", "claw geom", "skull body", "touch sensor", "sensor type", "imu order"],
+        ids=[
+            "head geom",
+            "claw geom",
+            "skull body",
+            "touch sensor",
+            "sensor type",
+            "imu order",
+            "head site",
+            "claw site",
+            "neck joint",
+        ],
     )
     def test_a_model_without_a_name_the_env_reads_is_refused(self, tmp_path, edits, message):
         env_class = self._edited_env(tmp_path, edits)

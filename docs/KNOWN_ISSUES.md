@@ -2145,6 +2145,14 @@ review's protocol (home keyframe, `key_ctrl` held, 3000 MuJoCo steps).
   464 kg/m³, geom mass over capsule volume, inside the 0.05 kg digit
   budget); and the welded, non-colliding hand passes visually through a
   straightened shank once the hip flexes 19.5° past the stance.
+- **LOW — the review's R7 is not done** (its 2026-11-09 status note): the
+  velociraptor's nosedive margin is still the shared 0.5 literal in
+  `_is_terminated`, on the one termination path left since the MJX runtime
+  retired (D-D17), not a constructor argument. The env keeps it a literal on
+  purpose (`velociraptor_mongoliensis/base_env.py`: a constructor knob would
+  add its default to the effective config that `task_sha256` hashes); with
+  `natural_pitch` 0.002 rad it ends an episode 30.1° nose-down, where the
+  T-Rex stance ends at 31.3°. Whether to promote it is open.
 
 > **Note:** these changes alter the physics plant. Policies trained before the
 > change are incompatible by contract, including when a change seems marginal;
