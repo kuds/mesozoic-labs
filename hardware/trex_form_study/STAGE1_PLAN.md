@@ -537,3 +537,12 @@ the code as a rule that every record carries.
       - At most seven processes run at a time.
       - A guard stops the largest evaluation process if free memory falls below 1.5 GB. Its finished records stay, and
         its work resumes.
+37. **The owner's floors** (P26). The demonstration floors are hardwood, vinyl and museum floors, and possibly very
+    thin, compact carpet. In the report and the gap map, hard floors at both frictions and robot_floor_carpet (the
+    thin, firm carpet model) come first; low pile is reported as the edge of the use, and medium and high pile as
+    outside it. When time runs short, the long-pile work runs last and may be cut first: the medium- and high-pile
+    panels of the policy rows and the pile-damping margin.
+
+    A check on robot_floor_carpet at its own friction (0.95, not the carpet condition's 0.54) shows that grip is not
+    why R2 falls there. R2 falls on the nominal walk at the same moment as on the carpet walk: 3.72–3.76 s on both
+    60 cm bodies and 5.0–5.1 s on `75-M-H-10`, 3 starts each.

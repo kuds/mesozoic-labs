@@ -38,6 +38,7 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P23 | Owner, round-two review (question 8): go ahead with the Stage 1 closed-loop probe on the three bodies of P16, with the same budget each (ROUND2_REVIEW.md §13). With two review rounds complete, this meets P7; the probe is bounded and is not the verification training. | adopted |
 | P24 | Owner, 8 Nov 2026, after the gait-tuning request: see how the Stage 1 training and evaluation go before making any more changes. The design is held as decided (P16–P23); the gait-tuning study already running (`designlab/gaittune.py`) completes as information only, and Stage 1 keeps the planned animal-pace reference walk (`envelope.FAST`). | adopted |
 | P25 | Owner, 8 Nov 2026: expects a 60 cm build at about $15k to give about 80 % of the wanted behaviors and looks; continue Stage 1 (all three bodies, P16) and, once its results are in, explore what covering the remaining gap would take, accepting that it may not be worth it. | open (after Stage 1) |
+| P26 | Owner, 9 Nov 2026, during Stage 1: the robot is a demonstration platform for hardwood, vinyl and museum floors, and possibly very thin, compact carpet such as a school's. Shag and other long pile are not a major concern for now. Stage 1's report and the 60 cm gap map weigh results on those floors first; the long-pile conditions stay as planned but are reported as out of the main use. | adopted |
 
 ## Engineering constraints and findings
 
