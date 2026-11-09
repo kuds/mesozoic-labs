@@ -455,16 +455,24 @@ canonical_mujoco_version = "3.10.0"
 #
 #     PHYSICS (6b4dfb.. -> dd8483..), POLICY INTERFACE (0566d4.. ->
 #     88c11f..), VISUAL (1bf243.. -> 240630..) and the source closure
-#     (62f142.. -> 93b24b..) move.  Every velociraptor checkpoint is refused
+#     (62f142.. -> 85985f..) move.  Every velociraptor checkpoint is refused
 #     (the plant check compares the physics and interface digests and the
 #     widths) and none can be widened: widen_checkpoint only appends a command
 #     segment.  No r4 stance was certified (stages.toml), so none is
 #     stranded.  The env's statue constants were re-measured on this plant:
-#     natural_pitch 0.35 -> 0.00234 rad, _TAIL_SETTLED_QPOS -> the keyframe
-#     zeros, the new neck_home_pose target _NECK_SETTLED_QPOS,
-#     healthy_z_range (0.3, 1.0) -> (0.33, 1.09) m, the new head_contact /
-#     skull_low terminations at 0.07 / 0.28 m, the reward probe amplitude
-#     0.1 -> 0.13.
+#     natural_pitch 0.35 -> 0.002 rad (0.00202 over 40 seeds at reset noise
+#     0.05; 0.00234 noise-free), _TAIL_SETTLED_QPOS -> the keyframe zeros,
+#     the new neck_home_pose target _NECK_SETTLED_QPOS, healthy_z_range
+#     (0.3, 1.0) -> (0.33, 1.09) m, the new head_contact / skull_low
+#     terminations at 0.07 / 0.28 m, the reward probe amplitude 0.1 -> 0.13.
+#     So were the stages' (statue_constants_physics_revision 5): the stance's
+#     foot saturation 50 -> 55 N, floor-impact threshold 2.5 -> 3.0 BW (the
+#     reset pop reaches 2.56 BW on 3000 seeds), the neck term on (0.25,
+#     tolerance 0.05 rad), log_std_init -2.66 -> -2.30 (the noise cliff
+#     moved from 0.07 to 0.10), the statue reference 3091.3 -> 3341.0 (rail
+#     1850 -> 2000); the walk's statue 796.0 -> 796.6 and its gate, cap and
+#     the behaviours' speeds Froude-matched to the hip height (x 1.042:
+#     2.0 -> 2.1 m/s).
 [plants.velociraptor_mongoliensis.anatomical]
 physics_revision = 5
 policy_interface_revision = 14

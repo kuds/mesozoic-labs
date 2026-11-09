@@ -396,9 +396,11 @@ class TestNaturalPitchTracksStance:
     (20.05 deg) default, and the statue paid -95 per episode of nosedive
     charge for standing still.  The r3 keyframe settles at 20.10 deg (0.3508
     rad over 40 seeds at noise 0.05; 20.02 deg, 0.3494 rad, on the elliptic
-    cone of physics r4), so the default is right again; this
-    pins the property, not the literal, so a plant edit that moves the settle
-    has to move ``natural_pitch`` with it.
+    cone of physics r4), so the default is right again.  The life-size plant
+    of physics r5 stands its trunk level and settles 0.00202 rad nose-down
+    over the same 40 seeds (0.00234 noise-free, this test's roll), so the
+    default is 0.002.  This pins the property, and the literal beside it, so
+    a plant edit that moves the settle has to move ``natural_pitch`` with it.
     """
 
     def test_noise_free_statue_settles_at_the_natural_pitch(self):
@@ -416,7 +418,7 @@ class TestNaturalPitchTracksStance:
                 "re-measure natural_pitch for this plant (velociraptor_mongoliensis/base_env.py default) together with the nosedive "
                 "threshold and stance.toml's statue-derived constants"
             )
-            assert natural_pitch == pytest.approx(0.35)
+            assert natural_pitch == pytest.approx(0.002)
         finally:
             env.close()
 

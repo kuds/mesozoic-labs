@@ -158,9 +158,10 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: -0.04639 / -0.02307 rad).  Measured on r5 by the protocol above (env
     #: defaults, reset noise 0, seed 0): every joint within 4.3e-7 rad of
     #: zero, and the 5000-step roll's last 1000 steps within 6.9e-7; each
-    #: joint 0.209 rad (tail_3: 0.175) clear of its stops.
-    #: PROVISIONAL until the physics-r5 statue re-measurement that moves
-    #: statue_constants_physics_revision to 5 (the reset-noise panels).
+    #: joint 0.209 rad (tail_3: 0.175) clear of its stops.  On the stance
+    #: [env] (reset noise 0.05) the 120 statue seeds of 3042-3081, 3082-3121
+    #: and 7042-7081 hold their window means (steps 200-999) within 2.9e-4 rad
+    #: of it (tail_1_yaw; 1.7e-5 on the pitch joints), pooled within 6e-6.
     _TAIL_HOME_JOINTS = ("tail_1_pitch", "tail_1_yaw", "tail_2_pitch", "tail_3_pitch")
     _TAIL_SETTLED_QPOS = (0.0, 0.0, 0.0, 0.0)
     #: The neck and head joints the neck_home_pose term prices (the T-Rex's
@@ -171,8 +172,10 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
     #: statue holds the reconstructed carriage, where the T-Rex's unpreloaded
     #: neck settles 12 deg low (its _NECK_SETTLED_QPOS): -2.78e-5 / 0.0 /
     #: 1.69e-5 rad (steps 200-999; steps 4000-4999 of a 5000-step roll agree
-    #: to 7e-7), 0.35 rad or more clear of every stop.
-    #: PROVISIONAL, as _TAIL_SETTLED_QPOS above.
+    #: to 7e-7), 0.35 rad or more clear of every stop.  On the stance [env]
+    #: the 120 statue seeds above hold their window means within 3.1e-4 rad
+    #: of it (neck_yaw; 2.8e-4 neck_pitch, 7e-5 head_pitch), pooled within
+    #: 4.3e-5 (neck_pitch).
     _NECK_HOME_JOINTS = ("neck_pitch", "neck_yaw", "head_pitch")
     _NECK_SETTLED_QPOS = (-0.00003, 0.0, 0.00002)
     #: The observation's per-site foot channels (BaseDinoEnv declares the
@@ -211,7 +214,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         strike_claw_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
-        natural_pitch: float = 0.00234,
+        natural_pitch: float = 0.002,
         gait_symmetry_weight: float = 0.0,
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
@@ -334,10 +337,13 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         # still against the 0.35 rad of the time; the r3 / r4 statues leaned
         # 20.10 / 20.02 deg (0.3508 / 0.3494 rad) and 0.35 was right.  The
         # life-size plant of physics r5 authors the trunk level (sacrum
-        # horizontal, its home keyframe) and its noise-free statue settles
-        # 0.134 deg nose-down, 0.00234 rad (TestNaturalPitchTracksStance's
-        # protocol: env defaults, reset noise 0, seed 0, 600 zero-action
-        # steps).  PROVISIONAL until the physics-r5 statue re-measurement.
+        # horizontal, its home keyframe), and its statue settles 0.002 rad
+        # (0.115 deg) nose-down: 0.00202 rad over 40 seeds at reset noise
+        # 0.05 (the stance [env], seeds 3042-3081, each seed's mean over steps
+        # 200-999, as r4's 0.3494; per seed -0.0021 to 0.0064), 0.00152 over
+        # the 120 seeds of 3042-3081, 3082-3121 and 7042-7081, and 0.00234
+        # noise-free (TestNaturalPitchTracksStance's protocol: env defaults,
+        # reset noise 0, seed 0, 600 zero-action steps).
         # With it the 0.5 nosedive margin of _is_terminated ends an episode at
         # forward_z < -0.502, 30.1 deg nose-down, where the T-Rex stance's
         # 0.503 ends at 31.3 deg.  TestNaturalPitchTracksStance pins the
@@ -773,7 +779,7 @@ class VelociraptorMongoliensisEnv(BaseDinoEnv):
         info["reward_claw_proximity"] = reward_claw_proximity
 
         # 7. Continuous posture reward centred on the natural pitch (the
-        # statue's settled pelvis pitch; 0.134 deg nose-down since physics r5).
+        # statue's settled pelvis pitch; 0.115 deg nose-down since physics r5).
         # The returned tilt remains absolute (relative to world-up) for
         # diagnostics and termination parity.
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]

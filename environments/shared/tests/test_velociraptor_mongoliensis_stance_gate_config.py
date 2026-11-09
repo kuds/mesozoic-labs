@@ -252,14 +252,14 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
 def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
     """min_avg_reward is 0.60 of the statue, rounded to 10; the ratio states 0.60 itself; the floor is relative.
 
-    The reference is the r4 statue's standing reward under the 2026-11-06 [env] (3091.32, 40 episodes, seeds
-    3042-3081: the 2843.00 of the r4 plant plus the tail term's 248.3), pinned to the physics revision it was
-    last measured on (test_statue_constant_freshness.py checks the pin).  The collapse floor is the T-Rex's
+    The reference is the r5 (life-size) statue's standing reward under its [env] (3341.03, 40 episodes, seeds
+    3042-3081; r4 3091.32 under the 2026-11-06 [env], the r5 neck term adding 249.5), pinned to the physics
+    revision it was last measured on (test_statue_constant_freshness.py checks the pin).  The collapse floor is the T-Rex's
     relative 0.45 of it behind a 1M-step peak warm-up: an explicit collapse_peak_floor would win over the pair
     in collapse_settings_from_config, so the absolute key is gone, not shadowed.
     """
     reference = curriculum["collapse_peak_floor_reference"]
-    assert reference == 3091.3 and curriculum["statue_constants_physics_revision"] == 4
+    assert reference == 3341.0 and curriculum["statue_constants_physics_revision"] == 5
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
     assert "collapse_peak_floor" not in curriculum
     assert curriculum["collapse_peak_floor_fraction"] == 0.45

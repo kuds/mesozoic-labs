@@ -956,13 +956,13 @@ class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
 
     def test_the_velociraptor_mongoliensis_locomotion_warmup_keeps_the_scaled_standing_plateau_from_arming(self):
         """The velociraptor's walk warm-starts from a quiet stance (2026-11-06), so it evaluates at its standing level
-        from step 0, the shape of run 20260923_020654.  That run's locomotion series, scaled to this stage's 796.0
-        statue, stops at 1.45M under the relative floor alone (358.2, which the plateau clears) and runs on behind
-        the committed D-B5 warm-up."""
-        scale = 796.0 / 2246.9
+        from step 0, the shape of run 20260923_020654.  That run's locomotion series, scaled to this stage's 796.6
+        statue (physics r5; 796.0 on r4), stops at 1.45M under the relative floor alone (358.5, which the plateau
+        clears) and runs on behind the committed D-B5 warm-up."""
+        scale = 796.6 / 2246.9
         trace = [value * scale for value in self.LOCOMOTION_20260923]
         settings = self._settings(VELOCIRAPTOR_MONGOLIENSIS, 2)
-        assert settings["peak_floor"] == pytest.approx(358.2)
+        assert settings["peak_floor"] == pytest.approx(358.47)
         stopped_at, _ = self._drive(trace, {**settings, "peak_warmup_timesteps": 0.0})
         assert stopped_at == 1_450_000
         stopped_at, cb = self._drive(trace, settings)

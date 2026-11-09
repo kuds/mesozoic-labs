@@ -455,8 +455,9 @@
          stance), so the joint part of qpos0 IS this pose, and the root is the authored one too: z 0.548794, level,
          every support (MTP pads, digits III and IV) exactly 0.5 mm into the floor (notes 6 and 14b); every
          reset settles back to this clearance.  Noise-free, the statue settles 0.134 deg nose-down and 0.13 mm
-         higher (the digits sink deeper than the pads): that is natural_pitch, measured on the pelvis frame the
-         posture reward reads; the joints settle within 0.003 deg of the keyframe (note 14c).
+         higher (the digits sink deeper than the pads), and 0.115 deg over 40 seeds at reset noise 0.05: that is
+         natural_pitch (0.002 rad), measured on the pelvis frame the posture reward reads; the joints settle within
+         0.003 deg of the keyframe (note 14c).
          ctrl = pose + tau/kp on the neck, head, leg and claw servos (the raptor r3 method, note 14c): tau measured
          with every servo at kp x20 (passive springs x5) at ctrl = pose, then a torque-matching
          fixed point on this model (settle, read each joint's holding torque, re-preload) until the noise-free
@@ -473,7 +474,7 @@
          so the digits press into the floor with the share of the load the settled statue gives them and the
          tail servos hold about 0 N.m at home (tail home ctrl = the pose = the ctrlrange midpoint).
          LOAD-BEARING CONSTANTS measured on this statue; re-measure each one if any mass, posture, foot or contact
-         value in this file changes: natural_pitch (0.134 deg); _TAIL_SETTLED_QPOS (the settled tail joints)
+         value in this file changes: natural_pitch (0.115 deg); _TAIL_SETTLED_QPOS (the settled tail joints)
          and _NECK_SETTLED_QPOS (the settled neck and head); the leg_home_pose reward target (the keyframe legs);
          body weight 147.15 N and the foot-force saturation scaled from it; FOOT_SUPPORT and the six per-site
          foot channels (the touch sensors _cache_ids resolves by name); healthy_z_range and the head-height
