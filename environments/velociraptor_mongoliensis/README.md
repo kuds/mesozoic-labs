@@ -42,7 +42,10 @@ velociraptor_mongoliensis/
 │   ├── test_anatomical_env.py      # Model-specific env tests
 │   ├── test_anatomical_rewards.py  # Model-specific reward tests
 │   ├── test_anatomical_actuator_bounds.py  # Actuator bound tests
-│   └── test_anatomical_static_balance.py  # Static balance tests
+│   ├── test_anatomical_static_balance.py  # Static balance and plant acceptance tests
+│   ├── test_anatomical_mirror.py   # Mirror symmetry of the home pose and of paired rollouts
+│   ├── test_anatomical_noise_tolerance.py  # The statue's action-noise cliff
+│   └── test_com_stance_quality.py  # Centre-of-mass stance pins
 ├── requirements.txt
 └── README.md
 ```
@@ -74,9 +77,10 @@ python scripts/view_model.py --embodiment anatomical
 ```
 
 This opens a passive viewer. Check that:
-- The raptor settles into a stable stance, toes flat on the floor
-- No body parts explode or clip through each other
-- The tail oscillates briefly then stabilizes
+- The raptor settles into a stable stance, trunk level, each foot on its MTP pad and digits III and IV
+- No body parts explode or clip through each other (the welded arms do not collide, so a hand may pass visually
+  through a shank swung far forward)
+- The tail and head hold their pose
 
 ### 2. Test Actuators
 
@@ -135,14 +139,29 @@ piecewise-linear interpolation. The evidence and compatibility rationale are in 
 Since physics r3 (`configs/plant_versions.toml` note 14, decision D-D25) the home keyframe is the standing equilibrium:
 every leg spring is anchored at it (`springref`), the ankle and toes put the toes flat at 0.5 mm of floor contact, and
 the home controls carry the gravity preload, so the nominal leg servos hold the stance (0.2-5.8% of their forcerange)
-with or without the springs, and the statue settles at the 0.35 rad natural lean. Each foot's contact observation is
-the sum of three touch sensors, on the middle toe, the outer toe and the metatarsus, and equals the floor force under
-the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
+with or without the springs, and on r3 and r4 the statue settled at a 0.35 rad natural lean. On r3 and r4 each foot's
+contact observation was the sum of three touch sensors, on the middle toe, the outer toe and the metatarsus, and equalled
+the floor force under the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
 interface revision 11; it has no `mjx_config.py`. Since physics r4 (note 17, decision D-D30) the friction cone is
 elliptic, the one friction model of every species: the capsule feet were already heading-invariant under MuJoCo's
 default pyramidal cone, and the elliptic cone keeps any foot shape so. Since policy interface r13 (note 21, the maintainer's decision of 2026-11-06) the observation reads no world heading, as the T-Rex's and the anatomical Compsognathus's do: projected gravity,
 the root velocity in the gravity-aligned heading frame and the prey direction in pelvis coordinates replace the world
 quaternion, velocity and prey direction, so turning the whole scene about vertical leaves the observation unchanged.
+
+Since physics r5 and policy interface r14 (note 22, the maintainer's decision of 2026-11-08) the plant is the animal at
+life size, of equivalent nature to the T-Rex: 15.0 kg, IGM 100/986's femur, tibia and metatarsus (238 / 255 / 99 mm)
+on a 0.549 m hip in Bishop et al. 2018's paravian leg posture, the trunk authored level, and the T-Rex's topology and
+conventions. The neck (`neck_pitch`, `neck_yaw`) and the skull (`head_pitch`) are separate bodies under the T-Rex's
+names; the neck capsules do not collide and the skull does. The tail's gravity torque is carried by spring preloads on
+its three pitch joints, so its servos hold nothing at home; the neck and head servos carry theirs in the home control,
+so the statue holds its head up. The arms are welded and non-colliding, with no joints or actuators, as the T-Rex's
+are. Each foot stands on a rounded MTP pad and on digits III and IV, which are passive sprung hinges with no actions;
+digit II rides raised on a passive sprung hinge, and the sickle claw is a position servo bounded at 4 N.m that only the
+prey collides with. The action is 17 position servos (neck 3, per leg hip pitch, hip roll, knee, ankle and claw, tail
+4), and the observation (71) carries one foot channel per touch sensor (each foot's pad, digit III and digit IV), each
+equal to the floor's force on its geom; the rewards and info keys keep the per-foot sums. The zero-action statue stands
+on 40/40 seeds, also with its hip, knee and ankle springs deleted, settles within 0.0032 deg of the keyframe and 0.134
+deg nose-down, and carries 0.300 / 0.357 / 0.343 of each foot's load on its pad, digit III and digit IV.
 
 ### Stance gate
 The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (the maintainer's decision of 2026-11-06; the
@@ -151,7 +170,7 @@ are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees, each
 truth, the floor's normal force under each leg on every physics substep, and the stance passes when every heading
 passes the v2 decision and the one-sided 95% lower bound on seeds clean at every heading reaches 0.80 (37 of 40). An
 episode is clean when it reaches the horizon with no hop or stomp in the settle window and at most one re-plant there,
-both feet down and loaded, every support geom of each foot (both toes and the metatarsal head) loaded, no splay,
+both feet down and loaded, every support geom of each foot (since physics r5 the MTP pad, digit III and digit IV) loaded, no splay,
 drift, turn or chatter and no actuator held at its limit, and no panel may hold more than one hop or fall; the bars
 and their measured provenance are in `configs/velociraptor_mongoliensis/anatomical/stance.toml`. The verdict is the
 post-stage `stance_heading_report.json` on the handoff checkpoint pair, never an in-training evaluation, and a stance
@@ -159,9 +178,10 @@ stays provisional until two seeds certify (`certification_seeds = 2`). Judge its
 and re-judge it on the fresh seeds 7042-7081 (`docs/NEXT_STEPS.md`).
 
 ### Exploration
-The stance starts at action std 0.07 (`log_std_init = -2.66`, the maintainer's decision of 2026-11-06): the zero-action statue survives white
-command noise to about that sigma and falls past it, onto its tail
-(`tests/test_anatomical_noise_tolerance.py`). At SB3's default std 1.0 the noise itself is a hop. Move
+The stance starts at action std 0.10 (`log_std_init = -2.30`; std 0.07 on physics r4, the maintainer's decision of
+2026-11-06, moved with the cliff on r5): the zero-action r5 statue survives white command noise to about that sigma
+(40/40 seeds to 0.09, 38/40 at 0.10) and falls past it (19/40 at 0.135, 0/40 from 0.20;
+`tests/test_anatomical_noise_tolerance.py`). At SB3's default std 1.0 the noise itself is a hop. Move
 `log_std_init` with the cliff if the plant changes.
 
 ### Reward Components
@@ -170,20 +190,23 @@ Reward weights vary by stage. The `[env]` section of each stage file in
 `configs/velociraptor_mongoliensis/anatomical/*.toml` is authoritative; this README does not
 copy numeric weights. Components include locomotion, survival, posture, energy,
 tail stability, approach shaping, target contact, and fall penalties. Posture
-shaping is direction-aware and centred on the raptor's natural forward lean;
+shaping is direction-aware and centred on the statue's settled pitch (`natural_pitch`, 0.002 rad since physics r5);
 absolute tilt remains the safety signal for termination. The stance stage also
 pays bilateral support (the weaker-loaded foot), retention of the home leg pose,
 and charges commands parked at their limits and command chatter (action jerk),
 with part of the alive bonus conditioned on support; since the maintainer's decision of 2026-11-06 it also
 pays the tail's settled pose and charges fully airborne substeps and floor
-impacts above 2.5 body weights (the T-Rex's terms). Each is a
+impacts (the T-Rex's terms; above 3.0 body weights since physics r5, whose
+reset pop reaches 2.56), and since the maintainer's decision of 2026-11-08 it
+pays the neck and head's settled pose too. Each is a
 `VelociraptorMongoliensisEnv` kwarg that is inert at its default and set in
 `configs/velociraptor_mongoliensis/anatomical/stance.toml`.
 
 ### Termination Conditions
-- Pelvis height < 0.3m (fallen)
-- Pelvis height > 1.0m (launched into air)
-- Torso contacts ground
+- Pelvis height < 0.33 m (fallen) or > 1.09 m (launched into air), or excessive tilt or a nosedive
+- Head tip below 0.07 m (`head_contact`) or skull below 0.28 m (`skull_low`), checked at every physics substep
+  (since physics r5, the T-Rex's thresholds at the same fraction of the home height)
+- Torso, belly, ribcage, skull or distal tail (tail_3 to tail_5) contacts the ground
 - Episode length > max_episode_steps
 
 ## Tuning Guide
@@ -213,7 +236,7 @@ impacts above 2.5 body weights (the T-Rex's terms). Each is a
 
 **If it walks but falls a lot:**
 - Inspect the episode-length distribution and termination mix before changing weights
-- Check whether `forward_z` tracks the natural lean; do not reward world-vertical posture for this morphology
+- Check whether `forward_z` tracks the settled pitch; re-measure `natural_pitch` on the statue after any plant change
 - Lower reset noise only if a controlled probe isolates reset perturbations as the failure source
 
 **If it ignores the prey:**

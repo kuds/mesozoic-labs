@@ -240,7 +240,11 @@ pelvis coordinates, all built from the free root's own quaternion `qpos[3:7]` by
 `environments/shared/heading_observation.py` ([HEADING_INVARIANCE_DESIGN_2026_10.md](HEADING_INVARIANCE_DESIGN_2026_10.md)).
 For this schema only, the policy layer records segments that name each block's frame, source and thresholds
 (`pelvis_projected_gravity`, `pelvis_heading_linear_velocity` with its forward/left/up components and vertical-pelvis
-fallback, `prey_direction_body`) and describe the foot channels per foot by sensor name, and it refuses a payload whose
+fallback, `prey_direction_body`) and describe the foot channels by sensor name, one per foot (each a sum over its
+touch sensors) or, where the environment declares `_foot_observation_groups`, one per declared group, which must read
+exactly the per-foot groups' sensors (the Velociraptor's per-site channels, one per touch sensor, since its policy
+interface 14, the maintainer's decision of 2026-11-08, note 22; no other model declares them, so no other segment
+moved), and it refuses a payload whose
 segment widths do not sum to the observation width or whose last segment is not the command. It hashes the helpers'
 function tokens beside `_get_obs` (`interface_implementations.heading_free_observation`), because `_get_obs` only calls
 them, and it refuses the schema on a model that declares `jax-mjx`. The legacy schemas' segment tables are

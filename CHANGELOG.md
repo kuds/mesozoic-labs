@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The r10 LTSB T. rex stance certified on `main` on two seeds, with its
-  fresh-seed audit** (the maintainer's stance-landing decision of 2026-11-06,
+  fresh-seed audit** (#665; the maintainer's stance-landing decision of 2026-11-06,
   cited by date: this records change keeps the date citation, and its number
   is still to be assigned; the appended §31 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
@@ -2335,7 +2335,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Migration
 - **Every velociraptor checkpoint must be retrained; none can be widened**
-  (velociraptor policy interface revision 12 → 13, 70 → 69 wide; the
+  (velociraptor physics revision 4 → 5, policy interface revision 13 → 14,
+  69 → 71 wide and 22 → 17 actions, visual revision 4 → 5; the maintainer's
+  decision of 2026-11-08). Each load path compares the checkpoint's recorded
+  plant identity with the plant's and refuses a mismatch
+  (`PlantCompatibilityError`; measured with main's r4 manifest entry as the
+  recorded identity: "physics_revision: checkpoint=4, current=5",
+  "policy_interface_revision: checkpoint=13, current=14", the two digests,
+  nq 31 → 30, nv 30 → 29, nu 22 → 17, "observation_dim: checkpoint=69,
+  current=71" and "action_dim: checkpoint=22, current=17"),
+  `widen_checkpoint.py` widens only by a command segment and needs the same
+  physics digest, and ancestor reuse refuses every recorded velociraptor node
+  (every velociraptor `task_sha256` moved), so `TRUNK_FROM = "auto"` and
+  `--trunk-from` find no velociraptor trunk. No certified trunk is lost: no
+  velociraptor stance has certified on physics r4. No other species changes:
+  every line of the digest golden that does not name the velociraptor is
+  unchanged.
+- **Every velociraptor checkpoint must be retrained; none can be widened**
+  (#660; velociraptor policy interface revision 12 → 13, 70 → 69 wide; the
   maintainer's decision of 2026-11-06). Each load path compares the
   checkpoint's recorded `policy_interface_revision`, `policy_interface_sha256`
   and `observation_dim` with the plant's and refuses a mismatch
@@ -2642,6 +2659,123 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The Velociraptor is rebuilt life size, of equivalent nature to the T. rex:
+  IGM 100/986's proportions on the T. rex's topology, a level trunk, a
+  separate neck and skull, welded passive arms, a didactyl foot on passive
+  sprung toes and per-site foot touch channels in the observation**
+  (breaking — physics r4 → r5, policy interface r13 → r14, 69 → 71 wide and
+  22 → 17 actions, visual r4 → r5; every velociraptor checkpoint is refused
+  and none can be widened, and none had certified on r4; the maintainer's
+  decision of 2026-11-08, cited by date: it has no decision id yet, and the
+  next records change numbers it; `configs/plant_versions.toml` note 22, the
+  MJCF's comments and `configs/velociraptor_mongoliensis/anatomical/stance.toml`
+  and `locomotion.toml`, whose comments carry every measurement below). The
+  reviewed prototype MJCF is committed with its numbers unchanged (the
+  compiled body, geom, joint, actuator, keyframe and spring arrays checked
+  identical; only its comments now cite the repository) and is the source of
+  truth: no generator is committed. Measured through the env on the stance
+  config, zero action, seeds 3042–3081 unless stated:
+  - **Body:** 15.0 kg (trunk 7.1, tail 2.05, neck and skull 1.65, each leg
+    1.80, each arm 0.30; r4 13.5) on a 0.549 m hip (r4 0.506); femur 238.0,
+    tibia 255.0 and MT III 99.1 mm joint to joint, IGM 100/986's (MT III /
+    femur 0.416, r4 0.741); knee 125.0° and ankle 151.5° interior (r4 167.9°
+    and 138.3°), hip pitch, knee and ankle each settling at 50.0% of its
+    range (r4 ankle 30.6%); the trunk authored level, settling 0.134°
+    nose-down (r4 20.0°). `neck_pitch`, `neck_yaw` and `head_pitch` on
+    separate neck and skull bodies under the T. rex's names, the neck
+    capsules non-colliding, `skull_upper` and `snout` colliding; the neck and
+    head servos carry a gravity preload in the home control, so the statue
+    holds its head up. The tail's gravity torque is in spring preloads on its
+    three pitch joints (the T. rex's since note 20), so each tail servo holds
+    0.0% of its force range at home. The arms are welded and non-colliding,
+    with no joints or actuators, as the T. rex's are. Each foot stands on a
+    rounded MTP pad and digits III and IV on passive sprung hinges (the T.
+    rex's passive toes since note 9), the metatarsus shaft 14.4 mm clear of
+    the floor; digit II rides raised on a passive sprung hinge, and the sickle
+    claw is a position servo bounded at 4 N·m (r4 an unbounded gear-50
+    motor: 609 N at the tip of its geom, 65 N now), 19.6 mm clear at home and
+    at least 3.30 mm above the floor over digit II's and the claw's whole
+    range, colliding with the prey only. 17 position servos (r4 22).
+  - **Standing:** the statue stands 40/40, 40/40 with every hip, knee and
+    ankle spring deleted, and 20/20 under N(0, σ) action noise at σ 0.05,
+    0.07 and 0.10 (seeds 3042–3061); noise-free it holds every joint within
+    0.0032° of the keyframe, peaks at 1.003 body weights at reset and keeps
+    its centre of mass 0.060 m inside its contact hull; it stands on pad /
+    digit III / digit IV at 0.300 / 0.357 / 0.343 of each foot's load, every
+    site carrying at least 3.1 N after the settle. Its lateral stiffness
+    2 (kp + k) = 288 N·m/rad is 3.79 × m·g·h (bar 1.5 ×).
+  - **Observation:** `foot_contact` 2 → 6, one channel per touch sensor
+    (right pad, digit III, digit IV, then the left foot's), the per-site
+    channels #608 proposed and note 21 deferred to this checkpoint-stranding
+    change; each equals the floor's normal force on its geom at every physics
+    substep (to 5.8e-16 of the floor force). The schema stays
+    `bipedal-target-heading-free/v1`: a segment's composition is in the
+    policy-interface digest, not the schema name (notes 12 and 14, D-C6). The
+    plant contract's `foot_contact` segment and the symmetry layout read the
+    channels from a new `_foot_observation_groups` env attribute, which only
+    the velociraptor declares, so no other model's segment, digest or mirror
+    layout moves; the rewards, info keys and substep minimum stay per foot.
+    `_cache_ids` resolves every name, sensors included, and fails closed on
+    a missing one (r4 hard-coded the sensordata addresses).
+  - **Env:** the leg home-pose term covers the eight servoed leg joints, the
+    T. rex's set; a new opt-in neck home-pose term (`neck_home_pose_weight`,
+    `neck_home_pose_tolerance`), shaped like the tail's, off by default,
+    declared in `OPT_IN_TASK_KWARGS` and emitting its info keys only when on,
+    centred on the statue's settled neck and head; two head terminations at
+    the T. rex's fractions of the home height, checked at every physics
+    substep (the head tip below 0.07 m ends the episode as `head_contact`,
+    the skull below 0.28 m as `skull_low`); the neck capsules are the
+    behavior env's terrain probes. Re-measured on the statue:
+    `natural_pitch` 0.35 → 0.002 rad, the tail's settled target → the
+    keyframe's zeros, `healthy_z_range` (0.3, 1.0) → (0.33, 1.09) m.
+  - **Stance (the body first, on today's terms):** every statue-derived
+    constant re-measured on the r5 statue (`statue_constants_physics_revision`
+    4 → 5 on the stance and the walk): foot saturation 50 → 55 N (the statue
+    carries 73.6 N a foot); the floor-impact threshold 2.5 → 3.0 body weights
+    (the shared reset noise moves the passive toes too, as on the T. rex, and
+    the reset pop reaches 2.56 on 3000 seeds, so 2.5 would charge the
+    statue); the neck term on at 0.25 with tolerance 0.05 rad, the tail
+    term's (the statue keeps 0.998 of it; without it a 0.1 rad head raise
+    earned 0.85 per episode, with it a drooped or raised head loses 85 to
+    176); `log_std_init` −2.66 → −2.30, action std 0.10, at the r5 statue's
+    noise cliff (40/40 to σ 0.09, 38/40 at 0.10, 19/40 at 0.135, 0/40 from
+    0.20; 115/120 at 0.10 over three seed blocks); the statue reference
+    3091.3 → 3341.0 and `min_avg_reward` 1850 → 2000. Every certificate bar
+    is kept, each comment carrying its r5 worst value: the statue is clean
+    on 40/40 seeds at every heading on 3042–3081, 3082–3121 and 7042–7081
+    (720/720 episodes), its closest margin the settle stance-width change
+    (0.036 m against 0.05).
+  - **Walk and behaviors:** the walk's statue 796.0 → 796.6; the walk gate
+    and speed cap, the behaviors' cruise speed and scale and the strike's
+    speed cap Froude-matched to the new hip height (× 1.042: 2.0 → 2.1, 2.5 →
+    2.6 and 3.0 → 3.1 m/s).
+  - **Not ported** (a later change): the T. rex's LTSB stance recipe
+    (stagger, the centre-of-pressure band, lateral lean, the settled leg
+    reference at 1.0 / 0.05, mirror-KL PPO) and the per-site load floor
+    measured on the r4 handoffs; this change builds the body.
+  - **Open, for the maintainer:** `max_settle_peak_floor_force_bw` (2.0) is
+    no longer mid-gap on r5: the statue under N(0, 0.05) command noise
+    fails it on 30 of 40 seeds (median 2.11, worst 2.59 body weights), and
+    the impact term prices only from 3.0, so no reward steers a policy away
+    from it; it is kept and flagged in `stance.toml`, since moving it is a
+    gate decision. `MEASUREMENT_VERSION` is not bumped: it is global, and
+    the velociraptor's own digests already refuse every r4 panel. The statue
+    pays 0.10 per episode for its airborne substeps at the spawn (r4
+    nothing), before a foot lands, which no command reaches.
+  - **Tests:** the velociraptor's tests and the shared ones that pinned r4
+    facts are re-pinned on r5, each number measured, and the T. rex's plant
+    acceptance tests are ported: lateral sway, the passive preloads carrying
+    their static loads (within 1%), the home stance (feet flat at −0.5 mm,
+    only the six supports on the floor, the centre of mass 0.059 m inside the
+    hull, the springs-deleted statue), the sickle claw's clearance, the head
+    and substep height terminations, `_cache_ids` failing closed, every touch
+    sensor against its geom's floor force (within 1e-9) and the neck term's
+    off path; a new `test_anatomical_mirror.py` checks the home pose
+    mirror-exact to 1e-12 m and paired mirrored stance rollouts. The
+    catalog, both plant manifests and the digest golden are regenerated: 74
+    velociraptor lines move, and every other line is unchanged.
+  - **Untested in training:** nothing here has trained. The next velociraptor
+    session is a fresh stance on physics r5 (`docs/NEXT_STEPS.md`).
 - **The r10 LTSB T. rex stance recipe is the committed stance, for its
   certification by two new seeds** (#661; the maintainer's stance-landing
   decision of 2026-11-06, cited by date: it has no decision id yet; the records
@@ -2681,7 +2815,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The Velociraptor takes the T. rex's stance lessons: a heading-free
   observation and the six-heading certificate, a quiet start at its own noise
   cliff, the D-D27 anti-hop terms and rails, and the T. rex's training
-  safeguards on its stance and walk** (breaking — policy interface change:
+  safeguards on its stance and walk** (#660; breaking — policy interface change:
   velociraptor revision 12 → 13, 70 → 69 wide; every policy-interface-r12
   velociraptor checkpoint is invalidated, and none has trained on physics r4;
   the maintainer's decision of 2026-11-06, cited by date: it has no decision

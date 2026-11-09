@@ -13,7 +13,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
-| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B); execution was deferred until the T-Rex clears stages 1–3, until the maintainer's D-D25 (2026-10-06): velociraptor physics r3 fixes findings 2, 3 and 5 and replaces finding 1's reward gate with `stance_quality/v2`, and 4, 6 and 8–11 stay open; see below |
+| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B); execution was deferred until the T-Rex clears stages 1–3, until the maintainer's D-D25 (2026-10-06): velociraptor physics r3 fixes findings 2, 3 and 5 and replaces finding 1's reward gate with `stance_quality/v2`, and 4, 6 and 8–11 stayed open until velociraptor physics r5 (the maintainer's decision of 2026-11-08, `configs/plant_versions.toml` note 22) closed them all (the review's dated status note); see below |
 | [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 78 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (16 of them after a fix), 3 fixed with a residue, 6 duplicates; the 8 open ones and the three residues (SM7, DU4, CI8) are below (its appendix B, 2026-09-30) |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
@@ -76,6 +76,27 @@ robustness, **LOW** = cosmetic / QoL.
   this entry until a velociraptor stance certifies: nothing has trained on
   the 2026-11-06 recipe, so whether the quiet start reaches the standing basin,
   and whether digit IV loads there, is unmeasured.
+  *Update (2026-11-09; the maintainer's decision of 2026-11-08):* velociraptor
+  physics r5 (`configs/plant_versions.toml` note 22) rebuilds the foot this
+  entry's digit-IV item is about. Each foot stands on an MTP pad and digits
+  III and IV, the toes passive on sprung hinges with no actions (the T. rex's
+  passive toes, note 9), so the toe audit has no toe actuator left to
+  saturate, and the toe springs' preloads carry their static loads (within
+  0.23% on digit III and 0.11% on digit IV,
+  `test_anatomical_static_balance.py`); the observation carries one
+  channel per touch sensor (policy interface r14), the per-site channels this
+  entry kept open. The r5 statue stands on pad / digit III / digit IV at
+  0.300 / 0.357 / 0.343 of each foot's load, every site at least 3.1 N after
+  the settle (r4 by the review's protocol: metatarsus 0.285, digit III 0.547,
+  digit IV 0.168). The stance starts at action std 0.10 (`log_std_init`
+  −2.30), at the r5 statue's cliff (40/40 to σ 0.09, 38/40 at 0.10, 19/40 at
+  0.135, 0/40 from 0.20), and every statue constant was re-measured on it.
+  Still open: the per-site load shaping (with the T. rex's LTSB recipe, a
+  later change; `docs/NEXT_STEPS.md`), the settle-peak bar, which on r5 the
+  statue under N(0, 0.05) command noise breaks on 30 of 40 seeds while the
+  impact term prices only from 3.0 body weights (kept and flagged in
+  `stance.toml`; moving it is a gate decision), and this entry until a
+  velociraptor stance certifies on r5: nothing has trained on it.
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
@@ -1018,6 +1039,16 @@ robustness, **LOW** = cosmetic / QoL.
   (#556, consolidation PR-7) and ends the episode as `neck_ground_contact`;
   brachiosaurus and dibothrosuchus can opt in by declaring their neck geoms
   there, without changing canonical physics.
+  *Update (2026-11-09; the maintainer's decision of 2026-11-08):* the
+  velociraptor is no longer the colliding-neck reference. Physics r5
+  (`configs/plant_versions.toml` note 22) gives it a separate neck and skull
+  on the T. rex's pattern: its two neck capsules never collide (contype 0),
+  `skull_upper` and `snout` do and sit in `_body_ground_geoms`, and the neck
+  capsules are its `_terrain_contact_probe_geoms` on behavior terrain, as the
+  T. rex's neck is; the head-tip and skull height terminations (0.07 m and
+  0.28 m, every physics substep) end a head dip on the flat floor before any
+  head geom touches it. The T. rex's probe pattern is now the template for
+  terrain.
 
 - **LOW** — **the reset's root-height jitter channel is state-inert but still
   present.** The PR #479 ground settle overwrites the root height as a pure
@@ -1541,6 +1572,13 @@ robustness, **LOW** = cosmetic / QoL.
   reward kit's `terminate_on_leg_contact`, set in the dibothrosuchus and
   brachiosaurus `gait-r1` revisions ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)
   PR-G6 and PR-G7); none is planned for T-Rex or velociraptor.
+  *Update (2026-11-09; the maintainer's decision of 2026-11-08):* on
+  velociraptor physics r5 `_body_ground_geoms` holds the torso, belly,
+  ribcage, `skull_upper`, `snout` and `tail_3` to `tail_5` (the neck no
+  longer collides). The settled noise-free stance statue's lowest
+  non-terminating geom is the metatarsus shaft, 14.4 mm clear (then the claw
+  19.5 mm and the shank 109 mm), and the height floor of 0.33 m allows a
+  root drop of 0.219 m.
 
 - **LOW** — **the shared stance diagnostic reads only the forefeet on
   quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
@@ -2019,6 +2057,12 @@ The raptor's observation and its `r_foot_contact` / `l_foot_contact` info keys n
 whole foot's load, which its stage-1 support terms read. Evidence, method and reproduction in
 [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
 re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
+*Update (2026-11-09; the maintainer's decision of 2026-11-08):* velociraptor physics r5
+(`configs/plant_versions.toml` note 22) rebuilds the foot with one touch site and sensor on each support
+body (the MTP pad, digit III and digit IV), resolved by name in `_cache_ids`, which fails closed on a missing
+one. Each sensor equals the floor's normal force on its geom at every physics substep (the six sum to the floor
+force to 5.8e-16), and since policy interface r14 the observation carries each as its own channel; the info keys
+and rewards keep the per-foot sum.
 
 **Update (2026-09-28, gait audit):** a second under-read, shared by every species, comes from how
 substeps are combined rather than from sensor scope. The contact-shaped rewards and foot-contact
@@ -2040,15 +2084,24 @@ only the new bilateral and coverage terms price a one-foot chatter), and every o
 every legacy term, still reads the minimum alone. The opposite error, touch over-reporting through the Compsognathus robot's
 stacked soles, is under Training / RL.
 
-### Velociraptor plant — open (July 2026 raptor review)
+### Velociraptor plant — closed by physics r5 (July 2026 raptor review)
 
 The review's spring, keyframe, touch-sensor, `natural_pitch` and stage-1
 gate findings are closed by velociraptor physics r3 (D-D25, 2026-10-06;
 `configs/plant_versions.toml` note 14 and the outcome appended to
 [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md));
-its other findings follow.
+its other findings are closed by velociraptor physics r5, the life-size
+plant (the maintainer's decision of 2026-11-08; note 22 and the review's
+dated status note), as each item below says. Measured on the r5 MJCF by the
+review's protocol (home keyframe, `key_ctrl` held, 3000 MuJoCo steps).
 
-- **HIGH (fidelity) — the metatarsus is 78% too long** relative to the femur:
+- ~~**HIGH (fidelity) — the metatarsus is 78% too long**~~ **FIXED** (physics
+  r5): femur 238.0, tibia 255.0 and MT III 99.1 mm joint to joint, IGM
+  100/986's, so MT III / femur is 0.416 (r4 0.741) and tibia / femur 1.071;
+  the metatarsus shaft sits 14.4 mm clear of the floor and carries nothing
+  (r4 28.5% of each foot), and each foot stands on an MTP pad under the
+  metatarsophalangeal joints and digits III and IV (0.299 / 0.365 / 0.336
+  of its load). As reviewed: the metatarsus was 78% too long relative to the femur:
   model MT III/femur 0.741 against 0.416 (Persons & Currie 2016, *Sci Rep*
   6:19828, Table 1, IGM 100/986) and ~0.51 from a second specimen (Norell &
   Makovicky 1999, *AMNH Novitates* 3282). It also bears 26.2% of each foot's
@@ -2056,15 +2109,42 @@ its other findings follow.
   *rear* edge of the support polygon, so the "digitigrade"
   foot is functionally part-plantigrade. tibia:femur is within 3.6% and correct
   — leave it alone.
-- **MEDIUM — the two claw motors are the only unbounded actuators** in any
-  plant (`forcelimited=False`, `gear=50`): 693 N at the claw tip, 5.2× body
+- ~~**MEDIUM — the two claw motors are the only unbounded actuators**~~
+  **FIXED** (physics r5): each claw is a position servo (kp 5) bounded at
+  ±4 N·m, 65 N at the farthest point of its geom from the claw joint, 0.44
+  body weights (the r4 motor's ±50 N·m gave 609 N there, 4.6 body weights);
+  no actuator of any committed plant is unbounded. As reviewed: the only
+  unbounded actuators in any plant (`forcelimited=False`, `gear=50`): 693 N at the claw tip, 5.2× body
   weight, on the geom that scores stage 3. The July 2026 `forcerange` sweep
   missed them.
+- **Ankle range and columnar stance (findings 8 and 9): FIXED** (physics r5).
+  The stance is Bishop et al. 2018's paravian posture (the MJCF's leg
+  comment): knee 125.0° and ankle 151.5° interior (r4 167.9° and 138.3°),
+  the femur 35.1° from vertical (r4 13.7°), 7.8° of knee per centimetre of
+  hip height by a finite difference on the settled pose (r4 11.3° by the
+  same), and the hip pitch, knee and ankle each settle at 50.0% of their
+  ranges (r4 ankle 30.6%).
+- **Head, neck and forelimbs (findings 10 and 11): FIXED** (physics r5):
+  `neck_pitch`, `neck_yaw` and `head_pitch` on separate neck and skull bodies
+  (the T. rex's names), servoed with a gravity preload in the home control;
+  the arms are welded and non-colliding, no joints or actuators, as the T.
+  rex's are (r4: two shoulder servos each), humerus 160, forearm 120 and hand
+  175 mm, 0.30 kg each, 77% of femur + tibia + MT III (r4 25%).
 - **Not recommended:** porting the T-Rex stance correction here. That argument
   rests on a live stage-1 height term forcing knee travel through a
   near-singular joint, and the raptor env has **no height reward at all** —
   `height` appears in `velociraptor_mongoliensis/base_env.py` only in the `pelvis_height` diagnostic
-  and the shared height/tilt termination, never in a reward term.
+  and the shared height/tilt termination, never in a reward term. *Update
+  (2026-11-09):* still so on r5; the r5 knee flexion comes from the
+  paravian posture evidence above, not from the T-Rex correction, and the
+  env still has no height term.
+- **LOW — the r5 plant's residuals** (the MJCF's comments; no reward or
+  gate reads them): in Macaulay et al. 2023's standardised neutral posture
+  the centre of mass sits 0.056 m below the hip against their 0.065–0.078 m
+  scaled to 15 kg; the digit III and IV contact capsules are light (579 and
+  464 kg/m³, geom mass over capsule volume, inside the 0.05 kg digit
+  budget); and the welded, non-colliding hand passes visually through a
+  straightened shank once the hip flexes 19.5° past the stance.
 
 > **Note:** these changes alter the physics plant. Policies trained before the
 > change are incompatible by contract, including when a change seems marginal;
@@ -2137,19 +2217,24 @@ Still open:
   run on the finals; they are among the proposals' report-only checks. The
   ±0.03 ankle probe of the r10 statue is still not re-run, and no proposal
   includes it (§27 of the stance record).
-- **LOW** — the raptor's toe-clipping margin now sits at the toes: at
+- ~~**LOW** — the raptor's toe-clipping margin now sits at the toes~~
+  **FIXED** (physics r5, 2026-11-09): the toes are passive, with no
+  actuators, and the velociraptor actuator-bound tests' clip protocols (home
+  1000 steps, gait 2000, sprint 3.5 Hz at full amplitude) clip 0.0% on all
+  17 actuators. As it was: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the
   knee measures 0 % after its 1.5× bump. Re-measure with
   `environments/shared/scripts/actuator_saturation_report.py` before any
-  faster-gait (stage-3 sprint) work and consider 1.5× toes if they bind.
+  faster-gait (stage-3 sprint) work.
 - **LOW** — scene boilerplate (skybox/grid/floor/option) is copy-pasted
   across the three XMLs → extract a shared `scene.xml` include; limbs are
   hand-mirrored sign-flips → generate via script/PyMJCF or add a left/right
   symmetry test.
-- **LOW** — raptor claw `motor gear="50"` on a 0.05 kg claw (huge
-  torque-to-inertia; slams its limits); contype-0 neck geoms can visually
-  clip the floor; no `<light>`/`<visual>` block for nicer renders; the brachiosaurus
+- **LOW** — ~~raptor claw `motor gear="50"` on a 0.05 kg claw (huge
+  torque-to-inertia; slams its limits)~~ (physics r5: a kp-5 position servo
+  bounded at ±4 N·m on a 0.011 kg claw); contype-0 neck geoms can visually
+  clip the floor (the velociraptor's too since r5); no `<light>`/`<visual>` block for nicer renders; the brachiosaurus
   food has no collision partner.
 - ~~HIGH — the brachiosaurus cannot hold its home stance.~~ **FIXED**
   (plant_versions notes 7–8): the collapse decomposed into the midpoint action

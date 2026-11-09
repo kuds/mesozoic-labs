@@ -58,7 +58,11 @@ no certified checkpoint; the per-site channels, the pilot findings' priority 4,
 were not ready to batch with it. Policy interface r12 → r13 on this design's
 schema (`configs/plant_versions.toml` note 21), and its stance declares the
 six-heading certificate in place of the probe. Only the Compsognathus robot
-keeps the world-frame observation and the warn-only probe.*
+keeps the world-frame observation and the warn-only probe.* *2026-11-09 (the
+maintainer's decision of 2026-11-08): the per-site channels followed with the
+velociraptor's life-size plant, physics r5 and policy interface r13 → r14
+(note 22), still on this design's schema: one foot channel per touch sensor,
+declared by the env's `_foot_observation_groups`, 69 → 71 wide.*
 
 ## What the independent experiments established
 
