@@ -1,0 +1,1254 @@
+{
+ "schema": 2,
+ "body": "60-N-T-10",
+ "seed": 42,
+ "settings": {
+  "body": "60-N-T-10",
+  "seed": 42,
+  "mode": "R2",
+  "rate": 1.05,
+  "cma": {
+   "popsize": 12,
+   "sigma0": 0.1,
+   "searched": [
+    "k_dcm",
+    "cop_x",
+    "cop_y",
+    "k_step",
+    "step_x",
+    "step_out",
+    "decay",
+    "k_trunk",
+    "d_trunk",
+    "k_yaw",
+    "ki_yaw",
+    "k_phase",
+    "ki_phase"
+   ],
+   "fixed": {
+    "capture_margin": 0.0
+   },
+   "x0": "the tuning start (decision 16) of the searched gains in the [0, 1] scaling of their control.GAIN_BOUNDS",
+   "bounds": [
+    [
+     0.0,
+     6.0
+    ],
+    [
+     0.0,
+     0.05
+    ],
+    [
+     0.0,
+     0.03
+    ],
+    [
+     0.0,
+     3.0
+    ],
+    [
+     0.0,
+     0.1
+    ],
+    [
+     0.0,
+     0.06
+    ],
+    [
+     0.0,
+     3.0
+    ],
+    [
+     0.0,
+     150.0
+    ],
+    [
+     0.0,
+     10.0
+    ],
+    [
+     0.0,
+     1.0
+    ],
+    [
+     0.0,
+     0.5
+    ],
+    [
+     0.0,
+     10.0
+    ],
+    [
+     0.0,
+     10.0
+    ]
+   ],
+   "box": "evaluate the projection into [0, 1]; add the squared distance (repair penalty)",
+   "weights": "log((lambda + 1) / 2) - log(i), i = 1..mu, normalised",
+   "c_m": 1.0,
+   "train_episodes": [
+    1000,
+    2000
+   ],
+   "validation_episodes": [
+    2000,
+    2020
+   ],
+   "common_random_numbers": "every member of a generation on the same training episode",
+   "episode_order": "1000 + permutation(1000) from default_rng([seed, 1])"
+  },
+  "objective": "stage1-tune-v2"
+ },
+ "objective": {
+  "name": "stage1-tune-v2",
+  "defined": "before any tuning run (design_1.md gives the order and the episode budget, no formula)",
+  "revisions": [
+   "v1 (8 Nov): the first build, run only in smoke checks",
+   "v2 (9 Nov, before the fit, after an independent review of the tuner): capture_margin held at 0.0 (FIXED_RULE); the drives' motor-space RMS read over the same window as the other limits (SUCCESS_RULE); evaluations that fail scored by FAILURE_RULE; the mix, the other terms and the score unchanged"
+  ],
+  "controller": "R2",
+  "gains": [
+   "k_dcm",
+   "cop_x",
+   "cop_y",
+   "k_step",
+   "step_x",
+   "step_out",
+   "decay",
+   "k_trunk",
+   "d_trunk",
+   "k_yaw",
+   "ki_yaw",
+   "k_phase",
+   "ki_phase"
+  ],
+  "fixed_gains": {
+   "capture_margin": 0.0
+  },
+  "fixed_rule": "capture_margin is held at its tuning start, 0.0 (decision 16), and not searched: the capture step acts only while the reference stands, and the fit's mix has no standing push (its only stands are the starts' first and the stops' last moments, under the start noise), so the objective has nothing to fit the margin on; the gated push panels later use 0.0",
+  "mix": {
+   "episodes": [
+    "walk",
+    "walking_turn",
+    "in_place_turn"
+   ],
+   "plans": {
+    "walk": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      7
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "walking_turn": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "transition",
+      "enter_walk_0.35_left"
+     ],
+     [
+      "ref",
+      "walk_0.35_left",
+      5
+     ],
+     [
+      "transition",
+      "exit_walk_0.35_left"
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "in_place_turn": [
+     [
+      "transition",
+      "start_in_place_0.50_left"
+     ],
+     [
+      "ref",
+      "in_place_0.50_left",
+      3
+     ],
+     [
+      "transition",
+      "stop_in_place_0.50_left"
+     ]
+    ]
+   },
+   "strides": {
+    "walk": 7,
+    "walking_turn": 5,
+    "in_place_turn": 3
+   },
+   "directions": "episode seed even: walking turn left, in-place turn right; odd: the reverse",
+   "start": "the settled stance, joint angles +-0.01 rad and root velocity +-0.02 m/s (uniform, plant.Plant.reset), drawn from derived_seed(episode, j, 0); R2's sensor noise (estimator.SensorNoise defaults) from derived_seed(episode, j, 1)",
+   "floor": "hard (mu 0.9)",
+   "command_margin": 0.05,
+   "command_rule": "a command of r times the reference's speed plays the track r times faster than real time (the reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the servo targets and the armature feedforward, the reference DCM c + r c' / omega0 (the CoM moving r times as fast), the inverse-dynamics torque and the reference ZMP as the reference's",
+   "walk_window_s": 10.0
+  },
+  "score": "J = S + P; S = sum over fallen episodes of (1 + unsurvived share); P = 0.5 T + 0.5 L, T the mean tracking term, L the mean over behaviour groups (walk, walking_turn, in_place_turn, start, stop) of (max + mean) / 2 of the group's limit terms; a fallen episode scores 1 on every term; CMA-ES fitness J + 1 x the squared distance of the sample to its projection into the [0, 1] box",
+  "terms": "tracking: dcm = RMS of the true DCM error against the reference over the episode (relative to the anchor foot, as the feedback's) / 0.02 m; walk speed = |10 s mean speed - command| / (0.1 command); walk heading = |heading change over the 10 s window| / 0.1 rad; turn yaw_rate = |yaw rate over the 180 deg turn - command| / (0.1 command); in-place drift = the root's displacement from the episode's first stand to its last (the in-place reference turns about the root, which stays put; its CoM, 34-67 mm ahead of the root, swings 66-131 mm round a 204 deg turn) / 0.1 m.  Limits (plan section 4) as hinges, 0 within, read over the window (the walk's 10 s before the stop command, the turns' steady turning): roll and pitch RMS about home over 4 deg and peaks over 8 deg (scale: the limit); each foot's duty outside 0.55-0.65 (scale 0.05); flight time (scale 0.05 s); peak GRF over 1.6 BW (scale: the limit); toe clearance under 0.04 H (scale: the limit); slip median over 5 mm and worst over 15 mm (scale: the limit); walk cadence outside 1.6-2.2 steps/s (scale 0.3), stride outside 0.5-0.65 H (scale 0.075 H), 10 s mean speed under the target (scale 0.05 target); turn yaw rate under the target (scale 0.05 target); every drive's motor-space RMS over the window above its sustained torque (scale: the limit).  Over the episode: in-place drift over 0.1 m (scale: the limit); leg interference depth (scale 5 mm); every drive's peak speed above speed_at(24 V) (scale: the limit); the joint range's shortfall under the required margin (walks 0.1 rad; turns decision 14: min(0.1, the episode track's own smallest margin of that joint - 0.02), at least 0.001; scale 0.1 rad); start: strides to 90 % of the commanded speed over 2 (scale: the limit; not reached: 1); stop: decision 18's strides to stopped over 1.5 (scale: the limit; not reached: 1); start and stop forward acceleration low-passed at 1 Hz over 1.5 m/s^2 (decision 10; scale: the limit)",
+  "success": "plan section 4 on each validation episode: the nominal walk succeeds if it survives and over the 10 s before the stop command its mean speed is at least the nominal speed, each foot's duty is 0.55-0.65, there is no flight, the cadence is 1.6-2.2 steps/s, the stride 0.5-0.65 H, the peak GRF at most 1.6 BW, roll and pitch about home at most 4 deg RMS and 8 deg peak, the toe clearance at least 0.04 H, the slip at most 5 mm median and 15 mm worst and every drive's motor-space RMS at most its sustained torque (the drive RMS is judged over the same window as the other limits), and over the whole episode every drive's peak speed is at most speed_at(24 V) and every joint keeps 0.1 rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) and the drive RMS hold over its steady turning (the same window), the drives' peak speeds hold over the episode, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at 50 Hz) and, in place, the drift (the root's displacement) is at most 0.1 m.  Cadence and stride are judged at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement over each loaded stance, the drive RMS over the window's physics steps",
+  "term_order": [
+   "walk.tracking.dcm",
+   "walk.tracking.speed",
+   "walk.tracking.heading",
+   "walking_turn.tracking.dcm",
+   "walking_turn.tracking.yaw_rate",
+   "in_place_turn.tracking.dcm",
+   "in_place_turn.tracking.yaw_rate",
+   "in_place_turn.tracking.drift",
+   "walk.limits.roll_rms",
+   "walk.limits.pitch_rms",
+   "walk.limits.roll_peak",
+   "walk.limits.pitch_peak",
+   "walk.limits.duty_left",
+   "walk.limits.duty_right",
+   "walk.limits.flight",
+   "walk.limits.grf",
+   "walk.limits.toe_clearance",
+   "walk.limits.slip_median",
+   "walk.limits.slip_worst",
+   "walk.limits.cadence",
+   "walk.limits.stride",
+   "walk.limits.speed",
+   "walk.limits.drive_sustained",
+   "walk.limits.drive_speed",
+   "walk.limits.joint_range",
+   "walking_turn.limits.roll_rms",
+   "walking_turn.limits.pitch_rms",
+   "walking_turn.limits.roll_peak",
+   "walking_turn.limits.pitch_peak",
+   "walking_turn.limits.duty_left",
+   "walking_turn.limits.duty_right",
+   "walking_turn.limits.flight",
+   "walking_turn.limits.grf",
+   "walking_turn.limits.toe_clearance",
+   "walking_turn.limits.slip_median",
+   "walking_turn.limits.slip_worst",
+   "walking_turn.limits.yaw_rate",
+   "walking_turn.limits.leg_interference",
+   "walking_turn.limits.drive_sustained",
+   "walking_turn.limits.drive_speed",
+   "walking_turn.limits.joint_range",
+   "in_place_turn.limits.roll_rms",
+   "in_place_turn.limits.pitch_rms",
+   "in_place_turn.limits.roll_peak",
+   "in_place_turn.limits.pitch_peak",
+   "in_place_turn.limits.duty_left",
+   "in_place_turn.limits.duty_right",
+   "in_place_turn.limits.flight",
+   "in_place_turn.limits.grf",
+   "in_place_turn.limits.toe_clearance",
+   "in_place_turn.limits.slip_median",
+   "in_place_turn.limits.slip_worst",
+   "in_place_turn.limits.yaw_rate",
+   "in_place_turn.limits.drift",
+   "in_place_turn.limits.leg_interference",
+   "in_place_turn.limits.drive_sustained",
+   "in_place_turn.limits.drive_speed",
+   "in_place_turn.limits.joint_range",
+   "walk.start.speed_up",
+   "walk.start.acceleration",
+   "walk.stop.stopped",
+   "walk.stop.acceleration",
+   "walking_turn.start.speed_up",
+   "walking_turn.start.acceleration",
+   "walking_turn.stop.stopped",
+   "walking_turn.stop.acceleration"
+  ],
+  "scales": {
+   "dcm_m": 0.02,
+   "speed_frac": 0.1,
+   "heading_rad": 0.1,
+   "yaw_rate_frac": 0.1,
+   "drift_m": 0.1,
+   "flight_s": 0.05,
+   "leg_interference_m": 0.005,
+   "joint_range_rad": 0.1,
+   "duty": 0.05,
+   "cadence": 0.3,
+   "stride_H": 0.075,
+   "speed_limit_frac": 0.05,
+   "yaw_rate_limit_frac": 0.05
+  },
+  "failures": "an evaluation that raises scores as the worst case: every episode a fall at its start (survived share 0, S = 2 per episode, every term 1, J = 7), with its traceback in the evaluation log; an episode during which MuJoCo warned (mjWARN_INERTIA, mjWARN_CONTACTFULL, mjWARN_CNSTRFULL, mjWARN_BADQPOS, mjWARN_BADQVEL, mjWARN_BADQACC, mjWARN_BADCTRL; counted after the episode) counts as a fall at its start, the warnings recorded; a worker process that dies or does not answer within 900 s is replaced by a fresh one (on the same inputs and tuner sources, else the run stops) and its evaluation run again, up to 2 attempts, after which it scores as the worst case with the reason; every such incident is kept in the session record",
+  "sketch_in_design_1": "47 simulated s on hard floor (nominal walk with a 0.4x push, Fr 0.05, both turns, start and stop) plus 8 s on low pile; score: time survived first, then tracking and drive-duty penalties.  Kept: the order (survival, then tracking and limits, drive duty among them) and the about 55 s budget.  Not kept: the push, Fr 0.05 and low pile, which G5 does not judge (the task's fixed mix of G5's behaviours plus start and stop)"
+ },
+ "fixed_gains": {
+  "gains": {
+   "capture_margin": 0.0
+  },
+  "rule": "capture_margin is held at its tuning start, 0.0 (decision 16), and not searched: the capture step acts only while the reference stands, and the fit's mix has no standing push (its only stands are the starts' first and the stops' last moments, under the start noise), so the objective has nothing to fit the margin on; the gated push panels later use 0.0"
+ },
+ "sessions": [
+  {
+   "started_at": "2026-11-09T08:00:57+00:00",
+   "from_generation": 0,
+   "workers": 1,
+   "provenance": {
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1",
+     "gymnasium": "1.4.0",
+     "stable-baselines3": "2.9.2",
+     "torch": "2.15.0"
+    },
+    "git": {
+     "commit": "8155886c1b8f5ca004e7bedad41bc82957f9a200",
+     "dirty": false,
+     "dirty_paths": []
+    },
+    "stage1_sources": {
+     "sha256": "3dd045052a4db06607c72295d6a864aa2cd5abe0bb9615e680e8469723f337ea",
+     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+     "files": [
+      "__init__.py",
+      "__main__.py",
+      "control.py",
+      "drive.py",
+      "estimator.py",
+      "gates.py",
+      "legs.py",
+      "metrics.py",
+      "plant.py",
+      "refs.py",
+      "transitions.py",
+      "tune.py"
+     ]
+    }
+   },
+   "tuner_sources": {
+    "sha256": "c8b112cfa53a9078bc2cf596905072e704f3464aba774c9735d94ea93d3003f8",
+    "rule": "sha256 over the designlab/stage1 modules the tuner imports, in the form of plant.SOURCES_RULE (each file's name, a NUL byte, its bytes and a NUL byte, in path order): tune.py, the package's __init__.py and every designlab/stage1 module they reach through their imports, at module level or inside functions, followed transitively (read from the sources with ast); the module list is recorded beside the hash.  Other designlab/stage1 files (the command line __main__.py, gates.py, the later steps' modules) are not in it, so they may be added or changed while a fit runs; the designlab modules outside designlab/stage1 are named by each session's commit and dirty paths (plant.provenance), not hashed here",
+    "modules": [
+     "__init__.py",
+     "control.py",
+     "drive.py",
+     "estimator.py",
+     "legs.py",
+     "metrics.py",
+     "plant.py",
+     "refs.py",
+     "transitions.py",
+     "tune.py"
+    ]
+   },
+   "inputs": {
+    "dir": "stage1/runs/2026-11-08/60-N-T-10",
+    "rule": "before the evaluator loads them, every refs/*.npz and transitions/*.npz file the mix uses (the episodes' tracks, both directions of each turn, and refs/nominal.npz, which sets omega0) is hashed (sha256) and checked against the sha256 that refs.json or transitions.json records for it, and both JSON files are hashed; a mismatch stops the build; every session records {file: sha256} and the JSON files' hashes, --resume is refused on any difference from the run's first session, and G5 judges a seed only on the inputs its fit used",
+    "files": {
+     "refs/in_place_0.50_left.npz": "d7c6e5d3e8775bcb9a90beb2dd9d4417a30d70104819261430b0cabe5399cf2d",
+     "refs/in_place_0.50_right.npz": "460dfeb317a898e563dbe1e478df616e0207cf099951d5c9dd5475742b22954e",
+     "refs/nominal.npz": "566e111748573b5020d9543a2970c27dbbb688e6b5541b02c1459c700a794937",
+     "refs/walk_0.35_left.npz": "00c544c612df6ab15c199823434026d49b0c328dfbd9f311569b996585d30fee",
+     "refs/walk_0.35_right.npz": "00d9501994046837c5280552f620572d6924b625828ee5c17bcebae48ce061e4",
+     "transitions/enter_walk_0.35_left.npz": "32f4d3cace739f02d10a85619b494c3c87e11c0d418ca99197140c903db8d5de",
+     "transitions/enter_walk_0.35_right.npz": "cd91088bb4feb0c7aaae223145e5dca7169ee30662420557a10298fe79931269",
+     "transitions/exit_walk_0.35_left.npz": "a36e45c11c3642033149a7d9010da67f5517755809e4ecf5b03a754c8aac0229",
+     "transitions/exit_walk_0.35_right.npz": "2b4a8c06083b6dac5453ec43611783185358cc6ecdfaa62686fe8487a178033c",
+     "transitions/start.npz": "70e19c5d7c727e7b53fb7c465e94e11e0c33020b26f48cab86a73fcba6b26a33",
+     "transitions/start_in_place_0.50_left.npz": "4de4ac1ecfa133fcb42d3ec3c2796a82b401725f10013a84b3c89ea6f472da47",
+     "transitions/start_in_place_0.50_right.npz": "78cfa58746041d92f21f13351c2d8e8e7aab1ff28418cf361e742cec0ae4cc1e",
+     "transitions/stop.npz": "970c1391c0b0b749b130e131d952d7aac213a5fe4f40628dc81c91526b3ae234",
+     "transitions/stop_in_place_0.50_left.npz": "b26ffb2678a554cb154b8a28a55ff6292e07d4d9c9afef758115a841a40e141c",
+     "transitions/stop_in_place_0.50_right.npz": "5e9fc7d955c827118130f1c7d3d8373e77fe7a4c81682df94adab6bb208e9011"
+    },
+    "records": {
+     "refs.json": "b9d36ae024a79b56336798bb0aee6271259692afb3de027c2286922937157d98",
+     "transitions.json": "0f04f070b480df1f2571a8a889d46f13d40481b75b015c36932ec855e2cdae4d"
+    }
+   },
+   "incidents": []
+  }
+ ],
+ "history": [
+  {
+   "gen": 0,
+   "episode": 1865,
+   "evals": 12,
+   "sigma": 0.0887130373294386,
+   "mean": [
+    0.3682356108738629,
+    0.4340887360238654,
+    0.39953335440865817,
+    0.3081825025989318,
+    0.4604942148422745,
+    0.5387960379201366,
+    0.3334192404701814,
+    0.3153913775215741,
+    0.1648003953725339,
+    0.05210240469132565,
+    0.004810054012195672,
+    0.015803346974892867,
+    0.024910625165135786
+   ],
+   "mean_gains": [
+    2.2094136652431775,
+    0.021704436801193272,
+    0.011986000632259745,
+    0.9245475077967955,
+    0.04604942148422745,
+    0.0323277622752082,
+    1.0002577214105441,
+    47.308706628236116,
+    1.648003953725339,
+    0.05210240469132565,
+    0.002405027006097836,
+    0.15803346974892868,
+    0.24910625165135786,
+    0.0
+   ],
+   "J_min": 0.07246151220544395,
+   "J_median": 0.0963064965845152,
+   "J_max": 5.134352800741215,
+   "falls": 4,
+   "best": 3,
+   "best_gains": [
+    2.3903556726948207,
+    0.023716270856017213,
+    0.013629462804915584,
+    0.8003470878133916,
+    0.0523216132306672,
+    0.03070011485484437,
+    1.065606579018704,
+    53.07143166922285,
+    2.223595548774682,
+    0.0678913563071895,
+    0.003378953474444573,
+    0.28911939868998415,
+    0.6312882258385404,
+    0.0
+   ],
+   "wall_s": 159.62960460300383,
+   "sim_s": 632.827999999987,
+   "errors": 0,
+   "warned_episodes": 0,
+   "incidents": 0
+  }
+ ],
+ "evals": 12,
+ "status": "running",
+ "state": {
+  "n": 13,
+  "popsize": 12,
+  "generation": 1,
+  "mean": [
+   0.3682356108738629,
+   0.4340887360238654,
+   0.39953335440865817,
+   0.3081825025989318,
+   0.4604942148422745,
+   0.5387960379201366,
+   0.3334192404701814,
+   0.3153913775215741,
+   0.1648003953725339,
+   0.05210240469132565,
+   0.004810054012195672,
+   0.015803346974892867,
+   0.024910625165135786
+  ],
+  "sigma": 0.0887130373294386,
+  "C": [
+   [
+    0.9898482368552323,
+    0.008307940108942933,
+    0.0006593121663349515,
+    0.0005283227770455567,
+    -0.005822390302610749,
+    -0.00012095877681052823,
+    0.004294011200120792,
+    0.0015096126068170957,
+    0.0027697778277025542,
+    0.012971160153092347,
+    -0.0003395304864722989,
+    -0.0019462990534924918,
+    -0.000402990983760187
+   ],
+   [
+    0.008307940108942933,
+    0.9843862271612895,
+    -0.00037139668121339187,
+    -0.0067732892876707215,
+    0.0014334268026366562,
+    0.00592075078160075,
+    0.0038609267985592467,
+    0.0076922135243373485,
+    0.00011843598765029538,
+    0.013038030591116443,
+    -0.0034541281346069947,
+    -0.0016190809561286612,
+    0.0015630172347156676
+   ],
+   [
+    0.0006593121663349515,
+    -0.00037139668121339187,
+    0.980058080807361,
+    -0.0016153021277053323,
+    0.0021757028251539992,
+    -0.006850655296509912,
+    0.0018973500839674566,
+    0.0021099202579600946,
+    0.005595156232736085,
+    -0.003148051965059401,
+    0.00216946209989482,
+    0.003197166784927993,
+    0.003160327500016143
+   ],
+   [
+    0.0005283227770455567,
+    -0.0067732892876707215,
+    -0.0016153021277053323,
+    0.9815750381964842,
+    -0.004069951451726118,
+    -0.005761209111867748,
+    -0.0004151207465582246,
+    -0.009535770666812179,
+    0.0020275641802839153,
+    -0.005510916400220897,
+    0.0015551374654919142,
+    -0.001858798373873258,
+    -0.004893179947741397
+   ],
+   [
+    -0.005822390302610749,
+    0.0014334268026366562,
+    0.0021757028251539992,
+    -0.004069951451726118,
+    0.9870018889185671,
+    -0.002371500699037349,
+    0.00117102106987291,
+    -0.00030154503052228204,
+    0.006906919140761679,
+    -0.00368025952005033,
+    -0.003045916424445274,
+    -0.002065040018986782,
+    -2.4857382235635812e-05
+   ],
+   [
+    -0.00012095877681052823,
+    0.00592075078160075,
+    -0.006850655296509912,
+    -0.005761209111867748,
+    -0.002371500699037349,
+    0.98842006647413,
+    -0.003639362962059046,
+    0.007975282377835458,
+    -0.011692763207594341,
+    0.009299143557976595,
+    -0.0019531260639141785,
+    2.066805567011332e-05,
+    0.003284742543344157
+   ],
+   [
+    0.004294011200120792,
+    0.0038609267985592467,
+    0.0018973500839674566,
+    -0.0004151207465582246,
+    0.00117102106987291,
+    -0.003639362962059046,
+    0.9777312652643593,
+    -0.00017781195649539346,
+    0.005362631784028122,
+    0.00337827395889737,
+    -0.0018301388848084522,
+    -0.0017684114265297487,
+    -0.002200964122343224
+   ],
+   [
+    0.0015096126068170957,
+    0.0076922135243373485,
+    0.0021099202579600946,
+    -0.009535770666812179,
+    -0.00030154503052228204,
+    0.007975282377835458,
+    -0.00017781195649539346,
+    0.9857225273526843,
+    -0.005201586186069361,
+    0.0078098575137748386,
+    -5.715325068389855e-05,
+    0.004041517731390418,
+    0.007313744435572208
+   ],
+   [
+    0.0027697778277025542,
+    0.00011843598765029538,
+    0.005595156232736085,
+    0.0020275641802839153,
+    0.006906919140761679,
+    -0.011692763207594341,
+    0.005362631784028122,
+    -0.005201586186069361,
+    0.9856474086046012,
+    -0.003256630255073829,
+    -0.000995821010421615,
+    -0.0022843941711098567,
+    -0.003188887570869762
+   ],
+   [
+    0.012971160153092347,
+    0.013038030591116443,
+    -0.003148051965059401,
+    -0.005510916400220897,
+    -0.00368025952005033,
+    0.009299143557976595,
+    0.00337827395889737,
+    0.0078098575137748386,
+    -0.003256630255073829,
+    0.9907101249818512,
+    -0.0033669183542976433,
+    -0.002374676114827946,
+    0.0009712492617300395
+   ],
+   [
+    -0.0003395304864722989,
+    -0.0034541281346069947,
+    0.00216946209989482,
+    0.0015551374654919142,
+    -0.003045916424445274,
+    -0.0019531260639141785,
+    -0.0018301388848084522,
+    -5.715325068389855e-05,
+    -0.000995821010421615,
+    -0.0033669183542976433,
+    0.9760496553896317,
+    0.0028846927824989856,
+    0.002347817478336591
+   ],
+   [
+    -0.0019462990534924918,
+    -0.0016190809561286612,
+    0.003197166784927993,
+    -0.001858798373873258,
+    -0.002065040018986782,
+    2.066805567011332e-05,
+    -0.0017684114265297487,
+    0.004041517731390418,
+    -0.0022843941711098567,
+    -0.002374676114827946,
+    0.0028846927824989856,
+    0.9772744672888256,
+    0.004531972600263145
+   ],
+   [
+    -0.000402990983760187,
+    0.0015630172347156676,
+    0.003160327500016143,
+    -0.004893179947741397,
+    -2.4857382235635812e-05,
+    0.003284742543344157,
+    -0.002200964122343224,
+    0.007313744435572208,
+    -0.003188887570869762,
+    0.0009712492617300395,
+    0.002347817478336591,
+    0.004531972600263145,
+    0.9796855287661879
+   ]
+  ],
+  "B": [
+   [
+    0.046410227625475635,
+    0.028435646231402358,
+    -0.07236496153677227,
+    -0.5250282690060104,
+    -0.028440871196017,
+    -0.014756546013208166,
+    0.025807141461538285,
+    -0.113001123235296,
+    0.46203466522158,
+    0.30115771197110874,
+    0.25475792680566883,
+    -0.5028816774305576,
+    -0.282348455923209
+   ],
+   [
+    -0.7692222482096525,
+    -0.05892223201442733,
+    -0.03314094942286014,
+    0.1327347688897128,
+    -0.13207757705230538,
+    -0.27729272334904165,
+    -0.10712586968667885,
+    0.10017234642653028,
+    -0.11063126249750761,
+    -0.11595488994383697,
+    -0.1612276261176511,
+    -0.25230246414028745,
+    -0.39360713500562766
+   ],
+   [
+    0.16180947932585701,
+    0.11329686003944824,
+    -0.1009894968799584,
+    0.10275767246114285,
+    -0.16772229289693688,
+    0.0024363286893042233,
+    -0.7769396402199076,
+    0.013669047165342613,
+    -0.042810234490602235,
+    0.40482314234647604,
+    -0.3422037671202826,
+    -0.12836878489490514,
+    0.0947010539811506
+   ],
+   [
+    0.07541817172299631,
+    0.17343932593068417,
+    -0.21885256211998566,
+    0.2519751739355706,
+    -0.4330471594621618,
+    -0.34632483049987184,
+    0.08345361072087111,
+    0.5207749525768584,
+    0.134878287713153,
+    0.040046113400239385,
+    0.4110603940652114,
+    -0.08633604174463784,
+    0.26642217829501275
+   ],
+   [
+    0.1992260084595695,
+    0.057025265180746465,
+    0.205049852885776,
+    -0.12777394670804282,
+    -0.07969230152417135,
+    -0.3337662048576725,
+    0.022619082933674695,
+    0.09003365305834014,
+    0.4615228841026418,
+    -0.4787967768130585,
+    -0.5556236975893527,
+    -0.08865259076138639,
+    0.11614804271634115
+   ],
+   [
+    0.018082271422377776,
+    0.0023283054525955857,
+    0.0039027057580331005,
+    -0.17460759420959163,
+    -0.153798069776312,
+    0.46478906859277475,
+    -0.29646105734482747,
+    0.46318559628092565,
+    0.18906533416574392,
+    -0.2871855357532856,
+    0.1159570978201694,
+    0.3521822230628836,
+    -0.4139470840652783
+   ],
+   [
+    0.19315322473329732,
+    0.02607525538084687,
+    0.11061002284847778,
+    -0.30322655897262163,
+    0.3979816942138078,
+    -0.1065744072423783,
+    0.016950046750040727,
+    0.566134734471648,
+    -0.5051296504217215,
+    -0.01648698375809634,
+    -0.07710124367259774,
+    -0.3244405218506169,
+    -0.025565139925158457
+   ],
+   [
+    0.1715971735001004,
+    0.49312992770801,
+    -0.14578564169528446,
+    -0.10247048386954723,
+    -0.37151313379596507,
+    -0.012927770011521959,
+    0.3985917865835726,
+    -0.042617932505250915,
+    -0.24536253352608983,
+    0.2186065855026104,
+    -0.34515396307978813,
+    0.1654837556235153,
+    -0.37714062502577167
+   ],
+   [
+    -0.09223494945026761,
+    -0.08144997524307535,
+    -0.046692578207788514,
+    0.21490906276065652,
+    -0.18933181514613673,
+    0.6626426900809991,
+    0.2699435831208593,
+    0.1529057410555302,
+    0.05267879476765389,
+    -0.005772524618494786,
+    -0.2675308866318512,
+    -0.4841181804400916,
+    0.23780112166047254
+   ],
+   [
+    0.44481508270922826,
+    -0.1316814977349881,
+    0.2662070842123065,
+    0.579676968210538,
+    0.027713916561503148,
+    -0.05674197963927472,
+    -0.0018521707779865907,
+    -0.07496647454602388,
+    0.0061523870541417515,
+    -0.06718183494085306,
+    0.12512097039233916,
+    -0.2696053430680329,
+    -0.5247887773836486
+   ],
+   [
+    -0.2437329250116768,
+    0.43213051399842156,
+    0.6966096390101,
+    0.13161167311204017,
+    0.1722909612095134,
+    0.06794208945601132,
+    0.04707523869323356,
+    0.16768688209623703,
+    0.22471704070365572,
+    0.3435207217072564,
+    0.036481472498944074,
+    0.10637393179009554,
+    0.07406106461017875
+   ],
+   [
+    0.03704192016480399,
+    -0.6881555380571606,
+    0.330172155104087,
+    -0.1545422783943082,
+    -0.36397650069127324,
+    -0.11480046942977787,
+    0.15043727525042186,
+    0.16262896123408996,
+    -0.04496011123265268,
+    0.37374395578954217,
+    -0.13816744570742473,
+    0.19118937585183993,
+    -0.009258160593376289
+   ],
+   [
+    -0.01886000929801492,
+    -0.14635203758043713,
+    -0.43897142721873933,
+    0.2449477286237362,
+    0.49080770996771184,
+    -0.06228895915091023,
+    0.1788139017723887,
+    0.27796378295173285,
+    0.3671783575073326,
+    0.3291697605061766,
+    -0.26103871402447026,
+    0.2001415946851144,
+    -0.1419476423934743
+   ]
+  ],
+  "D": [
+   0.9863710638412684,
+   0.9863710638412684,
+   0.9863710638412686,
+   0.9863710638412689,
+   0.9863710638412689,
+   0.9863710638412693,
+   0.9863710638412695,
+   0.9865665978247377,
+   0.9883233148436552,
+   0.9958157072149019,
+   0.9993686905532595,
+   1.0030952123514285,
+   1.0133765602846112
+  ],
+  "pc": [
+   0.4411488499902106,
+   0.43086605672323963,
+   -0.0058981871808914945,
+   -0.31789501535810966,
+   -0.49933508408020266,
+   0.4903642031030958,
+   0.0010858269802733632,
+   0.6158580950709432,
+   -0.44490692859469855,
+   0.6585506027396651,
+   0.060796886203395864,
+   0.19974708916558775,
+   0.31485892665244375
+  ],
+  "ps": [
+   0.4560630254710407,
+   0.4454325958377501,
+   -0.006097590621785765,
+   -0.3286422768405713,
+   -0.5162163953833432,
+   0.5069422306209262,
+   0.0011225361638651963,
+   0.6366787675069738,
+   -0.45994815562236896,
+   0.6808146055869666,
+   0.06285228185850326,
+   0.20650005506285057,
+   0.3255035453200535
+  ],
+  "rng": {
+   "bit_generator": "PCG64",
+   "state": {
+    "state": 185169611843113935612256901587560045781,
+    "inc": 332724090758049132448979897138935081983
+   },
+   "has_uint32": 0,
+   "uinteger": 0
+  }
+ },
+ "budget": 720,
+ "inputs": "stage1/runs/2026-11-08/60-N-T-10",
+ "mix": {
+  "walk": {
+   "plan": [
+    [
+     "transition",
+     "start"
+    ],
+    [
+     "ref",
+     "nominal",
+     7
+    ],
+    [
+     "transition",
+     "stop"
+    ]
+   ],
+   "seconds": 16.510415098228762,
+   "strides": 17.00000000000153,
+   "period_s": 1.019760932537567,
+   "commanded_stride_s": 0.9712008881310161,
+   "speed_command_m_s": 0.22917921786770637,
+   "speed_target_m_s": 0.21826592177876797,
+   "yaw_rate_command_rad_s": 0.0,
+   "yaw_rate_target_rad_s": 0.0,
+   "start_command_ref_s": 2.0395218650764946,
+   "stop_command_ref_s": 14.276653055528083,
+   "window_ref_s": null,
+   "reference_turned_rad": null,
+   "reference_joint_margins_rad": {
+    "neck_pitch": 0.3,
+    "tail_yaw": 0.33,
+    "left_hip_roll": 0.13345488641883432,
+    "left_hip_pitch": 0.6251711743604593,
+    "left_hip_yaw": 0.29999999223123486,
+    "left_knee": 0.4991145817347964,
+    "left_ankle_pitch": 0.4272474450668729,
+    "left_ankle_roll": 0.23948180007830863,
+    "right_hip_roll": 0.18230127023922713,
+    "right_hip_pitch": 0.6189523056036691,
+    "right_hip_yaw": 0.2999999895109298,
+    "right_knee": 0.4956362452159401,
+    "right_ankle_pitch": 0.43583577415923375,
+    "right_ankle_roll": 0.1899885559811979
+   },
+   "required_joint_margins_rad": {
+    "neck_pitch": 0.1,
+    "tail_yaw": 0.1,
+    "left_hip_roll": 0.1,
+    "left_hip_pitch": 0.1,
+    "left_hip_yaw": 0.1,
+    "left_knee": 0.1,
+    "left_ankle_pitch": 0.1,
+    "left_ankle_roll": 0.1,
+    "right_hip_roll": 0.1,
+    "right_hip_pitch": 0.1,
+    "right_hip_yaw": 0.1,
+    "right_knee": 0.1,
+    "right_ankle_pitch": 0.1,
+    "right_ankle_roll": 0.1
+   }
+  },
+  "walking_turn_left": {
+   "plan": [
+    [
+     "transition",
+     "start"
+    ],
+    [
+     "transition",
+     "enter_walk_0.35_left"
+    ],
+    [
+     "ref",
+     "walk_0.35_left",
+     5
+    ],
+    [
+     "transition",
+     "exit_walk_0.35_left"
+    ],
+    [
+     "transition",
+     "stop"
+    ]
+   ],
+   "seconds": 26.22242397953739,
+   "strides": 26.999999999999954,
+   "period_s": 1.019760932537567,
+   "commanded_stride_s": 0.9712008881310161,
+   "speed_command_m_s": 0.22917921786770637,
+   "speed_target_m_s": 0.21826592177876797,
+   "yaw_rate_command_rad_s": 0.3675,
+   "yaw_rate_target_rad_s": 0.35,
+   "start_command_ref_s": 2.0395218650764946,
+   "stop_command_ref_s": 24.474262380902143,
+   "window_ref_s": [
+    8.158087460303367,
+    18.355696785677544
+   ],
+   "reference_turned_rad": 3.569163263881312,
+   "reference_joint_margins_rad": {
+    "neck_pitch": 0.3,
+    "tail_yaw": 0.33,
+    "left_hip_roll": 0.12131039533176383,
+    "left_hip_pitch": 0.6244535726227387,
+    "left_hip_yaw": 0.15693207888326047,
+    "left_knee": 0.4875302648136757,
+    "left_ankle_pitch": 0.421034619483915,
+    "left_ankle_roll": 0.23083577367392924,
+    "right_hip_roll": 0.14896851213953866,
+    "right_hip_pitch": 0.5588853996866626,
+    "right_hip_yaw": 0.1354618614218804,
+    "right_knee": 0.4468988735959184,
+    "right_ankle_pitch": 0.43583577415923375,
+    "right_ankle_roll": 0.1899885559811979
+   },
+   "required_joint_margins_rad": {
+    "neck_pitch": 0.1,
+    "tail_yaw": 0.1,
+    "left_hip_roll": 0.1,
+    "left_hip_pitch": 0.1,
+    "left_hip_yaw": 0.1,
+    "left_knee": 0.1,
+    "left_ankle_pitch": 0.1,
+    "left_ankle_roll": 0.1,
+    "right_hip_roll": 0.1,
+    "right_hip_pitch": 0.1,
+    "right_hip_yaw": 0.1,
+    "right_knee": 0.1,
+    "right_ankle_pitch": 0.1,
+    "right_ankle_roll": 0.1
+   }
+  },
+  "walking_turn_right": {
+   "plan": [
+    [
+     "transition",
+     "start"
+    ],
+    [
+     "transition",
+     "enter_walk_0.35_right"
+    ],
+    [
+     "ref",
+     "walk_0.35_right",
+     5
+    ],
+    [
+     "transition",
+     "exit_walk_0.35_right"
+    ],
+    [
+     "transition",
+     "stop"
+    ]
+   ],
+   "seconds": 26.22242397953739,
+   "strides": 26.999999999999954,
+   "period_s": 1.019760932537567,
+   "commanded_stride_s": 0.9712008881310161,
+   "speed_command_m_s": 0.22917921786770637,
+   "speed_target_m_s": 0.21826592177876797,
+   "yaw_rate_command_rad_s": -0.3675,
+   "yaw_rate_target_rad_s": 0.35,
+   "start_command_ref_s": 2.0395218650764946,
+   "stop_command_ref_s": 24.474262380902143,
+   "window_ref_s": [
+    8.158087460303367,
+    18.355696785677544
+   ],
+   "reference_turned_rad": 3.569163263881312,
+   "reference_joint_margins_rad": {
+    "neck_pitch": 0.3,
+    "tail_yaw": 0.33,
+    "left_hip_roll": 0.13345488641883432,
+    "left_hip_pitch": 0.568023436575462,
+    "left_hip_yaw": 0.1431007926282199,
+    "left_knee": 0.47011549273305286,
+    "left_ankle_pitch": 0.4272474450668729,
+    "left_ankle_roll": 0.23947902672384735,
+    "right_hip_roll": 0.11078364579321995,
+    "right_hip_pitch": 0.6120428370383411,
+    "right_hip_yaw": 0.15210673347276535,
+    "right_knee": 0.47038664716715706,
+    "right_ankle_pitch": 0.42298086054127193,
+    "right_ankle_roll": 0.1899885559811979
+   },
+   "required_joint_margins_rad": {
+    "neck_pitch": 0.1,
+    "tail_yaw": 0.1,
+    "left_hip_roll": 0.1,
+    "left_hip_pitch": 0.1,
+    "left_hip_yaw": 0.1,
+    "left_knee": 0.1,
+    "left_ankle_pitch": 0.1,
+    "left_ankle_roll": 0.1,
+    "right_hip_roll": 0.09078364579321994,
+    "right_hip_pitch": 0.1,
+    "right_hip_yaw": 0.1,
+    "right_knee": 0.1,
+    "right_ankle_pitch": 0.1,
+    "right_ankle_roll": 0.1
+   }
+  },
+  "in_place_turn_left": {
+   "plan": [
+    [
+     "transition",
+     "start_in_place_0.50_left"
+    ],
+    [
+     "ref",
+     "in_place_0.50_left",
+     3
+    ],
+    [
+     "transition",
+     "stop_in_place_0.50_left"
+    ]
+   ],
+   "seconds": 12.625611545704697,
+   "strides": 13.000000000001531,
+   "period_s": 1.019760932537567,
+   "commanded_stride_s": 0.9712008881310161,
+   "speed_command_m_s": 0.0,
+   "speed_target_m_s": 0.0,
+   "yaw_rate_command_rad_s": 0.525,
+   "yaw_rate_target_rad_s": 0.5,
+   "start_command_ref_s": 2.0395218650764946,
+   "stop_command_ref_s": 10.197609325377815,
+   "window_ref_s": [
+    3.059282797614742,
+    10.197609325377815
+   ],
+   "reference_turned_rad": 3.5691632638820376,
+   "reference_joint_margins_rad": {
+    "neck_pitch": 0.3,
+    "tail_yaw": 0.33,
+    "left_hip_roll": 0.07573177438428014,
+    "left_hip_pitch": 0.67040173317534,
+    "left_hip_yaw": 0.08092700402224165,
+    "left_knee": 0.47305365242605146,
+    "left_ankle_pitch": 0.5474486267333885,
+    "left_ankle_roll": 0.23844370082767152,
+    "right_hip_roll": 0.11880340011051602,
+    "right_hip_pitch": 0.6692902530937193,
+    "right_hip_yaw": 0.09513805114339616,
+    "right_knee": 0.46942969059554673,
+    "right_ankle_pitch": 0.5453057206821352,
+    "right_ankle_roll": 0.18631112141474643
+   },
+   "required_joint_margins_rad": {
+    "neck_pitch": 0.1,
+    "tail_yaw": 0.1,
+    "left_hip_roll": 0.05573177438428013,
+    "left_hip_pitch": 0.1,
+    "left_hip_yaw": 0.060927004022241646,
+    "left_knee": 0.1,
+    "left_ankle_pitch": 0.1,
+    "left_ankle_roll": 0.1,
+    "right_hip_roll": 0.09880340011051601,
+    "right_hip_pitch": 0.1,
+    "right_hip_yaw": 0.07513805114339615,
+    "right_knee": 0.1,
+    "right_ankle_pitch": 0.1,
+    "right_ankle_roll": 0.1
+   }
+  },
+  "in_place_turn_right": {
+   "plan": [
+    [
+     "transition",
+     "start_in_place_0.50_right"
+    ],
+    [
+     "ref",
+     "in_place_0.50_right",
+     3
+    ],
+    [
+     "transition",
+     "stop_in_place_0.50_right"
+    ]
+   ],
+   "seconds": 12.625611545704697,
+   "strides": 13.000000000001531,
+   "period_s": 1.019760932537567,
+   "commanded_stride_s": 0.9712008881310161,
+   "speed_command_m_s": 0.0,
+   "speed_target_m_s": 0.0,
+   "yaw_rate_command_rad_s": -0.525,
+   "yaw_rate_target_rad_s": 0.5,
+   "start_command_ref_s": 2.0395218650764946,
+   "stop_command_ref_s": 10.197609325377815,
+   "window_ref_s": [
+    3.059282797614742,
+    10.197609325377815
+   ],
+   "reference_turned_rad": 3.5691632638820376,
+   "reference_joint_margins_rad": {
+    "neck_pitch": 0.3,
+    "tail_yaw": 0.33,
+    "left_hip_roll": 0.06578904133326621,
+    "left_hip_pitch": 0.670649252653394,
+    "left_hip_yaw": 0.08924919474233078,
+    "left_knee": 0.47407818578690675,
+    "left_ankle_pitch": 0.5481993196859019,
+    "left_ankle_roll": 0.2378513225423857,
+    "right_hip_roll": 0.11634269863055977,
+    "right_hip_pitch": 0.6686365631870875,
+    "right_hip_yaw": 0.09526775070281074,
+    "right_knee": 0.4705291550271341,
+    "right_ankle_pitch": 0.5474490051850716,
+    "right_ankle_roll": 0.19044679285355773
+   },
+   "required_joint_margins_rad": {
+    "neck_pitch": 0.1,
+    "tail_yaw": 0.1,
+    "left_hip_roll": 0.04578904133326621,
+    "left_hip_pitch": 0.1,
+    "left_hip_yaw": 0.06924919474233078,
+    "left_knee": 0.1,
+    "left_ankle_pitch": 0.1,
+    "left_ankle_roll": 0.1,
+    "right_hip_roll": 0.09634269863055976,
+    "right_hip_pitch": 0.1,
+    "right_hip_yaw": 0.07526775070281073,
+    "right_knee": 0.1,
+    "right_ankle_pitch": 0.1,
+    "right_ankle_roll": 0.1
+   }
+  },
+  "simulated_s_per_evaluation": 55.358450623470844
+ }
+}
