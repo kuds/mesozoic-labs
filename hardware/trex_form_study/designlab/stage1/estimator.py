@@ -52,6 +52,7 @@ initialises from the sensors with the body at rest on both feet.
 
 from __future__ import annotations
 
+import itertools
 import math
 from dataclasses import asdict, dataclass
 
@@ -66,6 +67,9 @@ CONTACT_TOL = 1e-3
 #: The stance-leg odometry's point of a contact foot (``EstimatorGains.stance_point``): decision 19's, the loaded
 #: pad's contact point (the default), or, for comparison, the foot body's centre of mass, as the build first had it.
 STANCE_POINTS = ("loaded_pad_contact_point", "foot_com")
+_KIN_IDS = itertools.count(1)  # Estimator._kv: unique per kinematics computation
+_E_Z = np.array([0.0, 0.0, 1.0])
+_GRAVITY = np.array([0.0, 0.0, -9.81])
 
 NOISE_SOURCE = ("STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro "
                 "white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias "
@@ -95,6 +99,17 @@ class SensorNoise:
         return dict(asdict(self), source=NOISE_SOURCE)
 
 
+MjViews = plant_mod.MjViews
+
+
+def _span(adr) -> slice | np.ndarray:
+    """A slice for consecutive addresses (a view: the same values as the index array's copy), else the array."""
+    adr = np.asarray(adr, int)
+    if len(adr) and np.array_equal(adr, np.arange(adr[0], adr[0] + len(adr))):
+        return slice(int(adr[0]), int(adr[0]) + len(adr))
+    return adr
+
+
 class NoisySensors:
     """``plant.Plant.sensors`` with ``SensorNoise`` applied, from one seeded generator per episode."""
 
@@ -112,22 +127,46 @@ class NoisySensors:
         self._q = np.array([sd[f"enc_q_{jn}"][0] for jn in p.joints])
         self._qd = np.array([sd[f"enc_qd_{jn}"][0] for jn in p.joints])
         self._load = np.array([sd[f"{side}_foot_load"][0] + 3 for side in statics.SIDES])
+        self._sd = p.d.sensordata
+        self._qs = _span(self._q)
+        nj = len(self._qd)
+        #: The noisy channels gathered at once: gyro and accelerometer (with their biases), then rates and loads.
+        self._imu_idx = np.r_[np.arange(self._gyro, self._gyro + 3), np.arange(self._accel, self._accel + 3)]
+        self._rl_idx = np.r_[self._qd, self._load]
+        self._nj = nj
+        self._scales = None  # (the noise's scale factors they were made from, the 6- and 16-value scale vectors)
         del m
 
+    def _scale_vectors(self) -> tuple:
+        n, s = self.noise, self.noise.scale
+        sg, sa = s * n.gyro_sigma, s * n.accel_sigma
+        sq, sl = s * n.joint_rate_sigma, s * n.foot_load_sigma_frac * self.weight
+        key = (sg, sa, sq, sl)
+        if self._scales is None or self._scales[0] != key:
+            nj = self._nj
+            self._scales = (key, np.array([sg, sg, sg, sa, sa, sa]), np.r_[np.full(nj, sq), sl, sl],
+                            np.r_[self.gyro_b, self.accel_b])
+        return self._scales
+
     def read(self) -> dict:
-        n, s, rng = self.noise, self.noise.scale, self.rng
-        d = self.p.d.sensordata
-        gyro = d[self._gyro : self._gyro + 3].copy()
-        accel = d[self._accel : self._accel + 3].copy()
-        q, qd, load = d[self._q].copy(), d[self._qd].copy(), d[self._load].copy()
-        if s:
-            gyro += self.gyro_b + s * n.gyro_sigma * rng.standard_normal(3)
-            accel += self.accel_b + s * n.accel_sigma * rng.standard_normal(3)
-            qd += s * n.joint_rate_sigma * rng.standard_normal(len(qd))
-            load += s * n.foot_load_sigma_frac * self.weight * rng.standard_normal(2)
-        if self.q_step:
-            q = np.round(q / self.q_step) * self.q_step
-        return dict(gyro=gyro, accel=accel, q=q, qd=qd, foot_load=load)
+        """The readings, with the same operations as one channel at a time: reading + (bias + (s sigma) z) for the
+        gyro and the accelerometer, reading + (s sigma) z for the joint rates and the foot loads (each product and sum
+        elementwise, so the same bits), the angles rounded to the encoder step.  The noise is drawn in one call of
+        3 + 3 + 14 + 2 normals, which gives the same numbers in the same order (and leaves the generator in the same
+        state) as calls of 3, 3, 14 and 2.  (The accelerometer, which meets BLAS, is returned as an array of its own,
+        as before.)"""
+        d = self._sd
+        nj = self._nj
+        imu = d[self._imu_idx]
+        rl = d[self._rl_idx]
+        if self.noise.scale:
+            _, c6, c16, bias = self._scale_vectors()
+            z = self.rng.standard_normal(8 + nj)
+            imu += bias + c6 * z[:6]
+            rl += c16 * z[6:]
+        q = d[self._qs]
+        q = (q / self.q_step).round() * self.q_step if self.q_step else q.copy()  # (np.round's own call)
+        return dict(gyro=imu[:3], accel=imu[3:].copy(), q=q, qd=rl[:nj], foot_load=rl[nj:])
 
 
 def cross3(a, b) -> np.ndarray:
@@ -202,6 +241,10 @@ class Estimator:
             raise ValueError(f"stance point {self.g.stance_point!r}: choose from {', '.join(STANCE_POINTS)}")
         self.m = p.m
         self.d = mujoco.MjData(p.m)
+        self._views = MjViews(self.d)
+        self._qs, self._vs = _span(p.qadr), _span(p.dofs)
+        self._kv = 0  # the kinematics' version: a new number at every _kin (control's cap reuses them between)
+        self._Rb = np.zeros(9)  # step's attitude matrix buffer
         self.dt = float(p.m.opt.timestep)
         self.weight = float(p.m.body_subtreemass[p.trunk]) * 9.81
         self.trunk, self.feet = p.trunk, p.feet
@@ -274,13 +317,29 @@ class Estimator:
         return math.atan2(R[1, 0], R[0, 0])
 
     def _kin(self, base, quat, q, qvel=None) -> None:
-        d = self.d
-        d.qpos[:3], d.qpos[3:7], d.qpos[self.qadr] = base, quat, q
+        d, v = self.d, self._views
+        v.qpos[:3], v.qpos[3:7], v.qpos[self._qs] = base, quat, q
         mujoco.mj_kinematics(self.m, d)
         mujoco.mj_comPos(self.m, d)
         if qvel is not None:
-            d.qvel[:] = qvel
+            v.qvel[:] = qvel
             mujoco.mj_comVel(self.m, d)
+        self._kv = next(_KIN_IDS)
+
+    def _kin_vel(self, base, quat, q, v_base, gyro, qd) -> None:
+        """``_kin`` with the velocity [v_base, gyro, qd] (v_base None: zero), written into the data directly."""
+        d, v = self.d, self._views
+        v.qpos[:3], v.qpos[3:7], v.qpos[self._qs] = base, quat, q
+        mujoco.mj_kinematics(self.m, d)
+        mujoco.mj_comPos(self.m, d)
+        qv = v.qvel
+        qv[:] = 0.0
+        if v_base is not None:
+            qv[:3] = v_base
+        qv[3:6] = gyro
+        qv[self._vs] = qd
+        mujoco.mj_comVel(self.m, d)
+        self._kv = next(_KIN_IDS)
 
     def _tilt_error(self, quat, R_foot_world_est) -> np.ndarray:
         """Body-frame rotation rate (per unit gain) that turns the estimated vertical toward the vertical a flat foot
@@ -296,64 +355,83 @@ class Estimator:
         """One physics step's sensors: integrate the gyro and the accelerometer."""
         self.gyro, self.accel = reading["gyro"], reading["accel"]
         self.q, self.qd, self.load = reading["q"], reading["qd"], reading["foot_load"]
-        R = _mat(self.quat)
-        a_world = R @ self.accel + np.array([0.0, 0.0, -9.81])
+        Rb = self._Rb
+        mujoco.mju_quat2Mat(Rb, self.quat)  # (_mat into a buffer of the same layout)
+        a_world = Rb.reshape(3, 3) @ self.accel + _GRAVITY
         self.v_imu = self.v_imu + self.dt * a_world
-        self.quat = _quat_integrate(self.quat, self.gyro, self.dt)
+        quat = self.quat  # (_quat_integrate in place: the estimator's own array)
+        mujoco.mju_quatIntegrate(quat, self.gyro, self.dt)
+        mujoco.mju_normalize4(quat)
 
     def update(self, dt_update: float) -> None:
-        """Corrections at the feedback rate (module docstring), then the CoM and the views."""
+        """Corrections at the feedback rate (module docstring), then the CoM and the views.
+
+        (The two-element logic runs in Python floats with numpy's semantics -- comparisons, ``np.maximum``, sums of
+        two -- and every product with a matrix stays numpy's; the attitude matrix and its products with the gyro and
+        the IMU offset, needed again by the view at the same attitude, are computed once.)"""
         g = self.g
-        on = self.load > g.contact_on * self.weight
-        off = self.load < g.contact_off * self.weight
-        new_contact = np.where(self.contact, ~off, on)
+        m, d, v = self.m, self.d, self._views
+        weight = self.weight
+        on_thr, off_thr = g.contact_on * weight, g.contact_off * weight
+        loads = self.load.tolist()
+        was = [bool(c) for c in self.contact]
+        nc = [(not lv < off_thr) if c else (lv > on_thr) for lv, c in zip(loads, was, strict=True)]
+        new_contact = np.array(nc)
         # tilt from the loaded flat feet, and the accelerometer
         self._kin(self.base, self.quat, self.q)
         corr = np.zeros(3)
-        w = np.where(new_contact, np.maximum(self.load, 0.0), 0.0)
-        if w.sum() > 0:
+        w = [(lv if (lv >= 0.0 or lv != lv) else 0.0) if c else 0.0 for lv, c in zip(loads, nc, strict=True)]
+        ws = w[0] + w[1]
+        R = z_est = None
+        if ws > 0:
+            R = _mat(self.quat)
+            z_est = R.T @ _E_Z
             for i, f in enumerate(self.feet):
                 if w[i] > 0:
-                    corr += (w[i] / w.sum()) * self._tilt_error(self.quat, self.d.xmat[f].reshape(3, 3))
+                    z_leg = R.T @ v.xmat[f].reshape(3, 3)[:, 2]  # the foot's z axis in the trunk frame
+                    corr += (w[i] / ws) * cross3(z_leg, z_est)
             corr *= g.k_leg_tilt
-        if g.k_accel_tilt and self.accel is not None and np.linalg.norm(self.accel) > 1e-6:
-            R = _mat(self.quat)
-            z_est = R.T @ np.array([0.0, 0.0, 1.0])
-            corr += g.k_accel_tilt * cross3(self.accel / np.linalg.norm(self.accel), z_est)
+        if g.k_accel_tilt and self.accel is not None:
+            na = np.linalg.norm(self.accel)
+            if na > 1e-6:
+                if R is None:
+                    R = _mat(self.quat)
+                    z_est = R.T @ _E_Z
+                corr += g.k_accel_tilt * cross3(self.accel / na, z_est)
         self.quat = _quat_integrate(self.quat, corr, dt_update)
         # kinematics at the corrected attitude: feet, base, velocities (zero base translation)
-        qvel = np.zeros(self.m.nv)
-        qvel[3:6], qvel[self.dofs] = self.gyro, self.qd
-        self._kin(self.base, self.quat, self.q, qvel)
-        d = self.d
-        yaw_now = np.array([self._yaw(d.xmat[f]) for f in self.feet])
+        self._kin_vel(self.base, self.quat, self.q, None, self.gyro, self.qd)
+        xmat, xpos = v.xmat, v.xpos
         point_now = np.zeros((2, 3))  # each foot's contact point where the kinematics put it (base at self.base)
         for i in range(2):
+            f = self.feet[i]
             local = self.contact_point(i)
-            point_now[i] = self._point_world(i, local)
-            if new_contact[i] and self.contact[i]:  # in contact: held, moving along the foot with the contact
+            point_now[i] = xpos[f] + xmat[f].reshape(3, 3) @ local
+            if nc[i] and was[i]:  # in contact: held, moving along the foot with the contact
                 if not np.array_equal(local, self.contact_local[i]):
-                    R_f = d.xmat[self.feet[i]].reshape(3, 3)
+                    R_f = xmat[f].reshape(3, 3)
                     self.contact_world[i] = self.contact_world[i] + R_f @ (local - self.contact_local[i])
             else:  # touchdown (placed where the estimate puts it) or swing
                 self.contact_world[i] = point_now[i]
-                self.foot_yaw[i] = yaw_now[i]
+                self.foot_yaw[i] = math.atan2(xmat[f][3], xmat[f][0])
             self.contact_local[i] = local
         self.contact = new_contact
-        w = np.where(self.contact, np.maximum(self.load, 1e-6), 0.0)
+        w = [(lv if (lv >= 1e-6 or lv != lv) else 1e-6) if c else 0.0 for lv, c in zip(loads, nc, strict=True)]
         R = _mat(self.quat)
         r_imu_w = R @ self.r_imu
         w_world = R @ self.gyro
-        if w.sum() > 0:
-            w = w / w.sum()
+        ws = w[0] + w[1]
+        if ws > 0:
+            w = [w[0] / ws, w[1] / ws]
             base, v_base = np.zeros(3), np.zeros(3)
+            res = self._res
             for i, f in enumerate(self.feet):
                 if w[i] == 0:
                     continue
                 base += w[i] * (self.contact_world[i] - (point_now[i] - self.base))
-                mujoco.mj_objectVelocity(self.m, d, mujoco.mjtObj.mjOBJ_XBODY, f, self._res, 0)  # at the foot origin
-                r = point_now[i] - d.xpos[f]
-                v_base += w[i] * -(self._res[3:] + cross3(self._res[:3], r))  # the contact point's velocity
+                mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, f, res, 0)  # at the foot origin
+                r = point_now[i] - xpos[f]
+                v_base += w[i] * -(res[3:] + cross3(res[:3], r))  # the contact point's velocity
             shift = base - self.base
             self.base = base
             v_imu_leg = v_base + cross3(w_world, r_imu_w)
@@ -362,22 +440,24 @@ class Estimator:
         else:
             shift = np.zeros(3)
         for i, f in enumerate(self.feet):  # the foot origins the controller sees: a contact foot's from its held point
-            R_f = d.xmat[f].reshape(3, 3)
-            self.foot[i] = (self.contact_world[i] - R_f @ self.contact_local[i] if self.contact[i]
-                            else d.xpos[f] + shift)
-        self._finish()
+            self.foot[i] = (self.contact_world[i] - xmat[f].reshape(3, 3) @ self.contact_local[i] if nc[i]
+                            else xpos[f] + shift)
+        self._finish(R, w_world, r_imu_w)
 
-    def _finish(self) -> None:
-        """Kinematics, CoM and velocities at the estimate (the controller's view)."""
-        R = _mat(self.quat)
-        w_world = R @ self.gyro
-        v_base = self.v_imu - cross3(w_world, R @ self.r_imu)
-        qvel = np.zeros(self.m.nv)
-        qvel[:3], qvel[3:6], qvel[self.dofs] = v_base, self.gyro, self.qd
-        self._kin(self.base, self.quat, self.q, qvel)
+    def _finish(self, R=None, w_world=None, r_imu_w=None) -> None:
+        """Kinematics, CoM and velocities at the estimate (the controller's view); ``R``, ``w_world`` and ``r_imu_w``
+        are the attitude matrix and its products with the gyro and the IMU offset when the caller has them (the
+        same computations at the same attitude)."""
+        if R is None:
+            R = _mat(self.quat)
+            w_world = R @ self.gyro
+            r_imu_w = R @ self.r_imu
+        v_base = self.v_imu - cross3(w_world, r_imu_w)
+        self._kin_vel(self.base, self.quat, self.q, v_base, self.gyro, self.qd)
         mujoco.mj_subtreeVel(self.m, self.d)
+        v = self._views
         self.R = R
         self.omega_world = w_world
-        self.com = self.d.subtree_com[self.trunk].copy()
-        self.com_vel = self.d.subtree_linvel[self.trunk].copy()
+        self.com = v.subtree_com[self.trunk].copy()
+        self.com_vel = v.subtree_linvel[self.trunk].copy()
         self.v_base = v_base

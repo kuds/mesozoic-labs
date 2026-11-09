@@ -915,6 +915,58 @@ def test_inward_room_keeps_the_pad_clearance():
     assert _poly_gap(sq, tilted + room * inward) < 0.0075
 
 
+def test_inward_certificate_skips_the_bound_only_where_it_cannot_bind():
+    """The tracker computes decision 20's bound (a convex hull) only when the pads' separation does not already clear
+    the inward step (``Tracker._inward_clear``).  Wherever it certifies, the exact bound exceeds the step: on pads as
+    ``pad_polygons`` builds them (box corners' hulls, the right foot mirrored) and on sharp-cornered ones, with
+    touchdowns spread across the certificate's thresholds and yaw often exactly 0 (parallel edges)."""
+    from types import SimpleNamespace
+
+    from scipy.spatial import ConvexHull
+
+    rng = np.random.default_rng(3)
+
+    def hull(pts):
+        return pts[ConvexHull(pts).vertices]
+
+    def pad():
+        if rng.random() < 0.4:
+            return hull(rng.uniform([-0.06, -0.03], [0.09, 0.03], size=(int(rng.integers(3, 12)), 2)))
+        pts = []
+        for _ in range(int(rng.integers(1, 4))):
+            c, h = rng.uniform([-0.05, -0.03], [0.08, 0.03]), rng.uniform([0.005, 0.005], [0.04, 0.025])
+            R = control._rot2(0.0 if rng.random() < 0.6 else rng.uniform(-0.6, 0.6))
+            pts += [c + R @ (h * s) for s in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        return hull(np.array(pts))
+
+    certified = 0
+    for _ in range(800):
+        left = pad()
+        pads = [left, hull(left * [1.0, -1.0])]
+        tk = SimpleNamespace(pads=pads, _inward_key=None, _inward_k=None, _inward_ext=None)
+        k = control._inward_corner(pads, control.PAD_CLEARANCE)
+        if k is None:  # (no certificate for such pads)
+            continue
+        sw = int(rng.integers(0, 2))
+        yaw = 0.0 if rng.random() < 0.5 else float(rng.uniform(-0.6, 0.6))
+        need = float(rng.choice([0.0, rng.uniform(0.0, 0.002), rng.uniform(0.0, 0.05)]))
+        stance, base = pads[1 - sw], pads[sw] @ control._rot2(yaw).T
+        jitter = float(rng.choice([1e-12, 1e-9, 1e-7, -1e-9, rng.uniform(-0.01, 0.01)]))
+        side = base[:, 1].min() - stance[:, 1].max() if sw == 0 else stance[:, 1].min() - base[:, 1].max()
+        out = 1.0 if sw == 0 else -1.0
+        if rng.random() < 0.5:  # around the lateral threshold
+            rel = np.array([rng.uniform(-0.2, 0.2), out * (k + need + 1e-5 * (1.0 + need) + jitter - side)])
+        else:  # around the fore-aft one
+            dx = k + 1e-5 + jitter - (base[:, 0].min() - stance[:, 0].max())
+            rel = np.array([dx, out * rng.uniform(-0.05, 0.2)])
+        dfx = float(rng.choice([0.0, rng.uniform(-0.05, 0.05)]))
+        if control.Tracker._inward_clear(tk, dict(land_rel=rel, land_yaw=yaw), sw, dfx, -need, 0.05):
+            certified += 1
+            swing = pads[sw] @ control._rot2(yaw).T + rel + np.array([dfx, 0.0])
+            assert control.inward_room(stance, swing, control._inward(sw, 0.0)) > need
+    assert certified > 200
+
+
 def test_inward_bound_on_the_reference_touchdowns(nominal_npz, tmp_path):
     """On the nominal walk the swing foot lands half a stride ahead, clear of the stance pad whatever its inward step:
     the bound is unlimited there, and moving the swing foot 50 mm inward near touchdown keeps the leg parts that come
@@ -1571,8 +1623,10 @@ def test_g4_records(body):
 
 
 def test_later_steps_are_not_implemented(tmp_path):
-    with pytest.raises(NotImplementedError, match="not implemented yet"):
-        cli(["train", "--body", BODY, "--out", str(tmp_path)])
+    """Plan section 3 steps 8-9 (``train``, step 7, is ``tests/test_stage1_ppo.py``'s)."""
+    for cmd in ("eval", "sweep", "report"):
+        with pytest.raises(NotImplementedError, match="not implemented yet"):
+            cli([cmd, "--body", BODY, "--out", str(tmp_path)])
 
 
 # ------------------------------------------------------------------------------------------------

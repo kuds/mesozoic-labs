@@ -96,6 +96,17 @@ MuJoCo's integration state, every controller and estimator variable and the sens
 continuation without any change repeats the fall bit for bit) and continued with each candidate relaxed until
 ``CF_HORIZON_S`` after the original fall, beside a null continuation with the root velocity changed by
 ``CF_NULL_M_S`` (1 mm/s).  It tests a fall's last second; decision 20 judges a condition over its starts instead.
+
+Speed (decision 21: the faster tracker, a drop-in replacement whose every physics step's qpos, qvel, ctrl and
+sensordata are bit for bit the earlier tracker's, ``designlab.stage1.replay``).  Each product with a matrix, each
+solve and each reduction stays the numpy (BLAS, LAPACK) call it was, with the same operands: on this build BLAS fuses
+multiplies and adds, so a Python formula would differ in the last bit.  What changed is the work around them: MuJoCo
+arrays read through views kept per plant and estimator (``plant.MjViews``), the cap's and the ZMP clip's geometry
+reused while the kinematics they come from have not changed, per-step buffers, and elementwise and two-element
+arithmetic in Python floats (the same IEEE operations; ``_clip`` keeps ``np.clip``'s ties).  Decisions that only need
+the side of a boundary (the ZMP inside its polygon, the capture trigger, the cap's box and pad, whether the inward bound
+binds) are taken from a cheap bound when it clears the boundary by far more than any rounding (``CERTIFY_TOL``,
+``INWARD_CERTIFY_M``), and from the exact computation otherwise.
 """
 
 from __future__ import annotations
@@ -111,6 +122,7 @@ from pathlib import Path
 
 import mujoco
 import numpy as np
+from numpy.linalg import _umath_linalg
 from scipy.spatial import ConvexHull
 
 from .. import statics
@@ -118,6 +130,8 @@ from . import case_dir, plant
 from . import estimator as est_mod
 from .refs import Reference
 from .transitions import N_FRAMES, TRANSITIONS, Transition, stop_command_phase
+
+_Views = est_mod.MjViews
 
 FEEDBACK_EVERY = 5
 #: How the 100 Hz feedback reaches the 500 Hz servo targets: "ramp" (first-order hold: each update's offsets are
@@ -399,14 +413,54 @@ def pad_polygons(m) -> list[np.ndarray]:
     return out
 
 
-def halfplanes(poly: np.ndarray, inset: float = 0.0):
-    """Outward normals N and offsets d of a counter-clockwise convex polygon (N x <= d inside), moved in by
-    ``inset``."""
+def _halfplanes_np(poly: np.ndarray, inset: float = 0.0):
+    """``halfplanes`` in numpy, as first written: the fallback for a polygon with a zero-length (or non-finite) edge,
+    where the normal is 0 / 0."""
     a, b = poly, np.roll(poly, -1, axis=0)
     e = b - a
     n = np.column_stack([e[:, 1], -e[:, 0]])
     n /= np.linalg.norm(n, axis=1)[:, None]
     return n, np.einsum("ij,ij->i", n, a) - inset
+
+
+def halfplanes(poly: np.ndarray, inset: float = 0.0):
+    """Outward normals N and offsets d of a counter-clockwise convex polygon (N x <= d inside), moved in by
+    ``inset``.
+
+    Computed in Python floats with exactly the operations of the numpy version (``_halfplanes_np``, bit for bit): the
+    edge e = b - a, the normal (e_y, -e_x) divided by sqrt(e_y^2 + e_x^2) (numpy's row norm: one sum of two squares),
+    the offset n . a as numpy's einsum forms it (two rounded products and one rounded sum, an exact zero as +0.0), less
+    the inset.  Only elementwise IEEE operations are involved, so the result does not depend on the BLAS build."""
+    pts = np.asarray(poly, float)
+    k = len(pts)
+    if k < 2 or pts.ndim != 2:
+        return _halfplanes_np(pts, inset)
+    P = pts.tolist()
+    N, d = [], []
+    for i in range(k):
+        ax, ay = P[i]
+        bx, by = P[i + 1] if i + 1 < k else P[0]
+        ex, ey = bx - ax, by - ay
+        mex = -ex
+        nrm = math.sqrt(ey * ey + mex * mex)
+        if not 0.0 < nrm < math.inf:
+            return _halfplanes_np(pts, inset)
+        nx, ny = ey / nrm, mex / nrm
+        N.append((nx, ny))
+        d.append((nx * ax + ny * ay + 0.0) - inset)
+    return np.array(N), np.array(d)
+
+
+def _solve2(A: np.ndarray, rhs: np.ndarray) -> np.ndarray:
+    """``np.linalg.solve(A, rhs)`` for a float64 (n, n) matrix and a float64 (n,) vector: the same LAPACK gufunc numpy
+    calls (``_umath_linalg.solve1``, signature dd->d), without numpy's argument checks.  A result that is not finite
+    (a singular matrix, or an overflow) is recomputed by ``np.linalg.solve`` itself, which raises or returns as it
+    did."""
+    r = _umath_linalg.solve1(A, rhs, signature="dd->d")
+    for v in r.tolist():
+        if not math.isfinite(v):
+            return np.linalg.solve(A, rhs)
+    return r
 
 
 def shrink(poly: np.ndarray, inset: float) -> np.ndarray:
@@ -422,20 +476,34 @@ def shrink(poly: np.ndarray, inset: float) -> np.ndarray:
 
 
 def project_into(poly: np.ndarray, x: np.ndarray) -> tuple[np.ndarray, bool]:
-    """The point of a convex polygon closest to x (x itself if inside); and whether x was outside."""
+    """The point of a convex polygon closest to x (x itself if inside); and whether x was outside.
+
+    The dot products stay numpy's (BLAS: on this build a fused multiply-add, so a Python formula would differ in the
+    last bit); the elementwise steps (edges, the clamped edge parameter, the closest point) are the same IEEE
+    operations in Python floats."""
     N, d = halfplanes(poly)
-    if np.all(N @ x - d <= 0.0):
+    s = (N @ x).tolist()
+    for si, di in zip(s, d.tolist(), strict=True):
+        if not si - di <= 0.0:
+            break
+    else:
         return x, False
+    P = np.asarray(poly, float)
+    k = len(P)
+    E = np.concatenate((P[1:], P[:1])) - P  # e = b - a per edge
+    XA = x - P  # x - a per edge
+    Pl, El = P.tolist(), E.tolist()
+    x0, x1 = float(x[0]), float(x[1])
     best, bd = x, math.inf
-    for i in range(len(poly)):
-        a, b = poly[i], poly[(i + 1) % len(poly)]
-        e = b - a
-        t = min(1.0, max(0.0, float((x - a) @ e) / float(e @ e)))
-        c = a + t * e
-        dist = float(np.linalg.norm(x - c))
+    for i in range(k):
+        t = min(1.0, max(0.0, float(XA[i] @ E[i]) / float(E[i] @ E[i])))
+        (ax, ay), (ex, ey) = Pl[i], El[i]
+        cx, cy = ax + t * ex, ay + t * ey
+        v = np.array((x0 - cx, x1 - cy))
+        dist = math.sqrt(v.dot(v))  # np.linalg.norm of a contiguous 2-vector, bit for bit
         if dist < bd:
-            best, bd = c, dist
-    return best, True
+            best, bd = (cx, cy), dist
+    return (best if best is x else np.array(best)), True
 
 
 def _ankle_rows(kd, jids) -> tuple[np.ndarray, np.ndarray]:
@@ -471,6 +539,27 @@ def signed_distance(poly: np.ndarray, x: np.ndarray) -> float:
     return float(np.linalg.norm(x - project_into(poly, x)[0]))
 
 
+#: The margin (m, or N m for torques) by which a cheap estimate must clear a boundary before a decision is taken from
+#: it instead of from the exact computation (``_certified_inside``): the estimates differ from the exact values by
+#: rounding only (a few 1e-15 at these magnitudes), so this cannot flip a decision; within it the exact code decides.
+CERTIFY_TOL = 1e-9
+
+
+def _certified_inside(N: list, d: list, x0: float, x1: float, tol: float) -> bool | None:
+    """Whether the point (x0, x1) is inside the half-planes N x <= d (lists of floats) with every margin beyond
+    ``tol`` (True), outside with some margin beyond ``tol`` (False), or too close to decide this way (None)."""
+    worst = -math.inf
+    for (n0, n1), di in zip(N, d, strict=True):
+        s = n0 * x0 + n1 * x1 - di
+        if s != s:
+            return None
+        if s > tol:
+            return False
+        if s > worst:
+            worst = s
+    return True if worst < -tol else None
+
+
 def clip_polygon(poly: np.ndarray, N: np.ndarray, d: np.ndarray) -> np.ndarray:
     """The convex polygon ``poly`` (counter-clockwise) cut to the half-planes N x <= d (Sutherland-Hodgman); an empty
     result has shape (0, 2)."""
@@ -491,6 +580,33 @@ def clip_polygon(poly: np.ndarray, N: np.ndarray, d: np.ndarray) -> np.ndarray:
     return out
 
 
+_BOX_N = np.array([[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]])
+
+
+def _clip_box(poly: np.ndarray, p0: float, p1: float) -> np.ndarray:
+    """``clip_polygon(poly, _BOX_N, [p0, p0, p1, p1])`` (the torque box |x| <= p0, |y| <= p1, p0 and p1 positive) in
+    Python floats, bit for bit: against a unit axis normal the side value n . x - c is +-x_i - c exactly (products with
+    1 and 0, sums with an exact zero), and the intersections are the same elementwise operations."""
+    out = [tuple(r) for r in np.asarray(poly, float).tolist()]
+    for axis, sign, c in ((0, 1.0, p0), (0, -1.0, p0), (1, 1.0, p1), (1, -1.0, p1)):
+        if not out:
+            break
+        s = [(pt[axis] if sign > 0 else -pt[axis]) - c for pt in out]
+        nxt = []
+        k = len(out)
+        for i in range(k):
+            j = (i + 1) % k
+            si, sj = s[i], s[j]
+            if si <= 0:
+                nxt.append(out[i])
+            if (si <= 0) != (sj <= 0):
+                r = si / (si - sj)
+                (ax, ay), (bx, by) = out[i], out[j]
+                nxt.append((ax + (bx - ax) * r, ay + (by - ay) * r))
+        out = nxt
+    return np.array(out) if out else np.zeros((0, 2))
+
+
 def minkowski_difference(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """The convex polygon {x - y : x in a, y in b} of two convex polygons (counter-clockwise)."""
     pts = (np.asarray(a, float)[:, None, :] - np.asarray(b, float)[None, :, :]).reshape(-1, 2)
@@ -508,7 +624,7 @@ def inward_room(stance: np.ndarray, swing: np.ndarray, inward, clearance: float 
     N, d = halfplanes(minkowski_difference(swing, stance), -clearance)
     nu = N @ -np.asarray(inward, float)
     lo, hi = -math.inf, math.inf
-    for a, b in zip(nu, d, strict=True):
+    for a, b in zip(nu.tolist(), d.tolist(), strict=True):
         if a > 1e-15:
             hi = min(hi, b / a)
         elif a < -1e-15:
@@ -520,35 +636,93 @@ def inward_room(stance: np.ndarray, swing: np.ndarray, inward, clearance: float 
     return max(lo, 0.0)
 
 
+#: ``Tracker._inward_clear``: the bound is skipped only when the pads clear it by this much (m, plus the same share of
+#: the step), far above the rounding of ``inward_room`` (about 1e-15 m).
+INWARD_CERTIFY_M = 1e-5
+
+
+def _inward_corner(pads, clearance: float) -> float | None:
+    """How far a corner of ``inward_room``'s grown polygon (the Minkowski difference of the two pads with its edge
+    lines moved out by ``clearance``, sharp corners) can lie from the difference itself: clearance / cos(theta / 2),
+    theta the pads' largest exterior angle plus 1e-6 rad (the difference's exterior angles are pieces of its pads';
+    rotating a pad keeps them).  None, so that ``Tracker._inward_clear`` certifies nothing, unless both pads are
+    strictly convex counter-clockwise polygons with edges of at least 1e-6 m and exterior angles under 150 degrees."""
+    theta = 0.0
+    for P in pads:
+        P = np.asarray(P, float)
+        if P.ndim != 2 or P.shape[0] < 3 or P.shape[1] != 2:
+            return None
+        e = np.roll(P, -1, axis=0) - P
+        if not np.all(np.hypot(e[:, 0], e[:, 1]) >= 1e-6):
+            return None
+        e_in = np.roll(e, 1, axis=0)
+        ang = np.arctan2(e_in[:, 0] * e[:, 1] - e_in[:, 1] * e[:, 0], np.einsum("ij,ij->i", e_in, e))
+        if not (np.all(ang > 0.0) and abs(float(ang.sum()) - 2.0 * math.pi) < 1e-9):
+            return None
+        theta = max(theta, float(ang.max()))
+    if not theta < math.radians(150.0):
+        return None
+    return clearance / math.cos(0.5 * theta + 1e-6)
+
+
+def _det_negative(A: np.ndarray) -> bool:
+    """``np.linalg.det(A) < 0.0`` for a 2 x 2 matrix: from a00 a11 - a01 a10 when that is clear of zero by far more
+    than the rounding of either computation (1e-9 of its terms' size), else from ``np.linalg.det`` itself."""
+    (a00, a01), (a10, a11) = A.tolist()
+    p, q = a00 * a11, a01 * a10
+    det = p - q
+    if abs(det) > 1e-9 * (abs(p) + abs(q)):
+        return det < 0.0
+    return bool(np.linalg.det(A) < 0.0)
+
+
+def _cap_pre(pad, A, b) -> tuple:
+    """The parts of the cap that depend on the pad and the ankle rows only: the pad's half-planes, the pad's torques
+    per unit load ``pad @ A.T + b`` (``-Fz`` times it is the pad's torque polygon) and whether det(A) < 0."""
+    A = np.asarray(A, float)
+    return halfplanes(pad), np.asarray(pad, float) @ A.T + np.asarray(b, float), _det_negative(A)
+
+
 def cap_ankle_torque(tau, peak=None, Fz: float | None = None, A=None, b=None, pad=None) -> tuple[np.ndarray, bool, bool]:
     """Decision 15: the ankle torques ``tau`` (pitch, roll, on the foot) limited to the box |tau_i| <= ``peak``_i (one
     motor's peak per axis; None: no box) and, for a loaded foot (``Fz`` > 0 and ``pad``: the pad polygon
     ``COP_INSET`` inside, world xy, counter-clockwise), to the torques whose CoP under ``Fz`` lies in ``pad`` (``A``,
     ``b``: ``_ankle_rows``, tau = -Fz (A c + b)).  Returns the feasible torques nearest to ``tau`` (Euclidean, N m),
     and whether ``tau`` broke the box and the pad limit."""
+    return _cap_ankle_torque(tau, peak, Fz, A, b, pad)
+
+
+def _cap_ankle_torque(tau, peak=None, Fz: float | None = None, A=None, b=None, pad=None, c=None, pre=None):
+    """``cap_ankle_torque``; ``c`` is the CoP ``solve(A, -tau / Fz - b)`` and ``pre`` (``_cap_pre``) the pad's
+    half-planes, ``pad @ A.T + b`` and the sign of det(A) when the caller already has them (the same computations, so
+    the same bits)."""
     tau = np.asarray(tau, float)
     box = peak is not None and bool(np.any(np.abs(tau) > peak))
     loaded = Fz is not None and Fz > 0.0 and pad is not None
     pad_out = False
     if loaded:
         A = np.asarray(A, float)
-        c = np.linalg.solve(A, -tau / Fz - np.asarray(b, float))
-        N, d = halfplanes(pad)
+        if c is None:
+            c = _solve2(A, -tau / Fz - np.asarray(b, float))
+        N, d = halfplanes(pad) if pre is None else pre[0]
         pad_out = bool(np.any(N @ c - d > 0.0))
     if not (box or pad_out):
         return tau, False, False
     clipped = np.clip(tau, -peak, peak) if peak is not None else tau
     if not loaded:
         return clipped, box, False
-    V = -Fz * (np.asarray(pad, float) @ A.T + np.asarray(b, float))  # the pad's torques (a convex polygon)
-    if np.linalg.det(A) < 0.0:
+    if pre is None:
+        pre = _cap_pre(pad, A, b)
+    V = -Fz * pre[1]  # the pad's torques (a convex polygon)
+    if pre[2]:
         V = V[::-1]  # keep it counter-clockwise
     Nt, dt = halfplanes(V)
     if np.all(Nt @ clipped - dt <= 1e-12):  # the box's nearest point already in the pad: the nearest feasible one
         return clipped, box, pad_out
     if peak is not None:
         p = np.asarray(peak, float) * np.ones(2)
-        V = clip_polygon(V, np.array([[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]]), np.r_[p[0], p[0], p[1], p[1]])
+        V = _clip_box(V, float(p[0]), float(p[1])) if p[0] > 0.0 and p[1] > 0.0 else clip_polygon(
+            V, _BOX_N, np.r_[p[0], p[0], p[1], p[1]])
         if len(V) < 3:  # no torque meets both (not met on these feet: no torque, the CoP under the ankle, does)
             return clipped, box, pad_out
     return project_into(V, tau)[0], box, pad_out
@@ -724,9 +898,27 @@ def frame_info(p: plant.Plant, q: np.ndarray, qd: np.ndarray, support: np.ndarra
     w = np.where(tot > 0, w / np.where(tot > 0, tot, 1.0), np.where(support, 0.5, 0.0))
     per = np.broadcast_to(np.asarray(period, float), (n,)).copy()
     land_rel, land_yaw = _landings(swing, feet, fyaw, periodic)
+    # each frame's support polygons' half-planes (``halfplanes``, as lists of floats): the feedback's quick inside tests
+    poly_hp = [tuple(x.tolist() for x in halfplanes(poly_in[k, : poly_n[k]])) for k in range(n)]
+    poly_raw_hp = [tuple(x.tolist() for x in halfplanes(poly_raw[k, : poly_rn[k]])) for k in range(n)]
     return dict(anchor=anchor, swing=swing, u=u, dcm_rel=dcm_rel, comv_rel=comv_rel, zmp_rel=zmp_rel, poly=poly_in,
                 poly_n=poly_n, poly_raw=poly_raw, poly_raw_n=poly_rn, weights=w, roll_pitch=rp, yaw=yaw, period=per,
-                stand=(swing < 0) & (anchor == 2), land_rel=land_rel, land_yaw=land_yaw)
+                stand=(swing < 0) & (anchor == 2), land_rel=land_rel, land_yaw=land_yaw, poly_hp=poly_hp,
+                poly_raw_hp=poly_raw_hp)
+
+
+def _clip(x: float, lo: float, hi: float) -> float:
+    """``float(np.clip(x, lo, hi))`` of float scalars.  Where every implementation agrees (lo < hi and x strictly
+    inside, below or above) the answer is taken directly; a tie with a bound (numpy's scalar and array paths keep
+    different signs of zero there), a NaN or lo >= hi goes to ``np.clip`` itself."""
+    if lo < hi:
+        if lo < x < hi:
+            return x
+        if x < lo:
+            return lo
+        if x > hi:
+            return hi
+    return float(np.clip(x, lo, hi))
 
 
 def _joint_stack(p: plant.Plant, q, qd, tau, qdd) -> np.ndarray:
@@ -849,7 +1041,7 @@ class Track:
         if seg.kind == "hold":
             return seg.S[0]
         tt = seg.t
-        k0 = min(max(int(np.searchsorted(tt, tl, side="right")) - 1, 0), len(tt) - 2)
+        k0 = min(max(int(tt.searchsorted(tl, side="right")) - 1, 0), len(tt) - 2)  # (np.searchsorted's own call)
         a = min(max((tl - tt[k0]) / (tt[k0 + 1] - tt[k0]), 0.0), 1.0)
         return (1 - a) * seg.S[k0] + a * seg.S[k0 + 1]
 
@@ -872,11 +1064,14 @@ class Track:
             a = off0 = off1 = 0.0
         else:
             nf = len(inf["anchor"])
-            k0 = min(max(int(np.searchsorted(seg.t, tl, side="right")) - 1, 0), nf - 1)
+            k0 = min(max(int(seg.t.searchsorted(tl, side="right")) - 1, 0), nf - 1)
             k1 = min(k0 + 1, nf - 1)
             a = 0.0 if k1 == k0 else min(max((tl - seg.t[k0]) / (seg.t[k1] - seg.t[k0]), 0.0), 1.0)
             off0 = off1 = 0.0
-        out = {key: v[k0] for key, v in inf.items()}
+        frames = seg.__dict__.get("_frames")
+        if frames is None or frames[0] is not inf:  # each frame's entries, picked once per segment (and its info)
+            frames = seg._frames = (inf, [{key: v[k] for key, v in inf.items()} for k in range(len(inf["anchor"]))])
+        out = dict(frames[1][k0])
         if a > 0 and inf["anchor"][k1] == inf["anchor"][k0]:
             for key in ("dcm_rel", "comv_rel", "zmp_rel", "weights", "roll_pitch"):
                 out[key] = (1 - a) * inf[key][k0] + a * inf[key][k1]
@@ -933,11 +1128,14 @@ class TrueState:
         self.p = p
 
     def view(self) -> dict:
-        p, m, d = self.p, self.p.m, self.p.d
+        p, m, d, v = self.p, self.p.m, self.p.d, self.p._v  # (the plant's views follow p.d)
         mujoco.mj_subtreeVel(m, d)
-        return dict(d=d, com=d.subtree_com[p.trunk].copy(), com_vel=d.subtree_linvel[p.trunk].copy(),
-                    feet=np.array([d.xpos[f][:2] for f in p.feet]), feet_yaw=np.array([_yaw(d.xmat[f]) for f in p.feet]),
-                    R=d.xmat[p.trunk].reshape(3, 3).copy(), omega=d.cvel[p.trunk][:3].copy())
+        xpos, xmat, t = v.xpos, v.xmat, p.trunk
+        f0, f1 = p.feet
+        return dict(d=d, com=v.subtree_com[t].copy(), com_vel=v.subtree_linvel[t].copy(),
+                    feet=np.array([xpos[f0][:2], xpos[f1][:2]]),
+                    feet_yaw=np.array([math.atan2(xmat[f0][3], xmat[f0][0]), math.atan2(xmat[f1][3], xmat[f1][0])]),
+                    R=xmat[t].reshape(3, 3).copy(), omega=v.cvel[t][:3].copy())
 
 
 class EstimatedState:
@@ -1001,6 +1199,7 @@ class Tracker:
         self.pads_in = [shrink(P, COP_INSET) for P in self.pads]
         self.pad_centre = [P.mean(0) for P in self.pads]
         self.pads_in_hp = [halfplanes(P) for P in self.pads_in]  # foot frame: the cap's quick inside test
+        self._inward_key = self._inward_k = self._inward_ext = None  # ``_inward_clear``'s pad geometry, per pads
         self._jacp, self._jacr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
         self._ik = mujoco.MjData(m)
         self.hold = FEEDBACK_HOLD
@@ -1031,6 +1230,30 @@ class Tracker:
         self.ankle_act = np.array([dr.group in ("ankle_a", "ankle_b") for dr in p.drives])
         self.hinge_jid = np.array([self.jid[jn] for jn in p.joints])
         self.foot_of = foot_geoms(p)
+        # --- constants of the fast paths (same values as the expressions they replace)
+        #: Each ankle's (pitch, roll) joint indices are adjacent: index of the pitch.
+        self._ank0 = [int(ix[0]) for ix in self.ankle_ix]
+        if any(list(ix) != [i0, i0 + 1] for ix, i0 in zip(self.ankle_ix, self._ank0, strict=True)):
+            raise ValueError("the fast ankle cap expects each ankle's pitch and roll joints adjacent")
+        self._ankle_Kl = [K.tolist() for K in self.ankle_K]
+        self._ankle_Dl = [D.tolist() for D in self.ankle_D]
+        self._ankle_peakl = [pk.tolist() for pk in self.ankle_peak]
+        self._pads_in_hpl = [(N.tolist(), dd.tolist()) for N, dd in self.pads_in_hp]
+        self._floor_load = CONTACT_LOAD_FRAC * self.mass * G  # as _ankle_cap writes it
+        self._side_jids = [dict(pitch_roll=[self.jid[f"{s}_ankle_pitch"], self.jid[f"{s}_ankle_roll"]],
+                                hips=[self.jid[f"{s}_hip_pitch"], self.jid[f"{s}_hip_roll"]],
+                                hip_yaw=self.jid[f"{s}_hip_yaw"]) for s in statics.SIDES]
+        self._side_idx = [dict(pitch_roll=[self.idx[f"{s}_ankle_pitch"], self.idx[f"{s}_ankle_roll"]],
+                               hips=[self.idx[f"{s}_hip_pitch"], self.idx[f"{s}_hip_roll"]],
+                               hip_yaw=self.idx[f"{s}_hip_yaw"]) for s in statics.SIDES]
+        self._eye6 = 1e-6 * np.eye(6)
+        self._zeros4 = np.zeros(4)
+        self._ff_bufs = (np.empty(self.nj), np.empty(self.nj))
+        #: A residual policy's inputs (``env.py``, plan section 2's R3): joint offsets added to every servo target
+        #: (rad, joint order; None: none) and a factor on the clock rate (1: none).  With None and 1 the tracker is
+        #: exactly R2 (the offsets are not added, the rate not multiplied).
+        self.residual: np.ndarray | None = None
+        self.rate_factor = 1.0
         #: Everything set so far is configuration; what ``reset`` adds is the episode's state (``save``).
         self._config = frozenset(self.__dict__) | {"_config", "sensors", "est", "state"}
 
@@ -1076,6 +1299,9 @@ class Tracker:
         self.flags = {}
         self.e = np.zeros(2)
         self.dq_prev, self.dtau_prev = np.zeros(nj), np.zeros(nj)
+        self._ddq = self._ddtau = None  # the ramp's increments over the current feedback interval
+        self._geo = self._geo_kv = None  # R2: the stance feet's cap geometry on the estimate (``_cap_geometry``)
+        self._geo_np = [None, None]  # R2: its exact path's arrays (``_exact_arrays``)
         self.cap_bound = [False, False]  # the cap's box and pad bound since the last feedback update
         self.step_off = [np.zeros(2), np.zeros(2)]  # the swing foot's touchdown offset (anchor frame, m)
         self.sensors = self.est = None
@@ -1142,9 +1368,13 @@ class Tracker:
         nj = self.nj
         q, qd, tau = x[:nj], x[nj : 2 * nj], x[2 * nj : 3 * nj]
         s = self.rate * (1.0 + self.delta)  # (rate 1: exactly 1 + delta, as before the commanded rate)
+        if self.rate_factor != 1.0:  # a residual policy's clock rate (env.py); 1: the tracker as built
+            s = s * self.rate_factor
         scaled = s != 1.0
         qd_c = s * qd if scaled else qd
-        ff = tau + self.damp * qd_c + self.fric * np.tanh(qd_c / FRICTION_SMOOTH)
+        b1, b2 = self._ff_bufs
+        ff = np.add(tau, np.multiply(self.damp, qd_c, out=b1), out=b1)  # tau + damp qd_c + fric tanh(qd_c / 0.05)
+        ff += np.multiply(self.fric, np.tanh(np.divide(qd_c, FRICTION_SMOOTH, out=b2), out=b2), out=b2)
         if self.extra is not None:
             ff += self.extra @ (s * s * x[3 * nj :] if scaled else x[3 * nj :])
         if self.mode == "R0":
@@ -1154,15 +1384,22 @@ class Tracker:
             if j == 0:
                 self.dq_prev, self.dtau_prev = self.dq, self.dtau
                 self.feedback(t_ref, q)
+                self._ddq, self._ddtau = self.dq - self.dq_prev, self.dtau - self.dtau_prev
             if self.hold == "ramp":
                 a = (j + 1) / FEEDBACK_EVERY
-                dq = self.dq_prev + a * (self.dq - self.dq_prev)
-                dtau = self.dtau_prev + a * (self.dtau - self.dtau_prev)
+                dq = self.dq_prev + a * self._ddq
+                dtau = self.dtau_prev + a * self._ddtau
             else:
                 dq, dtau = self.dq, self.dtau
+            q_cmd = q + dq
+            if self.residual is not None:  # a residual policy's joint offsets (env.py); None: the tracker as built
+                q_cmd = q_cmd + self.residual
+            tau_cmd = ff + dtau
             if self.ankle_cap:
-                dtau = self._ankle_cap(q + dq, qd_c, ff + dtau, dtau)
-            p.command(q + dq, qd_c, ff + dtau)
+                capped = self._ankle_cap(q_cmd, qd_c, tau_cmd, dtau)
+                if capped is not dtau:
+                    tau_cmd = ff + capped
+            p.command(q_cmd, qd_c, tau_cmd)
         p.step()
         self.k += 1
         self.tau_ref += self.dt * s
@@ -1170,6 +1407,49 @@ class Tracker:
             self.est.step(self.sensors.read())
 
     # ------------------------------------------------------------------ ankle torque cap (500 Hz)
+    def _foot_geometry(self, v: "_Views", i: int) -> tuple:
+        """Foot ``i``'s cap geometry on the kinematics ``v`` (views of an MjData) as Python floats, the same values as
+        ``_ankle_rows`` and ``_rot2(_yaw(...))``: (a00, a01, a10, a11, b0, b1, cos, sin, x, y), the foot origin (x,
+        y)."""
+        jp, jr = self.ankle_jid[i]
+        f = self.p.feet[i]
+        xa, xn = v.xaxis, v.xanchor
+        p0, p1, _ = xa[jp].tolist()
+        n0, n1, _ = xn[jp].tolist()
+        r0, r1, _ = xa[jr].tolist()
+        m0, m1, _ = xn[jr].tolist()
+        R = v.xmat[f]
+        yaw = math.atan2(R[3], R[0])
+        x, y, _ = v.xpos[f].tolist()
+        return (-p1, p0, -r1, r0, -n1 * p0 + n0 * p1, -m1 * r0 + m0 * r1, math.cos(yaw), math.sin(yaw), x, y)
+
+    def _cap_geometry(self) -> list:
+        """R2: both feet's cap geometry on the estimate, recomputed only when the estimator's kinematics changed (its
+        kinematics are refreshed at its 100 Hz update, so four of five physics steps reuse them)."""
+        e = self.est
+        if self._geo_kv != e._kv or self._geo is None:
+            v = e._views
+            self._geo = [self._foot_geometry(v, 0), self._foot_geometry(v, 1)]
+            self._geo_np = [None, None]  # (_exact_arrays, made when needed)
+            self._geo_kv = e._kv
+        return self._geo
+
+    def _exact_arrays(self, i: int, g: tuple, cache: list | None) -> tuple:
+        """The exact path's arrays for foot ``i`` from its geometry ``g`` (``_foot_geometry``): A, b (``_ankle_rows``),
+        Rz, the foot's xy, its inset pad in world xy and the cap's pad parts (``_cap_pre``); kept in ``cache`` (R2:
+        until the estimate's next update) when given."""
+        if cache is not None and cache[i] is not None:
+            return cache[i]
+        a00, a01, a10, a11, b0, b1, cz, sz, fx, fy = g
+        A, b = np.array([[a00, a01], [a10, a11]]), np.array([b0, b1])
+        Rz = np.array([[cz, -sz], [sz, cz]])
+        xy = np.array([fx, fy])
+        poly = xy + self.pads_in[i] @ Rz.T
+        out = (A, b, Rz, xy, poly, _cap_pre(poly, A, b))
+        if cache is not None:
+            cache[i] = out
+        return out
+
     def _ankle_cap(self, q_cmd, qd_cmd, tau_cmd, dtau):
         """``dtau`` with each ankle's total torque command capped (decision 15, ``cap_ankle_torque``): the servo's PD
         torque is predicted from the encoders (true angles and rates for R1, the last reading for R2) and added to the
@@ -1178,39 +1458,81 @@ class Tracker:
         CoP (quasi-static foot, ``ankle_cop``) ``COP_INSET`` inside its pad; the nearest such torque replaces the
         total.  R2 takes its loaded feet from the estimator's contact detection (``EstimatorGains.contact_on`` /
         ``contact_off``, its odometry's), since its load readings carry noise of the same size as the 2 % threshold,
-        and their loads from the readings (at least that threshold)."""
+        and their loads from the readings (at least that threshold).
+
+        Most steps no foot is near either limit.  A foot is passed over without the exact computation only when a
+        float estimate of its torque and CoP clears the box and the inset pad by ``CERTIFY_TOL`` scaled to the sizes
+        involved (``_certified_inside``): the exact test would then also pass it over.  Every other foot takes the
+        exact path, the operations as before."""
         p = self.p
-        floor_load = CONTACT_LOAD_FRAC * self.mass * G
-        if self.est is not None:
-            q, qd, kd = self.est.q, self.est.qd, self.est.d
-            loads = np.maximum(self.est.load, floor_load)
-            in_contact = self.est.contact
-        else:
-            d = p.d
-            q, qd, kd = d.qpos[p.qadr], d.qvel[p.dofs], d
-            loads = p.foot_loads()
-            in_contact = loads >= floor_load
+        floor_load = self._floor_load
+        est = self.est
+        if est is not None:  # the estimate's encoders, loads, contacts and kinematics (est.d)
+            q, qd = est.q, est.qd
+            loads = [x if (x >= floor_load or x != x) else floor_load for x in est.load.tolist()]  # np.maximum
+            in_contact = est.contact
+            geo = self._cap_geometry()
+            views = est._views
+        else:  # the true state (p.d)
+            views = p._v
+            q, qd = views.qpos[p.qadr], views.qvel[p.dofs]
+            loads_a = p.foot_loads()
+            loads = loads_a.tolist()
+            in_contact = loads_a >= floor_load
+            geo = None
         box_on, pad_on = "box" in self.ankle_cap, "pad" in self.ankle_cap
+        qcl, ql, qdcl, qdl, tcl = q_cmd.tolist(), q.tolist(), qd_cmd.tolist(), qd.tolist(), tau_cmd.tolist()
         out = dtau
         for i in (0, 1):
+            loaded = pad_on and bool(in_contact[i])
+            # --- the float estimate (the exact torque is K (q_cmd - q) + D (qd_cmd - qd) + tau_cmd by BLAS)
+            i0 = self._ank0[i]
+            e0, e1 = qcl[i0] - ql[i0], qcl[i0 + 1] - ql[i0 + 1]
+            v0, v1 = qdcl[i0] - qdl[i0], qdcl[i0 + 1] - qdl[i0 + 1]
+            (k00, k01), (k10, k11) = self._ankle_Kl[i]
+            (d00, d01), (d10, d11) = self._ankle_Dl[i]
+            ka0, ka1 = k00 * e0 + k01 * e1, k10 * e0 + k11 * e1
+            da0, da1 = d00 * v0 + d01 * v1, d10 * v0 + d11 * v1
+            c0, c1 = tcl[i0], tcl[i0 + 1]
+            t0, t1 = ka0 + da0 + c0, ka1 + da1 + c1
+            size = 1.0 + abs(ka0) + abs(ka1) + abs(da0) + abs(da1) + abs(c0) + abs(c1)
+            sure = size < math.inf  # (NaN fails this too)
+            if sure and box_on:
+                pk0, pk1 = self._ankle_peakl[i]
+                sure = max(abs(t0) - pk0, abs(t1) - pk1) < -CERTIFY_TOL * size
+            if sure and loaded:
+                a00, a01, a10, a11, b0, b1, cz, sz, fx, fy = geo[i] if geo is not None else self._foot_geometry(views, i)
+                Fz = loads[i]
+                det = a00 * a11 - a01 * a10
+                if Fz > 0.0 and abs(det) > 1e-3:
+                    r0, r1 = -t0 / Fz - b0, -t1 / Fz - b1
+                    x0, x1 = (r0 * a11 - r1 * a01) / det - fx, (a00 * r1 - a10 * r0) / det - fy
+                    cf0, cf1 = cz * x0 + sz * x1, -sz * x0 + cz * x1  # Rz^T (c - foot)
+                    tol = CERTIFY_TOL * (1.0 + abs(r0) + abs(r1) + abs(fx) + abs(fy) + size / Fz)
+                    N, dd = self._pads_in_hpl[i]
+                    sure = _certified_inside(N, dd, cf0, cf1, tol) is True
+                else:
+                    sure = False
+            if sure:
+                continue
+            # --- the exact computation, as written before
             ix = self.ankle_ix[i]
             tau = self.ankle_K[i] @ (q_cmd[ix] - q[ix]) + self.ankle_D[i] @ (qd_cmd[ix] - qd[ix]) + tau_cmd[ix]
             peak = self.ankle_peak[i] if box_on else None
             Fz = float(loads[i])
-            loaded = pad_on and bool(in_contact[i])
-            A = b = Rz = None
+            A = b = c = poly = pre = None
             inside = True
             if loaded:  # quick test in the foot's (yaw) frame, where the pad polygon is fixed, before the exact cap
-                A, b = _ankle_rows(kd, self.ankle_jid[i])
-                f = p.feet[i]
-                Rz = _rot2(_yaw(kd.xmat[f]))
-                cf = Rz.T @ (np.linalg.solve(A, -tau / Fz - b) - kd.xpos[f][:2])
+                A, b, Rz, xy, poly, pre = self._exact_arrays(
+                    i, geo[i] if geo is not None else self._foot_geometry(views, i),
+                    self._geo_np if geo is not None else None)
+                c = _solve2(A, -tau / Fz - b)
+                cf = Rz.T @ (c - xy)
                 N, dd = self.pads_in_hp[i]
                 inside = bool(np.all(N @ cf <= dd))
             if inside and (peak is None or bool(np.all(np.abs(tau) <= peak))):
                 continue
-            poly = kd.xpos[p.feet[i]][:2] + self.pads_in[i] @ Rz.T if loaded else None
-            new, box_b, pad_b = cap_ankle_torque(tau, peak, Fz if loaded else None, A, b, poly)
+            new, box_b, pad_b = _cap_ankle_torque(tau, peak, Fz if loaded else None, A, b, poly, c, pre)
             self.cap_bound[0] = self.cap_bound[0] or box_b
             self.cap_bound[1] = self.cap_bound[1] or pad_b
             if np.any(new != tau):
@@ -1234,29 +1556,42 @@ class Tracker:
         ``CAP_RESIDUAL_HEAVY_FRAC``, the largest distance (N m) from a foot's torques to the nearest torques that put
         its quasi-static CoP inside its inset pad (``cap_ankle_torque`` without the box); and how many feet were so
         loaded.  The motors' forces and the kinematics are those of the step just taken (its start state)."""
-        p = self.p
-        d = p.d
-        tau = self.ankle_Gt @ d.actuator_force
+        v = self.p._v
+        tau = self.ankle_Gt @ v.actuator_force
         weight = self.mass * G
+        tl = tau.tolist()
         box = pad = pad_heavy = 0.0
         loaded = heavy = 0
         for i in (0, 1):
-            t = tau[2 * i : 2 * i + 2]
-            box = max(box, float(np.max(np.abs(t) - self.ankle_peak[i])))
+            t0, t1 = tl[2 * i], tl[2 * i + 1]
+            pk0, pk1 = self._ankle_peakl[i]
+            x0, x1 = abs(t0) - pk0, abs(t1) - pk1
+            box = max(box, float(x0 if (x0 >= x1 or x0 != x0) else x1))  # (np.max of the two)
             Fz = float(loads[i])
             if Fz <= CONTACT_LOAD_FRAC * weight:
                 continue
             loaded += 1
             is_heavy = Fz > CAP_RESIDUAL_HEAVY_FRAC * weight
             heavy += is_heavy
-            A, b = _ankle_rows(d, self.ankle_jid[i])
-            f = p.feet[i]
-            Rz = _rot2(_yaw(d.xmat[f]))
-            cf = Rz.T @ (np.linalg.solve(A, -t / Fz - b) - d.xpos[f][:2])  # the CoP in the foot frame
+            a00, a01, a10, a11, b0, b1, cz, sz, fx, fy = self._foot_geometry(v, i)
+            det = a00 * a11 - a01 * a10
+            if abs(det) > 1e-3 and Fz > 0.0:  # the CoP clearly inside the inset pad: no excess (_certified_inside)
+                r0, r1 = -t0 / Fz - b0, -t1 / Fz - b1
+                u0, u1 = (r0 * a11 - r1 * a01) / det - fx, (a00 * r1 - a10 * r0) / det - fy
+                N, dd = self._pads_in_hpl[i]
+                tol = CERTIFY_TOL * (1.0 + abs(r0) + abs(r1) + abs(fx) + abs(fy))
+                if _certified_inside(N, dd, cz * u0 + sz * u1, -sz * u0 + cz * u1, tol) is True:
+                    continue
+            t = tau[2 * i : 2 * i + 2]
+            A, b = np.array([[a00, a01], [a10, a11]]), np.array([b0, b1])
+            Rz = np.array([[cz, -sz], [sz, cz]])
+            xy = np.array([fx, fy])
+            c = _solve2(A, -t / Fz - b)
+            cf = Rz.T @ (c - xy)  # the CoP in the foot frame
             N, dd = self.pads_in_hp[i]
             if np.any(N @ cf > dd):
-                poly = d.xpos[f][:2] + self.pads_in[i] @ Rz.T
-                x = float(np.linalg.norm(cap_ankle_torque(t, None, Fz, A, b, poly)[0] - t))
+                poly = xy + self.pads_in[i] @ Rz.T
+                x = float(np.linalg.norm(_cap_ankle_torque(t, None, Fz, A, b, poly, c)[0] - t))
                 pad = max(pad, x)
                 if is_heavy:
                     pad_heavy = max(pad_heavy, x)
@@ -1279,15 +1614,59 @@ class Tracker:
         swing = self.pads[sw] @ _rot2(yaw).T + np.asarray(rel) + np.array([dfx, 0.0])
         return inward_room(self.pads[1 - sw], swing, _inward(sw, 0.0))
 
+    def _inward_clear(self, ref: dict, sw: int, dfx: float, lat: float, so: float) -> bool:
+        """Whether decision 20's bound certainly leaves the inward step ``lat`` (<= 0, at most 10 m) alone, so that
+        ``_inward_room`` (a convex hull) need not run: with ``so`` > 0, ``_clip(lat, -room, so)`` is then lat and the
+        clearance flag False whatever the room's exact value.
+
+        The room is where the ray {t w : t >= 0} (w the step's direction reversed, ``inward_room``) enters the grown
+        polygon G: the Minkowski difference D of the swing pad (at the same touchdown pose ``_inward_room`` uses) and
+        the stance pad, its edge lines moved out by the clearance.  G lies within ``_inward_corner`` (k) of D, so the
+        room exceeds -lat when the segment {t w : 0 <= t <= -lat} stays farther than k from D, and is infinite when the
+        whole ray does.  Separations along the inward axis and the forward axis bound that distance from below:
+        D's least coordinate along an axis is the swing pad's least less the stance pad's greatest (and rounding
+        those differences keeps their order, so it is the same float), and the segment's points have forward
+        coordinate 0.  ``INWARD_CERTIFY_M`` covers the rounding of ``inward_room`` (whose finite result r satisfies
+        every edge's inequality at r w to about 1e-15 m) and of these sums."""
+        need = -lat
+        if not (0.0 <= need <= 10.0 and so > 0.0 and len(self.pads) == 2):
+            return False
+        P0, P1 = (np.asarray(P, float) for P in self.pads)
+        clearance = inward_room.__defaults__[-1]  # the clearance ``_inward_room`` gets: inward_room's default
+        key = (P0.tobytes(), P1.tobytes(), P0.shape, P1.shape, clearance)
+        if key != self._inward_key:
+            ext = [(P.min(0).tolist(), P.max(0).tolist()) for P in (P0, P1)]
+            self._inward_key, self._inward_k, self._inward_ext = key, _inward_corner((P0, P1), clearance), ext
+        k = self._inward_k
+        if k is None:
+            return False
+        rel, yaw = ref["land_rel"], float(ref["land_yaw"])
+        swing = self.pads[sw] @ _rot2(yaw).T + np.asarray(rel) + np.array([dfx, 0.0])
+        (x0, y0), (x1, y1) = swing.min(0).tolist(), swing.max(0).tolist()
+        (sx0, sy0), (sx1, sy1) = self._inward_ext[1 - sw]
+        side = y0 - sy1 if sw == 0 else sy0 - y1  # D's least coordinate along w: the left foot steps toward -y
+        ahead, behind = x0 - sx1, sx0 - x1
+        m = INWARD_CERTIFY_M
+        return side - k > need + m * (1.0 + need) or ahead - k > m or behind - k > m
+
     def _leg_jacobian(self, kd, side: int) -> np.ndarray:
         mujoco.mj_jacBody(self.p.m, kd, self._jacp, self._jacr, self.p.feet[side])
         return np.vstack([self._jacp, self._jacr])[:, self.leg_dofs[side]]
 
     def feedback(self, t_ref: float, q_ref: np.ndarray) -> None:
+        """The 100 Hz update (module docstring).  Every product with a matrix and every solve is numpy's as before;
+        the scalar logic runs in Python floats with numpy's semantics (``_clip``); the ZMP clip and the capture trigger
+        decide from a float test against each frame's precomputed half-planes when it clears the polygon by
+        ``CERTIFY_TOL`` (``_certified_inside``), else by the exact code; and the inward bound (decision 20) is computed
+        only for an inward step the pads' separation does not already clear (``_inward_clear``), the only case where
+        its value enters the step."""
         g = self.g
         dt_fb = FEEDBACK_EVERY * self.dt
         if self.est is not None:
             self.est.update(dt_fb)
+            xaxis = self.est._views.xaxis
+        else:
+            xaxis = self.p._v.xaxis
         seg, ref = self.track.info(t_ref)
         st = self.state.view()
         kd, R = st["d"], st["R"]
@@ -1303,6 +1682,7 @@ class Tracker:
         Ra = _rot2(ya)
         e = Ra.T @ (xi - pa) - self.dcm_reference(ref)
         self.e = e
+        e0, e1 = e.tolist()
         dtau = np.zeros(self.nj)
         sw = int(ref["swing"])
         flags = dict(cop_clip=False, step_clip=False, leg_to_leg_clearance=False, phase_rate_saturated=False,
@@ -1316,7 +1696,12 @@ class Tracker:
         stance = [1 - sw] if sw >= 0 else [0, 1]
         # --- ankle: ZMP shift within the support, COP_INSET inside the pads
         if "ankle" in self.terms:
-            dp = np.clip(g["k_dcm"] * e, [-g["cop_x"], -g["cop_y"]], [g["cop_x"], g["cop_y"]])
+            kdcm, cx, cy = g["k_dcm"], g["cop_x"], g["cop_y"]
+            x0, x1 = kdcm * e0, kdcm * e1
+            if -cx < x0 < cx and -cy < x1 < cy:  # strictly inside both bounds: np.clip returns them unchanged
+                dp = np.array([x0, x1])
+            else:  # (a tie or a clip: np.clip itself, as before)
+                dp = np.clip(kdcm * e, [-cx, -cy], [cx, cy])
             if cap is not None:  # single support on the capture step's stance foot
                 o = stance[0]
                 poly = (st["feet"][o] + self.pads_in[o] @ _rot2(float(st["feet_yaw"][o])).T - pa) @ Ra
@@ -1327,31 +1712,44 @@ class Tracker:
                 poly = ref["poly"][: int(ref["poly_n"])]
                 w = ref["weights"] if self.ds_weights == "normal" or sw >= 0 else np.array([0.5, 0.5])
                 z_rel = ref["zmp_rel"]
-            cmd, clipped = project_into(poly, z_rel + dp) if self.cop_clip else (z_rel + dp, False)
+            x = z_rel + dp
+            if not self.cop_clip:
+                cmd, clipped = x, False
+            else:
+                inside = None
+                if cap is None:
+                    x0, x1 = x.tolist()
+                    N, d_ = ref["poly_hp"]
+                    inside = _certified_inside(N, d_, x0, x1, CERTIFY_TOL * (1.0 + abs(x0) + abs(x1)))
+                cmd, clipped = (x, False) if inside is True else project_into(poly, x)
             flags["cop_clip"] = clipped
-            dpw = Ra @ (cmd - z_rel)
+            dpw0, dpw1 = (Ra @ (cmd - z_rel)).tolist()
             Fz = self.mass * G
-            for i in (0, 1):
-                if w[i] > 0:
-                    M = w[i] * Fz * np.array([-dpw[1], dpw[0], 0.0])
-                    for x in ("ankle_pitch", "ankle_roll"):
-                        jn = f"{statics.SIDES[i]}_{x}"
-                        dtau[self.idx[jn]] += float(kd.xaxis[self.jid[jn]] @ M)
+            for i, wi in enumerate(w.tolist()):
+                if wi > 0:
+                    M = wi * Fz * np.array([-dpw1, dpw0, 0.0])
+                    (jp, jr), (ip, ir) = self._side_jids[i]["pitch_roll"], self._side_idx[i]["pitch_roll"]
+                    dtau[ip] += float(xaxis[jp] @ M)
+                    dtau[ir] += float(xaxis[jr] @ M)
         # --- trunk attitude through the stance hips
         if "trunk" in self.terms:
             cy, sy = math.cos(yaw), math.sin(yaw)
             Rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
-            w_h = Rz.T @ st["omega"]
-            er, ep = roll - float(ref["roll_pitch"][0]), pitch - float(ref["roll_pitch"][1])
-            Mw = Rz @ np.array([-g["k_trunk"] * er - g["d_trunk"] * w_h[0], -g["k_trunk"] * ep - g["d_trunk"] * w_h[1], 0.0])
+            w0, w1, _ = (Rz.T @ st["omega"]).tolist()
+            rp0, rp1 = ref["roll_pitch"].tolist()
+            er, ep = roll - rp0, pitch - rp1
+            kt, dt_ = g["k_trunk"], g["d_trunk"]
+            Mw = Rz @ np.array([-kt * er - dt_ * w0, -kt * ep - dt_ * w1, 0.0])
+            ns = len(stance)
             for s_ in stance:
-                for x in ("hip_pitch", "hip_roll"):
-                    jn = f"{statics.SIDES[s_]}_{x}"
-                    dtau[self.idx[jn]] -= float(kd.xaxis[self.jid[jn]] @ Mw) / len(stance)
+                (jp, jr), (ip, ir) = self._side_jids[s_]["hips"], self._side_idx[s_]["hips"]
+                dtau[ip] -= float(xaxis[jp] @ Mw) / ns
+                dtau[ir] -= float(xaxis[jr] @ Mw) / ns
         # --- heading error, averaged over the last stride
         e_yaw = _wrap(self.yaw_unwrapped - (float(ref["yaw"]) - self.yaw0_ref))
         self.yaw_buf.append(e_yaw)
-        nbuf = max(1, int(round(float(ref["period"]) / dt_fb)))
+        period = float(ref["period"])
+        nbuf = max(1, int(round(period / dt_fb)))
         if len(self.yaw_buf) > nbuf:
             del self.yaw_buf[: len(self.yaw_buf) - nbuf]
         # --- events: a touchdown keeps the swing leg's offsets, a lift-off sets the heading target
@@ -1364,31 +1762,36 @@ class Tracker:
                 self.yaw_tgt[sw] = self.yaw_land[sw]
                 if "heading" in self.terms:
                     em = float(np.mean(self.yaw_buf))
-                    self.I_yaw = float(np.clip(self.I_yaw + em, -0.5, 0.5))
-                    ax = float(kd.xaxis[self.jid[f"{statics.SIDES[sw]}_hip_yaw"]][2])
+                    self.I_yaw = float(_clip(self.I_yaw + em, -0.5, 0.5))
+                    ax = float(xaxis[self._side_jids[sw]["hip_yaw"]][2])
                     corr = -(g["k_yaw"] * em + g["ki_yaw"] * self.I_yaw)
                     self.yaw_tgt[sw] = corr / ax if abs(ax) > 0.2 else 0.0
             self.prev_sw = sw
         # --- step: the swing foot's touchdown offset through the swing leg's Jacobian
         u = float(ref["u"])
         if "step" in self.terms and cap is None and sw >= 0 and u < SWING_FREEZE_U:
-            df = g["k_step"] * e
-            dfx = float(np.clip(df[0], -g["step_x"], g["step_x"]))
+            ks, sx, so = g["k_step"], g["step_x"], g["step_out"]
+            df0, df1 = ks * e0, ks * e1
+            dfx = float(_clip(df0, -sx, sx))
             out_sign = 1.0 if sw == 0 else -1.0  # the left foot's outward is +y in the anchor's frame
-            lat = out_sign * float(df[1])
-            room = self._inward_room(ref, sw, dfx) if self.inward_bound == "pad_clearance" else math.inf
-            dfy = out_sign * float(np.clip(lat, -room, g["step_out"]))
+            lat = out_sign * df1
+            if self.inward_bound == "pad_clearance" and not lat > 0.0 and not self._inward_clear(ref, sw, dfx, lat, so):
+                room = self._inward_room(ref, sw, dfx)
+            else:  # no bound, an outward step (-room <= 0 < lat) or a certified clear one: its value does not enter
+                room = math.inf
+            dfy = out_sign * float(_clip(lat, -room, so))
             flags["leg_to_leg_clearance"] = lat < -room
-            flags["step_clip"] = abs(float(df[0])) > g["step_x"] or lat > g["step_out"]
-            self.step_off[sw] = np.array([dfx, dfy])
-            dfw = Ra @ np.array([dfx, dfy])
+            flags["step_clip"] = abs(df0) > sx or lat > so
+            off = np.array([dfx, dfy])
+            self.step_off[sw] = off
+            dfw = Ra @ off
             J = self._leg_jacobian(kd, sw)
-            self.step_tgt[sw] = np.linalg.solve(J.T @ J + 1e-6 * np.eye(6), J.T @ np.r_[dfw, 0.0, 0.0, 0.0, 0.0])
+            self.step_tgt[sw] = _solve2(J.T @ J + self._eye6, J.T @ np.concatenate((dfw, self._zeros4)))
         # --- the swing leg's offsets blend in over the swing, the stance legs' decay
         dq = np.zeros(self.nj)
-        decay = min(1.0, max(0.0, 1.0 - g["decay"] * dt_fb / max(1e-6, float(ref["period"]) * seg.duty)))
+        decay = min(1.0, max(0.0, 1.0 - g["decay"] * dt_fb / max(1e-6, period * seg.duty)))
         for s_ in (0, 1):
-            iy = self.idx[f"{statics.SIDES[s_]}_hip_yaw"]
+            iy = self._side_idx[s_]["hip_yaw"]
             if cap is not None and s_ == cap["side"]:
                 dq[self.leg[s_]] = cap["dq"]
             elif s_ == sw:
@@ -1403,11 +1806,12 @@ class Tracker:
         # --- phase rate
         if "phase" in self.terms and not bool(ref["stand"]) and cap is None:
             lim = PHASE_RATE_LIMIT
-            self.I_x += float(e[0]) * dt_fb
-            if g["ki_phase"] > 0:
-                self.I_x = float(np.clip(self.I_x, -lim / g["ki_phase"], lim / g["ki_phase"]))
-            raw = g["k_phase"] * float(e[0]) + g["ki_phase"] * self.I_x
-            self.delta = float(np.clip(raw, -lim, lim))
+            self.I_x += e0 * dt_fb
+            ki = g["ki_phase"]
+            if ki > 0:
+                self.I_x = float(_clip(self.I_x, -lim / ki, lim / ki))
+            raw = g["k_phase"] * e0 + ki * self.I_x
+            self.delta = float(_clip(raw, -lim, lim))
             flags["phase_rate_saturated"] = abs(raw) > lim
         else:
             self.delta = 0.0
@@ -1424,6 +1828,16 @@ class Tracker:
                 return
             pa, ya = self._anchor_frame(st, int(ref["anchor"]))
             x_rel = _rot2(ya).T @ (xi - pa)
+            # a DCM inside the support by more than CERTIFY_TOL, its exact signed distance (the largest side value)
+            # below the margin by as much, triggers nothing: decided without the exact computation
+            x0, x1 = x_rel.tolist()
+            tol = CERTIFY_TOL * (1.0 + abs(x0) + abs(x1))
+            worst = -math.inf
+            for (n0, n1), di in zip(*ref["poly_raw_hp"], strict=True):
+                s = n0 * x0 + n1 * x1 - di
+                worst = s if (s > worst or s != s) else worst
+            if worst < -tol and worst + tol <= self.g["capture_margin"]:
+                return
             out = signed_distance(ref["poly_raw"][: int(ref["poly_raw_n"])], x_rel)
             if out <= self.g["capture_margin"]:
                 return
@@ -1489,7 +1903,7 @@ class Tracker:
 MJ_STATE = mujoco.mjtState.mjSTATE_INTEGRATION
 #: The estimator's attributes that are configuration, not state (``Tracker.save``).
 EST_STATIC = frozenset({"p", "g", "m", "d", "dt", "weight", "trunk", "feet", "r_imu", "qadr", "dofs", "_res",
-                        "foot_z0", "sole"})
+                        "foot_z0", "sole", "_views", "_qs", "_vs", "_Rb"})
 #: Plan section 4's hardware limits as decisions 15 and 20 leave them, measured at every feedback update (module
 #: docstring).
 HW_LIMITS = ("leg_drive_at_torque_limit", "leg_drive_at_envelope_limit", "ankle_linkage", "slip",
@@ -1561,10 +1975,10 @@ def foot_geoms(p: plant.Plant) -> np.ndarray:
     return out
 
 
-def _normal_forces(m, d, idx: np.ndarray) -> np.ndarray:
-    """The normal force of each contact ``idx``."""
+def _normal_forces(m, d, idx: np.ndarray, contact=None) -> np.ndarray:
+    """The normal force of each contact ``idx`` (``contact``: ``d.contact``, when the caller has it)."""
     if int(m.opt.cone) == int(mujoco.mjtCone.mjCONE_ELLIPTIC):  # the cone's first row is the normal force
-        adr = np.asarray(d.contact.efc_address)[idx]
+        adr = np.asarray((d.contact if contact is None else contact).efc_address)[idx]
         return np.where(adr >= 0, d.efc_force[np.maximum(adr, 0)], 0.0)
     f6 = np.zeros(6)
     out = np.zeros(len(idx))
@@ -1585,15 +1999,18 @@ def foot_slip_speed(p: plant.Plant, feet=(0, 1), foot_of: np.ndarray | None = No
     if not n:
         return out
     foot_of = foot_geoms(p) if foot_of is None else foot_of
-    g = np.asarray(d.contact.geom)[:n]
+    con = d.contact
+    g = np.asarray(con.geom)[:n]
     f1, f2 = foot_of[g[:, 0]], foot_of[g[:, 1]]
     idx = np.flatnonzero((f1 >= 0) != (f2 >= 0))  # a foot against something else (not foot on foot)
     if not len(idx):
         return out
-    foot = np.where(f1[idx] >= 0, f1[idx], f2[idx])
-    other = m.geom_bodyid[np.where(f1[idx] >= 0, g[idx, 1], g[idx, 0])]
-    loaded = _normal_forces(m, d, idx) > 0.0
-    pos = np.asarray(d.contact.pos)[:n][idx]
+    is1 = f1[idx] >= 0
+    foot = np.where(is1, f1[idx], f2[idx])
+    other = m.geom_bodyid[np.where(is1, g[idx, 1], g[idx, 0])]
+    loaded = _normal_forces(m, d, idx, con) > 0.0
+    pos = np.asarray(con.pos)[:n][idx]
+    xpos = p._v.xpos if hasattr(p, "_v") else d.xpos
     v6 = np.zeros(6)
     for f in feet:
         sel = np.flatnonzero((foot == f) & loaded)
@@ -1601,12 +2018,12 @@ def foot_slip_speed(p: plant.Plant, feet=(0, 1), foot_of: np.ndarray | None = No
             continue
         b = p.feet[f]
         mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, b, v6, 0)  # at the body frame's origin, xpos
-        v = v6[3:] + est_mod.cross3(v6[:3], pos[sel] - d.xpos[b])
+        v = v6[3:] + est_mod.cross3(v6[:3], pos[sel] - xpos[b])
         for j, ob in enumerate(other[sel]):
             if ob != 0:  # a moving body (a pile probe): less its own velocity at the contact
                 mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, int(ob), v6, 0)
-                v[j] -= v6[3:] + est_mod.cross3(v6[:3], pos[sel[j]] - d.xpos[ob])
-        out[f] = float(np.max(np.hypot(v[:, 0], v[:, 1])))
+                v[j] -= v6[3:] + est_mod.cross3(v6[:3], pos[sel[j]] - xpos[ob])
+        out[f] = float(np.hypot(v[:, 0], v[:, 1]).max())  # (np.max's own reduction)
     return out
 
 
@@ -1870,56 +2287,73 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
     bound = np.zeros(3)  # feedback intervals with the cap's box, its pad, the inward bound binding
     stops = [dict(ev, t_sim=None, samples=[]) for ev in tk.track.events if ev["kind"] == "stop"]
     tk.cap_bound = [False, False]
+    # the same per-step arithmetic as before, into preallocated buffers and through views kept for the episode
+    v = p._v
+    qvel, f, xmat, xpos = v.qvel, v.actuator_force, v.xmat, v.xpos
+    frange = m.actuator_forcerange
+    sq, aw = np.empty(nu), np.empty(nu)
+    hi_t, lo_t = np.empty(nu), np.empty(nu)
+    b1, b2, sat = np.empty(nu, bool), np.empty(nu, bool), np.empty(nu, bool)
+    slip_load = SLIP_LOAD_FRAC * weight
+    jlo, jhi = tk.lo + 1e-3, tk.hi - 1e-3
+    trunk, feet = p.trunk, p.feet
+    qadr = p.qadr
     t0 = time.perf_counter()
     k = 0
     for k in range(n):
-        _apply_push(p, push)
+        if push is not None:
+            _apply_push(p, push)
         if confirm:
             bufs.reverse()  # bufs[0]: the state at this step's start, bufs[1]: at the last one's
             mujoco.mj_getState(m, d, bufs[0], MJ_STATE)
             if k % CF_EVERY == 1:
                 ring.append(tk.save(bufs[1]))
-        np.dot(env.moment, d.qvel, out=w)
+        np.dot(env.moment, qvel, out=w)
         tk.step()
-        f = d.actuator_force
-        tau_sq += f * f
-        np.maximum(wmax, np.abs(w), out=wmax)
-        fr = m.actuator_forcerange
-        sat = (f >= fr[:, 1] - 1e-9) | (f <= fr[:, 0] + 1e-9)
-        sat_steps += sat
-        sat_any |= sat
+        np.multiply(f, f, out=sq)
+        np.add(tau_sq, sq, out=tau_sq)  # tau_sq += f * f
+        np.abs(w, out=aw)
+        np.maximum(wmax, aw, out=wmax)
+        np.subtract(frange[:, 1], 1e-9, out=hi_t)
+        np.add(frange[:, 0], 1e-9, out=lo_t)
+        np.greater_equal(f, hi_t, out=b1)
+        np.less_equal(f, lo_t, out=b2)
+        np.logical_or(b1, b2, out=sat)  # sat = (f >= fr[:, 1] - 1e-9) | (f <= fr[:, 0] + 1e-9)
+        np.add(sat_steps, sat, out=sat_steps)
+        np.logical_or(sat_any, sat, out=sat_any)
         if env.active:
-            clamp |= sat & ((fr[:, 1] < peak - 1e-12) | (fr[:, 0] > -peak + 1e-12))
+            clamp |= sat & ((frange[:, 1] < peak - 1e-12) | (frange[:, 0] > -peak + 1e-12))
         if recorder is not None:
             recorder.step(k)
         if k % FEEDBACK_EVERY == 0:
-            qj = d.qpos[p.qadr]
+            qj = v.qpos[qadr]
             loads = p.foot_loads()
-            loaded = [i for i in (0, 1) if loads[i] > SLIP_LOAD_FRAC * weight]
+            ll = loads.tolist()
+            loaded = [i for i in (0, 1) if ll[i] > slip_load]
             slip_v = foot_slip_speed(p, loaded, tk.foot_of) if loaded else _NO_SLIP
-            slip = bool(np.any(slip_v > SLIP_SPEED))
+            slip = bool(slip_v[0] > SLIP_SPEED or slip_v[1] > SLIP_SPEED)
             if capped:
                 box_x, pad_x, heavy_x, n_loaded, n_heavy = tk.cap_residual(loads)
                 np.maximum(cap_res, (box_x, pad_x, heavy_x), out=cap_res)
                 cap_res_n += (box_x > CAP_RESIDUAL_TOL_NM, n_loaded, pad_x > CAP_RESIDUAL_TOL_NM, n_heavy,
                               heavy_x > CAP_RESIDUAL_TOL_NM)
             fl = tk.flags
-            ankle_sat = any(sat_any[i] or sat_any[j_] for i, j_ in pairs)
+            sa = sat_any.tolist()
+            ankle_sat = any(sa[i] or sa[j_] for i, j_ in pairs)
             cap_box, cap_pad = tk.cap_bound
             tk.cap_bound = [False, False]
             inward = bool(fl.get("leg_to_leg_clearance"))
             bound += (cap_box, cap_pad, inward)
             cop_edge = cap_pad or (bool(fl.get("cop_clip")) and ankle_sat)
-            R = d.xmat[p.trunk].reshape(3, 3)
+            R = xmat[trunk].reshape(3, 3)
             Rr = R @ R_home.T
-            tilt = float(np.arccos(np.clip(Rr[2, 2], -1, 1)))
-            hw = (bool((sat_any & leg).any()), bool((clamp & leg).any()),
-                  any(sat_any[i] and sat_any[j_] for i, j_ in pairs), slip, cop_edge, inward,
-                  bool(np.any((qj <= tk.lo + 1e-3) | (qj >= tk.hi - 1e-3))))
-            rep = (bool((sat_any & neck_tail).any()), cap_box, bool(fl.get("step_clip")),
-                   bool(fl.get("phase_rate_saturated")))
-            hist.append((float(d.time), tilt, hw, rep, tuple(np.flatnonzero(sat_any & leg)),
-                         tuple(np.flatnonzero(sat_any & neck_tail))))
+            tilt = float(np.arccos(_clip(float(Rr[2, 2]), -1.0, 1.0)))  # _clip: np.clip of a float, bit for bit
+            sat_leg = sat_any & leg
+            sat_nt = sat_any & neck_tail
+            hw = (bool(sat_leg.any()), bool((clamp & leg).any()), any(sa[i] and sa[j_] for i, j_ in pairs), slip,
+                  cop_edge, inward, bool(((qj <= jlo) | (qj >= jhi)).any()))
+            rep = (bool(sat_nt.any()), cap_box, bool(fl.get("step_clip")), bool(fl.get("phase_rate_saturated")))
+            hist.append((float(d.time), tilt, hw, rep, tuple(np.flatnonzero(sat_leg)), tuple(np.flatnonzero(sat_nt))))
             clamp[:] = False
             sat_any[:] = False
             tilts.append(tilt)
@@ -1927,7 +2361,8 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
             rolls.append(r_)
             pitches.append(p_)
             deltas.append(tk.delta)
-            e_dcm.append(float(np.linalg.norm(tk.e)))
+            e_ = tk.e
+            e_dcm.append(math.sqrt(e_.dot(e_)))  # np.linalg.norm of a contiguous 2-vector, bit for bit
             yaw = _yaw(R)
             yaw_turned += _wrap(yaw - yaw_prev)
             yaw_prev = yaw
@@ -1938,14 +2373,15 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
             if tk.est is not None:
                 mujoco.mj_subtreeVel(m, d)
                 es = tk.est
-                ft = np.array([d.xpos[fb][:2] for fb in p.feet])
-                est_err.append((float(d.time),
-                                float(np.linalg.norm((es.com[:2] - es.foot[:, :2].mean(0))
-                                                     - (d.subtree_com[p.trunk][:2] - ft.mean(0)))),
-                                float(np.linalg.norm(es.com_vel[:2] - d.subtree_linvel[p.trunk][:2])),
-                                float(np.arccos(np.clip(float(es.R[:, 2] @ R[:, 2]), -1.0, 1.0))),
+                sc, sl = v.subtree_com[trunk], v.subtree_linvel[trunk]
+                ft = np.array([xpos[feet[0]][:2], xpos[feet[1]][:2]])
+                z0, z1 = float(xpos[feet[0]][2]), float(xpos[feet[1]][2])
+                r1 = (es.com[:2] - es.foot[:, :2].mean(0)) - (sc[:2] - ft.mean(0))
+                r2 = es.com_vel[:2] - sl[:2]
+                est_err.append((float(d.time), math.sqrt(r1.dot(r1)), math.sqrt(r2.dot(r2)),
+                                float(np.arccos(_clip(float(es.R[:, 2] @ R[:, 2]), -1.0, 1.0))),
                                 abs(_wrap(_yaw(es.R) - yaw)), float(es.com[2] - es.foot[:, 2].mean())
-                                - float(d.subtree_com[p.trunk][2] - np.mean([d.xpos[fb][2] for fb in p.feet]))))
+                                - float(sc[2] - (z0 + z1) / 2)))
         cause = p.fall_cause()
         if cause is not None:
             fell_at = float(d.time)
