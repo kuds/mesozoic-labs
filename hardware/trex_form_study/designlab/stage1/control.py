@@ -100,7 +100,7 @@ import math
 import time
 from collections import deque
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import mujoco
@@ -899,6 +899,9 @@ def build_track(p: plant.Plant, run_dir: Path, plan: list, omega: float) -> Trac
             nxt = objs[i + 1] if i + 1 < len(objs) else None
             if isinstance(nxt, Reference):
                 tr.add_transition(obj, _joint_stack(p, nxt.q[:1], nxt.qd[:1], nxt.tau[:1], nxt.qdd[:1])[0], nxt.step)
+            elif isinstance(nxt, Transition):  # e.g. a start into a turn entry: on to the next one's first frame
+                tr.add_transition(obj, _joint_stack(p, nxt.q[:1], nxt.qd[:1], nxt.tau[:1], nxt.qdd[:1])[0],
+                                  float(nxt.t[1] - nxt.t[0]))
             else:
                 tr.add_transition(obj)
         else:
@@ -947,10 +950,15 @@ class Tracker:
 
     def __init__(self, p: plant.Plant, track: Track, mode: str = "R1", gains=None, terms=TERMS,
                  noise: est_mod.SensorNoise | None = None, seed: int = 0, est_gains: est_mod.EstimatorGains | None = None,
-                 inward_bound: str | None = INWARD_BOUNDS[0], ankle_cap=ANKLE_CAP):
+                 inward_bound: str | None = INWARD_BOUNDS[0], ankle_cap=ANKLE_CAP, rate: float = 1.0):
         if mode not in MODES:
             raise ValueError(f"mode {mode!r}: choose from {', '.join(MODES)}")
+        if not (rate > 0.0 and math.isfinite(rate)) or (mode == "R0" and rate != 1.0):
+            raise ValueError(f"rate {rate!r}: a positive clock rate, and 1 for R0 (G2's replay clock)")
         self.p, self.track, self.mode = p, track, mode
+        #: The commanded clock rate (``COMMAND_RATE_RULE``): the track runs this much faster than real time, the
+        #: phase-rate term's +-5 % about it; 1 is the references' own timing (G4).
+        self.rate = float(rate)
         self.g = gains_dict(gains)
         self.gain_set = gains if isinstance(gains, str) else "start" if gains is None else "given"
         self.terms = frozenset(() if mode == "R0" else terms)
@@ -1006,6 +1014,8 @@ class Tracker:
             self.ankle_D.append(D[np.ix_(ix, ix)])
             self.ankle_jid.append([self.jid[f"{side}_ankle_pitch"], self.jid[f"{side}_ankle_roll"]])
         self.ankle_peak = np.array([[p.drives[i].peak for i in ix] for ix in self.ankle_ix])
+        #: The ankle axes' rows of G^T (joint torques from the motors' forces): left pitch, roll, right pitch, roll.
+        self.ankle_Gt = np.ascontiguousarray(Gm.T[np.concatenate(self.ankle_ix)])
         #: The leg drives (every drive but the neck's and the tail's) and the ankle motors, by actuator.
         self.leg_act = np.array([dr.group not in ("neck", "tail") for dr in p.drives])
         self.ankle_act = np.array([dr.group in ("ankle_a", "ankle_b") for dr in p.drives])
@@ -1015,19 +1025,23 @@ class Tracker:
         self._config = frozenset(self.__dict__) | {"_config", "sensors", "est", "state"}
 
     # ------------------------------------------------------------------ episode
-    def reset(self, start: str = "frame", velocity_offset=None, joint_noise: float = 0.0, seed: int | None = None) -> None:
+    def reset(self, start: str = "frame", velocity_offset=None, joint_noise: float = 0.0, seed: int | None = None,
+              root_velocity_noise: float = 0.0, noise_seed: int | None = None) -> None:
         """``start="frame"``: the track's first frame, already moving (as G2's replay and the design-study
-        prototype start); ``"stance"``: the plant's settled stance at rest.  ``velocity_offset`` (m/s, world) is
-        added to the root velocity of a frame start."""
+        prototype start); ``"stance"``: the plant's settled stance at rest (with ``joint_noise`` and
+        ``root_velocity_noise`` drawn from ``seed``, ``plant.Plant.reset``).  ``velocity_offset`` (m/s, world) is
+        added to the root velocity of a frame start.  R2's sensor noise is drawn from ``noise_seed`` (default:
+        ``seed``)."""
         p = self.p
         seed = self.seed if seed is None else int(seed)
+        noise_seed = seed if noise_seed is None else int(noise_seed)
         if start == "frame":
             qd0 = self.track.qd0.copy()
             if velocity_offset is not None:
                 qd0[:3] += np.asarray(velocity_offset, float)
             p.set_state(self.track.q0, qd0)
         elif start == "stance":
-            p.reset(joint_noise=joint_noise, seed=seed)
+            p.reset(joint_noise=joint_noise, root_velocity_noise=root_velocity_noise, seed=seed)
         else:
             raise ValueError(f"start {start!r}: 'frame' or 'stance'")
         self.start = start
@@ -1056,7 +1070,7 @@ class Tracker:
         self.step_off = [np.zeros(2), np.zeros(2)]  # the swing foot's touchdown offset (anchor frame, m)
         self.sensors = self.est = None
         if self.mode == "R2":
-            self.sensors = est_mod.NoisySensors(p, self.noise, seed)
+            self.sensors = est_mod.NoisySensors(p, self.noise, noise_seed)
             self.est = est_mod.Estimator(p, self.est_gains)
             if start == "frame":  # the start state is the commanded one (the estimate's world frame)
                 self.est.reset(p.d.qpos.copy(), p.d.qvel.copy(), self.sensors.read())
@@ -1117,11 +1131,12 @@ class Tracker:
         x = self.track.joint(t_ref)
         nj = self.nj
         q, qd, tau = x[:nj], x[nj : 2 * nj], x[2 * nj : 3 * nj]
-        s = 1.0 + self.delta
-        qd_c = s * qd if self.delta else qd
+        s = self.rate * (1.0 + self.delta)  # (rate 1: exactly 1 + delta, as before the commanded rate)
+        scaled = s != 1.0
+        qd_c = s * qd if scaled else qd
         ff = tau + self.damp * qd_c + self.fric * np.tanh(qd_c / FRICTION_SMOOTH)
         if self.extra is not None:
-            ff += self.extra @ (s * s * x[3 * nj :] if self.delta else x[3 * nj :])
+            ff += self.extra @ (s * s * x[3 * nj :] if scaled else x[3 * nj :])
         if self.mode == "R0":
             p.command(q, qd, ff)
         else:
@@ -1193,6 +1208,41 @@ class Tracker:
                     out = dtau.copy()
                 out[ix] += new - tau
         return out
+
+    def cap_residual(self, loads) -> tuple[float, float, float, int, int]:
+        """How far the realised ankle torques break decision 15's cap on the true state (``CAP_RESIDUAL_RULE``): the
+        largest excess of an axis over one motor's peak (N m, 0 within); over the feet carrying more than
+        ``CONTACT_LOAD_FRAC`` of the weight (``loads`` the true foot loads) and over those carrying more than
+        ``CAP_RESIDUAL_HEAVY_FRAC``, the largest distance (N m) from a foot's torques to the nearest torques that put
+        its quasi-static CoP inside its inset pad (``cap_ankle_torque`` without the box); and how many feet were so
+        loaded.  The motors' forces and the kinematics are those of the step just taken (its start state)."""
+        p = self.p
+        d = p.d
+        tau = self.ankle_Gt @ d.actuator_force
+        weight = self.mass * G
+        box = pad = pad_heavy = 0.0
+        loaded = heavy = 0
+        for i in (0, 1):
+            t = tau[2 * i : 2 * i + 2]
+            box = max(box, float(np.max(np.abs(t) - self.ankle_peak[i])))
+            Fz = float(loads[i])
+            if Fz <= CONTACT_LOAD_FRAC * weight:
+                continue
+            loaded += 1
+            is_heavy = Fz > CAP_RESIDUAL_HEAVY_FRAC * weight
+            heavy += is_heavy
+            A, b = _ankle_rows(d, self.ankle_jid[i])
+            f = p.feet[i]
+            Rz = _rot2(_yaw(d.xmat[f]))
+            cf = Rz.T @ (np.linalg.solve(A, -t / Fz - b) - d.xpos[f][:2])  # the CoP in the foot frame
+            N, dd = self.pads_in_hp[i]
+            if np.any(N @ cf > dd):
+                poly = d.xpos[f][:2] + self.pads_in[i] @ Rz.T
+                x = float(np.linalg.norm(cap_ankle_torque(t, None, Fz, A, b, poly)[0] - t))
+                pad = max(pad, x)
+                if is_heavy:
+                    pad_heavy = max(pad_heavy, x)
+        return box, pad, pad_heavy, loaded, heavy
 
     # ------------------------------------------------------------------ feedback (100 Hz)
     def _anchor_frame(self, st: dict, a: int):
@@ -1433,6 +1483,26 @@ RELAXATIONS = ("drive_torque", "envelope", "ankle_linkage", "slip", "leg_to_leg_
 RELAXES = {"leg_drive_at_torque_limit": "drive_torque", "leg_drive_at_envelope_limit": "envelope",
            "ankle_linkage": "ankle_linkage", "slip": "slip", "cop_at_pad_edge_with_ankle_saturated": None,
            "leg_to_leg_clearance": "leg_to_leg_clearance", "joint_range": "joint_range"}
+_NO_SLIP = np.zeros(2)  # (read only) no loaded foot: no slip speed
+#: The realised ankle torques against decision 15's cap (``Tracker.cap_residual``), at every feedback update.
+CAP_RESIDUAL_TOL_NM = 1e-6
+CAP_RESIDUAL_HEAVY_FRAC = 0.2  # R2's contact detection switches on at this share of the weight (EstimatorGains)
+CAP_RESIDUAL_RULE = ("at every feedback update, the realised ankle torques (the ankle motors' forces in pitch and roll, "
+                     "G^T f) against decision 15's cap on the true state: an axis beyond one motor's peak, and a foot "
+                     f"carrying more than {CONTACT_LOAD_FRAC:g} of the weight (its true load; also reported for "
+                     f"{CAP_RESIDUAL_HEAVY_FRAC:g}, where R2's contact detection switches on) whose torques put its "
+                     f"quasi-static CoP outside its pad's {1e3 * COP_INSET:g} mm inset, measured as the distance from the "
+                     "torques to the nearest torques that keep the CoP inside (N m; control.cap_ankle_torque); an "
+                     f"excess over {CAP_RESIDUAL_TOL_NM:g} N m counts.  The check uses the loads and kinematics of the "
+                     "step the torques acted in; the cap had those of the step before (what the sensors give), so a "
+                     "load that changes within a step leaves a residual even for R1, which caps on the true joint "
+                     "state; R2 caps on its last sensor reading and pad-limits only the feet its estimator detects in "
+                     "contact")
+#: How a speed command reaches the tracker (``Tracker.rate``).
+COMMAND_RATE_RULE = ("a command of r times the reference's speed plays the track r times faster than real time (the "
+                     "reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times "
+                     "r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the "
+                     "servo targets and the armature feedforward, the inverse-dynamics torque as the reference's")
 FALL_ONSET_RAD = 0.2  # the fall's onset: the last time the trunk tilt rose through this before the fall
 HIST_S = 3.0  # how far back before a fall its onset is looked for
 LIMIT_NEAR_S = 0.1  # the activity in this last part of the window before the onset is reported as well
@@ -1512,11 +1582,11 @@ def foot_slip_speed(p: plant.Plant, feet=(0, 1), foot_of: np.ndarray | None = No
             continue
         b = p.feet[f]
         mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, b, v6, 0)  # at the body frame's origin, xpos
-        v = v6[3:] + np.cross(v6[:3], pos[sel] - d.xpos[b])
+        v = v6[3:] + est_mod.cross3(v6[:3], pos[sel] - d.xpos[b])
         for j, ob in enumerate(other[sel]):
             if ob != 0:  # a moving body (a pile probe): less its own velocity at the contact
                 mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_XBODY, int(ob), v6, 0)
-                v[j] -= v6[3:] + np.cross(v6[:3], pos[sel[j]] - d.xpos[ob])
+                v[j] -= v6[3:] + est_mod.cross3(v6[:3], pos[sel[j]] - d.xpos[ob])
         out[f] = float(np.max(np.hypot(v[:, 0], v[:, 1])))
     return out
 
@@ -1691,36 +1761,56 @@ def _stop_sample(tk: Tracker, stops: list, yaw: float) -> None:
         s["samples"].append((float(p.d.time), float(v @ s["fwd"]), float(np.hypot(v[0], v[1]))))
 
 
-def _stop_result(s: dict) -> dict:
-    """Decision 18's reading of one stop of an episode (None values: not reached, or not stopped by the end)."""
-    from .transitions import REST_SPEED_M_S, stop_reading
+def rest_speed(mode: str) -> float:
+    """The CoM speed below which an episode's body counts as at rest after a stop (decision 18's reported time to
+    rest): ``transitions.REST_SPEED_M_S`` (1 mm/s) for R0 and R1, ``transitions.REST_SPEED_R2_M_S`` for R2, whose
+    sensor noise keeps a standing body moving faster than 1 mm/s (``transitions.REST_R2_RULE``)."""
+    from .transitions import REST_SPEED_M_S, REST_SPEED_R2_M_S
 
-    head = dict(name=s["name"], command_ref_s=s["t_ref"], command_s=s["t_sim"], command_speed_m_s=s["speed_m_s"])
+    return REST_SPEED_R2_M_S if mode == "R2" else REST_SPEED_M_S
+
+
+def _stop_result(s: dict, rate: float = 1.0, rest: float | None = None) -> dict:
+    """Decision 18's reading of one stop of an episode (None values: not reached, or not stopped by the end).  On a
+    track run at the commanded clock rate ``rate`` the command is the reference's speed times the rate and a stride
+    its period over the rate; ``rest`` is the rest speed (default ``transitions.REST_SPEED_M_S``)."""
+    from .transitions import REST_R2_RULE, REST_SPEED_M_S, REST_SPEED_R2_M_S, stop_reading
+
+    rest = REST_SPEED_M_S if rest is None else float(rest)
+    speed, period = s["speed_m_s"] * rate, s["period_s"] / rate  # (rate 1: exactly the reference's)
+    head = dict(name=s["name"], command_ref_s=s["t_ref"], command_s=s["t_sim"], command_speed_m_s=speed,
+                rest_speed_m_s=rest, rest_rule=REST_R2_RULE if rest == REST_SPEED_R2_M_S else None)
     if s["t_sim"] is None or not s["samples"]:
         return dict(head, reached=False)
     t, v, vh = (np.array(x) for x in zip(*s["samples"], strict=True))
-    out = stop_reading(t, v, s["speed_m_s"], s["t_sim"], s["period_s"], rest=vh < REST_SPEED_M_S)
+    out = stop_reading(t, v, speed, s["t_sim"], period, rest=vh < rest)
     return dict(head, reached=True, samples=len(t), **out)
 
 
 def run(tk: Tracker, seconds: float, start: str = "frame", velocity_offset=None, push=None, seed: int | None = None,
-        period: float | None = None, confirm: bool = False, relax=()) -> dict:
+        period: float | None = None, confirm: bool = False, relax=(), recorder=None, joint_noise: float = 0.0,
+        root_velocity_noise: float = 0.0, noise_seed: int | None = None) -> dict:
     """One episode: reset, then ``seconds`` of simulated time or until a fall.  ``push`` = (t0, duration, fx, fy) N
     on the trunk.  Returns the outcome; a fall's cause (``plant.Plant.fall_cause``), its onset (the last time the
     tilt rose through ``FALL_ONSET_RAD``), the limits active in the ``LIMIT_WINDOW_S`` before the onset and the
     fall's candidates (``CANDIDATE_RULE``; decision 20 attributes conditions, ``gates.attribute``); tracking and drive
-    statistics, how often the ankle cap and the inward bound bound; each stop's reading (decision 18,
+    statistics, how often the ankle cap and the inward bound bound, and how far the realised ankle torques broke the
+    cap (``CAP_RESIDUAL_RULE``: R2 caps from its sensor readings); each stop's reading (decision 18,
     ``transitions.stop_reading``) when the track holds a stop; for R2 the estimator's errors against the true state,
     over the episode and, for a fall, up to the window before its onset.  ``period`` is the stride count's unit
-    (default: the first periodic segment's period).  ``relax`` lifts hardware limits (``relaxed``) for the whole
-    episode.  ``confirm`` runs the build's episode-level counterfactual on a fall (a diagnostic, ``EPISODE_CF_RULE``)
-    and labels the fall by it."""
-    tk.reset(start, velocity_offset=velocity_offset, seed=seed)
+    (default: the first periodic segment's period; strides are of the commanded gait, the period over the tracker's
+    ``rate``).  ``relax`` lifts hardware limits (``relaxed``) for the whole episode.  ``confirm`` runs the build's
+    episode-level counterfactual on a fall (a diagnostic, ``EPISODE_CF_RULE``) and labels the fall by it.
+    ``recorder`` (``metrics.Recorder``) is handed every physics step and feedback update and changes nothing.  A
+    ``"stance"`` start takes ``joint_noise`` (rad) and ``root_velocity_noise`` (m/s), drawn from the episode's seed
+    (``plant.Plant.reset``); R2's sensor noise is drawn from ``noise_seed`` (default: the seed)."""
+    tk.reset(start, velocity_offset=velocity_offset, joint_noise=joint_noise, seed=seed,
+             root_velocity_noise=root_velocity_noise, noise_seed=noise_seed)
     relax = tuple(relax or ())
     if relax:
         confirm = False
     with relaxed(tk, relax) if relax else nullcontext():
-        out, _, fall = _episode(tk, seconds, push, period, confirm)
+        out, _, fall = _episode(tk, seconds, push, period, confirm, recorder)
     if fall is not None and confirm:
         cf = _confirm(tk, *fall)
         out.update(fall_label=cf["label"], counterfactual=cf)
@@ -1728,13 +1818,20 @@ def run(tk: Tracker, seconds: float, start: str = "frame", velocity_offset=None,
     return out
 
 
-def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: bool):
+def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: bool, recorder=None):
     """``run``'s episode loop (the tracker reset): the outcome, the fall's onset, and with ``confirm`` what
-    ``_confirm`` needs of a fall."""
+    ``_confirm`` needs of a fall.  ``recorder`` gets ``begin``, every physics step's ``step``, every feedback
+    update's ``update`` and ``end`` (it only reads)."""
     p = tk.p
     m, d, env = p.m, p.d, p.envelope
-    per = period or next((sg.period for sg in tk.track.segments if sg.kind == "periodic"), 1.0)
+    per_ref = period or next((sg.period for sg in tk.track.segments if sg.kind == "periodic"), 1.0)
+    per = per_ref / tk.rate  # a stride of the commanded gait (rate 1: the reference's period)
     n = int(round(seconds / tk.dt))
+    capped = bool(tk.ankle_cap) and tk.mode != "R0"
+    cap_res = np.zeros(3)  # the realised ankle torques' largest box, pad and heavy-foot pad excess (N m)
+    cap_res_n = np.zeros(5, int)  # updates with a box excess; loaded feet and those over the pad; the same, heavy
+    if recorder is not None:
+        recorder.begin(tk, n)
     nu = m.nu
     peak = env.peak
     tau_sq, w, wmax, sat_steps = np.zeros(nu), np.zeros(nu), np.zeros(nu), np.zeros(nu)
@@ -1774,11 +1871,19 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
         sat_any |= sat
         if env.active:
             clamp |= sat & ((fr[:, 1] < peak - 1e-12) | (fr[:, 0] > -peak + 1e-12))
+        if recorder is not None:
+            recorder.step(k)
         if k % FEEDBACK_EVERY == 0:
             qj = d.qpos[p.qadr]
             loads = p.foot_loads()
             loaded = [i for i in (0, 1) if loads[i] > SLIP_LOAD_FRAC * weight]
-            slip = bool(loaded) and bool(np.any(foot_slip_speed(p, loaded, tk.foot_of) > SLIP_SPEED))
+            slip_v = foot_slip_speed(p, loaded, tk.foot_of) if loaded else _NO_SLIP
+            slip = bool(np.any(slip_v > SLIP_SPEED))
+            if capped:
+                box_x, pad_x, heavy_x, n_loaded, n_heavy = tk.cap_residual(loads)
+                np.maximum(cap_res, (box_x, pad_x, heavy_x), out=cap_res)
+                cap_res_n += (box_x > CAP_RESIDUAL_TOL_NM, n_loaded, pad_x > CAP_RESIDUAL_TOL_NM, n_heavy,
+                              heavy_x > CAP_RESIDUAL_TOL_NM)
             fl = tk.flags
             ankle_sat = any(sat_any[i] or sat_any[j_] for i, j_ in pairs)
             cap_box, cap_pad = tk.cap_bound
@@ -1807,6 +1912,8 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
             yaw = _yaw(R)
             yaw_turned += _wrap(yaw - yaw_prev)
             yaw_prev = yaw
+            if recorder is not None:
+                recorder.update(k, loads, slip_v, Rr, yaw)
             if stops:
                 _stop_sample(tk, stops, yaw)
             if tk.est is not None:
@@ -1835,8 +1942,8 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
     rms = np.sqrt(tau_sq / steps)
     sustained = np.array([dr.sustained for dr in p.drives])
     ratio_w = wmax / env.rated
-    out = dict(mode=tk.mode, terms=sorted(tk.terms), start=tk.start, seconds=dur, strides=dur / per,
-               reference_strides=(tk.tau_ref if tk.mode != "R0" else dur) / per, fell=fell_at is not None,
+    out = dict(mode=tk.mode, terms=sorted(tk.terms), start=tk.start, rate=tk.rate, seconds=dur, strides=dur / per,
+               reference_strides=(tk.tau_ref if tk.mode != "R0" else dur) / per_ref, fell=fell_at is not None,
                fall_time_s=fell_at, fall_cause=cause, fall_onset_s=None, fall_label=None, limits_before_onset=None,
                counterfactual=None, mean_forward_speed_m_s=float(dxy @ fwd / max(dur, 1e-9)),
                lateral_drift_m=float(dxy @ np.array([-fwd[1], fwd[0]])), yaw_turned_deg=float(np.degrees(yaw_turned)),
@@ -1856,7 +1963,15 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
                ankle_cap=list(tk.ankle_cap), inward_bound=tk.inward_bound,
                bound_frac=dict(zip(("ankle_cap_box", "ankle_cap_pad", "leg_to_leg_clearance"),
                                    (float(v) for v in bound / max(1, len(tilts))), strict=True)),
-               stops=[_stop_result(s) for s in stops] if stops else None, wall_s=wall, steps_per_s=steps / wall)
+               ankle_cap_residual=None if not capped else dict(
+                   rule=CAP_RESIDUAL_RULE, updates=len(tilts), box_updates=int(cap_res_n[0]),
+                   box_frac=float(cap_res_n[0] / max(1, len(tilts))), box_max_excess_Nm=float(cap_res[0]),
+                   loaded_foot_updates=int(cap_res_n[1]), pad_updates=int(cap_res_n[2]),
+                   pad_frac=float(cap_res_n[2] / max(1, len(tilts))), pad_max_excess_Nm=float(cap_res[1]),
+                   heavy_foot_updates=int(cap_res_n[3]), heavy_pad_updates=int(cap_res_n[4]),
+                   heavy_pad_frac=float(cap_res_n[4] / max(1, len(tilts))), heavy_pad_max_excess_Nm=float(cap_res[2])),
+               stops=[_stop_result(s, tk.rate, rest_speed(tk.mode)) for s in stops] if stops else None, wall_s=wall,
+               steps_per_s=steps / wall)
     onset = fall = None
     if fell_at is not None:
         hist = list(hist)
@@ -1871,7 +1986,7 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
         out.update(fall_onset_s=onset, fall_candidates=candidates, limits_before_onset=active)
     if est_err:
         E = np.array(est_err)
-        out["estimator"] = dict(_estimator_stats(E), noise=tk.noise.describe())
+        out["estimator"] = dict(_estimator_stats(E), noise=tk.noise.describe(), gains=asdict(tk.est.g))
         if onset is not None:
             cut = onset - LIMIT_WINDOW_S
             pre = E[E[:, 0] <= cut]
@@ -1881,4 +1996,6 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
             upto = E[E[:, 0] <= onset]
             out["estimator"]["until_onset"] = dict(until_s=onset, rule="updates up to the fall's onset",
                                                    **(_estimator_stats(upto) if len(upto) else dict(updates=0)))
+    if recorder is not None:
+        recorder.end(steps, out)
     return out, onset, fall

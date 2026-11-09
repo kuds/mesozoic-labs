@@ -63,6 +63,9 @@ from . import plant as plant_mod
 
 #: Decision 19: a pad bottom corner within this of the foot's lowest one (in the estimate) is in contact.
 CONTACT_TOL = 1e-3
+#: The stance-leg odometry's point of a contact foot (``EstimatorGains.stance_point``): decision 19's, the loaded
+#: pad's contact point (the default), or, for comparison, the foot body's centre of mass, as the build first had it.
+STANCE_POINTS = ("loaded_pad_contact_point", "foot_com")
 
 NOISE_SOURCE = ("STAGE1_PLAN.md randomises IMU noise (section 2) without values; assumed MEMS-class figures: gyro "
                 "white noise 0.003 rad/s per 2 ms sample (0.17 deg/s, about 0.011 deg/s/sqrt(Hz)) and a residual bias "
@@ -127,6 +130,17 @@ class NoisySensors:
         return dict(gyro=gyro, accel=accel, q=q, qd=qd, foot_load=load)
 
 
+def cross3(a, b) -> np.ndarray:
+    """``np.cross(a, b)`` of a 3-vector ``a`` and a 3-vector (or rows of 3-vectors) ``b`` by numpy's own formula (each
+    component a1 b2 - a2 b1 and so on: the same products and differences, so the same bits), without its overhead."""
+    a0, a1, a2 = float(a[0]), float(a[1]), float(a[2])
+    b = np.asarray(b, float)
+    if b.ndim == 1:
+        b0, b1, b2 = float(b[0]), float(b[1]), float(b[2])
+        return np.array([a1 * b2 - a2 * b1, a2 * b0 - a0 * b2, a0 * b1 - a1 * b0])
+    return np.column_stack((a1 * b[:, 2] - a2 * b[:, 1], a2 * b[:, 0] - a0 * b[:, 2], a0 * b[:, 1] - a1 * b[:, 0]))
+
+
 def _quat_mul(a, b):
     out = np.zeros(4)
     mujoco.mju_mulQuat(out, a, b)
@@ -171,6 +185,7 @@ class EstimatorGains:
     k_leg_velocity: float = math.inf  # 1/s; inf: the legs' velocity alone (module docstring)
     contact_on: float = 0.20  # of the weight
     contact_off: float = 0.10
+    stance_point: str = STANCE_POINTS[0]  # decision 19
 
 
 class Estimator:
@@ -183,6 +198,8 @@ class Estimator:
     def __init__(self, p: plant_mod.Plant, gains: EstimatorGains | None = None):
         self.p = p
         self.g = gains or EstimatorGains()
+        if self.g.stance_point not in STANCE_POINTS:
+            raise ValueError(f"stance point {self.g.stance_point!r}: choose from {', '.join(STANCE_POINTS)}")
         self.m = p.m
         self.d = mujoco.MjData(p.m)
         self.dt = float(p.m.opt.timestep)
@@ -205,7 +222,7 @@ class Estimator:
         R = _mat(self.quat)
         r_imu_w = R @ self.r_imu
         w_world = R @ np.asarray(qvel[3:6], float)
-        self.v_imu = np.asarray(qvel[:3], float) + np.cross(w_world, r_imu_w)
+        self.v_imu = np.asarray(qvel[:3], float) + cross3(w_world, r_imu_w)
         self.q = np.array(qpos[self.qadr], float)
         self.qd = np.array(qvel[self.dofs], float)
         self.gyro = np.asarray(qvel[3:6], float).copy()
@@ -240,7 +257,10 @@ class Estimator:
     # ------------------------------------------------------------------ helpers
     def contact_point(self, i: int) -> np.ndarray:
         """Decision 19: foot ``i``'s contact point in its own frame at the current estimated pose: the mean of its pad
-        bottom corners within ``CONTACT_TOL`` of the lowest one."""
+        bottom corners within ``CONTACT_TOL`` of the lowest one (``stance_point`` "foot_com": the foot body's centre of
+        mass, for comparison)."""
+        if self.g.stance_point == "foot_com":
+            return self.m.body_ipos[self.feet[i]].copy()
         z = self.sole[i] @ self.d.xmat[self.feet[i]].reshape(3, 3)[2]
         return self.sole[i][z <= z.min() + CONTACT_TOL].mean(0)
 
@@ -269,7 +289,7 @@ class Estimator:
         R = _mat(quat)
         z_est_body = R.T @ np.array([0.0, 0.0, 1.0])
         z_leg_body = R.T @ np.asarray(R_foot_world_est)[:, 2]  # the foot's z axis in the trunk frame
-        return np.cross(z_leg_body, z_est_body)
+        return cross3(z_leg_body, z_est_body)
 
     # ------------------------------------------------------------------ propagation
     def step(self, reading: dict) -> None:
@@ -299,7 +319,7 @@ class Estimator:
         if g.k_accel_tilt and self.accel is not None and np.linalg.norm(self.accel) > 1e-6:
             R = _mat(self.quat)
             z_est = R.T @ np.array([0.0, 0.0, 1.0])
-            corr += g.k_accel_tilt * np.cross(self.accel / np.linalg.norm(self.accel), z_est)
+            corr += g.k_accel_tilt * cross3(self.accel / np.linalg.norm(self.accel), z_est)
         self.quat = _quat_integrate(self.quat, corr, dt_update)
         # kinematics at the corrected attitude: feet, base, velocities (zero base translation)
         qvel = np.zeros(self.m.nv)
@@ -333,10 +353,10 @@ class Estimator:
                 base += w[i] * (self.contact_world[i] - (point_now[i] - self.base))
                 mujoco.mj_objectVelocity(self.m, d, mujoco.mjtObj.mjOBJ_XBODY, f, self._res, 0)  # at the foot origin
                 r = point_now[i] - d.xpos[f]
-                v_base += w[i] * -(self._res[3:] + np.cross(self._res[:3], r))  # the contact point's velocity
+                v_base += w[i] * -(self._res[3:] + cross3(self._res[:3], r))  # the contact point's velocity
             shift = base - self.base
             self.base = base
-            v_imu_leg = v_base + np.cross(w_world, r_imu_w)
+            v_imu_leg = v_base + cross3(w_world, r_imu_w)
             gain = 1.0 if math.isinf(g.k_leg_velocity) else min(1.0, g.k_leg_velocity * dt_update)
             self.v_imu = self.v_imu + gain * (v_imu_leg - self.v_imu)
         else:
@@ -351,7 +371,7 @@ class Estimator:
         """Kinematics, CoM and velocities at the estimate (the controller's view)."""
         R = _mat(self.quat)
         w_world = R @ self.gyro
-        v_base = self.v_imu - np.cross(w_world, R @ self.r_imu)
+        v_base = self.v_imu - cross3(w_world, R @ self.r_imu)
         qvel = np.zeros(self.m.nv)
         qvel[:3], qvel[3:6], qvel[self.dofs] = v_base, self.gyro, self.qd
         self._kin(self.base, self.quat, self.q, qvel)

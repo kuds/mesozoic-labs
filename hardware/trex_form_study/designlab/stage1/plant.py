@@ -242,21 +242,24 @@ def sources_sha256_at(commit: str) -> str | None:
 
 
 def provenance() -> dict:
-    """Library versions, the repository commit with a dirty flag (any change under hardware/trex_form_study), and the
-    hash of the Stage 1 sources that ran (``sources_sha256``), which names the code even in a dirty tree."""
+    """Library versions, the repository commit with a dirty flag (any change under hardware/trex_form_study) and the
+    paths that make it dirty (``git status --porcelain``: status code and path from the repository root; untracked
+    files included), and the hash of the Stage 1 sources that ran (``sources_sha256``), which names the Stage 1 code
+    even in a dirty tree (the dirty paths name what else differs from the commit)."""
     vers = {"python": platform.python_version(), "numpy": np.__version__, "mujoco": mujoco.__version__}
     for pkg in ("scipy", "gymnasium", "stable-baselines3", "torch"):
         try:
             vers[pkg] = metadata.version(pkg)
         except metadata.PackageNotFoundError:
             vers[pkg] = None
-    git = dict(commit=None, dirty=None)
+    git = dict(commit=None, dirty=None, dirty_paths=None)
     try:
         git["commit"] = subprocess.run(["git", "-C", str(STUDY), "rev-parse", "HEAD"], capture_output=True,
                                        text=True, check=True).stdout.strip()
-        st = subprocess.run(["git", "-C", str(STUDY), "status", "--porcelain", "--", "."], capture_output=True,
-                            text=True, check=True).stdout
-        git["dirty"] = bool(st.strip())
+        st = subprocess.run(["git", "-C", str(STUDY), "status", "--porcelain", "--untracked-files=all", "--", "."],
+                            capture_output=True, text=True, check=True).stdout
+        git["dirty_paths"] = [line for line in st.splitlines() if line.strip()]
+        git["dirty"] = bool(git["dirty_paths"])
     except (OSError, subprocess.CalledProcessError):
         pass
     return dict(versions=vers, git=git, stage1_sources=dict(sha256=sources_sha256(), rule=SOURCES_RULE,

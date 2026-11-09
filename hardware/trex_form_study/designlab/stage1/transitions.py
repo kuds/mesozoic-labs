@@ -763,6 +763,16 @@ STOP_SPEED_FRAC = 0.05
 STOP_WITHIN_STRIDES = 1.5
 REST_SPEED_M_S = 1e-3
 REST_DISTANCE_M = 1e-3
+#: R2's rest speed (``control.rest_speed``): its sensor noise keeps a standing body moving.  Chosen before any
+#: start-and-stop judgement from R2 standing still (``metrics.standing_noise_floor``; the record is
+#: ``stage1/runs/2026-11-08/r2_rest_threshold.json``): 20 noise seeds x 10 s per body after a 2 s settle, the true
+#: CoM's horizontal speed at 100 Hz had a median of 0.59-0.61 mm/s, a 99.9th percentile of 2.25-2.31 mm/s and a largest
+#: value of 3.04-3.15 mm/s (R1, without noise: below 0.01 mm/s), so at 1 mm/s a standing R2 never counts as at rest.
+REST_SPEED_R2_M_S = 3.5e-3
+REST_R2_RULE = ("R2 counts as at rest below the largest horizontal CoM speed R2 shows standing still from the settled "
+                "stance with its sensor noise (metrics.standing_noise_floor: 20 seeds x 10 s per body, all three "
+                f"bodies; 3.15 mm/s), rounded up to 0.5 mm/s: {1e3 * REST_SPEED_R2_M_S:g} mm/s; R0 and R1 keep "
+                f"{1e3 * REST_SPEED_M_S:g} mm/s")
 STOP_RULE = (f"decision 18: stopped = the forward CoM speed below {100 * STOP_SPEED_FRAC:g} % of the commanded speed "
              f"from then on, within {STOP_WITHIN_STRIDES:g} strides of the stop command (the start of the stop's "
              "speed ramp, the last lift-off); the time to rest (CoM slower than "

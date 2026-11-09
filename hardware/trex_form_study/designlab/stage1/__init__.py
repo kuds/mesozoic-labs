@@ -21,7 +21,11 @@ Modules (plan section 2):
   (decision 19);
 * ``gates``: the fail-fast checks G1 (plant), G2 (references), G3 (transitions) and G4 (tracker) of plan section 3,
   with the choices they depend on as the plan decided them during the build (decisions 11-13, ``gates.decided``;
-  15-20, ``gates.g4_decided``) and the evidence they keep.
+  15-20, ``gates.g4_decided``) and the evidence they keep;
+* ``metrics``: plan section 4's walk, turn and start-and-stop measures on a simulated episode (``Recorder``), and the
+  standing noise floor behind R2's rest speed;
+* ``tune``: the CMA-ES fit of R2's gains (plan section 3 step 6) over a fixed mix of the behaviours G5 judges,
+  checkpointed every generation, and gate G5 on the validation episodes (``tune.json``).
 
 Run from hardware/trex_form_study:
     python -m designlab.stage1 prepare --body 60-N-T-10 --out stage1/runs/<run>

@@ -5,6 +5,9 @@ Run from hardware/trex_form_study:
   python -m designlab.stage1 prepare --body 60-N-T-10 [--body ...] --out stage1/runs/<run> [--no-gates]
                                     [--parts plant,refs,transitions,stops] [--transitions start,stop,...]
   python -m designlab.stage1 gates   --body 60-N-T-10 --out stage1/runs/<run> [--only g1|g2|g3|g4]
+  python -m designlab.stage1 tune    --body 60-N-T-10 --seed 42 [--evals 720] [--resume] [--workers 1]
+                                    [--out stage1/runs/2026-11-08]
+  python -m designlab.stage1 g5      --body 60-N-T-10 [--workers 1] [--out stage1/runs/2026-11-08]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
@@ -20,8 +23,14 @@ the build's earlier defaults is kept in ``G4.evidence.earlier_defaults``.
 ``STAGE1_PLAN.md`` decided during the build (decisions 11-13: joint-space ankle gains, the linkage's armature, the
 20-start panel), and the others stay available for comparison.  They are recorded in plant.json and gates.json
 (``G2.decided`` says whether a run follows the decisions).  The exit status is 1 if a gate fails (plan section 3:
-stop).  ``tune``, ``train``, ``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (6-9) and are not
-implemented yet.
+stop).
+
+``tune`` is plan section 3 step 6 (``tune``): the CMA-ES fit of one body and seed, checkpointed every generation to
+``<out>/<body>/tune/<seed>/cma.json`` with every evaluation in ``evals.jsonl``; ``--resume`` continues a checkpointed
+run exactly (``--evals`` may raise its budget).  ``g5`` selects each finished seed's gains on the validation episodes
+and judges gate G5 into ``<out>/<body>/tune.json`` (exit status 1 if no seed passes).  One process per (body, seed) by
+default; ``--workers`` evaluates a generation (or the validation episodes) in that many processes.  ``train``,
+``eval``, ``sweep``, ``report`` and ``all`` are later steps of the plan (7-9) and are not implemented yet.
 """
 
 from __future__ import annotations
@@ -41,8 +50,7 @@ import designlab  # noqa: E402,F401  (selects the offscreen GL backend before mu
 
 from . import BODIES  # noqa: E402
 
-LATER = {"tune": "plan section 3 step 6 (CMA-ES tuning of the tracker)",
-         "train": "plan section 3 step 7 (residual PPO)",
+LATER = {"train": "plan section 3 step 7 (residual PPO)",
          "eval": "plan section 3 step 8 (evaluation panels)",
          "sweep": "plan section 3 step 8 (margin sweeps)",
          "report": "plan section 3 step 9 (STAGE1_PROBE.md)",
@@ -235,6 +243,12 @@ def summary(doc: dict) -> str:
             tests = ", ".join(f"{r} p {t['sign_test']['p']:.3g} ({t['survived']} survive)" for r, t in a["lifted"].items())
             lines.append(f"   {key}: {a['label']}; candidates {', '.join(a['candidates']) or 'none'}; lifted: "
                          f"{tests or 'nothing relaxable'}; null p {a['null']['sign_test']['p']:.3g}")
+        u2 = g4["gated"]["R2_nominal_hard"]["unperturbed"].get("ankle_cap_residual")
+        if u2:
+            lines.append(f"   R2 nominal (unperturbed): realised ankle torques beyond the cap: box {u2['box_frac']:.3f} of "
+                         f"updates (max {u2['box_max_excess_Nm']:.2g} N m), pad {u2['pad_frac']:.3f} (max "
+                         f"{u2['pad_max_excess_Nm']:.2g} N m; feet over 20 % of the weight {u2['heavy_pad_frac']:.3f}, "
+                         f"max {u2['heavy_pad_max_excess_Nm']:.2g} N m)")
         lines.append("   R0: " + ", ".join(f"{n} {r['strides']:.1f}" for n, r in g4["R0"].items()))
         for mode, rows in g4["reported"].items():
             lines.append(f"   {mode}: " + ", ".join(f"{n} {r['strides']:.1f}" for n, r in rows.items()))
@@ -246,12 +260,49 @@ def summary(doc: dict) -> str:
     return "\n".join(lines)
 
 
+def _tuning(a) -> int:
+    """``tune`` and ``g5`` (plan section 3 step 6)."""
+    from . import tune
+
+    out = Path(a.out)
+    if a.cmd == "tune":
+        doc = tune.tune(a.body, a.seed, evals=a.evals, resume=a.resume, out=out, workers=a.workers,
+                        inputs=a.inputs, log=lambda msg: print(msg, flush=True))
+        h = doc["history"][-1] if doc["history"] else None
+        print(f"{a.body} seed {a.seed}: {doc['evals']} evaluations ({doc['status']}), "
+              + (f"last generation J min {h['J_min']:.4f}, sigma {doc['state']['sigma']:.4f}" if h else "none run"),
+              flush=True)
+        return 0
+    seeds = tuple(int(x) for x in a.seeds.split(","))
+    doc = tune.g5(a.body, out=out, seeds=seeds, workers=a.workers, episodes=a.episodes,
+                  require_done=not a.partial, inputs=a.inputs, log=lambda msg: print(msg, flush=True))
+    print(tune.g5_summary(doc), flush=True)
+    return 0 if doc["pass_"] or doc["pass_"] is None else 1
+
+
 def main(argv=None) -> int:
-    from . import gates, plant
+    from . import gates, plant, tune
 
     ap = argparse.ArgumentParser(prog="python -m designlab.stage1", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    for name in ("tune", "g5"):
+        p = sub.add_parser(name)
+        p.add_argument("--body", choices=sorted(BODIES), required=True)
+        p.add_argument("--out", default=str(tune.RUN), help="run directory (default: stage1/runs/2026-11-08)")
+        p.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: "
+                                                      "--out)")
+        p.add_argument("--workers", type=int, default=1, help="evaluation processes (default 1)")
+        if name == "tune":
+            p.add_argument("--seed", type=int, required=True, help=f"CMA-ES seed (plan section 6: {tune.SEEDS})")
+            p.add_argument("--evals", type=int, default=tune.BUDGET,
+                           help=f"evaluation budget, whole generations of {tune.POPSIZE} (default {tune.BUDGET})")
+            p.add_argument("--resume", action="store_true", help="continue the checkpointed run")
+        else:
+            p.add_argument("--seeds", default=",".join(str(s) for s in tune.SEEDS))
+            p.add_argument("--episodes", type=int, default=tune.G5_RUNS,
+                           help=f"validation episodes (default {tune.G5_RUNS}; fewer is a smoke check, no verdict)")
+            p.add_argument("--partial", action="store_true", help="also select from unfinished runs (smoke check)")
     for name in ("prepare", "gates", *LATER):
         p = sub.add_parser(name)
         p.add_argument("--body", action="append", choices=sorted(BODIES), required=name != "all")
@@ -279,9 +330,12 @@ def main(argv=None) -> int:
         if name == "all":
             p.add_argument("--cap-hours", type=float, default=None)
     a = ap.parse_args(argv)
+    if a.cmd in ("tune", "g5"):
+        return _tuning(a)
     if a.cmd in LATER:
         raise NotImplementedError(f"'{a.cmd}' is {LATER[a.cmd]}, not implemented yet; this package implements plan "
-                                  "section 3 steps 2-5 (prepare: plant, references and transitions; gates G1-G4)")
+                                  "section 3 steps 2-6 (prepare: plant, references and transitions; gates G1-G4; "
+                                  "tune and g5)")
     plant_kw = dict(ankle_gains=a.ankle_gains, ankle_armature=a.ankle_armature)
     status = 0
     for body in a.body:

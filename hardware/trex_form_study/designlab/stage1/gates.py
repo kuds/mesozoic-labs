@@ -76,7 +76,7 @@ import mujoco
 import numpy as np
 
 from .. import carpet, statics
-from . import drive, plant
+from . import drive, estimator, plant
 from .legs import LegGap
 from .refs import Reference
 
@@ -706,6 +706,8 @@ G4_STANCE_STRIDES = 20.0
 #: ``STAGE1_PLAN.md`` decision 17: G4 is judged at the tuning start (decision 16) with decision 13's panel rule.
 G4_GAINS = "start"
 G4_RULES = ("panel", "single")
+#: The rule that decides G4's ``pass`` (decision 17: the first of ``G4_RULES``); the other is reported.
+G4_RULE = G4_RULES[0]
 G4_RULE_TEXT = {
     "panel": "the median of 20 runs of each gated condition from the reference's first frame, the root velocity offset "
              f"in x and y by at most {1e3 * PANEL_OFFSET_M_S:g} mm/s (seed {PANEL_SEED}, G2's offsets; R2's sensor "
@@ -738,7 +740,7 @@ G4_DECISIONS = {
     17: ("g4_rule", "panel", "G4 judged at that start with decision 13's panel rule"),
     18: ("stop_reading", "forward_5pct_of_command", "Stopped within 1.5 strides: forward speed below 5 % of the "
                                                     "command within 1.5 strides of the stop command"),
-    19: ("estimator_stance_point", "loaded_pad_contact_point", "Estimator stance point: the loaded pad's contact point"),
+    19: ("estimator_stance_point", estimator.STANCE_POINTS[0], "Estimator stance point: the loaded pad's contact point"),
     20: ("attribution_and_inward_bound", "panel_attribution+pad_clearance",
          "Fall attribution over the condition's starts; the inward bound the swing pad 5 mm from the stance pad"),
 }
@@ -754,9 +756,14 @@ def g4_decided(used: dict) -> dict:
 
 def _compact(r: dict) -> dict:
     """A panel run's outcome: strides, the fall and its candidates, how often the ankle cap and the inward bound bound,
-    the estimator's errors (over the episode and before the fall)."""
+    how far the realised ankle torques broke the cap, the estimator's errors (over the episode and before the
+    fall)."""
     out = {k: r.get(k) for k in ("strides", "fell", "fall_cause", "fall_candidates", "dcm_error_rms_mm", "bound_frac",
                                  "relaxed")}
+    c = r.get("ankle_cap_residual")
+    if c:  # the realised ankle torques against the cap (control.CAP_RESIDUAL_RULE)
+        out["ankle_cap_residual"] = {k: c[k] for k in ("box_frac", "box_max_excess_Nm", "pad_frac", "pad_max_excess_Nm",
+                                                       "heavy_pad_frac", "heavy_pad_max_excess_Nm")}
     e = r.get("estimator")
     if e:
         out.update(estimator_com_vel_err_rms_m_s=e["com_vel_err_rms_m_s"],
@@ -951,7 +958,8 @@ def g4(body: str, out_dir: Path, procs: int | None = None, attribution: bool = T
                                  rule="decision 15: each ankle's total torque command (feedforward, the servo's PD "
                                       "predicted from the encoders, the feedback) at most one motor's peak on each "
                                       "axis, and on a loaded foot no more than puts its CoP 5 mm inside its pad; the "
-                                      "nearest such torque is commanded (control.cap_ankle_torque)"),
+                                      "nearest such torque is commanded (control.cap_ankle_torque)",
+                                 residual=control.CAP_RESIDUAL_RULE),
                   inward_bound=dict(bound=control.INWARD_BOUNDS[0], pad_clearance_m=control.PAD_CLEARANCE,
                                     rule="decision 20: the swing pad, at its reference touchdown relative to the stance "
                                          "foot moved by the step offset, stays at least 5 mm from the stance pad "
@@ -973,16 +981,19 @@ def g4(body: str, out_dir: Path, procs: int | None = None, attribution: bool = T
                              slip_speed_m_s=control.SLIP_SPEED, slip_load_frac=control.SLIP_LOAD_FRAC,
                              candidates=control.CANDIDATE_RULE, attribution=ATTRIBUTION_RULE),
                   stop_reading=tr.STOP_RULE)
-    used = dict(ankle_cap="+".join(control.ANKLE_CAP), gains=G4_GAINS, g4_rule="panel",
-                stop_reading="forward_5pct_of_command" if tr.STOP_SPEED_FRAC == 0.05 else str(tr.STOP_SPEED_FRAC),
-                estimator_stance_point="loaded_pad_contact_point",
-                attribution_and_inward_bound="panel_attribution+pad_clearance" if control.PAD_CLEARANCE == 0.005
-                else "other")
-    out = dict(rule=G4_RULE_TEXT["panel"], rule_name="panel", rules=G4_RULE_TEXT, judged_at=G4_GAINS,
-               decided=g4_decided(used), tracker=tk_doc, gated=gated_out, attribution=attr, R0=r0, reported=reported,
-               stance_start_stop=stance,
+    out = dict(rule=G4_RULE_TEXT[G4_RULE], rule_name=G4_RULE, rules=G4_RULE_TEXT, judged_at=G4_GAINS,
+               tracker=tk_doc, gated=gated_out, attribution=attr, R0=r0, reported=reported, stance_start_stop=stance,
                single_rule_pass=bool(all(g["unperturbed_pass"] for g in gated_out.values())),
                panel_rule_pass=bool(all(g["panel_pass"] for g in gated_out.values())))
-    out["pass"] = out["panel_rule_pass"]
+    out["pass"] = out[f"{G4_RULE}_rule_pass"]
+    # what this run used, read from the runs and the rule that decided ``pass`` (decisions 17 and 19 included)
+    r2_runs = [gated_out["R2_nominal_hard"]["unperturbed"], stance["R2"], *reported["R2"].values()]
+    points = sorted({(r.get("estimator") or {}).get("gains", {}).get("stance_point") for r in r2_runs} - {None})
+    used = dict(ankle_cap="+".join(control.ANKLE_CAP), gains=G4_GAINS, g4_rule=out["rule_name"],
+                stop_reading="forward_5pct_of_command" if tr.STOP_SPEED_FRAC == 0.05 else str(tr.STOP_SPEED_FRAC),
+                estimator_stance_point=points[0] if len(points) == 1 else "+".join(points) or None,
+                attribution_and_inward_bound="panel_attribution+pad_clearance" if control.PAD_CLEARANCE == 0.005
+                else "other")
+    out["decided"] = g4_decided(used)
     out["seconds"] = time.perf_counter() - t0
     return out

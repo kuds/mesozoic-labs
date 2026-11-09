@@ -26,7 +26,19 @@ sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
 from designlab import carpet, catalog, mjcf, statics  # noqa: E402
-from designlab.stage1 import BODIES, control, drive, estimator, gates, legs, plant, refs, transitions  # noqa: E402
+from designlab.stage1 import (  # noqa: E402
+    BODIES,
+    control,
+    drive,
+    estimator,
+    gates,
+    legs,
+    metrics,
+    plant,
+    refs,
+    transitions,
+    tune,
+)
 from designlab.stage1.__main__ import main as cli  # noqa: E402
 
 BODY = "60-N-T-10"
@@ -1468,8 +1480,14 @@ def test_panel_attribution_rule():
 
 
 def test_run_records_name_their_code():
+    """Commit, dirty flag and the paths that make the tree dirty (git status --porcelain, untracked included), and
+    the hash of the Stage 1 sources."""
     prov = plant.provenance()
-    assert set(prov) == {"versions", "git", "stage1_sources"} and set(prov["git"]) == {"commit", "dirty"}
+    assert set(prov) == {"versions", "git", "stage1_sources"}
+    assert set(prov["git"]) == {"commit", "dirty", "dirty_paths"}
+    paths = prov["git"]["dirty_paths"]
+    assert isinstance(paths, list) and prov["git"]["dirty"] == bool(paths)
+    assert all(len(x) > 3 and x[2] == " " for x in paths)  # "XY path"
     src = prov["stage1_sources"]
     files = {q.name: q.read_bytes() for q in plant.SOURCES.glob("*.py")}
     assert src["sha256"] == plant.sources_sha256() == plant.sources_sha256(files) and len(src["sha256"]) == 64
@@ -1541,7 +1559,285 @@ def test_g4_records(body):
 
 def test_later_steps_are_not_implemented(tmp_path):
     with pytest.raises(NotImplementedError, match="not implemented yet"):
-        cli(["tune", "--body", BODY, "--out", str(tmp_path)])
+        cli(["train", "--body", BODY, "--out", str(tmp_path)])
+
+
+# ------------------------------------------------------------------------------------------------
+# Tuning (plan section 3 step 6, gate G5): metrics, the objective, CMA-ES, checkpoints
+# ------------------------------------------------------------------------------------------------
+def test_recorder_changes_nothing_and_the_commanded_rate_runs_the_clock_faster(hard, nominal_ref):
+    """``control.run``'s recorder only reads; rate 1 is the tracker as before; rate 1.05 runs the reference clock 5 %
+    ahead of real time (the phase-rate term is off at the tuning start); R0 keeps G2's clock."""
+
+    def go(rate, recorder=None):
+        r = control.run(_tracker(hard, nominal_ref, rate=rate), nominal_ref.period, recorder=recorder)
+        return r, hard.d.qpos.copy()
+
+    r0, q0 = go(1.0)
+    rec = metrics.Recorder()
+    r1, q1 = go(1.0, rec)
+    assert np.array_equal(q0, q1) and r0["strides"] == r1["strides"] and r0["dcm_error_rms_mm"] == r1["dcm_error_rms_mm"]
+    n = int(round(nominal_ref.period / hard.m.opt.timestep))
+    assert rec.steps == n and rec.rows == len(range(0, n, control.FEEDBACK_EVERY)) and rec.loads.shape == (n, 2)
+    assert np.all(np.diff(rec.t) > 0) and np.all(np.diff(rec.col("t_ref")) > 0)
+    r5, _ = go(1.05)
+    assert r5["rate"] == 1.05 and r5["reference_time_s"] == pytest.approx(1.05 * r5["seconds"], rel=1e-9)
+    assert r5["strides"] == pytest.approx(r5["reference_strides"], rel=1e-9)  # strides of the commanded gait
+    with pytest.raises(ValueError):
+        _tracker(hard, nominal_ref, mode="R0", rate=1.05)
+    hard.reset()
+
+
+def test_walk_measures_on_a_short_walk(hard, nominal_ref):
+    """Plan section 4's walk measures on three strides of R1's nominal walk: they read the reference's gait."""
+    tk = _tracker(hard, nominal_ref, strides=6.0)
+    rec = metrics.Recorder()
+    r = control.run(tk, 4 * nominal_ref.period, recorder=rec)
+    H = hard.meta["H_m"]
+    w = metrics.window(rec, 1.0, 4 * nominal_ref.period - 0.01, float(rec.col("yaw")[0]), H)
+    assert not r["fell"] and w["complete"] and w["touchdowns"] == [3, 3]
+    assert all(0.58 <= x <= 0.63 for x in w["duty"]) and w["flight_s"] == 0.0  # the reference's duty is 0.6
+    assert w["cadence_steps_s"] == pytest.approx(2.0 / nominal_ref.period, rel=0.02)
+    stride = float(nominal_ref.stride_motion[3])
+    assert w["stride_H"] == pytest.approx(stride / H, rel=0.03)
+    assert w["speed_m_s"] == pytest.approx(stride / nominal_ref.period, rel=0.03)
+    assert 0.04 * H <= w["toe_clearance_m"] < 0.06 * H  # the reference keeps 0.05 H in mid-swing
+    assert w["slip_worst_m"] < tune.SLIP_WORST_M and w["roll_peak_deg"] < 1.0 and w["grf_peak_bw"] < 1.6
+    assert w["dcm_error_rms_m"] < 0.01 and w["swings"] >= 4
+    c = r["ankle_cap_residual"]  # R1 predicts the servo's torque exactly: no box excess
+    assert c["rule"] == control.CAP_RESIDUAL_RULE and c["box_max_excess_Nm"] < 1e-9 and c["updates"] == rec.rows
+    hard.reset()
+
+
+def test_foot_lowest_point_is_exact(hard):
+    hard.reset()
+    m, d = hard.m, hard.d
+    rng = np.random.default_rng(3)
+    d.qpos[hard.qadr] += rng.uniform(-0.3, 0.3, len(hard.qadr))
+    mujoco.mj_kinematics(m, d)
+    boxes, caps = metrics._lowest_point_tables(m, hard.feet)
+    low = metrics.foot_lowest(m, d, boxes, caps)
+    fg = carpet.foot_geoms(m)
+    want = [min(carpet.lowest_point(m, d, g)[2] for g in fg[s_] if m.geom_bodyid[g] == f)
+            for s_, f in zip(statics.SIDES, hard.feet, strict=True)]
+    assert low == pytest.approx(want, abs=1e-12)
+    hard.reset()
+
+
+def test_contact_runs_and_debounce():
+    f = np.array([1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1], bool)
+    s, e, v = metrics.runs(f)
+    assert list(s) == [0, 3, 4, 8, 14] and list(e) == [3, 4, 8, 14, 16] and list(v) == [1, 0, 1, 0, 1]
+    g = metrics.debounce(f, 2)  # the one-step dropout is chatter, the six-step gap a swing
+    assert list(metrics.runs(g)[0]) == [0, 8, 14] and g[3]
+    assert metrics.debounce(np.array([0, 1, 1, 1], bool), 2)[0] == 0  # edge runs are kept
+
+
+def test_rest_threshold_for_r2_was_chosen_from_standing_still():
+    """R2's rest speed (decision 18's reported time to rest): the largest horizontal CoM speed R2 showed standing still
+    with its sensor noise, rounded up to 0.5 mm/s, recorded before any start-and-stop judgement."""
+    doc = json.loads((RUN / "r2_rest_threshold.json").read_text())
+    assert set(doc["bodies"]) == set(BODIES) and doc["rule"] == transitions.REST_R2_RULE
+    worst = max(b["R2"]["max_mm_s"] for b in doc["bodies"].values())
+    assert doc["largest_standing_speed_r2_mm_s"] == worst
+    assert transitions.REST_SPEED_R2_M_S == doc["rest_speed_r2_m_s"] == pytest.approx(0.5e-3 * np.ceil(worst / 0.5))
+    for b in doc["bodies"].values():
+        assert b["R1"]["max_mm_s"] < 1e3 * transitions.REST_SPEED_M_S < b["R2"]["median_mm_s"] * 2
+        assert b["R2"]["samples"] == len(b["R2"]["seeds"]) * 1000 and not any(x["fell"] for x in b["R2"]["per_seed"])
+    assert doc["provenance"]["git"]["commit"] and len(doc["provenance"]["stage1_sources"]["sha256"]) == 64
+    assert control.rest_speed("R2") == transitions.REST_SPEED_R2_M_S
+    assert control.rest_speed("R1") == control.rest_speed("R0") == transitions.REST_SPEED_M_S
+
+
+def test_stop_reading_on_the_commanded_clock():
+    """At the commanded rate a stop's command is the reference's speed times the rate and its strides are the
+    reference's period over the rate; R2 reads rest at its own threshold."""
+    t = np.arange(0.0, 4.0, 0.01)
+    v = np.where(t < 1.0, 0.21, np.clip(0.21 * (1.5 - t) / 0.5, 0.0, None))
+    s = dict(name="stop", t_ref=1.05, t_sim=1.0, speed_m_s=0.2, period_s=1.05,
+             samples=[(x, y, abs(y) + 2e-3) for x, y in zip(t[t >= 1.0], v[t >= 1.0], strict=True)])
+    r1 = control._stop_result(s, rate=1.05)
+    assert r1["command_speed_m_s"] == pytest.approx(0.21) and r1["stride_s"] == pytest.approx(1.0)
+    assert r1["forward_stopped_strides"] == pytest.approx(0.48, abs=0.011) and r1["at_rest_strides"] is None
+    r2 = control._stop_result(s, rate=1.05, rest=control.rest_speed("R2"))  # 2 mm/s of jitter: at rest for R2
+    assert r2["at_rest_strides"] is not None and r2["rest_rule"] == transitions.REST_R2_RULE
+
+
+def test_estimator_stance_point_is_a_recorded_choice(hard, nominal_ref):
+    """Decision 19's choice is the estimator's configured stance point (G4 reads what its runs used), and decision
+    17's the rule that decides G4."""
+    assert estimator.EstimatorGains().stance_point == estimator.STANCE_POINTS[0] == gates.G4_DECISIONS[19][1]
+    assert gates.G4_RULE == gates.G4_RULES[0] == gates.G4_DECISIONS[17][1] == "panel"
+    est = estimator.Estimator(hard, estimator.EstimatorGains(stance_point="foot_com"))
+    assert np.array_equal(est.contact_point(0), hard.m.body_ipos[hard.feet[0]])
+    with pytest.raises(ValueError):
+        estimator.Estimator(hard, estimator.EstimatorGains(stance_point="heel"))
+    r = control.run(_tracker(hard, nominal_ref, "R2"), 0.5 * nominal_ref.period)
+    assert r["estimator"]["gains"]["stance_point"] == estimator.STANCE_POINTS[0]
+    assert r["ankle_cap_residual"]["updates"] > 0  # R2's realised ankle torques against its cap, recorded
+    src = inspect.getsource(gates.g4)
+    assert 'g4_rule=out["rule_name"]' in src and '"loaded_pad_contact_point"' not in src
+    hard.reset()
+
+
+def test_score_puts_survival_first():
+    def ep(kind, fell=False, surv=1.0, t=0.0, lim=0.0):
+        ss = kind in tune.WITH_START_STOP
+        return dict(fell=fell, survived_frac=surv, tracking={n: t for n in tune.TRACKING[kind]},
+                    limits={n: lim for n in tune.LIMITS[kind]},
+                    start_terms={n: lim for n in tune.START_TERMS} if ss else {},
+                    stop_terms={n: lim for n in tune.STOP_TERMS} if ss else {})
+
+    perfect = {k: ep(k) for k in tune.EPISODES}
+    poor = {k: ep(k, t=1.0, lim=1.0) for k in tune.EPISODES}
+    late = dict(perfect, walk=ep("walk", fell=True, surv=0.99, t=1.0, lim=1.0))
+    early = dict(perfect, walk=ep("walk", fell=True, surv=0.1, t=1.0, lim=1.0))
+
+    def J(e):
+        return tune.score(e)["J"]
+
+    assert J(perfect) == 0.0 and J(poor) == 1.0 < J(late) < J(early)  # any fall outweighs every penalty
+    sc = tune.score(poor)
+    assert set(sc["groups"]) == {*tune.EPISODES, "start", "stop"} and sc["P"] == sc["T"] == sc["L"] == 1.0
+    one = dict(perfect, in_place_turn=dict(ep("in_place_turn"), limits=dict(ep("in_place_turn")["limits"], grf=1.0)))
+    n = len(tune.LIMITS["in_place_turn"])
+    assert tune.score(one)["groups"]["in_place_turn"] == pytest.approx(0.5 * (1.0 + 1.0 / n))
+    assert len(tune.term_vector(perfect)) == len(tune.TERM_ORDER) == len(set(tune.TERM_ORDER))
+    assert tune.hinge(4.0, 4.0, 4.0) == 0.0 and tune.hinge(6.0, 4.0, 4.0) == 0.5 and tune.hinge(20.0, 4.0, 4.0) == 1.0
+    assert tune.hinge(None, 4.0, 4.0) == 1.0 and tune.hinge_below(0.012, 0.016, 0.016) == pytest.approx(0.25)
+    assert tune.band(0.6, 0.55, 0.65, 0.05) == 0.0 and tune.band(0.5, 0.55, 0.65, 0.05) == pytest.approx(1.0)
+    assert tune.error(-0.05, 0.1) == 0.5
+    json.dumps(tune.OBJECTIVE)  # the definition is recorded as is
+
+
+def test_episode_seeds_directions_and_training_order():
+    assert tune.directions(1000) == {"walk": None, "walking_turn": "left", "in_place_turn": "right"}
+    assert tune.directions(1001)["walking_turn"] == "right" == tune.directions(1000)["in_place_turn"]
+    seeds = {tune.derived_seed(1000, j, k) for j in range(3) for k in range(2)}
+    assert len(seeds) == 6 and tune.derived_seed(1000, 1, 0) == tune.derived_seed(1000, 1, 0)
+    a, b = tune.training_order(42), tune.training_order(43)
+    assert sorted(a) == list(range(*tune.TRAIN_EPISODES)) and not np.array_equal(a, b)
+    assert tune.candidate_generations(60) == [20, 40, 60] and tune.candidate_generations(2) == [1, 2]
+    assert tune.BUDGET % tune.POPSIZE == 0 and tune.BUDGET // tune.POPSIZE == 60 and tune.SEEDS == (42, 43)
+    x = tune.to_unit(control.START_GAINS)
+    assert np.allclose(tune.from_unit(x), control.START_GAINS) and tune.repair_penalty(x) == 0.0
+    assert tune.repair_penalty(np.r_[x[:-1], 1.2]) == pytest.approx(0.04)
+    assert np.all(tune.from_unit(np.full(14, 2.0)) == control.GAIN_BOUNDS[:, 1])  # evaluated at the projection
+
+
+def test_cma_es_converges_and_round_trips_exactly():
+    c = np.linspace(0.1, 0.9, 14)
+
+    def f(X):
+        return np.sum((X - c) ** 2 * np.linspace(1.0, 10.0, 14), axis=1)
+
+    es = tune.CMA(np.full(14, 0.5), 0.2, 12, 42)
+    for _ in range(40):
+        X = es.ask()
+        es.tell(X, f(X))
+    twin = tune.CMA.from_state(json.loads(json.dumps(es.state())), 0.2, 42)
+    for _ in range(80):
+        X, Y = es.ask(), twin.ask()
+        assert np.array_equal(X, Y)
+        es.tell(X, f(X))
+        twin.tell(Y, f(Y))
+    assert np.abs(es.mean - c).max() < 1e-3 and es.state() == twin.state()
+    assert tune.CMA(np.zeros(14), 0.1, 12, 7).ask().tolist() == tune.CMA(np.zeros(14), 0.1, 12, 7).ask().tolist()
+
+
+class _StubPool:
+    """``tune.Pool`` on an analytic objective (fast): the checkpoints, the log and the selection without simulation."""
+
+    def __init__(self, body, src, workers=1, *args, **kw):
+        self.src = src
+
+    def describe(self):
+        return {"stub": str(self.src)}
+
+    def map(self, jobs):
+        return [_stub_eval(g, s) for g, s in jobs]
+
+    def close(self):
+        pass
+
+
+def _stub_eval(gains, seed):
+    x = tune.to_unit(gains)
+    J = float(np.sum((x - 0.3) ** 2)) + 1e-3 * (int(seed) % 7)
+    eps = {k: dict(direction=None, fell=False, fall_time_s=None, fall_cause=None, survived_frac=1.0, succeeded=True,
+                   window={}) for k in tune.EPISODES}
+    return dict(J=J, S=0.0, P=J, T=J, L=0.0, groups={}, falls=0, episodes=eps, terms=[J], simulated_s=1.0, wall_s=0.0,
+                episode_seed=int(seed))
+
+
+def _log(path):
+    return [{k: v for k, v in json.loads(line).items() if k != "wall_s"} for line in path.read_text().splitlines()]
+
+
+def test_tune_checkpoints_every_generation_and_resumes_exactly(tmp_path, monkeypatch):
+    """A run stopped after a generation (and one that crashed with evaluations logged past its checkpoint) resumes
+    to exactly the uninterrupted run; a run is not restarted over, nor resumed on changed sources."""
+    monkeypatch.setattr(tune, "Pool", _StubPool)
+    a = tune.tune(BODY, 42, evals=36, out=tmp_path / "a", log=lambda m: None)
+    assert a["evals"] == 36 and len(a["history"]) == 3 and a["status"] == "partial"
+    tune.tune(BODY, 42, evals=12, out=tmp_path / "b", log=lambda m: None)
+    d = tune.run_dir_of(tmp_path / "b", BODY, 42)
+    with (d / "evals.jsonl").open("a") as fh:  # a generation half logged when the process died
+        fh.write(json.dumps({"gen": 1, "i": 0}) + "\n{\"gen\": 1, \"i\"")
+    b = tune.tune(BODY, 42, evals=36, resume=True, out=tmp_path / "b", log=lambda m: None)
+    assert _log(d / "evals.jsonl") == _log(tune.run_dir_of(tmp_path / "a", BODY, 42) / "evals.jsonl")
+    assert b["state"] == a["state"] and [h["mean"] for h in b["history"]] == [h["mean"] for h in a["history"]]
+    assert len(b["sessions"]) == 2 and b["sessions"][1]["from_generation"] == 1 and b["inputs"].endswith(BODY)
+    eps = [h["episode"] for h in b["history"]]
+    assert eps == [int(x) for x in tune.training_order(42)[:3]]
+    rows = _log(d / "evals.jsonl")
+    assert [r["gen"] for r in rows] == [g for g in range(3) for _ in range(tune.POPSIZE)]
+    assert all(r["episode"] == eps[r["gen"]] for r in rows)  # common random numbers within a generation
+    with pytest.raises(SystemExit, match="exists"):
+        tune.tune(BODY, 42, evals=48, out=tmp_path / "b", log=lambda m: None)
+    real = plant.provenance
+
+    def changed():
+        p_ = real()
+        p_["stage1_sources"]["sha256"] = "0" * 64
+        return p_
+
+    monkeypatch.setattr(plant, "provenance", changed)
+    with pytest.raises(SystemExit, match="sources changed"):
+        tune.tune(BODY, 42, evals=48, resume=True, out=tmp_path / "b", log=lambda m: None)
+
+
+def test_g5_selects_on_the_validation_objective(tmp_path, monkeypatch):
+    monkeypatch.setattr(tune, "Pool", _StubPool)
+    for seed in tune.SEEDS:
+        tune.tune(BODY, seed, evals=36, out=tmp_path, log=lambda m: None)
+    doc = tune.g5(BODY, out=tmp_path, require_done=False, log=lambda m: None)
+    assert doc["validation_episodes"] == list(range(2000, 2020)) and doc["pass_"] is True
+    for seed in tune.SEEDS:
+        v = doc["seeds"][str(seed)]
+        names = ["start"] + [f"seed{seed}_gen{g}" for g in tune.candidate_generations(3)]
+        assert [x["candidate"] for x in v["selection"]] == names
+        best = min(v["selection"], key=lambda x: x["J_mean"])
+        assert v["selected"] == best["candidate"] != "start"  # the fit moved toward the stub's optimum
+        assert v["pass_"] and all(c["successes"] == 20 for c in v["conditions"].values())
+    saved = json.loads((tmp_path / BODY / "tune.json").read_text())
+    assert saved["seeds"] == json.loads(json.dumps(doc["seeds"])) and saved["gate"] == "G5"
+    smoke = tune.g5(BODY, out=tmp_path, episodes=2, require_done=False, log=lambda m: None)
+    assert smoke["pass_"] is None and smoke["seeds"]["42"]["pass_"] is None  # fewer than 20 episodes: no verdict
+    unfinished = tune.g5(BODY, out=tmp_path, log=lambda m: None)  # 36 of 720 evaluations: nothing to judge
+    assert unfinished["pass_"] is None and not unfinished["seeds"]["42"]["judged"]
+
+
+def test_tune_and_g5_command_line(tmp_path, monkeypatch):
+    monkeypatch.setattr(tune, "Pool", _StubPool)
+    base = ["--body", BODY, "--out", str(tmp_path)]
+    assert cli(["tune", *base, "--seed", "42", "--evals", "24"]) == 0
+    assert cli(["tune", *base, "--seed", "42", "--evals", "36", "--resume"]) == 0
+    doc = json.loads((tune.run_dir_of(tmp_path, BODY, 42) / "cma.json").read_text())
+    assert doc["evals"] == 36 and len(doc["sessions"]) == 2 and doc["settings"]["cma"]["popsize"] == 12
+    with pytest.raises(SystemExit):
+        cli(["tune", *base, "--seed", "42", "--evals", "48"])
+    assert cli(["g5", *base, "--seeds", "42", "--partial"]) == 0
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1572,3 +1868,69 @@ def test_g2_references_match_and_the_nominal_replay_reproduces_the_gate_record(b
     runs = [x["strides"] for chunk in gates.run_jobs(jobs) for x in chunk]
     assert runs == rec["nominal_panel_with_envelope"]["strides"]
     assert rec["panel_pass"] == (np.median(runs) >= gates.MIN_REPLAY_STRIDES) == rec["pass"]
+
+
+G4_GATED = {"R1_nominal_hard": ("R1", None), "R1_nominal_mu054": ("R1", gates.G4_MU), "R2_nominal_hard": ("R2", None)}
+G4_COMPARED = ("strides", "fell", "fall_cause", "fall_candidates", "dcm_error_rms_mm", "bound_frac")
+
+
+@slow
+@pytest.mark.parametrize("body", sorted(BODIES))
+def test_g4_gated_runs_reproduce_the_gate_record(body):
+    """The tracker as it is now reproduces the committed G4 record's gated runs bit for bit: each condition's
+    unperturbed run and its 20-start panel (the jobs ``gates.g4`` runs: the root-velocity offsets and R2's noise seeds
+    of decision 17's panel rule), on the run directory's references (git-ignored: ``prepare`` regenerates them)."""
+    if not (RUN / body / "refs" / "nominal.npz").exists():
+        pytest.skip("the run directory's references are not generated (python -m designlab.stage1 prepare ...)")
+    rec = json.loads((RUN / body / "gates.json").read_text())["G4"]
+    period = json.loads((RUN / body / "refs.json").read_text())["references"]["nominal"]["period_s"]
+    offsets = gates._offsets()
+    base = dict(body=body, run=str(RUN / body), plan=[("ref", "nominal", gates.G4_STRIDES + 1.0)], period_ref="nominal",
+                seconds=gates.G4_STRIDES * period)
+    jobs, keys = [], []
+    for key, (mode, mu) in G4_GATED.items():
+        jobs.append(dict(base, mode=mode, mu=mu, offsets=[None], seeds=[gates.G4_NOISE_SEEDS]))
+        keys.append((key, "unperturbed"))
+        for i in range(0, gates.PANEL_RUNS, gates.PANEL_CHUNK):
+            jobs.append(dict(base, mode=mode, mu=mu, offsets=offsets[i : i + gates.PANEL_CHUNK], full=False,
+                             seeds=[gates.G4_NOISE_SEEDS + j for j in range(i, i + gates.PANEL_CHUNK)]))
+            keys.append((key, i))
+    got = dict(zip(keys, gates._pool_map(jobs, None), strict=True))
+    for key in G4_GATED:
+        g = rec["gated"][key]
+        u = got[(key, "unperturbed")][0]
+        assert {k: u[k] for k in G4_COMPARED} == {k: g["unperturbed"][k] for k in G4_COMPARED}, key
+        rows = [r for i in range(0, gates.PANEL_RUNS, gates.PANEL_CHUNK) for r in got[(key, i)]]
+        assert [{k: r[k] for k in G4_COMPARED} for r in rows] == [{k: r[k] for k in G4_COMPARED}
+                                                                 for r in g["panel"]["rows"]], key
+
+
+@slow
+def test_rest_threshold_record_reproduces():
+    """The standing noise floor behind R2's rest speed, rerun on one body, gives the recorded numbers."""
+    body = BODY
+    if not (RUN / body / "refs" / "nominal.npz").exists():
+        pytest.skip("the run directory's references are not generated (python -m designlab.stage1 prepare ...)")
+    got = metrics.standing_noise_floor(body, RUN / body)
+    rec = json.loads((RUN / "r2_rest_threshold.json").read_text())["bodies"][body]
+    for mode in ("R1", "R2"):
+        assert {k: got[mode][k] for k in ("max_mm_s", "p999_mm_s", "median_mm_s", "samples")} == {
+            k: rec[mode][k] for k in ("max_mm_s", "p999_mm_s", "median_mm_s", "samples")}
+
+
+@slow
+def test_an_evaluation_is_deterministic_and_independent_of_the_ones_before():
+    """One evaluation of the mix (three episodes from the settled stance) gives the same objective and terms on a
+    fresh evaluator and after other evaluations on the same plant: the run does not depend on the worker count or on
+    a restart."""
+    if not (RUN / BODY / "refs" / "nominal.npz").exists():
+        pytest.skip("the run directory's references are not generated (python -m designlab.stage1 prepare ...)")
+    ev = tune.Evaluator(BODY)
+    a = ev.evaluate(control.START_GAINS, 1001)
+    ev.evaluate(tune.from_unit(tune.to_unit(control.START_GAINS) + 0.05), 1002)
+    b = ev.evaluate(control.START_GAINS, 1001)
+    c = tune.Evaluator(BODY).evaluate(control.START_GAINS, 1001)
+    for x in (b, c):
+        assert x["J"] == a["J"] and x["terms"] == a["terms"]
+    assert a["directions"] == tune.directions(1001) and set(a["episodes"]) == set(tune.EPISODES)
+    assert 54.0 < a["simulated_s"] < 56.0  # the mix on a 60 cm body
