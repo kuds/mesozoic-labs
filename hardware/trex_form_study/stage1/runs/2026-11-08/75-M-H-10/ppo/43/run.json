@@ -2829,6 +2829,882 @@
     }
    ],
    "ended_at": "2026-11-09T22:49:15+00:00"
+  },
+  {
+   "index": 3,
+   "started_at": "2026-11-09T23:16:23+00:00",
+   "provenance": {
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1",
+     "gymnasium": "1.3.0",
+     "stable-baselines3": "2.9.0",
+     "torch": "2.9.0+cpu"
+    },
+    "git": {
+     "commit": "2351387fc7594fdfa99014d2d6189c1e0e3ddf22",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/designlab/stage1/train.py",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/summary.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/ppo/42/run.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/ppo/43/run.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/grip.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/eval/summary.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/ppo/42/run.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/ppo/43/run.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/grip.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/summary.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/ppo/42/run.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/ppo/43/run.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/drive_speed.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/drive_torque.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/kp.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/latency.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/mass.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/pile_damping.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/push.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/voltage.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/summary.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/drive_speed.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/drive_torque.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/kp.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/latency.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/mass.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/pile_damping.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/push.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/voltage.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/summary.json"
+     ]
+    },
+    "stage1_sources": {
+     "sha256": "fb9756adb0a5fc5c85207a80adad1b95e0e0f6d538b6211fe26e5e75eacaccda",
+     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+     "files": [
+      "__init__.py",
+      "__main__.py",
+      "control.py",
+      "drive.py",
+      "env.py",
+      "estimator.py",
+      "gates.py",
+      "ledger.py",
+      "legs.py",
+      "metrics.py",
+      "panels.py",
+      "plant.py",
+      "policy.py",
+      "policy_rows.py",
+      "refs.py",
+      "replay.py",
+      "report.py",
+      "train.py",
+      "transitions.py",
+      "tune.py"
+     ]
+    }
+   },
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1",
+    "torch": "2.9.0+cpu",
+    "stable_baselines3": "2.9.0",
+    "gymnasium": "1.3.0"
+   },
+   "ppo_venv": {
+    "torch": "2.9.0+cpu",
+    "stable_baselines3": "2.9.0",
+    "gymnasium": "1.3.0"
+   },
+   "matches_ppo_venv": true,
+   "vec": "dummy",
+   "env_processes": 1,
+   "n_envs": 4,
+   "torch_threads": 1,
+   "solve2": "numpy.linalg._umath_linalg.solve1",
+   "gains": {
+    "values": {
+     "k_dcm": 4.976176377548853,
+     "cop_x": 0.020538306901909067,
+     "cop_y": 0.016780837878417502,
+     "k_step": 0.0590505254728369,
+     "step_x": 0.046758376703625995,
+     "step_out": 0.03596157997982125,
+     "decay": 0.9550952543757751,
+     "k_trunk": 28.71612209823043,
+     "d_trunk": 1.6238998213930684,
+     "k_yaw": 0.0,
+     "ki_yaw": 0.0,
+     "k_phase": 0.30592392098442006,
+     "ki_phase": 0.0,
+     "capture_margin": 0.0
+    },
+    "candidate": "seed43_gen40",
+    "cma_seed": 43,
+    "status": "passed",
+    "flag": null,
+    "source": "tune.json: CMA-ES seed 43's G5 selection seed43_gen40",
+    "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+    "tune_json": "stage1/runs/2026-11-08/75-M-H-10/tune.json",
+    "tune_json_sha256": "d451e7c580396a2644f4270f148b7120892e60f93e034c9245a286218702ba62",
+    "allow_untuned": false
+   },
+   "env": {
+    "mode": "R3",
+    "config": {
+     "body": "75-M-H-10",
+     "floor": "hard",
+     "pile_grid": 0.008,
+     "run_dir": "stage1/runs/2026-11-08/75-M-H-10",
+     "gains": "tuned",
+     "tune_json": null,
+     "tasks": [
+      "walk",
+      "walking_turn_left",
+      "walking_turn_right",
+      "in_place_turn_left",
+      "in_place_turn_right",
+      "brisk",
+      "fr05",
+      "stand",
+      "carpet_walk"
+     ],
+     "task_weights": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      2.0,
+      2.0,
+      1.0,
+      1.0
+     ],
+     "rate": 1.05,
+     "max_seconds": 30.0,
+     "randomize": true,
+     "friction": [
+      0.54,
+      1.25
+     ],
+     "mass": [
+      0.9,
+      1.1
+     ],
+     "kp": [
+      0.8,
+      1.2
+     ],
+     "latency_steps": [
+      0,
+      10
+     ],
+     "noise_scale": [
+      0.5,
+      1.5
+     ],
+     "push_prob": 0.5,
+     "push_frac": [
+      0.0,
+      1.0
+     ],
+     "push_s": 0.1,
+     "start_joint_noise": 0.01,
+     "start_root_velocity_noise": 0.02
+    },
+    "floor": "hard",
+    "floor_params": null,
+    "settled": "settled",
+    "gains": {
+     "k_dcm": 4.976176377548853,
+     "cop_x": 0.020538306901909067,
+     "cop_y": 0.016780837878417502,
+     "k_step": 0.0590505254728369,
+     "step_x": 0.046758376703625995,
+     "step_out": 0.03596157997982125,
+     "decay": 0.9550952543757751,
+     "k_trunk": 28.71612209823043,
+     "d_trunk": 1.6238998213930684,
+     "k_yaw": 0.0,
+     "ki_yaw": 0.0,
+     "k_phase": 0.30592392098442006,
+     "ki_phase": 0.0,
+     "capture_margin": 0.0
+    },
+    "gains_info": {
+     "rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+     "file": "stage1/runs/2026-11-08/75-M-H-10/tune.json",
+     "sha256": "d451e7c580396a2644f4270f148b7120892e60f93e034c9245a286218702ba62",
+     "body_pass": true,
+     "seeds_passing": [
+      42,
+      43
+     ],
+     "ranking": {
+      "42": [
+       0,
+       0.0,
+       0.04623131936808982,
+       0.04623131936808982,
+       42
+      ],
+      "43": [
+       0,
+       0.0,
+       0.042873068439801335,
+       0.042873068439801335,
+       43
+      ]
+     },
+     "status": "passed",
+     "flag": null,
+     "cma_seed": 43,
+     "candidate": "seed43_gen40",
+     "source": "tune.json: CMA-ES seed 43's G5 selection seed43_gen40"
+    },
+    "obs": {
+     "blocks": {
+      "q": [
+       0,
+       14
+      ],
+      "qd": [
+       14,
+       28
+      ],
+      "gravity": [
+       28,
+       31
+      ],
+      "gyro": [
+       31,
+       34
+      ],
+      "foot_load": [
+       34,
+       36
+      ],
+      "phase": [
+       36,
+       38
+      ],
+      "support": [
+       38,
+       40
+      ],
+      "command": [
+       40,
+       42
+      ],
+      "prev_action": [
+       42,
+       57
+      ],
+      "root_vel": [
+       57,
+       60
+      ],
+      "height": [
+       60,
+       61
+      ],
+      "roll_pitch": [
+       61,
+       63
+      ],
+      "dcm_error": [
+       63,
+       65
+      ],
+      "joint_error": [
+       65,
+       79
+      ],
+      "heading_error": [
+       79,
+       80
+      ],
+      "friction": [
+       80,
+       81
+      ],
+      "floor": [
+       81,
+       84
+      ],
+      "push": [
+       84,
+       87
+      ],
+      "plant_factors": [
+       87,
+       90
+      ]
+     },
+     "actor_dim": 57,
+     "critic_dim": 90
+    },
+    "actor_obs": [
+     [
+      "q",
+      14
+     ],
+     [
+      "qd",
+      14
+     ],
+     [
+      "gravity",
+      3
+     ],
+     [
+      "gyro",
+      3
+     ],
+     [
+      "foot_load",
+      2
+     ],
+     [
+      "phase",
+      2
+     ],
+     [
+      "support",
+      2
+     ],
+     [
+      "command",
+      2
+     ],
+     [
+      "prev_action",
+      15
+     ]
+    ],
+    "critic_obs": [
+     [
+      "root_vel",
+      3
+     ],
+     [
+      "height",
+      1
+     ],
+     [
+      "roll_pitch",
+      2
+     ],
+     [
+      "dcm_error",
+      2
+     ],
+     [
+      "joint_error",
+      14
+     ],
+     [
+      "heading_error",
+      1
+     ],
+     [
+      "friction",
+      1
+     ],
+     [
+      "floor",
+      3
+     ],
+     [
+      "push",
+      3
+     ],
+     [
+      "plant_factors",
+      3
+     ]
+    ],
+    "action_dim": 15,
+    "substeps": 10,
+    "filter_hz": 10.0,
+    "filter_alpha": 0.7153904566639707,
+    "reward": "0.55 exp(-mean_j ((q_j - q_ref_j) / 0.1 rad)^2) (true joints, the reference at the env step's end) + 0.35 gaussian_tracking_reward(|v - v_cmd|, |w - w_cmd|) (the CoM's forward speed and the trunk's yaw rate over the env step against the reference's, at the commanded clock rate) - the penalties, each in [0, 1]: duty (each foot's contact share over the last stride outside 0.55-0.65, over 0.05, while the reference walks), slip (a foot carrying 20 % of the weight sliding faster than 0.05 m/s at a loaded contact, the excess over 0.05 m/s), flight (the share of the env step's physics steps with neither foot carrying 2 % of the weight), impact (the peak floor load over 1.6 BW, the excess over 1.6 BW), clearance (the reference's swing foot in mid-swing below 0.04 H, the shortfall over 0.04 H), tilt (roll or pitch about home beyond 4 deg, the excess over 4 deg); the weight and BW are the episode's true ones (its trunk-mass factor); weights duty 0.02, slip 0.02, flight 0.05, impact 0.02, clearance 0.02, tilt 0.02",
+    "penalties": {
+     "duty": 0.02,
+     "slip": 0.02,
+     "flight": 0.05,
+     "impact": 0.02,
+     "clearance": 0.02,
+     "tilt": 0.02
+    },
+    "tasks": {
+     "walk": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "nominal",
+        7
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "walking_turn_left": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "transition",
+        "enter_walk_0.35_left"
+       ],
+       [
+        "ref",
+        "walk_0.35_left",
+        5
+       ],
+       [
+        "transition",
+        "exit_walk_0.35_left"
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "walking_turn_right": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "transition",
+        "enter_walk_0.35_right"
+       ],
+       [
+        "ref",
+        "walk_0.35_right",
+        5
+       ],
+       [
+        "transition",
+        "exit_walk_0.35_right"
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "in_place_turn_left": [
+      [
+       [
+        "transition",
+        "start_in_place_0.50_left"
+       ],
+       [
+        "ref",
+        "in_place_0.50_left",
+        3
+       ],
+       [
+        "transition",
+        "stop_in_place_0.50_left"
+       ]
+      ],
+      "nominal"
+     ],
+     "in_place_turn_right": [
+      [
+       [
+        "transition",
+        "start_in_place_0.50_right"
+       ],
+       [
+        "ref",
+        "in_place_0.50_right",
+        3
+       ],
+       [
+        "transition",
+        "stop_in_place_0.50_right"
+       ]
+      ],
+      "nominal"
+     ],
+     "brisk": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "nominal_to_brisk"
+       ],
+       [
+        "ref",
+        "brisk",
+        6
+       ],
+       [
+        "transition",
+        "brisk_to_nominal"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "fr05": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "nominal_to_brisk"
+       ],
+       [
+        "ref",
+        "brisk",
+        1
+       ],
+       [
+        "transition",
+        "brisk_to_fr05"
+       ],
+       [
+        "ref",
+        "fr05",
+        6
+       ],
+       [
+        "transition",
+        "fr05_to_brisk"
+       ],
+       [
+        "ref",
+        "brisk",
+        1
+       ],
+       [
+        "transition",
+        "brisk_to_nominal"
+       ],
+       [
+        "ref",
+        "nominal",
+        1
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "nominal"
+     ],
+     "stand": [
+      [
+       [
+        "hold",
+        12.0
+       ],
+       [
+        "transition",
+        "start"
+       ]
+      ],
+      "nominal"
+     ],
+     "carpet_walk": [
+      [
+       [
+        "transition",
+        "start"
+       ],
+       [
+        "ref",
+        "carpet",
+        7
+       ],
+       [
+        "transition",
+        "stop"
+       ]
+      ],
+      "carpet"
+     ]
+    },
+    "task_friction": {
+     "carpet_walk": 0.54
+    },
+    "carpet_join": "the carpet walk runs the start and stop transitions of the nominal walk: they join it at its phase 0, where the carpet swing's frame differs from the nominal's by at most 0.43 mrad in joint angle and 0.083 rad/s in joint rate (the swing leg's lift-off; refs carpet.npz against nominal.npz on all three bodies), so the track joins the carpet reference to them directly",
+    "mass_rule": "the trunk's mass and inertia x the episode's factor, then every constant MuJoCo derives from the masses recomputed (mujoco.mj_setConst on a scratch MjData: the subtree masses behind subtree_com and every CoM reading, the constraint solver's invweight0 scales, dof_M0, actuator_acc0, the model's mean mass and inertia), so the plant is the model MuJoCo compiles with that trunk; every reset restores the nominal masses and constants the same way (mj_setConst leaves the nominal model unchanged bit for bit, checked when the env is built).  The controller keeps the nominal model (control.Tracker.model: the tracker's mass; R2's estimator, which computes the nominal model's CoM at its estimated pose; its sensors' noise scale): a deliberate model error, as a real robot's estimator has",
+    "kp_rule": "training draws the servos' stiffness factor from 0.8-1.2 (EnvConfig.kp; the controller keeps the nominal gains); plan section 5's kp x 0.25-1 is the margin ledger's sweep on the evaluation, not a training range",
+    "episode_seed_rule": "an episode given no seed is the env's k-th since its last seeded reset (k = 0, 1, ...): its seed is 1,000,000 x that reset's seed + k, so envs reset with different seeds never draw the same episode seed (train.SEED_RULE gives every run, session and env its own); the start's noise and the sensors' noise come from it (numpy SeedSequence([episode, 0]) and ([episode, 1])); the task, the plant factors and the push from the env's own generator",
+    "nominal_weight_N": 145.72668672,
+    "solve2": "numpy.linalg._umath_linalg.solve1"
+   },
+   "other_envs": [
+    {},
+    {
+     "config": {
+      "body": "75-M-H-10",
+      "floor": "robot_floor_carpet",
+      "pile_grid": 0.008,
+      "run_dir": "stage1/runs/2026-11-08/75-M-H-10",
+      "gains": "tuned",
+      "tune_json": null,
+      "tasks": [
+       "walk",
+       "walking_turn_left",
+       "walking_turn_right",
+       "in_place_turn_left",
+       "in_place_turn_right",
+       "brisk",
+       "fr05",
+       "stand",
+       "carpet_walk"
+      ],
+      "task_weights": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       2.0,
+       2.0,
+       1.0,
+       1.0
+      ],
+      "rate": 1.05,
+      "max_seconds": 30.0,
+      "randomize": true,
+      "friction": [
+       0.54,
+       1.25
+      ],
+      "mass": [
+       0.9,
+       1.1
+      ],
+      "kp": [
+       0.8,
+       1.2
+      ],
+      "latency_steps": [
+       0,
+       10
+      ],
+      "noise_scale": [
+       0.5,
+       1.5
+      ],
+      "push_prob": 0.5,
+      "push_frac": [
+       0.0,
+       1.0
+      ],
+      "push_s": 0.1,
+      "start_joint_noise": 0.01,
+      "start_root_velocity_noise": 0.02
+     },
+     "floor": "robot_floor_carpet",
+     "floor_params": {
+      "solref": [
+       0.024,
+       1.2
+      ],
+      "solimp": [
+       0.65,
+       0.94,
+       0.004,
+       0.5,
+       2.0
+      ],
+      "friction": [
+       0.95,
+       0.009,
+       0.0005
+      ],
+      "condim": 6
+     }
+    },
+    {
+     "config": {
+      "body": "75-M-H-10",
+      "floor": "low",
+      "pile_grid": 0.008,
+      "run_dir": "stage1/runs/2026-11-08/75-M-H-10",
+      "gains": "tuned",
+      "tune_json": null,
+      "tasks": [
+       "walk",
+       "walking_turn_left",
+       "walking_turn_right",
+       "in_place_turn_left",
+       "in_place_turn_right",
+       "brisk",
+       "fr05",
+       "stand",
+       "carpet_walk"
+      ],
+      "task_weights": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       2.0,
+       2.0,
+       1.0,
+       1.0
+      ],
+      "rate": 1.05,
+      "max_seconds": 30.0,
+      "randomize": true,
+      "friction": [
+       0.54,
+       1.25
+      ],
+      "mass": [
+       0.9,
+       1.1
+      ],
+      "kp": [
+       0.8,
+       1.2
+      ],
+      "latency_steps": [
+       0,
+       10
+      ],
+      "noise_scale": [
+       0.5,
+       1.5
+      ],
+      "push_prob": 0.5,
+      "push_frac": [
+       0.0,
+       1.0
+      ],
+      "push_s": 0.1,
+      "start_joint_noise": 0.01,
+      "start_root_velocity_noise": 0.02
+     },
+     "floor": "low",
+     "floor_params": {
+      "kind": "pile",
+      "k_A_N_per_m3": 32879150.975693256,
+      "stiffness_kPa_per_mm": 32.87915097569326,
+      "depth_m": 0.002921,
+      "height_m": 0.00635,
+      "grid_m": 0.008,
+      "solimp": [
+       0.5,
+       0.5,
+       0.002921,
+       0.5,
+       2.0
+      ],
+      "friction": [
+       0.54,
+       0.009,
+       0.0005
+      ],
+      "condim": 3,
+      "dampratio": 1.0,
+      "A_hat_per_kg": 1.0181280682627964,
+      "timestep": 0.002,
+      "full_cell_probe": {
+       "K_N_per_m": 2104.2656624443684,
+       "solref": [
+        0.030553678777095822,
+        1.0
+       ],
+       "damping_N_s_per_m": 128.58611422399596
+      },
+      "pad_stiffness_per_foot_N_per_m": 116448.9361564045,
+      "regularisation_inertia_kg_per_contact": 0.9821947072987313
+     }
+    }
+   ],
+   "floors": [
+    "hard",
+    "hard",
+    "robot_floor_carpet",
+    "low"
+   ],
+   "source_change": {
+    "allowed": true,
+    "first_session": "76befec13b55f633fe5857aa40b69a162be8c48810cf6396ba43d7f85450a369",
+    "this_session": "fb9756adb0a5fc5c85207a80adad1b95e0e0f6d538b6211fe26e5e75eacaccda"
+   },
+   "resumed_from": 2015232,
+   "seed_base": 430300,
+   "env_seeds": [
+    430300,
+    430301,
+    430302,
+    430303
+   ],
+   "episode_streams": [
+    {
+     "reset_seed": 430300,
+     "episodes": 167,
+     "first_episode_seed": 430300000000
+    },
+    {
+     "reset_seed": 430301,
+     "episodes": 171,
+     "first_episode_seed": 430301000000
+    },
+    {
+     "reset_seed": 430302,
+     "episodes": 362,
+     "first_episode_seed": 430302000000
+    },
+    {
+     "reset_seed": 430303,
+     "episodes": 448,
+     "first_episode_seed": 430303000000
+    }
+   ]
   }
  ],
  "checkpoints": [
@@ -2840,7 +3716,9 @@
   1507328,
   1753088,
   2007040,
-  2015232
+  2015232,
+  2252800,
+  2506752
  ],
  "throughput": [
   {
@@ -4156,12 +5034,605 @@
     "recorded_pass": false,
     "at": "2026-11-09T23:15:41+00:00"
    }
+  },
+  "G6c": {
+   "at_steps": 2506752,
+   "pass_": true,
+   "consequence_if_failed": "skip seed 43 and judge with R2",
+   "monitor": {
+    "rows": {
+     "policy": {
+      "walk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8670803048254393,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8674064833394549,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.867010144447017,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8590199162395774,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8592899286746916,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8590560787480453,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8606721250088953,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8608498492050383,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8601333604705582,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8692270069503462,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8681338596362321,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8688704909025531,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8801667266861678,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8782872213301596,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8797673209890906,
+        "fall_cause": null
+       }
+      ],
+      "brisk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8387080867719074,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8371231927443947,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8367462268253588,
+        "fall_cause": null
+       }
+      ],
+      "carpet_walk on robot_floor_carpet": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 5.12,
+        "mean_reward": 0.7753668330641263,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 5.04,
+        "mean_reward": 0.7751668669610784,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 5.08,
+        "mean_reward": 0.7750478794238617,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on low": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 4.4,
+        "mean_reward": 0.7872111269953794,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 4.5,
+        "mean_reward": 0.7785274516897026,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 4.4,
+        "mean_reward": 0.7842086471060478,
+        "fall_cause": "tilt"
+       }
+      ]
+     },
+     "zero": {
+      "walk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8568269244907749,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8549881285537108,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 18.38,
+        "mean_reward": 0.8558245064468768,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8456825782475216,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8456011811884938,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8452850100028523,
+        "fall_cause": null
+       }
+      ],
+      "walking_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8460143762669391,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8441341876227864,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.2,
+        "mean_reward": 0.8464018504832262,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_left": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8635171577881726,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8625193888461866,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8631650695800854,
+        "fall_cause": null
+       }
+      ],
+      "in_place_turn_right": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8636051394241592,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8622420311884023,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 14.06,
+        "mean_reward": 0.8631439536920575,
+        "fall_cause": null
+       }
+      ],
+      "brisk": [
+       {
+        "episode_seed": 5001,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8233217927890075,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5002,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8226737061930405,
+        "fall_cause": null
+       },
+       {
+        "episode_seed": 5003,
+        "fell": false,
+        "survival_s": 29.6,
+        "mean_reward": 0.8240693101818948,
+        "fall_cause": null
+       }
+      ],
+      "carpet_walk on robot_floor_carpet": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 4.98,
+        "mean_reward": 0.7770296042224343,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 5.1000000000000005,
+        "mean_reward": 0.7658052289537106,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 5.0600000000000005,
+        "mean_reward": 0.7727808637424354,
+        "fall_cause": "tilt"
+       }
+      ],
+      "carpet_walk on low": [
+       {
+        "episode_seed": 5001,
+        "fell": true,
+        "survival_s": 4.4,
+        "mean_reward": 0.7754454709551607,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5002,
+        "fell": true,
+        "survival_s": 4.54,
+        "mean_reward": 0.7706871418421605,
+        "fall_cause": "tilt"
+       },
+       {
+        "episode_seed": 5003,
+        "fell": true,
+        "survival_s": 4.42,
+        "mean_reward": 0.7712410089330205,
+        "fall_cause": "tilt"
+       }
+      ]
+     }
+    },
+    "summary": {
+     "policy": {
+      "walk": {
+       "falls": 0,
+       "survival_s": 18.38,
+       "mean_reward": 0.8671656442039705
+      },
+      "walking_turn_left": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8591219745541047
+      },
+      "walking_turn_right": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8605517782281639
+      },
+      "in_place_turn_left": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.8687437858297105
+      },
+      "in_place_turn_right": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.8794070896684727
+      },
+      "brisk": {
+       "falls": 0,
+       "survival_s": 29.600000000000005,
+       "mean_reward": 0.8375258354472203
+      },
+      "carpet_walk on robot_floor_carpet": {
+       "falls": 3,
+       "survival_s": 5.08,
+       "mean_reward": 0.7751938598163554
+      },
+      "carpet_walk on low": {
+       "falls": 3,
+       "survival_s": 4.433333333333334,
+       "mean_reward": 0.7833157419303767
+      }
+     },
+     "zero": {
+      "walk": {
+       "falls": 0,
+       "survival_s": 18.38,
+       "mean_reward": 0.8558798531637875
+      },
+      "walking_turn_left": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8455229231462892
+      },
+      "walking_turn_right": {
+       "falls": 0,
+       "survival_s": 29.2,
+       "mean_reward": 0.8455168047909839
+      },
+      "in_place_turn_left": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.863067205404815
+      },
+      "in_place_turn_right": {
+       "falls": 0,
+       "survival_s": 14.06,
+       "mean_reward": 0.862997041434873
+      },
+      "brisk": {
+       "falls": 0,
+       "survival_s": 29.600000000000005,
+       "mean_reward": 0.823354936387981
+      },
+      "carpet_walk on robot_floor_carpet": {
+       "falls": 3,
+       "survival_s": 5.046666666666668,
+       "mean_reward": 0.7718718989728601
+      },
+      "carpet_walk on low": {
+       "falls": 3,
+       "survival_s": 4.453333333333334,
+       "mean_reward": 0.7724578739101139
+      }
+     }
+    },
+    "mean_survival_s": {
+     "policy": 18.00166666666667,
+     "zero": 18.0
+    },
+    "g6c_by_condition": {
+     "walk": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.010253380334664386,
+       0.012418354785744157,
+       0.011185638000140163
+      ],
+      "mean_gain": 0.011285791040182902,
+      "r2_spread": 0.0018387959370641527,
+      "gain_needed": 0.01
+     },
+     "walking_turn_left": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.013337337992055831,
+       0.01368874748619775,
+       0.013771068745193071
+      ],
+      "mean_gain": 0.013599051407815551,
+      "r2_spread": 0.00039756824466929963,
+      "gain_needed": 0.01
+     },
+     "walking_turn_right": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.014657748741956245,
+       0.016715661582251906,
+       0.013731509987331969
+      ],
+      "mean_gain": 0.01503497343718004,
+      "r2_spread": 0.0022676628604398896,
+      "gain_needed": 0.01
+     },
+     "in_place_turn_left": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.0057098491621735414,
+       0.0056144707900455115,
+       0.005705421322467652
+      ],
+      "mean_gain": 0.005676580424895568,
+      "r2_spread": 0.0009977689419859992,
+      "gain_needed": 0.01
+     },
+     "in_place_turn_right": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.016561587262008626,
+       0.016045190141757315,
+       0.016623367297033065
+      ],
+      "mean_gain": 0.016410048233599667,
+      "r2_spread": 0.0013631082357569158,
+      "gain_needed": 0.01
+     },
+     "brisk": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 0,
+      "falls_r2": 0,
+      "gains": [
+       0.015386293982899923,
+       0.014449486551354251,
+       0.012676916643464042
+      ],
+      "mean_gain": 0.014170899059239406,
+      "r2_spread": 0.0013956039888542993,
+      "gain_needed": 0.01
+     },
+     "carpet_walk on robot_floor_carpet": {
+      "beats": false,
+      "fewer_falls": false,
+      "falls": 3,
+      "falls_r2": 3,
+      "gains": [
+       -0.0016627711583079297,
+       0.009361638007367779,
+       0.0022670156814262876
+      ],
+      "mean_gain": 0.0033219608434953787,
+      "r2_spread": 0.011224375268723663,
+      "gain_needed": 0.011224375268723663
+     },
+     "carpet_walk on low": {
+      "beats": true,
+      "fewer_falls": false,
+      "falls": 3,
+      "falls_r2": 3,
+      "gains": [
+       0.01176565604021873,
+       0.007840309847542137,
+       0.012967638173027263
+      ],
+      "mean_gain": 0.01085786802026271,
+      "r2_spread": 0.004758329113000226,
+      "gain_needed": 0.01
+     }
+    },
+    "policy_beats_zero_on": [
+     "walk",
+     "walking_turn_left",
+     "walking_turn_right",
+     "in_place_turn_right",
+     "brisk",
+     "carpet_walk on low"
+    ]
+   }
   }
  },
  "status": "running",
  "budget": 4005888,
  "budget_asked": 4000000,
- "num_timesteps": 2015232,
+ "num_timesteps": 2506752,
  "fix": {
   "rule": "G6b's consequence (plan section 3 step 7: make one fix, then stop; decision 32): one change to the env configs (FIX_FIELDS), applied on resume from the run's newest checkpoint and kept for the rest of the run (run.json 'fix', with the configs before it); G6b is checked again (G6b_after_fix) at the first rollout start at or past the fix's checkpoint + 1,000,000 steps, and if it fails the run stops there (status 'stopped_g6b'); a run holds at most one fix",
   "overrides": {
@@ -4394,9 +5865,9 @@
  },
  "judged_checkpoint": {
   "rule": "the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops training first, every body is judged at the last checkpoint all of them reached; the runs: every body x PPO seeds 42 and 43 for R3, every body x seed 42 for R4, each mode judged over its own runs, leaving out the R3 runs of a body judged with R2 (R2_JUDGED_RULE: a run that G6c or FIX_RULE stopped early does not cap the other bodies' checkpoint; decision 34); provisional (final false) until every run judged holds its budget's checkpoint or `judge --final` records that the stage's cap stopped training",
-  "steps": null,
-  "budget": 4005888,
-  "final": false,
+  "steps": 2506752,
+  "budget": 5000000,
+  "final": true,
   "runs": {
    "60-N-T-10/42": {
     "last_checkpoint": 2015232,
@@ -4419,23 +5890,21 @@
     "left_out": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
    },
    "75-M-H-10/42": {
-    "last_checkpoint": 2015232,
+    "last_checkpoint": 2506752,
     "has_budget": false,
-    "left_out": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)"
+    "left_out": null
    },
    "75-M-H-10/43": {
-    "last_checkpoint": 2015232,
+    "last_checkpoint": 2506752,
     "has_budget": false,
-    "left_out": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)"
+    "left_out": null
    }
   },
   "left_out": {
    "60-N-T-10/42": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
    "60-N-T-10/43": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
    "60-N-H-10/42": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
-   "60-N-H-10/43": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
-   "75-M-H-10/42": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)",
-   "75-M-H-10/43": "75-M-H-10's R3 is judged with R2: R3/43 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32)"
+   "60-N-H-10/43": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
   }
  },
  "unstopped": {

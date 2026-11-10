@@ -416,6 +416,169 @@
     },
     "cut_s": null
    },
+   "pile_damping": {
+    "status": "done",
+    "summary": {
+     "searches": {
+      "stand_low_down": {
+       "success": {
+        "status": "works across the interval",
+        "threshold": 0.5,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 0.5,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "stand_low_up": {
+       "success": {
+        "status": "works across the interval",
+        "threshold": 2.0,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 2.0,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "carpet_low_down": {
+       "success": {
+        "status": "fails at nominal",
+        "threshold": null,
+        "fails": 1.0,
+        "resolution": null,
+        "search": null,
+        "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 1,
+        "panels": {
+         "record": "75-M-H-10/eval/R2/43/carpet/low.json",
+         "pass_": false,
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "decision_20_label": "controller-limited"
+        },
+        "flag": null
+       },
+       "survival": {
+        "status": "fails at nominal",
+        "threshold": null,
+        "fails": 1.0,
+        "resolution": null,
+        "search": null,
+        "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 1,
+        "panels": {
+         "record": "75-M-H-10/eval/R2/43/carpet/low.json",
+         "pass_": false,
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "decision_20_label": "controller-limited"
+        },
+        "flag": null
+       }
+      },
+      "carpet_low_up": {
+       "success": {
+        "status": "fails at nominal",
+        "threshold": null,
+        "fails": 1.0,
+        "resolution": null,
+        "search": null,
+        "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 1,
+        "panels": {
+         "record": "75-M-H-10/eval/R2/43/carpet/low.json",
+         "pass_": false,
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "decision_20_label": "controller-limited"
+        },
+        "flag": null
+       },
+       "survival": {
+        "status": "fails at nominal",
+        "threshold": null,
+        "fails": 1.0,
+        "resolution": null,
+        "search": null,
+        "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 1,
+        "panels": {
+         "record": "75-M-H-10/eval/R2/43/carpet/low.json",
+         "pass_": false,
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "decision_20_label": "controller-limited"
+        },
+        "flag": null
+       }
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "stand_low_down": "pile_damping",
+     "stand_low_up": "pile_damping",
+     "carpet_low_down": "pile_damping",
+     "carpet_low_up": "pile_damping"
+    },
+    "cost": {
+     "evaluations": 5,
+     "episodes": 15,
+     "simulated_s": 234.5679999999968,
+     "wall_s": 164.14408091699806,
+     "cpu_s": 136.937904953,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
    "push": {
     "status": "done",
     "summary": {
@@ -1164,7 +1327,100 @@
     "rule": "the ledger's sources: the sha256 of designlab/stage1/ledger.py (its margins, variants and searches); the panels' sources are in each evaluation's panel key (panels.PANEL_SOURCES_RULE); every worker checks both against the session's, so a worker started after an edit refuses to run"
    },
    "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970"
+  },
+  {
+   "started_at": "2026-11-09T23:44:08+00:00",
+   "rows": [
+    "R2/43"
+   ],
+   "rows_left_out": {},
+   "margins": [
+    "pile_damping"
+   ],
+   "workers": 1,
+   "cut_s": null,
+   "halvings": 7,
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "rounds": 2,
+   "episodes_run": 15,
+   "evaluations_reused": 0,
+   "skipped": [],
+   "incidents": [],
+   "ended_at": "2026-11-09T23:46:58+00:00",
+   "wall_s": 170.94196325600024,
+   "provenance": {
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1",
+     "gymnasium": "1.4.0",
+     "stable-baselines3": "2.9.2",
+     "torch": "2.15.0"
+    },
+    "git": {
+     "commit": "0b4b32bd1f4b470b4ccc76a399f320d8a8054130",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/summary.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/sweeps/R2/43/kp.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/sweeps/R2/43/latency.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/sweeps/R2/43/mass.json",
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/sweeps/summary.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/push/standing_backward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/push/standing_forward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/push/standing_left.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/push/standing_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/push/walking_backward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/push/walking_forward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R0/start_stop/twice.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R4/42/push/standing_backward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R4/42/push/standing_forward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/eval/R4/42/start_stop/twice.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/eval/R4/42/push/standing_backward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/eval/R4/42/push/standing_left.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/eval/R4/42/push/standing_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/eval/R4/42/push/walking_forward.json"
+     ]
+    },
+    "stage1_sources": {
+     "sha256": "fb9756adb0a5fc5c85207a80adad1b95e0e0f6d538b6211fe26e5e75eacaccda",
+     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+     "files": [
+      "__init__.py",
+      "__main__.py",
+      "control.py",
+      "drive.py",
+      "env.py",
+      "estimator.py",
+      "gates.py",
+      "ledger.py",
+      "legs.py",
+      "metrics.py",
+      "panels.py",
+      "plant.py",
+      "policy.py",
+      "policy_rows.py",
+      "refs.py",
+      "replay.py",
+      "report.py",
+      "train.py",
+      "transitions.py",
+      "tune.py"
+     ]
+    }
+   },
+   "ledger_sources": {
+    "sha256": "4de8aa89a453ca23888fd9a9fb77b4000ac6530ebfb67b2f81337e366ce13408",
+    "file": "ledger.py",
+    "rule": "the ledger's sources: the sha256 of designlab/stage1/ledger.py (its margins, variants and searches); the panels' sources are in each evaluation's panel key (panels.PANEL_SOURCES_RULE); every worker checks both against the session's, so a worker started after an edit refuses to run"
+   },
+   "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970"
   }
  ],
- "written_at": "2026-11-09T23:44:06+00:00"
+ "written_at": "2026-11-09T23:46:58+00:00"
 }

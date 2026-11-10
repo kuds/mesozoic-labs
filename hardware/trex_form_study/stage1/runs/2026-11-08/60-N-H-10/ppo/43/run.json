@@ -3855,5 +3855,49 @@
   "at": "2026-11-09T22:24:58+00:00",
   "reason": "the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores",
   "by": "operator"
+ },
+ "judged_checkpoint": {
+  "rule": "the policy judged is the checkpoint at the budget (no best-model selection); if the stage cap stops training first, every body is judged at the last checkpoint all of them reached; the runs: every body x PPO seeds 42 and 43 for R3, every body x seed 42 for R4, each mode judged over its own runs, leaving out the R3 runs of a body judged with R2 (R2_JUDGED_RULE: a run that G6c or FIX_RULE stopped early does not cap the other bodies' checkpoint; decision 34); provisional (final false) until every run judged holds its budget's checkpoint or `judge --final` records that the stage's cap stopped training",
+  "steps": 2506752,
+  "budget": 5000000,
+  "final": true,
+  "runs": {
+   "60-N-T-10/42": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "60-N-T-10/43": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "60-N-H-10/42": {
+    "last_checkpoint": 2015232,
+    "has_budget": false,
+    "left_out": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "60-N-H-10/43": {
+    "last_checkpoint": 1753088,
+    "has_budget": false,
+    "left_out": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+   },
+   "75-M-H-10/42": {
+    "last_checkpoint": 2506752,
+    "has_budget": false,
+    "left_out": null
+   },
+   "75-M-H-10/43": {
+    "last_checkpoint": 2506752,
+    "has_budget": false,
+    "left_out": null
+   }
+  },
+  "left_out": {
+   "60-N-T-10/42": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "60-N-T-10/43": "60-N-T-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 2015232 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "60-N-H-10/42": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)",
+   "60-N-H-10/43": "60-N-H-10's R3 is judged with R2: R3/42 stopped at 2015232 steps: G6b failed again after the fix (FIX_RULE) (decision 32); R3/43 stopped at 1753088 steps: the body's R3 is judged with R2 (train.R2_JUDGED_RULE, decision 38): its seed 42 run was stopped by FIX_RULE at 2015232 steps (G6b failed again after the fix), so this run cannot change a verdict; stopped to give the 75 cm runs the cores (decision 32)"
+  }
  }
 }
