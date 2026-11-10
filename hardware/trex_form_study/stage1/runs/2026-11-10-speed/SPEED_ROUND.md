@@ -21,10 +21,10 @@ section 4's reading of the rows). `run_speed_round.sh` holds the exact commands;
 
 ## Per arm
 
-| | Arm S: `60-N-T-10`, `60-N-H-10` | Arm K: `60-N-T-10-K`, `60-N-H-10-K` |
+| | Arm S: `60-N-T-10`, `60-N-H-10` | Arm K: `60-N-T-10-K` (decision 8: `60-N-H-10-K` is not fitted) |
 |---|---|---|
 | References | Stage 1's run: `--inputs stage1/runs/2026-11-08` | this run (no `--inputs`) |
-| Start | the body's own Stage 1 G5 selection | the pick's: `--start-from 60-N-T-10` / `60-N-H-10` |
+| Start | the body's own Stage 1 G5 selection | the pick's: `--start-from 60-N-T-10` |
 | Rows | `R2s/42`, `R2s/42@10ms`, `R2@10ms` | the same and `R2@0ms` |
 | Q1 / Q2 baseline at 0 ms | Stage 1's `R2/<start seed>` on the body | `R2@0ms` on the body |
 
@@ -33,12 +33,13 @@ row runs with `--attribute`, so its falls get decision 20's labels (decision 2).
 
 ## Order and budget
 
-Run the four bodies at once, one core each, with nothing else heavy on the machine:
+Run the three bodies at once (decision 8), one core each, with nothing else heavy on the machine:
 `run_speed_round.sh all BODY` runs the fit, then speed G5, then the rows. Each step continues after a restart. Then
 run `run_speed_round.sh report`, which writes `STAGE1B_TABLES.md` and `stage1b_tables.json` here.
 
 `60-N-T-10/speedfit/cost.json` holds the cost of one evaluation and the projections (`speedfit.COST_RULE`). If the
-fits cannot reach generation 30 in time for speed G5 and the rows before 11:00 UTC, stop them and judge every arm at
+fits cannot reach generation 30 in time for speed G5 and the rows before 14:30 UTC (decision 10; section 5 had
+11:00 before the 07:54 launch), stop them and judge every arm at
 the last generation all of them reached: `run_speed_round.sh g5 BODY G`, then `rows BODY` (plan section 5).
 
 ## Files
