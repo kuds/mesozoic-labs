@@ -137,3 +137,12 @@ These were settled on 10 Nov, after the build's review and before any speed fit 
    tuner's (e7b37918 → 6a33d3f9). Stage 1's fits name c8b112cf and were already refused by Stage 1's own final code
    (`ARM_K.md` section 3), so decision 6's rule stands: no eval, sweep, tune or g5 against 2026-11-08 with the round's
    code.
+10. **The schedule moves with the late start** (decided at launch, 07:55 UTC, before any fit ran). The build and its
+    reviews took until 07:50, so the fits start about 3.5 h after section 5's 04:30. Section 5's window keeps its
+    length and moves with them: compute until about 14:30 UTC, the report by about 16:00 UTC.
+    - The fits keep their 360 evaluations, for decision 1's reason: a shorter fit would weaken a negative answer to Q1
+      or Q2.
+    - Decision 7's rule stands at the new time. If the fits cannot reach generation 30 in time for speed G5 and the
+      rows before 14:30, every arm is judged at the last generation all of them reached.
+    - The measured cost (`60-N-T-10/speedfit/cost.json`) is 1.9 core-h per fit on an idle core, or 3.0–3.2 h each with
+      four at once. That puts the fits' end at about 10:30–11:15 and the rows' at about 12:30–13:30, with three at once.

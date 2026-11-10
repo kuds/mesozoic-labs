@@ -12,8 +12,9 @@
 #   bash stage1/runs/2026-11-10-speed/run_speed_round.sh all  BODY        # fit, then g5, then rows
 #   bash stage1/runs/2026-11-10-speed/run_speed_round.sh report           # plan section 4's reading (speedreport)
 #
-# The four bodies at once, one core each (plan section 6, decision 7), with nothing else heavy on the machine:
-#   for b in 60-N-T-10 60-N-H-10 60-N-T-10-K 60-N-H-10-K; do
+# The three bodies at once, one core each (plan section 6, decisions 7 and 8: arm K is 60-N-T-10-K alone), with
+# nothing else heavy on the machine:
+#   for b in 60-N-T-10 60-N-H-10 60-N-T-10-K; do
 #       nohup bash stage1/runs/2026-11-10-speed/run_speed_round.sh all $b > /dev/null 2>&1 &
 #   done
 # If the fits cannot reach generation 30 in time (plan section 5), stop them, read the generation each reached
