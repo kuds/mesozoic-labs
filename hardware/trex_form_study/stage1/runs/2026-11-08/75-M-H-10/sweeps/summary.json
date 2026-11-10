@@ -894,6 +894,717 @@
     },
     "cut_s": null
    }
+  },
+  "R3/42": {
+   "drive_speed": {
+    "status": "partial",
+    "summary": {
+     "searches": {
+      "walk_fr05": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 1.0,
+        "fails": 0.625,
+        "resolution": null,
+        "search": null,
+        "label": "body-limited: drive_speed",
+        "evaluated": 3,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.625,
+        "fails": 0.25,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope, ankle_linkage, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 3,
+        "panels": null,
+        "flag": null
+       }
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "walk_fr05": "speed_scale"
+    },
+    "cost": {
+     "evaluations": 5,
+     "episodes": 15,
+     "simulated_s": 397.309999999943,
+     "wall_s": 71.04092714999751,
+     "cpu_s": 70.97607765000001,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "drive_torque": {
+    "status": "partial",
+    "summary": {
+     "searches": {
+      "walk_nominal": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 1.0,
+        "fails": 0.625,
+        "resolution": null,
+        "search": null,
+        "label": "body-limited: drive_sustained",
+        "evaluated": 3,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.625,
+        "fails": 0.25,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, slip, joint_range pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 3,
+        "panels": null,
+        "flag": null
+       }
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "walk_nominal": "torque_scale"
+    },
+    "cost": {
+     "evaluations": 5,
+     "episodes": 15,
+     "simulated_s": 231.18600000000774,
+     "wall_s": 39.38225610400332,
+     "cpu_s": 39.361623951999995,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "grip": {
+    "status": "partial",
+    "summary": {
+     "searches": {
+      "walk_nominal": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.9,
+        "fails": 0.1,
+        "resolution": null,
+        "search": null,
+        "label": "body-limited: slip_median, slip_worst",
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 0.1,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "turn_left": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.9,
+        "fails": 0.1,
+        "resolution": null,
+        "search": null,
+        "label": "body-limited: slip_median, slip_worst",
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 0.1,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "turn_right": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.9,
+        "fails": 0.1,
+        "resolution": null,
+        "search": null,
+        "label": "body-limited: slip_median, slip_worst",
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 0.1,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "walk_brisk": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.9,
+        "fails": 0.1,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.9,
+        "fails": 0.1,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope, slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "turn": {
+       "success": {
+        "status": "incomplete",
+        "threshold": null,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 0,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 0.1,
+        "fails": null,
+        "resolution": null,
+        "search": "turn_left",
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "of": [
+        "turn_left",
+        "turn_right"
+       ]
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "walk_nominal": "friction",
+     "turn_left": "friction",
+     "turn_right": "friction",
+     "walk_brisk": "friction"
+    },
+    "cost": {
+     "evaluations": 12,
+     "episodes": 36,
+     "simulated_s": 851.3239999999097,
+     "wall_s": 167.26232730099946,
+     "cpu_s": 167.83169385199994,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "kp": {
+    "status": "done",
+    "summary": {
+     "searches": {
+      "walk_nominal": {
+       "success": {
+        "status": "bisected",
+        "threshold": 0.71875,
+        "fails": 0.712890625,
+        "resolution": 0.005859375,
+        "search": null,
+        "label": "controller-limited",
+        "evaluated": 9,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "bisected",
+        "threshold": 0.56640625,
+        "fails": 0.560546875,
+        "resolution": 0.005859375,
+        "search": null,
+        "label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 9,
+        "panels": null,
+        "flag": null
+       }
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "walk_nominal": "kp"
+    },
+    "cost": {
+     "evaluations": 17,
+     "episodes": 51,
+     "simulated_s": 724.4600000000228,
+     "wall_s": 149.13830821199917,
+     "cpu_s": 148.67296400800006,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "latency": {
+    "status": "done",
+    "summary": {
+     "searches": {
+      "walk_nominal": {
+       "success": {
+        "status": "bisected",
+        "threshold": 3,
+        "fails": 4,
+        "resolution": 1,
+        "search": null,
+        "label": "controller-limited",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 10,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "walk_nominal": "latency_steps"
+    },
+    "cost": {
+     "evaluations": 6,
+     "episodes": 18,
+     "simulated_s": 289.9980000000094,
+     "wall_s": 56.38888343399958,
+     "cpu_s": 56.45437466000001,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "mass": {
+    "status": "done",
+    "summary": {
+     "searches": {
+      "walk_nominal": {
+       "success": {
+        "status": "works across the interval",
+        "threshold": 1.3,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "works across the interval",
+        "threshold": 1.3,
+        "fails": null,
+        "resolution": null,
+        "search": null,
+        "label": null,
+        "evaluated": 2,
+        "panels": null,
+        "flag": null
+       }
+      }
+     },
+     "points": {
+      "walk_nominal_trunk_x1.1": {
+       "status": "done",
+       "value": 1.1,
+       "condition": "walk/nominal",
+       "works": true,
+       "works_outright": true,
+       "survives": true,
+       "succeeded": 3,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": 0.041473756290175245,
+       "label": null
+      },
+      "walk_nominal_robot_x1.1": {
+       "status": "done",
+       "value": 1.241,
+       "condition": "walk/nominal",
+       "works": true,
+       "works_outright": true,
+       "survives": true,
+       "succeeded": 3,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": 0.09995175265932255,
+       "label": null
+      }
+     }
+    },
+    "kinds": {
+     "walk_nominal": "mass"
+    },
+    "cost": {
+     "evaluations": 4,
+     "episodes": 12,
+     "simulated_s": 220.63200000000825,
+     "wall_s": 37.73802960499961,
+     "cpu_s": 38.099801265,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "push": {
+    "status": "partial",
+    "summary": {
+     "searches": {
+      "standing_forward": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.2945,
+        "fails": 0.368125,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.2945,
+        "fails": 0.368125,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "standing_backward": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.2945,
+        "fails": 0.368125,
+        "resolution": null,
+        "search": null,
+        "label": "controller-limited (falls with no relaxable hardware limit active before the onset: nothing to lift, decision 20; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.2945,
+        "fails": 0.368125,
+        "resolution": null,
+        "search": null,
+        "label": "controller-limited (falls with no relaxable hardware limit active before the onset: nothing to lift, decision 20; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "standing_left": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.589,
+        "fails": 0.662625,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.589,
+        "fails": 0.662625,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "standing_right": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.589,
+        "fails": 0.662625,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.589,
+        "fails": 0.662625,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of drive_torque, envelope pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "walking_forward": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.14725,
+        "fails": 0.220875,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.14725,
+        "fails": 0.220875,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "walking_backward": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.14725,
+        "fails": 0.220875,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.14725,
+        "fails": 0.220875,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "walking_left": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.073625,
+        "fails": 0.14725,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.073625,
+        "fails": 0.14725,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      },
+      "walking_right": {
+       "success": {
+        "status": "incomplete",
+        "threshold": 0.073625,
+        "fails": 0.14725,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       },
+       "survival": {
+        "status": "incomplete",
+        "threshold": 0.073625,
+        "fails": 0.14725,
+        "resolution": null,
+        "search": null,
+        "label": "falls: lifts of slip pending (LIFT_RULE; untestable: cop_at_pad_edge_with_ankle_saturated)",
+        "evaluated": 6,
+        "panels": null,
+        "flag": null
+       }
+      }
+     },
+     "points": {}
+    },
+    "kinds": {
+     "standing_forward": "push_dv",
+     "standing_backward": "push_dv",
+     "standing_left": "push_dv",
+     "standing_right": "push_dv",
+     "walking_forward": "push_dv",
+     "walking_backward": "push_dv",
+     "walking_left": "push_dv",
+     "walking_right": "push_dv"
+    },
+    "cost": {
+     "evaluations": 56,
+     "episodes": 168,
+     "simulated_s": 1119.0739999999612,
+     "wall_s": 196.87239092300297,
+     "cpu_s": 196.61765858900003,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   },
+   "voltage": {
+    "status": "done",
+    "summary": {
+     "searches": {},
+     "points": {
+      "walk_nominal_25.2V": {
+       "status": "done",
+       "value": 25.2,
+       "condition": "walk/nominal",
+       "works": true,
+       "works_outright": true,
+       "survives": true,
+       "succeeded": 3,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": null,
+       "label": null
+      },
+      "walk_nominal_22.2V": {
+       "status": "done",
+       "value": 22.2,
+       "condition": "walk/nominal",
+       "works": true,
+       "works_outright": true,
+       "survives": true,
+       "succeeded": 3,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": null,
+       "label": null
+      },
+      "walk_nominal_21V": {
+       "status": "done",
+       "value": 21.0,
+       "condition": "walk/nominal",
+       "works": true,
+       "works_outright": true,
+       "survives": true,
+       "succeeded": 3,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": null,
+       "label": null
+      },
+      "walk_fr05_25.2V": {
+       "status": "done",
+       "value": 25.2,
+       "condition": "walk/fr05",
+       "works": true,
+       "works_outright": false,
+       "survives": true,
+       "succeeded": 0,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": null,
+       "label": null
+      },
+      "walk_fr05_22.2V": {
+       "status": "done",
+       "value": 22.2,
+       "condition": "walk/fr05",
+       "works": true,
+       "works_outright": false,
+       "survives": true,
+       "succeeded": 0,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": null,
+       "label": null
+      },
+      "walk_fr05_21V": {
+       "status": "done",
+       "value": 21.0,
+       "condition": "walk/fr05",
+       "works": true,
+       "works_outright": false,
+       "survives": true,
+       "succeeded": 0,
+       "survived": 3,
+       "same_as_nominal": false,
+       "robot_mass_change": null,
+       "label": null
+      }
+     }
+    },
+    "kinds": {},
+    "cost": {
+     "evaluations": 8,
+     "episodes": 24,
+     "simulated_s": 545.2559999999589,
+     "wall_s": 94.35111168200092,
+     "cpu_s": 94.126243998,
+     "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+    },
+    "cut_s": null
+   }
   }
  },
  "sessions": [
@@ -1420,7 +2131,106 @@
     "rule": "the ledger's sources: the sha256 of designlab/stage1/ledger.py (its margins, variants and searches); the panels' sources are in each evaluation's panel key (panels.PANEL_SOURCES_RULE); every worker checks both against the session's, so a worker started after an edit refuses to run"
    },
    "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970"
+  },
+  {
+   "started_at": "2026-11-10T01:03:33+00:00",
+   "rows": [
+    "R3/42"
+   ],
+   "rows_left_out": {},
+   "margins": [
+    "kp",
+    "latency",
+    "mass"
+   ],
+   "workers": 1,
+   "cut_s": null,
+   "halvings": 7,
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "rounds": 10,
+   "episodes_run": 75,
+   "evaluations_reused": 0,
+   "skipped": [],
+   "incidents": [],
+   "ended_at": "2026-11-10T01:07:17+00:00",
+   "wall_s": 223.835259907999,
+   "provenance": {
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1",
+     "gymnasium": "1.3.0",
+     "stable-baselines3": "2.9.0",
+     "torch": "2.9.0+cpu"
+    },
+    "git": {
+     "commit": "64b25c31b241490b3d16c010a6ee99106703bfa9",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/summary.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/carpet/high.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/carpet/low.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/carpet/medium.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/carpet/robot_floor_carpet.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/push/standing_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/push/walking_backward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/push/walking_forward.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/push/walking_left.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/push/walking_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/stand/low.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/turn/in_place_0.50_left.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/turn/in_place_0.50_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/turn/walking_0.35_left.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/turn/walking_0.35_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/turn/walking_0.50_left.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/turn/walking_0.50_right.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/walk/brisk.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/walk/brisk_mu0.54.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/walk/fr05.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/walk/fr05_mu0.54.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/walk/nominal.json",
+      "?? hardware/trex_form_study/stage1/runs/2026-11-08/75-M-H-10/eval/R4/42/walk/nominal_mu0.54.json"
+     ]
+    },
+    "stage1_sources": {
+     "sha256": "fb9756adb0a5fc5c85207a80adad1b95e0e0f6d538b6211fe26e5e75eacaccda",
+     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+     "files": [
+      "__init__.py",
+      "__main__.py",
+      "control.py",
+      "drive.py",
+      "env.py",
+      "estimator.py",
+      "gates.py",
+      "ledger.py",
+      "legs.py",
+      "metrics.py",
+      "panels.py",
+      "plant.py",
+      "policy.py",
+      "policy_rows.py",
+      "refs.py",
+      "replay.py",
+      "report.py",
+      "train.py",
+      "transitions.py",
+      "tune.py"
+     ]
+    }
+   },
+   "ledger_sources": {
+    "sha256": "4de8aa89a453ca23888fd9a9fb77b4000ac6530ebfb67b2f81337e366ce13408",
+    "file": "ledger.py",
+    "rule": "the ledger's sources: the sha256 of designlab/stage1/ledger.py (its margins, variants and searches); the panels' sources are in each evaluation's panel key (panels.PANEL_SOURCES_RULE); every worker checks both against the session's, so a worker started after an edit refuses to run"
+   },
+   "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970"
   }
  ],
- "written_at": "2026-11-09T23:46:58+00:00"
+ "written_at": "2026-11-10T01:07:17+00:00"
 }
