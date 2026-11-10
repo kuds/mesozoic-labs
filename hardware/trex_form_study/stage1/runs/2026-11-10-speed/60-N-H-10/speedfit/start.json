@@ -1,0 +1,29 @@
+{
+ "rule": "the fit starts from a Stage 1 G5 selection: env.tuned_gains (env.GAINS_RULE) on <Stage 1 run>/<start body>/tune.json, the start body being the body itself when it has a Stage 1 fit (<Stage 1 run>/<body>/tune.json) and otherwise (a faster-knee body) the pick it is built from, its round-two candidate id (the registry's candidate_id); --start-from may name that start body and no other; refused unless that selection passed G5 and holds the fixed gains (tune.FIXED_GAINS); the start is recorded once per body (speedfit/start.json: the record's path and sha256, the candidate and its gains) and every seed and session must start from it",
+ "body": "60-N-H-10",
+ "start_from": "60-N-H-10",
+ "file": "stage1/runs/2026-11-08/60-N-H-10/tune.json",
+ "sha256": "b476fb59eb2ca48742280b090f0f04687cd90dab585fde1f34b7e869728afb80",
+ "candidate": "seed43_gen60",
+ "cma_seed": 43,
+ "status": "passed",
+ "source": "60-N-H-10's Stage 1 G5 selection (tune.json: CMA-ES seed 43's G5 selection seed43_gen60)",
+ "gains": {
+  "k_dcm": 4.557741588942894,
+  "cop_x": 0.025999289684282056,
+  "cop_y": 0.028698895722522953,
+  "k_step": 0.0,
+  "step_x": 0.0491867011114736,
+  "step_out": 0.020484880819798306,
+  "decay": 2.6782268890493905,
+  "k_trunk": 112.12452344542918,
+  "d_trunk": 1.4993592734034449,
+  "k_yaw": 0.5914771222965296,
+  "ki_yaw": 0.054671982849467456,
+  "k_phase": 0.18677178742980216,
+  "ki_phase": 0.5264919717334339,
+  "capture_margin": 0.0
+ },
+ "gains_rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+ "recorded_at": "2026-11-10T07:54:01+00:00"
+}
