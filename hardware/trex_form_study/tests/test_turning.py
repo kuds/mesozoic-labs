@@ -31,6 +31,17 @@ FAST_BRISK = dataclasses.replace(sizing.BRISK, n=80, zmp_iters=1)
 REPRO = dict(com_tol=2e-4, com_iters=4, phase_tol=0.0, unwrap="gait")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def round_one_accuracy():
+    """These tests compare with ``gait.generate`` at its default accuracy (round one's, ``gait.set_accuracy("r1")``).
+    The walk accuracy is process-wide, and a test module run before this one in the same process may leave round
+    two's set (``designlab.stage1.refs`` sets it), so it is set here and restored after."""
+    before = gait.ACCURACY
+    gait.set_accuracy("r1")
+    yield
+    gait.set_accuracy(before)
+
+
 @pytest.fixture(scope="module")
 def built(tmp_path_factory):
     """60-M-T-10 as sized in Stage A (the default build if the round-one record is absent)."""

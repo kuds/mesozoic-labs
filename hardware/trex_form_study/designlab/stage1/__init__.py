@@ -50,10 +50,12 @@ BODIES = {
 }
 #: The probe's own bodies (``STAGE1_PLAN.md``): the set its PPO runs are judged over together (``train.JUDGED_RULE``).
 PROBE_BODIES = ("60-N-T-10", "60-N-H-10", "75-M-H-10")
-#: The round-two candidate id of each body whose name is not that id (``candidate_id``).
+#: The round-two candidate id of each body whose name is not that id (``candidate_id``).  Arm K's bodies are not
+#: margin-ledger bodies: ``ledger`` (``sweep``) reads its screens and its per-body tables (``MASSES``, ``STAGE0``) by
+#: body name and holds none for them, and Stage 1b sweeps neither.
 CANDIDATE_IDS = {"60-N-T-10-K": "60-N-T-10", "60-N-H-10-K": "60-N-H-10"}
-#: Leading digits of each record's ``xml_sha256`` as the plan lists them (a second check on the record itself); arm
-#: K's from its records (``round2/refine/narrow_knee_60/candidates``).
+#: Leading digits of each record's ``xml_sha256`` as the plans list them (a second check on the record itself): the
+#: probe's in ``STAGE1_PLAN.md``, arm K's in ``STAGE1B_PLAN.md`` section 3 (from the case's records).
 SHA256_PREFIX = {"60-N-T-10": "993c5ac5", "60-N-H-10": "96ef84c5", "75-M-H-10": "0517e4d3",
                  "60-N-T-10-K": "85d98c24", "60-N-H-10-K": "e0d4c6b7"}
 

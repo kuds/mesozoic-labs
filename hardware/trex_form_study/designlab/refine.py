@@ -171,7 +171,8 @@ def _size(a):
     p = Path(out, "candidates", f"{cid}.json")
     d = json.loads(p.read_text())
     c = CASES[case]
-    d.update(refine_case=case, headroom=c["headroom"], fr05_sizing=c["fr05"], turn_min_gap_mm=c["min_gap"])
+    d.update(refine_case=case, headroom=c["headroom"], headroom_by_group=dict(c.get("headroom_by_group") or {}),
+             fr05_sizing=c["fr05"], turn_min_gap_mm=c["min_gap"])  # records sized before 10 Nov lack the groups
     p.write_text(json.dumps(d, indent=1))
     return dict(case=case, **r)
 

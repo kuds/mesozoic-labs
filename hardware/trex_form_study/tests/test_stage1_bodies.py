@@ -226,3 +226,41 @@ def test_arm_k_gate_records(body):
     assert doc["pass"] == (g1["pass"] and g2["pass"] and g3["pass_"] and g4["pass"])
     for g in (g1, g2, g3, g4):
         assert g["provenance"]["stage1_sources"]["unchanged_during_run"]
+
+
+def _arm_k_inputs():
+    """``stage1/runs/2026-11-10-speed/arm_k_inputs.py``, the list's checker (a script of the run directory)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("arm_k_inputs", K_RUN / "arm_k_inputs.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_arm_k_inputs_list_every_git_ignored_file_the_records_name():
+    """``arm_k_inputs.json`` (``ARM_K.md`` section 2) lists exactly the git-ignored files arm K reads, which a merge
+    does not bring: the case's four model files (each XML at its record's ``xml_sha256``) and the 56 reference and
+    transition arrays that refs.json and transitions.json name, at the sha256 they record.  Every file that is here
+    matches the list."""
+    import subprocess
+
+    mod = _arm_k_inputs()
+    files = json.loads((K_RUN / "arm_k_inputs.json").read_text())["files"]
+    rec = {}
+    for body in sorted(ARM_K):
+        rec.update(mod.recorded(body))
+    assert set(files) == set(rec)
+    assert {p: files[p] for p, want in rec.items() if want is not None} == {p: w for p, w in rec.items() if w}
+    kinds = [p.split("/")[-2] for p in files]
+    assert (kinds.count("models"), kinds.count("refs"), kinds.count("transitions")) == (4, 20, 36)
+    assert all(p.startswith(K_CASE + "/models/") for p in files if "/models/" in p)
+    here = {p: plant.sha256(ROOT / p) for p in files if (ROOT / p).exists()}
+    assert {p: files[p] for p in here} == here
+    try:
+        out = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "--no-index", "--stdin"], input="\n".join(files),
+                             capture_output=True, text=True, check=False)
+    except OSError:
+        return
+    if out.returncode in (0, 1):  # 0: some path ignored, 1: none (128: not a git checkout)
+        assert set(out.stdout.split()) == set(files)
