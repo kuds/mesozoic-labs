@@ -1088,7 +1088,7 @@ def measure_cost(body: str, run_dir: Path, gains, seed: int | None = None, log=p
                           wall_h_1_worker=hours(g5_sim), wall_h_2_workers=hours(g5_sim, 2)),
             rows=dict(rows=3, conditions=row_s, episodes=3 * panels.RUNS * len(row_s), simulated_s=row_sim,
                       cpu_h=hours(row_sim), wall_h_1_worker=hours(row_sim), wall_h_2_workers=hours(row_sim, 2))),
-        cpu_count=os.cpu_count())
+        cpu_count=os.cpu_count(), speed_sources=speed_sources(), provenance=plant.provenance())
     eps = ", ".join(f"{k} {'fell at ' + format(e['seconds'], '.1f') + ' s' if e['fell'] else 'up'}, "
                     f"{e['latency_steps']} steps" for k, e in per.items())
     log(f"{body}: one evaluation {r['simulated_s']:.1f} simulated s (planned {planned_eval:.1f}), {r['cpu_s']:.1f} CPU "
