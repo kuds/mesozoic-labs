@@ -35,6 +35,13 @@ The 75 cm body is not in this round. Its brisk walk already stays up and misses 
 - **The K bodies.** Round two's sizing pipeline (`designlab/refine.py`) builds the narrow carpet-ready case with 15 %
   knee headroom (`narrow_knee_60`). Stage 1's `prepare` (plant, references, transitions) and gates G1–G4 then run on
   each K body, as Stage 1 ran them on the picks.
+  - Their models' `xml_sha256` begin `85d98c24` (`60-N-T-10-K`) and `e0d4c6b7` (`60-N-H-10-K`), from the case's
+    records of 10 Nov. G1 checks each model against these prefixes (`SHA256_PREFIX`), as it checks the picks'.
+  - Registering them changes the panels' and the tuner's source hashes. With the round's code, Stage 1's panel and
+    ledger records therefore read as made by other code, and none of them is run again (section 6).
+  - The build's notes are in `stage1/runs/2026-11-10-speed/ARM_K.md`. They cover the git-ignored inputs a checkout
+    needs, the open question on `60-N-H-10-K` (its body fails round two's clearance gate), and how the K bodies differ
+    from their picks.
 - **The speed fit (R2s).** This is Stage 1's CMA-ES fit of the tracker's gains (`stage1-tune-v2`, decision 22) with a
   wider episode mix. It is otherwise unchanged; capture margin held at 0.0.
   - Each evaluation runs the nominal walk, the brisk walk, the Froude 0.05 walk, the 0.35 rad/s walking turn and the

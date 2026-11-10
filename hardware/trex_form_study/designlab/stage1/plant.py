@@ -1,10 +1,10 @@
 """Stage 1 plant: a chosen body's screened MJCF made ready for closed-loop simulation (``STAGE1_PLAN.md`` section 2).
 
-The model is the round-two sizing model, ``<case>/models/<id>.xml``, used only after its SHA-256 matches the
-record's ``xml_sha256`` (and the plan's prefix of it).  If the file is missing (it is git-ignored) it is rebuilt
-from the record with ``pipeline.build_candidate``, the call of ``refine.carpet_lift_one``, into
-``stage1/models/<id>/`` and checked the same way.  What the plant adds, by editing a copy of the MJCF text (every
-original value is kept verbatim):
+The model is the round-two sizing model, ``<case>/models/<id>.xml`` (``<id>`` the body's candidate id,
+``candidate_id``), used only after its SHA-256 matches the record's ``xml_sha256`` (and the plan's prefix of it).  If
+the file is missing (it is git-ignored) it is rebuilt from the record with ``pipeline.build_candidate``, the call of
+``refine.carpet_lift_one``, into ``stage1/models/<body>/`` and checked the same way.  What the plant adds, by editing
+a copy of the MJCF text (every original value is kept verbatim):
 
 * sensors: an IMU site on the trunk at the ledger's ``imu`` row (``<case>/models/<id>.json``) with a gyro, an
   accelerometer and the trunk frame orientation (xbody framequat); joint encoders (position and velocity of the
@@ -81,7 +81,7 @@ import mujoco
 import numpy as np
 
 from .. import carpet, catalog, statics
-from . import SHA256_PREFIX, STUDY, case_dir, drive
+from . import SHA256_PREFIX, STUDY, candidate_id, case_dir, drive
 
 FLOORS = ("hard", "robot_floor_carpet") + carpet.PILES
 #: The plant choices; the first of each is the one ``STAGE1_PLAN.md`` decided during the build (decision 11: ankle
@@ -106,7 +106,7 @@ class PlantError(RuntimeError):
 # Inputs: record, model, ledger, clearance screen
 # ------------------------------------------------------------------------------------------------
 def record(body: str) -> dict:
-    return json.loads((case_dir(body) / "candidates" / f"{body}.json").read_text())
+    return json.loads((case_dir(body) / "candidates" / f"{candidate_id(body)}.json").read_text())
 
 
 def sha256(path) -> str:
@@ -114,8 +114,10 @@ def sha256(path) -> str:
 
 
 def model_files(body: str, rebuild_dir: Path | None = None) -> tuple[Path, Path]:
-    """(MJCF, ledger) of a body: the round-two files if present, else rebuilt from the record."""
-    xml = case_dir(body) / "models" / f"{body}.xml"
+    """(MJCF, ledger) of a body: the round-two files if present, else rebuilt from the record (into
+    ``stage1/models/<body>/``, the files named by the candidate id)."""
+    cid = candidate_id(body)
+    xml = case_dir(body) / "models" / f"{cid}.xml"
     ledger = xml.with_suffix(".json")
     if xml.exists() and ledger.exists():
         return xml, ledger
@@ -123,10 +125,10 @@ def model_files(body: str, rebuild_dir: Path | None = None) -> tuple[Path, Path]
     from ..pipeline import build_candidate
 
     out = Path(rebuild_dir) if rebuild_dir is not None else STUDY / "stage1" / "models" / body
-    xml, ledger = out / f"{body}.xml", out / f"{body}.json"
+    xml, ledger = out / f"{cid}.xml", out / f"{cid}.json"
     if not (xml.exists() and ledger.exists()):
         rec = record(body)
-        build_candidate(round2.candidate(body, rec.get("overrides", ())), out, selection=dict(rec["selection"]),
+        build_candidate(round2.candidate(cid, rec.get("overrides", ())), out, selection=dict(rec["selection"]),
                         B=rec["B"], write=True)
     return xml, ledger
 
@@ -171,7 +173,7 @@ def usable_ranges(body: str, inter_leg: str = "mjcf") -> dict:
     ``summary.joint_range_margins[joint]["usable"]``."""
     if inter_leg not in ("mjcf", "keep"):
         raise ValueError(f"inter_leg {inter_leg!r}: 'mjcf' or 'keep'")
-    doc = json.loads((case_dir(body) / "review" / "screening" / f"{body}_clearance.json").read_text())
+    doc = json.loads((case_dir(body) / "review" / "screening" / f"{candidate_id(body)}_clearance.json").read_text())
     margins = doc["summary"].get("joint_range_margins") or {}
     out = {}
     for jn, r in doc["summary"]["joint_range_usable"].items():
@@ -190,7 +192,7 @@ def usable_ranges(body: str, inter_leg: str = "mjcf") -> dict:
 def dropped_limits(body: str) -> dict:
     """joint -> [(direction, first new interference, interfering geoms)] of the inter-leg limits ``usable_ranges``
     drops."""
-    doc = json.loads((case_dir(body) / "review" / "screening" / f"{body}_clearance.json").read_text())
+    doc = json.loads((case_dir(body) / "review" / "screening" / f"{candidate_id(body)}_clearance.json").read_text())
     out = {}
     for jn, r in doc["summary"]["joint_range_usable"].items():
         for i, direction in enumerate(("low", "high")):

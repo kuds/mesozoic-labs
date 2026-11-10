@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
 from designlab import catalog  # noqa: E402
-from designlab.stage1 import control, drive, env, ledger, panels, tune  # noqa: E402
+from designlab.stage1 import PROBE_BODIES, control, drive, env, ledger, panels, tune  # noqa: E402
 from designlab.stage1.__main__ import main as cli  # noqa: E402
 
 BODY = "60-N-T-10"
@@ -287,7 +287,7 @@ def test_a_point_is_judged_against_its_conditions_nominal_evaluation():
 def test_margins_follow_plan_section_5():
     """Every row of plan section 5's ledger with its stated interval, condition and Stage 0 value; the stop is not
     run (no stop references at other decelerations)."""
-    for body in ledger.BODIES:
+    for body in PROBE_BODIES:
         ms = {m.name: m for m in ledger.margins(body)}
         assert list(ms) == list(ledger.MARGIN_NAMES)
         g = ms["grip"]
@@ -341,7 +341,7 @@ def test_stage0_is_the_screens_values():
     digits: the turning screen's single-support friction need (the worse foot; the worse turn direction), the knee's
     sizing speed ratio (with the 15 % margin, and without it), the worst sustained-torque ratio (the larger of the
     nominal walk's RMS and the one-foot hold) and the walk's worst RMS ratio."""
-    for body in ledger.BODIES:
+    for body in PROBE_BODIES:
         st0, sc = ledger.STAGE0[body], ledger.screens(body)
         for k in ("walk_nominal", "turn", "walk_brisk"):
             assert round(sc["grip"][k], 2) == st0[f"grip_{k}"], (body, k)

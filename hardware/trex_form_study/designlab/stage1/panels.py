@@ -67,7 +67,7 @@ import mujoco
 import numpy as np
 
 from .. import carpet
-from . import BODIES, STUDY, case_dir, control, env, estimator, gates, metrics, plant, tune
+from . import BODIES, STUDY, candidate_id, case_dir, control, env, estimator, gates, metrics, plant, tune
 from .refs import Reference
 from .transitions import STOP_RULE, STOP_SPEED_FRAC, Transition, _settled_from, stop_command_phase, stop_reading
 
@@ -1609,9 +1609,9 @@ def key_context(body: str) -> dict:
     the round-two files the plant reads, the library versions and what the panels take from env.py
     (``env_values``)."""
     xml, ledger = plant.model_files(body)
-    cd = case_dir(body)
-    files = dict(record=cd / "candidates" / f"{body}.json", mjcf=xml, ledger=ledger,
-                 clearance=cd / "review" / "screening" / f"{body}_clearance.json")
+    cd, cid = case_dir(body), candidate_id(body)
+    files = dict(record=cd / "candidates" / f"{cid}.json", mjcf=xml, ledger=ledger,
+                 clearance=cd / "review" / "screening" / f"{cid}_clearance.json")
     return dict(plant_inputs={k: plant.sha256(v) for k, v in files.items()}, versions=library_versions(),
                 env=env_values(body))
 

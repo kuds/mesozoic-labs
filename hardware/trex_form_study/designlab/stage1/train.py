@@ -58,7 +58,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import BODIES, control, plant
+from . import PROBE_BODIES, control, plant
 from . import env as env_mod
 
 CHECKPOINT_EVERY = 250_000
@@ -206,9 +206,10 @@ def final_checkpoint(run_dirs, budget: int = BUDGET_STEPS) -> int | None:
 
 
 def expected_runs(out: Path, mode: str) -> dict:
-    """The runs a mode is judged over (``JUDGED_RULE``): "<body>/<seed>" -> run directory."""
+    """The runs a mode is judged over (``JUDGED_RULE``): "<body>/<seed>" -> run directory, the bodies being the
+    probe's (``PROBE_BODIES``; Stage 1b's bodies have no PPO runs)."""
     seeds = SEEDS if mode == "R3" else R4_SEEDS
-    return {f"{b}/{s}": run_dir_of(out, b, mode, s) for b in BODIES for s in seeds}
+    return {f"{b}/{s}": run_dir_of(out, b, mode, s) for b in PROBE_BODIES for s in seeds}
 
 
 def run_doc(out: Path, body: str, mode: str, seed: int) -> dict:
@@ -251,7 +252,7 @@ def judged_checkpoint(out: Path, mode: str, budget: int = BUDGET_STEPS, final: b
     have = {k: checkpoints(d) for k, d in runs.items()}
     left_out = {}
     if mode == "R3":
-        for b in BODIES:
+        for b in PROBE_BODIES:
             j = judged_with_r2(out, b)
             if j["with_r2"]:
                 left_out.update({f"{b}/{s}": f"{b}'s R3 is judged with R2: {j['reason']}" for s in SEEDS})

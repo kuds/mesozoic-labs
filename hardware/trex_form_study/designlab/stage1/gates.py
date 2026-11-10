@@ -92,6 +92,8 @@ RATE_WARMUP = 1000
 RATE_BARRIER_S = 600.0  # the longest the per-core processes wait for each other before timing
 REPLAY_STRIDES = 60.0
 MIN_REPLAY_STRIDES = 10.0
+#: The design study's replay of the probe's bodies on the screened MJCF (plan section 3 step 3); Stage 1b's bodies had
+#: none (None).
 DESIGN_STUDY_STRIDES = {"60-N-T-10": 13.6, "60-N-H-10": 16.6, "75-M-H-10": 60.0}
 FRICTION_SMOOTH = 0.05  # rad/s, the frictionloss compensation's tanh width
 #: G2 pass rules; the first is ``STAGE1_PLAN.md`` decision 13's and the default.
@@ -626,7 +628,7 @@ def g2(body: str, out_dir: Path, strides: float = REPLAY_STRIDES, rule: str = RU
                nominal_min_cop_margin_single_m=round(nom["min_cop_margin_single_m"], 6),
                replay=rep, walking_turns=walking_turns, nominal_strides_with_envelope=walked,
                nominal_strides_without_envelope=rep["nominal"]["without_envelope"]["strides"],
-               design_study_strides_screened_model=DESIGN_STUDY_STRIDES[body], min_strides=MIN_REPLAY_STRIDES,
+               design_study_strides_screened_model=DESIGN_STUDY_STRIDES.get(body), min_strides=MIN_REPLAY_STRIDES,
                nominal_panel_with_envelope=panel, single_run_pass=bool(walked >= MIN_REPLAY_STRIDES),
                panel_pass=panel["median_at_least_min_strides"], reported_not_gated=info,
                decided=decided(choices, gated, rule))
