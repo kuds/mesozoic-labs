@@ -1974,11 +1974,14 @@ def summarize(body: str, out: Path, rows=None, session: dict | None = None, inpu
             rows=cells, verdict=verdicts[shown], verdicts=verdicts)
     by_ctrl = {c: dict(Counter(v["verdicts"][c]["verdict"] for b in grid.values() for v in b.values()
                                if v["verdicts"][c]["gated"])) for c in ctrls}
-    try:
-        g = g7(body, run_dir)
-        _write_json(Path(out) / body / "eval" / "g7.json", g)
-    except FileNotFoundError as exc:
-        g = dict(error=str(exc))
+    if body not in G7_PLAN:  # a body the plan gives no G7 figures for (a faster-knee body of STAGE1B_PLAN.md)
+        g = dict(error=f"{body}: the plan gives no G7 figures (G7_PLAN: {', '.join(G7_PLAN)})")
+    else:
+        try:
+            g = g7(body, run_dir)
+            _write_json(Path(out) / body / "eval" / "g7.json", g)
+        except FileNotFoundError as exc:
+            g = dict(error=str(exc))
     doc = dict(schema=SCHEMA, body=body, rules=RULES, verdict_rows={c: list(v) for c, v in VERDICT_ROWS.items()},
                verdict_controller=shown, verdict_controller_note=note, grid=grid, gated_verdicts=by_ctrl.get(shown, {}),
                gated_verdicts_by_controller=by_ctrl, episodes=dict(n_eps), attribution_episodes=dict(n_attr), G7=g,
