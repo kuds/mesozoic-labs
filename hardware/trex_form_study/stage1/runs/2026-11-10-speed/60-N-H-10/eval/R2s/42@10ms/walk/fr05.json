@@ -171,13 +171,938 @@
    "label": "controller-limited"
   },
   "success_failures": 0,
-  "falls_label": "not attributed (falls; run eval --attribute)",
+  "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
   "success_label": null,
   "kind": "falls",
-  "label": "not attributed (falls; run eval --attribute)",
-  "untestable": []
+  "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+  "untestable": [
+   "cop_at_pad_edge_with_ankle_saturated"
+  ]
  },
- "attribution": null,
+ "attribution": {
+  "rule": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label",
+  "alpha": 0.05,
+  "baseline": {
+   "strides": [
+    4.242536571823821,
+    5.691863149235291,
+    5.228740248607375,
+    9.843429151293384,
+    5.2225377097596795,
+    7.236295322311423,
+    7.409966410046892,
+    5.5760824240783124,
+    10.072923088658213,
+    4.577473669599367,
+    5.177052424876581,
+    5.249415378099693,
+    9.423724022599147,
+    6.001990091620057,
+    9.268660551406697,
+    6.206673873594002,
+    4.434815276102375,
+    9.605665162131624,
+    5.677390558590669,
+    7.703553248837803
+   ],
+   "survived": 0,
+   "median": 5.8469266204276735
+  },
+  "candidates": [
+   "leg_drive_at_torque_limit",
+   "leg_drive_at_envelope_limit",
+   "ankle_linkage",
+   "slip",
+   "cop_at_pad_edge_with_ankle_saturated"
+  ],
+  "relaxable": {
+   "leg_drive_at_torque_limit": "drive_torque",
+   "leg_drive_at_envelope_limit": "envelope",
+   "ankle_linkage": "ankle_linkage",
+   "slip": "slip"
+  },
+  "not_relaxable": [
+   "cop_at_pad_edge_with_ankle_saturated"
+  ],
+  "lifted": {
+   "drive_torque": {
+    "strides": [
+     4.242536571823821,
+     5.6897956362860596,
+     9.506424540568455,
+     9.80207889230873,
+     5.822116465036893,
+     5.189457502571972,
+     10.335497233210763,
+     5.586419988824471,
+     13.854404272804798,
+     4.577473669599367,
+     5.220470196810448,
+     5.25768542989662,
+     7.0853668770175045,
+     5.251482891048925,
+     11.418874018608692,
+     5.778698693103026,
+     4.426545224305448,
+     8.687689412672311,
+     5.6587829420475835,
+     5.243212839251997
+    ],
+    "survived": 0,
+    "median": 5.674289289166822,
+    "sign_test": {
+     "better": 8,
+     "worse": 10,
+     "tied": 2,
+     "p": 0.7596588134765625
+    },
+    "significant": false
+   },
+   "envelope": {
+    "strides": [
+     4.242536571823821,
+     5.691863149235291,
+     5.228740248607375,
+     9.843429151293384,
+     5.2225377097596795,
+     7.236295322311423,
+     7.409966410046892,
+     5.5760824240783124,
+     10.072923088658213,
+     4.577473669599367,
+     5.177052424876581,
+     5.249415378099693,
+     9.423724022599147,
+     6.001990091620057,
+     9.268660551406697,
+     6.206673873594002,
+     4.434815276102375,
+     9.61807023982702,
+     5.677390558590669,
+     7.703553248837803
+    ],
+    "survived": 0,
+    "median": 5.8469266204276735,
+    "sign_test": {
+     "better": 1,
+     "worse": 0,
+     "tied": 19,
+     "p": 0.5
+    },
+    "significant": false
+   },
+   "ankle_linkage": {
+    "strides": [
+     4.250806623620748,
+     5.691863149235291,
+     9.51676210531462,
+     9.80207889230873,
+     5.826251490935356,
+     5.189457502571972,
+     10.3251596684646,
+     5.58435247587524,
+     13.883349454094056,
+     4.577473669599367,
+     5.220470196810448,
+     5.25768542989662,
+     7.0853668770175045,
+     5.255617916947388,
+     11.418874018608692,
+     5.758023563610708,
+     4.426545224305448,
+     8.691824438570777,
+     5.6587829420475835,
+     5.245280352201229
+    ],
+    "survived": 0,
+    "median": 5.675323045641438,
+    "sign_test": {
+     "better": 9,
+     "worse": 9,
+     "tied": 2,
+     "p": 0.5927352905273438
+    },
+    "significant": false
+   },
+   "slip": {
+    "strides": [
+     4.281819317859225,
+     4.505110716376255,
+     7.842076616436332,
+     4.83798030120257,
+     6.704944494358858,
+     8.133595942278012,
+     5.112959523450396,
+     5.261820455795084,
+     4.48650309983317,
+     7.697350709990108,
+     15.994280175260629,
+     6.305914495157127,
+     5.6277702478091065,
+     5.18738998962274,
+     4.312832012097701,
+     5.237010300404302,
+     4.424477711356217,
+     5.2742255334904735,
+     5.724943356423,
+     10.010897700181232
+    ],
+    "survived": 0,
+    "median": 5.268022994642779,
+    "sign_test": {
+     "better": 9,
+     "worse": 11,
+     "tied": 0,
+     "p": 0.7482776641845703
+    },
+    "significant": false
+   }
+  },
+  "null": null,
+  "together": null,
+  "binding": [],
+  "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+  "decision_20_label": "controller-limited",
+  "panel_rule": "with --attribute, a condition of an R2 or R3 row with falls is attributed by decision 20 (gates.ATTRIBUTION_RULE, gates.attribute): every relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE) is lifted in turn (control.run's relax) over the same 20 seeds, and the condition is body-limited by the limits whose lifting improves survival significantly (gates.sign_test, one-sided, p < 0.05), else controller-limited; that costs (lifted limits x 20) episodes.  The sign test can reach p < 0.05 only with at least 5 falls (every one of them improved: 1/2^5 = 0.03125; with 4, 0.0625), so a condition with fewer falls is controller-limited by decision 20 and no limit is lifted for it (its label says so).  A candidate the plant cannot relax (control.RELAXES None: cop_at_pad_edge_with_ankle_saturated, the pad's size) cannot be tested; a controller-limited label names such candidates as untestable.  Episodes that failed to run (FAILED_EPISODE_RULE) give no candidates and are left out of the sign test's pairs; an attribution whose lifted runs had such failures is run again by the next --attribute.  The null (1 mm/s) and the together runs of G4 are diagnostics and are not run; R0 and R1 are not attributed",
+  "falls": 20,
+  "min_falls": 5,
+  "pairs": 20,
+  "pairs_left_out": 0,
+  "lifted_errors": 0,
+  "episodes": 80,
+  "gates_sha256": "0832038715b5788f0ba81e7124659b6dc70cdff8785b1111192f2306c4de6903",
+  "runs": {
+   "drive_torque": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "strides": 4.242536571823821,
+     "fall_time_s": 4.10399999999977,
+     "fall_cause": "proxy cl_tail_seg_20_0",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "strides": 5.6897956362860596,
+     "fall_time_s": 5.503999999999616,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "strides": 9.506424540568455,
+     "fall_time_s": 9.19599999999974,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3045,
+     "fell": true,
+     "strides": 9.80207889230873,
+     "fall_time_s": 9.481999999999836,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3046,
+     "fell": true,
+     "strides": 5.822116465036893,
+     "fall_time_s": 5.631999999999602,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3047,
+     "fell": true,
+     "strides": 5.189457502571972,
+     "fall_time_s": 5.019999999999669,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3048,
+     "fell": true,
+     "strides": 10.335497233210763,
+     "fall_time_s": 9.998000000000008,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3049,
+     "fell": true,
+     "strides": 5.586419988824471,
+     "fall_time_s": 5.403999999999627,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3050,
+     "fell": true,
+     "strides": 13.854404272804798,
+     "fall_time_s": 13.402000000001145,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3051,
+     "fell": true,
+     "strides": 4.577473669599367,
+     "fall_time_s": 4.427999999999734,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3052,
+     "fell": true,
+     "strides": 5.220470196810448,
+     "fall_time_s": 5.049999999999666,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3053,
+     "fell": true,
+     "strides": 5.25768542989662,
+     "fall_time_s": 5.085999999999662,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3054,
+     "fell": true,
+     "strides": 7.0853668770175045,
+     "fall_time_s": 6.853999999999467,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3055,
+     "fell": true,
+     "strides": 5.251482891048925,
+     "fall_time_s": 5.079999999999663,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3056,
+     "fell": true,
+     "strides": 11.418874018608692,
+     "fall_time_s": 11.046000000000358,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3057,
+     "fell": true,
+     "strides": 5.778698693103026,
+     "fall_time_s": 5.589999999999606,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3058,
+     "fell": true,
+     "strides": 4.426545224305448,
+     "fall_time_s": 4.2819999999997505,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3059,
+     "fell": true,
+     "strides": 8.687689412672311,
+     "fall_time_s": 8.403999999999476,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3060,
+     "fell": true,
+     "strides": 5.6587829420475835,
+     "fall_time_s": 5.473999999999619,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3061,
+     "fell": true,
+     "strides": 5.243212839251997,
+     "fall_time_s": 5.0719999999996634,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    }
+   ],
+   "envelope": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "strides": 4.242536571823821,
+     "fall_time_s": 4.10399999999977,
+     "fall_cause": "proxy cl_tail_seg_20_0",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "strides": 5.691863149235291,
+     "fall_time_s": 5.505999999999616,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "strides": 5.228740248607375,
+     "fall_time_s": 5.057999999999665,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3045,
+     "fell": true,
+     "strides": 9.843429151293384,
+     "fall_time_s": 9.52199999999985,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3046,
+     "fell": true,
+     "strides": 5.2225377097596795,
+     "fall_time_s": 5.051999999999666,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3047,
+     "fell": true,
+     "strides": 7.236295322311423,
+     "fall_time_s": 6.999999999999451,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3048,
+     "fell": true,
+     "strides": 7.409966410046892,
+     "fall_time_s": 7.167999999999433,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3049,
+     "fell": true,
+     "strides": 5.5760824240783124,
+     "fall_time_s": 5.393999999999628,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3050,
+     "fell": true,
+     "strides": 10.072923088658213,
+     "fall_time_s": 9.743999999999923,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3051,
+     "fell": true,
+     "strides": 4.577473669599367,
+     "fall_time_s": 4.427999999999734,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3052,
+     "fell": true,
+     "strides": 5.177052424876581,
+     "fall_time_s": 5.0079999999996705,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3053,
+     "fell": true,
+     "strides": 5.249415378099693,
+     "fall_time_s": 5.077999999999663,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3054,
+     "fell": true,
+     "strides": 9.423724022599147,
+     "fall_time_s": 9.115999999999714,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3055,
+     "fell": true,
+     "strides": 6.001990091620057,
+     "fall_time_s": 5.805999999999583,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3056,
+     "fell": true,
+     "strides": 9.268660551406697,
+     "fall_time_s": 8.965999999999664,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3057,
+     "fell": true,
+     "strides": 6.206673873594002,
+     "fall_time_s": 6.003999999999561,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3058,
+     "fell": true,
+     "strides": 4.434815276102375,
+     "fall_time_s": 4.28999999999975,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3059,
+     "fell": true,
+     "strides": 9.61807023982702,
+     "fall_time_s": 9.303999999999776,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3060,
+     "fell": true,
+     "strides": 5.677390558590669,
+     "fall_time_s": 5.491999999999617,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3061,
+     "fell": true,
+     "strides": 7.703553248837803,
+     "fall_time_s": 7.451999999999401,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    }
+   ],
+   "ankle_linkage": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "strides": 4.250806623620748,
+     "fall_time_s": 4.111999999999769,
+     "fall_cause": "proxy cl_tail_seg_20_0",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "strides": 5.691863149235291,
+     "fall_time_s": 5.505999999999616,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "strides": 9.51676210531462,
+     "fall_time_s": 9.205999999999744,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3045,
+     "fell": true,
+     "strides": 9.80207889230873,
+     "fall_time_s": 9.481999999999836,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3046,
+     "fell": true,
+     "strides": 5.826251490935356,
+     "fall_time_s": 5.635999999999601,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3047,
+     "fell": true,
+     "strides": 5.189457502571972,
+     "fall_time_s": 5.019999999999669,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3048,
+     "fell": true,
+     "strides": 10.3251596684646,
+     "fall_time_s": 9.988000000000005,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3049,
+     "fell": true,
+     "strides": 5.58435247587524,
+     "fall_time_s": 5.401999999999627,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3050,
+     "fell": true,
+     "strides": 13.883349454094056,
+     "fall_time_s": 13.430000000001154,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3051,
+     "fell": true,
+     "strides": 4.577473669599367,
+     "fall_time_s": 4.427999999999734,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3052,
+     "fell": true,
+     "strides": 5.220470196810448,
+     "fall_time_s": 5.049999999999666,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3053,
+     "fell": true,
+     "strides": 5.25768542989662,
+     "fall_time_s": 5.085999999999662,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3054,
+     "fell": true,
+     "strides": 7.0853668770175045,
+     "fall_time_s": 6.853999999999467,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3055,
+     "fell": true,
+     "strides": 5.255617916947388,
+     "fall_time_s": 5.083999999999662,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3056,
+     "fell": true,
+     "strides": 11.418874018608692,
+     "fall_time_s": 11.046000000000358,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3057,
+     "fell": true,
+     "strides": 5.758023563610708,
+     "fall_time_s": 5.569999999999609,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3058,
+     "fell": true,
+     "strides": 4.426545224305448,
+     "fall_time_s": 4.2819999999997505,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3059,
+     "fell": true,
+     "strides": 8.691824438570777,
+     "fall_time_s": 8.407999999999477,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3060,
+     "fell": true,
+     "strides": 5.6587829420475835,
+     "fall_time_s": 5.473999999999619,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3061,
+     "fell": true,
+     "strides": 5.245280352201229,
+     "fall_time_s": 5.073999999999663,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    }
+   ],
+   "slip": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "strides": 4.281819317859225,
+     "fall_time_s": 4.141999999999766,
+     "fall_cause": "proxy cl_tail_seg_20_0",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "strides": 4.505110716376255,
+     "fall_time_s": 4.357999999999742,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "strides": 7.842076616436332,
+     "fall_time_s": 7.585999999999387,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3045,
+     "fell": true,
+     "strides": 4.83798030120257,
+     "fall_time_s": 4.679999999999707,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3046,
+     "fell": true,
+     "strides": 6.704944494358858,
+     "fall_time_s": 6.485999999999508,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3047,
+     "fell": true,
+     "strides": 8.133595942278012,
+     "fall_time_s": 7.8679999999993555,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3048,
+     "fell": true,
+     "strides": 5.112959523450396,
+     "fall_time_s": 4.945999999999677,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3049,
+     "fell": true,
+     "strides": 5.261820455795084,
+     "fall_time_s": 5.0899999999996615,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3050,
+     "fell": true,
+     "strides": 4.48650309983317,
+     "fall_time_s": 4.339999999999744,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3051,
+     "fell": true,
+     "strides": 7.697350709990108,
+     "fall_time_s": 7.445999999999402,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3052,
+     "fell": true,
+     "strides": 15.994280175260629,
+     "fall_time_s": 15.472000000001836,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3053,
+     "fell": true,
+     "strides": 6.305914495157127,
+     "fall_time_s": 6.09999999999955,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3054,
+     "fell": true,
+     "strides": 5.6277702478091065,
+     "fall_time_s": 5.4439999999996225,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3055,
+     "fell": true,
+     "strides": 5.18738998962274,
+     "fall_time_s": 5.017999999999669,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3056,
+     "fell": true,
+     "strides": 4.312832012097701,
+     "fall_time_s": 4.171999999999763,
+     "fall_cause": "proxy cl_tail_seg_20_0",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3057,
+     "fell": true,
+     "strides": 5.237010300404302,
+     "fall_time_s": 5.065999999999664,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3058,
+     "fell": true,
+     "strides": 4.424477711356217,
+     "fall_time_s": 4.279999999999751,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3059,
+     "fell": true,
+     "strides": 5.2742255334904735,
+     "fall_time_s": 5.10199999999966,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3060,
+     "fell": true,
+     "strides": 5.724943356423,
+     "fall_time_s": 5.537999999999612,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3061,
+     "fell": true,
+     "strides": 10.010897700181232,
+     "fall_time_s": 9.683999999999903,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    }
+   ]
+  },
+  "wall_s": 181.10486819240032
+ },
  "terms": [
   "survived",
   "speed",

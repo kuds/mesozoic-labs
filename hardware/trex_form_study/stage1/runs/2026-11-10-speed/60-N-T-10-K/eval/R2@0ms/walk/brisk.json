@@ -177,13 +177,72 @@
    "label": "controller-limited"
   },
   "success_failures": 6,
-  "falls_label": "not attributed (falls; run eval --attribute)",
+  "falls_label": "controller-limited (decision 20; 2 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
   "success_label": "controller-limited",
   "kind": "success",
   "label": "controller-limited",
-  "untestable": []
+  "untestable": [
+   "cop_at_pad_edge_with_ankle_saturated"
+  ]
  },
- "attribution": null,
+ "attribution": {
+  "rule": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label",
+  "alpha": 0.05,
+  "baseline": {
+   "strides": [
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    17.32700227692897,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    20.60541773032249,
+    17.10665651467199,
+    20.60541773032249
+   ],
+   "survived": 18,
+   "median": 20.60541773032249
+  },
+  "candidates": [
+   "leg_drive_at_torque_limit",
+   "slip",
+   "cop_at_pad_edge_with_ankle_saturated"
+  ],
+  "relaxable": {
+   "leg_drive_at_torque_limit": "drive_torque",
+   "slip": "slip"
+  },
+  "not_relaxable": [
+   "cop_at_pad_edge_with_ankle_saturated"
+  ],
+  "lifted": {},
+  "null": null,
+  "together": null,
+  "binding": [],
+  "label": "controller-limited (decision 20; 2 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+  "decision_20_label": "controller-limited",
+  "panel_rule": "with --attribute, a condition of an R2 or R3 row with falls is attributed by decision 20 (gates.ATTRIBUTION_RULE, gates.attribute): every relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE) is lifted in turn (control.run's relax) over the same 20 seeds, and the condition is body-limited by the limits whose lifting improves survival significantly (gates.sign_test, one-sided, p < 0.05), else controller-limited; that costs (lifted limits x 20) episodes.  The sign test can reach p < 0.05 only with at least 5 falls (every one of them improved: 1/2^5 = 0.03125; with 4, 0.0625), so a condition with fewer falls is controller-limited by decision 20 and no limit is lifted for it (its label says so).  A candidate the plant cannot relax (control.RELAXES None: cop_at_pad_edge_with_ankle_saturated, the pad's size) cannot be tested; a controller-limited label names such candidates as untestable.  Episodes that failed to run (FAILED_EPISODE_RULE) give no candidates and are left out of the sign test's pairs; an attribution whose lifted runs had such failures is run again by the next --attribute.  The null (1 mm/s) and the together runs of G4 are diagnostics and are not run; R0 and R1 are not attributed",
+  "falls": 2,
+  "min_falls": 5,
+  "pairs": 20,
+  "pairs_left_out": 0,
+  "lifted_errors": 0,
+  "episodes": 0,
+  "gates_sha256": "0832038715b5788f0ba81e7124659b6dc70cdff8785b1111192f2306c4de6903",
+  "runs": {},
+  "wall_s": 0.0
+ },
  "terms": [
   "survived",
   "speed",
