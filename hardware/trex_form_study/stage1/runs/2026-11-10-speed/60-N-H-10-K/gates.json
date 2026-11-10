@@ -47,9 +47,9 @@
      57.10784936271189
     ],
     "saturated": [],
-    "build_s": 0.21835921700039762,
-    "wall_s": 0.5684052039996459,
-    "steps_per_s": 17593.083120340732,
+    "build_s": 0.2617922540011932,
+    "wall_s": 0.8042068709983141,
+    "steps_per_s": 12434.611491924152,
     "settle": {
      "status": "settled",
      "settled": true,
@@ -102,9 +102,9 @@
      57.112080814689406
     ],
     "saturated": [],
-    "build_s": 1.0030396080001083,
-    "wall_s": 3.5573843770007443,
-    "steps_per_s": 2811.054117359977,
+    "build_s": 1.532566574998782,
+    "wall_s": 5.089697072999115,
+    "steps_per_s": 1964.7534728638532,
     "settle": {
      "status": "settled",
      "settled": true,
@@ -227,51 +227,59 @@
    "samples_per_process": 5,
    "statistic": "median",
    "single_process_samples": [
-    21608.120101964094,
-    19877.05417850453,
-    19573.510401722022,
-    20933.71881001658,
-    22430.182804764423
+    16425.27758975449,
+    18533.53437434005,
+    19232.87086572683,
+    16887.49485605808,
+    18051.120976788145
    ],
-   "single_process": 20933.71881001658,
-   "processes": 3,
+   "single_process": 18051.120976788145,
+   "processes": 4,
    "per_process_samples": [
     [
-     21394.283110546552,
-     22276.508419824324,
-     22082.421737291166,
-     22202.257675822148,
-     20599.799059182158
+     14835.474784911927,
+     10705.62778175071,
+     15909.319050180708,
+     17872.17619770737,
+     17464.63140999844
     ],
     [
-     21360.171779692522,
-     20747.40691024607,
-     22137.44250783937,
-     22825.55113613565,
-     22431.688351026274
+     11061.096492766537,
+     15137.688648186884,
+     15576.526361053782,
+     15098.064621701109,
+     14226.94322631195
     ],
     [
-     21750.709453327636,
-     21334.014392439945,
-     20984.649558028344,
-     22414.461927026725,
-     21002.071192759377
+     15165.773377449463,
+     10621.329173583365,
+     13965.09903338413,
+     15852.3399126555,
+     16381.5648444131
+    ],
+    [
+     16321.625048556596,
+     14587.72337252662,
+     13643.122040881239,
+     14421.900144564515,
+     17469.999531497695
     ]
    ],
    "per_process_median": [
-    22082.421737291166,
-    22137.44250783937,
-    21334.014392439945
+    15909.319050180708,
+    15098.064621701109,
+    15165.773377449463,
+    14587.72337252662
    ],
-   "per_process_all_median": 21750.709453327636,
-   "per_process_mean": 21702.895814079217,
-   "lowest_sample": 19573.510401722022,
-   "per_core": 20933.71881001658,
+   "per_process_all_median": 15117.876634943997,
+   "per_process_mean": 14815.901252704081,
+   "lowest_sample": 10621.329173583365,
+   "per_core": 15117.876634943997,
    "threshold": 20000,
-   "ok": true
+   "ok": false
   },
-  "pass": true,
-  "seconds": 31.626809065999623,
+  "pass": false,
+  "seconds": 43.56093374500051,
   "provenance": {
    "versions": {
     "python": "3.13.18",
@@ -283,59 +291,14 @@
     "torch": "2.15.0"
    },
    "git": {
-    "commit": "07a73f4a12e9079865de4a0385311a67dfc1c86c",
+    "commit": "1d42fbdf698d9a96abfa569434c130f0552b314b",
     "dirty": true,
     "dirty_paths": [
-     " M hardware/trex_form_study/designlab/refine.py",
-     " M hardware/trex_form_study/designlab/stage1/__init__.py",
-     " M hardware/trex_form_study/designlab/stage1/control.py",
-     " M hardware/trex_form_study/designlab/stage1/gates.py",
-     " M hardware/trex_form_study/designlab/stage1/panels.py",
-     " M hardware/trex_form_study/designlab/stage1/plant.py",
-     " M hardware/trex_form_study/designlab/stage1/refs.py",
-     " M hardware/trex_form_study/designlab/stage1/train.py",
-     " M hardware/trex_form_study/round2/refine/REFINE.md",
-     " M hardware/trex_form_study/round2/refine/refine.json",
-     " M hardware/trex_form_study/tests/test_stage1.py",
-     " M hardware/trex_form_study/tests/test_stage1_ledger.py",
-     " M hardware/trex_form_study/tests/test_stage1_policy_rows.py",
-     "?? hardware/trex_form_study/round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/candidates/60-N-H-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/candidates/60-N-T-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/mjcf/60-N-H-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/mjcf/60-N-T-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/review_index.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_carpet.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_carpet.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_clearance.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_clearance.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_envelope.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_sensors.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_sensors.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_turning.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_turning.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_carpet.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_carpet.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_clearance.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_clearance.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_envelope.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_sensors.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_sensors.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_turning.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_turning.png",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/plant.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/refs.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/transitions.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/gates.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/plant.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/refs.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/transitions.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/run_arm_k.sh",
-     "?? hardware/trex_form_study/tests/test_stage1_bodies.py"
+     " M hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/gates.json"
     ]
    },
    "stage1_sources": {
-    "sha256": "6c58844f991873bc3071f75dd181fc3b88635556a523717191a88e7315c86645",
+    "sha256": "4ad0f657898e117a73c0cd1f85a9da4dc37d169094aa6159abf3f47f75c3178d",
     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
     "files": [
      "__init__.py",
@@ -355,6 +318,8 @@
      "refs.py",
      "replay.py",
      "report.py",
+     "speedfit.py",
+     "speedreport.py",
      "train.py",
      "transitions.py",
      "tune.py"
@@ -364,7 +329,7 @@
   }
  },
  "same_plant_options": true,
- "pass": true,
+ "pass": false,
  "G2": {
   "rule": "panel",
   "rule_text": "the median of 20 nominal replays with the envelope, from starts whose root velocity is offset in x and y by at most 1 mm/s (seed 0), is at least 10 strides (STAGE1_PLAN.md decision 13)",

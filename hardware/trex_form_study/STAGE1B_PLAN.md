@@ -146,3 +146,15 @@ These were settled on 10 Nov, after the build's review and before any speed fit 
       rows before 14:30, every arm is judged at the last generation all of them reached.
     - The measured cost (`60-N-T-10/speedfit/cost.json`) is 1.9 core-h per fit on an idle core, or 3.0–3.2 h each with
       four at once. That puts the fits' end at about 10:30–11:15 and the rows' at about 12:30–13:30, with three at once.
+11. **G1 after the merge** (run at 10:58 UTC, after the rows; decided then). `ARM_K.md` section 5 asks for G1 again
+    on both K bodies on the merged code, with the machine otherwise idle, before the fits. That step was missed at the
+    07:54 launch and was run once the rows had finished (`run_arm_k.sh g1`; the K bodies' G1 records are replaced).
+    - On the merged code (1d42fbd), the model hashes, the tendon map and the repeatability check match the pre-merge
+      records exactly. The two stands match too, apart from their timing fields.
+    - The step-rate check fails on both K bodies: 18,153 and 18,051 steps/s alone, and 15,418 and 15,118 per core,
+      against 20,000. So G1 records a fail.
+    - As section 5 of `ARM_K.md` asks, a pick was timed the same way into a scratch directory, interleaved with
+      `60-N-T-10-K`. `60-N-T-10` gave 17,544 and 18,322 steps/s alone (16,315 and 17,022 per core), against 26,405 on
+      8 Nov. The K body gave 17,990 and 18,585. The machine is slower today; the bodies are not.
+    - The step rate bounds the cost of a run and has no bearing on any row's episodes. The fits, speed G5 and the rows
+      stand, and nothing is re-run. The fail is reported with the round.

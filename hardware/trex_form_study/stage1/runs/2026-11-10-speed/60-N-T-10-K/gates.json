@@ -47,9 +47,9 @@
      56.68498200981973
     ],
     "saturated": [],
-    "build_s": 0.20614742700036004,
-    "wall_s": 0.6270287380002628,
-    "steps_per_s": 15948.232344010696,
+    "build_s": 0.27861162399858586,
+    "wall_s": 0.7090231420006603,
+    "steps_per_s": 14103.911998955158,
     "settle": {
      "status": "settled",
      "settled": true,
@@ -102,9 +102,9 @@
      56.68639831538854
     ],
     "saturated": [],
-    "build_s": 0.9712696790002155,
-    "wall_s": 3.7796474970000418,
-    "steps_per_s": 2645.7493742305696,
+    "build_s": 1.2291820820028079,
+    "wall_s": 4.549550625997654,
+    "steps_per_s": 2198.019281916912,
     "settle": {
      "status": "settled",
      "settled": true,
@@ -227,51 +227,59 @@
    "samples_per_process": 5,
    "statistic": "median",
    "single_process_samples": [
-    22760.458458546476,
-    21771.251474159355,
-    22334.749384877974,
-    21906.480506545,
-    22195.788153250982
+    17909.602410857522,
+    16541.678510265727,
+    18245.610821830196,
+    18152.764049259764,
+    18952.173741920837
    ],
-   "single_process": 22195.788153250982,
-   "processes": 3,
+   "single_process": 18152.764049259764,
+   "processes": 4,
    "per_process_samples": [
     [
-     20744.794094027013,
-     20635.465248089353,
-     17903.25185106734,
-     21835.59920064725,
-     21438.94574667238
+     14010.081617190619,
+     16500.95941743168,
+     15490.503984767853,
+     16235.623568012665,
+     16386.49023808736
     ],
     [
-     21255.964190273116,
-     21226.799488648096,
-     20896.17859044499,
-     20931.564029530433,
-     22336.798472593153
+     15830.700982212702,
+     12858.971270222455,
+     16495.25611378529,
+     12688.773787016207,
+     18394.074199769602
     ],
     [
-     21270.0210273134,
-     21011.453041321598,
-     21819.348215473474,
-     21032.39916369098,
-     22304.624854553527
+     14170.957374891792,
+     15345.91530932934,
+     14603.843400592456,
+     14444.424780131767,
+     16406.207109307754
+    ],
+    [
+     18317.401965926805,
+     17464.354992987857,
+     14884.942706271746,
+     13625.518505243843,
+     14269.88504472419
     ]
    ],
    "per_process_median": [
-    20744.794094027013,
-    21226.799488648096,
-    21270.0210273134
+    16235.623568012665,
+    15830.700982212702,
+    14603.843400592456,
+    14884.942706271746
    ],
-   "per_process_all_median": 21226.799488648096,
-   "per_process_mean": 21109.547147623074,
-   "lowest_sample": 17903.25185106734,
-   "per_core": 21226.799488648096,
+   "per_process_all_median": 15418.209647048596,
+   "per_process_mean": 15421.244318395202,
+   "lowest_sample": 12688.773787016207,
+   "per_core": 15418.209647048596,
    "threshold": 20000,
-   "ok": true
+   "ok": false
   },
-  "pass": true,
-  "seconds": 31.84284155000023,
+  "pass": false,
+  "seconds": 41.2873678620017,
   "provenance": {
    "versions": {
     "python": "3.13.18",
@@ -283,58 +291,12 @@
     "torch": "2.15.0"
    },
    "git": {
-    "commit": "07a73f4a12e9079865de4a0385311a67dfc1c86c",
-    "dirty": true,
-    "dirty_paths": [
-     " M hardware/trex_form_study/designlab/refine.py",
-     " M hardware/trex_form_study/designlab/stage1/__init__.py",
-     " M hardware/trex_form_study/designlab/stage1/control.py",
-     " M hardware/trex_form_study/designlab/stage1/gates.py",
-     " M hardware/trex_form_study/designlab/stage1/panels.py",
-     " M hardware/trex_form_study/designlab/stage1/plant.py",
-     " M hardware/trex_form_study/designlab/stage1/refs.py",
-     " M hardware/trex_form_study/designlab/stage1/train.py",
-     " M hardware/trex_form_study/round2/refine/REFINE.md",
-     " M hardware/trex_form_study/round2/refine/refine.json",
-     " M hardware/trex_form_study/tests/test_stage1.py",
-     " M hardware/trex_form_study/tests/test_stage1_ledger.py",
-     " M hardware/trex_form_study/tests/test_stage1_policy_rows.py",
-     "?? hardware/trex_form_study/round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/candidates/60-N-H-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/candidates/60-N-T-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/mjcf/60-N-H-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/mjcf/60-N-T-10.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/review_index.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_carpet.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_carpet.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_clearance.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_clearance.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_envelope.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_sensors.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_sensors.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_turning.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_turning.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_carpet.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_carpet.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_clearance.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_clearance.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_envelope.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_sensors.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_sensors.png",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_turning.json",
-     "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_turning.png",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/plant.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/refs.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/transitions.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/plant.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/refs.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/transitions.json",
-     "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/run_arm_k.sh",
-     "?? hardware/trex_form_study/tests/test_stage1_bodies.py"
-    ]
+    "commit": "1d42fbdf698d9a96abfa569434c130f0552b314b",
+    "dirty": false,
+    "dirty_paths": []
    },
    "stage1_sources": {
-    "sha256": "6c58844f991873bc3071f75dd181fc3b88635556a523717191a88e7315c86645",
+    "sha256": "4ad0f657898e117a73c0cd1f85a9da4dc37d169094aa6159abf3f47f75c3178d",
     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
     "files": [
      "__init__.py",
@@ -354,6 +316,8 @@
      "refs.py",
      "replay.py",
      "report.py",
+     "speedfit.py",
+     "speedreport.py",
      "train.py",
      "transitions.py",
      "tune.py"
@@ -363,7 +327,7 @@
   }
  },
  "same_plant_options": true,
- "pass": true,
+ "pass": false,
  "G2": {
   "rule": "panel",
   "rule_text": "the median of 20 nominal replays with the envelope, from starts whose root velocity is offset in x and y by at most 1 mm/s (seed 0), is at least 10 strides (STAGE1_PLAN.md decision 13)",
