@@ -48,9 +48,17 @@ check() {
     "$PY" - <<'EOF' || return 1
 import json
 from pathlib import Path
-from designlab.stage1 import BODIES, speedfit
+from designlab.stage1 import BODIES, panels, speedfit, tune
+from designlab.stage1.__main__ import round_two_models
 missing = {"60-N-T-10-K", "60-N-H-10-K"} - set(BODIES)
 assert not missing, f"not merged: {sorted(missing)} not registered (STAGE1B_PLAN.md section 6, decision 5)"
+for b in ("60-N-T-10", "60-N-H-10", "60-N-T-10-K", "60-N-H-10-K"):  # the git-ignored files each body needs here
+    assert round_two_models(b), f"{b}: no round2/refine/<case>/models here (git-ignored): copy them in first"
+    run = speedfit.STAGE1_RUN if speedfit.pick_of(b) == b else speedfit.RUN
+    files = sorted(set(speedfit.mix_files()) | set(panels.panel_files(panels.select(panels.conditions(),
+                                                                                    names=speedfit.ROW_CONDITIONS))))
+    tune.read_inputs(run / b, files)  # every reference and transition the round reads, by its recorded sha256
+    print(b, "inputs", run / b, "checked:", len(files), "files")
 for b in ("60-N-T-10-K", "60-N-H-10-K"):
     g = json.loads((speedfit.RUN / b / "gates.json").read_text())
     assert all(k in g for k in ("G1", "G2", "G3", "G4")), f"{b}: G1-G4 not all recorded"

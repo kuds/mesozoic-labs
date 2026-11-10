@@ -9,10 +9,15 @@ section 4's reading of the rows). `run_speed_round.sh` holds the exact commands;
 
 1. Merge this branch and the faster-knee branch. The speed fit's sources include modules both branches edit, so no fit
    starts before the merge, arm S's included (decision 5).
-2. Run arm K's `prepare` and gates G1–G4 (`run_arm_k.sh`).
+2. Run arm K's `prepare` and gates G1–G4 (`run_arm_k.sh`). Their references and transitions (`<body>/refs/*.npz`,
+   `<body>/transitions/*.npz`) and the case's models (`round2/refine/narrow_knee_60/models`) are git-ignored, so the
+   merge does not bring them: copy them into the main checkout from the worktree that made them, or run
+   `run_arm_k.sh` there.
 3. Run `bash stage1/runs/2026-11-10-speed/run_speed_round.sh check`. It checks that the K bodies are registered and
-   their gates recorded, prints their push bounds and the speed sources' sha256, and runs `test_stage1_speedfit`.
-   Record that sha256: none of the 14 modules may change until the rows have run.
+   their gates recorded, and that every body's git-ignored inputs are here (the round-two models, and each reference
+   and transition the round reads, against its recorded sha256). It prints the K bodies' push bounds and the speed
+   sources' sha256, and runs `test_stage1_speedfit`. Record that sha256: none of the 14 modules may change until the
+   rows have run.
 
 ## Per arm
 
