@@ -1,0 +1,199 @@
+{
+ "rule": "one full evaluation of the speed mix at the start's gains on training episode 1000 + training_order(42)[0] in this process: its CPU seconds (process time) and wall seconds, per episode and in all, with the load average beside; CPU per simulated second = the evaluation's CPU / its simulated seconds (falls end episodes early); projections at that rate over the planned seconds (every episode run to its end, an upper bound once the fit stops falling): the fit's 360 evaluations with 1 and 2 workers (wall = CPU / workers, the cores otherwise idle, and a generation's 12 evaluations split over the workers), speed G5 (4 candidates x 20 evaluations) and the three validation rows (7 conditions x 20 episodes each, the panels' planned seconds)",
+ "body": "60-N-T-10",
+ "episode_seed": 1865,
+ "build_s": 3.8491042730001936,
+ "evaluation": {
+  "J": 2.925023040777968,
+  "falls": 2,
+  "simulated_s": 89.68599999999878,
+  "cpu_s": 16.413473253,
+  "wall_s": 16.575047989999803,
+  "episodes": {
+   "walk": {
+    "seconds": 16.510000000001728,
+    "planned_s": 16.510415098228762,
+    "fell": false,
+    "wall_s": 3.1225704210000913,
+    "cpu_s": 3.391385088,
+    "latency_steps": 3
+   },
+   "walking_turn": {
+    "seconds": 26.221999999996346,
+    "planned_s": 26.22242397953739,
+    "fell": false,
+    "wall_s": 4.438082233999921,
+    "cpu_s": 4.833273397,
+    "latency_steps": 1
+   },
+   "in_place_turn": {
+    "seconds": 12.626000000000886,
+    "planned_s": 12.625611545704697,
+    "fell": false,
+    "wall_s": 1.9752257949999148,
+    "cpu_s": 2.210773432,
+    "latency_steps": 1
+   },
+   "brisk": {
+    "seconds": 12.72800000000092,
+    "planned_s": 20.012041589680628,
+    "fell": true,
+    "wall_s": 2.377104182000039,
+    "cpu_s": 2.371415228,
+    "latency_steps": 0
+   },
+   "fr05": {
+    "seconds": 21.599999999998907,
+    "planned_s": 25.675746445184522,
+    "fell": true,
+    "wall_s": 3.606858265000028,
+    "cpu_s": 3.6034662309999987,
+    "latency_steps": 0
+   }
+  },
+  "error": null
+ },
+ "cpu_per_sim_s": 0.18301042808242338,
+ "wall_per_sim_s": 0.18481198838168753,
+ "planned_s_per_evaluation": 101.046238658336,
+ "load_average": [
+  [
+   3.40673828125,
+   2.8203125,
+   2.12158203125
+  ],
+  [
+   3.35302734375,
+   2.84912109375,
+   2.146484375
+  ]
+ ],
+ "projections": {
+  "fit_360": {
+   "simulated_s": 36376.645917000955,
+   "cpu_h": 1.8492515392980786,
+   "wall_h_1_worker": 1.8492515392980786,
+   "wall_h_2_workers": 0.9246257696490393
+  },
+  "fit_360_at_this_evaluation": {
+   "cpu_h": 1.6413473253,
+   "wall_h_2_workers": 0.82067366265
+  },
+  "speed_g5": {
+   "evaluations": 80,
+   "simulated_s": 8083.69909266688,
+   "cpu_h": 0.4109447865106842,
+   "wall_h_1_worker": 0.4109447865106842,
+   "wall_h_2_workers": 0.2054723932553421
+  },
+  "rows": {
+   "rows": 3,
+   "conditions": {
+    "walk/nominal": 16.510415098228762,
+    "walk/brisk": 20.012041589680628,
+    "walk/fr05": 25.675746445184522,
+    "turn/walking_0.35_left": 26.22242397953739,
+    "turn/walking_0.35_right": 26.22242397953739,
+    "turn/in_place_0.50_left": 12.625611545704697,
+    "turn/in_place_0.50_right": 12.625611545704697
+   },
+   "episodes": 420,
+   "simulated_s": 8393.656451014685,
+   "cpu_h": 0.4267018500769423,
+   "wall_h_1_worker": 0.4267018500769423,
+   "wall_h_2_workers": 0.21335092503847114
+  }
+ },
+ "cpu_count": 4,
+ "speed_sources": {
+  "sha256": "aca059e2b5b9fb8db0300741ea6ee039f477f001de72401e368ff3a6d79b89d8",
+  "rule": "sha256 over the designlab/stage1 modules the speed fit imports, followed as tune.TUNER_SOURCES_RULE follows the tuner's (from speedfit.py and the package's __init__.py, transitively, module- and function-level imports, read with ast) and hashed as plant.SOURCES_RULE hashes files, the module list recorded beside; every session and worker must run the same (a worker that computes another refuses to start), a resume and the selection refuse a fit made on other sources; the designlab modules outside designlab/stage1 are named by each session's commit and dirty paths (plant.provenance)",
+  "modules": [
+   "__init__.py",
+   "control.py",
+   "drive.py",
+   "env.py",
+   "estimator.py",
+   "gates.py",
+   "legs.py",
+   "metrics.py",
+   "panels.py",
+   "plant.py",
+   "refs.py",
+   "speedfit.py",
+   "transitions.py",
+   "tune.py"
+  ]
+ },
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0"
+  },
+  "git": {
+   "commit": "0c4b7e34e8917ba4e6589bd519c3d5e0cd54e502",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "stage1_sources": {
+   "sha256": "d737d5ead716cc54df374e8c48da863afd9fb7babe04ee238919c0637505bf85",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "ledger.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "policy_rows.py",
+    "refs.py",
+    "replay.py",
+    "report.py",
+    "speedfit.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  }
+ },
+ "start": {
+  "rule": "the fit starts from the body's Stage 1 G5 selection: env.tuned_gains (env.GAINS_RULE) on <Stage 1 run>/<start body>/tune.json, the start body being the body itself or, for a body with no Stage 1 fit (a faster-knee body), the pick it was derived from (--start-from); refused unless that selection passed G5 and holds the fixed gains (tune.FIXED_GAINS); the start is recorded once per body (speedfit/start.json: the record's path and sha256, the candidate and its gains) and every seed and session must start from it",
+  "body": "60-N-T-10",
+  "start_from": "60-N-T-10",
+  "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+  "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+  "candidate": "seed42_gen20",
+  "cma_seed": 42,
+  "status": "passed",
+  "source": "60-N-T-10's Stage 1 G5 selection (tune.json: CMA-ES seed 42's G5 selection seed42_gen20)",
+  "gains": {
+   "k_dcm": 4.574500527016146,
+   "cop_x": 0.04206077387538906,
+   "cop_y": 0.02499683538946664,
+   "k_step": 0.0,
+   "step_x": 0.06824406222841883,
+   "step_out": 0.021878760875926932,
+   "decay": 0.9327647844662051,
+   "k_trunk": 80.13359667101032,
+   "d_trunk": 0.0,
+   "k_yaw": 0.2732805000632633,
+   "ki_yaw": 0.0,
+   "k_phase": 0.10788128524581518,
+   "ki_phase": 0.8292725240079336,
+   "capture_margin": 0.0
+  },
+  "gains_rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')"
+ }
+}
