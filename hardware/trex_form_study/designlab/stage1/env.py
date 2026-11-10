@@ -57,7 +57,7 @@ import numpy as np
 from gymnasium import spaces
 
 from .. import carpet, statics
-from . import STUDY, control, estimator, metrics, plant
+from . import STUDY, case_dir, control, estimator, metrics, plant
 from .refs import Reference
 
 ENV_SUBSTEPS = 10  # 2 ms physics steps per 50 Hz env step
@@ -244,8 +244,32 @@ class EnvConfig:
         return asdict(self)
 
 
-#: The Stage 0 forward push bound per body (plan section 5's margin ledger), m/s.
-PUSH_BOUND_M_S = {"60-N-T-10": 0.487, "60-N-H-10": 0.478, "75-M-H-10": 0.589}
+def _screen_id(body: str) -> str:
+    """The round-two candidate id that names a body's screens: the registry's ``candidate_id`` (Stage 1b's faster-knee
+    bodies carry their picks' ids), or the body's own name in a registry without it."""
+    try:
+        from . import candidate_id
+    except ImportError:
+        return body
+    return candidate_id(body)
+
+
+class _PushBounds(dict):
+    """The Stage 0 forward push bound per body (m/s): the round-two envelope screen's one-step capturability bound
+    (``<case>/review/screening/<candidate id>_envelope.json`` ``push_recovery.max_push_dv_ms``) to 3 decimals.  The
+    Stage 1 bodies' bounds are listed (those screens' values so rounded); a body that is not listed (a faster-knee body
+    of STAGE1B_PLAN.md) gets its own screen's when it is asked for (``[body]``); ``get`` reads only the list, as
+    before."""
+
+    def __missing__(self, body):
+        path = case_dir(body) / "review" / "screening" / f"{_screen_id(body)}_envelope.json"  # (KeyError: unregistered)
+        if not path.exists():
+            raise KeyError(f"{body}: no push bound listed and no envelope screen at {path}")
+        return round(float(json.loads(path.read_text())["push_recovery"]["max_push_dv_ms"]), 3)
+
+
+#: The Stage 0 forward push bound per body (plan section 5's margin ledger), m/s (``_PushBounds``).
+PUSH_BOUND_M_S = _PushBounds({"60-N-T-10": 0.487, "60-N-H-10": 0.478, "75-M-H-10": 0.589})
 
 
 def obs_layout() -> dict:

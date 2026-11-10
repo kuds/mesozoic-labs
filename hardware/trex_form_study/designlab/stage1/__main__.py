@@ -21,6 +21,13 @@ Run from hardware/trex_form_study:
                                     [--workers 1] [--dry-run] [--no-measure] [--row-module MODULE] [--inputs DIR]
                                     [--allow-rebuilt-models] --out stage1/runs/2026-11-08
   python -m designlab.stage1 report  --out stage1/runs/2026-11-08 [--dest DIR] [--body ...]
+  python -m designlab.stage1 speedfit  --body 60-N-T-10 [--seed 42] [--evals 360] [--workers 1] [--start-from BODY]
+                                    [--resume] [--stage1 DIR] [--inputs DIR] --out stage1/runs/2026-11-10-speed
+  python -m designlab.stage1 speedg5   --body 60-N-T-10 [--seeds 42] [--workers 1] [--at-generation G] [--partial]
+                                    [--episodes 20] [--inputs DIR] --out stage1/runs/2026-11-10-speed
+  python -m designlab.stage1 speedcost --body 60-N-T-10 [--start-from BODY] [--stage1 DIR] [--inputs DIR]
+                                    [--record PATH] --out DIR
+  python -m designlab.stage1 speedreport --out stage1/runs/2026-11-10-speed [--stage1 DIR] [--body ...] [--dest DIR]
 
 ``prepare`` writes, per body, ``<out>/<body>/plant.json`` (gains, envelopes, ranges, sensors, floors, hashes,
 library versions, commit), ``refs.json`` with ``refs/<name>.npz`` (``refs``), ``transitions.json`` with
@@ -70,6 +77,13 @@ ledger registers when no ``--row-module`` has: run it in the PPO venv; left out 
 ``--dry-run`` lists every search with the episodes it can still need and their cost (``ledger.COST_RULE``: a policy
 row's own).  ``report`` writes the machine-made tables of plan section 8 (``report``) from whatever records
 ``--out`` holds into ``<dest>/STAGE1_TABLES.md`` and ``<dest>/stage1_tables.json`` (``--dest`` default: ``--out``).
+``speedfit``, ``speedg5`` and ``speedcost`` are the speed round's (``STAGE1B_PLAN.md``, ``speedfit``): the speed fit
+of R2 on the widened mix with servo delay (``speedfit.fit``, into ``<out>/<body>/speedfit/<seed>/``, ``--resume`` as
+``tune``), its selection (``speedfit.speed_g5``, ``<out>/<body>/speedg5.json``) and one evaluation's cost with the
+round's projections; its validation rows run through ``eval --row-module designlab.stage1.speedfit --rows
+R2s/42,R2s/42@10ms,R2@10ms --attribute``, and ``speedreport`` reads them by plan section 4 (``speedreport``) into
+``<dest>/STAGE1B_TABLES.md`` and ``<dest>/stage1b_tables.json``.  ``stage1/runs/2026-11-10-speed/run_speed_round.sh``
+holds the round's commands per arm.
 ``all`` is not implemented yet.
 
 ``eval`` and ``sweep`` write records whose keys hold the sha256 of the round-two model files the plant reads
@@ -367,10 +381,17 @@ def _training(a) -> int:
 def round_two_models(body: str) -> bool:
     """Whether this checkout holds a body's round-two model files (``round2/refine/<case>/models``, git-ignored), which
     the plant reads and the record keys hash (``plant.model_files``: without them it rebuilds the models elsewhere,
-    with another model-ledger JSON)."""
+    with another model-ledger JSON); the files are named by the body's candidate id (the registry's ``candidate_id``:
+    a faster-knee body of STAGE1B_PLAN.md carries its pick's, ``<case>/models/<id>.xml``)."""
     from . import case_dir
 
-    xml = case_dir(body) / "models" / f"{body}.xml"
+    try:
+        from . import candidate_id
+    except ImportError:  # a registry without candidate ids: every body is named by its id
+        cid = body
+    else:
+        cid = candidate_id(body)
+    xml = case_dir(body) / "models" / f"{cid}.xml"
     return xml.exists() and xml.with_suffix(".json").exists()
 
 
@@ -445,6 +466,43 @@ def _reporting(a) -> int:
 
     doc = report.write(Path(a.out), Path(a.dest) if a.dest else None, tuple(a.body) if a.body else None)
     print(f"{doc['paths']['markdown']} and {doc['paths']['json']} written ({', '.join(doc['bodies'])})", flush=True)
+    return 0
+
+
+def _speed(a) -> int:
+    """``speedfit``, ``speedg5``, ``speedcost`` and ``speedreport`` (``STAGE1B_PLAN.md``, ``speedfit``, ``speedreport``)."""
+    from . import speedfit
+
+    def log(msg):
+        print(msg, flush=True)
+
+    out = Path(a.out)
+    if a.cmd == "speedreport":
+        from . import speedreport
+
+        doc = speedreport.write(out, Path(a.dest) if a.dest else None, Path(a.stage1), a.body)
+        print(f"wrote {Path(a.dest or out) / speedreport.MARKDOWN} and {speedreport.JSON_NAME} for "
+              f"{', '.join(doc['bodies']) or 'no body'}", flush=True)
+        return 0
+    if a.cmd == "speedfit":
+        doc = speedfit.fit(a.body, a.seed, evals=a.evals, resume=a.resume, out=out, workers=a.workers,
+                           inputs=a.inputs, start_from=a.start_from, stage1=Path(a.stage1), log=log)
+        h = doc["history"][-1] if doc["history"] else None
+        print(f"{a.body} speed-fit seed {a.seed}: {doc['evals']} evaluations ({doc['status']}), "
+              + (f"last generation J min {h['J_min']:.4f}, sigma {doc['state']['sigma']:.4f}" if h else "none run"),
+              flush=True)
+        return 0
+    if a.cmd == "speedg5":
+        seeds = tuple(int(x) for x in a.seeds.split(","))
+        doc = speedfit.speed_g5(a.body, out=out, seeds=seeds, workers=a.workers, episodes=a.episodes,
+                                require_done=not a.partial, at_generation=a.at_generation, inputs=a.inputs, log=log)
+        print(speedfit.speed_g5_summary(doc), flush=True)
+        return 1 if doc["seeds_refused"] else 0
+    start = speedfit.start_record(a.body, a.start_from, Path(a.stage1))
+    doc = speedfit.measure_cost(a.body, Path(a.inputs or a.out) / a.body, speedfit.gains_vector(start["gains"]),
+                                log=log)
+    if a.record:
+        _write(Path(a.record), dict(doc, start=start))
     return 0
 
 
@@ -536,6 +594,46 @@ def main(argv=None) -> int:
     rp.add_argument("--dest", default=None, help="where STAGE1_TABLES.md and stage1_tables.json go (default: --out)")
     rp.add_argument("--body", action="append", choices=sorted(BODIES), default=None,
                     help="a body to report (default: every body)")
+    sr = sub.add_parser("speedreport", help="STAGE1B_PLAN.md section 4's reading of the speed round's validation rows")
+    sr.add_argument("--out", required=True, help="the speed run directory, e.g. stage1/runs/2026-11-10-speed")
+    sr.add_argument("--stage1", default=str(tune.RUN), help="Stage 1's run directory, where the baseline R2 rows are")
+    sr.add_argument("--body", action="append", choices=sorted(BODIES), default=None,
+                    help="a body to report (default: every body with a recorded start)")
+    sr.add_argument("--dest", default=None, help="where STAGE1B_TABLES.md and stage1b_tables.json go (default: --out)")
+    for name in ("speedfit", "speedg5", "speedcost"):
+        p = sub.add_parser(name, help={"speedfit": "STAGE1B_PLAN.md section 3: the speed fit of R2 (R2s)",
+                                       "speedg5": "STAGE1B_PLAN.md section 3: the speed fit's selection (speed G5)",
+                                       "speedcost": "one speed-mix evaluation's cost and the round's "
+                                                    "projections"}[name])
+        p.add_argument("--body", choices=sorted(BODIES), required=True)
+        p.add_argument("--out", required=True, help="run directory, e.g. stage1/runs/2026-11-10-speed")
+        p.add_argument("--inputs", default=None, help="run directory holding <body>/refs and transitions (default: "
+                                                      "--out)")
+        if name != "speedcost":
+            p.add_argument("--workers", type=int, default=1, help="evaluation processes (default 1)")
+        if name in ("speedfit", "speedcost"):
+            p.add_argument("--start-from", choices=sorted(BODIES), default=None,
+                           help="the body whose Stage 1 G5 selection starts the fit: the body itself if it has a "
+                                "Stage 1 fit, else its pick (candidate_id); the default, and any other is refused "
+                                "(speedfit.START_RULE)")
+            p.add_argument("--stage1", default=str(tune.RUN), help="Stage 1's run directory, where the start's "
+                                                                   "tune.json is (default: stage1/runs/2026-11-08)")
+        if name == "speedfit":
+            p.add_argument("--seed", type=int, default=42, help="CMA-ES seed (STAGE1B_PLAN.md section 3: 42)")
+            p.add_argument("--evals", type=int, default=360,
+                           help=f"evaluation budget, whole generations of {tune.POPSIZE} (default 360)")
+            p.add_argument("--resume", action="store_true", help="continue the checkpointed run")
+        elif name == "speedg5":
+            p.add_argument("--seeds", default="42")
+            p.add_argument("--episodes", type=int, default=tune.G5_RUNS,
+                           help=f"validation episodes (default {tune.G5_RUNS}; fewer is a smoke check)")
+            p.add_argument("--at-generation", type=int, default=None,
+                           help="judge every fit at this generation (STAGE1B_PLAN.md section 5: the last generation "
+                                "every arm reached)")
+            p.add_argument("--partial", action="store_true", help="judge an unfinished run at its last generation "
+                                                                  "(smoke check)")
+        else:
+            p.add_argument("--record", default=None, help="write the measurement and projections to this JSON file")
     for name in ("tune", "g5"):
         p = sub.add_parser(name)
         p.add_argument("--body", choices=sorted(BODIES), required=True)
@@ -590,6 +688,8 @@ def main(argv=None) -> int:
         return _sweeping(a)
     if a.cmd == "report":
         return _reporting(a)
+    if a.cmd in ("speedfit", "speedg5", "speedcost", "speedreport"):
+        return _speed(a)
     if a.cmd in LATER:
         raise NotImplementedError(f"'{a.cmd}' is {LATER[a.cmd]}, not implemented yet; this package implements plan "
                                   "section 3 steps 2-7 (prepare: plant, references and transitions; gates G1-G4; "
