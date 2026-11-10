@@ -1,6 +1,6 @@
 {
  "schema": 2,
- "generated_at": "2026-11-10T00:24:25+00:00",
+ "generated_at": "2026-11-10T01:18:21+00:00",
  "out": "stage1/runs/2026-11-08",
  "rules": {
   "grid": "one cell per row and condition from the panels' record <out>/<body>/eval/<row>/<behavior>/<condition>.json: 'pass' or 'FAIL' (panels.PASS_RULE: 20/20 survive and at least 17/20 succeed) or 'unjudged' (fewer episodes, or an episode that failed to run), then survived,succeeded of the episodes and their one-sided 95 % Clopper-Pearson lower bounds (panels.LCB_RULE), as the record holds them; 'not run' if no record exists, 'no stance' if the floor has no settled stance for the body (panels.NOT_RUN_RULE: a result, not a missing record), 'n/a' where the row does not run (R0 and R1 run the hard floor only); a condition is gated or reported per row (panels.GATING_RULE: decision 23 reports the carpet walk for R0-R2); a failing record's label (panels.FAILURE_LABEL_RULE) is listed under the table",
@@ -8261,7 +8261,7 @@
      "job_wall_s": 63781.249048,
      "write": {
       "last_write": "2026-11-10T00:12:29+00:00",
-      "idle_s": 716.983388,
+      "idle_s": 3953.007501,
       "rate_env_steps_s": 50.05151686473653,
       "limit_s": 14984.56084811303,
       "stopped": false
@@ -8341,7 +8341,7 @@
      "job_wall_s": 70351.880022,
      "write": {
       "last_write": "2026-11-10T00:12:29+00:00",
-      "idle_s": 716.981238,
+      "idle_s": 3953.005351,
       "rate_env_steps_s": 50.05643908250487,
       "limit_s": 14983.087365919542,
       "stopped": false
@@ -8385,7 +8385,7 @@
      "job_wall_s": 37189.191475,
      "write": {
       "last_write": "2026-11-10T00:12:30+00:00",
-      "idle_s": 716.416437,
+      "idle_s": 3952.44055,
       "rate_env_steps_s": 40.53134634597484,
       "limit_s": 18504.196569193966,
       "stopped": false
@@ -16751,7 +16751,7 @@
      "job_wall_s": 63858.256794,
      "write": {
       "last_write": "2026-11-10T00:12:29+00:00",
-      "idle_s": 718.012412,
+      "idle_s": 3954.000587,
       "rate_env_steps_s": 50.05149776179767,
       "limit_s": 14984.566567205615,
       "stopped": false
@@ -16823,7 +16823,7 @@
      "job_wall_s": 70353.890003,
      "write": {
       "last_write": "2026-11-10T00:12:29+00:00",
-      "idle_s": 718.010808,
+      "idle_s": 3953.998983,
       "rate_env_steps_s": 49.24420775597414,
       "limit_s": 15230.21760684154,
       "stopped": false
@@ -16867,7 +16867,7 @@
      "job_wall_s": 37189.192662,
      "write": {
       "last_write": "2026-11-10T00:12:30+00:00",
-      "idle_s": 717.448147,
+      "idle_s": 3953.436322,
       "rate_env_steps_s": 40.531345052300395,
       "limit_s": 18504.197159808617,
       "stopped": false
@@ -17027,7 +17027,8 @@
      "R2/42",
      "R2/43",
      "R3/42",
-     "R3/43"
+     "R3/43",
+     "R4/42"
     ],
     "verdict_controller": "R3",
     "verdict_controller_note": "R3: the controller judged on every behaviour (plan section 2); G6c passed at 2506752 steps",
@@ -17223,9 +17224,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 56.32104040000013,
+         "episode_wall_s": 55.61920395800735,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -17258,12 +17281,16 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null
+         ],
+         "passes": [
+          true
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "shown",
          "judged": true
         }
        },
@@ -17403,9 +17430,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 55.935018313999535,
+         "episode_wall_s": 55.93472626999937,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -17438,12 +17487,16 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null
+         ],
+         "passes": [
+          true
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "shown",
          "judged": true
         }
        },
@@ -17529,19 +17582,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 249.76060410599985,
+         "episode_wall_s": 250.78496944599283,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 249.76060410599985,
+         "episode_wall_s": 248.73547216800216,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 276.55538502499985,
+         "episode_wall_s": 276.55502262900154,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -17560,24 +17679,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "shown",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null,
+          null
+         ],
+         "passes": [
+          true,
+          true
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null
+         ],
+         "passes": [
+          true
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "shown",
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "shown"
       }
      },
      "walk": {
@@ -17705,19 +17834,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 62.52781815199978,
+         "episode_wall_s": 63.61798844500299,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 62.52781815199978,
+         "episode_wall_s": 60.71039692799968,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 55.43496093499925,
+         "episode_wall_s": 54.66717566400075,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -17736,24 +17931,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "shown",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null,
+          null
+         ],
+         "passes": [
+          true,
+          true
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "shown"
       },
       "brisk": {
        "key": "walk/brisk",
@@ -17879,19 +18084,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 68.38605669549997,
+         "episode_wall_s": 68.5493046639931,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 68.38605669549997,
+         "episode_wall_s": 68.22209362599642,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 55.0680058429989,
+         "episode_wall_s": 55.06771005399969,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -17910,24 +18181,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: drive_sustained",
+          "body-limited: drive_sustained"
+         ],
+         "passes": [
+          false,
+          false
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "body-limited"
       },
       "fr05": {
        "key": "walk/fr05",
@@ -18053,19 +18334,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 90.60093710199999,
+         "episode_wall_s": 89.40415708199725,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained, drive_speed",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained, drive_speed",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 90.60093710199999,
+         "episode_wall_s": 91.79696207500274,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 71.25594489800096,
+         "episode_wall_s": 71.25565431100767,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -18084,24 +18431,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: drive_sustained",
+          "body-limited: drive_sustained, drive_speed"
+         ],
+         "passes": [
+          false,
+          false
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "body-limited"
       },
       "nominal_mu0.54": {
        "key": "walk/nominal_mu0.54",
@@ -18227,19 +18584,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 61.75945088650042,
+         "episode_wall_s": 62.02272772900142,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 61.75945088650042,
+         "episode_wall_s": 61.495522457000334,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 48.7232632719988,
+         "episode_wall_s": 48.72297726299621,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -18258,24 +18681,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "shown",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null,
+          null
+         ],
+         "passes": [
+          true,
+          true
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "shown"
       },
       "brisk_mu0.54": {
        "key": "walk/brisk_mu0.54",
@@ -18393,19 +18826,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 72.07253125950047,
+         "episode_wall_s": 71.69624510700305,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 72.07253125950047,
+         "episode_wall_s": 72.4480110659988,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 55.93666419500005,
+         "episode_wall_s": 55.936387680001644,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -18424,24 +18923,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: drive_sustained",
+          "body-limited: drive_sustained"
+         ],
+         "passes": [
+          false,
+          false
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "body-limited"
       },
       "fr05_mu0.54": {
        "key": "walk/fr05_mu0.54",
@@ -18559,19 +19068,87 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained, slip_median",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: drive_sustained, slip_median",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 93.25527053899987,
+         "episode_wall_s": 92.89409405800507,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 18,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.7173814751141391,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: drive_sustained, drive_speed, slip_median",
+         "kind": "success",
+         "falls_label": "controller-limited (decision 20; 2 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": "body-limited: drive_sustained, drive_speed, slip_median",
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 18,0 (0.72,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 93.25527053899987,
+         "episode_wall_s": 93.6155674840029,
+         "attribution_wall_s": 0.0
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 73.94620130400108,
+         "episode_wall_s": 73.94591299498825,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -18590,24 +19167,36 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
-         "untestable": null,
+         "labels": [
+          "body-limited: drive_sustained, slip_median",
+          "body-limited: drive_sustained, drive_speed, slip_median"
+         ],
+         "passes": [
+          false,
+          false
+         ],
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "body-limited"
       }
      },
      "turn": {
@@ -18789,9 +19378,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 90.04198756200094,
+         "episode_wall_s": 89.22708321900427,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -18824,10 +19435,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -19013,9 +19628,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 82.57284023799912,
+         "episode_wall_s": 82.566704173998,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -19048,10 +19685,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -19237,9 +19878,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 39.27079926099941,
+         "episode_wall_s": 39.26773628900264,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -19272,10 +19935,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -19461,9 +20128,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 38.76385999999911,
+         "episode_wall_s": 38.760987043999194,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -19496,10 +20185,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -19623,19 +20316,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 106.75466799850074,
+         "episode_wall_s": 106.82702303000042,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 106.75466799850074,
+         "episode_wall_s": 106.66962890299692,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 82.92303523899864,
+         "episode_wall_s": 82.91609087700454,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -19654,24 +20413,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "shown",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null,
+          null
+         ],
+         "passes": [
+          true,
+          true
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "shown"
       },
       "walking_0.50_right": {
        "key": "turn/walking_0.50_right",
@@ -19789,19 +20558,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 104.6109738490004,
+         "episode_wall_s": 104.901330486995,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 104.6109738490004,
+         "episode_wall_s": 104.3074054649951,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 82.47609792900039,
+         "episode_wall_s": 82.47026354399713,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -19820,24 +20655,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "shown",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null,
+          null
+         ],
+         "passes": [
+          true,
+          true
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "shown"
       }
      },
      "start_stop": {
@@ -19965,19 +20810,85 @@
          "attribution_wall_s": null
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 20,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.8608916593317348,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,20 (0.86,0.86)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 91.76584269249997,
+         "episode_wall_s": 92.03242926100029,
+         "attribution_wall_s": null
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 11,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.34693139764309294,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,11 (0.86,0.35)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 91.76584269249997,
+         "episode_wall_s": 90.6704459179964,
+         "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 78.5568645229996,
+         "episode_wall_s": 77.80261324800813,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -19996,24 +20907,34 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null,
+          "controller-limited"
+         ],
+         "passes": [
+          true,
+          false
+         ],
          "untestable": null,
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "controller-limited"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "provisional"
       }
      },
      "push": {
@@ -20195,9 +21116,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 10,
+         "succeeded": 9,
+         "errors": 0,
+         "survival_lcb": 0.3019539112864935,
+         "success_lcb": 0.2586506097489123,
+         "judged": true,
+         "pass_": false,
+         "label": "not attributed (falls; attribution is applied to R2, R3 rows)",
+         "kind": "falls",
+         "falls_label": "not attributed (falls; attribution is applied to R2, R3 rows)",
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": true,
+         "text": "FAIL 10,9 (0.30,0.26)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 20.616749595999863,
+         "episode_wall_s": 19.95551087399872,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -20230,12 +21173,16 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "fails by falls (R4: not attributed)",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "not attributed (falls; attribution is applied to R2, R3 rows)"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "not attributed",
          "judged": true
         }
        },
@@ -20419,9 +21366,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 18,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.7173814751141391,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,18 (0.86,0.72)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 19.16569509999863,
+         "episode_wall_s": 19.165439018999678,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -20454,12 +21423,16 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null
+         ],
+         "passes": [
+          true
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "shown",
          "judged": true
         }
        },
@@ -20643,9 +21616,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 18,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.7173814751141391,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,18 (0.86,0.72)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 20.31255392700041,
+         "episode_wall_s": 20.31226926900308,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -20678,12 +21673,16 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null
+         ],
+         "passes": [
+          true
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "shown",
          "judged": true
         }
        },
@@ -20867,9 +21866,31 @@
          "attribution_wall_s": null
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "pass",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 18,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.7173814751141391,
+         "judged": true,
+         "pass_": true,
+         "label": null,
+         "kind": null,
+         "falls_label": null,
+         "success_label": null,
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "pass 20,18 (0.86,0.72)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 21.159608907999427,
+         "episode_wall_s": 21.159280935000425,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -20902,12 +21923,16 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "provisional",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          null
+         ],
+         "passes": [
+          true
+         ],
          "untestable": null,
-         "read_from": null,
+         "read_from": "shown",
          "judged": true
         }
        },
@@ -21099,9 +22124,31 @@
          "attribution_wall_s": 78.4750726254997
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 17,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.6563361956857181,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited",
+         "kind": "success",
+         "falls_label": "not attributed (falls; attribution is applied to R2, R3 rows)",
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": true,
+         "text": "FAIL 17,0 (0.66,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 26.263705000999835,
+         "episode_wall_s": 26.26341086100183,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -21138,10 +22185,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "controller-limited"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -21335,9 +22386,31 @@
          "attribution_wall_s": 48.16387888866666
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 27.769580750999012,
+         "episode_wall_s": 27.769320007002534,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -21374,10 +22447,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "controller-limited"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -21525,21 +22602,21 @@
          "success_lcb": 0.13955374900238637,
          "judged": true,
          "pass_": false,
-         "label": "not attributed (falls; run eval --attribute)",
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "kind": "falls",
-         "falls_label": "not attributed (falls; run eval --attribute)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "success_label": "controller-limited",
-         "untestable": null,
-         "flags": [
-          "not attributed"
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
          ],
+         "flags": [],
          "attribution_by_design": null,
-         "text": "FAIL 8,6 (0.22,0.14) *",
+         "text": "FAIL 8,6 (0.22,0.14)",
          "checkpoint": 2506752,
          "checkpoint_final": true,
          "wall_s": 29.55064052350008,
          "episode_wall_s": 29.30521468400184,
-         "attribution_wall_s": null
+         "attribution_wall_s": 58.92084583080068
         },
         "R3/43": {
          "status": "done",
@@ -21554,26 +22631,48 @@
          "success_lcb": 0.10408083591013609,
          "judged": true,
          "pass_": false,
-         "label": "not attributed (falls; run eval --attribute)",
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "kind": "falls",
-         "falls_label": "not attributed (falls; run eval --attribute)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "success_label": "controller-limited",
-         "untestable": null,
-         "flags": [
-          "not attributed"
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
          ],
+         "flags": [],
          "attribution_by_design": null,
-         "text": "FAIL 6,5 (0.14,0.10) *",
+         "text": "FAIL 6,5 (0.14,0.10)",
          "checkpoint": 2506752,
          "checkpoint_final": true,
          "wall_s": 29.55064052350008,
          "episode_wall_s": 29.795428383005856,
-         "attribution_wall_s": null
+         "attribution_wall_s": 88.38126874620102
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 27.877490508000847,
+         "episode_wall_s": 27.877216363000116,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -21594,30 +22693,36 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not attributed",
+         "verdict": "controller-limited",
          "gated": true,
          "labels": [
-          "not attributed (falls; run eval --attribute)",
-          "not attributed (falls; run eval --attribute)"
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)"
          ],
          "passes": [
           false,
           false
          ],
-         "untestable": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "controller-limited"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not attributed"
+       "shown": "controller-limited"
       },
       "walking_right": {
        "key": "push/walking_right",
@@ -21747,19 +22852,89 @@
          "attribution_wall_s": 123.80797819199506
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 7,
+         "succeeded": 7,
+         "errors": 0,
+         "survival_lcb": 0.17731091757444914,
+         "success_lcb": 0.17731091757444914,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "kind": "falls",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 7,7 (0.18,0.18)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 28.84585982600038,
+         "episode_wall_s": 28.67661804299678,
+         "attribution_wall_s": 56.6164005548002
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 6,
+         "succeeded": 3,
+         "errors": 0,
+         "survival_lcb": 0.13955374900238637,
+         "success_lcb": 0.04216940788577861,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "kind": "falls",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": "controller-limited",
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 6,3 (0.14,0.04)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 28.84585982600038,
+         "episode_wall_s": 29.01446086299802,
+         "attribution_wall_s": 84.9246008322003
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "controller-limited",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 27.18899115900058,
+         "episode_wall_s": 27.188726944994414,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -21780,24 +22955,36 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
-         "untestable": null,
+         "labels": [
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)"
+         ],
+         "passes": [
+          false,
+          false
+         ],
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "controller-limited"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "controller-limited"
       }
      },
      "carpet": {
@@ -21939,9 +23126,31 @@
          "attribution_wall_s": 39.10911419649983
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 57.267812039001,
+         "episode_wall_s": 56.48738652800421,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -21978,10 +23187,14 @@
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
@@ -22083,19 +23296,19 @@
          "pass_": false,
          "label": "body-limited: slip_median",
          "kind": "success",
-         "falls_label": "not attributed (falls; run eval --attribute)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "success_label": "body-limited: slip_median",
-         "untestable": null,
-         "flags": [
-          "not attributed"
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
          ],
+         "flags": [],
          "attribution_by_design": null,
-         "text": "FAIL 14,0 (0.49,0.00) *",
+         "text": "FAIL 14,0 (0.49,0.00)",
          "checkpoint": 2506752,
          "checkpoint_final": true,
          "wall_s": 153.23017731250002,
          "episode_wall_s": 211.9772655920042,
-         "attribution_wall_s": null
+         "attribution_wall_s": 270.84491734699986
         },
         "R3/43": {
          "status": "done",
@@ -22110,26 +23323,48 @@
          "success_lcb": 0.0,
          "judged": true,
          "pass_": false,
-         "label": "not attributed (falls; run eval --attribute)",
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "kind": "falls",
-         "falls_label": "not attributed (falls; run eval --attribute)",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
          "success_label": null,
-         "untestable": null,
-         "flags": [
-          "not attributed"
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
          ],
+         "flags": [],
          "attribution_by_design": null,
-         "text": "FAIL 0,0 (0.00,0.00) *",
+         "text": "FAIL 0,0 (0.00,0.00)",
          "checkpoint": 2506752,
          "checkpoint_final": true,
          "wall_s": 153.23017731250002,
          "episode_wall_s": 94.48234099000001,
-         "attribution_wall_s": null
+         "attribution_wall_s": 270.84491734699986
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": true,
-         "text": "not run"
+         "record_gated": true,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 321.58233294300044,
+         "episode_wall_s": 321.5820142770044,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -22150,30 +23385,36 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not attributed",
+         "verdict": "controller-limited",
          "gated": true,
          "labels": [
           "body-limited: slip_median",
-          "not attributed (falls; run eval --attribute)"
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)"
          ],
          "passes": [
           false,
           false
          ],
-         "untestable": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": true,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not attributed"
+       "shown": "controller-limited"
       },
       "medium": {
        "key": "carpet/medium",
@@ -22251,19 +23492,89 @@
          "attribution_wall_s": 124.97604039400176
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.0,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "kind": "falls",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 0,0 (0.00,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 58.11185815049976,
+         "episode_wall_s": 54.238898763998804,
+         "attribution_wall_s": 53.35661449599987
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.0,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "kind": "falls",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 0,0 (0.00,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 58.11185815049976,
+         "episode_wall_s": 61.98419092399854,
+         "attribution_wall_s": 106.71322899199974
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 339.59180982,
+         "episode_wall_s": 339.59149584799343,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -22284,24 +23595,36 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
-         "untestable": null,
+         "labels": [
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)"
+         ],
+         "passes": [
+          false,
+          false
+         ],
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "controller-limited"
       },
       "high": {
        "key": "carpet/high",
@@ -22379,19 +23702,89 @@
          "attribution_wall_s": 413.955899133005
         },
         "R3/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.0,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "kind": "falls",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 0,0 (0.00,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 67.95461187549972,
+         "episode_wall_s": 73.35246302799897,
+         "attribution_wall_s": 120.60181404333343
         },
         "R3/43": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 0,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.0,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "kind": "falls",
+         "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+         "success_label": null,
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 0,0 (0.00,0.00)",
+         "checkpoint": 2506752,
+         "checkpoint_final": true,
+         "wall_s": 67.95461187549972,
+         "episode_wall_s": 62.55609688199547,
+         "attribution_wall_s": 60.30090702166672
         },
         "R4/42": {
-         "status": "not run",
+         "status": "done",
          "gated": false,
-         "text": "not run"
+         "record_gated": false,
+         "result": "FAIL",
+         "episodes": 20,
+         "survived": 20,
+         "succeeded": 0,
+         "errors": 0,
+         "survival_lcb": 0.8608916593317348,
+         "success_lcb": 0.0,
+         "judged": true,
+         "pass_": false,
+         "label": "body-limited: slip_median, slip_worst",
+         "kind": "success",
+         "falls_label": null,
+         "success_label": "body-limited: slip_median, slip_worst",
+         "untestable": null,
+         "flags": [],
+         "attribution_by_design": null,
+         "text": "FAIL 20,0 (0.86,0.00)",
+         "checkpoint": 1253376,
+         "checkpoint_final": true,
+         "wall_s": 412.5885101490003,
+         "episode_wall_s": 412.588202248,
+         "attribution_wall_s": null
         }
        },
        "verdicts": {
@@ -22412,24 +23805,36 @@
          "judged": true
         },
         "R3": {
-         "verdict": "not run",
+         "verdict": "controller-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
-         "untestable": null,
+         "labels": [
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+          "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)"
+         ],
+         "passes": [
+          false,
+          false
+         ],
+         "untestable": [
+          "cop_at_pad_edge_with_ankle_saturated"
+         ],
          "judged": true
         },
         "R4": {
-         "verdict": "not run",
+         "verdict": "body-limited",
          "gated": false,
-         "labels": null,
-         "passes": null,
+         "labels": [
+          "body-limited: slip_median, slip_worst"
+         ],
+         "passes": [
+          false
+         ],
          "untestable": null,
          "read_from": null,
          "judged": true
         }
        },
-       "shown": "not run"
+       "shown": "controller-limited"
       }
      }
     },
@@ -22440,19 +23845,22 @@
       "controller-limited": 3
      },
      "R3": {
-      "shown": 9,
-      "not run": 7,
-      "provisional": 1,
-      "body-limited": 3,
-      "not attributed": 2
+      "shown": 12,
+      "body-limited": 5,
+      "provisional": 2,
+      "controller-limited": 3
      },
      "R4": {
-      "not run": 22
+      "provisional": 6,
+      "body-limited": 10,
+      "controller-limited": 5,
+      "fails by falls (R4: not attributed)": 1
      }
     },
     "single_seed": {
      "R4": {
-      "not run": 22
+      "pass": 6,
+      "FAIL": 16
      }
     },
     "policy_runs": {
@@ -22612,7 +24020,7 @@
      },
      "R3/42": {
       "controllers": {
-       "R3: R2 (the tracker on the estimate) with the body-level G5 selection seed43_gen40 plus PPO seed 42's residual policy at 2,506,752 steps": 15
+       "R3: R2 (the tracker on the estimate) with the body-level G5 selection seed43_gen40 plus PPO seed 42's residual policy at 2,506,752 steps": 28
       },
       "checkpoints": [
        {
@@ -22620,11 +24028,11 @@
         "final": true
        }
       ],
-      "records": 15
+      "records": 28
      },
      "R3/43": {
       "controllers": {
-       "R3: R2 (the tracker on the estimate) with the body-level G5 selection seed43_gen40 plus PPO seed 43's residual policy at 2,506,752 steps": 15
+       "R3: R2 (the tracker on the estimate) with the body-level G5 selection seed43_gen40 plus PPO seed 43's residual policy at 2,506,752 steps": 28
       },
       "checkpoints": [
        {
@@ -22632,7 +24040,19 @@
         "final": true
        }
       ],
-      "records": 15
+      "records": 28
+     },
+     "R4/42": {
+      "controllers": {
+       "R4: PPO seed 42's policy-only policy at 1,253,376 steps, the joint targets held by the servos alone (no tracker)": 28
+      },
+      "checkpoints": [
+       {
+        "steps": 1253376,
+        "final": true
+       }
+      ],
+      "records": 28
      }
     }
    },
@@ -22758,6 +24178,99 @@
         "min_rad": 0.11869079841362323,
         "max_rad": 0.1190706328223996,
         "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.1644199330446145,
+        "max_H": 0.17139828142909994,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05365600085592541,
+        "min_rad": 0.0536076448492489,
+        "max_rad": 0.053696980118746955,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12058771939306219,
+        "min_rad": 0.12046162916525278,
+        "max_rad": 0.12085639179573407,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.1772840527254602,
+        "max_H": 0.18846979173257755,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05252241266037936,
+        "min_rad": 0.0524507379112826,
+        "max_rad": 0.052630248814402834,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.11976932083151955,
+        "min_rad": 0.11967114003699804,
+        "max_rad": 0.12004312064783249,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.004106915785174321,
+        "max_H": 0.006014462023877208,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0018668409690037473,
+        "min_rad": 0.0017662297094486355,
+        "max_rad": 0.002052754705594074,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0007318802291627409,
+        "min_rad": 0.0005950214052329344,
+        "max_rad": 0.0009413780883013206,
+        "in_band": 0,
         "band_rad": [
          0.1,
          0.2
@@ -22889,6 +24402,99 @@
          0.2
         ]
        }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.11774377589047721,
+        "max_H": 0.13031027923759597,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05434705067350505,
+        "min_rad": 0.0542607292820075,
+        "max_rad": 0.05452440082289085,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12338287841603998,
+        "min_rad": 0.12317502027054156,
+        "max_rad": 0.12359715294020367,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.14485163936121312,
+        "max_H": 0.1737266842985933,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05348224126709718,
+        "min_rad": 0.05340206499538536,
+        "max_rad": 0.053564423414855164,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12083350056676048,
+        "min_rad": 0.12060615780336251,
+        "max_rad": 0.12103433766599164,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.0025054736680468473,
+        "max_H": 0.00428493850570826,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0017540808702358533,
+        "min_rad": 0.0016634646920638454,
+        "max_rad": 0.0019155831402901955,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0009436992413577322,
+        "min_rad": 0.0008168255913240134,
+        "max_rad": 0.0011072659987509021,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
       }
      },
      "walk/fr05": {
@@ -23010,6 +24616,99 @@
         "min_rad": 0.12049671687557559,
         "max_rad": 0.12309956460946442,
         "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.11226346760091215,
+        "max_H": 0.13716678209730285,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0539461440460671,
+        "min_rad": 0.05372975800618898,
+        "max_rad": 0.054392571431014496,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12404416519131563,
+        "min_rad": 0.12344986349303823,
+        "max_rad": 0.12434055285163975,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.1425425296242979,
+        "max_H": 0.19341048919686793,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.053529637561561615,
+        "min_rad": 0.05330060837349488,
+        "max_rad": 0.053743108650747634,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.11747598835894082,
+        "min_rad": 0.11622333403879553,
+        "max_rad": 0.11854369355319552,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.002085110638598711,
+        "max_H": 0.004105372724199069,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0016527350406508594,
+        "min_rad": 0.0015385031831341841,
+        "max_rad": 0.0017544883951059326,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0007930074696703333,
+        "min_rad": 0.0007369696848072453,
+        "max_rad": 0.0009541087426874123,
+        "in_band": 0,
         "band_rad": [
          0.1,
          0.2
@@ -23141,6 +24840,99 @@
          0.2
         ]
        }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.16618530060486378,
+        "max_H": 0.17485123913198672,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05362595367715878,
+        "min_rad": 0.05357205818220712,
+        "max_rad": 0.05366545861234523,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12090355762973197,
+        "min_rad": 0.12070373043125074,
+        "max_rad": 0.12102631568562877,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.17953268478138992,
+        "max_H": 0.19206214344184147,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.052507252246511094,
+        "min_rad": 0.05244659519640399,
+        "max_rad": 0.0525960750571928,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.11986941303397847,
+        "min_rad": 0.11973735199402144,
+        "max_rad": 0.12013512017129152,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.0036251449425959473,
+        "max_H": 0.005958458079020368,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.001857692910627383,
+        "min_rad": 0.0017474705626095276,
+        "max_rad": 0.0020079109427352223,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0007085267056117266,
+        "min_rad": 0.0005984882231545691,
+        "max_rad": 0.0009380763151872326,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
       }
      },
      "walk/brisk_mu0.54": {
@@ -23262,6 +25054,99 @@
         "min_rad": 0.1207327033394145,
         "max_rad": 0.12117009767057425,
         "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.11931323285210882,
+        "max_H": 0.1354062770567725,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05433091326604861,
+        "min_rad": 0.05423360823296318,
+        "max_rad": 0.05451866338384741,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12355043568537236,
+        "min_rad": 0.12332673832573207,
+        "max_rad": 0.12384551709794071,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.1496517676794827,
+        "max_H": 0.18287656597893137,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05358146130889367,
+        "min_rad": 0.05345949298432973,
+        "max_rad": 0.0537442179283726,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12117916533615133,
+        "min_rad": 0.12095080767091154,
+        "max_rad": 0.12151490579979399,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.0026277687371339875,
+        "max_H": 0.004459334804818985,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.001713176568931582,
+        "min_rad": 0.001614266600853456,
+        "max_rad": 0.0018777574183913258,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0008925287304352786,
+        "min_rad": 0.0007855917903442824,
+        "max_rad": 0.0010248400233278934,
+        "in_band": 0,
         "band_rad": [
          0.1,
          0.2
@@ -23393,6 +25278,99 @@
          0.2
         ]
        }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.12072444078252105,
+        "max_H": 0.20823883816927619,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.05413287381756826,
+        "min_rad": 0.053802893667640184,
+        "max_rad": 0.054511545807395326,
+        "in_band": 20,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.12346259220431484,
+        "min_rad": 0.12291901844819599,
+        "max_rad": 0.12395073917334203,
+        "in_band": 20,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 18,
+        "mean_H": 0.14463377175570133,
+        "max_H": 0.19620641362688002,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 18,
+        "mean_rad": 0.053570199031364764,
+        "min_rad": 0.05335388868461173,
+        "max_rad": 0.05384200870202836,
+        "in_band": 18,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 18,
+        "mean_rad": 0.11735117542626011,
+        "min_rad": 0.11574401846240526,
+        "max_rad": 0.11838254710429491,
+        "in_band": 18,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.0021816190289965175,
+        "max_H": 0.004402931892326227,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0016507769855455766,
+        "min_rad": 0.0015382977053562076,
+        "max_rad": 0.0017628674757469882,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0007635492815128795,
+        "min_rad": 0.00068997358304026,
+        "max_rad": 0.0008790278502416225,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
       }
      },
      "carpet/robot_floor_carpet": {
@@ -23513,6 +25491,37 @@
         "mean_rad": null,
         "min_rad": null,
         "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.003446316409837758,
+        "max_H": 0.004567490818015731,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.001957255166391679,
+        "min_rad": 0.0018620314048489652,
+        "max_rad": 0.002117459867251109,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0005454606718950763,
+        "min_rad": 0.00043242768468628107,
+        "max_rad": 0.0007062673544770001,
         "in_band": 0,
         "band_rad": [
          0.1,
@@ -23645,6 +25654,37 @@
          0.2
         ]
        }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.003038518786097192,
+        "max_H": 0.0037989084130723876,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0021567717978389508,
+        "min_rad": 0.0020256370873961765,
+        "max_rad": 0.0023630975612561255,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0009461912728697362,
+        "min_rad": 0.0007751193215950642,
+        "max_rad": 0.00122712747662878,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
       }
      },
      "carpet/medium": {
@@ -23709,6 +25749,99 @@
          0.2
         ]
        }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 0,
+        "mean_H": null,
+        "max_H": null,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 0,
+        "mean_H": null,
+        "max_H": null,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.003246663034357693,
+        "max_H": 0.004961629638701848,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.002249892691366607,
+        "min_rad": 0.0021098932137984267,
+        "max_rad": 0.0025011029860363375,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0011566071259969603,
+        "min_rad": 0.0009419389543467414,
+        "max_rad": 0.001601693776747337,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
       }
      },
      "carpet/high": {
@@ -23767,6 +25900,99 @@
         "mean_rad": null,
         "min_rad": null,
         "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 0,
+        "mean_H": null,
+        "max_H": null,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R3/43": {
+       "episodes": 20,
+       "sway": {
+        "read": 0,
+        "mean_H": null,
+        "max_H": null,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 0,
+        "mean_rad": null,
+        "min_rad": null,
+        "max_rad": null,
+        "in_band": 0,
+        "band_rad": [
+         0.1,
+         0.2
+        ]
+       }
+      },
+      "R4/42": {
+       "episodes": 20,
+       "sway": {
+        "read": 20,
+        "mean_H": 0.0034458456139323753,
+        "max_H": 0.005290258518315943,
+        "spec_H": 0.12
+       },
+       "head": {
+        "read": 20,
+        "mean_rad": 0.0022789562811599178,
+        "min_rad": 0.002142933319611899,
+        "max_rad": 0.002524276421981611,
+        "in_band": 0,
+        "band_rad": [
+         0.05,
+         0.15
+        ]
+       },
+       "tail": {
+        "read": 20,
+        "mean_rad": 0.0012382570964672172,
+        "min_rad": 0.0010258628752025383,
+        "max_rad": 0.0017041003602061367,
         "in_band": 0,
         "band_rad": [
          0.1,
@@ -24065,7 +26291,155 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "walk_nominal": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.28125,
+            "fails": 0.275,
+            "resolution": 0.006249999999999978,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "works across the interval",
+            "threshold": 0.1,
+            "fails": null,
+            "resolution": null,
+            "search": null,
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "turn_left": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.32499999999999996,
+            "fails": 0.31875,
+            "resolution": 0.006249999999999978,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "works across the interval",
+            "threshold": 0.1,
+            "fails": null,
+            "resolution": null,
+            "search": null,
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "turn_right": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.21875,
+            "fails": 0.21250000000000002,
+            "resolution": 0.006249999999999978,
+            "search": null,
+            "label": "body-limited: slip_median",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "works across the interval",
+            "threshold": 0.1,
+            "fails": null,
+            "resolution": null,
+            "search": null,
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "walk_brisk": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.34375,
+            "fails": 0.33749999999999997,
+            "resolution": 0.006250000000000033,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.10625000000000001,
+            "fails": 0.1,
+            "resolution": 0.0062500000000000056,
+            "search": null,
+            "label": "body-limited: slip (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "turn": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.32499999999999996,
+            "fails": 0.31875,
+            "resolution": 0.006249999999999978,
+            "search": "turn_left",
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "works across the interval",
+            "threshold": 0.1,
+            "fails": null,
+            "resolution": null,
+            "search": "turn_left",
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           },
+           "of": [
+            "turn_left",
+            "turn_right"
+           ]
+          }
+         },
+         "points": {}
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 44,
+         "episodes": 132,
+         "simulated_s": 3048.2439999997164,
+         "wall_s": 597.7301830100005,
+         "cpu_s": 596.4026320029996,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      },
@@ -24396,7 +26770,223 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "standing_forward": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.30370312499999996,
+            "fails": 0.31290625,
+            "resolution": 0.009203125000000034,
+            "search": null,
+            "label": "controller-limited (lifting drive_torque, envelope saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.30370312499999996,
+            "fails": 0.31290625,
+            "resolution": 0.009203125000000034,
+            "search": null,
+            "label": "controller-limited (lifting drive_torque, envelope saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "standing_backward": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.34971874999999997,
+            "fails": 0.35892187499999995,
+            "resolution": 0.009203124999999979,
+            "search": null,
+            "label": "controller-limited (falls with no relaxable hardware limit active before the onset: nothing to lift, decision 20; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.34971874999999997,
+            "fails": 0.35892187499999995,
+            "resolution": 0.009203124999999979,
+            "search": null,
+            "label": "controller-limited (falls with no relaxable hardware limit active before the onset: nothing to lift, decision 20; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "standing_left": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.6258125,
+            "fails": 0.6350156250000001,
+            "resolution": 0.00920312500000009,
+            "search": null,
+            "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.6258125,
+            "fails": 0.6350156250000001,
+            "resolution": 0.00920312500000009,
+            "search": null,
+            "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "standing_right": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.6166093749999999,
+            "fails": 0.6258125,
+            "resolution": 0.00920312500000009,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.6442187500000001,
+            "fails": 0.653421875,
+            "resolution": 0.009203124999999979,
+            "search": null,
+            "label": "controller-limited (lifting drive_torque, envelope, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "walking_forward": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.1840625,
+            "fails": 0.193265625,
+            "resolution": 0.009203125000000006,
+            "search": null,
+            "label": "controller-limited (falls with no relaxable hardware limit active before the onset: nothing to lift, decision 20; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.1840625,
+            "fails": 0.193265625,
+            "resolution": 0.009203125000000006,
+            "search": null,
+            "label": "controller-limited (falls with no relaxable hardware limit active before the onset: nothing to lift, decision 20; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "walking_backward": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.16565625,
+            "fails": 0.17485937499999998,
+            "resolution": 0.009203124999999979,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.17485937499999998,
+            "fails": 0.1840625,
+            "resolution": 0.009203125000000006,
+            "search": null,
+            "label": "controller-limited (lifting slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "walking_left": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.082828125,
+            "fails": 0.09203125,
+            "resolution": 0.009203124999999993,
+            "search": null,
+            "label": "body-limited: drive_torque (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.082828125,
+            "fails": 0.09203125,
+            "resolution": 0.009203124999999993,
+            "search": null,
+            "label": "body-limited: drive_torque (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          },
+          "walking_right": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.11964062499999999,
+            "fails": 0.12884374999999998,
+            "resolution": 0.009203124999999993,
+            "search": null,
+            "label": "body-limited: slip (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.11964062499999999,
+            "fails": 0.12884374999999998,
+            "resolution": 0.009203124999999993,
+            "search": null,
+            "label": "body-limited: slip (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          }
+         },
+         "points": {}
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 84,
+         "episodes": 252,
+         "simulated_s": 1789.3919999999407,
+         "wall_s": 311.45970567102086,
+         "cpu_s": 310.1051820489999,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      },
@@ -24519,7 +27109,55 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "walk_fr05": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.865234375,
+            "fails": 0.859375,
+            "resolution": 0.005859375,
+            "search": null,
+            "label": "body-limited: drive_speed",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.26171875,
+            "fails": 0.255859375,
+            "resolution": 0.005859375,
+            "search": null,
+            "label": "body-limited: drive_torque, envelope, slip (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          }
+         },
+         "points": {}
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 19,
+         "episodes": 57,
+         "simulated_s": 1491.7959999997931,
+         "wall_s": 263.0072573619964,
+         "cpu_s": 262.18155692300013,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      },
@@ -24617,7 +27255,55 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "walk_nominal": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.859375,
+            "fails": 0.853515625,
+            "resolution": 0.005859375,
+            "search": null,
+            "label": "body-limited: drive_sustained",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.361328125,
+            "fails": 0.35546875,
+            "resolution": 0.005859375,
+            "search": null,
+            "label": "body-limited: slip (lifted, all 3 seeds survive; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          }
+         },
+         "points": {}
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 18,
+         "episodes": 54,
+         "simulated_s": 884.6840000000324,
+         "wall_s": 154.95892171300875,
+         "cpu_s": 154.35960424899986,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      },
@@ -24699,7 +27385,55 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "walk_nominal": {
+           "success": {
+            "status": "bisected",
+            "threshold": 0.71875,
+            "fails": 0.712890625,
+            "resolution": 0.005859375,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "bisected",
+            "threshold": 0.56640625,
+            "fails": 0.560546875,
+            "resolution": 0.005859375,
+            "search": null,
+            "label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+            "evaluated": 9,
+            "panels": null,
+            "flag": null
+           }
+          }
+         },
+         "points": {}
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 17,
+         "episodes": 51,
+         "simulated_s": 724.4600000000228,
+         "wall_s": 149.13830821199917,
+         "cpu_s": 148.67296400800006,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      },
@@ -24781,7 +27515,55 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "walk_nominal": {
+           "success": {
+            "status": "bisected",
+            "threshold": 3,
+            "fails": 4,
+            "resolution": 1,
+            "search": null,
+            "label": "controller-limited",
+            "evaluated": 6,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "works across the interval",
+            "threshold": 10,
+            "fails": null,
+            "resolution": null,
+            "search": null,
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           }
+          }
+         },
+         "points": {}
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 6,
+         "episodes": 18,
+         "simulated_s": 289.9980000000094,
+         "wall_s": 56.38888343399958,
+         "cpu_s": 56.45437466000001,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      },
@@ -24913,7 +27695,88 @@
         }
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {
+          "walk_nominal": {
+           "success": {
+            "status": "works across the interval",
+            "threshold": 1.3,
+            "fails": null,
+            "resolution": null,
+            "search": null,
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           },
+           "survival": {
+            "status": "works across the interval",
+            "threshold": 1.3,
+            "fails": null,
+            "resolution": null,
+            "search": null,
+            "label": null,
+            "evaluated": 2,
+            "panels": null,
+            "flag": null
+           }
+          }
+         },
+         "points": {
+          "walk_nominal_trunk_x1.1": {
+           "status": "done",
+           "value": 1.1,
+           "condition": "walk/nominal",
+           "works": true,
+           "works_outright": true,
+           "survives": true,
+           "succeeded": 3,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": 0.041473756290175245,
+           "label": null
+          },
+          "walk_nominal_robot_x1.1": {
+           "status": "done",
+           "value": 1.241,
+           "condition": "walk/nominal",
+           "works": true,
+           "works_outright": true,
+           "survives": true,
+           "succeeded": 3,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": 0.09995175265932255,
+           "label": null
+          }
+         }
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 4,
+         "episodes": 12,
+         "simulated_s": 220.63200000000825,
+         "wall_s": 37.73802960499961,
+         "cpu_s": 38.099801265,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": {
+         "trunk_body_kg": 6.1609,
+         "robot_kg": 14.8549,
+         "trunk_share": 0.4147385711112158,
+         "robot_point": 1.241,
+         "rule": "the trunk's mass and inertia x f in the plant (env.set_trunk_mass, env.MASS_RULE: MuJoCo's derived constants recomputed), the controller keeping the nominal model (every control.Tracker the row builds during the episode gets the plant's nominal model when its caller gives none, as env.ResidualEnv builds R3's: the tracker's mass, R2's estimator and its sensors' weight, and a policy row's observed weight and R4's estimator, which are its tracker's, policy_rows.POLICY_RULE and R4_RULE, as env.py keeps them; each episode records the trunk mass its controller worked with and the plant's, and with them the whole robot's mass change), the judgement on the true body (metrics.Recorder reads the plant's mass: the GRF over the true weight), on the nominal walk.  Plan section 5's '+10 %' is read both ways, as two points: the trunk x 1.1 (env.MASS_RULE's factor, the trunk alone: +4.15-4.40 % of the robot's mass) and the trunk factor that adds 10 % of the robot's mass (MASSES, ROBOT_MASS_POINT: x 1.230 / 1.227 / 1.241); and the largest f that works from 1 up to 1.3 (+12-13 % of the robot: beyond the plan's +10 %, to find the margin; STAGE1_PLAN.md decision 33)"
+        }
        }
       }
      },
@@ -25317,12 +28180,121 @@
         "masses": null
        },
        "R3/42": {
-        "status": "not run"
+        "status": "done",
+        "summary": {
+         "searches": {},
+         "points": {
+          "walk_nominal_25.2V": {
+           "status": "done",
+           "value": 25.2,
+           "condition": "walk/nominal",
+           "works": true,
+           "works_outright": true,
+           "survives": true,
+           "succeeded": 3,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": null,
+           "label": null
+          },
+          "walk_nominal_22.2V": {
+           "status": "done",
+           "value": 22.2,
+           "condition": "walk/nominal",
+           "works": true,
+           "works_outright": true,
+           "survives": true,
+           "succeeded": 3,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": null,
+           "label": null
+          },
+          "walk_nominal_21V": {
+           "status": "done",
+           "value": 21.0,
+           "condition": "walk/nominal",
+           "works": true,
+           "works_outright": true,
+           "survives": true,
+           "succeeded": 3,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": null,
+           "label": null
+          },
+          "walk_fr05_25.2V": {
+           "status": "done",
+           "value": 25.2,
+           "condition": "walk/fr05",
+           "works": true,
+           "works_outright": false,
+           "survives": true,
+           "succeeded": 0,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": null,
+           "label": null
+          },
+          "walk_fr05_22.2V": {
+           "status": "done",
+           "value": 22.2,
+           "condition": "walk/fr05",
+           "works": true,
+           "works_outright": false,
+           "survives": true,
+           "succeeded": 0,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": null,
+           "label": null
+          },
+          "walk_fr05_21V": {
+           "status": "done",
+           "value": 21.0,
+           "condition": "walk/fr05",
+           "works": true,
+           "works_outright": false,
+           "survives": true,
+           "succeeded": 0,
+           "survived": 3,
+           "same_as_nominal": false,
+           "robot_mass_change": null,
+           "label": null
+          }
+         }
+        },
+        "cut_s": null,
+        "halvings": 7,
+        "cost": {
+         "evaluations": 8,
+         "episodes": 24,
+         "simulated_s": 545.2559999999589,
+         "wall_s": 94.35111168200092,
+         "cpu_s": 94.126243998,
+         "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+        },
+        "flags": [],
+        "not_run": null,
+        "reference_stop": null,
+        "panel_reading": null,
+        "checkpoint": {
+         "steps": 2506752,
+         "final": true
+        },
+        "masses": null
        }
       }
      }
     },
-    "checkpoints": {},
+    "checkpoints": {
+     "R3/42": [
+      {
+       "steps": 2506752,
+       "final": true
+      }
+     ]
+    },
     "notes": [],
     "current": {
      "ledger": "4de8aa89a453ca23888fd9a9fb77b4000ac6530ebfb67b2f81337e366ce13408",
@@ -25412,7 +28384,7 @@
      "job_wall_s": 70265.89524099999,
      "write": {
       "last_write": "2026-11-10T00:12:29+00:00",
-      "idle_s": 719.150389,
+      "idle_s": 3955.141399,
       "rate_env_steps_s": 123.50196866395373,
       "limit_s": 6072.77769021427,
       "stopped": false
@@ -25499,7 +28471,7 @@
      "job_wall_s": 68633.901853,
      "write": {
       "last_write": "2026-11-10T00:12:29+00:00",
-      "idle_s": 719.148185,
+      "idle_s": 3955.139195,
       "rate_env_steps_s": 145.9974583378756,
       "limit_s": 5137.075730895996,
       "stopped": false
@@ -25543,7 +28515,7 @@
      "job_wall_s": 37187.193526,
      "write": {
       "last_write": "2026-11-10T00:12:30+00:00",
-      "idle_s": 718.58861,
+      "idle_s": 3954.57962,
       "rate_env_steps_s": 33.70450634097146,
       "limit_s": 22252.217327043123,
       "stopped": false
@@ -25668,26 +28640,26 @@
       "basis": "finished sessions' CPU, and for a running session its wall to the record's last write x the CPU per wall second of its first rollouts (an estimate); wall: the elapsed union of the sessions, job-hours beside"
      },
      "panels": {
-      "wall_h": 3.894861313241667,
-      "core_h": 4.452548958440204,
-      "records": 130,
+      "wall_h": 6.106892626114724,
+      "core_h": 6.131267442192145,
+      "records": 184,
       "basis": "episodes' and attributions' wall seconds (one process each): an upper bound on CPU"
      },
      "ledger": {
-      "wall_h": 0.5180318111572221,
-      "core_h": 0.3961454208955555,
-      "episode_wall_h": 0.6463177347680615,
-      "records": 9,
-      "evaluations": 200,
+      "wall_h": 0.9708291298772226,
+      "core_h": 0.8386763954402775,
+      "episode_wall_h": 1.0906652379972366,
+      "records": 17,
+      "evaluations": 394,
       "basis": "episodes' CPU seconds, each evaluation once (by its key) however many margins use it",
       "rule": "the dry run counts, per search, the values it can still need after replaying the evaluations recorded under this run's keys: at most 2 + 7 on success (an integer search: 2 + its halvings) and as many more on survival (none when the two agree), each x 3 seeds at the condition's planned seconds (panels.Planner); a point once, with its condition's nominal evaluation (a value two searches share, such as the nominal walk's nominal value, is counted in each and run once); the lifts (LIFT_RULE) as an upper bound beside: every relaxation at each criterion's fails end; the cost per simulated second is panels.COST_RULE's for a tracker row (R2/42 walking on each floor, measured now) and a policy row's own for R3 and R4 (policy_rows.POLICY_COST_RULE: the row, its network included, on the nominal walk on each floor its searches still need, measured now); core-hours = simulated seconds x CPU seconds per simulated second / 3600"
      }
     },
-    "core_h": 31.45250859534232
+    "core_h": 33.57375805363898
    }
   }
  },
- "core_h": 90.05249494538518,
+ "core_h": 92.17374440368185,
  "paths": {
   "markdown": "stage1/runs/2026-11-08/STAGE1_TABLES.md",
   "json": "stage1/runs/2026-11-08/stage1_tables.json"
