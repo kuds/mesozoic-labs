@@ -244,20 +244,28 @@ class EnvConfig:
         return asdict(self)
 
 
+def _screen_id(body: str) -> str:
+    """The round-two candidate id that names a body's screens: the registry's ``candidate_id`` (Stage 1b's faster-knee
+    bodies carry their picks' ids), or the body's own name in a registry without it."""
+    try:
+        from . import candidate_id
+    except ImportError:
+        return body
+    return candidate_id(body)
+
+
 class _PushBounds(dict):
     """The Stage 0 forward push bound per body (m/s): the round-two envelope screen's one-step capturability bound
-    (``<case>/review/screening/<body>_envelope.json`` ``push_recovery.max_push_dv_ms``) to 3 decimals.  The Stage 1
-    bodies' bounds are listed (those screens' values so rounded); a body that is not listed (a faster-knee body of
-    STAGE1B_PLAN.md) gets its own screen's, read when it is first asked for (``[body]``; ``get`` reads only the list,
-    as before)."""
+    (``<case>/review/screening/<candidate id>_envelope.json`` ``push_recovery.max_push_dv_ms``) to 3 decimals.  The
+    Stage 1 bodies' bounds are listed (those screens' values so rounded); a body that is not listed (a faster-knee body
+    of STAGE1B_PLAN.md) gets its own screen's when it is asked for (``[body]``); ``get`` reads only the list, as
+    before."""
 
     def __missing__(self, body):
-        path = case_dir(body) / "review" / "screening" / f"{body}_envelope.json"  # (KeyError if not registered)
+        path = case_dir(body) / "review" / "screening" / f"{_screen_id(body)}_envelope.json"  # (KeyError: unregistered)
         if not path.exists():
             raise KeyError(f"{body}: no push bound listed and no envelope screen at {path}")
-        value = round(float(json.loads(path.read_text())["push_recovery"]["max_push_dv_ms"]), 3)
-        self[body] = value
-        return value
+        return round(float(json.loads(path.read_text())["push_recovery"]["max_push_dv_ms"]), 3)
 
 
 #: The Stage 0 forward push bound per body (plan section 5's margin ledger), m/s (``_PushBounds``).

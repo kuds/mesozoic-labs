@@ -66,4 +66,51 @@ If the fits run long, every arm is judged at the last generation all of them rea
 
 ## 6. Decisions taken
 
-(None yet.)
+These were settled on 10 Nov, after the build's review and before any speed fit or row ran. They change no body
+(P24) and no pass criterion of section 4. Each is recorded in the code as a rule that the records carry.
+
+1. **The fit's step size is Stage 1's** (`speedfit.SIGMA0_RULE`). sigma0 is 0.1 of each gain's range, as section 3
+   has it. Half of that (0.05) was built first and then dropped. Stage 1's six fits never raised their step size above
+   1.2 times its start (0.119 at most), and their selections were found at 0.092, 0.054 and 0.052. A fit started at
+   0.05 would therefore stay a local search about the start, and in 360 evaluations a negative answer to Q1 or Q2
+   would be weaker evidence than "Stage 1's fit" implies.
+2. **The speed rows' falls are attributed** (`speedfit.ATTRIBUTION_RULE`). Section 4 names the failing limits, and
+   Stage 1's R2 baseline carries decision 20's labels. So the rows R2s, R2@10ms and R2@0ms are attributed the same
+   way: `eval --attribute` lifts each relaxable candidate of a condition's falls over its 20 starts when the condition
+   has at least 5 falls. The lifted runs keep the row's servo delay. A failing condition costs about 40–60 more
+   episodes, about 0.1–0.4 core-h per body.
+3. **How the rows are read** (`designlab/stage1/speedreport.py`). The panels' `eval/summary.json` gives Stage 1's
+   verdicts (R2/42 with R2/43), which do not apply to the speed rows. `python -m designlab.stage1 speedreport` applies
+   section 4 per row and condition: shown, survives only or fails, with the failing terms and their counts, and the
+   falls' candidates and attribution.
+   - Q1 (arm S) is read beside Stage 1's R2 row of the start's CMA-ES seed on the same body.
+   - Q2 (arm K) is read beside R2@0ms on the K body: the pick's gains without a refit. R2@0ms is run on arm K for this,
+     so that a trade can be told from the body's effect.
+   - Q3 is read beside R2@10ms.
+   - A trade is a nominal walk or target turn that the 0 ms baseline shows and R2s does not.
+   - Speed G5's counts pool delays of 0–10 ms and answer no question.
+4. **Judging the fits** (`speedfit.JUDGED_RULE`). A fit is judged at its last generation once it is done, or at
+   `speedg5 --at-generation G` under section 5. `--partial` on an unfinished fit is a smoke check: its selection is
+   recorded as not judged, and no row takes it. Speed G5 keeps each validation evaluation as it finishes, so a
+   restart continues it (`speedfit.G5_RESUME_RULE`).
+5. **The code is frozen from the merge until the rows have run** (`speedfit.SOURCES_RULE`). The speed fit's sources
+   are 14 modules, and the faster-knee branch edits six of them (`__init__`, `control`, `gates`, `panels`, `plant`,
+   `refs`). So this branch and the faster-knee branch are merged before any fit starts, arm S's included, and none of
+   the 14 changes until the rows have run: a resumed fit and speed G5 refuse other sources. `speedreport.py` and the
+   run script are outside them. env.py needs no edit at the merge: it reads an unlisted body's push bound from its
+   screen by candidate id once `candidate_id` is in the registry.
+6. **Stage 1's records after the merge.** The round edits env.py (the push bound of an unlisted body). The
+   faster-knee branch edits the panels' sources (`__init__`, `panels`, `control`, `plant`, `refs`). So after the
+   merge, Stage 1's panel and ledger records (panel sources 7516b927…) and its R3 and R4 rows (env.py beff6779…) name
+   other sources than the code.
+   - Stage 1's records and tables are kept as they are and read as Stage 1's. `STAGE1_TABLES.md` is regenerated only
+     from Stage 1's commit (07a73f4 or earlier), and no Stage 1 record is rerun with the round's code.
+   - The round cites Stage 1's R2 rows as its baseline, with this note.
+   - The edits change no Stage 1 episode. The three listed push bounds are unchanged, and the round's code reproduces
+     Stage 1's episodes: the review reran three brisk and Fr 0.05 episodes exactly, and `test_stage1_speedfit` reruns
+     a recorded G5 episode. That test is run again on the merged code before any fit starts.
+7. **Order of the runs** (`stage1/runs/2026-11-10-speed/run_speed_round.sh`). First the merge, then arm K's `prepare`
+   and G1–G4. Then the four fits run at once, one worker each, with nothing else heavy on the machine. Speed G5 and
+   the rows with `--attribute` follow, and `speedreport` last. If the fits cannot reach generation 30 in time for
+   speed G5 and the rows before 11:00, every arm is judged with `speedg5 --at-generation` at the last generation all
+   of them reached (section 5).

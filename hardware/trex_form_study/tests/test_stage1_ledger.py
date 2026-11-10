@@ -373,9 +373,12 @@ def test_the_trunk_mass_points():
         assert 0.04 < 0.1 * trunk / robot < 0.045  # the trunk x 1.1: about +4.3 % of the robot
 
 
-def test_rows_and_the_bus_voltage_rule():
-    """'R2' is the body-level G5 selection's CMA-ES seed (env.tuned_gains) and 'R3' is R3/42; a voltage above every
-    leg drive's nominal voltage changes nothing (60 cm: 24 V drives), below it every leg drive's speeds."""
+def test_rows_and_the_bus_voltage_rule(tmp_path, monkeypatch):
+    """'R2' is the body-level G5 selection's CMA-ES seed (env.tuned_gains) and 'R3' is R3/42 (no body's R3 judged with
+    R2 here: the training runs read are an empty directory's, so the test does not depend on the run's R3 state;
+    test_r3_is_left_out_for_a_body_judged_with_r2 covers that); a voltage above every leg drive's nominal voltage
+    changes nothing (60 cm: 24 V drives), below it every leg drive's speeds."""
+    monkeypatch.setenv("STAGE1_POLICY_RUNS", str(tmp_path))
     want = {"60-N-T-10": "R2/42", "60-N-H-10": "R2/43", "75-M-H-10": "R2/43"}
     for body, row in want.items():
         if (RUN / body / "tune.json").exists():

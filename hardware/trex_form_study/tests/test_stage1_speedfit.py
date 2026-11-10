@@ -10,6 +10,7 @@ references and transitions (git-ignored; ``python -m designlab.stage1 prepare``)
 from __future__ import annotations
 
 import dataclasses
+import functools
 import json
 import sys
 from collections import Counter
@@ -71,7 +72,7 @@ def test_the_speed_mix_and_its_terms():
     assert all(isinstance(v, str) and v for v in speedfit.RULES.values())
     json.dumps(speedfit.OBJECTIVE)
     assert speedfit.CMA_SETTINGS["popsize"] == 12 and speedfit.BUDGET == 360 and speedfit.BUDGET % 12 == 0
-    assert speedfit.CMA_SETTINGS["sigma0"] == speedfit.SIGMA0 == 0.05 < tune.SIGMA0
+    assert speedfit.CMA_SETTINGS["sigma0"] == speedfit.SIGMA0 == tune.SIGMA0 == 0.1  # Stage 1's (plan section 3)
     assert speedfit.CMA_SETTINGS["train_episodes"] == [1000, 2000]
     assert speedfit.CMA_SETTINGS["validation_episodes"] == [2000, 2020] and speedfit.SEEDS == (42,)
 
@@ -124,11 +125,12 @@ def test_a_tiny_real_evaluation(cut_ev, start):
         assert e["latency_steps"] == r["latency_steps"][kind] and e["seconds"] == pytest.approx(2.0)
         assert set(e["success"]) == set(speedfit.SUCCESS[kind]) and set(e["limits"]) == set(speedfit.LIMITS[kind])
         assert set(e["tracking"]) == set(speedfit.TRACKING[kind])
-    for kind in speedfit.SPEED_WALKS:
+    for kind in speedfit.SPEED_WALKS:  # cut short of their planned length: no window, every term 1 (SPEED_WALK_RULE)
         e = r["episodes"][kind]
         assert e["kind"] == kind and e["start_terms"] == {} == e["stop_terms"] and e["start"] is None
-        ta, tb = e["judged_window_s"]  # the last 10 s up to the last feedback update (panels.judge's window)
-        assert tb - ta == pytest.approx(10.0) and 1.98 < tb < 2.0 and e["window"]["complete"]
+        assert e["judged_window_s"] is None and not e["window"]["complete"] and not e["fell"]
+        assert set(e["tracking"].values()) == set(e["limits"].values()) == {1.0} and not e["succeeded"]
+        assert e["success"] == {n: n == "survived" for n in speedfit.SUCCESS[kind]}
     assert r["episodes"]["walk"]["start_terms"] and not r["episodes"]["walk"]["window"]["complete"]  # cut: no stop
     sc = tune.score(r["episodes"])
     assert r["J"] == sc["J"] and set(r["groups"]) == {*speedfit.EPISODES, "start", "stop"}
@@ -151,16 +153,20 @@ def test_a_tiny_real_evaluation(cut_ev, start):
 
 
 @needs_run
-def test_a_speed_walk_is_judged_as_the_panels_judge_it(cut_ev, start):
-    """In slot 0 and without delay, the speed mix's brisk walk is the panels' walk/brisk episode (cut alike): the same
-    success terms and window measures."""
+def test_a_speed_walk_is_judged_as_the_panels_judge_it(cut_ev, start, monkeypatch):
+    """In slot 0 and without delay, the speed mix's brisk walk is the panels' walk/brisk episode: on an episode that runs
+    its planned length (here a spec planned at the 2 s the panels' cut condition runs), the same success terms and
+    window measures over its last 10 s (panels.judge's window, clipped to the episode)."""
     g = speedfit.gains_vector(start["gains"])
     _, docs = tune.read_inputs(RUN / BODY, panels.panel_files())
     ctx = panels.Context(BODY, RUN / BODY, docs)
     row = panels.TrackerRow("R2/start", "R2", g, dict(source="the speed fit's start"))
     for kind in speedfit.SPEED_WALKS:
+        monkeypatch.setitem(cut_ev.specs, (kind, None), dataclasses.replace(cut_ev.specs[(kind, None)], seconds=2.0))
         mine = cut_ev.episode(kind, None, g, 3042, 0, latency=0)
         theirs = row.run(ctx, dataclasses.replace(speedfit.panel_condition(kind), seconds=2.0), 3042)
+        ta, tb = mine["judged_window_s"]  # the last 10 s up to the last feedback update
+        assert tb - ta == pytest.approx(10.0) and 1.98 < tb < 2.0 and mine["window"]["complete"]
         assert mine["success"] == theirs["success"] and mine["succeeded"] == theirs["succeeded"]
         assert mine["fell"] == theirs["fell"] and mine["fall_time_s"] == theirs["fall_time_s"]
         assert {k: mine["window"].get(k) for k in panels.WINDOW_KEYS} == theirs["measures"]["window"]
@@ -210,8 +216,8 @@ def _log(path):
 
 def test_the_fit_checkpoints_every_generation_and_resumes_exactly(tmp_path, monkeypatch):
     """A fit stopped after a generation (and one that died with evaluations logged past its checkpoint) resumes to
-    exactly the uninterrupted fit; it starts from the body's Stage 1 G5 selection with sigma0 0.05, records the start
-    once, and is not restarted over, nor resumed on other sources, inputs or start."""
+    exactly the uninterrupted fit; it starts from the body's Stage 1 G5 selection with Stage 1's sigma0 0.1, records the
+    start once, and is not restarted over, nor resumed on other sources, inputs or start."""
     monkeypatch.setattr(speedfit, "Pool", _StubPool)
     quiet = dict(log=lambda m: None)
     a = speedfit.fit(BODY, 42, evals=36, out=tmp_path / "a", **quiet)
@@ -221,8 +227,8 @@ def test_the_fit_checkpoints_every_generation_and_resumes_exactly(tmp_path, monk
     assert speedfit.gains_vector(a["start"]["gains"]).tolist() == want.tolist()
     first = tune.CMA(tune.to_unit(want), speedfit.SIGMA0, speedfit.POPSIZE, 42)
     rows = _log(speedfit.run_dir_of(tmp_path / "a", BODY, 42) / "evals.jsonl")
-    assert [r["x"] for r in rows[:12]] == first.ask().tolist()  # generation 0 sampled about the start, sigma0 0.05
-    assert a["settings"]["cma"]["sigma0"] == 0.05 and a["objective"]["name"] == "stage1-tune-speed-v1"
+    assert [r["x"] for r in rows[:12]] == first.ask().tolist()  # generation 0 sampled about the start, sigma0 0.1
+    assert a["settings"]["cma"]["sigma0"] == 0.1 and a["objective"]["name"] == "stage1-tune-speed-v1"
     st = json.loads(speedfit.start_path(tmp_path / "a", BODY).read_text())
     assert speedfit.start_key(st) == speedfit.start_key(a["start"]) and st["rule"] == speedfit.START_RULE
     speedfit.fit(BODY, 42, evals=12, out=tmp_path / "b", **quiet)
@@ -255,24 +261,32 @@ def test_the_fit_checkpoints_every_generation_and_resumes_exactly(tmp_path, monk
     with pytest.raises(SystemExit, match=r"inputs changed .*refs/nominal.npz"):
         speedfit.fit(BODY, 42, evals=48, resume=True, out=tmp_path / "b", **quiet)
     monkeypatch.setattr(_StubPool, "inputs", STUB_INPUTS)
-    with pytest.raises(SystemExit, match="settings differ"):  # another start
+    with pytest.raises(SystemExit, match="own Stage 1 fit"):  # START_RULE: a pick starts from its own selection
         speedfit.fit(BODY, 42, evals=48, resume=True, out=tmp_path / "b", start_from="60-N-H-10", **quiet)
+    real_start = speedfit.start_record
+    moved = dict(real_start(BODY), candidate="seed43_gen60", sha256="f" * 64)  # as if the Stage 1 record changed
+    monkeypatch.setattr(speedfit, "start_record", lambda *a, **k: moved)
+    with pytest.raises(SystemExit, match="settings differ"):  # another start
+        speedfit.fit(BODY, 42, evals=48, resume=True, out=tmp_path / "b", **quiet)
     with pytest.raises(SystemExit, match="recorded start"):  # another seed may not start elsewhere either
-        speedfit.fit(BODY, 43, evals=12, out=tmp_path / "b", start_from="60-N-H-10", **quiet)
+        speedfit.fit(BODY, 43, evals=12, out=tmp_path / "b", **quiet)
+    monkeypatch.setattr(speedfit, "start_record", real_start)
     assert (d / "cma.json").read_text() == before  # a refused resume changes nothing
     c = speedfit.fit(BODY, 42, evals=48, resume=True, out=tmp_path / "b", **quiet)
     assert c["evals"] == 48 and len(c["sessions"]) == 3
 
 
 def test_the_start_is_a_passed_stage1_selection(tmp_path):
-    """START_RULE: the body's own Stage 1 G5 selection, or a named body's; a body with no Stage 1 fit is told to name
-    its pick; a selection that did not pass G5 is refused."""
+    """START_RULE: a body with a Stage 1 fit starts from its own G5 selection and --start-from may name only it; a
+    body without one has no start; a selection that did not pass G5 is refused."""
     s = speedfit.start_record(BODY)
     assert s["start_from"] == BODY and s["status"] == "passed"
     assert s["file"] == f"stage1/runs/2026-11-08/{BODY}/tune.json"
-    other = speedfit.start_record(BODY, "60-N-H-10")
-    assert other["start_from"] == "60-N-H-10" and other["candidate"] == "seed43_gen60" and other["body"] == BODY
-    with pytest.raises(SystemExit, match="--start-from"):
+    assert speedfit.start_record(BODY, BODY) == s and speedfit.pick_of(BODY) == BODY
+    for other in ("60-N-H-10", "75-M-H-10"):
+        with pytest.raises(SystemExit, match="has its own Stage 1 fit"):
+            speedfit.start_record(BODY, other)
+    with pytest.raises(SystemExit, match="no Stage 1 G5 record"):
         speedfit.start_record(BODY, stage1=tmp_path)
     doc = json.loads((RUN / BODY / "tune.json").read_text())
     for v in doc["seeds"].values():
@@ -309,7 +323,8 @@ class _ScriptedPool(_StubPool):
 def test_speed_g5_selects_on_the_validation_objective(tmp_path, monkeypatch):
     """The start and the means after each third of the generations, on validation episodes 2000-2019; fewest falls,
     then the lower mean S, then the lower mean P; per kind the survive and success counts (and by delay); judged at
-    the last generation of a finished fit or at --at-generation; a fit on other sources is not judged."""
+    the last generation of a finished fit or at --at-generation, while --partial on an unfinished fit is a smoke check
+    (not judged); a fit on other sources is not judged; a rerun reuses the kept evaluations (G5_RESUME_RULE)."""
     monkeypatch.setattr(speedfit, "Pool", _StubPool)
     speedfit.fit(BODY, 42, evals=36, out=tmp_path, log=lambda m: None)
     hist = json.loads((speedfit.run_dir_of(tmp_path, BODY, 42) / "cma.json").read_text())["history"]
@@ -330,7 +345,10 @@ def test_speed_g5_selects_on_the_validation_objective(tmp_path, monkeypatch):
     doc = speedfit.speed_g5(BODY, out=tmp_path, require_done=False, **quiet)
     assert doc["validation_episodes"] == list(range(2000, 2020)) and doc["selection_rule"] == tune.SELECTION_RULE
     v = doc["seeds"]["42"]
-    assert v["selected"] == "seed42_gen1" and v["judged"] and v["judged_at_generation"] == 3
+    assert v["selected"] == "seed42_gen1" and v["judged_at_generation"] == 3
+    assert v["judged"] is False and v["partial"] and "--partial" in v["reason"]  # 20 episodes, but a smoke check
+    k = doc["evaluations_kept"]  # the start's 20 were kept by the call before (the unfinished fit's selection)
+    assert k["added"] == 60 and k["reused"] == 20 and k["file"].endswith(speedfit.G5_LOG)
     assert [x["candidate"] for x in sorted(v["selection"], key=lambda x: x["rank"])] == [
         "seed42_gen1", "seed42_gen2", "seed42_gen3", "start"]
     assert v["selected_gains"] == control.gains_dict(gains["seed42_gen1"])
@@ -348,9 +366,30 @@ def test_speed_g5_selects_on_the_validation_objective(tmp_path, monkeypatch):
     saved = json.loads((tmp_path / BODY / "speedg5.json").read_text())
     assert saved["seeds"] == json.loads(json.dumps(doc["seeds"])) and saved["gate"] == "speed G5"
     assert saved["speed_sources"]["sha256"] == speedfit.speed_sources()["sha256"] and saved["rules"] == speedfit.RULES
+    # a rerun (a restart) runs nothing that was kept, and gives the same record; a line cut short is dropped
+    log_path = tmp_path / BODY / speedfit.G5_LOG
+    assert len(log_path.read_text().splitlines()) == 80
+    with log_path.open("a") as fh:
+        fh.write('{"key": "abc", "resu')
+
+    class _NoRun(_ScriptedPool):
+        def map(self, jobs, failed=None):
+            raise AssertionError(f"{len(jobs)} kept evaluations run again")
+
+    monkeypatch.setattr(speedfit, "Pool", _NoRun)
+    again = speedfit.speed_g5(BODY, out=tmp_path, require_done=False, **quiet)
+    assert again["seeds"] == doc["seeds"] and again["candidates"] == doc["candidates"]
+    assert again["evaluations_kept"]["reused"] == 80 and again["evaluations_kept"]["dropped_lines"] == 1
+    assert len(log_path.read_text().splitlines()) == 80
+    other = speedfit.G5Log(log_path, dict(again["evaluations_kept"]["context"], speed_sources="0" * 64))
+    assert other.get(gains["start"], 2000) is None  # kept on other sources: not reused
+    assert speedfit.G5Log(log_path, again["evaluations_kept"]["context"]).get(gains["start"], 2000) == doc[
+        "candidates"]["start"]["runs"][0]
+    monkeypatch.setattr(speedfit, "Pool", _ScriptedPool)
     at = speedfit.speed_g5(BODY, out=tmp_path, at_generation=2, **quiet)  # STAGE1B_PLAN section 5's budget rule
     assert at["seeds"]["42"]["judged_at_generation"] == 2 and at["runs"]["42"]["candidates"] == [
         "seed42_gen1", "seed42_gen2"]
+    assert at["seeds"]["42"]["judged"] and not at["seeds"]["42"]["partial"] and at["seeds"]["42"]["reason"] is None
     beyond = speedfit.speed_g5(BODY, out=tmp_path, at_generation=4, **quiet)
     assert "selected" not in beyond["seeds"]["42"] and "generation 3 of 4" in beyond["seeds"]["42"]["reason"]
     smoke = speedfit.speed_g5(BODY, out=tmp_path, episodes=2, require_done=False, **quiet)
@@ -431,6 +470,16 @@ def test_the_rows_delay_reaches_the_servos(monkeypatch, start):
     plain = panels.TrackerRow("R2s/42", "R2", g, dict(source="test")).run(ctx, cond, 3042)
     assert {k: v for k, v in zero.items() if k != "wall_s"} == {k: v for k, v in plain.items() if k != "wall_s"}
     assert zero["estimator"] != mine["estimator"]  # 10 ms of delay changes the episode
+    # decision 20's lifted runs (eval --attribute) keep the delay: the relaxation runs inside servo_delay
+    lifted = row.run(ctx, cond, 3042, relax=("slip",))
+    undo = ledger._latency(p, 5)
+    try:
+        led = base.run(ctx, cond, 3042, relax=("slip",))
+    finally:
+        undo()
+    assert lifted["relaxed"] == ["slip"] and "command" not in p.__dict__
+    for k in ("fell", "fall_time_s", "worst_sustained_ratio", "estimator", "success"):
+        assert lifted[k] == led[k], k
 
 
 def _speed_run(tmp_path, start, judged=True):
@@ -514,19 +563,127 @@ def test_a_worker_refuses_other_speed_fit_sources():
     assert speedfit.speed_sources(dict(files, **{"report.py": b"#"}))["sha256"] == s["sha256"]  # not imported
 
 
+K_SCREENS = {"60-N-T-10-K": ("60-N-T-10", 0.5842493875125405, 0.584), "60-N-H-10-K": ("60-N-H-10", 0.5737071506575937,
+                                                                                    0.574)}
+
+
+def _fake_k_registry(monkeypatch, tmp_path=None, with_ids=True):
+    """Arm K's two bodies registered as the faster-knee branch registers them (``BODIES``, ``candidate_id``), their
+    case directory under ``tmp_path`` holding envelope screens named by candidate id with the real screens' values."""
+    import designlab.stage1 as stage1
+
+    case = tmp_path / "narrow_knee_60" if tmp_path is not None else None
+    for body, (cid, dv, _) in K_SCREENS.items():
+        monkeypatch.setitem(stage1.BODIES, body, str(case) if case else stage1.BODIES[cid])
+        if case is not None:
+            path = case / "review" / "screening" / f"{cid if with_ids else body}_envelope.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(dict(push_recovery=dict(max_push_dv_ms=dv))))
+    if with_ids:
+        monkeypatch.setattr(stage1, "candidate_id", lambda b: {k: v[0] for k, v in K_SCREENS.items()}.get(b, b),
+                            raising=False)
+    else:
+        monkeypatch.delattr(stage1, "candidate_id", raising=False)
+
+
 def test_bodies_outside_stage1s_three_have_their_push_bound_and_no_g7(tmp_path, monkeypatch):
-    """The hooks a faster-knee body needs in eval: its push bound comes from its own envelope screen, as the listed
-    three's came from theirs (each listed value is its screen's to 3 decimals); env's get reads only the list; a body
-    with no plan figures gets 'G7 not run' instead of a KeyError."""
+    """The hooks a faster-knee body needs in eval: its push bound comes from its own envelope screen, named by its
+    candidate id (the faster-knee registry's candidate_id; the body's name in a registry without one), as the listed
+    three's came from theirs (each listed value is its screen's to 3 decimals); env's get reads only the list, before
+    and after; a body with no plan figures gets 'G7 not run' (speedfit's guard on panels.g7) instead of a KeyError."""
     fresh = env._PushBounds()
     for body, v in env.PUSH_BOUND_M_S.items():
         assert fresh[body] == v
     assert env.PUSH_BOUND_M_S.get("no-such-body", 0.5) == 0.5
     with pytest.raises(KeyError):
         fresh["no-such-body"]
+    _fake_k_registry(monkeypatch, tmp_path)
+    for body, (_, _, want) in K_SCREENS.items():
+        assert env.PUSH_BOUND_M_S.get(body) is None and env.PUSH_BOUND_M_S[body] == want
+        assert env.PUSH_BOUND_M_S.get(body, 0.5) == 0.5 and body not in env.PUSH_BOUND_M_S  # (no cache in the list)
+    assert dict(env.PUSH_BOUND_M_S) == {"60-N-T-10": 0.487, "60-N-H-10": 0.478, "75-M-H-10": 0.589}
+    _fake_k_registry(monkeypatch, tmp_path / "by_body", with_ids=False)  # a registry without candidate ids
+    assert env.PUSH_BOUND_M_S["60-N-T-10-K"] == 0.584
     monkeypatch.setattr(panels, "G7_PLAN", {k: v for k, v in panels.G7_PLAN.items() if k != BODY})
+    assert panels.g7.speed_round and panels.g7.__wrapped__.__module__ == "designlab.stage1.panels"
     doc = panels.summarize(BODY, tmp_path, inputs=RUN)
     assert "no G7 figures" in doc["G7"]["error"] and "G7 not run" in panels.summary_text(doc)
+
+
+@pytest.mark.skipif("60-N-T-10-K" not in speedfit.BODIES, reason="arm K's bodies are not registered yet (the merge)")
+def test_the_faster_knee_bodies_push_bounds():
+    """After the merge: arm K's push bounds are their screens' (0.5842 and 0.5737 m/s to 3 decimals) and the three
+    listed bounds are unchanged."""
+    for body, (_, _, want) in K_SCREENS.items():
+        assert env.PUSH_BOUND_M_S[body] == want
+    assert dict(env.PUSH_BOUND_M_S) == {"60-N-T-10": 0.487, "60-N-H-10": 0.478, "75-M-H-10": 0.589}
+    assert speedfit.pick_of("60-N-T-10-K") == "60-N-T-10" and speedfit.pick_of("60-N-H-10-K") == "60-N-H-10"
+
+
+def test_a_faster_knee_body_starts_from_its_pick(monkeypatch):
+    """START_RULE on arm K (the faster-knee registry stood in): a body without a Stage 1 fit starts from its pick, the
+    body its candidate id names, by default or named; any other start body is refused."""
+    _fake_k_registry(monkeypatch)
+    for body, (pick, _, _) in K_SCREENS.items():
+        s = speedfit.start_record(body)
+        assert s["body"] == body and s["start_from"] == pick == speedfit.pick_of(body)
+        assert s["sha256"] == speedfit.start_record(pick)["sha256"]
+        assert speedfit.start_record(body, pick) == s
+        other = "60-N-H-10" if pick == "60-N-T-10" else "60-N-T-10"
+        with pytest.raises(SystemExit, match=f"starts from the pick it is built from, {pick}"):
+            speedfit.start_record(body, other)
+        with pytest.raises(SystemExit, match="starts from the pick"):
+            speedfit.start_record(body, body)
+
+
+def test_eval_finds_a_faster_knee_bodys_models_by_candidate_id(monkeypatch):
+    """eval's check for the round-two models (__main__.round_two_models) reads them by candidate id, as the plant does,
+    so arm K's rows run in the main checkout without --allow-rebuilt-models."""
+    from designlab.stage1.__main__ import round_two_models
+
+    if not round_two_models(BODY):
+        pytest.skip("this checkout has no round-two models")
+    _fake_k_registry(monkeypatch)  # (each K body in its pick's case directory, which holds the pick's models)
+    assert round_two_models("60-N-T-10-K") and round_two_models("60-N-H-10-K")
+    import designlab.stage1 as stage1
+
+    monkeypatch.delattr(stage1, "candidate_id")
+    assert not round_two_models("60-N-T-10-K")  # by the body's own name there is no such file
+
+
+def test_the_speed_rows_are_attributed():
+    """ATTRIBUTION_RULE: the speed controllers are in panels.ATTRIBUTED, so a speed row's record with 5 or more falls
+    gets decision 20's lifted runs (eval --attribute) and its falls read 'not attributed' until then, as R2's do;
+    Stage 1's rows are unchanged (R2 and R3 attributed, R0, R1 and R4 not); the lifted runs keep the delay
+    (test_the_rows_delay_reaches_the_servos)."""
+    assert set(speedfit.SPEED_CONTROLLERS) == {"R2s", "R2@0ms", "R2@10ms"}
+    assert set(panels.ATTRIBUTED) >= {"R2", "R3", *speedfit.SPEED_CONTROLLERS}
+    assert not {"R0", "R1", "R4"} & set(panels.ATTRIBUTED)
+
+    def ep(i, fell):
+        return dict(seed=3042 + i, fell=fell, error=False, succeeded=not fell, strides=3.0 if fell else 30.0,
+                    failed_terms=["survived"] if fell else [], fall_cause="tilt" if fell else None,
+                    fall_candidates=["slip", "cop_at_pad_edge_with_ankle_saturated"] if fell else None)
+
+    eps = [ep(i, i < 6) for i in range(20)]
+    for row in ("R2s/42", "R2s/42@10ms", "R2@10ms", "R2@0ms", "R2/42"):
+        rec = dict(row=row, status="done", counts=panels.counts(eps), episodes=eps, attribution=None)
+        assert panels._attribution_needed(rec, True) and not panels._attribution_needed(rec, False)
+        cands, lift = panels.attribution_plan(rec)
+        assert cands == ["slip", "cop_at_pad_edge_with_ankle_saturated"] and lift == ["slip"]
+        assert panels.failure(row, eps, None, False)["falls_label"] == "not attributed (falls; run eval --attribute)"
+    rec = dict(row="R0", status="done", counts=panels.counts(eps), episodes=eps, attribution=None)
+    assert not panels._attribution_needed(rec, True)
+    assert "ATTRIBUTION_RULE" in speedfit.ROWS_RULE and speedfit.RULES["attribution"] == speedfit.ATTRIBUTION_RULE
+
+
+def test_the_speed_run_is_the_rounds_unless_named(monkeypatch, tmp_path):
+    """ROWS_RULE: the rows read their gains from STAGE1B_SPEED_RUN if set, else the round's run directory, whatever run
+    directory the panels read their references from (arm S reads Stage 1's)."""
+    monkeypatch.delenv(speedfit.SPEED_RUN_ENV, raising=False)
+    assert speedfit.speed_run_of(RUN / BODY) == speedfit.RUN == ROOT / "stage1" / "runs" / "2026-11-10-speed"
+    monkeypatch.setenv(speedfit.SPEED_RUN_ENV, str(tmp_path))
+    assert speedfit.speed_run_of(RUN / BODY) == tmp_path
 
 
 # ------------------------------------------------------------------------------------------------
@@ -582,3 +739,122 @@ def test_speedfit_and_speedg5_command_line(tmp_path, monkeypatch, capsys):
     doc["sessions"][1]["speed_sources"]["sha256"] = "0" * 64  # a resumed session on other sources
     (speedfit.run_dir_of(tmp_path, BODY, 42) / "cma.json").write_text(json.dumps(doc))
     assert cli(["speedg5", *base, "--partial"]) == 1  # refused: no silent selection
+
+
+# ------------------------------------------------------------------------------------------------
+# Plan section 4's reading of the rows (speedreport) and the cost record
+# ------------------------------------------------------------------------------------------------
+def _record(row, key, survived, succeeded, failed=("slip_worst",), candidates=("slip",), falls_label=None):
+    """A synthetic panel record of ``row`` on condition ``key``: the first ``succeeded`` episodes succeed, the next ones
+    up to ``survived`` stay up but fail ``failed``, the rest fall with ``candidates``."""
+    eps = []
+    for i in range(panels.RUNS):
+        fell, ok = i >= survived, i < succeeded
+        eps.append(dict(seed=panels.SEEDS[i], fell=fell, error=False, succeeded=ok, strides=3.0 if fell else 30.0,
+                        failed_terms=["survived"] if fell else ([] if ok else list(failed)),
+                        fall_cause="tilt" if fell else None, fall_candidates=list(candidates) if fell else None))
+    c = panels.counts(eps)
+    f = panels.failure(row, eps, None, c["pass_"])
+    if f and falls_label:
+        f["falls_label"] = falls_label
+    return dict(schema=panels.SCHEMA, row=row, key_name=key, status="done", counts=c, episodes=eps, failure=f,
+                attribution=None, key=dict(sources="synthetic"), controller=dict(controller=row))
+
+
+def _write_records(out, body, records):
+    for (row, key), rec in records.items():
+        path = panels.record_path(out, body, row, COND[key])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(rec))
+
+
+def test_the_speed_report_reads_plan_section_4(tmp_path, monkeypatch, capsys):
+    """speedreport: each row and condition shown / survives only / fails / not run, the failing limits with counts and
+    the falls' candidates and label; Q1 on the speed walks at 0 ms beside Stage 1's R2 row of the start's seed, Q3 at
+    10 ms beside R2@10ms; a trade where R2s loses the nominal walk or a turn the baseline shows; arm K beside R2@0ms;
+    it is in no source hash."""
+    from designlab.stage1 import speedreport
+
+    assert "speedreport.py" not in speedfit.speed_sources()["modules"] and "speedreport.py" not in panels.key_modules()
+    out, stage1 = tmp_path / "speed", tmp_path / "stage1"
+    turns = [k for k in speedfit.ROW_CONDITIONS if k.startswith("turn/")]
+    start = dict(body=BODY, start_from=BODY, candidate="seed42_gen20", cma_seed=42, sha256="a" * 64, file="x")
+    sp = speedfit.start_path(out, BODY)
+    sp.parent.mkdir(parents=True)
+    sp.write_text(json.dumps(start))
+    base = {("R2/42", "walk/nominal"): _record("R2/42", "walk/nominal", 20, 18),
+            ("R2/42", "walk/brisk"): _record("R2/42", "walk/brisk", 17, 17),
+            ("R2/42", "walk/fr05"): _record("R2/42", "walk/fr05", 1, 0)}
+    base.update({("R2/42", k): _record("R2/42", k, 20, 20) for k in turns})
+    _write_records(stage1, BODY, base)
+    rows = {("R2s/42", "walk/nominal"): _record("R2s/42", "walk/nominal", 20, 15),
+            ("R2s/42", "walk/brisk"): _record("R2s/42", "walk/brisk", 20, 19),
+            ("R2s/42", "walk/fr05"): _record("R2s/42", "walk/fr05", 20, 10, failed=("speed",)),
+            ("R2s/42", turns[0]): _record("R2s/42", turns[0], 18, 18, falls_label="controller-limited")}
+    rows.update({("R2s/42", k): _record("R2s/42", k, 20, 20) for k in turns[1:]})
+    rows.update({("R2s/42@10ms", "walk/brisk"): _record("R2s/42@10ms", "walk/brisk", 12, 12,
+                                                         falls_label="body-limited: slip"),
+                 ("R2s/42@10ms", "walk/fr05"): _record("R2s/42@10ms", "walk/fr05", 0, 0),
+                 ("R2@10ms", "walk/brisk"): _record("R2@10ms", "walk/brisk", 0, 0)})
+    _write_records(out, BODY, rows)
+    (out / BODY / "speedg5.json").write_text(json.dumps(dict(seeds_selected=[42], seeds={"42": dict(
+        selected="seed42_gen20", judged=True, partial=False, judged_at_generation=30, reason=None)})))
+    doc = speedreport.write(out, tmp_path / "dest", stage1)
+    r = doc["reports"][BODY]
+    assert doc["bodies"] == [BODY] and r["arm"] == "S" and r["rows"] == ["R2s/42", "R2s/42@10ms", "R2@10ms"]
+    q1, q3 = r["answers"]["42"]["Q1"], r["answers"]["42"]["Q3"]
+    assert q1["walk/brisk"]["speed"]["cls"] == "shown" and q1["walk/brisk"]["baseline"]["cls"] == "fails"
+    assert q1["walk/brisk"]["baseline_row"] == "Stage 1 R2/42" and q1["walk/brisk"]["baseline"]["survived"] == 17
+    fr = q1["walk/fr05"]["speed"]
+    assert fr["cls"] == "survives only" and fr["failed_terms"] == {"speed": 10} and fr["falls"] == 0
+    b = q3["walk/brisk"]["speed"]
+    assert b["cls"] == "fails" and b["falls"] == 8 and b["fall_candidates"] == {"slip": 8} and q3["walk/brisk"]["answer"]
+    assert b["falls_label"] == "body-limited: slip" and q3["walk/brisk"]["baseline"]["cls"] == "fails"
+    assert q3["walk/nominal"]["speed"]["cls"] == "not run" and not q3["walk/nominal"]["answer"]
+    t = r["trades"]["42"]
+    assert t["walk/nominal"]["reading"] == "trade" and t[turns[0]]["reading"] == "trade"
+    assert all(t[k]["reading"] == "kept" for k in turns[1:])
+    assert r["trade_conditions"] == sorted(["walk/nominal", turns[0]])
+    assert speedreport.compare("fails", "shown") == "gained" and speedreport.compare("fails", "fails") == "not lost"
+    assert speedreport.compare("shown", "not run") == "unknown"
+    md = (tmp_path / "dest" / speedreport.MARKDOWN).read_text()
+    assert f"Trades at 0 ms, seed 42: walk/nominal, {turns[0]}" in md and "Q3, seed 42, walk/brisk at 10 ms" in md
+    assert "falls 8 (slip 8; body-limited: slip)" in md
+    assert json.loads((tmp_path / "dest" / speedreport.JSON_NAME).read_text())["reports"][BODY]["arm"] == "S"
+    # arm K: the baseline at 0 ms is R2@0ms on the body; the pick's Stage 1 row is shown beside
+    _fake_k_registry(monkeypatch)
+    kb = "60-N-T-10-K"
+    sp = speedfit.start_path(out, kb)
+    sp.parent.mkdir(parents=True)
+    sp.write_text(json.dumps(dict(start, body=kb)))
+    _write_records(out, kb, {("R2s/42", "walk/brisk"): _record("R2s/42", "walk/brisk", 20, 20),
+                             ("R2@0ms", "walk/brisk"): _record("R2@0ms", "walk/brisk", 20, 17),
+                             ("R2@0ms", "walk/nominal"): _record("R2@0ms", "walk/nominal", 20, 20)})
+    k = speedreport.collect(out, stage1)["reports"][kb]
+    q2 = k["answers"]["42"]["Q2"]["walk/brisk"]
+    assert k["arm"] == "K" and k["pick"] == BODY and q2["baseline_row"] == "R2@0ms" and q2["speed"]["cls"] == "shown"
+    assert q2["baseline"]["cls"] == "shown" and q2["pick_stage1"]["cls"] == "fails"
+    assert k["trades"]["42"]["walk/nominal"]["reading"] == "unknown"  # R2s/42's nominal walk not run yet
+    assert cli(["speedreport", "--out", str(out), "--stage1", str(stage1), "--body", BODY]) == 0
+    assert "STAGE1B_TABLES.md" in capsys.readouterr().out and (out / speedreport.MARKDOWN).exists()
+
+
+@needs_run
+def test_the_cost_record_projects_the_round(monkeypatch, start):
+    """COST_RULE on a cut evaluation (the code path only): the episode measured is training_order(42)[0] (1865); the
+    projections give the fit, speed G5, the rows, R2@0ms and the attribution as CPU hours and as wall hours with one
+    idle core per job and with four jobs at once; arm K's body costs more than arm S's (R2@0ms and its attribution)."""
+    monkeypatch.setattr(speedfit, "Evaluator", functools.partial(speedfit.Evaluator, cut_s=0.2))
+    doc = speedfit.measure_cost(BODY, RUN / BODY, speedfit.gains_vector(start["gains"]), log=lambda m: None)
+    assert doc["episode_seed"] == int(tune.training_order(42)[0]) == 1865 and "(1865)" in speedfit.COST_RULE
+    p = doc["projections"]
+    assert set(p) == {"fit_360", "fit_360_at_this_evaluation", "speed_g5", "rows", "r2_at_0ms", "attribution_per_row",
+                      "per_body"}
+    lo, hi = speedfit.PARALLEL_SLOWDOWN
+    for k in ("fit_360", "speed_g5", "rows", "r2_at_0ms"):
+        assert p[k]["wall_h_idle_core"] == p[k]["cpu_h"] and p[k]["wall_h_four_at_once"] == [p[k]["cpu_h"] * lo,
+                                                                                               p[k]["cpu_h"] * hi]
+    assert p["rows"]["episodes"] == 3 * 20 * 7 and p["r2_at_0ms"]["cpu_h"] == pytest.approx(p["rows"]["cpu_h"] / 3)
+    s, k = p["per_body"]["arm_S"], p["per_body"]["arm_K"]
+    assert k["cpu_h"][0] > s["cpu_h"][0] and s["cpu_h"][1] > s["cpu_h"][0] and k["rows"] == 4 and s["rows"] == 3
+    json.dumps(doc)

@@ -1,17 +1,19 @@
 """Stage 1b, the speed round (``STAGE1B_PLAN.md`` sections 3 and 4): the speed fit of the R2 tracker (R2s), its
 selection ("speed G5") and the validation rows of the behaviour panels, on any registered body (``BODIES``).
 
-Run from hardware/trex_form_study (the fit's venv)::
+Run from hardware/trex_form_study (the fit's venv; ``stage1/runs/2026-11-10-speed/run_speed_round.sh`` holds the
+round's exact commands per arm: arm S reads its references from Stage 1's run, ``--inputs stage1/runs/2026-11-08``)::
 
     python -m designlab.stage1 speedfit  --body 60-N-T-10 [--seed 42] [--evals 360] [--workers 1]
-                                         [--start-from BODY] [--resume] [--stage1 DIR] [--inputs DIR]
+                                         [--start-from PICK] [--resume] [--stage1 DIR] [--inputs DIR]
                                          --out stage1/runs/2026-11-10-speed
     python -m designlab.stage1 speedg5   --body 60-N-T-10 [--seeds 42] [--workers 1] [--at-generation G]
                                          [--partial] [--episodes 20] [--inputs DIR] --out stage1/runs/2026-11-10-speed
     python -m designlab.stage1 eval      --body 60-N-T-10 --row-module designlab.stage1.speedfit
-                                         --rows R2s/42,R2s/42@10ms,R2@10ms --behaviors walk,turn [--workers 4]
-                                         --out stage1/runs/2026-11-10-speed
+                                         --rows R2s/42,R2s/42@10ms,R2@10ms --behaviors walk,turn --attribute
+                                         [--workers 4] [--inputs DIR] --out stage1/runs/2026-11-10-speed
     python -m designlab.stage1 speedcost --body 60-N-T-10 [--inputs DIR] [--out DIR]
+    python -m designlab.stage1 speedreport --out stage1/runs/2026-11-10-speed [--body B] [--dest DIR]  (speedreport)
 
 The objective (``OBJECTIVE``, ``stage1-tune-speed-v1``) is Stage 1's fit (``tune``, ``stage1-tune-v2``, decision 22)
 with the episode mix widened (``MIX_RULE``): every evaluation runs, from the settled stance on hard floor at mu 0.9,
@@ -33,32 +35,40 @@ their scales (``tune.TERMS_RULE``), the failures (``FAILURE_RULE``) and the held
 are Stage 1's.
 
 CMA-ES (``tune.CMA``, ``CMA_SETTINGS``): popsize 12, 360 evaluations (30 generations), seed 42, from the body's
-Stage 1 G5 selection (``START_RULE``: ``env.tuned_gains``; a faster-knee body starts from its pick's, ``--start-from``)
-with step size ``SIGMA0`` (``SIGMA0_RULE``); generation g on training episode ``tune.training_order(seed)[g]``, every
-member on it; checkpointed after every generation (``<out>/<body>/speedfit/<seed>/cma.json`` and ``evals.jsonl``),
-``--resume`` continues exactly (``RESUME_RULE``), ``--workers`` evaluates a generation in that many processes
-(``tune.Pool``).  The start is recorded once per body (``<out>/<body>/speedfit/start.json``).
+Stage 1 G5 selection (``START_RULE``: ``env.tuned_gains``; a faster-knee body starts from its pick's, the pick being
+its candidate id) with Stage 1's step size (``SIGMA0``, ``SIGMA0_RULE``); generation g on training episode
+``tune.training_order(seed)[g]``, every member on it; checkpointed after every generation
+(``<out>/<body>/speedfit/<seed>/cma.json`` and ``evals.jsonl``), ``--resume`` continues exactly (``RESUME_RULE``),
+``--workers`` evaluates a generation in that many processes (``tune.Pool``).  The start is recorded once per body
+(``<out>/<body>/speedfit/start.json``).
 
 Selection, "speed G5" (``SELECTION_RULE``, ``speed_g5``): the start and the CMA-ES mean after each third of the
 generations judged (10, 20 and 30 of a full run; ``JUDGED_RULE`` for a run stopped by the budget), each on the 20
 validation episodes 2000-2019 of the speed mix, ranked by ``tune.selection_key`` (fewest falls, then the lower mean
 S, then the lower mean P); per kind the survive and success counts (and by delay) are recorded in
-``<out>/<body>/speedg5.json``.
+``<out>/<body>/speedg5.json``; every validation evaluation is kept as it finishes, so a rerun continues
+(``G5_RESUME_RULE``, ``<out>/<body>/speedg5_evals.jsonl``).
 
 Rows (``ROWS_RULE``; ``panels.register_rows``, ``eval --row-module designlab.stage1.speedfit``): ``R2s/<s>`` is fit
 seed s's speed G5 selection, ``R2s/<s>@<ms>ms`` the same with ms of servo delay, ``R2@10ms`` the fit's start (Stage
-1's body-level G5 selection) at 10 ms; each runs only ``ROW_CONDITIONS`` (the nominal, brisk and Fr 0.05 walks and
-both directions of both target turns, on hard floor at mu 0.9) on episodes 3042-3061, with records under
-``<out>/<body>/eval/<row>/<behavior>/<condition>.json``.
+1's body-level G5 selection) at 10 ms and ``R2@0ms`` without delay; each runs only ``ROW_CONDITIONS`` (the nominal,
+brisk and Fr 0.05 walks and both directions of both target turns, on hard floor at mu 0.9) on episodes 3042-3061,
+with records under ``<out>/<body>/eval/<row>/<behavior>/<condition>.json``; their falls are attributed by decision 20
+as R2's are (``eval --attribute``; importing this module adds their controllers to ``panels.ATTRIBUTED``).  The
+panels' ``summary.json`` reads Stage 1's verdict rule (R2/42 and R2/43), which does not apply to these rows: plan
+section 4's reading of them is ``speedreport``'s.
 
 This module is not among the tuner's or the panels' sources (``tune.TUNER_SOURCES_RULE``,
 ``panels.PANEL_SOURCES_RULE``), so Stage 1's fit, G5 and panel records are unchanged by it; it enters only its own
-records' keys (``SOURCES_RULE``, ``Row.sources``).
+records' keys (``SOURCES_RULE``, ``Row.sources``).  Importing it changes two things in the panels for the speed rows'
+bodies, both outside the panels' sources: the speed controllers are attributed (above), and ``panels.g7`` reports a
+body without G7 figures (a faster-knee body) as not run instead of raising (``G7_RULE``).
 """
 
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import os
 import re
@@ -83,7 +93,7 @@ RATE = tune.COMMAND_RATE
 BUDGET = 360
 SEEDS = (42,)
 POPSIZE = tune.POPSIZE
-SIGMA0 = 0.05
+SIGMA0 = tune.SIGMA0
 TRAIN_EPISODES = tune.TRAIN_EPISODES
 VALIDATION_EPISODES = tune.VALIDATION_EPISODES
 VALIDATION_RUNS = tune.G5_RUNS
@@ -110,6 +120,11 @@ ROW_DELAY_MS = 10
 #: body's start without a refit.
 R2_ROW_DELAYS_MS = (0, ROW_DELAY_MS)
 LATENCY_MAX_ROW_MS = 20
+#: The validation rows' controllers (``panels.controller_of``), attributed by decision 20 as R2's rows are
+#: (``ROWS_RULE``).
+SPEED_CONTROLLERS = ("R2s",) + tuple(f"R2@{ms}ms" for ms in R2_ROW_DELAYS_MS)
+#: Speed G5's log of validation evaluations, beside speedg5.json (``G5_RESUME_RULE``).
+G5_LOG = "speedg5_evals.jsonl"
 #: The environment variable naming the speed run directory a row reads its gains from (``ROWS_RULE``).
 SPEED_RUN_ENV = "STAGE1B_SPEED_RUN"
 #: Plan section 4's pass rule, read on the validation episodes (reported, not a gate here).
@@ -134,7 +149,9 @@ SPEED_WALK_RULE = (
     "strides of the target gait, K the fewest that keep the last 10 s in its steady part even with the clock 5 % "
     "slow, plus half a stride), built by tune.build_spec(plan=, gait=) as panels.Context.built builds it, ending in "
     "the gait without a stop; judged by tune.measure over the episode's last 10 s (window=, as panels.judge reads "
-    "it); success terms tune.SUCCESS['walk'] without cadence, stride and peak GRF (panels.NOMINAL_ONLY_TERMS: 'at "
+    "it), when the episode ran its planned length (to within a physics step: a walk that fell, or one cut short in a "
+    "smoke check, cut_s, has no such window and scores every term 1, as a fallen or cut nominal walk does); success "
+    "terms tune.SUCCESS['walk'] without cadence, stride and peak GRF (panels.NOMINAL_ONLY_TERMS: 'at "
     "nominal'), as panels.terms_of; the objective's terms are tune.measure's with the same three limit terms "
     "dropped (tracking: DCM error, speed against the target gait's command, heading change; limits: the window "
     "limits but GRF, the 10 s mean speed under the target, drives and range) and no start or stop terms (the start "
@@ -169,21 +186,17 @@ FAILURE_RULE = (
     "which MuJoCo warned counts as a fall at its start; a worker that dies or hangs is replaced and its evaluation run "
     f"again, up to {tune.ATTEMPTS} attempts, then scored as the worst case with the reason")
 START_RULE = (
-    "the fit starts from the body's Stage 1 G5 selection: env.tuned_gains (env.GAINS_RULE) on "
-    "<Stage 1 run>/<start body>/tune.json, the start body being the body itself or, for a body with no Stage 1 fit "
-    "(a faster-knee body), the pick it was derived from (--start-from); refused unless that selection passed G5 and "
+    "the fit starts from a Stage 1 G5 selection: env.tuned_gains (env.GAINS_RULE) on <Stage 1 run>/<start "
+    "body>/tune.json, the start body being the body itself when it has a Stage 1 fit (<Stage 1 run>/<body>/tune.json) "
+    "and otherwise (a faster-knee body) the pick it is built from, its round-two candidate id (the registry's "
+    "candidate_id); --start-from may name that start body and no other; refused unless that selection passed G5 and "
     "holds the fixed gains (tune.FIXED_GAINS); the start is recorded once per body (speedfit/start.json: the record's "
     "path and sha256, the candidate and its gains) and every seed and session must start from it")
 SIGMA0_RULE = (
-    f"sigma0 {SIGMA0:g} of each searched gain's bound range (the [0, 1] scaling), half of Stage 1's {tune.SIGMA0:g}: "
-    "Stage 1 set 0.1 for a refinement from the tuning start, which only passed G4; this fit starts from a fitted point "
-    "that already passes G5 on three of the mix's five episodes, so a narrower first search keeps most early samples "
-    "near the gains that walk and turn; it is about the step size Stage 1's own fits had when they produced the "
-    "selections (0.092 / 0.054 / 0.047 on 60-N-T-10 / 60-N-H-10 / 75-M-H-10, seed42_gen20, seed43_gen60, "
-    "seed43_gen40), and CMA-ES's step-size control can still double it within about eight generations on a "
-    "consistent slope, where the speed walks reward a longer move; the start stays a selection candidate "
-    "(SELECTION_RULE), so a fit that finds nothing "
-    "better keeps it; the same sigma0 on every body, so the arms differ only by their bodies")
+    f"sigma0 {SIGMA0:g} of each searched gain's bound range (the [0, 1] scaling): Stage 1's (tune.SIGMA0), as "
+    "STAGE1B_PLAN.md section 3 has it (Stage 1's fit with the wider mix, otherwise unchanged); the same on every "
+    "body, so the arms differ only by their bodies; the start stays a selection candidate (SELECTION_RULE), so a "
+    "fit that finds nothing better keeps it")
 SOURCES_RULE = (
     "sha256 over the designlab/stage1 modules the speed fit imports, followed as tune.TUNER_SOURCES_RULE follows the "
     "tuner's (from speedfit.py and the package's __init__.py, transitively, module- and function-level imports, read "
@@ -210,26 +223,51 @@ SELECTION_RULE = (
     "validation episodes first, then the lower mean S, then the lower mean P, the lower mean J and then the earlier "
     "candidate breaking ties; the first is selected; per kind its survive and success counts are recorded, overall "
     "and by delay, with plan section 4's pass rule (20/20 survive, at least 17/20 succeed) read on them as a "
-    "reported value, not a gate (the round's verdicts come from the validation panels, STAGE1B_PLAN.md section 4); a "
-    "fit made on other sources, inputs or start, or on cut episodes (a smoke check), is not judged")
+    "reported value, not a gate: those counts pool delays of 0-10 ms, so they are not the 0 ms or the 10 ms answer "
+    "(the round's verdicts come from the validation rows, STAGE1B_PLAN.md section 4, speedreport); a fit made on "
+    "other sources, inputs or start, or on cut episodes (a smoke check), is not judged; the validation evaluations "
+    "are kept as they finish (G5_RESUME_RULE)")
 JUDGED_RULE = (
     "a fit is judged at its last generation once it is done (the budget's 30), or at --at-generation G "
     "(STAGE1B_PLAN.md section 5: if the fits run long, every arm is judged at the last generation all of them "
-    "reached), its candidates the means after each third of G; --partial judges an unfinished run at its last "
-    "generation (a smoke check)")
+    "reached), its candidates the means after each third of G; --partial ranks an unfinished run's candidates at its "
+    "last generation as a smoke check: recorded with partial true and judged false, so no row takes its selection "
+    "(r2s_gains), whatever the number of validation episodes")
+G5_RESUME_RULE = (
+    f"speed G5 appends every validation evaluation to <out>/<body>/{G5_LOG} as it finishes (one JSON line, flushed "
+    "and synced; with several workers, after every two evaluations per worker), keyed by the candidate's gains "
+    "(sha256 of their values as JSON), the episode, the body, mode and rate, the speed fit's sources (SOURCES_RULE), "
+    "the inputs' sha256 (INPUTS_RULE) and the library versions; a rerun reuses every line whose key matches and runs "
+    "only the evaluations missing, so a restart loses at most those in flight; an evaluation that failed to run or "
+    "raised (FAILURE_RULE) is not kept and runs again; a line cut short when the process died is dropped; reused and "
+    "new results are the same JSON values, so speedg5.json does not depend on how many sessions made it")
+ATTRIBUTION_RULE = (
+    "the validation rows' falls are attributed by decision 20 as Stage 1's R2 rows' are (panels.PANEL_ATTRIBUTION_RULE: "
+    "eval --attribute lifts each relaxable candidate of a record's falls over the condition's 20 starts when it has "
+    f"at least {panels.ATTRIBUTION_MIN_FALLS} falls): importing this module adds the speed controllers "
+    f"({', '.join(SPEED_CONTROLLERS)}) to panels.ATTRIBUTED, read at call time, without a change to panels.py; the "
+    "lifted runs keep the row's servo delay (DelayedRow.episode wraps the panels' episode, relax included)")
+G7_RULE = (
+    "G7 (STAGE1_PLAN.md section 3 step 8) is Stage 1's gate on its three bodies (panels.G7_PLAN): importing this "
+    "module makes panels.g7 raise FileNotFoundError for a body without G7 figures (a faster-knee body), which "
+    "panels.summarize records as 'G7 not run' with the reason, instead of a KeyError after the rows have run; the "
+    "three bodies' G7 is unchanged")
 ROWS_RULE = (
     "rows of the behaviour panels (panels.Row, registered with panels.register_rows): R2s/<s> is the tracker R2 with "
-    "fit seed s's speed G5 selection (<speed run>/<body>/speedg5.json seeds[s].selected_gains), no delay; "
-    "R2s/<s>@<ms>ms the same with ms of servo delay (whole 2 ms steps, at most "
+    "fit seed s's speed G5 selection (<speed run>/<body>/speedg5.json seeds[s].selected_gains; refused unless judged, "
+    "JUDGED_RULE), no delay; R2s/<s>@<ms>ms the same with ms of servo delay (whole 2 ms steps, at most "
     f"{LATENCY_MAX_ROW_MS} ms); R2@{ROW_DELAY_MS}ms the speed fit's start (speedfit/start.json: Stage 1's "
     f"body-level G5 selection, of the pick for a faster-knee body) at {ROW_DELAY_MS} ms, the baseline for delay, "
-    "and R2@0ms the same without delay (on a faster-knee body its pick's gains without a refit; on a pick it "
-    "repeats Stage 1's R2 row of the selection's seed); the delay is servo_delay's (LATENCY_RULE) for the whole "
-    "episode; each row runs only "
+    "and R2@0ms the same without delay (on a faster-knee body its pick's gains without a refit, which tells a trade "
+    "from the body's effect; on a pick it repeats Stage 1's R2 row of the selection's seed); the delay is "
+    "servo_delay's (LATENCY_RULE) for the whole episode; each row runs only "
     f"{', '.join(ROW_CONDITIONS)} (hard floor, mu 0.9) on the panels' episodes 3042-3061 with the panels' seeds, "
-    "judgement and records (<out>/<body>/eval/<row>/<behavior>/<condition>.json); the speed run is the parent of "
-    f"the panels' <run>/<body> unless {SPEED_RUN_ENV} names it; the rows' keys name this module's and the gains' "
-    "files by sha256 (Row.sources, Row.describe)")
+    "judgement and records (<out>/<body>/eval/<row>/<behavior>/<condition>.json), and its falls are attributed "
+    f"(ATTRIBUTION_RULE; run eval --attribute); the speed run, where the gains are read, is {SPEED_RUN_ENV} if set, "
+    "else the round's run directory (RUN, stage1/runs/2026-11-10-speed), whatever --inputs the panels read; the rows' "
+    "keys name this module's and the gains' files by sha256 (Row.sources, Row.describe); the panels' "
+    "eval/summary.json and its verdict column are Stage 1's verdict rule (VERDICT_ROWS: R2/42 and R2/43) and do not "
+    "apply to these rows: plan section 4's reading of them is speedreport's (speedreport.READING_RULE)")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -326,11 +364,13 @@ def servo_delay(p: plant.Plant, steps: int):
 # ------------------------------------------------------------------------------------------------
 # Episodes and evaluations
 # ------------------------------------------------------------------------------------------------
-def measure_speed_walk(kind: str, spec: tune.EpisodeSpec, rec: metrics.Recorder, out: dict) -> dict:
+def measure_speed_walk(kind: str, spec: tune.EpisodeSpec, rec: metrics.Recorder, out: dict, dt: float) -> dict:
     """A speed walk's measures, objective terms and success (``SPEED_WALK_RULE``): ``tune.measure`` over the
-    episode's last 10 s, as ``panels.judge`` reads a walk that ends in its gait."""
+    episode's last 10 s, as ``panels.judge`` reads a walk that ends in its gait, when it ran its planned length to
+    within a physics step ``dt``; a walk cut short (``Evaluator.cut_s``) or fallen has no such window and is unjudged
+    (every term 1)."""
     window = None
-    if not out["fell"] and rec.rows:
+    if not out["fell"] and rec.rows and float(out["seconds"]) >= spec.seconds - float(dt):
         tb = float(rec.t[-1])
         window = (tb - tune.WALK_WINDOW_S, tb)
     res = tune.measure(spec, rec, out, None, window=window)
@@ -368,8 +408,9 @@ class Evaluator:
     """One body's plant and the speed mix's episode tracks, built once; ``evaluate`` runs the mix (``MIX_RULE``) for a
     gain vector and an episode seed, every episode on a fresh tracker from the settled stance, so an evaluation does
     not depend on the ones before it.  The inputs are checked before they are loaded (``INPUTS_RULE``) and against
-    ``expected_inputs`` when given.  ``cut_s`` cuts every episode to that many simulated seconds (tests only: a cut
-    walk or turn has no complete window and scores its terms 1)."""
+    ``expected_inputs`` when given.  ``cut_s`` cuts every episode to that many simulated seconds (tests and smoke
+    checks only: an episode cut short of its window has no complete window and scores its terms 1, a speed walk
+    whenever it is cut, ``SPEED_WALK_RULE``)."""
 
     def __init__(self, body: str, run_dir: Path | None = None, mode: str = MODE, rate: float = RATE,
                  legs: bool = True, expected_inputs: dict | None = None, cut_s: float | None = None):
@@ -453,7 +494,7 @@ class Evaluator:
                               root_velocity_noise=tune.START_ROOT_VELOCITY_NOISE_M_S)
         out = tune.warned_fall(out, tune.sim_warnings(self.p.d))
         if kind in SPEED_WALKS:
-            res = measure_speed_walk(kind, spec, rec, out)
+            res = measure_speed_walk(kind, spec, rec, out, self.p.m.opt.timestep)
         else:
             res = tune.measure(spec, rec, out, self.lg)
         res.update(latency_steps=k, cpu_s=time.process_time() - c0)
@@ -525,16 +566,41 @@ Pool = tune.Pool
 # ------------------------------------------------------------------------------------------------
 # The start
 # ------------------------------------------------------------------------------------------------
+def pick_of(body: str) -> str:
+    """The round-two candidate a registered body is built from (``START_RULE``): the registry's ``candidate_id`` (a
+    faster-knee body's is its pick's), or the body itself in a registry without it."""
+    if body not in BODIES:
+        raise KeyError(f"{body} is not a registered body ({', '.join(BODIES)})")
+    try:
+        from . import candidate_id
+    except ImportError:
+        return body
+    return candidate_id(body)
+
+
+def start_body(body: str, start_from: str | None = None, stage1: Path = STAGE1_RUN) -> str:
+    """``START_RULE``'s start body of ``body``: itself if it has a Stage 1 fit, else its pick (``pick_of``);
+    ``start_from`` may name that body and no other."""
+    if body not in BODIES:
+        raise SystemExit(f"{body}: not a registered body ({', '.join(BODIES)})")
+    own = (Path(stage1) / body / "tune.json").exists()
+    want = body if own else pick_of(body)
+    if start_from is not None and start_from != want:
+        why = (f"{body} has its own Stage 1 fit ({Path(stage1) / body / 'tune.json'}) and starts from it" if own else
+               f"{body} has no Stage 1 fit and starts from the pick it is built from, {want} (candidate_id)")
+        raise SystemExit(f"--start-from {start_from}: {why} (START_RULE)")
+    if want not in BODIES:
+        raise SystemExit(f"{body}: its pick {want} is not a registered body ({', '.join(BODIES)})")
+    return want
+
+
 def start_record(body: str, start_from: str | None = None, stage1: Path = STAGE1_RUN) -> dict:
-    """``START_RULE``'s start of ``body``: the Stage 1 G5 selection of ``start_from`` (default the body itself)."""
-    src = start_from or body
-    if src not in BODIES:
-        raise SystemExit(f"--start-from {src}: not a registered body ({', '.join(BODIES)})")
+    """``START_RULE``'s start of ``body``: the Stage 1 G5 selection of its start body (``start_body``)."""
+    src = start_body(body, start_from, stage1)
     path = Path(stage1) / src / "tune.json"
     if not path.exists():
-        hint = "" if start_from else (" (a body without a Stage 1 fit, such as a faster-knee body, starts from its "
-                                      "pick: pass --start-from <pick>)")
-        raise SystemExit(f"{path}: no Stage 1 G5 record for {src}{hint}")
+        raise SystemExit(f"{path}: no Stage 1 G5 record for {src}" + (
+            "" if src != body else f" (and {body} is no faster-knee body: its candidate id is its own name)"))
     gains, info = env.tuned_gains(path.parent, src, path)
     if info.get("status") != "passed":
         raise SystemExit(f"{path}: {src}'s G5 selection is {info.get('status')} ({info.get('flag')}): START_RULE "
@@ -788,11 +854,81 @@ def validation_record(r: dict) -> dict:
     return out
 
 
+def _sha256_json(x) -> str:
+    return hashlib.sha256(json.dumps(x, sort_keys=True).encode()).hexdigest()
+
+
+def gains_sha256(gains) -> str:
+    """A gain vector's sha256: of its values as a JSON list (``G5_RESUME_RULE``)."""
+    return _sha256_json([float(v) for v in np.asarray(gains, float)])
+
+
+def g5_context(body: str, speed_sources_sha256: str, inputs: dict | None, versions: dict) -> dict:
+    """What a kept validation evaluation was computed on besides its gains and episode (``G5_RESUME_RULE``)."""
+    inputs = inputs or {}
+    return dict(body=body, mode=MODE, rate=RATE, objective=OBJECTIVE_NAME, speed_sources=speed_sources_sha256,
+                inputs=_sha256_json(dict(files=inputs.get("files"), records=inputs.get("records"))), versions=versions)
+
+
+class G5Log:
+    """``G5_RESUME_RULE``'s log of validation evaluations: ``get`` a kept one (None if there is none for this
+    context), ``add`` a new one (appended, flushed and synced; not kept if it failed to run or raised)."""
+
+    def __init__(self, path: Path, context: dict):
+        self.path, self.context = Path(path), dict(context)
+        self.context_sha256 = _sha256_json(self.context)
+        self.kept: dict[str, dict] = {}
+        self.dropped = self.added = self.reused = 0
+        good = []
+        for line in self.path.read_text().splitlines() if self.path.exists() else ():
+            try:
+                x = json.loads(line)
+                key, value = x["key"], x["result"]
+            except (ValueError, KeyError, TypeError):  # a line cut short when the process died
+                self.dropped += 1
+                continue
+            good.append(line)
+            self.kept[key] = value
+        if self.dropped:
+            tmp = self.path.with_name(self.path.name + ".tmp")
+            tmp.write_text("".join(x + "\n" for x in good))
+            os.replace(tmp, self.path)
+
+    def key(self, gains, episode: int) -> str:
+        return _sha256_json(dict(context=self.context_sha256, gains=gains_sha256(gains), episode=int(episode)))
+
+    def get(self, gains, episode: int) -> dict | None:
+        v = self.kept.get(self.key(gains, episode))
+        self.reused += v is not None
+        return v
+
+    def add(self, gains, episode: int, value: dict) -> dict:
+        value = json.loads(json.dumps(value))
+        if value.get("error"):
+            return value
+        key = self.key(gains, episode)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("a") as fh:
+            fh.write(json.dumps(dict(key=key, context=self.context_sha256, gains_sha256=gains_sha256(gains),
+                                     episode=int(episode), result=value)) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        self.kept[key] = value
+        self.added += 1
+        return value
+
+    def describe(self) -> dict:
+        return dict(rule=G5_RESUME_RULE, file=panels._portable(str(self.path.resolve())), context=self.context,
+                    context_sha256=self.context_sha256, reused=self.reused, added=self.added,
+                    dropped_lines=self.dropped)
+
+
 def speed_g5(body: str, out: Path = RUN, seeds=SEEDS, workers: int = 1, episodes: int = VALIDATION_RUNS,
              require_done: bool = True, at_generation: int | None = None, inputs: Path | None = None,
              log=print) -> dict:
     """Speed G5 (``SELECTION_RULE``, ``JUDGED_RULE``) into ``<out>/<body>/speedg5.json``, the references read from
-    ``<inputs>/<body>/`` (default: out)."""
+    ``<inputs>/<body>/`` (default: out); the validation evaluations are kept as they finish and reused by a rerun
+    (``G5_RESUME_RULE``)."""
     if body not in BODIES:
         raise KeyError(body)
     prov, ssrc = plant.provenance(), speed_sources()
@@ -832,27 +968,38 @@ def speed_g5(body: str, out: Path = RUN, seeds=SEEDS, workers: int = 1, episodes
                 if n_gen < int(at_generation):
                     r["reason"] = f"generation {n_gen} of {int(at_generation)} reached"
                     continue
-                judged_at = int(at_generation)
+                judged_at, partial = int(at_generation), False
             elif require_done and doc["status"] != "done":
                 r["reason"] = f"not done ({doc['status']}, generation {n_gen})"
                 continue
             else:
-                judged_at = n_gen
+                judged_at, partial = n_gen, doc["status"] != "done"  # (--partial on an unfinished fit: JUDGED_RULE)
             gens = tune.candidate_generations(judged_at)
-            r.update(judged_at_generation=judged_at, candidates=[f"seed{seed}_gen{g}" for g in gens])
+            r.update(judged_at_generation=judged_at, partial=partial, candidates=[f"seed{seed}_gen{g}" for g in gens])
             for g in gens:
                 h = doc["history"][g - 1]
                 cands[f"seed{seed}_gen{g}"] = dict(gains=h["mean_gains"], source=(
                     f"the CMA-ES mean after generation {g} of speed-fit seed {seed} ({h['evals']} evals)"))
         names = list(cands)
         jobs = [(np.asarray(cands[n]["gains"], float), ep) for n in names for ep in val]
-        log(f"{body}: {len(names)} candidates x {len(val)} validation episodes = {len(jobs)} evaluations")
-        res = _map(pool, jobs)
-        by = {n: res[i * len(val) : (i + 1) * len(val)] for i, n in enumerate(names)}
+        glog = G5Log(Path(out) / body / G5_LOG, g5_context(body, ssrc["sha256"], pool.inputs, prov["versions"]))
+        vals = [glog.get(g, ep) for g, ep in jobs]
+        todo = [i for i, v in enumerate(vals) if v is None]
+        log(f"{body}: {len(names)} candidates x {len(val)} validation episodes = {len(jobs)} evaluations, "
+            f"{len(jobs) - len(todo)} kept from an earlier session ({G5_LOG})")
+        step = 1 if pool.workers == 1 else 2 * pool.workers
+        for a in range(0, len(todo), step):
+            idx = todo[a : a + step]
+            for i, r in zip(idx, _map(pool, [jobs[i] for i in idx]), strict=True):
+                vals[i] = glog.add(*jobs[i], validation_record(r))
+            done = min(a + step, len(todo))
+            if done == len(todo) or done // 10 > a // 10:
+                log(f"{body}: {done}/{len(todo)} validation evaluations run")
+        by = {n: vals[i * len(val) : (i + 1) * len(val)] for i, n in enumerate(names)}
         for n in names:
             cands[n]["gains_named"] = control.gains_dict(cands[n]["gains"])
             cands[n]["validation"] = validation_summary(by[n])
-            cands[n]["runs"] = [validation_record(r) for r in by[n]]
+            cands[n]["runs"] = by[n]
         for seed in seeds:
             r = runs[seed]
             base = dict(sources_match=r["sources_match"], inputs_match=r["inputs_match"],
@@ -871,15 +1018,24 @@ def speed_g5(body: str, out: Path = RUN, seeds=SEEDS, workers: int = 1, episodes
                 ranked = sorted(pool_names, key=lambda n: tune.selection_key(cands[n]["validation"],
                                                                              pool_names.index(n)))
                 sel = ranked[0]
+                full, partial = len(val) == VALIDATION_RUNS, bool(r["partial"])
+                reason = None
+                if partial:
+                    reason = (f"smoke check (--partial): the fit is {r['status']} at generation "
+                              f"{r['judged_at_generation']}; an unfinished fit is judged with --at-generation G, the "
+                              "last generation every arm reached (JUDGED_RULE)")
+                elif not full:
+                    reason = f"smoke check: {len(val)} validation episodes, not {VALIDATION_RUNS}"
                 verdicts[seed] = dict(
-                    base, judged=len(val) == VALIDATION_RUNS, judged_at_generation=r["judged_at_generation"],
-                    selected=sel, selected_gains=cands[sel]["gains_named"],
+                    base, judged=full and not partial, partial=partial, reason=reason,
+                    judged_at_generation=r["judged_at_generation"], selected=sel,
+                    selected_gains=cands[sel]["gains_named"],
                     selection=[dict(candidate=n, rank=ranked.index(n) + 1,
                                     **{k: cands[n]["validation"][k] for k in ("falls", "S_mean", "P_mean", "J_mean")})
                                for n in pool_names],
                     conditions=cands[sel]["validation"]["conditions"],
                     start_conditions=cands["start"]["validation"]["conditions"])
-        incidents, pool_inputs = list(pool.incidents), pool.inputs
+        incidents, pool_inputs, kept = list(pool.incidents), pool.inputs, glog.describe()
     finally:
         pool.close()
     doc = dict(schema=SCHEMA, body=body, gate="speed G5", rule=SELECTION_RULE, judged_rule=JUDGED_RULE,
@@ -889,7 +1045,7 @@ def speed_g5(body: str, out: Path = RUN, seeds=SEEDS, workers: int = 1, episodes
                seeds={str(s): v for s, v in verdicts.items()},
                seeds_selected=[s for s, v in verdicts.items() if "selected" in v],
                seeds_refused=[s for s, v in verdicts.items() if v.get("refused")], speed_sources=ssrc,
-               inputs=pool_inputs,
+               inputs=pool_inputs, evaluations_kept=kept,
                incidents=incidents, failure_rule=FAILURE_RULE, seconds=time.perf_counter() - t0, provenance=prov)
     doc["speed_sources"]["unchanged_during_run"] = speed_sources()["sha256"] == ssrc["sha256"]
     tune._write_json(Path(out) / body / "speedg5.json", doc)
@@ -907,10 +1063,13 @@ def speed_g5_summary(doc: dict) -> str:
                           for c in v["conditions"].values())
         lines.append(f"   seed {s}: selected {v['selected']} at generation {v['judged_at_generation']} (falls "
                      f"{sel['falls']}, mean S {sel['S_mean']:.4f}, mean P {sel['P_mean']:.4f}); {conds}"
-                     + ("" if v["judged"] else " (smoke check: fewer than 20 validation episodes)"))
+                     + ("" if v["judged"] else f" (not judged: {v.get('reason')})"))
         for x in v["selection"]:
             lines.append(f"      {x['rank']}. {x['candidate']}: falls {x['falls']}, mean S {x['S_mean']:.4f}, mean P "
                          f"{x['P_mean']:.4f}, mean J {x['J_mean']:.4f}")
+    k = doc.get("evaluations_kept") or {}
+    if k.get("reused"):
+        lines.append(f"   {k['reused']} validation evaluations reused from {G5_LOG}, {k.get('added', 0)} run now")
     if doc.get("incidents"):
         lines.append(f"   {len(doc['incidents'])} worker incidents (speedg5.json incidents)")
     return "\n".join(lines)
@@ -962,10 +1121,11 @@ def ms_steps(ms: int, name: str) -> int:
     return ms // dt_ms
 
 
-def speed_run_of(run_dir: Path) -> Path:
-    """The speed run directory a row reads its gains from (``ROWS_RULE``)."""
+def speed_run_of(run_dir: Path | None = None) -> Path:
+    """The speed run directory a row reads its gains from (``ROWS_RULE``): ``STAGE1B_SPEED_RUN`` if set, else the
+    round's (``RUN``), whatever run directory the panels read their references from (``run_dir``, unused)."""
     v = os.environ.get(SPEED_RUN_ENV)
-    return Path(v) if v else Path(run_dir).parent
+    return Path(v) if v else RUN
 
 
 def _file_info(path: Path) -> dict:
@@ -982,8 +1142,9 @@ def r2s_gains(speed_run: Path, body: str, seed: int) -> tuple[np.ndarray, dict]:
     if "selected" not in v:
         raise ValueError(f"{path}: speed-fit seed {seed} has no selection ({v.get('reason')})")
     if not v.get("judged"):
-        raise ValueError(f"{path}: speed-fit seed {seed}'s selection is a smoke check (fewer than 20 validation "
-                         "episodes); refusing it as a row")
+        raise ValueError(f"{path}: speed-fit seed {seed}'s selection is a smoke check, not judged "
+                         f"({v.get('reason') or 'fewer than 20 validation episodes'}); refusing it as a row "
+                         "(JUDGED_RULE)")
     gains = gains_vector(v["selected_gains"])
     return gains, dict(rule=ROWS_RULE, **_file_info(path), fit_seed=int(seed), candidate=v["selected"],
                        judged_at_generation=v.get("judged_at_generation"),
@@ -1032,22 +1193,57 @@ def r2_delayed_row(body: str, run_dir: Path, name: str) -> DelayedRow:
         f"{info['candidate']}), {ms} ms of servo delay"))
 
 
-panels.register_rows("R2s", r2s_row)
-for _ms in R2_ROW_DELAYS_MS:
-    panels.register_rows(f"R2@{_ms}ms", r2_delayed_row)
+def _g7_guarded(g7):
+    """``G7_RULE``: ``panels.g7`` for Stage 1's bodies; FileNotFoundError for a body without G7 figures."""
+
+    @functools.wraps(g7)
+    def guarded(body: str, run_dir: Path, *args, **kw) -> dict:
+        if body not in panels.G7_PLAN:
+            raise FileNotFoundError(f"{body}: the plan gives no G7 figures (panels.G7_PLAN: {', '.join(panels.G7_PLAN)}"
+                                    "); G7 is Stage 1's gate on its three bodies (speedfit.G7_RULE)")
+        return g7(body, run_dir, *args, **kw)
+
+    guarded.speed_round = True
+    return guarded
+
+
+def _hook_panels() -> None:
+    """Register the rows (``ROWS_RULE``), attribute their controllers (``ATTRIBUTION_RULE``) and guard G7
+    (``G7_RULE``); idempotent."""
+    panels.register_rows("R2s", r2s_row)
+    for ms in R2_ROW_DELAYS_MS:
+        panels.register_rows(f"R2@{ms}ms", r2_delayed_row)
+    panels.ATTRIBUTED = tuple(dict.fromkeys(tuple(panels.ATTRIBUTED) + SPEED_CONTROLLERS))
+    if not getattr(panels.g7, "speed_round", False):
+        panels.g7 = _g7_guarded(panels.g7)
+
+
+_hook_panels()
 
 
 # ------------------------------------------------------------------------------------------------
 # Costs
 # ------------------------------------------------------------------------------------------------
+#: The measured slowdown of four fits run at once on the 4 cores against one alone, at the same CPU cost per simulated
+#: second (the round's review sample, another builder's prepare also running): wall = CPU x this (``COST_RULE``).
+PARALLEL_SLOWDOWN = (1.6, 1.7)
+#: Decision 20's lifted runs per failing condition of a row (``ATTRIBUTION_RULE``): typically 2-3 relaxable
+#: candidates of 20 starts each (``control.RELAXATIONS`` bounds it at 6).
+ATTRIBUTION_EPISODES = (40, 60)
 COST_RULE = (
-    "one full evaluation of the speed mix at the start's gains on training episode 1000 + training_order(42)[0] in "
+    "one full evaluation of the speed mix at the start's gains on training episode training_order(42)[0] (1865) in "
     "this process: its CPU seconds (process time) and wall seconds, per episode and in all, with the load average "
     "beside; CPU per simulated second = the evaluation's CPU / its simulated seconds (falls end episodes early); "
     "projections at that rate over the planned seconds (every episode run to its end, an upper bound once the fit "
-    "stops falling): the fit's 360 evaluations with 1 and 2 workers (wall = CPU / workers, the cores otherwise idle, "
-    "and a generation's 12 evaluations split over the workers), speed G5 (4 candidates x 20 evaluations) and the three "
-    "validation rows (7 conditions x 20 episodes each, the panels' planned seconds)")
+    "stops falling), as CPU hours and as wall hours under two conditions: one idle core per job (wall = CPU / "
+    "workers) and four such jobs at once on the 4 cores (wall = CPU x PARALLEL_SLOWDOWN, 1.6-1.7, measured with "
+    "another builder's prepare on the machine; it assumes nothing else heavy runs): the fit's 360 evaluations, speed "
+    "G5 (4 candidates x 20 evaluations), the three validation rows (R2s/42, R2s/42@10ms, R2@10ms: 7 conditions x 20 "
+    "episodes, the panels' planned seconds), R2@0ms (a faster-knee body's start without a refit, ROWS_RULE), "
+    "decision 20's attribution per row (ATTRIBUTION_RULE: ATTRIBUTION_EPISODES, 40-60 lifted episodes for each of the "
+    "two speed walks, as if both failed with at least 5 falls: a planning figure, not a bound) and per body, run one "
+    "after the other: arm S the fit, speed G5, the three rows and their attribution, arm K those and R2@0ms with its "
+    "attribution")
 
 
 def measure_cost(body: str, run_dir: Path, gains, seed: int | None = None, log=print) -> dict:
@@ -1068,45 +1264,61 @@ def measure_cost(body: str, run_dir: Path, gains, seed: int | None = None, log=p
                                                                                names=ROW_CONDITIONS)))
     planner = panels.Planner(Path(run_dir), docs["refs.json"]["references"], docs["transitions.json"]["transitions"])
     row_s = {c.key: planner.resolve(c)["seconds"] for c in panels.select(panels.conditions(), names=ROW_CONDITIONS)}
-    row_sim = 3 * panels.RUNS * sum(row_s.values())
+    row_sim = panels.RUNS * sum(row_s.values())  # one row
+    walks_sim = row_s["walk/brisk"] + row_s["walk/fr05"]
+    lo, hi = PARALLEL_SLOWDOWN
 
-    def hours(sim_s, workers=1):
-        return sim_s * cpu_per_sim / 3600 / workers
+    def job(sim_s, **extra):
+        cpu_h = sim_s * cpu_per_sim / 3600
+        return dict(extra, simulated_s=sim_s, cpu_h=cpu_h, wall_h_idle_core=cpu_h,
+                    wall_h_four_at_once=[cpu_h * lo, cpu_h * hi])
 
     fit_sim = BUDGET * planned_eval
     g5_sim = 4 * VALIDATION_RUNS * planned_eval
+    att = [n * walks_sim for n in ATTRIBUTION_EPISODES]  # per row: both speed walks, n lifted episodes each
+    proj = dict(
+        fit_360=job(fit_sim, evaluations=BUDGET),
+        fit_360_at_this_evaluation=dict(cpu_h=BUDGET * r["cpu_s"] / 3600),
+        speed_g5=job(g5_sim, evaluations=4 * VALIDATION_RUNS),
+        rows=job(3 * row_sim, rows=3, conditions=row_s, episodes=3 * panels.RUNS * len(row_s)),
+        r2_at_0ms=job(row_sim, rows=1, episodes=panels.RUNS * len(row_s)),
+        attribution_per_row=dict(job(att[0], episodes=2 * ATTRIBUTION_EPISODES[0]),
+                                 high=job(att[1], episodes=2 * ATTRIBUTION_EPISODES[1])))
+    a_lo, a_hi = proj["attribution_per_row"]["cpu_h"], proj["attribution_per_row"]["high"]["cpu_h"]
+    base = sum(proj[k]["cpu_h"] for k in ("fit_360", "speed_g5", "rows"))
+    proj["per_body"] = dict(arm_S=dict(rows=3, cpu_h=[base + 3 * a_lo, base + 3 * a_hi]),
+                            arm_K=dict(rows=4, cpu_h=[base + proj["r2_at_0ms"]["cpu_h"] + 4 * a_lo,
+                                                      base + proj["r2_at_0ms"]["cpu_h"] + 4 * a_hi]))
+    for v in proj["per_body"].values():
+        v["wall_h_four_at_once"] = [v["cpu_h"][0] * lo, v["cpu_h"][1] * hi]
     out = dict(rule=COST_RULE, body=body, episode_seed=seed, build_s=build_s, evaluation=dict(
         J=r["J"], falls=r["falls"], simulated_s=r["simulated_s"], cpu_s=r["cpu_s"], wall_s=r["wall_s"], episodes=per,
         error=r.get("error")), cpu_per_sim_s=cpu_per_sim, wall_per_sim_s=wall_per_sim,
         planned_s_per_evaluation=planned_eval, load_average=[load0, list(os.getloadavg())],
-        projections=dict(
-            fit_360=dict(simulated_s=fit_sim, cpu_h=hours(fit_sim), wall_h_1_worker=hours(fit_sim),
-                         wall_h_2_workers=hours(fit_sim, 2)),
-            fit_360_at_this_evaluation=dict(cpu_h=BUDGET * r["cpu_s"] / 3600, wall_h_2_workers=BUDGET * r["cpu_s"]
-                                            / 3600 / 2),
-            speed_g5=dict(evaluations=4 * VALIDATION_RUNS, simulated_s=g5_sim, cpu_h=hours(g5_sim),
-                          wall_h_1_worker=hours(g5_sim), wall_h_2_workers=hours(g5_sim, 2)),
-            rows=dict(rows=3, conditions=row_s, episodes=3 * panels.RUNS * len(row_s), simulated_s=row_sim,
-                      cpu_h=hours(row_sim), wall_h_1_worker=hours(row_sim), wall_h_2_workers=hours(row_sim, 2))),
+        parallel_slowdown=list(PARALLEL_SLOWDOWN), attribution_episodes=list(ATTRIBUTION_EPISODES), projections=proj,
         cpu_count=os.cpu_count(), speed_sources=speed_sources(), provenance=plant.provenance())
     eps = ", ".join(f"{k} {'fell at ' + format(e['seconds'], '.1f') + ' s' if e['fell'] else 'up'}, "
                     f"{e['latency_steps']} steps" for k, e in per.items())
     log(f"{body}: one evaluation {r['simulated_s']:.1f} simulated s (planned {planned_eval:.1f}), {r['cpu_s']:.1f} CPU "
         f"s, {r['wall_s']:.1f} wall s ({cpu_per_sim:.3f} CPU s per simulated s; load {load0[0]:.1f}); falls "
         f"{r['falls']} ({eps})")
-    p = out["projections"]
-    f, g5, rows = p["fit_360"], p["speed_g5"], p["rows"]
-    log(f"{body}: fit 360 evaluations {f['cpu_h']:.2f} core-h: about {f['wall_h_1_worker']:.2f} h with 1 worker, "
-        f"{f['wall_h_2_workers']:.2f} h with 2 (every episode to its end); speed G5 {g5['cpu_h']:.2f} core-h "
-        f"({g5['wall_h_2_workers']:.2f} h with 2 workers); the three rows {rows['episodes']} episodes, "
-        f"{rows['cpu_h']:.2f} core-h ({rows['wall_h_2_workers']:.2f} h with 2 workers)")
+    f, g5, rows = proj["fit_360"], proj["speed_g5"], proj["rows"]
+    k = proj["per_body"]["arm_K"]
+    log(f"{body}: fit 360 evaluations {f['cpu_h']:.2f} core-h ({f['wall_h_four_at_once'][0]:.2f}-"
+        f"{f['wall_h_four_at_once'][1]:.2f} h with four at once); speed G5 {g5['cpu_h']:.2f} core-h; the three rows "
+        f"{rows['episodes']} episodes, {rows['cpu_h']:.2f} core-h; R2@0ms {proj['r2_at_0ms']['cpu_h']:.2f} core-h; "
+        f"attribution {a_lo:.2f}-{a_hi:.2f} core-h per row; per K body "
+        f"{k['cpu_h'][0]:.2f}-{k['cpu_h'][1]:.2f} core-h, {k['wall_h_four_at_once'][0]:.1f}-"
+        f"{k['wall_h_four_at_once'][1]:.1f} h with four bodies at once (every episode to its end)")
     return out
 
 
 RULES = dict(mix=MIX_RULE, speed_walks=SPEED_WALK_RULE, latency=LATENCY_RULE, seeds=SEED_RULE, score=SCORE_RULE,
              failures=FAILURE_RULE, start=START_RULE, sigma0=SIGMA0_RULE, sources=SOURCES_RULE, inputs=INPUTS_RULE,
-             resume=RESUME_RULE, selection=SELECTION_RULE, judged=JUDGED_RULE, rows=ROWS_RULE, cost=COST_RULE,
-             fixed=tune.FIXED_RULE, terms=tune.TERMS_RULE, success=tune.SUCCESS_RULE)
+             resume=RESUME_RULE, selection=SELECTION_RULE, judged=JUDGED_RULE, g5_resume=G5_RESUME_RULE,
+             rows=ROWS_RULE, attribution=ATTRIBUTION_RULE, g7=G7_RULE, cost=COST_RULE, fixed=tune.FIXED_RULE,
+             terms=tune.TERMS_RULE, success=tune.SUCCESS_RULE)
 
-__all__ = ["BUDGET", "EPISODES", "Evaluator", "DelayedRow", "OBJECTIVE", "ROW_CONDITIONS", "RULES", "SIGMA0", "fit",
-           "latencies", "latency_steps", "measure_cost", "servo_delay", "speed_g5", "start_record"]
+__all__ = ["BUDGET", "EPISODES", "Evaluator", "DelayedRow", "G5Log", "OBJECTIVE", "ROW_CONDITIONS", "RULES", "SIGMA0",
+           "SPEED_CONTROLLERS", "fit", "latencies", "latency_steps", "measure_cost", "pick_of", "servo_delay", "speed_g5",
+           "start_body", "start_record"]
