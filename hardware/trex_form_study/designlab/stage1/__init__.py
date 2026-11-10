@@ -2,7 +2,8 @@
 
 The probe asks whether a controller can use the margins the round-two screens found (``ROUND2_REVIEW.md``
 section 13).  It reads the round-two records and models and never changes them; outputs go to
-``stage1/runs/<run>/<body>/``.
+``stage1/runs/<run>/<body>/``.  Stage 1b (``STAGE1B_PLAN.md``) registers arm K's two bodies beside the probe's three
+(``BODIES``; ``candidate_id`` maps each to the round-two candidate id its files carry).
 
 Modules (plan section 2):
 
@@ -37,18 +38,36 @@ from pathlib import Path
 
 #: The study directory (hardware/trex_form_study).
 STUDY = Path(__file__).resolve().parents[2]
-#: The chosen bodies (DECISION_LOG P16) and the refinement case directory that holds each one's record and model.
+#: The Stage 1 bodies and the refinement case directory that holds each one's record and model: the probe's chosen
+#: bodies (DECISION_LOG P16) and Stage 1b's arm K (``STAGE1B_PLAN.md`` section 2), the two 60 cm picks with round two's
+#: faster knee (refine case ``narrow_knee_60``), each named after its pick with ``-K``.
 BODIES = {
     "60-N-T-10": "round2/refine/narrow_carpet_60",
     "60-N-H-10": "round2/refine/narrow_carpet_60",
     "75-M-H-10": "round2/refine/feet_75",
+    "60-N-T-10-K": "round2/refine/narrow_knee_60",
+    "60-N-H-10-K": "round2/refine/narrow_knee_60",
 }
-#: Leading digits of each record's ``xml_sha256`` as the plan lists them (a second check on the record itself).
-SHA256_PREFIX = {"60-N-T-10": "993c5ac5", "60-N-H-10": "96ef84c5", "75-M-H-10": "0517e4d3"}
+#: The probe's own bodies (``STAGE1_PLAN.md``): the set its PPO runs are judged over together (``train.JUDGED_RULE``).
+PROBE_BODIES = ("60-N-T-10", "60-N-H-10", "75-M-H-10")
+#: The round-two candidate id of each body whose name is not that id (``candidate_id``).
+CANDIDATE_IDS = {"60-N-T-10-K": "60-N-T-10", "60-N-H-10-K": "60-N-H-10"}
+#: Leading digits of each record's ``xml_sha256`` as the plan lists them (a second check on the record itself); arm
+#: K's from its records (``round2/refine/narrow_knee_60/candidates``).
+SHA256_PREFIX = {"60-N-T-10": "993c5ac5", "60-N-H-10": "96ef84c5", "75-M-H-10": "0517e4d3",
+                 "60-N-T-10-K": "85d98c24", "60-N-H-10-K": "e0d4c6b7"}
 
 
 def case_dir(body: str) -> Path:
-    """The refinement case directory of a chosen body."""
+    """The refinement case directory of a Stage 1 body."""
     if body not in BODIES:
         raise KeyError(f"{body} is not a Stage 1 body (choose from {', '.join(BODIES)})")
     return STUDY / BODIES[body]
+
+
+def candidate_id(body: str) -> str:
+    """The round-two candidate id of a Stage 1 body: the body's own name unless ``CANDIDATE_IDS`` maps it.  The id
+    names the body's record (``<case>/candidates/<id>.json``), model (``<case>/models/<id>.xml``) and screens
+    (``<case>/review/screening/<id>_*.json``), and ``round2.candidate`` rebuilds the body from it."""
+    case_dir(body)
+    return CANDIDATE_IDS.get(body, body)

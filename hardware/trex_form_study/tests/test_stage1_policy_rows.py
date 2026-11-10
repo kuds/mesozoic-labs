@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT))
 pytest.importorskip("gymnasium")
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
-from designlab.stage1 import control, env, panels, plant, policy_rows, train, tune  # noqa: E402
+from designlab.stage1 import PROBE_BODIES, control, env, panels, plant, policy_rows, train, tune  # noqa: E402
 
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 RUNS = Path(os.environ.get(policy_rows.RUNS_ENV) or RUN)
@@ -121,7 +121,7 @@ def _fake_runs(tmp_path, steps_by_run, final_record=None):
                friction=[0.54, 1.25], mass=[0.9, 1.1], kp=[0.8, 1.2], latency_steps=[0, 10], noise_scale=[0.5, 1.5],
                push_prob=0.5, push_frac=[0.0, 1.0], push_s=0.1, start_joint_noise=0.01, start_root_velocity_noise=0.02,
                gains="tuned", pile_grid=0.008)
-    for body in panels.BODIES:
+    for body in PROBE_BODIES:
         for seed in train.SEEDS:
             rd = train.run_dir_of(root, body, "R3", seed)
             (rd / "checkpoints").mkdir(parents=True)
@@ -180,7 +180,7 @@ def test_a_body_judged_with_r2_leaves_its_r3_runs_out(tmp_path, monkeypatch):
     judged checkpoint (refused, the reason given); an explicit checkpoint still builds one."""
     monkeypatch.delenv(policy_rows.RUNS_ENV, raising=False)
     stopped = ("60-N-H-10", 43)
-    steps = {k: (253952, 507904, 753664) for k in [(b, s) for b in panels.BODIES for s in train.SEEDS]}
+    steps = {k: (253952, 507904, 753664) for k in [(b, s) for b in PROBE_BODIES for s in train.SEEDS]}
     steps[stopped] = (253952,)
     root = _fake_runs(tmp_path, steps)
     assert policy_rows.resolve("60-N-T-10", "R3", 42, root / "60-N-T-10", "judged")["steps"] == 253952

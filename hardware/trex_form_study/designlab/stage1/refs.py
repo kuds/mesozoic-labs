@@ -41,15 +41,22 @@ from pathlib import Path
 import numpy as np
 
 from .. import carpet, envelope, gait, sizing, statics, turning
-from . import BODIES, STUDY, case_dir, plant
+from . import BODIES, STUDY, candidate_id, case_dir, plant
 
 ACCURACY = "r2"
 #: The carpet swing per body (round-two carpet-lift pass): the lowest lift that meets the 0.06 H target above every
 #: pile within the drives and joint ranges (ROUND2_REVIEW, DECISION_LOG P16).
-CARPET_LIFT = {"60-N-T-10": 0.19, "60-N-H-10": 0.195, "75-M-H-10": 0.18}
+#: Stage 1b's arm K bodies take their picks' lifts, the lowest that meet the target there too (the same toe clearance as
+#: the picks'), but no lift is within their joint ranges: the faster knee's upper-thigh shell stops the knee at 0.855 rad
+#: (the picks': 1.00-1.05), so at 0.19-0.195 H the walking clearance gates fail (60-N-T-10-K keeps 0.0065 rad of knee
+#: range at 0.19 H, under the 0.10 rad gate; 60-N-H-10-K's hip pitch goes 0.08 rad past its usable range at 0.195 H).
+#: Their carpet reference is outside this rule, kept only so that a K body has its pick's references.
+CARPET_LIFT = {"60-N-T-10": 0.19, "60-N-H-10": 0.195, "75-M-H-10": 0.18, "60-N-T-10-K": 0.19, "60-N-H-10-K": 0.195}
 CARPET_LIFT_RECORD = {"60-N-T-10": "round2/refine/carpet_lift_narrow_carpet_60_0.190_0.195_nominal_only.json",
                       "60-N-H-10": "round2/refine/carpet_lift_narrow_carpet_60_0.190_0.195_nominal_only.json",
-                      "75-M-H-10": "round2/refine/carpet_lift_feet_75_0.175_0.180_0.190.json"}
+                      "75-M-H-10": "round2/refine/carpet_lift_feet_75_0.175_0.180_0.190.json",
+                      "60-N-T-10-K": "round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json",
+                      "60-N-H-10-K": "round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json"}
 DIRECTIONS = (("left", 1.0), ("right", -1.0))
 #: Half a unit in the sixth significant digit.
 REL_TOL = 5e-7
@@ -86,11 +93,11 @@ def source(body: str) -> dict:
     from .. import round2
     from ..pipeline import build_candidate
 
-    rec = plant.record(body)
+    rec, cid = plant.record(body), candidate_id(body)
     with tempfile.TemporaryDirectory() as tmp:
-        res = build_candidate(round2.candidate(body, rec.get("overrides", ())), Path(tmp),
+        res = build_candidate(round2.candidate(cid, rec.get("overrides", ())), Path(tmp),
                               selection=dict(rec["selection"]), B=rec["B"], write=False)
-        check = plant.verify(body, Path(tmp) / f"{body}.xml")
+        check = plant.verify(body, Path(tmp) / f"{cid}.xml")
     check["file"] = "rebuilt by pipeline.build_candidate"
     design = res["design"]
     return dict(body=body, M=res["model"], q_home=res["q_home"], design=design, H=float(design.sk.H),
@@ -243,24 +250,25 @@ def toe_values(M: statics.Model, traj: dict, H: float) -> dict:
 def record_checks(src: dict, g: dict) -> list:
     """Comparisons of one reference with every record that holds it."""
     body, name, rec = src["body"], g["name"], src["record"]
+    cid = candidate_id(body)
     out = []
     if name in ("nominal", "brisk", "fr05"):
-        out.append(dict(record=f"{BODIES[body]}/candidates/{body}.json gaits.{name}",
+        out.append(dict(record=f"{BODIES[body]}/candidates/{cid}.json gaits.{name}",
                         **compare(g["summary"], rec["gaits"][name])))
     elif name == "carpet":
         lift = CARPET_LIFT[body]
         key = f"lift{round(100 * lift)}"
         if abs(100 * lift - round(100 * lift)) < 1e-9 and key in rec["gaits"]:
-            out.append(dict(record=f"{BODIES[body]}/candidates/{body}.json gaits.{key}",
+            out.append(dict(record=f"{BODIES[body]}/candidates/{cid}.json gaits.{key}",
                             **compare(g["summary"], rec["gaits"][key])))
         doc = json.loads((STUDY / CARPET_LIFT_RECORD[body]).read_text())
-        row = next(r for r in doc if r["id"] == body)
+        row = next(r for r in doc if r["id"] == cid)
         toe = toe_values(src["M"], g["traj"], src["H"])
-        out.append(dict(record=f"{CARPET_LIFT_RECORD[body]} {body} lifts.{lift:g}.toe.nominal",
+        out.append(dict(record=f"{CARPET_LIFT_RECORD[body]} {cid} lifts.{lift:g}.toe.nominal",
                         **compare(toe, row["lifts"][f"{lift:g}"]["toe"]["nominal"])))
     else:
-        doc = json.loads((case_dir(body) / "review" / "screening" / f"{body}_turning.json").read_text())
-        out.append(dict(record=f"{BODIES[body]}/review/screening/{body}_turning.json runs.{name}",
+        doc = json.loads((case_dir(body) / "review" / "screening" / f"{cid}_turning.json").read_text())
+        out.append(dict(record=f"{BODIES[body]}/review/screening/{cid}_turning.json runs.{name}",
                         **compare(g["summary"], doc["runs"][name])))
     return out
 

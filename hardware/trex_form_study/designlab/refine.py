@@ -124,6 +124,11 @@ CASES = {
     "knee_75": dict(ids=("75-M-T-10", "75-M-H-10"), overrides=(), headroom=1.0, fr05=True, walks=("fr05", "lift18"), min_gap=0.0,
                     headroom_by_group={"neck": 0.85, "hip_roll": 0.85, "knee": 0.85},
                     label="75 cm carpet-ready + 15 % knee headroom"),
+    # Stage 1b arm K (STAGE1B_PLAN.md section 2): the narrow carpet-ready picks (narrow_carpet_60) with knee_60's 15 %
+    # knee headroom, which on the base-width bodies selects a RobStride 06 knee (ROUND2_REVIEW.md section 7.3)
+    "narrow_knee_60": dict(ids=("60-N-T-10", "60-N-H-10"), overrides=(("ankle_frac", 0.60),), headroom=1.0, fr05=True,
+                           walks=("fr05", "lift19"), min_gap=3.0, headroom_by_group={"knee": 0.85},
+                           label="60 cm narrow carpet-ready + 15 % knee headroom"),
 }
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
 LIFTS = (0.13, 0.16, 0.19, 0.22)

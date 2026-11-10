@@ -129,7 +129,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 from .. import statics
-from . import case_dir, plant
+from . import candidate_id, case_dir, plant
 from . import estimator as est_mod
 from .refs import Reference
 from .transitions import N_FRAMES, TRANSITIONS, Transition, stop_command_phase
@@ -229,7 +229,7 @@ TURN_CASES = ("walk_0.35", "in_place_0.50")  # the target turns (plan section 4)
 
 
 def _turning_screen(body: str) -> dict:
-    return json.loads((case_dir(body) / "review" / "screening" / f"{body}_turning.json").read_text())
+    return json.loads((case_dir(body) / "review" / "screening" / f"{candidate_id(body)}_turning.json").read_text())
 
 
 def turn_gap(body: str) -> float:

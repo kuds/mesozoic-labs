@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
 from designlab import carpet, catalog, mjcf, statics  # noqa: E402
 from designlab.stage1 import (  # noqa: E402
-    BODIES,
+    PROBE_BODIES,
     control,
     drive,
     estimator,
@@ -95,7 +95,7 @@ def _screened(body: str = BODY):
 # ------------------------------------------------------------------------------------------------
 # Hashes and inputs
 # ------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_each_model_is_the_one_its_record_sized(body):
     xml, _ = plant.model_files(body)
     v = plant.verify(body, xml)
@@ -126,7 +126,7 @@ def test_only_the_parallel_ankle_linkage_is_modelled(monkeypatch):
 # ------------------------------------------------------------------------------------------------
 # Drives: tendon ankle and torque-speed envelope
 # ------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_tendon_map_equals_sizing_motor_space(body):
     r = gates.tendon_map(body, samples=60, seed=3)
     assert r["matches"] and r["leg_layout"] == "tandem"
@@ -667,7 +667,7 @@ def test_step_rate_judges_the_median_of_every_sample():
     assert len(r) == 3 and all(v > 0 for v in r)
 
 
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_gate_records_follow_the_build_decisions(body):
     """The committed run records (``stage1/runs/2026-11-08``) were made with the decided plant and G2 rule."""
     doc = json.loads((RUN / body / "gates.json").read_text())
@@ -788,7 +788,7 @@ def test_transition_derivatives_on_a_nonuniform_grid(nominal):
     assert np.isnan(qd[0]).all() and np.isnan(qdd[1]).all()
 
 
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_transition_records_pass_g3(body):
     """The committed transitions (``transitions.json``) and their G3 record in ``gates.json``."""
     doc = json.loads((RUN / body / "transitions.json").read_text())
@@ -867,7 +867,7 @@ def test_tracker_gains_are_one_named_vector_starting_at_the_prototype():
     assert control.turn_gap(BODY) == pytest.approx(3.43e-3)  # the target turns' smallest gap (turning screen)
 
 
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_turn_gap_is_a_pelvis_to_thigh_gap(body):
     """The turn gap the inward step clamp uses is between the trunk's pelvis and the same-side thigh, not between the
     legs (the screen's leg-to-leg gap is tens of millimetres)."""
@@ -1551,7 +1551,7 @@ def test_run_records_name_their_code():
     assert plant.sources_sha256(files) != src["sha256"]
 
 
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_g4_records(body):
     """The committed G4 record (decisions 15-20): judged at the tuning start with the panel rule, the unperturbed runs
     reported, each failing condition attributed over its starts, the earlier defaults' record kept as evidence."""
@@ -1760,7 +1760,7 @@ def test_rest_threshold_for_r2_was_chosen_from_standing_still():
     """R2's rest speed (decision 18's reported time to rest): the largest horizontal CoM speed R2 showed standing still
     with its sensor noise, rounded up to 0.5 mm/s, recorded before any start-and-stop judgement."""
     doc = json.loads((RUN / "r2_rest_threshold.json").read_text())
-    assert set(doc["bodies"]) == set(BODIES) and doc["rule"] == transitions.REST_R2_RULE
+    assert set(doc["bodies"]) == set(PROBE_BODIES) and doc["rule"] == transitions.REST_R2_RULE
     worst = max(b["R2"]["max_mm_s"] for b in doc["bodies"].values())
     assert doc["largest_standing_speed_r2_mm_s"] == worst
     assert transitions.REST_SPEED_R2_M_S == doc["rest_speed_r2_m_s"] == pytest.approx(0.5e-3 * np.ceil(worst / 0.5))
@@ -2262,7 +2262,7 @@ def test_tune_and_g5_command_line(tmp_path, monkeypatch):
 # Full-length gate checks (STAGE1_SLOW=1)
 # ------------------------------------------------------------------------------------------------
 @slow
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 @pytest.mark.parametrize("floor", gates.STAND_FLOORS)
 def test_g1_stands_20_s_with_zero_command(body, floor):
     r = gates.stand(body, floor)
@@ -2270,7 +2270,7 @@ def test_g1_stands_20_s_with_zero_command(body, floor):
 
 
 @slow
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_g2_references_match_and_the_nominal_replay_reproduces_the_gate_record(body, tmp_path):
     doc = refs.prepare(body, tmp_path)
     assert doc["matches_records"]
@@ -2293,7 +2293,7 @@ G4_COMPARED = ("strides", "fell", "fall_cause", "fall_candidates", "dcm_error_rm
 
 
 @slow
-@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_g4_gated_runs_reproduce_the_gate_record(body):
     """The tracker as it is now reproduces the committed G4 record's gated runs bit for bit: each condition's
     unperturbed run and its 20-start panel (the jobs ``gates.g4`` runs: the root-velocity offsets and R2's noise seeds
