@@ -121,3 +121,19 @@ These were settled on 10 Nov, after the build's review and before any speed fit 
    the rows with `--attribute` follow, and `speedreport` last. If the fits cannot reach generation 30 in time for
    speed G5 and the rows before 11:00, every arm is judged with `speedg5 --at-generation` at the last generation all
    of them reached (section 5).
+8. **Arm K is `60-N-T-10-K` alone** (decided at the merge, 07:50 UTC, from `ARM_K.md` section 4). `60-N-H-10-K` is
+   not fitted, for two reasons:
+   - **It fails round two's clearance gate.** Its hip-pitch extension stops at −0.509 rad against the
+     power-distribution board, and its turn gaps are 0.84 and 0.28 mm against the case's 3 mm.
+   - **It cannot pass the speed walks.** Its brisk and Froude 0.05 references keep only 0.07 and 0.04 rad of
+     hip-pitch range, against the 0.10 rad every walk success needs (decision 14). Q2 could at best read "survives
+     only" there, by construction.
+
+   Q2 is therefore answered on the Tapered body. The freed core gives each of the three fits a core of its own. The K
+   body also differs from its pick by more than the knee's speed (`ARM_K.md` section 7): +0.75 kg, hips +4 mm per
+   side, and knee flexion 0.856 against 1.051 rad. Q2 compares the whole faster-knee body.
+9. **The code at launch.** It is merge 3b0e948 of the round's two branches, and the speed sources are `68f5a80b`
+   over 14 modules (decision 5). The K registration alone moves the panels' sources (7516b927 → 733f2b80) and the
+   tuner's (e7b37918 → 6a33d3f9). Stage 1's fits name c8b112cf and were already refused by Stage 1's own final code
+   (`ARM_K.md` section 3), so decision 6's rule stands: no eval, sweep, tune or g5 against 2026-11-08 with the round's
+   code.
