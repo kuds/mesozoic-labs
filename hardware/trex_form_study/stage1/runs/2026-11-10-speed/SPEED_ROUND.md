@@ -44,6 +44,8 @@ the last generation all of them reached: `run_speed_round.sh g5 BODY G`, then `r
 
 ## Files
 
+- `STAGE1B_SPEED.md`: the owner's report of the round (10 Nov), written from the records and checked by
+  independent reviewers; it also records the correction of Stage 1's 75 cm servo-delay reading.
 - `<body>/speedfit/start.json`: the body's start, recorded once.
 - `<body>/speedfit/42/cma.json`, `evals.jsonl`: the fit's checkpoint and its evaluation log.
 - `<body>/speedg5.json`, `speedg5_evals.jsonl`: speed G5 and its kept validation evaluations.

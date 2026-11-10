@@ -6,6 +6,25 @@ and the run records behind them. Record paths are relative to `hardware/trex_for
 `<b>` stands for a body. "Decision n" refers to `STAGE1_PLAN.md`; P, F, E and A rows to `DECISION_LOG.md`. Technical
 detail is in the Engineering notes (N1–N11) at the end.
 
+**Correction, 10 Nov 2026 (after Stage 1b).** The 75 cm body's nominal walk falls at 10 ms of servo delay, so it stays
+up under as much delay as the 60 cm Hybrid, not more. This report said that it stays up to at least 20 ms. Its own
+ledger records contradict that: under R2 (fitted controller 43) and R3/42 (its learned add-on) alike, all 3 episodes
+stay up at 4, 6 and 8 ms and at 20 ms, but all 3 fall at 10 ms (`75-M-H-10/sweeps/R2/43/latency.json` and
+`75-M-H-10/sweeps/R3/42/latency.json`, `evaluations`). The stay-up search evaluated only 0 and 20 ms and, since it
+assumes that a walk which falls at some delay also falls at every larger one, read "works across the interval"; the
+10 ms falls are in the same records, from the meets-limits search. The correct reading: the 75 cm nominal walk stays up
+to 8 ms and falls at 10 ms, though it stays up again at 20 ms, the only larger delay tried, where none meets every
+limit; every limit is met to 6 ms, as reported. No verdict or episode count in §2 changes: the panels behind them ran
+with no servo delay, and the ledger, a 3-episode margin reading, decides none. Re-read the same way, the 60 cm delay
+readings (stays up to 6 / 8 ms, every limit met to 4 / 4 ms) and the ledger's other † cells agree with every value
+their records evaluated. But no delay search on any body ran 2 ms or 12–18 ms, and the grip searches among the † cells
+evaluated nothing between μ 0.10 and 0.20 (0.30 on R3/42's left turn, 0.50 on `60-N-T-10`'s walk), so a fall in
+between could have been missed there too (§9). Changed,
+each marked "corrected 10 Nov": the answers on which body does best and on hard floors, §3's servo-delay cells and its
+note on what binds, §6 items 6 and 8, the draft F26 (§7), §9's ledger caveat and N4. `STAGE1_TABLES.md` is machine-made
+from the records and is left as it is: its "works to 10 steps (20 ms)" is the search's own reading (`STAGE1B_PLAN.md`
+decision 6).
+
 The bodies, in the order of every "a / b / c" figure: `60-N-T-10`, the 60 cm Tapered; `60-N-H-10`, the 60 cm Hybrid;
 `75-M-H-10`, the 75 cm Hybrid with the targeted drives and bigger feet.
 
@@ -18,7 +37,8 @@ both pass: all 20 episodes stay up and at least 17 meet every limit.
 **Which body does best on your floors?** In simulation, still the 75 cm Hybrid, though by the plan's pass rule all three
 are shown with R2 on the same 14 of 20 gated conditions (the 75 cm body's judged R3 on 12, because of the learned
 add-on, not the body). It stays up at both speeds and on most margins goes further: on less grip in turns and brisk,
-under larger shoves, with more servo delay and with weaker or slower drives; it walks and turns even without balance
+under larger shoves and with weaker or slower drives; with servo delay it meets every limit to 6 ms against 4 ms but
+stays up only to 8 ms, as the Hybrid does, and falls at 10 ms (corrected 10 Nov); it walks and turns even without balance
 feedback. By meeting every limit, though, it tolerates less servo-stiffness error than either 60 cm body and less
 torque scaling than the Hybrid. It costs about $3.7k and 4 kg more. The 60 cm bodies differ little in gated verdicts;
 the Hybrid does better at brisk, the Tapered on the fast turn.
@@ -31,9 +51,9 @@ and meets every limit down to 0.21–0.275 (the Tapered 0.71, one noisy peak foo
 0.42–0.8 on vinyl and laminate. Turns were not tested at 0.54; the 60 cm walking turns stay up down to μ 0.30–0.31 but
 meet every limit only down to 0.42 (Tapered) and 0.57 (Hybrid, above the test grip), each edge one episode's peak foot
 force; the 75 cm ones stay up down to 0.10 and meet every limit down to 0.26. These margins are 3-episode searches on
-one fitted controller per body. Every verdict assumes no servo delay and the model's servo stiffness, yet at 60 cm the
-nominal walk misses a limit at 6 ms of delay, falls at 8–10 ms and meets every limit only down to 0.67–0.68 × the
-holding gains: bench measurements (§6, item 6) decide whether these results carry over.
+one fitted controller per body. Every verdict assumes no servo delay and the model's servo stiffness, yet on every body
+the nominal walk misses a limit at 6–8 ms of delay, falls at 8–10 ms (corrected 10 Nov) and meets every limit only down
+to 0.67–0.71 × the holding gains: bench measurements (§6, item 6) decide whether these results carry over.
 
 **Thin carpet.** Standing, yes. Walking, no: every start falls on every body in its first steps (every episode at the
 test's μ 0.54, and in a 3-start check at the carpet's own μ 0.95), and training on that carpet (R3: 0 of 40 on the 75 cm
@@ -181,7 +201,7 @@ failing. The last column is R3/42, the learned residual on the 75 cm body's fitt
 | Drive speed, animal pace (lowest scale) | knee needs 0.81 / 0.83 / 0.81 of rated | falls at 1.0 | falls at 1.0 | 0.29 / 0.50 (N4) | 0.26 / 0.87, the knee (N4) |
 | Drive torque, nominal walk (lowest scale) | worst drive 0.76 / 0.76 / 0.66 | 0.53 / 0.92 | 0.48 / 0.84 | 0.29 / 0.88 | 0.36 / 0.86 |
 | Servo stiffness, controller unaware (lowest scale) | none | 0.58 / 0.68 | 0.58 / 0.67 | 0.55 / 0.71 | 0.57 / 0.72 |
-| Servo delay, ms | none | 6 / 4 | 8 / 4 | 20† / 6 | 20† / 6 |
+| Servo delay, ms | none | 6 / 4 | 8 / 4 | 8 / 6 (corrected 10 Nov): all 3 fall at 10 ms; at 20 ms, the only larger delay tried, all 3 stay up, none meeting every limit | 8 / 6 (corrected 10 Nov), likewise |
 | Trunk mass (highest scale) | none | 1.3† (+13 % robot) | 1.3† (+13 %) | 1.3† (+12 %) | 1.3† (+12 %) |
 | Pack voltage, 25.2 / 22.2 / 21 V | 24 V used | walk works at all; animal pace falls at all | the same | walk works at all; animal pace stays up at all, with no new miss at 25.2 and 22.2 V and a new no-flight miss in one episode at 21 V; at no voltage does an episode meet every limit (as at nominal: tail servo, duty, ankle speed, toe clearance) | walk works at all; animal pace stays up at all with no new miss, but no episode meets every limit (tail servo, duty) |
 | Pile damping × 0.5–2 | none | low-pile stand holds; carpet walk falls at nominal | the same | the same | not run (decision 37) |
@@ -201,7 +221,9 @@ failing. The last column is R3/42, the learned residual on the 75 cm body's fitt
 - **Drive torque.** Falls are body-limited by drive torque or slip. The limit edges are a servo's A1 limit, the neck
   at 60 cm and the tail at 75 cm (one peak foot force on `60-N-T-10`).
 - **Stiffness and delay.** Controller-limited: toe clearance or a peak foot force goes first, then falls where nothing
-  liftable was active (60 cm stiffness) or lifting drive torque and slip saved none. The tracker was fitted with no
+  liftable was active (60 cm stiffness) or lifting drive torque and slip saved none; the 75 cm delay falls at 10 ms,
+  which the stay-up search missed, were never lifted, so they carry no label (corrected 10 Nov; slip and the pad edge
+  were candidates before all 3, drive torque before 1). The tracker was fitted with no
   delay, and the stiffness sweep lowers the servo gains without telling the controller: these are provisional bench
   targets, not requirements (N4).
 - **Mass and voltage** do not bind. At 21 V the 75 cm animal pace newly loses no-flight in one episode.
@@ -346,7 +368,8 @@ stops of unrecorded cause; a third stop, at about 01:28 UTC, came after the last
 5. **The tail servo's limit.** Run A1's "replace with", a bench thermal and duty test of the STS3215, before
    re-sizing the head and tail servos; and find why closed-loop loads exceed Stage 0's.
 6. **Servo delay and stiffness.** Measure both on the bench; keep randomising delay in training (R3 trains with
-   0–20 ms) and add it to the tracker's fit.
+   0–20 ms, yet R3/42 still falls at 10 ms on the 75 cm body, as R2 does; corrected 10 Nov) and add it to the
+   tracker's fit.
 7. **A test that changes the pad.** No narrow 60 cm model with bigger feet exists; one needs its own prepare, gates and
    fit (about 5.2 h of wall clock per body) and changes stance width and gains too. The 75 cm body, with the bigger
    feet, still shows the pad-edge flag before every fall.
@@ -354,7 +377,8 @@ stops of unrecorded cause; a third stop, at about 01:28 UTC, came after the last
    nothing R2 does not; R4 never found a gait in 1.25M steps. Train on a sturdier base controller or with more
    exploration (N3), and let G6c count limits met over more episodes rather than reward per step over 3 (its
    right-walking-turn win missed the turn rate in 14 of 20 panel episodes). Only R3's training shoves (to the full
-   Stage 0 bound) and, at 60 cm, its delay (to 20 ms) reach past where R2's nominal walk stays up; its friction, mass
+   Stage 0 bound) and, on every body (corrected 10 Nov), its delay (to 20 ms) reach past where R2's nominal walk first
+   falls; its friction, mass
    and stiffness ranges do not (§3).
 9. **Memory-bounded evaluation** (decision 36): one behaviour group per process, at most seven processes, a 1.5 GB
    free-memory guard.
@@ -387,7 +411,9 @@ flag, set by the tracker's ankle cap before every tracker fall, could not be tes
 fall in most walks while `75-M-H-10` passes the nominal walk, every target turn and start and stop; with the true centre
 of mass and the same gains (R1) no body stays up more often except on two walking-push conditions. In the margin ledger
 (3 episodes per value, one fitted controller per body; `60-N-T-10` / `60-N-H-10` / `75-M-H-10`) the nominal walk
-survives up to 6 / 8 / at least 20 ms of actuation delay (20 ms ends the search; every limit met to 4 / 4 / 6 ms), plant
+survives up to 6 / 8 / 8 ms of actuation delay (corrected 10 Nov: on `75-M-H-10` all 3 episodes fall at 10 ms under
+R2/43 and R3/42, though all 3 survive at 20 ms, the only larger delay tried, none succeeding; every limit met to
+4 / 4 / 6 ms), plant
 servo stiffness down to 0.58 / 0.58 / 0.55 × the holding gains with the controller unaware, and μ down to 0.11 on
 `60-N-H-10` and to the search's floor, 0.10, on the others. On each 60 cm body R3's seed 42 failed G6b twice, so both
 are judged with R2. On `75-M-H-10` both R3 runs passed G6b after the fix (seed 43 only under decision 39's tolerance,
@@ -499,7 +525,9 @@ P3, P4, P14 and P19–P26.
   envelope, no thermal limits beyond A1's fraction, no backlash, no fall damage.
 - **Real servo delay and stiffness in the verdicts,** which assume a zero-delay loop and the model's stiffness.
 - **The tail servo's real limit:** the 75 cm speed verdicts rest on A1.
-- **Sharp ledger edges.** Each is a 3-episode reading on one fitted controller; several searches are not monotonic.
+- **Sharp ledger edges.** Each is a 3-episode reading on one fitted controller; several searches are not monotonic,
+  and a search whose far end works tries nothing in between, which is how the 75 cm delay search missed its falls at
+  10 ms (corrected 10 Nov; N4).
 - **Carpet (A16).** The carpet's friction, stiffness and damping and the pile damping are unsourced, and floor friction
   is one number. The treads' grip is an estimate.
 - **Real self-collision.** Only the foot pads touch the floor; leg-to-leg clearance is checked geometrically.
@@ -585,6 +613,13 @@ decision 39 by the plan's text.
 - Not monotonic: on `60-N-H-10`'s brisk walk 1 of 3 falls at μ 0.50, 0.525, 0.5625 and 0.569, but none at 0.531–0.55
   or from 0.575 up; on `60-N-T-10`'s left turn 1 of 3 falls at μ 0.3125, though all stay up from 0.125 to 0.30; on
   its right turn all 3 succeed at μ 0.35 but not at 0.40–0.4125.
+- Not monotonic either, and missed by its search (corrected 10 Nov): `75-M-H-10`'s servo delay. Under R2/43 and R3/42
+  alike, all 3 stay up at 4, 6 and 8 ms and at 20 ms, where every episode misses several limits (speed, stride, peak
+  foot force, drive speed and more), but all 3 fall at 10 ms (at 4.4–6.5 s and 4.6–4.8 s); nothing between 10 and
+  20 ms was run. The stay-up search evaluated only 0 and 20 ms and read "works across the interval", as it assumes one
+  crossing (`designlab/stage1/ledger.py`, `SEARCH_RULE`); the 10 ms falls are the meets-limits search's evaluation in
+  the same record (`evaluations`, `latency_steps` 5), and nothing was lifted there. The 60 cm delay searches bisected
+  to their first falls (8 and 10 ms), and all 3 fall at 10 and 20 ms on both, so their readings stand.
 - The 75 cm drive-speed search scales both the torque–speed envelope and the rated speeds. Its 3 seeds already miss
   drive speed (ankles 1.13–1.21× rated), the tail limit and duty at full speed, so "meets limits" counts only new
   misses (the speed target and no-flight at 0.49×). Read 0.29, where it stays up, as the margin.
