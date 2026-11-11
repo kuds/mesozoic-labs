@@ -18,19 +18,31 @@ one at its default ``generate`` runs exactly the code it always ran, so Stage 1'
 (gate G2); with any of them set it runs ``_generate_look``, the same construction (footprints, LIPM centre of mass,
 per-frame CoM correction, ``statics.leg_ik``, multibody-ZMP correction passes) with the features added:
 
-* F1/F2 ``bob``, ``bob_phase``, ``bob_skew``: the pelvis dips by ``bob`` H (peak to peak) twice per stride, at today's
-  height at mid single support (mid-stance) and lowest ``bob_skew`` of the stance after each touchdown (None: midway
-  between the mid-stances).  The profile is (1 - cos 2 pi g) / 2 of a smoothly warped step phase g, so it is C-infinity.
+* F1/F2 ``bob``, ``bob_phase``, ``bob_skew``, ``bob_drop``: the pelvis dips by ``bob`` H (peak to peak) twice per
+  stride, at today's height at mid single support (mid-stance) and lowest ``bob_skew`` of the stance after each
+  touchdown (None: midway between the mid-stances).  Without ``bob_drop`` the profile is (1 - cos 2 pi g) / 2 of a
+  smoothly warped step phase g (C-infinity; most of a skewed dip then comes before the touchdown).  With it (F2's
+  weight acceptance) the hips hold the crest through late single support, drop (min-jerk) over ``bob_drop`` seconds to
+  the trough and rise (min-jerk) to the next mid-stance: a quick dip around the touchdown, then a slow rise (C2).
 * F3 ``swing_time``: a swing of fixed duration; duty = clip(1 - swing_time / T, ``DUTY_RANGE``) (``describe``).
-* F4 ``lift_peak``: the swing lift lift sin^2(pi g(s)) with g a smooth warp of the swing fraction s that puts the peak
-  at s = lift_peak (0.5 is today's profile); lift-off and touchdown keep zero vertical speed and today's acceleration.
-* F5 ``toe_off``, ``toe_off_start``, ``toe_off_margin``, ``toe_reach``: the foot pitches heel-up about the front
-  bottom edge of its frontmost toe pad (the pivot stays on the floor while the foot is down), from the later of
-  ``toe_off_start`` of the stance and the moment the ZMP reference enters the rolling support (the pivot edge and the
-  other foot's pads) by ``toe_off_margin``; the pitch rises (min-jerk) to ``toe_off`` and falls back to level by
-  mid-swing, peaking at lift-off where the stance part of that window is at least half of it and at the window's
-  middle otherwise (``toe_off_bump``).  After mid-swing the toes rise by ``toe_reach`` about the heel pad's rear edge
-  and the foot lands flat.  The foot targets carry the pitch and ``statics.leg_ik`` solves them as 6-D poses.
+* F4 ``lift_peak``: the swing lift lift sin^2(pi g(s)) with g = s + A s^2 (1 - s)^4 a warp of the swing fraction s
+  that puts the peak at s = lift_peak (0.5 is today's profile; mirrored for a later peak): the foot rises quickly and
+  descends more slowly, its warp sits in the first half, so the middle half of the swing keeps at least 0.45 of the
+  lift for a peak at 35-40 % (today's 0.5; the clearance screen's 0.04 H with a 0.10 H lift); lift-off and touchdown
+  keep zero vertical speed and today's acceleration.
+* F5 ``toe_off``, ``toe_off_start``, ``toe_off_margin``, ``toe_off_rate``, ``toe_off_accel``, ``toe_reach``: the foot
+  pitches heel-up and rolls without slipping on its real convex sole (``roll_offset``): about the front bottom edge of
+  its frontmost toe pad, then over a short transition arc on to the middle claw's tip, which reaches the floor first
+  as the foot pitches (``foot_geometry``'s ``claw``: the toes and claws reach ahead of the pads and carry no contact in
+  the plant).  The arc keeps the roll smooth (a rigid foot rolling from the edge on to the claw at a finite rate would
+  strike it) and the real foot within a fraction of a millimetre above the floor; no part goes below it.  The roll
+  starts at the later of ``toe_off_start`` of the stance and the moment the ZMP reference enters the rolling support
+  (the toe edge and the other foot's pads) by ``toe_off_margin``, every rolling frame's actual contact checked; the
+  pitch rises (min-jerk) to its peak at the lift-off and falls back to level by mid-swing (``toe_off_bump``).  The
+  peak is ``toe_off``, or less where the roll's time on the floor is short: at most ``toe_off_rate`` (rad/s, mean) and
+  ``toe_off_accel`` (rad/s^2, peak) allow (``roll_amplitude``).  After mid-swing the toes rise by ``toe_reach`` about
+  the heel pad's rear edge and the foot lands flat.  The foot targets carry the pitch and ``statics.leg_ik`` solves
+  them as 6-D poses.
 * F6 ``roll_amp``, ``roll_phase``: the trunk rolls about its own long axis at the stride frequency, by ``roll_amp``
   toward the stance leg at its mid-stance (negative: the swing side drops, as human pelvic list).
 * F7 ``zmp_inset_y``: the single-support ZMP reference moves this far toward the body's midline.
@@ -120,6 +132,9 @@ class GaitSpec:
     tail_var: float = 0.0  # F14: slow tail-amplitude variation (fraction of tail_amp, largest)
     var_band: tuple = (0.05, 0.2)  # F14: band of the slow variations (Hz)
     noise_seed: int = 0  # F14
+    bob_drop: float | None = None  # F2: the dip into the trough lasts this long (s): hold, drop, rise; None: smooth
+    toe_off_rate: float | None = None  # F5: largest mean pitch rate of the roll on the floor (rad/s); None: no cap
+    toe_off_accel: float | None = None  # F5: largest pitch acceleration of the roll (rad/s^2); None: no cap
 
     def describe(self, H: float) -> dict:
         v = np.sqrt(self.froude * G * H)
@@ -135,7 +150,7 @@ class GaitSpec:
 LOOK_FIELDS = ("bob", "bob_phase", "bob_skew", "swing_time", "lift_peak", "toe_off", "toe_off_start", "toe_off_margin",
                "toe_reach", "roll_amp", "roll_phase", "zmp_inset_y", "tail_phase", "head_mode", "head_gain",
                "head_settle", "settle_lag", "strides", "phase_jitter", "asym", "gaze_var", "tail_var", "var_band",
-               "noise_seed")
+               "noise_seed", "bob_drop", "toe_off_rate", "toe_off_accel")
 LOOK_DEFAULTS = {f.name: f.default for f in fields(GaitSpec) if f.name in LOOK_FIELDS}
 
 
@@ -388,20 +403,54 @@ def _skew(s, kappa: float):
     return s + kappa * (1.0 - np.cos(2 * np.pi * s)) / (2 * np.pi)
 
 
+#: max over [1/3, 1] of s (1 - s)^3 (6 s - 2): F4's warp s + A s^2 (1 - s)^4 has g' >= 1 - A x this (``_lift_warp``).
+_LIFT_HMAX = float(np.max((lambda s: s * (1 - s) ** 3 * (6 * s - 2))(np.linspace(1 / 3, 1.0, 200001))))
+
+
+def _lift_warp(s, peak: float):
+    """F4's warp of the swing fraction: g(s) = s + A s^2 (1 - s)^4 with A = (0.5 - peak) / (peak^2 (1 - peak)^4), so
+    g(peak) = 0.5; a peak after mid-swing mirrors it, 1 - g(1 - s; 1 - peak).  g' = 1 at both ends and g'' = 0 at the
+    far end, so lift-off and touchdown keep today's zero speed and acceleration; the warp is monotone only for a peak in
+    about 0.223-0.777 (``ValueError`` outside)."""
+    s = np.asarray(s, float)
+    if not 0.0 < peak < 1.0:
+        raise ValueError(f"a peak at {peak} is outside (0, 1)")
+    if peak > 0.5:
+        return 1.0 - _lift_warp(1.0 - s, 1.0 - peak)
+    A = (0.5 - peak) / (peak**2 * (1.0 - peak) ** 4)
+    if A * _LIFT_HMAX >= 1.0:
+        raise ValueError(f"a peak at {peak} needs a non-monotone warp (A max |h| = {A * _LIFT_HMAX:.3f} >= 1)")
+    return s + A * s**2 * (1.0 - s) ** 4
+
+
 def lift_profile(s, lift_peak: float = 0.5):
     """F4: the swing lift as a fraction of the lift at swing fraction s: sin^2(pi s) (today's) or, with the peak moved
-    to ``lift_peak``, sin^2(pi g(s)) with ``_skew``'s warp."""
+    to ``lift_peak``, sin^2(pi g(s)) with ``_lift_warp``'s g: a quick rise and a slower descent that keeps the middle
+    half of the swing high (at s = 0.75, 0.45-0.47 of the lift for a peak at 35-40 %)."""
     if lift_peak == 0.5:
         return np.sin(np.pi * np.asarray(s, float)) ** 2
-    return np.sin(np.pi * _skew(np.asarray(s, float), _skew_kappa(lift_peak))) ** 2
+    return np.sin(np.pi * _lift_warp(s, lift_peak)) ** 2
 
 
-def bob_profile(tau, trough: float = 0.5):
-    """F1/F2: the dip as a fraction of ``bob`` over one step, tau in [0, 1) from a mid-stance (0, no dip) to the next;
-    deepest (1) at ``trough``: (1 - cos 2 pi g(tau)) / 2 with ``_skew``'s warp."""
+def bob_profile(tau, trough: float = 0.5, drop: float | None = None):
+    """F1/F2: the dip as a fraction of ``bob`` over one step, tau in [0, 1) from a mid-stance (0, no dip) to the next,
+    deepest (1) at ``trough``.  Without ``drop``: (1 - cos 2 pi g(tau)) / 2 with ``_skew``'s warp.  With ``drop`` (the
+    dip's duration as a fraction of the step; F2's weight acceptance): at the crest until ``drop`` before the trough, a
+    min-jerk drop to it, then a min-jerk rise to the next crest (C2: zero rate and curvature at the crest, at the drop's
+    start and at the trough)."""
     tau = np.asarray(tau, float)
-    g = tau if trough == 0.5 else _skew(tau, _skew_kappa(trough))
-    return 0.5 * (1.0 - np.cos(2 * np.pi * g))
+    if drop is None:
+        g = tau if trough == 0.5 else _skew(tau, _skew_kappa(trough))
+        return 0.5 * (1.0 - np.cos(2 * np.pi * g))
+    if not (0.0 < trough < 1.0 and drop > 0.0):
+        raise ValueError(f"a trough at {trough} and a drop of {drop} (fractions of the step)")
+    start = max(trough - drop, 0.0)
+    out = np.zeros_like(tau)
+    down = (tau > start) & (tau <= trough)
+    out[down] = _min_jerk((tau[down] - start) / (trough - start))
+    up = tau > trough
+    out[up] = 1.0 - _min_jerk((tau[up] - trough) / (1.0 - trough))
+    return out
 
 
 def bob_trough(spec: GaitSpec, duty: float) -> float:
@@ -420,17 +469,34 @@ def _bump3(u):
 
 
 def toe_off_bump(t, t_r: float, t_lo: float, t_e: float, amp: float):
-    """F5's foot pitch over one roll (rad): a min-jerk rise from 0 at t_r to ``amp`` at the peak and a min-jerk fall back
-    to 0 at t_e (mid-swing).  The peak is at the lift-off t_lo where the stance part of the window is at least half of
-    it, otherwise at the window's middle, so the rise is never quicker than the fall.  Returns (pitch, peak time)."""
+    """F5's foot pitch over one roll (rad): a min-jerk rise from 0 at the roll's start t_r to ``amp`` at the lift-off
+    t_lo, then a min-jerk fall back to 0 at t_e (mid-swing): the foot leaves the floor at its peak pitch, and the pitch
+    only falls in the air.  Returns (pitch, peak time = t_lo)."""
+    if not t_r < t_lo < t_e:
+        raise ValueError(f"a roll needs t_r < t_lo < t_e ({t_r}, {t_lo}, {t_e})")
     t = np.asarray(t, float)
-    t_pk = max(t_lo, 0.5 * (t_r + t_e))
     out = np.zeros_like(t)
-    rise = (t > t_r) & (t <= t_pk)
-    out[rise] = amp * _min_jerk((t[rise] - t_r) / (t_pk - t_r))
-    fall = (t > t_pk) & (t < t_e)
-    out[fall] = amp * (1.0 - _min_jerk((t[fall] - t_pk) / (t_e - t_pk)))
-    return out, t_pk
+    rise = (t > t_r) & (t <= t_lo)
+    out[rise] = amp * _min_jerk((t[rise] - t_r) / (t_lo - t_r))
+    fall = (t > t_lo) & (t < t_e)
+    out[fall] = amp * (1.0 - _min_jerk((t[fall] - t_lo) / (t_e - t_lo)))
+    return out, t_lo
+
+
+#: A min-jerk rise of A over D peaks at 5.77 A / D^2 (10 sqrt(3) / 3): F5's ``toe_off_accel`` bounds it.
+MIN_JERK_ACC = 10.0 * math.sqrt(3.0) / 3.0
+
+
+def roll_amplitude(spec: GaitSpec, t_r: float, t_lo: float) -> float:
+    """F5: one roll's peak pitch: ``toe_off``, or less where the roll's time on the floor D = t_lo - t_r is short: at
+    most ``toe_off_rate`` D (its mean rate) and ``toe_off_accel`` D^2 / 5.77 (its min-jerk peak acceleration)."""
+    D = t_lo - t_r
+    amp = float(spec.toe_off)
+    if spec.toe_off_rate is not None:
+        amp = min(amp, spec.toe_off_rate * D)
+    if spec.toe_off_accel is not None:
+        amp = min(amp, spec.toe_off_accel * D * D / MIN_JERK_ACC)
+    return float(amp)
 
 
 def _rot_y(a: float) -> np.ndarray:
@@ -438,11 +504,51 @@ def _rot_y(a: float) -> np.ndarray:
     return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
 
 
+def _contact_spheres(m, d, g, p, R) -> list[tuple[np.ndarray, float]]:
+    """A geom's candidate floor-contact points in the foot frame (foot origin p, orientation R) as (centre, radius):
+    a capsule's two end spheres, a sphere, a box's corners and a mesh's vertices (radius 0)."""
+    Rg = R.T @ d.geom_xmat[g].reshape(3, 3)
+    c = R.T @ (d.geom_xpos[g] - p)
+    s = m.geom_size[g]
+    t = m.geom_type[g]
+    if t in (mujoco.mjtGeom.mjGEOM_CAPSULE, mujoco.mjtGeom.mjGEOM_CYLINDER):  # a cylinder's end discs as spheres
+        return [(c + e * s[1] * Rg[:, 2], float(s[0])) for e in (1.0, -1.0)]
+    if t == mujoco.mjtGeom.mjGEOM_SPHERE:
+        return [(c, float(s[0]))]
+    if t == mujoco.mjtGeom.mjGEOM_BOX:
+        return [(c + Rg @ (np.array([a, b, e]) * s[:3]), 0.0) for a in (-1, 1) for b in (-1, 1) for e in (-1, 1)]
+    if t == mujoco.mjtGeom.mjGEOM_MESH:
+        mid = m.geom_dataid[g]
+        v = m.mesh_vert[m.mesh_vertadr[mid] : m.mesh_vertadr[mid] + m.mesh_vertnum[mid]]
+        return [(c + Rg @ x, 0.0) for x in v]
+    raise ValueError(f"geom {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g)}: type {t} not handled")
+
+
+def _touch_pitch(centre: np.ndarray, r: float, pivot: np.ndarray) -> float:
+    """The heel-up pitch about ``pivot`` (on the floor; rotation about the foot's y axis) at which a sphere of centre
+    ``centre`` and radius r (foot frame) first touches the floor: its height above the pivot is
+    -dx sin(th) + dz cos(th) - r.  Infinite if it never does (behind the pivot, or already touching)."""
+    dx, dz = centre[0] - pivot[0], centre[2] - pivot[2]
+    rho = math.hypot(dx, dz)
+    if dx <= 0.0 or dz <= r or rho <= r:
+        return math.inf
+    return math.atan2(dz, dx) - math.asin(r / rho)
+
+
 def foot_geometry(M: statics.Model) -> dict:
     """Per side, in the foot body's frame at the model's current pose (call it at home, feet flat): the floor pads'
     bottom corners and hull, the toe pivot (the front bottom edge of the frontmost toe pad: its two end points) and the
     heel pivot (the heel pad's rear bottom edge: its two end points).  A pivot point carries the edge's x and z (the
-    pitch is about the foot's y axis, so its y does not matter)."""
+    pitch is about the foot's y axis, so its y does not matter).
+
+    ``claw``: the foot's real front contact past a small pitch.  The toes, claws, hallux and plate carry no contact in
+    the plant (``contype`` 0), but the middle toe's claw reaches ahead of the pads, so a rigid foot pitched heel-up about
+    the toe edge touches the floor with it first (``touch_pitch``, rad) and then rolls on its tip (``roll_offset``).
+    ``claw`` holds that geom, its tip sphere (centre and radius, foot frame), the floor contact at the touch pitch
+    (relative to the flat foot's origin), the next-nearest geom's touch pitch about the toe edge (``next``) and the
+    transition arc from the edge to the claw (``_transition_arc``, from ``ARC_START`` of the touch pitch) with how far
+    the real foot's lowest point stays above the floor over it (``hover_max_m``, ``hover_min_m``); None where no geom
+    reaches ahead of the edge."""
     m, d = M.m, M.d
     out = {}
     for side in SIDES:
@@ -466,41 +572,163 @@ def foot_geometry(M: statics.Model) -> dict:
 
         toe_edge = edge(toes[front], toes[front][:, 0].max())
         heel_edge = edge(heels[rear], heels[rear][:, 0].min())
+        toe_pivot = np.array([toe_edge[0, 0], 0.0, toe_edge[:, 2].mean()])
+        # the first non-pad geom to reach the floor as the foot pitches heel-up about the toe edge
+        touches = []
+        foot_b = M.foot[side]
+        for g in range(m.ngeom):
+            if m.geom_bodyid[g] != foot_b or m.geom_contype[g] == 1 or not np.any(m.geom_size[g] > 0):
+                continue
+            nm = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or str(g)
+            for c, r in _contact_spheres(m, d, g, p, R):
+                touches.append((_touch_pitch(c, r, toe_pivot), nm, c, r))
+        touches.sort(key=lambda x: x[0])
+        claw = None
+        if touches and math.isfinite(touches[0][0]):
+            th, nm, c, r = touches[0]
+            Rt = _rot_y(th)
+            centre_at_touch = toe_pivot + Rt @ (c - toe_pivot)  # relative to the flat foot origin
+            nxt = next((x for x in touches[1:] if x[1] != nm), None)
+            claw = dict(geom=nm, touch_pitch=float(th), centre=np.asarray(c, float), radius=float(r),
+                        centre_at_touch=centre_at_touch, contact_at_touch=centre_at_touch - np.array([0.0, 0.0, r]),
+                        next=None if nxt is None else dict(geom=nxt[1], touch_pitch=float(nxt[0])))
+            claw["arc"] = _transition_arc(toe_pivot, claw["centre"], r, ARC_START * th)
+            # the real foot over the arc: its lowest candidate point above the floor (never below it)
+            cands = [(cc, rr) for _, _, cc, rr in touches] + [(toe_pivot, 0.0)]
+            gaps = []
+            for ph in np.linspace(claw["arc"]["start_pitch"], claw["arc"]["end_pitch"], 41):
+                P = _contact_in_foot(dict(toe_pivot=toe_pivot, toe_edge=toe_edge, claw=claw), float(ph))[0][0]
+                R_ = _rot_y(float(ph))
+                gaps.append(min((R_ @ (cc - P))[2] - rr for cc, rr in cands))
+            claw["arc"]["hover_max_m"] = float(max(gaps))
+            claw["arc"]["hover_min_m"] = float(min(gaps))
         xy = corners[:, :2]
         out[side] = dict(pads=pads, corners=corners, hull_xy=xy[ConvexHull(xy).vertices], toe_pad=front,
-                         toe_edge=toe_edge, toe_pivot=np.array([toe_edge[0, 0], 0.0, toe_edge[:, 2].mean()]),
-                         heel_pad=rear, heel_edge=heel_edge,
-                         heel_pivot=np.array([heel_edge[0, 0], 0.0, heel_edge[:, 2].mean()]))
+                         toe_edge=toe_edge, toe_pivot=toe_pivot, heel_pad=rear, heel_edge=heel_edge,
+                         heel_pivot=np.array([heel_edge[0, 0], 0.0, heel_edge[:, 2].mean()]), claw=claw)
     return out
+
+
+#: F5: the claw transition arc starts at this fraction of the claw's touch pitch (``_transition_arc``).
+ARC_START = 0.5
+
+
+def _n(phi: float) -> np.ndarray:
+    """The floor-contact normal, in the foot frame's x-z plane, of a profile point that is lowest at pitch phi."""
+    return np.array([math.sin(phi), -math.cos(phi)])
+
+
+def _transition_arc(E: np.ndarray, C: np.ndarray, r: float, th_e: float) -> dict:
+    """F5's roll from the toe edge E (a vertex) to the claw tip sphere (centre C, radius r), all in the foot frame: a
+    circular arc (radius rho, centre O) through E, lowest there at pitch th_e, and internally tangent to the sphere at
+    its point lowest at pitch th_t (E - rho n(th_e) = O = C + (r - rho) n(th_t)).  Rolling on it carries the contact
+    point continuously from the edge to the claw, so the foot never pivots through a corner at a finite rate (an
+    impact: the foot's velocity would jump); the real foot, whose sole between the edge and the claw is the straight
+    face of its hull, hovers above the floor by at most the arc's sagitta meanwhile (``foot_geometry``'s ``hover``)."""
+    E2, C2 = np.array([E[0], E[2]]), np.array([C[0], C[2]])
+
+    def f(tt):
+        D = E2 - C2 - r * _n(tt)
+        u = _n(th_e) - _n(tt)
+        return D[0] * u[1] - D[1] * u[0]
+
+    grid = np.linspace(th_e + 1e-6, 0.5 * math.pi, 4001)
+    vals = np.array([f(x) for x in grid])
+    i = int(np.flatnonzero(np.sign(vals[:-1]) != np.sign(vals[1:]))[0])
+    lo, hi = grid[i], grid[i + 1]
+    for _ in range(100):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if np.sign(f(mid)) == np.sign(f(lo)) else (lo, mid)
+    th_t = 0.5 * (lo + hi)
+    D = E2 - C2 - r * _n(th_t)
+    u = _n(th_e) - _n(th_t)
+    rho = float(np.dot(D, u) / np.dot(u, u))
+    if not rho > r:
+        raise ValueError(f"F5 transition arc: radius {rho} not above the claw's {r}")
+    centre = E2 - rho * _n(th_e)
+    return dict(start_pitch=float(th_e), end_pitch=float(th_t), radius=rho, centre=np.array([centre[0], 0.0, centre[1]]),
+                length=float(rho * (th_t - th_e)))
+
+
+def _contact_in_foot(gs: dict, th: float) -> tuple[np.ndarray, str]:
+    """F5 on the rigid foot at pitch th: its floor contact in the foot frame (two end points; one point twice off the
+    edge) and which part carries it: "edge" (the toe pad's front bottom edge), "arc" (``_transition_arc``), "claw"
+    (the claw tip sphere's lowest point) or "heel" (toes-up: the heel pad's rear bottom edge)."""
+    if th < 0.0:
+        return gs["heel_edge"].copy(), "heel"
+    cl = gs["claw"]
+    if cl is None or th <= cl["arc"]["start_pitch"]:
+        return gs["toe_edge"].copy(), "edge"
+    a = cl["arc"]
+    if th <= a["end_pitch"]:
+        P = a["centre"] + a["radius"] * np.array([math.sin(th), 0.0, -math.cos(th)])
+        return np.vstack([P, P]), "arc"
+    P = cl["centre"] + cl["radius"] * np.array([math.sin(th), 0.0, -math.cos(th)])
+    return np.vstack([P, P]), "claw"
+
+
+def roll_offset(gs: dict, th: float) -> tuple[np.ndarray, np.ndarray, str]:
+    """F5 on the rigid foot (one side's ``foot_geometry``): the foot origin's offset from its flat pose at pitch th
+    (rad; positive heel-up), its floor contact's two end points (relative to the flat foot origin) and the part that
+    carries it (``_contact_in_foot``).  Heel-up it rolls without slipping on the convex sole: about the toe pad's front
+    bottom edge (the edge stays where it lay), then on the transition arc and the claw tip sphere, the contact moving
+    forward by the length rolled; toes-up (negative) about the heel pad's rear bottom edge."""
+    R = _rot_y(th)
+    P, part = _contact_in_foot(gs, th)
+    if part == "heel":
+        return (np.eye(3) - R) @ gs["heel_pivot"], P, part
+    v = gs["toe_pivot"]
+    if part == "edge":
+        return (np.eye(3) - R) @ v, P, part
+    cl = gs["claw"]
+    a = cl["arc"]
+    rolled = (a["radius"] * (min(th, a["end_pitch"]) - a["start_pitch"])
+              + (cl["radius"] * (th - a["end_pitch"]) if part == "claw" else 0.0))
+    W = v + np.array([rolled, 0.0, 0.0])  # the contact on the floor, relative to the flat foot origin (y irrelevant)
+    W[1] = P[0][1]
+    return W - R @ P[0], np.vstack([W, W]), part
 
 
 def rolling_entry(geo: dict, pad_c: dict, inset: dict, feet0: dict, stride: float, margin: float) -> dict:
     """F5: per trailing side, the fraction a* of the double support's ZMP hand-over (``generate``'s linear hand-over
-    from the trailing to the leading pad centroid) from which the ZMP reference lies inside the rolling support (the
-    trailing foot's toe pivot edge and the leading foot's pads) by at least ``margin`` (m), with the support hull and
-    the margin at the hand-over's end.  None where the leading pad centroid itself is not that far inside."""
+    from the trailing to the leading pad centroid) from which the ZMP reference lies inside the rolling support by at
+    least ``margin`` (m): the trailing foot's toe pivot edge and the leading foot's pads (``a``, where the roll may
+    start) and, where the foot rolls on to its claw (``foot_geometry``), the claw's floor contact and the leading pads
+    (``by_support["claw"]``: the roll's min-jerk rise reaches the claw's touch pitch later than that, which
+    ``_generate_look`` checks frame by frame).  With the edge support's hull and the smaller margin at the hand-over's
+    end.  None where the leading pad centroid itself is not that far inside either support."""
     out = {}
     for trail, lead in (("right", "left"), ("left", "right")):
         Pt = np.array([feet0[trail][0], feet0[trail][1]])
         Pl = np.array([feet0[lead][0] + 0.5 * stride, feet0[lead][1]])
-        pts = np.vstack([geo[trail]["toe_edge"][:, :2] + Pt, geo[lead]["hull_xy"] + Pl])
-        hull = pts[ConvexHull(pts).vertices]
+        supports = {"toe_edge": geo[trail]["toe_edge"][:, :2]}
+        if geo[trail]["claw"] is not None:
+            supports["claw"] = geo[trail]["claw"]["contact_at_touch"][None, :2]
         ct, cl = Pt + pad_c[trail] + inset[trail], Pl + pad_c[lead] + inset[lead]
+        res = {}
+        for key, sup in supports.items():
+            pts = np.vstack([sup + Pt, geo[lead]["hull_xy"] + Pl])
+            hull = pts[ConvexHull(pts).vertices]
 
-        def marg(a):
-            return statics.support_margin((1 - a) * ct + a * cl, hull)
+            def marg(a, hull=hull):
+                return statics.support_margin((1 - a) * ct + a * cl, hull)
 
-        if marg(1.0) < margin:
+            if marg(1.0) < margin:
+                res = None
+                break
+            lo, hi = 0.0, 1.0
+            if marg(0.0) >= margin:
+                hi = 0.0
+            else:  # the margin along the hand-over is concave (a minimum of affine functions): one crossing
+                for _ in range(60):
+                    mid = 0.5 * (lo + hi)
+                    lo, hi = (lo, mid) if marg(mid) >= margin else (mid, hi)
+            res[key] = dict(a=float(hi), margin_at_end_m=float(marg(1.0)), hull=hull)
+        if res is None:
             out[trail] = None
             continue
-        lo, hi = 0.0, 1.0
-        if marg(0.0) >= margin:
-            hi = 0.0
-        else:  # the margin along the hand-over is concave (a minimum of affine functions): one crossing
-            for _ in range(60):
-                mid = 0.5 * (lo + hi)
-                lo, hi = (lo, mid) if marg(mid) >= margin else (mid, hi)
-        out[trail] = dict(a=float(hi), margin_at_end_m=float(marg(1.0)), hull=hull)
+        out[trail] = dict(a=res["toe_edge"]["a"], margin_at_end_m=min(r["margin_at_end_m"] for r in res.values()),
+                          hull=res["toe_edge"]["hull"], by_support={k: r["a"] for k, r in res.items()})
     return out
 
 
@@ -594,21 +822,20 @@ def _nose_up(quat) -> float:
     return float(math.atan2(x[2], math.hypot(x[0], x[1])))
 
 
-def support_margins(M: statics.Model, qs, phases, zmb, zmp, geo: dict | None = None, rolling: dict | None = None):
+def support_margins(M: statics.Model, qs, phases, zmb, zmp, rolling: dict | None = None, contact: dict | None = None):
     """Per frame, the support (the convex hull of the stance feet's contact: a flat foot's pad bottoms, a rolling
-    foot's toe pivot edge, ``rolling[side][k]``) and the signed margins inside it (m, positive inside) of the
-    multibody ZMP ``zmb`` and the ZMP reference ``zmp``.  A support that is a single edge has no inside: its margin is
-    minus the distance to the edge's nearer end.  Returns (margin, margin_ref, hulls)."""
+    foot's floor contact ``contact[side][k]``, its toe edge's or claw tip's two end points (world), where
+    ``rolling[side][k]``) and the signed margins inside it (m, positive inside) of the multibody ZMP ``zmb`` and the ZMP
+    reference ``zmp``.  A support that is a single edge or point has no inside: its margin is minus the distance to its
+    nearer end.  Returns (margin, margin_ref, hulls)."""
     n = len(qs)
-    geo = foot_geometry(M) if geo is None and rolling is not None else geo
     margin, margin_ref, hulls = np.zeros(n), np.zeros(n), []
     for k in range(n):
         M.forward(qs[k])
         pts = []
         for s in phases[k] or SIDES:
             if rolling is not None and rolling[s][k]:
-                p, R = M.foot_pose(s)
-                pts.append((p + geo[s]["toe_edge"] @ R.T)[:, :2])
+                pts.append(np.asarray(contact[s][k])[:, :2])
             else:
                 pts.append(M.pad_polygon(s))
         P = np.vstack(pts)
@@ -687,7 +914,8 @@ def _generate_look(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpe
             a = (ph[k] - s0) / (s1 - s0)
             zmp[k] = (1 - a) * (base[frm][k, :2] + pad_c[frm] + inset[frm]) + a * (base[to][k, :2] + pad_c[to] + inset[to])
 
-    # --- F5: foot pitch about the toe pivot (rise and fall around each lift-off) and the toes-up reach before landing
+    # --- F5: foot pitch about the toe edge, then the claw tip (rise to each lift-off, fall by mid-swing), and the
+    # toes-up reach before landing
     pitch = {s: np.zeros(n) for s in SIDES}
     rolls = {s: [] for s in SIDES}
     entry = None
@@ -701,32 +929,39 @@ def _generate_look(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpe
                 f_lo = i + off
                 f_r = max(f_lo - (1.0 - spec.toe_off_start) * duty, f_lo - (1.0 - entry[s]["a"]) * (duty - 0.5))
                 t_r, t_lo, t_e = (float(warp.time(f)) for f in (f_r, f_lo, f_lo + 0.5 * sw))
-                th, t_pk = toe_off_bump(t, t_r, t_lo, t_e, spec.toe_off)
+                amp = roll_amplitude(spec, t_r, t_lo)
+                cl = geo[s]["claw"]
+                th, t_pk = toe_off_bump(t, t_r, t_lo, t_e, amp)
                 pitch[s] += th
                 rolls[s].append(dict(lift_off_phase=f_lo, start_phase=f_r, t_start=t_r, t_lift_off=t_lo, t_peak=t_pk,
-                                     t_level=t_e, start_frac_stance=1.0 - (f_lo - f_r) / duty,
-                                     at_lift_off=float(toe_off_bump(np.array([t_lo]), t_r, t_lo, t_e, spec.toe_off)[0][0])))
+                                     t_level=t_e, start_frac_stance=1.0 - (f_lo - f_r) / duty, amplitude=amp,
+                                     ground_roll_s=t_lo - t_r, at_lift_off=amp,
+                                     past_toe_edge_at_lift_off=bool(cl is not None and amp > cl["arc"]["start_pitch"])))
     if spec.toe_reach:
         for s in SIDES:
             sfrac = np.clip(u[s] / sw, 0.0, 1.0)
             pitch[s] -= np.where(swing[s] & (sfrac > 0.5), spec.toe_reach * _bump3(2.0 * sfrac - 1.0), 0.0)
-    target_pos, target_R = {}, {}
+    target_pos, target_R, contact, on_claw = {}, {}, {}, {}
     for s in SIDES:
         P = base[s].copy()
         Rs = np.tile(np.eye(3), (n, 1, 1))
+        C = np.full((n, 2, 3), np.nan)
+        cw = np.zeros(n, bool)
         for k in np.flatnonzero(pitch[s]):
-            R = _rot_y(float(pitch[s][k]))
-            piv = geo[s]["toe_pivot"] if pitch[s][k] > 0 else geo[s]["heel_pivot"]
-            P[k] = base[s][k] + (np.eye(3) - R) @ piv
-            Rs[k] = R
-        target_pos[s], target_R[s] = P, Rs
+            offset, sup, part = roll_offset(geo[s], float(pitch[s][k]))
+            cw[k] = part in ("arc", "claw")
+            P[k] = base[s][k] + offset
+            Rs[k] = _rot_y(float(pitch[s][k]))
+            C[k] = base[s][k] + sup
+        target_pos[s], target_R[s], contact[s], on_claw[s] = P, Rs, C, cw
 
     # --- F1/F2 bob, F6 trunk roll, F9 tail, F10 head, F14 slow variations
     trough = bob_trough(spec, duty)
     dz = np.zeros(n)
     if spec.bob:
         tau = np.mod(phi - (0.5 - duty / 2) - spec.bob_phase, 0.5) / 0.5
-        dz = -spec.bob * H * bob_profile(tau, trough)
+        drop = None if spec.bob_drop is None else spec.bob_drop / (0.5 * T)
+        dz = -spec.bob * H * bob_profile(tau, trough, drop)
     roll = -spec.roll_amp * np.cos(2 * np.pi * (phi - (1.0 - duty / 2) - spec.roll_phase)) if spec.roll_amp else np.zeros(n)
     trunk_q = np.array([_quat_mul(q_home[3:7], [math.cos(r / 2), math.sin(r / 2), 0.0, 0.0]) for r in roll])
     g_gaze, f_gaze = slow_variation(rng_gaze, W, spec.var_band, t) if spec.gaze_var else (np.zeros(n), [])
@@ -795,22 +1030,32 @@ def _generate_look(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpe
             break
         zref = zref - spec.zmp_gain * np.nan_to_num(e)
 
-    # --- the support each frame (flat pads, or the toe pivot edge of a rolling foot) and the ZMP's margin inside it
+    # --- the support each frame (flat pads, or a rolling foot's toe edge or claw tip) and the ZMP's margin inside it
     rolling = {s: ~swing[s] & (pitch[s] > 1e-9) for s in SIDES}
-    margin, margin_ref, hulls = support_margins(M, qs, phases, zmb, zmp, geo, rolling)
+    if any(len(phases[k]) == 1 and rolling[phases[k][0]][k] for k in range(n)):
+        raise ValueError("F5: a foot rolls in single support (the roll must start in double support)")
+    margin, margin_ref, hulls = support_margins(M, qs, phases, zmb, zmp, rolling, contact)
+    rolling_any = np.any([rolling[s] for s in SIDES], axis=0)
+    if rolling_any.any() and np.min(margin_ref[rolling_any]) < spec.toe_off_margin - 1e-9:
+        raise ValueError(f"F5: the ZMP reference comes within {1e3 * np.min(margin_ref[rolling_any]):.2f} mm of a rolling "
+                         f"foot's support edge (toe_off_margin {1e3 * spec.toe_off_margin:g} mm)")
     amp = float(0.5 * (cy.max() - cy.min()))
     info = info | dict(sway_amp=amp, lift=lift, omega=float(omega), zmp_error_history_m=history, accuracy=ACCURACY,
                        strides=K, window_s=float(W), swing_time=float(sw * T),
                        look={k: getattr(spec, k) for k in LOOK_FIELDS},
                        bob_m=float(spec.bob * H), bob_trough_step=float(trough),
+                       bob_drop_step=None if spec.bob_drop is None else float(spec.bob_drop / (0.5 * T)),
                        step_deviations=warp.e.tolist(), gaze_freqs_hz=f_gaze, tail_freqs_hz=f_tail,
-                       rolling_entry=None if entry is None else {s: dict(a=e_["a"], margin_at_end_m=e_["margin_at_end_m"])
+                       rolling_entry=None if entry is None else {s: dict(a=e_["a"], margin_at_end_m=e_["margin_at_end_m"],
+                                                                         by_support=e_["by_support"])
                                                                 for s, e_ in entry.items()},
                        zmp_margin_min_m=float(np.min(margin)), zmp_margin_ref_min_m=float(np.min(margin_ref)))
     look = dict(phase=phi, swing=np.column_stack([swing[s] for s in SIDES]),
                 swing_u=np.column_stack([np.where(swing[s], u[s] / sw, np.nan) for s in SIDES]),
                 foot_pitch=np.column_stack([pitch[s] for s in SIDES]),
                 rolling=np.column_stack([rolling[s] for s in SIDES]),
+                rolling_contact=np.stack([np.where(rolling[s][:, None, None], contact[s], np.nan) for s in SIDES], axis=1),
+                on_claw=np.column_stack([on_claw[s] for s in SIDES]),
                 foot_base=np.stack([base[s] for s in SIDES], axis=1),
                 foot_target=np.stack([target_pos[s] for s in SIDES], axis=1),
                 bob=dz, trunk_roll=roll, trunk_quat=trunk_q, neck=neck, tail=tail, head_settle=settle,

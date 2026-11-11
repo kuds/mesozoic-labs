@@ -372,7 +372,14 @@ def generate(M: statics.Model, q_home: np.ndarray, H: float, spec: gait.GaitSpec
     ``com_tol`` and ``com_iters`` are the CoM-tracking tolerance (m) and pass limit per frame;
     ``com_tol=2e-4, com_iters=4, phase_tol=0, unwrap="gait"`` reproduces ``gait.generate`` at yaw_rate 0
     (``unwrap="gait"`` differences the stride boundary with ``gait.derivatives``' approximate root-x unwrap; it
-    is meaningful only for a straight walk and is kept for that validation)."""
+    is meaningful only for a straight walk and is kept for that validation).
+
+    It builds today's walk only: a spec with any Stage 2 look field set (``gait.look_active``) is refused, since this
+    path reads ``spec.duty`` and today's head and tail laws and would silently drop the look (the look's turns are
+    deferred: ``designlab/stage2/look.py``'s ``DEFERRED``)."""
+    if gait.look_active(spec):
+        raise ValueError("turning.generate builds today's walk: a spec with look fields set (gait.look_active) would "
+                         "lose them (the look's turns are deferred, designlab/stage2/look.py DEFERRED)")
     m = M.m
     base = spec.describe(H)
     T = base["period"]
