@@ -10,18 +10,56 @@ and power*; it is not evidence that any controller can walk the robot.
 
 Speeds are set by Froude number Fr = v^2 / (g H) so sizes are compared at dynamically similar
 gaits; stride length follows Alexander's (1976) relative-stride relation lambda/H = 2.3 Fr^0.3.
+
+Stage 2 look features (``STAGE2_PLAN.md`` section 4 A; ``stage2/research/research_look.md`` section 3.1)
+-----------------------------------------------------------------------------------------------------
+``GaitSpec`` carries the look features as fields whose defaults are the walk above (``LOOK_DEFAULTS``).  With every
+one at its default ``generate`` runs exactly the code it always ran, so Stage 1's references rebuild bit for bit
+(gate G2); with any of them set it runs ``_generate_look``, the same construction (footprints, LIPM centre of mass,
+per-frame CoM correction, ``statics.leg_ik``, multibody-ZMP correction passes) with the features added:
+
+* F1/F2 ``bob``, ``bob_phase``, ``bob_skew``: the pelvis dips by ``bob`` H (peak to peak) twice per stride, at today's
+  height at mid single support (mid-stance) and lowest ``bob_skew`` of the stance after each touchdown (None: midway
+  between the mid-stances).  The profile is (1 - cos 2 pi g) / 2 of a smoothly warped step phase g, so it is C-infinity.
+* F3 ``swing_time``: a swing of fixed duration; duty = clip(1 - swing_time / T, ``DUTY_RANGE``) (``describe``).
+* F4 ``lift_peak``: the swing lift lift sin^2(pi g(s)) with g a smooth warp of the swing fraction s that puts the peak
+  at s = lift_peak (0.5 is today's profile); lift-off and touchdown keep zero vertical speed and today's acceleration.
+* F5 ``toe_off``, ``toe_off_start``, ``toe_off_margin``, ``toe_reach``: the foot pitches heel-up about the front
+  bottom edge of its frontmost toe pad (the pivot stays on the floor while the foot is down), from the later of
+  ``toe_off_start`` of the stance and the moment the ZMP reference enters the rolling support (the pivot edge and the
+  other foot's pads) by ``toe_off_margin``; the pitch rises (min-jerk) to ``toe_off`` and falls back to level by
+  mid-swing, peaking at lift-off where the stance part of that window is at least half of it and at the window's
+  middle otherwise (``toe_off_bump``).  After mid-swing the toes rise by ``toe_reach`` about the heel pad's rear edge
+  and the foot lands flat.  The foot targets carry the pitch and ``statics.leg_ik`` solves them as 6-D poses.
+* F6 ``roll_amp``, ``roll_phase``: the trunk rolls about its own long axis at the stride frequency, by ``roll_amp``
+  toward the stance leg at its mid-stance (negative: the swing side drops, as human pelvic list).
+* F7 ``zmp_inset_y``: the single-support ZMP reference moves this far toward the body's midline.
+* F9 ``tail_phase``: tail = tail_amp sin(2 pi phase + tail_phase); today's is pi / 2.
+* F10 ``head_mode`` "stabilise", ``head_gain``, ``head_settle``, ``settle_lag``: no nod; the neck pitch cancels
+  ``head_gain`` of the trunk's pitch away from home and dips by ``head_settle`` ``settle_lag`` after each touchdown.
+* F14 ``strides``, ``phase_jitter``, ``asym``, ``gaze_var``, ``tail_var``, ``var_band``, ``noise_seed``: a window of
+  ``strides`` strides, periodic as a whole, whose steps last T / 2 (1 + e_j) with e_j seeded, |e_j| <= phase_jitter +
+  asym / 2 and sum zero (``_Warp``), plus slow seeded variations of the head's pitch (``gaze_var`` rad) and of the
+  tail's amplitude (``tail_var`` of it) made of the window's harmonics inside ``var_band`` (Hz).
+
+F8 (trunk pitch) is not a field: none is imposed.  F11-F13 are not fields either: F13 is ``stride_rel``; F11 and F12
+(head-first turns, anticipation) belong to the turn and transition generators.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, fields
 
 import mujoco
 import numpy as np
+from scipy.spatial import ConvexHull
 
 from . import statics
 
 G = 9.81
+#: F3: the duty range a fixed swing time is clipped to (research_look F3: tinamous 0.55-0.70; spec band to 0.72).
+DUTY_RANGE = (0.55, 0.72)
 
 #: Accuracy of the reference walk (DECISION_LOG F14).  The defaults are round one's, so round one regenerates
 #: unchanged: the per-frame centre-of-mass correction stops at 2e-4 m or after 4 passes, and the stride boundary
@@ -57,12 +95,53 @@ class GaitSpec:
     zmp_iters: int = 6  # multibody ZMP correction passes on the CoM reference
     zmp_gain: float = 0.5
     n: int = 160  # samples per stride
+    # --- Stage 2 look features (module docstring); the defaults are the walk above (LOOK_DEFAULTS)
+    bob: float = 0.0  # F1: pelvis dip, fraction of H, peak to peak
+    bob_phase: float = 0.0  # F1: shift of the bob pattern (stride fraction); 0 = highest at mid single support
+    bob_skew: float | None = None  # F2: trough time after each touchdown, fraction of stance (None: midway)
+    swing_time: float | None = None  # F3: swing duration (s); None keeps the fixed duty
+    lift_peak: float = 0.5  # F4: fraction of the swing at peak lift
+    toe_off: float = 0.0  # F5: peak heel-up foot pitch about the toe pads' front edge (rad)
+    toe_off_start: float = 0.825  # F5: earliest start of the roll, fraction of stance
+    toe_off_margin: float = 0.005  # F5: the ZMP reference's margin inside the rolling support before a roll (m)
+    toe_reach: float = 0.0  # F5: toes-up pitch before landing (rad)
+    roll_amp: float = 0.0  # F6: trunk roll toward the stance leg at its mid-stance (rad)
+    roll_phase: float = 0.0  # F6: shift of the roll (stride fraction)
+    zmp_inset_y: float = 0.0  # F7: single-support ZMP moved toward the midline (m)
+    tail_phase: float = math.pi / 2  # F9: tail = tail_amp sin(2 pi phase + tail_phase)
+    head_mode: str = "nod"  # F10: "nod" (head_amp sin 2wt) or "stabilise"
+    head_gain: float = 0.9  # F10: fraction of the trunk's pitch the neck cancels ("stabilise")
+    head_settle: float = 0.0  # F10: neck dip after each touchdown (rad)
+    settle_lag: float = 0.075  # F10: time of the dip's deepest point after the touchdown (s)
+    strides: int = 1  # F14: strides in the (periodic) window
+    phase_jitter: float = 0.0  # F14: largest step-time deviation (fraction)
+    asym: float = 0.0  # F14: left-right step-time asymmetry (fraction)
+    gaze_var: float = 0.0  # F14: slow head-pitch variation (rad, largest)
+    tail_var: float = 0.0  # F14: slow tail-amplitude variation (fraction of tail_amp, largest)
+    var_band: tuple = (0.05, 0.2)  # F14: band of the slow variations (Hz)
+    noise_seed: int = 0  # F14
 
     def describe(self, H: float) -> dict:
         v = np.sqrt(self.froude * G * H)
         stride = self.stride_rel * H
-        return dict(speed=v, stride=stride, period=stride / v, froude=self.froude, duty=self.duty,
+        duty = self.duty
+        if self.swing_time is not None:  # F3: the duty follows from the swing time
+            duty = float(np.clip(1.0 - self.swing_time / (stride / v), *DUTY_RANGE))
+        return dict(speed=v, stride=stride, period=stride / v, froude=self.froude, duty=duty,
                     stride_rel=self.stride_rel, cadence_hz=2 * v / stride)
+
+
+#: The look fields and their defaults (today's walk): with all of them at these values ``generate`` is today's.
+LOOK_FIELDS = ("bob", "bob_phase", "bob_skew", "swing_time", "lift_peak", "toe_off", "toe_off_start", "toe_off_margin",
+               "toe_reach", "roll_amp", "roll_phase", "zmp_inset_y", "tail_phase", "head_mode", "head_gain",
+               "head_settle", "settle_lag", "strides", "phase_jitter", "asym", "gaze_var", "tail_var", "var_band",
+               "noise_seed")
+LOOK_DEFAULTS = {f.name: f.default for f in fields(GaitSpec) if f.name in LOOK_FIELDS}
+
+
+def look_active(spec: GaitSpec) -> bool:
+    """Whether any look field differs from today's walk (``LOOK_DEFAULTS``)."""
+    return any(getattr(spec, k) != v for k, v in LOOK_DEFAULTS.items())
 
 
 def _min_jerk(u):
@@ -85,7 +164,11 @@ def generate(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpec):
     the stance foot's pad centroid in single support and moves linearly between feet in double
     support (solved harmonic by harmonic).  The pelvis is corrected each frame so the *model's*
     centre of mass follows that path; legs are solved by IK.
+
+    A spec with any look field set (``look_active``) is generated by ``_generate_look`` (module docstring).
     """
+    if look_active(spec):
+        return _generate_look(M, q_home, H, spec)
     m = M.m
     info = spec.describe(H)
     v, stride, T = info["speed"], info["stride"], info["period"]
@@ -231,6 +314,8 @@ def inverse_dynamics(M: statics.Model, traj: dict):
     info = traj.get("info", {})
     # the exact unwrap is a translation along x: straight walks only (a turn's trajectory carries its yaw rate)
     stride = info.get("stride") if not info.get("yaw_rate") else None
+    if stride is not None and info.get("strides", 1) != 1:  # a look window of several strides advances by all of them
+        stride = stride * info["strides"]
     qd, qdd = derivatives(M, qs, dt, stride=stride)
     n = len(qs)
     na = len(M.act_dofs)
@@ -270,3 +355,458 @@ def summarize(M: statics.Model, traj: dict, idr: dict) -> dict:
     return dict(joints=out, min_cop_margin=min_margin, min_cop_margin_single=min_single,
                 max_friction_ratio=float(np.max(idr["friction"])), gait=traj["info"], ik_ok=bool(traj["ik_ok"]),
                 ik_fail_frames=len(traj.get("ik_fail_frames", [])))
+
+
+# ================================================================================================
+# Stage 2 look features (module docstring; research_look.md section 3.1)
+# ================================================================================================
+SIDES = statics.SIDES
+#: F14: the slow variations are normalised on this many samples of the window (then bounded on the frames too).
+VAR_GRID = 4096
+
+
+def _skew_kappa(peak: float) -> float:
+    """kappa of the warp g(s) = s + kappa (1 - cos 2 pi s) / (2 pi) of [0, 1] that maps ``peak`` to 0.5.  g(0) = 0,
+    g(1) = 1 and g' = 1 at both ends; g is monotone only for |kappa| < 1 (a peak in about 0.297-0.703)."""
+    if not 0.0 < peak < 1.0:
+        raise ValueError(f"a peak at {peak} is outside (0, 1)")
+    k = 2 * math.pi * (0.5 - peak) / (1.0 - math.cos(2 * math.pi * peak))
+    if abs(k) >= 1.0:
+        raise ValueError(f"a peak at {peak} needs a non-monotone warp (|kappa| = {abs(k):.3f} >= 1)")
+    return k
+
+
+def _skew(s, kappa: float):
+    return s + kappa * (1.0 - np.cos(2 * np.pi * s)) / (2 * np.pi)
+
+
+def lift_profile(s, lift_peak: float = 0.5):
+    """F4: the swing lift as a fraction of the lift at swing fraction s: sin^2(pi s) (today's) or, with the peak moved
+    to ``lift_peak``, sin^2(pi g(s)) with ``_skew``'s warp."""
+    if lift_peak == 0.5:
+        return np.sin(np.pi * np.asarray(s, float)) ** 2
+    return np.sin(np.pi * _skew(np.asarray(s, float), _skew_kappa(lift_peak))) ** 2
+
+
+def bob_profile(tau, trough: float = 0.5):
+    """F1/F2: the dip as a fraction of ``bob`` over one step, tau in [0, 1) from a mid-stance (0, no dip) to the next;
+    deepest (1) at ``trough``: (1 - cos 2 pi g(tau)) / 2 with ``_skew``'s warp."""
+    tau = np.asarray(tau, float)
+    g = tau if trough == 0.5 else _skew(tau, _skew_kappa(trough))
+    return 0.5 * (1.0 - np.cos(2 * np.pi * g))
+
+
+def bob_trough(spec: GaitSpec, duty: float) -> float:
+    """F2: the trough's place in the step (``bob_profile``'s tau): ``bob_skew`` of the stance after the touchdown, the
+    step running from the trailing foot's mid-stance to the leading foot's; 0.5 (midway) without ``bob_skew``."""
+    if spec.bob_skew is None:
+        return 0.5
+    return (1.0 - duty) + 2.0 * spec.bob_skew * duty
+
+
+def _bump3(u):
+    """64 u^3 (1 - u)^3 on [0, 1] (0 outside): peak 1 at 0.5, zero rate and curvature at both ends."""
+    u = np.asarray(u, float)
+    inside = (u > 0.0) & (u < 1.0)
+    return np.where(inside, 64.0 * np.clip(u, 0, 1) ** 3 * (1.0 - np.clip(u, 0, 1)) ** 3, 0.0)
+
+
+def toe_off_bump(t, t_r: float, t_lo: float, t_e: float, amp: float):
+    """F5's foot pitch over one roll (rad): a min-jerk rise from 0 at t_r to ``amp`` at the peak and a min-jerk fall back
+    to 0 at t_e (mid-swing).  The peak is at the lift-off t_lo where the stance part of the window is at least half of
+    it, otherwise at the window's middle, so the rise is never quicker than the fall.  Returns (pitch, peak time)."""
+    t = np.asarray(t, float)
+    t_pk = max(t_lo, 0.5 * (t_r + t_e))
+    out = np.zeros_like(t)
+    rise = (t > t_r) & (t <= t_pk)
+    out[rise] = amp * _min_jerk((t[rise] - t_r) / (t_pk - t_r))
+    fall = (t > t_pk) & (t < t_e)
+    out[fall] = amp * (1.0 - _min_jerk((t[fall] - t_pk) / (t_e - t_pk)))
+    return out, t_pk
+
+
+def _rot_y(a: float) -> np.ndarray:
+    c, s = math.cos(a), math.sin(a)
+    return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+
+
+def foot_geometry(M: statics.Model) -> dict:
+    """Per side, in the foot body's frame at the model's current pose (call it at home, feet flat): the floor pads'
+    bottom corners and hull, the toe pivot (the front bottom edge of the frontmost toe pad: its two end points) and the
+    heel pivot (the heel pad's rear bottom edge: its two end points).  A pivot point carries the edge's x and z (the
+    pitch is about the foot's y axis, so its y does not matter)."""
+    m, d = M.m, M.d
+    out = {}
+    for side in SIDES:
+        p, R = M.foot_pose(side)
+        pads = {}
+        for g in M.pads[side]:
+            nm = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or str(g)
+            Rg = R.T @ d.geom_xmat[g].reshape(3, 3)
+            c = R.T @ (d.geom_xpos[g] - p)
+            h = m.geom_size[g][:3]
+            pads[nm] = np.array([c + Rg @ (np.array([sx, sy, -1.0]) * h) for sx in (-1, 1) for sy in (-1, 1)])
+        corners = np.vstack(list(pads.values()))
+        toes = {k: v for k, v in pads.items() if "toe" in k} or pads
+        front = max(toes, key=lambda k: toes[k][:, 0].max())
+        heels = {k: v for k, v in pads.items() if "heel" in k} or pads
+        rear = min(heels, key=lambda k: heels[k][:, 0].min())
+
+        def edge(c, x):
+            e = c[np.abs(c[:, 0] - x) < 1e-9]
+            return e[np.argsort(e[:, 1])][[0, -1]]
+
+        toe_edge = edge(toes[front], toes[front][:, 0].max())
+        heel_edge = edge(heels[rear], heels[rear][:, 0].min())
+        xy = corners[:, :2]
+        out[side] = dict(pads=pads, corners=corners, hull_xy=xy[ConvexHull(xy).vertices], toe_pad=front,
+                         toe_edge=toe_edge, toe_pivot=np.array([toe_edge[0, 0], 0.0, toe_edge[:, 2].mean()]),
+                         heel_pad=rear, heel_edge=heel_edge,
+                         heel_pivot=np.array([heel_edge[0, 0], 0.0, heel_edge[:, 2].mean()]))
+    return out
+
+
+def rolling_entry(geo: dict, pad_c: dict, inset: dict, feet0: dict, stride: float, margin: float) -> dict:
+    """F5: per trailing side, the fraction a* of the double support's ZMP hand-over (``generate``'s linear hand-over
+    from the trailing to the leading pad centroid) from which the ZMP reference lies inside the rolling support (the
+    trailing foot's toe pivot edge and the leading foot's pads) by at least ``margin`` (m), with the support hull and
+    the margin at the hand-over's end.  None where the leading pad centroid itself is not that far inside."""
+    out = {}
+    for trail, lead in (("right", "left"), ("left", "right")):
+        Pt = np.array([feet0[trail][0], feet0[trail][1]])
+        Pl = np.array([feet0[lead][0] + 0.5 * stride, feet0[lead][1]])
+        pts = np.vstack([geo[trail]["toe_edge"][:, :2] + Pt, geo[lead]["hull_xy"] + Pl])
+        hull = pts[ConvexHull(pts).vertices]
+        ct, cl = Pt + pad_c[trail] + inset[trail], Pl + pad_c[lead] + inset[lead]
+
+        def marg(a):
+            return statics.support_margin((1 - a) * ct + a * cl, hull)
+
+        if marg(1.0) < margin:
+            out[trail] = None
+            continue
+        lo, hi = 0.0, 1.0
+        if marg(0.0) >= margin:
+            hi = 0.0
+        else:  # the margin along the hand-over is concave (a minimum of affine functions): one crossing
+            for _ in range(60):
+                mid = 0.5 * (lo + hi)
+                lo, hi = (lo, mid) if marg(mid) >= margin else (mid, hi)
+        out[trail] = dict(a=float(hi), margin_at_end_m=float(marg(1.0)), hull=hull)
+    return out
+
+
+class _Warp:
+    """F14's time warp of a window of K strides: phase phi (strides) to time t.  Step j (phases [j/2, (j+1)/2), the
+    left foot lifting at integer phases) lasts T / 2 (1 + e_j) with dt/dphi = T (1 + e_j 2 sin^2(2 pi (phi - j/2))),
+    so the time is C2 in phase; with sum(e) = 0 the window lasts K T and repeats.  No deviations: t = phi T."""
+
+    def __init__(self, T: float, K: int, e=None):
+        self.T, self.K = float(T), int(K)
+        self.e = np.zeros(2 * self.K) if e is None else np.asarray(e, float)
+        if len(self.e) != 2 * self.K or abs(self.e.sum()) > 1e-12 or np.any(np.abs(self.e) >= 0.5):
+            raise ValueError("step deviations: one per step of the window, summing to zero, each under 0.5")
+        self.cum = np.concatenate([[0.0], np.cumsum(0.5 * self.e)])
+        self.identity = not np.any(self.e)
+
+    def _parts(self, phi):
+        phi = np.asarray(phi, float)
+        w = np.floor(phi / self.K)
+        p = phi - w * self.K
+        j = np.clip(np.floor(2.0 * p).astype(int), 0, 2 * self.K - 1)
+        return w, p, j, p - 0.5 * j
+
+    def time(self, phi):
+        if self.identity:
+            return np.asarray(phi, float) * self.T
+        w, p, j, u = self._parts(phi)
+        return self.T * (p + self.cum[j] + self.e[j] * (u - np.sin(4 * np.pi * u) / (4 * np.pi))) + w * self.K * self.T
+
+    def rate(self, phi):
+        """dt / dphi."""
+        if self.identity:
+            return np.full(np.shape(phi), self.T)
+        _, _, j, u = self._parts(phi)
+        return self.T * (1.0 + 2.0 * self.e[j] * np.sin(2 * np.pi * u) ** 2)
+
+    def phase(self, t):
+        t = np.asarray(t, float)
+        if self.identity:
+            return t / self.T
+        phi = t / self.T
+        for _ in range(50):
+            f = self.time(phi) - t
+            phi = phi - f / self.rate(phi)
+            if np.max(np.abs(f)) < 1e-13 * self.T:
+                break
+        return phi
+
+
+def step_deviations(spec: GaitSpec, rng: np.random.Generator) -> np.ndarray:
+    """F14: e_j per step of the window: seeded jitter of largest size ``phase_jitter`` (uniform draws, mean removed,
+    scaled so the largest is exactly that) plus +-asym/2 on the left and right steps; the sum is zero."""
+    steps = 2 * int(spec.strides)
+    side = np.where(np.arange(steps) % 2 == 0, 1.0, -1.0)
+    e = 0.5 * spec.asym * side
+    if spec.phase_jitter:
+        z = rng.uniform(-1.0, 1.0, steps)
+        z = z - z.mean()
+        e = e + spec.phase_jitter * z / np.max(np.abs(z))
+    return e - e.mean()
+
+
+def slow_variation(rng: np.random.Generator, window_s: float, band: tuple, t) -> tuple[np.ndarray, list]:
+    """F14: a seeded smooth periodic signal of the window, |g| <= 1 with 1 reached: the window's harmonics k / W that
+    lie inside ``band`` (Hz), with amplitudes in [0.5, 1] and phases drawn at random.  Zero if none lies inside."""
+    t = np.asarray(t, float)
+    lo, hi = band
+    ks = [k for k in range(1, int(math.floor(hi * window_s + 1e-9)) + 1) if lo - 1e-12 <= k / window_s <= hi + 1e-12]
+    if not ks:
+        return np.zeros_like(t), []
+    amp = rng.uniform(0.5, 1.0, len(ks))
+    ph = rng.uniform(0.0, 2 * np.pi, len(ks))
+
+    def g(x):
+        return sum(a * np.sin(2 * np.pi * k * x / window_s + p) for a, k, p in zip(amp, ks, ph, strict=True))
+
+    scale = max(np.max(np.abs(g(np.arange(VAR_GRID) * window_s / VAR_GRID))), np.max(np.abs(g(t))))
+    return g(t) / scale, [k / window_s for k in ks]
+
+
+def _quat_mul(a, b):
+    out = np.zeros(4)
+    mujoco.mju_mulQuat(out, np.asarray(a, float), np.asarray(b, float))
+    return out
+
+
+def _nose_up(quat) -> float:
+    R = np.zeros(9)
+    mujoco.mju_quat2Mat(R, np.asarray(quat, float))
+    x = R.reshape(3, 3)[:, 0]
+    return float(math.atan2(x[2], math.hypot(x[0], x[1])))
+
+
+def support_margins(M: statics.Model, qs, phases, zmb, zmp, geo: dict | None = None, rolling: dict | None = None):
+    """Per frame, the support (the convex hull of the stance feet's contact: a flat foot's pad bottoms, a rolling
+    foot's toe pivot edge, ``rolling[side][k]``) and the signed margins inside it (m, positive inside) of the
+    multibody ZMP ``zmb`` and the ZMP reference ``zmp``.  A support that is a single edge has no inside: its margin is
+    minus the distance to the edge's nearer end.  Returns (margin, margin_ref, hulls)."""
+    n = len(qs)
+    geo = foot_geometry(M) if geo is None and rolling is not None else geo
+    margin, margin_ref, hulls = np.zeros(n), np.zeros(n), []
+    for k in range(n):
+        M.forward(qs[k])
+        pts = []
+        for s in phases[k] or SIDES:
+            if rolling is not None and rolling[s][k]:
+                p, R = M.foot_pose(s)
+                pts.append((p + geo[s]["toe_edge"] @ R.T)[:, :2])
+            else:
+                pts.append(M.pad_polygon(s))
+        P = np.vstack(pts)
+        try:
+            hull = P[ConvexHull(P).vertices]
+        except Exception:  # a single rolling edge: degenerate
+            hull = P
+        hulls.append(hull)
+        if len(hull) >= 3:
+            margin[k] = statics.support_margin(zmb[k], hull)
+            margin_ref[k] = statics.support_margin(zmp[k], hull)
+        else:
+            margin[k] = -float(np.min(np.linalg.norm(hull - zmb[k], axis=1)))
+            margin_ref[k] = -float(np.min(np.linalg.norm(hull - zmp[k], axis=1)))
+    return margin, margin_ref, hulls
+
+
+def _generate_look(M: statics.Model, q_home: np.ndarray, H: float, spec: GaitSpec):
+    """``generate`` with the look features (module docstring).  The trajectory dict has ``generate``'s keys, with the
+    window's frames (``spec.strides`` x ``spec.n``), plus ``look``: the per-frame feature values and support."""
+    m = M.m
+    info = spec.describe(H)
+    v, stride, T, duty = info["speed"], info["stride"], info["period"], info["duty"]
+    if not 0.5 < duty < 1.0:
+        raise ValueError(f"duty {duty} must lie in (0.5, 1): the walk alternates single and double support")
+    if spec.head_mode not in ("nod", "stabilise"):
+        raise ValueError(f"head_mode {spec.head_mode!r}: 'nod' or 'stabilise'")
+    K = int(spec.strides)
+    if K < 1:
+        raise ValueError("strides must be at least 1")
+    n1 = spec.n
+    n = n1 * K
+    dt = T / n1
+    t = np.arange(n) * dt
+    W = K * T
+    M.forward(q_home)
+    feet0 = {s: M.foot_pose(s)[0].copy() for s in SIDES}
+    pad_c = {s: statics._polygon_centroid(M.pad_polygon(s)) - feet0[s][:2] for s in SIDES}
+    geo = foot_geometry(M)
+    com0 = M.com()
+    root0 = q_home[:3].copy()
+    sw = 1.0 - duty
+    lift = spec.lift_frac * H
+    rng_steps, rng_gaze, rng_tail = (np.random.default_rng(s) for s in np.random.SeedSequence(spec.noise_seed).spawn(3))
+    warp = _Warp(T, K, step_deviations(spec, rng_steps))
+    phi = warp.phase(t)
+    ph = np.mod(phi, 1.0)
+    offs = {"left": 0.0, "right": 0.5}
+    inset = {s: np.array([0.0, -np.sign(feet0[s][1]) * spec.zmp_inset_y]) for s in SIDES}
+
+    # --- feet: footprints, swing path (F4 lift shape), swing flags
+    u, swing, base = {}, {}, {}
+    for s, off in offs.items():
+        uu = np.mod(phi - off, 1.0)
+        sws = uu < sw
+        a = _min_jerk(np.clip(uu / sw, 0.0, 1.0))
+        x = np.where(sws, feet0[s][0] + stride * (phi - uu) - duty * stride / 2 + a * stride,
+                     feet0[s][0] + stride * (phi - (uu - sw)) + duty * stride / 2)
+        z = feet0[s][2] + np.where(sws, lift * lift_profile(np.clip(uu / sw, 0.0, 1.0), spec.lift_peak), 0.0)
+        u[s], swing[s] = uu, sws
+        base[s] = np.column_stack([x, np.full(n, feet0[s][1]), z])
+    phases = [tuple(s for s in SIDES if not swing[s][k]) for k in range(n)]
+
+    # --- ZMP reference: generate's (stance pad centroid; linear hand-over in double support), F7's inset
+    zmp = np.zeros((n, 2))
+    for k in range(n):
+        sup = phases[k]
+        if len(sup) == 1:
+            sd = sup[0]
+            zmp[k] = base[sd][k, :2] + pad_c[sd] + inset[sd]
+        else:
+            if ph[k] < 0.5:
+                frm, to, s0, s1 = "right", "left", sw, 0.5
+            else:
+                frm, to, s0, s1 = "left", "right", 0.5 + sw, 1.0
+            a = (ph[k] - s0) / (s1 - s0)
+            zmp[k] = (1 - a) * (base[frm][k, :2] + pad_c[frm] + inset[frm]) + a * (base[to][k, :2] + pad_c[to] + inset[to])
+
+    # --- F5: foot pitch about the toe pivot (rise and fall around each lift-off) and the toes-up reach before landing
+    pitch = {s: np.zeros(n) for s in SIDES}
+    rolls = {s: [] for s in SIDES}
+    entry = None
+    if spec.toe_off:
+        entry = rolling_entry(geo, pad_c, inset, feet0, stride, spec.toe_off_margin)
+        for s, off in offs.items():
+            if entry[s] is None:
+                raise ValueError(f"F5: the ZMP reference never lies {spec.toe_off_margin} m inside the rolling support "
+                                 f"when the {s} foot trails")
+            for i in range(-1, K + 1):
+                f_lo = i + off
+                f_r = max(f_lo - (1.0 - spec.toe_off_start) * duty, f_lo - (1.0 - entry[s]["a"]) * (duty - 0.5))
+                t_r, t_lo, t_e = (float(warp.time(f)) for f in (f_r, f_lo, f_lo + 0.5 * sw))
+                th, t_pk = toe_off_bump(t, t_r, t_lo, t_e, spec.toe_off)
+                pitch[s] += th
+                rolls[s].append(dict(lift_off_phase=f_lo, start_phase=f_r, t_start=t_r, t_lift_off=t_lo, t_peak=t_pk,
+                                     t_level=t_e, start_frac_stance=1.0 - (f_lo - f_r) / duty,
+                                     at_lift_off=float(toe_off_bump(np.array([t_lo]), t_r, t_lo, t_e, spec.toe_off)[0][0])))
+    if spec.toe_reach:
+        for s in SIDES:
+            sfrac = np.clip(u[s] / sw, 0.0, 1.0)
+            pitch[s] -= np.where(swing[s] & (sfrac > 0.5), spec.toe_reach * _bump3(2.0 * sfrac - 1.0), 0.0)
+    target_pos, target_R = {}, {}
+    for s in SIDES:
+        P = base[s].copy()
+        Rs = np.tile(np.eye(3), (n, 1, 1))
+        for k in np.flatnonzero(pitch[s]):
+            R = _rot_y(float(pitch[s][k]))
+            piv = geo[s]["toe_pivot"] if pitch[s][k] > 0 else geo[s]["heel_pivot"]
+            P[k] = base[s][k] + (np.eye(3) - R) @ piv
+            Rs[k] = R
+        target_pos[s], target_R[s] = P, Rs
+
+    # --- F1/F2 bob, F6 trunk roll, F9 tail, F10 head, F14 slow variations
+    trough = bob_trough(spec, duty)
+    dz = np.zeros(n)
+    if spec.bob:
+        tau = np.mod(phi - (0.5 - duty / 2) - spec.bob_phase, 0.5) / 0.5
+        dz = -spec.bob * H * bob_profile(tau, trough)
+    roll = -spec.roll_amp * np.cos(2 * np.pi * (phi - (1.0 - duty / 2) - spec.roll_phase)) if spec.roll_amp else np.zeros(n)
+    trunk_q = np.array([_quat_mul(q_home[3:7], [math.cos(r / 2), math.sin(r / 2), 0.0, 0.0]) for r in roll])
+    g_gaze, f_gaze = slow_variation(rng_gaze, W, spec.var_band, t) if spec.gaze_var else (np.zeros(n), [])
+    g_tail, f_tail = slow_variation(rng_tail, W, spec.var_band, t) if spec.tail_var else (np.zeros(n), [])
+    tail = spec.tail_amp * (1.0 + spec.tail_var * g_tail) * np.sin(2 * np.pi * phi + spec.tail_phase)
+    touchdowns = sorted(float(warp.time(i + off + sw)) for off in offs.values() for i in range(-1, K + 1))
+    settle = np.zeros(n)
+    if spec.head_mode == "nod":
+        neck = spec.head_amp * np.sin(4 * np.pi * phi)
+    else:
+        pitch0 = _nose_up(q_home[3:7])
+        neck = -spec.head_gain * np.array([_nose_up(qt) - pitch0 for qt in trunk_q])
+        if spec.head_settle:
+            for t_td in touchdowns:
+                settle += _bump3((t - t_td) / (2.0 * spec.settle_lag))
+            neck = neck - spec.head_settle * settle
+    neck = neck + spec.gaze_var * g_gaze
+
+    # --- centre of mass and the multibody-ZMP correction passes, as generate
+    z_c = com0[2] - spec.crouch * H
+    omega = np.sqrt(G / z_c)
+    trend = v * t
+    kk = np.fft.rfftfreq(n, d=dt) * 2 * np.pi
+    gain = 1.0 / (1.0 + (kk / omega) ** 2)
+    neck_adr = m.jnt_qposadr[statics.jid(m, "neck_pitch")]
+    tail_adr = m.jnt_qposadr[statics.jid(m, "tail_yaw")]
+    off_c = com0[:2] - root0[:2]
+
+    def solve_frames(zref):
+        cx = np.fft.irfft(np.fft.rfft(zref[:, 0] - trend) * gain, n) + trend
+        cy = np.fft.irfft(np.fft.rfft(zref[:, 1]) * gain * spec.sway_gain, n)
+        qs = np.zeros((n, m.nq))
+        q = q_home.copy()
+        ok_all, fails = True, []
+        for k in range(n):
+            targets = {s: (target_pos[s][k], target_R[s][k]) for s in SIDES}
+            q[2] = root0[2] - spec.crouch * H + dz[k]
+            q[3:7] = trunk_q[k]
+            q[neck_adr] = neck[k]
+            q[tail_adr] = tail[k]
+            q[0], q[1] = cx[k] - off_c[0], cy[k] - off_c[1]
+            ok = False
+            for _ in range(COM_ITERS):
+                q, ok = statics.leg_ik(M, q, targets, iters=120)
+                c = M.com()
+                err = np.array([cx[k], cy[k]]) - c[:2]
+                if np.linalg.norm(err) < COM_TOL:
+                    break
+                q[0] += err[0]
+                q[1] += err[1]
+            ok_all &= ok
+            if not ok:
+                fails.append(k)
+            qs[k] = q
+        return qs, cx, cy, ok_all, fails
+
+    zref = zmp.copy()
+    history = []
+    for it in range(spec.zmp_iters + 1):
+        qs, cx, cy, ok_all, fails = solve_frames(zref)
+        qd, qdd = derivatives(M, qs, dt, stride=K * stride)
+        zmb = np.array([statics.total_zmp(M, qs[k], qd[k], qdd[k]) for k in range(n)])
+        e = zmb - zmp
+        history.append(float(np.nanmax(np.linalg.norm(e, axis=1))))
+        if it == spec.zmp_iters:
+            break
+        zref = zref - spec.zmp_gain * np.nan_to_num(e)
+
+    # --- the support each frame (flat pads, or the toe pivot edge of a rolling foot) and the ZMP's margin inside it
+    rolling = {s: ~swing[s] & (pitch[s] > 1e-9) for s in SIDES}
+    margin, margin_ref, hulls = support_margins(M, qs, phases, zmb, zmp, geo, rolling)
+    amp = float(0.5 * (cy.max() - cy.min()))
+    info = info | dict(sway_amp=amp, lift=lift, omega=float(omega), zmp_error_history_m=history, accuracy=ACCURACY,
+                       strides=K, window_s=float(W), swing_time=float(sw * T),
+                       look={k: getattr(spec, k) for k in LOOK_FIELDS},
+                       bob_m=float(spec.bob * H), bob_trough_step=float(trough),
+                       step_deviations=warp.e.tolist(), gaze_freqs_hz=f_gaze, tail_freqs_hz=f_tail,
+                       rolling_entry=None if entry is None else {s: dict(a=e_["a"], margin_at_end_m=e_["margin_at_end_m"])
+                                                                for s, e_ in entry.items()},
+                       zmp_margin_min_m=float(np.min(margin)), zmp_margin_ref_min_m=float(np.min(margin_ref)))
+    look = dict(phase=phi, swing=np.column_stack([swing[s] for s in SIDES]),
+                swing_u=np.column_stack([np.where(swing[s], u[s] / sw, np.nan) for s in SIDES]),
+                foot_pitch=np.column_stack([pitch[s] for s in SIDES]),
+                rolling=np.column_stack([rolling[s] for s in SIDES]),
+                foot_base=np.stack([base[s] for s in SIDES], axis=1),
+                foot_target=np.stack([target_pos[s] for s in SIDES], axis=1),
+                bob=dz, trunk_roll=roll, trunk_quat=trunk_q, neck=neck, tail=tail, head_settle=settle,
+                gaze_var=g_gaze, tail_var=g_tail, zmp_margin=margin, zmp_ref_margin=margin_ref, support_hull=hulls,
+                touchdowns=touchdowns, rolls=rolls, geometry=geo, warp=warp)
+    return dict(t=t, q=qs, phases=phases, dt=dt, zmp_ref=zmp, com_ref=np.column_stack([cx, cy]), zmp_mb=zmb,
+                info=info, ik_ok=ok_all, ik_fail_frames=fails, look=look)
