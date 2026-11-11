@@ -122,6 +122,10 @@ as picked (P16, P18, P20).
    - 8 envs in every run and session, so PPO's batch and floor mix never depend on the runtime (`train.py` refuses a
      resume with other settings); the vCPUs set only the worker processes; a queue starts each next job.
    - Clips render in a guarded subprocess (the scaffold forces NVIDIA's EGL; the form study uses OSMesa).
+   - Training processes run with MUJOCO_GL=disable. With libOSMesa loaded (designlab/__init__.py's default on a
+     machine with no display), torch segfaults while building a stable-baselines3 policy, whichever is imported
+     first (seen 11 Nov in this container after its restart; `tests/conftest.py`). Stage 1's `train.py` relies on
+     that default, so the R5 and R6 entry points set it, and validation (B.3) checks a training start here.
    - Checkpoints: each 2.5M check's and the newest two, written locally, copied to Drive in pairs.
 
 ### C. Agility tests
