@@ -173,7 +173,12 @@ def test_feet_sparc_reads_each_swing(ladder_060):
     for _, m in ladder_060.values():
         f = m["smoothness"]["foot"]
         assert f["left"]["swings"] == f["right"]["swings"] == m["window"]["strides"]
-        assert -2.5 < f["lowest"] <= f["mean"] < -1.2
+        assert -2.5 < f["lowest"] <= f["mean"] < -1.2 and -2.5 < f["fixed_band_mean"] < -1.2
+        assert -8 < m["smoothness"]["head"]["fixed_band"] < -1.9
+    # F4's swing puts a sidelobe near 9 Hz at about 5 % (the published reading's threshold): over the fixed band the
+    # feet's reading hardly moves along the ladder
+    fb = [m["smoothness"]["foot"]["fixed_band_mean"] for _, m in ladder_060.values()]
+    assert np.ptp(fb) < 0.1
 
 
 @needs_arrays

@@ -35,12 +35,14 @@ Metrics per rung (``metrics``; research 4.1 item 5)
 * **Smoothness (SPARC**, Balasubramanian et al. 2015): the feet's, the published spectral arc length (``sparc``: the
   speed profile's zero-padded magnitude spectrum, normalised, up to the last frequency under 10 Hz where it is at
   least 0.05) of the toe tip's speed over each detected swing, a discrete movement from rest to rest; mean and lowest
-  per foot.  The head's (``sparc_periodic``): the head moves on all through the walk, so the arc length is taken on
+  per foot; and the same over the fixed band to 10 Hz (no amplitude threshold), as the published reading's cutoff
+  moves by steps when a spectral sidelobe crosses its 5 % threshold (F4's swing puts one near 9 Hz at 4.5-5.1 %: the
+  published reading then moves by about 0.23 between speeds of the same rung).  The head's (``sparc_periodic``): the head moves on all through the walk, so the arc length is taken on
   its periodic window, the snout's velocity relative to the walk's mean forward motion (what the following camera
   shows) tiled to a whole number of windows at least 20 s long, the vector's magnitude spectrum with no padding (the
   window is exactly periodic, so every bin is a harmonic of it), normalised by its peak, from 0 Hz to the same
-  cutoff.  A sinusoid reads -1.95, a sinusoid with a 30 % fifth harmonic -3.27, a square wave -4.44; less negative is
-  smoother.  F14's slow drifts add spectral lines below the stride frequency, which this reading counts as
+  cutoff (and over the fixed band to 10 Hz).  A sinusoid reads -1.95, a sinusoid with a 30 % fifth harmonic -3.27, a
+  square wave -4.44; less negative is smoother.  F14's slow drifts add spectral lines below the stride frequency, which this reading counts as
   complexity, so a V6 head reads less smooth than its V5 partly for its variation.
 * **Stance-pad yaw moment** and the Stage 0 verdict, copied from ``screen.json`` (``stage0_screen``).
 * **Mechanical tells** (research 4.1 item 5): a constant hip height (bob under 1 mm), flat feet at lift-off (toe-off
@@ -261,7 +263,8 @@ def step_times(arrs: dict) -> dict:
 
 def foot_sparc(arrs: dict) -> dict:
     """``sparc`` of each toe tip's world speed over each detected swing (from the last frame on the floor before it to
-    the first after it): per foot the mean and lowest, and over both."""
+    the first after it): per foot the mean and lowest, and over both; beside it the same over the fixed band to 10 Hz
+    (``fixed_band``: no amplitude threshold), which a spectral sidelobe near the 5 % threshold cannot move by steps."""
     dt, n = float(arrs["dt"]), len(arrs["t"])
     adv = float(np.asarray(arrs["stride_motion"])[3])
     names = list(np.asarray(arrs["point_names"]))
@@ -269,10 +272,10 @@ def foot_sparc(arrs: dict) -> dict:
     ce = look.contact_events(arrs)
     on = ce["on_floor"]
     out = {}
-    allv = []
+    allv, allf = [], []
     for j, side in enumerate(look.SIDES):
         sp = np.linalg.norm(periodic_velocity(P[:, names.index(f"toe_{side[0]}")], dt, adv), axis=1)
-        vals = []
+        vals, fixed = [], []
         k = int(np.argmax(on[:, j]))
         for _ in range(n):  # each run of frames off the floor, with the floor frame on each side
             k1 = (k + 1) % n
@@ -282,10 +285,14 @@ def foot_sparc(arrs: dict) -> dict:
                     e += 1
                 idx = np.arange(k, e + 1) % n
                 vals.append(sparc(sp[idx], 1.0 / dt))
+                fixed.append(sparc(sp[idx], 1.0 / dt, amp_th=0.0))
             k = k1
-        out[side] = dict(mean=float(np.mean(vals)), lowest=float(np.min(vals)), swings=len(vals))
+        out[side] = dict(mean=float(np.mean(vals)), lowest=float(np.min(vals)), swings=len(vals),
+                         fixed_band_mean=float(np.mean(fixed)))
         allv += vals
+        allf += fixed
     out["mean"], out["lowest"] = float(np.mean(allv)), float(np.min(allv))
+    out["fixed_band_mean"] = float(np.mean(allf))
     return out
 
 
@@ -413,7 +420,8 @@ def metrics(body: str, speed: str, variant: str, entry: dict, arrs: dict) -> dic
     names = list(np.asarray(arrs["point_names"]))
     v_sn = periodic_velocity(np.asarray(arrs["points"])[:, names.index("snout")], dt, adv)
     v_rel = v_sn - np.array([adv / (n * dt), 0.0, 0.0])
-    smooth = dict(foot=foot_sparc(arrs), head=sparc_periodic(v_rel, dt))
+    smooth = dict(foot=foot_sparc(arrs), head=dict(sparc_periodic(v_rel, dt),
+                                                   fixed_band=sparc_periodic(v_rel, dt, amp_th=0.0)["sparc"]))
     ex = extremes(arrs, signals(arrs, eul))
     tells = dict(constant_hip_height=bob["pp_mm"] < 1.0, flat_feet_at_lift_off=toe["at_lift_off_rad"] < 0.01,
                  identical_steps=(st["cv"] is not None and st["cv"] < 1e-4), metronome_nod=head["nod_amp_rad"] > 0.01,
@@ -679,7 +687,9 @@ SUMMARY_ROWS = (
     ("cadence (steps/s)", ("gait", "cadence_steps_s"), 2),
     ("step-time CV (%)", ("step_times", "cv"), 2),
     ("SPARC, toe tip per swing (mean)", ("smoothness", "foot", "mean"), 2),
+    ("SPARC, toe tip, fixed band to 10 Hz", ("smoothness", "foot", "fixed_band_mean"), 2),
     ("SPARC, head (periodic)", ("smoothness", "head", "sparc"), 2),
+    ("SPARC, head, fixed band to 10 Hz", ("smoothness", "head", "fixed_band"), 2),
     ("stance-pad peak yaw moment (N m)", ("stance_pad_yaw", "peak_nm"), 2),
     ("Stage 0", ("stage0", "within_limits"), None),
 )
