@@ -4,16 +4,18 @@ Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_look_page
 (with LOOK_MEDIA=<the render run's media directory> for part 3).
 
 1. Number formatting: ratios (a third decimal from 0.95 up), spans and relative changes.
-2. The page from the committed JSON files: its title, theme tokens and no external resource but Google Fonts; every
-   clip, poster and plot staged is shown and nothing else is named; the over-limit walk and the tail-phase numbers as
-   screen.json records them; the cost tables' ratios are screen.json's; the viewers' view names no rung, covers every
-   blind clip's label band and turns its native controls off, and the key sits in the owner's view; the blind band
-   replaces the whole label band; the ladder's chips are the research's four tells (and the nod) as metrics.json reads
-   them; the claw and toe-roll statements read every rung with a toe-off; the review's corrected texts; each view keeps
-   its own score draft.
+2. The pages from the committed JSON files: their titles, theme tokens and no external resource but Google Fonts;
+   every clip, poster and plot staged is shown on the owner's page and nothing else is named; the over-limit walk and
+   the tail-phase numbers as screen.json records them; the cost tables' ratios are screen.json's; the viewers' page
+   holds only the blind clips and the sheet (no rung, body code or key, only the blind media), covers every blind
+   clip's label band and turns its native controls off, and the owner's page keeps the key and points to it; the
+   blind band replaces the whole label band; the ladder's chips are the research's four tells (and the nod) as
+   metrics.json reads them, its flat-feet flag set against the research's roll, and the synchronous extremes said
+   where the walks differ; the claw and toe-roll statements read every rung with a toe-off; V4L's joint range over
+   every walk; the review's corrected texts; each page keeps its own score draft.
 3. With the render run's media (skipped otherwise): the build copies every clip byte for byte, re-encodes the blind
    set with its label band replaced (and nothing else changed beyond one re-encode), converts the posters and plots,
-   names every file it writes, and stays under the size limit.
+   names every file it writes, stays under the size limit, and gives the viewers' page its own copy of the blind set.
 """
 
 from __future__ import annotations
@@ -69,6 +71,16 @@ def built():
     return d, LP.page(d, commit="0000000")
 
 
+@pytest.fixture(scope="module")
+def viewers():
+    return LP.viewers_page(LP.load(LOOK))
+
+
+def blind_paths() -> set[str]:
+    return {f"media/{LP.blind_name(letter, view, ext)}" for letter, _, _ in LP.BLIND for view in ("visitor", "side")
+            for ext in ("mp4", "jpg")}
+
+
 def staged_paths(d) -> set[str]:
     out = set()
     for e in d.clips["clips"]:
@@ -80,14 +92,17 @@ def staged_paths(d) -> set[str]:
 
 
 @needs_json
-def test_title_theme_and_external_resources(built):
+def test_title_theme_and_external_resources(built, viewers):
     _, text = built
     assert text.startswith(f"<title>{LP.TITLE}</title>") and LP.TITLE == "T. rex look review"
-    assert '<meta name="claude:viewport-fit-sides" content="cover">' in text
-    hosts = set(re.findall(r'(?:src|href)="(https?://[^/"]+)', text))
-    assert hosts == {"https://fonts.googleapis.com", "https://fonts.gstatic.com"}  # Google Fonts, preconnected
-    assert "@media (prefers-color-scheme: dark)" in text and ':root[data-theme="dark"]' in text
-    assert "<script src=" not in text and "<iframe" not in text
+    assert viewers.startswith(f"<title>{LP.TITLE_VIEWERS}</title>") and len(LP.TITLE_VIEWERS.split()) <= 4
+    for page in (text, viewers):
+        assert '<meta name="claude:viewport-fit-sides" content="cover">' in page
+        hosts = set(re.findall(r'(?:src|href)="(https?://[^/"]+)', page))
+        assert hosts == {"https://fonts.googleapis.com", "https://fonts.gstatic.com"}  # Google Fonts, preconnected
+        assert "@media (prefers-color-scheme: dark)" in page and ':root[data-theme="dark"]' in page
+        assert "<script src=" not in page and "<iframe" not in page
+        assert not re.search(r"<(?:!doctype|html|head|body)\b", page, flags=re.I)  # the publisher adds the skeleton
 
 
 @needs_json
@@ -134,22 +149,26 @@ def test_cost_tables_read_the_screen():
 
 
 @needs_json
-def test_the_viewers_view_names_no_rung_and_covers_the_labels(built):
+def test_the_viewers_page_holds_only_the_blind_clips_and_the_sheet(built, viewers):
     _, text = built
-    i = text.index('<section id="rate">')
-    rate = text[i:text.index("</section>", i)]
-    key = rate.index("The key: which clip is which")
-    viewers = rate.index('<div class="prose" data-only="viewers">')
-    assert rate.rfind('data-only="owner"', 0, key) != -1 and key < viewers
-    blind = rate[viewers:]
-    assert not re.search(r"\bV[0-6]\b", blind)
-    boxes = re.findall(r'<div class="vbox">(<video [^>]*>)</video>(.*?)</div></div>', blind)
+    assert set(LP.referenced(viewers)) == blind_paths()  # no labelled clip, poster or plot
+    for word in (r"\bV[0-6]\b", r"\bV\d[A-Z]", r"60-N-T-10|75-M-H-10", r"today's walk|every feature|all-features",
+                 r"\bkey\b", r"\bF\d{1,2}\b", "data-only", "#viewers", "0.40 m/s"):
+        assert not re.search(word, viewers), word
+    boxes = re.findall(r'<div class="vbox">(<video [^>]*>)</video>(.*?)</div></div>', viewers)
     assert len(boxes) == 2 * len(LP.BLIND)
     for tag, rest in boxes:
         assert " controls" not in tag and "/blind/clip_" in tag
         assert 'class="mask"' in rest and "kinematic reference, not a simulation" in rest
-    assert 'html.viewers [data-only="owner"]{display:none!important}' in text
-    assert "location.hash==='#viewers'" in text
+    assert viewers.count('id="sheet"') == 1 and "Which walk looks alive?" in viewers
+    # the owner's page keeps the key and sends the viewers to their own page, linked once it is published
+    i = text.index('<section id="rate">')
+    rate = text[i:text.index("</section>", i)]
+    assert "The key: which clip is which" in rate and "Clip A: 60 cm V6" in rate
+    assert "#viewers" not in text and "data-only" not in text
+    assert "Then send the viewers' page (published on its own, with its own link), not this" in rate
+    linked = LP.page(LP.load(LOOK), viewers_url="https://example.invalid/v")
+    assert "Then send <a href=\"https://example.invalid/v\">the viewers' page</a>, not this" in linked
 
 
 def test_blind_frame_replaces_the_whole_band():
@@ -186,6 +205,43 @@ def test_ladder_tells_are_the_researchs_four(built):
     # synchronous extremes remain on V6 at every walk, so the page says so
     assert all(d.m(b, s, "V6")["mechanical_tells"]["synchronous_extremes"] for b, s in LP.combos())
     assert "synchronous extremes remain" in text
+    # metrics.json's own flat-feet flag (below FLAT_FLAG) against the dashed chip, said in the ladder's intro
+    for b in LP.BODIES:
+        for s in LP.SPEEDS:
+            for x in d.metrics["bodies"][b][s].values():
+                assert x["mechanical_tells"]["flat_feet_at_lift_off"] == (x["toe_off"]["at_lift_off_rad"] < LP.FLAT_FLAG)
+    assert "under 0.01 rad" in d.metrics["method"] and LP.FLAT_FLAG == 0.01
+    assert "as <code>metrics.json</code> records it" not in text
+    assert "metrics.json's own flag, which it sets only below 0.01 rad, calls the tell gone there" in text
+
+
+@needs_json
+def test_synchronous_extremes_where_the_walks_differ(built):
+    d, text = built
+    for b in LP.BODIES:  # the page's gap reproduces metrics.json's synchronous pairs on every walk and rung
+        for s in LP.SPEEDS:
+            for x in d.metrics["bodies"][b][s].values():
+                keys = list(x["extremes"]["parts"])
+                sync = [tuple(p) for p in x["mechanical_tells"]["synchronous_extremes"]]
+                for i, p in enumerate(keys):
+                    for q in keys[i + 1:]:
+                        g = LP.sync_gap(x, (p, q))
+                        assert ((p, q) in sync) == (g is not None and g <= x["extremes"]["sync_cycles"]), (b, s, p, q)
+    # V1's struck chip holds on three walks of six, and V2's chip comes back by a hair at the chips' walk
+    off1 = [w for w in LP.combos() if not d.m(*w, "V1")["mechanical_tells"]["synchronous_extremes"]]
+    assert off1 == [("60-N-T-10", "v040"), ("60-N-T-10", "fr05"), ("75-M-H-10", "fr05")]
+    assert d.m(*LP.TELLS_AT, "V2")["mechanical_tells"]["synchronous_extremes"]
+
+    def numbers(v):
+        i = text.index(f'<article class="rung" id="rung-{v}">')
+        return text[text.index("What the numbers show", i):text.index("</p>", text.index("What the numbers show", i))]
+
+    assert ("Synchronous extremes gone only at 60 cm's 0.40 m/s walk and both animal paces, where head pitch and snout "
+            "height peak 0.025 of a stride apart") in numbers("V1")
+    assert "at both nominal walks and 75 cm's 0.40 m/s walk they still peak together" in numbers("V1")
+    assert "Synchronous extremes gone only at both animal paces" in numbers("V2")
+    assert "0.019 of a stride apart against V1's 0.025, either side of the 0.02" in numbers("V2")
+    assert all(LP.sync_text(d, v) == "" for v in ("V0", "V3", "V4", "V5", "V6"))  # the same on every walk
 
 
 @needs_json
@@ -204,7 +260,25 @@ def test_claw_and_toe_roll_read_every_rung(built):
     assert "75 cm at the animal pace (V6, V5F13 and V6S" in far and "75 cm at 0.40 m/s (V3–V6" not in far
     assert "75 cm at 0.40 m/s (V3–V6" in arc
     i = text.index("<b>How far the toes roll (F5).</b>")
-    assert "0.020–0.084 rad" in text[i:text.index("</li>", i)]
+    f5 = text[i:text.index("</li>", i)]
+    assert "0.020–0.084 rad" in f5
+    # every rung and the extras: the ladder's 0.30 rad and V3T's 0.40 rad apart, F13's longer stride on its own
+    fast = {(b, s, v): d.m(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in rolls if s != "nominal"}
+    v3t = [r for (_, _, v), r in fast.items() if v == "V3T"]
+    lad = [r for (b, s, v), r in fast.items() if v != "V3T" and "F13" not in d.m(b, s, v)["features"]]
+    assert LP.span(v3t, 3) == "0.026–0.074" and LP.span(lad, 3) == "0.020–0.056"
+    assert "0.020–0.056 rad without F13 at the ladder's 0.30 rad (V3T's 0.40 rad: 0.026–0.074)" in f5
+    assert LP.span(list(fast.values()), 3) == "0.020–0.084"
+
+
+@needs_json
+def test_v4l_joint_range_over_every_walk(built):
+    d, text = built
+    tj = {x: [d.s(b, s, x)["clearance"]["tightest_joint"] for b, s in LP.combos()] for x in ("V4", "V4L")}
+    assert {j for x in tj for j, _ in tj[x]} == {"left_hip_roll"}
+    assert (LP.span([r for _, r in tj["V4L"]], 3), LP.span([r for _, r in tj["V4"]], 3)) == ("0.145–0.201", "0.203–0.259")
+    assert ("The tightest joint, hip roll on every walk, keeps 0.145–0.201 rad of range against V4's 0.203–0.259 "
+            "(gate 0.10)") in text
 
 
 @needs_json
@@ -220,11 +294,14 @@ def test_texts_the_checker_corrected(built):
 
 
 @needs_json
-def test_each_view_keeps_its_own_score_draft(built):
+def test_each_page_keeps_its_own_score_draft(built, viewers):
     _, text = built
     keys = re.search(r"var KEYS = \{owner: '([^']+)', viewers: '([^']+)'\}", text)
     assert keys and keys.group(1) != keys.group(2)
-    assert "localStorage.setItem(KEY," in text and "addEventListener('hashchange', function(){ var k = keyNow()" in text
+    assert "var KEY = KEYS[sheet.getAttribute('data-draft')] || KEYS.owner;" in text
+    assert "localStorage.setItem(KEY," in text and "hashchange" not in text
+    assert text.count('<div class="sheet" id="sheet" data-draft="owner">') == 1
+    assert viewers.count('<div class="sheet" id="sheet" data-draft="viewers">') == 1
 
 
 @needs_json
@@ -282,3 +359,12 @@ def test_build_stages_the_media_exactly(tmp_path):
         with Image.open(tmp_path / "media" / p) as a, Image.open(MEDIA / p) as b:
             assert a.size == b.size and a.mode == "P"
     assert set(LP.referenced((tmp_path / "index.html").read_text())) == set(by_path)
+    # the viewers' page: its own directory with a byte copy of the blind set and nothing else
+    v = res["viewers"]
+    vdir = tmp_path / LP.VIEWERS_DIR
+    written = {str(f.relative_to(vdir)) for f in vdir.rglob("*") if f.is_file()}
+    assert written == blind_paths() | {"index.html"} and v["n_files"] == len(blind_paths())
+    assert set(LP.referenced((vdir / "index.html").read_text())) == {f["path"] for f in v["files"]} == blind_paths()
+    for f in v["files"]:
+        assert f["sha256"] == by_path[f["path"]]["sha256"] == LP.sha256(vdir / f["path"])
+    assert v["page"]["sha256"] == LP.sha256(vdir / "index.html") and v["url"] is None

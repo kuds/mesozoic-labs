@@ -14,25 +14,30 @@ Media (``stage_media``), from the render run's directory (``--media``, outside g
 * each plot (``metrics.json`` ``plots``) as a 256-colour PNG (line art on a flat ground: no visible change, a third of
   the bytes);
 * the blind set (``BLIND``): V0 and V6 at 0.40 m/s from both views under neutral names
-  (``media/blind/clip_<letter>_<view>.mp4`` and ``.jpg``), for the ``#viewers`` view: each the labelled clip (its
+  (``media/blind/clip_<letter>_<view>.mp4`` and ``.jpg``), for the viewers' page: each the labelled clip (its
   sha256 checked) decoded, its top label band, which names the rung, painted over and relabelled "Clip <letter> -
   kinematic reference, not a simulation" (``blind_frame``), and re-encoded with clips.py's settings and metadata that
   name only the letter; the poster the same from the labelled PNG.
 
-The page has two views.  The owner's (the default) shows everything.  ``#viewers`` (the page's address with that
-hash) shows only the blind clips and the score sheet, for the 3-5 viewers new to the project (research 4.1 item 6):
-each blind clip's top band is covered on the page as well and its native controls (and with them full screen) are
-off.  The score sheet keeps a draft in the browser (``localStorage``), one per view, so the owner's scores never
-prefill a viewer's sheet, and copies the scores as tab-separated text for the viewer to send; nothing leaves the page
-by itself.
+Two pages.  The owner's (``index.html``) shows everything, the blind clips and the key among it.  The viewers'
+(``viewers/index.html``, with its own ``viewers/media/blind`` copy of the blind set, to publish on its own link: plan
+decision 7's private rating page) holds only the blind clips, the score sheet and a note on how to score, for the 3-5
+viewers new to the project (research 4.1 item 6): no key, no labelled clip and nothing else of the owner's page, so
+nothing on it, its source included, says which clip is which.  On both, each blind clip's top band is covered on the
+page as well and its native controls (and with them full screen) are off.  The score sheet keeps a draft in the
+browser (``localStorage``), one per page, so the owner's scores never prefill a viewer's sheet, and copies the scores
+as tab-separated text for the viewer to send; nothing leaves the page by itself.
 
 The ladder's chips are the four machine tells research 4.1 item 5 lists (a constant hip height, flat feet at
 lift-off, identical steps, synchronous extremes) and today's metronome nod, as metrics.json reads them on the 60 cm
-body at 0.40 m/s (``TELLS_AT``); flat feet count as gone only where the roll reaches the research's 0.3 rad.
+body at 0.40 m/s (``TELLS_AT``); flat feet count as gone only where the roll reaches the research's 0.3 rad (metrics.json
+flags them only below ``FLAT_FLAG``, and the page says so).
 
-Run from hardware/trex_form_study (the page and its media go outside git; ``--manifest`` writes a small record of
-what the page shows, with every file's source and sha256, beside the look results):
+Run from hardware/trex_form_study (the pages and their media go outside git; ``--manifest`` writes a small record of
+what the pages show, with every file's source and sha256, beside the look results; ``--viewers-url``, once the
+viewers' page is published, links the owner's page to it):
     python -m designlab.stage2.look_page --media <look_media> --out <look_page> [--manifest stage2/look/look_page.json]
+        [--viewers-url <the viewers' page's link>]
 """
 
 from __future__ import annotations
@@ -55,6 +60,9 @@ from . import clips, look
 
 OUT = look.OUT
 TITLE = "T. rex look review"
+#: The viewers' page: its title and its directory beside the owner's ``index.html``.
+TITLE_VIEWERS = "Rate the walking clips"
+VIEWERS_DIR = "viewers"
 DATE = "11 Nov 2026"
 BODIES = look.BODIES
 SPEEDS = look.SPEEDS
@@ -106,10 +114,15 @@ LADDER_X = LADDER + look.EXTRAS
 #: The walk the ladder's chips read: the 60 cm body at the speed of the ladder's clips.
 TELLS_AT = ("60-N-T-10", LADDER_SPEED)
 #: The flat-feet chip is struck only where the roll at lift-off reaches the research's low end (F5's 0.3-0.5 rad) as
-#: the page reads it, to two decimals (F14's jittered steps measure 0.2999 rad); from metrics.json's 0.01 rad up to it
-#: the feet roll a little and the chip is "partly" gone.
+#: the page reads it, to two decimals (F14's jittered steps measure 0.2999 rad); from metrics.json's flag (``FLAT_FLAG``)
+#: up to it the feet roll a little and the chip is "partly" gone, which the ladder's intro sets against that flag.
 TOE_OFF_LOW = look.TOE_OFF_RANGE[0]
 TOE_OFF_TOL = 0.005
+#: metrics.json's flat-feet tell: a toe-off under 0.01 rad at lift-off (its method; ``motion.py``).
+FLAT_FLAG = 0.01
+#: Walks in running text (``walks_text``): both bodies at one speed, or one body's.
+BOTH_WALKS = {"nominal": "both nominal walks", "v040": "both 0.40 m/s walks", "fr05": "both animal paces"}
+ONE_WALK = {"nominal": "nominal walk", "v040": "0.40 m/s walk", "fr05": "animal pace"}
 #: The phase chart's parts (metrics.json ``parts``) as the synchronous pairs name them.
 PART = {"hip_height": "hip height", "trunk_roll": "trunk roll", "head_pitch": "head pitch",
         "snout_height": "snout height", "tail_yaw": "tail swing", "sway": "sideways sway",
@@ -556,6 +569,68 @@ def tells_summary(d: Docs, v: str) -> dict:
     return dict(states=states, n_pairs=[len(p) for p in pairs], common=common)
 
 
+def walks_text(walks) -> str:
+    """Some of the six walks (body, speed), by speed: "60 cm's 0.40 m/s walk and both animal paces"."""
+    items = []
+    for s in SPEEDS:
+        bs = [b for b in BODIES if (b, s) in walks]
+        items += [BOTH_WALKS[s]] if len(bs) == len(BODIES) else [f"{BODY_SHORT[b]}'s {ONE_WALK[s]}" for b in bs]
+    return ", ".join(items[:-1]) + (" and " if len(items) > 1 else "") + items[-1]
+
+
+def sync_gap(m: dict, pair) -> float | None:
+    """How far apart two parts peak on one walk, in strides (metrics.json ``extremes``): from each of the first part's
+    maxima to the second's nearest, the distance at least half of them stay within.  metrics.json counts the pair as
+    synchronous when that is within its ``sync_cycles`` (within it on at least half of the cycles)."""
+    A, B = (m["extremes"]["parts"][p].get("max", []) for p in pair)
+    if not A or not B:
+        return None
+    gaps = sorted(min(abs((x - y + 0.5) % 1.0 - 0.5) for y in B) for x in A)
+    return gaps[math.ceil(len(gaps) / 2) - 1]
+
+
+def _pairs_with(pairs) -> str:
+    return " and ".join(" with ".join(PART.get(p, p) for p in pair) for pair in pairs)
+
+
+def _sync_pairs(m: dict) -> list[tuple]:
+    return [tuple(p) for p in m["mechanical_tells"]["synchronous_extremes"]]
+
+
+def sync_text(d: Docs, v: str) -> str:
+    """The synchronous extremes (metrics.json) on a rung whose six walks differ (the chips read one walk): where they
+    are gone, and how far apart the pairs that remain elsewhere peak there; where they remain, and any further pairs;
+    and where the chips' walk (``TELLS_AT``) has pairs again after none on the rung before, how far apart they peak on
+    both rungs."""
+    tol = d.m(*TELLS_AT, v)["extremes"]["sync_cycles"]
+    pairs = {w: _sync_pairs(d.m(*w, v)) for w in combos()}
+    on, off = [w for w in combos() if pairs[w]], [w for w in combos() if not pairs[w]]
+    if not on or not off:
+        return ""
+    common = [p for p in pairs[on[0]] if all(p in pairs[w] for w in on)]
+    near = [[g for g in (sync_gap(d.m(*w, v), p) for p in common) if g is not None] for w in off]
+    gaps = [min(g) for g in near if g]
+    out = "Synchronous extremes gone only at " + walks_text(off)
+    if gaps:
+        out += (f", where {pairs_prose(common)} peak {span(gaps, 3)} of a stride apart, "
+                f"{'just past' if max(gaps) <= 2 * tol else 'beyond'} the {tol:g} within which metrics.json counts "
+                "peaks as together")
+    still = (("they" if gaps else pairs_prose(common)) + " still peak together") if common else "other pairs peak together"
+    extra = "; ".join(f"at {walks_text([w])} also {_pairs_with([p for p in pairs[w] if p not in common])}"
+                      for w in on if any(p not in common for p in pairs[w]))
+    out += f"; at {walks_text(on)} {still}" + (f" ({extra})" if extra else "") + "."
+    prev = prev_rung(v)
+    back = pairs[TELLS_AT] if not _sync_pairs(d.m(*TELLS_AT, prev)) else []
+    if back:
+        g1, g0 = ([sync_gap(d.m(*TELLS_AT, x), p) for p in back] for x in (v, prev))
+        again = all(p in _sync_pairs(d.m(*TELLS_AT, "V0")) for p in back)
+        out += (f" At {walks_text([TELLS_AT])}, the chips' walk, {pairs_prose(back)} peak together"
+                + (" again" if again else "")
+                + (f": {span(g1, 3)} of a stride apart against {prev}'s {span(g0, 3)}, either side of the {tol:g}, so "
+                   "the chip turns on a small shift in timing" if None not in g0 + g1 else "") + ".")
+    return out
+
+
 # ------------------------------------------------------------------------------------------------
 # The rung texts (what each rung changes, what it costs, what the numbers show)
 # ------------------------------------------------------------------------------------------------
@@ -806,17 +881,19 @@ def rung_numbers(d: Docs, v: str) -> str:
     if v == "V1":
         ch = [m(b, s, x)["bob"]["crest_hold_share"] for b, s in combos() for x in LADDER[1:]]
         sinus = m("60-N-T-10", "v040", "V1")["bob"]["crest_hold_share_sinusoid"]
+        sy = sync_text(d, "V1")
         return (f"Hips no longer at one height. The hips stay within 5 % of the crest for {span(ch)} of the time (a "
                 f"smooth up-and-down would: {sinus:.2f}), so in the path plots the hip and snout run level for long "
                 "stretches: straight segments, which the research reads as mechanical. A rounder bob is a small change "
-                "if you want it.")
+                "if you want it." + (f" {sy}" if sy else ""))
     if v == "V2":
         dn = [m(b, "nominal", "V2")["gait"]["duty"][0] for b in BODIES]
         dv = [m(b, "v040", "V2")["gait"]["duty"][0] for b in BODIES]
         bc = m("60-N-T-10", "nominal", "V2")["bird_curves"]
+        sy = sync_text(d, "V2")
         return (f"Duty {span(dn, 3)} at the nominal walk, outside the behaviour spec's 0.55–0.65 band (tinamous: "
                 f"{bc['tinamou_duty_band'][0]:.2f}–{bc['tinamou_duty_band'][1]:.2f}); {span(dv, 3)} at 0.40 m/s, "
-                "inside it.")
+                "inside it." + (f" {sy}" if sy else ""))
     if v == "V3":
         fa = {s: [(d.s(b, s, "V2")["accel"]["foot_vertical_peak"], d.s(b, s, "V3")["accel"]["foot_vertical_peak"])
                   for b in BODIES] for s in SPEEDS}
@@ -936,7 +1013,7 @@ def header(d: Docs) -> str:
     ov = "; ".join(f"{BODY_SHORT[b]} {v} at the {SPEED_SHORT[s]}: "
                    + ", ".join(f"{o['limit']} {ratio(o['value'])}" for o in d.s(b, s, v)["over"]) for b, s, v in over)
     return f"""
-<header class="top" data-only="owner">
+<header class="top">
   <p class="kicker">Mesozoic Labs · robotic <i>T. rex</i> · Stage 2 look review, gate L1 · {DATE}</p>
   <h1>Pick the features that make it walk like an animal</h1>
   <p class="lede">Today's reference walk was built to size the motors, and it moves like a humanoid robot: hips at a
@@ -961,8 +1038,12 @@ def header(d: Docs) -> str:
     <a href="#b75">75 cm Hybrid</a><a href="#tail">The tail finding</a><a href="#decide">Your decisions</a>
     <a href="#rate">Rate the walks</a>
   </nav>
-</header>
-<header class="top" data-only="viewers">
+</header>"""
+
+
+def viewers_header() -> str:
+    return """
+<header class="top">
   <p class="kicker">Robotic <i>T. rex</i> · walking clips</p>
   <h1>Which walk looks alive?</h1>
   <p class="lede">Four short clips of a small robot dinosaur walking, in two pairs. Watch each, score it on the
@@ -986,7 +1067,7 @@ def section_what(d: Docs) -> str:
                           "Duty with F3", "Lift (H)"], rows, num={1, 2, 3, 4, 5, 6, 7})
     r2 = d.screen["provenance"]["git"]["commit"][:7]
     return f"""
-<section id="what" data-only="owner">
+<section id="what">
   <p class="kicker">Before you watch</p><h2>What these clips are, and what to look for</h2>
   <div class="grid2">
     <div class="prose">
@@ -1134,11 +1215,13 @@ def extras_table(d: Docs) -> str:
     rows.append(["V3T", "F5's toe-off at 0.40 rad by lift-off, the research's middle (V3: 0.30)",
                  f"The knee's speed at the nominal walk reaches {ratio(k3[b6])} (60 cm) and {ratio(k3[b7])} (75 cm) of "
                  "its limit: near. That is why the ladder uses 0.30 rad."])
-    tj4 = s_(b6, "nominal", "V4")["clearance"]["tightest_joint"][1]
-    tjl = s_(b6, "nominal", "V4L")["clearance"]["tightest_joint"][1]
+    # the tightest joint's usable range left, V4L against V4, over the six walks (and the joint, where it is one)
+    tj = {x: [s_(b, s, x)["clearance"]["tightest_joint"] for b, s in combos()] for x in ("V4", "V4L")}
+    joints = {j.removeprefix("left_").removeprefix("right_") for x in tj for j, _ in tj[x]}
+    jname = f", {GROUP.get(min(joints), min(joints).replace('_', ' '))} on every walk," if len(joints) == 1 else ""
     rows.append(["V4L", "F6's roll the other way: the swing side drops, as a human pelvis does",
-                 f"{v4l_tail(d)['row']} The tightest joint (hip roll) keeps {tjl:.3f} rad of range against V4's "
-                 f"{tj4:.3f} (gate 0.10)."])
+                 f"{v4l_tail(d)['row']} The tightest joint{jname} keeps {span([r for _, r in tj['V4L']], 3)} rad of "
+                 f"range against V4's {span([r for _, r in tj['V4']], 3)} (gate 0.10)."])
     k5 = s_(b7, "fr05", "V5")["drives"]["knee"]["speed_ratio"]
     k13 = s_(b7, "fr05", "V5F13")["drives"]["knee"]["speed_ratio"]
     c13 = m_(b7, "fr05", "V5F13")["gait"]["cadence_steps_s"]
@@ -1168,18 +1251,19 @@ def section_ladder(d: Docs) -> str:
     part = [d.m(b, s, v)["toe_off"]["at_lift_off_rad"] for v in LADDER
             if dict(tell_states(d.m(b, s, v)))["flat_feet_at_lift_off"] == "part"]
     dashed = (f" A dashed chip is partly gone: there the feet roll {span(part)} rad by lift-off, against the "
-              f"research's {TOE_OFF_LOW:g}–{look.TOE_OFF_RANGE[1]:g} rad, so they still leave the floor nearly flat."
+              f"research's {TOE_OFF_LOW:g}–{look.TOE_OFF_RANGE[1]:g} rad, so they still leave the floor nearly flat, "
+              f"though metrics.json's own flag, which it sets only below {FLAT_FLAG:g} rad, calls the tell gone there."
               if part else "")
     return f"""
-<section id="ladder" data-only="owner">
+<section id="ladder">
   <p class="kicker">The ladder</p><h2>Seven walks, one feature group at a time</h2>
   <p class="prose-w">Each rung keeps everything before it and adds one group, so the difference between neighbours is
   what that group buys. The chips under each rung are the four machine tells the research lists (its 4.1 item 5):
   hips at one height, flat feet at lift-off, identical steps (no cycle-to-cycle variation in the step times) and
   synchronous extremes (parts of the body peaking at the same instant; the pairs are named under the chips). A fifth
   chip, today's metronome nod, is not on its list. The chips read one walk, the {esc(BODY_NAME[b])} at
-  {esc(SPEED_SHORT[s])} (the speed of the ladder's clips), as <code>metrics.json</code> records it: an outlined chip
-  is a tell still present, a struck one is gone.{dashed} The text beside each rung covers both bodies and all three
+  {esc(SPEED_SHORT[s])} (the speed of the ladder's clips), from <code>metrics.json</code>: an outlined chip is a
+  tell still present, a struck one is gone.{dashed} The text beside each rung covers both bodies and all three
   speeds. "What it costs" compares each rung with the one before; open the table under it for every ratio that
   moves.</p>
   <div class="rungs">{rungs}</div>
@@ -1393,7 +1477,7 @@ def section_body(d: Docs, b: str) -> str:
                  f"only one with a walk over a limit: V6 at the animal pace ("
                  + ", ".join(f"{o['limit']} {ratio(o['value'])}" for o in r6["over"]) + "), decision 2.")
     return f"""
-<section id="{bid}" data-only="owner">
+<section id="{bid}">
   <p class="kicker">{esc(BODY_NAME[b])} · {esc(b)}</p><h2>The {esc(BODY_NAME[b])}</h2>
   <p class="prose-w">{intro}</p>
   <h3>Today's walk against every feature</h3>
@@ -1585,7 +1669,7 @@ def section_tail(d: Docs) -> str:
                 + "; ".join(f"{lab} at {combo_label(b, s)} ({ratio(a)} to {ratio(c)})" for lab, b, s, a, c in rises)
                 + ".")
     return f"""
-<section id="tail" data-only="owner">
+<section id="tail">
   <p class="kicker">Finding</p><h2>Today's tail adds to the twist the feet must hold</h2>
   <div class="prose">
     <p>As each leg swings forward it twists the body about the vertical, and the standing foot has to hold that twist
@@ -1709,22 +1793,30 @@ def section_decide(d: Docs) -> str:
     floor = min(d.screen["grips"])
     brisk = {b: d.screen["v040"][b]["brisk"]["speed_m_s"] for b in BODIES}
     rolls = toe_rolls(d)
-    # the faster walks' toe-off on every rung with the ladder's F5 (V3's 0.30 rad: the ladder from V3 and the extras
-    # but V3T, the 0.40 rad option); F13's longer stride (75 cm, animal pace) gives the roll more time on the floor
-    fast = [(b, s, v) for b, s, v in rolls
-            if s != "nominal" and d.spec(b, s, v)["toe_off"] == d.spec(b, s, "V3")["toe_off"]]
-    to_fast = [m_(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in fast]
-    f13 = [(b, s, v) for b, s, v in fast if "F13" in m_(b, s, v)["features"]]
-    to_f13 = [m_(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in f13]
-    to_rest = [m_(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in fast if (b, s, v) not in f13]
+    # the faster walks' toe-off on every rung with one (the ladder from V3 and the extras): without F13 at the ladder's
+    # F5 (V3's 0.30 rad) and apart from it at another (V3T's 0.40 rad, the option); F13's longer stride (75 cm, animal
+    # pace) gives the roll more time on the floor
+    def to(x):
+        return m_(*x)["toe_off"]["at_lift_off_rad"]
+
+    fast = [(b, s, v) for b, s, v in rolls if s != "nominal"]
+    f13 = [x for x in fast if "F13" in m_(*x)["features"]]
+    lad = [x for x in fast if x not in f13 and d.spec(*x)["toe_off"] == d.spec(x[0], x[1], "V3")["toe_off"]]
+    alt = [x for x in fast if x not in f13 and x not in lad]
+    to_fast, to_f13, to_rest = [to(x) for x in fast], [to(x) for x in f13], [to(x) for x in lad + alt]
     f13_txt = ""
     if f13 and to_rest and max(to_f13) > max(to_rest):
         bb, ss = f13[0][:2]
         gr = [1000 * m_(b, s, v)["toe_off"]["ground_roll_s"] for b, s, v in f13]
         gr5 = 1000 * m_(bb, ss, "V5")["toe_off"]["ground_roll_s"]
-        f13_txt = (f": {span(to_rest, 3)} rad without F13, and {span(to_f13, 3)} rad at {BODY_SHORT[bb]}'s "
-                   f"{SPEED_SHORT[ss]} with it ({_rung_list(sorted({v for _, _, v in f13}, key=LADDER_X.index))}), "
-                   f"whose longer stride gives the roll {span(gr, 0)} ms on the floor instead of V5's {gr5:.0f}")
+        amp = sorted({d.spec(*x)["toe_off"] for x in alt})
+        alt_txt = (f" ({_rung_list(sorted({v for *_, v in alt}, key=LADDER_X.index))}'s "
+                   f"{' and '.join(f'{a:.2f}' for a in amp)} rad: {span([to(x) for x in alt], 3)})" if alt else "")
+        f13_txt = (f": {span([to(x) for x in lad], 3)} rad without F13 at the ladder's "
+                   f"{d.spec(b6, 'nominal', 'V3')['toe_off']:.2f} rad{alt_txt}, and {span(to_f13, 3)} rad at "
+                   f"{BODY_SHORT[bb]}'s {SPEED_SHORT[ss]} with F13 "
+                   f"({_rung_list(sorted({v for _, _, v in f13}, key=LADDER_X.index))}), whose longer stride gives the "
+                   f"roll {span(gr, 0)} ms on the floor instead of V5's {gr5:.0f}")
     k3t = [s_(b, "nominal", "V3T")["drives"]["knee"]["speed_ratio"] for b in BODIES]
     claw_at = {b: d.refs["body_info"][b]["toe_clearance"]["clear_pitch_rad"] for b in BODIES}
     arc_at = {b: d.refs["body_info"][b]["feet"]["left"]["claw"]["arc"]["start_pitch"] for b in BODIES}
@@ -1771,7 +1863,7 @@ def section_decide(d: Docs) -> str:
             for x in feat]
     ftable = K.table(["Feature", "Name", "What you see", "What it costs", "Keep?"], rows)
     return f"""
-<section id="decide" data-only="owner">
+<section id="decide">
   <p class="kicker">Your decisions</p><h2>Three decisions, and a few smaller ones</h2>
   <div class="q">
     <h3>1. Which features to keep (plan decision 1)</h3>
@@ -1855,7 +1947,10 @@ def blind_pair(d: Docs, pair: list[tuple[str, str, str]]) -> str:
             f'</h3>{"".join(clips)}</div>')
 
 
-def score_sheet() -> str:
+def score_sheet(draft: str = "owner") -> str:
+    """The score sheet; ``draft`` names the browser draft it keeps (the owner's page and the viewers' each keep
+    their own, so the owner's scores never prefill a viewer's sheet)."""
+
     def inputs(item):
         return "".join(f'<td class="num"><input class="score" id="s-{item}-{c}" name="s-{item}-{c}" inputmode="numeric" '
                        f'maxlength="1" autocomplete="off" aria-label="Item {item}, clip {c}: score 1 to 5"></td>'
@@ -1879,7 +1974,7 @@ def score_sheet() -> str:
         pairs.append(f'<fieldset class="pairq" data-pair="Pair {i}"><legend>Pair {i}: which looks more like a living '
                      f'animal?</legend>{opts}</fieldset>')
     return f"""
-<div class="sheet" id="sheet">
+<div class="sheet" id="sheet" data-draft="{draft}">
   <div class="tablewrap"><table class="scores"><thead><tr><th>Item</th><th>1 means</th><th>5 means</th>{head}</tr></thead>
   <tbody>{"".join(rows)}</tbody></table></div>
   <div class="pairs">{"".join(pairs)}</div>
@@ -1894,24 +1989,28 @@ def score_sheet() -> str:
 </div>"""
 
 
-def section_rate(d: Docs) -> str:
+def section_rate(d: Docs, viewers_url: str | None = None) -> str:
+    """The owner's rating section: how the rating runs, the key, the blind clips and the sheet.  The viewers get their
+    own page (``viewers_page``); ``viewers_url``, once it is published, links it here."""
     pairs = [[x for x in BLIND if x[1] == b] for b in BODIES]
     key = "; ".join(f"Clip {letter}: {BODY_SHORT[b]} {v} ({'today' + chr(39) + 's walk' if v == 'V0' else 'every feature'})"
                     for letter, b, v in BLIND)
+    link = (f'<a href="{esc(viewers_url)}">the viewers\' page</a>' if viewers_url else
+            "the viewers' page (published on its own, with its own link)")
     return f"""
 <section id="rate">
   <p class="kicker">Rating</p>
-  <h2 data-only="owner">The score sheet, for you and 3–5 new viewers</h2>
-  <h2 data-only="viewers">Watch, then score</h2>
-  <div class="prose" data-only="owner">
+  <h2>The score sheet, for you and 3–5 new viewers</h2>
+  <div class="prose">
     <p>The research's rubric (seven items: the behaviour spec's five plus timing and an overall impression) and the
-    six Godspeed animacy items, each scored 1 to 5. Rate first yourself if you like. Then show the viewers' version
-    of this page to 3–5 people new to the project: open it with <a href="#viewers">#viewers</a> at the end of the
-    address. It shows only the four blind clips below and this sheet. The blind clips are re-encoded copies whose top
-    band, which names the walk in every other clip, now reads only the clip's letter, and the page covers it as well.
-    Each viewer scores clips A–D and picks the more lifelike clip of each pair, then copies the scores to you. The
-    browser keeps your draft and the viewers' apart; where viewers take turns on one device, each should press
-    <b>Clear the sheet</b> after sending.</p>
+    six Godspeed animacy items, each scored 1 to 5. Rate first yourself if you like. Then send {link}, not this
+    page, to 3–5 people new to the project. It holds only the four blind clips below, this sheet and a short note on
+    how to score: no key, no labelled clip and nothing else of this page, so nothing on it, its source included, says
+    which clip is which. The blind clips are re-encoded copies whose top band, which names the walk in every other
+    clip, now reads only the clip's letter, and the page covers it as well. Each viewer scores clips A–D and picks
+    the more lifelike clip of each pair, then copies the scores to you. Its sheet keeps its own draft in the browser,
+    apart from yours here; where viewers take turns on one device, each should press <b>Clear the sheet</b> after
+    sending.</p>
     <p>The lead checks that the items agree (Cronbach's α of at least 0.7, as the Godspeed authors recommend)
     before averaging. The plan's gate asks for scores on V0 and the variant you propose; if your pick differs from V6,
     the lead renders it and swaps it in. Item 6 can only judge the strides' variation here: starts and stops are not
@@ -1920,7 +2019,20 @@ def section_rate(d: Docs) -> str:
     at 0.40 m/s, from both cameras; the order is the same for every viewer and puts the all-features walk first in
     one pair and second in the other.</p></details>
   </div>
-  <div class="prose" data-only="viewers">
+  {"".join(blind_pair(d, p) for p in pairs)}
+  <h3>Score sheet</h3>
+  {score_sheet("owner")}
+</section>"""
+
+
+def section_rate_viewers(d: Docs) -> str:
+    """The viewers' page's one section: how to score, the blind clips and the sheet; nothing that names a walk."""
+    pairs = [[x for x in BLIND if x[1] == b] for b in BODIES]
+    return f"""
+<section id="rate">
+  <p class="kicker">Rating</p>
+  <h2>Watch, then score</h2>
+  <div class="prose">
     <p>Each clip shows one walk from two cameras at once. In each pair the two clips are different walks. Press
     <b>Play together</b> and watch each clip at least twice; <b>Half speed</b> helps with the feet. Then score every
     item from 1 to 5 for each clip. Go with your impression, and leave a box empty if you cannot judge an item. The
@@ -1931,7 +2043,7 @@ def section_rate(d: Docs) -> str:
   </div>
   {"".join(blind_pair(d, p) for p in pairs)}
   <h3>Score sheet</h3>
-  {score_sheet()}
+  {score_sheet("viewers")}
 </section>"""
 
 
@@ -1940,16 +2052,20 @@ def footer(d: Docs, commit: str | None = None) -> str:
     mc = d.metrics["provenance"]["git"]["commit"][:7]
     cc = d.clips["provenance"]["git"]["commit"][:7]
     return f"""
-<footer data-only="owner">
+<footer>
   <p>Simulation only: kinematic references with perfect tracking on the round-two models; nothing is adopted without
   you (P24). Prices: <code>stage2/look/SCREEN.md</code> and <code>screen.json</code> (commit {sc}). Clips:
   <code>clips.json</code> (commit {cc}), {len(d.clips['clips'])} clips of {d.clips['seconds']:g} s at
   {d.clips['fps']} fps, each frame labelled “{esc(d.clips['label'])}”. Readings and plots:
   <code>metrics.json</code> (commit {mc}). Research: <code>stage2/research/research_look.md</code>; plan:
   <code>STAGE2_PLAN.md</code> 4 A and 5. Page: <code>designlab/stage2/look_page.py</code>{f" (commit {esc(commit)})" if commit else ""}.</p>
-</footer>
-<footer data-only="viewers"><p>Thank you for taking part. The clips are computer playback of a planned walk, not a
-recording of the robot.</p></footer>"""
+</footer>"""
+
+
+def viewers_footer() -> str:
+    return """
+<footer><p>Thank you for taking part. The clips are computer playback of a planned walk, not a recording of the
+robot.</p></footer>"""
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1960,8 +2076,6 @@ CSS = r"""
 [hidden]{display:none!important}
 html{scroll-padding-top:12px}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-html:not(.viewers) [data-only="viewers"]{display:none!important}
-html.viewers [data-only="owner"]{display:none!important}
 .prose-w{max-width:78ch;color:var(--ink-2)}
 .prose{align-content:start}
 h4{font:600 15px/1.3 "Source Sans 3",system-ui,sans-serif;margin:6px 0 0}
@@ -2083,11 +2197,7 @@ textarea.out{width:100%;min-height:10em;font:13px/1.45 "IBM Plex Mono",ui-monosp
 JS = r"""
 (function(){
   'use strict';
-  var docEl = document.documentElement;
   function each(list, f){ Array.prototype.forEach.call(list, f); }
-  function setMode(){ var v = location.hash === '#viewers'; docEl.classList.toggle('viewers', v); if (v) { window.scrollTo(0, 0); } }
-  window.addEventListener('hashchange', setMode);
-  setMode();
 
   function vids(g){ return Array.prototype.slice.call(g.querySelectorAll('video')); }
   function slowOf(g){ return g.getAttribute('data-slow') === '1' ? 0.5 : 1; }
@@ -2166,10 +2276,9 @@ JS = r"""
 
   var sheet = document.getElementById('sheet');
   if (sheet) {
-    // each view keeps its own draft, so the owner's scores never prefill a viewer's sheet (and the other way round)
+    // each page keeps its own draft (the sheet's data-draft), so the owner's scores never prefill a viewer's sheet
     var KEYS = {owner: 'trex-look-review-scores-v1', viewers: 'trex-look-review-scores-viewers-v1'};
-    function keyNow(){ return KEYS[docEl.classList.contains('viewers') ? 'viewers' : 'owner']; }
-    var KEY = keyNow();
+    var KEY = KEYS[sheet.getAttribute('data-draft')] || KEYS.owner;
     var fields = sheet.querySelectorAll('input, textarea');
     var status = document.getElementById('score-status'), out = document.getElementById('score-text');
     function save(){
@@ -2186,7 +2295,6 @@ JS = r"""
     }
     function check(f){ var ok = /^[1-5]?$/.test(f.value.trim()); f.setAttribute('aria-invalid', String(!ok)); return ok; }
     restore();
-    window.addEventListener('hashchange', function(){ var k = keyNow(); if (k !== KEY) { KEY = k; restore(); } });
     sheet.addEventListener('input', function(e){ if (e.target.classList.contains('score')) { check(e.target); } save(); });
     sheet.addEventListener('change', save);
     function val(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; }
@@ -2226,18 +2334,34 @@ JS = r"""
 """
 
 
-def page(d: Docs, commit: str | None = None) -> str:
-    body = "".join([header(d), section_what(d), section_ladder(d)] + [section_body(d, b) for b in BODIES]
-                   + [section_tail(d), section_decide(d), section_rate(d), footer(d, commit)])
-    early = "<script>if(location.hash==='#viewers'){document.documentElement.classList.add('viewers')}</script>"
-    return (f'<title>{esc(TITLE)}</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n'
-            '<meta name="description" content="Kinematic clips, costs and a score sheet for picking the lifelike-walk '
-            'features of the 60 and 75 cm robotic T. rex (Stage 2, look gate L1).">\n'
+def _head(title: str, description: str) -> str:
+    """A page's top, before its content (the publisher adds the document's skeleton): title, metas, fonts, style."""
+    return (f'<title>{esc(title)}</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n'
+            f'<meta name="description" content="{esc(description)}">\n'
             '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-            f'<link rel="stylesheet" href="{K.FONTS}">\n<style>{K.CSS}{CSS}</style>\n{early}\n'
-            f'<div class="wrap">{body}</div>\n<div id="tip" hidden></div>\n'
+            f'<link rel="stylesheet" href="{K.FONTS}">\n<style>{K.CSS}{CSS}</style>\n')
+
+
+def _body(body: str) -> str:
+    return (f'<div class="wrap">{body}</div>\n<div id="tip" hidden></div>\n'
             f'<dialog id="zoom"><img alt=""></dialog>\n<script>{K.JS}</script>\n<script>{JS}</script>\n')
+
+
+def page(d: Docs, commit: str | None = None, viewers_url: str | None = None) -> str:
+    """The owner's page; ``viewers_url`` (the viewers' page's link, once published) is linked from its rating
+    section."""
+    body = "".join([header(d), section_what(d), section_ladder(d)] + [section_body(d, b) for b in BODIES]
+                   + [section_tail(d), section_decide(d), section_rate(d, viewers_url), footer(d, commit)])
+    return _head(TITLE, "Kinematic clips, costs and a score sheet for picking the lifelike-walk features of the 60 "
+                        "and 75 cm robotic T. rex (Stage 2, look gate L1).") + _body(body)
+
+
+def viewers_page(d: Docs) -> str:
+    """The viewers' page: how to score, the four blind clips (``BLIND``) and the sheet, and nothing else; it names no
+    walk, body code or rung, and its media are the blind set only."""
+    body = "".join([viewers_header(), section_rate_viewers(d), viewers_footer()])
+    return _head(TITLE_VIEWERS, "Four short clips of a small robot dinosaur walking, and a sheet to score them.") + _body(body)
 
 
 def _plot_sizes(d: Docs, out: Path) -> None:
@@ -2262,18 +2386,21 @@ def referenced(text: str) -> list[str]:
     return out
 
 
-def build(media: Path, out: Path, look_dir: Path = OUT, commit: str | None = None) -> dict:
-    """Stage the media and write ``<out>/index.html``; the manifest (module docstring), without provenance. ``commit``
-    names the builder's code in the page's footer."""
+def build(media: Path, out: Path, look_dir: Path = OUT, commit: str | None = None,
+          viewers_url: str | None = None) -> dict:
+    """Stage the media and write ``<out>/index.html`` (the owner's page) and ``<out>/viewers/index.html`` (the viewers'
+    page, beside its own copy of the blind set, to publish on its own link); the manifest (module docstring), without
+    provenance.  ``commit`` names the builder's code in the owner's footer; ``viewers_url`` links the viewers' page."""
     t0 = time.perf_counter()
     d = load(look_dir)
     out = Path(out)
-    if (out / "media").exists():
-        shutil.rmtree(out / "media")
+    for sub in ("media", VIEWERS_DIR):
+        if (out / sub).exists():
+            shutil.rmtree(out / sub)
     out.mkdir(parents=True, exist_ok=True)
     files = stage_media(d, Path(media), out)
     _plot_sizes(d, out)
-    text = page(d, commit)
+    text = page(d, commit, viewers_url)
     (out / "index.html").write_text(text)
     refs = referenced(text)
     missing = [p for p in refs if not (out / p).exists()]
@@ -2283,10 +2410,29 @@ def build(media: Path, out: Path, look_dir: Path = OUT, commit: str | None = Non
     total = (out / "index.html").stat().st_size + sum(f["bytes"] for f in files)
     if total > MAX_PAGE_MB * 1e6:
         raise ValueError(f"the page and its media are {total / 1e6:.1f} MB, over {MAX_PAGE_MB:g} MB")
-    return dict(what="Stage 2 look gate L1: the owner's look review page (designlab/stage2/look_page.py)",
+    # the viewers' page: the blind set only, copied from the owner's media into its own directory
+    vout = out / VIEWERS_DIR
+    vtext = viewers_page(d)
+    vrefs = referenced(vtext)
+    blind = {f["path"] for f in files if f["kind"] in ("blind clip", "blind poster")}
+    if set(vrefs) != blind:
+        raise ValueError(f"the viewers' page names other media than the blind set: {sorted(set(vrefs) ^ blind)[:5]}")
+    vfiles = []
+    for p in vrefs:
+        (vout / p).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out / p, vout / p)
+        vfiles.append(dict(path=p, source=p, bytes=(vout / p).stat().st_size, sha256=sha256(vout / p)))
+    (vout / "index.html").write_text(vtext)
+    vpage = dict(path="index.html", bytes=(vout / "index.html").stat().st_size, sha256=sha256(vout / "index.html"))
+    return dict(what="Stage 2 look gate L1: the owner's look review page and the viewers' page "
+                     "(designlab/stage2/look_page.py)",
                 title=TITLE, page=dict(path="index.html", bytes=(out / "index.html").stat().st_size,
                                        sha256=sha256(out / "index.html")),
                 total_bytes=total, n_files=len(files), files=files, unused=unused,
+                viewers=dict(dir=VIEWERS_DIR, title=TITLE_VIEWERS, url=viewers_url, page=vpage,
+                             total_bytes=vpage["bytes"] + sum(f["bytes"] for f in vfiles), n_files=len(vfiles),
+                             files=vfiles, paths="relative to the viewers' directory, as its page names them; "
+                                               "source: the owner's copy, relative to the page's directory"),
                 blind_key=[dict(letter=x[0], body=x[1], variant=x[2], speed=BLIND_SPEED) for x in BLIND],
                 inputs={n: sha256(Path(look_dir) / n) for n in ("metrics.json", "screen.json", "clips.json",
                                                                  "look_refs.json")},
@@ -2297,21 +2443,25 @@ def build(media: Path, out: Path, look_dir: Path = OUT, commit: str | None = Non
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m designlab.stage2.look_page", description=__doc__.split("\n\n")[0])
     ap.add_argument("--media", required=True, help="the render run's media directory (clips, posters, plots)")
-    ap.add_argument("--out", required=True, help="the page's directory (index.html and media/)")
+    ap.add_argument("--out", required=True, help="the page's directory (index.html, media/ and the viewers' page in viewers/)")
     ap.add_argument("--look", default=str(OUT), help="stage2/look (metrics.json, screen.json, clips.json, look_refs.json)")
     ap.add_argument("--manifest", default=None, help="write the page's manifest here (JSON)")
+    ap.add_argument("--viewers-url", default=None, help="the viewers' page's link, once published, for the owner's page")
     a = ap.parse_args(argv)
     from ..stage1 import plant
 
     prov = plant.provenance()
     git = prov.get("git") or {}
     commit = (git["commit"][:7] + (" with uncommitted changes" if git.get("dirty") else "")) if git.get("commit") else None
-    res = build(Path(a.media), Path(a.out), Path(a.look), commit=commit)
+    res = build(Path(a.media), Path(a.out), Path(a.look), commit=commit, viewers_url=a.viewers_url)
     if a.manifest:
         res["provenance"] = prov
         Path(a.manifest).write_text(json.dumps(res, indent=1) + "\n")
     print(f"{Path(a.out) / 'index.html'}: page {res['page']['bytes'] / 1e3:.0f} kB, with media "
           f"{res['total_bytes'] / 1e6:.1f} MB; {res['n_files']} media files, {len(res['unused'])} unused")
+    v = res["viewers"]
+    print(f"{Path(a.out) / VIEWERS_DIR / 'index.html'}: the viewers' page {v['page']['bytes'] / 1e3:.0f} kB, with media "
+          f"{v['total_bytes'] / 1e6:.1f} MB; {v['n_files']} media files (publish it on its own link)")
     return 0
 
 
