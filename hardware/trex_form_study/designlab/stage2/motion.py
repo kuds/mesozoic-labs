@@ -646,6 +646,102 @@ def run(out_dir: Path = OUT, media: Path | None = None, bodies=look.BODIES) -> d
     return out
 
 
+# ------------------------------------------------------------------------------------------------
+# The summary page (RENDERS.md), from metrics.json and clips.json alone
+# ------------------------------------------------------------------------------------------------
+RENDERS_MD = "RENDERS.md"
+#: The summary's rows: label, path in a rung's metrics, decimals (``_cell``).
+SUMMARY_ROWS = (
+    ("hip bob, peak to peak (mm)", ("bob", "pp_mm"), 1),
+    ("bob crest hold (share; a sinusoid's 0.144)", ("bob", "crest_hold_share"), 3),
+    ("trunk roll RMS (deg)", ("trunk", "roll_rms_deg"), 2),
+    ("trunk pitch RMS (deg)", ("trunk", "pitch_rms_deg"), 2),
+    ("sway, CoM per stride (H; spec 0.12)", ("sway", "com_pp_per_stride_max_H"), 3),
+    ("head pitch in the world, RMS (deg; band 1.5)", ("head", "world_pitch_rms_deg"), 2),
+    ("head angular rate, RMS (deg/s)", ("head", "angular_rate_rms_deg_s"), 1),
+    ("stabilisation ratio, head / trunk", ("head", "stabilisation_ratio"), 2),
+    ("tail phase from today's (cycles)", ("tail", "phase_from_today_cycles"), 3),
+    ("tail tip toward the stance side in swing (share)", ("tail", "tip_toward_stance_in_swing"), 2),
+    ("toe-off at lift-off (rad)", ("toe_off", "at_lift_off_rad"), 3),
+    ("swing time (s)", ("gait", "swing_time_s"), 3),
+    ("duty (left)", ("gait", "duty", 0), 3),
+    ("stride (H)", ("gait", "stride_H"), 3),
+    ("cadence (steps/s)", ("gait", "cadence_steps_s"), 2),
+    ("step-time CV (%)", ("step_times", "cv"), 2),
+    ("SPARC, toe tip per swing (mean)", ("smoothness", "foot", "mean"), 2),
+    ("SPARC, head (periodic)", ("smoothness", "head", "sparc"), 2),
+    ("stance-pad peak yaw moment (N m)", ("stance_pad_yaw", "peak_nm"), 2),
+    ("Stage 0", ("stage0", "within_limits"), None),
+)
+
+
+def _get(d, path):
+    for k in path:
+        if d is None:
+            return None
+        d = d[k] if isinstance(k, int) else d.get(k)
+    return d
+
+
+def _cell(v, nd, key=None) -> str:
+    if v is None:
+        return "-"
+    if nd is None:
+        return "within" if v else "**over**"
+    if key == ("step_times", "cv"):
+        v = 100.0 * v
+    return f"{v:.{nd}f}"
+
+
+def markdown(mdoc: dict, cdoc: dict | None) -> str:
+    """``RENDERS.md``: the clips (``clips.json``) and every ladder rung's headline readings (``metrics.json``)."""
+    out = ["# Stage 2 look: kinematic clips, plots and machine metrics", "",
+           "Kinematic references, not simulations: each rung's reference walk played back with perfect tracking and no "
+           "physics (`designlab/stage2/clips.py`), and read on its frames (`designlab/stage2/motion.py`); this page is "
+           "rendered from `metrics.json` and `clips.json` alone (`python -m designlab.stage2.motion md`). The media "
+           "(MP4, PNG) are outside git; `clips.json` names each file with its size and sha256. Nothing is adopted (P24).",
+           ""]
+    if cdoc is not None:
+        clips_ = cdoc["clips"]
+        cam = cdoc["cameras"]
+        out += ["## Clips", "",
+                f"{len(clips_)} clips, {cdoc['seconds']:g} s each at {cdoc['fps']} fps, {cdoc['size'][0]}x"
+                f"{cdoc['size'][1]} H.264, each under {cdoc['max_bytes'] / 1e6:g} MB, every frame labelled "
+                f"\"{cdoc['label']}\". Cameras: "
+                + "; ".join(f"{k}: eye {v['height_m']:g} m high, {v['distance_m']:g} m from the look-at point along "
+                            f"the floor, bearing {v['bearing_deg']:g} deg from the walking direction, field of view "
+                            f"{v['fovy_deg']:g} deg" for k, v in cam.items())
+                + "; both follow the body's mean forward motion. Point-light: "
+                f"{', '.join(cdoc['points'])} on black. Render and encode time {cdoc['render_cpu_s'] / 60:.1f} CPU-min "
+                f"({cdoc['wall_s'] / 60:.1f} min wall).", "",
+                "| Body | Speed | Rung | View | Mode | File | MB |", "|---|---|---|---|---|---|---|"]
+        for e in clips_:
+            out.append(f"| {e['body']} | {e['speed']} | {e['variant']} | {e['view']} | {e['mode']} | "
+                       f"`{e['file']}` | {e['bytes'] / 1e6:.2f} |")
+        out.append("")
+    out += ["## Machine metrics (research 4.1 item 5)", "",
+            "Each rung's readings on its frames (definitions: `metrics.json` `method`). 0.40 m/s: "
+            + mdoc["v040"]["rule"] + ".", ""]
+    for b, speeds in mdoc["bodies"].items():
+        for s in look.SPEEDS:
+            rungs = speeds.get(s, {})
+            cols = [v for v in look.VARIANTS + ("V5F13",) if v in rungs]
+            out += [f"### {screen.BODY_LABEL.get(b, b)}, {screen.SPEED_LABEL.get(s, s)}", "",
+                    "| Reading | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
+            for lab, path, nd in SUMMARY_ROWS:
+                out.append(f"| {lab} | " + " | ".join(_cell(_get(rungs[v], path), nd, path) for v in cols) + " |")
+            out.append("")
+    return "\n".join(out) + "\n"
+
+
+def write_markdown(out_dir: Path = OUT) -> Path:
+    mdoc = json.loads((Path(out_dir) / METRICS_JSON).read_text())
+    cp = Path(out_dir) / "clips.json"
+    path = Path(out_dir) / RENDERS_MD
+    path.write_text(markdown(mdoc, json.loads(cp.read_text()) if cp.exists() else None))
+    return path
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m designlab.stage2.motion", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -653,8 +749,13 @@ def main(argv=None) -> int:
     p.add_argument("--media", default=None)
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--body", action="append", choices=look.BODIES)
+    m = sub.add_parser("md", help="RENDERS.md from metrics.json and clips.json")
+    m.add_argument("--out", default=str(OUT))
     a = ap.parse_args(argv)
-    run(Path(a.out), None if a.media is None else Path(a.media), tuple(a.body or look.BODIES))
+    if a.cmd == "run":
+        run(Path(a.out), None if a.media is None else Path(a.media), tuple(a.body or look.BODIES))
+    else:
+        write_markdown(Path(a.out))
     return 0
 
 

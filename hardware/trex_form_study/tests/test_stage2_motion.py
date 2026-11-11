@@ -208,3 +208,26 @@ def test_metrics_json_reads_every_rung_from_its_recorded_arrays():
                 assert tells["identical_steps"] == (v not in ("V6", "V6S"))
     assert METRICS["sparc"]["fc_hz"] == 10.0 and METRICS["bands_closed_loop"]["head_world_pitch_rms_deg"] == 1.5
     assert set(METRICS["v040"]["per_body"]) == set(look.BODIES)
+
+
+@needs_metrics
+def test_renders_md_regenerates_from_the_json_files():
+    clips_doc = json.loads((LOOK / "clips.json").read_text()) if (LOOK / "clips.json").exists() else None
+    text = motion.markdown(METRICS, clips_doc)
+    assert (LOOK / motion.RENDERS_MD).read_text() == text
+    for b in look.BODIES:
+        for s in look.SPEEDS:
+            assert f"### {motion.screen.BODY_LABEL[b]}, {motion.screen.SPEED_LABEL[s]}" in text
+    if clips_doc is not None:
+        assert all(f"`{e['file']}`" in text for e in clips_doc["clips"])
+
+
+def test_summary_cells():
+    m = dict(bob=dict(pp_mm=6.93), step_times=dict(cv=0.0149), gait=dict(duty=[0.57, 0.58]),
+             stage0=dict(within_limits=False), head=dict(stabilisation_ratio=None))
+    assert motion._cell(motion._get(m, ("bob", "pp_mm")), 1) == "6.9"
+    assert motion._cell(motion._get(m, ("step_times", "cv")), 2, ("step_times", "cv")) == "1.49"
+    assert motion._cell(motion._get(m, ("gait", "duty", 0)), 3) == "0.570"
+    assert motion._cell(motion._get(m, ("stage0", "within_limits")), None) == "**over**"
+    assert motion._cell(motion._get(m, ("head", "stabilisation_ratio")), 2) == "-"
+    assert motion._cell(motion._get(m, ("tail", "phase_rad")), 2) == "-"
