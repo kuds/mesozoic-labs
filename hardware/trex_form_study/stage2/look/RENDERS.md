@@ -4,17 +4,17 @@ Kinematic references, not simulations: each rung's reference walk played back wi
 
 ## Clips
 
-42 clips, 10 s each at 30 fps, 854x480 H.264, each under 1.5 MB, every frame labelled "kinematic reference, not a simulation". Cameras: visitor: eye 1.5 m high, 2.5 m from the look-at point along the floor, bearing -45 deg from the walking direction, field of view 26 deg; side: eye 0.6 m high, 2.5 m from the look-at point along the floor, bearing -90 deg from the walking direction, field of view 26 deg; both follow the body's mean forward motion. Point-light: snout, eye, neck_base, hip_l, hip_r, knee_l, knee_r, mtp_l, mtp_r, toe_l, toe_r, tail_mid, tail_tip on black. Render and encode time 45.5 CPU-min (15.3 min wall).
+42 clips, 10 s each at 30 fps, 854x480 H.264, each under 1.5 MB, every frame labelled "kinematic reference, not a simulation". Cameras: visitor: eye 1.5 m high, 2.5 m from the look-at point along the floor, bearing -45 deg from the walking direction, field of view 26 deg; side: eye 0.6 m high, 2.5 m from the look-at point along the floor, bearing -90 deg from the walking direction, field of view 26 deg; both follow the body's mean forward motion. Point-light: snout, eye, neck_base, hip_l, hip_r, knee_l, knee_r, mtp_l, mtp_r, toe_l, toe_r, tail_mid, tail_tip on black. Render and encode time 41.3 CPU-min (20.9 min wall).
 
 | Body | Speed | Rung | View | Mode | File | MB |
 |---|---|---|---|---|---|---|
 | 60-N-T-10 | fr05 | V0 | side | covered | `60-N-T-10/60-N-T-10_fr05_V0_side.mp4` | 0.69 |
 | 60-N-T-10 | fr05 | V0 | visitor | covered | `60-N-T-10/60-N-T-10_fr05_V0_visitor.mp4` | 1.05 |
-| 60-N-T-10 | fr05 | V6 | side | covered | `60-N-T-10/60-N-T-10_fr05_V6_side.mp4` | 0.69 |
+| 60-N-T-10 | fr05 | V6 | side | covered | `60-N-T-10/60-N-T-10_fr05_V6_side.mp4` | 0.70 |
 | 60-N-T-10 | fr05 | V6 | visitor | covered | `60-N-T-10/60-N-T-10_fr05_V6_visitor.mp4` | 1.04 |
 | 60-N-T-10 | nominal | V0 | side | covered | `60-N-T-10/60-N-T-10_nominal_V0_side.mp4` | 0.60 |
 | 60-N-T-10 | nominal | V0 | visitor | covered | `60-N-T-10/60-N-T-10_nominal_V0_visitor.mp4` | 0.90 |
-| 60-N-T-10 | nominal | V6 | side | covered | `60-N-T-10/60-N-T-10_nominal_V6_side.mp4` | 0.60 |
+| 60-N-T-10 | nominal | V6 | side | covered | `60-N-T-10/60-N-T-10_nominal_V6_side.mp4` | 0.59 |
 | 60-N-T-10 | nominal | V6 | visitor | covered | `60-N-T-10/60-N-T-10_nominal_V6_visitor.mp4` | 0.89 |
 | 60-N-T-10 | v040 | V0 | side | covered | `60-N-T-10/60-N-T-10_v040_V0_side.mp4` | 0.68 |
 | 60-N-T-10 | v040 | V0 | side | pointlight | `60-N-T-10/60-N-T-10_v040_V0_side_pointlight.mp4` | 0.14 |
@@ -31,8 +31,8 @@ Kinematic references, not simulations: each rung's reference walk played back wi
 | 60-N-T-10 | v040 | V6 | visitor | pointlight | `60-N-T-10/60-N-T-10_v040_V6_visitor_pointlight.mp4` | 0.14 |
 | 75-M-H-10 | fr05 | V0 | side | covered | `75-M-H-10/75-M-H-10_fr05_V0_side.mp4` | 0.92 |
 | 75-M-H-10 | fr05 | V0 | visitor | covered | `75-M-H-10/75-M-H-10_fr05_V0_visitor.mp4` | 1.28 |
-| 75-M-H-10 | fr05 | V6 | side | covered | `75-M-H-10/75-M-H-10_fr05_V6_side.mp4` | 0.94 |
-| 75-M-H-10 | fr05 | V6 | visitor | covered | `75-M-H-10/75-M-H-10_fr05_V6_visitor.mp4` | 1.27 |
+| 75-M-H-10 | fr05 | V6 | side | covered | `75-M-H-10/75-M-H-10_fr05_V6_side.mp4` | 0.95 |
+| 75-M-H-10 | fr05 | V6 | visitor | covered | `75-M-H-10/75-M-H-10_fr05_V6_visitor.mp4` | 1.28 |
 | 75-M-H-10 | nominal | V0 | side | covered | `75-M-H-10/75-M-H-10_nominal_V0_side.mp4` | 0.82 |
 | 75-M-H-10 | nominal | V0 | visitor | covered | `75-M-H-10/75-M-H-10_nominal_V0_visitor.mp4` | 1.14 |
 | 75-M-H-10 | nominal | V6 | side | covered | `75-M-H-10/75-M-H-10_nominal_V6_side.mp4` | 0.82 |
@@ -50,6 +50,21 @@ Kinematic references, not simulations: each rung's reference walk played back wi
 | 75-M-H-10 | v040 | V6 | side | pointlight | `75-M-H-10/75-M-H-10_v040_V6_side_pointlight.mp4` | 0.14 |
 | 75-M-H-10 | v040 | V6 | visitor | covered | `75-M-H-10/75-M-H-10_v040_V6_visitor.mp4` | 1.24 |
 | 75-M-H-10 | v040 | V6 | visitor | pointlight | `75-M-H-10/75-M-H-10_v040_V6_visitor_pointlight.mp4` | 0.14 |
+
+## Readings to note
+
+- F2's crest hold: on V1-V6 the hips stay within 5 % of the bob's range of its crest for 0.42 to 0.49 of the window (a sinusoidal bob: 0.144), so the hip and snout paths run level for a long part of each step (the path plots' straight segments, research 4.1 item 3).
+- F5's toe-off at lift-off, V3-V6, the nominal walk (Froude 0.012): 0.300 rad (the research's 0.3-0.5).
+- F5's toe-off at lift-off, V3-V6, 0.40 m/s (the agility bar's speed): 0.031 to 0.056 rad (the research's 0.3-0.5).
+- F5's toe-off at lift-off, V3-V6, the animal pace (Froude 0.05): 0.020 to 0.084 rad (the research's 0.3-0.5).
+- The head's stabilisation ratio (head over trunk angular rate) on V5-V6 is 1.36 to 1.52: the trunk's only rotation is F6's roll, which the head follows (no neck roll), and the trunk never pitches (largest pitch RMS 0.00 deg; F8), so F10's pitch stabilisation shows only as the nod removed: head pitch in the world 2.03 deg RMS on V0, 0.24 to 0.28 on V5, 0.53 to 0.55 on V6 (F14's gaze drift).
+- Feet's SPARC from V2 to V3 (F4/F5), the nominal walk (Froude 0.012): -0.17 to -0.16 by the published reading, -0.05 to -0.04 over the fixed band (a sidelobe near 9 Hz at about the 5 % threshold moves the published reading by steps).
+- Feet's SPARC from V2 to V3 (F4/F5), 0.40 m/s (the agility bar's speed): -0.26 to -0.23 by the published reading, -0.03 to -0.02 over the fixed band (a sidelobe near 9 Hz at about the 5 % threshold moves the published reading by steps).
+- Feet's SPARC from V2 to V3 (F4/F5), the animal pace (Froude 0.05): 0.00 by the published reading, -0.02 over the fixed band (a sidelobe near 9 Hz at about the 5 % threshold moves the published reading by steps).
+- Head's periodic SPARC, V5 to V6: 60-N-T-10 nominal -4.79 to -5.05; 60-N-T-10 v040 -5.40 to -6.08; 60-N-T-10 fr05 -5.62 to -6.36; 75-M-H-10 nominal -4.78 to -5.08; 75-M-H-10 v040 -5.45 to -5.87; 75-M-H-10 fr05 -5.90 to -6.29 (F14's slow drifts count as spectral complexity).
+- 60-N-T-10 at the animal pace: cadence 2.75 steps/s on V0 and 2.75 on V6, against a dynamically similar T. rex's 1.83; stride 0.80 and 0.80 H (T. rex 1.25 H); sway 0.103 and 0.103 H.
+- 75-M-H-10 at the animal pace: cadence 2.47 steps/s on V0 and 2.26 on V6, against a dynamically similar T. rex's 1.64; stride 0.80 and 0.88 H (T. rex 1.25 H); sway 0.101 and 0.115 H.
+- Over a Stage 0 limit (labelled on its clips): 75-M-H-10 fr05 V6 (knee speed 1.012).
 
 ## Machine metrics (research 4.1 item 5)
 
