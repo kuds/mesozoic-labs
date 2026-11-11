@@ -1315,9 +1315,15 @@ DUTY_BAND = (0.55, 0.65)
 DUTY_BAND_SPEED = 0.30
 
 
-def flags(spec: gait.GaitSpec, info: dict, m: dict, pr: dict | None) -> list[str]:
+#: The research's toe-off range by lift-off (F5: 0.3-0.5 rad); below its low end a rung's F5 is flagged as reduced.
+TOE_OFF_RANGE = (0.3, 0.5)
+
+
+def flags(spec: gait.GaitSpec, info: dict, m: dict, pr: dict | None, rolls: dict | None = None) -> list[str]:
     """What the owner should know about a rung on the L1 page: owner decision 2 (a duty outside the spec's band below
-    0.30 m/s), F5 reduced at speed and its claw roll, and the Stage 0 verdict where it is over a limit."""
+    0.30 m/s), F5 reduced (the window's smallest roll amplitude, the pitch at lift-off by construction, below the
+    research's 0.3 rad; the measured mean at the lift-offs beside it) and its claw roll, and the Stage 0 verdict where
+    it is over a limit."""
     out = []
     duty, v = float(info["duty"]), float(info["speed"])
     if spec.swing_time is not None and v < DUTY_BAND_SPEED and not DUTY_BAND[0] <= duty <= DUTY_BAND[1]:
@@ -1325,9 +1331,9 @@ def flags(spec: gait.GaitSpec, info: dict, m: dict, pr: dict | None) -> list[str
                    f"band at {v:.2f} m/s; this rung needs the band widened to 0.72 below 0.30 m/s, else F3 starts at "
                    "the brisk walk")
     if spec.toe_off:
-        at = m["toe_off_at_lift_off_rad"]
-        lo_rng = 0.3
-        if at < lo_rng - 1e-6:
+        amps = [r["amplitude"] for side in (rolls or {}).values() for r in side]
+        at = min(amps) if amps else m["toe_off_at_lift_off_rad"]
+        if at < TOE_OFF_RANGE[0] - 1e-9:
             out.append(f"F5 reduced: {at:.3f} rad by lift-off (the research's 0.3-0.5), as the roll has "
                        f"{1e3 * m['toe_off_ground_roll_s']:.0f} ms on the floor within {spec.toe_off_rate} rad/s and "
                        f"{spec.toe_off_accel} rad/s^2; a full toe-off at this speed needs the late single-support ZMP "
@@ -1359,7 +1365,7 @@ def write(src: dict, speed: str, variant: str, spec: gait.GaitSpec, g: dict, out
                 info=_plain(keep), ik_ok=bool(g["ik_ok"]), ik_fail_frames=len(g["ik_fail_frames"]),
                 zmp_error_final_mm=1e3 * info["zmp_error_history_m"][-1],
                 zmp_margin_min_mm=1e3 * info["zmp_margin_min_m"], rolls=_plain(rolls), measured=m, price=pr,
-                flags=flags(spec, info, m, pr), seconds=g["seconds"], price_seconds=time.perf_counter() - t0)
+                flags=flags(spec, info, m, pr, rolls), seconds=g["seconds"], price_seconds=time.perf_counter() - t0)
 
 
 def _partial_path(out_dir: Path, body: str, speed: str) -> Path:
@@ -1542,6 +1548,24 @@ def remeasure(out_dir: Path = OUT) -> dict:
     return doc
 
 
+def reflag(out_dir: Path = OUT) -> dict:
+    """``flags`` again on every saved entry, from its recorded spec, info, measures, price and rolls (nothing is
+    regenerated: the arrays, measures and prices stay as recorded); rewrites the flags of ``look_refs.json`` and
+    records the pass's provenance (``reflag``)."""
+    from ..stage1 import plant
+
+    path = Path(out_dir) / "look_refs.json"
+    doc = json.loads(path.read_text())
+    for d in doc["bodies"].values():
+        for entries in d.values():
+            for e in entries.values():
+                spec = gait.GaitSpec(**e["spec"])
+                e["flags"] = flags(spec, e["info"], e["measured"], e["price"], e["rolls"])
+    doc["reflag"] = dict(provenance=plant.provenance(), rule=(flags.__doc__ or "").split("\n\n")[0].replace("\n", " "))
+    path.write_text(json.dumps(_plain(doc), indent=1))
+    return doc
+
+
 def _versions() -> dict:
     import platform
 
@@ -1582,12 +1606,16 @@ def main(argv=None) -> int:
     q.add_argument("--name", action="append", help="reference names (default: nominal, brisk, fr05)")
     r = sub.add_parser("remeasure", help="recompute look_refs.json's measured blocks from the saved arrays")
     r.add_argument("--out", default=str(OUT))
+    f = sub.add_parser("reflag", help="recompute look_refs.json's flags from its recorded entries")
+    f.add_argument("--out", default=str(OUT))
     a = ap.parse_args(argv)
     if a.cmd == "prepare":
         prepare(tuple(a.body or BODIES), Path(a.out), tuple(a.speed or SPEEDS), tuple(a.variant or VARIANTS + EXTRAS),
                 a.procs, a.resume)
     elif a.cmd == "remeasure":
         remeasure(Path(a.out))
+    elif a.cmd == "reflag":
+        reflag(Path(a.out))
     else:
         print(json.dumps(g2_hashes(a.body, tuple(a.name or ("nominal", "brisk", "fr05")))))
     return 0

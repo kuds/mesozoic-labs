@@ -763,9 +763,11 @@ def test_flags_for_the_owner():
                 needs_d2 = e["spec"]["swing_time"] is not None and s == "nominal"
                 assert ("owner decision 2" in fl) == needs_d2, (b, s, v)
                 if e["spec"]["toe_off"]:
-                    reduced = e["measured"]["toe_off_at_lift_off_rad"] < 0.3 - 1e-6
+                    amps = [r["amplitude"] for side in ("left", "right") for r in e["rolls"][side]]
+                    reduced = min(amps) < look.TOE_OFF_RANGE[0] - 1e-9
                     assert ("F5 reduced" in fl) == reduced, (b, s, v)
-                    assert reduced == (s != "nominal"), (b, s, v)
+                    assert reduced == (s != "nominal"), (b, s, v)  # both nominal walks reach 0.30 on every step
+                    assert e["measured"]["toe_off_at_lift_off_rad"] == pytest.approx(np.mean(amps), abs=1e-3)
                     assert ("CLAW_QUESTION" in fl) == (e["measured"]["claw_roll_frames"] > 0), (b, s, v)
     assert LADDER["values"]["F3 swing_time"]["owner_decision_2"]
 
