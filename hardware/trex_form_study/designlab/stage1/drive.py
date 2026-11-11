@@ -62,7 +62,7 @@ class Drive:
 
     actuator: str  # actuator name in the plant
     coordinate: str  # the joint it turns, or the tendon (ankle motors)
-    group: str  # sizing group (hip_roll, hip_pitch, hip_yaw, knee, ankle_a, ankle_b, neck, tail)
+    group: str  # sizing group (hip_roll, hip_pitch, hip_yaw, knee, ankle_a, ankle_b, neck, tail; neck_yaw, jaw: S2-2)
     part: str  # catalog id
     peak: float  # N m, Actuator.peak
     sustained: float  # N m, Actuator.sustained
@@ -176,7 +176,8 @@ def sizing_motor_values(joints: list[str], tau, omega, layout: str = "tandem") -
     f, w = np.zeros(len(joints)), np.zeros(len(joints))
     for i, jn in enumerate(joints):
         group = mjcf.joint_role(jn)
-        k = statics.SIDES.index(jn.split("_", 1)[0]) if group not in ("neck", "tail") else 0
+        # one drive (the neck, the tail and Stage 2's expressive-head neck yaw and jaw) or one per side
+        k = statics.SIDES.index(jn.split("_", 1)[0]) if group not in sizing.SINGLE_GROUPS else 0
         f[i], w[i] = ms[group][0][k], ms[group][1][k]
     return f, w
 

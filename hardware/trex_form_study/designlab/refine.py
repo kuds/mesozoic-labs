@@ -19,6 +19,13 @@ Levers (``CASES``):
   round-two bodies knee flexion stops where the upper-thigh shell meets the calf fairing (0.81 rad at 60 cm,
   0.76-0.81 rad at 75 cm), and a higher carpet swing needs more knee flexion.
 
+* ``head_x_60``, ``head_x_75`` (Stage 2, ``STAGE2_PLAN.md`` S2-2, owner decision P29): the two picks with the
+  expressive head, a neck yaw at the neck base and a hinged jaw, each driven by an STS3215 (``HEAD_X_PART``;
+  ``build.NECK_YAW_RANGE``).  Not re-sized: each is its pick's sized record with the two joints and their drives
+  added (``head_x_one``), so with the two joints locked it is today's body plus the added parts, and its record holds
+  the pick's drives against the expressive head's loads.  Nothing is adopted (P24), and P2's deferral of a jaw for
+  the build stands.
+
 ``carpet_lift`` (separate pass, no re-sizing): the carpet swing target needs a higher swing than the reference
 walks' 0.10-0.11 H.  For each listed body and each lift, the nominal and brisk walks are regenerated with that
 lift and checked against the body's selected drives (sizing rules: continuous = max(nominal RMS, hold),
@@ -130,6 +137,24 @@ CASES = {
                            walks=("fr05", "lift19"), min_gap=3.0, headroom_by_group={"knee": 0.85},
                            label="60 cm narrow carpet-ready + 15 % knee headroom"),
 }
+#: Stage 2's expressive head (``STAGE2_PLAN.md`` S2-2; module docstring): the part that drives each of its two joints
+#: (the plan's STS3215: 0.055 kg, $22, planning sustained 0.491 N m, peak 0.862 N m, 2.83 rad/s), the overrides that
+#: add them (``build.Design``), and the pick each case builds on.  A case's sizing settings (headroom, sizing walks,
+#: turn gap) are its base case's, so its requirements are evaluated on the base's walks; none of them selects anything.
+HEAD_X_PART = "feetech_sts3215_c018"
+HEAD_X_OVERRIDES = (("neck_yaw_joint", 1), ("jaw_joint", 1))
+HEAD_X_BASE = {"head_x_60": ("narrow_carpet_60", "60-N-T-10"), "head_x_75": ("feet_75", "75-M-H-10")}
+HEAD_X_RULE = ("the base case's sized record of the pick (its overrides with the packaging search's, B, drives, pack "
+               "and the sizing's mass guess) with the expressive head's overrides and an STS3215 for each of its two "
+               "joints added to the selection; built once, not re-sized: no drive, pack or packaging step is "
+               "re-selected, so with the two joints locked the body is the pick plus the added parts (the integration "
+               "reserve leaves them out, mjcf.body_inertials); its requirements use the base case's sizing walks and "
+               "its margins are against the pick's drives")
+for _case, (_base, _cid) in HEAD_X_BASE.items():
+    CASES[_case] = dict(CASES[_base], ids=(_cid,), overrides=tuple(CASES[_base]["overrides"]) + HEAD_X_OVERRIDES,
+                        base_case=_base, head_x=True,
+                        label=f"{CASES[_base]['label']} + expressive head (neck yaw, jaw; not re-sized)")
+del _case, _base, _cid
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
 LIFTS = (0.13, 0.16, 0.19, 0.22)
 
@@ -167,6 +192,8 @@ def _size(a):
 
     case, cid, out = a
     _init(case)
+    if CASES[case].get("head_x"):  # Stage 2's expressive head: the pick plus the head's drives, not re-sized
+        return dict(case=case, **head_x_one(case, cid, out))
     r = round2.size_one(cid, out, str(Path(out) / "models"), base_overrides=CASES[case]["overrides"])
     p = Path(out, "candidates", f"{cid}.json")
     d = json.loads(p.read_text())
@@ -183,6 +210,162 @@ def _screen(a):
     case, cid, out = a
     _init(case)
     return dict(case=case, **round2._screen_star((cid, Path(out))))
+
+
+# ------------------------------------------------------------------------------------------------
+# Stage 2's expressive head (head_x_60, head_x_75): the pick plus the head's drives, not re-sized
+# ------------------------------------------------------------------------------------------------
+def head_x_base(case: str, out) -> tuple[Path, dict]:
+    """The base case's sized record of a head-X case's pick (``HEAD_X_BASE``): ``<out>/../<base>/candidates/<id>.json``
+    (``out`` the case's own directory), its path and contents."""
+    base, cid = HEAD_X_BASE[case]
+    p = Path(out).parent / base / "candidates" / f"{cid}.json"
+    return p, json.loads(p.read_text())
+
+
+def head_x_candidate(case: str, base_rec: dict) -> tuple:
+    """(candidate, selection, B) of a head-X body (``HEAD_X_RULE``): the base record's with the expressive head's
+    overrides added to its overrides and an ``HEAD_X_PART`` for each of the head's groups added to its selection."""
+    from . import round2, sizing
+
+    _, cid = HEAD_X_BASE[case]
+    ov = tuple(tuple(o) for o in base_rec.get("overrides", ())) + HEAD_X_OVERRIDES
+    sel = dict(base_rec["selection"], **{g: HEAD_X_PART for g in sizing.HEAD_X_GROUPS})
+    return round2.candidate(cid, ov), sel, float(base_rec["B"])
+
+
+def _evaluate(design, res: dict, req: dict, sel: dict, history: list) -> dict:
+    """What ``pipeline.size_candidate`` records for its final build (requirements, holds, walks, margins against
+    the drives, walking power, runtime, cost; the same fields in the same order), for a build whose drives and pack
+    are ``sel``."""
+    from . import cost, power, sizing
+
+    nom = req["runs"]["nominal"]["idr"]
+    ms = sizing._motor_space(res["model"].names, nom["tau"], nom["omega"], design.cand.leg_layout)
+    pw = power.walking_power(design, req, ms)
+    rt = power.runtime(power.catalog.part(sel["battery"]), pw["total_w"])
+    margins = {}
+    for g, r in req["groups"].items():
+        a = design.act(g)
+        spd = a.speed_at(sel["bus"] if a.box is None else None)
+        margins[g] = dict(actuator=a.id, sustained=a.sustained, peak=a.peak, speed=spd,
+                          cont_req=r["cont"], peak_req=r["peak_req"], speed_req=r["speed_req"],
+                          cont_ratio=r["cont"] / a.sustained, peak_ratio=r["peak_req"] / a.peak,
+                          speed_ratio=r["speed_req"] / max(spd, 1e-6), rms=r["rms"], hold=r["hold"],
+                          double_support=r["double_support"])
+    return dict(requirements={g: r for g, r in req["groups"].items()}, holds=req["holds"], gaits=req["gaits"],
+                walk_feasible=req["walk_feasible"], margins=margins, power=pw, runtime=rt, sizing_history=history,
+                cost=cost.estimate(design, res["rows"], sel))
+
+
+def head_x_build(case: str, base_rec: dict, models_dir) -> dict:
+    """Build a head-X body once (``HEAD_X_RULE``) into ``models_dir`` and evaluate it as the sizing evaluates its
+    final build: writes ``<models_dir>/<id>.xml`` and the model ledger ``<id>.json`` with its evaluation, as
+    ``pipeline.size_candidate`` writes them.  The case's sizing settings must be set first (``_init``)."""
+    from . import mjcf, pipeline, sizing
+
+    cand, sel, B = head_x_candidate(case, base_rec)
+    models_dir = Path(models_dir)
+    res = pipeline.build_candidate(cand, models_dir, selection=sel, B=B, write=False)
+    design = res["design"]
+    req = sizing.requirements(res["model"], res["q_home"], design.sk.H, cand.leg_layout)
+    history = [dict(iteration="head_x", mass=res["summary"]["mass"],
+                    selection=dict(joints=sel["joints"], neck=sel["neck"], tail=sel["tail"], bus=sel["bus"],
+                                   battery=sel["battery"], **{g: sel[g] for g in sizing.HEAD_X_GROUPS}),
+                    notes=[f"not re-sized: {HEAD_X_RULE}"])]
+    ev = _evaluate(design, res, req, sel, history)
+    mjcf.write_ledger(design, res["rows"], models_dir / f"{cand.id}.json",
+                      extra=dict(summary=res["summary"], evaluation=ev))
+    return dict(res, requirements=req, evaluation=ev, selection=sel, candidate=cand)
+
+
+def _against(x: dict, base: dict) -> dict:
+    """A head-X record's loads and margins beside its base record's, group by group."""
+    out = {}
+    for g, m in x["margins"].items():
+        b = base["margins"].get(g)
+        row = dict(actuator=m["actuator"], hold_Nm=m["hold"], rms_Nm=m["rms"],
+                   ratios=dict(cont=m["cont_ratio"], peak=m["peak_ratio"], speed=m["speed_ratio"]))
+        if b is not None:
+            row.update(base_hold_Nm=b["hold"], hold_change_Nm=m["hold"] - b["hold"], base_rms_Nm=b["rms"],
+                       base_ratios=dict(cont=b["cont_ratio"], peak=b["peak_ratio"], speed=b["speed_ratio"]),
+                       hold_over_sustained=m["hold"] / m["sustained"], base_hold_over_sustained=b["hold"] / b["sustained"])
+        out[g] = row
+    return out
+
+
+def head_x_one(case: str, cid: str, out: str) -> dict:
+    """The sized record of one head-X body: ``head_x_build`` into ``<out>/models``, then ``<out>/candidates/<id>.json``
+    with ``round2.size_one``'s fields, the case's settings (as ``_size`` adds them) and ``head_x``: the rule, the base
+    record it builds on (path and sha256, its model's sha256), the parts it adds, its loads and margins beside the
+    base's, and what one selection step on its loads would pick (recorded only; nothing is re-selected)."""
+    import hashlib
+    import traceback
+
+    import designlab  # noqa: F401
+
+    from . import gait, metrics, mjcf, power, round2, sizing
+    from .stage_a import _mass_by_category, _mass_by_volume_class
+
+    gait.set_accuracy(round2.GAIT_ACCURACY)
+    t0 = time.time()
+    c = CASES[case]
+    try:
+        bp, base = head_x_base(case, out)
+        r = head_x_build(case, base, Path(out) / "models")
+        d, sel, cand, ev, req = r["design"], r["selection"], r["candidate"], r["evaluation"], r["requirements"]
+        meas = metrics.measure(r["model"], d, r["q_home"])
+        added = [row for row in r["rows"] if mjcf._head_x(row)]
+        pick = sizing.select(req, mass=r["summary"]["mass"], layout=cand.leg_layout)
+        current = dict(sel["joints"], **{g: sel[g] for g in ("neck", "tail") + sizing.HEAD_X_GROUPS})
+        nom = req["runs"]["nominal"]["idr"]
+        pw = power.walking_power(d, req, sizing._motor_space(r["model"].names, nom["tau"], nom["omega"],
+                                                             cand.leg_layout))
+        bat = power.select_battery(pick["bus"], pw["total_w"], pw["peak_drives_w"] + pw["aux"]["input_w"])
+        over = sorted(g for g, m in ev["margins"].items() if max(m["cont_ratio"], m["peak_ratio"], m["speed_ratio"]) > 1.0)
+        head_x = dict(
+            rule=HEAD_X_RULE, case=case, base_case=c["base_case"], base_record=bp.as_posix(),
+            base_record_sha256=hashlib.sha256(bp.read_bytes()).hexdigest(), base_xml_sha256=base["xml_sha256"],
+            part=HEAD_X_PART, overrides_added=[list(o) for o in HEAD_X_OVERRIDES],
+            groups=list(sizing.HEAD_X_GROUPS),
+            parts=[dict(name=row["name"], body=row["body"], group=row["meta"][mjcf.HEAD_X_META],
+                        category=row["category"], mass_kg=row["mass_kg"], com_body=row["com_body"],
+                        source=row["source"]) for row in added],
+            added_mass_kg=sum(row["mass_kg"] for row in added),
+            mass_kg=dict(head_x=meas["mass"], base=base["metrics"]["mass"]),
+            com_ahead_of_hip_m=dict(head_x=meas["com_ahead_of_hip"], base=base["metrics"]["com_ahead_of_hip"],
+                                    change=meas["com_ahead_of_hip"] - base["metrics"]["com_ahead_of_hip"]),
+            head_neck_mass_kg=dict(head_x=meas["head_neck_mass"], base=base["metrics"]["head_neck_mass"]),
+            groups_over_planning_limit=over,
+            meets_case_headroom={g: bool(sizing.meets(d.act(g), req["groups"][g],
+                                                      sel["bus"] if d.act(g).box is None else None, g))
+                                 for g in req["groups"]},
+            against_base=_against(dict(margins=ev["margins"]), base),
+            selection_if_resized=dict(
+                rule="one step of sizing.select on these loads with the case's headroom, and power.select_battery "
+                     "on its walking power: recorded only (the sizing loop, which would iterate on the re-selected "
+                     "parts' masses, is not run, and nothing here is re-selected)",
+                choice=pick["choice"], bus=pick["bus"], battery=bat["pack"], notes=pick["notes"],
+                differs={g: [current.get(g), p] for g, p in pick["choice"].items() if current.get(g) != p},
+                battery_differs=bat["pack"] != sel["battery"], bus_differs=pick["bus"] != sel["bus"]))
+        doc = dict(id=cid, rev=round2.REV, candidate=dict(height=cand.height, width=cand.width, family=cand.family,
+                                                          posture=cand.posture, proportion=cand.proportion,
+                                                          leg_layout=cand.leg_layout, battery_pos=cand.battery_pos),
+                   B=d.B, H=d.sk.H, xml_sha256=r["summary"]["xml_sha256"], selection=dict(sel), metrics=meas,
+                   margins=ev["margins"], holds=ev["holds"], power=ev["power"], runtime=ev["runtime"], cost=ev["cost"],
+                   gaits=ev["gaits"], sizing_history=ev["sizing_history"], walk_feasible=ev["walk_feasible"],
+                   geometry_checks=d.geometry_checks, notes=d.notes,
+                   overrides=[list(o) for o in cand.overrides if o[0] != "rev"], packaging_search=[],
+                   mass_by_category=_mass_by_category(r["rows"]), mass_by_volume_class=_mass_by_volume_class(r["rows"]),
+                   gait_accuracy=gait.ACCURACY, seconds=time.time() - t0, ok=True,
+                   refine_case=case, headroom=c["headroom"], headroom_by_group=dict(c.get("headroom_by_group") or {}),
+                   fr05_sizing=c["fr05"], turn_min_gap_mm=c["min_gap"], head_x=head_x)
+    except Exception as e:  # keep failed cases, as round2.size_one does
+        doc = dict(id=cid, rev=round2.REV, ok=False, error=repr(e), traceback=traceback.format_exc(),
+                   seconds=time.time() - t0, refine_case=case)
+    Path(out, "candidates").mkdir(parents=True, exist_ok=True)
+    Path(out, "candidates", f"{cid}.json").write_text(json.dumps(doc, indent=1, default=round2._json))
+    return dict(id=cid, ok=doc["ok"], seconds=doc["seconds"])
 
 
 # ------------------------------------------------------------------------------------------------
@@ -229,8 +412,7 @@ def carpet_lift_one(a) -> dict:
             trajs = {k: v["traj"] for k, v in req["runs"].items()}
             cl = clearance.screen(xml, q0, trajs, H=H, gates="r2")["summary"]
             mg = cl.get("joint_range_margins") or {}
-            tight = min(((j, v) for j, r_ in mg.items() for v in (r_.get("margin_min"), r_.get("margin_max")) if v is not None),
-                        key=lambda t: t[1], default=(None, None))
+            tight = min(((j, v) for j, _, v in clearance.gated_margins(mg)), key=lambda t: t[1], default=(None, None))
             toe = {}
             for name, tr in trajs.items():
                 idr = req["runs"][name]["idr"]

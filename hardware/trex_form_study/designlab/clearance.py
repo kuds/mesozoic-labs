@@ -54,7 +54,8 @@ Poses ("families"):
   joint_extremes    sweeps from home to each limit in steps of at most 0.05 rad, all other joints
                     at home, root fixed: every leg joint alone (min and max), per side the four
                     corners of hip_pitch x knee and of hip_roll x hip_yaw (straight line in joint
-                    space), neck_pitch and tail_yaw.  The floor is ignored (feet may go below it).
+                    space), neck_pitch and tail_yaw (and Stage 2's expressive-head neck_yaw and jaw on a
+                    model that has them).  The floor is ignored (feet may go below it).
                     Each sweep reports the first joint value at which a new pair (parts not
                     interfering at home) interferes, and the deepest new pairs;
   tail_limits_in_gait  tail_yaw at each limit at phases 0, 0.25, 0.5, 0.75 of each gait; only
@@ -137,6 +138,11 @@ TAIL_MIN_FRAC = 0.25  # tail lowest-point threshold, fraction of H
 #: Round-two gate set (``gates="r2"``): also no overlapping components on one rigid body, no interference
 #: in the brisk walk, and every swept joint usable at least ``RANGE_MARGIN_RAD`` beyond the walks' excursion.
 RANGE_MARGIN_RAD = 0.10
+#: Joints that rest on one end of their range at home by design, with that end ("min" or "max"): Stage 2's
+#: expressive-head jaw rests closed on its lower stop (``build.JAW_RANGE``).  Their margin at that end is reported
+#: (``joint_range_margins[joint]["rests_on_stop"]``) but is no walking range limit, so the ``joint_range_margin`` gate
+#: leaves it out.  No earlier model has such a joint.
+REST_ON_STOP = {"jaw": "min"}
 MID_SWING = (0.25, 0.75)  # fraction of each swing's duration
 SWEEP_STEP = 0.05  # rad, maximum joint increment along a sweep
 TAIL_PHASES = (0.0, 0.25, 0.5, 0.75)
@@ -697,6 +703,8 @@ def _sweep_list(S: _Screen) -> list:
                     sweeps.append((f"{ja[0]}:{ea}+{jb[0]}:{eb}", [(ja[0], ja[1], va), (jb[0], jb[1], vb)]))
     add_single("neck_pitch")
     add_single("tail_yaw")
+    add_single("neck_yaw")  # the expressive head's joints (Stage 2), on a model that has them
+    add_single("jaw")
     return sweeps
 
 
@@ -1250,6 +1258,14 @@ def _joint_ranges(sweeps: list) -> dict:
     return out
 
 
+def gated_margins(margins: dict) -> list:
+    """(joint, "min" or "max", margin) of every margin in ``joint_range_margins`` that the ``joint_range_margin`` gate
+    reads: all but the ends that a joint rests on by design (``REST_ON_STOP``)."""
+    return [(jn, end, v) for jn, r in margins.items() for end, v in (("min", r.get("margin_min")),
+                                                                     ("max", r.get("margin_max")))
+            if v is not None and r.get("rests_on_stop") != end]
+
+
 def _range_margins(S: _Screen, sweeps: list, gait_trajs: dict) -> dict:
     """Per swept joint: the walks' excursion against the usable range (first new interference with the
     trunk or the same leg, else the joint limit), in rad.  Positive margins mean the walks stay inside."""
@@ -1275,6 +1291,8 @@ def _range_margins(S: _Screen, sweeps: list, gait_trajs: dict) -> dict:
         out[jn] = dict(walk_min=round(float(vals.min()), 4), walk_max=round(float(vals.max()), 4),
                        usable=[lo, hi], margin_min=None if m_lo is None else round(m_lo, 4),
                        margin_max=None if m_hi is None else round(m_hi, 4))
+        if jn in REST_ON_STOP:  # its margin at that end is not gated (REST_ON_STOP)
+            out[jn]["rests_on_stop"] = REST_ON_STOP[jn]
     return out
 
 
@@ -1301,8 +1319,7 @@ def _summary(report, H, tail_gate, tail_gate_key, swing, battery, gates: str = "
     )
     if gates == "r2":
         brisk = "gait_brisk" in counts
-        margins = [v for r in report.get("joint_range_margins", {}).values()
-                   for v in (r["margin_min"], r["margin_max"]) if v is not None]
+        margins = [v for _, _, v in gated_margins(report.get("joint_range_margins", {}))]
         passes.update(
             interference_free_brisk_gait=(counts["gait_brisk"]["interference_pairs"] == 0) if brisk else None,
             component_overlap_free=not report["same_body_hardware_at_home"]["overlaps"],

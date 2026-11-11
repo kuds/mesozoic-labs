@@ -51,12 +51,18 @@ ACCURACY = "r2"
 #: (the picks': 1.00-1.05), so at 0.19-0.195 H the walking clearance gates fail (60-N-T-10-K keeps 0.0065 rad of knee
 #: range at 0.19 H, under the 0.10 rad gate; 60-N-H-10-K's hip pitch goes 0.08 rad past its usable range at 0.195 H).
 #: Their carpet reference is outside this rule, kept only so that a K body has its pick's references.
-CARPET_LIFT = {"60-N-T-10": 0.19, "60-N-H-10": 0.195, "75-M-H-10": 0.18, "60-N-T-10-K": 0.19, "60-N-H-10-K": 0.195}
+#: Stage 2's expressive-head bodies (S2-2) take their picks' lifts; the same carpet-lift pass, run on their own cases
+#: with the picks' lifts and walks (``stage2/x/run_x.sh build``), is their record, and the rule above reads the same
+#: lift from it (``tests/test_stage2_x.py``).
+CARPET_LIFT = {"60-N-T-10": 0.19, "60-N-H-10": 0.195, "75-M-H-10": 0.18, "60-N-T-10-K": 0.19, "60-N-H-10-K": 0.195,
+               "60-N-T-10-X": 0.19, "75-M-H-10-X": 0.18}
 CARPET_LIFT_RECORD = {"60-N-T-10": "round2/refine/carpet_lift_narrow_carpet_60_0.190_0.195_nominal_only.json",
                       "60-N-H-10": "round2/refine/carpet_lift_narrow_carpet_60_0.190_0.195_nominal_only.json",
                       "75-M-H-10": "round2/refine/carpet_lift_feet_75_0.175_0.180_0.190.json",
                       "60-N-T-10-K": "round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json",
-                      "60-N-H-10-K": "round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json"}
+                      "60-N-H-10-K": "round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json",
+                      "60-N-T-10-X": "round2/refine/carpet_lift_head_x_60_0.190_0.195_nominal_only.json",
+                      "75-M-H-10-X": "round2/refine/carpet_lift_head_x_75_0.175_0.180_0.190.json"}
 DIRECTIONS = (("left", 1.0), ("right", -1.0))
 #: Half a unit in the sixth significant digit.
 REL_TOL = 5e-7
