@@ -183,6 +183,10 @@ The head's costs at either stance:
 | Neck, continuous ratio | 0.76 → 0.85 | 0.66 → 0.71 |
 | Knee speed ratio (60 cm: now the governing limit) | 0.93 → 0.97 | 0.93 → 0.96 |
 
+The head's costs in full, against today's head (these, the Stage 0 walking screen of the nominal and animal-pace
+walks, and the character moves on the two STS3215s): `X_COSTS.md`, from `x_costs.json` (`x_costs.py`;
+`run_x.sh costs`).
+
 ## 7. Open S2-2 items
 
 1. **G1 with one process per core** (section 3).

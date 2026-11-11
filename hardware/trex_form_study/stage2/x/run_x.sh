@@ -28,6 +28,8 @@
 #   records        the head_x cases' candidate records again from the code (x_inputs.py records: each case's build
 #                  in a scratch directory, put in place only when its models match x_inputs.json; the screens are not
 #                  re-run), then refine.json and REFINE.md from the records
+#   costs          what the head costs against today's (x_costs.py: statics, the Stage 0 walking screen, the character
+#                  moves), rewriting x_costs.json, which X_COSTS.md reports; about 5 min on 2 processes
 # The CLI's output goes to LOG (default stage2/x/logs, not committed).  At most PROCS processes at a time (default 2:
 # PYTHON_CPU_COUNT=PROCS, since every pool of the prepare and the gates takes os.cpu_count() processes), each at
 # nice 10, so a build elsewhere on the machine keeps its cores, except G1's per-core timing, which takes one process
@@ -41,8 +43,8 @@ cd "$(dirname "$0")/../.." || exit 1  # hardware/trex_form_study
 PY=${PY:-python}
 PROCS=${PROCS:-2}
 case "${1:-run}" in
-    run|build|check|copy-from|g1|gates|records) CMD=${1:-run}; [ $# -gt 0 ] && shift ;;
-    *) sed -n '2,38p' "$0"; exit 2 ;;
+    run|build|check|copy-from|g1|gates|records|costs) CMD=${1:-run}; [ $# -gt 0 ] && shift ;;
+    *) sed -n '2,40p' "$0"; exit 2 ;;
 esac
 OUT=stage2/x
 INPUTS="$OUT/x_inputs.py"
@@ -194,4 +196,8 @@ case "$CMD" in
         say "refine --report-only (refine.json and REFINE.md from the records)"
         py -m designlab.refine --out round2/refine --report-only > "$LOG/refine_report.log" 2>&1 || exit 1
         py "$INPUTS" check ;;
+    costs) py "$INPUTS" check || exit 1
+        say "x_costs.py --procs $PROCS (x_costs.json)"
+        py "$OUT/x_costs.py" --procs "$PROCS" > "$LOG/x_costs.log" 2>&1 || { echo "x_costs failed (see $LOG)"; exit 1; }
+        tail -n 3 "$LOG/x_costs.log" | tee -a "$LOG/run_x.log" ;;
 esac
