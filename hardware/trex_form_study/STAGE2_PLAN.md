@@ -1,6 +1,6 @@
 # Stage 2: the agility round, with character (simulation)
 
-**Status (11 Nov 2026): draft for the owner; nothing has run.** Simulation only; it changes no body and adopts nothing
+**Status (11 Nov 2026): the owner has taken decisions 3–6 below (P29); the look build (Track A) has started; nothing else has run.** Simulation only; it changes no body and adopts nothing
 without the owner (P24). Paths are relative to `hardware/trex_form_study/` unless they begin `environments/`,
 `notebooks/` or `docs/`. S1 and S1b are the Stage 1 and 1b reports (`stage1/runs/2026-11-08/STAGE1_PROBE.md`,
 `stage1/runs/2026-11-10-speed/STAGE1B_SPEED.md`); "decision n" is `STAGE1_PLAN.md`'s, "S2-n" this plan's; [look] and
@@ -251,14 +251,15 @@ decision 20's lift test (for the neck and tail, never lifted: causing most of a 
 each checked by four printed lines; about $3 of compute on High-RAM CPU ($66 on L4); results in your Drive. Nothing is
 adopted without you.
 
-**Owner decisions needed:**
+**Owner decisions** (3–6 taken on 11 Nov, P29; 1, 2 and 7 at the look review; 8 later):
 1. The look features (L1), and whether a feature may cost a speed rung (A.3).
 2. Duty: a fixed swing time puts the nominal walk at about 0.69 ([look] F3), over the spec's 0.65: widen the band to
    0.72 below 0.30 m/s, or start F3 at brisk?
-3. The 60 cm Hybrid: drop it (S2-1) or keep it.
-4. The expressive head as modelled (S2-2), in simulation only, jaw included (P2 deferred it).
-5. The bar's definitions (section 5): "about 2 s" as 2.0 s, both grips, the 10 ms delay.
-6. Colab: runtime type, how many at once, the 220-hour cap (section 6).
+3. **Taken:** the 60 cm Hybrid is dropped; Colab trains `60-N-T-10` and `75-M-H-10` (S2-1).
+4. **Taken:** the expressive head as modelled (S2-2), in simulation only, jaw included (P2's deferral stands for the
+   build).
+5. **Taken:** the bar's definitions as in section 5: the 90° turn within 2.0 s, both grips, judged at 10 ms (S2-7).
+6. **Taken:** Colab on High-RAM CPU runtimes, up to 3 at once, 24 h sessions, capped at 220 runtime-hours (section 6).
 7. Raters for L2, 3–5 new viewers for L1, and a private rating page.
 8. When the bench tests below run.
 
