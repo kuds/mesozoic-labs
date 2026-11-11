@@ -1,7 +1,8 @@
 """Tests for the Stage 2 look clips (designlab/stage2/clips.py; STAGE2_PLAN.md section 4 A.4, research_look.md 4.1
 item 3).
 
-Run from hardware/trex_form_study:  MUJOCO_GL=osmesa python -m pytest tests/test_stage2_clips.py -q
+Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_clips.py -q
+(the two tests that render run themselves again, alone, in a child process with MUJOCO_GL=osmesa: ``_render_in_child``)
 
 1. Playback: at a frame's own time the pose is that frame's, a window later the same pose moved by the advance; between
    frames the joints are linear and the root quaternion stays a unit quaternion; a turning window is refused.
@@ -17,7 +18,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,6 +38,25 @@ LADDER = json.loads((LOOK / "look_refs.json").read_text()) if (LOOK / "look_refs
 _V0 = None if LADDER is None else LOOK / LADDER["bodies"]["60-N-T-10"]["v040"]["V0"]["file"]
 needs_arrays = pytest.mark.skipif(_V0 is None or not _V0.exists(), reason="the git-ignored ladder arrays are not here")
 needs_ffmpeg = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg is not on PATH")
+
+CHILD = "STAGE2_CLIPS_CHILD"
+
+
+def _render_in_child(request) -> bool:
+    """Run the calling rendering test again, alone, in a fresh process with MuJoCo's OSMesa backend; True in the parent.
+
+    MuJoCo picks its OpenGL backend at its first import, so in a shared pytest process whether a render works depends
+    on which test module imported mujoco first (GLFW, chosen without MUJOCO_GL, fails with no display and can abort
+    the run). Setting MUJOCO_GL=osmesa for the whole session is no cure: with OSMesa loaded, torch segfaults in the
+    PPO tests. So the rendering tests never render in the shared process.
+    """
+    if os.environ.get(CHILD) == "1":
+        return False
+    env = dict(os.environ, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa", **{CHILD: "1"})
+    r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", request.node.nodeid],
+                       cwd=request.config.rootpath, env=env, capture_output=True, text=True, timeout=900)
+    assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-2000:]
+    return True
 
 
 def _quat(rng):
@@ -215,7 +237,9 @@ def test_review_set_is_the_tasks_list():
 @needs_arrays
 @needs_ffmpeg
 @pytest.mark.parametrize("mode", clips.MODES)
-def test_a_short_real_clip(tmp_path, mode):
+def test_a_short_real_clip(tmp_path, mode, request):
+    if _render_in_child(request):
+        return
     e = clips.render_clip("60-N-T-10", "v040", "V0", "side", mode, tmp_path, clip_s=0.1)
     assert e["probe"]["frames"] == 3 and e["probe"]["codec"] == "h264" and e["bytes"] <= clips.MAX_BYTES
     assert e["labels"][1].startswith(clips.LABEL)
@@ -233,8 +257,10 @@ def test_a_short_real_clip(tmp_path, mode):
 
 
 @needs_arrays
-def test_projection_matches_the_rendered_dots(tmp_path):
+def test_projection_matches_the_rendered_dots(tmp_path, request):
     """``project`` puts each marker on its rendered point-light dot (one frame, the side view)."""
+    if _render_in_child(request):
+        return
     from PIL import Image
     from scipy import ndimage
 
