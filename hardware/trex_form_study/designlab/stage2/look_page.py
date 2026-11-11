@@ -13,14 +13,22 @@ Media (``stage_media``), from the render run's directory (``--media``, outside g
 * each clip's poster as a JPEG (quality ``POSTER_QUALITY``; the PNG posters are 3-4 times larger);
 * each plot (``metrics.json`` ``plots``) as a 256-colour PNG (line art on a flat ground: no visible change, a third of
   the bytes);
-* the blind set (``BLIND``): V0 and V6 at 0.40 m/s from both views, copied again under neutral names
-  (``media/blind/clip_<letter>_<view>.mp4``), for the ``#viewers`` view.
+* the blind set (``BLIND``): V0 and V6 at 0.40 m/s from both views under neutral names
+  (``media/blind/clip_<letter>_<view>.mp4`` and ``.jpg``), for the ``#viewers`` view: each the labelled clip (its
+  sha256 checked) decoded, its top label band, which names the rung, painted over and relabelled "Clip <letter> -
+  kinematic reference, not a simulation" (``blind_frame``), and re-encoded with clips.py's settings and metadata that
+  name only the letter; the poster the same from the labelled PNG.
 
 The page has two views.  The owner's (the default) shows everything.  ``#viewers`` (the page's address with that
 hash) shows only the blind clips and the score sheet, for the 3-5 viewers new to the project (research 4.1 item 6):
-each blind clip's top label band, which names the rung, is covered on the page and its native controls (and with
-them full screen) are off.  The score sheet keeps a viewer's draft in the browser (``localStorage``) and copies the
-scores as tab-separated text for the viewer to send; nothing leaves the page by itself.
+each blind clip's top band is covered on the page as well and its native controls (and with them full screen) are
+off.  The score sheet keeps a draft in the browser (``localStorage``), one per view, so the owner's scores never
+prefill a viewer's sheet, and copies the scores as tab-separated text for the viewer to send; nothing leaves the page
+by itself.
+
+The ladder's chips are the four machine tells research 4.1 item 5 lists (a constant hip height, flat feet at
+lift-off, identical steps, synchronous extremes) and today's metronome nod, as metrics.json reads them on the 60 cm
+body at 0.40 m/s (``TELLS_AT``); flat feet count as gone only where the roll reaches the research's 0.3 rad.
 
 Run from hardware/trex_form_study (the page and its media go outside git; ``--manifest`` writes a small record of
 what the page shows, with every file's source and sha256, beside the look results):
@@ -34,14 +42,16 @@ import hashlib
 import json
 import math
 import shutil
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageDraw
 
 from .. import page_kit as K
-from . import look
+from . import clips, look
 
 OUT = look.OUT
 TITLE = "T. rex look review"
@@ -85,8 +95,25 @@ RUNG_TITLE = {"V0": "Today's walk", "V1": "Hip bob and weight acceptance", "V2":
 RUNG_TAG = {"V1": "bob", "V2": "swing time", "V3": "toe-off", "V4": "roll", "V5": "tail, head", "V6": "variation"}
 RUNG_ADDS = {"V0": [], "V1": ["F1", "F2"], "V2": ["F3"], "V3": ["F4", "F5"], "V4": ["F6"], "V5": ["F9", "F10"],
              "V6": ["F14"]}
+#: The four machine tells research_look 4.1 item 5 lists, as metrics.json reads them (``mechanical_tells``): a constant
+#: hip height, flat feet at lift-off, identical steps (a step-time variation of 0) and synchronous extremes.
 TELLS = (("constant_hip_height", "hips at one height"), ("flat_feet_at_lift_off", "flat feet at lift-off"),
-         ("identical_steps", "identical steps"), ("metronome_nod", "metronome nod"))
+         ("identical_steps", "identical steps"), ("synchronous_extremes", "synchronous extremes"))
+#: A fifth chip, not on the research's list: today's head nod on the stride clock (metrics.json ``metronome_nod``).
+NOD = ("metronome_nod", "metronome nod")
+#: The ladder and the extras in the order the page lists them.
+LADDER_X = LADDER + look.EXTRAS
+#: The walk the ladder's chips read: the 60 cm body at the speed of the ladder's clips.
+TELLS_AT = ("60-N-T-10", LADDER_SPEED)
+#: The flat-feet chip is struck only where the roll at lift-off reaches the research's low end (F5's 0.3-0.5 rad) as
+#: the page reads it, to two decimals (F14's jittered steps measure 0.2999 rad); from metrics.json's 0.01 rad up to it
+#: the feet roll a little and the chip is "partly" gone.
+TOE_OFF_LOW = look.TOE_OFF_RANGE[0]
+TOE_OFF_TOL = 0.005
+#: The phase chart's parts (metrics.json ``parts``) as the synchronous pairs name them.
+PART = {"hip_height": "hip height", "trunk_roll": "trunk roll", "head_pitch": "head pitch",
+        "snout_height": "snout height", "tail_yaw": "tail swing", "sway": "sideways sway",
+        "left_foot_height": "foot height", "left_foot_pitch": "foot pitch"}
 RUBRIC = (
     ("1", "Foot placement and roll", "Feet lift and land flat; shuffling or slapping",
      "Feet peel off from the toes and land quietly and deliberately"),
@@ -156,12 +183,84 @@ def blind_name(letter: str, view: str, ext: str) -> str:
     return f"blind/clip_{letter}_{view}.{ext}"
 
 
-def _copy_checked(src: Path, dst: Path, want: str) -> None:
+def _check(src: Path, want: str) -> None:
     got = sha256(src)
     if got != want:
         raise ValueError(f"{src}: sha256 {got[:12]} is not the {want[:12]} clips.json records")
+
+
+def _copy_checked(src: Path, dst: Path, want: str) -> None:
+    _check(src, want)
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, dst)
+
+
+# The blind copies: a labelled clip's top band names its rung, so each blind clip and poster is the labelled one with
+# that band painted over (opaque, down to the next 16 px row, H.264's macroblock rows, so nothing of the old text
+# survives the re-encode) and relabelled with the clip's letter and clips.LABEL, in clips.py's band layout.
+BAND_BG = (252, 252, 251)
+BAND_INK = ((11, 11, 11), (82, 81, 78))
+
+
+def blind_band_rows(entry: dict) -> int:
+    """The rows a clip's top band covers (clips.py ``BANDS_PX``, ``LINE_PX``), rounded up to a multiple of 16."""
+    px = clips.BANDS_PX[0] + clips.LINE_PX * (entry["label_lines"][0] - 2)
+    return 16 * math.ceil(px / 16)
+
+
+def blind_lines(letter: str) -> list[str]:
+    return [f"Clip {letter} – {clips.LABEL}", "perfect tracking, no physics"]
+
+
+def blind_frame(img: np.ndarray, letter: str, rows: int) -> np.ndarray:
+    """``img`` (h, w, 3) with its first ``rows`` rows replaced by the blind band (``blind_lines``); the rest unchanged."""
+    im = Image.fromarray(np.ascontiguousarray(img, np.uint8))
+    dr = ImageDraw.Draw(im)
+    W = im.size[0]
+    dr.rectangle([0, 0, W - 1, rows - 1], fill=BAND_BG)
+    y = 5
+    for k, s in enumerate(blind_lines(letter)):
+        dr.text((12, y), s, fill=BAND_INK[min(k, 1)], font=clips._fit(dr, s, 15 if k == 0 else 13, k == 0, W - 24))
+        y += 21 if k == 0 else 17
+    return np.asarray(im)
+
+
+def decode(path: Path, size: tuple[int, int]) -> np.ndarray:
+    """An MP4's frames as (n, h, w, 3) uint8 RGB (ffmpeg)."""
+    exe = shutil.which("ffmpeg")
+    if exe is None:
+        raise RuntimeError("ffmpeg is not on PATH")
+    w, h = size
+    out = subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt",
+                          "rgb24", "-"], capture_output=True, check=True).stdout
+    if len(out) % (w * h * 3):
+        raise ValueError(f"{path}: {len(out)} bytes of frames is not a whole number of {w} x {h} frames")
+    return np.frombuffer(out, np.uint8).reshape(-1, h, w, 3)
+
+
+def blind_clip(src: Path, entry: dict, letter: str, dst: Path) -> dict:
+    """The blind copy of a labelled clip (``entry``: its clips.json record): decoded, its top band replaced
+    (``blind_frame``) and re-encoded with clips.py's settings (``clips.encode``), its metadata naming only the letter."""
+    _check(src, entry["sha256"])
+    frames = decode(src, tuple(entry["size"]))
+    if len(frames) != entry["frames"]:
+        raise ValueError(f"{src}: decoded {len(frames)} frames, clips.json records {entry['frames']}")
+    rows = blind_band_rows(entry)
+    out = np.empty_like(frames)
+    for k, f in enumerate(frames):
+        out[k] = blind_frame(f, letter, rows)
+    del frames
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    enc = clips.encode(out, dst, fps=entry["fps"], meta=dict(
+        title=f"Clip {letter}", comment=f"{clips.LABEL}; blind copy for the look review (designlab/stage2/look_page.py)"))
+    return dict(band_rows=rows, encode=enc["settings"])
+
+
+def blind_poster(src: Path, entry: dict, letter: str, dst: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    img = np.asarray(Image.open(src).convert("RGB"))
+    Image.fromarray(blind_frame(img, letter, blind_band_rows(entry))).save(dst, "JPEG", quality=POSTER_QUALITY,
+                                                                            optimize=True, progressive=True)
 
 
 def _jpeg(src: Path, dst: Path) -> None:
@@ -194,10 +293,11 @@ def stage_media(d: Docs, media: Path, out: Path) -> list[dict]:
     for letter, b, v in BLIND:
         for view in ("visitor", "side"):
             e = d.clip(b, BLIND_SPEED, v, view)
-            _copy_checked(media / e["file"], mdir / blind_name(letter, view, "mp4"), e["sha256"])
-            row("blind clip", blind_name(letter, view, "mp4"), media / e["file"], letter=letter)
-            _jpeg(media / e["poster"], mdir / blind_name(letter, view, "jpg"))
-            row("blind poster", blind_name(letter, view, "jpg"), media / e["poster"], letter=letter)
+            enc = blind_clip(media / e["file"], e, letter, mdir / blind_name(letter, view, "mp4"))
+            row("blind clip", blind_name(letter, view, "mp4"), media / e["file"], letter=letter, **enc)
+            blind_poster(media / e["poster"], e, letter, mdir / blind_name(letter, view, "jpg"))
+            row("blind poster", blind_name(letter, view, "jpg"), media / e["poster"], letter=letter,
+                band_rows=enc["band_rows"])
     for p in d.metrics["plots"]:
         _plot(media / p, mdir / p)
         row("plot", p, media / p)
@@ -311,6 +411,30 @@ def moves(d: Docs, v: str, base: str | None = None) -> list[tuple[str, dict]]:
     return [(lab, vv) for _, lab, vv in out]
 
 
+def crossings(d: Docs, v: str, base: str | None = None) -> list[tuple[str, str, str, str, float, float]]:
+    """The readings (``readings``) under 1 on the rung before (or ``base``) and at or over 1 on ``v``, however little
+    they move: [(body, speed, key, kind on v, before, after)]."""
+    base = base or prev_rung(v)
+    out = []
+    for b, s in combos():
+        r0, r1 = readings(d.s(b, s, base)), readings(d.s(b, s, v))
+        out += [(b, s, key, r1[key][0], r0[key][1], r1[key][1]) for key in r0 if r0[key][1] < 1.0 <= r1[key][1]]
+    return out
+
+
+#: "at <speed>" in running text.
+AT = {"nominal": "at the nominal walk", "v040": "at 0.40 m/s", "fr05": "at the animal pace"}
+
+
+def crossing_text(b: str, s: str, key: str, kind: str, a: float, c: float) -> str:
+    """'the 75 cm tail servo's sustained load with joint friction over its limit at 0.40 m/s (0.968 to 1.014)'."""
+    if "+" in key:
+        what = f"{key.split('+')[0]} servo's {'sustained load' if kind == 'cont' else 'peak'} with joint friction"
+    else:
+        what = f"{GROUP[key]}'s {KIND[kind]}"
+    return f"the {BODY_SHORT[b]} {what} over its limit {AT[s]} ({ratio(a)} to {ratio(c)})"
+
+
 def rel(a: float, b: float) -> float:
     return b / a - 1.0
 
@@ -374,16 +498,62 @@ def plot_figure(d: Docs, rel_path: str, alt: str, plate: str, caption: str, attr
 PLOT_SIZE: dict[str, tuple[int, int]] = {}
 
 
-def tells_html(m: dict) -> str:
+def pair_text(pair) -> str:
+    return " + ".join(PART.get(p, p) for p in pair)
+
+
+def tell_states(m: dict) -> list[tuple[str, str]]:
+    """One walk's tells (metrics.json): (key, state) for the research's four (``TELLS``) and the nod (``NOD``), the
+    state "on" (present), "off" (gone) or, for flat feet only, "part" (the foot rolls at lift-off, but less than the
+    research's ``TOE_OFF_LOW``)."""
     t = m["mechanical_tells"]
-    chips = []
-    for key, lab in TELLS:
-        if t[key]:
-            chips.append(f'<span class="tell on">{esc(lab)}</span>')
+    out = []
+    for key, _ in TELLS + (NOD,):
+        if key == "flat_feet_at_lift_off" and not t[key]:
+            out.append((key, "off" if m["toe_off"]["at_lift_off_rad"] >= TOE_OFF_LOW - TOE_OFF_TOL else "part"))
         else:
-            chips.append(f'<span class="tell off"><s>{esc(lab)}</s><span class="vh"> (gone)</span></span>')
-    n = sum(1 for key, _ in TELLS if t[key])
-    return f'<div class="tells" aria-label="{n} of {len(TELLS)} machine tells">{"".join(chips)}</div>'
+            out.append((key, "on" if t[key] else "off"))  # synchronous extremes: the pairs, none when gone
+    return out
+
+
+def tells_html(m: dict) -> str:
+    """The chips under a rung (``tell_states``) and a note: the roll where flat feet are partly gone and the pairs of
+    parts that peak together."""
+    labels = dict(TELLS + (NOD,))
+    chips = []
+    for key, state in tell_states(m):
+        cls = "tell" + (" extra" if key == NOD[0] else "")
+        lab = esc(labels[key])
+        if state == "on":
+            chips.append(f'<span class="{cls} on">{lab}</span>')
+        elif state == "part":
+            chips.append(f'<span class="{cls} part">{lab}<span class="vh"> (partly gone)</span></span>')
+        else:
+            chips.append(f'<span class="{cls} off"><s>{lab}</s><span class="vh"> (gone)</span></span>')
+    notes = []
+    if dict(tell_states(m))["flat_feet_at_lift_off"] == "part":
+        notes.append(f"Feet roll {num(m['toe_off']['at_lift_off_rad'])} rad by lift-off (research: "
+                     f"{TOE_OFF_LOW:g}–{look.TOE_OFF_RANGE[1]:g}).")
+    pairs = m["mechanical_tells"]["synchronous_extremes"]
+    notes.append(("Peak together: " + "; ".join(pair_text(p) for p in pairs) + ".") if pairs
+                 else "No two parts peak together.")
+    return (f'<div class="tells" aria-label="Machine tells at {esc(BODY_SHORT[TELLS_AT[0]])}, '
+            f'{esc(SPEED_SHORT[TELLS_AT[1]])}">{"".join(chips)}</div>'
+            f'<p class="tnote">{" ".join(esc(x) for x in notes)}</p>')
+
+
+def tells_summary(d: Docs, v: str) -> dict:
+    """A rung's tells on all six walks (``tell_states``): per tell, the walks where it is "on", "part" or "off"; the
+    number of synchronous pairs per walk and the pairs every walk shares."""
+    states = {key: {"on": [], "part": [], "off": []} for key, _ in TELLS + (NOD,)}
+    pairs = []
+    for b, s in combos():
+        x = d.m(b, s, v)
+        for key, state in tell_states(x):
+            states[key][state].append((b, s))
+        pairs.append([tuple(p) for p in x["mechanical_tells"]["synchronous_extremes"]])
+    common = [p for p in pairs[0] if all(p in q for q in pairs[1:])]
+    return dict(states=states, n_pairs=[len(p) for p in pairs], common=common)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -465,10 +635,17 @@ def rung_changes(d: Docs, v: str) -> str:
         b, s = "75-M-H-10", "fr05"
         s5, s6 = d.spec(b, s, "V5"), d.spec(b, s, "V6")
         c5, c6 = m(b, s, "V5")["gait"]["cadence_steps_s"], m(b, s, "V6")["gait"]["cadence_steps_s"]
-        lo, hi = sp["var_band"]
+        # the drifts are the window's harmonics inside var_band (gait.slow_variation): their mean periods, shortest
+        # first (the 10.2-10.6 s windows have two: about 5 and 10 s)
+        per: dict[int, list] = {}
+        for bb, ss in combos():
+            info = d.refs["bodies"][bb][ss]["V6"]["info"]
+            for f in sorted(set(info["gaze_freqs_hz"]) | set(info["tail_freqs_hz"])):
+                per.setdefault(round(f * info["window_s"]), []).append(1.0 / f)
+        cyc = " and ".join(f"{sum(p) / len(p):.0f}" for _, p in sorted(per.items(), reverse=True))
         return (f"No two strides are twins: step times vary by about {100 * sp['phase_jitter']:.1f} % and the two "
                 f"sides differ by {100 * sp['asym']:.1f} %, while the gaze ({sp['gaze_var']:.3f} rad) and the tail's "
-                f"swing (±{100 * sp['tail_var']:.0f} %) drift slowly, over {1 / hi:.0f}–{1 / lo:.0f} s. "
+                f"swing (±{100 * sp['tail_var']:.0f} %) drift slowly, in cycles of about {cyc} s. "
                 f"At 75 cm's animal pace V6 also takes a longer stride (F13: {s6['stride_rel']:.3f} H instead of "
                 f"{s5['stride_rel']:.2f} H), which slows the cadence from {c5:.2f} to {c6:.2f} steps per second.")
     raise KeyError(v)
@@ -536,25 +713,33 @@ def rung_cost(d: Docs, v: str) -> str:
                 f"foot stands on its toe line alone: the balance point stays {span(z1, 1)} mm inside it, where it "
                 f"stayed {span(z0, 0)} mm inside the pad before, so a controller will need to model the rolling "
                 f"contact. The grip need falls {pct_span(gn)} at the nominal walk but rises {pct_span(gf)} at the "
-                f"faster walks. The toes clear the floor by {span(cl, 3)} H in mid-swing (gate 0.04 H). Counting the "
+                f"faster walks. The foot pads clear the floor by {span(cl, 3)} H in mid-swing (gate 0.04 H). Counting the "
                 f"joints' friction, the 75 cm tail servo's peak reaches {ratio(t75[1])} at 0.40 m/s (from "
                 f"{ratio(t75[0])}) until V5 fixes the tail's timing.")
     if v == "V4":
         mv = moves(d, "V4")
+        cx = crossings(d, "V4")
         dm = [abs(rel(mu(s_(b, s, "V3")), mu(s_(b, s, "V4")))) for b, s in combos()]
         tj = [s_(b, s, "V4")["clearance"]["tightest_joint"][1] for b, s in combos()]
-        return ("Nothing measurable: " + ("no motor's ratio moves by 0.05 or more" if not mv else
-                                          f"{len(mv)} ratios move by 0.05 or more")
-                + f", and the grip need moves by under {100 * max(dm) + 0.05:.1f} %. The roll uses a little hip-roll "
+        return (("Almost nothing" if cx else "Nothing measurable") + ": "
+                + ("no motor's ratio moves by 0.05 or more" if not mv else f"{len(mv)} ratios move by 0.05 or more")
+                + f" and the grip need moves by under {100 * max(dm) + 0.05:.1f} %"
+                + (", but the small rise takes " + "; and ".join(crossing_text(*x) for x in cx) if cx else "")
+                + ". The roll uses a little hip-roll "
                 f"range; the tightest joint keeps {span(tj, 2)} rad inside its usable range (gate 0.10 rad).")
     if v == "V5":
         tc = [(passive(s_(b, s, "V4"), "tail", "cont"), passive(s_(b, s, "V5"), "tail", "cont")) for b, s in combos()]
+        pw = [(s_(b, s, "V4")["passive"]["tail"]["power_mean_total_w"], s_(b, s, "V5")["passive"]["tail"]["power_mean_total_w"])
+              for b, s in combos()]
         n = (passive(s_("60-N-T-10", "v040", "V4"), "neck", "peak"), passive(s_("60-N-T-10", "v040", "V5"), "neck", "peak"))
         dz = [rel(twist(s_(b, s, "V4")), twist(s_(b, s, "V5"))) for b, s in combos()]
         dm = [rel(mu(s_(b, s, "V4")), mu(s_(b, s, "V5"))) for b, s in combos()]
         return (f"It frees load. Counting the joints' friction, the tail servo's sustained load falls from "
-                f"{span([a for a, _ in tc])} to {span([c for _, c in tc])} of its limit: the body's sway now swings "
-                f"the tail and the servo only brakes it. The 60 cm neck servo's peak falls back under its limit "
+                f"{span([a for a, _ in tc])} to {span([c for _, c in tc])} of its limit: the body's sway now does "
+                "most of the swinging and the servo mostly brakes it (its mean power with the friction "
+                f"{span([a for a, _ in pw])} W before, {span([c for _, c in pw])} W now"
+                + (", still positive" if min(c for _, c in pw) > 0 else "") + "). "
+                f"The 60 cm neck servo's peak falls back under its limit "
                 f"({ratio(n[0])} to {ratio(n[1])} at 0.40 m/s). The standing foot's peak twist falls {pct_span(dz)} "
                 f"and its grip need {pct_span(dm)}.")
     if v == "V6":
@@ -570,8 +755,20 @@ def rung_cost(d: Docs, v: str) -> str:
         floor = min(d.screen["grips"])
         nom = g60[0]
         ab = f" ({num(nom[1])} at the nominal walk, above the {floor} floor)" if nom[1] > floor else ""
-        return (f"At 60 cm nothing new: the knee's speed rises by at most {num(max(k60))} and the grip need by up to "
-                f"{max(100 * rel(a, c) for a, c in g60):.0f} %{ab}. At 75 cm's animal pace V6 is over a limit: the "
+        # F14's tail drift at 60 cm: the tail's Stage 0 worst ratio and its peak with joint friction, V5 to V6
+        t0 = [(worst(s_("60-N-T-10", ss, "V5")["drives"]["tail"]), worst(s_("60-N-T-10", ss, "V6")["drives"]["tail"]))
+              for ss in SPEEDS]
+        tp = [(passive(s_("60-N-T-10", ss, "V5"), "tail", "peak"), passive(s_("60-N-T-10", ss, "V6"), "tail", "peak"))
+              for ss in SPEEDS]
+        tk = {k for pair in t0 for k, _ in pair}
+        over60 = any(x >= 1.0 for ss in SPEEDS for _, x in readings(s_("60-N-T-10", ss, "V6")).values())
+        return (f"At 60 cm {'nothing over a limit' if not over60 else 'a limit is crossed'}: the knee's speed rises by at "
+                f"most {num(max(k60))}, the grip need by up to "
+                f"{max(100 * rel(a, c) for a, c in g60):.0f} %{ab}, and F14's tail drift raises the tail servo's "
+                f"Stage 0 {KIND[next(iter(tk))] + ' ratio' if len(tk) == 1 else 'ratio'} by "
+                f"{span([c[1] - a[1] for a, c in t0])} and its peak with joint friction by "
+                f"{span([c - a for a, c in tp])}, to at most {num(max([c[1] for _, c in t0] + [c for _, c in tp]))}. "
+                "At 75 cm's animal pace V6 is over a limit: the "
                 f"knee reaches {ratio(k6)} of its speed limit on the shortest swing ({cause['fastest_swing_s']:.3f} s). "
                 f"F13's longer stride alone takes it from {ratio(k5)} to {ratio(k13)} (V5F13, within); F14's "
                 "shorter steps do the rest. Under the plan's rule V6 keeps its features and the 75 cm build loses the "
@@ -579,12 +776,29 @@ def rung_cost(d: Docs, v: str) -> str:
     raise KeyError(v)
 
 
+def pairs_prose(pairs, joint: str = " and ") -> str:
+    return "; ".join(joint.join(PART.get(p, p) for p in pair) for pair in pairs)
+
+
+NUMBER_WORD = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+
+
 def rung_numbers(d: Docs, v: str) -> str:
     m = d.m
+    n_walks = len(combos())
     if v == "V0":
         b6 = {b: m(b, "fr05", "V0") for b in BODIES}
         hp = [m(b, s, "V0")["head"]["world_pitch_rms_deg"] for b, s in combos()]
-        return (f"All four machine tells. The head pitches {span(hp)}° RMS in the world (the closed-loop band is "
+        sm = tells_summary(d, "V0")
+        on = [lab for key, lab in TELLS if len(sm["states"][key]["on"]) == n_walks]
+        nod = len(sm["states"][NOD[0]]["on"]) == n_walks
+        sync = f" ({pairs_prose(sm['common'])} peak together)" if sm["common"] else ""
+        tells = (("All four of the research's machine tells on every walk: " if len(on) == len(TELLS) else
+                  "The research's machine tells on every walk: ")
+                 + ", ".join(on[:-1]) + (" and " if len(on) > 1 else "") + on[-1]
+                 + (sync if TELLS[-1][1] in on else "") + (", with the metronome nod besides" if nod else "") + "."
+                 ) if on else "None of the research's machine tells on every walk."
+        return (f"{tells[0].upper() + tells[1:]} The head pitches {span(hp)}° RMS in the world (the closed-loop band is "
                 f"1.5°). At the animal pace the cadence is {b6['60-N-T-10']['gait']['cadence_steps_s']:.2f} and "
                 f"{b6['75-M-H-10']['gait']['cadence_steps_s']:.2f} steps/s at 60 and 75 cm; a T. rex scaled to the same "
                 f"size would take {b6['60-N-T-10']['bird_curves']['trex_cadence_steps_s']:.2f} and "
@@ -608,9 +822,16 @@ def rung_numbers(d: Docs, v: str) -> str:
                   for b in BODIES] for s in SPEEDS}
         a0 = [a for s in SPEEDS for a, _ in fa[s]]
         a1 = [c for s in SPEEDS for _, c in fa[s]]
-        return (f"Flat feet gone. The feet's peak vertical acceleration rises from {span(a0, 0)} to {span(a1, 0)} "
-                "m/s², the cue the eye's “life detector” responds to. The roll reaches the research's "
-                "0.3–0.5 rad only at the nominal walk (decision list: the claw question and the faster walks).")
+        flat = tells_summary(d, "V3")["states"]["flat_feet_at_lift_off"]
+        gone = [s for s in SPEEDS if all((b, s) in flat["off"] for b in BODIES)]
+        part = [m(b, s, "V3")["toe_off"]["at_lift_off_rad"] for b, s in flat["part"]]
+        where = (" " + " and ".join(AT[s] for s in gone) + (" only" if len(gone) < len(SPEEDS) else "")) if gone else ""
+        return ((f"Flat feet gone{where}, where the roll reaches the research's {TOE_OFF_LOW:g}–"
+                 f"{look.TOE_OFF_RANGE[1]:g} rad; " if gone else "Flat feet only partly gone: ")
+                + (f"elsewhere the feet still leave the floor nearly flat, rolled {span(part, 3)} rad (decision list: "
+                   "the claw question and the faster walks). " if part else "")
+                + f"The feet's peak vertical acceleration rises from {span(a0, 0)} to {span(a1, 0)} "
+                "m/s², the cue the eye's “life detector” responds to.")
     if v == "V4":
         sw = {s: [m(b, s, "V4")["sway"]["com_pp_per_stride_max_H"] for b in BODIES] for s in SPEEDS}
         return (f"Trunk roll {span([m(b, s, 'V4')['trunk']['roll_rms_deg'] for b, s in combos()])}° RMS (the "
@@ -626,7 +847,35 @@ def rung_numbers(d: Docs, v: str) -> str:
         cv = [100 * m(b, s, "V6")["step_times"]["cv"] for b, s in combos()]
         h6 = [m(b, s, "V6")["head"]["world_pitch_rms_deg"] for b, s in combos()]
         x = m("75-M-H-10", "fr05", "V6")
-        return (f"Identical steps gone: none of the four tells is left. Step times vary {span(cv)} % (V5: 0); the "
+        sm = tells_summary(d, "V6")
+        st = sm["states"]
+        gone = [lab for key, lab in TELLS if len(st[key]["off"]) == n_walks]
+        left = [lab for key, lab in TELLS if len(st[key]["off"]) < n_walks]
+        flat = st["flat_feet_at_lift_off"]
+        flat_off = [s for s in SPEEDS if all((b, s) in flat["off"] for b in BODIES)]
+        part = [m(b, s, "V6")["toe_off"]["at_lift_off_rad"] for b, s in flat["part"]]
+        sync_on = st["synchronous_extremes"]["on"]
+        parts = []
+        if gone:
+            parts.append(" and ".join(gone) + (" are" if len(gone) > 1 else " is") + " gone on every walk")
+        if "flat feet at lift-off" in left:
+            if flat["on"]:
+                parts.append(f"flat feet remain on {len(flat['on'])} of {n_walks} walks")
+            elif flat_off:
+                parts.append(f"flat feet are gone only {' and '.join(AT[s] for s in flat_off)} (the other walks roll "
+                             f"{span(part)} rad by lift-off)")
+            else:
+                parts.append(f"flat feet are only partly gone (the feet roll {span(part)} rad by lift-off)")
+        if sync_on:
+            n_p = [k for k in sm["n_pairs"] if k]
+            parts.append(f"synchronous extremes remain: {span(n_p, 0)} pairs of parts still peak together on "
+                         + ("every walk" if len(sync_on) == n_walks else f"{len(sync_on)} of {n_walks} walks")
+                         + (f" (on all {NUMBER_WORD.get(n_walks, n_walks)}: {pairs_prose(sm['common'], ' with ')})"
+                            if sm["common"] else ""))
+        tl = ("None of the research's four tells is left" if not left else
+              "Of the research's four tells, " + "; ".join(parts[:-1]) + ("; and " if len(parts) > 1 else "")
+              + parts[-1])
+        return (f"Identical steps gone: step times vary {span(cv)} % (V5: 0). {tl}. The "
                 f"gaze drift puts the head at {span(h6)}° RMS. At 75 cm's animal pace: stride "
                 f"{x['gait']['stride_H']:.3f} H, {x['gait']['cadence_steps_s']:.2f} steps/s (a T. rex at this size: "
                 f"{x['bird_curves']['trex_cadence_steps_s']:.2f} steps/s with 1.25 H strides).")
@@ -660,7 +909,7 @@ def rung_row(d: Docs, v: str) -> str:
     adds = ", ".join(feats) if feats else "nothing; the reference"
     if v == "V6":
         adds += " (and F13 at 75 cm's animal pace)"
-    tells = tells_html(d.m("60-N-T-10", LADDER_SPEED, v))
+    tells = tells_html(d.m(*TELLS_AT, v))
     base = "V5" if v == "V6" else None
     det = ""
     if v != "V0":
@@ -839,6 +1088,38 @@ def matrix(d: Docs) -> str:
             f'<tbody>{"".join(rows)}</tbody></table></div>')
 
 
+def v4l_tail(d: Docs) -> dict:
+    """V4L (the swing side drops) against V4 (banking toward the stance leg): cheaper on the tail, most at 75 cm.
+    ``row``: the extras table's text; ``short``: the decision list's."""
+    s_ = d.s
+    b7 = "75-M-H-10"
+    fast = ("v040", "fr05")
+    s0 = {(b, s): (worst(s_(b, s, "V4")["drives"]["tail"])[1], worst(s_(b, s, "V4L")["drives"]["tail"])[1])
+          for b, s in combos()}
+    fc = {(b, s): (passive(s_(b, s, "V4"), "tail", "cont"), passive(s_(b, s, "V4L"), "tail", "cont")) for b, s in combos()}
+    fp = {(b, s): (passive(s_(b, s, "V4"), "tail", "peak"), passive(s_(b, s, "V4L"), "tail", "peak")) for b, s in combos()}
+    busiest = [s for s in fast if gov(s_(b7, s, "V4"))[0] == "tail"]
+    under = [s for s in SPEEDS if fc[(b7, s)][1] < 1.0 <= fc[(b7, s)][0]]
+    others = max(abs(readings(s_(b, s, "V4L"))[k][1] - readings(s_(b, s, "V4"))[k][1]) for b, s in combos()
+                 for k in readings(s_(b, s, "V4")) if not k.startswith("tail"))
+    row = (f"Cheaper on the tail than V4, most at 75 cm: the tail's Stage 0 ratio falls by "
+           f"{span([a - c for a, c in s0.values()])} (75 cm: {ratio(s0[(b7, 'nominal')][0])} to "
+           f"{ratio(s0[(b7, 'nominal')][1])} at the nominal walk"
+           + ("; " + " and ".join(f"{ratio(s0[(b7, s)][0])} to {ratio(s0[(b7, s)][1])}" for s in busiest)
+              + " at the faster walks, where the tail is the busiest motor" if busiest else "")
+           + f"); with joint friction its sustained load falls by {span([fc[(b, s)][0] - fc[(b, s)][1] for b in BODIES for s in fast])} "
+           "at the faster walks"
+           + (", which brings the 75 cm tail under its limit ("
+              + "; ".join(f"{ratio(fc[(b7, s)][0])} to {ratio(fc[(b7, s)][1])} {AT[s]}" for s in under)
+              + (f"; its peak with friction stays over, at {' and '.join(ratio(fp[(b7, s)][1]) for s in under)}"
+                 if all(fp[(b7, s)][1] >= 1.0 for s in under) else "") + ")" if under else "")
+           + f". The other motors move by {num(others)} or less.")
+    short = ("cheaper on the tail, especially at 75 cm"
+             + (", where it brings the tail servo's sustained load with joint friction under its limit "
+                + " and ".join(AT[s] for s in under) if under else ""))
+    return dict(row=row, short=short)
+
+
 def extras_table(d: Docs) -> str:
     s_, m_ = d.s, d.m
     b6, b7 = "60-N-T-10", "75-M-H-10"
@@ -855,12 +1136,9 @@ def extras_table(d: Docs) -> str:
                  "its limit: near. That is why the ladder uses 0.30 rad."])
     tj4 = s_(b6, "nominal", "V4")["clearance"]["tightest_joint"][1]
     tjl = s_(b6, "nominal", "V4L")["clearance"]["tightest_joint"][1]
-    tc4 = passive(s_(b6, "nominal", "V4"), "tail", "cont")
-    tcl = passive(s_(b6, "nominal", "V4L"), "tail", "cont")
     rows.append(["V4L", "F6's roll the other way: the swing side drops, as a human pelvis does",
-                 f"Same motor costs as V4; the tightest joint (hip roll) keeps {tjl:.3f} rad of range against V4's "
-                 f"{tj4:.3f} (gate 0.10); the 60 cm tail servo's sustained load with friction {ratio(tcl)} against "
-                 f"{ratio(tc4)} at the nominal walk."])
+                 f"{v4l_tail(d)['row']} The tightest joint (hip roll) keeps {tjl:.3f} rad of range against V4's "
+                 f"{tj4:.3f} (gate 0.10)."])
     k5 = s_(b7, "fr05", "V5")["drives"]["knee"]["speed_ratio"]
     k13 = s_(b7, "fr05", "V5F13")["drives"]["knee"]["speed_ratio"]
     c13 = m_(b7, "fr05", "V5F13")["gait"]["cadence_steps_s"]
@@ -886,13 +1164,24 @@ def extras_table(d: Docs) -> str:
 
 def section_ladder(d: Docs) -> str:
     rungs = "".join(rung_row(d, v) for v in LADDER)
+    b, s = TELLS_AT
+    part = [d.m(b, s, v)["toe_off"]["at_lift_off_rad"] for v in LADDER
+            if dict(tell_states(d.m(b, s, v)))["flat_feet_at_lift_off"] == "part"]
+    dashed = (f" A dashed chip is partly gone: there the feet roll {span(part)} rad by lift-off, against the "
+              f"research's {TOE_OFF_LOW:g}–{look.TOE_OFF_RANGE[1]:g} rad, so they still leave the floor nearly flat."
+              if part else "")
     return f"""
 <section id="ladder" data-only="owner">
   <p class="kicker">The ladder</p><h2>Seven walks, one feature group at a time</h2>
   <p class="prose-w">Each rung keeps everything before it and adds one group, so the difference between neighbours is
-  what that group buys. The chips under each rung name the machine tells the research lists (a constant hip height,
-  flat feet at lift-off, identical steps, a metronome nod) that are still present, and strike out the ones gone.
-  "What it costs" compares each rung with the one before; open the table under it for every ratio that moves.</p>
+  what that group buys. The chips under each rung are the four machine tells the research lists (its 4.1 item 5):
+  hips at one height, flat feet at lift-off, identical steps (no cycle-to-cycle variation in the step times) and
+  synchronous extremes (parts of the body peaking at the same instant; the pairs are named under the chips). A fifth
+  chip, today's metronome nod, is not on its list. The chips read one walk, the {esc(BODY_NAME[b])} at
+  {esc(SPEED_SHORT[s])} (the speed of the ladder's clips), as <code>metrics.json</code> records it: an outlined chip
+  is a tell still present, a struck one is gone.{dashed} The text beside each rung covers both bodies and all three
+  speeds. "What it costs" compares each rung with the one before; open the table under it for every ratio that
+  moves.</p>
   <div class="rungs">{rungs}</div>
   <h3>The busiest motor on every walk</h3>
   <p class="prose-w">The governing ratio: the busiest motor's load as a share of its limit (the tick marks 1.0).
@@ -1091,10 +1380,13 @@ def section_body(d: Docs, b: str) -> str:
     if b == "60-N-T-10":
         g = {s: (mu(d.s(b, s, "V0")), mu(d.s(b, s, "V6"))) for s in ("v040", "fr05")}
         top = max(d.screen["grips"])
+        still = [s for s in ("v040", "fr05") if g[s][1] > top]
         intro = (f"Hip height {H:.3f} m. The 60 cm body chosen for the long training runs (plan S2-1). Its knee is "
                  "the busiest motor at the faster walks on every rung. At those walks today's walk needs more grip "
                  f"than even the grippiest floor the plan assumes ({top}): {g['v040'][0]:.2f} at 0.40 m/s and "
-                 f"{g['fr05'][0]:.2f} at the animal pace. V6 needs less: {g['v040'][1]:.2f} and {g['fr05'][1]:.2f}.")
+                 f"{g['fr05'][0]:.2f} at the animal pace. V6 needs less: {g['v040'][1]:.2f} and {g['fr05'][1]:.2f}"
+                 + (f", {' and '.join('the ' + SPEED_SHORT[s] if s == 'fr05' else SPEED_SHORT[s] for s in still)} "
+                    f"still above {top}" if still else "") + ".")
     else:
         r6 = d.s(b, "fr05", "V6")
         intro = (f"Hip height {H:.3f} m. The only body here with F13, the longer stride, at the animal pace, and the "
@@ -1136,7 +1428,9 @@ def _rows_tail(d: Docs) -> list[dict]:
                          cyc=tp[b][s]["f9_phase_cycles_from_today"],
                          load4=passive(d.s(b, s, "V4"), "tail", "cont"), load5=passive(d.s(b, s, "V5"), "tail", "cont"),
                          p4=d.s(b, s, "V4")["passive"]["tail"]["power_mean_id_w"],
-                         p5=d.s(b, s, "V5")["passive"]["tail"]["power_mean_id_w"]))
+                         p5=d.s(b, s, "V5")["passive"]["tail"]["power_mean_id_w"],
+                         p4t=d.s(b, s, "V4")["passive"]["tail"]["power_mean_total_w"],
+                         p5t=d.s(b, s, "V5")["passive"]["tail"]["power_mean_total_w"]))
     return rows
 
 
@@ -1263,6 +1557,16 @@ def section_tail(d: Docs) -> str:
     l4 = span([r["load4"] for r in rows])
     l5 = span([r["load5"] for r in rows])
     pw = all(r["p4"] > 0 > r["p5"] for r in rows)
+    brake = ""
+    if pw:  # without the joint's losses the servo absorbs work on F9's timing; with them its mean power may stay positive
+        p5t = [r["p5t"] for r in rows]
+        with_losses = (f"it still delivers {span(p5t)} W" if min(p5t) > 0 else
+                       f"its mean power is {num(min(p5t), 2, True)} to {num(max(p5t), 2, True)} W")
+        brake = (" With today's timing the servo pushes the tail, and the joint's friction and damping add to its "
+                 "work; with F9's timing the body's sway does most of the swinging and the servo mostly brakes it: "
+                 f"before the joint's losses its mean power turns negative (it absorbs {span([-r['p5'] for r in rows])} W "
+                 f"where it delivered {span([r['p4'] for r in rows])} W), and counting them {with_losses}, against "
+                 f"{span([r['p4t'] for r in rows])} W with today's timing.")
     over4 = [r for r in rows if r["load4"] >= 1.0]
     rises = [(lab, b, s, a, c) for lab, vals in moves(d, "V5") for (b, s), (a, c) in vals.items() if c - a >= MOVE - 1e-12]
     parts = {lab.split(",")[0].split(" ")[0] for lab, *_ in rises}
@@ -1293,7 +1597,7 @@ def section_tail(d: Docs) -> str:
     {down} below no tail and {vs} below today's tail, with the grip need {gm} lower. On the look walk the same swap
     lowers the peak twist {lk}. The new timing is the one that minimised the twist in a scan of the tail's phase at
     each body and speed.</p>
-    <p>It also unloads the tail servo.{" With today's timing the servo pushes the tail, and the joint's friction and damping add to its work; with F9's timing the body's sway swings the tail and the servo only brakes it." if pw else ""}
+    <p>It also unloads the tail servo.{brake}
     Counting that friction, which Stage 0 leaves out, the tail servo's sustained load falls from {l4} to {l5} of its
     limit{(", and the " + " and ".join(sorted({BODY_SHORT[r["b"]] for r in over4})) + " tail is no longer over it at the faster walks") if over4 else ""}.
     {cost}</p>
@@ -1311,6 +1615,58 @@ def section_tail(d: Docs) -> str:
 # ------------------------------------------------------------------------------------------------
 # Decisions
 # ------------------------------------------------------------------------------------------------
+def toe_rolls(d: Docs) -> dict[tuple[str, str, str], tuple[float, str]]:
+    """F5's roll on every rung with a toe-off (the ladder from V3 and the extras), per body and speed: the largest roll
+    at lift-off over the window's steps (look_refs.json ``rolls``) and where it ends on the rigid foot's sole
+    (``body_info``): "claw" past the middle claw's touch pitch (the foot pivots on the claw's tip, which has no contact
+    in the simulation), "arc" past the transition arc's start but short of the touch pitch (the reference rolls on
+    toward the claw, the real foot still on its toe pad's edge), else "edge"."""
+    out = {}
+    for b in BODIES:
+        info = d.refs["body_info"][b]
+        arc0, touch = info["feet"]["left"]["claw"]["arc"]["start_pitch"], info["toe_clearance"]["clear_pitch_rad"]
+        for s in SPEEDS:
+            rungs = d.refs["bodies"][b][s]
+            for v in [x for x in LADDER_X if x in rungs]:
+                if not rungs[v]["spec"].get("toe_off"):
+                    continue
+                pk = max(r["amplitude"] for side in rungs[v]["rolls"].values() for r in side)
+                out[(b, s, v)] = (pk, "claw" if pk > touch else ("arc" if pk > arc0 else "edge"))
+    return out
+
+
+def _rung_list(vs) -> str:
+    """'V3–V6, V3T and V4L': the ladder's rungs (a run of three or more as a range), then the extras."""
+    lad = [v for v in LADDER if v in vs]
+    if len(lad) > 2 and LADDER.index(lad[-1]) - LADDER.index(lad[0]) == len(lad) - 1:
+        lad = [f"{lad[0]}–{lad[-1]}"]
+    items = lad + [v for v in vs if v not in LADDER]
+    return ", ".join(items[:-1]) + (" and " if len(items) > 1 else "") + items[-1]
+
+
+def roll_groups(rolls: dict, cls: str) -> list[str]:
+    """The walks whose roll ends in ``cls`` (``toe_rolls``), per speed: both sizes together where they share the
+    rungs, each with its rungs and rolls."""
+    g: dict[tuple, list] = {}
+    for (b, s, v), (pk, c) in rolls.items():
+        if c == cls:
+            g.setdefault((b, s), []).append((v, pk))
+
+    def rad(pk):
+        return span(pk, 2 if max(pk) >= 0.1 else 3) + " rad"
+
+    out = []
+    for s in SPEEDS:
+        bs = [b for b in BODIES if (b, s) in g]
+        if len(bs) == len(BODIES) and len({tuple(v for v, _ in g[(b, s)]) for b in bs}) == 1:
+            out.append(f"both sizes {AT[s]} ({_rung_list([v for v, _ in g[(bs[0], s)]])}: "
+                       f"{rad([p for b in bs for _, p in g[(b, s)]])})")
+        else:
+            out += [f"{BODY_SHORT[b]} {AT[s]} ({_rung_list([v for v, _ in g[(b, s)]])}: "
+                    f"{rad([p for _, p in g[(b, s)]])})" for b in bs]
+    return out
+
+
 def section_decide(d: Docs) -> str:
     s_, m_ = d.s, d.m
     b6, b7 = "60-N-T-10", "75-M-H-10"
@@ -1333,6 +1689,15 @@ def section_decide(d: Docs) -> str:
     r6 = s_(b7, "fr05", "V6")
     k6 = r6["drives"]["knee"]["speed_ratio"]
     cause = r6["cause"]["knee speed"]
+    cx4 = crossings(d, "V4")
+
+    def tail_ratios(r):  # the tail's Stage 0 worst ratio, and its sustained and peak with joint friction
+        return worst(r["drives"]["tail"])[1], passive(r, "tail", "cont"), passive(r, "tail", "peak")
+
+    # F14's tail drift, V5 to V6
+    t14 = [(tail_ratios(s_(b, s, "V5")), tail_ratios(s_(b, s, "V6"))) for b, s in combos()]
+    t14_up = max(c - a for r5, r6_ in t14 for a, c in zip(r5, r6_, strict=True))
+    t14_top = max(c for _, r6_ in t14 for c in r6_)
     sw = (m_(b6, "nominal", "V6")["sway"]["com_pp_per_stride_max_H"], m_(b6, "nominal", "V6S")["sway"]["com_pp_per_stride_max_H"])
     cop = (s_(b6, "nominal", "V6")["contact"]["single_support_cop_margin_min_mm"],
            s_(b6, "nominal", "V6S")["contact"]["single_support_cop_margin_min_mm"])
@@ -1343,15 +1708,38 @@ def section_decide(d: Docs) -> str:
     g6n = mu(s_(b6, "nominal", "V6"))
     floor = min(d.screen["grips"])
     brisk = {b: d.screen["v040"][b]["brisk"]["speed_m_s"] for b in BODIES}
-    to_fast = [m_(b, s, "V3")["toe_off"]["at_lift_off_rad"] for b in BODIES for s in ("v040", "fr05")]
+    rolls = toe_rolls(d)
+    # the faster walks' toe-off on every rung with the ladder's F5 (V3's 0.30 rad: the ladder from V3 and the extras
+    # but V3T, the 0.40 rad option); F13's longer stride (75 cm, animal pace) gives the roll more time on the floor
+    fast = [(b, s, v) for b, s, v in rolls
+            if s != "nominal" and d.spec(b, s, v)["toe_off"] == d.spec(b, s, "V3")["toe_off"]]
+    to_fast = [m_(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in fast]
+    f13 = [(b, s, v) for b, s, v in fast if "F13" in m_(b, s, v)["features"]]
+    to_f13 = [m_(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in f13]
+    to_rest = [m_(b, s, v)["toe_off"]["at_lift_off_rad"] for b, s, v in fast if (b, s, v) not in f13]
+    f13_txt = ""
+    if f13 and to_rest and max(to_f13) > max(to_rest):
+        bb, ss = f13[0][:2]
+        gr = [1000 * m_(b, s, v)["toe_off"]["ground_roll_s"] for b, s, v in f13]
+        gr5 = 1000 * m_(bb, ss, "V5")["toe_off"]["ground_roll_s"]
+        f13_txt = (f": {span(to_rest, 3)} rad without F13, and {span(to_f13, 3)} rad at {BODY_SHORT[bb]}'s "
+                   f"{SPEED_SHORT[ss]} with it ({_rung_list(sorted({v for _, _, v in f13}, key=LADDER_X.index))}), "
+                   f"whose longer stride gives the roll {span(gr, 0)} ms on the floor instead of V5's {gr5:.0f}")
     k3t = [s_(b, "nominal", "V3T")["drives"]["knee"]["speed_ratio"] for b in BODIES]
     claw_at = {b: d.refs["body_info"][b]["toe_clearance"]["clear_pitch_rad"] for b in BODIES}
-    on_claw = [combo_label(b, s) for b, s in combos()
-               if d.refs["bodies"][b][s]["V3"]["measured"].get("claw_roll_frames")]
+    arc_at = {b: d.refs["body_info"][b]["feet"]["left"]["claw"]["arc"]["start_pitch"] for b in BODIES}
+    hover = max(d.refs["body_info"][b]["feet"][side]["claw"]["arc"]["hover_max_m"] for b in BODIES
+                for side in ("left", "right"))
+    on_claw, on_arc = roll_groups(rolls, "claw"), roll_groups(rolls, "arc")
     claw_txt = (f"The middle claw reaches ahead of the toe pads and touches the floor once the foot has rolled "
-                f"{claw_at[b6]:.3f} rad (60 cm) or {claw_at[b7]:.3f} rad (75 cm); from there the rigid foot pivots on "
-                f"the claw's tip ({'; '.join(on_claw) if on_claw else 'no walk here'}), where the simulation has no "
-                "contact.")
+                f"{claw_at[b6]:.3f} rad (60 cm) or {claw_at[b7]:.3f} rad (75 cm); past that the rigid foot pivots on "
+                "the claw's tip, where the simulation has no contact. Rolls that far: "
+                + ("; ".join(on_claw) if on_claw else "none here") + ". "
+                + (f"From {arc_at[b6]:.3f} rad (60 cm) or {arc_at[b7]:.3f} rad (75 cm) the reference rolls on toward "
+                   "the claw over a short transition arc, the real foot still on its toe pad's edge (at most "
+                   f"{1000 * hover:.2f} mm above the floor) and its claw not yet down; these walks stop on that arc, "
+                   "short of the claw: " + "; ".join(on_arc) + ". " if on_arc else "")
+                + "Every other roll stays on the pad's edge.")
     feat = [
         ["F1, F2", "Hip bob, weight acceptance", "The body rises and falls with the steps and settles after each "
          "footfall.", f"No limit. Grip need {pct_span(dm1)} lower. With the joints' friction, today's head nod on the "
@@ -1363,15 +1751,18 @@ def section_decide(d: Docs) -> str:
          "nominal walk).", f"No limit. The thigh twist's ratio up by at most {num(tw)}. During the roll the support is "
          "the toe "
          f"line ({span(z, 1)} mm margin). The claw question below."],
-        ["F6", "Trunk roll", "The body banks into each step.", "None measurable."],
+        ["F6", "Trunk roll", "The body banks into each step.",
+         ("Almost none: no ratio moves by 0.05 or more, but the small rise takes "
+          + "; and ".join(crossing_text(*x) for x in cx4) + ".") if cx4 else "None measurable."],
         ["F9, F10", "Tail timing, steady head", "The tail counters the legs; the head stops nodding.",
          f"Frees load: tail servo {pct_span(tcr)} lower with friction; grip need {pct_span(g5)} lower."],
         ["F13", "Longer stride (75 cm, animal pace)", f"Fewer, longer steps read as a bigger animal: {c5:.2f} to "
          f"{c13:.2f} steps/s (a <i>T. rex</i> at this size: {trex:.2f}).",
          f"Knee speed {ratio(k5)} to {ratio(k13)}, within; with F14, over (decision 2)."],
         ["F14", "Variation", "No two strides alike; the gaze and the tail drift slowly.",
-         f"No torque of its own, but its shorter steps push the 75 cm knee over its speed limit at the animal pace "
-         f"({ratio(k6)})."],
+         f"Its tail drift raises the tail servo's ratios by up to {num(t14_up)} (Stage 0 and with joint friction; at "
+         f"most {num(t14_top)}, within), and its shorter steps push the 75 cm knee over its speed limit at the animal "
+         f"pace ({ratio(k6)})."],
         ["F7", "Less sway (optional, not rendered)", f"Narrower sway: {sw[0]:.3f} to {sw[1]:.3f} H at the 60 cm nominal "
          "walk (spec 0.12).", f"The single-support margin inside the pad falls {cop[0]:.0f} to {cop[1]:.0f} mm, the "
          "edge that came before every Stage 1 fall."],
@@ -1428,13 +1819,13 @@ def section_decide(d: Docs) -> str:
     <h3>Smaller choices, if you have a view</h3>
     <ul>
       <li><b>Which way the body rolls (F6).</b> Banking toward the stance leg (V4, rendered) or dropping the swing
-      side (V4L, priced at the same cost, not rendered).</li>
+      side (V4L, not rendered: {v4l_tail(d)['short']}; the table of variants above has the numbers).</li>
       <li><b>How big the bob is (F1).</b> 75 % of the shortening the flat walk forces (rendered); 50 % and 100 % are
       priced (V1B50, V1B100). A rounder bob, without F2's long level hold at the crest, is also possible.</li>
       <li><b>How far the toes roll (F5).</b> 0.30 rad at the nominal walk, the research's low end; 0.40 rad puts the
       knee at {span(k3t, 3)} of its speed limit. At 0.40 m/s and the animal pace the roll reaches only
-      {span(to_fast, 3)} rad: a full toe-off there needs a new feature (the late single-support balance point moved
-      toward the toe line), for you to approve or not.</li>
+      {span(to_fast, 3)} rad{f13_txt}. A full toe-off there needs a new feature (the late single-support balance point
+      moved toward the toe line), for you to approve or not.</li>
       <li><b>The claw (hardware).</b> {claw_txt} Options: a load-bearing claw tip (and claw contact in the model), a
       shorter claw, or a toe-off capped near that roll.</li>
       <li><b>Less sway (F7, V6S).</b> In or out; the cost is in the table above.</li>
@@ -1516,8 +1907,11 @@ def section_rate(d: Docs) -> str:
     <p>The research's rubric (seven items: the behaviour spec's five plus timing and an overall impression) and the
     six Godspeed animacy items, each scored 1 to 5. Rate first yourself if you like. Then show the viewers' version
     of this page to 3–5 people new to the project: open it with <a href="#viewers">#viewers</a> at the end of the
-    address. It shows only the four blind clips below and this sheet, with the labels that name the walk covered.
-    Each viewer scores clips A–D and picks the more lifelike clip of each pair, then copies the scores to you.</p>
+    address. It shows only the four blind clips below and this sheet. The blind clips are re-encoded copies whose top
+    band, which names the walk in every other clip, now reads only the clip's letter, and the page covers it as well.
+    Each viewer scores clips A–D and picks the more lifelike clip of each pair, then copies the scores to you. The
+    browser keeps your draft and the viewers' apart; where viewers take turns on one device, each should press
+    <b>Clear the sheet</b> after sending.</p>
     <p>The lead checks that the items agree (Cronbach's α of at least 0.7, as the Godspeed authors recommend)
     before averaging. The plan's gate asks for scores on V0 and the variant you propose; if your pick differs from V6,
     the lead renders it and swaps it in. Item 6 can only judge the strides' variation here: starts and stops are not
@@ -1532,7 +1926,8 @@ def section_rate(d: Docs) -> str:
     item from 1 to 5 for each clip. Go with your impression, and leave a box empty if you cannot judge an item. The
     labels at the top of each clip are covered on purpose.</p>
     <p>When you are done, press <b>Copy my scores</b> and paste the text into a message to the person who sent you
-    this page. Your scores stay in this browser until you send them.</p>
+    this page. Your scores stay in this browser until you send them. If someone else will score on this device after
+    you, press <b>Clear the sheet</b> once you have sent yours.</p>
   </div>
   {"".join(blind_pair(d, p) for p in pairs)}
   <h3>Score sheet</h3>
@@ -1619,7 +2014,10 @@ a:focus-visible,[data-tip]:focus-visible{outline:2px solid var(--accent);outline
 .tells{display:flex;flex-wrap:wrap;gap:5px}
 .tell{font:500 11px/1.7 "IBM Plex Mono",ui-monospace,monospace;padding:0 6px;border-radius:4px;border:1px solid var(--rule)}
 .tell.on{border-color:var(--warn);color:var(--warn)}
+.tell.part{border-color:var(--warn);border-style:dashed;color:var(--ink-2)}
 .tell.off{color:var(--ink-3)}
+.tell.extra{font-style:italic}
+.rung p.tnote{font:500 11px/1.45 "IBM Plex Mono",ui-monospace,monospace;color:var(--ink-3);margin:0}
 details{border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:0 14px;min-width:0}
 details>summary{cursor:pointer;padding:11px 0;font-weight:600;color:var(--ink-2)}
 details[open]>summary{border-bottom:1px solid var(--grid);margin-bottom:12px}
@@ -1768,7 +2166,10 @@ JS = r"""
 
   var sheet = document.getElementById('sheet');
   if (sheet) {
-    var KEY = 'trex-look-review-scores-v1';
+    // each view keeps its own draft, so the owner's scores never prefill a viewer's sheet (and the other way round)
+    var KEYS = {owner: 'trex-look-review-scores-v1', viewers: 'trex-look-review-scores-viewers-v1'};
+    function keyNow(){ return KEYS[docEl.classList.contains('viewers') ? 'viewers' : 'owner']; }
+    var KEY = keyNow();
     var fields = sheet.querySelectorAll('input, textarea');
     var status = document.getElementById('score-status'), out = document.getElementById('score-text');
     function save(){
@@ -1779,12 +2180,13 @@ JS = r"""
     function restore(){
       var o = null;
       try { o = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { o = null; }
-      if (!o) { return; }
-      each(fields, function(f){ if (f.id === 'score-text') { return; } if (f.type === 'radio') { f.checked = o[f.name] === f.value; } else if (typeof o[f.id] === 'string') { f.value = o[f.id]; } });
+      each(fields, function(f){ if (f.id === 'score-text') { return; } if (f.type === 'radio') { f.checked = !!o && o[f.name] === f.value; } else { f.value = o && typeof o[f.id] === 'string' ? o[f.id] : ''; } });
       each(sheet.querySelectorAll('input.score'), check);
+      out.hidden = true; status.textContent = '';
     }
     function check(f){ var ok = /^[1-5]?$/.test(f.value.trim()); f.setAttribute('aria-invalid', String(!ok)); return ok; }
     restore();
+    window.addEventListener('hashchange', function(){ var k = keyNow(); if (k !== KEY) { KEY = k; restore(); } });
     sheet.addEventListener('input', function(e){ if (e.target.classList.contains('score')) { check(e.target); } save(); });
     sheet.addEventListener('change', save);
     function val(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; }

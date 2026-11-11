@@ -7,9 +7,13 @@ Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_look_page
 2. The page from the committed JSON files: its title, theme tokens and no external resource but Google Fonts; every
    clip, poster and plot staged is shown and nothing else is named; the over-limit walk and the tail-phase numbers as
    screen.json records them; the cost tables' ratios are screen.json's; the viewers' view names no rung, covers every
-   blind clip's label band and turns its native controls off, and the key sits in the owner's view.
-3. With the render run's media (skipped otherwise): the build copies every clip byte for byte (the blind set too),
-   converts the posters and plots, names every file it writes, and stays under the size limit.
+   blind clip's label band and turns its native controls off, and the key sits in the owner's view; the blind band
+   replaces the whole label band; the ladder's chips are the research's four tells (and the nod) as metrics.json reads
+   them; the claw and toe-roll statements read every rung with a toe-off; the review's corrected texts; each view keeps
+   its own score draft.
+3. With the render run's media (skipped otherwise): the build copies every clip byte for byte, re-encodes the blind
+   set with its label band replaced (and nothing else changed beyond one re-encode), converts the posters and plots,
+   names every file it writes, and stays under the size limit.
 """
 
 from __future__ import annotations
@@ -17,15 +21,18 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco is imported)
+from designlab.stage2 import clips  # noqa: E402
 from designlab.stage2 import look_page as LP  # noqa: E402
 
 LOOK = ROOT / "stage2" / "look"
@@ -145,6 +152,81 @@ def test_the_viewers_view_names_no_rung_and_covers_the_labels(built):
     assert "location.hash==='#viewers'" in text
 
 
+def test_blind_frame_replaces_the_whole_band():
+    rng = np.random.default_rng(0)
+    a, b = (rng.integers(0, 256, (480, 854, 3), dtype=np.uint8) for _ in range(2))
+    entry = dict(label_lines=[2, 1])
+    rows = LP.blind_band_rows(entry)
+    assert rows % 16 == 0 and rows >= clips.BANDS_PX[0]
+    fa, fb = LP.blind_frame(a, "A", rows), LP.blind_frame(b, "A", rows)
+    assert np.array_equal(fa[:rows], fb[:rows])  # nothing of the frame's own band survives
+    assert np.array_equal(fa[rows:], a[rows:]) and np.array_equal(fb[rows:], b[rows:])
+    assert not np.array_equal(fa[:rows], LP.blind_frame(a, "B", rows)[:rows])  # the letter is drawn
+    assert LP.blind_lines("C")[0] == f"Clip C – {clips.LABEL}"
+
+
+@needs_json
+def test_ladder_tells_are_the_researchs_four(built):
+    d, text = built
+    assert [k for k, _ in LP.TELLS] == ["constant_hip_height", "flat_feet_at_lift_off", "identical_steps",
+                                        "synchronous_extremes"]
+    assert LP.NOD[0] == "metronome_nod" and "none of the four tells is left" not in text
+    for v in LP.LADDER:
+        m = d.m(*LP.TELLS_AT, v)
+        i = text.index(f'<article class="rung" id="rung-{v}">')
+        head = text[i:text.index("</div>", text.index('<p class="tnote">', i))]
+        for _, lab in LP.TELLS + (LP.NOD,):
+            assert lab in head
+        pairs = m["mechanical_tells"]["synchronous_extremes"]
+        assert all(LP.esc(LP.pair_text(p)) in head for p in pairs)
+        flat = dict(LP.tell_states(m))["flat_feet_at_lift_off"]
+        struck = "<s>flat feet at lift-off</s>" in head
+        assert struck == (m["toe_off"]["at_lift_off_rad"] >= LP.TOE_OFF_LOW - LP.TOE_OFF_TOL)
+        assert flat == ("on" if m["mechanical_tells"]["flat_feet_at_lift_off"] else "off" if struck else "part")
+    # synchronous extremes remain on V6 at every walk, so the page says so
+    assert all(d.m(b, s, "V6")["mechanical_tells"]["synchronous_extremes"] for b, s in LP.combos())
+    assert "synchronous extremes remain" in text
+
+
+@needs_json
+def test_claw_and_toe_roll_read_every_rung(built):
+    d, text = built
+    rolls = LP.toe_rolls(d)
+    for (b, s, v), (pk, cls) in rolls.items():
+        info = d.refs["body_info"][b]
+        touch = info["toe_clearance"]["clear_pitch_rad"]
+        assert (cls == "claw") == (pk > touch)
+    assert rolls[("75-M-H-10", "v040", "V3")][1] == "arc"  # 0.056 rad: on the arc, short of the 0.068 rad claw
+    assert rolls[("75-M-H-10", "fr05", "V6")][1] == "claw" and rolls[("75-M-H-10", "fr05", "V5F13")][1] == "claw"
+    i = text.index("<b>The claw (hardware).</b>")
+    claw = text[i:text.index("</li>", i)]
+    far, arc = claw.split("Rolls that far:")[1].split("From ")
+    assert "75 cm at the animal pace (V6, V5F13 and V6S" in far and "75 cm at 0.40 m/s (V3–V6" not in far
+    assert "75 cm at 0.40 m/s (V3–V6" in arc
+    i = text.index("<b>How far the toes roll (F5).</b>")
+    assert "0.020–0.084 rad" in text[i:text.index("</li>", i)]
+
+
+@needs_json
+def test_texts_the_checker_corrected(built):
+    _, text = built
+    assert "The foot pads clear the floor by" in text and "The toes clear the floor" not in text
+    assert "only brakes" not in text and "mostly brakes it" in text
+    assert "in cycles of about 5 and 10 s" in text and "over 5–20 s" not in text
+    assert "the animal pace still above 0.9" in text
+    assert "over its limit at 0.40 m/s (0.968 to 1.014)" in text  # V4 takes the 75 cm tail over (with friction)
+    assert "No torque of its own" not in text and "Same motor costs as V4" not in text
+    assert "Cheaper on the tail than V4" in text
+
+
+@needs_json
+def test_each_view_keeps_its_own_score_draft(built):
+    _, text = built
+    keys = re.search(r"var KEYS = \{owner: '([^']+)', viewers: '([^']+)'\}", text)
+    assert keys and keys.group(1) != keys.group(2)
+    assert "localStorage.setItem(KEY," in text and "addEventListener('hashchange', function(){ var k = keyNow()" in text
+
+
 @needs_json
 def test_json_slots_name_clips_that_exist(built):
     d, text = built
@@ -174,7 +256,28 @@ def test_build_stages_the_media_exactly(tmp_path):
             assert im.format == "JPEG" and list(im.size) == e["size"]
     for letter, b, v in LP.BLIND:
         for view in ("visitor", "side"):
-            assert by_path[f"media/{LP.blind_name(letter, view, 'mp4')}"]["sha256"] == d.clip(b, LP.BLIND_SPEED, v, view)["sha256"]
+            e = d.clip(b, LP.BLIND_SPEED, v, view)
+            path = tmp_path / "media" / LP.blind_name(letter, view, "mp4")
+            # a re-encode, not a copy: the labelled clip's top band (which names the rung) is replaced
+            assert by_path[f"media/{LP.blind_name(letter, view, 'mp4')}"]["sha256"] != e["sha256"]
+            blind, labelled = LP.decode(path, tuple(e["size"])), LP.decode(MEDIA / e["file"], tuple(e["size"]))
+            assert blind.shape == labelled.shape and len(blind) == e["frames"]
+            rows = LP.blind_band_rows(e)
+            for k in (0, len(blind) // 2):
+                want = LP.blind_frame(labelled[k], letter, rows)
+                assert np.abs(blind[k, :rows].astype(int) - want[:rows].astype(int)).mean() < 3.0
+            mse = ((blind[:, rows:].astype(float) - labelled[:, rows:].astype(float)) ** 2).mean()
+            assert 10 * np.log10(255 ** 2 / mse) > 35.0  # the walk itself: the labelled clip's, re-encoded once
+            assert set(clips.probe(path).items()) >= {("frames", e["frames"]), ("width", e["size"][0]),
+                                                      ("height", e["size"][1])}
+            tags = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags", "-of", "json",
+                                              str(path)], capture_output=True, text=True, check=True).stdout)
+            assert not re.search(rf"\bV[0-6]\b|{b}|{LP.BLIND_SPEED}", json.dumps(tags))
+            with Image.open(tmp_path / "media" / LP.blind_name(letter, view, "jpg")) as im:
+                poster = np.asarray(im.convert("RGB"))
+            with Image.open(MEDIA / e["poster"]) as im:
+                want = LP.blind_frame(np.asarray(im.convert("RGB")), letter, rows)
+            assert np.abs(poster[:rows].astype(int) - want[:rows].astype(int)).mean() < 3.0
     for p in d.metrics["plots"]:
         with Image.open(tmp_path / "media" / p) as a, Image.open(MEDIA / p) as b:
             assert a.size == b.size and a.mode == "P"
