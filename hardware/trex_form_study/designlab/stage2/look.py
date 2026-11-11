@@ -45,7 +45,10 @@ Values (``feature_values``; research 3.1's starting values, the middle of each r
   0.40 rad the claw reaches 7.3 / 9.4 mm below; ``measure``'s ``toe_geoms_below_floor_max_mm``).
 * F6 ``roll_amp`` 0.0262 rad (1.5 deg, 1-2 deg), banking toward the stance leg (V4L: the swing side drops).
 * F9 ``tail_amp`` 0.125 rad (0.10-0.15) at the phase that minimises the stance pad's peak yaw moment on V4
-  (``tail_check``); F10 ``head_mode`` "stabilise", ``head_gain`` 0.9 (0.8-1.0), ``head_settle`` 0.015 rad (0.01-0.02)
+  (``tail_check``; near the flipped phase -pi/2 except at 75 cm nominal, -2.23 rad).  That phase also lowers the
+  single-support friction need below today's phase's at every body and speed, but not always below the tail-less
+  walk's: at 75 cm nominal and 0.40 m/s the friction need's worst frame is not the yaw moment's peak frame
+  (``tail_phase.json``: ``mu_req_max`` beside each peak); F10 ``head_mode`` "stabilise", ``head_gain`` 0.9 (0.8-1.0), ``head_settle`` 0.015 rad (0.01-0.02)
   at ``settle_lag`` 0.075 s (0.05-0.1).
 * F13 ``stride_rel`` 0.875 H (0.85-0.90) at the animal pace, 75 cm only.  F7 ``zmp_inset_y`` 10 mm (8-12).
 * F14: ``phase_jitter`` 1.5 % (1-2 %), ``asym`` 2.5 % (2-3 %), ``var_band`` 0.05-0.2 Hz, ``gaze_var`` 0.015 rad (the

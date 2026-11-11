@@ -9,10 +9,13 @@ Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_look.py -
    runner (with several threads the inverse dynamics' double-support QP differs in the 15th digit).
 2. Each feature measured on generated walks (60-N-T-10, nominal): bob amplitude and trough time, duty from the swing
    time, lift peak, toe-off pitch at lift-off (IK honouring the pitch about the toe pads' front edge), trunk roll,
-   tail and head phase, stride, the variation's bounds and seeds; the ZMP correction's convergence with them.
+   tail and head phase, stride, the variation's bounds and seeds; the ZMP correction's convergence with them.  On
+   75-M-H-10, a coarse animal-pace walk with every feature (F13's stride); both bodies' markers and the rigid foot's
+   toe clearance (F5's finding: the middle toe and claw reach the floor past 0.07-0.08 rad).
 3. Every variant of the committed ladder (``stage2/look/look_refs.json``): IK on every frame, the ZMP inside the
-   support with its recorded margin, the measured features against the spec; one variant regenerated to its recorded
-   sha256 (every variant with STAGE2_SLOW=1); the tail-phase check (``tail_phase.json``) and F9's phase.
+   support with its recorded margin, the correction's convergence against V0's at that body and speed, the measured
+   features against the spec; one variant regenerated to its recorded sha256 (every variant with STAGE2_SLOW=1); the
+   tail-phase check (``tail_phase.json``: research Bottom line 4, the turning screen's straight run) and F9's phase.
 """
 
 from __future__ import annotations
@@ -402,7 +405,9 @@ def test_hybrid_animal_pace_with_every_feature():
     assert m["lift_peak_frac_swing"] == pytest.approx(0.375, abs=0.01)
     assert m["toe_off_peak_rad"] == pytest.approx(0.40, abs=2e-3) and m["toe_off_ground_roll_s"] > 0.0
     assert m["trunk_roll_amp_rad"] == pytest.approx(spec.roll_amp, rel=1e-3) and m["trunk_roll_toward_stance"]
-    assert m["nod_amp_rad"] < 0.005 and m["step_time_dev_max"] <= spec.phase_jitter + spec.asym / 2 + 1e-4
+    # no metronome nod: what is left at the step frequency is F10's settle dip (0.015 rad, twice a stride)
+    assert m["nod_amp_rad"] < 0.01 and not m["mechanical_tells"]["metronome_nod"]
+    assert m["step_time_dev_max"] <= spec.phase_jitter + spec.asym / 2 + 1e-4
     assert np.abs(a["foot_pitch_solved"] - a["foot_pitch"]).max() < 1e-4
 
 
@@ -522,6 +527,10 @@ def test_tail_check_confirms_the_research_reading_and_sets_f9():
                 assert c["fit_max_residual_nm"] < 0.01 and c["no_tail_vs_fit_mean_nm"] < 0.01
                 assert c["confirmed"]["peak_nm"] == pytest.approx(c["predicted_peak_nm"]["best"], abs=0.01)
                 assert c["confirmed"]["peak_nm"] <= c["predicted_peak_nm"]["today"]
+                # the friction need (F21: the yaw moment with the force ratio, worst single-support frame) at F9's
+                # phase is below today's phase's too, though not always below the tail-less walk's (75 cm nominal and
+                # 0.40 m/s: its worst frame is not the yaw moment's peak frame)
+                assert c["confirmed"]["mu_req_max"] < c["runs"][f"{0.5 * math.pi:.6f}"]["mu_req_max"], (b, s)
             assert r["tail_phase_F9_rad"] == v4["best_phase_rad"]
             for v in ("V5", "V6", "V6S"):
                 assert LADDER["bodies"][b][s][v]["spec"]["tail_phase"] == v4["best_phase_rad"]
