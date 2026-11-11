@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Stage 2's expressive head, the -X bodies (STAGE2_PLAN.md S2-2; DECISION_LOG P29: modelled in simulation beside
 # today's head, nothing adopted, P2's deferral of a jaw stands for the build): 60-N-T-10-X and 75-M-H-10-X, each its
-# pick with a neck yaw at the neck base (+-0.6 rad, cut to the clearance screen's usable range) and a hinged jaw
-# (0-0.6 rad), each driven by an STS3215 (designlab/build.py NECK_YAW_RANGE; refine cases head_x_60 and head_x_75).
+# pick with a neck yaw at the neck base (+-0.6 rad) and a hinged jaw (0-0.6 rad), each driven by an STS3215
+# (designlab/build.py NECK_YAW_RANGE; refine cases head_x_60 and head_x_75).  The clearance screen cannot cut either
+# range (it pairs no body with its parent: clearance.SEAM_RULE), so the plant keeps them; the case records hold the
+# seam sweep (head_x.joint_ranges).  Notes: stage2/x/HEAD_X.md.
 # Modelled on arm K's stage1/runs/2026-11-10-speed/run_arm_k.sh: the refine cases' build and screens, then Stage 1's
 # prepare (plant, references, transitions) and gates G1-G3.  G4, the tracker's gate, does not apply.
 #
@@ -20,11 +22,18 @@
 #                  its recorded sha256 (missing or wrong arrays are regenerated in a scratch directory and put in
 #                  place only if they match the record, which is never rewritten), then each gate gates.json lacks
 #                  (G1-G3); with no x_inputs.json yet, it is written at the end
-#   g1             G1 again on both -X bodies, alone and with G1_PROCS processes (default: one per core) as its rule
-#                  asks, replacing their G1 records: run once with the machine otherwise idle
+#   g1             G1 again on both -X bodies, alone and with one process per core as its rule asks (G1_PROCS, if
+#                  set, instead), replacing their G1 records: run once with the machine otherwise idle
+#   gates          G1-G3 again on both -X bodies (G1 as g1 times it), replacing their gate records
+#   records        the head_x cases' candidate records again from the code (x_inputs.py records: each case's build
+#                  in a scratch directory, put in place only when its models match x_inputs.json; the screens are not
+#                  re-run), then refine.json and REFINE.md from the records
 # The CLI's output goes to LOG (default stage2/x/logs, not committed).  At most PROCS processes at a time (default 2:
 # PYTHON_CPU_COUNT=PROCS, since every pool of the prepare and the gates takes os.cpu_count() processes), each at
-# nice 10, so a build elsewhere on the machine keeps its cores; G1's per-core timing takes G1_PROCS (default PROCS).
+# nice 10, so a build elsewhere on the machine keeps its cores, except G1's per-core timing, which takes one process
+# per core as arm K's does (PYTHON_CPU_COUNT unset).  On a shared machine set G1_PROCS (e.g. G1_PROCS=$PROCS): G1 is
+# then recorded as provisional, its step rate timed on G1_PROCS of the machine's cores (gates.PROVISIONAL_RATE_RULE),
+# until g1 runs with one process per core on an otherwise idle machine.
 # Resumable: every step checks its products first and each file is put in place whole; a transitions step cut short
 # saves nothing, and running the script again redoes that body's transitions.
 set -uo pipefail
@@ -32,8 +41,8 @@ cd "$(dirname "$0")/../.." || exit 1  # hardware/trex_form_study
 PY=${PY:-python}
 PROCS=${PROCS:-2}
 case "${1:-run}" in
-    run|build|check|copy-from|g1) CMD=${1:-run}; [ $# -gt 0 ] && shift ;;
-    *) sed -n '2,27p' "$0"; exit 2 ;;
+    run|build|check|copy-from|g1|gates|records) CMD=${1:-run}; [ $# -gt 0 ] && shift ;;
+    *) sed -n '2,38p' "$0"; exit 2 ;;
 esac
 OUT=stage2/x
 INPUTS="$OUT/x_inputs.py"
@@ -64,17 +73,21 @@ p = Path(sys.argv[1]) / "gates.json"
 sys.exit(0 if p.exists() and sys.argv[2] in json.loads(p.read_text()) else 1)
 EOF
 }
-gate() {  # gate $2 of body $1 into gates.json; G1 times G1_PROCS processes (default PROCS)
+gate() {  # gate $2 of body $1 into gates.json; G1 times one process per core as its rule asks (G1_PROCS, if set)
     local b=$1 g=$2 status
     say "$b gates --only $g"
-    if [ "$g" = g1 ]; then
-        PYTHON_CPU_COUNT=${G1_PROCS:-$PROCS} py -m designlab.stage1 gates --body "$b" --out "$OUT" --only g1 \
+    if [ "$g" = g1 ] && [ -n "${G1_PROCS:-}" ]; then
+        say "$b g1: step rate on $G1_PROCS of $(nproc) cores (G1_PROCS); recorded as provisional unless that is all"
+        PYTHON_CPU_COUNT=$G1_PROCS py -m designlab.stage1 gates --body "$b" --out "$OUT" --only g1 \
+            > "$LOG/${b}_gates_g1.log" 2>&1
+    elif [ "$g" = g1 ]; then
+        env -u PYTHON_CPU_COUNT nice -n 10 "$PY" -m designlab.stage1 gates --body "$b" --out "$OUT" --only g1 \
             > "$LOG/${b}_gates_g1.log" 2>&1
     else
         py -m designlab.stage1 gates --body "$b" --out "$OUT" --only "$g" > "$LOG/${b}_gates_$g.log" 2>&1
     fi
     status=$?
-    say "$b $g exit status $status (1: a gate recorded so far failed)"
+    say "$b $g exit status $status (1: a gate recorded so far failed or is provisional, or G1 and G2 are not both in)"
     tail -n 4 "$LOG/${b}_gates_$g.log" | tee -a "$LOG/run_x.log"
 }
 
@@ -170,5 +183,13 @@ case "$CMD" in
     copy-from) py "$INPUTS" copy-from "${1:?copy-from DIR: the checkout to copy the -X inputs from}" ;;
     run) run ;;
     g1) py "$INPUTS" check || exit 1
-        for b in "${BODIES[@]}"; do G1_PROCS=${G1_PROCS:-$(nproc)} gate "$b" g1; done ;;
+        for b in "${BODIES[@]}"; do gate "$b" g1; done ;;
+    gates) py "$INPUTS" check || exit 1
+        for b in "${BODIES[@]}"; do for g in g1 g2 g3; do gate "$b" "$g"; done; done ;;
+    records) py "$INPUTS" check || exit 1
+        py "$INPUTS" records 2>&1 | tee -a "$LOG/run_x.log"
+        [ "${PIPESTATUS[0]}" -eq 0 ] || exit 1
+        say "refine --report-only (refine.json and REFINE.md from the records)"
+        py -m designlab.refine --out round2/refine --report-only > "$LOG/refine_report.log" 2>&1 || exit 1
+        py "$INPUTS" check ;;
 esac

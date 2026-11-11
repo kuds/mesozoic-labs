@@ -16,7 +16,9 @@ build (``refine.head_x_build``, the pick's committed record with the head added)
 (``refine._init``), written to the case's relative path from a scratch working directory.  Re-running ``refine
 --cases head_x_60 head_x_75`` would also rewrite the committed candidate records (each holds its run time).
 ``arrays`` regenerates missing or wrong arrays with ``refs.prepare`` / ``transitions.prepare`` in a scratch directory
-and copies in only those that match the record; the committed records are never rewritten.
+and copies in only those that match the record; the committed records are never rewritten.  ``records`` rewrites the
+cases' committed candidate records (``refine.head_x_one``, as ``refine --cases`` sizes them, without re-running the
+screens), each from a scratch working directory and put in place only when the models it rebuilds match the list.
 
 Run from hardware/trex_form_study (``run_x.sh`` calls it), with PYTHONPATH=. :
 
@@ -24,6 +26,7 @@ Run from hardware/trex_form_study (``run_x.sh`` calls it), with PYTHONPATH=. :
     python stage2/x/x_inputs.py copy-from DIR      # DIR: another checkout (its root or its hardware/trex_form_study)
     python stage2/x/x_inputs.py models
     python stage2/x/x_inputs.py arrays BODY refs|transitions
+    python stage2/x/x_inputs.py records            # rewrite the cases' candidate records (refine.head_x_one)
     python stage2/x/x_inputs.py manifest           # rewrite x_inputs.json from the files here
 """
 
@@ -231,6 +234,60 @@ def models(bodies=X_BODIES) -> int:
     return status
 
 
+def _record(job: tuple[str, str]) -> None:
+    """One case's candidate record (``refine.head_x_one``) in ``work``, from the case's relative path, with the pick's
+    committed record behind a link at its own relative path (the record names that path)."""
+    body, work = job
+    _registry()
+    from designlab import refine
+
+    case = case_of(body)
+    base, cid = refine.HEAD_X_BASE[case]
+    link = Path(work) / "round2" / "refine" / base
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(STUDY / "round2" / "refine" / base)
+    os.chdir(work)
+    refine._init(case)
+    r = refine.head_x_one(case, cid, f"round2/refine/{case}")
+    if not r["ok"]:
+        raise SystemExit(f"{body}: head_x_one failed: " + json.loads(
+            Path(work, "round2", "refine", case, "candidates", f"{cid}.json").read_text()).get("error", "?"))
+
+
+def records(bodies=X_BODIES) -> int:
+    """Rewrite each -X case's candidate record (``refine.head_x_one``: the build, its evaluation, the head_x block),
+    one process per body, each in a scratch working directory; a record is put in place only when the model files
+    its build wrote match the list (the models are not touched)."""
+    import multiprocessing as mp
+
+    _registry()
+    from designlab import refine
+
+    files, status = listed(), 0
+    with tempfile.TemporaryDirectory(prefix="x_records_") as tmp:
+        jobs = []
+        for b in bodies:
+            w = Path(tmp) / b
+            w.mkdir()
+            jobs.append((b, str(w)))
+        print(f"records: {', '.join(bodies)} (one process each, about 2 min)", flush=True)
+        with mp.get_context("spawn").Pool(len(jobs)) as pool:
+            pool.map(_record, jobs, chunksize=1)
+        for b, w in jobs:
+            case = case_of(b)
+            cid = refine.HEAD_X_BASE[case][1]
+            got = {p: _sha(Path(w) / p) for p in model_paths(b)}
+            if any(got[p] != files[p] for p in got):
+                status = 1
+                print(f"records: {b}'s build wrote models with other sha256 (" + ", ".join(
+                    f"{Path(p).name} {(got[p] or 'missing')[:8]} vs {files[p][:8]}" for p in got) + "); not put in place")
+                continue
+            rel = Path("round2", "refine", case, "candidates", f"{cid}.json")
+            shutil.copy2(Path(w) / rel, STUDY / rel)
+            print(f"records: {rel} rewritten (its build's models match {MANIFEST.name})")
+    return status
+
+
 def arrays(body: str, kind: str) -> int:
     """Regenerate ``body``'s missing or wrong arrays of ``kind`` (refs, transitions) in a scratch directory; put each
     in place only if it matches its record (the record stays as committed)."""
@@ -279,6 +336,8 @@ def main(argv: list[str]) -> int:
         return models()
     if cmd == "arrays" and len(argv) == 3:
         return arrays(argv[1], argv[2])
+    if cmd == "records" and len(argv) == 1:
+        return records()
     if cmd == "manifest" and len(argv) == 1:
         return manifest()
     print(__doc__.split("\n\n")[-1])

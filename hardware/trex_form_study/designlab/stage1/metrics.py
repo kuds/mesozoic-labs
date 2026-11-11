@@ -371,10 +371,16 @@ def acceleration_peak(rec: Recorder, ta: float, tb: float, a_lp: np.ndarray | No
     return float(np.max(np.abs(a_lp[sel]))) if sel.any() else None
 
 
-def joint_margins(q: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> np.ndarray:
-    """Each joint's smallest distance to its range over the rows of ``q`` (negative: beyond it)."""
+def joint_margins(q: np.ndarray, lo: np.ndarray, hi: np.ndarray, rest: np.ndarray | None = None) -> np.ndarray:
+    """Each joint's smallest distance to its range over the rows of ``q`` (negative: beyond it).  With ``rest``
+    (``plant.rest_ends``) the end a joint rests on by design is left out (``plant.REST_ON_STOP_RULE``): that joint's
+    margin is the other end's."""
     q = np.atleast_2d(q)
-    return np.minimum(q.min(0) - lo, hi - q.max(0))
+    low, high = q.min(0) - lo, hi - q.max(0)
+    if rest is not None and np.any(rest):
+        rest = np.asarray(rest)
+        low, high = np.where(rest < 0, np.inf, low), np.where(rest > 0, np.inf, high)
+    return np.minimum(low, high)
 
 
 def leg_gap(rec: Recorder, lg) -> dict:

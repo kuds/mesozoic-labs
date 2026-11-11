@@ -150,6 +150,30 @@ HEAD_X_RULE = ("the base case's sized record of the pick (its overrides with the
                "re-selected, so with the two joints locked the body is the pick plus the added parts (the integration "
                "reserve leaves them out, mjcf.body_inertials); its requirements use the base case's sizing walks and "
                "its margins are against the pick's drives")
+#: The head-X body's home pose against its pick's (``head_x.home_pose``, ``against_base_at_pick_pose``).
+HEAD_X_HOME_RULE = (
+    "the build solves the stance for the body as built (pipeline.build_candidate: statics.solve_stance shifts the feet "
+    "fore and aft so that the centre of mass is centred over the support, the trunk pose fixed), so the head-X home is "
+    "not the pick's: the legs' joints differ (joint_change_rad) and against_base and com_ahead_of_hip_m's change compare "
+    "two stances, the added parts with the re-solved stance.  against_base_at_pick_pose and com_ahead_of_hip_m's "
+    "change_at_pick_pose compare the head-X body posed at the pick's home (the new joints at 0) with the pick: the "
+    "added parts alone, as sizing.requirements reads them from that pose.  The plant's usable leg ranges, read by the "
+    "clearance screen from sweeps from home, move a little with the home")
+#: Neither new joint's range is screened at its seam (``head_x.joint_ranges``).
+HEAD_X_RANGES_RULE = (
+    "neither new joint's range is screened at its own seam: the clearance screen pairs no body with its parent "
+    "(clearance.SEAM_RULE), so its sweeps cannot see the neck against the chest (neck yaw) or the jaw against the "
+    "skull and the neck (jaw), and joint_range_usable, which the plant takes, stays at the MJCF limits.  The seam "
+    "sweep (clearance.seam_sweep) is recorded here for the two and, for comparison, for today's neck pitch and tail "
+    "yaw, which share the blind spot")
+HEAD_X_RANGES_DECISION = (
+    "annotated, not cut: neither sweep finds a new contact; what grows is the overlap of coarse proxies that already "
+    "overlap at the seam at home, of the order today's neck pitch shows over its +-0.35 rad (accepted in rounds one and "
+    "two), and the neck proxy against the neck-yaw servo and against today's pitch servo, which this model keeps on the "
+    "trunk (on a yaw stage it would turn with the neck), is packaging the yaw stage's design must settle.  The jaw "
+    "cover is today's, so its part behind the hinge swings up into the skull and the neck as the jaw opens "
+    "(cover_behind_hinge): a build would trim the cover at the hinge; the model keeps it, so that the locked body stays "
+    "today's plus the added parts, and renders of an open jaw show it")
 for _case, (_base, _cid) in HEAD_X_BASE.items():
     CASES[_case] = dict(CASES[_base], ids=(_cid,), overrides=tuple(CASES[_base]["overrides"]) + HEAD_X_OVERRIDES,
                         base_case=_base, head_x=True,
@@ -234,6 +258,20 @@ def head_x_candidate(case: str, base_rec: dict) -> tuple:
     return round2.candidate(cid, ov), sel, float(base_rec["B"])
 
 
+def _margins(design, req: dict, sel: dict) -> dict:
+    """Each group's requirements against its drive (``pipeline.size_candidate``'s margins), for drives ``sel``."""
+    margins = {}
+    for g, r in req["groups"].items():
+        a = design.act(g)
+        spd = a.speed_at(sel["bus"] if a.box is None else None)
+        margins[g] = dict(actuator=a.id, sustained=a.sustained, peak=a.peak, speed=spd,
+                          cont_req=r["cont"], peak_req=r["peak_req"], speed_req=r["speed_req"],
+                          cont_ratio=r["cont"] / a.sustained, peak_ratio=r["peak_req"] / a.peak,
+                          speed_ratio=r["speed_req"] / max(spd, 1e-6), rms=r["rms"], hold=r["hold"],
+                          double_support=r["double_support"])
+    return margins
+
+
 def _evaluate(design, res: dict, req: dict, sel: dict, history: list) -> dict:
     """What ``pipeline.size_candidate`` records for its final build (requirements, holds, walks, margins against
     the drives, walking power, runtime, cost; the same fields in the same order), for a build whose drives and pack
@@ -244,15 +282,7 @@ def _evaluate(design, res: dict, req: dict, sel: dict, history: list) -> dict:
     ms = sizing._motor_space(res["model"].names, nom["tau"], nom["omega"], design.cand.leg_layout)
     pw = power.walking_power(design, req, ms)
     rt = power.runtime(power.catalog.part(sel["battery"]), pw["total_w"])
-    margins = {}
-    for g, r in req["groups"].items():
-        a = design.act(g)
-        spd = a.speed_at(sel["bus"] if a.box is None else None)
-        margins[g] = dict(actuator=a.id, sustained=a.sustained, peak=a.peak, speed=spd,
-                          cont_req=r["cont"], peak_req=r["peak_req"], speed_req=r["speed_req"],
-                          cont_ratio=r["cont"] / a.sustained, peak_ratio=r["peak_req"] / a.peak,
-                          speed_ratio=r["speed_req"] / max(spd, 1e-6), rms=r["rms"], hold=r["hold"],
-                          double_support=r["double_support"])
+    margins = _margins(design, req, sel)
     return dict(requirements={g: r for g, r in req["groups"].items()}, holds=req["holds"], gaits=req["gaits"],
                 walk_feasible=req["walk_feasible"], margins=margins, power=pw, runtime=rt, sizing_history=history,
                 cost=cost.estimate(design, res["rows"], sel))
@@ -294,6 +324,77 @@ def _against(x: dict, base: dict) -> dict:
     return out
 
 
+def head_x_seams(xml) -> dict:
+    """``head_x.joint_ranges``: ``HEAD_X_RANGES_RULE`` with the seam sweep of the model at ``xml`` (each swept joint's
+    range, whether a new contact appears, the deepest growth of a home overlap and, per direction, the first new
+    contact and the three deepest growths), the jaw cover's part behind the hinge, and ``HEAD_X_RANGES_DECISION``."""
+    from . import clearance, sizing
+
+    sw = clearance.seam_sweep(xml)
+    seams = {}
+    for jn, r in sw["joints"].items():
+        seams[jn] = dict(moving=r["moving"], parent=r["parent"], range=r["range"], new_contact=r["new_contact"],
+                         deepens_mm_max=r["deepens_mm_max"],
+                         directions={end: dict(limit=d["limit"], first_new_contact=d["first_new_contact"],
+                                               deepening=d["deepening"][:3])
+                                     for end, d in r["directions"].items() if d.get("swept")})
+    jaw = sw["joints"].get("jaw", {})
+    return dict(screened=False, rule=HEAD_X_RANGES_RULE, seam_rule=clearance.SEAM_RULE,
+                deepen_threshold_mm=sw["deepen_threshold_mm"],
+                joints=[sizing.HEAD_X_JOINT[g] for g in sizing.HEAD_X_GROUPS if sizing.HEAD_X_JOINT[g] in sw["joints"]],
+                seams=seams, cover_behind_hinge=jaw.get("cover_behind_hinge"), decision=HEAD_X_RANGES_DECISION)
+
+
+def head_x_at_pick_pose(base_rec: dict, r: dict, sel: dict) -> dict:
+    """``HEAD_X_HOME_RULE``: the pick rebuilt from its record (its model's sha256 checked) for its home pose; the
+    head-X model's home against it (the trunk's pose and each leg joint's change); and the head-X body posed at the
+    pick's home (the new joints at 0): its centre of mass ahead of the hip and ``sizing.requirements`` from that pose,
+    against the pick's drives (``_margins``).  ``r`` is ``head_x_build``'s result."""
+    import hashlib
+    import tempfile
+
+    import mujoco
+    import numpy as np
+
+    from . import pipeline, round2, sizing
+
+    design, M, qx = r["design"], r["model"], np.asarray(r["q_home"], float)
+    with tempfile.TemporaryDirectory(prefix="head_x_pick_") as tmp:
+        pk = pipeline.build_candidate(round2.candidate(base_rec["id"], base_rec.get("overrides", ())), Path(tmp),
+                                      selection=dict(base_rec["selection"]), B=float(base_rec["B"]), write=False)
+        sha = hashlib.sha256((Path(tmp) / f"{base_rec['id']}.xml").read_bytes()).hexdigest()
+    if sha != base_rec["xml_sha256"]:
+        raise ValueError(f"the pick rebuilt with xml sha256 {sha[:12]}..., its record {base_rec['xml_sha256'][:12]}...")
+    m0, q0 = pk["model"].m, np.asarray(pk["q_home"], float)
+    mx = M.m
+    q = mx.qpos0.copy()  # the new joints at 0 (their reference), every other joint at the pick's home
+    root, joints = 0.0, {}
+    for j in range(m0.njnt):
+        name = mujoco.mj_id2name(m0, mujoco.mjtObj.mjOBJ_JOINT, j)
+        k = mujoco.mj_name2id(mx, mujoco.mjtObj.mjOBJ_JOINT, name)
+        n = 7 if m0.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE else 1
+        a0, ax = int(m0.jnt_qposadr[j]), int(mx.jnt_qposadr[k])
+        q[ax:ax + n] = q0[a0:a0 + n]
+        if n == 7:
+            root = float(np.max(np.abs(qx[ax:ax + 7] - q0[a0:a0 + 7])))
+        elif qx[ax] != q0[a0]:
+            joints[name] = float(qx[ax] - q0[a0])
+    M.forward(q)
+    com_pick = float(M.com()[0])
+    M.forward(qx)
+    worst = max(joints.items(), key=lambda kv: abs(kv[1]), default=(None, 0.0))
+    out = dict(home_pose=dict(rule=HEAD_X_HOME_RULE, pick_xml_sha256=sha, trunk_pose_change_max=root,
+                              joint_change_rad=joints, largest_joint_change=[worst[0], worst[1]]),
+               com_ahead_of_hip_at_pick_pose_m=com_pick)
+    try:
+        req = sizing.requirements(M, q, design.sk.H, design.cand.leg_layout)
+        out["margins_at_pick_pose"] = _margins(design, req, sel)
+    except Exception as e:  # recorded, not fatal: the record's own evaluation stands
+        out["margins_at_pick_pose_error"] = repr(e)
+    M.forward(qx)
+    return out
+
+
 def head_x_one(case: str, cid: str, out: str) -> dict:
     """The sized record of one head-X body: ``head_x_build`` into ``<out>/models``, then ``<out>/candidates/<id>.json``
     with ``round2.size_one``'s fields, the case's settings (as ``_size`` adds them) and ``head_x``: the rule, the base
@@ -323,6 +424,8 @@ def head_x_one(case: str, cid: str, out: str) -> dict:
                                                              cand.leg_layout))
         bat = power.select_battery(pick["bus"], pw["total_w"], pw["peak_drives_w"] + pw["aux"]["input_w"])
         over = sorted(g for g, m in ev["margins"].items() if max(m["cont_ratio"], m["peak_ratio"], m["speed_ratio"]) > 1.0)
+        at_pick = head_x_at_pick_pose(base, r, sel)
+        seams = head_x_seams(Path(out) / "models" / f"{cid}.xml")
         head_x = dict(
             rule=HEAD_X_RULE, case=case, base_case=c["base_case"], base_record=bp.as_posix(),
             base_record_sha256=hashlib.sha256(bp.read_bytes()).hexdigest(), base_xml_sha256=base["xml_sha256"],
@@ -334,13 +437,23 @@ def head_x_one(case: str, cid: str, out: str) -> dict:
             added_mass_kg=sum(row["mass_kg"] for row in added),
             mass_kg=dict(head_x=meas["mass"], base=base["metrics"]["mass"]),
             com_ahead_of_hip_m=dict(head_x=meas["com_ahead_of_hip"], base=base["metrics"]["com_ahead_of_hip"],
-                                    change=meas["com_ahead_of_hip"] - base["metrics"]["com_ahead_of_hip"]),
+                                    change=meas["com_ahead_of_hip"] - base["metrics"]["com_ahead_of_hip"],
+                                    head_x_at_pick_pose=at_pick["com_ahead_of_hip_at_pick_pose_m"],
+                                    change_at_pick_pose=at_pick["com_ahead_of_hip_at_pick_pose_m"]
+                                    - base["metrics"]["com_ahead_of_hip"],
+                                    note="change: each body at its own home (two stances); change_at_pick_pose: the "
+                                         "head-X body at the pick's home (home_pose)"),
+            home_pose=at_pick["home_pose"],
             head_neck_mass_kg=dict(head_x=meas["head_neck_mass"], base=base["metrics"]["head_neck_mass"]),
             groups_over_planning_limit=over,
             meets_case_headroom={g: bool(sizing.meets(d.act(g), req["groups"][g],
                                                       sel["bus"] if d.act(g).box is None else None, g))
                                  for g in req["groups"]},
             against_base=_against(dict(margins=ev["margins"]), base),
+            against_base_at_pick_pose=(_against(dict(margins=at_pick["margins_at_pick_pose"]), base)
+                                       if "margins_at_pick_pose" in at_pick
+                                       else dict(error=at_pick["margins_at_pick_pose_error"])),
+            joint_ranges=seams,
             selection_if_resized=dict(
                 rule="one step of sizing.select on these loads with the case's headroom, and power.select_battery "
                      "on its walking power: recorded only (the sizing loop, which would iterate on the re-selected "

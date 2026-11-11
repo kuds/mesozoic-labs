@@ -26,7 +26,9 @@ G1, the plant:
   ``RATE_STEPS`` steps (the processes per core start their timed runs together), every sample is recorded, and the
   median of the lone process's samples and the median of all the per-core samples are judged (one short sample is
   at the mercy of a passing load: a single 20k-step sample once read 18.5k steps/s alone, while the four per-core
-  processes right after it averaged 26.5k).
+  processes right after it averaged 26.5k).  The machine's cores are recorded (``machine_cores``); a per-core run
+  with fewer processes than cores (``PYTHON_CPU_COUNT`` below the core count, on a shared machine) leaves the step
+  rate, and G1's pass, provisional (None: ``PROVISIONAL_RATE_RULE``) until G1 runs with one process per core.
 
 G2, the references:
 
@@ -295,36 +297,81 @@ def _rate(body: str, steps: int = RATE_STEPS, samples: int = RATE_SAMPLES, plant
     return out
 
 
-def rate_summary(single: list, parallel: list[list], steps: int = RATE_STEPS) -> dict:
+#: When the per-core run's process count is not the machine's core count (``machine_cores``), the step rate is not
+#: judged: ``ok`` is None (provisional) and the samples' reading against the threshold is kept beside it.
+PROVISIONAL_RATE_RULE = (
+    "the rule times one process per core; a run with another number (a pool sized by PYTHON_CPU_COUNT below the core "
+    "count, so that a build elsewhere on the machine keeps its cores) leaves the step rate unjudged (ok None, and G1's "
+    "pass with it, unless another check fails): ok_on_these_processes is these samples against the threshold, and "
+    "the verdict waits for G1 again with one process per core on an otherwise idle machine")
+
+
+def machine_cores() -> dict:
+    """The cores the step-rate rule's "one process per core" counts: the processors this process may run on
+    (``os.sched_getaffinity``, which ``PYTHON_CPU_COUNT`` does not change), else ``os.cpu_count()``; with what
+    ``os.cpu_count()`` returns here and ``PYTHON_CPU_COUNT``, which sets it and so every pool's default size."""
+    try:
+        n, source = len(os.sched_getaffinity(0)), "os.sched_getaffinity(0)"
+    except AttributeError:  # (not on every platform)
+        n, source = os.cpu_count() or 1, "os.cpu_count() (no sched_getaffinity here: PYTHON_CPU_COUNT may set it)"
+    return dict(cores=int(n), cores_source=source, os_cpu_count=os.cpu_count(),
+                python_cpu_count=os.environ.get("PYTHON_CPU_COUNT"))
+
+
+def rate_summary(single: list, parallel: list[list], steps: int = RATE_STEPS, machine: dict | None = None) -> dict:
     """G1's step-rate verdict from every sample: the lone process's samples (``single``) and those of each process of
     the per-core run (``parallel``, one list per process).  The rate per core is the smaller of the two medians (the
-    lone process's samples, and all the per-core samples together), judged against ``MIN_STEPS_PER_S``."""
+    lone process's samples, and all the per-core samples together), judged against ``MIN_STEPS_PER_S``.
+
+    With ``machine`` (``machine_cores``, recorded) the per-core run must have one process per core: with another
+    number the verdict is provisional (``PROVISIONAL_RATE_RULE``: ``ok`` None)."""
     single = [float(v) for v in single]
     parallel = [[float(v) for v in s] for s in parallel]
     med_single = float(np.median(single))
     med_par = float(np.median(np.concatenate(parallel)))
     per_core = min(med_single, med_par)
-    return dict(rule=f"median of every sample ({len(single)} per process, {steps} steps each), alone and with one "
-                     f"process per core, against {MIN_STEPS_PER_S} steps/s",
-                steps_per_sample=int(steps), samples_per_process=len(single), statistic="median",
-                single_process_samples=single, single_process=med_single,
-                processes=len(parallel), per_process_samples=parallel,
-                per_process_median=[float(np.median(s)) for s in parallel], per_process_all_median=med_par,
-                per_process_mean=float(np.mean(np.concatenate(parallel))),
-                lowest_sample=float(min(min(single), *(min(s) for s in parallel))),
-                per_core=per_core, threshold=MIN_STEPS_PER_S, ok=bool(per_core >= MIN_STEPS_PER_S))
+    out = dict(rule=f"median of every sample ({len(single)} per process, {steps} steps each), alone and with one "
+                    f"process per core, against {MIN_STEPS_PER_S} steps/s",
+               steps_per_sample=int(steps), samples_per_process=len(single), statistic="median",
+               single_process_samples=single, single_process=med_single,
+               processes=len(parallel), per_process_samples=parallel,
+               per_process_median=[float(np.median(s)) for s in parallel], per_process_all_median=med_par,
+               per_process_mean=float(np.mean(np.concatenate(parallel))),
+               lowest_sample=float(min(min(single), *(min(s) for s in parallel))),
+               per_core=per_core, threshold=MIN_STEPS_PER_S, ok=bool(per_core >= MIN_STEPS_PER_S))
+    if machine is not None:
+        out["machine"] = dict(machine)
+        if len(parallel) != int(machine["cores"]):
+            env_n = machine.get("python_cpu_count")
+            out.update(ok=None, ok_on_these_processes=out["ok"], provisional_rule=PROVISIONAL_RATE_RULE,
+                       provisional=f"step rate timed on {len(parallel)} of {machine['cores']} cores"
+                                   + (f" (PYTHON_CPU_COUNT={env_n})" if env_n is not None else ""))
+    return out
 
 
 def step_rate(body: str, steps: int = RATE_STEPS, samples: int = RATE_SAMPLES, procs: int | None = None,
               **plant_kw) -> dict:
     """Plant steps per second (zero command, hard floor, envelope on): one process alone, then one per core at once,
-    ``samples`` timed runs of ``steps`` steps in each (``rate_summary``)."""
+    ``samples`` timed runs of ``steps`` steps in each (``rate_summary``, judged against the machine's cores:
+    ``machine_cores``).  The per-core run takes ``procs`` processes (default ``os.cpu_count()``, which
+    ``PYTHON_CPU_COUNT`` sets)."""
+    machine = machine_cores()
     procs = procs or os.cpu_count() or 1
     single = _rate(body, steps, samples, plant_kw)
     ctx = mp.get_context("spawn")
     with ctx.Pool(procs, initializer=_rate_init, initargs=(ctx.Barrier(procs),)) as pool:
         par = pool.starmap(_rate, [(body, steps, samples, plant_kw)] * procs, chunksize=1)
-    return rate_summary(single, par, steps)
+    return rate_summary(single, par, steps, machine=machine)
+
+
+def combine(verdicts) -> bool | None:
+    """Several verdicts as one: False if any is false, else None (provisional) if any is None, else True."""
+    vs = list(verdicts)
+    if any(v is not None and not v for v in vs):
+        return False
+    if any(v is None for v in vs):
+        return None
+    return True
 
 
 def g1(body: str, out_dir: Path | None = None, **plant_kw) -> dict:
@@ -340,9 +387,11 @@ def g1(body: str, out_dir: Path | None = None, **plant_kw) -> dict:
     out["tendon_map"] = tendon_map(body, **plant_kw)
     out["repeatability"] = repeatability(body, **plant_kw)
     out["step_rate"] = step_rate(body, **plant_kw)
-    out["pass"] = bool(all(h["matches_record"] and h["matches_plan"] for h in hashes.values())
-                       and all(s["stands"] for s in out["stand"].values()) and out["tendon_map"]["matches"]
-                       and out["repeatability"]["ok"] and out["step_rate"]["ok"])
+    out["pass"] = combine([all(h["matches_record"] and h["matches_plan"] for h in hashes.values()),
+                           all(s["stands"] for s in out["stand"].values()), out["tendon_map"]["matches"],
+                           out["repeatability"]["ok"], out["step_rate"]["ok"]])
+    if out["pass"] is None:  # every other check passes; the step rate waits for its per-core run
+        out["provisional"] = out["step_rate"]["provisional"]
     out["seconds"] = time.perf_counter() - t0
     return out
 
@@ -362,7 +411,9 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
 
     Joint-range margins are tracked every step (``range_margin_min_rad``); they, the toe heights and the leg gaps
     are also sampled every ``sample_every`` steps, so that a fall's last ``PRE_FALL_S`` (when the body is already
-    going down) can be told apart: the ``*_before_fall`` values leave it out."""
+    going down) can be told apart: the ``*_before_fall`` values leave it out.  The worst margin and the limits
+    reached leave out an end a joint rests on by design (``plant.REST_ON_STOP_RULE``), which ``rest_on_stop``
+    reports (on a body with such a joint)."""
     if list(ref.joints) != p.joints:
         raise ValueError("reference and plant joints differ")
     m, d, env = p.m, p.d, p.envelope
@@ -376,6 +427,10 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
     p.set_state(ref.q[0], qd0)
     jid = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in p.joints]
     lo, hi = m.jnt_range[jid, 0].copy(), m.jnt_range[jid, 1].copy()
+    rest = plant.rest_ends(p.joints)
+    glo, ghi = lo, hi  # the ends the margins judge: every end but one a joint rests on by design
+    if rest.any():
+        glo, ghi = np.where(rest < 0, -np.inf, lo), np.where(rest > 0, np.inf, hi)
     x0 = d.qpos[:2].copy()
     R0 = d.xmat[p.trunk].reshape(3, 3).copy()
     n = int(round(strides * ref.period / m.opt.timestep))
@@ -423,7 +478,7 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
         yaw_prev = yaw
         if (k + 1) % sample_every == 0:
             z, g = p.toe_lowest()
-            mr = np.minimum(qj - lo, hi - qj)
+            mr = np.minimum(qj - glo, ghi - qj)
             j = int(np.argmin(mr))
             samples.append((float(d.time), z, g, float(mr[j]), j))
             if legs is not None:
@@ -441,7 +496,8 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
     ratio_max = wmax / env.rated
     worst = int(np.argmax(ratio_max))
     m_lo, m_hi = qmin - lo, hi - qmax
-    mr = np.minimum(m_lo, m_hi)
+    g_lo, g_hi = qmin - glo, ghi - qmax
+    mr = np.minimum(g_lo, g_hi)
     wj = int(np.argmin(mr))
     cut = dur if fell_at is None else fell_at - PRE_FALL_S
     keep = [s for s in samples if s[0] <= cut]
@@ -464,7 +520,7 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
                envelope_clamps={p.drives[i].actuator: dict(driving=int(clamp_drive[i]), braking=int(clamp_brake[i]))
                                 for i in np.flatnonzero(clamp_drive + clamp_brake)},
                range_margin_min_rad={jn: [float(a), float(b)] for jn, a, b in zip(p.joints, m_lo, m_hi, strict=True)},
-               range_margin_worst=[p.joints[wj], "low" if m_lo[wj] <= m_hi[wj] else "high", float(mr[wj])],
+               range_margin_worst=[p.joints[wj], "low" if g_lo[wj] <= g_hi[wj] else "high", float(mr[wj])],
                joint_limit_reached=[jn for jn, v in zip(p.joints, mr, strict=True) if v <= 0.0],
                joint_limit_first_reached=None if first_limit is None else dict(t_s=first_limit[0],
                                                                                joint=p.joints[first_limit[4]]),
@@ -476,6 +532,19 @@ def replay(p: plant.Plant, ref: Reference, strides: float = REPLAY_STRIDES, star
                leg_gap=None if rows is None else legs.summary(rows),
                leg_gap_before_fall=None if rows is None or fell_at is None else legs.summary(rows[:len(keep)]),
                wall_s=wall, steps_per_s=steps / wall)
+    if rest.any():
+        out["rest_on_stop"] = rest_report(p.joints, rest, m_lo, m_hi)
+    return out
+
+
+def rest_report(joints, rest: np.ndarray, m_lo: np.ndarray, m_hi: np.ndarray) -> dict:
+    """joint -> the end it rests on by design and its margin there (``plant.REST_ON_STOP_RULE``; negative: pressed
+    past its stop), which the judged margins leave out."""
+    out = {}
+    for i in np.flatnonzero(rest):
+        v = float(m_lo[i] if rest[i] < 0 else m_hi[i])
+        out[joints[i]] = dict(end="low" if rest[i] < 0 else "high", margin_rad=v, pressed_past_stop_rad=max(0.0, -v),
+                              rule="the end it rests on: no range limit (plant.REST_ON_STOP_RULE)")
     return out
 
 
@@ -516,16 +585,22 @@ def panel_stats(strides) -> dict:
 def reference_range_margins(p: plant.Plant, ref: Reference) -> dict:
     """The reference's joint excursions against the plant's ranges, under both readings of ``usable_ranges``."""
     q = ref.q[:, p.qadr]
+    rest = plant.rest_ends(p.joints)
     out = {}
     for reading in ("mjcf", "keep"):
         rng = plant.usable_ranges(p.body, inter_leg=reading)
         lo, hi = np.array([rng[j][0] for j in p.joints]), np.array([rng[j][1] for j in p.joints])
         m_lo, m_hi = q.min(0) - lo, hi - q.max(0)
-        mr = np.minimum(m_lo, m_hi)
+        g_lo, g_hi = m_lo, m_hi  # an end a joint rests on by design is no range limit (plant.REST_ON_STOP_RULE)
+        if rest.any():
+            g_lo, g_hi = np.where(rest < 0, np.inf, m_lo), np.where(rest > 0, np.inf, m_hi)
+        mr = np.minimum(g_lo, g_hi)
         w = int(np.argmin(mr))
-        out["screens_reading" if reading == "mjcf" else "literal_reading"] = dict(
-            min_margin_rad=float(mr[w]), joint=p.joints[w], side="low" if m_lo[w] <= m_hi[w] else "high",
+        r = out["screens_reading" if reading == "mjcf" else "literal_reading"] = dict(
+            min_margin_rad=float(mr[w]), joint=p.joints[w], side="low" if g_lo[w] <= g_hi[w] else "high",
             below_min_range={jn: float(v) for jn, v in zip(p.joints, mr, strict=True) if v < MIN_RANGE_RAD})
+        if rest.any():
+            r["rest_on_stop"] = rest_report(p.joints, rest, m_lo, m_hi)
     return out
 
 

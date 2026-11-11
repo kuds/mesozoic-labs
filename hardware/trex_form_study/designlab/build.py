@@ -54,18 +54,26 @@ TAIL_MOTOR_CLEAR_M = 0.003
 #:   about the yaw axis is recorded (``geometry_checks["expressive_head"]``; well under 1 % of the head's).  The yaw
 #:   stage's own bearing is not modelled (its mass and cost, S2-2).
 #: * ``jaw_joint``: today's jaw cover hinged on a lateral axis on its upper edge (the line ``shapes.skull_panels`` lofts
-#:   the jaw from) at the skull station ``JAW_HINGE_AHEAD_M`` ahead of the neck-pitch axis, the rear of the jaw.  The jaw
-#:   body keeps the head body's frame (the hinge is the joint's anchor), so the jaw cover's mass, centre and inertia are
-#:   exactly today's.  Positive opens the mouth (the front of the jaw drops); the jaw rests closed, on its lower stop.
+#:   the jaw from) at the skull station ``JAW_HINGE_AHEAD_M`` ahead of the neck-pitch axis.  That is not the rear of the
+#:   jaw: today's cover starts at the skull's rear (``shapes.skull_profiles``' jaw profile from its first station), about
+#:   18 mm behind the hinge, and that part swings up into the skull and the neck as the jaw opens.  The cover is kept
+#:   whole (a build would trim it at the hinge), so that the body with its joints locked stays today's plus the added
+#:   parts; ``clearance.seam_sweep`` records the overhang (``cover_behind_hinge``).  The jaw body keeps the head body's
+#:   frame (the hinge is the joint's anchor), so the jaw cover's mass, centre and inertia are exactly today's.  Positive
+#:   opens the mouth (the front of the jaw drops); the jaw rests closed, on its lower stop (``clearance.REST_ON_STOP``).
 #:   The jaw servo is the head's, centred on the hinge axis, which it drives directly ([look] section 5.2: in the skull,
 #:   at the jaw hinge).
+#:
+#: Neither joint's range is cut by the clearance screen: it pairs no body with its parent, so its sweeps cannot see the
+#: head against the trunk or the jaw against the head (``clearance.SEAM_RULE``), and the plant keeps these ranges;
+#: ``clearance.seam_sweep`` sweeps those seams (``refine.head_x_seams``).
 #:
 #: Each drive is the selection's ``neck_yaw`` / ``jaw`` part (an STS3215 in the plan) plus ``HEAD_X_BRACKET_KG`` of
 #: horn and bracket ([look] section 5.1: about 0.02 kg, 0.075 kg per servo installed).  The drives are placed after the
 #: covers, so the trunk profile, the covers and every other item stay today's; how they sit in the covers is recorded
 #: (``geometry_checks["expressive_head"]``), and the integration reserve leaves them out (``HEAD_X_META``: the
 #: 0.075 kg is the installed figure).
-NECK_YAW_RANGE = (-0.6, 0.6)  # rad; the plant cuts it to the clearance screen's usable range
+NECK_YAW_RANGE = (-0.6, 0.6)  # rad; the plant's too (the clearance screen cannot cut it: see above)
 JAW_RANGE = (0.0, 0.6)  # rad, closed to open (the jaw rests closed, on its lower stop)
 HEAD_X_BRACKET_KG = 0.020
 #: The jaw hinge (and its servo) this far ahead of the neck-pitch axis at the home pose, by size class: [look] section

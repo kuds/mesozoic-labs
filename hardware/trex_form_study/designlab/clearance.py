@@ -143,6 +143,24 @@ RANGE_MARGIN_RAD = 0.10
 #: (``joint_range_margins[joint]["rests_on_stop"]``) but is no walking range limit, so the ``joint_range_margin`` gate
 #: leaves it out.  No earlier model has such a joint.
 REST_ON_STOP = {"jaw": "min"}
+#: The hinges whose own seam (the moving body against its parent) the body-pair screen leaves out (section 1:
+#: parent/child pairs), so that its joint sweeps cannot see it and cannot cut the joint's range there: today's neck
+#: pitch and tail yaw (the head and the tail on the trunk) and Stage 2's expressive-head neck yaw (the head on the
+#: trunk) and jaw (the jaw on the head).  ``seam_sweep`` sweeps those seams.
+SEAM_JOINTS = ("neck_pitch", "tail_yaw", "neck_yaw", "jaw")
+SEAM_DEEPEN_M = 0.002  # a home overlap that deepens by more than this along a seam sweep is listed
+SEAM_RULE = (
+    "the body-pair screen pairs no body with its parent (section 1), so a joint sweep cannot see the joint's own seam "
+    "(the moving body against its parent: the neck against the chest for the neck pitch and the neck yaw, the tail "
+    "against the trunk for the tail yaw, the jaw against the skull and the neck for the jaw) and cannot cut its range "
+    "there: joint_range_usable stays at the MJCF limit unless another body interferes.  seam_sweep sweeps each such "
+    "joint alone from home to each limit (steps of at most SWEEP_STEP, the other joints at home, root fixed) over every "
+    "screened geom of the moving body against every screened geom of its parent (the cl_* proxies and the hw_* "
+    "primitives, the screen's own set and distance oracle) and reports the pairs apart at home that interfere along "
+    "the sweep (new contacts, panel-level as the screen counts them) and the pairs overlapping at home that overlap "
+    f"more deeply (by more than {1e3 * SEAM_DEEPEN_M:g} mm).  The proxies are coarse hulls of the covers' mid-surfaces "
+    "and meet at a seam by design (the neck proxy reaches into the chest's), so a deepening overlap is where to look, "
+    "not a measured collision")
 MID_SWING = (0.25, 0.75)  # fraction of each swing's duration
 SWEEP_STEP = 0.05  # rad, maximum joint increment along a sweep
 TAIL_PHASES = (0.0, 0.25, 0.5, 0.75)
@@ -1255,6 +1273,120 @@ def _joint_ranges(sweeps: list) -> dict:
         if s["first_new_interference"]:
             rec["first_new_interference"][i] = s["first_new_interference"]["at"][jn]
             rec["limited_by"][i] = s["first_new_interference"]["geoms"]
+    return out
+
+
+def _seam_distances(S: _Screen, A: list, B: list) -> dict:
+    """(a, b) -> signed distance (m, capped at ``REPORT_CAP``) of every pair of ``A`` x ``B`` at the current pose, by
+    the screen's own oracle (``_Screen.dist``) on the pairs whose world AABBs come within the cap."""
+    lo, hi = S.aabb()
+    out = {}
+    for a in A:
+        for b in B:
+            near = np.all((lo[a] - REPORT_CAP <= hi[b]) & (lo[b] - REPORT_CAP <= hi[a]))
+            out[(a, b)] = S.dist(a, b, REPORT_CAP) if near else REPORT_CAP
+    return out
+
+
+def _cover_behind_hinge(S: _Screen, q0: np.ndarray, joint: str, cover: str) -> dict | None:
+    """How far a hinged cover (the visual mesh ``cover`` on ``joint``'s body) reaches behind its hinge at home, along
+    the parent body's forward axis, and how its part behind the hinge moves at the joint's open limit."""
+    m, d = S.m, S.d
+    j = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, joint)
+    g = S.gid(cover)
+    if j < 0 or g < 0 or m.geom_type[g] != _GT.mjGEOM_MESH:
+        return None
+    adr, hi = int(m.jnt_qposadr[j]), float(m.jnt_range[j][1])
+
+    def pts():
+        R = d.geom_xmat[g].reshape(3, 3)
+        return d.geom_xpos[g] + S.verts(g) @ R.T
+
+    S.set_q(q0)
+    anchor = d.xanchor[j].copy()
+    fwd = d.xmat[int(m.body_parentid[m.jnt_bodyid[j]])].reshape(3, 3)[:, 0].copy()
+    P0 = pts()
+    behind = (anchor - P0) @ fwd
+    sel = behind > 0.0
+    q = q0.copy()
+    q[adr] = hi
+    S.set_q(q)
+    P1 = pts()
+    S.set_q(q0)
+    if not sel.any():
+        return dict(cover=cover, joint=joint, extent_behind_hinge_m=0.0)
+    disp = P1[sel] - P0[sel]
+    return dict(cover=cover, joint=joint, hinge_world_m=anchor.tolist(), extent_behind_hinge_m=float(behind.max()),
+                cover_extent_m=float(np.ptp(P0 @ fwd)), open_limit_rad=hi,
+                rise_at_open_limit_m=float(disp[:, 2].max()),
+                displacement_at_open_limit_m=float(np.linalg.norm(disp, axis=1).max()),
+                note="the part of the cover behind the hinge swings up and back as the joint opens")
+
+
+def seam_sweep(xml_path, joints=SEAM_JOINTS, q_home: np.ndarray | None = None, step: float = SWEEP_STEP,
+               top: int = 5) -> dict:
+    """``SEAM_RULE``: each of ``joints`` the model has (a limited hinge), swept alone from home (``q_home``, default the
+    model's ``home`` key) to each limit, every screened geom of its moving body against every one of its parent's.
+    Per joint and direction: the first new contact (panel-level pairs apart at home that interfere) with its pairs, and
+    the home overlaps that deepen by more than ``SEAM_DEEPEN_M`` (the ``top`` deepest, in mm, with where along the
+    sweep).  On a model with a jaw, ``jaw.cover_behind_hinge``: how far today's jaw cover reaches behind the hinge."""
+    S = _Screen(xml_path)
+    m = S.m
+    q0 = (m.key_qpos[0] if q_home is None else np.asarray(q_home, float)).copy()
+    out = dict(rule=SEAM_RULE, deepen_threshold_mm=1e3 * SEAM_DEEPEN_M, step_rad=step, joints={})
+    for jn in joints:
+        jj = S.jnt(jn)
+        if jj is None:
+            continue
+        _, adr, lo, hi = jj
+        jid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)
+        grp = int(S.grp[m.jnt_bodyid[jid]])
+        par = int(S.gpar[grp])
+        A = [int(g) for g in S.screened if S.geom_grp[g] == grp]
+        B = [int(g) for g in S.screened if S.geom_grp[g] == par]
+        S.set_q(q0)
+        home = _seam_distances(S, A, B)
+        pkey = {k: (_panel_key(S.gname[k[0]]), _panel_key(S.gname[k[1]])) for k in home}
+        home_panels = {pkey[k] for k, v in home.items() if v < 0.0}
+        rec = dict(moving=S.bname[grp], parent=S.bname[par], geoms=[len(A), len(B)], range=[lo, hi],
+                   home=float(q0[adr]), pairs_overlapping_at_home=int(sum(v < 0.0 for v in home.values())),
+                   panel_pairs_overlapping_at_home=len(home_panels), directions={})
+        for end, lim in (("min", lo), ("max", hi)):
+            span = lim - float(q0[adr])
+            if abs(span) < 1e-12:
+                rec["directions"][end] = dict(limit=lim, swept=False)
+                continue
+            n = max(1, int(np.ceil(abs(span) / step - 1e-9)))
+            first, deepen = {}, {}
+            for v in np.linspace(float(q0[adr]), lim, n + 1)[1:]:
+                q = q0.copy()
+                q[adr] = v
+                S.set_q(q)
+                for k, dv in _seam_distances(S, A, B).items():
+                    pk = pkey[k]
+                    if dv < 0.0 and pk not in home_panels and pk not in first:
+                        first[pk] = (float(v), float(dv))
+                    grow = home[k] - dv
+                    if home[k] < 0.0 and grow > deepen.get(pk, (0.0, None, None))[0]:
+                        deepen[pk] = (float(grow), float(v), float(dv))
+            S.set_q(q0)
+            new = sorted(first.items(), key=lambda kv: abs(kv[1][0] - float(q0[adr])))
+            deep = sorted(((pk, g) for pk, g in deepen.items() if g[0] > SEAM_DEEPEN_M), key=lambda kv: -kv[1][0])
+            rec["directions"][end] = dict(
+                limit=lim, swept=True, poses=n,
+                first_new_contact=None if not new else dict(at=new[0][1][0], pair=list(new[0][0])),
+                new_contacts=[dict(pair=list(pk), first_at=v, depth_mm=_mm(-dv) if dv < 0 else 0.0)
+                              for pk, (v, dv) in new[:top]], new_contact_pairs=len(new),
+                deepening=[dict(pair=list(pk), deepens_mm=_mm(g), at=v, depth_mm=_mm(-dv)) for pk, (g, v, dv)
+                           in deep[:top]], deepening_pairs=len(deep),
+                deepens_mm_max=_mm(deep[0][1][0]) if deep else 0.0)
+        swept = [r for r in rec["directions"].values() if r.get("swept")]
+        rec["new_contact"] = any(r["first_new_contact"] for r in swept)
+        rec["deepens_mm_max"] = max((r["deepens_mm_max"] for r in swept), default=0.0)
+        if jn == "jaw":
+            rec["cover_behind_hinge"] = _cover_behind_hinge(S, q0, jn, "cover_jaw")
+        out["joints"][jn] = rec
+    out["model"] = _model_name(xml_path)
     return out
 
 
