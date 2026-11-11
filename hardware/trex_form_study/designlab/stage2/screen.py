@@ -959,22 +959,31 @@ def _status(r: dict) -> str:
     return "within"
 
 
+def _tri(vals, nd: int = 3, pct: bool = False) -> str:
+    """Values at the three speeds (nominal / 0.40 m/s / animal pace) as 'a / b / c'."""
+    if pct:
+        return " / ".join("-" if v is None else f"{100 * v:+.1f}" for v in vals) + " %"
+    return " / ".join(_f(v, nd) for v in vals)
+
+
+TRI = "(nominal / 0.40 m/s / animal pace)"
+
+
 def _brief(doc: dict) -> list[str]:
     tp, rungs = doc["tail_phase"], doc["rungs"]
     L = []
     # the tail phase
     per = []
     for b, d in tp.items():
-        adds = [d[s]["changes"]["V0_no_tail_to_today"]["mz_abs_max_nm"]["rel"] for s in d]
-        adds_mu = [d[s]["changes"]["V0_no_tail_to_today"]["mu_req_max"]["rel"] for s in d]
-        f9 = [d[s]["changes"]["V0_phase_today_to_F9"]["mz_abs_max_nm"]["rel"] for s in d]
-        f9_mu = [d[s]["changes"]["V0_phase_today_to_F9"]["mu_req_max"]["rel"] for s in d]
-        v4 = [d[s]["changes"]["V4_today_to_F9_tail"]["mz_abs_max_nm"]["rel"] for s in d]
-        v4_mu = [d[s]["changes"]["V4_today_to_F9_tail"]["mu_req_max"]["rel"] for s in d]
-        per.append(f"{b}: today's tail raises the peak by {_range(adds, pct=True)} and the friction need by "
-                   f"{_range(adds_mu, pct=True)}; F9's phase on the same walk changes them by {_range(f9, pct=True)} and "
-                   f"{_range(f9_mu, pct=True)}; on the look walk (V4 to V4 with F9's tail) by {_range(v4, pct=True)} and "
-                   f"{_range(v4_mu, pct=True)}")
+        def ch(key, q, d=d):
+            return [d[s]["changes"][key][q]["rel"] for s in d]
+
+        per.append(f"{b}: today's tail over no tail, peak {_tri(ch('V0_no_tail_to_today', 'mz_abs_max_nm'), pct=True)}, "
+                   f"mu_req {_tri(ch('V0_no_tail_to_today', 'mu_req_max'), pct=True)}; F9's phase instead of today's on "
+                   f"the same walk, peak {_tri(ch('V0_phase_today_to_F9', 'mz_abs_max_nm'), pct=True)}, mu_req "
+                   f"{_tri(ch('V0_phase_today_to_F9', 'mu_req_max'), pct=True)}; on the look walk (V4 to V4 with F9's "
+                   f"tail), peak {_tri(ch('V4_today_to_F9_tail', 'mz_abs_max_nm'), pct=True)}, mu_req "
+                   f"{_tri(ch('V4_today_to_F9_tail', 'mu_req_max'), pct=True)}")
     rc = [x for d in tp.values() for s in d.values() if s.get("record_check") for x in
           (s["record_check"]["straight"]["friction_max_rel_diff"],
            s["record_check"]["straight_brisk"]["friction_max_rel_diff"])]
@@ -985,8 +994,8 @@ def _brief(doc: dict) -> list[str]:
     lowers_mu = [f"{b} {SPEED_SHORT[s]}" for b, d in tp.items() for s, x in d.items()
                  if not x["f9_phase_lowers_friction_need"]]
     L.append(f"- **Tail phase (research Bottom line 4): {'confirmed' if adds_all and lowers_all else 'see section 2'}.** "
-             "On round two's straight-run reading (stance pad's peak single-support yaw moment |Mz| and friction need "
-             "mu_req, V0 at every body and speed): " + "; ".join(per) + ". "
+             "Round two's straight-run reading of the stance pad's peak single-support yaw moment |Mz| and friction need "
+             f"mu_req, changes {TRI}: " + "; ".join(per) + ". "
              + ("F9's phase lowers the friction need on every V0 walk. " if not lowers_mu else
                 f"F9's phase does not lower the friction need on V0 at {', '.join(lowers_mu)}. ")
              + f"The reading reproduces the friction need of round two's recorded straight runs (nominal and brisk, "
@@ -1032,18 +1041,18 @@ def _brief(doc: dict) -> list[str]:
     pas = []
     for b, d in rungs.items():
         def vals(v, grp, key, d=d):
-            return [e[v]["passive"][grp][key] for e in d.values() if v in e]
+            return [e[v]["passive"][grp][key] if v in e else None for e in d.values()]
 
-        pas.append(f"{b}: the tail at {_range(vals('V0', 'tail', 'cont_ratio_total'))} of A1 on V0 (Stage 0 alone "
-                   f"{_range(vals('V0', 'tail', 'cont_ratio_id'))}; mean power {_range(vals('V0', 'tail', 'power_mean_id_w'))} W) "
-                   f"and {_range(vals('V5', 'tail', 'cont_ratio_total'))} with F9's phase on V5 (power "
-                   f"{_range(vals('V5', 'tail', 'power_mean_id_w'))} W); the neck's peak "
-                   f"{_range(vals('V0', 'neck', 'peak_ratio_total'))} on V0, up to "
-                   f"{_range([max(e[v]['passive']['neck']['peak_ratio_total'] for v in ('V1', 'V2', 'V3', 'V4')) for e in d.values()])} "
-                   f"on V1-V4 (F1/F2's bob) and {_range(vals('V5', 'neck', 'peak_ratio_total'))} on V5 (F10 drops the nod)")
-    L.append("- **Neck and tail with the plant's joint damping and friction** (research Bottom line 3; Stage 0 leaves "
-             "them out, so they cost no rung): " + "; ".join(pas) + ". With today's phase the servo drives the tail "
-             "(positive power) and the damping adds to its load; with F9's the body's sway drives it and the servo "
+        neck14 = [max(e[v]["passive"]["neck"]["peak_ratio_total"] for v in ("V1", "V2", "V3", "V4")) for e in d.values()]
+        pas.append(f"{b}: tail cont {_tri(vals('V0', 'tail', 'cont_ratio_total'))} on V0 (Stage 0 alone "
+                   f"{_tri(vals('V0', 'tail', 'cont_ratio_id'))}; servo power {_tri(vals('V0', 'tail', 'power_mean_id_w'))} "
+                   f"W) and {_tri(vals('V5', 'tail', 'cont_ratio_total'))} with F9's phase on V5 (power "
+                   f"{_tri(vals('V5', 'tail', 'power_mean_id_w'))} W); neck peak {_tri(vals('V0', 'neck', 'peak_ratio_total'))} "
+                   f"on V0, up to {_tri(neck14)} on V1-V4 (F1/F2's bob with today's nod) and "
+                   f"{_tri(vals('V5', 'neck', 'peak_ratio_total'))} on V5 (F10's stabilised head)")
+    L.append(f"- **Neck and tail with the plant's joint damping and friction** {TRI} (research Bottom line 3; Stage 0 "
+             "leaves them out, so they cost no rung): " + "; ".join(pas) + ". With today's phase the servo drives the "
+             "tail (positive power) and the damping adds to its load; with F9's the body's sway drives it and the servo "
              "brakes, which the damping helps.")
     # each feature's step on the friction need and the CoM's vertical acceleration
     steps = (("F1/F2", "V0", "V1"), ("F3", "V1", "V2"), ("F4/F5", "V2", "V3"), ("F6", "V3", "V4"),
@@ -1053,18 +1062,21 @@ def _brief(doc: dict) -> list[str]:
         parts_ = []
         for lab, x, y in steps:
             rel = [e[y]["friction"]["single_support"]["mu_req_max"] / e[x]["friction"]["single_support"]["mu_req_max"] - 1
-                   for e in d.values() if x in e and y in e]
-            parts_.append(f"{lab} {_range(rel, pct=True)}")
+                   for e in d.values()]
+            parts_.append(f"{lab} {_tri(rel, pct=True)}")
         fs.append(f"{b}: " + ", ".join(parts_))
-    L.append("- **Each feature's step on the friction need** (mu_req, change over the three speeds): " + "; ".join(fs)
-             + ". F3 at the nominal walk shortens the swing to 0.32-0.36 s, which accelerates the swing leg harder at "
-               "lift-off (the stance pad's peak yaw moment rises with it).")
+    L.append(f"- **Each feature's step on the friction need** (mu_req, relative change {TRI}): " + "; ".join(fs)
+             + ". F3 changes nothing at the animal pace (its swing time is that walk's own) and at the nominal walk "
+               "shortens the swing to 0.32-0.36 s, which accelerates the swing leg harder at lift-off: the stance pad's "
+               "peak yaw moment rises with it.")
     az = []
     for b, d in rungs.items():
-        az.append(f"{b}: up to {_range([e['V0']['accel']['com_vertical_max'] for e in d.values()], 2)} on V0, "
-                  f"{_range([e['V1']['accel']['com_vertical_max'] for e in d.values()], 2)} on V1 (F2's 0.1 s drop) and "
-                  f"{_range([e['V6']['accel']['com_vertical_max'] for e in d.values()], 2)} on V6")
-    L.append("- **The CoM's vertical acceleration** (m/s^2, upward peak; the stance legs carry it): " + "; ".join(az) + ".")
+        def up(v, d=d):
+            return [e[v]["accel"]["com_vertical_max"] for e in d.values()]
+
+        az.append(f"{b}: V0 {_tri(up('V0'), 2)}, V1 {_tri(up('V1'), 2)} (F2's 0.1 s drop), V3 {_tri(up('V3'), 2)} "
+                  f"(F5's short roll), V6 {_tri(up('V6'), 2)}")
+    L.append(f"- **The CoM's upward acceleration peak** (m/s^2 {TRI}; the stance legs carry it): " + "; ".join(az) + ".")
     # grip
     g54 = [(b, s, v) for b, d in rungs.items() for s, e in d.items() for v in ORDER if v in e
            and not e[v]["friction"]["grips"]["0.54"]]
@@ -1082,16 +1094,17 @@ def _brief(doc: dict) -> list[str]:
     # V0 to V6
     parts = []
     for b, d in rungs.items():
-        for s, e in d.items():
-            c = e["V6"]["vs_V0"]
-            parts.append(f"{b} {SPEED_SHORT[s]}: governing {_f(c['governing ratio'][0])} to {_f(c['governing ratio'][1])} "
-                         f"({_gov(e['V0'])} to {_gov(e['V6'])}); knee speed {_f(c['knee speed'][0])} to "
-                         f"{_f(c['knee speed'][1])}; tail with passive {_f(c['tail cont with passive'][0])} to "
-                         f"{_f(c['tail cont with passive'][1])}; mu_req {_f(c['friction need mu_req'][0])} to "
-                         f"{_f(c['friction need mu_req'][1])}; CoM vertical accel up to "
-                         f"{_f(c['CoM vertical accel max (m/s^2)'][0], 2)} to {_f(c['CoM vertical accel max (m/s^2)'][1], 2)} "
-                         f"m/s^2")
-    L.append("- **V0 to V6 (section 6 for every number):** " + "; ".join(parts) + ".")
+        def pair(label, nd=3, d=d):
+            v0 = [e["V6"]["vs_V0"][label][0] for e in d.values()]
+            v6 = [e["V6"]["vs_V0"][label][1] for e in d.values()]
+            return f"{_tri(v0, nd)} to {_tri(v6, nd)}"
+
+        parts.append(f"{b}: governing {pair('governing ratio')}; knee speed {pair('knee speed')}; hip pitch "
+                     f"{pair('hip pitch worst')}; thigh twist {pair('thigh twist worst')}; tail cont with passive "
+                     f"{pair('tail cont with passive')}; neck peak with passive {pair('neck peak with passive')}; mu_req "
+                     f"{pair('friction need mu_req')}; sway {pair('sway Stage 0 (H)')} H; CoM upward accel "
+                     f"{pair('CoM vertical accel max (m/s^2)', 2)} m/s^2")
+    L.append(f"- **V0 to V6** {TRI} (section 6 for every number): " + "; ".join(parts) + ".")
     return L
 
 
@@ -1100,10 +1113,11 @@ def markdown(doc: dict) -> str:
     tp, rungs, lim = doc["tail_phase"], doc["rungs"], doc["limits"]
     prov = doc["provenance"]["git"]
     L = ["# Stage 2 look ladder: the Stage 0 screen (before any render)", ""]
-    L += [f"Generated by `python -m designlab.stage2.screen run` (`designlab/stage2/screen.py`) at commit "
+    L += [f"Numbers from `python -m designlab.stage2.screen run` (`designlab/stage2/screen.py`) at commit "
           f"`{(prov.get('commit') or '?')[:12]}`" + (" (clean tree)" if prov.get("dirty") is False else
                                                      f" (dirty: {', '.join(prov.get('dirty_paths') or [])})")
-          + "; numbers in `stage2/look/screen.json`, each block under the source function its `sources` names. "
+          + ", in `stage2/look/screen.json`, each block under the source function its `sources` names; this page is "
+          "rendered from that file alone (`screen.markdown`; `python -m designlab.stage2.screen md`). "
           "Simulation only: prescribed references with perfect tracking on the round-two models (STAGE2_PLAN 4 A.2-A.3; "
           "research_look 4.1 item 2). Nothing is adopted (P24).", ""]
     L += [f"Inputs: `look_refs.json` (sha256 `{doc['inputs']['look_refs_json_sha256'][:12]}...`) and `tail_phase.json` "
@@ -1339,7 +1353,10 @@ def markdown(doc: dict) -> str:
     diff_verdict = [(b, s, v) for b, s, v, r in plain if set(r["plain_gait_id"]["over"])
                     != {o["limit"] for o in r["over"] if o["limit"].split()[0] in sizing.GROUPS}]
     gov_plain = [r["plain_gait_id"]["governing"][2] - r["governing"][2] for _, _, _, r in plain]
-    any_plain = max(r["plain_gait_id"]["max_ratio_diff"] for _, _, _, r in plain) if plain else None
+    any_plain = max(((r["plain_gait_id"]["max_ratio_diff"], f"{b} {SPEED_SHORT[s]} {v}") for b, s, v, r in plain),
+                    default=(None, None))
+    worst_plain = max((abs(r["plain_gait_id"]["worst"][g] - r["drives"][g]["worst"]) for _, _, _, r in plain
+                       for g in r["drives"]), default=None)
     L += ["## 7. Checks", ""]
     L += [f"- Re-price: on {sum(rep)} of {len(rep)} rungs `look.price` on the arrays equals the price `look_refs.json` "
           "records, number for number."]
@@ -1355,9 +1372,10 @@ def markdown(doc: dict) -> str:
     if plain:
         L += [f"- Round two's split on the F5 rungs (`gait.inverse_dynamics`, a rolling foot's CoP kept in its pad box, "
               f"{len(plain)} rungs): its governing ratio differs from the screen's by {min(gov_plain):+.3f} to "
-              f"{max(gov_plain):+.3f} and no ratio by more than {any_plain:.3f}"
+              f"{max(gov_plain):+.3f} and no group's worst ratio by more than {worst_plain:.3f}; a single ratio below its "
+              f"group's worst moves by up to {any_plain[0]:.3f} ({any_plain[1]})"
               + (f"; the verdict differs on {', '.join(' '.join(x) for x in diff_verdict)}" if diff_verdict else
-                 "; no verdict changes") + ". The rolling contact moves torques frame by frame, not the summaries."]
+                 "; no verdict changes") + ". The rolling contact matters frame by frame, not for the governing limits."]
     L += ["- No rolling foot in single support on any rung (the friction reading's single-support wrench is unique); the "
           "double-support friction LP is not read on rolling frames (counted in section 2's tables)."]
     L += [f"- Provenance: {json.dumps(doc['provenance']['git'])}; versions {json.dumps(doc['versions'])}; "
