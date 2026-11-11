@@ -236,3 +236,10 @@ def test_summary_cells():
     assert motion._cell(motion._get(m, ("stage0", "within_limits")), None) == "**over**"
     assert motion._cell(motion._get(m, ("head", "stabilisation_ratio")), 2) == "-"
     assert motion._cell(motion._get(m, ("tail", "phase_rad")), 2) == "-"
+
+
+@needs_metrics
+def test_notes_read_metrics_json():
+    text = "\n".join(motion.notes(METRICS))
+    assert "crest hold" in text and "toe-off" in text and "stabilisation ratio" in text and "Stage 0" in text
+    assert "75-M-H-10 fr05 V6 (knee speed 1.012)" in text  # the screen's one over-limit ladder rung

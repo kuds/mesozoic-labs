@@ -713,6 +713,58 @@ def _cell(v, nd, key=None) -> str:
     return f"{v:.{nd}f}"
 
 
+def _span(vals, nd: int = 2) -> str:
+    vals = [v for v in vals if v is not None]
+    lo, hi = min(vals), max(vals)
+    return f"{lo:.{nd}f}" if round(lo, nd) == round(hi, nd) else f"{lo:.{nd}f} to {hi:.{nd}f}"
+
+
+def notes(mdoc: dict) -> list[str]:
+    """The readings the look review should see first, with their numbers from ``metrics.json`` (the ladder V0-V6)."""
+    B = mdoc["bodies"]
+    rungs = [(b, s, v, m) for b, sp in B.items() for s, vs in sp.items() for v, m in vs.items() if v in look.VARIANTS]
+    look_rungs = [r for r in rungs if r[2] != "V0"]
+    out = []
+    out.append(f"F2's crest hold: on V1-V6 the hips stay within {100 * CREST_BAND:g} % of the bob's range of its crest "
+               f"for {_span([m['bob']['crest_hold_share'] for *_, m in look_rungs])} of the window (a sinusoidal bob: "
+               f"{CREST_SINUSOID:.3f}), so the hip and snout paths run level for a long part of each step (the path "
+               "plots' straight segments, research 4.1 item 3).")
+    for s in look.SPEEDS:
+        vals = [m["toe_off"]["at_lift_off_rad"] for b, s_, v, m in rungs if s_ == s and v in ("V3", "V4", "V5", "V6")]
+        out.append(f"F5's toe-off at lift-off, V3-V6, {screen.SPEED_LABEL.get(s, s)}: {_span(vals, 3)} rad (the research's "
+                   "0.3-0.5).")
+    st = [m["head"]["stabilisation_ratio"] for b, s, v, m in rungs if v in ("V5", "V6")]
+    tp = max(m["trunk"]["pitch_rms_deg"] for *_, m in rungs)
+    out.append(f"The head's stabilisation ratio (head over trunk angular rate) on V5-V6 is {_span(st)}: the trunk's only "
+               f"rotation is F6's roll, which the head follows (no neck roll), and the trunk never pitches (largest pitch "
+               f"RMS {tp:.2f} deg; F8), so F10's pitch stabilisation shows only as the nod removed: head pitch in the "
+               f"world {_span([m['head']['world_pitch_rms_deg'] for b, s, v, m in rungs if v == 'V0'])} deg RMS on V0, "
+               f"{_span([m['head']['world_pitch_rms_deg'] for b, s, v, m in rungs if v == 'V5'])} on V5, "
+               f"{_span([m['head']['world_pitch_rms_deg'] for b, s, v, m in rungs if v == 'V6'])} on V6 (F14's gaze drift).")
+    for s in look.SPEEDS:
+        pub = [(B[b][s]["V3"]["smoothness"]["foot"]["mean"] - B[b][s]["V2"]["smoothness"]["foot"]["mean"]) for b in B]
+        fix = [(B[b][s]["V3"]["smoothness"]["foot"]["fixed_band_mean"]
+                - B[b][s]["V2"]["smoothness"]["foot"]["fixed_band_mean"]) for b in B]
+        out.append(f"Feet's SPARC from V2 to V3 (F4/F5), {screen.SPEED_LABEL.get(s, s)}: {_span(pub)} by the published "
+                   f"reading, {_span(fix)} over the fixed band (a sidelobe near 9 Hz at about the 5 % threshold moves the "
+                   "published reading by steps).")
+    out.append("Head's periodic SPARC, V5 to V6: " + "; ".join(
+        f"{b} {s} {B[b][s]['V5']['smoothness']['head']['sparc']:.2f} to {B[b][s]['V6']['smoothness']['head']['sparc']:.2f}"
+        for b in B for s in look.SPEEDS) + " (F14's slow drifts count as spectral complexity).")
+    for b in B:
+        if "fr05" in B[b]:
+            m0, m6 = B[b]["fr05"]["V0"], B[b]["fr05"]["V6"]
+            out.append(f"{b} at the animal pace: cadence {m0['gait']['cadence_steps_s']:.2f} steps/s on V0 and "
+                       f"{m6['gait']['cadence_steps_s']:.2f} on V6, against a dynamically similar T. rex's "
+                       f"{m0['bird_curves']['trex_cadence_steps_s']:.2f}; stride {m0['gait']['stride_H']:.2f} and "
+                       f"{m6['gait']['stride_H']:.2f} H (T. rex {m0['bird_curves']['trex_stride_H']:.2f} H); sway "
+                       f"{m0['sway']['com_pp_per_stride_max_H']:.3f} and {m6['sway']['com_pp_per_stride_max_H']:.3f} H.")
+    over = [f"{b} {s} {v} ({'; '.join(o['limit'] + ' ' + format(o['value'], '.3f') for o in m['stage0']['over'])})"
+            for b, s, v, m in rungs if m.get("stage0") and not m["stage0"]["within_limits"]]
+    out.append("Over a Stage 0 limit (labelled on its clips): " + (", ".join(over) if over else "none") + ".")
+    return out
+
+
 def markdown(mdoc: dict, cdoc: dict | None) -> str:
     """``RENDERS.md``: the clips (``clips.json``) and every ladder rung's headline readings (``metrics.json``)."""
     out = ["# Stage 2 look: kinematic clips, plots and machine metrics", "",
@@ -739,6 +791,7 @@ def markdown(mdoc: dict, cdoc: dict | None) -> str:
             out.append(f"| {e['body']} | {e['speed']} | {e['variant']} | {e['view']} | {e['mode']} | "
                        f"`{e['file']}` | {e['bytes'] / 1e6:.2f} |")
         out.append("")
+    out += ["## Readings to note", ""] + [f"- {x}" for x in notes(mdoc)] + [""]
     out += ["## Machine metrics (research 4.1 item 5)", "",
             "Each rung's readings on its frames (definitions: `metrics.json` `method`). 0.40 m/s: "
             + mdoc["v040"]["rule"] + ".", ""]
