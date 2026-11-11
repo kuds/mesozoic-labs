@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from . import catalog
+from .sizing import SINGLE_GROUPS
 
 ETA_GEAR = 0.75
 ETA_DRIVE = 0.92
@@ -89,7 +90,7 @@ def walking_power(design, req, motor_series: dict) -> dict:
     flags = []
     for g, (tau, w) in motor_series.items():
         act = design.act(g)
-        n_drives = 1 if g in ("neck", "tail") else 2
+        n_drives = 1 if g in SINGLE_GROUPS else 2  # the neck, the tail and the expressive head have one drive
         dp = drive_power(act, tau, w)
         per[g] = dict(actuator=act.id, drives=n_drives, mean_w=dp["mean"] * n_drives, copper_w=dp["copper"] * n_drives,
                       mech_w=dp["mech"] * n_drives, flags=dp["flags"])

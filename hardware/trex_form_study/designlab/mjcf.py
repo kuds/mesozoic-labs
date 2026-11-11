@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .build import COVER_MATERIALS, Design
+from .build import COVER_MATERIALS, HEAD_X_META, Design
 from .geometry import combine, grid_triangles, quat_from_matrix, shell_properties, thicken
 from .params import size_class
 
@@ -68,23 +68,35 @@ def hw_support(design: Design) -> float:
     return SUPPORT_FRACTION[size_class(design.cand.height)]
 
 
+def _head_x(row: dict) -> bool:
+    """A ledger row of the expressive head's added parts (``build.HEAD_X_META``)."""
+    return HEAD_X_META in (row.get("meta") or {})
+
+
 def body_inertials(design: Design, rows: list[dict]):
-    """Per-body mass, CoM and central inertia; adds the integration reserve to the trunk."""
+    """Per-body mass, CoM and central inertia; adds the integration reserve to the trunk.
+
+    The reserve is 6 % of the installed mass at the trunk's centre of mass.  The expressive head's added parts
+    (``build.HEAD_X_META``: their 0.075 kg per servo is the installed figure) are left out of both, so that with its
+    two joints locked an expressive-head body is today's body plus those parts; no earlier model has any."""
     per = {}
     for r in rows:
         per.setdefault(r["body"], []).append((r["mass_kg"], np.array(r["com_body"]), np.array(r["inertia_body"])))
-    total = sum(r["mass_kg"] for r in rows)
+    total = sum(r["mass_kg"] for r in rows if not _head_x(r))
     reserve = INTEGRATION_RESERVE_FRACTION * total / (1 - INTEGRATION_RESERVE_FRACTION)
     out = {}
     for name, parts in per.items():
         out[name] = combine(parts)
     # reserve at the trunk centre of mass, as a 0.1 B box
     m, c, i = out["trunk"]
+    if any(_head_x(r) for r in rows if r["body"] == "trunk"):
+        c = combine([(r["mass_kg"], np.array(r["com_body"]), np.array(r["inertia_body"])) for r in rows
+                     if r["body"] == "trunk" and not _head_x(r)])[1]
     B = design.B
     from .geometry import box_inertia
 
     rres = (reserve, c.copy(), box_inertia(reserve, (0.25 * B, 0.12 * B, 0.12 * B)))
-    out["trunk"] = combine([(m, c, i), rres])
+    out["trunk"] = combine([(m, out["trunk"][1], i), rres])
     rows.append(dict(name="integration_reserve", body="trunk", category="integration_reserve", mass_kg=reserve,
                      com_body=c.tolist(), inertia_body=rres[2].tolist(), volume_class="B", basis="estimate",
                      source="6 % of installed mass (PR #662 precedent: 0.60 of 9.90 kg)", cost_nom=0, cost_high=0,
@@ -133,14 +145,17 @@ def write_mjcf(design: Design, path: Path, rows: list[dict] | None = None, home_
         ET.SubElement(el, "inertial", pos=num(com), mass=f"{max(m, 1e-4):.6g}",
                       fullinertia=num([inertia[0, 0], inertia[1, 1], inertia[2, 2], inertia[0, 1], inertia[0, 2],
                                        inertia[1, 2]]))
-        j = b.joint
-        if j:
+        # a body's joints in MuJoCo's order: its pre-joints (the expressive head's neck yaw), then its own joint
+        for j in list(b.pre_joints) + ([b.joint] if b.joint else []):
             if j["type"] == "free":
                 ET.SubElement(el, "freejoint", name=j["name"])
             else:
                 arm = joint_armature(design, j["name"])
-                ET.SubElement(el, "joint", name=j["name"], type="hinge", axis=num(j["axis"]), range=num(j["range"]),
-                              armature=f"{arm:.5g}")
+                attrs = dict(name=j["name"], type="hinge", axis=num(j["axis"]), range=num(j["range"]),
+                             armature=f"{arm:.5g}")
+                if "pos" in j:  # an anchor off the body origin (the expressive head's jaw hinge)
+                    attrs["pos"] = num(j["pos"])
+                ET.SubElement(el, "joint", **attrs)
                 actuated.append(j["name"])
         for it in b.items:
             if not it.visual or it.shape == "none":
@@ -184,7 +199,8 @@ def write_mjcf(design: Design, path: Path, rows: list[dict] | None = None, home_
             ET.SubElement(el, "site", **attrs)
     # actuators: position servos with planning torque limits (screening only)
     act_el = ET.SubElement(root, "actuator")
-    ranges = {b.joint["name"]: b.joint["range"] for b in design.bodies.values() if b.joint and "range" in b.joint}
+    ranges = {j["name"]: j["range"] for b in design.bodies.values() for j in list(b.pre_joints) + [b.joint]
+              if j and "range" in j}
     for jn in actuated:
         lim, kp = joint_limits(design, jn)
         ET.SubElement(act_el, "position", name=f"{jn}_servo", joint=jn, kp=f"{kp:.4g}", kv=f"{0.05 * kp:.4g}",
@@ -208,11 +224,14 @@ def joint_armature(design: Design, joint: str) -> float:
     return max(act.armature, 1e-5)
 
 
+#: Joints that are not a leg's: the sizing role (selection key) of each.  The expressive head's two (Stage 2, S2-2;
+#: ``build.NECK_YAW_RANGE``) have roles of their own, ``sizing.HEAD_X_GROUPS``.
+HEAD_TAIL_ROLES = {"neck_pitch": "neck", "tail_yaw": "tail", "neck_yaw": "neck_yaw", "jaw": "jaw"}
+
+
 def joint_role(joint: str) -> str | None:
-    if joint == "neck_pitch":
-        return "neck"
-    if joint == "tail_yaw":
-        return "tail"
+    if joint in HEAD_TAIL_ROLES:
+        return HEAD_TAIL_ROLES[joint]
     for side in ("left_", "right_"):
         if joint.startswith(side):
             j = joint[len(side):]

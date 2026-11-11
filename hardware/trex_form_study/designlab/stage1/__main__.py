@@ -211,7 +211,8 @@ def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | No
     """G1-G4 (or one of them) into ``<out>/gates.json``; ``rule`` is G2's (default: ``gates.RULES[0]``, the plan's
     decision 13).  G3 and G4 run on the decided plant (``plant.build``'s defaults).  Each gate record gets the
     provenance of the code that ran it (``_provenanced``).  ``pass`` needs every gate recorded so far to pass (and G1
-    and G2 on the same plant)."""
+    and G2 on the same plant); it is None (provisional, with the gates that are under ``provisional``) when none
+    fails but one is provisional (G1's step rate timed on fewer processes than cores: ``gates.PROVISIONAL_RATE_RULE``)."""
     from . import gates
 
     plant_kw = plant_kw or {}
@@ -230,11 +231,20 @@ def run_gates(body: str, out: Path, only: str | None = None, plant_kw: dict | No
     same = (doc.get("G1", {}).get("plant_options") is not None
             and doc.get("G1", {}).get("plant_options") == doc.get("G2", {}).get("plant_options"))
     doc["same_plant_options"] = same
-    passes = [doc[g]["pass" if g in ("G1", "G2", "G4") else "pass_"] for g in ("G1", "G2", "G3", "G4") if g in doc]
+    keys = {g: "pass" if g in ("G1", "G2", "G4") else "pass_" for g in ("G1", "G2", "G3", "G4") if g in doc}
+    passes = [doc[g][k] for g, k in keys.items()]
     plant_gates = "G1" in doc or "G2" in doc  # G1 and G2 must then both be there, on the same plant
-    doc["pass"] = bool(passes and all(passes) and (same or not plant_gates))
+    doc["pass"] = False if not passes or (plant_gates and not same) else gates.combine(passes)
+    doc.pop("provisional", None)
+    if doc["pass"] is None:
+        doc["provisional"] = {g: doc[g].get("provisional") for g, k in keys.items() if doc[g][k] is None}
     _write(path, doc)
     return doc
+
+
+def verdict(v) -> str:
+    """A gate's verdict as the summary prints it (``gates.combine``'s three values)."""
+    return "provisional" if v is None else "pass" if v else "FAIL"
 
 
 def summary(doc: dict) -> str:
@@ -248,12 +258,15 @@ def summary(doc: dict) -> str:
         hashes = all(h["matches_record"] and h["matches_plan"] for h in g1["hashes"].values())
         tm = g1["tendon_map"]
         per = sr.get("per_process_all_median", sr.get("per_process_mean"))
-        lines.append(f"G1 {'pass' if g1['pass'] else 'FAIL'}: hashes {hashes}; {st}; tendon map err "
+        lines.append(f"G1 {verdict(g1['pass'])}"
+                     + (f" ({g1['provisional']})" if g1["pass"] is None and g1.get("provisional") else "")
+                     + f": hashes {hashes}; {st}; tendon map err "
                      f"{max(tm['max_err_joint_torque_Nm'], tm['max_err_motor_speed_rad_s']):.1e}; "
                      f"repeat {g1['repeatability']['ok']}; step rate (median of {sr.get('samples_per_process', 1)} x "
                      f"{sr.get('steps_per_sample', sr.get('steps'))} steps) {sr['single_process']:.0f} steps/s alone, "
-                     f"{per:.0f} per process x {sr['processes']} (lowest sample "
-                     f"{sr.get('lowest_sample', min(sr.get('per_process', [per]))):.0f})")
+                     f"{per:.0f} per process x {sr['processes']}"
+                     + (f" of {sr['machine']['cores']} cores" if "machine" in sr else "")
+                     + f" (lowest sample {sr.get('lowest_sample', min(sr.get('per_process', [per]))):.0f})")
     if g2:
         o = g2["plant_options"]
         pnl = g2["nominal_panel_with_envelope"]

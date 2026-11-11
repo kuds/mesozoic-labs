@@ -80,7 +80,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from .. import carpet, catalog, statics
+from .. import carpet, catalog, clearance, mjcf, sizing, statics
 from . import SHA256_PREFIX, STUDY, candidate_id, case_dir, drive
 
 FLOORS = ("hard", "robot_floor_carpet") + carpet.PILES
@@ -158,6 +158,54 @@ def leg_layout(body: str) -> str:
 def _inter_leg(by) -> bool:
     """A limit set by the two legs touching: the interfering pair names a left_ and a right_ geom."""
     return bool(by) and any("left_" in g for g in by) and any("right_" in g for g in by)
+
+
+#: How Stage 1's judges read a joint that rests on one end of its range by design (``clearance.REST_ON_STOP``).
+REST_ON_STOP_RULE = (
+    "a joint that rests on one end of its range by design (clearance.REST_ON_STOP: Stage 2's expressive-head jaw, "
+    "closed on its lower stop) has no range limit at that end: the stop is where it rests, not a limit a walk must "
+    "keep clear of.  The judges leave that end out of the joint-range margins (metrics.joint_margins: tune's and the "
+    "panels' joint_range term, G2's replay margins and limits reached), out of the controller's joint_range hardware "
+    "limit (control.limit_bounds) and out of the joint_range counterfactual, which widens every other end; the margin "
+    "at the rest end is reported beside them (how far the joint was pressed past its stop).  The other end keeps the "
+    "rule every hinge has.  No earlier body has such a joint")
+
+
+def rest_ends(joints) -> np.ndarray:
+    """Per joint, the end of its range it rests on by design (``REST_ON_STOP_RULE``): -1 the lower, +1 the upper, 0
+    neither (every hinge of every earlier body)."""
+    return np.array([{"min": -1, "max": 1}.get(clearance.REST_ON_STOP.get(jn), 0) for jn in joints], dtype=int)
+
+
+def range_notes(joints, rec: dict) -> dict:
+    """plant.json's notes on the ranges of a body with Stage 2's expressive head (none on an earlier body): the end a
+    joint rests on (``REST_ON_STOP_RULE``), and the new joints' ranges, which the clearance screen cannot cut at their
+    seams (the case record's ``head_x.joint_ranges``: the seam sweep and what was decided)."""
+    out = {}
+    rest = {jn: clearance.REST_ON_STOP[jn] for jn in joints if jn in clearance.REST_ON_STOP}
+    if rest:
+        out["rest_on_stop"] = dict(joints=rest, rule=REST_ON_STOP_RULE)
+    jr = (rec.get("head_x") or {}).get("joint_ranges")
+    if jr:
+        out["not_screened_at_seam"] = dict(
+            joints=list(jr["joints"]), rule=jr["rule"], decision=jr["decision"],
+            seam_sweep="the case record's head_x.joint_ranges (clearance.seam_sweep)",
+            new_contact={jn: jr["seams"][jn]["new_contact"] for jn in jr["seams"]},
+            deepens_mm_max={jn: jr["seams"][jn]["deepens_mm_max"] for jn in jr["seams"]},
+            jaw_cover_behind_hinge_m=(jr.get("cover_behind_hinge") or {}).get("extent_behind_hinge_m"))
+    return out
+
+
+def leg_joints(joints) -> np.ndarray:
+    """Per joint, whether it is a leg's: every hinge but the head's and the tail's (``mjcf.HEAD_TAIL_ROLES``: the
+    neck pitch, the tail yaw and Stage 2's expressive-head neck yaw and jaw)."""
+    return np.array([jn not in mjcf.HEAD_TAIL_ROLES for jn in joints], dtype=bool)
+
+
+def leg_drives(drives) -> np.ndarray:
+    """Per drive, whether it is a leg's: every drive but the head's and the tail's (``sizing.SINGLE_GROUPS``: the
+    neck, the tail and Stage 2's expressive-head neck yaw and jaw)."""
+    return np.array([dr.group not in sizing.SINGLE_GROUPS for dr in drives], dtype=bool)
 
 
 def usable_ranges(body: str, inter_leg: str = "mjcf") -> dict:
@@ -928,7 +976,7 @@ def build(body: str, floor: str = "hard", seed: int = 0, envelope: bool = True, 
                                   mjcf={jn: [float(v) for v in m0.jnt_range[mujoco.mj_name2id(
                                       m0, mujoco.mjtObj.mjOBJ_JOINT, jn)]] for jn in joints},
                                   plant={jn: list(ranges[jn]) for jn in joints},
-                                  dropped_inter_leg_limits=dropped_limits(body)),
+                                  dropped_inter_leg_limits=dropped_limits(body), **range_notes(joints, rec)),
                 ctrl=dict(limited=False, home=[float(v) for v in m.key_ctrl[0]]),
                 sensors=[dict(name=mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_SENSOR, i),
                               type=mujoco.mjtSensor(m.sensor_type[i]).name, dim=int(m.sensor_dim[i]))

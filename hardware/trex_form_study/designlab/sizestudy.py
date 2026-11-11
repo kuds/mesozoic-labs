@@ -182,7 +182,7 @@ def _worst(doc):
 
 
 def row(label: str, doc: dict, rv: dict, ref: dict | None, det: dict | None = None) -> dict:
-    from . import shortlist
+    from . import clearance, shortlist
 
     if not doc.get("ok"):
         return dict(label=label, id=doc.get("id"), ok=False, error=doc.get("error"))
@@ -191,15 +191,16 @@ def row(label: str, doc: dict, rv: dict, ref: dict | None, det: dict | None = No
     ca = rv.get("carpet") or {}
     cl = rv.get("clearance") or {}
     mg = cl.get("joint_range_margins") or {}
-    tight = min((v for r in mg.values() for v in (r.get("margin_min"), r.get("margin_max")) if v is not None), default=None)
+    tight = min((v for _, _, v in clearance.gated_margins(mg)), default=None)  # (an end a joint rests on is not one)
     g, r, kind = _worst(doc)
     sc = shortlist.scores(doc, rv, det)
     gates = shortlist.gates(doc, rv, det)
     cf = (doc.get("geometry_checks") or {}).get("camera_fit") or {}
     changed = {}
-    if ref:
-        changed = {k: [ref["margins"][k]["actuator"], doc["margins"][k]["actuator"]] for k in doc["margins"]
-                   if ref["margins"][k]["actuator"] != doc["margins"][k]["actuator"]}
+    if ref:  # a group the reference lacks (Stage 2's expressive head) is listed as added: [None, its part]
+        changed = {k: [(ref["margins"].get(k) or {}).get("actuator"), doc["margins"][k]["actuator"]]
+                   for k in doc["margins"]
+                   if (ref["margins"].get(k) or {}).get("actuator") != doc["margins"][k]["actuator"]}
     return dict(
         label=label, id=doc["id"], ok=True, crown_m=doc["metrics"]["crown"], H_m=doc["H"], mass_kg=doc["metrics"]["mass"],
         bus=doc["selection"]["bus"], battery=doc["selection"]["battery"], walk_w=doc["power"]["total_w"],

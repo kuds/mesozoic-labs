@@ -932,7 +932,7 @@ def motor_space_by_side(names, tau, omega, layout: str) -> dict:
     """Per group and side, the motor torque and speed series; the same mapping as ``sizing._motor_space``
     (ankle parallel linkage with unit crank ratios for tandem and side layouts), not stacked."""
     idx = {nm: i for i, nm in enumerate(names)}
-    out = {g: {} for g in sizing.GROUPS}
+    out = {g: {} for g in sizing.groups(names)}
     for g, j in sizing.JOINT_OF.items():
         for s in SIDES:
             out[g][s] = (tau[:, idx[f"{s}_{j}"]], omega[:, idx[f"{s}_{j}"]])
@@ -945,6 +945,9 @@ def motor_space_by_side(names, tau, omega, layout: str) -> dict:
             out["ankle_a"][s], out["ankle_b"][s] = (tp, wp), (tr, wr)
     out["neck"]["-"] = (tau[:, idx["neck_pitch"]], omega[:, idx["neck_pitch"]])
     out["tail"]["-"] = (tau[:, idx["tail_yaw"]], omega[:, idx["tail_yaw"]])
+    for g in sizing.groups(names)[len(sizing.GROUPS):]:  # the expressive head's drives (none on earlier models)
+        j = sizing.HEAD_X_JOINT[g]
+        out[g]["-"] = (tau[:, idx[j]], omega[:, idx[j]])
     return out
 
 
@@ -953,7 +956,7 @@ def group_loads(names, runs: dict, layout: str) -> dict:
     those, the stacked RMS (sizing's convention), and the peak torque and speed over all motors and runs."""
     out = {}
     ms = {r: motor_space_by_side(names, idr["tau"], idr["omega"], layout) for r, idr in runs.items()}
-    for g in sizing.GROUPS:
+    for g in sizing.groups(names):
         rms, sq, peak, speed = {}, [], 0.0, 0.0
         for r in runs:
             for s, (t_, w_) in ms[r][g].items():
@@ -1299,12 +1302,12 @@ def screen_model(M: statics.Model, q_home: np.ndarray, design, spec: gait.GaitSp
     validation.update(ik_fail_frames=ik, ik_ok_all=all(v == 0 for v in ik.values()), signs=signs)
 
     # --- requirements and comparison ---------------------------------------------------------------
-    holds = {g: straight["groups"][g]["hold"] for g in sizing.GROUPS}
+    holds = {g: straight["groups"][g]["hold"] for g in sizing.groups(names)}
     l_nom = group_loads(names, {"straight": runs["straight"][1]}, layout)
     l_brk = group_loads(names, {"straight_brisk": runs["straight_brisk"][1]}, layout)
     straight_same = {g: requirement(dict(rms=l_nom[g]["rms"], peak=max(l_nom[g]["peak"], l_brk[g]["peak"]),
                                          speed=max(l_nom[g]["speed"], l_brk[g]["speed"])), holds[g])
-                     for g in sizing.GROUPS}
+                     for g in holds}
     loads_turn, req_turn, verdict = {}, {}, {}
     for cname in cases:
         loads_turn[cname] = group_loads(names, {f"{cname}_{d}": runs[f"{cname}_{d}"][1] for d in ("left", "right")},
@@ -1314,7 +1317,7 @@ def screen_model(M: statics.Model, q_home: np.ndarray, design, spec: gait.GaitSp
     sel_bus = design.sel["bus"]
     for cname in cases:
         verdict[cname] = {}
-        for g in sizing.GROUPS:
+        for g in holds:
             act = design.act(g)
             bus = sel_bus if act.box is None else None
             v = compare(req_turn[cname][g], straight_same[g], act, bus)
@@ -1339,7 +1342,7 @@ def screen_model(M: statics.Model, q_home: np.ndarray, design, spec: gait.GaitSp
     for label, names_c in (("targets", [c for c in cases if cases[c]["role"] == "target"]),
                            ("targets_and_stretch", list(cases))):
         envelope[label] = {}
-        for g in sizing.GROUPS:
+        for g in holds:
             act = design.act(g)
             bus = sel_bus if act.box is None else None
             comb = {k: max([straight["groups"][g][k], straight_same[g][k]] + [req_turn[c][g][k] for c in names_c])
@@ -1518,7 +1521,8 @@ def screen_built(cid: str, M: statics.Model, q_home, design, xml, rec: dict, out
     r["validation"]["xml_sha256_matches_record"] = sha == rec.get("xml_sha256")
     head = dict(id=cid, record=record, rev=rec.get("rev", 1), overrides=rec.get("overrides", []), H=design.sk.H,
                 mass=M.mass(), layout=design.cand.leg_layout, bus=design.sel["bus"],
-                selection=dict(joints=design.sel["joints"], neck=design.sel["neck"], tail=design.sel["tail"]),
+                selection=dict(joints=design.sel["joints"], neck=design.sel["neck"], tail=design.sel["tail"],
+                               **{g: design.sel[g] for g in getattr(design, "head_x_groups", ())}),
                 xml_sha256=sha, record_xml_sha256=rec.get("xml_sha256"))
     runs = r["_runs"]
     png = plot(cid, M, q_home, runs["straight"][1],

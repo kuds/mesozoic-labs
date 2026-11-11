@@ -34,6 +34,22 @@ from . import catalog, gait, statics
 
 GROUPS = ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b", "neck", "tail")
 JOINT_OF = {"hip_roll": "hip_roll", "hip_pitch": "hip_pitch", "hip_yaw": "hip_yaw", "knee": "knee"}
+#: Stage 2's expressive head (``STAGE2_PLAN.md`` S2-2, ``build.NECK_YAW_RANGE``): its drive groups and the joint each
+#: one turns, one drive each like the neck and the tail.  They are sized and selected only on a model that has their
+#: joints (``groups``), so every earlier model's requirements and selection are unchanged.  The records' selection
+#: names each group's part under its own key (``selection["neck_yaw"]``, ``selection["jaw"]``).
+HEAD_X_GROUPS = ("neck_yaw", "jaw")
+HEAD_X_JOINT = {"neck_yaw": "neck_yaw", "jaw": "jaw"}
+#: Groups with one drive, not a left and a right one (the neck, the tail and the expressive head's).
+SINGLE_GROUPS = ("neck", "tail") + HEAD_X_GROUPS
+
+
+def groups(names) -> tuple:
+    """The sizing groups of a model whose hinges are ``names``: ``GROUPS``, then the expressive head's groups whose
+    joints it has (none on every earlier model)."""
+    return GROUPS + tuple(g for g in HEAD_X_GROUPS if HEAD_X_JOINT[g] in names)
+
+
 CONT_MARGIN = 1.0
 COST_WEIGHT = 0.8  # kg per $1000
 PEAK_MARGIN = 1.25
@@ -67,6 +83,9 @@ def _motor_space(names, tau, omega, layout: str):
     out["ankle_b"] = (np.concatenate(tb), np.concatenate(wb))
     out["neck"] = (tau[:, idx["neck_pitch"]], omega[:, idx["neck_pitch"]])
     out["tail"] = (tau[:, idx["tail_yaw"]], omega[:, idx["tail_yaw"]])
+    for g in HEAD_X_GROUPS:  # the expressive head's drives, on a model that has their joints
+        if HEAD_X_JOINT[g] in idx:
+            out[g] = (tau[:, idx[HEAD_X_JOINT[g]]], omega[:, idx[HEAD_X_JOINT[g]]])
     return out
 
 
@@ -94,7 +113,7 @@ def requirements(M: statics.Model, q_home: np.ndarray, H: float, layout: str) ->
     hold_tau = np.vstack([holds[s]["tau"] for s in statics.SIDES])
     ms_hold = _motor_space(names, hold_tau, np.zeros_like(hold_tau), layout)
     req = {}
-    for g in GROUPS:
+    for g in groups(names):
         t_nom, w_nom = ms_nom[g]
         t_brk, w_brk = ms_brk[g]
         rms = float(np.sqrt(np.mean(t_nom**2)))
@@ -189,7 +208,7 @@ def select(req: dict, mass: float = 15.0, layout: str = "tandem", prefer_voltage
                 choice[g] = best.id
                 notes.append(f"{g}: no catalog part meets cont {groups[g]['cont']:.1f} N·m / peak "
                              f"{groups[g]['peak_req']:.1f} N·m / {groups[g]['speed_req']:.1f} rad/s; strongest used")
-    for g in ("neck", "tail"):
+    for g in ("neck", "tail") + tuple(h for h in HEAD_X_GROUPS if h in groups):
         cands = [a for a in pool("servo") if meets(a, groups[g], None, g)]
         if cands:
             choice[g] = cands[0].id

@@ -42,6 +42,50 @@ PELVIS_THIGH_CLEAR_M = 0.006
 #: Revision 2: minimum vertical gap between the tail motor and the tail-base battery cassette where they
 #: overlap in plan (round one left -0.2 mm on 60-M-T-10).
 TAIL_MOTOR_CLEAR_M = 0.003
+#: Stage 2's expressive head (``STAGE2_PLAN.md`` S2-2; owner decision P29: modelled in simulation beside today's head,
+#: nothing adopted, and P2's deferral of a jaw stands for the build).  Two candidate overrides, each off by default, so
+#: every earlier model is built exactly as before:
+#:
+#: * ``neck_yaw_joint``: a neck yaw at the neck base, about the world vertical at the home pose, ahead of the neck pitch
+#:   in the chain (yaw, then pitch: the whole neck turns, [look] section 5.2).  Both hinges are the head body's, the yaw
+#:   first (``Body.pre_joints``), so the pitch axis turns with the yaw; both pass through the neck base.  The yaw servo
+#:   sits on the trunk on the yaw axis, below today's neck-pitch servo (``NECK_YAW_SERVO_GAP_M``).  The pitch servo
+#:   stays on the trunk where today's body has it, although on a yaw stage it would turn with the neck: its own inertia
+#:   about the yaw axis is recorded (``geometry_checks["expressive_head"]``; well under 1 % of the head's).  The yaw
+#:   stage's own bearing is not modelled (its mass and cost, S2-2).
+#: * ``jaw_joint``: today's jaw cover hinged on a lateral axis on its upper edge (the line ``shapes.skull_panels`` lofts
+#:   the jaw from) at the skull station ``JAW_HINGE_AHEAD_M`` ahead of the neck-pitch axis.  That is not the rear of the
+#:   jaw: today's cover starts at the skull's rear (``shapes.skull_profiles``' jaw profile from its first station), about
+#:   18 mm behind the hinge, and that part swings up into the skull and the neck as the jaw opens.  The cover is kept
+#:   whole (a build would trim it at the hinge), so that the body with its joints locked stays today's plus the added
+#:   parts; ``clearance.seam_sweep`` records the overhang (``cover_behind_hinge``).  The jaw body keeps the head body's
+#:   frame (the hinge is the joint's anchor), so the jaw cover's mass, centre and inertia are exactly today's.  Positive
+#:   opens the mouth (the front of the jaw drops); the jaw rests closed, on its lower stop (``clearance.REST_ON_STOP``).
+#:   The jaw servo is the head's, centred on the hinge axis, which it drives directly ([look] section 5.2: in the skull,
+#:   at the jaw hinge).
+#:
+#: Neither joint's range is cut by the clearance screen: it pairs no body with its parent, so its sweeps cannot see the
+#: head against the trunk or the jaw against the head (``clearance.SEAM_RULE``), and the plant keeps these ranges;
+#: ``clearance.seam_sweep`` sweeps those seams (``refine.head_x_seams``).
+#:
+#: Each drive is the selection's ``neck_yaw`` / ``jaw`` part (an STS3215 in the plan) plus ``HEAD_X_BRACKET_KG`` of
+#: horn and bracket ([look] section 5.1: about 0.02 kg, 0.075 kg per servo installed).  The drives are placed after the
+#: covers, so the trunk profile, the covers and every other item stay today's; how they sit in the covers is recorded
+#: (``geometry_checks["expressive_head"]``), and the integration reserve leaves them out (``HEAD_X_META``: the
+#: 0.075 kg is the installed figure).
+NECK_YAW_RANGE = (-0.6, 0.6)  # rad; the plant's too (the clearance screen cannot cut it: see above)
+JAW_RANGE = (0.0, 0.6)  # rad, closed to open (the jaw rests closed, on its lower stop)
+HEAD_X_BRACKET_KG = 0.020
+#: The jaw hinge (and its servo) this far ahead of the neck-pitch axis at the home pose, by size class: [look] section
+#: 5.2's jaw-servo station (about 0.10 m at 60 cm, 0.12 m at 75 cm).
+JAW_HINGE_AHEAD_M = {60: 0.10, 75: 0.12}
+#: Gap between the neck-yaw servo and today's neck-pitch servo above it, along the yaw axis.
+NECK_YAW_SERVO_GAP_M = 0.003
+#: The ledger key that marks the expressive head's items (``Item.meta``), with the drive group as its value.
+HEAD_X_META = "expressive_head"
+#: Clearance and wall allowance of the trunk profile around hardware (``Design._required_profile``); the expressive
+#: head's neck-yaw servo is checked against the as-built profile with the same allowance.
+PROFILE_CLEAR_M, PROFILE_WALL_M = 0.008, 0.002
 
 G = 9.81
 
@@ -95,6 +139,9 @@ class Body:
     panels: list = field(default_factory=list)
     sites: list = field(default_factory=list)
     support: np.ndarray | None = None
+    #: hinges applied before ``joint`` in this body (MuJoCo applies a body's joints in order, each axis turned by the
+    #: ones before it): the expressive head's neck yaw, which carries the neck pitch.  Empty on every earlier model.
+    pre_joints: list = field(default_factory=list)
 
 
 class Design:
@@ -111,6 +158,9 @@ class Design:
         self.cover_mat_override = cand.override("cover_material")
         self.cover_wall_scale = float(cand.override("cover_wall_scale", 1.0))
         self.power_mode = cand.override("power_mode", "battery")
+        # Stage 2's expressive head (NECK_YAW_RANGE above): off unless the candidate asks for it
+        self.neck_yaw = bool(cand.override("neck_yaw_joint", 0))
+        self.jaw = bool(cand.override("jaw_joint", 0))
         self.struct_al_equiv_extra = 0.0  # aluminium-equivalent mass minus actual mass of converted beams (cost)
         self.struct_conv_al = 0.0  # aluminium-equivalent mass of converted beams
         self.fk = T.family_key(cand.family, self.rev)
@@ -221,6 +271,32 @@ class Design:
             return catalog.actuator(self.sel["joints"][role])
         return catalog.actuator(self.sel[role])
 
+    @property
+    def head_x_groups(self) -> tuple:
+        """The expressive head's drive groups this design has (``sizing.HEAD_X_GROUPS``): () on every earlier model."""
+        return tuple(g for g, on in (("neck_yaw", self.neck_yaw), ("jaw", self.jaw)) if on)
+
+    def _jaw_station(self) -> dict:
+        """The jaw hinge in the head frame (world-aligned at home, origin on the neck-pitch axis): on the jaw cover's
+        upper edge (``shapes.skull_panels``: the tooth line plus 0.004 of the skull length) at the skull station ``s``
+        whose axis point lies ``JAW_HINGE_AHEAD_M`` ahead of the neck-pitch axis."""
+        from scipy.interpolate import PchipInterpolator
+
+        sk = self.sk
+        L = sk.skull_len
+        u, top, tooth, half, ju, jdepth, jhalf = shapes.skull_profiles(self.fk)
+        ax, up = shapes._skull_frame(sk)
+        occ = sk.occiput - self.bodies["head"].pos_world
+        size = size_class(self.cand.height)
+        if size not in JAW_HINGE_AHEAD_M:
+            raise ValueError(f"jaw_joint: no jaw station for the {size} cm class (JAW_HINGE_AHEAD_M)")
+        s = float((JAW_HINGE_AHEAD_M[size] - occ[0]) / (ax[0] * L))
+        f = lambda v, x=u: float(PchipInterpolator(x, v)(s)) * L  # noqa: E731
+        z0 = f(tooth) + 0.004 * L
+        return dict(hinge=occ + ax * (s * L) + up * z0, station=s, axis_point=occ + ax * (s * L), edge_up_m=z0,
+                    skull_top_up_m=f(top), skull_half_width_m=f(half), jaw_depth_m=f(jdepth, ju),
+                    jaw_half_width_m=f(jhalf, ju), skull_axis=ax, skull_up=up)
+
     def add_body(self, name, parent, pos_world, R_world=None, joint=None):
         b = Body(name, parent, np.asarray(pos_world, float), np.eye(3) if R_world is None else R_world, joint)
         self.bodies[name] = b
@@ -290,6 +366,14 @@ class Design:
         self.add_body("trunk", None, sk.origin, Rp, joint=dict(type="free", name="root"))
         self.add_body("head", "trunk", sk.to_world(sk.neck_base), np.eye(3),
                       joint=dict(type="hinge", name="neck_pitch", axis=(0, -1, 0), range=(-0.35, 0.35)))
+        if self.neck_yaw:  # yaw, then pitch: the head body's first hinge, about the vertical at home (positive: left)
+            self.bodies["head"].pre_joints.append(dict(type="hinge", name="neck_yaw", axis=(0, 0, 1),
+                                                       range=NECK_YAW_RANGE))
+        if self.jaw:  # in the head's frame, hinged at the jaw station (the joint's anchor); positive opens the mouth
+            self.jaw_station = self._jaw_station()
+            self.add_body("jaw", "head", self.bodies["head"].pos_world, np.eye(3),
+                          joint=dict(type="hinge", name="jaw", axis=(0, 1, 0), range=JAW_RANGE,
+                                     pos=self.jaw_station["hinge"]))
         self.add_body("tail", "trunk", sk.to_world(sk.tail_root), np.eye(3),
                       joint=dict(type="hinge", name="tail_yaw", axis=tuple(Rp[:, 2]), range=(-0.45, 0.45)))
         leg = sk.leg
@@ -318,6 +402,8 @@ class Design:
         self._place_structure()
         self._place_covers()
         self._place_lidar()
+        if self.head_x_groups:
+            self._place_expressive_head()
 
     # ------------------------------------------------------------------ legs
     def _place_legs(self):
@@ -746,7 +832,9 @@ class Design:
         nb_w = self.bodies["head"].pos_world
         self.bodies["head"].panels.append(shapes.neck_panel(sk, self.fk, nb_w, t, mat, colors["main"]))
         for p in shapes.skull_panels(sk, self.fk, nb_w, t, mat, colors["accent"], colors["jaw"], TEETH_RGBA):
-            if isinstance(p, shapes.Panel):
+            if isinstance(p, shapes.Panel) and self.jaw and p.name == "jaw":
+                self.bodies["jaw"].panels.append(replace(p, body="jaw"))  # the hinged jaw: today's cover, its own body
+            elif isinstance(p, shapes.Panel):
                 self.bodies["head"].panels.append(p)
             elif p[0] == "teeth":
                 for k, (a, b) in enumerate(p[1]):
@@ -841,11 +929,98 @@ class Design:
         self.bodies["trunk"].sites.append(dict(name="lidar", pos=lp, rot=lR, size=0.005, fov=li.fov, part=li.id))
         self.geometry_checks["lidar_below_hull_m"] = float(st["ventral"] - vent)
 
+    # ------------------------------------------------------------------ expressive head (Stage 2, S2-2)
+    def _head_x_bracket(self, name: str, body: str, pos, group: str) -> hw.Item:
+        """Horn and bracket of one expressive-head drive: ``HEAD_X_BRACKET_KG`` as a point mass at its servo."""
+        return hw.Item(name, body, "structure", HEAD_X_BRACKET_KG, np.asarray(pos, float), np.eye(3), "none", (0,), "B",
+                       "estimate", "horn and bracket, about 0.02 kg per servo ([look] section 5.1)", visual=False,
+                       collide=False, meta={HEAD_X_META: group})
+
+    def _place_expressive_head(self):
+        """The expressive head's drives (``NECK_YAW_RANGE`` above): each the selection's part on its axis plus its horn
+        and bracket, every item marked ``HEAD_X_META``.  They are placed after the covers and leave them as they are;
+        ``geometry_checks["expressive_head"]`` records where they sit and how they fit."""
+        sk = self.sk
+        out = dict(groups=list(self.head_x_groups), bracket_kg=HEAD_X_BRACKET_KG,
+                   source="STAGE2_PLAN.md S2-2; stage2/research/research_look.md sections 5.1-5.2",
+                   note="placed after the covers, which are today's (the trunk profile is not widened for them)")
+        head = self.bodies["head"]
+        if self.neck_yaw:
+            act = self.act("neck_yaw")
+            up_t = sk.R_p.T @ np.array([0.0, 0.0, 1.0])  # the yaw axis (the world vertical at home), trunk frame
+            pitch = next(it for it in self.bodies["trunk"].items if it.name == "neck_motor")
+            nb_w = head.pos_world
+            h = (act.box[2] + 0.004) if act.box is not None else act.envelope[1]  # motor_item's size along the axis
+            low = float(sk.to_world(_corners(pitch))[:, 2].min())
+            c_w = np.array([nb_w[0], nb_w[1], low - NECK_YAW_SERVO_GAP_M - 0.5 * h])
+            c_t = sk.to_trunk(c_w)
+            it = hw.motor_item("neck_yaw_motor", "trunk", act, c_t, up_t, category="expression_actuator")
+            it.meta[HEAD_X_META] = "neck_yaw"
+            self.add(it)
+            self.add(self._head_x_bracket("neck_yaw_bracket", "trunk", c_t, "neck_yaw"))
+            # the servo against the as-built trunk profile, with _required_profile's allowance (positive: inside)
+            corners = _corners(it)
+            unb = corners.copy()
+            mask = corners[:, 0] > sk.pivot[0]
+            unb[mask] = (ry(-sk.bend) @ (corners[mask] - sk.pivot).T).T + sk.pivot
+            allow = PROFILE_CLEAR_M + PROFILE_WALL_M
+            mg = dict(dorsal=np.inf, ventral=np.inf, half_width=np.inf)
+            for p in unb:
+                st = self.prof.at(float(p[0]))
+                mg["dorsal"] = min(mg["dorsal"], st["dorsal"] - (p[2] + allow))
+                mg["ventral"] = min(mg["ventral"], (p[2] - allow) - st["ventral"])
+                mg["half_width"] = min(mg["half_width"], st["half"] - (abs(p[1]) + allow))
+            # today's pitch servo stays on the trunk; on a yaw stage it would turn with the neck
+            pc_w = sk.to_world(pitch.pos)
+            r2 = float((pc_w[0] - nb_w[0]) ** 2 + (pc_w[1] - nb_w[1]) ** 2)
+            I_w = sk.R_p @ pitch.central_inertia() @ sk.R_p.T  # central_inertia is in trunk axes
+            out["neck_yaw"] = dict(
+                part=act.id, range_rad=list(NECK_YAW_RANGE), axis_world=[0.0, 0.0, 1.0],
+                axis_through_world=nb_w.tolist(), servo_centre_world=c_w.tolist(), servo_centre_trunk=c_t.tolist(),
+                servo_gap_below_pitch_servo_m=NECK_YAW_SERVO_GAP_M,
+                trunk_profile_margin_m={k: float(v) for k, v in mg.items()},
+                inside_trunk_profile=bool(min(mg.values()) >= 0.0),
+                trunk_profile_rule=f"each servo corner {1e3 * PROFILE_CLEAR_M:g} mm + {1e3 * PROFILE_WALL_M:g} mm "
+                                   "inside the as-built profile (Design._required_profile's allowance)",
+                pitch_servo_on_trunk=dict(offset_from_yaw_axis_m=float(np.sqrt(r2)),
+                                          inertia_about_yaw_axis_kg_m2=float(I_w[2, 2] + pitch.mass * r2),
+                                          note="today's neck-pitch servo is kept on the trunk; on a yaw stage it would "
+                                               "turn with the neck and add this inertia about the yaw axis"))
+        if self.jaw:
+            act = self.act("jaw")
+            js = self.jaw_station
+            hinge = js["hinge"]
+            it = hw.motor_item("jaw_motor", "head", act, hinge, (0.0, 1.0, 0.0), category="expression_actuator")
+            it.meta[HEAD_X_META] = "jaw"
+            self.add(it)
+            self.add(self._head_x_bracket("jaw_bracket", "head", hinge, "jaw"))
+            cj = _corners(it)
+            lo, hi = cj.min(0), cj.max(0)
+            ax, up = js["skull_axis"], js["skull_up"]
+            occ = sk.occiput - head.pos_world
+            rel = cj - js["axis_point"]
+            out["jaw"] = dict(
+                part=act.id, range_rad=list(JAW_RANGE), axis_head=[0.0, 1.0, 0.0],
+                hinge_head=hinge.tolist(), hinge_ahead_of_neck_pitch_axis_m=float(hinge[0]),
+                hinge_station_target_m=JAW_HINGE_AHEAD_M[size_class(self.cand.height)], skull_station=js["station"],
+                hinge_on="the jaw cover's upper edge (shapes.skull_panels' tooth line + 0.004 skull lengths)",
+                servo_centre_head=hinge.tolist(), servo_box_head=dict(lo=lo.tolist(), hi=hi.tolist()),
+                servo_up_extent_m=[float((rel @ up).min()), float((rel @ up).max())],
+                station_sections_up_m=dict(skull_top=js["skull_top_up_m"], jaw_upper_edge=js["edge_up_m"],
+                                           jaw_lower_edge=js["edge_up_m"] - js["jaw_depth_m"]),
+                servo_half_width_m=float(0.5 * (hi[1] - lo[1])),
+                station_half_widths_m=dict(skull=js["skull_half_width_m"], jaw=js["jaw_half_width_m"]),
+                servo_behind_skull_rear_m=float(max(0.0, -((cj - occ) @ ax).min())),
+                note="the servo is centred on the hinge axis, so it straddles the jaw's upper edge: its upper part in "
+                     "the skull, its lower part inside the jaw cover at home; the clearance screen lists any overlap "
+                     "with the head's other components (same_body_component_overlaps)")
+        self.geometry_checks["expressive_head"] = out
+
     def _required_profile(self) -> shapes.TrunkProfile:
         """Widen/deepen the designed trunk profile where hardware needs more room (class A/B)."""
         prof = self.design_profile
         sk = self.sk
-        clearance, wall = 0.008, 0.002
+        clearance, wall = PROFILE_CLEAR_M, PROFILE_WALL_M
         xs = prof.x.copy()
         dors, vent, half = prof.dorsal.copy(), prof.ventral.copy(), prof.half_width.copy()
         hw_half = np.zeros_like(half)

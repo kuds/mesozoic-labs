@@ -52,9 +52,15 @@ SESSION = dict(standing=0.25, nominal=0.50, brisk=0.10, turning=0.15)
 GROUPS = sizing.GROUPS
 
 
+def _groups(ms: dict) -> list:
+    """The groups of a motor map (``sizing._motor_space``) in ``sizing``'s order: ``GROUPS``, then the expressive
+    head's on a model that has them."""
+    return [g for g in GROUPS + sizing.HEAD_X_GROUPS if g in ms]
+
+
 def _ratios(design, bus, ms: dict) -> dict:
     out = {}
-    for g in GROUPS:
+    for g in _groups(ms):
         a = design.act(g)
         t, w = ms[g]
         rms, peak, speed = float(np.sqrt(np.mean(t**2))), float(np.max(np.abs(t))), float(np.max(np.abs(w)))
@@ -170,7 +176,7 @@ def session_heat(M: statics.Model, q_home, design, layout: str, runs: dict, turn
     ms_stand = sizing._motor_space(names, tau_ds[None, :], np.zeros((1, len(names))), layout)
     ms = {k: sizing._motor_space(names, v["idr"]["tau"], v["idr"]["omega"], layout) for k, v in runs.items()}
     out = {}
-    for g in GROUPS:
+    for g in _groups(ms["nominal"]):
         a = design.act(g)
         sq = SESSION["standing"] * float(np.mean(ms_stand[g][0] ** 2))
         sq += SESSION["nominal"] * float(np.mean(ms["nominal"][g][0] ** 2))

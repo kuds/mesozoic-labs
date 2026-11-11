@@ -1063,7 +1063,9 @@ def _compact_limits(a: dict | None) -> dict | None:
 
 def _base(b: Built, out: dict, rec: metrics.Recorder, seed: int) -> dict:
     """The fields every episode record has: the fall, its onset and candidates, the drives, the joints."""
-    margins = metrics.joint_margins(rec.Q, b.lo, b.hi) if rec.rows else np.full(len(b.lo), -1.0)
+    # an end a joint rests on by design is no range limit (plant.REST_ON_STOP_RULE)
+    margins = (metrics.joint_margins(rec.Q, b.lo, b.hi, plant.rest_ends(b.p.joints)) if rec.rows
+               else np.full(len(b.lo), -1.0))
     short = b.required - margins
     w = int(np.argmax(short))
     e = dict(seed=int(seed), fell=bool(out["fell"]), fall_time_s=out["fall_time_s"], fall_cause=out["fall_cause"],

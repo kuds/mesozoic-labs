@@ -446,7 +446,7 @@ def filter_alpha(dt: float) -> float:
 
 def residual_scale(p: plant.Plant) -> np.ndarray:
     """R3's joint-offset scale per joint, as ``env.ResidualEnv._setup`` sets it (legs, neck and tail)."""
-    legs = np.array([not jn.startswith(("neck", "tail")) for jn in p.joints])
+    legs = plant.leg_joints(p.joints)  # every hinge but the head's and the tail's
     return np.where(legs, env.RESIDUAL_LEG_RAD, env.RESIDUAL_NECK_TAIL_RAD)
 
 

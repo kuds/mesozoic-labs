@@ -512,13 +512,14 @@ def build_spec(p: plant.Plant, run_dir: Path, kind: str, direction: str | None, 
     lo, hi = m.jnt_range[jid, 0].copy(), m.jnt_range[jid, 1].copy()
     nj = len(p.joints)
     q = np.vstack([seg.S[:, :nj] for seg in track.segments])
-    ref_margins = metrics.joint_margins(q, lo, hi)
+    rest = plant.rest_ends(p.joints)  # an end a joint rests on by design is no range limit (plant.REST_ON_STOP_RULE)
+    ref_margins = metrics.joint_margins(q, lo, hi, rest)
     if kind == "walk":
         required = np.full(nj, WALK_RANGE_RAD)
     else:
         required = np.maximum(np.minimum(WALK_RANGE_RAD, ref_margins - TURN_RANGE_SLACK_RAD), AT_LIMIT_RAD)
-    info = dict(lo=lo, hi=hi, H=float(p.meta["H_m"]), weight=float(m.body_subtreemass[p.trunk]) * control.G,
-                turned_ref_rad=None)
+    info = dict(lo=lo, hi=hi, rest=rest, H=float(p.meta["H_m"]),
+                weight=float(m.body_subtreemass[p.trunk]) * control.G, turned_ref_rad=None)
     if window is not None:  # the reference's own heading change over the steady turn (the track's yaw)
         y = [track.info(t)[1]["yaw"] for t in window]
         info["turned_ref_rad"] = float(sign * (y[1] - y[0]))
@@ -580,7 +581,8 @@ def measure(spec: EpisodeSpec, rec: metrics.Recorder, out: dict, lg=None, window
         st = sp = None
         if stop:
             res["stop"] = dict(at_rest_strides=stop.get("at_rest_strides"), rest_speed_m_s=stop.get("rest_speed_m_s"))
-    margins = metrics.joint_margins(rec.Q, inf["lo"], inf["hi"]) if rec.rows else np.full(len(spec.ref_margins), -1.0)
+    margins = (metrics.joint_margins(rec.Q, inf["lo"], inf["hi"], inf.get("rest")) if rec.rows
+               else np.full(len(spec.ref_margins), -1.0))
     shortfall = float(np.max(spec.required_margins - margins))
     worst_j = int(np.argmax(spec.required_margins - margins))
     spd = float(out["worst_speed_ratio"][1])

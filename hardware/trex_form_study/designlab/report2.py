@@ -19,7 +19,8 @@ from .round2 import FAMILIES, HEIGHTS, VARIANT_LABEL, VARIANTS, base_ids, candid
 FAMILY_NAMES = {"T": "Tapered", "H": "Hybrid"}
 GROUPS = ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b", "neck", "tail")
 GROUP_LABEL = {"hip_roll": "hip roll", "hip_pitch": "hip pitch", "hip_yaw": "thigh twist", "knee": "knee",
-               "ankle_a": "ankle A", "ankle_b": "ankle B", "neck": "neck", "tail": "tail"}
+               "ankle_a": "ankle A", "ankle_b": "ankle B", "neck": "neck", "tail": "tail",
+               "neck_yaw": "neck yaw", "jaw": "jaw"}  # (the last two: Stage 2's expressive head)
 BATTERY = {"lipo_6s_3300": "6S 3.3 Ah", "lipo_6s_5000": "6S 5 Ah", "lipo_2x6s_3300_series": "2 × 6S 3.3 Ah"}
 
 

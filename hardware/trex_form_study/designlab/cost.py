@@ -37,6 +37,8 @@ def estimate(design, rows: list[dict], selection: dict) -> dict:
     acts = {g: design.act(g) for g in ("hip_roll", "hip_pitch", "hip_yaw", "knee", "ankle_a", "ankle_b")}
     leg = sum(2 * a.price for a in acts.values())
     expr = design.act("neck").price + design.act("tail").price
+    for g in getattr(design, "head_x_groups", ()):  # Stage 2's expressive head: its two servos (none before)
+        expr += design.act(g).price
     parts = catalog.parts()
     comp = parts[selection["compute"]]
     cam = parts[selection["camera"]]

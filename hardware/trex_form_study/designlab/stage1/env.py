@@ -284,6 +284,10 @@ def obs_layout() -> dict:
 ACTOR_DIM = sum(w for _, w in ACTOR_OBS)
 OBS_DIM = ACTOR_DIM + sum(w for _, w in CRITIC_OBS)
 ACTION_DIM = 15
+#: The hinges these widths are built for, Stage 1's bodies' 14.  Stage 2's expressive-head bodies (``-X``: 16 hinges)
+#: need them generalised (``STAGE2_PLAN.md`` S2-2, pending: ``stage2/x/HEAD_X.md``), so the envs refuse a plant with
+#: another number rather than build spaces of the wrong size.
+WIDTH_JOINTS = dict(ACTOR_OBS)["q"]
 
 
 # ------------------------------------------------------------------------------------------------
@@ -354,6 +358,10 @@ class Stage1Env(gym.Env):
             raise ValueError(f"floor {cfg.floor!r}: choose from {', '.join(plant.FLOORS)}")
         self.run_dir = Path(cfg.run_dir) if cfg.run_dir else tune.RUN / cfg.body
         self.p = p = plant.build(cfg.body, cfg.floor, pile_grid=cfg.pile_grid if cfg.floor in plant.FLOORS[2:] else None)
+        if len(p.joints) != WIDTH_JOINTS:
+            raise ValueError(f"{cfg.body}: {len(p.joints)} hinges; the env's observation and action widths (ACTOR_OBS, "
+                             f"CRITIC_OBS, ACTION_DIM) are built for {WIDTH_JOINTS}, and their generalisation for the "
+                             "expressive head's (STAGE2_PLAN.md S2-2) is pending")
         m = p.m
         #: The model as built: the plant's nominal model and the controller's model throughout (``MASS_RULE``).
         self.nominal_model = copy.deepcopy(m)
@@ -380,7 +388,7 @@ class Stage1Env(gym.Env):
         # nominal model values the randomisation scales (restored every episode; the masses from nominal_model)
         self._mu0 = m.geom_friction.copy()
         self._gain0, self._bias0 = m.actuator_gainprm[:, 0].copy(), m.actuator_biasprm[:, 1].copy()
-        self._legs = np.array([not jn.startswith(("neck", "tail")) for jn in p.joints])
+        self._legs = plant.leg_joints(p.joints)  # every hinge but the head's and the tail's
         jid = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in p.joints]
         self.lo, self.hi = m.jnt_range[jid, 0].copy(), m.jnt_range[jid, 1].copy()
         self._foot_tables = foot_tables(m, p.feet)
@@ -901,5 +909,6 @@ def throughput(mode: str, body: str, env_steps: int = 500, seed: int = 0, run_di
 
 
 __all__ = ["ACTION_DIM", "ACTOR_DIM", "ACTOR_OBS", "CRITIC_OBS", "EnvConfig", "FLOOR_SPREAD", "OBS_DIM",
-           "PolicyOnlyEnv", "ResidualEnv", "Stage1Env", "TASKS", "foot_tables", "make", "model_differences", "obs_layout",
-           "set_trunk_mass", "setconst_changes", "throughput", "tuned_gains", "zero_residual_check"]
+           "PolicyOnlyEnv", "ResidualEnv", "Stage1Env", "TASKS", "WIDTH_JOINTS", "foot_tables", "make",
+           "model_differences", "obs_layout", "set_trunk_mass", "setconst_changes", "throughput", "tuned_gains",
+           "zero_residual_check"]

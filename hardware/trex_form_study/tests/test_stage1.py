@@ -667,6 +667,66 @@ def test_step_rate_judges_the_median_of_every_sample():
     assert len(r) == 3 and all(v > 0 for v in r)
 
 
+def test_a_step_rate_on_fewer_processes_than_cores_is_provisional():
+    """The rule times one process per core: a per-core run on fewer (``PYTHON_CPU_COUNT`` below the core count, on a
+    shared machine) is not judged either way.  ``ok`` is None with the samples' own reading beside it, and the
+    machine's cores are recorded; with one process per core the verdict is the rule's."""
+    machine = dict(cores=4, cores_source="test", os_cpu_count=2, python_cpu_count="2")
+    two = gates.rate_summary([22e3] * 5, [[22e3] * 5, [23e3] * 5], machine=machine)
+    assert two["ok"] is None and two["ok_on_these_processes"] is True and two["processes"] == 2
+    assert two["provisional"] == "step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2)" and two["machine"] == machine
+    assert two["provisional_rule"] == gates.PROVISIONAL_RATE_RULE
+    slow = gates.rate_summary([19e3] * 5, [[19e3] * 5] * 2, machine=machine)
+    assert slow["ok"] is None and slow["ok_on_these_processes"] is False
+    for rate, ok in ((22e3, True), (19e3, False)):
+        full = gates.rate_summary([rate] * 5, [[rate] * 5] * 4, machine=machine)
+        assert full["ok"] is ok and "provisional" not in full and full["machine"] == machine
+    assert gates.rate_summary([22e3], [[22e3]])["ok"] is True  # no machine given: judged as before
+
+
+def test_the_machine_cores_are_not_the_pools_count():
+    """``PYTHON_CPU_COUNT`` sets ``os.cpu_count()``, so a pool's size, but not the machine's cores the step-rate
+    rule counts (``gates.machine_cores``)."""
+    if not hasattr(os, "sched_getaffinity"):
+        pytest.skip("no os.sched_getaffinity on this platform")
+    code = ("import json; from designlab.stage1 import gates; "
+            "print(json.dumps(gates.machine_cores()))")
+    env_ = dict(os.environ, PYTHONPATH=str(ROOT), PYTHON_CPU_COUNT="1")
+    got = json.loads(subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env_, capture_output=True, text=True,
+                                    check=True).stdout.strip().splitlines()[-1])
+    cores = len(os.sched_getaffinity(0))
+    assert got == dict(cores=cores, cores_source="os.sched_getaffinity(0)", os_cpu_count=1, python_cpu_count="1")
+
+
+def test_verdicts_combine_with_a_provisional_one():
+    assert gates.combine([True, np.bool_(True)]) is True and gates.combine([True, None]) is None
+    assert gates.combine([None, False]) is False and gates.combine([np.bool_(False), None]) is False
+
+
+def test_a_provisional_g1_leaves_the_gates_record_provisional(tmp_path, monkeypatch):
+    """``run_gates``: a G1 whose step rate is provisional (every other check passing) makes the record's ``pass``
+    None, naming G1 under ``provisional``, once G2 is there on the same plant; any failing gate makes it False."""
+    from designlab.stage1 import __main__ as main_mod
+
+    opts = dict(ankle_gains="joint", ankle_armature="linkage")
+    g1 = {"plant_options": opts, "pass": None, "provisional": "step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2)"}
+    state = dict(g2=True, g3=True)
+    monkeypatch.setattr(gates, "g1", lambda body, out, **kw: dict(g1))
+    monkeypatch.setattr(gates, "g2", lambda body, out, rule=None, **kw: {"plant_options": opts, "pass": state["g2"]})
+    monkeypatch.setattr(gates, "g3", lambda body, out: {"pass_": state["g3"]})
+    doc = main_mod.run_gates(BODY, tmp_path, "g1")
+    assert doc["pass"] is False and "provisional" not in doc  # G2 not there yet (as before)
+    doc = main_mod.run_gates(BODY, tmp_path, "g2")
+    assert doc["pass"] is None and doc["same_plant_options"] and doc["provisional"] == {"G1": g1["provisional"]}
+    doc = main_mod.run_gates(BODY, tmp_path, "g3")
+    assert doc["pass"] is None and json.loads((tmp_path / "gates.json").read_text())["pass"] is None
+    state["g3"] = False
+    doc = main_mod.run_gates(BODY, tmp_path, "g3")
+    assert doc["pass"] is False and "provisional" not in doc
+    assert main_mod.verdict(None) == "provisional" and main_mod.verdict(True) == "pass"
+    assert main_mod.verdict(False) == "FAIL"
+
+
 @pytest.mark.parametrize("body", sorted(PROBE_BODIES))
 def test_gate_records_follow_the_build_decisions(body):
     """The committed run records (``stage1/runs/2026-11-08``) were made with the decided plant and G2 rule."""

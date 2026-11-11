@@ -1245,8 +1245,9 @@ class Tracker:
         self.ankle_peak = np.array([[p.drives[i].peak for i in ix] for ix in self.ankle_ix])
         #: The ankle axes' rows of G^T (joint torques from the motors' forces): left pitch, roll, right pitch, roll.
         self.ankle_Gt = np.ascontiguousarray(Gm.T[np.concatenate(self.ankle_ix)])
-        #: The leg drives (every drive but the neck's and the tail's) and the ankle motors, by actuator.
-        self.leg_act = np.array([dr.group not in ("neck", "tail") for dr in p.drives])
+        #: The leg drives (every drive but the head's and the tail's: plant.leg_drives, with Stage 2's neck yaw and jaw)
+        #: and the ankle motors, by actuator.
+        self.leg_act = plant.leg_drives(p.drives)
         self.ankle_act = np.array([dr.group in ("ankle_a", "ankle_b") for dr in p.drives])
         self.hinge_jid = np.array([self.jid[jn] for jn in p.joints])
         self.foot_of = foot_geoms(p)
@@ -1967,6 +1968,9 @@ CF_HORIZON_S = 1.0  # a counterfactual runs until this long after the original f
 CF_NULL_M_S = 1e-3  # the null counterfactual: the root velocity changed by this (world x) at the branch
 CF_FRICTION = 5.0  # the "slip" relaxation: sliding friction of every colliding geom
 CF_RANGE_RAD = 1.0  # the "joint_range" relaxation: every hinge's range widened by this on each side
+#: A hinge this close to an end of its range is at its limit (the joint_range hardware limit, ``limit_bounds``; the
+#: tuner's ``tune.AT_LIMIT_RAD``).
+AT_LIMIT_RAD = 1e-3
 #: The candidates of a fall (decision 20 attributes conditions, not falls; ``gates.attribute``).
 CANDIDATE_RULE = (f"the hardware limits (HW_LIMITS) active at an update of the {LIMIT_WINDOW_S:g} s before the fall's "
                   f"onset (the last time the trunk tilt rose through {FALL_ONSET_RAD:g} rad)")
@@ -2055,7 +2059,8 @@ def relaxed(tk: Tracker, names):
     "ankle_linkage" the ankle motors' torque limits, "slip" friction ``CF_FRICTION`` on every colliding geom,
     "leg_to_leg_clearance" the inward step bound (``Tracker.inward_bound`` None) with the two feet's pads no longer
     colliding with each other (they still meet the floor), "joint_range" every hinge's range widened by
-    ``CF_RANGE_RAD`` on each side.  The tracker's own limits (the ankle cap, the step clips) stay.  Restored on exit."""
+    ``CF_RANGE_RAD`` on each side (but an end it rests on by design: ``plant.REST_ON_STOP_RULE``).  The tracker's
+    own limits (the ankle cap, the step clips) stay.  Restored on exit."""
     names = set(names)
     if names - set(RELAXATIONS):
         raise ValueError(f"unknown relaxations {sorted(names - set(RELAXATIONS))}: choose from {', '.join(RELAXATIONS)}")
@@ -2076,9 +2081,10 @@ def relaxed(tk: Tracker, names):
             tk.inward_bound = None
             pads = (tk.foot_of >= 0) & (m.geom_contype == 1) & (m.geom_conaffinity == 1)
             m.geom_contype[pads] = 2  # pad on floor: floor contype 1 & pad conaffinity 1; pad on pad: none
-        if "joint_range" in names:
-            m.jnt_range[tk.hinge_jid, 0] -= CF_RANGE_RAD
-            m.jnt_range[tk.hinge_jid, 1] += CF_RANGE_RAD
+        if "joint_range" in names:  # every end but one a joint rests on by design (plant.REST_ON_STOP_RULE)
+            rest = plant.rest_ends(p.joints)
+            m.jnt_range[tk.hinge_jid[rest >= 0], 0] -= CF_RANGE_RAD
+            m.jnt_range[tk.hinge_jid[rest <= 0], 1] += CF_RANGE_RAD
         yield
     finally:
         m.actuator_forcelimited[:] = saved[0]
@@ -2087,6 +2093,16 @@ def relaxed(tk: Tracker, names):
         env.enabled = saved[3]  # (and the force ranges back to the peaks)
         tk.inward_bound = saved[4]
         m.geom_contype[:] = saved[5]
+
+
+def limit_bounds(lo: np.ndarray, hi: np.ndarray, joints) -> tuple[np.ndarray, np.ndarray]:
+    """The joint_range hardware limit's bounds (``HW_LIMITS``): a hinge within ``AT_LIMIT_RAD`` of an end of its range
+    is at its limit, except at an end it rests on by design (``plant.REST_ON_STOP_RULE``), which never counts."""
+    jlo, jhi = lo + AT_LIMIT_RAD, hi - AT_LIMIT_RAD
+    rest = plant.rest_ends(joints)
+    if rest.any():
+        jlo, jhi = np.where(rest < 0, -np.inf, jlo), np.where(rest > 0, np.inf, jhi)
+    return jlo, jhi
 
 
 def _apply_push(p: plant.Plant, push) -> None:
@@ -2316,7 +2332,7 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
     hi_t, lo_t = np.empty(nu), np.empty(nu)
     b1, b2, sat = np.empty(nu, bool), np.empty(nu, bool), np.empty(nu, bool)
     slip_load = SLIP_LOAD_FRAC * weight
-    jlo, jhi = tk.lo + 1e-3, tk.hi - 1e-3
+    jlo, jhi = limit_bounds(tk.lo, tk.hi, p.joints)
     trunk, feet = p.trunk, p.feet
     qadr = p.qadr
     t0 = time.perf_counter()
