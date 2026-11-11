@@ -1,6 +1,6 @@
 # Stage 2: the agility round, with character (simulation)
 
-**Status (11 Nov 2026): the owner has taken decisions 3–6 below (P29); the look build (Track A) has started; nothing else has run.** Simulation only; it changes no body and adopts nothing
+**Status (11 Nov 2026): the owner has taken decisions 3–6 below (P29). Track A's first phase is done: the look ladder (`stage2/look/`), its Stage 0 screen and renders, and the look review page for gate L1 (claude.ai artifact MG1yh5ztqJwVdFPs6GmkkY; the blind viewers' sheet QVktxN3pHsov2LTVs6d69c), awaiting the owner's picks. The expressive head (S2-2) is built and costed (`stage2/x/`). Nothing else has run.** Simulation only; it changes no body and adopts nothing
 without the owner (P24). Paths are relative to `hardware/trex_form_study/` unless they begin `environments/`,
 `notebooks/` or `docs/`. S1 and S1b are the Stage 1 and 1b reports (`stage1/runs/2026-11-08/STAGE1_PROBE.md`,
 `stage1/runs/2026-11-10-speed/STAGE1B_SPEED.md`); "decision n" is `STAGE1_PLAN.md`'s, "S2-n" this plan's; [look] and
