@@ -77,7 +77,9 @@ gate() {  # gate $2 of body $1 into gates.json; G1 times one process per core as
     local b=$1 g=$2 status
     say "$b gates --only $g"
     if [ "$g" = g1 ] && [ -n "${G1_PROCS:-}" ]; then
-        say "$b g1: step rate on $G1_PROCS of $(nproc) cores (G1_PROCS); recorded as provisional unless that is all"
+        # (nproc alone would print 1: it reads the OMP_NUM_THREADS=1 exported above)
+        say "$b g1: step rate on $G1_PROCS of $(env -u OMP_NUM_THREADS -u OMP_THREAD_LIMIT nproc) cores (G1_PROCS);" \
+            "recorded as provisional unless that is all"
         PYTHON_CPU_COUNT=$G1_PROCS py -m designlab.stage1 gates --body "$b" --out "$OUT" --only g1 \
             > "$LOG/${b}_gates_g1.log" 2>&1
     elif [ "$g" = g1 ]; then

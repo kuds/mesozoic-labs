@@ -1162,7 +1162,7 @@
   "C": 1.878597559290758
  },
  "gait_accuracy": "r2",
- "seconds": 33.85325789451599,
+ "seconds": 87.36517477035522,
  "ok": true,
  "refine_case": "head_x_75",
  "headroom": 1.0,
@@ -1256,7 +1256,33 @@
   "com_ahead_of_hip_m": {
    "head_x": 0.07231106613695738,
    "base": 0.06707447451590677,
-   "change": 0.0052365916210506125
+   "change": 0.0052365916210506125,
+   "head_x_at_pick_pose": 0.07150573599686477,
+   "change_at_pick_pose": 0.004431261480958001,
+   "note": "change: each body at its own home (two stances); change_at_pick_pose: the head-X body at the pick's home (home_pose)"
+  },
+  "home_pose": {
+   "rule": "the build solves the stance for the body as built (pipeline.build_candidate: statics.solve_stance shifts the feet fore and aft so that the centre of mass is centred over the support, the trunk pose fixed), so the head-X home is not the pick's: the legs' joints differ (joint_change_rad) and against_base and com_ahead_of_hip_m's change compare two stances, the added parts with the re-solved stance.  against_base_at_pick_pose and com_ahead_of_hip_m's change_at_pick_pose compare the head-X body posed at the pick's home (the new joints at 0) with the pick: the added parts alone, as sizing.requirements reads them from that pose.  The plant's usable leg ranges, read by the clearance screen from sweeps from home, move a little with the home",
+   "pick_xml_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+   "trunk_pose_change_max": 0.0,
+   "joint_change_rad": {
+    "left_hip_roll": -1.8975053681091758e-08,
+    "left_hip_pitch": -0.008813361305551087,
+    "left_hip_yaw": 1.7535037991071092e-09,
+    "left_knee": -0.003383897671654132,
+    "left_ankle_pitch": 0.012197257963015105,
+    "left_ankle_roll": 1.829177620482625e-08,
+    "right_hip_roll": 1.8975053694969546e-08,
+    "right_hip_pitch": -0.008813361305551555,
+    "right_hip_yaw": -1.7535037991680955e-09,
+    "right_knee": -0.003383897671653372,
+    "right_ankle_pitch": 0.012197257963014812,
+    "right_ankle_roll": -1.8291776218704037e-08
+   },
+   "largest_joint_change": [
+    "left_ankle_pitch",
+    0.012197257963015105
+   ]
   },
   "head_neck_mass_kg": {
    "head_x": 0.867229,
@@ -1456,6 +1482,497 @@
      "speed": 0.0
     }
    }
+  },
+  "against_base_at_pick_pose": {
+   "hip_roll": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "hold_Nm": 4.477437468307994,
+    "rms_Nm": 3.620271933590673,
+    "ratios": {
+     "cont": 0.7481098526830401,
+     "peak": 0.40284664252675695,
+     "speed": 0.10239178786586096
+    },
+    "base_hold_Nm": 4.482386284786347,
+    "hold_change_Nm": -0.004948816478353102,
+    "base_rms_Nm": 3.6279425778003223,
+    "base_ratios": {
+     "cont": 0.7489367226042353,
+     "peak": 0.3944501158676066,
+     "speed": 0.10279749603079322
+    },
+    "hold_over_sustained": 0.7481098526830401,
+    "base_hold_over_sustained": 0.7489367226042353
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x6_p20_60_e",
+    "hold_Nm": 9.480934891174932,
+    "rms_Nm": 6.98083537644329,
+    "ratios": {
+     "cont": 0.8316609553662222,
+     "peak": 0.5147676719336247,
+     "speed": 0.8233458841908045
+    },
+    "base_hold_Nm": 8.687429963213075,
+    "hold_change_Nm": 0.7935049279618571,
+    "base_rms_Nm": 6.459984131002,
+    "base_ratios": {
+     "cont": 0.7620552599309717,
+     "peak": 0.49337713164303393,
+     "speed": 0.8339814742435865
+    },
+    "hold_over_sustained": 0.8316609553662222,
+    "base_hold_over_sustained": 0.7620552599309717
+   },
+   "hip_yaw": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "hold_Nm": 4.617628471389929,
+    "rms_Nm": 3.739179652009316,
+    "ratios": {
+     "cont": 0.7715335791796039,
+     "peak": 0.6132450580378486,
+     "speed": 3.785392383109047e-08
+    },
+    "base_hold_Nm": 4.592997476323875,
+    "hold_change_Nm": 0.024630995066053707,
+    "base_rms_Nm": 3.723534684329536,
+    "base_ratios": {
+     "cont": 0.7674181246990602,
+     "peak": 0.6201320864746416,
+     "speed": 2.3856055189456855e-08
+    },
+    "hold_over_sustained": 0.7715335791796039,
+    "base_hold_over_sustained": 0.7674181246990602
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "hold_Nm": 2.3641801997117584,
+    "rms_Nm": 2.8728343921107133,
+    "ratios": {
+     "cont": 0.4800057463844133,
+     "peak": 0.40717374664067046,
+     "speed": 0.9633154740364219
+    },
+    "base_hold_Nm": 2.7933302637795094,
+    "hold_change_Nm": -0.429150064067751,
+    "base_rms_Nm": 3.1266193159726905,
+    "base_ratios": {
+     "cont": 0.522409242434869,
+     "peak": 0.42611062261568716,
+     "speed": 0.934718492629652
+    },
+    "hold_over_sustained": 0.395017577228364,
+    "base_hold_over_sustained": 0.4667218485847134
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "hold_Nm": 3.426373027621404,
+    "rms_Nm": 2.3238402553534434,
+    "ratios": {
+     "cont": 0.5724934047821896,
+     "peak": 0.3025327125398163,
+     "speed": 0.7105090930028795
+    },
+    "base_hold_Nm": 3.3907718118924515,
+    "hold_change_Nm": 0.035601215728952695,
+    "base_rms_Nm": 2.301600268753197,
+    "base_ratios": {
+     "cont": 0.5665449978099335,
+     "peak": 0.2963087958272107,
+     "speed": 0.7051541798761474
+    },
+    "hold_over_sustained": 0.5724934047821896,
+    "base_hold_over_sustained": 0.5665449978099335
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "hold_Nm": 3.426282306107836,
+    "rms_Nm": 2.334244012730739,
+    "ratios": {
+     "cont": 0.5724782466345592,
+     "peak": 0.3025500432668297,
+     "speed": 0.7104956631159866
+    },
+    "base_hold_Nm": 3.3906805750243296,
+    "hold_change_Nm": 0.035601731083506394,
+    "base_rms_Nm": 2.3119333100289485,
+    "base_ratios": {
+     "cont": 0.5665297535546082,
+     "peak": 0.29632114731662407,
+     "speed": 0.7051416416942591
+    },
+    "hold_over_sustained": 0.5724782466345592,
+    "base_hold_over_sustained": 0.5665297535546082
+   },
+   "neck": {
+    "actuator": "robotis_xm540_w270_t",
+    "hold_Nm": 1.2470869247583978,
+    "rms_Nm": 1.2603841073144104,
+    "ratios": {
+     "cont": 0.7120009644754324,
+     "peak": 0.6146809202313565,
+     "speed": 0.47322864103140444
+    },
+    "base_hold_Nm": 1.1595797651848394,
+    "hold_change_Nm": 0.08750715957355837,
+    "base_rms_Nm": 1.1721774799744826,
+    "base_ratios": {
+     "cont": 0.6621723420938214,
+     "peak": 0.5739271827068702,
+     "speed": 0.47322864103140444
+    },
+    "hold_over_sustained": 0.7044892807357348,
+    "base_hold_over_sustained": 0.655055793235137
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "hold_Nm": 0.108992241346198,
+    "rms_Nm": 0.19632515483667956,
+    "ratios": {
+     "cont": 0.39959202228448515,
+     "peak": 0.7912570192285655,
+     "speed": 0.3788750117284618
+    },
+    "base_hold_Nm": 0.10899224134619803,
+    "hold_change_Nm": -2.7755575615628914e-17,
+    "base_rms_Nm": 0.1969556433437742,
+    "base_ratios": {
+     "cont": 0.4008752922647719,
+     "peak": 0.7932987077382947,
+     "speed": 0.3788750117284618
+    },
+    "hold_over_sustained": 0.2218382568911083,
+    "base_hold_over_sustained": 0.22183825689110837
+   },
+   "neck_yaw": {
+    "actuator": "feetech_sts3215_c018",
+    "hold_Nm": 0.13107411581178213,
+    "rms_Nm": 0.17431669390394058,
+    "ratios": {
+     "cont": 0.3547969199003907,
+     "peak": 0.5188263563625551,
+     "speed": 0.0
+    }
+   },
+   "jaw": {
+    "actuator": "feetech_sts3215_c018",
+    "hold_Nm": 0.07508809490884372,
+    "rms_Nm": 0.07612334788098818,
+    "ratios": {
+     "cont": 0.15493828362511178,
+     "peak": 0.15026681302646325,
+     "speed": 0.0
+    }
+   }
+  },
+  "loads_between_stances": {
+   "ratio_max_difference": 0.00036606176871678553,
+   "ratio_where": [
+    "tail",
+    "peak"
+   ],
+   "torque_max_relative_difference": 9.224256790504144e-06,
+   "torque_where": [
+    "knee",
+    "hold_Nm"
+   ],
+   "torque_floor_Nm": 0.01,
+   "rule": "the largest change between the two stances (against_base, against_base_at_pick_pose) of a group's ratio to its drive's limits, and of a hold or RMS torque (relative, those of at least the floor): the sizing's holds and walks re-centre the centre of mass over the support from whichever home they start, so the re-solved stance moves the loads only this much, while the centre of mass at home moves with it (com_ahead_of_hip_m)"
+  },
+  "joint_ranges": {
+   "screened": false,
+   "rule": "neither new joint's range is screened at its own seam: the clearance screen pairs no body with its parent (clearance.SEAM_RULE), so its sweeps cannot see the neck against the chest (neck yaw) or the jaw against the skull and the neck (jaw), and joint_range_usable, which the plant takes, stays at the MJCF limits.  The seam sweep (clearance.seam_sweep) is recorded here for the two and, for comparison, for today's neck pitch and tail yaw, which share the blind spot",
+   "seam_rule": "the body-pair screen pairs no body with its parent (section 1), so a joint sweep cannot see the joint's own seam (the moving body against its parent: the neck against the chest for the neck pitch and the neck yaw, the tail against the trunk for the tail yaw, the jaw against the skull and the neck for the jaw) and cannot cut its range there: joint_range_usable stays at the MJCF limit unless another body interferes.  seam_sweep sweeps each such joint alone from home to each limit (steps of at most SWEEP_STEP, the other joints at home, root fixed) over every screened geom of the moving body against every screened geom of its parent (the cl_* proxies and the hw_* primitives, the screen's own set and distance oracle) and reports the pairs apart at home that interfere along the sweep (new contacts, panel-level as the screen counts them) and the pairs overlapping at home that overlap more deeply (by more than 2 mm).  The proxies are coarse hulls of the covers' mid-surfaces and meet at a seam by design (the neck proxy reaches into the chest's), so a deepening overlap is where to look, not a measured collision",
+   "deepen_threshold_mm": 2.0,
+   "joints": [
+    "neck_yaw",
+    "jaw"
+   ],
+   "seams": {
+    "neck_pitch": {
+     "moving": "head",
+     "parent": "trunk",
+     "range": [
+      -0.35,
+      0.35
+     ],
+     "new_contact": true,
+     "deepens_mm_max": 27.15,
+     "directions": {
+      "min": {
+       "limit": -0.35,
+       "first_new_contact": {
+        "at": -0.3,
+        "pair": [
+         "cl_neck",
+         "hw_spine_beam"
+        ]
+       },
+       "deepening": [
+        {
+         "pair": [
+          "cl_neck",
+          "cl_chest_front"
+         ],
+         "deepens_mm": 27.15,
+         "at": -0.35,
+         "depth_mm": 36.75
+        },
+        {
+         "pair": [
+          "cl_neck",
+          "hw_neck_motor"
+         ],
+         "deepens_mm": 7.84,
+         "at": -0.35,
+         "depth_mm": 18.21
+        },
+        {
+         "pair": [
+          "cl_neck",
+          "hw_neck_yaw_motor"
+         ],
+         "deepens_mm": 7.28,
+         "at": -0.09999999999999999,
+         "depth_mm": 28.53
+        }
+       ]
+      },
+      "max": {
+       "limit": 0.35,
+       "first_new_contact": null,
+       "deepening": [
+        {
+         "pair": [
+          "cl_neck",
+          "cl_chest_front"
+         ],
+         "deepens_mm": 11.3,
+         "at": 0.35,
+         "depth_mm": 17.18
+        }
+       ]
+      }
+     }
+    },
+    "tail_yaw": {
+     "moving": "tail",
+     "parent": "trunk",
+     "range": [
+      -0.45,
+      0.45
+     ],
+     "new_contact": false,
+     "deepens_mm_max": 16.15,
+     "directions": {
+      "min": {
+       "limit": -0.45,
+       "first_new_contact": null,
+       "deepening": [
+        {
+         "pair": [
+          "cl_tail_root",
+          "cl_pelvis_lateral_l"
+         ],
+         "deepens_mm": 16.15,
+         "at": -0.45,
+         "depth_mm": 19.32
+        },
+        {
+         "pair": [
+          "cl_tail_root",
+          "cl_pelvis_ventral"
+         ],
+         "deepens_mm": 14.27,
+         "at": -0.45,
+         "depth_mm": 39.83
+        },
+        {
+         "pair": [
+          "cl_tail_root",
+          "hw_tail_motor"
+         ],
+         "deepens_mm": 9.2,
+         "at": -0.45,
+         "depth_mm": 28.93
+        }
+       ]
+      },
+      "max": {
+       "limit": 0.45,
+       "first_new_contact": null,
+       "deepening": [
+        {
+         "pair": [
+          "cl_tail_root",
+          "cl_pelvis_lateral_r"
+         ],
+         "deepens_mm": 16.15,
+         "at": 0.45,
+         "depth_mm": 19.32
+        },
+        {
+         "pair": [
+          "cl_tail_root",
+          "cl_pelvis_ventral"
+         ],
+         "deepens_mm": 14.27,
+         "at": 0.45,
+         "depth_mm": 39.83
+        },
+        {
+         "pair": [
+          "cl_tail_root",
+          "hw_tail_motor"
+         ],
+         "deepens_mm": 9.2,
+         "at": 0.45,
+         "depth_mm": 28.93
+        }
+       ]
+      }
+     }
+    },
+    "neck_yaw": {
+     "moving": "head",
+     "parent": "trunk",
+     "range": [
+      -0.6,
+      0.6
+     ],
+     "new_contact": false,
+     "deepens_mm_max": 23.59,
+     "directions": {
+      "min": {
+       "limit": -0.6,
+       "first_new_contact": null,
+       "deepening": [
+        {
+         "pair": [
+          "cl_neck",
+          "cl_chest_front"
+         ],
+         "deepens_mm": 23.59,
+         "at": -0.6,
+         "depth_mm": 33.19
+        },
+        {
+         "pair": [
+          "cl_neck",
+          "hw_neck_yaw_motor"
+         ],
+         "deepens_mm": 11.34,
+         "at": -0.6,
+         "depth_mm": 32.58
+        },
+        {
+         "pair": [
+          "cl_neck",
+          "hw_neck_motor"
+         ],
+         "deepens_mm": 9.58,
+         "at": -0.6,
+         "depth_mm": 19.95
+        }
+       ]
+      },
+      "max": {
+       "limit": 0.6,
+       "first_new_contact": null,
+       "deepening": [
+        {
+         "pair": [
+          "cl_neck",
+          "cl_chest_front"
+         ],
+         "deepens_mm": 23.59,
+         "at": 0.6,
+         "depth_mm": 33.19
+        },
+        {
+         "pair": [
+          "cl_neck",
+          "hw_neck_yaw_motor"
+         ],
+         "deepens_mm": 11.34,
+         "at": 0.6,
+         "depth_mm": 32.58
+        },
+        {
+         "pair": [
+          "cl_neck",
+          "hw_neck_motor"
+         ],
+         "deepens_mm": 9.58,
+         "at": 0.6,
+         "depth_mm": 19.95
+        }
+       ]
+      }
+     }
+    },
+    "jaw": {
+     "moving": "jaw",
+     "parent": "head",
+     "range": [
+      0.0,
+      0.6
+     ],
+     "new_contact": false,
+     "deepens_mm_max": 28.67,
+     "directions": {
+      "max": {
+       "limit": 0.6,
+       "first_new_contact": null,
+       "deepening": [
+        {
+         "pair": [
+          "cl_jaw",
+          "cl_neck"
+         ],
+         "deepens_mm": 28.67,
+         "at": 0.6,
+         "depth_mm": 29.51
+        },
+        {
+         "pair": [
+          "cl_jaw",
+          "hw_jaw_motor"
+         ],
+         "deepens_mm": 6.51,
+         "at": 0.6,
+         "depth_mm": 26.31
+        },
+        {
+         "pair": [
+          "cl_jaw",
+          "cl_skull"
+         ],
+         "deepens_mm": 5.42,
+         "at": 0.6,
+         "depth_mm": 6.65
+        }
+       ]
+      }
+     }
+    }
+   },
+   "cover_behind_hinge": {
+    "cover": "cover_jaw",
+    "joint": "jaw",
+    "hinge_world_m": [
+     0.5701445438754926,
+     0.0,
+     0.665924289006657
+    ],
+    "extent_behind_hinge_m": 0.018357997622598606,
+    "cover_extent_m": 0.2330100019412924,
+    "open_limit_rad": 0.6,
+    "rise_at_open_limit_m": 0.021606528756807464,
+    "displacement_at_open_limit_m": 0.04114795491560575,
+    "note": "the part of the cover behind the hinge swings up and back as the joint opens"
+   },
+   "decision": "annotated, not cut: neither sweep finds a new contact; what grows is the overlap of coarse proxies that already overlap at the seam at home, of the order today's neck pitch shows over its +-0.35 rad (accepted in rounds one and two), and the neck proxy against the neck-yaw servo and against today's pitch servo, which this model keeps on the trunk (on a yaw stage it would turn with the neck), is packaging the yaw stage's design must settle.  The jaw cover is today's, so its part behind the hinge swings up into the skull and the neck as the jaw opens (cover_behind_hinge): a build would trim the cover at the hinge; the model keeps it, so that the locked body stays today's plus the added parts, and renders of an open jaw show it"
   },
   "selection_if_resized": {
    "rule": "one step of sizing.select on these loads with the case's headroom, and power.select_battery on its walking power: recorded only (the sizing loop, which would iterate on the re-selected parts' masses, is not run, and nothing here is re-selected)",

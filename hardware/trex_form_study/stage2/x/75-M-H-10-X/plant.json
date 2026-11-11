@@ -823,6 +823,34 @@
      "plant": 0.45
     }
    ]
+  },
+  "rest_on_stop": {
+   "joints": {
+    "jaw": "min"
+   },
+   "rule": "a joint that rests on one end of its range by design (clearance.REST_ON_STOP: Stage 2's expressive-head jaw, closed on its lower stop) has no range limit at that end: the stop is where it rests, not a limit a walk must keep clear of.  The judges leave that end out of the joint-range margins (metrics.joint_margins: tune's and the panels' joint_range term, G2's replay margins and limits reached), out of the controller's joint_range hardware limit (control.limit_bounds) and out of the joint_range counterfactual, which widens every other end; the margin at the rest end is reported beside them (how far the joint was pressed past its stop).  The other end keeps the rule every hinge has.  No earlier body has such a joint"
+  },
+  "not_screened_at_seam": {
+   "joints": [
+    "neck_yaw",
+    "jaw"
+   ],
+   "rule": "neither new joint's range is screened at its own seam: the clearance screen pairs no body with its parent (clearance.SEAM_RULE), so its sweeps cannot see the neck against the chest (neck yaw) or the jaw against the skull and the neck (jaw), and joint_range_usable, which the plant takes, stays at the MJCF limits.  The seam sweep (clearance.seam_sweep) is recorded here for the two and, for comparison, for today's neck pitch and tail yaw, which share the blind spot",
+   "decision": "annotated, not cut: neither sweep finds a new contact; what grows is the overlap of coarse proxies that already overlap at the seam at home, of the order today's neck pitch shows over its +-0.35 rad (accepted in rounds one and two), and the neck proxy against the neck-yaw servo and against today's pitch servo, which this model keeps on the trunk (on a yaw stage it would turn with the neck), is packaging the yaw stage's design must settle.  The jaw cover is today's, so its part behind the hinge swings up into the skull and the neck as the jaw opens (cover_behind_hinge): a build would trim the cover at the hinge; the model keeps it, so that the locked body stays today's plus the added parts, and renders of an open jaw show it",
+   "seam_sweep": "the case record's head_x.joint_ranges (clearance.seam_sweep)",
+   "new_contact": {
+    "neck_pitch": true,
+    "tail_yaw": false,
+    "neck_yaw": false,
+    "jaw": false
+   },
+   "deepens_mm_max": {
+    "neck_pitch": 27.15,
+    "tail_yaw": 16.15,
+    "neck_yaw": 23.59,
+    "jaw": 28.67
+   },
+   "jaw_cover_behind_hinge_m": 0.018357997622598606
   }
  },
  "ctrl": {
@@ -1088,59 +1116,17 @@
    "torch": "2.15.0"
   },
   "git": {
-   "commit": "21c4ccf498b2c2240b4a4c5d3ea95caab4eb0293",
+   "commit": "485a6a3c8ea6b8d3f3687e3a0bde3210c2c2ca91",
    "dirty": true,
    "dirty_paths": [
-    " M hardware/trex_form_study/designlab/build.py",
-    " M hardware/trex_form_study/designlab/clearance.py",
-    " M hardware/trex_form_study/designlab/cost.py",
-    " M hardware/trex_form_study/designlab/envelope.py",
-    " M hardware/trex_form_study/designlab/mjcf.py",
-    " M hardware/trex_form_study/designlab/power.py",
-    " M hardware/trex_form_study/designlab/refine.py",
-    " M hardware/trex_form_study/designlab/report2.py",
-    " M hardware/trex_form_study/designlab/sizestudy.py",
-    " M hardware/trex_form_study/designlab/sizing.py",
-    " M hardware/trex_form_study/designlab/stage1/__init__.py",
-    " M hardware/trex_form_study/designlab/stage1/drive.py",
-    " M hardware/trex_form_study/designlab/stage1/refs.py",
-    " M hardware/trex_form_study/designlab/turning.py",
-    " M hardware/trex_form_study/round2/refine/REFINE.md",
-    " M hardware/trex_form_study/round2/refine/refine.json",
-    " M hardware/trex_form_study/tests/test_stage1_bodies.py",
-    "?? hardware/trex_form_study/round2/refine/carpet_lift_head_x_60_0.190_0.195_nominal_only.json",
-    "?? hardware/trex_form_study/round2/refine/carpet_lift_head_x_75_0.175_0.180_0.190.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/candidates/60-N-T-10.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/mjcf/60-N-T-10.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/review_index.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_carpet.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_carpet.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_clearance.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_clearance.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_envelope.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_sensors.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_sensors.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_turning.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_60/review/screening/60-N-T-10_turning.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/candidates/75-M-H-10.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/mjcf/75-M-H-10.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/review_index.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_carpet.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_carpet.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_clearance.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_clearance.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_envelope.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_sensors.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_sensors.png",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_turning.json",
-    "?? hardware/trex_form_study/round2/refine/head_x_75/review/screening/75-M-H-10_turning.png",
-    "?? hardware/trex_form_study/stage2/x/run_x.sh",
-    "?? hardware/trex_form_study/stage2/x/x_inputs.py",
-    "?? hardware/trex_form_study/tests/test_stage2_x.py"
+    " M hardware/trex_form_study/round2/refine/head_x_60/candidates/60-N-T-10.json",
+    " M hardware/trex_form_study/round2/refine/head_x_75/candidates/75-M-H-10.json",
+    " D hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
+    " D hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json"
    ]
   },
   "stage1_sources": {
-   "sha256": "2cb8ed5eb3df2c0fe9926a9282650c7153aa6dbfff329fc7574bc1b5c761fb61",
+   "sha256": "cc2a5c418b94a7ed48a40dae379a11a0789c5f6316f4b26389fa80e99ac45111",
    "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
    "files": [
     "__init__.py",
@@ -1211,9 +1197,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.45687890499993955,
-   "steps_per_s_zero_command": 12275.162146024126,
-   "env_steps_per_s_bound_50hz": 1227.5162146024127,
+   "build_s": 0.24052777999895625,
+   "steps_per_s_zero_command": 20938.292632330384,
+   "env_steps_per_s_bound_50hz": 2093.8292632330385,
    "below_g6a_env_rate": false
   },
   "robot_floor_carpet": {
@@ -1273,9 +1259,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 0.4301844159999746,
-   "steps_per_s_zero_command": 13542.668866482189,
-   "env_steps_per_s_bound_50hz": 1354.2668866482188,
+   "build_s": 0.26027583699942625,
+   "steps_per_s_zero_command": 14879.029399257937,
+   "env_steps_per_s_bound_50hz": 1487.9029399257938,
    "below_g6a_env_rate": false
   },
   "low": {
@@ -1356,9 +1342,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.9375712720002412,
-   "steps_per_s_zero_command": 1362.029138916466,
-   "env_steps_per_s_bound_50hz": 136.2029138916466,
+   "build_s": 1.8850949210009276,
+   "steps_per_s_zero_command": 1163.8479784544909,
+   "env_steps_per_s_bound_50hz": 116.38479784544909,
    "below_g6a_env_rate": true
   },
   "medium": {
@@ -1439,9 +1425,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 2.444689570999799,
-   "steps_per_s_zero_command": 1025.6596558283745,
-   "env_steps_per_s_bound_50hz": 102.56596558283745,
+   "build_s": 1.8206190939999942,
+   "steps_per_s_zero_command": 907.4373981127717,
+   "env_steps_per_s_bound_50hz": 90.74373981127717,
    "below_g6a_env_rate": true
   },
   "high": {
@@ -1522,9 +1508,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 3.455695717999788,
-   "steps_per_s_zero_command": 1012.0011915827846,
-   "env_steps_per_s_bound_50hz": 101.20011915827845,
+   "build_s": 2.972856539001441,
+   "steps_per_s_zero_command": 992.4016750864002,
+   "env_steps_per_s_bound_50hz": 99.24016750864003,
    "below_g6a_env_rate": true
   }
  },
@@ -1607,9 +1593,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.246847434999836,
-   "steps_per_s_zero_command": 3591.72317349815,
-   "env_steps_per_s_bound_50hz": 359.172317349815,
+   "build_s": 1.0321431960001064,
+   "steps_per_s_zero_command": 4412.051914239542,
+   "env_steps_per_s_bound_50hz": 441.20519142395426,
    "below_g6a_env_rate": true
   },
   "medium": {
@@ -1690,9 +1676,9 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.157675351999842,
-   "steps_per_s_zero_command": 3892.2108941315823,
-   "env_steps_per_s_bound_50hz": 389.2210894131582,
+   "build_s": 1.0428530380013399,
+   "steps_per_s_zero_command": 4335.692434903793,
+   "env_steps_per_s_bound_50hz": 433.5692434903793,
    "below_g6a_env_rate": true
   },
   "high": {
@@ -1773,21 +1759,21 @@
    },
    "stands": true,
    "stand_status": "stands",
-   "build_s": 1.5833663560001696,
-   "steps_per_s_zero_command": 3078.0042945945743,
-   "env_steps_per_s_bound_50hz": 307.8004294594574,
+   "build_s": 1.3742312960002891,
+   "steps_per_s_zero_command": 2978.238236572655,
+   "env_steps_per_s_bound_50hz": 297.8238236572655,
    "below_g6a_env_rate": true
   }
  },
  "throughput": {
   "rule": "physics steps/s with zero command / 10 (50 Hz env steps on 2 ms physics) is an upper bound on the PPO env rate; G6a asks for 600 per job",
   "below_g6a": {
-   "low (4 mm probes)": 136,
-   "medium (4 mm probes)": 103,
-   "high (4 mm probes)": 101,
-   "low (8 mm probes)": 359,
-   "medium (8 mm probes)": 389,
-   "high (8 mm probes)": 308
+   "low (4 mm probes)": 116,
+   "medium (4 mm probes)": 91,
+   "high (4 mm probes)": 99,
+   "low (8 mm probes)": 441,
+   "medium (8 mm probes)": 434,
+   "high (8 mm probes)": 298
   }
  }
 }

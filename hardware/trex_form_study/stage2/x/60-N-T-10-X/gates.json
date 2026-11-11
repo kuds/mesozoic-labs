@@ -47,9 +47,9 @@
      53.75179160922877
     ],
     "saturated": [],
-    "build_s": 0.21509428099989236,
-    "wall_s": 0.7294819070002632,
-    "steps_per_s": 13708.35918483773,
+    "build_s": 0.1930385949999618,
+    "wall_s": 0.616567938001026,
+    "steps_per_s": 16218.812856894545,
     "settle": {
      "status": "settled",
      "settled": true,
@@ -102,9 +102,9 @@
      53.749061953353376
     ],
     "saturated": [],
-    "build_s": 0.918190751000111,
-    "wall_s": 3.847955827000078,
-    "steps_per_s": 2598.7824313971255,
+    "build_s": 1.0175687549999566,
+    "wall_s": 3.8400493760000245,
+    "steps_per_s": 2604.1331818541535,
     "settle": {
      "status": "settled",
      "settled": true,
@@ -227,43 +227,53 @@
    "samples_per_process": 5,
    "statistic": "median",
    "single_process_samples": [
-    24261.9081132796,
-    20145.195270083295,
-    24003.001246948927,
-    21845.71593930079,
-    21932.62109564705
+    19762.884305403597,
+    21095.302784356973,
+    22899.871421016247,
+    22152.806207048874,
+    20683.263570397863
    ],
-   "single_process": 21932.62109564705,
+   "single_process": 21095.302784356973,
    "processes": 2,
    "per_process_samples": [
     [
-     21029.41785538125,
-     23622.51632774372,
-     24218.230494359726,
-     19752.284436037517,
-     21721.145486867415
+     23047.24225330403,
+     25516.860831764112,
+     22407.628688294713,
+     21083.816798855878,
+     26518.64763720643
     ],
     [
-     20386.864874578852,
-     25094.10828877131,
-     23311.169165381707,
-     22526.49983989327,
-     21975.921205532948
+     25793.3742855919,
+     20605.586805429917,
+     23091.004561213413,
+     19848.24029909458,
+     25751.092174134326
     ]
    ],
    "per_process_median": [
-    21721.145486867415,
-    22526.49983989327
+    23047.24225330403,
+    23091.004561213413
    ],
-   "per_process_all_median": 22251.21052271311,
-   "per_process_mean": 22363.815797454772,
-   "lowest_sample": 19752.284436037517,
-   "per_core": 21932.62109564705,
+   "per_process_all_median": 23069.12340725872,
+   "per_process_mean": 23366.349433488933,
+   "lowest_sample": 19762.884305403597,
+   "per_core": 21095.302784356973,
    "threshold": 20000,
-   "ok": true
+   "ok": null,
+   "machine": {
+    "cores": 4,
+    "cores_source": "os.sched_getaffinity(0)",
+    "os_cpu_count": 2,
+    "python_cpu_count": "2"
+   },
+   "ok_on_these_processes": true,
+   "provisional_rule": "the rule times one process per core; a run with another number (a pool sized by PYTHON_CPU_COUNT below the core count, so that a build elsewhere on the machine keeps its cores) leaves the step rate unjudged (ok None, and G1's pass with it, unless another check fails): ok_on_these_processes is these samples against the threshold, and the verdict waits for G1 again with one process per core on an otherwise idle machine",
+   "provisional": "step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2)"
   },
-  "pass": true,
-  "seconds": 31.01372098999991,
+  "pass": null,
+  "provisional": "step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2)",
+  "seconds": 30.90105363099974,
   "provenance": {
    "versions": {
     "python": "3.13.18",
@@ -275,19 +285,17 @@
     "torch": "2.15.0"
    },
    "git": {
-    "commit": "c324645255704e675c8405e74273d5fcdd111669",
+    "commit": "485a6a3c8ea6b8d3f3687e3a0bde3210c2c2ca91",
     "dirty": true,
     "dirty_paths": [
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/refs.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/transitions.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/refs.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/transitions.json"
+     " M hardware/trex_form_study/round2/refine/head_x_60/candidates/60-N-T-10.json",
+     " M hardware/trex_form_study/round2/refine/head_x_75/candidates/75-M-H-10.json",
+     " M hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
+     " M hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json"
     ]
    },
    "stage1_sources": {
-    "sha256": "2cb8ed5eb3df2c0fe9926a9282650c7153aa6dbfff329fc7574bc1b5c761fb61",
+    "sha256": "cc2a5c418b94a7ed48a40dae379a11a0789c5f6316f4b26389fa80e99ac45111",
     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
     "files": [
      "__init__.py",
@@ -318,7 +326,7 @@
   }
  },
  "same_plant_options": true,
- "pass": true,
+ "pass": null,
  "G2": {
   "rule": "panel",
   "rule_text": "the median of 20 nominal replays with the envelope, from starts whose root velocity is offset in x and y by at most 1 mm/s (seed 0), is at least 10 strides (STAGE1_PLAN.md decision 13)",
@@ -594,20 +602,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.001412889308682647
+      0.17969949447290257
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.34000000000000025,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008677795950445371
+      "left_hip_roll",
+      0.18226247573705281
      ],
      "toe_lowest_above_floor_mm": -10.505046432252547,
      "toe_lowest_geom": "hw_right_claw_0",
@@ -664,8 +667,16 @@
        }
       ]
      },
-     "wall_s": 2.03854007200016,
-     "steps_per_s": 12725.773879218581
+     "wall_s": 1.9527292839993606,
+     "steps_per_s": 13284.995627693212,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.001412889308682647,
+       "pressed_past_stop_rad": 0.001412889308682647,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "nominal",
@@ -783,20 +794,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.001412889308682647
+      0.17969949447290257
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.34000000000000025,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008677795950445371
+      "left_hip_roll",
+      0.18226247573705281
      ],
      "toe_lowest_above_floor_mm": -10.505046432252547,
      "toe_lowest_geom": "hw_right_claw_0",
@@ -805,8 +811,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 2.1663981149999927,
-     "steps_per_s": 11974.714998309573
+     "wall_s": 2.4189729259996966,
+     "steps_per_s": 10724.386255492656,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.001412889308682647,
+       "pressed_past_stop_rad": 0.001412889308682647,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "brisk": {
@@ -928,20 +942,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.0013849566966732893
+      0.21760082298857672
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.2800000000000002,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0013849566966732893
+      "right_hip_roll",
+      0.21796094511603953
      ],
      "toe_lowest_above_floor_mm": -11.59016947433782,
      "toe_lowest_geom": "hw_right_claw_2",
@@ -998,8 +1007,16 @@
        }
       ]
      },
-     "wall_s": 0.2450650380001207,
-     "steps_per_s": 7806.091050813449
+     "wall_s": 0.23361148500043782,
+     "steps_per_s": 8188.809723958626,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0013849566966732893,
+       "pressed_past_stop_rad": 0.0013849566966732893,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "brisk",
@@ -1119,20 +1136,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.0013849566966732893
+      0.21760082298857672
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.2800000000000002,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0013849566966732893
+      "right_hip_roll",
+      0.21796094511603953
      ],
      "toe_lowest_above_floor_mm": -11.59016947433782,
      "toe_lowest_geom": "hw_right_claw_2",
@@ -1141,8 +1153,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 0.17995040599998902,
-     "steps_per_s": 10630.706773732518
+     "wall_s": 0.16736119899906043,
+     "steps_per_s": 11430.367441444654,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0013849566966732893,
+       "pressed_past_stop_rad": 0.0013849566966732893,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "fr05": {
@@ -1270,20 +1290,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.0013802450683394643
+      0.22893573053702876
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.2800000000000002,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0013539639025202143
+      "left_hip_roll",
+      0.22994552888405434
      ],
      "toe_lowest_above_floor_mm": -14.838650297876118,
      "toe_lowest_geom": "hw_left_claw_0",
@@ -1340,8 +1355,16 @@
        }
       ]
      },
-     "wall_s": 0.06069080800034499,
-     "steps_per_s": 14104.277537302423
+     "wall_s": 0.07542003799972008,
+     "steps_per_s": 11349.76887711429,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0013802450683394643,
+       "pressed_past_stop_rad": 0.0013802450683394643,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "fr05",
@@ -1462,20 +1485,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.0013802450683394643
+      0.22893573053702876
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.2800000000000002,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0013539639025202143
+      "left_hip_roll",
+      0.22994552888405434
      ],
      "toe_lowest_above_floor_mm": -14.838650297876118,
      "toe_lowest_geom": "hw_left_claw_0",
@@ -1484,8 +1502,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 0.07257068500030073,
-     "steps_per_s": 11795.396446877314
+     "wall_s": 0.07197072600138199,
+     "steps_per_s": 11893.724678886287,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0013802450683394643,
+       "pressed_past_stop_rad": 0.0013802450683394643,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "carpet": {
@@ -1601,20 +1627,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.001140086907116365
+      "left_hip_roll",
+      "high",
+      0.17961193603953873
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.34000000000000025,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0011087044205548083
+      "left_hip_roll",
+      0.17962377513782546
      ],
      "toe_lowest_above_floor_mm": -9.032069144187048,
      "toe_lowest_geom": "hw_left_claw_2",
@@ -1671,8 +1692,16 @@
        }
       ]
      },
-     "wall_s": 0.9446722960001352,
-     "steps_per_s": 11155.191111901191
+     "wall_s": 1.0714511750011297,
+     "steps_per_s": 9835.25917547189,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.001140086907116365,
+       "pressed_past_stop_rad": 0.001140086907116365,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "carpet",
@@ -1786,20 +1815,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.001140086907116365
+      "left_hip_roll",
+      "high",
+      0.17961193603953873
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.34000000000000025,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0011087044205548083
+      "left_hip_roll",
+      0.17962377513782546
      ],
      "toe_lowest_above_floor_mm": -9.032069144187048,
      "toe_lowest_geom": "hw_left_claw_2",
@@ -1808,8 +1832,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 0.7580355629997939,
-     "steps_per_s": 13901.72244465378
+     "wall_s": 0.8821123270008684,
+     "steps_per_s": 11946.324382325094,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.001140086907116365,
+       "pressed_past_stop_rad": 0.001140086907116365,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "walk_0.35_left": {
@@ -1922,20 +1954,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.0009097055231950025
+      "left_hip_roll",
+      "high",
+      0.12032797427362177
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008644656438302442
+      "left_hip_roll",
+      0.12045976025827251
      ],
      "toe_lowest_above_floor_mm": -2.1387686195281552,
      "toe_lowest_geom": "hw_right_toe_0",
@@ -1968,8 +1995,16 @@
       ]
      },
      "leg_gap_before_fall": null,
-     "wall_s": 2.839673509000022,
-     "steps_per_s": 10773.421628591797
+     "wall_s": 2.721287800999562,
+     "steps_per_s": 11242.10382627035,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0009097055231950025,
+       "pressed_past_stop_rad": 0.0009097055231950025,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "walk_0.35_left",
@@ -2080,20 +2115,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.0009097055231950025
+      "left_hip_roll",
+      "high",
+      0.12032797427362177
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008644656438302442
+      "left_hip_roll",
+      0.12045976025827251
      ],
      "toe_lowest_above_floor_mm": -2.1387686195281552,
      "toe_lowest_geom": "hw_right_toe_0",
@@ -2102,8 +2132,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 2.319368929999655,
-     "steps_per_s": 13190.225843029013
+     "wall_s": 2.6374951409998175,
+     "steps_per_s": 11599.263075192948,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0009097055231950025,
+       "pressed_past_stop_rad": 0.0009097055231950025,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "walk_0.35_right": {
@@ -2216,20 +2254,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.0008838764599616375
+      0.12048959181865257
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.34000000000000025,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008447469953057493
+      "right_hip_roll",
+      0.12048959181865257
      ],
      "toe_lowest_above_floor_mm": -1.0782192224714457,
      "toe_lowest_geom": "hw_left_toe_0",
@@ -2262,8 +2295,16 @@
       ]
      },
      "leg_gap_before_fall": null,
-     "wall_s": 2.7573363470000913,
-     "steps_per_s": 11095.128105529951
+     "wall_s": 2.8405075869995926,
+     "steps_per_s": 10770.258153865789,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0008838764599616375,
+       "pressed_past_stop_rad": 0.0008838764599616375,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "walk_0.35_right",
@@ -2374,20 +2415,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_roll",
       "low",
-      -0.0008838764599616375
+      0.12048959181865257
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.34000000000000025,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008447469953057493
+      "right_hip_roll",
+      0.12048959181865257
      ],
      "toe_lowest_above_floor_mm": -1.0782192224714457,
      "toe_lowest_geom": "hw_left_toe_0",
@@ -2396,8 +2432,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 2.5900573339999937,
-     "steps_per_s": 11811.707639982333
+     "wall_s": 2.7430108490007115,
+     "steps_per_s": 11153.07291297996,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0008838764599616375,
+       "pressed_past_stop_rad": 0.0008838764599616375,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "in_place_0.50_left": {
@@ -2510,20 +2554,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_yaw",
       "low",
-      -0.0006914446793792524
+      0.09193120137980584
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0006912123980167394
+      "right_hip_yaw",
+      0.09193163160115866
      ],
      "toe_lowest_above_floor_mm": 0.1033864657475677,
      "toe_lowest_geom": "hw_left_toe_1",
@@ -2556,8 +2595,16 @@
       ]
      },
      "leg_gap_before_fall": null,
-     "wall_s": 2.375292826000077,
-     "steps_per_s": 12879.675156312287
+     "wall_s": 2.655713513999217,
+     "steps_per_s": 11519.691351771697,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0006914446793792524,
+       "pressed_past_stop_rad": 0.0006914446793792524,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "in_place_0.50_left",
@@ -2668,20 +2715,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_yaw",
       "low",
-      -0.0006914446793792524
+      0.09193120137980584
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0006912123980167394
+      "right_hip_yaw",
+      0.09193163160115866
      ],
      "toe_lowest_above_floor_mm": 0.1033864657475677,
      "toe_lowest_geom": "hw_left_toe_1",
@@ -2690,8 +2732,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 2.172849789999873,
-     "steps_per_s": 14079.666316925566
+     "wall_s": 2.2801202589998866,
+     "steps_per_s": 13417.274759629914,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0006914446793792524,
+       "pressed_past_stop_rad": 0.0006914446793792524,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "in_place_0.50_right": {
@@ -2804,20 +2854,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.000690229103777553
+      "left_hip_yaw",
+      "high",
+      0.0919513108535164
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0006900630779958535
+      "left_hip_yaw",
+      0.09195141998224482
      ],
      "toe_lowest_above_floor_mm": 0.12367027527004221,
      "toe_lowest_geom": "hw_right_toe_2",
@@ -2850,8 +2895,16 @@
       ]
      },
      "leg_gap_before_fall": null,
-     "wall_s": 2.690358553000351,
-     "steps_per_s": 11371.34675446214
+     "wall_s": 2.176830020000125,
+     "steps_per_s": 14053.922317737168,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.000690229103777553,
+       "pressed_past_stop_rad": 0.000690229103777553,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "in_place_0.50_right",
@@ -2962,20 +3015,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.000690229103777553
+      "left_hip_yaw",
+      "high",
+      0.0919513108535164
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0006900630779958535
+      "left_hip_yaw",
+      0.09195141998224482
      ],
      "toe_lowest_above_floor_mm": 0.12367027527004221,
      "toe_lowest_geom": "hw_right_toe_2",
@@ -2984,8 +3032,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 2.3919682509999802,
-     "steps_per_s": 12789.885479128065
+     "wall_s": 2.216592707000018,
+     "steps_per_s": 13801.81388461085,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.000690229103777553,
+       "pressed_past_stop_rad": 0.000690229103777553,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "walk_0.50_left": {
@@ -3103,20 +3159,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_yaw",
       "low",
-      -0.0012235183658038432
+      0.06737481660957867
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008532093378755468
+      "right_hip_yaw",
+      0.06750368414612698
      ],
      "toe_lowest_above_floor_mm": -8.823226126733394,
      "toe_lowest_geom": "hw_right_claw_0",
@@ -3173,8 +3224,16 @@
        }
       ]
      },
-     "wall_s": 1.2802144180000141,
-     "steps_per_s": 10677.117682641072
+     "wall_s": 1.1281471110014536,
+     "steps_per_s": 12116.327619601012,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0012235183658038432,
+       "pressed_past_stop_rad": 0.0012235183658038432,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "walk_0.50_left",
@@ -3290,20 +3349,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
+      "right_hip_yaw",
       "low",
-      -0.0012235183658038432
+      0.06737481660957867
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.020000000000000004,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008532093378755468
+      "right_hip_yaw",
+      0.06750368414612698
      ],
      "toe_lowest_above_floor_mm": -8.823226126733394,
      "toe_lowest_geom": "hw_right_claw_0",
@@ -3312,8 +3366,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 1.196038844999748,
-     "steps_per_s": 11428.558576626228
+     "wall_s": 1.0929865459984285,
+     "steps_per_s": 12506.100875664075,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.0012235183658038432,
+       "pressed_past_stop_rad": 0.0012235183658038432,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    },
    "walk_0.50_right": {
@@ -3430,20 +3492,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.000907030853001594
+      "left_hip_yaw",
+      "high",
+      0.0674838157075136
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.32000000000000023,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008530964902828075
+      "left_hip_yaw",
+      0.06753361482061923
      ],
      "toe_lowest_above_floor_mm": -3.590628967487833,
      "toe_lowest_geom": "hw_left_claw_0",
@@ -3476,8 +3533,16 @@
       ]
      },
      "leg_gap_before_fall": null,
-     "wall_s": 2.744564332000209,
-     "steps_per_s": 11146.760031565429
+     "wall_s": 2.290617927999847,
+     "steps_per_s": 13355.78475399152,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.000907030853001594,
+       "pressed_past_stop_rad": 0.000907030853001594,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     },
     "without_envelope": {
      "reference": "walk_0.50_right",
@@ -3592,20 +3657,15 @@
       ]
      },
      "range_margin_worst": [
-      "jaw",
-      "low",
-      -0.000907030853001594
+      "left_hip_yaw",
+      "high",
+      0.0674838157075136
      ],
-     "joint_limit_reached": [
-      "jaw"
-     ],
-     "joint_limit_first_reached": {
-      "t_s": 0.32000000000000023,
-      "joint": "jaw"
-     },
+     "joint_limit_reached": [],
+     "joint_limit_first_reached": null,
      "range_margin_worst_before_fall": [
-      "jaw",
-      -0.0008530964902828075
+      "left_hip_yaw",
+      0.06753361482061923
      ],
      "toe_lowest_above_floor_mm": -3.590628967487833,
      "toe_lowest_geom": "hw_left_claw_0",
@@ -3614,8 +3674,16 @@
      "sample_every_steps": 10,
      "leg_gap": null,
      "leg_gap_before_fall": null,
-     "wall_s": 2.3704246850002164,
-     "steps_per_s": 12906.126144226011
+     "wall_s": 2.334423402999164,
+     "steps_per_s": 13105.163339561908,
+     "rest_on_stop": {
+      "jaw": {
+       "end": "low",
+       "margin_rad": -0.000907030853001594,
+       "pressed_past_stop_rad": 0.000907030853001594,
+       "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+      }
+     }
     }
    }
   },
@@ -3981,20 +4049,15 @@
      ]
     },
     "range_margin_worst": [
-     "jaw",
+     "right_hip_roll",
      "low",
-     -0.0015045600964969032
+     0.18232142985390354
     ],
-    "joint_limit_reached": [
-     "jaw"
-    ],
-    "joint_limit_first_reached": {
-     "t_s": 0.34000000000000025,
-     "joint": "jaw"
-    },
+    "joint_limit_reached": [],
+    "joint_limit_first_reached": null,
     "range_margin_worst_before_fall": [
-     "jaw",
-     -0.000979958904656266
+     "right_hip_roll",
+     0.18234325260314482
     ],
     "toe_lowest_above_floor_mm": -13.815057495884762,
     "toe_lowest_geom": "hw_left_claw_0",
@@ -4003,223 +4066,364 @@
     "sample_every_steps": 10,
     "leg_gap": null,
     "leg_gap_before_fall": null,
-    "wall_s": 0.4411864339999738,
-    "steps_per_s": 9816.711635336133
+    "wall_s": 0.40315082800043456,
+    "steps_per_s": 10742.877601122853,
+    "rest_on_stop": {
+     "jaw": {
+      "end": "low",
+      "margin_rad": -0.0015045600964969032,
+      "pressed_past_stop_rad": 0.0015045600964969032,
+      "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+     }
+    }
    },
    "reference_range_margins": {
     "nominal": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "min_margin_rad": 0.18291152083880255,
+      "joint": "left_hip_roll",
+      "side": "high",
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.06614743051358535,
+      "joint": "right_hip_roll",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.06630714088915374,
        "right_hip_roll": 0.06614743051358535
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "brisk": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "min_margin_rad": 0.21808113783086766,
+      "joint": "left_hip_roll",
+      "side": "high",
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.09890777817616328,
+      "joint": "right_hip_roll",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.09906674654366845,
        "right_hip_roll": 0.09890777817616328
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "fr05": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "min_margin_rad": 0.22978583809947106,
+      "joint": "left_hip_roll",
+      "side": "high",
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "min_margin_rad": 0.1094867247374832,
+      "joint": "right_hip_roll",
+      "side": "high",
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "carpet": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "min_margin_rad": 0.1804384273578178,
+      "joint": "left_hip_roll",
+      "side": "high",
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.07070175859858491,
+      "joint": "right_hip_roll",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.07085781554118953,
        "right_hip_roll": 0.07070175859858491
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "walk_0.35_left": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "min_margin_rad": 0.12114237306360734,
+      "joint": "left_hip_roll",
+      "side": "high",
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
+      "min_margin_rad": 0.05010239080583573,
+      "joint": "left_hip_roll",
       "side": "low",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.05010239080583573,
        "right_hip_roll": 0.0665996379109845
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "walk_0.35_right": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
+      "min_margin_rad": 0.1212910383625678,
+      "joint": "right_hip_roll",
       "side": "low",
-      "below_min_range": {
-       "jaw": 0.0
+      "below_min_range": {},
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.049940668468895305,
+      "joint": "right_hip_roll",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.06676339560767569,
        "right_hip_roll": 0.049940668468895305
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "in_place_0.50_left": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.09278075318312853,
+      "joint": "left_hip_yaw",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_yaw": 0.09278075318312853,
        "right_hip_yaw": 0.09289325621063843
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
+      "min_margin_rad": 0.04906675304698424,
+      "joint": "left_hip_roll",
       "side": "low",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.04906675304698424,
        "left_hip_yaw": 0.09278075318312853,
        "right_hip_roll": 0.05184887287203252,
        "right_hip_yaw": 0.09289325621063843
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "in_place_0.50_right": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
+      "min_margin_rad": 0.0927613937495646,
+      "joint": "right_hip_yaw",
       "side": "low",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_yaw": 0.09291305604630007,
        "right_hip_yaw": 0.0927613937495646
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.04890170203764971,
+      "joint": "right_hip_roll",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.05201376789105214,
        "left_hip_yaw": 0.09291305604630007,
        "right_hip_roll": 0.04890170203764971,
        "right_hip_yaw": 0.0927613937495646
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "walk_0.50_left": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
+      "min_margin_rad": 0.06850320030021387,
+      "joint": "right_hip_yaw",
       "side": "low",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.09577753915487794,
        "left_hip_yaw": 0.09832915139172521,
        "right_hip_yaw": 0.06850320030021387
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
+      "min_margin_rad": 0.03843477746381896,
+      "joint": "left_hip_roll",
       "side": "low",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.03843477746381896,
        "left_hip_yaw": 0.09832915139172521,
        "right_hip_roll": 0.06174931933729652,
        "right_hip_yaw": 0.06850320030021387
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     },
     "walk_0.50_right": {
      "screens_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.06854104900681121,
+      "joint": "left_hip_yaw",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_yaw": 0.06854104900681121,
        "right_hip_roll": 0.09591669298357544,
        "right_hip_yaw": 0.09830954113331089
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      },
      "literal_reading": {
-      "min_margin_rad": 0.0,
-      "joint": "jaw",
-      "side": "low",
+      "min_margin_rad": 0.03827084940083217,
+      "joint": "right_hip_roll",
+      "side": "high",
       "below_min_range": {
-       "jaw": 0.0,
        "left_hip_roll": 0.06191647160447811,
        "left_hip_yaw": 0.06854104900681121,
        "right_hip_roll": 0.03827084940083217,
        "right_hip_yaw": 0.09830954113331089
+      },
+      "rest_on_stop": {
+       "jaw": {
+        "end": "low",
+        "margin_rad": 0.0,
+        "pressed_past_stop_rad": 0.0,
+        "rule": "the end it rests on: no range limit (plant.REST_ON_STOP_RULE)"
+       }
       }
      }
     }
@@ -4338,7 +4542,7 @@
    }
   },
   "pass": true,
-  "seconds": 54.26650820399982,
+  "seconds": 53.499986991000696,
   "provenance": {
    "versions": {
     "python": "3.13.18",
@@ -4350,20 +4554,18 @@
     "torch": "2.15.0"
    },
    "git": {
-    "commit": "c324645255704e675c8405e74273d5fcdd111669",
+    "commit": "485a6a3c8ea6b8d3f3687e3a0bde3210c2c2ca91",
     "dirty": true,
     "dirty_paths": [
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/gates.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/refs.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/transitions.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/refs.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/transitions.json"
+     " M hardware/trex_form_study/round2/refine/head_x_60/candidates/60-N-T-10.json",
+     " M hardware/trex_form_study/round2/refine/head_x_75/candidates/75-M-H-10.json",
+     " M hardware/trex_form_study/stage2/x/60-N-T-10-X/gates.json",
+     " M hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
+     " M hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json"
     ]
    },
    "stage1_sources": {
-    "sha256": "2cb8ed5eb3df2c0fe9926a9282650c7153aa6dbfff329fc7574bc1b5c761fb61",
+    "sha256": "cc2a5c418b94a7ed48a40dae379a11a0789c5f6316f4b26389fa80e99ac45111",
     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
     "files": [
      "__init__.py",
@@ -5057,20 +5259,18 @@
     "torch": "2.15.0"
    },
    "git": {
-    "commit": "c324645255704e675c8405e74273d5fcdd111669",
+    "commit": "485a6a3c8ea6b8d3f3687e3a0bde3210c2c2ca91",
     "dirty": true,
     "dirty_paths": [
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/gates.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/refs.json",
-     "?? hardware/trex_form_study/stage2/x/60-N-T-10-X/transitions.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/refs.json",
-     "?? hardware/trex_form_study/stage2/x/75-M-H-10-X/transitions.json"
+     " M hardware/trex_form_study/round2/refine/head_x_60/candidates/60-N-T-10.json",
+     " M hardware/trex_form_study/round2/refine/head_x_75/candidates/75-M-H-10.json",
+     " M hardware/trex_form_study/stage2/x/60-N-T-10-X/gates.json",
+     " M hardware/trex_form_study/stage2/x/60-N-T-10-X/plant.json",
+     " M hardware/trex_form_study/stage2/x/75-M-H-10-X/plant.json"
     ]
    },
    "stage1_sources": {
-    "sha256": "2cb8ed5eb3df2c0fe9926a9282650c7153aa6dbfff329fc7574bc1b5c761fb61",
+    "sha256": "cc2a5c418b94a7ed48a40dae379a11a0789c5f6316f4b26389fa80e99ac45111",
     "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
     "files": [
      "__init__.py",
@@ -5099,5 +5299,8 @@
     "unchanged_during_run": true
    }
   }
+ },
+ "provisional": {
+  "G1": "step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2)"
  }
 }
