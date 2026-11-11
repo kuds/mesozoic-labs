@@ -152,15 +152,15 @@ def test_every_clip_says_kinematic_reference_not_a_simulation(mode):
     top, bottom = clips.labels("75-M-H-10", "fr05", "V6", "visitor", mode, e, over)
     assert top[1].startswith(clips.LABEL) and clips.LABEL == "kinematic reference, not a simulation"
     assert "F1-F6, F9, F10, F13, F14" in top[0] and "0.50 m/s" in top[0]
-    assert bottom[0].startswith("Stage 0: over a limit (knee speed 1.012)")
-    assert bottom[-1] == clips.CAMERAS["visitor"]["text"]
+    assert top[2].startswith("Stage 0: over a limit (knee speed 1.012)")  # at the top: the feet need the bottom
+    assert bottom == [clips.CAMERAS["visitor"]["text"]]
     top0, bottom0 = clips.labels("60-N-T-10", "v040", "V0", "side", mode, dict(features=[], info=dict(speed=0.4)), [])
-    assert "V0: today's walk" in top0[0] and len(bottom0) == 1
+    assert "V0: today's walk" in top0[0] and len(top0) == 2 and len(bottom0) == 1
     img = np.full((clips.SIZE[1], clips.SIZE[0], 3), 0 if mode == "pointlight" else 128, np.uint8)
     out = clips.overlay(img, top, bottom, 3.25, dark=(mode == "pointlight"))
     assert out.shape == img.shape and out.dtype == np.uint8
     assert (out[:20] != img[:20]).any() and (out[-20:] != img[-20:]).any()  # top and bottom bands drawn
-    mid = slice(120, 360)
+    mid = slice(clips.BANDS_PX[0] + clips.LINE_PX * (len(top) - 2), clips.SIZE[1] - clips.BANDS_PX[1])
     assert np.array_equal(out[mid], img[mid])  # the picture between the bands is untouched
 
 
@@ -230,3 +230,41 @@ def test_a_short_real_clip(tmp_path, mode):
     else:  # the robot's covers (green) are in the frame centre
         green = (body[..., 1] > body[..., 0] + 15) & (body[..., 1] > body[..., 2] + 15)
         assert green.sum() > 5000
+
+
+@needs_arrays
+def test_projection_matches_the_rendered_dots(tmp_path):
+    """``project`` puts each marker on its rendered point-light dot (one frame, the side view)."""
+    from PIL import Image
+    from scipy import ndimage
+
+    e = clips.render_clip("60-N-T-10", "v040", "V6", "side", "pointlight", tmp_path, clip_s=0.1)
+    cs = clips._scene("60-N-T-10", clips.OUT)
+    _, arrs = clips.rung("60-N-T-10", "v040", "V6")
+    t = 2 / 30.0  # the last frame, which the poster keeps
+    cs.pose(clips.Playback(arrs).q_at(t))
+    uv = clips.project(cs.points(), clips.camera_pose(clips.Track(**e["track"]).lookat(t), clips.CAMERAS["side"]))
+    img = np.asarray(Image.open(tmp_path / e["poster"]).convert("L")) > 128
+    img[: clips.BANDS_PX[0]] = img[-clips.BANDS_PX[1] :] = False  # the labels
+    lab, n = ndimage.label(img)
+    cents = np.array(ndimage.center_of_mass(img, lab, range(1, n + 1)))[:, ::-1]
+    assert max(np.min(np.linalg.norm(cents - p, axis=1)) for p in uv) < 5.0  # px (overlapping dots merge)
+
+
+CLIPS = json.loads((LOOK / "clips.json").read_text()) if (LOOK / "clips.json").exists() else None
+
+
+@needs_arrays
+@pytest.mark.skipif(CLIPS is None, reason="stage2/look/clips.json not generated")
+def test_every_recorded_clip_keeps_the_robot_in_the_picture():
+    """The committed manifest: every clip of the review set, each at 10 s, 30 fps, 854 x 480, H.264 under 1.5 MB, from
+    the rung look_refs.json records, labelled; and on every frame all 13 markers inside the picture, clear of the
+    label bands (``frame_margin``)."""
+    assert {(e["body"], e["speed"], e["variant"], e["view"], e["mode"]) for e in CLIPS["clips"]} == set(clips.review_set())
+    for e in CLIPS["clips"]:
+        p = e["probe"]
+        assert (p["codec"], p["width"], p["height"], p["frames"], p["fps"]) == ("h264", 854, 480, 300, 30.0)
+        assert e["bytes"] < clips.MAX_BYTES and e["labels"][1].startswith(clips.LABEL)
+        assert e["label_lines"] == [3 if e["stage0_over"] else 2, 1]
+        assert e["rung_sha256"] == LADDER["bodies"][e["body"]][e["speed"]][e["variant"]]["sha256"]
+        assert clips.frame_margin(e)["margin_px"] > 10, e["file"]

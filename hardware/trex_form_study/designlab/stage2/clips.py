@@ -33,8 +33,8 @@ Clips (``render_clip``)
 * ``pointlight`` (research 4.1 item 3; Johansson): every geom hidden, white dots on black at ``look.POINTS``' 13
   markers (snout, an eye, the neck base, hips, knees, MTPs (the foot bodies' origins), toe tips (the middle claws'
   tips), mid-tail and tail tip; ``look_refs.json``'s ``body_info.markers``), placed on the interpolated pose.
-* On every frame: the body, the rung and its features, the speed; ``LABEL``; the view; the Stage 0 verdict where the
-  rung is over a limit (``screen.json``); the clip time.
+* On every frame: the body, the rung and its features, the speed; ``LABEL``; the Stage 0 verdict where the rung is over
+  a limit (``screen.json``), all at the top; the view and the clip time at the bottom.
 * 854 x 480 H.264 (libx264, yuv420p, faststart) through ffmpeg, each under ``MAX_BYTES``: CRF 23 with a capped rate,
   then two passes at a bitrate set from the size if that file is larger (``encode``).  Beside each MP4 a poster (the
   frame at 5 s) and a contact sheet (0, 2.5, 5 and 7.5 s), PNG; ``clips.json`` lists them (in the media directory
@@ -253,6 +253,53 @@ def camera_pose(lookat: np.ndarray, spec: dict) -> dict:
                 elevation=math.degrees(math.atan2(d[2], math.hypot(d[0], d[1]))), eye=eye)
 
 
+def project(points, cam: dict, size=SIZE, fovy_deg: float = FOVY_DEG) -> np.ndarray:
+    """Pixel coordinates (u right, v down) of world points seen by camera ``cam`` (``camera_pose``): MuJoCo's free
+    camera (forward from azimuth and elevation, no roll) with the vertical field ``fovy_deg``."""
+    az, el = math.radians(cam["azimuth"]), math.radians(cam["elevation"])
+    f = np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
+    eye = np.asarray(cam["lookat"], float) - cam["distance"] * f
+    r = np.cross(f, [0.0, 0.0, 1.0])
+    r /= np.linalg.norm(r)
+    u = np.cross(r, f)
+    d = np.asarray(points, float) - eye
+    k = 0.5 * size[1] / math.tan(math.radians(fovy_deg) / 2)
+    zc = d @ f
+    return np.column_stack([0.5 * size[0] + k * (d @ r) / zc, 0.5 * size[1] - k * (d @ u) / zc])
+
+
+#: The label bands' heights (px) over the covered scene (``overlay``): top with two lines, bottom with one line; each
+#: further line (the Stage 0 verdict, at the top) adds ``LINE_PX``.
+BANDS_PX = (46, 25)
+LINE_PX = 17
+
+
+def frame_margin(entry: dict, out_dir: Path = OUT) -> dict:
+    """A rendered clip's framing, from its manifest ``entry`` without rendering: the 13 markers (``look.POINTS``) on
+    every frame's pose, projected through its camera and track; their extent (px) and the smallest margin to the
+    picture's edges and the label bands (negative: a marker left the picture or went under a band)."""
+    doc, _ = docs(out_dir)
+    _, arrs = rung(entry["body"], entry["speed"], entry["variant"], out_dir)
+    xml, _ = plant.model_files(entry["body"])
+    m = mujoco.MjModel.from_xml_path(str(xml))
+    d = mujoco.MjData(m)
+    mk = [(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, v["body"]), np.asarray(v["point"], float))
+          for v in doc["body_info"][entry["body"]]["markers"].values()]
+    pb, tr = Playback(arrs), Track(**entry["track"])
+    lo, hi = np.full(2, np.inf), np.full(2, -np.inf)
+    for t in times(entry["seconds"], entry["fps"]):
+        d.qpos[:] = pb.q_at(t)
+        mujoco.mj_kinematics(m, d)
+        pts = np.array([d.xpos[b] + d.xmat[b].reshape(3, 3) @ p for b, p in mk])
+        uv = project(pts, camera_pose(tr.lookat(t), CAMERAS[entry["view"]]))
+        lo, hi = np.minimum(lo, uv.min(axis=0)), np.maximum(hi, uv.max(axis=0))
+    w, h = entry["size"]
+    n_top, n_bottom = entry["label_lines"]
+    top, bottom = BANDS_PX[0] + LINE_PX * (n_top - 2), BANDS_PX[1] + LINE_PX * (n_bottom - 1)
+    return dict(u=[float(lo[0]), float(hi[0])], v=[float(lo[1]), float(hi[1])], bands_px=[top, bottom],
+                margin_px=float(min(lo[0], w - hi[0], lo[1] - top, h - bottom - hi[1])))
+
+
 # ------------------------------------------------------------------------------------------------
 # Drawing
 # ------------------------------------------------------------------------------------------------
@@ -390,14 +437,12 @@ def labels(body: str, speed: str, variant: str, view: str, mode: str, entry: dic
     top = [f"{screen.BODY_LABEL.get(body, body)}  |  {variant}: {RUNG_TEXT.get(variant, feats)}  |  {sp}",
            f"{LABEL}: perfect tracking, no physics" + ("; point-light markers on black" if mode == "pointlight"
                                                         else "")]
-    bottom = []
-    if over:
+    if over:  # at the top, where the picture has room (the feet come near the bottom band in the visitor's view)
         lim = "; ".join(f"{o['limit']} {o['value']:.3f}" if isinstance(o.get("value"), float) else str(o["limit"])
                         for o in over)
-        bottom.append(f"Stage 0: over a limit ({lim}); the plan's rule drops this speed rung unless the owner "
-                      "decides otherwise")
-    bottom.append(CAMERAS[view]["text"])
-    return top, bottom
+        top.append(f"Stage 0: over a limit ({lim}); the plan's rule drops this speed rung unless the owner decides "
+                   "otherwise")
+    return top, [CAMERAS[view]["text"]]
 
 
 # ------------------------------------------------------------------------------------------------
@@ -537,7 +582,8 @@ def render_clip(body: str, speed: str, variant: str, view: str, mode: str, media
                 body=body, speed=speed, variant=variant, view=view, mode=mode, features=entry["features"],
                 rung_file=entry["file"], rung_sha256=entry["sha256"], bytes=enc["bytes"], sha256=sha,
                 encode=dict(enc["settings"], tries=enc["tries"]), probe=probe(mp4), frames=len(ts), fps=fps,
-                seconds=clip_s, size=list(SIZE), labels=top + bottom, stage0_over=over,
+                seconds=clip_s, size=list(SIZE), labels=top + bottom, label_lines=[len(top), len(bottom)],
+                stage0_over=over,
                 camera=dict(CAMERAS[view], fovy_deg=FOVY_DEG), track=asdict(tr),
                 window=dict(frames=pb.n, dt_s=pb.dt, window_s=pb.window, advance_m=pb.advance, repeats=clip_s / pb.window),
                 model=dict(file=cs.model_check["file"], sha256=cs.model_check["file_sha256"]),
