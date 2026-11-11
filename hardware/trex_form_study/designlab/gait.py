@@ -139,9 +139,17 @@ LOOK_FIELDS = ("bob", "bob_phase", "bob_skew", "swing_time", "lift_peak", "toe_o
 LOOK_DEFAULTS = {f.name: f.default for f in fields(GaitSpec) if f.name in LOOK_FIELDS}
 
 
+def _same_value(a, default) -> bool:
+    """A field's value equals its default; a sequence default (``var_band``) also equals a list or array with the same
+    items, so a default spec read back from JSON (where tuples become lists) stays today's walk."""
+    if isinstance(default, tuple):
+        return isinstance(a, (tuple, list, np.ndarray)) and len(a) == len(default) and tuple(a) == default
+    return a == default
+
+
 def look_active(spec: GaitSpec) -> bool:
     """Whether any look field differs from today's walk (``LOOK_DEFAULTS``)."""
-    return any(getattr(spec, k) != v for k, v in LOOK_DEFAULTS.items())
+    return not all(_same_value(getattr(spec, k), v) for k, v in LOOK_DEFAULTS.items())
 
 
 def _min_jerk(u):

@@ -35,7 +35,14 @@ Values (``feature_values``; research 3.1's starting values, the middle of each r
 * F5 ``toe_off`` 0.40 rad (0.3-0.5), ``toe_off_start`` 0.825 (80-85 %), ``toe_reach`` 0.075 rad (0.05-0.10); the roll
   also waits until the ZMP reference is 5 mm inside the rolling support (``toe_off_margin``, not in the research: a
   rigid foot on its toe edge carries load only there), and its peak moves into early swing where the stance part is
-  short (``gait.toe_off_bump``).
+  short (``gait.toe_off_bump``).  Two consequences, measured per variant and kept as the research's values: (1) the
+  roll can start only in double support once the ZMP reference is inside the toe-edge support, so with F3's short
+  double support at 0.40 m/s and the animal pace most of the 0.40 rad comes after the lift-off (``measure``'s
+  ``toe_off_at_lift_off_rad``, ``toe_off_ground_roll_s``, ``toe_off_peak_after_lift_off_s``; a ground toe-off there
+  would need the single-support ZMP moved toward the toes, which the research does not propose); (2) the middle toe's
+  capsule and claw reach 10-27 mm ahead of its pad's front edge and carry no contact in the plant, so a roll about
+  that edge takes them below the floor (``toe_clearance``: clear to 0.082 rad at 60 cm and 0.068 rad at 75 cm; at
+  0.40 rad the claw reaches 7.3 / 9.4 mm below; ``measure``'s ``toe_geoms_below_floor_max_mm``).
 * F6 ``roll_amp`` 0.0262 rad (1.5 deg, 1-2 deg), banking toward the stance leg (V4L: the swing side drops).
 * F9 ``tail_amp`` 0.125 rad (0.10-0.15) at the phase that minimises the stance pad's peak yaw moment on V4
   (``tail_check``); F10 ``head_mode`` "stabilise", ``head_gain`` 0.9 (0.8-1.0), ``head_settle`` 0.015 rad (0.01-0.02)
@@ -48,11 +55,13 @@ Values (``feature_values``; research 3.1's starting values, the middle of each r
 
 Outputs (``prepare``): ``<out>/refs/<body>/<speed>/<variant>.npz`` (``arrays``: frames, joint trajectories, timing and
 the per-frame quantities the screen and the renders read; git-ignored like Stage 1's arrays), ``<out>/look_refs.json``
-(specs, timing, convergence, margins, measured metrics, each file's sha256) and ``<out>/tail_phase.json``
-(``tail_check``: research Bottom line 4's sign check on V0 and F9's phase on V4).
+(specs, timing, convergence, margins, measured metrics, each file's sha256; ``body_info``: foot geometry, markers and
+``toe_clearance``) and ``<out>/tail_phase.json`` (``tail_check``: research Bottom line 4's sign check on V0, against
+the turning screen's recorded straight run at the nominal walk, and F9's phase on V4).  Both are updated as each body
+and speed finishes; ``<out>/partial/`` holds a job's progress until then (``--resume`` keeps it after a restart).
 
 Run from hardware/trex_form_study:
-    python -m designlab.stage2.look prepare --body 60-N-T-10 --body 75-M-H-10 --out stage2/look --procs 3
+    python -m designlab.stage2.look prepare --body 60-N-T-10 --body 75-M-H-10 --out stage2/look --procs 3 [--resume]
     python -m designlab.stage2.look g2 --body 60-N-T-10     # Stage 1's nominal, brisk and fr05 arrays' sha256
 """
 
@@ -267,7 +276,47 @@ def source(body: str) -> dict:
     src["M"].forward(src["q_home"])
     src["geometry"] = gait.foot_geometry(src["M"])
     src["markers"] = markers(src["M"])
+    src["M"].forward(src["q_home"])
     return src
+
+
+def toe_clearance(src: dict, side: str = "left", pitch: float = 0.40, iters: int = 30) -> dict:
+    """F5 on the rigid foot at home: the foot pitched heel-up about its toe pivot (``gait.foot_geometry``; the other foot
+    and the trunk at home, IK as the generator's) and the lowest point of each of its geoms that is not a floor pad
+    (the toes, claws, hallux and plate: no contact in the plant, ``contype`` 0).  Returns the largest pitch at which
+    every such geom stays at or above the floor (bisection) and, at ``pitch`` (F5's ``toe_off``), how far below the
+    floor each one reaches (mm; negative: below).  In the plant these geoms pass through the floor; on the hardware
+    they would touch it first and take the pivot from the pads."""
+    M, q0, geo = src["M"], src["q_home"], src["geometry"]
+    m, d = M.m, M.d
+    M.forward(q0)
+    base = {s: M.foot_pose(s)[0].copy() for s in SIDES}
+    others = [g for g in carpet.foot_geoms(m)[side] if m.geom_contype[g] != 1]
+
+    def lows(th: float) -> dict:
+        R = gait._rot_y(th)
+        tg = {s: (base[s].copy(), np.eye(3)) for s in SIDES}
+        tg[side] = (base[side] + (np.eye(3) - R) @ geo[side]["toe_pivot"], R)
+        q, ok = statics.leg_ik(M, q0.copy(), tg, iters=200)
+        if not ok:
+            raise RuntimeError(f"toe_clearance: IK failed at a pitch of {th} rad")
+        M.forward(q)
+        out = {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g): float(carpet.lowest_point(m, d, g)[2]) for g in others}
+        M.forward(q0)
+        return out
+
+    lo, hi = 0.0, float(pitch)
+    if min(lows(hi).values()) >= 0.0:
+        lo = hi
+    else:
+        for _ in range(iters):
+            mid = 0.5 * (lo + hi)
+            lo, hi = (mid, hi) if min(lows(mid).values()) >= 0.0 else (lo, mid)
+    at = lows(pitch)
+    worst = min(at, key=at.get)
+    return dict(side=side, pivot=geo[side]["toe_pad"] + " front bottom edge", clear_pitch_rad=float(lo),
+                at_pitch_rad=float(pitch), lowest_mm_at_pitch={k: 1e3 * v for k, v in sorted(at.items(), key=lambda kv: kv[1])},
+                deepest=worst, deepest_mm=1e3 * at[worst])
 
 
 def generate(src: dict, spec: gait.GaitSpec) -> dict:
@@ -327,7 +376,8 @@ def markers(M: statics.Model) -> list[tuple[str, int, np.ndarray]]:
     """The point-light markers (``POINTS``) as (name, body id, point in the body's frame), found on the model at its
     current pose (call at home): the skull cover's foremost vertex (snout), an eye, the neck-pitch axis (neck base),
     the hip-pitch and knee axes, the foot bodies' origins (the ankle, the animal's MTP), the middle claw's tip, the
-    tail cover's rearmost vertex (tail tip) and the point midway from the tail-yaw axis to it (mid-tail)."""
+    tail cover's rearmost vertex (tail tip: over every ``cover_tail*`` mesh on the tail body, one cover on the Tapered
+    tail, a root and segments on the Hybrid's) and the point midway from the tail-yaw axis to it (mid-tail)."""
     m, d = M.m, M.d
 
     def local(b, p):
@@ -362,7 +412,11 @@ def markers(M: statics.Model) -> list[tuple[str, int, np.ndarray]]:
         c, a = d.geom_xpos[g], d.geom_xmat[g].reshape(3, 3)[:, 2]
         ends = [c + m.geom_size[g][1] * a, c - m.geom_size[g][1] * a]
         out.append((f"toe_{side[0]}", M.foot[side], local(M.foot[side], max(ends, key=lambda e: e[0]))))
-    tip = vertices(geom("cover_tail"))
+    covers = [g for g in range(m.ngeom) if m.geom_bodyid[g] == tail and m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH
+              and (mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) or "").startswith("cover_tail")]
+    if not covers:
+        raise KeyError("no cover_tail* mesh on the tail body")
+    tip = np.vstack([vertices(g) for g in covers])
     tip = tip[np.argmin(tip[:, 0])]
     out.append(("tail_mid", tail, local(tail, 0.5 * (tip + d.xanchor[statics.jid(m, "tail_yaw")]))))
     out.append(("tail_tip", tail, local(tail, tip)))
@@ -379,8 +433,9 @@ def arrays(src: dict, g: dict) -> dict:
     """The arrays of one variant for its npz file.  Beside Stage 1's reference keys (t, dt, q, qd, qdd, support,
     com_ref, zmp_ref, zmp_mb, feet, com, q_home, joints, stride_motion): the gait phase (strides, warped by F14), swing
     flags and swing fraction, the target and solved foot pitch, which feet roll on the toe edge, the toe pivot's
-    world position, foot orientations, the support hull (NaN-padded) and the ZMP's margin inside it, the hip
-    midpoint (the hip-roll axes', fixed on the trunk), bob, trunk roll and orientation, neck and tail angles (and F10's settle and F14's variations), the head's
+    world position and its edge's two end points (``toe_edge``: a rolling foot's whole support), foot orientations,
+    the support hull (NaN-padded) and the ZMP's margin inside it, the hip midpoint (the hip-roll axes', fixed on the
+    trunk), bob, trunk roll and orientation, neck and tail angles (and F10's settle and F14's variations), the head's
     pitch in the world, the lowest pad and toe/claw points of each foot, the point-light markers and the events."""
     M, tr, lk = src["M"], g, g["look"]
     m, d = M.m, M.d
@@ -389,6 +444,7 @@ def arrays(src: dict, g: dict) -> dict:
     foot_quat = np.zeros((n, 2, 4))
     pitch_solved = np.zeros((n, 2))
     pivot = np.zeros((n, 2, 3))
+    edge = np.zeros((n, 2, 2, 3))
     com = np.zeros((n, 3))
     hip_mid = np.zeros((n, 3))
     head_pitch = np.zeros(n)
@@ -407,6 +463,7 @@ def arrays(src: dict, g: dict) -> dict:
             mujoco.mju_mat2Quat(foot_quat[k, j], R.ravel())
             pitch_solved[k, j] = _foot_pitch(R)
             pivot[k, j] = p + R @ geo[s]["toe_pivot"]
+            edge[k, j] = p + geo[s]["toe_edge"] @ R.T
             low = {gg: carpet.lowest_point(m, d, gg)[2] for gg in geoms[s]}
             pad_z[k, j] = min(z for gg, z in low.items() if m.geom_contype[gg] == 1)
             toe_z[k, j] = min((z for gg, z in low.items() if carpet._is_toe(m, gg)), default=np.nan)
@@ -427,7 +484,7 @@ def arrays(src: dict, g: dict) -> dict:
                 zmp_ref=tr["zmp_ref"], zmp_mb=tr["zmp_mb"], feet=feet, com=com, q_home=src["q_home"],
                 joints=np.array(M.names), stride_motion=np.array([0.0, 0.0, 0.0, K * float(info["stride"]), 0.0]),
                 phase=lk["phase"], swing=lk["swing"], swing_u=lk["swing_u"], foot_pitch=lk["foot_pitch"],
-                foot_pitch_solved=pitch_solved, rolling=lk["rolling"], toe_pivot=pivot, foot_quat=foot_quat,
+                foot_pitch_solved=pitch_solved, rolling=lk["rolling"], toe_pivot=pivot, toe_edge=edge, foot_quat=foot_quat,
                 foot_target=lk["foot_target"], support_hull=hull, zmp_margin=lk["zmp_margin"],
                 zmp_ref_margin=lk["zmp_ref_margin"], hip_mid=hip_mid, bob=lk["bob"], trunk_roll=lk["trunk_roll"],
                 trunk_quat=lk["trunk_quat"], neck=lk["neck"], tail=lk["tail"], head_settle=lk["head_settle"],
@@ -520,6 +577,8 @@ def measure(arrs: dict, info: dict, H: float) -> dict:
         tk = t[k] + _sub_frame(z, k, dt)
         tr_frac.append(((tk - tt + 0.5 * W) % W - 0.5 * W) / (duty * T))
     out["bob_trough_frac_stance"] = float(np.mean(tr_frac)) if tr_frac else None
+    # research F2's "settling over 0.1-0.15 s": the trough's time after the touchdown
+    out["bob_trough_after_touchdown_s"] = float(np.mean(tr_frac) * duty * T) if tr_frac else None
     # F3 duty and swing time
     out["duty"] = [float(sup[:, j].mean()) for j in range(2)]
     sw_t = []
@@ -531,7 +590,8 @@ def measure(arrs: dict, info: dict, H: float) -> dict:
     out["swing_time_spread_s"] = float(np.ptp(sw_t))
     # F4 lift peak (the lowest pad point's height over each swing), F5 toe-off
     pad_z, pitch = np.asarray(arrs["pad_floor_z"]), np.asarray(arrs["foot_pitch_solved"])
-    peaks, at_lo, pmax = [], [], []
+    rol = np.asarray(arrs["rolling"], bool)
+    peaks, at_lo, pmax, pk_after, ground = [], [], [], [], []
     for j in range(2):
         for a, b in zip(lo[j], td[j], strict=True):
             if not (np.isfinite(a) and np.isfinite(b)):
@@ -543,17 +603,27 @@ def measure(arrs: dict, info: dict, H: float) -> dict:
             at_lo.append(float(np.interp(a, t, pitch[:, j], period=W)))
             near = np.flatnonzero(((t - a + 0.5 * dur) % W) < dur)  # half a swing either side of the lift-off
             pmax.append(float(pitch[near, j].max()))
+            if pmax[-1] > 1e-9:  # the roll's peak relative to the lift-off, and how long the foot rolled on the floor
+                kp = int(near[np.argmax(pitch[near, j])])
+                pk_after.append(((t[kp] + _sub_frame(pitch[:, j], kp, dt)) - a + 0.5 * W) % W - 0.5 * W)
+                before = np.flatnonzero(((a - t) % W) <= duty * T)  # the stance that ends at this lift-off
+                ground.append(float(np.count_nonzero(rol[before, j]) * dt))
     out["lift_peak_frac_swing"] = float(np.mean(peaks))
     out["toe_off_at_lift_off_rad"] = float(np.mean(at_lo))
     out["toe_off_peak_rad"] = float(np.max(pmax))
+    # where the stance part of the roll is short (little double support), the pitch peaks after the lift-off
+    out["toe_off_peak_after_lift_off_s"] = float(np.mean(pk_after)) if pk_after else None
+    out["toe_off_ground_roll_s"] = float(np.mean(ground)) if ground else None
     out["foot_pitch_min_rad"] = float(pitch.min())
-    stance_flat = sup & ~np.asarray(arrs["rolling"], bool)
+    stance_flat = sup & ~rol
     out["stance_pad_height_max_mm"] = float(1e3 * np.max(np.abs(pad_z[stance_flat]))) if stance_flat.any() else None
     piv = np.asarray(arrs["toe_pivot"])
-    rol = np.asarray(arrs["rolling"], bool)
     out["rolling_pivot_height_max_mm"] = float(1e3 * np.max(np.abs(piv[rol][:, 2]))) if rol.any() else None
+    # the toes and claws carry no contact in the plant (contype 0): a roll about the pad's front edge takes the middle
+    # toe's capsule and claw, which reach further forward, below the floor (``toe_clearance``)
     toe_z = np.asarray(arrs["toe_floor_z"])
     out["toe_geoms_below_floor_max_mm"] = float(max(0.0, -1e3 * np.nanmin(toe_z)))
+    out["toe_geoms_below_floor_frames"] = int(np.count_nonzero(np.nanmin(toe_z, axis=1) < -1e-4))
     # F6 trunk roll (about the trunk's long axis, relative to home) and sway
     qh = np.asarray(arrs["q_home"])[3:7]
     qc = np.array([qh[0], -qh[1], -qh[2], -qh[3]])
@@ -674,13 +744,29 @@ def tail_check(src: dict, spec: gait.GaitSpec, amp: float, phases=TAIL_PHASES, g
         return float(np.max(np.abs(coef[0] + coef[1] * np.cos(p) + coef[2] * np.sin(p))))
 
     today, flipped = 0.5 * math.pi, -0.5 * math.pi
+    pred = dict(today=predicted(today), flipped=predicted(flipped), best=predicted(best))
     return dict(amp_rad=amp, no_tail=dict(peak_nm=none["peak_nm"], rms_nm=none["rms_nm"], mu_req_max=none["mu_req_max"]),
                 runs=runs, fit_max_residual_nm=resid, no_tail_vs_fit_mean_nm=float(np.max(np.abs(coef[0] - none["mz"][ss]))),
-                predicted_peak_nm=dict(today=predicted(today), flipped=predicted(flipped), best=predicted(best)),
+                predicted_peak_nm=pred,
+                peak_vs_no_tail_rel={k: v / none["peak_nm"] - 1.0 for k, v in pred.items()},
                 best_phase_rad=best, best_phase_cycles_from_today=float(((best - today) / (2 * np.pi) + 0.5) % 1.0 - 0.5),
                 confirmed=dict(peak_nm=conf["peak_nm"], rms_nm=conf["rms_nm"], mu_req_max=conf["mu_req_max"]),
                 today_adds_to_leg_yaw_momentum=bool(predicted(today) > none["peak_nm"]),
                 flipped_lowers_peak=bool(predicted(flipped) < predicted(today)))
+
+
+def turning_record(body: str) -> dict:
+    """The turning screen's recorded straight run of the nominal walk (``turning.screen_model``'s ``runs.straight``:
+    ``turning.generate`` at yaw rate 0, exact split, mu 0.8; round two's record of the body): the single-support stance
+    pads' largest |M_z| and friction need.  The tail check's run at today's phase on V0 at the nominal walk is the same
+    walk through ``gait.generate`` (``tail_check``; research Bottom line 4's "turning screen's straight runs")."""
+    from ..stage1 import candidate_id, case_dir
+
+    path = case_dir(body) / "review" / "screening" / f"{candidate_id(body)}_turning.json"
+    doc = json.loads(path.read_text())
+    ss = {s: doc["runs"]["straight"]["feet"][s]["single_support"] for s in SIDES}
+    return dict(record=path.relative_to(STUDY).as_posix(), spec=doc["spec"],
+                peak_nm=max(ss[s]["mz_abs_max"] for s in SIDES), mu_req_max=max(ss[s]["mu_req_max"] for s in SIDES))
 
 
 # ------------------------------------------------------------------------------------------------
@@ -722,29 +808,72 @@ def write(src: dict, speed: str, variant: str, spec: gait.GaitSpec, g: dict, out
                 measured=_plain(measure(arrs, info, src["H"])), seconds=g["seconds"])
 
 
+def _partial_path(out_dir: Path, body: str, speed: str) -> Path:
+    return Path(out_dir) / "partial" / f"{body}__{speed}.json"
+
+
+def _save_partial(path: Path, res: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(_plain(res), indent=1))
+    tmp.replace(path)
+
+
+def _entry_current(e: dict, spec: gait.GaitSpec, out_dir: Path) -> bool:
+    """A saved entry is this spec's and its file is the one it records."""
+    f = Path(out_dir) / e["file"]
+    return e["spec"] == _plain(asdict(spec)) and f.exists() and _sha(f) == e["sha256"]
+
+
+def body_info(src: dict) -> dict:
+    """Per body: H, the foot geometry in the foot frame (pads, toe and heel pivot edges), the point-light markers and
+    F5's toe clearance on the rigid foot (``toe_clearance``)."""
+    geo = src["geometry"]
+    feet = {s: dict(toe_pad=geo[s]["toe_pad"], toe_edge=geo[s]["toe_edge"], heel_pad=geo[s]["heel_pad"],
+                    heel_edge=geo[s]["heel_edge"], pads={k: v for k, v in geo[s]["pads"].items()}) for s in SIDES}
+    return _plain(dict(H_m=src["H"], foot_frame="the foot body's frame at home (world-aligned)", feet=feet,
+                       markers={nm: dict(body=mujoco.mj_id2name(src["M"].m, mujoco.mjtObj.mjOBJ_BODY, b), point=p)
+                                for nm, b, p in src["markers"]},
+                       toe_clearance=toe_clearance(src, pitch=feature_values(src["body"], src["H"], "nominal")["F4F5"]["toe_off"])))
+
+
 def _job(args) -> dict:
-    """One body and speed: the tail checks (V0: today's tail; V4: F9's phase), then every rung."""
-    body, speed, out_dir, variants, check = args
+    """One body and speed: the tail checks (V0: today's tail; V4: F9's phase), then every rung.  Progress is saved to
+    ``<out>/partial/<body>__<speed>.json`` after the tail checks and after each rung, and a run with ``resume`` keeps
+    what that file holds (a rung whose spec and file still match), so a restart loses at most the rung in hand."""
+    body, speed, out_dir, variants, resume = args
+    out_dir = Path(out_dir)
     src = _source_cached(body)
     H = src["H"]
     t0 = time.perf_counter()
-    res = dict(body=body, speed=speed, entries={}, tail={})
+    part = _partial_path(out_dir, body, speed)
+    res = dict(body=body, speed=speed, entries={}, tail={}, tail_phase=None)
+    if resume and part.exists():
+        res.update(json.loads(part.read_text()))
     lad0 = ladder(body, H, speed)
-    tail_phase = None
-    if check:
+    if not res["tail"]:
         res["tail"]["V0"] = tail_check(src, lad0["V0"], amp=lad0["V0"].tail_amp)
+        if speed == "nominal":  # the same walk as the turning screen's recorded straight run
+            rec = turning_record(body)
+            ours = res["tail"]["V0"]["runs"][f"{0.5 * math.pi:.6f}"]
+            res["tail"]["V0"]["turning_screen"] = dict(rec, today_peak_rel=ours["peak_nm"] / rec["peak_nm"] - 1.0,
+                                                       today_mu_req_rel=ours["mu_req_max"] / rec["mu_req_max"] - 1.0)
         res["tail"]["V4"] = tail_check(src, lad0["V4"], amp=feature_values(body, H, speed)["F9F10"]["tail_amp"])
-        tail_phase = res["tail"]["V4"]["best_phase_rad"]
-    lad = ladder(body, H, speed, tail_phase)
+        res["tail_phase"] = res["tail"]["V4"]["best_phase_rad"]
+        _save_partial(part, res)
+        print(f"  {body} {speed}: tail checks done, F9 phase {res['tail_phase']:.4f} rad", flush=True)
+    lad = ladder(body, H, speed, res["tail_phase"])
     for v in variants:
-        if v in lad:
-            g = generate(src, lad[v])
-            res["entries"][v] = write(src, speed, v, lad[v], g, Path(out_dir))
-            e = res["entries"][v]
-            print(f"  {body} {speed} {v}: {e['seconds']:.0f} s, ik {e['ik_ok']}, zmp err {e['zmp_error_final_mm']:.2f} mm, "
-                  f"margin {e['zmp_margin_min_mm']:.1f} mm", flush=True)
+        if v not in lad:
+            continue
+        if v in res["entries"] and _entry_current(res["entries"][v], lad[v], out_dir):
+            continue
+        g = generate(src, lad[v])
+        res["entries"][v] = e = write(src, speed, v, lad[v], g, out_dir)
+        _save_partial(part, res)
+        print(f"  {body} {speed} {v}: {e['seconds']:.0f} s, ik {e['ik_ok']}, zmp err {e['zmp_error_final_mm']:.2f} mm, "
+              f"margin {e['zmp_margin_min_mm']:.1f} mm", flush=True)
     res["seconds"] = time.perf_counter() - t0
-    res["tail_phase"] = tail_phase
     return res
 
 
@@ -757,42 +886,70 @@ def _source_cached(body: str) -> dict:
     return _SOURCES[body]
 
 
-def prepare(bodies=BODIES, out_dir: Path = OUT, speeds=SPEEDS, variants=VARIANTS + EXTRAS, procs: int = 1) -> dict:
-    """Generate, measure and save the ladder; writes ``<out>/look_refs.json`` and ``<out>/tail_phase.json`` (updated in
-    place for the bodies and speeds run)."""
+def _merge(out_dir: Path, results: list, infos: dict, t0: float, prov: dict) -> dict:
+    """Merge finished jobs into ``look_refs.json`` and ``tail_phase.json`` (rung by rung; other bodies, speeds and rungs
+    are kept), with the run's provenance ``prov`` (taken before it wrote anything)."""
+    refs_path, tail_path = out_dir / "look_refs.json", out_dir / "tail_phase.json"
+    doc = json.loads(refs_path.read_text()) if refs_path.exists() else {}
+    tdoc = json.loads(tail_path.read_text()) if tail_path.exists() else {}
+    doc.setdefault("bodies", {})
+    doc.setdefault("body_info", {})
+    tdoc.setdefault("bodies", {})
+    for r in results:
+        doc["bodies"].setdefault(r["body"], {}).setdefault(r["speed"], {}).update(r["entries"])
+        tdoc["bodies"].setdefault(r["body"], {})[r["speed"]] = dict(tail_phase_F9_rad=r["tail_phase"], **r["tail"])
+    doc["body_info"].update(infos)
+    common = dict(accuracy=ACCURACY, values=VALUES, variants=list(VARIANTS), extras=list(EXTRAS),
+                  speeds={s: ("0.40 m/s" if s == "v040" else s) for s in SPEEDS}, provenance=prov,
+                  versions=_versions())
+    doc.update(common, generator="gait.generate (look fields; designlab/stage2/look.py)",
+               note="kinematic references with perfect tracking; priced by the Stage 0 screen before rendering; "
+                    "nothing adopted (P24)", seconds=time.perf_counter() - t0)
+    tdoc.update(common, method=(tail_check.__doc__ or "").split("\n\n")[0].replace("\n", " "),
+                convention="tail = tail_amp sin(2 pi phase + tail_phase), phase 0 at the left foot's lift-off; a "
+                           "positive tail_yaw swings the tip to the robot's right (axis about +z); today's tail_phase "
+                           "is pi/2")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for path, d in ((refs_path, doc), (tail_path, tdoc)):
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(_plain(d), indent=1))
+        tmp.replace(path)
+    return doc
+
+
+def _info_job(body: str) -> tuple[str, dict]:
+    return body, body_info(_source_cached(body))
+
+
+def prepare(bodies=BODIES, out_dir: Path = OUT, speeds=SPEEDS, variants=VARIANTS + EXTRAS, procs: int = 1,
+            resume: bool = False) -> dict:
+    """Generate, measure and save the ladder; ``<out>/look_refs.json`` and ``<out>/tail_phase.json`` are updated in
+    place as each body and speed finishes (``_merge``), and its partial file is then removed.  With ``resume``, each
+    job keeps the rungs its partial file holds (``_job``)."""
     import multiprocessing as mp
 
     from ..stage1 import plant
 
     out_dir = Path(out_dir)
-    jobs = [(b, s, str(out_dir), tuple(variants), True) for b in bodies for s in speeds]
+    prov = plant.provenance()  # before this run writes anything
+    jobs = [(b, s, str(out_dir), tuple(variants), resume) for b in bodies for s in speeds]
     t0 = time.perf_counter()
+    infos = dict(_info_job(b) for b in bodies)
+    doc = _merge(out_dir, [], infos, t0, prov)
     if procs > 1:
         with mp.get_context("fork").Pool(procs) as pool:
-            results = pool.map(_job, jobs, chunksize=1)
+            for r in pool.imap_unordered(_job, jobs, chunksize=1):
+                doc = _merge(out_dir, [r], {}, t0, prov)
+                _partial_path(out_dir, r["body"], r["speed"]).unlink(missing_ok=True)
+                print(f"  {r['body']} {r['speed']}: merged ({r['seconds']:.0f} s)", flush=True)
     else:
-        results = [_job(j) for j in jobs]
-    refs_path, tail_path = out_dir / "look_refs.json", out_dir / "tail_phase.json"
-    doc = json.loads(refs_path.read_text()) if refs_path.exists() else {}
-    tdoc = json.loads(tail_path.read_text()) if tail_path.exists() else {}
-    doc.setdefault("bodies", {})
-    tdoc.setdefault("bodies", {})
-    for r in results:
-        doc["bodies"].setdefault(r["body"], {})[r["speed"]] = r["entries"]
-        tdoc["bodies"].setdefault(r["body"], {})[r["speed"]] = dict(tail_phase_F9_rad=r["tail_phase"], **r["tail"])
-    common = dict(accuracy=ACCURACY, values=VALUES, variants=list(VARIANTS), extras=list(EXTRAS),
-                  speeds={s: ("0.40 m/s" if s == "v040" else s) for s in SPEEDS}, provenance=plant.provenance(),
-                  versions=_versions())
-    doc.update(common, generator="gait.generate (look fields; designlab/stage2/look.py)",
-               note="kinematic references with perfect tracking; priced by the Stage 0 screen before rendering; "
-                    "nothing adopted (P24)", seconds=time.perf_counter() - t0)
-    tdoc.update(common, method=tail_check.__doc__.split("\n\n")[0].replace("\n", " "),
-                convention="tail = tail_amp sin(2 pi phase + tail_phase), phase 0 at the left foot's lift-off; a "
-                           "positive tail_yaw swings the tip to the robot's right (axis about +z); today's tail_phase "
-                           "is pi/2")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    refs_path.write_text(json.dumps(_plain(doc), indent=1))
-    tail_path.write_text(json.dumps(_plain(tdoc), indent=1))
+        for j in jobs:
+            r = _job(j)
+            doc = _merge(out_dir, [r], {}, t0, prov)
+            _partial_path(out_dir, r["body"], r["speed"]).unlink(missing_ok=True)
+    part = out_dir / "partial"
+    if part.is_dir() and not any(part.iterdir()):
+        part.rmdir()
     return doc
 
 
@@ -849,6 +1006,7 @@ def main(argv=None) -> int:
     p.add_argument("--variant", action="append", choices=VARIANTS + EXTRAS)
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--procs", type=int, default=1)
+    p.add_argument("--resume", action="store_true", help="keep the rungs each job's partial file holds")
     q = sub.add_parser("g2", help="Stage 1's nominal, brisk and fr05 arrays' sha256 (JSON on stdout)")
     q.add_argument("--body", required=True)
     r = sub.add_parser("remeasure", help="recompute look_refs.json's measured blocks from the saved arrays")
@@ -856,7 +1014,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "prepare":
         prepare(tuple(a.body or BODIES), Path(a.out), tuple(a.speed or SPEEDS), tuple(a.variant or VARIANTS + EXTRAS),
-                a.procs)
+                a.procs, a.resume)
     elif a.cmd == "remeasure":
         remeasure(Path(a.out))
     else:

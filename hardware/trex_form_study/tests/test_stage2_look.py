@@ -39,6 +39,8 @@ from designlab.stage2 import look  # noqa: E402
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 LOOK = ROOT / "stage2" / "look"
 BODY = "60-N-T-10"
+#: The bodies' hip heights H (m), as their records rebuild them (``test_markers_on_both_bodies`` checks them).
+H_BODY = {"60-N-T-10": 0.40468919988052376, "75-M-H-10": 0.5018535496646683}
 PY = sys.executable
 slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="every variant regenerated; set STAGE2_SLOW=1")
 
@@ -71,6 +73,15 @@ def test_look_fields_default_to_todays_walk():
         assert d["duty"] == spec.duty and d["period"] == spec.stride_rel * 0.4 / np.sqrt(spec.froude * gait.G * 0.4)
     assert gait.GaitSpec().tail_phase == np.pi / 2 and gait.GaitSpec().head_mode == "nod"
     assert gait.look_active(replace(sizing.NOMINAL, bob=0.01)) and gait.look_active(replace(sizing.NOMINAL, strides=2))
+
+
+def test_a_default_spec_read_back_from_json_stays_todays_walk():
+    """JSON turns ``var_band``'s tuple into a list; a default spec rebuilt from a record must not become a look walk."""
+    for spec in (sizing.NOMINAL, sizing.BRISK, envelope.FAST):
+        back = gait.GaitSpec(**json.loads(json.dumps(asdict(spec))))
+        assert isinstance(back.var_band, list) and not gait.look_active(back)
+        assert not gait.look_active(replace(spec, var_band=np.array([0.05, 0.2])))
+        assert gait.look_active(replace(spec, var_band=[0.05, 0.3])) and gait.look_active(replace(spec, var_band=[0.05]))
 
 
 def test_default_fields_take_todays_code_path(monkeypatch):
@@ -169,8 +180,8 @@ def test_variation_is_seeded_and_bounded():
 
 def test_speed_spec_is_the_speed_change_at_0_40():
     """0.40 m/s: the gait brisk_to_fr05 passes through at 0.40 m/s (period, duty, lift mixed with the speed's weight)."""
-    for body, H, w, T, stride, duty in (("60", 0.40468919988052376, 0.651, 0.751, 0.742, 0.567),
-                                        ("75", 0.502, 0.338, 0.861, 0.686, 0.573)):
+    for body, H, w, T, stride, duty in (("60", H_BODY["60-N-T-10"], 0.651, 0.751, 0.742, 0.567),
+                                        ("75", H_BODY["75-M-H-10"], 0.338, 0.861, 0.686, 0.573)):
         s = look.speed_spec(H)
         d = s.describe(H)
         assert d["speed"] == pytest.approx(0.40, abs=1e-12)
@@ -183,14 +194,14 @@ def test_speed_spec_is_the_speed_change_at_0_40():
 
 
 def test_ladder_values_are_the_research_middles():
-    H = 0.40468919988052376
+    H = H_BODY[BODY]
     lad = look.ladder(BODY, H, "nominal", tail_phase=-1.8)
     v0, v6 = lad["V0"], lad["V6"]
     assert v0 is sizing.NOMINAL
     assert lad["V1"].bob == pytest.approx(0.75 * (0.6 * 0.55 / 2) ** 2 / (2 * 0.97)) == pytest.approx(0.0105, abs=2e-4)
     assert look.ladder(BODY, H, "fr05")["V1"].bob == pytest.approx(0.0195, abs=2e-4)  # research: 0.013-0.026 H
     assert lad["V2"].swing_time == pytest.approx(0.32, abs=2e-3) and lad["V2"].describe(H)["duty"] == pytest.approx(0.69, abs=0.005)
-    assert look.ladder("75-M-H-10", 0.502, "nominal")["V2"].swing_time == pytest.approx(0.36, abs=5e-3)  # 0.356 s
+    assert look.ladder("75-M-H-10", H_BODY["75-M-H-10"], "nominal")["V2"].swing_time == pytest.approx(0.356, abs=1e-3)
     assert (lad["V3"].lift_peak, lad["V3"].toe_off, lad["V3"].toe_off_start, lad["V3"].toe_reach) == (0.375, 0.4, 0.825, 0.075)
     assert lad["V4"].roll_amp == pytest.approx(math.radians(1.5)) and lad["V4L"].roll_amp == -lad["V4"].roll_amp
     assert (lad["V5"].tail_amp, lad["V5"].tail_phase, lad["V5"].head_mode) == (0.125, -1.8, "stabilise")
@@ -198,7 +209,7 @@ def test_ladder_values_are_the_research_middles():
     assert (v6.phase_jitter, v6.asym, v6.var_band, v6.stride_rel) == (0.015, 0.025, (0.05, 0.2), 0.55)
     assert v6.strides * v6.describe(H)["period"] >= look.CLIP_S > (v6.strides - 1) * v6.describe(H)["period"]
     assert lad["V6S"].zmp_inset_y == 0.010
-    assert look.ladder("75-M-H-10", 0.502, "fr05", tail_phase=0.0)["V6"].stride_rel == 0.875  # F13: 75 cm only
+    assert look.ladder("75-M-H-10", H_BODY["75-M-H-10"], "fr05", tail_phase=0.0)["V6"].stride_rel == 0.875  # F13: 75 cm
     assert look.ladder(BODY, H, "fr05", tail_phase=0.0)["V6"].stride_rel == 0.80
     for v in look.VARIANTS[1:]:  # one feature group per rung
         prev = lad[look.VARIANTS[look.VARIANTS.index(v) - 1]]
@@ -372,6 +383,58 @@ def test_zmp_correction_converges_with_the_look_features(walks):
         assert all(b < a for a, b in zip(h, h[1:], strict=False)), (k, h)
 
 
+def test_hybrid_animal_pace_with_every_feature():
+    """75-M-H-10 at the animal pace with every feature (V6, with F13's 0.875 H stride) on a coarse two-stride window: IK
+    on every frame, the ZMP inside its support, the correction converging, and each feature where its spec puts it."""
+    body = "75-M-H-10"
+    src = _src(body)
+    lad = look.ladder(body, src["H"], "fr05", tail_phase=_tail_phase(body, "fr05"))
+    spec = replace(lad["V6"], strides=2, n=80)
+    assert spec.stride_rel == 0.875 and lad["V5"].stride_rel == 0.80  # F13 comes with V6, at 75 cm only
+    g = look.generate(src, spec)
+    a = look.arrays(src, g)
+    m = look.measure(a, g["info"], src["H"])
+    info = g["info"]
+    h = info["zmp_error_history_m"]  # (80 frames a stride: coarser differences than the ladder's 160)
+    assert g["ik_ok"] and m["zmp_margin_min_mm"] > 0.0 and h[-1] < 4e-3 and h[-1] < 0.1 * h[0], h
+    assert info["duty"] == pytest.approx(1.0 - spec.swing_time / info["period"]) == pytest.approx(0.598, abs=2e-3)
+    assert m["stride_H"] == pytest.approx(0.875, rel=1e-4) and m["bob_pp_H"] == pytest.approx(spec.bob, rel=0.02)
+    assert m["lift_peak_frac_swing"] == pytest.approx(0.375, abs=0.01)
+    assert m["toe_off_peak_rad"] == pytest.approx(0.40, abs=2e-3) and m["toe_off_ground_roll_s"] > 0.0
+    assert m["trunk_roll_amp_rad"] == pytest.approx(spec.roll_amp, rel=1e-3) and m["trunk_roll_toward_stance"]
+    assert m["nod_amp_rad"] < 0.005 and m["step_time_dev_max"] <= spec.phase_jitter + spec.asym / 2 + 1e-4
+    assert np.abs(a["foot_pitch_solved"] - a["foot_pitch"]).max() < 1e-4
+
+
+@pytest.mark.parametrize("body", look.BODIES)
+def test_markers_on_both_bodies(body):
+    """The point-light markers resolve on both bodies (the Hybrid's tail cover is a root and segments, the Tapered's
+    one mesh) and sit where their names say at home."""
+    src = _src(body)
+    assert src["H"] == H_BODY[body]
+    M = src["M"]
+    M.forward(src["q_home"])
+    d = M.d
+    p = {nm: d.xpos[b] + d.xmat[b].reshape(3, 3) @ loc for nm, b, loc in src["markers"]}
+    assert list(p) == list(look.POINTS)
+    assert p["snout"][0] > p["eye"][0] > p["neck_base"][0] > p["hip_l"][0] > p["tail_mid"][0] > p["tail_tip"][0]
+    assert p["tail_tip"][0] < -1.5 * src["H"] and abs(p["tail_tip"][1]) < 1e-3  # far behind, on the midline
+    for s in ("l", "r"):
+        assert p[f"toe_{s}"][0] > p[f"mtp_{s}"][0] and 0.0 < p[f"toe_{s}"][2] < p[f"mtp_{s}"][2] < p[f"knee_{s}"][2]
+    assert p["hip_l"][1] == pytest.approx(-p["hip_r"][1]) and p["hip_l"][1] > 0
+
+
+@pytest.mark.parametrize("body", look.BODIES)
+def test_toe_clearance_of_the_rigid_foot(body):
+    """F5's finding: the middle toe's capsule and claw (no contact in the plant) reach ahead of the toe pad's front edge,
+    so a heel-up roll about that edge takes them below the floor past a small pitch; the pads stay on or above it."""
+    src = _src(body)
+    tc = look.toe_clearance(src)
+    assert 0.03 < tc["clear_pitch_rad"] < 0.15 and tc["deepest"].endswith("claw_0") and tc["deepest_mm"] < -5.0
+    at = look.toe_clearance(src, pitch=tc["clear_pitch_rad"])
+    assert at["clear_pitch_rad"] == tc["clear_pitch_rad"] and at["deepest_mm"] == pytest.approx(0.0, abs=0.05)
+
+
 def test_markers_and_arrays_for_the_screen_and_renders(walks):
     a, g = walks["V5"]["a"], walks["V5"]["g"]
     n = len(a["t"])
@@ -380,6 +443,10 @@ def test_markers_and_arrays_for_the_screen_and_renders(walks):
     assert np.all(a["points"][:, i.index("snout"), 0] > a["points"][:, i.index("eye"), 0])
     assert np.all(a["points"][:, i.index("tail_tip"), 0] < a["points"][:, i.index("tail_mid"), 0])
     assert a["support_hull"].shape[0] == n and np.array_equal(a["support"], ~a["swing"])
+    assert a["toe_edge"].shape == (n, 2, 2, 3)  # a rolling foot's support: its toe edge, on the floor while it rolls
+    rol = a["rolling"]
+    assert np.abs(a["toe_edge"][rol][:, :, 2]).max() < 1e-4
+    assert np.allclose(a["toe_edge"].mean(axis=2)[..., 0], a["toe_pivot"][..., 0], atol=1e-6)
     tr = look.trajectory(a, g["info"])
     with look.accuracy("r2"):  # the exact unwrap, as the arrays' qd
         idr = gait.inverse_dynamics(_src()["M"], tr)  # the screen's call on the reference
@@ -408,8 +475,12 @@ def test_every_variant_solves_and_keeps_the_zmp_inside_its_support(body, speed, 
     m, spec = e["measured"], e["spec"]
     assert e["ik_ok"] and e["ik_fail_frames"] == 0
     assert e["zmp_margin_min_mm"] > 0.0 and m["zmp_margin_min_mm"] == pytest.approx(e["zmp_margin_min_mm"])
-    assert e["zmp_error_final_mm"] < 2.5
-    H = 0.40468919988052376 if body.startswith("60") else 0.502
+    # the multibody-ZMP correction converges with the features, to about today's error at this body and speed (V0 is
+    # Stage 1's reference there: 1.3-2.6 mm after its 6 passes; the look rungs run 12)
+    h = e["info"]["zmp_error_history_m"]
+    v0 = LADDER["bodies"][body][speed]["V0"]["zmp_error_final_mm"]
+    assert h[-1] < 0.1 * h[0] and e["zmp_error_final_mm"] <= 1.25 * v0 and e["zmp_error_final_mm"] < 3.5, (h, v0)
+    H = H_BODY[body]
     n = e["frames"]
     assert m["bob_pp_H"] == pytest.approx(spec["bob"], abs=2e-4)
     if spec["bob_skew"] is not None:
@@ -426,6 +497,14 @@ def test_every_variant_solves_and_keeps_the_zmp_inside_its_support(body, speed, 
     assert n == spec["n"] * spec["strides"] and e["info"]["window_s"] >= (look.CLIP_S if spec["strides"] > 1 else 0)
     assert e["info"]["speed"] == pytest.approx({"nominal": math.sqrt(0.012 * gait.G * H), "v040": 0.40,
                                                 "fr05": math.sqrt(0.05 * gait.G * H)}[speed])
+    if spec["toe_off"]:  # F5: a roll on the floor before each lift-off, the pitch's peak at or after it
+        assert m["toe_off_ground_roll_s"] > 0.0 and 0.0 < m["toe_off_at_lift_off_rad"] <= spec["toe_off"] + 1e-6
+        assert m["toe_off_peak_after_lift_off_s"] > -1e-3  # (sub-frame estimate of the peak)
+        assert m["foot_pitch_min_rad"] == pytest.approx(-spec["toe_reach"], abs=2e-3)
+    else:  # flat feet: nothing pitches, and the toes and claws never reach the floor
+        assert m["toe_off_ground_roll_s"] is None and m["toe_geoms_below_floor_max_mm"] == 0.0
+    assert m["rolling_pivot_height_max_mm"] is None or m["rolling_pivot_height_max_mm"] < 0.1
+    assert m["stance_pad_height_max_mm"] < 0.1  # flat stance feet stay on the floor
 
 
 @needs_ladder
@@ -446,6 +525,21 @@ def test_tail_check_confirms_the_research_reading_and_sets_f9():
             assert r["tail_phase_F9_rad"] == v4["best_phase_rad"]
             for v in ("V5", "V6", "V6S"):
                 assert LADDER["bodies"][b][s][v]["spec"]["tail_phase"] == v4["best_phase_rad"]
+        # the check's walk at today's phase is the turning screen's recorded straight run (the nominal walk)
+        tsc = doc["bodies"][b]["nominal"]["V0"]["turning_screen"]
+        assert abs(tsc["today_peak_rel"]) < 0.01 and abs(tsc["today_mu_req_rel"]) < 0.01, (b, tsc)
+
+
+@needs_ladder
+def test_body_info_records_the_toe_clearance():
+    """F5's rigid-foot finding is recorded per body, and the ladder's toe-off rungs show it on the frames."""
+    for b in look.BODIES:
+        tc = LADDER["body_info"][b]["toe_clearance"]
+        assert tc["clear_pitch_rad"] < LADDER["values"]["F5 toe_off"]["value"] and tc["deepest_mm"] < 0.0
+        assert LADDER["body_info"][b]["H_m"] == H_BODY[b]
+        nominal = LADDER["bodies"][b]["nominal"]
+        assert nominal["V3"]["measured"]["toe_geoms_below_floor_max_mm"] > 1.0  # the long nominal roll goes deepest
+        assert nominal["V2"]["measured"]["toe_geoms_below_floor_max_mm"] == 0.0
 
 
 def _regenerate(body: str, speed: str, variant: str) -> str:
