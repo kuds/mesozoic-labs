@@ -565,6 +565,16 @@ def phase_chart(title: str, rungs: list, path: Path) -> None:
 # ------------------------------------------------------------------------------------------------
 # Run
 # ------------------------------------------------------------------------------------------------
+def compact(m: dict) -> dict:
+    """A rung's metrics as ``metrics.json`` keeps them: the extremes' stride phases to 4 decimals, without the frame
+    indices the phase chart places its markers by."""
+    parts = {}
+    for key, row in m["extremes"]["parts"].items():
+        parts[key] = {k: ([round(float(x), 4) for x in v] if k in ("max", "min") else v) for k, v in row.items()
+                      if not k.endswith("_frames")}
+    return dict(m, extremes=dict(m["extremes"], parts=parts))
+
+
 def stage0_screen(rung: dict) -> dict:
     """From the rung's ``screen.json`` block (the Stage 0 screen, read before any render): research 4.1 item 5's
     stance-pad yaw moment (round two's straight-run reading: the single-support stance pad's peak and RMS free yaw
@@ -601,8 +611,7 @@ def run(out_dir: Path = OUT, media: Path | None = None, bodies=look.BODIES) -> d
     doc = json.loads((Path(out_dir) / "look_refs.json").read_text())
     sp_ = Path(out_dir) / screen.SCREEN_JSON
     sdoc = json.loads(sp_.read_text()) if sp_.exists() else None
-    res = {}
-    arrays = {}
+    res, full, arrays = {}, {}, {}
     for b in bodies:
         for s, entries in doc["bodies"][b].items():
             for v, e in entries.items():
@@ -610,7 +619,8 @@ def run(out_dir: Path = OUT, media: Path | None = None, bodies=look.BODIES) -> d
                 m = metrics(b, s, v, e, arrs)
                 if sdoc is not None:
                     m.update(stage0_screen(sdoc["rungs"][b][s][v]))
-                res.setdefault(b, {}).setdefault(s, {})[v] = look._plain(m)
+                full[(b, s, v)] = m
+                res.setdefault(b, {}).setdefault(s, {})[v] = look._plain(compact(m))
                 arrays[(b, s, v)] = arrs
     plots = []
     if media is not None:
@@ -627,7 +637,7 @@ def run(out_dir: Path = OUT, media: Path | None = None, bodies=look.BODIES) -> d
                               d / name)
                 else:
                     name = f"{b}_{s}_phase_{'-'.join(vs)}.png" if len(vs) > 2 else f"{b}_{s}_phase_{vs[0]}_{vs[1]}.png"
-                    rungs = [(_label(v, doc["bodies"][b][s][v]), arrays[(b, s, v)], res[b][s][v]) for v in vs]
+                    rungs = [(_label(v, doc["bodies"][b][s][v]), arrays[(b, s, v)], full[(b, s, v)]) for v in vs]
                     phase_chart(f"{screen.BODY_LABEL.get(b, b)}, {sp}: when each part peaks in the stride", rungs,
                                 d / name)
                 plots.append(f"{b}/{name}")
