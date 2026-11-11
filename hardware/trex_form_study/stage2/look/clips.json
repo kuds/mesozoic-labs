@@ -1,0 +1,3776 @@
+{
+ "what": "Stage 2 look clips: kinematic playback of the ladder's references (not a simulation)",
+ "label": "kinematic reference, not a simulation",
+ "fps": 30,
+ "seconds": 10.0,
+ "size": [
+  854,
+  480
+ ],
+ "max_bytes": 1500000,
+ "cameras": {
+  "visitor": {
+   "height_m": 1.5,
+   "distance_m": 2.5,
+   "bearing_deg": -45.0,
+   "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+   "fovy_deg": 26.0
+  },
+  "side": {
+   "height_m": 0.6,
+   "distance_m": 2.5,
+   "bearing_deg": -90.0,
+   "text": "side view: eye 0.6 m high, 2.5 m away",
+   "fovy_deg": 26.0
+  }
+ },
+ "point_radius_m": 0.011,
+ "points": [
+  "snout",
+  "eye",
+  "neck_base",
+  "hip_l",
+  "hip_r",
+  "knee_l",
+  "knee_r",
+  "mtp_l",
+  "mtp_r",
+  "toe_l",
+  "toe_r",
+  "tail_mid",
+  "tail_tip"
+ ],
+ "media_dir": "outside git (the --media directory of the run; files relative to it)",
+ "method": "Stage 2 Track A: kinematic clips of the look ladder (``STAGE2_PLAN.md`` section 4 A.4; ``stage2/research/\nresearch_look.md`` 4.1 item 3).",
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0"
+  },
+  "git": {
+   "commit": "8761a8145cfa13c546ced08fa62202970545c240",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "stage1_sources": {
+   "sha256": "4ad0f657898e117a73c0cd1f85a9da4dc37d169094aa6159abf3f47f75c3178d",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "ledger.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "policy_rows.py",
+    "refs.py",
+    "replay.py",
+    "report.py",
+    "speedfit.py",
+    "speedreport.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  }
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1"
+ },
+ "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+ "wall_s": 1254.722189383,
+ "render_cpu_s": 2476.8182591970008,
+ "clips": [
+  {
+   "file": "60-N-T-10/60-N-T-10_fr05_V0_side.mp4",
+   "poster": "60-N-T-10/60-N-T-10_fr05_V0_side.png",
+   "sheet": "60-N-T-10/60-N-T-10_fr05_V0_side_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "fr05",
+   "variant": "V0",
+   "view": "side",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/fr05/V0.npz",
+   "rung_sha256": "48f1eb171fa9391b1b6657c05d98436a4892e591b30622193994e34dc0735e2a",
+   "bytes": 694449,
+   "sha256": "322fa4f2490291cf979db0f9bbaed18279065969f80a7345af9cb0d16a7dae41",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 694449,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 694449
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 694449
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  animal pace, Froude 0.05, 0.45 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.035826811901312434,
+    "speed": 0.4455334471635063,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004541625353348689,
+    "window_s": 0.7266600565357904,
+    "advance_m": 0.32375135990441906,
+    "repeats": 13.761593072382489
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 78.02041028099939,
+   "encode_s": 2.7548454930001753
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_fr05_V0_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_fr05_V0_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_fr05_V0_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "fr05",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/fr05/V0.npz",
+   "rung_sha256": "48f1eb171fa9391b1b6657c05d98436a4892e591b30622193994e34dc0735e2a",
+   "bytes": 1054640,
+   "sha256": "b447886fde148bfaeb02c1db9ba5589490667c4264f256650f73f3e7573d408f",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1054640,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1054640
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1054640
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  animal pace, Froude 0.05, 0.45 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.035826811901312434,
+    "speed": 0.4455334471635063,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004541625353348689,
+    "window_s": 0.7266600565357904,
+    "advance_m": 0.32375135990441906,
+    "repeats": 13.761593072382489
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 58.886652431000584,
+   "encode_s": 3.444450348999453
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_fr05_V6_side.mp4",
+   "poster": "60-N-T-10/60-N-T-10_fr05_V6_side.png",
+   "sheet": "60-N-T-10/60-N-T-10_fr05_V6_side_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "fr05",
+   "variant": "V6",
+   "view": "side",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/fr05/V6.npz",
+   "rung_sha256": "9d47708858fddca1ae91edeea77de71e2992af6205446c172a4ae559e9c19eb6",
+   "bytes": 695216,
+   "sha256": "005cb76cab8adb16a94f16a3244a9ee8ba64c7a07a9119d68702ee9ff73f5c81",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 695216,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 695216
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 695216
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  animal pace, Froude 0.05, 0.45 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0365923657599214,
+    "speed": 0.4455334471635064,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 2240,
+    "dt_s": 0.004541625353348689,
+    "window_s": 10.173240791501064,
+    "advance_m": 4.532519038661867,
+    "repeats": 0.9829709337416065
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 76.66182851699978,
+   "encode_s": 2.7825684580002417
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_fr05_V6_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_fr05_V6_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_fr05_V6_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "fr05",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/fr05/V6.npz",
+   "rung_sha256": "9d47708858fddca1ae91edeea77de71e2992af6205446c172a4ae559e9c19eb6",
+   "bytes": 1041471,
+   "sha256": "c1e604fd6df412aca94ffbd9fc4ebd2b1c00e854e3b209e711546c621ba1c723",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1041471,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1041471
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1041471
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  animal pace, Froude 0.05, 0.45 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0365923657599214,
+    "speed": 0.4455334471635064,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 2240,
+    "dt_s": 0.004541625353348689,
+    "window_s": 10.173240791501064,
+    "advance_m": 4.532519038661867,
+    "repeats": 0.9829709337416065
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 59.22966936599914,
+   "encode_s": 3.3403624610000406
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_nominal_V0_side.mp4",
+   "poster": "60-N-T-10/60-N-T-10_nominal_V0_side.png",
+   "sheet": "60-N-T-10/60-N-T-10_nominal_V0_side_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "nominal",
+   "variant": "V0",
+   "view": "side",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/nominal/V0.npz",
+   "rung_sha256": "3dc1c0e651af50e72ddc0bdf05d8cd3d6ecc6c888e8276a449c2cc1317ee9234",
+   "bytes": 597627,
+   "sha256": "f60a22387faf0336bd0a23a8a06af6bc3af29aa3008b034954140aefdec34ac8",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 597627,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 597627
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 597627
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  nominal walk, Froude 0.012, 0.22 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03618618277191744,
+    "speed": 0.218265921778768,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.006373505828359794,
+    "window_s": 1.019760932537567,
+    "advance_m": 0.2225790599342881,
+    "repeats": 9.806219949136569
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 77.0280542999999,
+   "encode_s": 2.835602576000383
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_nominal_V0_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_nominal_V0_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_nominal_V0_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "nominal",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/nominal/V0.npz",
+   "rung_sha256": "3dc1c0e651af50e72ddc0bdf05d8cd3d6ecc6c888e8276a449c2cc1317ee9234",
+   "bytes": 902949,
+   "sha256": "087af51dba80c8ffc5555531ecb8137d32c452b8076b276fb6617bc0c595984d",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 902949,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 902949
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 902949
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  nominal walk, Froude 0.012, 0.22 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03618618277191744,
+    "speed": 0.218265921778768,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.006373505828359794,
+    "window_s": 1.019760932537567,
+    "advance_m": 0.2225790599342881,
+    "repeats": 9.806219949136569
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 57.81706732099974,
+   "encode_s": 3.8867049119999137
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_nominal_V6_side.mp4",
+   "poster": "60-N-T-10/60-N-T-10_nominal_V6_side.png",
+   "sheet": "60-N-T-10/60-N-T-10_nominal_V6_side_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "nominal",
+   "variant": "V6",
+   "view": "side",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/nominal/V6.npz",
+   "rung_sha256": "dfc1aeebe5fec6679a873fcf9d31d4144565b96f0c9ce3774263bbb7903e2522",
+   "bytes": 594780,
+   "sha256": "8928f4789675e2f3d497deec5596740f7facfb72f30b7c07c99a932334234907",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 594780,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 594780
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 594780
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  nominal walk, Froude 0.012, 0.22 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03612951246800297,
+    "speed": 0.218265921778768,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 1600,
+    "dt_s": 0.006373505828359794,
+    "window_s": 10.19760932537567,
+    "advance_m": 2.225790599342881,
+    "repeats": 0.9806219949136569
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 79.21253929399973,
+   "encode_s": 3.1651031159999548
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_nominal_V6_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_nominal_V6_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_nominal_V6_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "nominal",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/nominal/V6.npz",
+   "rung_sha256": "dfc1aeebe5fec6679a873fcf9d31d4144565b96f0c9ce3774263bbb7903e2522",
+   "bytes": 893489,
+   "sha256": "739ea5da6136a0b1ff14d20069f25669621f3fc6a3ef70436faa9de79eec6509",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 893489,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 893489
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 893489
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  nominal walk, Froude 0.012, 0.22 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03612951246800297,
+    "speed": 0.218265921778768,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 1600,
+    "dt_s": 0.006373505828359794,
+    "window_s": 10.19760932537567,
+    "advance_m": 2.225790599342881,
+    "repeats": 0.9806219949136569
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 57.48250518199984,
+   "encode_s": 3.8458966179996423
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V0_side.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V0_side.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V0_side_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "side",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/v040/V0.npz",
+   "rung_sha256": "1b08b4dd1adb40c3cd2b89bef6e8f134ed85ea08917c98f8d13f878cd00d48bc",
+   "bytes": 677395,
+   "sha256": "fa72db5b8f3721335906898448216ad0cf1d3f13234e4db6c38dcac379e56363",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 677395,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 677395
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 677395
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03596116616729017,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 78.28525222200005,
+   "encode_s": 2.865447456999391
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V0_side_pointlight.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V0_side_pointlight.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V0_side_pointlight_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "side",
+   "mode": "pointlight",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/v040/V0.npz",
+   "rung_sha256": "1b08b4dd1adb40c3cd2b89bef6e8f134ed85ea08917c98f8d13f878cd00d48bc",
+   "bytes": 139627,
+   "sha256": "4336c8c456726c342bed8cbdbe8c2948a87139534e5a9b331b53c5404d1b604f",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 139627,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 139627
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 139627
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03596116616729017,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 14.861839336999765,
+   "encode_s": 1.1929815989997223
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V0_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V0_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V0_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/v040/V0.npz",
+   "rung_sha256": "1b08b4dd1adb40c3cd2b89bef6e8f134ed85ea08917c98f8d13f878cd00d48bc",
+   "bytes": 1034288,
+   "sha256": "c4598dd01a3f97d942a4effbb8c6b57e348fa4212e78f4d61b5db4442757e222",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1034288,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1034288
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1034288
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03596116616729017,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 61.54949646299974,
+   "encode_s": 3.579473890000372
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V0_visitor_pointlight.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V0_visitor_pointlight.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V0_visitor_pointlight_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "pointlight",
+   "features": [],
+   "rung_file": "refs/60-N-T-10/v040/V0.npz",
+   "rung_sha256": "1b08b4dd1adb40c3cd2b89bef6e8f134ed85ea08917c98f8d13f878cd00d48bc",
+   "bytes": 138014,
+   "sha256": "08330fcc0ed572f6fbaa8d42335f05d9eeba72e5e029c1658def0b64a58eb03f",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 138014,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 138014
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 138014
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03596116616729017,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 15.902263572000265,
+   "encode_s": 1.1755321129994627
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V1_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V1_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V1_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V1",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V1.npz",
+   "rung_sha256": "201b5bbca4e5794a44fbdae1440a954177ba719ac37c9cc1aee49550a2ba03b4",
+   "bytes": 1030280,
+   "sha256": "89bdf3f5faa946e3cde61a9a1b5bcafd265023526f303d0071014a70e0ca0b1b",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1030280,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1030280
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1030280
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V1: F1, F2  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.038261503610683936,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 57.957704304999424,
+   "encode_s": 3.34019663700019
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V2_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V2_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V2_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V2",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V2.npz",
+   "rung_sha256": "a3b2e4a258173864f4ee4467d8e8a244ce98943fe8243a0117b013e7d58a7c32",
+   "bytes": 1031133,
+   "sha256": "05e24ee7120ef913164efcc86922fe3403c5d64904c0a58f3138e6e556fbbbf9",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1031133,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1031133
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1031133
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V2: F1-F3  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03807956450697371,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 60.73176231100024,
+   "encode_s": 3.329226523000216
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V3_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V3_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V3_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V3",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V3.npz",
+   "rung_sha256": "e45887152d53682536e631c8fbe688dcd28b1cb78844d1a84f592cf0a77db745",
+   "bytes": 1034472,
+   "sha256": "c5cf5e76b4683c3bad05db41516cd03b312169089b8ae2bba3b94327d127fb53",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1034472,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1034472
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1034472
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V3: F1-F5  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03788700925221009,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 59.620402780000404,
+   "encode_s": 3.482738698000503
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V4_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V4_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V4_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V4",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V4.npz",
+   "rung_sha256": "8df2fb00f525e3c9b3a97e7ceac4da027c6bf2201d2b589e87daa071b18784b6",
+   "bytes": 1033029,
+   "sha256": "45fa6538023f95f0d5579028b83186aeec42f81a51bff497f832bd58099cbc32",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1033029,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1033029
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1033029
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V4: F1-F6  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.037891022962348545,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 58.97962547299994,
+   "encode_s": 3.3425554370005557
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V5_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V5_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V5_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V5",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V5.npz",
+   "rung_sha256": "b25eff5a20628331fe97a2662d8eb6c0e907bee8d11bcbf6127735d6f9521707",
+   "bytes": 1022417,
+   "sha256": "8f73ca20b77ee3aeed1ae441393060a9bd705e904afb37d47c60a3095b2df78d",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1022417,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1022417
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1022417
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V5: F1-F6, F9, F10  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.03810853275551634,
+    "speed": 0.4,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.004693782937064778,
+    "window_s": 0.7510052699303644,
+    "advance_m": 0.3004021079721458,
+    "repeats": 13.315485790036108
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 58.57799026700013,
+   "encode_s": 3.4531549490002362
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V6_side.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V6_side.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V6_side_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "side",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V6.npz",
+   "rung_sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+   "bytes": 676158,
+   "sha256": "36e29bd3362f0348dbd55174d707bfba6f1ac0794b025a149f1d3011381d7df5",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 676158,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 676158
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 676158
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.035845866396700184,
+    "speed": 0.39999999999999997,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 2240,
+    "dt_s": 0.004693782937064778,
+    "window_s": 10.514073779025102,
+    "advance_m": 4.205629511610041,
+    "repeats": 0.951106127859722
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 78.46282173500003,
+   "encode_s": 2.8186701170006927
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V6_side_pointlight.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V6_side_pointlight.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V6_side_pointlight_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "side",
+   "mode": "pointlight",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V6.npz",
+   "rung_sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+   "bytes": 139896,
+   "sha256": "02a69a2adb7481eec4ee28baec69e80f8138ef7bc79043a405a746f757c642e8",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 139896,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 139896
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 139896
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.035845866396700184,
+    "speed": 0.39999999999999997,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 2240,
+    "dt_s": 0.004693782937064778,
+    "window_s": 10.514073779025102,
+    "advance_m": 4.205629511610041,
+    "repeats": 0.951106127859722
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 14.557551096999305,
+   "encode_s": 1.243435479999789
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V6_visitor.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V6_visitor.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V6_visitor_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V6.npz",
+   "rung_sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+   "bytes": 1024655,
+   "sha256": "2ac8e17314f23272e677fe342d6baa8604180345b76df204fe91a5e22d8b6e24",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1024655,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1024655
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1024655
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.035845866396700184,
+    "speed": 0.39999999999999997,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 2240,
+    "dt_s": 0.004693782937064778,
+    "window_s": 10.514073779025102,
+    "advance_m": 4.205629511610041,
+    "repeats": 0.951106127859722
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 61.319597282999894,
+   "encode_s": 3.481701718000295
+  },
+  {
+   "file": "60-N-T-10/60-N-T-10_v040_V6_visitor_pointlight.mp4",
+   "poster": "60-N-T-10/60-N-T-10_v040_V6_visitor_pointlight.png",
+   "sheet": "60-N-T-10/60-N-T-10_v040_V6_visitor_pointlight_sheet.png",
+   "body": "60-N-T-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "pointlight",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/60-N-T-10/v040/V6.npz",
+   "rung_sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+   "bytes": 138878,
+   "sha256": "ffbba748659ec2e4c6969a3808cdaff79c8431a8a4ac699596ee5716be8df409",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 138878,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 138878
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 138878
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "60-N-T-10 (60 cm Tapered)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.035845866396700184,
+    "speed": 0.39999999999999997,
+    "dx": -0.14772953553623946,
+    "z": 0.3003579244387997,
+    "com_home_x": 0.03390579227981559
+   },
+   "window": {
+    "frames": 2240,
+    "dt_s": 0.004693782937064778,
+    "window_s": 10.514073779025102,
+    "advance_m": 4.205629511610041,
+    "repeats": 0.951106127859722
+   },
+   "model": {
+    "file": "round2/refine/narrow_carpet_60/models/60-N-T-10.xml",
+    "sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4"
+   },
+   "render_s": 14.367363072000444,
+   "encode_s": 1.1505718359994717
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_fr05_V0_side.mp4",
+   "poster": "75-M-H-10/75-M-H-10_fr05_V0_side.png",
+   "sheet": "75-M-H-10/75-M-H-10_fr05_V0_side_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "fr05",
+   "variant": "V0",
+   "view": "side",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/fr05/V0.npz",
+   "rung_sha256": "a521f0d32da794007272919641c98415257baf1f992c24250cfcca9423251415",
+   "bytes": 916338,
+   "sha256": "57d81221200e048fe503ea0202f524758844ed0650500b1c8e2bda0b1b6e977b",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 916338,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 916338
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 916338
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  animal pace, Froude 0.05, 0.50 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.06937824043713538,
+    "speed": 0.4961442996856054,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.005057536184358872,
+    "window_s": 0.8092057894974196,
+    "advance_m": 0.4014828397317347,
+    "repeats": 12.35779591519085
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 77.70182417400065,
+   "encode_s": 2.9108150840002054
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_fr05_V0_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_fr05_V0_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_fr05_V0_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "fr05",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/fr05/V0.npz",
+   "rung_sha256": "a521f0d32da794007272919641c98415257baf1f992c24250cfcca9423251415",
+   "bytes": 1283727,
+   "sha256": "b1b77ca2037862bcec2c0126e44441d981c264b763ec8ae8b0fb39c6a5c4ce0a",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1283727,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1283727
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1283727
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  animal pace, Froude 0.05, 0.50 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.06937824043713538,
+    "speed": 0.4961442996856054,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.005057536184358872,
+    "window_s": 0.8092057894974196,
+    "advance_m": 0.4014828397317347,
+    "repeats": 12.35779591519085
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 59.89716744399993,
+   "encode_s": 3.739544974000637
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_fr05_V6_side.mp4",
+   "poster": "75-M-H-10/75-M-H-10_fr05_V6_side.png",
+   "sheet": "75-M-H-10/75-M-H-10_fr05_V6_side_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "fr05",
+   "variant": "V6",
+   "view": "side",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F13",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/fr05/V6.npz",
+   "rung_sha256": "7412cb876bf80e3c372f525e925fa2c14dc92fbc90c83f205e75756090837460",
+   "bytes": 952243,
+   "sha256": "ad713aa0851367291e7de87ac7386019b4caf24f71e58ba4db7c8bfa6bf5c36a",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 952243,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 952243
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 952243
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F13, F14  |  animal pace, Froude 0.05, 0.50 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "Stage 0: over a limit (knee speed 1.012); the plan's rule drops this speed rung unless the owner decides otherwise",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    3,
+    1
+   ],
+   "stage0_over": [
+    {
+     "limit": "knee speed",
+     "value": 1.0122964726272832
+    }
+   ],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0722080178721644,
+    "speed": 0.49614429968560536,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1920,
+    "dt_s": 0.0055316802016425175,
+    "window_s": 10.620825987153633,
+    "advance_m": 5.269462271479018,
+    "repeats": 0.9415463554431124
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 79.71639712599972,
+   "encode_s": 2.824692277000395
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_fr05_V6_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_fr05_V6_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_fr05_V6_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "fr05",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F13",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/fr05/V6.npz",
+   "rung_sha256": "7412cb876bf80e3c372f525e925fa2c14dc92fbc90c83f205e75756090837460",
+   "bytes": 1276465,
+   "sha256": "cb499cb090d99048e87711bb28c99509d7662ae2364be9bc48d1f0c8a9a705cd",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1276465,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1276465
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1276465
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F13, F14  |  animal pace, Froude 0.05, 0.50 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "Stage 0: over a limit (knee speed 1.012); the plan's rule drops this speed rung unless the owner decides otherwise",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    3,
+    1
+   ],
+   "stage0_over": [
+    {
+     "limit": "knee speed",
+     "value": 1.0122964726272832
+    }
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0722080178721644,
+    "speed": 0.49614429968560536,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1920,
+    "dt_s": 0.0055316802016425175,
+    "window_s": 10.620825987153633,
+    "advance_m": 5.269462271479018,
+    "repeats": 0.9415463554431124
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 58.51126784600001,
+   "encode_s": 3.7640153100001044
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_nominal_V0_side.mp4",
+   "poster": "75-M-H-10/75-M-H-10_nominal_V0_side.png",
+   "sheet": "75-M-H-10/75-M-H-10_nominal_V0_side_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "nominal",
+   "variant": "V0",
+   "view": "side",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/nominal/V0.npz",
+   "rung_sha256": "e2bf5274af372c60754b0de6e987d5f427975be8ba1ed44ab9aace9bce9c0834",
+   "bytes": 822900,
+   "sha256": "418b741d7d35ae32fb07c432b946cfab9c56b07e5f5121fc5f771d4bb2cd9771",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 822900,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 822900
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 822900
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  nominal walk, Froude 0.012, 0.24 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.06977038501834244,
+    "speed": 0.24306007460404674,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.007097511097956258,
+    "window_s": 1.1356017756730012,
+    "advance_m": 0.2760194523155676,
+    "repeats": 8.805903807321554
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 77.47790836400054,
+   "encode_s": 2.53563321799993
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_nominal_V0_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_nominal_V0_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_nominal_V0_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "nominal",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/nominal/V0.npz",
+   "rung_sha256": "e2bf5274af372c60754b0de6e987d5f427975be8ba1ed44ab9aace9bce9c0834",
+   "bytes": 1136565,
+   "sha256": "c42d7567980c4f58ebcae4f295c21e96746ceffaa14d3f3a5c225b8eccdbd63c",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1136565,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1136565
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1136565
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  nominal walk, Froude 0.012, 0.24 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.06977038501834244,
+    "speed": 0.24306007460404674,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.007097511097956258,
+    "window_s": 1.1356017756730012,
+    "advance_m": 0.2760194523155676,
+    "repeats": 8.805903807321554
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 59.852807106,
+   "encode_s": 3.4682602820003012
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_nominal_V6_side.mp4",
+   "poster": "75-M-H-10/75-M-H-10_nominal_V6_side.png",
+   "sheet": "75-M-H-10/75-M-H-10_nominal_V6_side_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "nominal",
+   "variant": "V6",
+   "view": "side",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/nominal/V6.npz",
+   "rung_sha256": "139b0b6b0e28729ae2bd03696bfccffbea5e9a839bbd189fc4df488d749d0ce2",
+   "bytes": 822917,
+   "sha256": "48738d9f14e3a201e75c5dd3b2e314c3bfc6ed1e71edb01066573174622ef0a5",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 822917,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 822917
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 822917
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F14  |  nominal walk, Froude 0.012, 0.24 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.06923630338604343,
+    "speed": 0.24306007460404672,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1440,
+    "dt_s": 0.007097511097956258,
+    "window_s": 10.22041598105701,
+    "advance_m": 2.4841750708401085,
+    "repeats": 0.9784337563690617
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 76.2423725510007,
+   "encode_s": 2.678321426000366
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_nominal_V6_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_nominal_V6_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_nominal_V6_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "nominal",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/nominal/V6.npz",
+   "rung_sha256": "139b0b6b0e28729ae2bd03696bfccffbea5e9a839bbd189fc4df488d749d0ce2",
+   "bytes": 1132677,
+   "sha256": "0f2c9707893e87047d9d51e3f0d3f8a1f45c5380848d822aa31b7268b661fdc6",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1132677,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1132677
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1132677
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F14  |  nominal walk, Froude 0.012, 0.24 m/s",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.06923630338604343,
+    "speed": 0.24306007460404672,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1440,
+    "dt_s": 0.007097511097956258,
+    "window_s": 10.22041598105701,
+    "advance_m": 2.4841750708401085,
+    "repeats": 0.9784337563690617
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 58.95278796999992,
+   "encode_s": 3.1277634299995043
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V0_side.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V0_side.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V0_side_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "side",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/v040/V0.npz",
+   "rung_sha256": "4545bad61f5152b4ada1ce56519a8e62ef21d0da2a52a33746be0516df96a62d",
+   "bytes": 891267,
+   "sha256": "3c6826a8f0d7dd953eb1b23436c69b80f1ced603d1d230908260fb25c7ec2db4",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 891267,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 891267
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 891267
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0696111954213244,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 75.8116808700006,
+   "encode_s": 2.8403617200001463
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V0_side_pointlight.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V0_side_pointlight.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V0_side_pointlight_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "side",
+   "mode": "pointlight",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/v040/V0.npz",
+   "rung_sha256": "4545bad61f5152b4ada1ce56519a8e62ef21d0da2a52a33746be0516df96a62d",
+   "bytes": 136774,
+   "sha256": "df6ebae51d97a116b6dda30115b895a5b8e34231b9a1068781c9de3356f51fc7",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 136774,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 136774
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 136774
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0696111954213244,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 15.095310417999826,
+   "encode_s": 1.2835870720000457
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V0_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V0_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V0_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/v040/V0.npz",
+   "rung_sha256": "4545bad61f5152b4ada1ce56519a8e62ef21d0da2a52a33746be0516df96a62d",
+   "bytes": 1240814,
+   "sha256": "b9e48c30f622b7278e8885c29e78cb2ee18af0ddece9a6e93247c25118aeece6",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1240814,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1240814
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1240814
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0696111954213244,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 57.898483113999646,
+   "encode_s": 3.5133698299996468
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V0_visitor_pointlight.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V0_visitor_pointlight.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V0_visitor_pointlight_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V0",
+   "view": "visitor",
+   "mode": "pointlight",
+   "features": [],
+   "rung_file": "refs/75-M-H-10/v040/V0.npz",
+   "rung_sha256": "4545bad61f5152b4ada1ce56519a8e62ef21d0da2a52a33746be0516df96a62d",
+   "bytes": 141486,
+   "sha256": "7d02b73ca5e8f21fd7df9f0851d6f8e728a6d7b9abeba9902e1a857790a8a617",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 141486,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 141486
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 141486
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V0: today's walk  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.0696111954213244,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 14.593595583000024,
+   "encode_s": 1.140723251000054
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V1_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V1_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V1_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V1",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V1.npz",
+   "rung_sha256": "fce2ebe99b1dc48fb82e7e3672916f0781d4e79c8c055116fcf57226942a9b91",
+   "bytes": 1241788,
+   "sha256": "378e7abb64b183c2f082eca5aabcecdaa5f8b2df66eef6099c1905be46aac0f2",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1241788,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1241788
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1241788
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V1: F1, F2  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07220766062494131,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 60.14471261000017,
+   "encode_s": 3.7818206170004487
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V2_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V2_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V2_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V2",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V2.npz",
+   "rung_sha256": "145ad4e69b2d12e60dae64017dcb02005e438e56a67c3b56e57ba3ab156550c3",
+   "bytes": 1239782,
+   "sha256": "b109bc7194ca44799df3830dc3f4d85743a8cb84423aa12260aee09377eedac9",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1239782,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1239782
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1239782
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V2: F1-F3  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07187782301364071,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 59.14313574299922,
+   "encode_s": 3.390507336000155
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V3_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V3_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V3_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V3",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V3.npz",
+   "rung_sha256": "8bf8746251e2ef1ec4e24cd33feab3a50964f78a415842bb68d156e0a45b3a21",
+   "bytes": 1242064,
+   "sha256": "2bef8bdefe87ea0c0b4c1ae89ee71aaaaa4778562d8eb7b285220200c0e4768f",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1242064,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1242064
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1242064
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V3: F1-F5  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07156880118444882,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 58.70115806100057,
+   "encode_s": 3.6414607419992535
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V4_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V4_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V4_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V4",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V4.npz",
+   "rung_sha256": "10172ab6148a92a8e84e3b9e11f46d97feca9e2e07c9a4769c5497f16e21e784",
+   "bytes": 1250680,
+   "sha256": "bc27b44811c970cd412700ac43ee6e392a218524b4f0a14dbbf35ab6c0121dcd",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1250680,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1250680
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1250680
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V4: F1-F6  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07157341305567362,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 59.31338763599979,
+   "encode_s": 3.3427087970003413
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V5_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V5_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V5_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V5",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V5.npz",
+   "rung_sha256": "62e56660caefdee675aac776f149ba5da58e6e6c9067e8b931b8920ee6be86c0",
+   "bytes": 1239682,
+   "sha256": "521f68e9ecd3def9497e6ef2c6ec64afb0bcc44cfbe8020d1e2f62715237e94d",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1239682,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1239682
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1239682
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V5: F1-F6, F9, F10  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07182594931903999,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 160,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 0.8606109353479608,
+    "advance_m": 0.34424437413918435,
+    "repeats": 11.619652492513142
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 58.80301800500001,
+   "encode_s": 3.484445944000072
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V6_side.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V6_side.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V6_side_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "side",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V6.npz",
+   "rung_sha256": "a521b31e56459e41246e635b925f023301a4f42e8490c7c839eaa34072634955",
+   "bytes": 895528,
+   "sha256": "02358fd2ff8d2b54be491573ca4563ba29e20b0bcd0cb49a8e0b714eeae285fd",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 895528,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 895528
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 895528
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07164739271364474,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1920,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 10.32733122417553,
+    "advance_m": 4.130932489670212,
+    "repeats": 0.9683043743760952
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 78.79302811100024,
+   "encode_s": 3.0300685500005784
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V6_side_pointlight.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V6_side_pointlight.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V6_side_pointlight_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "side",
+   "mode": "pointlight",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V6.npz",
+   "rung_sha256": "a521b31e56459e41246e635b925f023301a4f42e8490c7c839eaa34072634955",
+   "bytes": 139112,
+   "sha256": "527f6a6ef889c9ba0943279c9549c16e84fde439dea2c09029ccee9304861d26",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 139112,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 139112
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 139112
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "side view: eye 0.6 m high, 2.5 m away"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07164739271364474,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1920,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 10.32733122417553,
+    "advance_m": 4.130932489670212,
+    "repeats": 0.9683043743760952
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 15.634294817999944,
+   "encode_s": 0.9755418739996458
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V6_visitor.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V6_visitor.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V6_visitor_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "covered",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V6.npz",
+   "rung_sha256": "a521b31e56459e41246e635b925f023301a4f42e8490c7c839eaa34072634955",
+   "bytes": 1237570,
+   "sha256": "bf8aa3f47eec787a37056faff4cf18a532234d8b5a15a08616d1d39a9e85dc34",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1237570,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1237570
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 1237570
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07164739271364474,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1920,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 10.32733122417553,
+    "advance_m": 4.130932489670212,
+    "repeats": 0.9683043743760952
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 58.56284453799981,
+   "encode_s": 3.5981785639996815
+  },
+  {
+   "file": "75-M-H-10/75-M-H-10_v040_V6_visitor_pointlight.mp4",
+   "poster": "75-M-H-10/75-M-H-10_v040_V6_visitor_pointlight.png",
+   "sheet": "75-M-H-10/75-M-H-10_v040_V6_visitor_pointlight_sheet.png",
+   "body": "75-M-H-10",
+   "speed": "v040",
+   "variant": "V6",
+   "view": "visitor",
+   "mode": "pointlight",
+   "features": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F9",
+    "F10",
+    "F14"
+   ],
+   "rung_file": "refs/75-M-H-10/v040/V6.npz",
+   "rung_sha256": "a521b31e56459e41246e635b925f023301a4f42e8490c7c839eaa34072634955",
+   "bytes": 142024,
+   "sha256": "b0e1cd71cdbd9a509067353e058a8c1120e3a3dc22a69060bc0fc11ace1bfbeb",
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 142024,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 142024
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 300,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.0,
+    "bytes": 142024
+   },
+   "frames": 300,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": [
+    "75-M-H-10 (75 cm Hybrid)  |  V6: F1-F6, F9, F10, F14  |  0.40 m/s, the agility bar's speed",
+    "kinematic reference, not a simulation: perfect tracking, no physics; point-light markers on black",
+    "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+   ],
+   "label_lines": [
+    2,
+    1
+   ],
+   "stage0_over": [],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "fovy_deg": 26.0
+   },
+   "track": {
+    "x0": 0.07164739271364474,
+    "speed": 0.4,
+    "dx": -0.15164945601944751,
+    "z": 0.37539847576987617,
+    "com_home_x": 0.06707447451590677
+   },
+   "window": {
+    "frames": 1920,
+    "dt_s": 0.0053788183459247555,
+    "window_s": 10.32733122417553,
+    "advance_m": 4.130932489670212,
+    "repeats": 0.9683043743760952
+   },
+   "model": {
+    "file": "round2/refine/feet_75/models/75-M-H-10.xml",
+    "sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c"
+   },
+   "render_s": 15.643806786999448,
+   "encode_s": 1.2318329780000568
+  }
+ ]
+}
