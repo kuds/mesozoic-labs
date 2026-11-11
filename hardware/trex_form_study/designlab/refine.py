@@ -324,6 +324,27 @@ def _against(x: dict, base: dict) -> dict:
     return out
 
 
+def _stance_effect(own: dict, at_pick: dict) -> dict:
+    """How far the loads move between the two stances: the largest relative difference of any group's hold, RMS and
+    ratios between ``against_base`` (``own``) and ``against_base_at_pick_pose`` (``at_pick``), and where."""
+    worst = (0.0, None, None)
+    for g, a in own.items():
+        b = at_pick.get(g)
+        if b is None:
+            continue
+        pairs = [("hold_Nm", a["hold_Nm"], b["hold_Nm"]), ("rms_Nm", a["rms_Nm"], b["rms_Nm"])]
+        pairs += [(f"ratio_{k}", v, b["ratios"][k]) for k, v in a["ratios"].items()]
+        for name, x, y in pairs:
+            rel = abs(x - y) / max(abs(x), abs(y), 1e-9)
+            if rel > worst[0]:
+                worst = (rel, g, name)
+    return dict(max_relative_difference=worst[0], group=worst[1], quantity=worst[2],
+                rule="the largest relative difference of a group's hold, RMS or ratio between the two stances "
+                     "(against_base, against_base_at_pick_pose): the sizing's holds and walks re-centre the centre "
+                     "of mass over the support from whichever home they start, so the re-solved stance moves the "
+                     "loads only this much; the centre of mass at home moves with it (com_ahead_of_hip_m)")
+
+
 def head_x_seams(xml) -> dict:
     """``head_x.joint_ranges``: ``HEAD_X_RANGES_RULE`` with the seam sweep of the model at ``xml`` (each swept joint's
     range, whether a new contact appears, the deepest growth of a home overlap and, per direction, the first new
@@ -453,6 +474,9 @@ def head_x_one(case: str, cid: str, out: str) -> dict:
             against_base_at_pick_pose=(_against(dict(margins=at_pick["margins_at_pick_pose"]), base)
                                        if "margins_at_pick_pose" in at_pick
                                        else dict(error=at_pick["margins_at_pick_pose_error"])),
+            loads_between_stances=(_stance_effect(_against(dict(margins=ev["margins"]), base),
+                                                  _against(dict(margins=at_pick["margins_at_pick_pose"]), base))
+                                   if "margins_at_pick_pose" in at_pick else None),
             joint_ranges=seams,
             selection_if_resized=dict(
                 rule="one step of sizing.select on these loads with the case's headroom, and power.select_battery "
