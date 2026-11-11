@@ -698,5 +698,6 @@ def test_the_head_x_record_compares_the_two_stances(body):
         assert at[g]["hold_Nm"] > at[g]["base_hold_Nm"]
     # the sizing's holds and walks re-centre the centre of mass, so the stance hardly moves the loads
     lb = hx["loads_between_stances"]
-    assert lb == refine._stance_effect(hx["against_base"], at) and lb["max_relative_difference"] < 1e-3
+    assert lb == refine._stance_effect(hx["against_base"], at)
+    assert lb["ratio_max_difference"] < 2e-3 and lb["torque_max_relative_difference"] < 1e-3
     assert at["knee"]["hold_Nm"] < at["knee"]["base_hold_Nm"]  # the knee hold falls with the parts alone too

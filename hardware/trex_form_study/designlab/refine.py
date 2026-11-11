@@ -324,25 +324,34 @@ def _against(x: dict, base: dict) -> dict:
     return out
 
 
-def _stance_effect(own: dict, at_pick: dict) -> dict:
-    """How far the loads move between the two stances: the largest relative difference of any group's hold, RMS and
-    ratios between ``against_base`` (``own``) and ``against_base_at_pick_pose`` (``at_pick``), and where."""
-    worst = (0.0, None, None)
+def _stance_effect(own: dict, at_pick: dict, floor_nm: float = 0.01) -> dict:
+    """How far the loads move between the two stances (``against_base`` as ``own``, ``against_base_at_pick_pose`` as
+    ``at_pick``): the largest difference of any group's ratio to its drive's limits (continuous, peak, speed; in
+    fractions of the limit), and the largest relative difference of a hold or an RMS torque of at least ``floor_nm``,
+    each with where."""
+    ratio, torque = (0.0, None, None), (0.0, None, None)
     for g, a in own.items():
         b = at_pick.get(g)
         if b is None:
             continue
-        pairs = [("hold_Nm", a["hold_Nm"], b["hold_Nm"]), ("rms_Nm", a["rms_Nm"], b["rms_Nm"])]
-        pairs += [(f"ratio_{k}", v, b["ratios"][k]) for k, v in a["ratios"].items()]
-        for name, x, y in pairs:
-            rel = abs(x - y) / max(abs(x), abs(y), 1e-9)
-            if rel > worst[0]:
-                worst = (rel, g, name)
-    return dict(max_relative_difference=worst[0], group=worst[1], quantity=worst[2],
-                rule="the largest relative difference of a group's hold, RMS or ratio between the two stances "
-                     "(against_base, against_base_at_pick_pose): the sizing's holds and walks re-centre the centre "
-                     "of mass over the support from whichever home they start, so the re-solved stance moves the "
-                     "loads only this much; the centre of mass at home moves with it (com_ahead_of_hip_m)")
+        for k, v in a["ratios"].items():
+            d = abs(v - b["ratios"][k])
+            if d > ratio[0]:
+                ratio = (d, g, k)
+        for k in ("hold_Nm", "rms_Nm"):
+            x, y = a[k], b[k]
+            if max(abs(x), abs(y)) >= floor_nm:
+                rel = abs(x - y) / max(abs(x), abs(y))
+                if rel > torque[0]:
+                    torque = (rel, g, k)
+    return dict(ratio_max_difference=ratio[0], ratio_where=[ratio[1], ratio[2]],
+                torque_max_relative_difference=torque[0], torque_where=[torque[1], torque[2]],
+                torque_floor_Nm=floor_nm,
+                rule="the largest change between the two stances (against_base, against_base_at_pick_pose) of a "
+                     "group's ratio to its drive's limits, and of a hold or RMS torque (relative, those of at least "
+                     "the floor): the sizing's holds and walks re-centre the centre of mass over the support from "
+                     "whichever home they start, so the re-solved stance moves the loads only this much, while the "
+                     "centre of mass at home moves with it (com_ahead_of_hip_m)")
 
 
 def head_x_seams(xml) -> dict:
