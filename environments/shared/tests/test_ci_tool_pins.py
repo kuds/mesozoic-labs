@@ -33,6 +33,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shlex
 import tomllib
 from pathlib import Path
 
@@ -106,15 +107,29 @@ def test_pre_commit_hooks_run_the_ci_versions() -> None:
 
 
 def test_pre_commit_ruff_hooks_cover_only_what_ci_checks() -> None:
-    # CI runs `ruff check environments/` and `ruff format --check environments/`.
-    # The pinned ruff also formats notebooks and Markdown code blocks, so an
-    # unscoped hook would rewrite files CI never looks at.
-    assert "ruff check environments/" in ci_text()
-    assert "ruff format --check environments/" in ci_text()
     block = _pre_commit_block("ruff")
     hooks = re.findall(r"^\s*- id:\s*(\S+)", block, flags=re.MULTILINE)
-    scoped = re.findall(r"^\s*files:\s*\^environments/\s*$", block, flags=re.MULTILINE)
-    assert hooks and len(scoped) == len(hooks), f"each ruff hook ({hooks}) needs `files: ^environments/`"
+    scoped = re.findall(r"^\s*files:\s*(\S+)\s*$", block, flags=re.MULTILINE)
+    assert hooks and len(scoped) == len(hooks), f"each ruff hook ({hooks}) needs a source scope"
+    roots = (
+        "environments",
+        "examples/mini_tyrannosaurus_rex",
+        "examples/tyrannosaurus_rex_50cm",
+        "examples/tyrannosaurus_rex_100cm",
+        "docs/hardware/studies",
+    )
+    for command in ("ruff check", "ruff format --check", "mypy"):
+        run = re.findall(rf"^\s*run:\s*{re.escape(command)}\s+(.+)$", job_block("lint"), re.MULTILINE)
+        assert len(run) == 1
+        assert {p.rstrip("/") for p in shlex.split(run[0]) if not p.startswith("-")} == set(roots)
+    for pattern in scoped:
+        for root in roots:
+            assert re.search(pattern, f"{root}/future/module.py"), root
+        for path in ("docs/example.md", "notebooks/example.ipynb", "examples/unrelated/demo.py"):
+            assert not re.search(pattern, path), path
+    entry = re.findall(r"^\s*entry:\s*mypy\s+(.+)$", _pre_commit_block("mypy"), re.MULTILINE)
+    assert len(entry) == 1
+    assert {p.rstrip("/") for p in shlex.split(entry[0])} == set(roots)
 
 
 def test_dev_extra_pins_the_ci_versions() -> None:
@@ -200,6 +215,69 @@ def test_both_triggers_share_one_path_filter() -> None:
     push, pull_request = path_filters()
     assert push, "python-ci.yml's push trigger filters on no path"
     assert push is pull_request, "the pull_request trigger must reuse the push trigger's paths (paths: *name)"
+
+
+def _assert_robot_example_triggers_checks(example: str) -> None:
+    """The standalone model is outside environments/, but its species tests must run."""
+    filters = path_filters()
+    assert len(filters) == 2
+    # Cover the model, component ledger, drivers and nested assets. Prospective
+    # filenames keep this gate useful when another model variant or mesh is added.
+    for relative in (
+        "model.xml",
+        "components.json",
+        "demo.py",
+        "engineering.py",
+        "build_model.py",
+        "validate.py",
+        "future_variant.xml",
+        "assets/character_meshes.xml",
+        "assets/future_mesh.stl",
+        "assets/tail.obj",
+    ):
+        path = example + relative
+        for patterns in filters:
+            assert any(glob_matches(pattern, path) for pattern in patterns), (
+                f"{path} must trigger Python CI even when it is the only changed file"
+            )
+    assert "environments/tyrannosaurus_rex/tests/" in job_block("test"), (
+        "the species suite must execute the Mini T-Rex balance and engineering tests"
+    )
+    for job, command in (
+        ("lint", "ruff check"),
+        ("lint", "ruff format --check"),
+        ("lint", "mypy"),
+        ("test-sb3", "mypy"),
+    ):
+        runs = re.findall(rf"^\s*(?:run:\s*)?{re.escape(command)}\s+(.+)$", job_block(job), re.MULTILINE)
+        assert len(runs) == 1, f"expected one {command} invocation in {job}, found {runs}"
+        paths = {argument.rstrip("/") for argument in shlex.split(runs[0]) if not argument.startswith("-")}
+        assert {"environments", example.rstrip("/")} <= paths, (
+            f"{job}'s {command} must check both environments/ and {example}: {runs[0]}"
+        )
+
+
+def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    _assert_robot_example_triggers_checks("examples/mini_tyrannosaurus_rex/")
+
+
+def test_medium_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    _assert_robot_example_triggers_checks("examples/tyrannosaurus_rex_50cm/")
+
+
+def test_metre_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    _assert_robot_example_triggers_checks("examples/tyrannosaurus_rex_100cm/")
+
+
+def test_shared_robot_helpers_trigger_the_metre_review_bundle() -> None:
+    workflow = (CI_WORKFLOW.parent / "metre-trex-concept.yml").read_text()
+    filters = path_filters(workflow)
+    assert len(filters) == 2 and filters[0] is filters[1]
+    for helper in ("building", "geometry", "rendering", "validation"):
+        for path in (f"environments/shared/robot_{helper}.py", f"environments/shared/tests/test_robot_{helper}.py"):
+            assert all(any(glob_matches(pattern, path) for pattern in patterns) for patterns in filters), path
+    assert "environments/shared/robot_*.py" in workflow.split("ruff check", 1)[1].splitlines()[0]
+    assert "environments/shared/tests/test_robot_*.py" in workflow.split("pytest ", 1)[1].splitlines()[0]
 
 
 def test_the_test_matrix_runs_every_test_directory_once() -> None:

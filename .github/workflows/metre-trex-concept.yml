@@ -1,0 +1,56 @@
+name: Metre T-Rex concept
+on:
+  push:
+    branches: [main, codex/tyrannosaurus-rex-one-metre]
+    paths: &concept-paths
+      - "examples/tyrannosaurus_rex_100cm/**"
+      - "environments/shared/robot_*.py"
+      - "environments/shared/tests/test_robot_*.py"
+      - "environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py"
+      - ".github/workflows/metre-trex-concept.yml"
+      - "pyproject.toml"
+  pull_request:
+    branches: [main]
+    paths: *concept-paths
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  concept:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install concept dependencies
+        run: pip install -e ".[test]" "ruff==0.16.9" "mypy==2.3.1"
+      - name: Check source style and types
+        run: |
+          ruff check examples/tyrannosaurus_rex_100cm/ environments/shared/robot_*.py environments/shared/tests/test_robot_*.py environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
+          ruff format --check examples/tyrannosaurus_rex_100cm/ environments/shared/robot_*.py environments/shared/tests/test_robot_*.py environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
+          mypy examples/tyrannosaurus_rex_100cm/ environments/shared/robot_*.py --ignore-missing-imports
+      - name: Check committed assembly and evidence
+        run: |
+          pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py environments/shared/tests/test_robot_*.py environments/shared/tests/test_ci_tool_pins.py -vv
+      - name: Prepare review bundle
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          source = Path("examples/tyrannosaurus_rex_100cm")
+          destination = Path("/tmp/metre-trex-review")
+          shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__"))
+          PY
+      - name: Reproduce stance evidence and compiled-geometry views
+        run: |
+          python -m examples.tyrannosaurus_rex_100cm.validate --output /tmp/metre-trex-review/validation.json
+          python -m examples.tyrannosaurus_rex_100cm.verify_parts --output /tmp/metre-trex-review/parts_verification.json
+          python -m examples.tyrannosaurus_rex_100cm.render_design --sheet /tmp/metre-trex-review/design_views.png
+      - name: Upload model and review bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: metre-trex-concept
+          path: /tmp/metre-trex-review/
+          retention-days: 30
