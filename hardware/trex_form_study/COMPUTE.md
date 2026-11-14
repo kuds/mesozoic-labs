@@ -181,3 +181,8 @@ Jetson's 31 W. The 8.0 W is the survey's figure and the 1.5 W SSD allowance is a
 (4 W) and the sensors are unchanged. Bench test 1, repeated on the Pi 5 set at the converter input with the detector, camera and logging running
 (decision log A14), still has to replace the 9.5 W before the battery is fixed, and the open items above (Hailo-8L detector rate, camera load on the Pi, Teensy firmware) still
 apply.
+
+
+## Stage 2 Jetson Orin Nano Super + Partial PLEM verification study
+
+See `stage2/jetson_plem/JETSON_PLEM_AND_SPEED.md` and `stage2/jetson_plem/BUILD_BUDGET_75_JETSON.md` (`stage2/jetson_plem/jetson_plem_study.py` and `stage2/jetson_plem/jetson_plem_study.json`) for a simulation-only Stage 2 evaluation of `nvidia_orin_nano_super_devkit` (15 W and 25 W modes via `pololu_d36v50f12` / `pololu_d42v110f12`) paired with a Partial PLEM real-time architecture (`PREEMPT_RT` + isolated `CPU 5` + `pcan_usb_fd` direct USB-CAN FD) on `60-N-T-10` and `75-M-H-10`, including chest packaging clearances (`94 mm` PDB fix on `60-N-T-10`), walking speed ceilings, actuation-latency stability, Chest ToF obstacle-stopping horizons, behavior impacts, and an itemized `75-M-H-10` + Jetson prototype build budget. Per `DECISION_LOG.md` P14 and P24, Round 2 records remain unchanged.
