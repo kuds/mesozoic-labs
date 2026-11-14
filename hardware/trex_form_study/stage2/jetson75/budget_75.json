@@ -1,0 +1,3344 @@
+{
+ "study": "The 75 cm build's budget, rebuilt with designlab/cost.py (JETSON_PLEM_REVIEW.md section 5, task 9)",
+ "status": "planning estimate; nothing is built, quoted, measured or adopted",
+ "body": "75-M-H-10",
+ "script": "stage2/jetson75/budget_75.py",
+ "script_sha256": "a02851939c279a3070b366b4da2d58a0a33f16bca9bacd09da167bb67c7a1820",
+ "inputs": {
+  "round2/refine/feet_75/candidates/75-M-H-10.json": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
+  "round2/refine/head_x_75/candidates/75-M-H-10.json": "84c76a77460a0f933d2e87bc0b0c532e6448980df6a2f9803314a265c72ffb5a",
+  "round2/refine/targeted_75/candidates/75-M-T-10.json": "b6517e8993ea059bc6df1a0bb9d1d35bb0f5a08038344fb6074da8a677135bdf",
+  "round2/refine/fixed_drives.json": "197dd291276f50a37e78cfd4646f397708aa9e36bb4a4bfb4b18fd7fd0e2f443",
+  "designlab/cost.py": "43f45385f90e119c22f96c7ec4b9a7c6b8571886d137b6f7e5bbe3e52fbc49d5",
+  "designlab/build.py": "9ba8647ec47d005f58e5902bba0dd8b81f563cda6be76e4e9978923940db2e78",
+  "designlab/refine.py": "90e57288d59cf91be1f2807dcb895573f2468ac329852525817efcf785847c0b",
+  "designlab/catalog.py": "3aed4536eb65b84d19202657d0f473c388f03522f22efd8852a12447cc41f8c6",
+  "designlab/data/parts.json": "35cf0615f78e86828699156fb5212ba405acef8682d08b133f8133c318b07728",
+  "designlab/data/actuators.json": "2b052eacaf88d92f36622bd5b8da137acdaf6d00f77bffee75a691131377050f",
+  "designlab/data/research/compute_2026-11-07.json": "8f6f9009e0d80a7706f0a2c7118d82ccaeb84e1d6ae03e05549ea78f0c78bcc6"
+ },
+ "kinds": {
+  "c": "a sourced fact: a catalog price in designlab/data, named by its id",
+  "d": "an estimate: the cost model (designlab/cost.py, decision-log A8) or a line estimated here",
+  "c+d": "catalog prices (c) with an estimate (d) on top or in them: the cost model's allowance, or an assumed count or choice of part"
+ },
+ "tiers": [
+  "low",
+  "nominal",
+  "high"
+ ],
+ "contingency_fractions": [
+  0.053,
+  0.072,
+  0.084
+ ],
+ "p4": {
+  "range_usd": [
+   10000.0,
+   20000.0
+  ],
+  "statement": "$10-20 k prototype including outsourced fabrication, integration and spares",
+  "read_against": "turnkey",
+  "why": "P4 includes integration and spares, and the cost model's total holds both (the integration line is the subcontract fit-up)"
+ },
+ "baseline": {
+  "record": "round2/refine/feet_75/candidates/75-M-H-10.json",
+  "record_sha256": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
+  "reproduces_exactly": true,
+  "differences": [],
+  "recorded": {
+   "low": 13576.0,
+   "nominal": 18521.0,
+   "high": 25658.0
+  },
+  "recomputed": {
+   "low": 13576.0,
+   "nominal": 18521.0,
+   "high": 25658.0
+  },
+  "lines_recorded": {
+   "leg_actuators": [
+    3546,
+    3546,
+    3723.3
+   ],
+   "expression_actuators": [
+    504.89,
+    504.89,
+    530.13
+   ],
+   "compute": [
+    350.0,
+    410.0,
+    490.0
+   ],
+   "rgbd_camera": [
+    284,
+    304,
+    349
+   ],
+   "tof": [
+    39.9,
+    49.9,
+    69.9
+   ],
+   "battery": [
+    137.19,
+    167.19,
+    207.19
+   ],
+   "control": [
+    125.0,
+    180.0,
+    270.0
+   ],
+   "foot_sensing": [
+    113.44,
+    204.19,
+    340.31
+   ],
+   "power": [
+    275,
+    420,
+    650
+   ],
+   "harness": [
+    193.02,
+    308.83,
+    450.38
+   ],
+   "frame": [
+    2947.58,
+    4503.25,
+    6550.19
+   ],
+   "covers": [
+    1102.87,
+    1890.63,
+    3308.6
+   ],
+   "bench": [
+    550,
+    850,
+    1300
+   ],
+   "spares": [
+    1113.19,
+    1313.19,
+    1613.19
+   ],
+   "integration": [
+    1610.62,
+    2624.71,
+    3817.76
+   ],
+   "contingency": [
+    683.31,
+    1243.93,
+    1988.28
+   ]
+  },
+  "lines_recomputed": {
+   "leg_actuators": [
+    3546,
+    3546,
+    3723.3
+   ],
+   "expression_actuators": [
+    504.89,
+    504.89,
+    530.13
+   ],
+   "compute": [
+    350.0,
+    410.0,
+    490.0
+   ],
+   "rgbd_camera": [
+    284,
+    304,
+    349
+   ],
+   "tof": [
+    39.9,
+    49.9,
+    69.9
+   ],
+   "battery": [
+    137.19,
+    167.19,
+    207.19
+   ],
+   "control": [
+    125.0,
+    180.0,
+    270.0
+   ],
+   "foot_sensing": [
+    113.44,
+    204.19,
+    340.31
+   ],
+   "power": [
+    275,
+    420,
+    650
+   ],
+   "harness": [
+    193.02,
+    308.83,
+    450.38
+   ],
+   "frame": [
+    2947.58,
+    4503.25,
+    6550.19
+   ],
+   "covers": [
+    1102.87,
+    1890.63,
+    3308.6
+   ],
+   "bench": [
+    550,
+    850,
+    1300
+   ],
+   "spares": [
+    1113.19,
+    1313.19,
+    1613.19
+   ],
+   "integration": [
+    1610.62,
+    2624.71,
+    3817.76
+   ],
+   "contingency": [
+    683.31,
+    1243.93,
+    1988.28
+   ]
+  },
+  "drivers": {
+   "structure_kg": 4.072326562007235,
+   "cover_cm3": 1852.076791376988,
+   "frame_factor": 1.6375468714140553,
+   "cover_factor": 3.1510485116734563,
+   "integration_factor": 1.193050083039778,
+   "bus_48v": false
+  },
+  "size_factor": 1.2868039734991494,
+  "hip_height_m": 0.5018535496646683,
+  "selection": {
+   "leg": "myactuator_rmd_x4_p36_36_e_l",
+   "neck": "robotis_xm540_w270_t",
+   "tail": "feetech_sts3215_c018",
+   "bus": 24.0,
+   "camera": "luxonis_oak_d_lite",
+   "lidar": null,
+   "tof": "st_vl53l5cx_carrier",
+   "compute": "rpi5_8gb_ai_hat_plus_13tops",
+   "battery": "lipo_6s_3300",
+   "joints": {
+    "hip_roll": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_yaw": "myactuator_rmd_x4_p36_36_e_l",
+    "hip_pitch": "myactuator_rmd_x6_p20_60_e",
+    "knee": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_a": "myactuator_rmd_x4_p36_36_e_l",
+    "ankle_b": "myactuator_rmd_x4_p36_36_e_l"
+   },
+   "mass_guess": 14.848652000000001
+  },
+  "record_catalog_ids": [
+   "myactuator_rmd_x4_p36_36_e_l",
+   "robotis_xm540_w270_t",
+   "feetech_sts3215_c018",
+   "luxonis_oak_d_lite",
+   "st_vl53l5cx_carrier",
+   "rpi5_8gb_ai_hat_plus_13tops",
+   "lipo_6s_3300",
+   "myactuator_rmd_x6_p20_60_e"
+  ],
+  "self_assembled": {
+   "subtotal": [
+    11282.08,
+    14652.07,
+    19852.19
+   ],
+   "contingency": [
+    597.95,
+    1054.95,
+    1667.58
+   ],
+   "total": [
+    11880.0,
+    15707.0,
+    21520.0
+   ]
+  },
+  "turnkey": {
+   "subtotal": [
+    12892.7,
+    17276.78,
+    23669.95
+   ],
+   "contingency": [
+    683.31,
+    1243.93,
+    1988.28
+   ],
+   "total": [
+    13576.0,
+    18521.0,
+    25658.0
+   ]
+  },
+  "line_basis": {
+   "leg_actuators": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "12 leg drives at catalog prices; the high case adds 5 %"
+   },
+   "expression_actuators": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "neck and tail servos at catalog prices; the high case adds 5 %"
+   },
+   "compute": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "the computer's catalog price + $60 / $120 / $200 for storage, fan duct, mounts and leads"
+   },
+   "rgbd_camera": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "catalog price + $15 / $35 / $80 for the lead and mount"
+   },
+   "tof": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "two sensors at catalog price + $0 / $10 / $30"
+   },
+   "battery": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "one pack at catalog price + $30 / $60 / $100 for the cassette"
+   },
+   "control": {
+    "kind": "d",
+    "cls": "carried",
+    "basis": "PR #662's 60 cm lot, not scaled (Teensy 4.1, two CAN transceivers, IMU; the 60 cm hardware basis also names a TTL servo-bus interface)"
+   },
+   "foot_sensing": {
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (H / 0.39 m)^0.5"
+   },
+   "power": {
+    "kind": "d",
+    "cls": "carried",
+    "basis": "PR #662's 60 cm lot for a 24 V bus, not scaled"
+   },
+   "harness": {
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (H / 0.39 m)"
+   },
+   "frame": {
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (structure mass / 1.79 kg)^0.6"
+   },
+   "covers": {
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (cover volume / 480 cm3)^0.85"
+   },
+   "bench": {
+    "kind": "d",
+    "cls": "carried",
+    "basis": "PR #662's 60 cm lot, not scaled (H is not above 0.6 m)"
+   },
+   "spares": {
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "two of the dearest leg drive and one pack at catalog prices + $150 / $350 / $650"
+   },
+   "integration": {
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (H / 0.39 m)^0.7"
+   },
+   "contingency": {
+    "kind": "d",
+    "cls": "a8",
+    "basis": "5.3 / 7.2 / 8.4 % of the other lines"
+   }
+  },
+  "class_labels": {
+   "a8": "scaled from the 60 cm estimate",
+   "carried": "60 cm lot, carried over unscaled",
+   "catalog": "catalog price + allowance",
+   "new": "new line, estimated here",
+   "new_c": "new line, catalog price; the count or the part is assumed"
+  }
+ },
+ "checks": {
+  "frame_6061": {
+   "in_the_record": true,
+   "how": "the record has no structure_material override, and its frame line equals cost.REF['frame'] x its frame_factor with no material factor; the committed 2.54 mm plate lever on 75-M-T-10 (fixed_drives.json, mat75_thinal) costs exactly what its reference does",
+   "record_overrides": [
+    [
+     "toe_scale",
+     1.15
+    ],
+    [
+     "pad_scale",
+     1.25
+    ]
+   ],
+   "frame_line": [
+    2947.58,
+    4503.25,
+    6550.19
+   ],
+   "ref_lot_times_factor": [
+    2947.58,
+    4503.25,
+    6550.19
+   ],
+   "thin_plate_lever_cost_equals_reference": true,
+   "lot_scope": "structure, bearings, hubs, soles, fasteners: scales with structure mass^0.6"
+  },
+  "covers_pa11": {
+   "in_the_record": false,
+   "how": "the record has no cover_material or cover_wall_scale override, and its cover volume driver equals its cover mass over the default material's density, so its covers line is PA12 at full walls",
+   "default_material": "PA12_MJF",
+   "cover_mass_kg": 1.870597559290758,
+   "cover_cm3_from_mass": 1852.076791376988,
+   "cover_cm3_driver": 1852.076791376988,
+   "driver_matches": true,
+   "lever": {
+    "material": "PA11_MJF",
+    "base_material": "PA12_MJF",
+    "wall_scale": 0.75,
+    "mass_factor": 0.7797029702970297
+   },
+   "covers_line_recorded": [
+    1102.87,
+    1890.63,
+    3308.6
+   ],
+   "covers_line_pa11": [
+    1122.28,
+    1923.92,
+    3366.85
+   ],
+   "rule_on_the_recorded_lever": {
+    "what": "the same rule on 75-M-T-10 (targeted_75), against the lever's recorded cost (mat75_pa11)",
+    "covers_line_rule": [
+     1072.47,
+     1838.53,
+     3217.42
+    ],
+    "covers_line_recorded": [
+     1072.53,
+     1838.62,
+     3217.59
+    ],
+    "max_abs_diff_usd": 0.17,
+    "totals_rule": [
+     13506.0,
+     18407.0,
+     25474.0
+    ],
+    "totals_recorded": [
+     13506.0,
+     18406.0,
+     25474.0
+    ],
+    "cover_cm3_rule": 1316.815089274064,
+    "cover_cm3_recorded": 1316.8963152371987
+   }
+  },
+  "pad_treads": {
+   "in_the_record": "soles only",
+   "how": "the frame lot of cost.py names soles in its scope, and the record's foot mass (with P20's bigger feet: toe_scale 1.15, pad_scale 1.25) is inside the structure mass that scales that lot; no line names a tread compound or a floor test",
+   "lot_scope": "structure, bearings, hubs, soles, fasteners: scales with structure mass^0.6",
+   "foot_mass_kg": 0.4353321348030765,
+   "structure_kg_driver": 4.072326562007235,
+   "structure_kg_from_mass": 4.072326562007235
+  },
+  "dc_input_and_boom": {
+   "in_the_record": false,
+   "how": "the record has no power_mode override and its battery line is the pack plus the cassette allowance; the bench lot's scope names the tether supply and the catch frame, so the bench supply is not added again; no line names an onboard DC input, a power path or a boom",
+   "not_checked": "cost.py gives the power lot no scope, so its contents could not be checked: the 60 cm robot's hardware basis names a regenerative clamp with its regulators, and the DC input line prices a clamp too",
+   "battery_line": [
+    137.19,
+    167.19,
+    207.19
+   ],
+   "lot_scope": "tether supply, charger, cradle/catch frame, instrumentation",
+   "power_lot_scope": null
+  },
+  "compute_allowance": {
+   "how": "cost.py adds $60 / $120 / $200 to the computer's price; build.py's compute tray names what it stands for (NVMe storage, fan duct, mounts, leads), so no separate storage line is added for the Jetson.  The Pi 5 set's catalog price already holds a USB SSD, so the record's compute line counts storage twice and the Jetson's once (compute_difference)",
+   "allowance": [
+    60,
+    120,
+    200
+   ]
+  },
+  "head_record": {
+   "what": "cost.estimate on the expressive head's record against that record's cost block",
+   "record": "round2/refine/head_x_75/candidates/75-M-H-10.json",
+   "exact": true,
+   "differences": [],
+   "totals": [
+    13641.0,
+    18596.0,
+    25750.0
+   ],
+   "base_record_sha256_in_it": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7"
+  },
+  "totals_from_rounded_lines": {
+   "what": "the totals rebuilt from the record's rounded lines against the record's totals",
+   "rebuilt": [
+    13576.0,
+    18521.0,
+    25658.0
+   ],
+   "recorded": [
+    13576.0,
+    18521.0,
+    25658.0
+   ],
+   "equal": true
+  },
+  "additivity": {
+   "what": "each scenario priced in one call against the baseline plus its blocks priced alone",
+   "max_abs_diff_usd": 0.0
+  }
+ },
+ "catalog": {
+  "myactuator_rmd_x4_p36_36_e_l": {
+   "table": "actuators.json",
+   "model": "MyActuator (Suzhou Micro Actuator Technology) RMD-X4-P36-36-E-L (X4-36-L, RMD-X V4.1)",
+   "price_usd": 269,
+   "basis": "sourced",
+   "price_sources": [
+    "https://myactuator.us/products/rmd-x-series/rmd-x4-p36-36-e-l - USD 269.00 - accessed 2026-11-07"
+   ]
+  },
+  "robotis_xm540_w270_t": {
+   "table": "actuators.json",
+   "model": "ROBOTIS DYNAMIXEL XM540-W270-T",
+   "price_usd": 482.89,
+   "basis": "sourced",
+   "price_sources": [
+    "https://robotis.us/products/dynamixel-xm540-w270-t - price - accessed 2026-11-07"
+   ]
+  },
+  "feetech_sts3215_c018": {
+   "table": "actuators.json",
+   "model": "Feetech (Shenzhen FEETECH RC Model Co., Ltd.) STS3215 12 V (ST-3215-C018; Seeed sells electrically equivalent ST3215-C047)",
+   "price_usd": 22,
+   "basis": "sourced",
+   "price_sources": [
+    "https://www.seeedstudio.com/STS3215-30KG-Serial-Servo-p-6340.html - $22.00 - accessed 2026-11-07",
+    "https://openelab.com/products/feetech-sts3215-c018-servo-12v - $27.99 - accessed 2026-11-07"
+   ]
+  },
+  "luxonis_oak_d_lite": {
+   "table": "parts.json",
+   "model": "Luxonis OAK-D Lite (SKU A00483; auto-focus or fixed-focus RGB)",
+   "price_usd": 269,
+   "basis": "sourced",
+   "price_sources": [
+    "https://shop.luxonis.com/products/oak-d-lite-1 | accessed 2026-11-07 | 91 x 28 x 17.5 mm, 61 g, USD 269"
+   ]
+  },
+  "st_vl53l5cx_carrier": {
+   "table": "parts.json",
+   "model": "Pololu VL53L5CX ToF 8x8-zone carrier with regulator, 400 cm max (#3417)",
+   "price_usd": 19.95,
+   "basis": "sourced",
+   "price_sources": [
+    "https://www.pololu.com/product/3417 | accessed 2026-11-07 | specs and price"
+   ]
+  },
+  "rpi5_8gb_ai_hat_plus_13tops": {
+   "table": "parts.json",
+   "model": "Raspberry Pi Raspberry Pi 5 8 GB + Active Cooler + AI HAT+ 13 TOPS (Hailo-8L) + USB 3 SSD",
+   "price_usd": 290.0,
+   "basis": "partially_sourced; envelope, power and price from the survey, mass a survey estimate",
+   "price_sources": [
+    "https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-008348-DS-10-raspberry-pi-5-product-brief.pdf | accessed 2026-11-07 | Pi 5 November 2026 list prices and production to Jan 2036 (corrected brief edition)",
+    "https://pip-assets.raspberrypi.com/categories/1081-raspberry-pi-ai-hat/documents/RP-008133-DS-1-raspberry-pi-ai-hat-plus-product-brief.pdf | accessed 2026-11-07 | AI HAT+ prices, 0-50 C ambient rating, production to Jan 2030"
+   ]
+  },
+  "lipo_6s_3300": {
+   "table": "parts.json",
+   "model": "Gens ace G-Tech 3300mAh 6S 60C 22.2V LiPo, EC5 (incumbent)",
+   "price_usd": 107.19,
+   "basis": "sourced",
+   "price_sources": [
+    "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | 506 g, 138 x 42 x 43 mm, 60C/120C, price"
+   ]
+  },
+  "myactuator_rmd_x6_p20_60_e": {
+   "table": "actuators.json",
+   "model": "MyActuator (Suzhou Micro Actuator Technology) RMD-X6-P20-60-E (X6-60, RMD-X V4)",
+   "price_usd": 428,
+   "basis": "sourced",
+   "price_sources": [
+    "https://myactuator.us/products/rmd-x-series/rmd-x6-p20-60 - USD 428.00; conflicting 0.78 kg / 50 N\u00b7m / 10 arcmin - accessed 2026-11-07"
+   ]
+  },
+  "nvidia_orin_nano_super_devkit": {
+   "table": "parts.json",
+   "model": "NVIDIA Jetson Orin Nano Super Developer Kit (P3766: Orin Nano 8GB module with heatsink/fan + P3768 reference carrier)",
+   "price_usd": 399,
+   "basis": "partially_sourced",
+   "price_sources": [
+    "https://dam-cdn.nvd.orangelogic.com/AssetLink/2ug686w80406gxf6q8uv7r3l7265m2n8.pdf | accessed 2026-11-07 | NVIDIA datasheet: 103 x 90.5 x 34.77 mm (height includes feet, carrier, module and thermal solution), 7-25 W, USD 249, I/O list",
+    "https://www.sparkfun.com/nvidia-jetson-orin-nano-developer-kit.html | accessed 2026-11-07 | USD 399"
+   ]
+  },
+  "pololu_d36v50f12": {
+   "table": "parts.json",
+   "model": "Pololu D36V50F12 12V 4.5A step-down regulator (#4095)",
+   "price_usd": 39.95,
+   "basis": "sourced",
+   "price_sources": [
+    "https://www.pololu.com/product/4095 | accessed 2026-11-07 | features, size, price"
+   ]
+  },
+  "pololu_d42v110f12": {
+   "table": "parts.json",
+   "model": "Pololu D42V110F12 12V 9A step-down regulator (#5677)",
+   "price_usd": 69.95,
+   "basis": "sourced",
+   "price_sources": [
+    "https://www.pololu.com/product/5677 | accessed 2026-11-07 | features, size, price"
+   ]
+  },
+  "pcan_usb_fd": {
+   "table": "parts.json",
+   "model": "PEAK-System (HMS) PCAN-USB FD (IPEH-004022 USB-A / IPEH-004023 USB-C)",
+   "price_usd": 368,
+   "basis": "sourced",
+   "price_sources": [
+    "https://www.gridconnect.com/products/can-usb-fd-adapter-pcan-usb-fd | accessed 2026-11-07 | price"
+   ]
+  }
+ },
+ "blocks": {
+  "jetson": {
+   "label": "Jetson Orin Nano Super dev kit in place of the Raspberry Pi 5 + AI HAT+, with the walking loop on the microcontroller (the baseline of the owner's 14 Nov decision, P30)",
+   "group": "compute",
+   "optional": false,
+   "unchanged": [
+    {
+     "line": "control",
+     "usd": [
+      125.0,
+      180.0,
+      270.0
+     ],
+     "kind": "d",
+     "note": "the microcontroller stack stays: it is the record's control lot (Teensy 4.1, two CAN transceivers, IMU).  The catalog has no Teensy entry"
+    }
+   ],
+   "lines": {
+    "compute": {
+     "usd": [
+      109.0,
+      109.0,
+      109.0
+     ],
+     "new": false,
+     "label": "compute",
+     "kind": "c+d",
+     "basis": "the computer's catalog price + $60 / $120 / $200 for storage, fan duct, mounts and leads"
+    },
+    "regulator_12v": {
+     "usd": [
+      39.95,
+      69.95,
+      69.95
+     ],
+     "new": true,
+     "key": "regulator_12v",
+     "label": "6S-to-12 V regulator for the dev kit's carrier (decision-log E7), if it is bought separately",
+     "kind": "c+d",
+     "basis": "the prices are the catalog's (c); the choice of part per case is an assumption (d).  Low: the 4.5 A part; nominal and high: the 9 A part (no power mode is chosen, and the larger part covers both modes with room for USB loads).  Both accept the 6S bus; E7 rules the D36V50F12 out only on 12S",
+     "catalog": [
+      {
+       "id": "pololu_d36v50f12",
+       "qty": 1,
+       "price_usd": 39.95
+      },
+      {
+       "id": "pololu_d42v110f12",
+       "qty": 1,
+       "price_usd": 69.95
+      },
+      {
+       "id": "pololu_d42v110f12",
+       "qty": 1,
+       "price_usd": 69.95
+      }
+     ],
+     "caution": "probably already in the power lot, and not a cost of the Jetson alone (section 3.2).  The lot is the 60 cm robot's, whose hardware basis lists a D36V50F12 for its computer (r0_posture_study_2026-11-07/study/hardware/component_basis.md); E7 calls that part the incumbent; the compute survey lists the dev kit's 12 V converter as existing and not counted, and the Pi 5 set's 5 V / 5 A regulator as not priced.  The lot's own breakdown is not in this repository"
+    }
+   },
+   "turnkey": [
+    157.0,
+    192.0,
+    194.0
+   ],
+   "self_assembled": [
+    157.0,
+    192.0,
+    194.0
+   ],
+   "subtotal": [
+    148.95,
+    178.95,
+    178.95
+   ],
+   "lower": {
+    "without": [
+     "regulator_12v"
+    ],
+    "condition": "the power lot already holds the 12 V regulator",
+    "turnkey": [
+     115.0,
+     117.0,
+     118.0
+    ],
+    "self_assembled": [
+     115.0,
+     117.0,
+     118.0
+    ],
+    "subtotal": [
+     109.0,
+     109.0,
+     109.0
+    ]
+   }
+  },
+  "jetson_direct_parts": {
+   "label": "Added only if the Jetson drives the leg drives directly over USB-CAN (the alternative the bench test measures), on top of `jetson`",
+   "group": "compute",
+   "optional": false,
+   "unchanged": [
+    {
+     "line": "control",
+     "usd": [
+      125.0,
+      180.0,
+      270.0
+     ],
+     "kind": "d",
+     "note": "kept in full as a conservative choice, because the lot has no breakdown here.  In the direct option its Teensy and two CAN transceivers overlap the supervisor line, and its servo-bus interface overlaps the USB servo-bus adapters; only the IMU is certainly still needed"
+    }
+   ],
+   "lines": {
+    "usb_can": {
+     "usd": [
+      368.0,
+      736.0,
+      736.0
+     ],
+     "new": true,
+     "key": "usb_can",
+     "label": "USB-CAN FD adapter(s), PCAN-USB FD (one CAN channel each)",
+     "kind": "c+d",
+     "basis": "the price is the catalog's (c); the count is an assumption (d): one adapter in the low case (PR #668's layout, unverified); two in the nominal and high cases, to keep the two CAN buses of the study's build (designlab/build.py, control stack: 'CAN x2'; JETSON_PLEM_REVIEW.md section 3).  The bus plan (review task 7) decides",
+     "catalog": [
+      {
+       "id": "pcan_usb_fd",
+       "qty": 1,
+       "price_usd": 368
+      },
+      {
+       "id": "pcan_usb_fd",
+       "qty": 2,
+       "price_usd": 368
+      },
+      {
+       "id": "pcan_usb_fd",
+       "qty": 2,
+       "price_usd": 368
+      }
+     ]
+    },
+    "supervisor": {
+     "usd": [
+      40.0,
+      70.0,
+      120.0
+     ],
+     "new": true,
+     "key": "supervisor",
+     "label": "Supervisor, if it is a separate board: a small microcontroller board with a CAN transceiver and a stop output",
+     "kind": "d",
+     "basis": "no catalog entry; this document's estimate from the price class of a Teensy 4.1 (about $34-36 at its maker's store, a web search summary) plus a transceiver, a relay driver and wiring (a guess, no source)",
+     "caution": "overlaps the kept control lot, whose Teensy 4.1 and CAN transceivers are such a board: if that stack serves as the supervisor, this line is not needed"
+    },
+    "servo_bus_adapter": {
+     "usd": [
+      45.0,
+      60.0,
+      90.0
+     ],
+     "new": true,
+     "key": "servo_bus_adapter",
+     "label": "USB adapter(s) for the neck and tail servos' TTL buses",
+     "kind": "d",
+     "basis": "no catalog entry; this document's estimate: a ROBOTIS U2D2 (about $44, a web search summary) plus a Feetech bus adapter (about $15, a guess, no source)",
+     "caution": "the kept control lot's 60 cm basis also names a TTL servo-bus interface; if the kept stack keeps driving the servo buses, this line is not needed"
+    }
+   },
+   "turnkey": [
+    477.0,
+    928.0,
+    1026.0
+   ],
+   "self_assembled": [
+    477.0,
+    928.0,
+    1025.0
+   ],
+   "subtotal": [
+    453.0,
+    866.0,
+    946.0
+   ],
+   "lower": {
+    "without": [
+     "supervisor"
+    ],
+    "condition": "the kept Teensy stack is the supervisor",
+    "turnkey": [
+     435.0,
+     853.0,
+     896.0
+    ],
+    "self_assembled": [
+     435.0,
+     853.0,
+     895.0
+    ],
+    "subtotal": [
+     413.0,
+     796.0,
+     826.0
+    ]
+   }
+  },
+  "p21": {
+   "label": "P21's adopted materials and power items that the record does not hold",
+   "group": "p21",
+   "optional": false,
+   "unchanged": [
+    {
+     "line": "frame",
+     "usd": [
+      2947.58,
+      4503.25,
+      6550.19
+     ],
+     "kind": "d",
+     "note": "the 6061-T6 frame is already the record's frame line, and the 2.54 mm plates cost the same in the model (checks, `frame_6061`)"
+    },
+    {
+     "line": "battery",
+     "usd": [
+      137.19,
+      167.19,
+      207.19
+     ],
+     "kind": "c+d",
+     "note": "the removable pack stays (P21: the battery plus an external DC input)"
+    },
+    {
+     "line": "bench",
+     "usd": [
+      550.0,
+      850.0,
+      1300.0
+     ],
+     "kind": "d",
+     "note": "the bench supply for the tether is already in the bench lot"
+    }
+   ],
+   "lines": {
+    "covers": {
+     "usd": [
+      19.41,
+      33.29,
+      58.25
+     ],
+     "new": false,
+     "label": "covers",
+     "kind": "d",
+     "basis": "PR #662's 60 cm lot x (cover volume / 480 cm3)^0.85"
+    },
+    "pad_treads": {
+     "usd": [
+      100.0,
+      200.0,
+      400.0
+     ],
+     "new": true,
+     "key": "pad_treads",
+     "label": "Cast polyurethane pad treads: casting rubber, printed moulds and the grip test on the owner's floors",
+     "kind": "d",
+     "basis": "low: MATERIALS.md section 5's estimate for the floor test alone (about one day and $100), with a printed TPU trial tread.  Nominal adds $100 and high adds $300 for casting rubber, release agent and printed moulds: this document's guess, with no source beyond the price class of a trial unit of 60 Shore A urethane rubber (about $25-45, a web search summary); the high case allows for several compounds and remakes.  The soles themselves are in the frame lot"
+    },
+    "dc_input": {
+     "usd": [
+      200.0,
+      300.0,
+      400.0
+     ],
+     "new": true,
+     "key": "dc_input",
+     "label": "External DC input: the input, the 24 V priority power path, a regeneration clamp and the dummy puck",
+     "kind": "d",
+     "basis": "MATERIALS.md section 6's estimate, $0.2-0.4k 'for the input, power path, clamp and puck'; the nominal value is its midpoint.  That estimate does not name the 5 m cable or the stop tie-in; this document assumes they fit inside it",
+     "caution": "the clamp may already be in the power lot: the 60 cm robot's hardware basis names a regenerative clamp with its regulators (component_basis.md), and cost.py gives that lot no scope, so its contents could not be checked"
+    },
+    "cable_boom": {
+     "usd": [
+      300.0,
+      900.0,
+      1500.0
+     ],
+     "new": true,
+     "key": "cable_boom",
+     "label": "Overhead boom for the power cable, with a balancer under 0.5 kg",
+     "kind": "d",
+     "basis": "MATERIALS.md section 6's estimate, $0.3-1.5k 'if the bench lot's catch frame cannot carry it'; the nominal value is its midpoint; $0 if the catch frame can"
+    }
+   },
+   "turnkey": [
+    652.0,
+    1536.0,
+    2557.0
+   ],
+   "self_assembled": [
+    652.0,
+    1537.0,
+    2556.0
+   ],
+   "subtotal": [
+    619.41,
+    1433.29,
+    2358.25
+   ]
+  },
+  "head_x": {
+   "label": "Optional: the expressive head's two extra servos (one for the neck yaw, one for the jaw), their brackets and the yaw-stage bearing.  The servos and brackets are modelled (the head's committed record); the bearing is not.  P2's deferral of a jaw for the build stands (P29), so the build's head as decided today has the neck-yaw servo only",
+   "group": "optional",
+   "optional": true,
+   "unchanged": [],
+   "lines": {
+    "expression_actuators": {
+     "usd": [
+      44.0,
+      44.0,
+      46.2
+     ],
+     "new": false,
+     "label": "expression_actuators",
+     "kind": "c+d",
+     "basis": "two more STS3215 servos (`feetech_sts3215_c018`), one for the neck yaw and one for the jaw, at the catalog price, as the head's committed record holds them (round2/refine/head_x_75); the high case adds 5 %"
+    },
+    "frame": {
+     "usd": [
+      17.34,
+      26.49,
+      38.53
+     ],
+     "new": false,
+     "label": "frame",
+     "kind": "d",
+     "basis": "the two servos' brackets: the head's record carries 0.040 kg more structure (a), which the frame lot's mass scaling prices"
+    },
+    "yaw_bearing": {
+     "usd": [
+      20.0,
+      165.0,
+      300.0
+     ],
+     "new": true,
+     "key": "yaw_bearing",
+     "label": "Optional, unmodelled: the neck-yaw stage's bearing (expressive head)",
+     "kind": "d",
+     "basis": "no catalog entry and not in any record (stage2/x/X_COSTS.md section 5).  This document's estimate; low: two thin-section ball bearings in a machined seat (a guess, no source); nominal: a 20 mm-bore polymer slewing ring at the cheapest listing found (about $164); high: the same ring at the dearest listing found (about $300); the listings are from a web search summary"
+    }
+   },
+   "turnkey": [
+    86.0,
+    252.0,
+    417.0
+   ],
+   "self_assembled": [
+    86.0,
+    252.0,
+    417.0
+   ],
+   "subtotal": [
+    81.34,
+    235.49,
+    384.73
+   ]
+  },
+  "audio": {
+   "label": "Optional: audio",
+   "group": "optional",
+   "optional": true,
+   "unchanged": [],
+   "lines": {
+    "audio": {
+     "usd": [
+      25.0,
+      70.0,
+      150.0
+     ],
+     "new": true,
+     "key": "audio",
+     "label": "Optional, unmodelled: audio (amplifier, speaker, microphones)",
+     "kind": "d",
+     "basis": "no catalog entry and not in any record.  This document's estimate; low: a small amplifier board (about $6, a web search summary) with a small speaker and wiring (a guess, no source); high: with a far-field USB microphone array (about $60-78 in US listings, a web search summary) and a larger speaker (a guess); nominal: a guess between the two"
+    }
+   },
+   "turnkey": [
+    26.0,
+    75.0,
+    163.0
+   ],
+   "self_assembled": [
+    26.0,
+    75.0,
+    162.0
+   ],
+   "subtotal": [
+    25.0,
+    70.0,
+    150.0
+   ]
+  }
+ },
+ "scenarios": {
+  "record": {
+   "blocks": [],
+   "compute": "rpi5_8gb_ai_hat_plus_13tops",
+   "cover": "as recorded",
+   "lines": {
+    "leg_actuators": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "expression_actuators": [
+     504.89,
+     504.89,
+     530.13
+    ],
+    "compute": [
+     350.0,
+     410.0,
+     490.0
+    ],
+    "rgbd_camera": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "tof": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "battery": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "control": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "foot_sensing": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "power": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "harness": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "frame": [
+     2947.58,
+     4503.25,
+     6550.19
+    ],
+    "covers": [
+     1102.87,
+     1890.63,
+     3308.6
+    ],
+    "bench": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spares": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "integration": [
+     1610.62,
+     2624.71,
+     3817.76
+    ]
+   },
+   "extra_lines": [],
+   "turnkey": {
+    "subtotal": [
+     12892.7,
+     17276.78,
+     23669.95
+    ],
+    "contingency": [
+     683.31,
+     1243.93,
+     1988.28
+    ],
+    "total": [
+     13576.0,
+     18521.0,
+     25658.0
+    ]
+   },
+   "self_assembled": {
+    "subtotal": [
+     11282.08,
+     14652.07,
+     19852.19
+    ],
+    "contingency": [
+     597.95,
+     1054.95,
+     1667.58
+    ],
+    "total": [
+     11880.0,
+     15707.0,
+     21520.0
+    ]
+   },
+   "label": "The round-two record: Raspberry Pi 5 + AI HAT+ (P14), P21's items not priced",
+   "vs_record": {
+    "lines": {},
+    "turnkey": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "self_assembled": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "subtotal": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "p4": {
+    "ceiling_usd": 20000.0,
+    "turnkey_minus_ceiling": [
+     -6424.0,
+     -1479.0,
+     5658.0
+    ],
+    "self_assembled_minus_ceiling": [
+     -8120.0,
+     -4293.0,
+     1520.0
+    ]
+   }
+  },
+  "pi_p21": {
+   "blocks": [
+    "p21"
+   ],
+   "compute": "rpi5_8gb_ai_hat_plus_13tops",
+   "cover": "PA11_MJF",
+   "lines": {
+    "leg_actuators": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "expression_actuators": [
+     504.89,
+     504.89,
+     530.13
+    ],
+    "compute": [
+     350.0,
+     410.0,
+     490.0
+    ],
+    "rgbd_camera": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "tof": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "battery": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "control": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "foot_sensing": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "power": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "harness": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "frame": [
+     2947.58,
+     4503.25,
+     6550.19
+    ],
+    "covers": [
+     1122.28,
+     1923.92,
+     3366.85
+    ],
+    "bench": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spares": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "integration": [
+     1610.62,
+     2624.71,
+     3817.76
+    ],
+    "pad_treads": [
+     100.0,
+     200.0,
+     400.0
+    ],
+    "dc_input": [
+     200.0,
+     300.0,
+     400.0
+    ],
+    "cable_boom": [
+     300.0,
+     900.0,
+     1500.0
+    ]
+   },
+   "extra_lines": [
+    "pad_treads",
+    "dc_input",
+    "cable_boom"
+   ],
+   "turnkey": {
+    "subtotal": [
+     13512.11,
+     18710.07,
+     26028.2
+    ],
+    "contingency": [
+     716.14,
+     1347.13,
+     2186.37
+    ],
+    "total": [
+     14228.0,
+     20057.0,
+     28215.0
+    ]
+   },
+   "self_assembled": {
+    "subtotal": [
+     11901.49,
+     16085.36,
+     22210.44
+    ],
+    "contingency": [
+     630.78,
+     1158.15,
+     1865.68
+    ],
+    "total": [
+     12532.0,
+     17244.0,
+     24076.0
+    ]
+   },
+   "label": "Raspberry Pi 5 + AI HAT+ (P14, adopted) with P21's items",
+   "vs_record": {
+    "lines": {
+     "covers": {
+      "usd": [
+       19.41,
+       33.29,
+       58.25
+      ],
+      "new": false
+     },
+     "pad_treads": {
+      "usd": [
+       100.0,
+       200.0,
+       400.0
+      ],
+      "new": true
+     },
+     "dc_input": {
+      "usd": [
+       200.0,
+       300.0,
+       400.0
+      ],
+      "new": true
+     },
+     "cable_boom": {
+      "usd": [
+       300.0,
+       900.0,
+       1500.0
+      ],
+      "new": true
+     }
+    },
+    "turnkey": [
+     652.0,
+     1536.0,
+     2557.0
+    ],
+    "self_assembled": [
+     652.0,
+     1537.0,
+     2556.0
+    ],
+    "subtotal": [
+     619.41,
+     1433.29,
+     2358.25
+    ]
+   },
+   "p4": {
+    "ceiling_usd": 20000.0,
+    "turnkey_minus_ceiling": [
+     -5772.0,
+     57.0,
+     8215.0
+    ],
+    "self_assembled_minus_ceiling": [
+     -7468.0,
+     -2756.0,
+     4076.0
+    ]
+   }
+  },
+  "jetson_mcu_p21": {
+   "blocks": [
+    "jetson",
+    "p21"
+   ],
+   "compute": "nvidia_orin_nano_super_devkit",
+   "cover": "PA11_MJF",
+   "lines": {
+    "leg_actuators": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "expression_actuators": [
+     504.89,
+     504.89,
+     530.13
+    ],
+    "compute": [
+     459.0,
+     519.0,
+     599.0
+    ],
+    "rgbd_camera": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "tof": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "battery": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "control": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "foot_sensing": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "power": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "harness": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "frame": [
+     2947.58,
+     4503.25,
+     6550.19
+    ],
+    "covers": [
+     1122.28,
+     1923.92,
+     3366.85
+    ],
+    "bench": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spares": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "integration": [
+     1610.62,
+     2624.71,
+     3817.76
+    ],
+    "regulator_12v": [
+     39.95,
+     69.95,
+     69.95
+    ],
+    "pad_treads": [
+     100.0,
+     200.0,
+     400.0
+    ],
+    "dc_input": [
+     200.0,
+     300.0,
+     400.0
+    ],
+    "cable_boom": [
+     300.0,
+     900.0,
+     1500.0
+    ]
+   },
+   "extra_lines": [
+    "regulator_12v",
+    "pad_treads",
+    "dc_input",
+    "cable_boom"
+   ],
+   "turnkey": {
+    "subtotal": [
+     13661.06,
+     18889.02,
+     26207.15
+    ],
+    "contingency": [
+     724.04,
+     1360.01,
+     2201.4
+    ],
+    "total": [
+     14385.0,
+     20249.0,
+     28409.0
+    ]
+   },
+   "self_assembled": {
+    "subtotal": [
+     12050.44,
+     16264.31,
+     22389.39
+    ],
+    "contingency": [
+     638.67,
+     1171.03,
+     1880.71
+    ],
+    "total": [
+     12689.0,
+     17435.0,
+     24270.0
+    ]
+   },
+   "label": "Jetson dev kit, walking loop on the microcontroller, with P21's items",
+   "vs_record": {
+    "lines": {
+     "compute": {
+      "usd": [
+       109.0,
+       109.0,
+       109.0
+      ],
+      "new": false
+     },
+     "covers": {
+      "usd": [
+       19.41,
+       33.29,
+       58.25
+      ],
+      "new": false
+     },
+     "regulator_12v": {
+      "usd": [
+       39.95,
+       69.95,
+       69.95
+      ],
+      "new": true
+     },
+     "pad_treads": {
+      "usd": [
+       100.0,
+       200.0,
+       400.0
+      ],
+      "new": true
+     },
+     "dc_input": {
+      "usd": [
+       200.0,
+       300.0,
+       400.0
+      ],
+      "new": true
+     },
+     "cable_boom": {
+      "usd": [
+       300.0,
+       900.0,
+       1500.0
+      ],
+      "new": true
+     }
+    },
+    "turnkey": [
+     809.0,
+     1728.0,
+     2751.0
+    ],
+    "self_assembled": [
+     809.0,
+     1728.0,
+     2750.0
+    ],
+    "subtotal": [
+     768.36,
+     1612.24,
+     2537.2
+    ]
+   },
+   "p4": {
+    "ceiling_usd": 20000.0,
+    "turnkey_minus_ceiling": [
+     -5615.0,
+     249.0,
+     8409.0
+    ],
+    "self_assembled_minus_ceiling": [
+     -7311.0,
+     -2565.0,
+     4270.0
+    ]
+   },
+   "lower": {
+    "without": [
+     "regulator_12v"
+    ],
+    "condition": "the power lot already holds the 12 V regulator",
+    "turnkey": {
+     "subtotal": [
+      13621.11,
+      18819.07,
+      26137.2
+     ],
+     "contingency": [
+      721.92,
+      1354.97,
+      2195.52
+     ],
+     "total": [
+      14343.0,
+      20174.0,
+      28333.0
+     ]
+    },
+    "self_assembled": {
+     "subtotal": [
+      12010.49,
+      16194.36,
+      22319.44
+     ],
+     "contingency": [
+      636.56,
+      1165.99,
+      1874.83
+     ],
+     "total": [
+      12647.0,
+      17360.0,
+      24194.0
+     ]
+    },
+    "turnkey_minus_ceiling": [
+     -5657.0,
+     174.0,
+     8333.0
+    ]
+   }
+  },
+  "jetson_direct_p21": {
+   "blocks": [
+    "jetson",
+    "jetson_direct_parts",
+    "p21"
+   ],
+   "compute": "nvidia_orin_nano_super_devkit",
+   "cover": "PA11_MJF",
+   "lines": {
+    "leg_actuators": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "expression_actuators": [
+     504.89,
+     504.89,
+     530.13
+    ],
+    "compute": [
+     459.0,
+     519.0,
+     599.0
+    ],
+    "rgbd_camera": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "tof": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "battery": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "control": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "foot_sensing": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "power": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "harness": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "frame": [
+     2947.58,
+     4503.25,
+     6550.19
+    ],
+    "covers": [
+     1122.28,
+     1923.92,
+     3366.85
+    ],
+    "bench": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spares": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "integration": [
+     1610.62,
+     2624.71,
+     3817.76
+    ],
+    "regulator_12v": [
+     39.95,
+     69.95,
+     69.95
+    ],
+    "usb_can": [
+     368.0,
+     736.0,
+     736.0
+    ],
+    "supervisor": [
+     40.0,
+     70.0,
+     120.0
+    ],
+    "servo_bus_adapter": [
+     45.0,
+     60.0,
+     90.0
+    ],
+    "pad_treads": [
+     100.0,
+     200.0,
+     400.0
+    ],
+    "dc_input": [
+     200.0,
+     300.0,
+     400.0
+    ],
+    "cable_boom": [
+     300.0,
+     900.0,
+     1500.0
+    ]
+   },
+   "extra_lines": [
+    "regulator_12v",
+    "usb_can",
+    "supervisor",
+    "servo_bus_adapter",
+    "pad_treads",
+    "dc_input",
+    "cable_boom"
+   ],
+   "turnkey": {
+    "subtotal": [
+     14114.06,
+     19755.02,
+     27153.15
+    ],
+    "contingency": [
+     748.05,
+     1422.36,
+     2280.86
+    ],
+    "total": [
+     14862.0,
+     21177.0,
+     29434.0
+    ]
+   },
+   "self_assembled": {
+    "subtotal": [
+     12503.44,
+     17130.31,
+     23335.39
+    ],
+    "contingency": [
+     662.68,
+     1233.38,
+     1960.17
+    ],
+    "total": [
+     13166.0,
+     18364.0,
+     25296.0
+    ]
+   },
+   "label": "Jetson dev kit driving the legs directly, with P21's items",
+   "vs_record": {
+    "lines": {
+     "compute": {
+      "usd": [
+       109.0,
+       109.0,
+       109.0
+      ],
+      "new": false
+     },
+     "covers": {
+      "usd": [
+       19.41,
+       33.29,
+       58.25
+      ],
+      "new": false
+     },
+     "regulator_12v": {
+      "usd": [
+       39.95,
+       69.95,
+       69.95
+      ],
+      "new": true
+     },
+     "usb_can": {
+      "usd": [
+       368.0,
+       736.0,
+       736.0
+      ],
+      "new": true
+     },
+     "supervisor": {
+      "usd": [
+       40.0,
+       70.0,
+       120.0
+      ],
+      "new": true
+     },
+     "servo_bus_adapter": {
+      "usd": [
+       45.0,
+       60.0,
+       90.0
+      ],
+      "new": true
+     },
+     "pad_treads": {
+      "usd": [
+       100.0,
+       200.0,
+       400.0
+      ],
+      "new": true
+     },
+     "dc_input": {
+      "usd": [
+       200.0,
+       300.0,
+       400.0
+      ],
+      "new": true
+     },
+     "cable_boom": {
+      "usd": [
+       300.0,
+       900.0,
+       1500.0
+      ],
+      "new": true
+     }
+    },
+    "turnkey": [
+     1286.0,
+     2656.0,
+     3776.0
+    ],
+    "self_assembled": [
+     1286.0,
+     2657.0,
+     3776.0
+    ],
+    "subtotal": [
+     1221.36,
+     2478.24,
+     3483.2
+    ]
+   },
+   "p4": {
+    "ceiling_usd": 20000.0,
+    "turnkey_minus_ceiling": [
+     -5138.0,
+     1177.0,
+     9434.0
+    ],
+    "self_assembled_minus_ceiling": [
+     -6834.0,
+     -1636.0,
+     5296.0
+    ]
+   },
+   "lower": {
+    "without": [
+     "regulator_12v",
+     "supervisor"
+    ],
+    "condition": "the power lot already holds the 12 V regulator and the kept Teensy stack is the supervisor",
+    "turnkey": {
+     "subtotal": [
+      14034.11,
+      19615.07,
+      26963.2
+     ],
+     "contingency": [
+      743.81,
+      1412.29,
+      2264.91
+     ],
+     "total": [
+      14778.0,
+      21027.0,
+      29228.0
+     ]
+    },
+    "self_assembled": {
+     "subtotal": [
+      12423.49,
+      16990.36,
+      23145.44
+     ],
+     "contingency": [
+      658.44,
+      1223.31,
+      1944.22
+     ],
+     "total": [
+      13082.0,
+      18214.0,
+      25090.0
+     ]
+    },
+    "turnkey_minus_ceiling": [
+     -5222.0,
+     1027.0,
+     9228.0
+    ]
+   }
+  },
+  "pi_p21_optional": {
+   "blocks": [
+    "p21",
+    "head_x",
+    "audio"
+   ],
+   "compute": "rpi5_8gb_ai_hat_plus_13tops",
+   "cover": "PA11_MJF",
+   "lines": {
+    "leg_actuators": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "expression_actuators": [
+     548.89,
+     548.89,
+     576.33
+    ],
+    "compute": [
+     350.0,
+     410.0,
+     490.0
+    ],
+    "rgbd_camera": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "tof": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "battery": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "control": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "foot_sensing": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "power": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "harness": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "frame": [
+     2964.92,
+     4529.74,
+     6588.72
+    ],
+    "covers": [
+     1122.28,
+     1923.92,
+     3366.85
+    ],
+    "bench": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spares": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "integration": [
+     1610.62,
+     2624.71,
+     3817.76
+    ],
+    "pad_treads": [
+     100.0,
+     200.0,
+     400.0
+    ],
+    "dc_input": [
+     200.0,
+     300.0,
+     400.0
+    ],
+    "cable_boom": [
+     300.0,
+     900.0,
+     1500.0
+    ],
+    "yaw_bearing": [
+     20.0,
+     165.0,
+     300.0
+    ],
+    "audio": [
+     25.0,
+     70.0,
+     150.0
+    ]
+   },
+   "extra_lines": [
+    "pad_treads",
+    "dc_input",
+    "cable_boom",
+    "yaw_bearing",
+    "audio"
+   ],
+   "turnkey": {
+    "subtotal": [
+     13618.45,
+     19015.56,
+     26562.93
+    ],
+    "contingency": [
+     721.78,
+     1369.12,
+     2231.29
+    ],
+    "total": [
+     14340.0,
+     20385.0,
+     28794.0
+    ]
+   },
+   "self_assembled": {
+    "subtotal": [
+     12007.83,
+     16390.85,
+     22745.17
+    ],
+    "contingency": [
+     636.41,
+     1180.14,
+     1910.59
+    ],
+    "total": [
+     12644.0,
+     17571.0,
+     24656.0
+    ]
+   },
+   "label": "Raspberry Pi 5 + AI HAT+ with P21's items and every optional line",
+   "vs_record": {
+    "lines": {
+     "expression_actuators": {
+      "usd": [
+       44.0,
+       44.0,
+       46.2
+      ],
+      "new": false
+     },
+     "frame": {
+      "usd": [
+       17.34,
+       26.49,
+       38.53
+      ],
+      "new": false
+     },
+     "covers": {
+      "usd": [
+       19.41,
+       33.29,
+       58.25
+      ],
+      "new": false
+     },
+     "pad_treads": {
+      "usd": [
+       100.0,
+       200.0,
+       400.0
+      ],
+      "new": true
+     },
+     "dc_input": {
+      "usd": [
+       200.0,
+       300.0,
+       400.0
+      ],
+      "new": true
+     },
+     "cable_boom": {
+      "usd": [
+       300.0,
+       900.0,
+       1500.0
+      ],
+      "new": true
+     },
+     "yaw_bearing": {
+      "usd": [
+       20.0,
+       165.0,
+       300.0
+      ],
+      "new": true
+     },
+     "audio": {
+      "usd": [
+       25.0,
+       70.0,
+       150.0
+      ],
+      "new": true
+     }
+    },
+    "turnkey": [
+     764.0,
+     1864.0,
+     3136.0
+    ],
+    "self_assembled": [
+     764.0,
+     1864.0,
+     3136.0
+    ],
+    "subtotal": [
+     725.75,
+     1738.78,
+     2892.98
+    ]
+   },
+   "p4": {
+    "ceiling_usd": 20000.0,
+    "turnkey_minus_ceiling": [
+     -5660.0,
+     385.0,
+     8794.0
+    ],
+    "self_assembled_minus_ceiling": [
+     -7356.0,
+     -2429.0,
+     4656.0
+    ]
+   }
+  },
+  "jetson_mcu_p21_optional": {
+   "blocks": [
+    "jetson",
+    "p21",
+    "head_x",
+    "audio"
+   ],
+   "compute": "nvidia_orin_nano_super_devkit",
+   "cover": "PA11_MJF",
+   "lines": {
+    "leg_actuators": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "expression_actuators": [
+     548.89,
+     548.89,
+     576.33
+    ],
+    "compute": [
+     459.0,
+     519.0,
+     599.0
+    ],
+    "rgbd_camera": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "tof": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "battery": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "control": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "foot_sensing": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "power": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "harness": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "frame": [
+     2964.92,
+     4529.74,
+     6588.72
+    ],
+    "covers": [
+     1122.28,
+     1923.92,
+     3366.85
+    ],
+    "bench": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spares": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "integration": [
+     1610.62,
+     2624.71,
+     3817.76
+    ],
+    "regulator_12v": [
+     39.95,
+     69.95,
+     69.95
+    ],
+    "pad_treads": [
+     100.0,
+     200.0,
+     400.0
+    ],
+    "dc_input": [
+     200.0,
+     300.0,
+     400.0
+    ],
+    "cable_boom": [
+     300.0,
+     900.0,
+     1500.0
+    ],
+    "yaw_bearing": [
+     20.0,
+     165.0,
+     300.0
+    ],
+    "audio": [
+     25.0,
+     70.0,
+     150.0
+    ]
+   },
+   "extra_lines": [
+    "regulator_12v",
+    "pad_treads",
+    "dc_input",
+    "cable_boom",
+    "yaw_bearing",
+    "audio"
+   ],
+   "turnkey": {
+    "subtotal": [
+     13767.4,
+     19194.51,
+     26741.88
+    ],
+    "contingency": [
+     729.67,
+     1382.0,
+     2246.32
+    ],
+    "total": [
+     14497.0,
+     20577.0,
+     28988.0
+    ]
+   },
+   "self_assembled": {
+    "subtotal": [
+     12156.78,
+     16569.8,
+     22924.12
+    ],
+    "contingency": [
+     644.31,
+     1193.03,
+     1925.63
+    ],
+    "total": [
+     12801.0,
+     17763.0,
+     24850.0
+    ]
+   },
+   "label": "Jetson dev kit, microcontroller loop, P21's items and every optional line",
+   "vs_record": {
+    "lines": {
+     "expression_actuators": {
+      "usd": [
+       44.0,
+       44.0,
+       46.2
+      ],
+      "new": false
+     },
+     "compute": {
+      "usd": [
+       109.0,
+       109.0,
+       109.0
+      ],
+      "new": false
+     },
+     "frame": {
+      "usd": [
+       17.34,
+       26.49,
+       38.53
+      ],
+      "new": false
+     },
+     "covers": {
+      "usd": [
+       19.41,
+       33.29,
+       58.25
+      ],
+      "new": false
+     },
+     "regulator_12v": {
+      "usd": [
+       39.95,
+       69.95,
+       69.95
+      ],
+      "new": true
+     },
+     "pad_treads": {
+      "usd": [
+       100.0,
+       200.0,
+       400.0
+      ],
+      "new": true
+     },
+     "dc_input": {
+      "usd": [
+       200.0,
+       300.0,
+       400.0
+      ],
+      "new": true
+     },
+     "cable_boom": {
+      "usd": [
+       300.0,
+       900.0,
+       1500.0
+      ],
+      "new": true
+     },
+     "yaw_bearing": {
+      "usd": [
+       20.0,
+       165.0,
+       300.0
+      ],
+      "new": true
+     },
+     "audio": {
+      "usd": [
+       25.0,
+       70.0,
+       150.0
+      ],
+      "new": true
+     }
+    },
+    "turnkey": [
+     921.0,
+     2056.0,
+     3330.0
+    ],
+    "self_assembled": [
+     921.0,
+     2056.0,
+     3330.0
+    ],
+    "subtotal": [
+     874.7,
+     1917.73,
+     3071.93
+    ]
+   },
+   "p4": {
+    "ceiling_usd": 20000.0,
+    "turnkey_minus_ceiling": [
+     -5503.0,
+     577.0,
+     8988.0
+    ],
+    "self_assembled_minus_ceiling": [
+     -7199.0,
+     -2237.0,
+     4850.0
+    ]
+   },
+   "lower": {
+    "without": [
+     "regulator_12v"
+    ],
+    "condition": "the power lot already holds the 12 V regulator",
+    "turnkey": {
+     "subtotal": [
+      13727.45,
+      19124.56,
+      26671.93
+     ],
+     "contingency": [
+      727.55,
+      1376.97,
+      2240.44
+     ],
+     "total": [
+      14455.0,
+      20502.0,
+      28912.0
+     ]
+    },
+    "self_assembled": {
+     "subtotal": [
+      12116.83,
+      16499.85,
+      22854.17
+     ],
+     "contingency": [
+      642.19,
+      1187.99,
+      1919.75
+     ],
+     "total": [
+      12759.0,
+      17688.0,
+      24774.0
+     ]
+    },
+    "turnkey_minus_ceiling": [
+     -5545.0,
+     502.0,
+     8912.0
+    ]
+   }
+  }
+ },
+ "conditions": {
+  "regulator_12v": "the power lot already holds the 12 V regulator",
+  "supervisor": "the kept Teensy stack is the supervisor"
+ },
+ "trims": {
+  "defer_boom": {
+   "label": "Defer the cable boom",
+   "line": "cable_boom",
+   "turnkey": [
+    -316.0,
+    -965.0,
+    -1626.0
+   ],
+   "scenarios": {
+    "pi_p21": {
+     "turnkey_with": [
+      14228.0,
+      20057.0,
+      28215.0
+     ],
+     "turnkey_without": [
+      13912.0,
+      19092.0,
+      26589.0
+     ]
+    },
+    "jetson_mcu_p21": {
+     "turnkey_with": [
+      14385.0,
+      20249.0,
+      28409.0
+     ],
+     "turnkey_without": [
+      14069.0,
+      19284.0,
+      26783.0
+     ],
+     "lower": {
+      "turnkey_with": [
+       14343.0,
+       20174.0,
+       28333.0
+      ],
+      "turnkey_without": [
+       14027.0,
+       19209.0,
+       26707.0
+      ]
+     }
+    },
+    "jetson_direct_p21": {
+     "turnkey_with": [
+      14862.0,
+      21177.0,
+      29434.0
+     ],
+     "turnkey_without": [
+      14546.0,
+      20213.0,
+      27808.0
+     ],
+     "lower": {
+      "turnkey_with": [
+       14778.0,
+       21027.0,
+       29228.0
+      ],
+      "turnkey_without": [
+       14462.0,
+       20063.0,
+       27602.0
+      ]
+     }
+    }
+   }
+  },
+  "defer_audio": {
+   "label": "Defer the audio (it is optional and outside the main totals)",
+   "line": "audio",
+   "turnkey": [
+    -26.0,
+    -75.0,
+    -163.0
+   ],
+   "scenarios": {
+    "pi_p21": {
+     "turnkey_with": [
+      14255.0,
+      20132.0,
+      28377.0
+     ],
+     "turnkey_without": [
+      14228.0,
+      20057.0,
+      28215.0
+     ]
+    },
+    "jetson_mcu_p21": {
+     "turnkey_with": [
+      14411.0,
+      20324.0,
+      28571.0
+     ],
+     "turnkey_without": [
+      14385.0,
+      20249.0,
+      28409.0
+     ],
+     "lower": {
+      "turnkey_with": [
+       14369.0,
+       20249.0,
+       28495.0
+      ],
+      "turnkey_without": [
+       14343.0,
+       20174.0,
+       28333.0
+      ]
+     }
+    },
+    "jetson_direct_p21": {
+     "turnkey_with": [
+      14888.0,
+      21252.0,
+      29597.0
+     ],
+     "turnkey_without": [
+      14862.0,
+      21177.0,
+      29434.0
+     ],
+     "lower": {
+      "turnkey_with": [
+       14804.0,
+       21102.0,
+       29391.0
+      ],
+      "turnkey_without": [
+       14778.0,
+       21027.0,
+       29228.0
+      ]
+     }
+    }
+   }
+  }
+ },
+ "trims_both": {
+  "pi_p21": {
+   "turnkey_with": [
+    14255.0,
+    20132.0,
+    28377.0
+   ],
+   "turnkey_without": [
+    13912.0,
+    19092.0,
+    26589.0
+   ]
+  },
+  "jetson_mcu_p21": {
+   "turnkey_with": [
+    14411.0,
+    20324.0,
+    28571.0
+   ],
+   "turnkey_without": [
+    14069.0,
+    19284.0,
+    26783.0
+   ],
+   "lower": {
+    "turnkey_with": [
+     14369.0,
+     20249.0,
+     28495.0
+    ],
+    "turnkey_without": [
+     14027.0,
+     19209.0,
+     26707.0
+    ]
+   }
+  },
+  "jetson_direct_p21": {
+   "turnkey_with": [
+    14888.0,
+    21252.0,
+    29597.0
+   ],
+   "turnkey_without": [
+    14546.0,
+    20213.0,
+    27808.0
+   ],
+   "lower": {
+    "turnkey_with": [
+     14804.0,
+     21102.0,
+     29391.0
+    ],
+    "turnkey_without": [
+     14462.0,
+     20063.0,
+     27602.0
+    ]
+   }
+  }
+ },
+ "quotes": {
+  "scenario": "pi_p21",
+  "rows": [
+   {
+    "line": "frame",
+    "usd": [
+     2947.58,
+     4503.25,
+     6550.19
+    ],
+    "spread": 3602.61,
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (structure mass / 1.79 kg)^0.6",
+    "ask": "Laser-cut and machined 6061-T6 plates and brackets, bearings, hubs, soles and fasteners, from drawings; ask three shops, and for the plates at 2.54 mm and at 3 mm"
+   },
+   {
+    "line": "covers",
+    "usd": [
+     1122.28,
+     1923.92,
+     3366.85
+    ],
+    "spread": 2244.57,
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (cover volume / 480 cm3)^0.85",
+    "ask": "MJF PA11 shells from the exported cover shapes with graded 1.4 / 1.2 / 1.0 mm walls, inserts and finish; the same three print services for each"
+   },
+   {
+    "line": "integration",
+    "usd": [
+     1610.62,
+     2624.71,
+     3817.76
+    ],
+    "spread": 2207.14,
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (H / 0.39 m)^0.7",
+    "ask": "Subcontract fit-up of one prototype: hours and rate for mechanical assembly, harness routing and bench checkout"
+   },
+   {
+    "line": "cable_boom",
+    "usd": [
+     300.0,
+     900.0,
+     1500.0
+    ],
+    "spread": 1200.0,
+    "kind": "d",
+    "cls": "new",
+    "basis": "MATERIALS.md section 6's estimate, $0.3-1.5k 'if the bench lot's catch frame cannot carry it'; the nominal value is its midpoint; $0 if the catch frame can",
+    "ask": "First ask whoever builds the bench frame whether it can carry the 5 m cable; if not, a jib or gantry boom with a balancer rated under 0.5 kg"
+   },
+   {
+    "line": "bench",
+    "usd": [
+     550.0,
+     850.0,
+     1300.0
+    ],
+    "spread": 750.0,
+    "kind": "d",
+    "cls": "carried",
+    "basis": "PR #662's 60 cm lot, not scaled (H is not above 0.6 m)",
+    "ask": "24 V bench supply (about 31 A, RSP-750-24 class), a 6S charger, a cradle or catch frame and instrumentation"
+   },
+   {
+    "line": "spares",
+    "usd": [
+     1113.19,
+     1313.19,
+     1613.19
+    ],
+    "spread": 500.0,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "two of the dearest leg drive and one pack at catalog prices + $150 / $350 / $650",
+    "ask": "Two spare hip-pitch drives and one spare pack, at the quoted drive and pack prices"
+   },
+   {
+    "line": "power",
+    "usd": [
+     275.0,
+     420.0,
+     650.0
+    ],
+    "spread": 375.0,
+    "kind": "d",
+    "cls": "carried",
+    "basis": "PR #662's 60 cm lot for a 24 V bus, not scaled",
+    "ask": "The power bay as one assembled module: distribution board, fuses, the stop circuit, the regeneration clamp and its regulators; have each regulator named (the computer's, the logic rail's, the servos')"
+   },
+   {
+    "line": "pad_treads",
+    "usd": [
+     100.0,
+     200.0,
+     400.0
+    ],
+    "spread": 300.0,
+    "kind": "d",
+    "cls": "new",
+    "basis": "low: MATERIALS.md section 5's estimate for the floor test alone (about one day and $100), with a printed TPU trial tread.  Nominal adds $100 and high adds $300 for casting rubber, release agent and printed moulds: this document's guess, with no source beyond the price class of a trial unit of 60 Shore A urethane rubber (about $25-45, a web search summary); the high case allows for several compounds and remakes.  The soles themselves are in the frame lot",
+    "ask": "A urethane casting kit (50-60 Shore A polyether) and printed moulds; then the grip test on the owner's floors"
+   },
+   {
+    "line": "harness",
+    "usd": [
+     193.02,
+     308.83,
+     450.38
+    ],
+    "spread": 257.36,
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (H / 0.39 m)",
+    "ask": "The leg and trunk harness with locking connectors and the neck service loop, from a wiring list"
+   },
+   {
+    "line": "foot_sensing",
+    "usd": [
+     113.44,
+     204.19,
+     340.31
+    ],
+    "spread": 226.87,
+    "kind": "d",
+    "cls": "a8",
+    "basis": "PR #662's 60 cm lot x (H / 0.39 m)^0.5",
+    "ask": "Foot contact or load sensors for two feet with their conditioning boards"
+   },
+   {
+    "line": "dc_input",
+    "usd": [
+     200.0,
+     300.0,
+     400.0
+    ],
+    "spread": 200.0,
+    "kind": "d",
+    "cls": "new",
+    "basis": "MATERIALS.md section 6's estimate, $0.2-0.4k 'for the input, power path, clamp and puck'; the nominal value is its midpoint.  That estimate does not name the 5 m cable or the stop tie-in; this document assumes they fit inside it",
+    "ask": "The input connector, the priority power-path board (LTC4417 class), the dummy puck and the cable; the clamp and the stop tie-in are asked for with the power bay"
+   },
+   {
+    "line": "leg_actuators",
+    "usd": [
+     3546.0,
+     3546.0,
+     3723.3
+    ],
+    "spread": 177.3,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "12 leg drives at catalog prices; the high case adds 5 %",
+    "ask": "Twelve drives landed: unit price, shipping, duty and lead time (10 x RMD-X4-P36-36-E-L, 2 x RMD-X6-P20-60-E), and which X6 variant ships at the listed price"
+   },
+   {
+    "line": "control",
+    "usd": [
+     125.0,
+     180.0,
+     270.0
+    ],
+    "spread": 145.0,
+    "kind": "d",
+    "cls": "carried",
+    "basis": "PR #662's 60 cm lot, not scaled (Teensy 4.1, two CAN transceivers, IMU; the 60 cm hardware basis also names a TTL servo-bus interface)",
+    "ask": "Teensy 4.1, two CAN transceivers, an IMU and the servo-bus interface as a board stack"
+   },
+   {
+    "line": "compute",
+    "usd": [
+     350.0,
+     410.0,
+     490.0
+    ],
+    "spread": 140.0,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "the computer's catalog price + $60 / $120 / $200 for storage, fan duct, mounts and leads",
+    "ask": "The computer at today's price, its storage and its mounting tray"
+   },
+   {
+    "line": "battery",
+    "usd": [
+     137.19,
+     167.19,
+     207.19
+    ],
+    "spread": 70.0,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "one pack at catalog price + $30 / $60 / $100 for the cassette",
+    "ask": "One pack and the tail-base cassette"
+   },
+   {
+    "line": "rgbd_camera",
+    "usd": [
+     284.0,
+     304.0,
+     349.0
+    ],
+    "spread": 65.0,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "catalog price + $15 / $35 / $80 for the lead and mount",
+    "ask": "The camera and a locking lead; ask about remaining stock of the discontinued camera chip"
+   },
+   {
+    "line": "tof",
+    "usd": [
+     39.9,
+     49.9,
+     69.9
+    ],
+    "spread": 30.0,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "two sensors at catalog price + $0 / $10 / $30",
+    "ask": "Nothing to quote (stock parts)"
+   },
+   {
+    "line": "expression_actuators",
+    "usd": [
+     504.89,
+     504.89,
+     530.13
+    ],
+    "spread": 25.24,
+    "kind": "c+d",
+    "cls": "catalog",
+    "basis": "neck and tail servos at catalog prices; the high case adds 5 %",
+    "ask": "The neck and tail servos at today's prices"
+   }
+  ],
+  "jetson_only_scenario": "jetson_direct_p21",
+  "jetson_only_rows": [
+   {
+    "line": "usb_can",
+    "usd": [
+     368.0,
+     736.0,
+     736.0
+    ],
+    "spread": 368.0,
+    "kind": "c+d",
+    "cls": "new_c",
+    "basis": "the price is the catalog's (c); the count is an assumption (d): one adapter in the low case (PR #668's layout, unverified); two in the nominal and high cases, to keep the two CAN buses of the study's build (designlab/build.py, control stack: 'CAN x2'; JETSON_PLEM_REVIEW.md section 3).  The bus plan (review task 7) decides",
+    "ask": "The adapter at today's price, and the two-channel version's price"
+   },
+   {
+    "line": "supervisor",
+    "usd": [
+     40.0,
+     70.0,
+     120.0
+    ],
+    "spread": 80.0,
+    "kind": "d",
+    "cls": "new",
+    "basis": "no catalog entry; this document's estimate from the price class of a Teensy 4.1 (about $34-36 at its maker's store, a web search summary) plus a transceiver, a relay driver and wiring (a guess, no source)",
+    "ask": "Nothing to quote until the supervisor's design exists; first decide whether the kept Teensy stack is the supervisor"
+   },
+   {
+    "line": "servo_bus_adapter",
+    "usd": [
+     45.0,
+     60.0,
+     90.0
+    ],
+    "spread": 45.0,
+    "kind": "d",
+    "cls": "new",
+    "basis": "no catalog entry; this document's estimate: a ROBOTIS U2D2 (about $44, a web search summary) plus a Feetech bus adapter (about $15, a guess, no source)",
+    "ask": "Nothing to quote (stock parts)"
+   },
+   {
+    "line": "regulator_12v",
+    "usd": [
+     39.95,
+     69.95,
+     69.95
+    ],
+    "spread": 30.0,
+    "kind": "c+d",
+    "cls": "new_c",
+    "basis": "the prices are the catalog's (c); the choice of part per case is an assumption (d).  Low: the 4.5 A part; nominal and high: the 9 A part (no power mode is chosen, and the larger part covers both modes with room for USB loads).  Both accept the 6S bus; E7 rules the D36V50F12 out only on 12S",
+    "ask": "Nothing to quote (a stock part); buy it only if the power bay's quote holds no 12 V regulator for the computer"
+   }
+  ],
+  "direct_only_lines": [
+   "usb_can",
+   "supervisor",
+   "servo_bus_adapter"
+  ],
+  "jetson_compute_line": [
+   459.0,
+   519.0,
+   599.0
+  ]
+ },
+ "derived": {
+  "steps": {
+   "p21_on_the_record": [
+    652.0,
+    1536.0,
+    2557.0
+   ],
+   "jetson_kit_alone_on_pi": [
+    115.0,
+    117.0,
+    118.0
+   ],
+   "jetson_with_regulator_on_pi": [
+    157.0,
+    192.0,
+    194.0
+   ],
+   "direct_on_jetson_lower": [
+    435.0,
+    853.0,
+    895.0
+   ],
+   "direct_on_jetson": [
+    477.0,
+    928.0,
+    1025.0
+   ],
+   "optional_on_pi": [
+    112.0,
+    328.0,
+    579.0
+   ],
+   "optional_on_jetson": [
+    112.0,
+    328.0,
+    579.0
+   ]
+  },
+  "p21_lines_with_contingency": {
+   "covers": [
+    20.0,
+    36.0,
+    63.0
+   ],
+   "pad_treads": [
+    105.0,
+    214.0,
+    434.0
+   ],
+   "dc_input": [
+    211.0,
+    322.0,
+    434.0
+   ],
+   "cable_boom": [
+    316.0,
+    965.0,
+    1626.0
+   ]
+  },
+  "regulator_with_contingency": [
+   42.0,
+   75.0,
+   76.0
+  ],
+  "regulator_upgrade_usd": 30.0,
+  "supervisor_with_contingency": [
+   42.0,
+   75.0,
+   130.0
+  ],
+  "integration_line": [
+   1610.62,
+   2624.71,
+   3817.76
+  ],
+  "baseline_subtotal_nominal": 17276.78,
+  "baseline_split_nominal": {
+   "a8": 9531.61,
+   "carried": 1450.0,
+   "catalog": 6295.17
+  },
+  "baseline_split_share": {
+   "a8": 0.5517,
+   "carried": 0.0839,
+   "catalog": 0.3644
+  },
+  "quotes_subtotal_nominal": 18710.07,
+  "quotes_split_nominal": {
+   "a8": 9564.9,
+   "carried": 1450.0,
+   "catalog": 6295.17,
+   "new": 1400.0,
+   "new_c": 0
+  },
+  "spread_top3": 8054.32,
+  "spread_all": 12516.09,
+  "spread_compute": 140.0,
+  "largest_lines": {
+   "low": "leg_actuators",
+   "nominal": "frame",
+   "high": "frame"
+  },
+  "optional_together_turnkey": [
+   112.0,
+   328.0,
+   579.0
+  ],
+  "head_record_minus_baseline": [
+   65.0,
+   75.0,
+   92.0
+  ],
+  "head_yaw_only": {
+   "removed": [
+    {
+     "name": "jaw_motor",
+     "category": "expression_actuator",
+     "mass_kg": 0.055
+    },
+    {
+     "name": "jaw_bracket",
+     "category": "structure",
+     "mass_kg": 0.02
+    }
+   ],
+   "servo": "feetech_sts3215_c018",
+   "servo_price_usd": 22,
+   "lines": {
+    "expression_actuators": [
+     22.0,
+     22.0,
+     23.1
+    ],
+    "frame": [
+     8.68,
+     13.26,
+     19.28
+    ]
+   },
+   "turnkey_servo_and_bracket": [
+    32.0,
+    38.0,
+    46.0
+   ],
+   "turnkey_with_bearing": [
+    53.0,
+    215.0,
+    371.0
+   ]
+  },
+  "self_assembled_gap_record": [
+   1696.0,
+   2814.0,
+   4138.0
+  ],
+  "compute_difference": {
+   "catalog_usd": {
+    "nvidia_orin_nano_super_devkit": 399,
+    "rpi5_8gb_ai_hat_plus_13tops": 290.0,
+    "difference": 109.0
+   },
+   "survey_set_usd": {
+    "nvidia_orin_nano_super_devkit": 439,
+    "rpi5_8gb_ai_hat_plus_13tops": 290,
+    "difference": 149,
+    "source": "designlab/data/research/compute_2026-11-07.json",
+    "jetson_set_minus_kit": 40,
+    "pi5_set_equals_catalog": true
+   },
+   "pi5_street_usd": 323.0,
+   "pi5_street_source": "designlab/data/parts.json, the notes of `rpi5_8gb_ai_hat_plus_13tops`",
+   "before_contingency": {
+    "kit_alone": [
+     109.0,
+     109.0,
+     109.0
+    ],
+    "with_regulator": [
+     148.95,
+     178.95,
+     178.95
+    ],
+    "storage_once_each": [
+     149.0,
+     149.0,
+     149.0
+    ],
+    "storage_once_each_with_regulator": [
+     188.95,
+     218.95,
+     218.95
+    ],
+    "pi5_at_street_price": [
+     76.0,
+     76.0,
+     76.0
+    ]
+   },
+   "turnkey": {
+    "kit_alone": [
+     115.0,
+     117.0,
+     118.0
+    ],
+    "with_regulator": [
+     157.0,
+     192.0,
+     194.0
+    ],
+    "storage_once_each": [
+     157.0,
+     160.0,
+     162.0
+    ],
+    "storage_once_each_with_regulator": [
+     199.0,
+     235.0,
+     237.0
+    ],
+    "pi5_at_street_price": [
+     80.0,
+     81.0,
+     82.0
+    ]
+   },
+   "nominal_as_priced": [
+    117.0,
+    192.0
+   ],
+   "nominal_all_readings": [
+    81.0,
+    235.0
+   ]
+  },
+  "nominal_over_ceiling": [
+   57.0,
+   174.0,
+   249.0
+  ],
+  "nominal_over_ceiling_share": [
+   0.0029,
+   0.0087,
+   0.0124
+  ],
+  "high_over_ceiling": [
+   8215.0,
+   8333.0,
+   8409.0
+  ]
+ },
+ "pr668_slips": [
+  {
+   "what": "The Jetson dev kit's price",
+   "pr668_unverified": "$249 in its low and nominal cases",
+   "catalog_id": "nvidia_orin_nano_super_devkit",
+   "catalog_price_usd": 399,
+   "pr668_price_usd": 249,
+   "used_here": "$399, the price of `nvidia_orin_nano_super_devkit`"
+  },
+  {
+   "what": "The tail servo's catalog id",
+   "pr668_unverified": "`feetech_sts3215_12v`",
+   "pr668_id_exists": false,
+   "right_id": "feetech_sts3215_c018",
+   "right_id_exists": true,
+   "right_id_price_usd": 22,
+   "used_here": "`feetech_sts3215_c018` ($22.00), the record's own id"
+  },
+  {
+   "what": "The neck servo's catalog id",
+   "pr668_unverified": "`robotis_xm540_w270`",
+   "pr668_id_exists": false,
+   "right_id": "robotis_xm540_w270_t",
+   "right_id_exists": true,
+   "right_id_price_usd": 482.89,
+   "used_here": "`robotis_xm540_w270_t` ($482.89), the record's own id"
+  },
+  {
+   "what": "The total read against P4",
+   "pr668_unverified": "its self-assembled total, the one without outsourced integration",
+   "p4": "P4: \"$10-20 k prototype including outsourced fabrication, integration and spares\"",
+   "used_here": "the turnkey total, which holds the integration line and the spares"
+  }
+ ]
+}
