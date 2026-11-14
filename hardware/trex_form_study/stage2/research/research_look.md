@@ -4,7 +4,7 @@
 applies to every proposal. Sources are linked where they are used and listed at the end. Numbers marked **est.** are
 my own arithmetic. They come from the round-two models (the `60-N-T-10` and `75-M-H-10` MJCF inertial blocks under
 `round2/refine/narrow_carpet_60` and `round2/refine/feet_75`) and from the candidate records' drive margins, using rigid
-bodies and simple motion profiles (script: `stage2/scratch/loads.py` in the session scratchpad). Nothing was
+bodies and simple motion profiles (script: `stage2/research/loads.py`, copied from the session scratchpad on 14 Nov 2026). Nothing was
 simulated, fitted, trained or swept for this note.
 
 `H` is hip height: 0.405 m on `60-N-T-10` and 0.502 m on `75-M-H-10`. Fr = v²/(gH) is the Froude number. "Nominal",

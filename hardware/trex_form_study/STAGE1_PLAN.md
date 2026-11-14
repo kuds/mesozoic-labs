@@ -521,6 +521,9 @@ the code as a rule that every record carries.
     judged at the last checkpoint all of its runs reached (`train.JUDGED_RULE`, `train.R2_JUDGED_RULE`). R3 thus
     trains about 2.5M of the 4M steps planned and R4 fewer (decision 29). The report states both.
 36. **Restart after the machine went down** (about 20:37 UTC). The machine restarted, probably because memory ran out.
+    *(Note added 14 Nov 2026: no record gives the cause. Free memory was 3.1 GB when work stopped, and the later stops
+    came with 8.8 and 15.4 GB free (`STAGE1_PROBE.md` N8), so memory is not shown to be the cause; the container also
+    restarted on other days with nothing running, `LESSONS_LEARNED.md` §4.2.)*
     The panels and the ledger keep every built condition's simulation in memory for the life of a process. With nine
     training jobs, three panel processes and three ledger processes, free memory had fallen to about 3 GB and was
     dropping by about 70 MB a minute.

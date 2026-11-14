@@ -694,7 +694,7 @@ attribution, 00:12–00:40 UTC), 0.71 (R4's panels, 00:40–01:03) and 0.44 (R3/
 
 **N8. The three stops and the run records.**
 - Work stopped at about 19:39 UTC: the run directory's last write is at 19:39:34, and the session's minute-by-minute
-  memory log (scratchpad `stage1/build/watch/mem.log`, not in the repository) ends at 19:38:54 with 3.1 GB free at load
+  memory log (`machine_logs/mem.log`, copied from the session scratchpad into the repository on 14 Nov 2026) ends at 19:38:54 with 3.1 GB free at load
   15. The memory logs resume at 20:40, stop again from 20:51:48 to 21:23:35 with 8.8 GB free, and training resumed at
   21:23. No record gives either stop's cause. Every running job stopped. R3 resumed from its last checkpoints
   (1,253,376–1,507,328 steps), and the evaluations from their finished records; R4 was not resumed (decision 36).

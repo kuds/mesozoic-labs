@@ -1,0 +1,15 @@
+60-N-T-10-K (41 s)
+G1 FAIL: hashes True; hard stands (tilt max 0.52 deg), low stands (tilt max 0.49 deg); tendon map err 8.9e-16; repeat True; step rate (median of 5 x 50000 steps) 18153 steps/s alone, 15418 per process x 4 (lowest sample 12689)
+G2 pass (rule panel; ankle gains joint, armature linkage): references match True (nominal 0.218266 m/s, CoP margin 0.030524 m); nominal panel median 41.0 strides (14/20 at least 10, range 2.9-60.0); unperturbed run 31.7 strides with the envelope, 31.7 without (design study, screened MJCF: None)
+   other replays with the envelope (strides): brisk 19.8, fr05 3.2, carpet 52.6, walk_0.35_left 60.0, walk_0.35_right 15.2, in_place_0.50_left 60.0, in_place_0.50_right 60.0, walk_0.50_left 2.8, walk_0.50_right 39.3
+   plant choices (nominal strides unperturbed, panel): motor_gains+linkage_armature: 9.2, panel median 4.6 (1/20); joint_gains+linkage_armature: 31.7, panel median 41.0 (14/20); motor_gains+screened_armature: 8.8, panel median 3.3 (1/20); joint_gains+screened_armature: 4.1, panel median 7.6 (7/20)
+   decided (STAGE1_PLAN.md): (11) ankle_gains = joint; (12) ankle_armature = linkage; (13) g2_rule = panel
+G3 pass: 18 transitions; worst CoM 0.325 mm (brisk_to_fr05), worst ZMP 0.997 mm (brisk_to_fr05); failed: none (fall back to amplitude ramps: none)
+   stops (decision 18, strides from the command): stop forward 0.525 (within True), rest 1.550; stop_in_place_0.50_left forward - (within None), rest 1.556; stop_in_place_0.50_right forward - (within None), rest 1.550
+G4 pass (panel rule, at the tuning start): R1_nominal_hard panel median 60.0 (>= 40: True; 20/20 reach it, 20 survive); unperturbed 57.9; R1_nominal_mu054 panel median 60.0 (>= 20: True; 19/20 reach it, 12 survive); unperturbed 60.0; R2_nominal_hard panel median 60.0 (>= 20: True; 20/20 reach it, 20 survive); unperturbed 60.0
+   R2 nominal (unperturbed): realised ankle torques beyond the cap: box 0.001 of updates (max 0.41 N m), pad 0.050 (max 3 N m; feet over 20 % of the weight 0.012, max 1.8 N m)
+   R0: nominal 31.7, brisk 19.8, fr05 3.2, walk_0.35_left 40.0, walk_0.35_right 15.2, in_place_0.50_left 40.0, in_place_0.50_right 40.0
+   R1: brisk 40.0, fr05 3.0, walk_0.35_left 40.0, walk_0.35_right 40.0, in_place_0.50_left 40.0, in_place_0.50_right 40.0
+   R2: brisk 40.0, fr05 5.8, walk_0.35_left 40.0, walk_0.35_right 40.0, in_place_0.50_left 40.0, in_place_0.50_right 40.0
+   R1 start-walk-stop: 32.9 strides, fell False; stop forward 0.6570167365913476 strides (within True), rest 1.706282271147679
+   R2 start-walk-stop: 32.9 strides, fell False; stop forward 0.5001172174053542 strides (within True), rest 1.3728707928774428

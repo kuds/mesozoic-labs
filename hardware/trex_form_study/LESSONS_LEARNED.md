@@ -212,7 +212,21 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
 11. **Price before rendering, and render only what the owner must judge.** The Stage 0 screen (drives, centre of
     pressure, sway, accelerations, clearance, passive neck and tail loads, grip) ran on every rung before any clip was
     made (`stage2/look/SCREEN.md`).
-12. **Communicate with the owner plainly.**
+12. **Measure before budgeting.**
+    - The Python tracker ran about 200 env steps/s against the 750 planned, and the fit took 6.5 h instead of 2–3. That
+      forced decision 21's 24 h cap.
+    - Do not oversubscribe the machine. On 9 Nov, 9 PPO jobs and 6 panel and ledger processes ran on 4 cores at load
+      15. Memory fell by about 70 MB a minute, because the panels cache every model they build for the life of the
+      process.
+13. **Build agent briefs from the data files, and report counts only once every check has returned.**
+    - A compute brief carried a stale Jetson price ($249 against the catalog's $399).
+    - An audit's error count was reported as 56, then corrected to 62.
+14. **Small traps worth remembering.**
+    - Record keys formatted with `.2f` turned 0.175 into "0.17"; use `%g`.
+    - Inverse dynamics with the prescribed centre of pressure off the pad gives artifact loads; such cases are marked
+      inconclusive (one "1.19" reading was one).
+    - Use one OSMesa renderer per process: several in one process corrupted renders.
+15. **Communicate with the owner plainly.**
     - Answer the question first, in plain words, then give the evidence.
     - Never mix measured values with targets.
     - Correct a report in place, with a dated note at the top that lists every changed place.
@@ -220,6 +234,13 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
     - Propose decision-log rows as drafts; the owner adds them (P24).
     - Publish owner pages as private claude.ai artifacts, checked at desktop and phone width.
     - For blind ratings, make sure no file name, caption, alt text or order reveals a variant.
+    - Lead with plain numbers and units ("0.22 m/s (0.5 mph)") rather than a pass/fail summary. The owner asked for the
+      walking answer to be rephrased once.
+    - Ask through the question tool rather than a lettered list in text: at most 4 questions per call, labelled "Q1 of
+      8", recommended option first. The owner asked three times to be prompted. Read a free-text answer before acting
+      on it: one answer was a request for more time.
+    - Send a push notification when long work finishes; the owner asked to be pinged four times.
+    - "Help me think" means discussion, not new runs ("Don't do any big experiments", 10 Nov).
 
 ## 4. Working in the cloud container
 
@@ -238,6 +259,17 @@ Nothing outside git reaches a new session. Each piece comes back in its own way:
   evaluation rows.
 - **The clips' media:** they are in the published look pages and regenerate with `designlab.stage2.clips`.
 - **The scratchpad's scripts:** the useful ones are now in `tools/`.
+- **Files the reports cite that lived only in the scratchpad:** now committed at their cited paths:
+  - `stage1/runs/2026-11-08/gap_options.json`;
+  - the memory logs in `stage1/runs/2026-11-08/machine_logs/`;
+  - `round2/refine/nominal_lift.py`;
+  - `stage2/research/loads.py`;
+  - the speed round's logs in `stage1/runs/2026-11-10-speed/logs/` (force-added: the root `.gitignore` ignores every
+    `logs/`).
+- **Two Python environments made the records.**
+  - `tools/requirements-study.txt` covers the plant, fits, panels, ledger, look and `-X` records.
+  - Stage 1's PPO training and its R3/R4 evaluation rows ran in a second venv: torch 2.9.0+cpu, stable-baselines3
+    2.9.0 and gymnasium 1.3.0 (`tools/requirements-stage1-ppo.txt`; `run.json` `sessions[].versions`).
 
 Without the model files the plant rebuilds models elsewhere, with another ledger. Every record key then differs, and
 `eval` and `sweep` refuse the checkout (`STAGE1_PLAN.md` decision 33, "Where it runs"). Restore first, then run the
@@ -245,9 +277,13 @@ tests.
 
 ### 4.2 Restarts, keep-alive and resuming
 
-- **The container restarts without warning.**
-  - Restarts came at about 02:23 and 06:38 UTC on 11 Nov.
-  - Work resumed on 14 Nov in a container that had just restarted.
+- **The container restarts without warning, and often.**
+  - It started at least nine times in seven days (UTC): 7 Nov about 22:25; 8 Nov about 14:35; 9 Nov 20:37 and about
+    21:15; 10 Nov 01:29 and about 03:58; 11 Nov 02:23 and 06:38; 14 Nov about 15:40.
+  - Six restarts followed a turn that ended with only detached (`setsid`/`nohup`) jobs alive, some within minutes.
+  - Three came while tracked work was running (a workflow, a heartbeat).
+  - The keep-alive below makes idle reclaim less likely; it does not prevent restarts.
+  - No restart's cause is recorded. `STAGE1_PLAN.md` decision 36 guessed memory, but S1 N8's logs do not support it.
   - Each time, the filesystem (checkout and scratchpad) survived and every process died.
 - **Every long job is an idempotent chain that resumes from its own checkpoints.** A watchdog starts any chain that is
   neither done nor running (`stage1/runs/2026-11-10-speed/run_speed_round.sh` and its watchdog). After any pause, check
@@ -332,8 +368,38 @@ tests.
   - Check them with `node tools/shot_page.js` at 1280 and 390 px.
   - Republishing to the same URL needs the same file path in the same session, or the artifact's `url` (read it
     first).
-- **The owner's Google Drive is readable with the Google Drive tools.** That is how Colab results come back
-  (`STAGE2_PLAN.md` §6). Large binaries cannot pass through a tool call.
+- **The Google Drive tools are connected but untested.** The first session made no Drive call at all, and Stage 2
+  reads Colab results from the owner's Drive (`STAGE2_PLAN.md` §6). Do a round trip with a small file before building
+  the notebook around it. Large binaries cannot pass through a tool call.
+
+### 4.7 Harness mechanics that cost time
+
+- **Foreground `sleep` is refused.** To wait for something, use a Monitor until-loop (it expires after at most 30
+  min) or a command run with `run_in_background`, which re-invokes the session when it ends.
+- **Background commands.**
+  - A `&` inside a `run_in_background` command returns at once, and the job is no longer tracked.
+  - Shell variables do not persist between Bash calls; use absolute paths in every call (an unset `$SP` once meant
+    a run never launched).
+- **Use the venv's Python.** The system `python3` has no MuJoCo.
+- **Scheduled tasks.**
+  - A `send_later` reminder cannot be turned into a recurring task (`update_trigger` failed with
+    `missing_worker_target`); create a new task and delete the old one.
+  - Their firings arrive as queued notifications: read them with ReadNotifications.
+  - An hourly schedule written for minute 0 runs at its creation minute instead.
+- **Workflows.**
+  - Prompts that a script builds reach the agents indented. That broke a parser of their output once.
+  - Resuming with changed `args` re-runs every agent whose prompt changed.
+  - The cap of 2 agents at once applies per workflow: several workflows run side by side.
+- **Usage limits are real.**
+  - The account's weekly usage limit ran out on 13 Nov, after 39 workflows with 271 agents in all (one audit used 76).
+  - Size a workflow's fan-out to the question, and keep a reserve for the owner's own use.
+- **The repository's root rules drop or rewrite files silently.**
+  - The root `.gitignore` ignores `logs/`, `models/`, `*.zip`, `*.pkl`, `*.npz` and `tensorboard/` at any depth. On 7
+    Nov it dropped the round-one ledgers, kept in a `models/` folder, until it was renamed `mjcf/`.
+  - `.gitattributes`' `* text=auto` rewrites line endings: the posture archive needed `* -text` for its SHA256SUMS to
+    verify.
+  - Check every new output with `git check-ignore -v` before relying on it, above all checkpoints, Colab logs and any
+    sha256-manifested bundle.
 
 ## 5. Traps and open issues
 
@@ -355,6 +421,17 @@ tests.
    cannot see every seam (HEAD_X.md §4).
 9. **Out of scope.** Eleven registry and contract tests fail on PR #662's clean checkout, and merging PR #664 conflicts
    in 4 files (`REPRODUCTION.md`). They belong to the main repository's integration, not to this study.
+10. **Merge PR kuds/mesozoic-labs#667 with a merge commit, never squash or rebase.**
+    - 616 committed records cite 42 commits by hash, and all 42 exist only on its branch.
+    - A squash or rebase merge would leave main without them.
+    - Its auto-generated description is wrong in places ("quadruped", "hip heights" for crown heights). Correct it
+      before merging.
+11. **`tools/memguard.sh` protects only `designlab.stage1 train` by default.** Set `PROTECT` for Stage 2 trainers, or
+    the guard kills them first.
+12. **The viewers' blind sheet stores nothing.** Its "Copy my scores" button is the only way back: ratings arrive only
+    if the owner pastes them.
+13. **`MUJOCO_LOG.TXT` fills with "Nan ... QVEL" warnings.** A deliberate test writes them (`tests/test_stage1.py`, the
+    BADQVEL check), and they are harmless.
 
 ## 6. Next steps toward long training runs
 
@@ -408,3 +485,19 @@ stiffness (draft A17), the STS3215 tail servo at the speed walks' loads (A1), th
   - S1b §8 and N11: F27, the A1 update (bench-test the tail servo first) and A17 (new: the servo delay and stiffness
     assumption).
 - **P25 stays open.** After Stage 1, the owner asked what covering the remaining gap at 60 cm would take.
+
+## 8. Published pages
+
+The owner's review pages are private claude.ai artifacts; only the owner can open them. Their sources were built in the
+first session's scratchpad and are not in the repository. Each regenerates from the committed records and reports:
+`designlab/review_page.py` and `review2_page.py` for rounds one and two, `tools/report_page.py` for the Stage 1 and 1b
+reports, and `designlab/stage2/look_page.py` with the clips for the look pages.
+
+| Page | Link |
+|---|---|
+| Round one review | https://claude.ai/artifact/ApMGC29DvSyDmKPycr9vSs |
+| Round two review | https://claude.ai/artifact/A67P2YGERSSfa7CAUic6qT |
+| Stage 1 report (corrected 10 Nov) | https://claude.ai/artifact/XMkc9GjZzRcrqF3ANiRqWZ |
+| Stage 1b speed round | https://claude.ai/artifact/VbBcrpxuyxjF2YhoJqG4rn |
+| Stage 2 look review (gate L1) | https://claude.ai/artifact/MG1yh5ztqJwVdFPs6GmkkY |
+| Viewers' blind sheet (L1 ratings) | https://claude.ai/artifact/QVktxN3pHsov2LTVs6d69c |

@@ -1,5 +1,7 @@
 # The form study's Python packages, pinned to the versions used from 8 to 14 Nov 2026 (Python 3.13.18, x86_64 Linux).
-# Every record since Stage 1 was made with these. Install with tools/setup_venv.sh.
+# The plant, fits, panels, margin ledger, look ladder and -X records name these (plant.json `provenance.versions`).
+# One exception: Stage 1's PPO training sessions and their R3/R4 evaluation rows ran in a second venv (torch
+# 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0): requirements-stage1-ppo.txt. Install with tools/setup_venv.sh.
 #
 # torch from PyPI pulls its CUDA libraries (the venv is about 6 GB). `TORCH=cpu bash tools/setup_venv.sh` installs the
 # CPU-only wheel of the same version from download.pytorch.org instead (1.4 GB in all). Training here is CPU-only either
