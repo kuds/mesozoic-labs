@@ -290,6 +290,10 @@ the owner may run.
 - 7, the budget: decided after the rebuild at catalog prices.
 - 8, PR #668: kept open and unmerged; the owner is asked again once the records exist.
 
+**Changed, 14 Nov 2026 (P31).** Decision 7 no longer stands as answered: later the same day the owner set budget
+concerns aside at this point. Prices are documented and not weighed against P4, and the Jetson hardware is explored
+whatever its extra cost (`DECISION_LOG.md` P31; the prices are in `stage2/jetson75/BUDGET_75.md`).
+
 Recommended options come first.
 
 1. **Compute for the 75 cm build.**
