@@ -524,8 +524,8 @@ tests.
 2. **Merge PR kuds/mesozoic-labs#667 with a merge commit, never squash or rebase.**
    - 616 committed records cite 42 commits by hash, and all 42 exist only on its branch.
    - A squash or rebase merge would leave main without them.
-   - Its auto-generated description is wrong in places ("quadruped", "hip heights" for crown heights). Correct it
-     before merging.
+   - Its auto-generated description was wrong in places ("quadruped", "hip heights" for crown heights). It was
+     rewritten on 14 Nov, at the owner's request.
 
 ### 5.2 The bodies and the references
 
