@@ -124,10 +124,11 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
   - The `-X` jaw servo in the head would take the closed-loop nominal-walk load to about 0.93 of A1. That is an
     estimate scaled from Stage 0; the static hold goes from 0.75 to 0.84 (X_COSTS.md).
 - **Joint damping and friction dominate the tail's load**, and on `-X` the neck yaw's and the jaw's.
-  - On the 60 cm neck pitch they add about 7–12 % to what is mostly a gravity load.
+  - On the 60 cm neck pitch they add about 7–12 % to what is mostly a gravity load. (Note, 14 Nov 2026: that is on
+    look rungs V0–V4L; on V5–V6S, with the stabilised head, it is about 1–4 %, RMS, SCREEN.md §3b; A18 gives both.)
   - The values (damping 0.2 N·m·s/rad, friction loss 0.15 N·m) are `designlab/mjcf.py`'s defaults on every joint, legs
     included. They are unsourced, and no decision-log row records them: A16 is the carpet screen, and a draft row is
-    proposed in §7.
+    proposed in §7. (Since 14 Nov 2026: A18, P30.)
   - A bench measurement could move these loads more than any part change.
 - **Grip.**
   - Stance-foot spin, the pad's yaw moment, is the friction limit that binds (F21).
@@ -678,7 +679,7 @@ This is `STAGE2_PLAN.md` §7 in order, with what a new session does first.
 - each drive type's command-to-motion delay and stiffness (draft A17);
 - the STS3215 tail servo at the speed walks' loads (A1);
 - the treads' grip on the owner's floors (P21);
-- the joints' friction and damping (the MJCF defaults, with no decision-log row yet).
+- the joints' friction and damping (the MJCF defaults, with no decision-log row yet; since 14 Nov 2026: A18).
 
 The delay matters most. At 10 ms every 60 cm walk but one falls under the fitted tracker (S1b §4). A measured delay above S1b
 N8's figures rules out that controller family, not every controller, and one below them still leaves grip and the
@@ -689,6 +690,16 @@ RMD-X4-P12-10-E (V4) as discontinued, against E6, though it is still sold. The o
 against its successor, the X4-10-L (S1 §6 item 11).
 
 ## 7. Waiting for the owner
+
+**Note, 14 Nov 2026 (second session).** The owner answered these on 14 Nov (`DECISION_LOG.md` P30): Stage 2's
+decisions 1, 2, 7 and 8, the Colab confirmation, the seven draft rows (now F26, F27, A1, A15, A16, A17 and A18 in
+`DECISION_LOG.md`) and PR kuds/mesozoic-labs#668's decisions. Still with the owner after these answers: P25; the
+compute choice, after the Jetson body's screens and the delay bench test (P14 stands meanwhile); the candidate
+reference for the 75 cm body, on which the owner picks at L1; the 75 cm budget, brought back after the rebuild; PR
+kuds/mesozoic-labs#668, kept open and unmerged, on which the owner is asked again once the records exist; and the
+3–5 viewers' scores, which the owner pastes when they exist. The list below is kept as it stood before those answers,
+and so is the wording of the earlier sections: "awaiting the owner's L1 picks" and "The draft decision-log rows wait
+for the owner" (§1) and "draft F26" and "draft A17" (§2, §6) predate them.
 
 - **Stage 2's open decisions** (`STAGE2_PLAN.md` §7):
   - 1: the look features, and whether one may cost a speed rung.

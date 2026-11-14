@@ -1,5 +1,26 @@
 # Stage 2: the agility round, with character (simulation)
 
+**Note, 14 Nov 2026 (owner decisions, P30).** The owner has now taken four more of section 7's owner decisions
+(`DECISION_LOG.md` P30). **1:** gate L1's pick is V6, every look feature, and a feature may cost a speed rung
+(character first). **2:** the duty band is widened to 0.55–0.72 below 0.30 m/s; from 0.30 m/s up it stays 0.55–0.65
+(section 5). **7:** the owner's pick decides L1 now, and the scores of 3–5 viewers new to the project are added later
+as a labelled late reading. That changes A.5's order, in which the viewers' scores came with the pick: a change to
+the plan, taken by the owner before any Stage 2 run. **8:** the delay bench runs first, on both paths, as soon as its
+sheet is ready and before any compute purchase (section 7, decision 8). Also decided: the 75 cm + Jetson track comes
+first, with `60-N-T-10` kept in the plan and trained after (P29 unchanged); on that track the Jetson is studied as a
+refine case only, the compute choice comes after its screens and the delay bench test, and P14 (Raspberry Pi 5 + AI
+HAT+) stands meanwhile; the bar stays judged at 10 ms (S2-7), with 0, 2, 4, 6 and 8 ms reported beside it, never read
+as the verdict, and with the verdicts re-run at the bench value once it is measured (S2-7's own list of other delays,
+0, 5, 15 and 20 ms, is not rewritten by this note); F25's tuned walk with look feature F9's counter-phased tail and a
+small duty and lift margin is a labelled candidate reference for the 75 cm body, to be recorded, priced with the
+Stage 0 screen, run through the official panels and shown at L1 beside the look ladder with clips, where the owner
+picks (it is not chosen; V6 is the pick of 14 Nov); and the owner has confirmed the Colab plan's four assumptions
+(24 h sessions, background execution, High-RAM CPU runtimes, 3 runtimes at once). Every place below that still treats
+these as open is superseded by this note: the status line's "awaiting the owner's picks"; A.5 and section 7's
+deliverable 1, where the viewers' scores come with the pick; section 5's "if the owner widens the band (owner
+decision 2), else F3 starts at brisk"; section 6's "The owner confirms that the plan allows ..."; and "draft A17" in
+sections 5 and 8, now `DECISION_LOG.md` A17.
+
 **Status (11 Nov 2026): the owner has taken decisions 3–6 below (P29). Track A's first phase is done: the look ladder (`stage2/look/`), its Stage 0 screen and renders, and the look review page for gate L1 (claude.ai artifact MG1yh5ztqJwVdFPs6GmkkY; the blind viewers' sheet QVktxN3pHsov2LTVs6d69c), awaiting the owner's picks. The expressive head (S2-2) is built and costed (`stage2/x/`). Nothing else has run.** Simulation only; it changes no body and adopts nothing
 without the owner (P24). Paths are relative to `hardware/trex_form_study/` unless they begin `environments/`,
 `notebooks/` or `docs/`. S1 and S1b are the Stage 1 and 1b reports (`stage1/runs/2026-11-08/STAGE1_PROBE.md`,
@@ -255,17 +276,25 @@ decision 20's lift test (for the neck and tail, never lifted: causing most of a 
 each checked by four printed lines; about $3 of compute on High-RAM CPU ($66 on L4); results in your Drive. Nothing is
 adopted without you.
 
-**Owner decisions** (3–6 taken on 11 Nov, P29; 1, 2 and 7 at the look review; 8 later):
-1. The look features (L1), and whether a feature may cost a speed rung (A.3).
-2. Duty: a fixed swing time puts the nominal walk at about 0.69 ([look] F3), over the spec's 0.65: widen the band to
-   0.72 below 0.30 m/s, or start F3 at brisk?
+**Owner decisions** (3–6 taken on 11 Nov, P29; 1, 2, 7 and 8 taken on 14 Nov, P30; until 14 Nov this line read
+"1, 2 and 7 at the look review; 8 later"):
+1. **Taken (14 Nov, P30):** V6, every look feature; a feature may cost a speed rung (character first). Asked: The
+   look features (L1), and whether a feature may cost a speed rung (A.3).
+2. **Taken (14 Nov, P30):** the band is widened to 0.55–0.72 below 0.30 m/s; from 0.30 m/s up it stays 0.55–0.65.
+   Asked: Duty: a fixed swing time puts the nominal walk at about 0.69 ([look] F3), over the spec's 0.65: widen the
+   band to 0.72 below 0.30 m/s, or start F3 at brisk?
 3. **Taken:** the 60 cm Hybrid is dropped; Colab trains `60-N-T-10` and `75-M-H-10` (S2-1).
 4. **Taken:** the expressive head as modelled (S2-2), in simulation only, jaw included (P2's deferral stands for the
    build).
 5. **Taken:** the bar's definitions as in section 5: the 90° turn within 2.0 s, both grips, judged at 10 ms (S2-7).
 6. **Taken:** Colab on High-RAM CPU runtimes, up to 3 at once, 24 h sessions, capped at 220 runtime-hours (section 6).
-7. Raters for L2, 3–5 new viewers for L1, and a private rating page.
-8. When the bench tests below run.
+7. **Taken (14 Nov, P30):** the owner's pick decides L1 now; the scores of 3–5 viewers new to the project are added
+   later as a labelled late reading (a change to A.5's order, taken before any Stage 2 run); L2's 12 raters come
+   with the closed-loop clips. Asked: Raters for L2, 3–5 new viewers for L1, and a private rating page.
+8. **Taken (14 Nov, P30):** the delay bench runs first, on both paths (the Teensy CAN loop, and a Jetson real-time
+   core with USB-CAN), as soon as its sheet (`JETSON_PLEM_REVIEW.md` §5 task 8) is ready and before any compute
+   purchase. The answer names the delay bench; it does not time the STS3215 tail servo's test at the speed walks'
+   loads (A1; section 8). Asked: When the bench tests below run.
 
 ## 8. Risks and what this round will not show
 
