@@ -5,10 +5,24 @@ A design study for the Mesozoic Labs robotic *T. rex*. Round one compared four s
 component envelopes, load-based actuator sizing, power, cost and mechanical screening. Round two
 develops the owner's choices (60 and 75 cm, Tapered and Hybrid bodies, 10° chest-up, Raspberry Pi 5
 compute) with single-change variants and adds turning, carpet and behavior-envelope screens. Both
-rounds are **design review packages**. Neither selects a final robot, and no controller has been trained.
+rounds are **design review packages**. Neither selects a final robot.
+
+Stage 1 (8–10 Nov 2026) probed the three picks in closed loop in simulation: reference walks, a balance tracker fitted
+by CMA-ES and small PPO runs. Stage 1b (10 Nov) refitted the tracker for speed and added servo delay. Stage 2 (from 10
+Nov) aims at character with some agility: a lifelike reference walk, an expressive head and, next, a learned controller
+trained on Colab. Every result is simulation. Nothing is measured on hardware and nothing is adopted without the owner
+(P24).
 
 | Read first | What it is |
 |---|---|
+| [LESSONS_LEARNED.md](LESSONS_LEARNED.md) | Where the work stands, what the robot can and cannot do in simulation, method and operating lessons, traps, next steps (14 Nov 2026) |
+| [NEXT_SESSION_PROMPT.md](NEXT_SESSION_PROMPT.md) | The prompt that starts the next working session |
+| [STAGE2_PLAN.md](STAGE2_PLAN.md) | Stage 2, the agility round with character: the agility bar, the learned controller R5, Colab training; owner decisions P28–P29 |
+| [stage1/runs/2026-11-10-speed/STAGE1B_SPEED.md](stage1/runs/2026-11-10-speed/STAGE1B_SPEED.md) | Stage 1b report: speed with today's drives, a faster knee, servo delay |
+| [stage1/runs/2026-11-08/STAGE1_PROBE.md](stage1/runs/2026-11-08/STAGE1_PROBE.md) | Stage 1 report: the closed-loop probe of the three picks, with the 60 cm gap map (corrected 10 Nov) |
+| [STAGE1_PLAN.md](STAGE1_PLAN.md), [STAGE1B_PLAN.md](STAGE1B_PLAN.md) | Stage 1 and 1b plans with their numbered decisions |
+| `stage2/look/`, `stage2/x/`, `stage2/research/` | Stage 2 so far: the look ladder's screen and clips, the expressive head (`-X`), the research notes |
+| [tools/README.md](tools/README.md) | Environment setup, restoring the git-ignored inputs in a fresh clone, keep-alive and page tools |
 | [ROUND2_REVIEW.md](ROUND2_REVIEW.md) | Round-two findings with the overnight refinement: the recommended bodies, the scorecard, the size study, materials and power, and the owner's questions |
 | [round2/refine/MATERIALS.md](round2/refine/MATERIALS.md) | Materials (structure, coverings, foot pads) and power (battery, tether, the 3–4 ft robot), sourced and simulated |
 | [ROUND1_REVIEW.md](ROUND1_REVIEW.md) | Round-one findings, comparison plates and the preference questions |
@@ -50,7 +64,17 @@ designlab/            the generator and screens (Python package)
   report2.py          round-two tables (round2/TABLES.md) and data (round2/review_data.json)
   shortlist.py        round-two scorecard (version 2) and the bodies proposed for verification (round2/SHORTLIST.md)
   whatif.py, sizestudy.py, refine.py   75 cm what-if, size study, overnight refinement (levers, materials, power)
+  gaittune.py         the animal-like walk tuned within fixed drives (F25)
+  stage1/             Stage 1 and 1b: plant (servo envelope, delay, linkage), estimator, tracker (control.py), gym
+                      env, CMA-ES fit (tune.py), speed fit (speedfit.py), PPO (train.py), panels, margin ledger, gates,
+                      report; python -m designlab.stage1 --help
+  stage2/             Stage 2: look ladder (look.py), Stage 0 screen (screen.py), clips (clips.py), clip metrics
+                      (motion.py), look review page (look_page.py)
   data/               catalogs + raw sourced research records (URLs, access dates)
+stage1/runs/          Stage 1 (2026-11-08) and Stage 1b (2026-11-10-speed) records, tables and reports
+stage2/               Stage 2: look/ (ladder records, screen, clips), x/ (the expressive head), research/
+tests/                pytest suite (conftest.py sets MUJOCO_GL=disable; see LESSONS_LEARNED.md §4.5)
+tools/                environment setup, input restore, keep-alive, memory guard, report page and screenshot tools
 round1/
   stage_a/            one compact JSON per candidate + summary.csv/json
   review/             review set: mjcf/ (ledgers; reference-size MJCF), screening JSON and PNG, plates
@@ -66,16 +90,25 @@ round2/
 
 ## Reproduce
 
-Requires Python ≥ 3.11 and the packages below. MuJoCo 3.10.0 is the repository's canonical
-version. Rendering needs an offscreen OpenGL (OSMesa: `apt-get install libosmesa6`, or EGL on
-a GPU).
+Rounds one and two need Python ≥ 3.11 with MuJoCo 3.10.0 (the repository's canonical version), numpy, scipy,
+pillow and matplotlib. Rendering needs an offscreen OpenGL (OSMesa: `apt-get install libosmesa6`, or EGL on a GPU).
+Stage 1 onward was run on Python 3.13.18 with the versions pinned in `tools/requirements-study.txt` (torch,
+stable-baselines3 and gymnasium included); `tools/setup_venv.sh` builds that environment. A fresh clone lacks the
+git-ignored model files and arrays the Stage 1 and 2 records hash: restore them with `tools/restore_inputs.py`
+before running anything from Stage 1 on (`tools/README.md`). Run tests and training with `MUJOCO_GL=disable`, and
+render only in a separate process (`LESSONS_LEARNED.md` §4.5).
 
 ```bash
-cd hardware/trex_form_study
-python -m venv .venv
-. .venv/bin/activate
-pip install "mujoco==3.10.0" numpy scipy pillow matplotlib
+bash hardware/trex_form_study/tools/setup_venv.sh
 ```
+
+```bash
+cd hardware/trex_form_study && . .venv/bin/activate
+```
+
+The commands below, from round one to the overnight refinement, run from `hardware/trex_form_study`. Stage 1, 1b and 2
+commands are in their plans and run scripts (`STAGE1_PLAN.md`, `stage1/runs/2026-11-10-speed/run_speed_round.sh`,
+`stage2/x/run_x.sh`, `python -m designlab.stage1 --help`, `python -m designlab.stage2.look --help`).
 
 ```bash
 python -m designlab.cli build 100-M-S-10 --out /tmp/models
@@ -177,6 +210,7 @@ suffixes `-anat`, `-compact`, `-bighead` (proportions), `-side`, `-serial` (leg 
 
 * Masses, inertias, loads, powers, runtimes and costs come from models built from sourced part data and stated rules. **None is measured.** Every ledger row carries its basis (`sourced` / `derived` / `estimate`).
 * The reference walk is a prescribed trajectory for sizing. It is not a controller and does not show that any controller can walk the robot.
+* Stage 1 and 1b controllers (the fitted tracker and small PPO runs) are simulation probes of the picks, with ideal servos behind a torque-speed envelope and a modelled delay. Their verdicts are simulation evidence about those bodies and controllers, not hardware results, and no controller has been chosen for the robot.
 * Renders show the generated models themselves. No concept art is used.
 * Physical construction, simulation evidence and hardware measurements are kept separate. Rounds one and two contain only the first two.
 * The turning, carpet and behavior-envelope screens check prescribed motions and simple balance models against the selected drives with the sizing margins. Passing them does not show that a controller can produce the behavior; failing one shows that the prescribed motion exceeds that body and those drives at those margins, not that no controller can.

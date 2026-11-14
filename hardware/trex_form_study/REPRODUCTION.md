@@ -3,6 +3,12 @@
 Run on 2026-11-07. The question was which committed results regenerate from a clean checkout of
 each PR head, and which do not.
 
+*Later environment (note added 14 Nov 2026):* this audit is of the main repository's PRs as they stood on 7 Nov. The
+form study's own environment since Stage 1 (Python 3.13.18, MuJoCo 3.10.0, numpy 2.5.4, torch 2.15.0,
+stable-baselines3 2.9.2, gymnasium 1.4.0 and the rest) is pinned in `tools/requirements-study.txt`. How a fresh clone
+restores the study's git-ignored inputs is in `tools/README.md`, and why tests run with `MUJOCO_GL=disable` is in
+`LESSONS_LEARNED.md` §4.5.
+
 ## Short answer
 
 * **#662 (e103f7ff):** every mechanical and engineering result regenerates. Numbers match to
