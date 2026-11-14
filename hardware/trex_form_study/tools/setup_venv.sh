@@ -3,7 +3,7 @@
 # an import check. Run it from anywhere:
 #
 #   bash hardware/trex_form_study/tools/setup_venv.sh [VENV_DIR]     # default VENV_DIR: hardware/trex_form_study/.venv
-#   TORCH=cpu bash hardware/trex_form_study/tools/setup_venv.sh      # CPU-only torch (about 1 GB instead of 6 GB)
+#   TORCH=cpu bash hardware/trex_form_study/tools/setup_venv.sh      # CPU-only torch (1.4 GB in all instead of ~6)
 #   PYTHON=/usr/local/bin/python3.13 bash ...                        # choose the interpreter (default: python3)
 #
 # The default VENV_DIR is git-ignored (.venv/) and, unlike a cloud session's scratchpad, sits on the checkout's own
@@ -11,7 +11,7 @@
 # record you make with it. Then, from hardware/trex_form_study:
 #
 #   export PY=$PWD/.venv/bin/python
-#   MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -q -p no:cacheprovider tests
+#   MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -p no:cacheprovider tests    # no -q: pyproject.toml adds it
 #
 # MUJOCO_GL=disable matters: with libOSMesa loaded, torch segfaults while building a stable-baselines3 policy
 # (tests/conftest.py; LESSONS_LEARNED.md). Render only in a separate process with MUJOCO_GL=osmesa.

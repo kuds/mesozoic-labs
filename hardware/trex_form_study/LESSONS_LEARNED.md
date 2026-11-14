@@ -51,8 +51,8 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
 ### 2.3 Where it stops
 
 - **Speed.**
-  - At 60 cm the brisk walk (0.315 m/s) is not shown. The Tapered speed refit came closest, one success short: 19
-    of 20 up and 17 meeting every limit.
+  - At 60 cm the brisk walk (0.315 m/s) is not shown. The Tapered speed refit came closest, one fall short of shown:
+    19 of 20 up and 17 meeting every limit.
   - The animal-like walk (Froude 0.05, 0.446 m/s) stays up in 16 of 20 after the refit, but about 3 % short of its
     target speed.
   - At 75 cm the brisk walk (0.35 m/s) stays up in every Stage 1 episode and misses only the tail servo's planning
@@ -119,7 +119,45 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
   of reach.
 - The cost to watch is the 60 cm neck's heat budget (§2.4; `stage2/x/X_COSTS.md`).
 
-### 2.6 What none of this shows
+### 2.6 The look
+
+- **The Stage 1 reference walk looks like a ZMP humanoid's, because it was built to size drives.**
+  - The hips stay at a constant height and the trunk stays level and rigid while it slides sideways.
+  - The feet lift and land flat.
+  - Slow walks stretch the swing into slow motion.
+  - The head nod and the tail swing run on the stride clock (`stage2/research/research_look.md`, Bottom line 1).
+  - This is the "ASIMO-like" look the owner does not want.
+- **Stage 2 adds the look as options** in `designlab/gait.py`, with today's walk unchanged by default. They are the
+  features of `research_look.md` §3.1:
+  - F8 imposes no trunk pitch.
+  - F11 and F12, for turns, starts and stops, are deferred (`look.DEFERRED`).
+  - The variant ladder V0–V6 (with extras) runs at three speeds per body.
+- **The renders are kinematic.** Whether a feature reads as alive is the owner's call at L1, with viewers' ratings.
+  What each feature costs is in the Stage 0 screen (`stage2/look/SCREEN.md`).
+
+### 2.7 The owner's questions of 10 Nov and where their answers stand
+
+These were answered in conversation after the Stage 1b report; P28 and `STAGE2_PLAN.md` record what followed.
+
+- **Why does the 75 cm body do slightly better?**
+  - At the same speed its legs move more slowly for their size: a lower Froude number.
+  - It also carries the targeted drives and bigger feet (F19, F23, F24).
+- **What can be shown robustly today?** The nominal walk, the target turns, starting and stopping, and standing shoves,
+  all at no servo delay (§2.2). Delay may undo them (§2.3).
+- **Would a plain torso or a 100 cm body help?**
+  - In the model, the T. rex layout is not what stops the robot. The controller, delay and grip do (§2.4).
+  - Size buys speed only as √H.
+  - Larger sizes wait until much later (P28).
+- **How fast could a robot this size walk?**
+  - The Stage 0 screen prices 0.40 m/s and the Froude 0.05 walks (0.446 / 0.496 m/s) within every leg drive limit,
+    except the 75 cm V6's knee speed (`stage2/look/SCREEN.md`).
+  - Whether a controller can walk them is Stage 2's question, and so far it is unanswered.
+- **"Controller" means the software** (the fitted tracker or a learned policy running on the robot's computer), not
+  the motor drivers.
+- **The decision.** Character (the powered head and tail) with some agility, not speed (P28). The bar is a walk at 0.4
+  m/s, a 90° turn in about 2 s, a nudge while walking and a stop within a step or two, judged at 10 ms of delay (P29).
+
+### 2.8 What none of this shows
 
 - **Simulation only.** The servos are ideal PD behind a torque-speed envelope and a delay. There is no backlash, no
   heat beyond A1 and no fall damage.
@@ -254,7 +292,8 @@ tests.
 - **Disk is a fixed allowance per session.**
   - On 14 Nov about 4 GB were free, beside a 6 GB venv (torch from PyPI brings its CUDA libraries) and 1.2 GB of
     traces.
-  - `TORCH=cpu bash tools/setup_venv.sh` installs the CPU-only wheel of the same torch instead.
+  - `TORCH=cpu bash tools/setup_venv.sh` installs the CPU-only wheel of the same torch instead: 1.4 GB in all, built
+    in 50 s, and it passed `tests/test_stage1_ppo.py` (36 of 36).
   - Deleting files frees space at once.
 
 ### 4.5 MuJoCo, OpenGL and torch
@@ -273,10 +312,12 @@ tests.
 
 ### 4.6 Tests, git and the tools
 
-- **The full suite is `MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -q -p no:cacheprovider tests` from this
-  directory.** On 11 Nov it gave 575 passed, 107 skipped and 0 failed in the main checkout. Write pytest's own exit
-  code into the log (`; echo PYTEST_EXIT=$? >> LOG`). A pass was once reported from a wrapper's exit code; it was
-  corrected the same day.
+- **The full suite is `MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -p no:cacheprovider tests` from this
+  directory.** On 11 Nov it gave 575 passed, 107 skipped and 0 failed in the main checkout.
+  - Do not add `-q`. The repository's `pyproject.toml` already sets `addopts = "--tb=short -q"`, and a second `-q`
+    hides pytest's "N passed, M skipped" line.
+  - Write pytest's own exit code into the log (`; echo PYTEST_EXIT=$? >> LOG`). A pass was once reported from a
+    wrapper's exit code; it was corrected the same day.
 - **The Bash tool's safety check can refuse a long heredoc that contains `rm`.** Write the script to a file with the
   Write tool and run the file. Use Edit or Python, not sed, for multi-line edits.
 - **A stop hook requires every turn to end with all changes committed and pushed.**

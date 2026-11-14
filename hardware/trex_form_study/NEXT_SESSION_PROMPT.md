@@ -50,8 +50,9 @@ FIRST STEPS
    - Then the same with check. It must report every input matching.
    - If any restored sha256 differs from its record, stop and report it to the owner: every record key hashes these
      files.
-   - Then the full suite: MUJOCO_GL=disable PYTHONPATH=. .venv/bin/python -m pytest -q -p no:cacheprovider tests >
+   - Then the full suite: MUJOCO_GL=disable PYTHONPATH=. .venv/bin/python -m pytest -p no:cacheprovider tests >
      LOG 2>&1; echo PYTEST_EXIT=$? >> LOG
+   - Do not add -q: the repository's pyproject.toml already adds it, and a second one hides the counts line.
    - Compare the counts with tools/README.md.
 3. Keep-alive.
    - Before any job longer than a few minutes, start tools/keepalive.sh with the Bash tool's run_in_background, and
