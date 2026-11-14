@@ -1,0 +1,1551 @@
+{
+  "study": "stage2_jetson_orin_plem_and_speed",
+  "script": "stage2/jetson_plem/jetson_plem_study.py",
+  "script_sha256": "500e48ffb12eadca5393c4a963fb2f31803d95b90d041c7e77797bb280424dc2",
+  "wall_s": 313.05,
+  "rules": {
+    "baseline_reproduction": "refs.source rebuilds each body from its Round 2 record and checks xml_sha256 against the record and refs.SHA256_PREFIX; sizing.requirements (with refine._init settings) reproduces the record's mass, single-support holds, double-support static torques, and nominal walk RMS requirements within 1e-9 relative.",
+    "jetson_packaging_and_power": "Replaces selection['compute'] with catalog part nvidia_orin_nano_super_devkit (103 x 90.5 x 34.77 mm, 0.174 kg) inside pipeline.build_candidate and checks clearance._same_body_overlaps at home, metrics.measure exterior shell dimensions, and 6S->12V buck regulation (pololu_d36v50f12 for 15 W mode, pololu_d42v110f12 for 25 W Super mode, eta=0.93). Partial PLEM replaces the 4.0 W Teensy MCU bridge with PREEMPT_RT + isolated Jetson CPU 5 + USB-CAN FD (pcan_usb_fd, 0.5 W) + minimal pelvis IMU/E-stop watchdog (1.5 W).",
+    "speed_ceilings": "Evaluates Stage 0 Standard V0 (sizing.NOMINAL / sizing.BRISK / envelope.FAST + Froude scaling) against F25-style hard-floor tuned gait + F9 counter-phased tail (duty 0.55 at >=0.36 m/s, lift 0.081 H, crouch 0.07 H at 60 cm / 0.05 H at 75 cm, tail_amp -0.125 rad, stride_rel anchored at GAIT_TUNE.md 0.713 / 0.863) across 6S voltages (25.2, 24.0, 22.2, 21.0 V), screen.passive_loads (A1 thermal ratios), single-support stance friction mu_req, and mid-swing contact-pad clearance (>= 0.04 H).",
+    "latency_and_stopping": "Combines Round 2 chest VL53L5CX ToF floor horizon (15 Hz frame rate, 2-frame worst-case / 1-frame mean debounce) and skull OAK-D near-floor blind zone with transitions.py integer stride-boundary commitment and 1-foot braking deceleration across Pi 5 + Hailo (175-200 ms host latency) vs Jetson TensorRT + Partial PLEM (45-60 ms host latency), and probes closed-loop survival at 0.400 m/s under speedfit.servo_delay (0, 2, 6, 10 ms)."
+  },
+  "bodies": {
+    "60-N-T-10": {
+      "body": "60-N-T-10",
+      "refine_case": "narrow_carpet_60",
+      "H_m": 0.40469,
+      "B_m": 0.40469,
+      "wall_s": 312.54,
+      "baseline_reproduction": {
+        "xml_matches_record": true,
+        "xml_matches_stage1_plan": true,
+        "n_checks": 25,
+        "max_rel_diff": 6.127713896852576e-15,
+        "all_match": true,
+        "baseline_exterior_mm": {
+          "crown_mm": 600.72,
+          "torso_width_mm": 126.84,
+          "hardware_width_mm": 252.38,
+          "thigh_width_mm": 274.37,
+          "max_width_mm": 274.37,
+          "com_xyz_mm": [
+            33.91,
+            0.03,
+            341.69
+          ]
+        },
+        "baseline_mass_kg": 10.811683,
+        "baseline_drives_w": 48.978,
+        "baseline_total_w": 69.319,
+        "baseline_runtime_min": 47.56
+      },
+      "jetson_packaging": {
+        "drop_in_devkit": {
+          "compute_part": "nvidia_orin_nano_super_devkit",
+          "pdb_length_mm": 110.0,
+          "mass_kg": 10.8918,
+          "added_mass_over_pi5_g": 80.1,
+          "exterior_mm": {
+            "crown_mm": 600.72,
+            "torso_width_mm": 126.84,
+            "hardware_width_mm": 252.38,
+            "thigh_width_mm": 274.37,
+            "max_width_mm": 274.37,
+            "com_xyz_mm": [
+              35.2,
+              0.03,
+              342.17
+            ]
+          },
+          "max_chest_profile_flare_mm": 21.77,
+          "compute_pos_trunk_mm": [
+            252.1,
+            0.0,
+            -4.47
+          ],
+          "pdb_pos_trunk_mm": [
+            117.81,
+            0.0,
+            -36.22
+          ],
+          "same_body_overlap_count": 1,
+          "same_body_overlaps": [
+            {
+              "geoms": [
+                "hw_left_hip_roll_motor",
+                "hw_power_distribution"
+              ],
+              "gap_mm": -6.95
+            }
+          ],
+          "min_pdb_gap_mm": -6.95,
+          "min_pdb_pair": [
+            "hw_power_distribution",
+            "hw_left_hip_roll_motor"
+          ]
+        },
+        "shortened_94mm_pdb_fix": {
+          "compute_part": "nvidia_orin_nano_super_devkit",
+          "pdb_length_mm": 94.0,
+          "mass_kg": 10.8911,
+          "added_mass_over_pi5_g": 79.4,
+          "exterior_mm": {
+            "crown_mm": 600.72,
+            "torso_width_mm": 126.84,
+            "hardware_width_mm": 252.38,
+            "thigh_width_mm": 274.37,
+            "max_width_mm": 274.37,
+            "com_xyz_mm": [
+              36.0,
+              0.03,
+              342.29
+            ]
+          },
+          "max_chest_profile_flare_mm": 21.77,
+          "compute_pos_trunk_mm": [
+            252.1,
+            0.0,
+            -4.47
+          ],
+          "pdb_pos_trunk_mm": [
+            138.45,
+            0.0,
+            -34.14
+          ],
+          "same_body_overlap_count": 0,
+          "same_body_overlaps": [],
+          "min_pdb_gap_mm": 10.0,
+          "min_pdb_pair": [
+            "hw_power_distribution",
+            "hw_compute_tray"
+          ]
+        }
+      },
+      "power_and_regulators": {
+        "regulators": {
+          "mode_15w": {
+            "id": "pololu_d36v50f12",
+            "max_vin_v": 50.0,
+            "vout_v": 12.0,
+            "max_power_w": 54.0,
+            "mass_g": 7.0,
+            "price_usd": 39.95,
+            "clears_6s_full_25_2v": true,
+            "load_fraction_at_18w_peak": 0.333
+          },
+          "mode_25w": {
+            "id": "pololu_d42v110f12",
+            "max_vin_v": 60.0,
+            "vout_v": 12.0,
+            "max_power_w": 108.0,
+            "mass_g": 15.0,
+            "price_usd": 69.95,
+            "clears_6s_full_25_2v": true,
+            "load_fraction_at_28_5w_peak": 0.264
+          },
+          "usb_can_fd": {
+            "id": "pcan_usb_fd",
+            "mass_g": 68.0,
+            "power_typ_w": 0.51,
+            "price_usd": 368
+          }
+        },
+        "stacks": {
+          "pi5_hailo_teensy_r2": {
+            "description": "Round 2 baseline: Pi 5 + AI HAT+ (9.5 W) + Teensy 4.1 MCU bridge (4.0 W)",
+            "regulator_id": null,
+            "drives_w": 48.98,
+            "aux_input_w": 20.34,
+            "total_walking_w": 69.32,
+            "net_mass_delta_g": 0.0,
+            "runtime_6s_3300_min": 47.56,
+            "runtime_6s_5000_min": 72.06,
+            "meets_20min_spec_on_3300": true
+          },
+          "jetson_15w_teensy": {
+            "description": "Jetson Orin Nano Super @ 15 W mode (+2.5 W NVMe/fan) + Teensy 4.1 bridge (4.0 W)",
+            "regulator_id": "pololu_d36v50f12",
+            "drives_w": 48.98,
+            "aux_input_w": 28.36,
+            "total_walking_w": 77.34,
+            "net_mass_delta_g": 81.0,
+            "runtime_6s_3300_min": 42.63,
+            "runtime_6s_5000_min": 64.58,
+            "meets_20min_spec_on_3300": true
+          },
+          "jetson_15w_partial_plem": {
+            "description": "Jetson Orin Nano Super @ 15 W mode (+2.5 W NVMe/fan) + Partial PLEM RT CPU 5 + USB-CAN FD (2.0 W)",
+            "regulator_id": "pololu_d36v50f12",
+            "drives_w": 48.98,
+            "aux_input_w": 26.09,
+            "total_walking_w": 75.07,
+            "net_mass_delta_g": 17.0,
+            "runtime_6s_3300_min": 43.92,
+            "runtime_6s_5000_min": 66.54,
+            "meets_20min_spec_on_3300": true
+          },
+          "jetson_25w_partial_plem": {
+            "description": "Jetson Orin Nano Super @ 25 W Super mode (+3.5 W NVMe/fan) + Partial PLEM RT CPU 5 + USB-CAN FD (2.0 W)",
+            "regulator_id": "pololu_d42v110f12",
+            "drives_w": 48.98,
+            "aux_input_w": 37.92,
+            "total_walking_w": 86.9,
+            "net_mass_delta_g": 25.0,
+            "runtime_6s_3300_min": 37.94,
+            "runtime_6s_5000_min": 57.48,
+            "meets_20min_spec_on_3300": true
+          }
+        }
+      },
+      "speed_and_latency": {
+        "stage0_standard": [
+          {
+            "speed_ms": 0.2183,
+            "froude": 0.012,
+            "duty": 0.6,
+            "stride_rel": 0.55,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.23,
+            "min_joint_margin_rad": 0.1821,
+            "worst_group_24v": "neck",
+            "worst_planning_ratio_24v": 0.7615,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.4859,
+                "planning_speed_ratio": 0.5588,
+                "over_no_load": 0.3633,
+                "knee_planning_ratio": 0.5588
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.4859,
+                "planning_speed_ratio": 0.5588,
+                "over_no_load": 0.3633,
+                "knee_planning_ratio": 0.5588
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5253,
+                "planning_speed_ratio": 0.6041,
+                "over_no_load": 0.3928,
+                "knee_planning_ratio": 0.6041
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5553,
+                "planning_speed_ratio": 0.6386,
+                "over_no_load": 0.4152,
+                "knee_planning_ratio": 0.6386
+              }
+            },
+            "tail_cont_ratio_total": 0.6838,
+            "neck_cont_ratio_total": 0.8182,
+            "mu_req_max": 0.4807
+          },
+          {
+            "speed_ms": 0.315,
+            "froude": 0.025,
+            "duty": 0.58,
+            "stride_rel": 0.62,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 22.67,
+            "min_joint_margin_rad": 0.2174,
+            "worst_group_24v": "neck",
+            "worst_planning_ratio_24v": 0.7662,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.6535,
+                "planning_speed_ratio": 0.7515,
+                "over_no_load": 0.4886,
+                "knee_planning_ratio": 0.7515
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.6535,
+                "planning_speed_ratio": 0.7515,
+                "over_no_load": 0.4886,
+                "knee_planning_ratio": 0.7515
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7065,
+                "planning_speed_ratio": 0.8125,
+                "over_no_load": 0.5283,
+                "knee_planning_ratio": 0.8125
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7469,
+                "planning_speed_ratio": 0.8589,
+                "over_no_load": 0.5585,
+                "knee_planning_ratio": 0.8589
+              }
+            },
+            "tail_cont_ratio_total": 0.7951,
+            "neck_cont_ratio_total": 0.8332,
+            "mu_req_max": 0.754
+          },
+          {
+            "speed_ms": 0.4,
+            "froude": 0.0403,
+            "duty": 0.567,
+            "stride_rel": 0.7423,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 23.63,
+            "min_joint_margin_rad": 0.225,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.8649,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7521,
+                "planning_speed_ratio": 0.8649,
+                "over_no_load": 0.5623,
+                "knee_planning_ratio": 0.8649
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7521,
+                "planning_speed_ratio": 0.8649,
+                "over_no_load": 0.5623,
+                "knee_planning_ratio": 0.8649
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.813,
+                "planning_speed_ratio": 0.935,
+                "over_no_load": 0.6079,
+                "knee_planning_ratio": 0.935
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8595,
+                "planning_speed_ratio": 0.9884,
+                "over_no_load": 0.6427,
+                "knee_planning_ratio": 0.9884
+              }
+            },
+            "tail_cont_ratio_total": 0.8298,
+            "neck_cont_ratio_total": 0.8406,
+            "mu_req_max": 0.9644
+          },
+          {
+            "speed_ms": 0.4455,
+            "froude": 0.05,
+            "duty": 0.56,
+            "stride_rel": 0.8,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 23.05,
+            "min_joint_margin_rad": 0.2292,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.9293,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8081,
+                "planning_speed_ratio": 0.9293,
+                "over_no_load": 0.6042,
+                "knee_planning_ratio": 0.9293
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8081,
+                "planning_speed_ratio": 0.9293,
+                "over_no_load": 0.6042,
+                "knee_planning_ratio": 0.9293
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8736,
+                "planning_speed_ratio": 1.0046,
+                "over_no_load": 0.6532,
+                "knee_planning_ratio": 1.0046
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9235,
+                "planning_speed_ratio": 1.062,
+                "over_no_load": 0.6905,
+                "knee_planning_ratio": 1.062
+              }
+            },
+            "tail_cont_ratio_total": 0.8496,
+            "neck_cont_ratio_total": 0.8432,
+            "mu_req_max": 1.092
+          },
+          {
+            "speed_ms": 0.52,
+            "froude": 0.06811,
+            "duty": 0.56,
+            "stride_rel": 0.8669,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 23.05,
+            "min_joint_margin_rad": 0.2384,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 1.0774,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9369,
+                "planning_speed_ratio": 1.0774,
+                "over_no_load": 0.7006,
+                "knee_planning_ratio": 1.0774
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9369,
+                "planning_speed_ratio": 1.0774,
+                "over_no_load": 0.7006,
+                "knee_planning_ratio": 1.0774
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0129,
+                "planning_speed_ratio": 1.1648,
+                "over_no_load": 0.7574,
+                "knee_planning_ratio": 1.1648
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0707,
+                "planning_speed_ratio": 1.2313,
+                "over_no_load": 0.8006,
+                "knee_planning_ratio": 1.2313
+              }
+            },
+            "tail_cont_ratio_total": 0.8923,
+            "neck_cont_ratio_total": 0.8541,
+            "mu_req_max": 1.3929
+          },
+          {
+            "speed_ms": 0.58,
+            "froude": 0.08474,
+            "duty": 0.56,
+            "stride_rel": 0.9176,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 23.05,
+            "min_joint_margin_rad": 0.2445,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 1.2038,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0468,
+                "planning_speed_ratio": 1.2038,
+                "over_no_load": 0.7827,
+                "knee_planning_ratio": 1.2038
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0468,
+                "planning_speed_ratio": 1.2038,
+                "over_no_load": 0.7827,
+                "knee_planning_ratio": 1.2038
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.1317,
+                "planning_speed_ratio": 1.3014,
+                "over_no_load": 0.8462,
+                "knee_planning_ratio": 1.3014
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.1963,
+                "planning_speed_ratio": 1.3758,
+                "over_no_load": 0.8946,
+                "knee_planning_ratio": 1.3758
+              }
+            },
+            "tail_cont_ratio_total": 0.9252,
+            "neck_cont_ratio_total": 0.862,
+            "mu_req_max": 1.6732
+          }
+        ],
+        "stage0_tuned_f9": [
+          {
+            "speed_ms": 0.218,
+            "froude": 0.01197,
+            "duty": 0.58,
+            "stride_rel": 0.6207,
+            "crouch": 0.07,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 16.7,
+            "min_joint_margin_rad": 0.1558,
+            "worst_group_24v": "neck",
+            "worst_planning_ratio_24v": 0.7606,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.3917,
+                "planning_speed_ratio": 0.4505,
+                "over_no_load": 0.2929,
+                "knee_planning_ratio": 0.387
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.3917,
+                "planning_speed_ratio": 0.4505,
+                "over_no_load": 0.2929,
+                "knee_planning_ratio": 0.387
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.4235,
+                "planning_speed_ratio": 0.487,
+                "over_no_load": 0.3167,
+                "knee_planning_ratio": 0.4183
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.4477,
+                "planning_speed_ratio": 0.5149,
+                "over_no_load": 0.3348,
+                "knee_planning_ratio": 0.4422
+              }
+            },
+            "tail_cont_ratio_total": 0.367,
+            "neck_cont_ratio_total": 0.8119,
+            "mu_req_max": 0.3073
+          },
+          {
+            "speed_ms": 0.315,
+            "froude": 0.02499,
+            "duty": 0.58,
+            "stride_rel": 0.6207,
+            "crouch": 0.07,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 16.7,
+            "min_joint_margin_rad": 0.2113,
+            "worst_group_24v": "neck",
+            "worst_planning_ratio_24v": 0.766,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.5507,
+                "planning_speed_ratio": 0.6333,
+                "over_no_load": 0.4118,
+                "knee_planning_ratio": 0.5499
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.5507,
+                "planning_speed_ratio": 0.6333,
+                "over_no_load": 0.4118,
+                "knee_planning_ratio": 0.5499
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.5953,
+                "planning_speed_ratio": 0.6846,
+                "over_no_load": 0.4451,
+                "knee_planning_ratio": 0.5945
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.6293,
+                "planning_speed_ratio": 0.7237,
+                "over_no_load": 0.4706,
+                "knee_planning_ratio": 0.6285
+              }
+            },
+            "tail_cont_ratio_total": 0.4363,
+            "neck_cont_ratio_total": 0.8339,
+            "mu_req_max": 0.5462
+          },
+          {
+            "speed_ms": 0.4,
+            "froude": 0.0403,
+            "duty": 0.55,
+            "stride_rel": 0.6829,
+            "crouch": 0.07,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 16.39,
+            "min_joint_margin_rad": 0.2299,
+            "worst_group_24v": "neck",
+            "worst_planning_ratio_24v": 0.7709,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.63,
+                "planning_speed_ratio": 0.7245,
+                "over_no_load": 0.4711,
+                "knee_planning_ratio": 0.6172
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.63,
+                "planning_speed_ratio": 0.7245,
+                "over_no_load": 0.4711,
+                "knee_planning_ratio": 0.6172
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.681,
+                "planning_speed_ratio": 0.7832,
+                "over_no_load": 0.5092,
+                "knee_planning_ratio": 0.6673
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.72,
+                "planning_speed_ratio": 0.828,
+                "over_no_load": 0.5383,
+                "knee_planning_ratio": 0.7054
+              }
+            },
+            "tail_cont_ratio_total": 0.4904,
+            "neck_cont_ratio_total": 0.8469,
+            "mu_req_max": 0.6833
+          },
+          {
+            "speed_ms": 0.446,
+            "froude": 0.0501,
+            "duty": 0.55,
+            "stride_rel": 0.7133,
+            "crouch": 0.07,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 16.39,
+            "min_joint_margin_rad": 0.2377,
+            "worst_group_24v": "hip_pitch",
+            "worst_planning_ratio_24v": 0.8038,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.6989,
+                "planning_speed_ratio": 0.8038,
+                "over_no_load": 0.5226,
+                "knee_planning_ratio": 0.6837
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.6989,
+                "planning_speed_ratio": 0.8038,
+                "over_no_load": 0.5226,
+                "knee_planning_ratio": 0.6837
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.7556,
+                "planning_speed_ratio": 0.869,
+                "over_no_load": 0.565,
+                "knee_planning_ratio": 0.7392
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.7988,
+                "planning_speed_ratio": 0.9186,
+                "over_no_load": 0.5973,
+                "knee_planning_ratio": 0.7814
+              }
+            },
+            "tail_cont_ratio_total": 0.5244,
+            "neck_cont_ratio_total": 0.8576,
+            "mu_req_max": 0.8089
+          },
+          {
+            "speed_ms": 0.52,
+            "froude": 0.06811,
+            "duty": 0.55,
+            "stride_rel": 0.7585,
+            "crouch": 0.07,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 16.39,
+            "min_joint_margin_rad": 0.2477,
+            "worst_group_24v": "hip_pitch",
+            "worst_planning_ratio_24v": 0.9317,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.8102,
+                "planning_speed_ratio": 0.9317,
+                "over_no_load": 0.6058,
+                "knee_planning_ratio": 0.7917
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.8102,
+                "planning_speed_ratio": 0.9317,
+                "over_no_load": 0.6058,
+                "knee_planning_ratio": 0.7917
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.8759,
+                "planning_speed_ratio": 1.0073,
+                "over_no_load": 0.655,
+                "knee_planning_ratio": 0.8559
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.926,
+                "planning_speed_ratio": 1.0648,
+                "over_no_load": 0.6924,
+                "knee_planning_ratio": 0.9048
+              }
+            },
+            "tail_cont_ratio_total": 0.5825,
+            "neck_cont_ratio_total": 0.8714,
+            "mu_req_max": 1.0348
+          },
+          {
+            "speed_ms": 0.58,
+            "froude": 0.08474,
+            "duty": 0.55,
+            "stride_rel": 0.7923,
+            "crouch": 0.07,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 16.39,
+            "min_joint_margin_rad": 0.2542,
+            "worst_group_24v": "hip_pitch",
+            "worst_planning_ratio_24v": 1.0358,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.9007,
+                "planning_speed_ratio": 1.0358,
+                "over_no_load": 0.6735,
+                "knee_planning_ratio": 0.8804
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.9007,
+                "planning_speed_ratio": 1.0358,
+                "over_no_load": 0.6735,
+                "knee_planning_ratio": 0.8804
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.9738,
+                "planning_speed_ratio": 1.1198,
+                "over_no_load": 0.7281,
+                "knee_planning_ratio": 0.9518
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 1.0294,
+                "planning_speed_ratio": 1.1838,
+                "over_no_load": 0.7697,
+                "knee_planning_ratio": 1.0062
+              }
+            },
+            "tail_cont_ratio_total": 0.6323,
+            "neck_cont_ratio_total": 0.8808,
+            "mu_req_max": 1.2352
+          }
+        ],
+        "closed_loop_latency_probe_040ms": {
+          "controller": "R2s",
+          "results": {
+            "0ms": {
+              "delay_ms": 0,
+              "survived": 3,
+              "total": 3,
+              "rate": 1.0
+            },
+            "2ms": {
+              "delay_ms": 2,
+              "survived": 3,
+              "total": 3,
+              "rate": 1.0
+            },
+            "6ms": {
+              "delay_ms": 6,
+              "survived": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "10ms": {
+              "delay_ms": 10,
+              "survived": 0,
+              "total": 3,
+              "rate": 0.0
+            }
+          }
+        },
+        "stopping_horizon": {
+          "camera_near_floor_ahead_of_toes_m": 2.3956,
+          "tof_floor_window_ahead_of_toes_m": [
+            0.25,
+            0.9428
+          ],
+          "blind_gap_tof_to_camera_m": 1.4528,
+          "standoff_m": 0.1,
+          "usable_tof_stopping_budget_m": 0.8428,
+          "max_one_foot_decel_ms2": 1.2499,
+          "max_tof_safe_speed_pi5_worst_ms": 0.485,
+          "max_tof_safe_speed_jetson_plem_worst_ms": 0.55,
+          "max_tof_safe_speed_pi5_mean_ms": 0.71,
+          "max_tof_safe_speed_jetson_plem_mean_ms": 0.84
+        }
+      }
+    },
+    "75-M-H-10": {
+      "body": "75-M-H-10",
+      "refine_case": "feet_75",
+      "H_m": 0.50185,
+      "B_m": 0.50185,
+      "wall_s": 224.71,
+      "baseline_reproduction": {
+        "xml_matches_record": true,
+        "xml_matches_stage1_plan": true,
+        "n_checks": 25,
+        "max_rel_diff": 1.5744300403914596e-14,
+        "all_match": true,
+        "baseline_exterior_mm": {
+          "crown_mm": 750.8,
+          "torso_width_mm": 201.16,
+          "hardware_width_mm": 304.68,
+          "thigh_width_mm": 296.16,
+          "max_width_mm": 313.44,
+          "com_xyz_mm": [
+            67.07,
+            0.02,
+            435.9
+          ]
+        },
+        "baseline_mass_kg": 14.854912,
+        "baseline_drives_w": 69.425,
+        "baseline_total_w": 89.766,
+        "baseline_runtime_min": 36.73
+      },
+      "jetson_packaging": {
+        "drop_in_devkit": {
+          "compute_part": "nvidia_orin_nano_super_devkit",
+          "pdb_length_mm": 110.0,
+          "mass_kg": 14.9336,
+          "added_mass_over_pi5_g": 78.7,
+          "exterior_mm": {
+            "crown_mm": 750.8,
+            "torso_width_mm": 201.16,
+            "hardware_width_mm": 304.68,
+            "thigh_width_mm": 296.16,
+            "max_width_mm": 313.44,
+            "com_xyz_mm": [
+              68.75,
+              0.02,
+              436.34
+            ]
+          },
+          "max_chest_profile_flare_mm": 11.78,
+          "compute_pos_trunk_mm": [
+            313.84,
+            0.0,
+            -12.79
+          ],
+          "pdb_pos_trunk_mm": [
+            186.91,
+            0.0,
+            -76.21
+          ],
+          "same_body_overlap_count": 0,
+          "same_body_overlaps": [],
+          "min_pdb_gap_mm": 20.7,
+          "min_pdb_pair": [
+            "hw_power_distribution",
+            "hw_compute_tray"
+          ]
+        },
+        "shortened_94mm_pdb_fix": null
+      },
+      "power_and_regulators": {
+        "regulators": {
+          "mode_15w": {
+            "id": "pololu_d36v50f12",
+            "max_vin_v": 50.0,
+            "vout_v": 12.0,
+            "max_power_w": 54.0,
+            "mass_g": 7.0,
+            "price_usd": 39.95,
+            "clears_6s_full_25_2v": true,
+            "load_fraction_at_18w_peak": 0.333
+          },
+          "mode_25w": {
+            "id": "pololu_d42v110f12",
+            "max_vin_v": 60.0,
+            "vout_v": 12.0,
+            "max_power_w": 108.0,
+            "mass_g": 15.0,
+            "price_usd": 69.95,
+            "clears_6s_full_25_2v": true,
+            "load_fraction_at_28_5w_peak": 0.264
+          },
+          "usb_can_fd": {
+            "id": "pcan_usb_fd",
+            "mass_g": 68.0,
+            "power_typ_w": 0.51,
+            "price_usd": 368
+          }
+        },
+        "stacks": {
+          "pi5_hailo_teensy_r2": {
+            "description": "Round 2 baseline: Pi 5 + AI HAT+ (9.5 W) + Teensy 4.1 MCU bridge (4.0 W)",
+            "regulator_id": null,
+            "drives_w": 69.42,
+            "aux_input_w": 20.34,
+            "total_walking_w": 89.77,
+            "net_mass_delta_g": 0.0,
+            "runtime_6s_3300_min": 36.73,
+            "runtime_6s_5000_min": 55.64,
+            "meets_20min_spec_on_3300": true
+          },
+          "jetson_15w_teensy": {
+            "description": "Jetson Orin Nano Super @ 15 W mode (+2.5 W NVMe/fan) + Teensy 4.1 bridge (4.0 W)",
+            "regulator_id": "pololu_d36v50f12",
+            "drives_w": 69.42,
+            "aux_input_w": 28.36,
+            "total_walking_w": 97.79,
+            "net_mass_delta_g": 81.0,
+            "runtime_6s_3300_min": 33.71,
+            "runtime_6s_5000_min": 51.08,
+            "meets_20min_spec_on_3300": true
+          },
+          "jetson_15w_partial_plem": {
+            "description": "Jetson Orin Nano Super @ 15 W mode (+2.5 W NVMe/fan) + Partial PLEM RT CPU 5 + USB-CAN FD (2.0 W)",
+            "regulator_id": "pololu_d36v50f12",
+            "drives_w": 69.42,
+            "aux_input_w": 26.09,
+            "total_walking_w": 95.51,
+            "net_mass_delta_g": 17.0,
+            "runtime_6s_3300_min": 34.52,
+            "runtime_6s_5000_min": 52.3,
+            "meets_20min_spec_on_3300": true
+          },
+          "jetson_25w_partial_plem": {
+            "description": "Jetson Orin Nano Super @ 25 W Super mode (+3.5 W NVMe/fan) + Partial PLEM RT CPU 5 + USB-CAN FD (2.0 W)",
+            "regulator_id": "pololu_d42v110f12",
+            "drives_w": 69.42,
+            "aux_input_w": 37.92,
+            "total_walking_w": 107.34,
+            "net_mass_delta_g": 25.0,
+            "runtime_6s_3300_min": 30.71,
+            "runtime_6s_5000_min": 46.53,
+            "meets_20min_spec_on_3300": true
+          }
+        }
+      },
+      "speed_and_latency": {
+        "stage0_standard": [
+          {
+            "speed_ms": 0.2431,
+            "froude": 0.012,
+            "duty": 0.6,
+            "stride_rel": 0.55,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 25.09,
+            "min_joint_margin_rad": 0.1689,
+            "worst_group_24v": "neck",
+            "worst_planning_ratio_24v": 0.6622,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.483,
+                "planning_speed_ratio": 0.5555,
+                "over_no_load": 0.3612,
+                "knee_planning_ratio": 0.5555
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.483,
+                "planning_speed_ratio": 0.5555,
+                "over_no_load": 0.3612,
+                "knee_planning_ratio": 0.5555
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5222,
+                "planning_speed_ratio": 0.6005,
+                "over_no_load": 0.3905,
+                "knee_planning_ratio": 0.6005
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.552,
+                "planning_speed_ratio": 0.6348,
+                "over_no_load": 0.4128,
+                "knee_planning_ratio": 0.6348
+              }
+            },
+            "tail_cont_ratio_total": 0.8004,
+            "neck_cont_ratio_total": 0.6757,
+            "mu_req_max": 0.3612
+          },
+          {
+            "speed_ms": 0.3508,
+            "froude": 0.025,
+            "duty": 0.58,
+            "stride_rel": 0.62,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 28.12,
+            "min_joint_margin_rad": 0.2017,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.7417,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.645,
+                "planning_speed_ratio": 0.7417,
+                "over_no_load": 0.4823,
+                "knee_planning_ratio": 0.7417
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.645,
+                "planning_speed_ratio": 0.7417,
+                "over_no_load": 0.4823,
+                "knee_planning_ratio": 0.7417
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.6973,
+                "planning_speed_ratio": 0.8019,
+                "over_no_load": 0.5214,
+                "knee_planning_ratio": 0.8019
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7371,
+                "planning_speed_ratio": 0.8477,
+                "over_no_load": 0.5512,
+                "knee_planning_ratio": 0.8477
+              }
+            },
+            "tail_cont_ratio_total": 0.9531,
+            "neck_cont_ratio_total": 0.6828,
+            "mu_req_max": 0.5582
+          },
+          {
+            "speed_ms": 0.4,
+            "froude": 0.0325,
+            "duty": 0.573,
+            "stride_rel": 0.6859,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 28.14,
+            "min_joint_margin_rad": 0.2054,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.8042,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.6993,
+                "planning_speed_ratio": 0.8042,
+                "over_no_load": 0.5229,
+                "knee_planning_ratio": 0.8042
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.6993,
+                "planning_speed_ratio": 0.8042,
+                "over_no_load": 0.5229,
+                "knee_planning_ratio": 0.8042
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.756,
+                "planning_speed_ratio": 0.8694,
+                "over_no_load": 0.5653,
+                "knee_planning_ratio": 0.8694
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7992,
+                "planning_speed_ratio": 0.9191,
+                "over_no_load": 0.5976,
+                "knee_planning_ratio": 0.9191
+              }
+            },
+            "tail_cont_ratio_total": 0.9779,
+            "neck_cont_ratio_total": 0.6843,
+            "mu_req_max": 0.6289
+          },
+          {
+            "speed_ms": 0.4961,
+            "froude": 0.05,
+            "duty": 0.56,
+            "stride_rel": 0.8,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 28.59,
+            "min_joint_margin_rad": 0.2127,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.9347,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8128,
+                "planning_speed_ratio": 0.9347,
+                "over_no_load": 0.6078,
+                "knee_planning_ratio": 0.9347
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8128,
+                "planning_speed_ratio": 0.9347,
+                "over_no_load": 0.6078,
+                "knee_planning_ratio": 0.9347
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8787,
+                "planning_speed_ratio": 1.0105,
+                "over_no_load": 0.657,
+                "knee_planning_ratio": 1.0105
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9289,
+                "planning_speed_ratio": 1.0682,
+                "over_no_load": 0.6946,
+                "knee_planning_ratio": 1.0682
+              }
+            },
+            "tail_cont_ratio_total": 1.0298,
+            "neck_cont_ratio_total": 0.6886,
+            "mu_req_max": 0.7872
+          },
+          {
+            "speed_ms": 0.56,
+            "froude": 0.0637,
+            "duty": 0.56,
+            "stride_rel": 0.852,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 28.59,
+            "min_joint_margin_rad": 0.2195,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 1.0558,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9181,
+                "planning_speed_ratio": 1.0558,
+                "over_no_load": 0.6865,
+                "knee_planning_ratio": 1.0558
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9181,
+                "planning_speed_ratio": 1.0558,
+                "over_no_load": 0.6865,
+                "knee_planning_ratio": 1.0558
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9925,
+                "planning_speed_ratio": 1.1414,
+                "over_no_load": 0.7422,
+                "knee_planning_ratio": 1.1414
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0493,
+                "planning_speed_ratio": 1.2066,
+                "over_no_load": 0.7846,
+                "knee_planning_ratio": 1.2066
+              }
+            },
+            "tail_cont_ratio_total": 1.0776,
+            "neck_cont_ratio_total": 0.6917,
+            "mu_req_max": 0.9414
+          },
+          {
+            "speed_ms": 0.62,
+            "froude": 0.07808,
+            "duty": 0.56,
+            "stride_rel": 0.8983,
+            "crouch": 0.03,
+            "tail_amp": 0.12,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 28.59,
+            "min_joint_margin_rad": 0.225,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 1.1782,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0245,
+                "planning_speed_ratio": 1.1782,
+                "over_no_load": 0.7661,
+                "knee_planning_ratio": 1.1782
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.0245,
+                "planning_speed_ratio": 1.1782,
+                "over_no_load": 0.7661,
+                "knee_planning_ratio": 1.1782
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.1076,
+                "planning_speed_ratio": 1.2738,
+                "over_no_load": 0.8282,
+                "knee_planning_ratio": 1.2738
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 1.1709,
+                "planning_speed_ratio": 1.3465,
+                "over_no_load": 0.8755,
+                "knee_planning_ratio": 1.3465
+              }
+            },
+            "tail_cont_ratio_total": 1.1197,
+            "neck_cont_ratio_total": 0.6954,
+            "mu_req_max": 1.1027
+          }
+        ],
+        "stage0_tuned_f9": [
+          {
+            "speed_ms": 0.243,
+            "froude": 0.01199,
+            "duty": 0.58,
+            "stride_rel": 0.7513,
+            "crouch": 0.05,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.7,
+            "min_joint_margin_rad": 0.1204,
+            "worst_group_24v": "hip_yaw",
+            "worst_planning_ratio_24v": 0.7163,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.3923,
+                "planning_speed_ratio": 0.4511,
+                "over_no_load": 0.2933,
+                "knee_planning_ratio": 0.4511
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.3923,
+                "planning_speed_ratio": 0.4511,
+                "over_no_load": 0.2933,
+                "knee_planning_ratio": 0.4511
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.4241,
+                "planning_speed_ratio": 0.4877,
+                "over_no_load": 0.3171,
+                "knee_planning_ratio": 0.4877
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.4483,
+                "planning_speed_ratio": 0.5155,
+                "over_no_load": 0.3352,
+                "knee_planning_ratio": 0.5155
+              }
+            },
+            "tail_cont_ratio_total": 0.2884,
+            "neck_cont_ratio_total": 0.6718,
+            "mu_req_max": 0.2341
+          },
+          {
+            "speed_ms": 0.351,
+            "froude": 0.02502,
+            "duty": 0.58,
+            "stride_rel": 0.7514,
+            "crouch": 0.05,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.7,
+            "min_joint_margin_rad": 0.1727,
+            "worst_group_24v": "hip_yaw",
+            "worst_planning_ratio_24v": 0.71,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5155,
+                "planning_speed_ratio": 0.5928,
+                "over_no_load": 0.3854,
+                "knee_planning_ratio": 0.5928
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5155,
+                "planning_speed_ratio": 0.5928,
+                "over_no_load": 0.3854,
+                "knee_planning_ratio": 0.5928
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5573,
+                "planning_speed_ratio": 0.6409,
+                "over_no_load": 0.4167,
+                "knee_planning_ratio": 0.6409
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5891,
+                "planning_speed_ratio": 0.6775,
+                "over_no_load": 0.4405,
+                "knee_planning_ratio": 0.6775
+              }
+            },
+            "tail_cont_ratio_total": 0.3244,
+            "neck_cont_ratio_total": 0.6788,
+            "mu_req_max": 0.3873
+          },
+          {
+            "speed_ms": 0.4,
+            "froude": 0.0325,
+            "duty": 0.55,
+            "stride_rel": 0.7918,
+            "crouch": 0.05,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.32,
+            "min_joint_margin_rad": 0.1833,
+            "worst_group_24v": "hip_yaw",
+            "worst_planning_ratio_24v": 0.7234,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.5234,
+                "planning_speed_ratio": 0.6019,
+                "over_no_load": 0.3914,
+                "knee_planning_ratio": 0.6019
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.5313,
+                "planning_speed_ratio": 0.611,
+                "over_no_load": 0.4619,
+                "knee_planning_ratio": 0.6019
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.5744,
+                "planning_speed_ratio": 0.6606,
+                "over_no_load": 0.4993,
+                "knee_planning_ratio": 0.6507
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.6072,
+                "planning_speed_ratio": 0.6983,
+                "over_no_load": 0.5279,
+                "knee_planning_ratio": 0.6879
+              }
+            },
+            "tail_cont_ratio_total": 0.3492,
+            "neck_cont_ratio_total": 0.6792,
+            "mu_req_max": 0.4131
+          },
+          {
+            "speed_ms": 0.496,
+            "froude": 0.04997,
+            "duty": 0.55,
+            "stride_rel": 0.8629,
+            "crouch": 0.05,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.32,
+            "min_joint_margin_rad": 0.2003,
+            "worst_group_24v": "hip_pitch",
+            "worst_planning_ratio_24v": 0.7513,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.6524,
+                "planning_speed_ratio": 0.7502,
+                "over_no_load": 0.4878,
+                "knee_planning_ratio": 0.7502
+              },
+              "24.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.6533,
+                "planning_speed_ratio": 0.7513,
+                "over_no_load": 0.5679,
+                "knee_planning_ratio": 0.7502
+              },
+              "22.2V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.7062,
+                "planning_speed_ratio": 0.8122,
+                "over_no_load": 0.614,
+                "knee_planning_ratio": 0.811
+              },
+              "21.0V": {
+                "worst_group": "hip_pitch",
+                "raw_speed_ratio": 0.7466,
+                "planning_speed_ratio": 0.8586,
+                "over_no_load": 0.649,
+                "knee_planning_ratio": 0.8574
+              }
+            },
+            "tail_cont_ratio_total": 0.4126,
+            "neck_cont_ratio_total": 0.6856,
+            "mu_req_max": 0.5717
+          },
+          {
+            "speed_ms": 0.56,
+            "froude": 0.0637,
+            "duty": 0.55,
+            "stride_rel": 0.9058,
+            "crouch": 0.05,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.32,
+            "min_joint_margin_rad": 0.2092,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.8537,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7424,
+                "planning_speed_ratio": 0.8537,
+                "over_no_load": 0.5551,
+                "knee_planning_ratio": 0.8537
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.7424,
+                "planning_speed_ratio": 0.8537,
+                "over_no_load": 0.5551,
+                "knee_planning_ratio": 0.8537
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8026,
+                "planning_speed_ratio": 0.9229,
+                "over_no_load": 0.6001,
+                "knee_planning_ratio": 0.9229
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8484,
+                "planning_speed_ratio": 0.9757,
+                "over_no_load": 0.6344,
+                "knee_planning_ratio": 0.9757
+              }
+            },
+            "tail_cont_ratio_total": 0.4614,
+            "neck_cont_ratio_total": 0.6887,
+            "mu_req_max": 0.695
+          },
+          {
+            "speed_ms": 0.62,
+            "froude": 0.07808,
+            "duty": 0.55,
+            "stride_rel": 0.94,
+            "crouch": 0.05,
+            "tail_amp": -0.125,
+            "gates_ok": true,
+            "mid_swing_pad_mm": 20.32,
+            "min_joint_margin_rad": 0.2166,
+            "worst_group_24v": "knee",
+            "worst_planning_ratio_24v": 0.9526,
+            "voltage_speed": {
+              "25.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8283,
+                "planning_speed_ratio": 0.9526,
+                "over_no_load": 0.6194,
+                "knee_planning_ratio": 0.9526
+              },
+              "24.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8283,
+                "planning_speed_ratio": 0.9526,
+                "over_no_load": 0.6194,
+                "knee_planning_ratio": 0.9526
+              },
+              "22.2V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.8955,
+                "planning_speed_ratio": 1.0298,
+                "over_no_load": 0.6696,
+                "knee_planning_ratio": 1.0298
+              },
+              "21.0V": {
+                "worst_group": "knee",
+                "raw_speed_ratio": 0.9466,
+                "planning_speed_ratio": 1.0886,
+                "over_no_load": 0.7079,
+                "knee_planning_ratio": 1.0886
+              }
+            },
+            "tail_cont_ratio_total": 0.5135,
+            "neck_cont_ratio_total": 0.6911,
+            "mu_req_max": 0.8237
+          }
+        ],
+        "closed_loop_latency_probe_040ms": {
+          "controller": "R2",
+          "results": {
+            "0ms": {
+              "delay_ms": 0,
+              "survived": 3,
+              "total": 3,
+              "rate": 1.0
+            },
+            "2ms": {
+              "delay_ms": 2,
+              "survived": 3,
+              "total": 3,
+              "rate": 1.0
+            },
+            "6ms": {
+              "delay_ms": 6,
+              "survived": 3,
+              "total": 3,
+              "rate": 1.0
+            },
+            "10ms": {
+              "delay_ms": 10,
+              "survived": 1,
+              "total": 3,
+              "rate": 0.333
+            }
+          }
+        },
+        "stopping_horizon": {
+          "camera_near_floor_ahead_of_toes_m": 2.395,
+          "tof_floor_window_ahead_of_toes_m": [
+            0.2754,
+            1.11
+          ],
+          "blind_gap_tof_to_camera_m": 1.285,
+          "standoff_m": 0.1,
+          "usable_tof_stopping_budget_m": 1.01,
+          "max_one_foot_decel_ms2": 1.4137,
+          "max_tof_safe_speed_pi5_worst_ms": 0.54,
+          "max_tof_safe_speed_jetson_plem_worst_ms": 0.61,
+          "max_tof_safe_speed_pi5_mean_ms": 0.815,
+          "max_tof_safe_speed_jetson_plem_mean_ms": 0.9
+        }
+      }
+    }
+  }
+}
