@@ -17,6 +17,7 @@ trained on Colab. Every result is simulation. Nothing is measured on hardware an
 |---|---|
 | [LESSONS_LEARNED.md](LESSONS_LEARNED.md) | Where the work stands, what the robot can and cannot do in simulation, method and operating lessons, traps, next steps (14 Nov 2026) |
 | [NEXT_SESSION_PROMPT.md](NEXT_SESSION_PROMPT.md) | The prompt that starts the next working session |
+| [JETSON_PLEM_REVIEW.md](JETSON_PLEM_REVIEW.md) | Review of PR #668 (the 75 cm build with a Jetson Orin Nano Super): what to keep, what to treat with care, the next session's 75 cm + Jetson track and its owner decisions |
 | [STAGE2_PLAN.md](STAGE2_PLAN.md) | Stage 2, the agility round with character: the agility bar, the learned controller R5, Colab training; owner decisions P28–P29 |
 | [stage1/runs/2026-11-10-speed/STAGE1B_SPEED.md](stage1/runs/2026-11-10-speed/STAGE1B_SPEED.md) | Stage 1b report: speed with today's drives, a faster knee, servo delay |
 | [stage1/runs/2026-11-08/STAGE1_PROBE.md](stage1/runs/2026-11-08/STAGE1_PROBE.md) | Stage 1 report: the closed-loop probe of the three picks, with the 60 cm gap map (corrected 10 Nov) |

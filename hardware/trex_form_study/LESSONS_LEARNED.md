@@ -22,6 +22,7 @@ starting prompt is `NEXT_SESSION_PROMPT.md`.
 | Stage 2 plan (10–11 Nov) | character plus "somewhat agile": the agility bar, R5, Colab training | `STAGE2_PLAN.md` | owner decisions 3–6 taken (P29) |
 | Stage 2, Track A, phase 1 (11 Nov) | look features in the gait generator, the V0–V6 ladder, its Stage 0 screen, the tail-phase check, clips, the owner's look review page | `stage2/look/SCREEN.md`, `stage2/look/RENDERS.md` | awaiting the owner's L1 picks |
 | Stage 2, S2-2 (11 Nov) | the expressive head (`-X`: neck yaw and jaw) built and costed | `stage2/x/HEAD_X.md`, `stage2/x/X_COSTS.md` | done; its G1 is provisional (§5) |
+| PR #668 review (14 Nov) | the 75 cm build with a Jetson Orin Nano Super (PR kuds/mesozoic-labs#668, unmerged), reviewed, not re-run | `JETSON_PLEM_REVIEW.md` | its track comes first in the next session (owner's request) |
 
 The bodies are `60-N-T-10` (the 60 cm Tapered), `60-N-H-10` (the 60 cm Hybrid, dropped for Stage 2 by P29) and
 `75-M-H-10` (the 75 cm Hybrid with the targeted drives and bigger feet), plus the variants `-K` (a faster knee, Stage
