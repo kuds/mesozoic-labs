@@ -34,15 +34,24 @@ differs in the 15th digit: ``tests/test_stage2_look.py``); at most ``--procs`` p
 ``PYTHON_CPU_COUNT`` for the helpers, whose transition pools take ``os.cpu_count()``; arm K's and the -X helpers'
 ``models`` size their two bodies at once whatever it is), at nice 10.
 
-Not restored (``NOT_RESTORED``; ``not-restored`` lists them with what this checkout holds): PPO checkpoints and
-VecNormalize statistics, eval traces, the look clips' media, and the round-one and round-two review and sizing models
-that Stage 1 and Stage 2 do not read.
+A group whose regeneration reads another group's files (``NEEDS``: the look ladder's clearance gate reads the picks'
+model files through ``plant.model_files``, which rebuilds missing ones into ``stage1/models/<body>/`` with another
+ledger JSON) is not run while those files are not all here, and ``restore`` fails on any file it finds new under
+``stage1/models``.  Where the picks' sizing cannot reproduce the recorded ledger JSON (one CPU: ``SIZE_BLAS_THREADS``),
+``copy-from`` takes the files from another checkout or from any directory that holds them at their paths relative to
+the study (an unpacked archive of them; tools/README.md).
+
+Not restored (``NOT_RESTORED``; ``not-restored`` lists them with how many of their files this checkout holds, then any
+other git-ignored file here that no group lists and no item names, caches, logs and the venv aside): PPO checkpoints
+and VecNormalize statistics, eval traces, the look clips' media, and the round-one and round-two review and sizing
+models that Stage 1 and Stage 2 do not read.
 
 Run from hardware/trex_form_study, with PYTHONPATH=. :
 
     python tools/restore_inputs.py check [--group G ...]
     python tools/restore_inputs.py restore [--group G ...] [--procs 2] [--scratch DIR]
-    python tools/restore_inputs.py copy-from DIR [--group G ...]   # DIR: another checkout (its root or the study)
+    python tools/restore_inputs.py copy-from DIR [--group G ...]   # DIR: another checkout (its root or the study), or
+                                                                   # a directory holding the files at their study paths
     python tools/restore_inputs.py not-restored
     python tools/restore_inputs.py manifest [--from DIR]          # rewrite stage1_inputs.json from DIR's files
 
@@ -62,7 +71,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 STUDY = Path(__file__).resolve().parents[1]  # hardware/trex_form_study
 RUN = STUDY / "stage1" / "runs" / "2026-11-08"
@@ -78,7 +87,10 @@ GROUPS = ("picks-models", "picks-arrays", "k", "x", "look")
 TITLES = {"picks-models": "the Stage 1 picks' round-two model files", "picks-arrays": "the picks' Stage 1 arrays",
           "k": "arm K's model files and arrays", "x": "the -X bodies' model files and arrays",
           "look": "the Stage 2 look ladder's arrays"}
-#: What a group's regeneration reads that another group restores (``restore`` adds it first when it is not all here).
+#: What a group's regeneration reads that another group restores: ``restore`` adds that group first when it is not all
+#: here, and does not run the group while it is still not all here (the look ladder's clearance gate reads the picks'
+#: model files through ``plant.model_files``, which would rebuild missing ones into ``stage1/models/<body>/`` with
+#: another ledger JSON, the side effect this tool exists to prevent).
 NEEDS = {"look": ("picks-models",)}
 RULE = ("every git-ignored file the Stage 1 picks' runs read, as a path relative to hardware/trex_form_study, with its "
         "sha256: each pick's round-two model files (the XML's sha256 is the candidate record's xml_sha256; the model "
@@ -108,20 +120,36 @@ NOT_RESTORED = (
      "training outputs: regenerable only by retraining (python -m designlab.stage1 train), not bit for bit; the policy "
      "rows' records name each checkpoint by its step count and its files' sha256"),
     ("eval traces", ("stage1/runs/*/*/eval/traces",),
-     "per-episode traces the panels write beside their records; only re-running a panel writes them, and that rewrites "
-     "its committed records too"),
+     "per-episode traces the panels write beside their records (about 1.2 GB in the first session's checkout); each "
+     "committed episode record holds its trace's path and sha256 (panels.TRACE_RULE), but all of them take the "
+     "panels' core-hours again, and the R3 and R4 rows' also the PPO checkpoints.  A row's traces regenerate into a "
+     "scratch run directory, the committed records left alone: python -m designlab.stage1 eval --body B --rows ROWS "
+     "--behaviors BEHAVIORS --inputs <the run directory holding B's refs and transitions> --out <scratch>; compare "
+     "each with its record's sha256 (14 Nov, seed 3042 of three Stage 1b turns, 60-N-T-10's R2@10ms and R2s/42@10ms "
+     "and 60-N-T-10-K's R2@10ms: each byte for byte).  Stage 2's G9 reads Stage 1b's 10 ms turn traces for toe "
+     "clearance (STAGE2_PLAN.md section 4 B, item 3): regenerate them before G9 as stage1/runs/2026-11-10-speed/"
+     "run_speed_round.sh runs its rows (--row-module designlab.stage1.speedfit --rows R2s/42@10ms,R2@10ms "
+     "--behaviors turn; --inputs stage1/runs/2026-11-08 for 60-N-T-10 and 60-N-H-10, stage1/runs/2026-11-10-speed "
+     "for 60-N-T-10-K)"),
     ("the look clips' media", (),
      "rendered outside git (stage2/look/clips.json: media_dir); python -m designlab.stage2.clips render --media DIR "
-     "renders them again from the restored look arrays (not bit for bit: ffmpeg's encoder)"),
+     "--no-record renders them again from the restored look arrays (not bit for bit: ffmpeg's encoder); without "
+     "--no-record the run also rewrites the committed stage2/look/clips.json"),
     ("the round-one and round-two review MJCF and the sizing models no Stage 1 or 2 body reads",
-     ("round1/review/mjcf/*.xml", "round2/review/mjcf/*.xml", "round2/refine/*/review/mjcf/*.xml", "round2/models",
-      "round2/refine/*/models", "round2/size_study/*/models", "round2/whatif_fr05/models", "round2/gait_tune/models"),
+     ("round1/review/mjcf/*.xml", "round2/review/mjcf/*.xml", "round2/review/mjcf/narrow_search",
+      "round2/refine/*/review/mjcf/*.xml", "round2/size_study/*/review/mjcf/*.xml",
+      "round2/whatif_fr05/review/mjcf/*.xml", "round2/models", "round2/refine/*/models",
+      "round2/refine/carpet_lift_models", "round2/refine/fixed_models", "round2/size_study/*/models",
+      "round2/whatif_fr05/models", "round2/gait_tune/models"),
      "regenerated by the round-one and round-two commands (python -m designlab.round1, designlab.round2, "
-     "designlab.refine, designlab.sizestudy, designlab.gaittune), with their sha256 in the review indexes and records; "
-     "the committed plates were drawn from them.  Stage 2 reads none of them: of round2/refine/*/models only the "
-     "picks', arm K's and the -X cases' files are inputs (the groups above), and the four round-one reference MJCF are "
-     "committed"),
+     "designlab.refine with its --carpet-lift and --fixed passes, designlab.sizestudy, designlab.whatif, "
+     "designlab.gaittune), with their sha256 in the review indexes and records; the committed plates were drawn from "
+     "them.  Stage 2 reads none of them: of round2/refine/*/models only the picks', arm K's and the -X cases' files "
+     "are inputs (the groups above), and the four round-one reference MJCF are committed"),
 )
+#: Git-ignored paths that are no input of any kind: caches, logs, the venv, MuJoCo's log and PPO's tensorboard logs, by
+#: any path component (``not-restored`` leaves them out of the other git-ignored files it lists).
+NOT_INPUTS = ("__pycache__", ".ruff_cache", ".pytest_cache", ".venv", "logs", "tensorboard", "MUJOCO_LOG.TXT")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -179,12 +207,14 @@ def put_matching(files: dict[str, str], src_root: Path, dest_root: Path | None =
 
 
 def _study_of(src_dir: str | Path) -> Path:
-    """Another checkout's hardware/trex_form_study (``src_dir``: its repository root or the study itself)."""
+    """Where another checkout's files are (``src_dir``: its repository root or its hardware/trex_form_study), or a
+    directory holding the files at their paths relative to the study (an unpacked archive of them); each file taken
+    from it is checked by its sha256."""
     src = Path(src_dir).resolve()
     if (src / "hardware" / "trex_form_study").is_dir():
         src = src / "hardware" / "trex_form_study"
-    if not (src / "designlab").is_dir():
-        raise SystemExit(f"{src_dir}: not a checkout (no hardware/trex_form_study/designlab there)")
+    if not src.is_dir():
+        raise SystemExit(f"{src_dir}: no such directory")
     return src
 
 
@@ -211,20 +241,23 @@ def model_paths(body: str) -> tuple[str, str]:
     return (d / f"{cid}.xml").as_posix(), (d / f"{cid}.json").as_posix()
 
 
-def _entries(body: str, kind: str, study: Path = STUDY) -> dict:
+def _entries(body: str, kind: str, study: Path | None = None) -> dict:
+    study = STUDY if study is None else Path(study)
     doc = _json(study / RUN.relative_to(STUDY) / body / f"{kind}.json")
     return doc["references"] if kind == "refs" else doc["transitions"]
 
 
-def array_paths(body: str, kind: str, study: Path = STUDY) -> dict[str, tuple[str, str]]:
-    """name -> (path relative to the study, the sha256 ``refs.json`` / ``transitions.json`` records) of a pick."""
+def array_paths(body: str, kind: str, study: Path | None = None) -> dict[str, tuple[str, str]]:
+    """name -> (path relative to the study, the sha256 ``refs.json`` / ``transitions.json`` records) of a pick
+    (``study``: default this one)."""
     run = RUN.relative_to(STUDY).as_posix()
     return {n: (f"{run}/{body}/{e['file']}", e["sha256"]) for n, e in _entries(body, kind, study).items()}
 
 
-def keyed_inputs(body: str, study: Path = STUDY) -> dict[str, dict[str, list[str]]]:
+def keyed_inputs(body: str, study: Path | None = None) -> dict[str, dict[str, list[str]]]:
     """field (record, mjcf, ledger, clearance) -> sha256 -> the committed eval summaries whose session keys hold it
     (``stage1/runs/*/<body>/eval/summary.json``, ``sessions[].key_context.plant_inputs``)."""
+    study = STUDY if study is None else Path(study)
     out: dict[str, dict[str, list[str]]] = {}
     for p in sorted(study.glob(f"stage1/runs/*/{body}/eval/summary.json")):
         rel = p.relative_to(study).as_posix()
@@ -236,9 +269,10 @@ def keyed_inputs(body: str, study: Path = STUDY) -> dict[str, dict[str, list[str
     return out
 
 
-def recorded(body: str, study: Path = STUDY) -> tuple[dict[str, str | None], list[str]]:
+def recorded(body: str, study: Path | None = None) -> tuple[dict[str, str | None], list[str]]:
     """A pick's files: (path -> the sha256 the committed records hold, None where none does; where those records
     disagree among themselves)."""
+    study = STUDY if study is None else Path(study)
     s1 = _stage1()
     xml, ledger = model_paths(body)
     rec = _json(study / s1.BODIES[body] / "candidates" / f"{s1.candidate_id(body)}.json")
@@ -385,24 +419,47 @@ def check(groups=GROUPS, quiet: bool = False, show: int = 6) -> int:
     return status
 
 
-def not_restored_here() -> list[tuple[str, int | None, str]]:
-    """(what, how many of its git-ignored paths this checkout holds (None: kept outside it), why) per ``NOT_RESTORED``
-    item; the inputs' own model directories (the groups) are not counted."""
-    tracked = set(_git("ls-files", "--", ".") or ())
-    inputs = {Path(p).parent for g in ("picks-models", "k", "x") for p in listed(g)}
-    out = []
-    for what, globs, why in NOT_RESTORED:
-        found = {p.relative_to(STUDY) for g in globs for p in STUDY.glob(g)}
-        found = [p for p in found if p.as_posix() not in tracked and p not in inputs]
-        out.append((what, len(found) if globs else None, why))
+def _item_files(globs) -> set[str]:
+    """The files (relative to the study) of the paths ``globs`` match here, a matched directory's files included."""
+    out: set[str] = set()
+    for g in globs:
+        for p in STUDY.glob(g):
+            out |= {q.relative_to(STUDY).as_posix() for q in ([p] if p.is_file() else p.rglob("*")) if q.is_file()}
     return out
 
 
-def not_restored() -> int:
-    """Print what this tool cannot restore, why, and what this checkout holds of it."""
+def not_restored_here() -> list[tuple[str, int | None, str]]:
+    """(what, how many of its files this checkout holds (None: kept outside it), why) per ``NOT_RESTORED`` item; tracked
+    files and the groups' listed ones are not counted."""
+    tracked = set(_git("ls-files", "--", ".") or ())
+    inputs = {p for g in GROUPS for p in listed(g)}
+    return [(what, len(_item_files(globs) - tracked - inputs) if globs else None, why)
+            for what, globs, why in NOT_RESTORED]
+
+
+def unaccounted() -> list[str] | None:
+    """The git-ignored files here that no group lists and no ``NOT_RESTORED`` item names, caches, logs and the venv
+    aside (``NOT_INPUTS``); None outside a git checkout."""
+    ignored = _git("ls-files", "--others", "--ignored", "--exclude-standard", "--", ".")
+    if ignored is None:
+        return None
+    named = {p for g in GROUPS for p in listed(g)} | {p for _, globs, _ in NOT_RESTORED for p in _item_files(globs)}
+    return sorted(p for p in ignored if p and p not in named and not set(PurePosixPath(p).parts) & set(NOT_INPUTS))
+
+
+def not_restored(show: int = 6) -> int:
+    """Print what this tool cannot restore, why, and how many of its files this checkout holds, then the other
+    git-ignored files here that neither a group nor an item names."""
     print("Not restored by this tool:")
     for what, n, why in not_restored_here():
-        print(f"* {what} ({'kept outside the checkout' if n is None else f'{n} here'}): {why}")
+        print(f"* {what} ({'kept outside the checkout' if n is None else f'{n} files here'}): {why}")
+    other = unaccounted()
+    if other is None:
+        print("Not a git checkout: its other git-ignored files are not listed")
+    elif other:
+        print(f"Other git-ignored files here, which no group lists and no item above names ({len(other)}; caches, logs "
+              "and the venv aside): " + "; ".join(other[:show])
+              + (f"; ... {len(other) - show} more" if len(other) > show else ""))
     return 0
 
 
@@ -527,7 +584,8 @@ def restore_picks_models(procs: int, scratch: Path) -> int:
               "threads each; about 2.5 min each)", flush=True)
         if len(os.sched_getaffinity(0)) < 2:  # OpenBLAS runs no more threads than the CPUs a process may use
             print("picks-models: this process may use one CPU only, so OpenBLAS will run one thread and the ledger "
-                  "JSON will not be the recorded one (SIZE_BLAS_THREADS); copy-from a checkout that has it", flush=True)
+                  "JSON will not be the recorded one (SIZE_BLAS_THREADS): bring the files in instead, copy-from DIR "
+                  "(another checkout, or an unpacked archive of the files; tools/README.md)", flush=True)
         rc = run_all(jobs, procs)
         status = 0
         for b in todo:
@@ -649,22 +707,42 @@ def git_changes() -> tuple[list[str], list[str]] | None:
     return [x for x in st if not x.startswith("??")], [x for x in st if x.startswith("??")]
 
 
+def _here(group: str) -> bool:
+    """Every listed file of ``group`` here with its sha256."""
+    t = tally(listed(group))
+    return not t["missing"] and not t["wrong"]
+
+
+def _rebuilt() -> set[str]:
+    """The files under ``stage1/models``, where the plant rebuilds a body's model files when its round-two files are
+    missing (``plant.model_files``), relative to the study."""
+    d = STUDY / "stage1" / "models"
+    return {p.relative_to(STUDY).as_posix() for p in d.rglob("*") if p.is_file()} if d.is_dir() else set()
+
+
 def restore(groups, procs: int = 2, scratch: str | None = None) -> int:
-    """Regenerate every missing or wrong file of ``groups`` (and of the groups their regeneration reads) from the
-    committed records, in the order of ``GROUPS``; then ``check`` and ``git status``."""
+    """Regenerate every missing or wrong file of ``groups`` (and of the groups their regeneration reads, ``NEEDS``)
+    from the committed records, in the order of ``GROUPS``, leaving out a group while what it reads is not all here;
+    then ``check``, any file new under ``stage1/models`` (a failure) and ``git status``."""
     scratch_dir = Path(scratch or tempfile.gettempdir()).resolve()
     scratch_dir.mkdir(parents=True, exist_ok=True)
-    before = git_changes()
+    before, rebuilt_before = git_changes(), _rebuilt()
     want = set(groups)
     for g in groups:
         for need in NEEDS.get(g, ()):
-            t = tally(listed(need))
-            if need not in want and (t["missing"] or t["wrong"]):
+            if need not in want and not _here(need):
                 print(f"{g} reads {need} ({TITLES[need]}), which is not all here: restoring it first")
                 want.add(need)
     times, status = {}, 0
     for g in GROUPS:
         if g not in want:
+            continue
+        short = [n for n in NEEDS.get(g, ()) if not _here(n)]
+        if short:  # its regeneration would rebuild the missing models into stage1/models (NEEDS)
+            print(f"== {g}: not run: it reads {', '.join(short)}, which is not all here (plant.model_files would "
+                  "rebuild missing model files into stage1/models/<body>/ with another ledger JSON); bring them in "
+                  "first (copy-from DIR; tools/README.md), then restore again", flush=True)
+            status = 1
             continue
         t0 = time.perf_counter()
         print(f"== {g}: {TITLES[g]}", flush=True)
@@ -675,6 +753,12 @@ def restore(groups, procs: int = 2, scratch: str | None = None) -> int:
     print("\ntimes: " + ", ".join(f"{g} {s / 60:.1f} min" for g, s in times.items())
           + f"; total {sum(times.values()) / 60:.1f} min\n")
     status |= check([g for g in GROUPS if g in want])
+    made = sorted(_rebuilt() - rebuilt_before)
+    if made:
+        print(f"stage1/models: this run made {len(made)} files there, the plant's rebuild of model files whose "
+              "round-two files were missing (another ledger JSON: plant.model_files): " + ", ".join(made)
+              + "; remove them (rm -r " + " ".join(sorted({"/".join(p.split("/")[:3]) for p in made})) + ")")
+        status = 1
     after = git_changes()
     if after is None or before is None:
         print("git status: not a git checkout, so no check that no tracked file changed")
@@ -739,8 +823,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--group", **groups)
     r.add_argument("--procs", type=int, default=2, help="processes at a time (default 2)")
     r.add_argument("--scratch", help="where the scratch directories go (default: the system's temporary directory)")
-    f = sub.add_parser("copy-from", help="checked copy from another checkout")
-    f.add_argument("dir", help="the other checkout (its repository root or its hardware/trex_form_study)")
+    f = sub.add_parser("copy-from", help="checked copy from another checkout or a directory of the files")
+    f.add_argument("dir", help="another checkout (its repository root or its hardware/trex_form_study), or a directory "
+                               "holding the files at their paths relative to the study (an unpacked archive)")
     f.add_argument("--group", **groups)
     sub.add_parser("not-restored", help="what this tool cannot restore, and why")
     m = sub.add_parser("manifest", help="rewrite stage1/runs/2026-11-08/stage1_inputs.json from a checkout's files")

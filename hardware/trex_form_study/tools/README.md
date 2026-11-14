@@ -21,9 +21,16 @@ What it restores, in this order (models before arrays; the look ladder's Stage 0
 Everything is regenerated in scratch directories (under `--scratch`, removed afterwards), and a file is put in place
 only when its sha256 is the listed one; a right file is left alone, and no committed file is written (`restore` ends
 with `git status`). At most `--procs` processes run at a time (default 2), at nice 10, with one BLAS thread each except
-the picks' sizing. `check` also compares each list with the committed records: the candidate records, the eval
+the picks' sizing (2 each, below). The one place `--procs` does not bound: arm K's and the -X helpers' `models` steps
+size their two bodies at once whatever it is (each helper's own `Pool(len(jobs))`), so `--procs 1` still runs two
+sizing processes there. `check` also compares each list with the committed records: the candidate records, the eval
 records' keys, `refs.json` and `transitions.json`, and for the look ladder `screen.json`, `metrics.json` and
 `clips.json`.
+
+A group is not run while a group it reads is not all here. `restore --group look` restores the picks' models first
+when they are not all here; if they still are not (one CPU, below), it leaves the look ladder out rather than let the
+ladder's clearance gate rebuild them into `stage1/models/<body>/` with another ledger JSON (`plant.model_files`), and
+exits 1. Any file a run makes under `stage1/models` fails the run, which names it.
 
 Run from `hardware/trex_form_study` with `PYTHONPATH=.`:
 
@@ -31,8 +38,9 @@ Run from `hardware/trex_form_study` with `PYTHONPATH=.`:
 python tools/restore_inputs.py check [--group G ...]      # per group: matching / missing / wrong, and the list against
                                                          # the records; exit 0 only when all is here and agrees
 python tools/restore_inputs.py restore [--group G ...] [--procs 2] [--scratch DIR]
-python tools/restore_inputs.py copy-from DIR [--group G ...]   # from another checkout (its root or the study),
-                                                         # each file checked by its sha256
+python tools/restore_inputs.py copy-from DIR [--group G ...]   # from another checkout (its root or the study) or a
+                                                         # directory holding the files at their study paths; each
+                                                         # file checked by its sha256
 python tools/restore_inputs.py not-restored              # what it cannot restore, and why
 python tools/restore_inputs.py manifest [--from DIR]     # rewrite stage1_inputs.json from DIR's files (checked first)
 ```
@@ -43,30 +51,83 @@ models first when they are not all here).
 Measured on 14 Nov 2026 in a fresh worktree of `4571826` (4 cores, `--procs 2`, nothing else running): `check` 0.6 s;
 `restore` of everything 151 min (2 h 31 min): `picks-models` 5.0 min, `picks-arrays` 39.5 min, `k` 31.0 min, `x` 27.9
 min, `look` 47.5 min, all 283 files with their listed sha256 and no tracked file changed; with one file of each group
-overwritten, `restore` replaced the five in 7.5 min (the look rung's job takes 3 min, a pick's sizing 2); `copy-from` of
-all 283 files from a checkout that has them 2.4 s. The full test suite then ran in that worktree (`python -m pytest -q
--rs -p no:cacheprovider tests`, 11 min): 592 passed, 107 skipped, 0 failed, pytest's exit code 0; the main checkout's
-last full run (11 Nov) had 575 passed, 107 skipped, 0 failed, and the 17 more are this tool's tests. The record-key
-tests (`tests/test_stage1_bodies.py`) recompute committed keys from the restored files. Of the 107 skips, 89 wait for an
-environment variable (`STAGE1_SLOW`, `STAGE2_SLOW`); one wants the clips' media (`LOOK_MEDIA`) and 18 policy-row tests
-want PPO checkpoints, neither of which this tool restores (with the checkpoints, as in the main checkout, those 18 still
-skip outside the PPO venv, `train.PPO_VENV`).
+overwritten, `restore` replaced the five in 7.5 min, and with one of each moved aside (after the review's fixes) it made
+them again in 6.9 min, each byte for byte the moved file (the look rung's job takes 3 min, a pick's sizing 2 to 2.5);
+`copy-from` of all 283 files from a checkout that has them 2.4 s. The full test suite then ran in that worktree, with
+no `-q` (the repository's `pyproject.toml` already adds one, and a second hides pytest's counts line):
+
+```
+mkdir -p logs
+MUJOCO_GL=disable PYTHONPATH=. python -m pytest -rs -p no:cacheprovider tests > logs/pytest.log 2>&1
+echo PYTEST_EXIT=$? >> logs/pytest.log
+```
+
+pytest's own line: `599 passed, 107 skipped in 641.28s (0:10:41)`, then `PYTEST_EXIT=0`; the main checkout's last full
+run (11 Nov) had 575 passed, 107 skipped, 0 failed, and the 24 more are this tool's (`tests/test_restore_inputs.py`).
+The record-key tests (`tests/test_stage1_bodies.py`) recompute committed keys from the restored files. Of the 107
+skips, 88 wait for an environment variable (73 `STAGE2_SLOW`, 15 `STAGE1_SLOW`); one wants the clips' media
+(`LOOK_MEDIA`) and 18 policy-row tests want PPO checkpoints, neither of which this tool restores (with the checkpoints,
+as in the main checkout, those 18 still skip outside the PPO venv, `train.PPO_VENV`).
 
 The picks' models need more than one BLAS thread. The overnight refine run that sized them (8 Nov) set no thread limit,
 so OpenBLAS took one per core, while arm K's and the -X runs set one, as their helpers do. The XML does not depend on
 it, but with one thread each pick's ledger JSON differs from the recorded one in the last digit of a few dozen values
 of its `evaluation` (the walks' inverse dynamics, whose double-support QP is thread-sensitive), and with it every record
-key. With 2, 3 or 4 threads the ledger JSON is the recorded one, so the tool sizes with 2 (`SIZE_BLAS_THREADS`); a
-one-core machine cannot reproduce it, and `copy-from` is the way there.
+key. With 2, 3 or 4 threads the ledger JSON is the recorded one, so the tool sizes with 2 (`SIZE_BLAS_THREADS`). A
+process that may use one CPU only cannot reproduce it (OpenBLAS then runs one thread whatever it is told; `restore`
+says so), and the look ladder then waits for the files too (above): under `taskset -c 0`, `restore --group look` with
+60-N-T-10's model files and a rung missing made that pick's ledger JSON `236db045` against the recorded `b177e450`, put
+neither file in place, left the look ladder out, made nothing in `stage1/models` and exited 1, in 2.4 min. Bring the
+six files in instead: `copy-from DIR` takes another checkout, or any directory holding the files at their paths
+relative to the study. With no other checkout in the container, pack them (about 3 MB) where they are, from
+`hardware/trex_form_study`:
 
-Not restored (`not-restored` lists them with what the checkout holds):
+```
+tar cf picks_models.tar round2/refine/narrow_carpet_60/models/60-N-T-10.xml \
+    round2/refine/narrow_carpet_60/models/60-N-T-10.json round2/refine/narrow_carpet_60/models/60-N-H-10.xml \
+    round2/refine/narrow_carpet_60/models/60-N-H-10.json round2/refine/feet_75/models/75-M-H-10.xml \
+    round2/refine/feet_75/models/75-M-H-10.json
+```
+
+move the archive here (for example through the Google Drive connector's `create_file` and `download_file_content`, not
+yet tried with a binary file), and unpack it into an empty directory: `mkdir -p DIR && tar xf picks_models.tar -C DIR
+&& python tools/restore_inputs.py copy-from DIR --group picks-models` (14 Nov: a 2.96 MB archive, from which
+`copy-from` put back 75-M-H-10's two files, byte for byte). The other way, running `eval` or `sweep` on the models the
+plant rebuilds, takes `--allow-rebuilt-models`, and then every record key differs from the committed ones: the run
+treats every committed record as stale, so give it a scratch `--out`.
+
+Not restored (`not-restored` lists them with how many of their files the checkout holds):
 
 - PPO checkpoints and VecNormalize statistics (`stage1/runs/*/<body>/{ppo,policy_only}/*/checkpoints/`): training
   outputs, regenerable only by retraining, and not bit for bit; the policy-row tests skip without them.
-- Eval traces (`stage1/runs/*/<body>/eval/traces/`): only re-running a panel writes them, and that rewrites its
-  committed records.
+- Eval traces (`stage1/runs/*/<body>/eval/traces/`, about 1.2 GB in the first session's checkout): each committed
+  episode record holds its trace's path and sha256 (`panels.TRACE_RULE`), but all of them take the panels' core-hours
+  again, and the R3 and R4 rows' also need the PPO checkpoints. A row's traces regenerate into a scratch run directory,
+  the committed records left alone: `python -m designlab.stage1 eval --body B --rows ROWS --behaviors BEHAVIORS
+  --inputs RUN --out SCRATCH`, with RUN the run directory that holds B's `refs` and `transitions`; compare each trace
+  with its record's sha256. On 14 Nov seed 3042 of three Stage 1b turns came out byte for byte this way, with no
+  tracked file changed: 60-N-T-10's R2@10ms `walking_0.35_left` and R2s/42@10ms `in_place_0.50_left`, and
+  60-N-T-10-K's R2@10ms `walking_0.35_left`. Stage 2's G9 needs Stage 1b's 10 ms turn traces for toe clearance
+  (`STAGE2_PLAN.md` section 4 B, item 3). Before G9, regenerate them as
+  `stage1/runs/2026-11-10-speed/run_speed_round.sh` runs its rows, with `--behaviors turn` and a scratch `--out`, per
+  body:
+
+  ```
+  python -m designlab.stage1 eval --body 60-N-T-10 --row-module designlab.stage1.speedfit --rows R2s/42@10ms,R2@10ms \
+      --behaviors turn --workers 1 --inputs stage1/runs/2026-11-08 --out SCRATCH
+  ```
+
+  (the same for 60-N-H-10; for 60-N-T-10-K, `--inputs stage1/runs/2026-11-10-speed`, where its arrays are).
 - The look clips' media (outside git; `stage2/look/clips.json` `media_dir`): `python -m designlab.stage2.clips render
-  --media DIR` renders them again from the restored look arrays.
-- The round-one and round-two review MJCF and the sizing models no Stage 1 or Stage 2 body reads (`round1/review/mjcf`,
-  `round2/review/mjcf`, `round2/models`, the other refine cases', the size study's): the round-one and round-two
-  commands regenerate them, and Stage 2 does not need them.
+  --media DIR --no-record` renders them again from the restored look arrays (not bit for bit: ffmpeg's encoder).
+  Without `--no-record` the run also rewrites the committed `stage2/look/clips.json`.
+- The round-one and round-two review MJCF and the sizing models no Stage 1 or Stage 2 body reads: `round1/review/mjcf`,
+  `round2/review/mjcf`, `round2/review/mjcf/narrow_search`, `round2/refine/*/review/mjcf`,
+  `round2/size_study/*/review/mjcf`, `round2/whatif_fr05/review/mjcf`, `round2/models`, `round2/refine/*/models` (the
+  other refine cases', and the picks' cases' other files), `round2/refine/carpet_lift_models`,
+  `round2/refine/fixed_models`, `round2/size_study/*/models`, `round2/whatif_fr05/models` and `round2/gait_tune/models`.
+  The round-one and round-two commands regenerate them (`designlab.round1`, `round2`, `refine` with its `--carpet-lift`
+  and `--fixed` passes, `sizestudy`, `whatif`, `gaittune`), and Stage 2 does not need them.
+
+`not-restored` then lists any other git-ignored file in the checkout that no group lists and no item names (caches,
+logs and the venv aside), so a new kind of output, or the plant's `stage1/models`, shows there.
