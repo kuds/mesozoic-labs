@@ -9,6 +9,8 @@
 # after any restart (an uptime that went down in LOG shows one).
 #
 #   sh tools/keepalive.sh LOG [WATCHDOG...]      LOG outside the checkout, or under a git-ignored logs/ directory
+#   Better, run a copy (sh reads a script as it goes, so editing this file mid-run breaks the running loop):
+#   cp tools/keepalive.sh /tmp/keepalive_run.sh && sh /tmp/keepalive_run.sh LOG
 #   env: STEP=120  MAX=6900 (just under two hours)  EVERY=5  STOP_FILE=<LOG>.stop
 #
 # WATCHDOG is a command that restarts any job that is neither done nor running, and is safe to run at any time; each

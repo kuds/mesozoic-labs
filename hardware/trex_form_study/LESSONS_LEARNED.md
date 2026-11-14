@@ -479,6 +479,8 @@ tests.
   - Shell variables do not persist between Bash calls; use absolute paths in every call (an unset `$SP` once meant
     a run never launched).
 - **Use the venv's Python.** The system `python3` has no MuJoCo.
+- **Do not edit a shell script while it runs.** `sh` reads a script as it goes. On 14 Nov an edit to
+  `tools/keepalive.sh` during its run produced a syntax error when its loop ended. Run long loops from a copy.
 - **Scheduled tasks.**
   - A `send_later` reminder cannot be turned into a recurring task (`update_trigger` failed with
     `missing_worker_target`); create a new task and delete the old one.
