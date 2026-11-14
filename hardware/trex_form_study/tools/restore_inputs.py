@@ -97,7 +97,9 @@ SIZE_RULE = ("one pipeline.size_candidate call per pick with its candidate recor
 #: with one thread every pick's XML matches its record and every ledger JSON differs in the last digit of a few dozen
 #: values (the double-support QP, as ``tests/test_stage2_look.py`` notes for the arrays); with 2, 3 or 4 threads the
 #: ledger JSON is the recorded one (tried on 14 Nov: 75-M-H-10 with 2, 3 and 4, 60-N-T-10 with 4; the restore with 2
-#: on all three).  Two, so that two sizing processes keep to four cores; a one-core machine cannot reproduce the JSON.
+#: on all three).  Two, so that two sizing processes keep to four cores.  OpenBLAS runs no more threads than the CPUs
+#: the process may use (checked: one under ``taskset -c 0`` whatever OPENBLAS_NUM_THREADS says), so a one-core machine
+#: cannot reproduce the JSON (``restore`` says so; ``copy-from`` instead).
 SIZE_BLAS_THREADS = 2
 #: What this tool cannot restore, and why (``not-restored``): (what, globs relative to the study, why).
 NOT_RESTORED = (
@@ -523,6 +525,9 @@ def restore_picks_models(procs: int, scratch: Path) -> int:
             jobs.append((b, _me("_size", b, str(Path(tmp) / b)), _env(1, scratch, blas=SIZE_BLAS_THREADS)))
         print(f"picks-models: sizing {', '.join(todo)} ({min(procs, len(jobs))} at a time, {SIZE_BLAS_THREADS} BLAS "
               "threads each; about 2.5 min each)", flush=True)
+        if len(os.sched_getaffinity(0)) < 2:  # OpenBLAS runs no more threads than the CPUs a process may use
+            print("picks-models: this process may use one CPU only, so OpenBLAS will run one thread and the ledger "
+                  "JSON will not be the recorded one (SIZE_BLAS_THREADS); copy-from a checkout that has it", flush=True)
         rc = run_all(jobs, procs)
         status = 0
         for b in todo:
