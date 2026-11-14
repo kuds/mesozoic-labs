@@ -1,0 +1,97 @@
+{
+ "what": "Stage 1's judged learned-controller checkpoints, committed on 14 Nov 2026 (git add -f: the root .gitignore ignores *.zip and *.pkl). Each is the model archive and its VecNormalize statistics at the step train.judged_checkpoint judges (train.JUDGED_RULE, recorded in each run.json's judged_checkpoint, final): R3 on 75-M-H-10 at 2,506,752 steps (seeds 42 and 43; the 60 cm bodies' R3 is judged with R2, train.R2_JUDGED_RULE) and R4 on every body at 1,253,376 steps (seed 42). The other checkpoints of these runs, and the 60 cm R3 runs', stayed in the first session's container and are not in the repository.",
+ "environment": "trained and evaluated in Stage 1's PPO venv: torch 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0 (tools/requirements-stage1-ppo.txt; run.json sessions[].versions); the policy rows refuse other library versions (policy_rows.check_versions)",
+ "files": [
+  {
+   "path": "stage1/runs/2026-11-08/75-M-H-10/ppo/42/checkpoints/model_2506752.zip",
+   "mode": "R3",
+   "body": "75-M-H-10",
+   "seed": 42,
+   "steps": 2506752,
+   "bytes": 2123104,
+   "sha256": "360314147f60c5fb672eef1751e82509cb85bfb8fac17e8de47cffeafb5d0baa"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/75-M-H-10/ppo/42/checkpoints/vecnormalize_2506752.pkl",
+   "mode": "R3",
+   "body": "75-M-H-10",
+   "seed": 42,
+   "steps": 2506752,
+   "bytes": 5759,
+   "sha256": "6b3d7d9987d5433c94bc57bb3f749c94c77aa80951cd2edc6f3817bed09faa3d"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/75-M-H-10/ppo/43/checkpoints/model_2506752.zip",
+   "mode": "R3",
+   "body": "75-M-H-10",
+   "seed": 43,
+   "steps": 2506752,
+   "bytes": 2123104,
+   "sha256": "1f16c28b8b46bf4767ef8cf1f58174359b32a009f200402a9494499cd454ab87"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/75-M-H-10/ppo/43/checkpoints/vecnormalize_2506752.pkl",
+   "mode": "R3",
+   "body": "75-M-H-10",
+   "seed": 43,
+   "steps": 2506752,
+   "bytes": 5759,
+   "sha256": "bc94af05ed7bf6255562b5c54658ee2ee0d2ea3a285fe71bf96e51e596b8feba"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/60-N-T-10/policy_only/42/checkpoints/model_1253376.zip",
+   "mode": "R4",
+   "body": "60-N-T-10",
+   "seed": 42,
+   "steps": 1253376,
+   "bytes": 2123033,
+   "sha256": "ac98fd2cc111f3f580a2f792309e2a0327ab37ca101327b4f0b1b4a980e8e14b"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/60-N-T-10/policy_only/42/checkpoints/vecnormalize_1253376.pkl",
+   "mode": "R4",
+   "body": "60-N-T-10",
+   "seed": 42,
+   "steps": 1253376,
+   "bytes": 5691,
+   "sha256": "e2469da1d7a54786337be2dce993be30704ceebc76cfb1fa484976988ebe6f9f"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/60-N-H-10/policy_only/42/checkpoints/model_1253376.zip",
+   "mode": "R4",
+   "body": "60-N-H-10",
+   "seed": 42,
+   "steps": 1253376,
+   "bytes": 2123033,
+   "sha256": "b2b51a8e66f9318b8727109ba3c4610f1c4ac7ffa7567ab01d36cd47f1ee1f86"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/60-N-H-10/policy_only/42/checkpoints/vecnormalize_1253376.pkl",
+   "mode": "R4",
+   "body": "60-N-H-10",
+   "seed": 42,
+   "steps": 1253376,
+   "bytes": 5691,
+   "sha256": "0684fe654ca7b67a3b65871a456b8c9c560e15b7ca5d0ceb11475815dba78257"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/75-M-H-10/policy_only/42/checkpoints/model_1253376.zip",
+   "mode": "R4",
+   "body": "75-M-H-10",
+   "seed": 42,
+   "steps": 1253376,
+   "bytes": 2123033,
+   "sha256": "6bef87bfa87e2acb20a793addb9aa8580f2c57e5acf0b30034bda5b203890c54"
+  },
+  {
+   "path": "stage1/runs/2026-11-08/75-M-H-10/policy_only/42/checkpoints/vecnormalize_1253376.pkl",
+   "mode": "R4",
+   "body": "75-M-H-10",
+   "seed": 42,
+   "steps": 1253376,
+   "bytes": 5691,
+   "sha256": "fe7de760fc8b0393aba883f0bfafc286adfffc5465852350a3e2c44a65a13a47"
+  }
+ ],
+ "total_bytes": 10643898
+}

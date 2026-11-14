@@ -141,7 +141,11 @@ treats every committed record as stale, so give it a scratch `--out`.
 Not restored (`not-restored` lists them with how many of their files the checkout holds):
 
 - PPO checkpoints and VecNormalize statistics (`stage1/runs/*/<body>/{ppo,policy_only}/*/checkpoints/`): training
-  outputs, regenerable only by retraining, and not bit for bit; the policy-row tests skip without them.
+  outputs, regenerable only by retraining, and not bit for bit; the policy-row tests skip without them. The five
+  judged checkpoints are committed (R3 on 75-M-H-10 at 2,506,752 steps, seeds 42 and 43; R4 on every body at 1,253,376
+  steps), each model archive with its VecNormalize statistics, 10.6 MB in all. They are listed with their sha256 in
+  `stage1/runs/2026-11-08/judged_checkpoints.json`, and every sha256 there is the one the policy rows' records hold.
+  Load them in Stage 1's PPO venv (`tools/requirements-stage1-ppo.txt`), as the policy rows require.
 - Eval traces (`stage1/runs/*/<body>/eval/traces/`, about 1.2 GB in the first session's checkout): each committed
   episode record holds its trace's path and sha256 (`panels.TRACE_RULE`), but all of them take the panels' core-hours
   again, and the R3 and R4 rows' also need the PPO checkpoints. A row's traces regenerate into a scratch run directory,

@@ -118,7 +118,9 @@ NOT_RESTORED = (
     ("PPO checkpoints and VecNormalize statistics",
      ("stage1/runs/*/*/ppo/*/checkpoints", "stage1/runs/*/*/policy_only/*/checkpoints"),
      "training outputs: regenerable only by retraining (python -m designlab.stage1 train), not bit for bit; the policy "
-     "rows' records name each checkpoint by its step count and its files' sha256"),
+     "rows' records name each checkpoint by its step count and its files' sha256.  The five judged checkpoints (R3 on "
+     "75-M-H-10 at 2,506,752 steps, R4 on every body at 1,253,376) are committed, listed in "
+     "stage1/runs/2026-11-08/judged_checkpoints.json"),
     ("eval traces", ("stage1/runs/*/*/eval/traces",),
      "per-episode traces the panels write beside their records (about 1.2 GB in the first session's checkout); each "
      "committed episode record holds its trace's path and sha256 (panels.TRACE_RULE), but all of them take the "

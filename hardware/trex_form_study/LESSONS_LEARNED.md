@@ -328,9 +328,13 @@ Nothing outside git reaches a new session. Each piece comes back in its own way:
   - The picks' model ledgers reproduce only with 2 or more BLAS threads, the count their 8 Nov sizing used. A one-CPU
     machine cannot reproduce them; bring them in as an archive with `copy-from`.
   - On another CPU or BLAS build, a sha256 could differ.
-- **Stage 1's PPO checkpoints and VecNormalize statistics:** no restore.
-  - They are under `stage1/runs/2026-11-08/<body>/{ppo,policy_only}/*/checkpoints/`, about 150 MB.
-  - Only retraining makes them again, and `run.json` records their steps, not their hashes.
+- **Stage 1's PPO checkpoints and VecNormalize statistics:** the five judged ones are committed; the rest are gone.
+  - The judged ones are R3 on `75-M-H-10` at 2,506,752 steps (seeds 42 and 43) and R4 on every body at 1,253,376
+    steps (seed 42), 10.6 MB in all. They are force-added, because the root rules ignore `*.zip` and `*.pkl`.
+  - `stage1/runs/2026-11-08/judged_checkpoints.json` lists them with their sha256, the same as the policy rows'
+    records hold. Load them in Stage 1's PPO venv.
+  - The other checkpoints, about 145 MB, stayed in the first session's container. Only retraining makes them again,
+    and not bit for bit.
   - Stage 2 does not need them.
 - **The evaluation traces:** no restore. They are about 1.2 GB under `<body>/eval/traces/` and back the committed
   evaluation rows.
