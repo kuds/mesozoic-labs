@@ -386,8 +386,7 @@ def check(groups=GROUPS, quiet: bool = False, show: int = 6) -> int:
 def not_restored_here() -> list[tuple[str, int | None, str]]:
     """(what, how many of its git-ignored paths this checkout holds (None: kept outside it), why) per ``NOT_RESTORED``
     item; the inputs' own model directories (the groups) are not counted."""
-    tracked = set(subprocess.run(["git", "-C", str(STUDY), "ls-files", "--", "."], capture_output=True, text=True,
-                                 check=True).stdout.splitlines())
+    tracked = set(_git("ls-files", "--", ".") or ())
     inputs = {Path(p).parent for g in ("picks-models", "k", "x") for p in listed(g)}
     out = []
     for what, globs, why in NOT_RESTORED:
@@ -628,10 +627,20 @@ RESTORE = {"picks-models": restore_picks_models, "picks-arrays": restore_picks_a
            "x": lambda procs, scratch: restore_helper("x", procs, scratch), "look": restore_look}
 
 
-def git_changes() -> tuple[list[str], list[str]]:
-    """(tracked changes, untracked files not ignored) under the study, from ``git status``."""
-    st = subprocess.run(["git", "-C", str(STUDY), "status", "--porcelain", "--untracked-files=all", "--", "."],
-                        capture_output=True, text=True, check=True).stdout.splitlines()
+def _git(*args: str) -> list[str] | None:
+    """``git -C <study> ARGS``'s output lines; None where the study is not a git checkout (or git is missing)."""
+    try:
+        return subprocess.run(["git", "-C", str(STUDY), *args], capture_output=True, text=True,
+                              check=True).stdout.splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def git_changes() -> tuple[list[str], list[str]] | None:
+    """(tracked changes, untracked files not ignored) under the study, from ``git status``; None outside git."""
+    st = _git("status", "--porcelain", "--untracked-files=all", "--", ".")
+    if st is None:
+        return None
     return [x for x in st if not x.startswith("??")], [x for x in st if x.startswith("??")]
 
 
@@ -640,7 +649,7 @@ def restore(groups, procs: int = 2, scratch: str | None = None) -> int:
     committed records, in the order of ``GROUPS``; then ``check`` and ``git status``."""
     scratch_dir = Path(scratch or tempfile.gettempdir()).resolve()
     scratch_dir.mkdir(parents=True, exist_ok=True)
-    tracked0, _ = git_changes()
+    before = git_changes()
     want = set(groups)
     for g in groups:
         for need in NEEDS.get(g, ()):
@@ -661,7 +670,11 @@ def restore(groups, procs: int = 2, scratch: str | None = None) -> int:
     print("\ntimes: " + ", ".join(f"{g} {s / 60:.1f} min" for g, s in times.items())
           + f"; total {sum(times.values()) / 60:.1f} min\n")
     status |= check([g for g in GROUPS if g in want])
-    tracked, untracked = git_changes()
+    after = git_changes()
+    if after is None or before is None:
+        print("git status: not a git checkout, so no check that no tracked file changed")
+        return status
+    (tracked0, _), (tracked, untracked) = before, after
     new = [x for x in tracked if x not in tracked0]
     if new:
         print("git status: tracked files changed by this run:\n  " + "\n  ".join(new))
