@@ -60,8 +60,11 @@ long training runs):
      report-only commit. Neither the script nor the JSON contains it.
    - The only closed-loop result on record is a 3-episode, survival-only probe at 0.40 m/s.
 2. **The headline is read at 0–2 ms of delay.**
-   - By the PR's own table, every walk falls at 6–10 ms. Under your rule (P29: judge the bar at 10 ms until a bench
-     value exists), the 75 cm walk at 0.40 m/s is not shown.
+   - In the PR's only closed-loop record, the 75 cm walk at 0.40 m/s stays up in 3 of 3 probe episodes at 6 ms and 1
+     of 3 at 10 ms (60 cm: 2 and 0 of 3).
+   - Its unrecorded 20-episode table has every walk falling at 6–10 ms, which conflicts with the recorded 6 ms result.
+   - Either way, under your rule (P29: judge the bar at 10 ms until a bench value exists), the 75 cm walk at 0.40 m/s
+     is not shown.
    - "Partial PLEM ≈ 2 ms" is an unsourced, host-side estimate. The model's delay is end to end, command to motion.
 3. **Its "safe maintainable" speeds are ceilings, not demonstrated speeds.**
    - These are 0.45–0.48 m/s at 60 cm and 0.54–0.65 m/s at 75 cm, set by drive, grip and stopping limits of
@@ -93,9 +96,9 @@ Merge it later, relabelled and with records, or let the next session's PR supers
 | The dev kit fits the 75 cm chest: 0 same-body overlaps, +20.70 mm at the power box, crown and widths unchanged, +78.7 g (JPS §1.1) | (a), recorded | Sound for home-pose overlaps. The round-two screens (walking clearance, battery path, joint ranges, sensors, turning, carpet, envelope) were not re-run on the Jetson body, and no refine case or record exists. The doc's crown is 752.71 mm against the JSON's 750.80 mm |
 | At 60 cm the default 110 mm power box hits the left hip-roll motor (−6.95 mm); a 94 mm box clears (JPS §1.1) | (a), recorded | A real conflict; the 94 mm box is a geometric placeholder, not a laid-out power bay |
 | 6S-to-12 V: `pololu_d36v50f12` for the 15 W mode, `pololu_d42v110f12` for both modes (JPS §1.2) | (c) | Sourced in the catalog, and consistent with E7 and PR #662's own feed. Converter efficiency is taken as 0.93 against A6's 0.88 |
-| Runtime 34.5 min (75 cm, 15 W, Partial PLEM, 3,300 mAh) and 30.7 min in the 25 W mode (JPS §1.3) | (d) | `designlab/power.py` method, reproducing the round-two record. The "+17 g" mass is arithmetic that leaves out the 68 g PCAN adapter, the supervisor and the IMU. The 67 TOPS perception figure needs the 25 W mode, which costs 6.0 min at 75 cm |
+| Runtime 34.5 min (75 cm, 15 W, Partial PLEM, 3,300 mAh) and 30.7 min in the 25 W mode (JPS §1.3) | (d) | `designlab/power.py` method, reproducing the round-two record. The "+17 g" mass is arithmetic that leaves out the 68 g PCAN adapter, the supervisor and the IMU. The 67 TOPS perception figure needs the 25 W mode, which costs 3.8 min of walking against the 15 W mode at 75 cm (6.0 min against today's Pi 5) |
 | F25 + F9: 75 cm tail at the animal pace 1.030 → 0.413 of A1; friction need down 25–36 % (JPS §2.1) | (a), recorded | Agrees with `stage2/look/SCREEN.md` (V5: 0.426). Its V0 rows equal SCREEN.md's exactly. The tuned walk at 0.496 m/s still needs μ 0.572, above 0.54 |
-| Stage 0 speed ceilings: 0.481 / 0.531 m/s on today's walk (knee speed); 21 V drive ceilings; μ 0.9 grip ceilings; "25.2 V burst" (JPS §2.1) | (a, d) | Hand interpolations and extrapolations of six evaluated speeds. The 75 cm values lie beyond the last one. The 21 V and 25.2 V ceilings drop the speed margin; the "burst" does not exist in the model |
+| Stage 0 speed ceilings: 0.481 / 0.531 m/s on today's walk (knee speed); 21 V drive ceilings; μ 0.9 grip ceilings; "25.2 V burst" (JPS §2.1) | (a, d) | Hand interpolations and extrapolations of six evaluated speeds. 0.481 and 0.531 m/s are interpolated; the 75 cm 21 V, grip and burst values (0.651, about 0.65, about 0.76) and the 60 cm burst (about 0.645) lie beyond the last evaluated speed (0.62 / 0.58 m/s). The 21 V and 25.2 V ceilings drop the speed margin; the "burst" does not exist in the model |
 | Chest ToF safe-stop ceilings: 0.485 → 0.550 m/s (60 cm) and 0.540 → 0.610 m/s (75 cm) with the Jetson (JPS §2.2) | (d) | Every timing term is assumed. The Pi's 200 ms is the spec's deadline, not a measured latency. The gain comes from routing the ToF stop through the camera pipeline, which the study's design does not do (`COMPUTE.md`: the stop runs on the microcontroller) |
 | Recorded probe: F25 + F9 at 0.40 m/s, 3 episodes, survival only; stays up at 0 / 2 / 6 / 10 ms in 3, 3, 2, 0 (60 cm, R2s) and 3, 3, 3, 1 (75 cm, R2) of 3 (JSON) | (b), recorded | A hint, not a verdict. 3 of 3 bounds survival only above 0.37, at 95 % (20 of 20: 0.86). Its start transition is hand-built (2 ZMP corrections instead of 6, `ik_ok` forced) and its seeds are not the panel seeds |
 | 20-episode decomposition on 75 cm with R2/42 and R2/43 (JPS §2.3) | (b), **not recorded** | Shown on both grips at 0.40 / 0.45 / 0.496 m/s at 0 ms (F25_F9_cl: duty 0.59, lift 0.095 H); 0.55 m/s at 0 ms; 2 ms passes; 4 ms meets every limit in 5 · 1 (toe clearance); 6–10 ms 0 / 20; left nudge at 0.40 m/s and 2 ms keeps 15 · 15 of 20 up; no 90° turn run. None of this has code or a record |
@@ -105,14 +108,15 @@ Merge it later, relabelled and with records, or let the next session's PR supers
 
 ## 2. Strengths
 
-- **It holds to the study's provenance practice.** Everything sits in a new directory, and no `designlab`, `stage1` or
-  `round2` file changes. Both bodies are rebuilt from their records, with sha256 checks, and the JSON is pinned to the
+- **It holds to the study's provenance practice.** Everything but a test file and a pointer appended to `COMPUTE.md`
+  sits in a new directory, and no `designlab`, `stage1` or `round2` file changes. Both bodies are rebuilt from their records, with sha256 checks, and the JSON is pinned to the
   script's hash.
 - **Its reference-versus-compute decomposition is the right experiment.** It holds the body, both Stage 1 controllers
   and the 20 seeds fixed, and changes one thing per row: reference, then duty and lift, then delay, then mass.
-- **Its F9 is a faithful shortcut.** A negative tail amplitude at today's phase is a half-cycle shift. The study's own
-  tail check puts the best phase 0.468 cycles from today's, and the plain flip comes within 0.2 % of it in peak yaw
-  moment.
+- **Its F9 is a faithful shortcut.** A negative tail amplitude at today's phase is a half-cycle shift.
+  - The study's own tail check puts the best phase 0.45–0.47 cycles from today's, at 0.40 m/s and the animal pace.
+  - The plain flip comes within about 0.5 % of the best in peak yaw moment on today's walk, and within 0.2 % on the
+    look walk.
 - **It treats servo delay as the deciding unknown, as the study does.** Its recorded probe agrees in direction with
   Stage 1's 75 cm delay ledger (up to 8 ms, falls at 10 ms).
 - **The 75 cm packaging result is clean and useful.** The 60 cm conflict it found is real.
@@ -122,10 +126,15 @@ Merge it later, relabelled and with records, or let the next session's PR supers
 
 ## 3. Caveats
 
-- **Unrecorded evidence.** JPS §2.3, the trunk-mass rows and every "3/3" cell in §2.1 arrived in commit 6162b45, which
-  changes only the report. The script runs one speed at delays of 0, 1, 3 and 5 physics steps. `F25_F9_cl` exists
-  only in the text. None of it can be traced to code or record keys, against the study's rule that reports are made
-  from records.
+- **Unrecorded evidence.**
+  - JPS §2.3, with its +397 g trunk-mass row, arrived in 6162b45, which changes only the report.
+  - The "3/3" cells in §2.1 and §2.2 and the first trunk-mass claim (+17 g against +81 g) were already in f836eae's
+    report, beyond its own JSON. The JSON holds one speed (0.40 m/s) at 0, 2, 6 and 10 ms (0, 1, 3 and 5 physics
+    steps).
+  - `F25_F9_cl` exists only in the text.
+  - The F25 + F9 and F25_F9_cl rows, the trunk-mass rows and the stop and nudge rows have no code or record, against the
+    study's rule that reports are made from records. Its two V0 rows restate Stage 1's records, with the slips in
+    section 4.
 - **The judged delay.**
   - P29 and S2-7 judge the bar at 10 ms until a bench value exists and never read between delays. At 10 ms the PR's
     own §2.3 has every walk falling.
@@ -193,13 +202,19 @@ This is in order. Each task says when it is done. Everything here is simulation 
 the owner may run.
 
 1. **Bring the PR in.**
-   - Merge `origin/jetson-orin-plem-study` into the working branch; it adds files only.
+   - Merge `origin/jetson-orin-plem-study` into the working branch. It adds five files (its 9 tests among them) and
+     appends a pointer section to `COMPUTE.md`.
+   - In the merge commit, add section 7's dated note to that pointer.
    - Do not cite its numbers except through this review's labels until task 3 has records.
    - Done when its files are in the branch and the full test suite still passes.
 2. **Record its references.**
-   - For `75-M-H-10`, generate F25 + F9 (duty 0.55, lift 0.081 H) and F25_F9_cl (duty 0.59, lift 0.095 H, crouch
-     0.05 H). Use F9's recorded phase from `stage2/look/tail_phase.json`, with the PR's flipped tail as a check.
-   - Generate them at the nominal speed and at 0.30–0.50 m/s in 0.05 m/s steps.
+   - For `75-M-H-10`, generate F25 + F9 with the PR's `_tuned_f9_spec`: duty 0.58 below 0.36 m/s and 0.55 above, lift
+     0.081 H, crouch 0.05 H, its stride rule and the flipped tail.
+   - Generate F25_F9_cl as that spec with duty 0.59 and lift 0.095 H.
+   - Generate them at the nominal speed and at 0.30–0.50 m/s in 0.05 m/s steps. The PR defines F25_F9_cl only at
+     0.40–0.55 m/s, so label any other rung as new.
+   - For the tail, keep the flip, or take the best phase on today's walk from `stage2/look/tail_phase.json`'s V0 sweep,
+     not the V4 minimiser.
    - Build their starts, changes and two-step stops with the official builders (`transitions.generate`), not by hand.
    - Done when every rung has hashed arrays, transitions with `ik_ok` and ZMP error recorded, and a
      `designlab.stage2.screen` block with every gate.
@@ -219,7 +234,8 @@ the owner may run.
    - Done when all 16 gated conditions have records under both controllers.
 5. **R2L on `75-M-H-10`** (`STAGE2_PLAN.md` B.2): Stage 1b's speed fit with 0–10 ms in its mix and fixed delay draws,
    on the approved look reference and, if the owner allows it, on F25_F9_cl. Then repeat task 3's 10 ms walk. Done when
-   R2L's walk at 0, 5 and 10 ms is judged beside R2/42 and R2/43 on the same seeds.
+   R2L's walk at 0, 4 or 6, and 10 ms is judged beside R2/42 and R2/43 on the same seeds. Delays come in whole 2 ms
+   steps, so the plan's 5 ms needs a decision (`LESSONS_LEARNED.md` §5.3).
 6. **A Jetson body**, built as the expressive head was: refine case `round2/refine/jetson_75`, body `75-M-H-10-J`, or
    `-XJ` with the head.
    - Put the dev kit in the chest.
@@ -263,7 +279,8 @@ Recommended options come first.
    - Keep P14 (Pi 5 + AI HAT+), or move toward P3's original Jetson (the Orin Nano Super dev kit)?
    - Recommended: study the Jetson as a refine case (task 6) and decide after the screens and the delay bench test. The
      PR's closed-loop evidence shows the walk's sensitivity to delay, not an advantage for the Jetson as such.
-   - If the Jetson is chosen, decide its power mode: 15 W, or 25 W, which costs about 6 min of walking.
+   - If the Jetson is chosen, decide its power mode: 15 W, or 25 W, which costs about 4 min of walking at 75 cm (34.5
+     against 30.7 min; 6.0 min below today's Pi 5).
 2. **Where the real-time loop lives.**
    - A microcontroller, as in `COMPUTE.md` (a controlled stop survives a Linux crash).
    - An isolated real-time core on the Jetson with a supervisor (Partial PLEM; a crash ends in torque-off).
@@ -296,7 +313,8 @@ Recommended options come first.
 
 ## 7. If PR #668 is merged later
 
-- Back JPS §2.3, the trunk-mass rows and every "3/3" cell with committed code and records, or remove them.
+- Back JPS §2.3, the trunk-mass rows and every "3/3" cell in §2.1 and §2.2 with committed code and records, or remove
+  them.
 - Put the 10 ms reading first. Restate every speed as a target, with the delay, grips and seeds it was judged at.
 - Label every number in §3 and §4 with its kind. Replace the grades ("transformative") with what was measured.
 - Fix the Jetson price ($399), the two catalog ids, the crown and mass slips and the P4 reading.

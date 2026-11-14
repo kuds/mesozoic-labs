@@ -3,6 +3,10 @@
 Written on 14 Nov 2026 at the end of the first long session. To start the next session, open a new Claude Code session
 on kuds/mesozoic-labs and paste everything inside the fence below.
 
+- Pick the cloud environment "mesozoic-labs" for it, made on 14 Nov. Its setup script installs libOSMesa and builds the
+  study's Python environment, so the session starts ready.
+- Its network allows package registries, MCP servers and download.pytorch.org. Settings → Environments changes that.
+
 - Fill in or delete the "OWNER'S ANSWERS" block at the end; the session asks for whatever is still open.
 - The last line, `ultracode`, turns on multi-agent workflows with independent verification, as in the first session.
   Delete it to run without them. The first session used up the account's weekly usage limit (`LESSONS_LEARNED.md`
@@ -56,23 +60,35 @@ FIRST STEPS
    - Your session names its own branch. Create it from origin/main if main already holds the study (the file
      hardware/trex_form_study/LESSONS_LEARNED.md exists there: PR #667 has been merged); otherwise from
      origin/claude/mesozoic-trex-design-iteration-azm2fs. Fetch branches by name.
-   - Then merge origin/jetson-orin-plem-study into it. It adds files only, and merged cleanly on 14 Nov.
+   - Then merge origin/jetson-orin-plem-study into it; it merged cleanly on 14 Nov.
+     - It adds five files, its 9 tests among them, and appends a pointer section to COMPUTE.md.
+     - In the merge commit, add JETSON_PLEM_REVIEW.md section 7's dated note to that pointer.
    - Push only to your designated branch, and tell the owner which branch carries the work.
    - Open no pull request unless the owner asks.
 2. Keep-alive, before any long job (the restore and the test suite are the first).
-   - From hardware/trex_form_study: sh tools/keepalive.sh logs/keepalive.log
+   - From hardware/trex_form_study: mkdir -p logs && cp tools/keepalive.sh /tmp/keepalive_run.sh && sh
+     /tmp/keepalive_run.sh logs/keepalive.log
    - Start it with the Bash tool's run_in_background and timeout 7200000; the default timeout stops it after 30 min.
      Re-arm it when it ends.
+   - Run a copy: sh reads a script as it goes.
    - logs/ is git-ignored at any depth.
    - The container restarts without warning: files survive, processes do not. Check uptime after every pause, and
      write every long job so that it resumes from its own checkpoints.
-3. Environment. The container is fresh: nothing outside git exists.
-   - From hardware/trex_form_study: bash tools/setup_venv.sh (with TORCH=cpu in front: about 4 GB of disk were free in
-     the first container, and the default torch build needs about 6 GB).
-   - Then: PYTHONPATH=. .venv/bin/python tools/restore_inputs.py restore
-   - Then the same with check. It must report every input matching.
-   - If any restored sha256 differs from its record, stop and report it to the owner: every record key hashes these
-     files.
+3. Environment. The container is fresh: nothing outside git exists. tools/README.md, "A fresh container, in order",
+   has the details.
+   - System packages and venv: if the environment's setup script ran, .venv already exists and libOSMesa is installed.
+     Otherwise run, from hardware/trex_form_study: apt-get install -y libosmesa6, then TORCH=cpu bash
+     tools/setup_venv.sh. TORCH=cpu matters: about 4 GB of disk were free in the first container, and the default
+     torch build needs about 6 GB.
+   - The restore takes about 2.5 h on 2 processes, longer than any tool call, so start it detached:
+     PYTHONPATH=. setsid nohup .venv/bin/python tools/restore_inputs.py restore > logs/restore.log 2>&1 < /dev/null &
+   - Do steps 4 and 5 while it runs.
+   - If the container restarts meanwhile, run it again. Files already in place are kept; the look ladder's 73 rungs
+     (about 48 min) start over.
+   - Then: PYTHONPATH=. .venv/bin/python tools/restore_inputs.py check. It must report every input matching.
+   - If a restored sha256 differs from its record, the container's CPU or BLAS may differ from the first session's (see
+     tools/README.md). Stop and report it to the owner: every record key hashes these files. copy-from can take an
+     unpacked archive of the files instead.
    - Then the full suite, with no -q (pyproject.toml already adds one, and a second hides the counts):
      mkdir -p logs; MUJOCO_GL=disable PYTHONPATH=. .venv/bin/python -m pytest -p no:cacheprovider tests >
      logs/pytest.log 2>&1; echo PYTEST_EXIT=$? >> logs/pytest.log
@@ -98,10 +114,20 @@ FIRST STEPS
    Read every free-text answer before acting on it.
 
 75 CM + JETSON (JETSON_PLEM_REVIEW.md section 5; do these first)
+0. Build first the code the track needs. R5 needs it too, so build it once.
+   - It goes behind options that default to today's behaviour, keeping G2 bit-identity.
+   - The pieces:
+     - transitions for any GaitSpec, F25's walk and the look fields included: the start, the change to 0.40 m/s and
+       the two-step stop;
+     - look-aware turn references from 0.40 m/s at pi/4 rad/s;
+     - the bar's readings: toe clearance over each foot's own swing, drift inside success, the two-touchdown stop and
+       the turn's heading rule;
+     - F25 rungs in the look ladder and the Stage 0 screen.
 1. Treat PR #668's numbers as unverified. Its 20-episode closed-loop table (its section 2.3) has no code or record.
    Its headline speeds are read at 0-2 ms of delay, and its "safe" speeds are prescribed-walk ceilings.
 2. Record its references for 75-M-H-10:
-   - F25 + F9, and F25_F9_cl (duty 0.59, lift 0.095 H);
+   - F25 + F9 as the PR's _tuned_f9_spec makes it (duty 0.58 below 0.36 m/s, 0.55 above), and F25_F9_cl (that spec
+     with duty 0.59 and lift 0.095 H);
    - at the nominal speed and at 0.30-0.50 m/s;
    - with starts, changes and two-step stops from the official builders;
    - each hashed and run through the Stage 0 screen (designlab.stage2.screen).

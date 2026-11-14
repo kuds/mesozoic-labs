@@ -1,3 +1,45 @@
+# Tools
+
+Helpers for working on the form study, above all in a fresh cloud container. Run them from `hardware/trex_form_study`
+unless stated. `LESSONS_LEARNED.md` §4 explains why each exists.
+
+| Tool | What it does |
+|---|---|
+| `setup_venv.sh` | Builds the Python environment of `requirements-study.txt` (or another `REQS`) and checks the imports |
+| `requirements-study.txt` | The versions the study's records name (Python 3.13.18) |
+| `requirements-stage1-ppo.txt` | Stage 1's PPO environment: torch 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0 |
+| `restore_inputs.py` | Restores the git-ignored model files and arrays the records hash, checked by sha256 (below) |
+| `keepalive.sh` | Heartbeat and watchdog runner that keeps a cloud session's container busy during long jobs |
+| `watchdog_example.sh` | Template watchdog: starts every resumable chain that is neither done nor running |
+| `memguard.sh` | Memory guard: side jobs are demoted and killed before protected training jobs when memory runs low |
+| `lowprio.sh` | Runs a command at the lowest CPU priority, single-threaded |
+| `report_page.py` | Turns a Markdown report into the owner's page (pandoc and `designlab/page_kit.py`) |
+| `shot_page.js` | Screenshots a page as the Artifact publisher shows it and flags sideways overflow at phone width |
+
+## A fresh container, in order
+
+1. **System packages.**
+   - Run `apt-get install -y libosmesa6`; without it the three rendering tests fail and no clip renders.
+   - pandoc, ffmpeg, node and Playwright's Chromium come with the image.
+   - The owner's cloud environment "mesozoic-labs" (made 14 Nov) does this step in its setup script, and step 2 as
+     well.
+2. **The venv.** `TORCH=cpu bash tools/setup_venv.sh` (1 min 43 s and 1.4 GB on 14 Nov, from the setup script).
+3. **The keep-alive.** `mkdir -p logs && cp tools/keepalive.sh /tmp/keepalive_run.sh && sh /tmp/keepalive_run.sh
+   logs/keepalive.log`, run with the Bash tool's `run_in_background` and `timeout` 7200000.
+4. **The restore,** detached, so that no tool-call timeout stops it:
+   `setsid nohup .venv/bin/python tools/restore_inputs.py restore > logs/restore.log 2>&1 < /dev/null &`
+   (with `PYTHONPATH=.`).
+   - It takes about 2.5 h on 2 processes (the times below).
+   - Only a container restart stops it. Then run it again: files in place are kept. The look group, though, regenerates
+     its 73 rungs in one scratch run, about 48 min, and starts that run over.
+   - Do other work meanwhile: read the documents, ask the owner, test the Drive route.
+5. **The check, then the suite** (commands below).
+   - Compare with the fresh-worktree counts: 599 passed, 107 skipped, 0 failed.
+   - With PR kuds/mesozoic-labs#668's branch merged, its 9 tests come on top.
+   - If `check` reports a wrong sha256 after a restore, the container's CPU or BLAS may differ from the first
+     session's. That one was an Intel Xeon @ 2.30 GHz, 4 CPUs, numpy's scipy-openblas 0.3.34 with the SkylakeX
+     kernel. Stop and tell the owner; `copy-from` takes an unpacked archive of the files (below).
+
 ## restore_inputs.py: the git-ignored inputs of a fresh checkout
 
 A fresh clone (a new container) has none of the study's git-ignored inputs: the round-two model files the Stage 1
@@ -131,3 +173,65 @@ Not restored (`not-restored` lists them with how many of their files the checkou
 
 `not-restored` then lists any other git-ignored file in the checkout that no group lists and no item names (caches,
 logs and the venv aside), so a new kind of output, or the plant's `stage1/models`, shows there.
+
+## setup_venv.sh and requirements-study.txt
+
+```bash
+TORCH=cpu bash tools/setup_venv.sh            # venv at hardware/trex_form_study/.venv, CPU-only torch: 1.4 GB in all
+```
+
+```bash
+REQS=tools/requirements-stage1-ppo.txt bash tools/setup_venv.sh /tmp/venv_ppo   # Stage 1's PPO set, in its own venv
+```
+
+On 14 Nov 2026 the CPU-only build took 50 s to 1 min 43 s in the cloud container and produced 1.4 GB; the default
+build (torch from PyPI, with its CUDA libraries) is about 6 GB. A REQS other than requirements-study.txt is refused
+for the default venv, so that it cannot replace the main environment's packages. The PyPI torch wheel brings
+its CUDA libraries, which a CPU-only container does not use. The import check prints every version and the Stage 1
+registry. Records since Stage 1 were made with the PyPI build of torch 2.15.0. The CPU-only build of the same version
+passed `tests/test_stage1_ppo.py` (36 of 36, in 46 s), but the two builds have not been compared bit for bit on a
+training run: record which one a run used.
+
+## keepalive.sh
+
+```bash
+mkdir -p logs && cp tools/keepalive.sh /tmp/keepalive_run.sh && sh /tmp/keepalive_run.sh logs/keepalive.log [WATCHDOG...]
+```
+
+Run it with the Bash tool's `run_in_background` and `timeout` 7200000; the default timeout, 1800000, stops it after 30
+min. Run a copy, because `sh` reads a script as it goes: editing `tools/keepalive.sh` during a run broke one on 14 Nov.
+
+- **What it does.** It writes a line every 2 min (uptime, load, free memory) and runs the watchdog every 10 min, if one
+  is given. It ends after 6,900 s, or as soon as `LOG.stop` exists.
+- **While and after.** While it runs, the session tracks it and the container is less likely to be reclaimed as idle.
+  When it ends, the session is re-invoked: re-arm it then.
+- **Restarts.** A restart kills it, so check `uptime` and re-arm.
+- **Settings.** Environment variables: `STEP=120`, `MAX=6900`, `EVERY=5` and `STOP_FILE`.
+- **The watchdog.** `tools/watchdog_example.sh` is the Stage 1b speed round's watchdog, generalised. Copy it, set its
+  chains, and pass it as WATCHDOG.
+
+## memguard.sh and lowprio.sh
+
+```bash
+setsid nohup sh tools/memguard.sh logs/memguard.log >/dev/null 2>&1 &     # PROTECT="designlab.stage1 train" MIN_MB=1500
+```
+
+Every Python process whose command line lacks PROTECT gets `oom_score_adj` 800, each logged once. Below MIN_MB of free
+memory, the largest of them gets SIGTERM. Set PROTECT to the Stage 2 trainers' command (for example the R5 entry
+point's module name), or the guard kills them first.
+
+```bash
+bash tools/lowprio.sh python -m designlab.stage1 eval ...
+```
+
+## report_page.py and shot_page.js
+
+```bash
+python tools/report_page.py REPORT.md /tmp/page.html --kicker "Mesozoic Labs robotic T. rex · Stage 2 · simulation" --lede "What the page answers."
+```
+
+```bash
+node tools/shot_page.js /tmp/page.html /tmp/shot          # prints scrollWidth against the viewport at 1280 and 390 px
+```
+
+Publish the page with the Artifact tool, as a private artifact, and check it at both widths before you send the link.

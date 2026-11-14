@@ -9,7 +9,8 @@
 # after any restart (an uptime that went down in LOG shows one).
 #
 #   sh tools/keepalive.sh LOG [WATCHDOG...]      LOG outside the checkout, or under a git-ignored logs/ directory
-#   Better, run a copy (sh reads a script as it goes, so editing this file mid-run breaks the running loop):
+#   Better, run a copy (sh reads a script as it goes, so editing this file mid-run makes sh fail with a syntax error
+#   once the loop ends):
 #   cp tools/keepalive.sh /tmp/keepalive_run.sh && sh /tmp/keepalive_run.sh LOG
 #   env: STEP=120  MAX=6900 (just under two hours)  EVERY=5  STOP_FILE=<LOG>.stop
 #
@@ -18,6 +19,7 @@
 # that does). Its output is appended to LOG.
 LOG=${1:?usage: keepalive.sh LOG [WATCHDOG...]}
 shift
+mkdir -p "$(dirname "$LOG")"
 STEP=${STEP:-120}
 MAX=${MAX:-6900}
 EVERY=${EVERY:-5}

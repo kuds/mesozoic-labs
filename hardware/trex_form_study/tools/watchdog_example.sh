@@ -1,9 +1,10 @@
 #!/bin/sh
 # Watchdog template: start every chain that is neither done nor running. Generalised from the Stage 1b speed round's
-# watchdog, which kept three body chains of stage1/runs/2026-11-10-speed/run_speed_round.sh going through container
-# restarts (LESSONS_LEARNED.md §4.2). Copy it, set CHAINS, CHAIN_CMD and DONE_LOG, and pass it to tools/keepalive.sh:
+# watchdog, which guarded three body chains of stage1/runs/2026-11-10-speed/run_speed_round.sh (no restart came
+# during that round; LESSONS_LEARNED.md §4.2). Copy it, set CHAINS, CHAIN_CMD and DONE_LOG, and pass it to tools/keepalive.sh:
 #
-#   sh tools/keepalive.sh LOG sh tools/my_watchdog.sh       (run_in_background, timeout 7200000)
+#   cp tools/keepalive.sh /tmp/keepalive_run.sh && sh /tmp/keepalive_run.sh logs/keepalive.log sh tools/my_watchdog.sh
+#   (with the Bash tool's run_in_background and timeout 7200000)
 #
 # Each chain must be idempotent: resume from its own checkpoints and skip the records it already has, so that starting
 # it twice, or after a restart, loses nothing. The chain marks itself done by writing " <chain> done" as the last word

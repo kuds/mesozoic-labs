@@ -1,7 +1,8 @@
 # Stage 1's learned-controller environment: the second venv in which every R3 and R4 training session ran and in
 # which their evaluation rows were made (stage1/runs/2026-11-08/<body>/{ppo,policy_only}/*/run.json, sessions[].versions:
-# torch 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0). It was kept apart so that the tracker fit's environment,
-# requirements-study.txt, stayed untouched. Everything else since Stage 1 names requirements-study.txt's versions.
+# torch 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0), and in which R3/42's margin ledger and
+# ppo_action_noise.json were made. It was kept apart so that the tracker fit's environment, requirements-study.txt,
+# stayed untouched.
 # Use this set only to reproduce Stage 1's PPO results:
 #   REQS=tools/requirements-stage1-ppo.txt bash tools/setup_venv.sh DIR
 # Pinned from that venv's `pip freeze` on 14 Nov 2026 (Python 3.13.18, x86_64 Linux, no system site packages).

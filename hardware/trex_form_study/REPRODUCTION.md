@@ -6,8 +6,8 @@ each PR head, and which do not.
 *Later environment (note added 14 Nov 2026):* this audit is of the main repository's PRs as they stood on 7 Nov. The
 form study's own environment since Stage 1 (Python 3.13.18, MuJoCo 3.10.0, numpy 2.5.4, torch 2.15.0,
 stable-baselines3 2.9.2, gymnasium 1.4.0 and the rest) is pinned in `tools/requirements-study.txt`; Stage 1's PPO
-training and its R3/R4 evaluation rows used torch 2.9.0+cpu, stable-baselines3 2.9.0 and gymnasium 1.3.0
-(`tools/requirements-stage1-ppo.txt`). How a fresh clone
+work (the R3/R4 training, their panel rows, R3/42's margin ledger and `ppo_action_noise.json`) used torch
+2.9.0+cpu, stable-baselines3 2.9.0 and gymnasium 1.3.0 (`tools/requirements-stage1-ppo.txt`). How a fresh clone
 restores the study's git-ignored inputs is in `tools/README.md`, and why tests run with `MUJOCO_GL=disable` is in
 `LESSONS_LEARNED.md` §4.5.
 

@@ -75,8 +75,8 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
     A bench figure is an end-to-end delay to set against that.
   - Nobody has measured the real servos' delay (draft A17).
 - **Falls concentrate in transitions.**
-  - At 10 ms, 116 of 120 speed walks fell before the brisk gait began, and 169 of 240 walking-turn falls came in the
-    ramp into the turn.
+  - At 10 ms, 116 of 120 seed-matched brisk and Froude 0.05 pairs (232 of 240 walks) fell before the brisk gait began,
+    and 169 of 240 walking-turn falls came in the ramp into the turn.
   - At 0 ms, 30 of 79 60 cm animal-pace falls came before the Froude reference started (S1b §4, N5; S1 N5).
   - A rung that starts from standing is decided in its start and change. Read every rung's falls by segment before its
     verdict, and weight R5's starts, changes and stops to match.
@@ -97,7 +97,8 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
   - Removing their torque limits never helped significantly where enough walks fell to test it, and only falls and
     single stumbles pass a drive's rated speed (S1b Answers; N4 for the lifts, §5 for rated speed).
   - That headroom is read at a full battery and under an ideal, unmeasured envelope.
-    - The 60 cm plant runs at 25.2 V. At the pack's nominal 22.2 V the knee's peak at the animal pace rises from about
+    - The 60 cm plant rates its leg drives on the record's 24 V bus, with no credit above 24 V, which stands for a full
+      pack (25.2 V). At the pack's nominal 22.2 V the knee's peak at the animal pace rises from about
       0.87 to 0.94 of rated speed, and it reaches 1.00 at 21 V (computed, S1b §5).
     - The envelope gives full planning peak torque up to rated speed; A2's dyno curves would show whether it is so.
     - The K knee's rating is 2.9 times RobStride's own 100 rpm figure (S1b N6).
@@ -184,7 +185,7 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
   - No plain-torso body has been simulated, so the model cannot answer this directly. P6 rejected a rectangular
     chassis.
   - As far as the model shows, the leg drives do not limit speed (S1b Answers).
-  - The 60 cm failures read controller-limited (S1 §2), 10 ms of delay fells every 60 cm walk (§2.3), and grip binds
+  - The 60 cm failures read controller-limited (S1 §2), 10 ms of delay fells every 60 cm walk but one (§2.3), and grip binds
     (§2.4).
   - Parts of the T. rex layout, the head and tail servos, run near or over their planning limits (§2.4).
   - Size buys speed only as √H.
@@ -316,9 +317,17 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
 
 Nothing outside git reaches a new session. Each piece comes back in its own way:
 
+- **System packages:** `apt-get install -y libosmesa6`. Without it the three rendering tests fail and no clip renders;
+  the first session installed it by hand on 7 Nov.
 - **The venv:** `tools/setup_venv.sh`.
+- **Both, automatically:** the owner's cloud environment "mesozoic-labs" (made 14 Nov) runs both in its setup script.
 - **The git-ignored model files and arrays:** `tools/restore_inputs.py`, which regenerates them from the committed
-  records and checks each sha256.
+  records and checks each sha256 (`tools/README.md`).
+  - All 283 reproduced byte for byte in a fresh worktree on 14 Nov, in 151 min on 2 processes.
+  - Run it detached (`setsid nohup`), because no tool call lasts that long.
+  - The picks' model ledgers reproduce only with 2 or more BLAS threads, the count their 8 Nov sizing used. A one-CPU
+    machine cannot reproduce them; bring them in as an archive with `copy-from`.
+  - On another CPU or BLAS build, a sha256 could differ.
 - **Stage 1's PPO checkpoints and VecNormalize statistics:** no restore.
   - They are under `stage1/runs/2026-11-08/<body>/{ppo,policy_only}/*/checkpoints/`, about 150 MB.
   - Only retraining makes them again, and `run.json` records their steps, not their hashes.
@@ -336,8 +345,9 @@ Nothing outside git reaches a new session. Each piece comes back in its own way:
     `logs/`).
 - **Two Python environments made the records.**
   - `tools/requirements-study.txt` covers the plant, fits, panels, ledger, look and `-X` records.
-  - Stage 1's PPO training and its R3/R4 evaluation rows ran in a second venv: torch 2.9.0+cpu, stable-baselines3
-    2.9.0 and gymnasium 1.3.0 (`tools/requirements-stage1-ppo.txt`; `run.json` `sessions[].versions`).
+  - Stage 1's PPO work ran in a second venv: torch 2.9.0+cpu, stable-baselines3 2.9.0 and gymnasium 1.3.0
+    (`tools/requirements-stage1-ppo.txt`; `run.json` `sessions[].versions`). That covers the R3/R4 training, their
+    panel rows, R3/42's margin ledger (`75-M-H-10/sweeps/R3`) and `ppo_action_noise.json`.
 
 Without the model files the plant rebuilds models elsewhere, with another ledger. Every record key then differs, and
 `eval` and `sweep` refuse the checkout (`STAGE1_PLAN.md` decision 33, "Where it runs"). Restore first, then run the
@@ -359,8 +369,9 @@ tests.
   - `tools/keepalive.sh` runs it every 10 min.
   - After any pause, check `uptime` first.
 - **Keep the container alive.**
-  - Run `sh tools/keepalive.sh <log>` with the Bash tool's `run_in_background` and `timeout` 7200000, the maximum.
-    The default timeout, 1800000, stops it after 30 min.
+  - Run `mkdir -p logs && cp tools/keepalive.sh /tmp/keepalive_run.sh && sh /tmp/keepalive_run.sh logs/keepalive.log`
+    with the Bash tool's `run_in_background` and `timeout` 7200000, the maximum. The default timeout, 1800000, stops it
+    after 30 min.
   - Put the log outside the checkout or under a `logs/` directory (ignored).
   - The session tracks the command and is re-invoked when it ends after about 115 min; re-arm it then.
   - As a backstop, hourly scheduled tasks wake the session after a restart (create_trigger, send_later). Delete them
@@ -429,7 +440,7 @@ tests.
   directory.**
   - On 11 Nov it gave 575 passed, 107 skipped and 0 failed in the first session's checkout. That checkout held the PPO
     checkpoints and eval traces, which a fresh clone lacks even after the restore.
-  - Compare a fresh clone with the restored counts in `tools/README.md` instead.
+  - Compare a fresh clone with the restored counts in `tools/README.md` instead (599 passed, 107 skipped, 0 failed).
   - Write the log under a `logs/` directory (`mkdir -p logs`; ignored at any depth). A file such as `LOG` in the
     checkout is untracked, and the stop hook would then ask to commit it.
   - Do not add `-q`. The repository's `pyproject.toml` already sets `addopts = "--tb=short -q"`, and a second `-q`
@@ -452,7 +463,7 @@ tests.
   - Republishing to the same URL needs the same file path in the same session, or the artifact's `url` (read it
     first).
 - **The Google Drive tools are connected but untested.** The first session made no Drive call at all, and Stage 2
-  moves binaries both ways through the owner's Drive (`STAGE2_PLAN.md` §6, [pipeline] §4).
+  moves binaries both ways through the owner's Drive (`STAGE2_PLAN.md` §6; `stage2/research/research_pipeline.md` §4).
   - **Up.** `create_file` takes a local file by reference: set `base64Content` to
     `sha256:<hex>:<absolute path>`, and the app uploads the file once the owner approves the call. The size limit is
     unknown.
@@ -564,7 +575,10 @@ tests.
 13. **The panels' policy rows refuse a checkpoint trained under other library versions** (`policy_rows.check_versions`:
     Python, numpy, MuJoCo, scipy, torch, stable-baselines3, gymnasium).
     - They read torch's version from `importlib.metadata` ("2.15.0"), while `train.py` records `torch.__version__`
-      ("2.15.0+cu…" for PyPI's CUDA build). A run trained with Colab's torch is refused even in its own venv.
+      ("2.15.0+cu…" for PyPI's CUDA build). So a run trained under PyPI's torch build is refused by the policy rows
+      even in its own venv. That includes `setup_venv.sh`'s default build here, so S2-4 too. A download.pytorch.org
+      wheel (`TORCH=cpu`, the PPO set) reads the same both ways.
+    - Make both sides read torch the same way before S2-4, and check how the notebook installs torch.
     - Before the first Colab run, decide how Colab checkpoints are judged here: either in a local venv that matches
       Colab exactly, Python's patch version and torch build included, or under a flagged cross-version rule recorded in
       every policy-row record.
@@ -583,13 +597,17 @@ tests.
     - Before the first Colab run, replace the closure with a picklable schedule class, or load through
       `environments/shared/policy_loading.load_sb3_model`. Have the smoke load a Colab-saved archive here.
 16. **G9's toe-clearance check reads Stage 1b's 10 ms turn traces, and a fresh clone has none.** Before G9, regenerate
-    them, or amend G9 (labelled, before any run) to use R0L's own 10 ms turn traces. To regenerate, re-run the R2
-    10 ms turn conditions into a scratch run directory with `--inputs stage1/runs/2026-11-10-speed`, as
-    `run_speed_round.sh` runs them.
+    them, or amend G9 (labelled, before any run) to use R0L's own 10 ms turn traces.
+    - To regenerate, run `python -m designlab.stage1 eval` with `--row-module designlab.stage1.speedfit --rows
+      R2s/42@10ms,R2@10ms --behaviors turn` into a scratch `--out`. Use `--inputs stage1/runs/2026-11-08` for the picks;
+      the K body's references are in `stage1/runs/2026-11-10-speed`. This follows `run_speed_round.sh`'s rows step
+      (`tools/README.md`).
+    - Each committed episode record holds its trace's sha256 (`panels.TRACE_RULE`), so the regenerated traces can be
+      checked. Seed 3042 of three such turns came out byte for byte on 14 Nov.
 17. **S2-4 has no reading point.**
     - A 2M-step run never reaches the plan's 2.5M-step monitor.
-    - Before the run, fix S2-4's rule in the plan and label it. For example: §6's monitor on the final checkpoint
-      against R0L on the same 18 episodes, with §6's gain rule.
+    - Before the run, fix S2-4's rule in the plan and label it. For example: `STAGE2_PLAN.md` §6's monitor on the final checkpoint
+      against R0L on the same 18 episodes, with its gain rule (`STAGE2_PLAN.md` §6).
 18. **Moving binaries through Drive is untested** (§4.6).
 19. **`tools/memguard.sh` protects only `designlab.stage1 train` by default.** Set `PROTECT` for Stage 2 trainers, or
     the guard kills them first.
@@ -658,7 +676,7 @@ This is `STAGE2_PLAN.md` §7 in order, with what a new session does first.
 - the treads' grip on the owner's floors (P21);
 - the joints' friction and damping (the MJCF defaults, with no decision-log row yet).
 
-The delay matters most. At 10 ms every 60 cm walk falls under the fitted tracker (S1b §4). A measured delay above S1b
+The delay matters most. At 10 ms every 60 cm walk but one falls under the fitted tracker (S1b §4). A measured delay above S1b
 N8's figures rules out that controller family, not every controller, and one below them still leaves grip and the
 controller to check.
 
