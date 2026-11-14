@@ -183,3 +183,28 @@ def test_the_command_line_takes_groups_and_refuses_unknown_ones():
     r = subprocess.run([sys.executable, str(STUDY / "tools" / "restore_inputs.py"), "not-restored"], cwd=STUDY,
                        capture_output=True, text=True)
     assert r.returncode == 0 and r.stdout.startswith("Not restored by this tool:")
+
+
+def test_restore_runs_the_groups_in_order_and_adds_what_one_reads(tmp_path, monkeypatch, capsys):
+    """``restore --group look`` restores the picks' models first when they are not all here (the look ladder's price
+    reads them); the groups run in ``GROUPS`` order whatever order they are asked in, then check and git status."""
+    ran = []
+    monkeypatch.setattr(ri, "RESTORE", {g: (lambda g: lambda procs, scratch: ran.append((g, procs)) or 0)(g)
+                                        for g in ri.GROUPS})
+    monkeypatch.setattr(ri, "listed", lambda g: {"x.npz": "0" * 64})
+    monkeypatch.setattr(ri, "check", lambda groups: 0)
+    monkeypatch.setattr(ri, "git_changes", lambda: ([], []))
+    monkeypatch.setattr(ri, "tally", lambda files, root=None: dict(ok=[], missing=list(files), wrong=[]))
+    assert ri.restore(("look",), 2, str(tmp_path)) == 0
+    assert ran == [("picks-models", 2), ("look", 2)]
+    assert "look reads picks-models" in capsys.readouterr().out
+    ran.clear()
+    monkeypatch.setattr(ri, "tally", lambda files, root=None: dict(ok=list(files), missing=[], wrong=[]))
+    assert ri.restore(("look", "k", "picks-arrays"), 1, str(tmp_path)) == 0
+    assert ran == [("picks-arrays", 1), ("k", 1), ("look", 1)]
+    monkeypatch.setattr(ri, "git_changes", lambda: (["M  stage1/runs/2026-11-08/60-N-T-10/refs.json"], []))
+    assert ri.restore(("k",), 1, str(tmp_path)) == 0  # a change made before the run is not the run's
+    calls = iter([([], []), ([" M stage1/runs/2026-11-08/60-N-T-10/refs.json"], [])])
+    monkeypatch.setattr(ri, "git_changes", lambda: next(calls))
+    assert ri.restore(("k",), 1, str(tmp_path)) == 1  # the run changed a tracked file
+    assert "tracked files changed by this run" in capsys.readouterr().out
