@@ -1,0 +1,4454 @@
+{
+ "schema": 1,
+ "rules": {
+  "reading": "plan section 4 on one row's panel record of one condition (<out>/<body>/eval/<row>/<behavior>/<condition>.json, panels.record_path): 'shown' if the record is judged (20 episodes on seeds 3042-3061, none failed to run, panels.counts) with 20/20 up and at least 17/20 meeting every limit (Stage 1 section 4); 'survives only' with 20/20 up and fewer meeting every limit; 'fails' with fewer up; 'not judged' for a record that is not (incomplete, an episode that failed to run, not run for want of a stance); 'not run' without a record; the failing limits are named with counts: the success terms the episodes that stayed up failed (their failed_terms), and for the falls their causes, their candidates (control.CANDIDATE_RULE) and decision 20's label (the record's failure.falls_label, 'not attributed' until eval --attribute has run, speedfit.ATTRIBUTION_RULE); a shown record's few failures are listed too",
+  "questions": "Q1 (arm S, a body that is its own pick) and Q2 (arm K, a faster-knee body: speedfit.pick_of names another) per body: walk/brisk and walk/fr05 of R2s/<seed> (0 ms), each beside its baseline: on arm S Stage 1's R2 row of the start's CMA-ES seed on the same body (<stage1>/<body>/eval/R2/<seed>/; Stage 1's panels, same seeds and judge), on arm K R2@0ms on the body (the pick's gains without a refit), with the pick's Stage 1 R2 row shown as well (another body); Q3: the same conditions of R2s/<seed>@10ms beside R2@10ms (the start at 10 ms), the other five conditions at 10 ms reported; speed G5's pooled counts (0-10 ms) are not an answer (speedfit.SELECTION_RULE)",
+  "trade": "plan section 4: a speed fit that loses the nominal walk or a target turn at 0 ms is a trade, not a success: per condition of walk/nominal, turn/walking_0.35_left, turn/walking_0.35_right, turn/in_place_0.50_left, turn/in_place_0.50_right, a trade when the 0 ms baseline (QUESTIONS_RULE) shows it and R2s/<seed> does not; 'not lost' when neither shows it (the baseline did not either), 'kept' when both do, 'gained' when only R2s does, and 'unknown' while either record is not judged",
+  "baseline": "Stage 1's R2 records were made by Stage 1's code: their keys name its panel sources, and the round's code differs (this round's edits and the faster-knee registry, STAGE1B_PLAN.md section 6), so Stage 1's tables are read from its own commit; their episodes reproduce on the round's code (the review's check on brisk and Fr 0.05 episodes, and speedfit's test on a recorded G5 episode)"
+ },
+ "out": "stage1/runs/2026-11-10-speed",
+ "stage1": "stage1/runs/2026-11-08",
+ "bodies": [
+  "60-N-H-10",
+  "60-N-T-10",
+  "60-N-T-10-K"
+ ],
+ "reports": {
+  "60-N-H-10": {
+   "body": "60-N-H-10",
+   "arm": "S",
+   "pick": "60-N-H-10",
+   "start": {
+    "start_from": "60-N-H-10",
+    "candidate": "seed43_gen60",
+    "cma_seed": 43,
+    "sha256": "b476fb59eb2ca48742280b090f0f04687cd90dab585fde1f34b7e869728afb80",
+    "file": "stage1/runs/2026-11-08/60-N-H-10/tune.json"
+   },
+   "rows": [
+    "R2s/42",
+    "R2s/42@10ms",
+    "R2@10ms"
+   ],
+   "grid": {
+    "walk/nominal": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 3
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 1,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 1,
+       "cadence": 1,
+       "stride": 1,
+       "grf": 1,
+       "toe_clearance": 1,
+       "slip_worst": 1
+      },
+      "falls": 19,
+      "fall_causes": {
+       "proxy cl_tail_seg_20_0": 2,
+       "tilt": 17
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 19,
+       "slip": 18,
+       "leg_drive_at_torque_limit": 12,
+       "ankle_linkage": 5,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "proxy cl_tail_seg_20_0": 2,
+       "tilt": 18
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 12,
+       "ankle_linkage": 2
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    },
+    "walk/brisk": {
+     "R2s/42": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 14,
+      "succeeded": 13,
+      "errors": 0,
+      "failed_terms": {
+       "no_flight": 1,
+       "pitch_rms": 1,
+       "roll_peak": 1,
+       "pitch_peak": 1,
+       "toe_clearance": 1,
+       "slip_worst": 1,
+       "drive_speed": 1
+      },
+      "falls": 6,
+      "fall_causes": {
+       "tilt": 6
+      },
+      "fall_candidates": {
+       "slip": 6,
+       "cop_at_pad_edge_with_ankle_saturated": 6,
+       "leg_drive_at_torque_limit": 3
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 40,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "proxy cl_tail_seg_20_0": 1,
+       "tilt": 19
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 15,
+       "ankle_linkage": 6,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "proxy cl_tail_seg_20_0": 2,
+       "tilt": 18
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 12,
+       "ankle_linkage": 2
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    },
+    "walk/fr05": {
+     "R2s/42": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 1,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 1,
+       "no_flight": 1
+      },
+      "falls": 19,
+      "fall_causes": {
+       "tilt": 16,
+       "proxy cl_tail_seg_20_0": 3
+      },
+      "fall_candidates": {
+       "slip": 19,
+       "cop_at_pad_edge_with_ankle_saturated": 19,
+       "leg_drive_at_torque_limit": 16,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "proxy cl_tail_seg_20_0": 1,
+       "tilt": 19
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 15,
+       "ankle_linkage": 6,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "proxy cl_tail_seg_20_0": 2,
+       "tilt": 18
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 12,
+       "ankle_linkage": 2
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    },
+    "turn/walking_0.35_left": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 3
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 16,
+       "ankle_linkage": 6
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_seg_20_0": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 15,
+       "ankle_linkage": 5,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    },
+    "turn/walking_0.35_right": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 18,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 2
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 15,
+       "ankle_linkage": 7
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 14,
+       "ankle_linkage": 5,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    },
+    "turn/in_place_0.50_left": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 1,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 19,
+       "grf": 2,
+       "joint_range": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 5,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 14,
+       "joint_range": 2
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    },
+    "turn/in_place_0.50_right": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 20
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 2,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 18
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+     }
+    }
+   },
+   "stage1_baseline": {
+    "row": "R2/43",
+    "body": "60-N-H-10",
+    "cells": {
+     "walk/nominal": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 18,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 2
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     },
+     "walk/brisk": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 1,
+       "duty": 1,
+       "toe_clearance": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     },
+     "walk/fr05": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_seg_20_0": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 19
+      },
+      "falls_label": "body-limited: slip",
+      "attribution_episodes": 40,
+      "label": "body-limited: slip",
+      "kind": "falls",
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     },
+     "turn/walking_0.35_left": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     },
+     "turn/walking_0.35_right": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     },
+     "turn/in_place_0.50_left": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     },
+     "turn/in_place_0.50_right": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+     }
+    }
+   },
+   "speed_g5": {
+    "42": {
+     "selected": "seed42_gen10",
+     "judged": true,
+     "partial": false,
+     "judged_at_generation": 30,
+     "reason": null
+    }
+   },
+   "answers": {
+    "42": {
+     "Q1": {
+      "walk/brisk": {
+       "row": "R2s/42",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 14,
+        "succeeded": 13,
+        "errors": 0,
+        "failed_terms": {
+         "no_flight": 1,
+         "pitch_rms": 1,
+         "roll_peak": 1,
+         "pitch_peak": 1,
+         "toe_clearance": 1,
+         "slip_worst": 1,
+         "drive_speed": 1
+        },
+        "falls": 6,
+        "fall_causes": {
+         "tilt": 6
+        },
+        "fall_candidates": {
+         "slip": 6,
+         "cop_at_pad_edge_with_ankle_saturated": 6,
+         "leg_drive_at_torque_limit": 3
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 40,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+       },
+       "baseline_row": "Stage 1 R2/43",
+       "baseline": {
+        "cls": "shown",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 19,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 1,
+         "duty": 1,
+         "toe_clearance": 1
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": null,
+        "kind": null,
+        "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+        "row_sources": {},
+        "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+       }
+      },
+      "walk/fr05": {
+       "row": "R2s/42",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 1,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 1,
+         "no_flight": 1
+        },
+        "falls": 19,
+        "fall_causes": {
+         "tilt": 16,
+         "proxy cl_tail_seg_20_0": 3
+        },
+        "fall_candidates": {
+         "slip": 19,
+         "cop_at_pad_edge_with_ankle_saturated": 19,
+         "leg_drive_at_torque_limit": 16,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 0 ms of servo delay"
+       },
+       "baseline_row": "Stage 1 R2/43",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_seg_20_0": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 19
+        },
+        "falls_label": "body-limited: slip",
+        "attribution_episodes": 40,
+        "label": "body-limited: slip",
+        "kind": "falls",
+        "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+        "row_sources": {},
+        "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen60"
+       }
+      }
+     },
+     "Q3": {
+      "walk/nominal": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 1,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 1,
+         "cadence": 1,
+         "stride": 1,
+         "grf": 1,
+         "toe_clearance": 1,
+         "slip_worst": 1
+        },
+        "falls": 19,
+        "fall_causes": {
+         "proxy cl_tail_seg_20_0": 2,
+         "tilt": 17
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 19,
+         "slip": 18,
+         "leg_drive_at_torque_limit": 12,
+         "ankle_linkage": 5,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "proxy cl_tail_seg_20_0": 2,
+         "tilt": 18
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 12,
+         "ankle_linkage": 2
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "walk/brisk": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "proxy cl_tail_seg_20_0": 1,
+         "tilt": 19
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 15,
+         "ankle_linkage": 6,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "proxy cl_tail_seg_20_0": 2,
+         "tilt": 18
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 12,
+         "ankle_linkage": 2
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": true
+      },
+      "walk/fr05": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "proxy cl_tail_seg_20_0": 1,
+         "tilt": 19
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 15,
+         "ankle_linkage": 6,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "proxy cl_tail_seg_20_0": 2,
+         "tilt": 18
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 12,
+         "ankle_linkage": 2
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": true
+      },
+      "turn/walking_0.35_left": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 16,
+         "ankle_linkage": 6
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_seg_20_0": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 15,
+         "ankle_linkage": 5,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/walking_0.35_right": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 15,
+         "ankle_linkage": 7
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 14,
+         "ankle_linkage": 5,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/in_place_0.50_left": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 1,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 19,
+         "grf": 2,
+         "joint_range": 1
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 5,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 14,
+         "joint_range": 2
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/in_place_0.50_right": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 20
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen10, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 2,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 18
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-H-10 seed43_gen60), 10 ms of servo delay"
+       },
+       "answer": false
+      }
+     }
+    }
+   },
+   "trades": {
+    "42": {
+     "walk/nominal": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/walking_0.35_left": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/walking_0.35_right": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/in_place_0.50_left": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/in_place_0.50_right": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     }
+    }
+   },
+   "trade_conditions": []
+  },
+  "60-N-T-10": {
+   "body": "60-N-T-10",
+   "arm": "S",
+   "pick": "60-N-T-10",
+   "start": {
+    "start_from": "60-N-T-10",
+    "candidate": "seed42_gen20",
+    "cma_seed": 42,
+    "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+    "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json"
+   },
+   "rows": [
+    "R2s/42",
+    "R2s/42@10ms",
+    "R2@10ms"
+   ],
+   "grid": {
+    "walk/nominal": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 8,
+       "ankle_linkage": 5
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 10,
+       "ankle_linkage": 2
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "walk/brisk": {
+     "R2s/42": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 19,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 1,
+       "speed": 1,
+       "duty": 1
+      },
+      "falls": 1,
+      "fall_causes": {
+       "tilt": 1
+      },
+      "fall_candidates": {
+       "slip": 1,
+       "cop_at_pad_edge_with_ankle_saturated": 1
+      },
+      "falls_label": "controller-limited (decision 20; 1 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "controller-limited (decision 20; 1 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 8,
+       "ankle_linkage": 5
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 8,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "walk/fr05": {
+     "R2s/42": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 16,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 16,
+       "toe_clearance": 3
+      },
+      "falls": 4,
+      "fall_causes": {
+       "tilt": 4
+      },
+      "fall_candidates": {
+       "slip": 4,
+       "cop_at_pad_edge_with_ankle_saturated": 4,
+       "leg_drive_at_torque_limit": 2
+      },
+      "falls_label": "controller-limited (decision 20; 4 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 8,
+       "ankle_linkage": 5
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 8,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/walking_0.35_left": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 16,
+       "proxy cl_tail_11": 4
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 12,
+       "ankle_linkage": 3
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 16,
+       "leg_drive_at_torque_limit": 10,
+       "ankle_linkage": 4,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/walking_0.35_right": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 12,
+       "ankle_linkage": 4
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 20
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 17,
+       "leg_drive_at_torque_limit": 9,
+       "ankle_linkage": 4,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/in_place_0.50_left": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 1,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 19
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 20,
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/in_place_0.50_right": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 2,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 18
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 2,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 18
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    }
+   },
+   "stage1_baseline": {
+    "row": "R2/42",
+    "body": "60-N-T-10",
+    "cells": {
+     "walk/nominal": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 18,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 2
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "walk/brisk": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 17,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 3,
+      "fall_causes": {
+       "tilt": 3
+      },
+      "fall_candidates": {
+       "leg_drive_at_torque_limit": 3,
+       "slip": 3,
+       "cop_at_pad_edge_with_ankle_saturated": 3
+      },
+      "falls_label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "walk/fr05": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 1,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 1
+      },
+      "falls": 19,
+      "fall_causes": {
+       "tilt": 16,
+       "proxy cl_tail_11": 3
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 19,
+       "slip": 18,
+       "leg_drive_at_torque_limit": 16,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/walking_0.35_left": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/walking_0.35_right": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/in_place_0.50_left": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/in_place_0.50_right": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     }
+    }
+   },
+   "speed_g5": {
+    "42": {
+     "selected": "seed42_gen20",
+     "judged": true,
+     "partial": false,
+     "judged_at_generation": 30,
+     "reason": null
+    }
+   },
+   "answers": {
+    "42": {
+     "Q1": {
+      "walk/brisk": {
+       "row": "R2s/42",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 19,
+        "succeeded": 17,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 1,
+         "speed": 1,
+         "duty": 1
+        },
+        "falls": 1,
+        "fall_causes": {
+         "tilt": 1
+        },
+        "fall_candidates": {
+         "slip": 1,
+         "cop_at_pad_edge_with_ankle_saturated": 1
+        },
+        "falls_label": "controller-limited (decision 20; 1 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "controller-limited (decision 20; 1 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+       },
+       "baseline_row": "Stage 1 R2/42",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 17,
+        "succeeded": 17,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 3,
+        "fall_causes": {
+         "tilt": 3
+        },
+        "fall_candidates": {
+         "leg_drive_at_torque_limit": 3,
+         "slip": 3,
+         "cop_at_pad_edge_with_ankle_saturated": 3
+        },
+        "falls_label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+        "row_sources": {},
+        "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+       }
+      },
+      "walk/fr05": {
+       "row": "R2s/42",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 16,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 16,
+         "toe_clearance": 3
+        },
+        "falls": 4,
+        "fall_causes": {
+         "tilt": 4
+        },
+        "fall_candidates": {
+         "slip": 4,
+         "cop_at_pad_edge_with_ankle_saturated": 4,
+         "leg_drive_at_torque_limit": 2
+        },
+        "falls_label": "controller-limited (decision 20; 4 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 0 ms of servo delay"
+       },
+       "baseline_row": "Stage 1 R2/42",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 1,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 1
+        },
+        "falls": 19,
+        "fall_causes": {
+         "tilt": 16,
+         "proxy cl_tail_11": 3
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 19,
+         "slip": 18,
+         "leg_drive_at_torque_limit": 16,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+        "row_sources": {},
+        "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+       }
+      }
+     },
+     "Q3": {
+      "walk/nominal": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 8,
+         "ankle_linkage": 5
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 10,
+         "ankle_linkage": 2
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "walk/brisk": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 8,
+         "ankle_linkage": 5
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 8,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": true
+      },
+      "walk/fr05": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 8,
+         "ankle_linkage": 5
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 8,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": true
+      },
+      "turn/walking_0.35_left": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 16,
+         "proxy cl_tail_11": 4
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 12,
+         "ankle_linkage": 3
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 16,
+         "leg_drive_at_torque_limit": 10,
+         "ankle_linkage": 4,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/walking_0.35_right": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 12,
+         "ankle_linkage": 4
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 20
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 17,
+         "leg_drive_at_torque_limit": 9,
+         "ankle_linkage": 4,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/in_place_0.50_left": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 1,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 19
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 20,
+         "grf": 1
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/in_place_0.50_right": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 2,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 18
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen20, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 2,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 18
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      }
+     }
+    }
+   },
+   "trades": {
+    "42": {
+     "walk/nominal": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/walking_0.35_left": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/walking_0.35_right": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/in_place_0.50_left": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/in_place_0.50_right": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     }
+    }
+   },
+   "trade_conditions": []
+  },
+  "60-N-T-10-K": {
+   "body": "60-N-T-10-K",
+   "arm": "K",
+   "pick": "60-N-T-10",
+   "start": {
+    "start_from": "60-N-T-10",
+    "candidate": "seed42_gen20",
+    "cma_seed": 42,
+    "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+    "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json"
+   },
+   "rows": [
+    "R2s/42",
+    "R2s/42@10ms",
+    "R2@0ms",
+    "R2@10ms"
+   ],
+   "grid": {
+    "walk/nominal": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 18,
+       "proxy cl_tail_11": 2
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 16,
+       "leg_drive_at_torque_limit": 6,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 7,
+       "ankle_linkage": 2,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "walk/brisk": {
+     "R2s/42": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 19,
+      "succeeded": 3,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 16
+      },
+      "falls": 1,
+      "fall_causes": {
+       "tilt": 1
+      },
+      "fall_candidates": {
+       "slip": 1,
+       "cop_at_pad_edge_with_ankle_saturated": 1
+      },
+      "falls_label": "controller-limited (decision 20; 1 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 17,
+       "leg_drive_at_torque_limit": 9,
+       "leg_drive_at_envelope_limit": 1,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 18,
+      "succeeded": 12,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 6,
+       "no_flight": 1,
+       "pitch_peak": 1,
+       "toe_clearance": 1,
+       "drive_speed": 1
+      },
+      "falls": 2,
+      "fall_causes": {
+       "tilt": 2
+      },
+      "fall_candidates": {
+       "slip": 2,
+       "cop_at_pad_edge_with_ankle_saturated": 2,
+       "leg_drive_at_torque_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; 2 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 17,
+       "proxy cl_tail_11": 3
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 9,
+       "ankle_linkage": 2,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "walk/fr05": {
+     "R2s/42": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 17,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 17,
+       "drive_sustained": 17,
+       "slip_median": 15
+      },
+      "falls": 3,
+      "fall_causes": {
+       "tilt": 3
+      },
+      "fall_candidates": {
+       "leg_drive_at_torque_limit": 3,
+       "slip": 3,
+       "cop_at_pad_edge_with_ankle_saturated": 3,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "body-limited: drive_sustained, slip_median",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 17,
+       "leg_drive_at_torque_limit": 9,
+       "leg_drive_at_envelope_limit": 1,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 2,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 2,
+       "slip_median": 2,
+       "drive_sustained": 2,
+       "toe_clearance": 1
+      },
+      "falls": 18,
+      "fall_causes": {
+       "tilt": 15,
+       "proxy cl_tail_11": 3
+      },
+      "fall_candidates": {
+       "slip": 18,
+       "cop_at_pad_edge_with_ankle_saturated": 18,
+       "leg_drive_at_torque_limit": 14
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 40,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 17,
+       "proxy cl_tail_11": 3
+      },
+      "fall_candidates": {
+       "slip": 20,
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "leg_drive_at_torque_limit": 9,
+       "ankle_linkage": 2,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/walking_0.35_left": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 3
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 19,
+       "proxy cl_tail_11": 1
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 9
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 40,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 16,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 4
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 18,
+       "proxy cl_tail_11": 2
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 19,
+       "leg_drive_at_torque_limit": 8,
+       "ankle_linkage": 3,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 80,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/walking_0.35_right": {
+     "R2s/42": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 13,
+      "errors": 0,
+      "failed_terms": {
+       "yaw_rate": 6,
+       "grf": 2
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 18,
+       "proxy cl_tail_11": 2
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 17,
+       "leg_drive_at_torque_limit": 9,
+       "ankle_linkage": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 3
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 0,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 20,
+      "fall_causes": {
+       "tilt": 18,
+       "proxy cl_tail_11": 2
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 20,
+       "slip": 18,
+       "leg_drive_at_torque_limit": 9,
+       "ankle_linkage": 4
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/in_place_0.50_left": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 20,
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 20,
+       "grf": 3
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    },
+    "turn/in_place_0.50_right": {
+     "R2s/42": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+     },
+     "R2s/42@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 20,
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+     },
+     "R2@0ms": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+     },
+     "R2@10ms": {
+      "cls": "survives only",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 1,
+      "errors": 0,
+      "failed_terms": {
+       "toe_clearance": 19,
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": "controller-limited",
+      "kind": "success",
+      "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+      "row_sources": {
+       "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+      },
+      "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+     }
+    }
+   },
+   "stage1_baseline": {
+    "row": "R2/42",
+    "body": "60-N-T-10",
+    "cells": {
+     "walk/nominal": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 18,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 2
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "walk/brisk": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 17,
+      "succeeded": 17,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 3,
+      "fall_causes": {
+       "tilt": 3
+      },
+      "fall_candidates": {
+       "leg_drive_at_torque_limit": 3,
+       "slip": 3,
+       "cop_at_pad_edge_with_ankle_saturated": 3
+      },
+      "falls_label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 0,
+      "label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "walk/fr05": {
+      "cls": "fails",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 1,
+      "succeeded": 0,
+      "errors": 0,
+      "failed_terms": {
+       "speed": 1
+      },
+      "falls": 19,
+      "fall_causes": {
+       "tilt": 16,
+       "proxy cl_tail_11": 3
+      },
+      "fall_candidates": {
+       "cop_at_pad_edge_with_ankle_saturated": 19,
+       "slip": 18,
+       "leg_drive_at_torque_limit": 16,
+       "leg_drive_at_envelope_limit": 1
+      },
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "attribution_episodes": 60,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "kind": "falls",
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/walking_0.35_left": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/walking_0.35_right": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 19,
+      "errors": 0,
+      "failed_terms": {
+       "grf": 1
+      },
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/in_place_0.50_left": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     },
+     "turn/in_place_0.50_right": {
+      "cls": "shown",
+      "status": "done",
+      "judged": true,
+      "episodes": 20,
+      "survived": 20,
+      "succeeded": 20,
+      "errors": 0,
+      "failed_terms": {},
+      "falls": 0,
+      "fall_causes": {},
+      "fall_candidates": {},
+      "falls_label": null,
+      "attribution_episodes": null,
+      "label": null,
+      "kind": null,
+      "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+      "row_sources": {},
+      "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+     }
+    }
+   },
+   "speed_g5": {
+    "42": {
+     "selected": "seed42_gen30",
+     "judged": true,
+     "partial": false,
+     "judged_at_generation": 30,
+     "reason": null
+    }
+   },
+   "answers": {
+    "42": {
+     "Q2": {
+      "walk/brisk": {
+       "row": "R2s/42",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 19,
+        "succeeded": 3,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 16
+        },
+        "falls": 1,
+        "fall_causes": {
+         "tilt": 1
+        },
+        "fall_candidates": {
+         "slip": 1,
+         "cop_at_pad_edge_with_ankle_saturated": 1
+        },
+        "falls_label": "controller-limited (decision 20; 1 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+       },
+       "baseline_row": "R2@0ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 18,
+        "succeeded": 12,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 6,
+         "no_flight": 1,
+         "pitch_peak": 1,
+         "toe_clearance": 1,
+         "drive_speed": 1
+        },
+        "falls": 2,
+        "fall_causes": {
+         "tilt": 2
+        },
+        "fall_candidates": {
+         "slip": 2,
+         "cop_at_pad_edge_with_ankle_saturated": 2,
+         "leg_drive_at_torque_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; 2 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+       },
+       "pick_stage1": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 17,
+        "succeeded": 17,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 3,
+        "fall_causes": {
+         "tilt": 3
+        },
+        "fall_candidates": {
+         "leg_drive_at_torque_limit": 3,
+         "slip": 3,
+         "cop_at_pad_edge_with_ankle_saturated": 3
+        },
+        "falls_label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+        "row_sources": {},
+        "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+       }
+      },
+      "walk/fr05": {
+       "row": "R2s/42",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 17,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 17,
+         "drive_sustained": 17,
+         "slip_median": 15
+        },
+        "falls": 3,
+        "fall_causes": {
+         "tilt": 3
+        },
+        "fall_candidates": {
+         "leg_drive_at_torque_limit": 3,
+         "slip": 3,
+         "cop_at_pad_edge_with_ankle_saturated": 3,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; 3 falls: the sign test needs 5 for p < 0.05, so no limit was lifted; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 0,
+        "label": "body-limited: drive_sustained, slip_median",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 0 ms of servo delay"
+       },
+       "baseline_row": "R2@0ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 2,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 2,
+         "slip_median": 2,
+         "drive_sustained": 2,
+         "toe_clearance": 1
+        },
+        "falls": 18,
+        "fall_causes": {
+         "tilt": 15,
+         "proxy cl_tail_11": 3
+        },
+        "fall_candidates": {
+         "slip": 18,
+         "cop_at_pad_edge_with_ankle_saturated": 18,
+         "leg_drive_at_torque_limit": 14
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 40,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 0 ms of servo delay"
+       },
+       "pick_stage1": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 1,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "speed": 1
+        },
+        "falls": 19,
+        "fall_causes": {
+         "tilt": 16,
+         "proxy cl_tail_11": 3
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 19,
+         "slip": 18,
+         "leg_drive_at_torque_limit": 16,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+        "row_sources": {},
+        "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20"
+       }
+      }
+     },
+     "Q3": {
+      "walk/nominal": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 18,
+         "proxy cl_tail_11": 2
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 16,
+         "leg_drive_at_torque_limit": 6,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 7,
+         "ankle_linkage": 2,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "walk/brisk": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 17,
+         "leg_drive_at_torque_limit": 9,
+         "leg_drive_at_envelope_limit": 1,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 17,
+         "proxy cl_tail_11": 3
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 9,
+         "ankle_linkage": 2,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": true
+      },
+      "walk/fr05": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 17,
+         "leg_drive_at_torque_limit": 9,
+         "leg_drive_at_envelope_limit": 1,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 17,
+         "proxy cl_tail_11": 3
+        },
+        "fall_candidates": {
+         "slip": 20,
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "leg_drive_at_torque_limit": 9,
+         "ankle_linkage": 2,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": true
+      },
+      "turn/walking_0.35_left": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 19,
+         "proxy cl_tail_11": 1
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 9
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 40,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 18,
+         "proxy cl_tail_11": 2
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 19,
+         "leg_drive_at_torque_limit": 8,
+         "ankle_linkage": 3,
+         "leg_drive_at_envelope_limit": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 80,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/walking_0.35_right": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 18,
+         "proxy cl_tail_11": 2
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 17,
+         "leg_drive_at_torque_limit": 9,
+         "ankle_linkage": 1
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "fails",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 0,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {},
+        "falls": 20,
+        "fall_causes": {
+         "tilt": 18,
+         "proxy cl_tail_11": 2
+        },
+        "fall_candidates": {
+         "cop_at_pad_edge_with_ankle_saturated": 20,
+         "slip": 18,
+         "leg_drive_at_torque_limit": 9,
+         "ankle_linkage": 4
+        },
+        "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "attribution_episodes": 60,
+        "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+        "kind": "falls",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/in_place_0.50_left": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 20,
+         "grf": 1
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 20,
+         "grf": 3
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      },
+      "turn/in_place_0.50_right": {
+       "row": "R2s/42@10ms",
+       "speed": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 0,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 20,
+         "grf": 1
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2s: the tracker on the estimate with speed-fit seed 42's speed G5 selection seed42_gen30, 10 ms of servo delay"
+       },
+       "baseline_row": "R2@10ms",
+       "baseline": {
+        "cls": "survives only",
+        "status": "done",
+        "judged": true,
+        "episodes": 20,
+        "survived": 20,
+        "succeeded": 1,
+        "errors": 0,
+        "failed_terms": {
+         "toe_clearance": 19,
+         "grf": 1
+        },
+        "falls": 0,
+        "fall_causes": {},
+        "fall_candidates": {},
+        "falls_label": null,
+        "attribution_episodes": null,
+        "label": "controller-limited",
+        "kind": "success",
+        "panel_sources": "733f2b8093f40b523d677d65e54e89e72ed9a82d8d1390eeb0a16dcc2fc1a57e",
+        "row_sources": {
+         "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+        },
+        "controller": "R2: the tracker on the estimate with Stage 1's body-level G5 selection (60-N-T-10 seed42_gen20), 10 ms of servo delay"
+       },
+       "answer": false
+      }
+     }
+    }
+   },
+   "trades": {
+    "42": {
+     "walk/nominal": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/walking_0.35_left": {
+      "baseline": "survives only",
+      "speed": "shown",
+      "reading": "gained"
+     },
+     "turn/walking_0.35_right": {
+      "baseline": "shown",
+      "speed": "survives only",
+      "reading": "trade"
+     },
+     "turn/in_place_0.50_left": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     },
+     "turn/in_place_0.50_right": {
+      "baseline": "shown",
+      "speed": "shown",
+      "reading": "kept"
+     }
+    }
+   },
+   "trade_conditions": [
+    "turn/walking_0.35_right"
+   ]
+  }
+ },
+ "written_at": "2026-11-10T10:54:20+00:00"
+}

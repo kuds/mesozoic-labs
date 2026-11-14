@@ -1,0 +1,4182 @@
+{
+ "schema": 2,
+ "body": "60-N-T-10",
+ "row": "R2/43",
+ "behavior": "carpet",
+ "condition": "low",
+ "key_name": "carpet/low",
+ "gated": false,
+ "plan_gated": true,
+ "status": "done",
+ "controller": {
+  "row": "R2/43",
+  "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen40",
+  "tracker_mode": "R2",
+  "terms": [
+   "ankle",
+   "step",
+   "trunk",
+   "heading",
+   "phase",
+   "capture"
+  ],
+  "ankle_cap": [
+   "box",
+   "pad"
+  ],
+  "inward_bound": "pad_clearance",
+  "rate": 1.05,
+  "gains": {
+   "k_dcm": 3.351302494538363,
+   "cop_x": 0.02638243071068433,
+   "cop_y": 0.013564300579222071,
+   "k_step": 0.0,
+   "step_x": 0.039377876121616355,
+   "step_out": 0.04607194403387015,
+   "decay": 2.026969119826879,
+   "k_trunk": 11.034962383174312,
+   "d_trunk": 1.9442770872747404,
+   "k_yaw": 0.3750599146692198,
+   "ki_yaw": 0.006638788314868867,
+   "k_phase": 0.6029932784560517,
+   "ki_phase": 0.0028023815642818327,
+   "capture_margin": 0.0
+  },
+  "gains_info": {
+   "rule": "R2/s takes tune.json's seeds[s]: the candidate G5 selected for CMA-ES seed s (selected, selected_gains), refused if that seed has no selection",
+   "file": "/home/user/mesozoic-labs/hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/tune.json",
+   "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+   "cma_seed": 43,
+   "candidate": "seed43_gen40",
+   "g5_pass": true,
+   "g5_label": "passes G5"
+  },
+  "hard_only": false,
+  "policy": null
+ },
+ "definition": {
+  "behavior": "carpet",
+  "name": "low",
+  "gated": true,
+  "judge": "carpet",
+  "floor": "low",
+  "friction": 0.54,
+  "gait": "nominal",
+  "case": null,
+  "direction": null,
+  "seconds": null,
+  "push_at": null,
+  "push_spread": null,
+  "recovery_s": 3.0,
+  "hold_s": 2.0,
+  "key": "carpet/low"
+ },
+ "plan": [
+  [
+   "transition",
+   "start"
+  ],
+  [
+   "ref",
+   "carpet",
+   7
+  ],
+  [
+   "transition",
+   "stop"
+  ]
+ ],
+ "seconds": 16.510415098228762,
+ "seeds": [
+  3042,
+  3043,
+  3044,
+  3045,
+  3046,
+  3047,
+  3048,
+  3049,
+  3050,
+  3051,
+  3052,
+  3053,
+  3054,
+  3055,
+  3056,
+  3057,
+  3058,
+  3059,
+  3060,
+  3061
+ ],
+ "counts": {
+  "episodes": 20,
+  "survived": 0,
+  "succeeded": 0,
+  "falls": 20,
+  "errors": 0,
+  "survival_lcb": 0.0,
+  "success_lcb": 0.0,
+  "judged": true,
+  "pass_": false
+ },
+ "failure": {
+  "falls": 20,
+  "fall_causes": {
+   "tilt": 20
+  },
+  "fall_candidates": {
+   "slip": 18,
+   "cop_at_pad_edge_with_ankle_saturated": 20
+  },
+  "success": {
+   "failed_episodes": 0,
+   "terms": {},
+   "hardware_terms": [],
+   "label": "controller-limited"
+  },
+  "success_failures": 0,
+  "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+  "success_label": null,
+  "kind": "falls",
+  "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+  "untestable": [
+   "cop_at_pad_edge_with_ankle_saturated"
+  ]
+ },
+ "attribution": {
+  "rule": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label",
+  "alpha": 0.05,
+  "baseline": {
+   "strides": [
+    3.2619410038806573,
+    3.2495851667447466,
+    3.259881697691339,
+    3.2990085152883895,
+    3.2537037791233834,
+    3.469930929001821,
+    3.2722375348272497,
+    3.288711984341797,
+    3.2557630853127018,
+    3.2866526781524787,
+    3.259881697691339,
+    3.2722375348272497,
+    3.2619410038806573,
+    3.2763561472058864,
+    3.2866526781524787,
+    3.2619410038806573,
+    3.24546655436611,
+    3.251644472934065,
+    3.259881697691339,
+    3.24546655436611
+   ],
+   "survived": 0,
+   "median": 3.2619410038806573
+  },
+  "candidates": [
+   "slip",
+   "cop_at_pad_edge_with_ankle_saturated"
+  ],
+  "relaxable": {
+   "slip": "slip"
+  },
+  "not_relaxable": [
+   "cop_at_pad_edge_with_ankle_saturated"
+  ],
+  "lifted": {
+   "slip": {
+    "strides": [
+     3.2845933719631604,
+     3.24546655436611,
+     3.3113643524243,
+     3.24546655436611,
+     3.303127127667026,
+     3.7726489388316335,
+     3.2413479419874727,
+     3.243407248176791,
+     3.2722375348272497,
+     3.3278388019388476,
+     3.2681189224486125,
+     3.305186433856345,
+     3.259881697691339,
+     3.2557630853127018,
+     3.2392886357981543,
+     3.243407248176791,
+     3.2578223915020206,
+     3.24546655436611,
+     3.2578223915020206,
+     3.296949209099071
+    ],
+    "survived": 0,
+    "median": 3.2588520445966798,
+    "sign_test": {
+     "better": 10,
+     "worse": 10,
+     "tied": 0,
+     "p": 0.5880985260009766
+    },
+    "significant": false
+   }
+  },
+  "null": null,
+  "together": null,
+  "binding": [],
+  "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+  "decision_20_label": "controller-limited",
+  "panel_rule": "with --attribute, a condition of an R2 or R3 row with falls is attributed by decision 20 (gates.ATTRIBUTION_RULE, gates.attribute): every relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE) is lifted in turn (control.run's relax) over the same 20 seeds, and the condition is body-limited by the limits whose lifting improves survival significantly (gates.sign_test, one-sided, p < 0.05), else controller-limited; that costs (lifted limits x 20) episodes.  The sign test can reach p < 0.05 only with at least 5 falls (every one of them improved: 1/2^5 = 0.03125; with 4, 0.0625), so a condition with fewer falls is controller-limited by decision 20 and no limit is lifted for it (its label says so).  A candidate the plant cannot relax (control.RELAXES None: cop_at_pad_edge_with_ankle_saturated, the pad's size) cannot be tested; a controller-limited label names such candidates as untestable.  Episodes that failed to run (FAILED_EPISODE_RULE) give no candidates and are left out of the sign test's pairs; an attribution whose lifted runs had such failures is run again by the next --attribute.  The null (1 mm/s) and the together runs of G4 are diagnostics and are not run; R0 and R1 are not attributed",
+  "falls": 20,
+  "min_falls": 5,
+  "pairs": 20,
+  "pairs_left_out": 0,
+  "lifted_errors": 0,
+  "episodes": 20,
+  "gates_sha256": "5169ee65acc9196ffdbe0e3b3779ec8d1f70926afa2ba2e97d6e632f49ebe07d",
+  "runs": {
+   "slip": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "strides": 3.2845933719631604,
+     "fall_time_s": 3.1899999999998703,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "strides": 3.24546655436611,
+     "fall_time_s": 3.1519999999998745,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "strides": 3.3113643524243,
+     "fall_time_s": 3.2159999999998674,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3045,
+     "fell": true,
+     "strides": 3.24546655436611,
+     "fall_time_s": 3.1519999999998745,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3046,
+     "fell": true,
+     "strides": 3.303127127667026,
+     "fall_time_s": 3.2079999999998683,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3047,
+     "fell": true,
+     "strides": 3.7726489388316335,
+     "fall_time_s": 3.663999999999818,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3048,
+     "fell": true,
+     "strides": 3.2413479419874727,
+     "fall_time_s": 3.147999999999875,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3049,
+     "fell": true,
+     "strides": 3.243407248176791,
+     "fall_time_s": 3.1499999999998747,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3050,
+     "fell": true,
+     "strides": 3.2722375348272497,
+     "fall_time_s": 3.1779999999998716,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3051,
+     "fell": true,
+     "strides": 3.3278388019388476,
+     "fall_time_s": 3.2319999999998656,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3052,
+     "fell": true,
+     "strides": 3.2681189224486125,
+     "fall_time_s": 3.173999999999872,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3053,
+     "fell": true,
+     "strides": 3.305186433856345,
+     "fall_time_s": 3.209999999999868,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3054,
+     "fell": true,
+     "strides": 3.259881697691339,
+     "fall_time_s": 3.165999999999873,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3055,
+     "fell": true,
+     "strides": 3.2557630853127018,
+     "fall_time_s": 3.1619999999998734,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3056,
+     "fell": true,
+     "strides": 3.2392886357981543,
+     "fall_time_s": 3.145999999999875,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3057,
+     "fell": true,
+     "strides": 3.243407248176791,
+     "fall_time_s": 3.1499999999998747,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3058,
+     "fell": true,
+     "strides": 3.2578223915020206,
+     "fall_time_s": 3.163999999999873,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3059,
+     "fell": true,
+     "strides": 3.24546655436611,
+     "fall_time_s": 3.1519999999998745,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3060,
+     "fell": true,
+     "strides": 3.2578223915020206,
+     "fall_time_s": 3.163999999999873,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    },
+    {
+     "seed": 3061,
+     "fell": true,
+     "strides": 3.296949209099071,
+     "fall_time_s": 3.201999999999869,
+     "fall_cause": "tilt",
+     "succeeded": false,
+     "error": false
+    }
+   ]
+  },
+  "wall_s": 58.02689899750112
+ },
+ "terms": [
+  "survived",
+  "speed",
+  "duty",
+  "no_flight",
+  "cadence",
+  "stride",
+  "grf",
+  "roll_rms",
+  "pitch_rms",
+  "roll_peak",
+  "pitch_peak",
+  "toe_clearance",
+  "slip_median",
+  "slip_worst",
+  "drive_sustained",
+  "drive_speed",
+  "joint_range",
+  "toe_target",
+  "no_toe_catch"
+ ],
+ "term_classes": {
+  "survived": null,
+  "speed": "controller",
+  "duty": "controller",
+  "no_flight": "controller",
+  "cadence": "controller",
+  "stride": "controller",
+  "grf": "controller",
+  "roll_rms": "controller",
+  "pitch_rms": "controller",
+  "roll_peak": "controller",
+  "pitch_peak": "controller",
+  "toe_clearance": "controller",
+  "slip_median": "hardware",
+  "slip_worst": "hardware",
+  "drive_sustained": "hardware",
+  "drive_speed": "hardware",
+  "joint_range": "hardware",
+  "toe_target": "controller",
+  "no_toe_catch": "controller"
+ },
+ "episodes": [
+  {
+   "seed": 3042,
+   "fell": true,
+   "fall_time_s": 3.1679999999998727,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8419999999999086,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6666666666666666,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.30999999999996586,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1679999999998727,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2619410038806573,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8043710400745472
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5872722804199139
+   ],
+   "tilt_from_home_max_deg": 38.34175826277052,
+   "joint_margin_min_rad": 0.13616621120757752,
+   "joint_shortfall_rad": -0.036166211207577514,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04464910608965626,
+    "com_rel_feet_err_rms_mm": 10.692162532557614,
+    "tilt_err_rms_deg": 2.1962901699963737
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07886435331230283,
+    "box_max_excess_Nm": 1.140071201811395,
+    "pad_frac": 0.11041009463722397,
+    "pad_max_excess_Nm": 3.139459983522117,
+    "heavy_pad_frac": 0.10094637223974763,
+    "heavy_pad_max_excess_Nm": 3.139459983522117
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0032968727286983367,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19187888258119784,
+    "dcm_error_rms_m": 0.054857684590851837,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9422098215786816,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9553020284059542,
+     "acceleration_peak_m_s2": 1.9119094231090663
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3042.npz",
+    "sha256": "cf4cc9f15256c45ce5a9b577b401aa7bedd4837d9f2f2fcc782a2e1d447d4e1f",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.3075180379964877
+  },
+  {
+   "seed": 3043,
+   "fell": true,
+   "fall_time_s": 3.155999999999874,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8419999999999086,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.058823529411764705,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5490196078431373,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.29999999999996696,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.39215686274509803,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.155999999999874,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2495851667447466,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7850998814129861
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.6614745693812001
+   ],
+   "tilt_from_home_max_deg": 38.31715882952594,
+   "joint_margin_min_rad": 0.13597959163341977,
+   "joint_shortfall_rad": -0.035979591633419766,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.03622033722148536,
+    "com_rel_feet_err_rms_mm": 10.629663317156632,
+    "tilt_err_rms_deg": 2.1852646085670235
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.060126582278481014,
+    "box_max_excess_Nm": 0.9851265382908654,
+    "pad_frac": 0.10759493670886076,
+    "pad_max_excess_Nm": 6.595703546763786,
+    "heavy_pad_frac": 0.0949367088607595,
+    "heavy_pad_max_excess_Nm": 6.595703546763786
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0036362388237990745,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.1911520686320267,
+    "dcm_error_rms_m": 0.056602550973129793,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9422412792854473,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9346765759876474,
+     "acceleration_peak_m_s2": 2.0135263531697363
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3043.npz",
+    "sha256": "22ae352d7f59dc8a7083e6854863f06a8fd6fa7dd02bf13b4d6655b66b47ba07",
+    "rows": 158,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.3631717589887558
+  },
+  {
+   "seed": 3044,
+   "fell": true,
+   "fall_time_s": 3.165999999999873,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8319999999999097,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.49019607843137253,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.8181818181818182,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.31999999999996476,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.39215686274509803,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.165999999999873,
+   "planned_s": 16.510415098228762,
+   "strides": 3.259881697691339,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8116063960194541
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5789064323861208
+   ],
+   "tilt_from_home_max_deg": 38.721904424404975,
+   "joint_margin_min_rad": 0.13622885452074082,
+   "joint_shortfall_rad": -0.036228854520740816,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04875019887168345,
+    "com_rel_feet_err_rms_mm": 10.880140077314705,
+    "tilt_err_rms_deg": 2.2112319440282553
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07255520504731862,
+    "box_max_excess_Nm": 1.1201076320358574,
+    "pad_frac": 0.11356466876971609,
+    "pad_max_excess_Nm": 4.6485646447470375,
+    "heavy_pad_frac": 0.09779179810725552,
+    "heavy_pad_max_excess_Nm": 3.5882263171820346
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0031303822912807488,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19175774692300265,
+    "dcm_error_rms_m": 0.05497875225691248,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9425908487524006,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9755027644905696,
+     "acceleration_peak_m_s2": 2.0397365149590003
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3044.npz",
+    "sha256": "e7aa6558618b923d750deb65aeb5acef4f5e1e1e40477e7705368b42c2cad97c",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 2.956412616011221
+  },
+  {
+   "seed": 3045,
+   "fell": true,
+   "fall_time_s": 3.2039999999998687,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8719999999999053,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0392156862745098,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5490196078431373,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 1.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.34999999999996145,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.45098039215686275,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.2039999999998687,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2990085152883895,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.799056469050914
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.6209670353299224
+   ],
+   "tilt_from_home_max_deg": 39.10898412774753,
+   "joint_margin_min_rad": 0.13610028852437622,
+   "joint_shortfall_rad": -0.03610028852437622,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04104317959062075,
+    "com_rel_feet_err_rms_mm": 10.688244083902887,
+    "tilt_err_rms_deg": 2.167277364078855
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.09034267912772585,
+    "box_max_excess_Nm": 1.0598697752174076,
+    "pad_frac": 0.12149532710280374,
+    "pad_max_excess_Nm": 6.780195709876909,
+    "heavy_pad_frac": 0.09034267912772585,
+    "heavy_pad_max_excess_Nm": 6.780195709876909
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.002482552295174166,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.1940593244287113,
+    "dcm_error_rms_m": 0.05406610267285141,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9424146994913962,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9653876061756925,
+     "acceleration_peak_m_s2": 1.4048528564964882
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3045.npz",
+    "sha256": "7d3ee505c00c4720a6acc06693e5e0dcf8ef69614c4f6dbc017f76db9628c86f",
+    "rows": 161,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.0230863059987314
+  },
+  {
+   "seed": 3046,
+   "fell": true,
+   "fall_time_s": 3.1599999999998736,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8419999999999086,
+   "fall_candidates": [
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6470588235294118,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": null,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1599999999998736,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2537037791233834,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7998685061324269
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.600566234944045
+   ],
+   "tilt_from_home_max_deg": 37.60596269556665,
+   "joint_margin_min_rad": 0.13616732700815634,
+   "joint_shortfall_rad": -0.036167327008156336,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04361439397801032,
+    "com_rel_feet_err_rms_mm": 10.614095720112854,
+    "tilt_err_rms_deg": 2.1797722287499934
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07278481012658228,
+    "box_max_excess_Nm": 1.0584213130069173,
+    "pad_frac": 0.11075949367088607,
+    "pad_max_excess_Nm": 3.39480188521114,
+    "heavy_pad_frac": 0.0981012658227848,
+    "heavy_pad_max_excess_Nm": 3.39480188521114
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.004028596986282486,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19139433994841706,
+    "dcm_error_rms_m": 0.05489972415851572,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.94228844548686,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.955221073055584,
+     "acceleration_peak_m_s2": 2.0757014608332183
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3046.npz",
+    "sha256": "8c4335b8329cb3ed5f70736b3d994b48982a09ac12c579beca3a38bf09443700",
+    "rows": 158,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.080519933006144
+  },
+  {
+   "seed": 3047,
+   "fell": true,
+   "fall_time_s": 3.3699999999998504,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.9419999999998976,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.43137254901960786,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.09090909090909091,
+     "cop_at_pad_edge_with_ankle_saturated": 1.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.45098039215686275,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.3699999999998504,
+   "planned_s": 16.510415098228762,
+   "strides": 3.469930929001821,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8131069039246636
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.605812427120914
+   ],
+   "tilt_from_home_max_deg": 38.082431800062466,
+   "joint_margin_min_rad": 0.136362804512341,
+   "joint_shortfall_rad": -0.036362804512341,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.07360119947350881,
+    "com_rel_feet_err_rms_mm": 11.040791962668024,
+    "tilt_err_rms_deg": 2.2377470239654658
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07418397626112759,
+    "box_max_excess_Nm": 1.391761118048036,
+    "pad_frac": 0.14836795252225518,
+    "pad_max_excess_Nm": 6.261772177112347,
+    "heavy_pad_frac": 0.13353115727002968,
+    "heavy_pad_max_excess_Nm": 6.261772177112347
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.009932350989084331,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.20411358405891225,
+    "dcm_error_rms_m": 0.06269234720150958,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.942922988609599,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 1.036939961338299,
+     "acceleration_peak_m_s2": 2.4383887171740546
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3047.npz",
+    "sha256": "1337a9b59b08463b09b7200e1b79d09611a471667a9a499d90660a9eeca6bc41",
+    "rows": 169,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.3542419930017786
+  },
+  {
+   "seed": 3048,
+   "fell": true,
+   "fall_time_s": 3.1779999999998716,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8619999999999064,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6274509803921569,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.8181818181818182,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.41999999999995374,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1779999999998716,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2722375348272497,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7972772719528433
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.6626806017311689
+   ],
+   "tilt_from_home_max_deg": 38.255828578340626,
+   "joint_margin_min_rad": 0.13612314226745226,
+   "joint_shortfall_rad": -0.03612314226745225,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.03697841983374313,
+    "com_rel_feet_err_rms_mm": 10.597600346941908,
+    "tilt_err_rms_deg": 2.1631748537838504
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07861635220125786,
+    "box_max_excess_Nm": 1.046993065294867,
+    "pad_frac": 0.11320754716981132,
+    "pad_max_excess_Nm": 6.174636485584944,
+    "heavy_pad_frac": 0.09433962264150944,
+    "heavy_pad_max_excess_Nm": 6.174636485584944
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.002384835900129426,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.1924845608721738,
+    "dcm_error_rms_m": 0.05444551114784282,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9421234884501153,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9450943906323619,
+     "acceleration_peak_m_s2": 1.731289861419465
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3048.npz",
+    "sha256": "40fbbd18a7c39616cbfdbdd63514739cbbfa73aac52124681171e262176d8825",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.2674560449959245
+  },
+  {
+   "seed": 3049,
+   "fell": true,
+   "fall_time_s": 3.19399999999987,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8719999999999053,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5490196078431373,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 1.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.35999999999996035,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.19399999999987,
+   "planned_s": 16.510415098228762,
+   "strides": 3.288711984341797,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8120406763871225
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.8780664718481401
+   ],
+   "tilt_from_home_max_deg": 39.19065813081305,
+   "joint_margin_min_rad": 0.1361236104424672,
+   "joint_shortfall_rad": -0.0361236104424672,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.0402130148631905,
+    "com_rel_feet_err_rms_mm": 10.450759389714564,
+    "tilt_err_rms_deg": 2.142260969480615
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.096875,
+    "box_max_excess_Nm": 2.015561877297216,
+    "pad_frac": 0.109375,
+    "pad_max_excess_Nm": 1.147576813189788,
+    "heavy_pad_frac": 0.090625,
+    "heavy_pad_max_excess_Nm": 0.9058716759962092
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0031889190775392894,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19345364613773533,
+    "dcm_error_rms_m": 0.05310715544538813,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9425460458044501,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9755488959845767,
+     "acceleration_peak_m_s2": 1.621815550203875
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3049.npz",
+    "sha256": "928d1a7bcfe8fda429e84e637d1c31e7849a3db2ae5c51725c4b8d4ea1948600",
+    "rows": 160,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.3437465369934216
+  },
+  {
+   "seed": 3050,
+   "fell": true,
+   "fall_time_s": 3.1619999999998734,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8319999999999097,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5490196078431373,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.8181818181818182,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.31999999999996476,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.4117647058823529,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1619999999998734,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2557630853127018,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8053530847562616
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5794116087958014
+   ],
+   "tilt_from_home_max_deg": 39.397664848421456,
+   "joint_margin_min_rad": 0.136159896590863,
+   "joint_shortfall_rad": -0.036159896590862994,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.050120728182113355,
+    "com_rel_feet_err_rms_mm": 10.77214591801598,
+    "tilt_err_rms_deg": 2.2362740737498004
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.08201892744479496,
+    "box_max_excess_Nm": 1.1164411469412414,
+    "pad_frac": 0.12302839116719243,
+    "pad_max_excess_Nm": 4.511062109945117,
+    "heavy_pad_frac": 0.10725552050473186,
+    "heavy_pad_max_excess_Nm": 3.6722340220622067
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.004099393570729618,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19151547560661228,
+    "dcm_error_rms_m": 0.05558323625029222,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9423904811983108,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9654125426161153,
+     "acceleration_peak_m_s2": 1.9231972197069007
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3050.npz",
+    "sha256": "2b003e98e597f7de8fd3de669708d1e58bccadd1e68f0934141d93e5d398f242",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.047523123997962
+  },
+  {
+   "seed": 3051,
+   "fell": true,
+   "fall_time_s": 3.19199999999987,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8519999999999075,
+   "fall_candidates": [
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5294117647058824,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 1.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": null,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.45098039215686275,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.19199999999987,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2866526781524787,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8146643393803523
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5943259202202464
+   ],
+   "tilt_from_home_max_deg": 39.44896075184854,
+   "joint_margin_min_rad": 0.1362401944305383,
+   "joint_shortfall_rad": -0.0362401944305383,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.0558319563327077,
+    "com_rel_feet_err_rms_mm": 10.889963338253802,
+    "tilt_err_rms_deg": 2.2317879450884273
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.078125,
+    "box_max_excess_Nm": 1.1798040459042802,
+    "pad_frac": 0.1125,
+    "pad_max_excess_Nm": 3.69753107976239,
+    "heavy_pad_frac": 0.1,
+    "heavy_pad_max_excess_Nm": 3.69753107976239
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.003699264876021564,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19333251047954014,
+    "dcm_error_rms_m": 0.053890854989923784,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.942714677453173,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9959683257787963,
+     "acceleration_peak_m_s2": 1.7528926459748155
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3051.npz",
+    "sha256": "9d55693e79a6488f91b6cc1ed9715999cf0500361d943540fe57dd4e75babd38",
+    "rows": 160,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.177071034995606
+  },
+  {
+   "seed": 3052,
+   "fell": true,
+   "fall_time_s": 3.165999999999873,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8519999999999075,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0392156862745098,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5686274509803921,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.39999999999995595,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.4117647058823529,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.165999999999873,
+   "planned_s": 16.510415098228762,
+   "strides": 3.259881697691339,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7864579638299438
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5904820888652248
+   ],
+   "tilt_from_home_max_deg": 38.70120896423178,
+   "joint_margin_min_rad": 0.13603024370191352,
+   "joint_shortfall_rad": -0.03603024370191352,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04078827814820205,
+    "com_rel_feet_err_rms_mm": 10.597418720001174,
+    "tilt_err_rms_deg": 2.1874061571093417
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07570977917981073,
+    "box_max_excess_Nm": 1.0470070471020687,
+    "pad_frac": 0.11041009463722397,
+    "pad_max_excess_Nm": 4.89534168422509,
+    "heavy_pad_frac": 0.0946372239747634,
+    "heavy_pad_max_excess_Nm": 0.8492656621278598
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.003013531718228513,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19175774692300265,
+    "dcm_error_rms_m": 0.05581964980297909,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9422375213834013,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9449769762697108,
+     "acceleration_peak_m_s2": 1.8797054375822673
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3052.npz",
+    "sha256": "81d30b4470f27fdb4bcaa407150bd3c654b7799cf3d2ae03fa51ce33607b6712",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.738820710001164
+  },
+  {
+   "seed": 3053,
+   "fell": true,
+   "fall_time_s": 3.1779999999998716,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8619999999999064,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0392156862745098,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6274509803921569,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.9090909090909091,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.32999999999996366,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1779999999998716,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2722375348272497,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7999351804383658
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.66489759173957
+   ],
+   "tilt_from_home_max_deg": 38.044563412269625,
+   "joint_margin_min_rad": 0.13616858021164605,
+   "joint_shortfall_rad": -0.03616858021164604,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.0385183851613449,
+    "com_rel_feet_err_rms_mm": 10.668029462479074,
+    "tilt_err_rms_deg": 2.182315603279164
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.08176100628930817,
+    "box_max_excess_Nm": 1.0529940187045987,
+    "pad_frac": 0.11320754716981132,
+    "pad_max_excess_Nm": 1.8524917023552532,
+    "heavy_pad_frac": 0.09433962264150944,
+    "heavy_pad_max_excess_Nm": 0.8585391412859531
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.002967234850163677,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.1924845608721738,
+    "dcm_error_rms_m": 0.054005022265937584,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9419994202044875,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9452221378854215,
+     "acceleration_peak_m_s2": 1.7515369604830813
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3053.npz",
+    "sha256": "264b3baa9962cf40679e5b96581fbd661de8e3b275b63c7a3d9d5bebe84e6d1e",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.4390964500053087
+  },
+  {
+   "seed": 3054,
+   "fell": true,
+   "fall_time_s": 3.1679999999998727,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8519999999999075,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.058823529411764705,
+     "cop_at_pad_edge_with_ankle_saturated": 0.4117647058823529,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.8181818181818182,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.30999999999996586,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.3137254901960784,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1679999999998727,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2619410038806573,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7834745506283598
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5936025299013377
+   ],
+   "tilt_from_home_max_deg": 38.295526604223454,
+   "joint_margin_min_rad": 0.1359834698486059,
+   "joint_shortfall_rad": -0.0359834698486059,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.03999933349222211,
+    "com_rel_feet_err_rms_mm": 10.567615668773838,
+    "tilt_err_rms_deg": 2.1661775118867665
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.06624605678233439,
+    "box_max_excess_Nm": 1.0701047894738558,
+    "pad_frac": 0.10725552050473186,
+    "pad_max_excess_Nm": 3.070186153457993,
+    "heavy_pad_frac": 0.08517350157728706,
+    "heavy_pad_max_excess_Nm": 3.070186153457993
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.003489594850610496,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19187888258119784,
+    "dcm_error_rms_m": 0.05535763217436711,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9424329198169643,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9550723146144934,
+     "acceleration_peak_m_s2": 1.8957265911157968
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3054.npz",
+    "sha256": "b624050e91fb48203e6221e401655147e74cf850ce2f5fa541c41abc0aff4190",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.5750904680025997
+  },
+  {
+   "seed": 3055,
+   "fell": true,
+   "fall_time_s": 3.181999999999871,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8619999999999064,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0392156862745098,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6274509803921569,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.9090909090909091,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.32999999999996366,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.181999999999871,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2763561472058864,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7963545251170664
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.8785823966369563
+   ],
+   "tilt_from_home_max_deg": 39.46111629995937,
+   "joint_margin_min_rad": 0.13611796807205973,
+   "joint_shortfall_rad": -0.03611796807205972,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.03784114576362962,
+    "com_rel_feet_err_rms_mm": 10.89923025007917,
+    "tilt_err_rms_deg": 2.2257044890468287
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.09404388714733543,
+    "box_max_excess_Nm": 1.8669869487487176,
+    "pad_frac": 0.109717868338558,
+    "pad_max_excess_Nm": 5.918299173355697,
+    "heavy_pad_frac": 0.0877742946708464,
+    "heavy_pad_max_excess_Nm": 5.918299173355697
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.003399085234320279,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19272683218856418,
+    "dcm_error_rms_m": 0.05504017263109447,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9421921225750176,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9553202522398492,
+     "acceleration_peak_m_s2": 1.7670706331460329
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3055.npz",
+    "sha256": "123e262576b3a61264596cde874e18ba67090b0332095e48ae747219c155c542",
+    "rows": 160,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.3532674449961632
+  },
+  {
+   "seed": 3056,
+   "fell": true,
+   "fall_time_s": 3.19199999999987,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8719999999999053,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5686274509803921,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 1.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.42999999999995264,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.19199999999987,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2866526781524787,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7980766459890071
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.6652041238175838
+   ],
+   "tilt_from_home_max_deg": 39.548016339914476,
+   "joint_margin_min_rad": 0.13606869912099998,
+   "joint_shortfall_rad": -0.03606869912099997,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.03850102794318178,
+    "com_rel_feet_err_rms_mm": 10.749907696766796,
+    "tilt_err_rms_deg": 2.1907534338573162
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.0875,
+    "box_max_excess_Nm": 1.10160805704772,
+    "pad_frac": 0.125,
+    "pad_max_excess_Nm": 5.641542505713122,
+    "heavy_pad_frac": 0.103125,
+    "heavy_pad_max_excess_Nm": 5.641542505713122
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.004309361640373441,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19333251047954014,
+    "dcm_error_rms_m": 0.05479878028051344,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9423060141955535,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9552029833803087,
+     "acceleration_peak_m_s2": 1.5358420085530327
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3056.npz",
+    "sha256": "833e02b5c62a44be9224f61cf23000759e4570d8a2df8476bea6c30f5c92deaf",
+    "rows": 160,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.0348818149941508
+  },
+  {
+   "seed": 3057,
+   "fell": true,
+   "fall_time_s": 3.1679999999998727,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8519999999999075,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.5490196078431373,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.8181818181818182,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.40999999999995485,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1679999999998727,
+   "planned_s": 16.510415098228762,
+   "strides": 3.2619410038806573,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7897903877697607
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.5952600467621263
+   ],
+   "tilt_from_home_max_deg": 38.235635927708415,
+   "joint_margin_min_rad": 0.1360317386455161,
+   "joint_shortfall_rad": -0.03603173864551609,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04048972322503381,
+    "com_rel_feet_err_rms_mm": 10.693431178118082,
+    "tilt_err_rms_deg": 2.19283373262702
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.07886435331230283,
+    "box_max_excess_Nm": 1.0277276872330745,
+    "pad_frac": 0.11356466876971609,
+    "pad_max_excess_Nm": 6.628047171526655,
+    "heavy_pad_frac": 0.09779179810725552,
+    "heavy_pad_max_excess_Nm": 6.628047171526655
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.002760262665315738,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19187888258119784,
+    "dcm_error_rms_m": 0.055457297432411234,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9423554272917556,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9448555740862953,
+     "acceleration_peak_m_s2": 1.8722812643264228
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3057.npz",
+    "sha256": "fcecfe3fee9310c0a5d1b6ace975e2b784b4e38dbc54333793aa22d8a58eb50a",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 2.904081803004374
+  },
+  {
+   "seed": 3058,
+   "fell": true,
+   "fall_time_s": 3.1519999999998745,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8319999999999097,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0196078431372549,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6862745098039216,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.9090909090909091,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.29999999999996696,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1519999999998745,
+   "planned_s": 16.510415098228762,
+   "strides": 3.24546655436611,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.8031630962290566
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.8092928633298196
+   ],
+   "tilt_from_home_max_deg": 39.673051996250706,
+   "joint_margin_min_rad": 0.13620391426946443,
+   "joint_shortfall_rad": -0.03620391426946443,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.04254539469502382,
+    "com_rel_feet_err_rms_mm": 10.931253935059857,
+    "tilt_err_rms_deg": 2.264501034726236
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.09177215189873418,
+    "box_max_excess_Nm": 2.3964138508296955,
+    "pad_frac": 0.10443037974683544,
+    "pad_max_excess_Nm": 1.098216183259128,
+    "heavy_pad_frac": 0.08860759493670886,
+    "heavy_pad_max_excess_Nm": 1.098216183259128
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0025711700289786253,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19090979731563631,
+    "dcm_error_rms_m": 0.05646890362239007,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9423151588852197,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9551935675222942,
+     "acceleration_peak_m_s2": 1.9988774633358635
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3058.npz",
+    "sha256": "fdc79b1568cdec99b971ec080490d319474cc289132e66e8378d9d8e023ab989",
+    "rows": 158,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.0901850259979255
+  },
+  {
+   "seed": 3059,
+   "fell": true,
+   "fall_time_s": 3.157999999999874,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8419999999999086,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0392156862745098,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6078431372549019,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.38999999999995705,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.43137254901960786,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.157999999999874,
+   "planned_s": 16.510415098228762,
+   "strides": 3.251644472934065,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7833891028358505
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.8087685577660312
+   ],
+   "tilt_from_home_max_deg": 38.03479300622891,
+   "joint_margin_min_rad": 0.136045716404786,
+   "joint_shortfall_rad": -0.03604571640478599,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.03517840659568374,
+    "com_rel_feet_err_rms_mm": 10.655193913307697,
+    "tilt_err_rms_deg": 2.186966452749095
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.08544303797468354,
+    "box_max_excess_Nm": 2.2750247057920845,
+    "pad_frac": 0.11392405063291139,
+    "pad_max_excess_Nm": 6.186984695456028,
+    "heavy_pad_frac": 0.10443037974683544,
+    "heavy_pad_max_excess_Nm": 6.186984695456028
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0026113248175839063,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19127320429022188,
+    "dcm_error_rms_m": 0.055874455207351584,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9421426907801576,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.934778087947217,
+     "acceleration_peak_m_s2": 2.1517020090050507
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3059.npz",
+    "sha256": "cc49473d4f665e9e4d23c9f3ba6d1530e3c5831fce68360b50f90aee066798df",
+    "rows": 158,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.0749414489982883
+  },
+  {
+   "seed": 3060,
+   "fell": true,
+   "fall_time_s": 3.165999999999873,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8519999999999075,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.058823529411764705,
+     "cop_at_pad_edge_with_ankle_saturated": 0.43137254901960786,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.30999999999996586,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.3137254901960784,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.165999999999873,
+   "planned_s": 16.510415098228762,
+   "strides": 3.259881697691339,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7830302730013352
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.6641611459833354
+   ],
+   "tilt_from_home_max_deg": 38.53096042930208,
+   "joint_margin_min_rad": 0.13595936313603318,
+   "joint_shortfall_rad": -0.03595936313603318,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.0380256907162626,
+    "com_rel_feet_err_rms_mm": 10.767178138102427,
+    "tilt_err_rms_deg": 2.1706186002409757
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.05993690851735016,
+    "box_max_excess_Nm": 0.9902442985614908,
+    "pad_frac": 0.10410094637223975,
+    "pad_max_excess_Nm": 6.656139021577067,
+    "heavy_pad_frac": 0.08201892744479496,
+    "heavy_pad_max_excess_Nm": 6.656139021577067
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.003139547528492761,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19175774692300265,
+    "dcm_error_rms_m": 0.05588360464409998,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9424037212343839,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9448058480788147,
+     "acceleration_peak_m_s2": 1.8939915794029425
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3060.npz",
+    "sha256": "043d76a6e34bcf839da7302813f5a77ba1c377d51ddf8cd3dcd54e43f1314512",
+    "rows": 159,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 3.063639220999903
+  },
+  {
+   "seed": 3061,
+   "fell": true,
+   "fall_time_s": 3.1519999999998745,
+   "fall_cause": "tilt",
+   "fall_onset_s": 2.8319999999999097,
+   "fall_candidates": [
+    "slip",
+    "cop_at_pad_edge_with_ankle_saturated"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0392156862745098,
+     "cop_at_pad_edge_with_ankle_saturated": 0.6274509803921569,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.7272727272727273,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.28999999999996806,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.45098039215686275,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 3.1519999999998745,
+   "planned_s": 16.510415098228762,
+   "strides": 3.24546655436611,
+   "worst_sustained_ratio": [
+    "left_ankle_b_servo",
+    0.7995976452421739
+   ],
+   "worst_speed_ratio": [
+    "right_ankle_b_servo",
+    0.8055629979677624
+   ],
+   "tilt_from_home_max_deg": 39.638280479176416,
+   "joint_margin_min_rad": 0.13618209110790835,
+   "joint_shortfall_rad": -0.03618209110790835,
+   "joint_worst": "left_hip_roll",
+   "estimator": {
+    "com_vel_err_rms_m_s": 0.041887514061738705,
+    "com_rel_feet_err_rms_mm": 10.915962944069623,
+    "tilt_err_rms_deg": 2.2648496543565457
+   },
+   "ankle_cap_residual": {
+    "box_frac": 0.0949367088607595,
+    "box_max_excess_Nm": 2.4505636630652887,
+    "pad_frac": 0.11075949367088607,
+    "pad_max_excess_Nm": 1.0763471579078105,
+    "heavy_pad_frac": 0.0981012658227848,
+    "heavy_pad_max_excess_Nm": 1.0763471579078105
+   },
+   "captures": 0,
+   "phase_rate_range": [
+    -0.0030716426379161542,
+    0.05
+   ],
+   "success": {
+    "survived": false,
+    "speed": false,
+    "duty": false,
+    "no_flight": false,
+    "cadence": false,
+    "stride": false,
+    "grf": false,
+    "roll_rms": false,
+    "pitch_rms": false,
+    "roll_peak": false,
+    "pitch_peak": false,
+    "toe_clearance": false,
+    "slip_median": false,
+    "slip_worst": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false,
+    "toe_target": false,
+    "no_toe_catch": false
+   },
+   "succeeded": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "measures": {
+    "survived_frac": 0.19090979731563631,
+    "dcm_error_rms_m": 0.0564685320452365,
+    "drift_m": null,
+    "legs": null,
+    "window_sustained_ratio": null,
+    "start": {
+     "command_s": 1.9422177920830639,
+     "command_speed_m_s": 0.22917921786770637,
+     "stride_s": 0.9712008881310161,
+     "speed_frac": 0.9,
+     "reached": true,
+     "strides": 0.9552938215514509,
+     "acceleration_peak_m_s2": 1.9209481532607895
+    },
+    "stop_reading": {
+     "forward_stopped_strides": null,
+     "within": null,
+     "at_rest_strides": null,
+     "rest_speed_m_s": 0.0035,
+     "acceleration_peak_m_s2": null
+    },
+    "stop": null,
+    "window": {
+     "complete": false,
+     "t_start_s": null,
+     "t_end_s": null,
+     "speed_m_s": null,
+     "lateral_m": null,
+     "heading_change_rad": null,
+     "yaw_rate_rad_s": null,
+     "turned_180": null,
+     "duty": null,
+     "flight_s": null,
+     "cadence_steps_s": null,
+     "stride_H": null,
+     "grf_peak_bw": null,
+     "roll_rms_deg": null,
+     "pitch_rms_deg": null,
+     "roll_peak_deg": null,
+     "pitch_peak_deg": null,
+     "toe_clearance_m": null,
+     "slip_median_m": null,
+     "slip_worst_m": null,
+     "slip_contact_path_median_m": null,
+     "slip_contact_path_worst_m": null,
+     "drive_sustained_worst": null,
+     "swings": null,
+     "stances": null,
+     "unloaded_steps": null
+    },
+    "carpet": {
+     "target_m": 0.024281351992831424,
+     "toe_clearance_m": null,
+     "swings": null,
+     "catching_swings": null
+    }
+   },
+   "trace": {
+    "path": "R2/43/carpet/low/3061.npz",
+    "sha256": "dfb5a2269b48de08f08313e112a3730947a1a8d0a494b441db8fe4eb8b174d65",
+    "rows": 158,
+    "every_s": 0.02
+   },
+   "relaxed": [],
+   "wall_s": 2.8405726670025615
+  }
+ ],
+ "rules": {
+  "conditions": "per body, plan section 4: stand 20 s on hard floor, robot_floor_carpet and low pile; walk nominal, brisk and Fr 0.05 at mu 0.9 (the hard floor as compiled) and nominal at mu 0.54 (control.set_friction), brisk and Fr 0.05 at mu 0.54 reported; turn: the 0.35 rad/s walking turn and the 0.5 rad/s in-place turn, left and right (each a condition), the 0.5 rad/s walking turn reported; start and stop: stand, nominal, stand, twice; push: standing and walking, forward, backward, left and right (each a condition); carpet: the carpet walk (env.TASKS['carpet_walk'], the carpet swing at mu 0.54) on robot_floor_carpet and low pile, medium and high pile reported.  Gated conditions decide the verdicts; reported ones are run and judged the same way but decide nothing; whether a condition is gated depends on the row as well (GATING_RULE: decision 23 reports the carpet walk for R0-R2).  R0 and R1 run the conditions on the hard floor (any friction); R2 every condition.  Piles are plan section 2's evaluation piles (carpet.floor_variants: 4 mm probes; the 8 mm training pile is PPO's)",
+  "gating": "a condition is gated for a row as plan section 4 gates it, except that STAGE1_PLAN.md decision 23 reports the carpet walk, on every floor, for R0, R1 and R2 (the tracker was never fitted on carpet: it is reported with its fall attribution) and leaves its verdict to the policy rows R3 and R4, for which robot_floor_carpet and low pile are gated; each record carries its row's gating (gated) beside the plan's (plan_gated)",
+  "rows": "R0: the reference with feedforward and servo PD only, played on the commanded clock: control.Tracker with no feedback term and no ankle cap (terms=(), ankle_cap=(); its R1 mode, whose state view then sets nothing), which commands exactly R0's targets (control.Tracker's R0 mode refuses another clock than the references' own; at rate 1 the two are the same bit for bit).  R0 has no balance, step or capture: in a push it holds the reference through the servos' PD alone, in a turn it plays the turn reference open loop; both are judged by the same rules.  R1: the tracker on the true state with the body-level G5 selection (env.tuned_gains, env.GAINS_RULE).  R2/42 and R2/43: the tracker on the estimate with each CMA-ES seed's own G5-selected candidate (tune.json seeds[s].selected_gains).  Every row: control.TERMS (R1, R2), the decided ankle cap and inward bound, the capture margin as selected (0.0, tune.FIXED_RULE), clock rate 1.05",
+  "episode": "seeds 3042-3061 for every condition and row (pushes paired by seed); episode seed s of a condition starts from the plant's settled stance with tune's start noise (joint angles +-0.01 rad, root velocity +-0.02 m/s) drawn from tune.derived_seed(s, slot, 0) and R2's sensor noise (estimator.SensorNoise defaults) from tune.derived_seed(s, slot, 1), slot the episode kind's place in tune's mix (walk and carpet walk 0, walking turn 1, in-place turn 2, every other condition 0), so a panel episode on a G5 validation seed is G5's episode; a push's timing is drawn from tune.derived_seed(s, slot, 2); the nominal plant (no randomisation, no latency), the floor and friction of the condition, commanded 5 % above (tune.COMMAND_RATE, control.COMMAND_RATE_RULE); a fall is plant.Plant.fall_cause (an episode during which MuJoCo warned counts as a fall at its start, tune.FAILURE_RULE); an episode that raises, or whose worker is lost twice, failed to run and is not a result (FAILED_EPISODE_RULE)",
+  "failed_episode": "an episode that raises, or whose worker process dies or does not answer within 900 s on each of 2 attempts (tune.Pool), failed to run: it is recorded with the traceback or reason (error) as a fall at its start with every success term failed, but it is not a result: the counts give it apart (errors), a record that holds one is not judged (pass_ None, its verdict incomplete), the next eval of the same key runs those seeds again and merges them in (RESUME_RULE), and attribution leaves it out (PANEL_ATTRIBUTION_RULE)",
+  "limits": "every success also needs every drive's motor-space RMS at most its sustained torque and every drive's peak speed at most speed_at(24 V) (control.run's worst ratios), and every joint keeping its required usable range (walks, stands, pushes, starts and stops 0.1 rad; turns decision 14's margin, tune.SUCCESS_RULE): for walks, turns and the carpet walk read as tune.SUCCESS_RULE reads them (the drive RMS over the judged window, peak speed and range over the episode); for stands, pushes and starts and stops over the whole episode",
+  "pass_": "a condition passes if all 20 episodes survive and at least 17 succeed (STAGE1_PLAN.md section 4, decision 6); a record of fewer episodes or other seeds is not judged",
+  "lcb": "one-sided 95 % Clopper-Pearson lower bound on the success probability: the 0.05 quantile of Beta(k, n - k + 1), 0 for k = 0 (20/20 -> 0.861, 17/20 -> 0.656; the repository's recovery_gate.binomial_lcb by bisection gives the same)",
+  "success_label": "the success failures (episodes that survive but fail a term) are labelled from their failed terms: the hardware terms (drive_sustained, drive_speed, joint_range, slip_median, slip_worst, no_leg_interference: drive RMS, drive speed, joint range, slip at the pad, and the legs' clearance, legs.LegGap's interference, the leg-to-leg clearance that STAGE1_PLAN.md decision 20 puts in the body-limited list in place of the turn gap: on the narrow bodies the legs are 32-58 mm apart at the reference stance, so their spacing is the body's) against the controller's (speed, yaw rate, cadence, stride, duty, flight, GRF, roll, pitch and tilt, toe clearance and the carpet's toe terms, drift, start and stop, push recovery); body-limited by the hardware terms that failed in more than half of the failed episodes, else controller-limited; every failed term is listed with its class and count.  A fall's failed term is 'survived' alone: a fall fails every term (tune.SUCCESS_RULE), so its other terms say nothing about what bound, and falls do not count here.  The CoP at a pad edge with the ankle saturated and step reach are hardware limits with no success term of their own: they enter through falls (control.HW_LIMITS, decision 20)",
+  "attribution": "with --attribute, a condition of an R2 or R3 row with falls is attributed by decision 20 (gates.ATTRIBUTION_RULE, gates.attribute): every relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE) is lifted in turn (control.run's relax) over the same 20 seeds, and the condition is body-limited by the limits whose lifting improves survival significantly (gates.sign_test, one-sided, p < 0.05), else controller-limited; that costs (lifted limits x 20) episodes.  The sign test can reach p < 0.05 only with at least 5 falls (every one of them improved: 1/2^5 = 0.03125; with 4, 0.0625), so a condition with fewer falls is controller-limited by decision 20 and no limit is lifted for it (its label says so).  A candidate the plant cannot relax (control.RELAXES None: cop_at_pad_edge_with_ankle_saturated, the pad's size) cannot be tested; a controller-limited label names such candidates as untestable.  Episodes that failed to run (FAILED_EPISODE_RULE) give no candidates and are left out of the sign test's pairs; an attribution whose lifted runs had such failures is run again by the next --attribute.  The null (1 mm/s) and the together runs of G4 are diagnostics and are not run; R0 and R1 are not attributed",
+  "decision_20": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label",
+  "candidates": "the hardware limits (HW_LIMITS) active at an update of the 0.5 s before the fall's onset (the last time the trunk tilt rose through 0.2 rad)",
+  "failure_label": "a failing record's failure holds both labels: the falls' (decision 20's attribution label, PANEL_ATTRIBUTION_RULE, or 'not attributed' until it runs, R2 and R3, or because it is not run, R0 and R1) and the success failures' (SUCCESS_LABEL_RULE).  Its label is the success failures' when nothing falls, the falls' when the success failures alone would not fail it (at most 3 of them), and otherwise that of the kind with more failed episodes, the falls' on a tie (plan section 4: a hardware limit binds before most failures)",
+  "verdict": "per controller (VERDICT_ROWS: R2 from R2/42 and R2/43, R3 from R3/42 and R3/43) and condition, from its two seeds' records: shown if both pass, provisional if one does, else body-limited if every failing one is labelled body-limited (the limits or terms listed), not attributed if any failing one has unattributed falls, else controller-limited; incomplete while a record is missing, not judged or holding an episode that failed to run (FAILED_EPISODE_RULE), not run if the floor has no settled stance.  A controller's gated verdicts are those of the conditions gated for its rows (GATING_RULE: decision 23 reports the carpet walk for R2).  The judged controller is R3 (plan section 2; R2 only if G6c fails, plan section 3 step 7): until its records exist the summary shows R2's verdicts, marked interim",
+  "not_run": "a condition on a floor where the body's zero-command stance does not settle (plant.Plant.settled False, plant.json floors.<floor>.stand_status: the 60 cm bodies on medium and high pile) has no settled stance to start from: it is recorded as not run, with the settle's status, and judged not at all",
+  "resume": "a condition's record is reused (not run again) if it holds every episode of its seeds, none of which failed to run (those seeds are run again and merged in, FAILED_EPISODE_RULE), and its key is this run's: the schema, the body, the row's description (controller, gains and their selection) and the sources it names of its own (Row.sources: a policy row's modules), the condition and its resolved plan and length, the seeds, the push bound, the sha256 of every reference and transition file it loads (tune.INPUTS_RULE) and of the round-two files the plant reads (the body's record, MJCF, ledger and clearance screen), what the panels take from env.py (the push bound, the rate residual's bound, the env step, the carpet walk's plan and friction, by value, and env.foot_tables by its source's sha256), the library versions (python, numpy, mujoco, scipy) and the panels' sources (PANEL_SOURCES_RULE); --attribute adds the attribution to a reused record that lacks it.  Every worker of a session checks that it reproduces the session's sources and this context (PanelWorker), so a worker started after an edit refuses to run",
+  "sources": "sha256 over the modules an episode and its judgement run: the designlab/stage1 modules panels.py imports, followed as tune.TUNER_SOURCES_RULE follows the tuner's (from panels.py and the package's __init__.py, transitively) except env.py and gates.py, and the designlab modules outside designlab/stage1 that these import when they are imported (module level), followed the same way through designlab's own module-level imports (statics, carpet, clearance, sizing, gait, ...; a missing model's rebuild through round2 and pipeline is a function-level import, and plant.verify checks the model against its record's xml_sha256 anyway), each set hashed as plant.SOURCES_RULE hashes files, the module lists recorded beside.  env.py (the PPO environments) and gates.py (the gates) are left out: the panels take from env.py the carpet walk's plan and friction, the push bound, the pile floors' foot tables, the rate residual's bound and the env step, which the key holds by value or by source (RESUME_RULE), and from gates.py only the attribution, whose record holds gates.py's sha256.  So a row added in its own module, or a change to env.py's training code, leaves the R0-R2 records' keys as they are",
+  "trace": "each panel episode's trace (not the attribution's lifted runs) is written to <out>/<body>/eval/traces/<row>/<behavior>/<condition>/<seed>.npz (git-ignored, stage1/.gitignore): the recorder's rows every 2 feedback updates (50 Hz; metrics.COLS: time and reference time, CoM and its velocity, feet, lowest points, roll, pitch and yaw, slip speeds, IMU acceleration, DCM error, the reference's swing, sole centres, loads, root) and the joint angles (plant order), the times in float64 and the rest in float32; the episode record holds its path and sha256",
+  "command_rate": "a command of r times the reference's speed plays the track r times faster than real time (the reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the servo targets and the armature feedforward, the reference DCM c + r c' / omega0 (the CoM moving r times as fast), the inverse-dynamics torque and the reference ZMP as the reference's",
+  "failures": "an evaluation that raises scores as the worst case: every episode a fall at its start (survived share 0, S = 2 per episode, every term 1, J = 7), with its traceback in the evaluation log; an episode during which MuJoCo warned (mjWARN_INERTIA, mjWARN_CONTACTFULL, mjWARN_CNSTRFULL, mjWARN_BADQPOS, mjWARN_BADQVEL, mjWARN_BADQACC, mjWARN_BADCTRL; counted after the episode) counts as a fall at its start, the warnings recorded; a worker process that dies or does not answer within 900 s is replaced by a fresh one (on the same inputs and tuner sources, else the run stops) and its evaluation run again, up to 2 attempts, after which it scores as the worst case with the reason; every such incident is kept in the session record",
+  "carpet": "the carpet walk (start, 7 strides of the carpet swing reference, stop) judged as the nominal walk (tune.SUCCESS['walk'], cadence and stride included: it is a nominal-speed walk) plus the toe target: over the middle half of every reference swing in the window (clearance.MID_SWING, the screens' reading) the swing foot's lowest point, toes and claws included (metrics.window's toe clearance; on a pile its probe spheres left out, env.foot_tables), at least carpet.carpet_target(H) above the pile top, and no toe catch: that point above the pile top in every such swing (carpet.toe_catch's clears_pile_top on the simulated swing).  The pile top is the floor plane: on a pile model the uncompressed pile top (carpet.pile_model; the stance sinks below it), on robot_floor_carpet the floor",
+  "walk": "the nominal walk at mu 0.9 is tune's walk episode exactly (start, 7 nominal strides, stop; tune.build_spec), and at mu 0.54 the same; brisk and Fr 0.05 walk from the start through the speed changes (start, 1 nominal stride, nominal_to_brisk, [1 brisk stride, brisk_to_fr05,] K strides of the target gait) and end in it, K the fewest strides that keep the last 10 s in the target gait's steady part even with the clock 5 % slow (plus 0.5 stride); judged by tune.measure and tune.SUCCESS['walk'] over the 10 s before the stop command (nominal) or the episode's last 10 s (brisk, Fr 0.05), the speed against the target gait's speed (commanded 5 % above).  Cadence, stride and the peak GRF are judged at nominal only: plan section 4's Walk row groups them as 'at nominal, cadence 1.6-2.2 steps/s, stride 0.5-0.65 H, GRF <= 1.6 BW', and BEHAVIOR_SPEC section 1's Impact row reads 'peak vertical ground reaction <= 1.6 x body weight at nominal speed'; the brisk and Fr 0.05 walks drop those three terms (the GRF stays in their window's measures, reported), and their start and stop readings are not recorded (their start goes to the nominal speed, not the target gait's, and they end without a stop)",
+  "success": "plan section 4 on each validation episode: the nominal walk succeeds if it survives and over the 10 s before the stop command its mean speed is at least the nominal speed, each foot's duty is 0.55-0.65, there is no flight, the cadence is 1.6-2.2 steps/s, the stride 0.5-0.65 H, the peak GRF at most 1.6 BW, roll and pitch about home at most 4 deg RMS and 8 deg peak, the toe clearance at least 0.04 H, the slip at most 5 mm median and 15 mm worst and every drive's motor-space RMS at most its sustained torque (the drive RMS is judged over the same window as the other limits), and over the whole episode every drive's peak speed is at most speed_at(24 V) and every joint keeps 0.1 rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) and the drive RMS hold over its steady turning (the same window), the drives' peak speeds hold over the episode, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at 50 Hz) and, in place, the drift (the root's displacement) is at most 0.1 m.  Cadence and stride are judged at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement over each loaded stance, the drive RMS over the window's physics steps",
+  "look": "reported, not gated, on every walk and carpet walk over its judged window: sway = the CoM's lateral peak to peak within each whole commanded stride from the window's start, lateral to the CoM's displacement over those whole strides, / H (mean and largest; against BEHAVIOR_SPEC's 0.12 H, decision 9); head and tail = the neck_pitch and tail_yaw joints' half peak to peak and their RMS and largest error against the reference at the same reference time (against BEHAVIOR_SPEC's +-0.05-0.15 rad and +-0.1-0.2 rad)"
+ },
+ "key": {
+  "schema": 2,
+  "body": "60-N-T-10",
+  "row": {
+   "row": "R2/43",
+   "controller": "R2: the tracker on the estimate, CMA-ES seed 43's G5 selection seed43_gen40",
+   "tracker_mode": "R2",
+   "terms": [
+    "ankle",
+    "step",
+    "trunk",
+    "heading",
+    "phase",
+    "capture"
+   ],
+   "ankle_cap": [
+    "box",
+    "pad"
+   ],
+   "inward_bound": "pad_clearance",
+   "rate": 1.05,
+   "gains": {
+    "k_dcm": 3.351302494538363,
+    "cop_x": 0.02638243071068433,
+    "cop_y": 0.013564300579222071,
+    "k_step": 0.0,
+    "step_x": 0.039377876121616355,
+    "step_out": 0.04607194403387015,
+    "decay": 2.026969119826879,
+    "k_trunk": 11.034962383174312,
+    "d_trunk": 1.9442770872747404,
+    "k_yaw": 0.3750599146692198,
+    "ki_yaw": 0.006638788314868867,
+    "k_phase": 0.6029932784560517,
+    "ki_phase": 0.0028023815642818327,
+    "capture_margin": 0.0
+   },
+   "gains_info": {
+    "rule": "R2/s takes tune.json's seeds[s]: the candidate G5 selected for CMA-ES seed s (selected, selected_gains), refused if that seed has no selection",
+    "file": "/home/user/mesozoic-labs/hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/tune.json",
+    "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+    "cma_seed": 43,
+    "candidate": "seed43_gen40",
+    "g5_pass": true,
+    "g5_label": "passes G5"
+   },
+   "hard_only": false,
+   "policy": null
+  },
+  "row_sources": {},
+  "condition": {
+   "behavior": "carpet",
+   "name": "low",
+   "gated": true,
+   "judge": "carpet",
+   "floor": "low",
+   "friction": 0.54,
+   "gait": "nominal",
+   "case": null,
+   "direction": null,
+   "seconds": null,
+   "push_at": null,
+   "push_spread": null,
+   "recovery_s": 3.0,
+   "hold_s": 2.0,
+   "key": "carpet/low"
+  },
+  "plan": [
+   [
+    "transition",
+    "start"
+   ],
+   [
+    "ref",
+    "carpet",
+    7
+   ],
+   [
+    "transition",
+    "stop"
+   ]
+  ],
+  "seconds": 16.510415098228762,
+  "seeds": [
+   3042,
+   3043,
+   3044,
+   3045,
+   3046,
+   3047,
+   3048,
+   3049,
+   3050,
+   3051,
+   3052,
+   3053,
+   3054,
+   3055,
+   3056,
+   3057,
+   3058,
+   3059,
+   3060,
+   3061
+  ],
+  "push_bound_m_s": null,
+  "inputs": {
+   "files": {
+    "refs/carpet.npz": "72c2f1de30fcd7f14baa9ceb3b1b2042abb60ef90885e515928f7b9410d92f21",
+    "refs/nominal.npz": "566e111748573b5020d9543a2970c27dbbb688e6b5541b02c1459c700a794937",
+    "transitions/start.npz": "70e19c5d7c727e7b53fb7c465e94e11e0c33020b26f48cab86a73fcba6b26a33",
+    "transitions/stop.npz": "970c1391c0b0b749b130e131d952d7aac213a5fe4f40628dc81c91526b3ae234"
+   },
+   "records": {
+    "refs.json": "b9d36ae024a79b56336798bb0aee6271259692afb3de027c2286922937157d98",
+    "transitions.json": "0f04f070b480df1f2571a8a889d46f13d40481b75b015c36932ec855e2cdae4d"
+   }
+  },
+  "context": {
+   "plant_inputs": {
+    "record": "6dd7acb0658330fe8a16c8d277d4518640ab345a6cefeb847f7167897c32957a",
+    "mjcf": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "ledger": "b177e450a5f99028e4d4d4e539ed37b1fec468a95c00431cb8794976fc692df7",
+    "clearance": "c2e06058a90d23354211137a4d5fd8c5d149b3cb7d260f4d0100083ed96c8a73"
+   },
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "env": {
+    "push_bound_m_s": 0.487,
+    "residual_rate": 0.25,
+    "env_substeps": 10,
+    "carpet_walk": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "carpet",
+      7
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "carpet_friction": 0.54,
+    "foot_tables_sha256": "fac1de69369e4b0d4ee808cdd01f62b278d414a2a74f4bde4d65ac1119b5f120"
+   }
+  },
+  "sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970"
+ },
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0"
+  },
+  "git": {
+   "commit": "35655099372f53e42c2e5f0bec7296d43cc5cc15",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "stage1_sources": {
+   "sha256": "a4c7c1832fa36bfa0574a27aef46e229487fed00054cc2793711e971d95b359d",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "refs.py",
+    "replay.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  }
+ },
+ "inputs": {
+  "dir": "/home/user/mesozoic-labs/hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10",
+  "rule": "before the evaluator loads them, every refs/*.npz and transitions/*.npz file the mix uses (the episodes' tracks, both directions of each turn, and refs/nominal.npz, which sets omega0) is hashed (sha256) and checked against the sha256 that refs.json or transitions.json records for it, and both JSON files are hashed; a mismatch stops the build; every session records {file: sha256} and the JSON files' hashes, --resume is refused on any difference from the run's first session, and G5 judges a seed only on the inputs its fit used",
+  "files": {
+   "refs/carpet.npz": "72c2f1de30fcd7f14baa9ceb3b1b2042abb60ef90885e515928f7b9410d92f21",
+   "refs/nominal.npz": "566e111748573b5020d9543a2970c27dbbb688e6b5541b02c1459c700a794937",
+   "transitions/start.npz": "70e19c5d7c727e7b53fb7c465e94e11e0c33020b26f48cab86a73fcba6b26a33",
+   "transitions/stop.npz": "970c1391c0b0b749b130e131d952d7aac213a5fe4f40628dc81c91526b3ae234"
+  },
+  "records": {
+   "refs.json": "b9d36ae024a79b56336798bb0aee6271259692afb3de027c2286922937157d98",
+   "transitions.json": "0f04f070b480df1f2571a8a889d46f13d40481b75b015c36932ec855e2cdae4d"
+  }
+ },
+ "wall_s": 65.43066643299971,
+ "episode_wall_s": 64.03532443998847,
+ "simulated_s": 63.631999999997426,
+ "started_at": "2026-11-09T16:12:06+00:00",
+ "ended_at": "2026-11-09T18:51:53+00:00"
+}

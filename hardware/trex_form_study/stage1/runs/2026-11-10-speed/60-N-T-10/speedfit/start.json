@@ -1,0 +1,29 @@
+{
+ "rule": "the fit starts from a Stage 1 G5 selection: env.tuned_gains (env.GAINS_RULE) on <Stage 1 run>/<start body>/tune.json, the start body being the body itself when it has a Stage 1 fit (<Stage 1 run>/<body>/tune.json) and otherwise (a faster-knee body) the pick it is built from, its round-two candidate id (the registry's candidate_id); --start-from may name that start body and no other; refused unless that selection passed G5 and holds the fixed gains (tune.FIXED_GAINS); the start is recorded once per body (speedfit/start.json: the record's path and sha256, the candidate and its gains) and every seed and session must start from it",
+ "body": "60-N-T-10",
+ "start_from": "60-N-T-10",
+ "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+ "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+ "candidate": "seed42_gen20",
+ "cma_seed": 42,
+ "status": "passed",
+ "source": "60-N-T-10's Stage 1 G5 selection (tune.json: CMA-ES seed 42's G5 selection seed42_gen20)",
+ "gains": {
+  "k_dcm": 4.574500527016146,
+  "cop_x": 0.04206077387538906,
+  "cop_y": 0.02499683538946664,
+  "k_step": 0.0,
+  "step_x": 0.06824406222841883,
+  "step_out": 0.021878760875926932,
+  "decay": 0.9327647844662051,
+  "k_trunk": 80.13359667101032,
+  "d_trunk": 0.0,
+  "k_yaw": 0.2732805000632633,
+  "ki_yaw": 0.0,
+  "k_phase": 0.10788128524581518,
+  "ki_phase": 0.8292725240079336,
+  "capture_margin": 0.0
+ },
+ "gains_rule": "R3's tracker gains are tune.json's body-level G5 selection: of the CMA-ES seeds whose selected candidate passes G5 (seeds[s].pass_ true), the one whose selection ranks first by tune.SELECTION_RULE's key on its validation episodes (fewer falls, then the lower mean S, mean P and mean J; then the lower seed); both PPO seeds train on it.  Without a G5 pass (tune.json missing, G5 failed or not judged) train refuses R3 unless --allow-untuned; the gains are then the same ranking over the judged seeds' selections (flagged 'G5 failed' or 'G5 not judged') or, with none, the tuning start (decision 16, flagged 'untuned')",
+ "recorded_at": "2026-11-10T07:54:01+00:00"
+}

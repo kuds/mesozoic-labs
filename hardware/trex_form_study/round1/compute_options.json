@@ -1,0 +1,437 @@
+{
+ "method": "the reference candidate's drive power and the other auxiliaries are kept;\nthe Jetson budget (module 25 W + carrier/storage/cooling 6 W, through the 0.88 DC-DC) is replaced by\nthe architecture's typical whole-set power through the same converter; runtime is the selected\npack's usable energy (75 %) over the new walking power.  Mass and price change by the difference\nfrom the Jetson kit (0.174 kg as sold; the 0.12 kg tray/mounting allowance stays for every architecture; $399 + $120 integration as costed).  The mass change\n(tens to a few hundred grams) is not fed back into the joint loads; at these sizes it moves the\nwalking power by well under 1 %.  Camera-side inference power is counted in the architecture's\nset when the architecture moves inference onto the camera.",
+ "sizes": {
+  "60": {
+   "candidate": "60-M-S-10",
+   "baseline_walking_w": 96.32982921181829,
+   "baseline_runtime_min": 34.22304416995211,
+   "battery": "lipo_6s_3300",
+   "rows": [
+    {
+     "id": "A_orin_nano_super_devkit",
+     "name": "Jetson Orin Nano Super Developer Kit (current), re-budgeted in its 15 W mode",
+     "compute_w": 15,
+     "walking_w": 78.1480110300001,
+     "runtime_min": 42.1853346815754,
+     "runtime_change_min": 7.962290511623287,
+     "mass_change_kg": 0.0,
+     "price_change_usd": 40,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100
+     ]
+    },
+    {
+     "id": "B_orin_nano_module_small_carrier",
+     "name": "Jetson Orin Nano 8GB module on a Connect Tech Super Hadron-DM carrier (10-60 V direct battery input)",
+     "compute_w": 15,
+     "walking_w": 78.1480110300001,
+     "runtime_min": 42.1853346815754,
+     "runtime_change_min": 7.962290511623287,
+     "mass_change_kg": null,
+     "price_change_usd": 529.81,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    },
+    {
+     "id": "C_pi5_hailo8l_oak_depth",
+     "name": "Raspberry Pi 5 8GB + AI HAT+ 13 TOPS (Hailo-8L); OAK-D for depth and video",
+     "compute_w": 8,
+     "walking_w": 70.19346557545464,
+     "runtime_min": 46.965910187981876,
+     "runtime_change_min": 12.742866018029765,
+     "mass_change_kg": -0.07399999999999998,
+     "price_change_usd": -109,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "D_pi5_oak_on_camera_inference",
+     "name": "Raspberry Pi 5 8GB; OAK-D runs depth, person detection and encoding (no extra accelerator)",
+     "compute_w": 6.7,
+     "walking_w": 68.71619284818192,
+     "runtime_min": 47.97559153609634,
+     "runtime_change_min": 13.752547366144228,
+     "mass_change_kg": -0.09899999999999999,
+     "price_change_usd": -167,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "E_rk3588_orange_pi_5_max",
+     "name": "Orange Pi 5 Max (RK3588, 6 TOPS NPU); OAK-D for depth",
+     "compute_w": 8,
+     "walking_w": 70.19346557545464,
+     "runtime_min": 46.965910187981876,
+     "runtime_change_min": 12.742866018029765,
+     "mass_change_kg": -0.09199999999999998,
+     "price_change_usd": -180.01,
+     "covers_minimum_spec": true,
+     "best_for_sizes": []
+    },
+    {
+     "id": "F_oak4_d_pro_camera_computer",
+     "name": "Luxonis OAK 4 D Pro Wide (RVC4, QCS8550) as camera and high-level computer, plus the Teensy",
+     "compute_w": 12,
+     "walking_w": 74.7389201209092,
+     "runtime_min": 44.10954820683454,
+     "runtime_change_min": 9.886504036882428,
+     "mass_change_kg": 0.5,
+     "price_change_usd": 850,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      120
+     ]
+    },
+    {
+     "id": "G_orin_nx_16gb_large_sizes",
+     "name": "Jetson Orin NX 16GB (Super) on a Seeed reComputer Robotics J401 carrier (19-54 V, 12S direct)",
+     "compute_w": 28,
+     "walking_w": 92.92073830272737,
+     "runtime_min": 35.478624688276255,
+     "runtime_change_min": 1.2555805183241446,
+     "mass_change_kg": null,
+     "price_change_usd": 943,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    }
+   ]
+  },
+  "75": {
+   "candidate": "75-M-S-10",
+   "baseline_walking_w": 112.51754456627629,
+   "baseline_runtime_min": 29.29943070396584,
+   "battery": "lipo_6s_3300",
+   "rows": [
+    {
+     "id": "A_orin_nano_super_devkit",
+     "name": "Jetson Orin Nano Super Developer Kit (current), re-budgeted in its 15 W mode",
+     "compute_w": 15,
+     "walking_w": 94.33572638445811,
+     "runtime_min": 34.94646330028296,
+     "runtime_change_min": 5.647032596317118,
+     "mass_change_kg": 0.0,
+     "price_change_usd": 40,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100
+     ]
+    },
+    {
+     "id": "B_orin_nano_module_small_carrier",
+     "name": "Jetson Orin Nano 8GB module on a Connect Tech Super Hadron-DM carrier (10-60 V direct battery input)",
+     "compute_w": 15,
+     "walking_w": 94.33572638445811,
+     "runtime_min": 34.94646330028296,
+     "runtime_change_min": 5.647032596317118,
+     "mass_change_kg": null,
+     "price_change_usd": 529.81,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    },
+    {
+     "id": "C_pi5_hailo8l_oak_depth",
+     "name": "Raspberry Pi 5 8GB + AI HAT+ 13 TOPS (Hailo-8L); OAK-D for depth and video",
+     "compute_w": 8,
+     "walking_w": 86.38118092991266,
+     "runtime_min": 38.16456274978288,
+     "runtime_change_min": 8.865132045817042,
+     "mass_change_kg": -0.07399999999999998,
+     "price_change_usd": -109,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "D_pi5_oak_on_camera_inference",
+     "name": "Raspberry Pi 5 8GB; OAK-D runs depth, person detection and encoding (no extra accelerator)",
+     "compute_w": 6.7,
+     "walking_w": 84.90390820263993,
+     "runtime_min": 38.82860129514622,
+     "runtime_change_min": 9.529170591180382,
+     "mass_change_kg": -0.09899999999999999,
+     "price_change_usd": -167,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "E_rk3588_orange_pi_5_max",
+     "name": "Orange Pi 5 Max (RK3588, 6 TOPS NPU); OAK-D for depth",
+     "compute_w": 8,
+     "walking_w": 86.38118092991266,
+     "runtime_min": 38.16456274978288,
+     "runtime_change_min": 8.865132045817042,
+     "mass_change_kg": -0.09199999999999998,
+     "price_change_usd": -180.01,
+     "covers_minimum_spec": true,
+     "best_for_sizes": []
+    },
+    {
+     "id": "F_oak4_d_pro_camera_computer",
+     "name": "Luxonis OAK 4 D Pro Wide (RVC4, QCS8550) as camera and high-level computer, plus the Teensy",
+     "compute_w": 12,
+     "walking_w": 90.92663547536719,
+     "runtime_min": 36.256702810620375,
+     "runtime_change_min": 6.9572721066545355,
+     "mass_change_kg": 0.5,
+     "price_change_usd": 850,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      120
+     ]
+    },
+    {
+     "id": "G_orin_nx_16gb_large_sizes",
+     "name": "Jetson Orin NX 16GB (Super) on a Seeed reComputer Robotics J401 carrier (19-54 V, 12S direct)",
+     "compute_w": 28,
+     "walking_w": 109.10845365718538,
+     "runtime_min": 30.214890684438682,
+     "runtime_change_min": 0.9154599804728427,
+     "mass_change_kg": null,
+     "price_change_usd": 943,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    }
+   ]
+  },
+  "100": {
+   "candidate": "100-M-S-10",
+   "baseline_walking_w": 171.25470784760506,
+   "baseline_runtime_min": 29.16708137708492,
+   "battery": "lipo_6s_5000",
+   "rows": [
+    {
+     "id": "A_orin_nano_super_devkit",
+     "name": "Jetson Orin Nano Super Developer Kit (current), re-budgeted in its 15 W mode",
+     "compute_w": 15,
+     "walking_w": 153.0728896657869,
+     "runtime_min": 32.63151307136018,
+     "runtime_change_min": 3.4644316942752624,
+     "mass_change_kg": 0.0,
+     "price_change_usd": 40,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100
+     ]
+    },
+    {
+     "id": "B_orin_nano_module_small_carrier",
+     "name": "Jetson Orin Nano 8GB module on a Connect Tech Super Hadron-DM carrier (10-60 V direct battery input)",
+     "compute_w": 15,
+     "walking_w": 153.0728896657869,
+     "runtime_min": 32.63151307136018,
+     "runtime_change_min": 3.4644316942752624,
+     "mass_change_kg": null,
+     "price_change_usd": 529.81,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    },
+    {
+     "id": "C_pi5_hailo8l_oak_depth",
+     "name": "Raspberry Pi 5 8GB + AI HAT+ 13 TOPS (Hailo-8L); OAK-D for depth and video",
+     "compute_w": 8,
+     "walking_w": 145.11834421124144,
+     "runtime_min": 34.42018324526244,
+     "runtime_change_min": 5.253101868177524,
+     "mass_change_kg": -0.07399999999999998,
+     "price_change_usd": -109,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "D_pi5_oak_on_camera_inference",
+     "name": "Raspberry Pi 5 8GB; OAK-D runs depth, person detection and encoding (no extra accelerator)",
+     "compute_w": 6.7,
+     "walking_w": 143.64107148396872,
+     "runtime_min": 34.774176691918335,
+     "runtime_change_min": 5.6070953148334155,
+     "mass_change_kg": -0.09899999999999999,
+     "price_change_usd": -167,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "E_rk3588_orange_pi_5_max",
+     "name": "Orange Pi 5 Max (RK3588, 6 TOPS NPU); OAK-D for depth",
+     "compute_w": 8,
+     "walking_w": 145.11834421124144,
+     "runtime_min": 34.42018324526244,
+     "runtime_change_min": 5.253101868177524,
+     "mass_change_kg": -0.09199999999999998,
+     "price_change_usd": -180.01,
+     "covers_minimum_spec": true,
+     "best_for_sizes": []
+    },
+    {
+     "id": "F_oak4_d_pro_camera_computer",
+     "name": "Luxonis OAK 4 D Pro Wide (RVC4, QCS8550) as camera and high-level computer, plus the Teensy",
+     "compute_w": 12,
+     "walking_w": 149.663798756696,
+     "runtime_min": 33.37480433808996,
+     "runtime_change_min": 4.2077229610050395,
+     "mass_change_kg": 0.5,
+     "price_change_usd": 850,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      120
+     ]
+    },
+    {
+     "id": "G_orin_nx_16gb_large_sizes",
+     "name": "Jetson Orin NX 16GB (Super) on a Seeed reComputer Robotics J401 carrier (19-54 V, 12S direct)",
+     "compute_w": 28,
+     "walking_w": 167.84561693851418,
+     "runtime_min": 29.75949024531148,
+     "runtime_change_min": 0.5924088682265598,
+     "mass_change_kg": null,
+     "price_change_usd": 943,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    }
+   ]
+  },
+  "120": {
+   "candidate": "120-M-S-10",
+   "baseline_walking_w": 209.29815131864854,
+   "baseline_runtime_min": 31.49812818921256,
+   "battery": "lipo_2x6s_3300_series",
+   "rows": [
+    {
+     "id": "A_orin_nano_super_devkit",
+     "name": "Jetson Orin Nano Super Developer Kit (current), re-budgeted in its 15 W mode",
+     "compute_w": 15,
+     "walking_w": 191.11633313683035,
+     "runtime_min": 34.49469698270152,
+     "runtime_change_min": 2.996568793488958,
+     "mass_change_kg": 0.0,
+     "price_change_usd": 40,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100
+     ]
+    },
+    {
+     "id": "B_orin_nano_module_small_carrier",
+     "name": "Jetson Orin Nano 8GB module on a Connect Tech Super Hadron-DM carrier (10-60 V direct battery input)",
+     "compute_w": 15,
+     "walking_w": 191.11633313683035,
+     "runtime_min": 34.49469698270152,
+     "runtime_change_min": 2.996568793488958,
+     "mass_change_kg": null,
+     "price_change_usd": 529.81,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    },
+    {
+     "id": "C_pi5_hailo8l_oak_depth",
+     "name": "Raspberry Pi 5 8GB + AI HAT+ 13 TOPS (Hailo-8L); OAK-D for depth and video",
+     "compute_w": 8,
+     "walking_w": 183.16178768228488,
+     "runtime_min": 35.99276947130177,
+     "runtime_change_min": 4.4946412820892085,
+     "mass_change_kg": -0.07399999999999998,
+     "price_change_usd": -109,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "D_pi5_oak_on_camera_inference",
+     "name": "Raspberry Pi 5 8GB; OAK-D runs depth, person detection and encoding (no extra accelerator)",
+     "compute_w": 6.7,
+     "walking_w": 181.68451495501216,
+     "runtime_min": 36.28542587480503,
+     "runtime_change_min": 4.787297685592467,
+     "mass_change_kg": -0.09899999999999999,
+     "price_change_usd": -167,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      60,
+      75
+     ]
+    },
+    {
+     "id": "E_rk3588_orange_pi_5_max",
+     "name": "Orange Pi 5 Max (RK3588, 6 TOPS NPU); OAK-D for depth",
+     "compute_w": 8,
+     "walking_w": 183.16178768228488,
+     "runtime_min": 35.99276947130177,
+     "runtime_change_min": 4.4946412820892085,
+     "mass_change_kg": -0.09199999999999998,
+     "price_change_usd": -180.01,
+     "covers_minimum_spec": true,
+     "best_for_sizes": []
+    },
+    {
+     "id": "F_oak4_d_pro_camera_computer",
+     "name": "Luxonis OAK 4 D Pro Wide (RVC4, QCS8550) as camera and high-level computer, plus the Teensy",
+     "compute_w": 12,
+     "walking_w": 187.70724222773944,
+     "runtime_min": 35.12118084395232,
+     "runtime_change_min": 3.6230526547397552,
+     "mass_change_kg": 0.5,
+     "price_change_usd": 850,
+     "covers_minimum_spec": false,
+     "best_for_sizes": [
+      120
+     ]
+    },
+    {
+     "id": "G_orin_nx_16gb_large_sizes",
+     "name": "Jetson Orin NX 16GB (Super) on a Seeed reComputer Robotics J401 carrier (19-54 V, 12S direct)",
+     "compute_w": 28,
+     "walking_w": 205.8890604095576,
+     "runtime_min": 32.01967111261813,
+     "runtime_change_min": 0.5215429234055655,
+     "mass_change_kg": null,
+     "price_change_usd": 943,
+     "covers_minimum_spec": true,
+     "best_for_sizes": [
+      100,
+      120
+     ]
+    }
+   ]
+  }
+ }
+}

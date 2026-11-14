@@ -1,0 +1,55 @@
+{
+ "plate": "candidate_plate",
+ "png": "round1/review/plates/60-M-T-10_four_views.png",
+ "mujoco": "3.10.0",
+ "title": "60-M-T-10",
+ "subtitle": "Tapered, lightly covered \u00b7 balanced width \u00b7 10\u00b0 chest-up \u00b7 60 cm height class",
+ "scale_px_per_m": 676.7846442604499,
+ "measurements": {
+  "id": "60-M-T-10",
+  "xml": "round1/review/mjcf/60-M-T-10.xml",
+  "xml_sha256": "8e3571bc685d4315466fab143884c8848a524706c33ccd2ff29e96287799f139",
+  "mass_kg": 10.758022799999999,
+  "crown_m": 0.6007108802434593,
+  "hip_pitch_axis_m": 0.4026534940459352,
+  "length_m": 1.5473903092827597,
+  "max_width_m": 0.27035903161945385,
+  "torso_width_m": 0.1472399980943606,
+  "thigh_width_m": 0.27035903161945385,
+  "thigh_width_source": "thigh fairings",
+  "foot_centre_spacing_m": 0.16126921577051098,
+  "torso_inclination_deg": 10.0,
+  "torso_inclination_source": "ledger metrics",
+  "ledger_checks": {
+   "crown_m": {
+    "model": 0.6007108802434593,
+    "ledger": 0.6007107819470685,
+    "ok": true
+   },
+   "hip_height_m": {
+    "model": 0.4026534940459352,
+    "ledger": 0.4047009247558489,
+    "ok": true,
+    "model_zero_roll": 0.4047010001607112,
+    "stance_hip_roll_deg": 1.310858680323908,
+    "explained": "ledger H is the design hip height; the stance solve rolls the hips"
+   },
+   "mass_kg": {
+    "model": 10.758022799999999,
+    "ledger": 10.758022179352153,
+    "ok": true
+   },
+   "foot_centre_spacing_m": {
+    "model": 0.16126921577051098,
+    "ledger": 0.1612692332912106,
+    "ok": true
+   },
+   "xml_sha256": {
+    "model": "8e3571bc685d4315466fab143884c8848a524706c33ccd2ff29e96287799f139",
+    "ledger": "8e3571bc685d4315466fab143884c8848a524706c33ccd2ff29e96287799f139",
+    "ok": true
+   }
+  }
+ },
+ "notes": "side/front/top orthographic at scale_px_per_m; three-quarter perspective, not to scale"
+}

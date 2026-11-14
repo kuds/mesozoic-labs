@@ -1,0 +1,243 @@
+{
+ "note": "Independent first-principles predictions made blind to the size study's simulation (two analysts: scaling of the 60 cm body to 57 and 54 cm; catalog and packaging for larger drives at 75 and 80 cm). Kept to compare with the simulated results in SIZE_STUDY.md.",
+ "analysts": {
+  "catalog_75_80cm": {
+   "overall_answer": "Short answer: yes. The 75 cm body can take larger drives at the hips and neck now, on 24 V and without widening the hips. An 80 cm body is not needed for that, and it would not help: it raises the loads by about 6\u201315 % and adds only about 7 % of room.\n\n**(a) Requirements and qualifying parts.** I took each worst case from the sizing records, the Froude 0.05 walk (1.25 \u00d7 peak, 1.15 \u00d7 speed) and the turning verdicts, and required each to be at most 0.80 of the part's limit.\n- **Hip roll and thigh twist:** the MyActuator X4-36-L qualifies on both buses (0.70\u20130.74). The CubeMars AK45-36 sits at 0.93\u20130.97.\n- **Neck:** only the ROBOTIS XM540-W270 servo qualifies (0.67). It has the same box, mass and price as the W150.\n- **Tail:** the Tapered body needs the Feetech STS3250 (Froude 0.05 peak 0.87 \u2192 0.52). The Hybrid body keeps its STS3215 (0.77).\n- **Ankles:** they keep the X4-36-L (0.70\u20130.71).\n- **Hip pitch:** no part qualifies on 24 V once the Froude 0.05 speed counts. The closest are the CubeMars AK10-9 (sustained 0.82/0.87) and the MyActuator X6-60 (speed 0.83/0.82). On 48 V the RobStride 03 itself qualifies (sustained 0.74/0.78, speed 0.54), and X6-60, RobStride 04, X8 and X12 also do.\n- **Knee:** the Froude 0.05 walk needs 8.2\u20138.4 rad/s with margin. The X4-36-L gives 8.69 rad/s on either bus, because the rules give no speed credit above its 24 V rating. No 55 mm part qualifies. The lightest-cheapest that does is the 88 mm RobStride 06 (0.54\u20130.58); the others are 89\u201398 mm CubeMars parts.\n\n**Case (i): 20 % headroom applied to the sizing walks only.** The bus stays 24 V with the 6S 3300 pack.\n- Parts: X4-36-L hip roll and twist, X6-60 hip pitch, XM540-W270 neck; everything else unchanged.\n- This is the earlier Froude 0.05 what-if body plus the X4-36-L hip roll and the W270 neck.\n- Hip spacing goes from 187.0 to 198.5 mm.\n- Result: 14.58 / 14.70 kg (\u22120.32 kg), $18.37k / $18.42k nominal (+$1.0k), 37.6 / 37.3 min (\u22120.6 min).\n- Margins stay thin: thigh twist 0.78, Hybrid hip pitch 0.77, knee speed 0.76.\n- At Froude 0.05 the body passes the 1.0 limits but not 0.80: hip pitch 0.83, knee 0.95\u20130.97.\n\n**Case (ii): 20 % headroom including the Froude 0.05 walk.**\n- **Bus:** 24 V is infeasible, so it goes to 48 V. That brings a pack twice as heavy (two 6S 3300 in series: +0.65 kg with its cassette, double the energy) and the 48 V power bay (+0.32 kg).\n- **Knees:** they become RobStride 06 (+0.26 kg each).\n- **First pass:** X4-36-L roll and twist, RobStride 03 hip pitch (its hold falls 1\u20133 %, because the pack sits behind the hip), RobStride 06 knees.\n- **The weak point:** the extra pack mass behind the hip and the heavier swing legs push the thigh-twist hold to about 5.0\u20135.3 N\u00b7m. That is 0.84\u20130.88 of the X4-36-L, over 0.80; I put this at about 70\u201375 % likely.\n- **The cascade:** the catalog has nothing between the 55 mm X4-36-L and the 79\u201380 mm parts, so the twist and then the hip roll step to the CubeMars AK60-39. Those are the 100 cm class's parts, and they set the hips at about 233 mm.\n- **Most likely result:** about 19.0 / 19.1 kg (+4.1 kg), about $20.0k (+$2.6k), about 64\u201365 min.\n- **If the X4-36-L twist holds:** 16.9 / 17.0 kg, $18.56k / $18.55k, about 64 min, hips unchanged at 187 mm.\n- On the Hybrid body the RobStride 03 hip pitch stays near 0.78; if it tips over 0.80 it becomes a RobStride 04 (about +1.2 kg).\n\n**(b) What sets the hip spacing.** In the tandem layout the half-spacing is: (hip-roll diameter / 2 + 6.5 mm) + 4 mm + (the larger of hip-pitch length and thigh-twist diameter, / 2 + 7.5 mm) + 0.02 B + 4.4 mm for the pelvis plate. That gives 187.0 mm now.\n- The RobStride 03's 62 mm installed length governs over the twist's 60 mm diameter.\n- So the X4-36-L for roll and twist, and the RobStride 03 or 04 for hip pitch, leave the spacing unchanged.\n- The X6-60 hip pitch adds 11.5 mm. AK60-39 twist and roll add 11 and 12 mm per side.\n- The packaging score term is small (2.6 g of score per mm at 16 kg). The 24 mm step to 84 mm costs 0.064 kg of score against 0.39 kg of real mass, so the term does not prevent the cascade.\n\n**(c) Fit.**\n- **Hip parts fit.** The X4-36-L has the same 60 mm installed diameter and is 4.5 mm longer; the rear roll motor still leaves 3.9\u20135.9 mm before the tail pivot. A RobStride 04 (125 mm installed) fits inside the 84.6 / 96.1 mm upper-thigh fairing radius, which it needs 74.5 mm of.\n- **Neck and tail servos fit.** Each upgrade has the same box as the part it replaces.\n- **The knee drive does not fit.** The generator puts the 88 mm RobStride 06 at 0.84 of the 215 mm femur. Its envelope then covers the knee axis by 12.6 mm (18.6 mm with the AK60-39 twist). Today's knee drive clears the axis by 24.9 mm, and the 100 cm class's 106 mm knee clears its axis by about 40 mm on a 287 mm femur.\n- **The 233 mm hips** match the 60 cm body's proportion (0.46 H) and the 100 cm class's absolute width, but they need re-screening.\n\n**(e) 80 cm (scale 1.067).** With the same parts:\n- Loads: mass +5\u20136 %, hip-pitch hold +13\u201315 % (about 9.5 / 10.1 N\u00b7m), roll +4\u20136 %, twist +6\u20138 %, knee and ankle +10\u201312 %, neck +15\u201320 %.\n- Froude-scaled joint speeds fall only 3.2 %.\n- Room: the hips are set by the hardware (+1.4 mm), the femur grows 14 mm and the thigh fairing about 6 mm.\n- The 75 cm round-two parts would then exceed even the 1.0 limits: twist 1.02\u20131.04, neck servo about 1.13, hip-pitch Froude 0.05 speed about 1.05.\n- The extra 14 mm of femur is just enough for the 88 mm knee drive to clear the knee axis (+1.7 mm). But the 80 cm hip pitch needs the RobStride 04, whose larger diameter takes that back (\u22125.3 mm).\n- Predicted results: about 19 kg on 24 V (brisk-only headroom: RobStride 04 or X8-150 hip pitch, AK60-39 roll and twist), or about 21 kg on 48 V with Froude 0.05 headroom, at $20\u201321k.\n- So 80 cm raises the requirements more than it makes room.\n\nThis is a prediction from record sensitivities, the build and sizing formulas, and a simple lever model of the holds. I built and sized no models. The scripts are /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/sizepred/req_table.py and /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/sizepred/geom.py. The 60 cm \"5\u201310 % smaller\" question is not covered here.",
+   "predictions": [
+    {
+     "quantity": "Requirements used for the 20% headroom test (worst of sizing record, 1.25x / 1.15x the Froude 0.05 envelope peaks and speeds, and the turning verdicts)",
+     "case": "75-M-T-10 / 75-M-H-10",
+     "predicted": "hip roll: continuous 4.22/4.23 N\u00b7m, peak 7.97/8.10, speed 2.08/2.11 rad/s (0.50 rad/s walking turn). hip pitch: 8.40/8.91, 19.96/20.39, 6.62/6.58 (Froude 0.05). thigh twist: 4.39/4.43, 12.42/12.28, 3.17/3.19 (turn). knee: 3.63/3.44 (Froude 0.05 RMS; sizing 3.45/3.25), 9.42/9.06, 8.21/8.42 (Froude 0.05). ankles: 3.03, 5.9, 6.11/6.17. neck: 1.19, 1.79, 0.89. tail: 0.33/0.29, 0.75/0.66, 1.07. A part qualifies if every limit is at least these values / 0.80.",
+     "reasoning": "Taken from round2/candidates margins, envelope fast_walk groups (peak x1.25, speed x1.15, the same margins the envelope ratios use: hip pitch 1.08 x 6.126 = 6.62 rad/s) and the turning verdicts' required values. Holds set the continuous requirement on the hip groups and ankles; the Froude 0.05 walk sets the peaks and the hip-pitch and knee speeds; the 0.50 rad/s walking turn sets the thigh-twist speed."
+    },
+    {
+     "quantity": "Catalog parts meeting all three limits at <=0.80 on 24 V",
+     "case": "75 cm, both bodies, Froude 0.05 included",
+     "predicted": "hip roll: X4-36-L (0.70/0.71), X4-36-E, RobStride 06 (0.67), AK80-8 (0.74), AK60-39, RobStride 03, X6-60, AK10-9; the AK45-36 fails at 0.93. hip pitch: NONE; closest are the AK10-9 (sustained 0.82/0.87) and the X6-60 (Froude 0.05 speed 0.83/0.82); the RobStride 03 is at speed 1.08. thigh twist: X4-36-L (0.73/0.74), X4-36-E, RobStride 06 (0.70/0.71), AK80-8 (0.77/0.78), RobStride 03, X6-60, AK10-9, RobStride 04; the AK60-39 fails on the turning speed on 24 V (0.86-0.87). knee: RobStride 06 (speed 0.54/0.56), AK70-9 (sustained 0.75/0.71), AK80-9, AK70-10, AK80-8, AK10-9; the X4-36-L fails (speed 0.945/0.97). ankles: X4-36-L stays (0.70-0.71). neck: XM540-W270 only (0.67/0.58/0.47); the W150 is at 0.98. tail: Tapered needs the STS3250 (0.52 peak); Hybrid keeps the STS3215 (0.77).",
+     "reasoning": "Catalog filtered with sizing.pool(24 V) (supply window covers 21-25.2 V, sourced price) and speed_at(24) derating. Hip pitch is the blocker: no 24 V-eligible part has both at least 8.27 rad/s at 24 V and at least 11.1 N\u00b7m sustained. The X6-60 (48 V nominal) gives 8.01 rad/s on 24 V; the AK10-9 gives 12.3 rad/s but only 10.26 N\u00b7m."
+    },
+    {
+     "quantity": "Catalog parts meeting <=0.80 on 48 V",
+     "case": "75 cm, both bodies, Froude 0.05 included",
+     "predicted": "hip pitch: RobStride 03 (sustained 0.74/0.78, speed 0.54), X6-60 (0.74/0.78, 0.41), RobStride 04 (0.37/0.39), X8-150, X8-120, X12. thigh twist: as on 24 V plus the AK60-39 (0.32, speed 0.43). knee: as on 24 V plus RobStride 03 and X6-60. hip roll, ankles, neck, tail: as on 24 V. The AK45-36 is not 48 V-eligible (15-28 V).",
+     "reasoning": "On 48 V the 48 V-nominal drives get their full rated speed: RobStride 03 12.25 rad/s, X6-60 16.0, RobStride 06 30.2. The X4 parts are 24 V-nominal and get no speed credit above that, so the knee problem is the same on both buses."
+    },
+    {
+     "quantity": "Bus under a 20% headroom rule that includes Froude 0.05",
+     "case": "75-M-T-10 / 75-M-H-10",
+     "predicted": "48 V (12S) for both bodies. The pack becomes lipo_2x6s_3300_series (1.012 kg, 146.5 Wh, $214); the 48 V power bay is 0.62 kg instead of 0.30. The Tapered body may first alternate between 24 V and 48 V and then settle on 48 V.",
+     "reasoning": "select() tries 24 V first; the hip pitch has no 24 V candidate. The lightest 12S pack giving at least 20 min is the 2x6S series pack. On the Tapered body the rear 12S pack lowers the hip-pitch hold to about 8.2 N\u00b7m, where the AK10-9 would just pass on 24 V (about 0.797); dropping back to the 6S pack raises the hold again, which is the bus oscillation the current pipeline settles on the higher bus."
+    },
+    {
+     "quantity": "First 48 V selection, before load feedback",
+     "case": "75 cm, Froude 0.05 + 20%",
+     "predicted": "hip roll X4-36-L, hip pitch RobStride 03 (unchanged), thigh twist X4-36-L, knee RobStride 06, ankles X4-36-L, neck XM540-W270, tail STS3250 (Tapered) / STS3215 (Hybrid).",
+     "reasoning": "Lowest score among the qualifying parts. At 48 V the RobStride 03 scores 1.212 against the X6-60's 1.343 (packaging term on length 0.152 vs 0.181 at 14.9 kg). For the knee the RobStride 06 scores 0.789 against AK70-9 0.939 and AK80-9 0.954. The W150 and W270 tie on mass and price; with headroom only the W270 passes."
+    },
+    {
+     "quantity": "Thigh-twist hold and X4-36-L ratio once the 48 V changes are built",
+     "case": "75 cm, Froude 0.05 + 20%",
+     "predicted": "5.0-5.3 N\u00b7m, i.e. 0.84-0.88 of the X4-36-L sustained limit (5.985 N\u00b7m). That exceeds 0.80; I put this at about 70-75% likely. The 0.80 limit is 4.79 N\u00b7m.",
+     "reasoning": "Lever model calibrated to the 4.39 N\u00b7m hold: twist = g[0.44 y_leg(trunk + 2 x swing leg mass) - 0.19 S_x]. Adding the 12S pack and cassette (+0.65 kg, 0.153 m behind the hip), the power bay (+0.32 kg, 0.18 m ahead), the integration reserve, and +0.39 kg per swing leg (RobStride 06 knee, bearings, wider femur plates) gives +0.66 to +0.83 N\u00b7m. The narrow, broad and what-if variants show the hold rising about 1.4% per 1% of mass, with 65-80 N\u00b7m per metre of half-spacing. Only a weak mass scaling (M^0.7) would keep it at 0.80."
+    },
+    {
+     "quantity": "Converged selection (most likely)",
+     "case": "75 cm, Froude 0.05 + 20%",
+     "predicted": "AK60-39 hip roll and thigh twist, RobStride 03 hip pitch (Hybrid at about 0.78; it switches to a RobStride 04 if it goes over 0.80), RobStride 06 knees, X4-36-L ankles, XM540-W270 neck, STS3250 (Tapered) / STS3215 (Hybrid) tail, 48 V, 2x6S 3300 pack. Final ratios about: roll 0.47, twist 0.51-0.55, hip pitch 0.72-0.78, knee 0.66, ankles 0.64.",
+     "reasoning": "The catalog has no 6.5-8 N\u00b7m drive between the 55 mm X4-36-L and the 79-80 mm parts. The RobStride 06 (6.27 N\u00b7m) fails once the hold is 5.02 N\u00b7m or more, or once its 93 mm envelope widens the hips. At about 17-19 kg the AK60-39 (score 1.34-1.37) narrowly beats the RobStride 03 and the X6-60. The 84 mm twist adds 11 mm per side, which pushes the hip-roll hold to about 5.7-6.3 N\u00b7m, over the X4-36-L, so the roll also becomes an AK60-39 (another 12 mm per side)."
+    },
+    {
+     "quantity": "Hip-pitch spacing",
+     "case": "75 cm",
+     "predicted": "Round two 187.0 mm. Case i (24 V, X6-60): 198.5 mm. Case ii, if the X4-36-L twist holds: 187.0 mm. Case ii, cascade to AK60-39: about 233 mm (0.46 H, the same proportion as the 60 cm body; 100 cm class 231-238 mm).",
+     "reasoning": "The build.Design._build formula reproduces 187.0 mm. Half-spacing = roll diameter/2 + 6.5 mm + 4 mm + max(hip-pitch length, twist diameter)/2 + 7.5 mm + 0.02 B + the pelvis-plate allowance. The RobStride 03 and 04 lengths (62 mm installed) and the X4-36-L diameter (60 mm installed) leave it unchanged; the X6-60 length adds 5.75 mm per side; the AK60-39 adds 11 mm per side as twist and 12 mm as roll."
+    },
+    {
+     "quantity": "Mass",
+     "case": "75-M-T-10 / 75-M-H-10",
+     "predicted": "Case i (24 V, 20% on the sizing walks): 14.58 / 14.70 kg (-0.32 / -0.33). Case ii-A (48 V, X4-36-L twist holds): 16.9 / 17.0 kg (+2.0). Case ii-B (cascade, most likely): about 19.0 / 19.1 kg (+4.1). About +1.2 kg more on the Hybrid if its hip pitch switches to a RobStride 04.",
+     "reasoning": "Case i is the what-if body (14.559 / 14.681 kg) plus 2 x 11 g of hip-roll motor, divided by 0.94 for the integration reserve. Case ii-A, installed: 12S pack and cassette +0.648, power bay +0.32, knees +0.522, knee bearings +0.071, femur plates and rods +0.057, roll and twist +0.044, thigh covers about +0.10, load-sized structure about +0.10, tail +0.019; total +1.88, /0.94 = +2.0. Case ii-B adds about +1.96 kg installed: AK60-39 x4 +1.60, bearings, longer brackets and pelvis plates, covers and structure."
+    },
+    {
+     "quantity": "Nominal cost",
+     "case": "75-M-T-10 / 75-M-H-10",
+     "predicted": "Case i: $18.37k / $18.42k (+$1.0k). Case ii-A: $18.56k / $18.55k (+$1.1-1.2k). Case ii-B: about $20.0k (+$2.6k). Low and high estimates move in proportion.",
+     "reasoning": "cost.estimate lines. Case i: what-if $18,193 / $18,241, plus 2 x $83 for the hip roll, plus 7.2% contingency; the neck is the same price. 48 V adds: battery line and spares +$107 each, power line +$230, control x1.3 (+$54), harness x1.3 (+$93), frame factor +3-8%. Case ii-B leg drives are +$934 and spares +$360, since the most expensive leg part becomes the $449 AK60-39."
+    },
+    {
+     "quantity": "Runtime and walking power",
+     "case": "75-M-T-10 / 75-M-H-10",
+     "predicted": "Case i: 37.6 / 37.3 min at 87.7 / 88.4 W (-0.6 min). Case ii (either branch): about 64-65 min at about 101-103 W (+26 min), because the 12S pack doubles the energy (146.5 Wh).",
+     "reasoning": "Servo power scales with 1/Kt, so the W270 neck saves 2.6 W. The X4-36-L hip roll adds 7.5% copper loss. The RobStride 06 knee uses the 0.25 ohm fallback resistance (R/Kt^2 3.35 times the X4-36-L's), so the two knees add +14 to +18 W. In case ii-B the AK60-39's R/Kt^2 of 0.0137 cuts roll and twist losses by about 4 W."
+    },
+    {
+     "quantity": "Hip-pitch hold on the 48 V body",
+     "case": "75 cm",
+     "predicted": "Falls 1-3%: about 8.2 N\u00b7m (Tapered) and 8.7 N\u00b7m (Hybrid). The RobStride 03 sits at 0.72 / 0.76 (about 0.74 / 0.78 after the case ii-B additions).",
+     "reasoning": "Hold is about g times the first moment, about the hip, of the mass above the stance hip. The 12S pack and cassette (+0.648 kg x -0.153 m) more than cancel the power bay (+0.32 kg x +0.18 m) and the reserve. The swing-leg knee mass at +0.05-0.06 m adds +0.02 kg\u00b7m."
+    },
+    {
+     "quantity": "Knee-drive fit (RobStride 06, 93 mm installed)",
+     "case": "75 cm vs 80 / 100 cm",
+     "predicted": "At 75 cm the generator stacks the knee drive at 0.84 of the 214.9 mm femur (0.87 with the AK60-39 twist): its centre is 34 (28) mm above the knee axis and its 46.5 mm radius covers the axis by 12.6 (18.6) mm. Today's knee drive clears the axis by 24.9 mm. At 80 cm (229.2 mm femur): +1.7 mm clear with RobStride 03 / X4-36-L; -5.3 mm with a RobStride 04 hip pitch; -11.3 mm with RobStride 04 + AK60-39. 100 cm class (RobStride 03 knee): +40 mm clear at 0.67 of a 286.7 mm femur.",
+     "reasoning": "Knee station = (hip-pitch diameter/2 + twist length + 12 mm + knee diameter/2) / femur length, with femur = 0.4247 H from the template, using installed envelopes. Above 0.75 of the femur the lower-thigh fairing also grows from 22.8 to 54.5 mm radius at the knee."
+    },
+    {
+     "quantity": "Hip-part fit",
+     "case": "75 cm",
+     "predicted": "Fits. The X4-36-L roll and twist have the same 60 mm installed diameter as the AK45-36 and are 4.5 mm longer; the rear roll motor still leaves 5.9 / 3.9 mm before the tail pivot must move. An AK60-39 roll would need a 0.1 / 2.1 mm tail-pivot setback. A RobStride 04 (125 mm installed) fits inside the upper-thigh fairing radius of 84.6 mm (Tapered) / 96.1 mm (Hybrid), which needs 74.5 mm. The 12S cassette (158 x 104 x 57 mm, 42 mm wider) probably needs a local trunk widening at the tail base; the 48 V power bay (150 x 90 x 60 mm) fits the 184 x 312 mm abdomen.",
+     "reasoning": "Formula checks from build.py: _tailbase_root_limit with the skeleton's tail-root x of -0.2529 / -0.2509 m; r_top = max(0.5 x hip-pitch diameter + 12 mm, 0.19 B x thigh_scale); torso dimensions from the records."
+    },
+    {
+     "quantity": "Load and room scaling from 75 to 80 cm",
+     "case": "80 cm (scale 1.067, same parts)",
+     "predicted": "Mass +5-6% (+0.8 kg). Hip-pitch hold +13-15% (9.5-9.7 / 10.1-10.2 N\u00b7m). Roll +4-6%, twist +6-8%, knee and ankle +10-12%, neck +15-20%, tail about +20%. Froude 0.05 joint speeds -3.2% (hip pitch 6.41 rad/s, knee 7.95-8.15 with margin). Room: hip spacing +1.4 mm (hardware-set), femur +14 mm, tibia +13 mm, thigh fairing +6 mm radius, torso width +12 mm.",
+     "reasoning": "At fixed parts about 52% of the mass is fixed (drives, electronics, bearings) and the rest scales with s^2, giving M about s^0.85. The hip-pitch lever (CoM ahead of the hip) scales about s^1.1-1.3, as in round one's x_com scaling. The roll and twist lever is the hip half-spacing, which the parts set, so those holds follow mass only. Angular speed at fixed Froude scales as H^-0.5."
+    },
+    {
+     "quantity": "80 cm with the round-two 75 cm parts and no headroom",
+     "case": "80 cm",
+     "predicted": "Exceeds limits: thigh twist AK45-36 1.02-1.04, neck W150 about 1.13, hip-pitch Froude 0.05 speed about 1.05, hip roll about 0.98-1.00, RobStride 03 sustained 0.83-0.88.",
+     "reasoning": "Scaling factors above applied to the round-two margins."
+    },
+    {
+     "quantity": "80 cm sized with 20% headroom",
+     "case": "80 cm",
+     "predicted": "Brisk-only headroom on 24 V: RobStride 04 hip pitch (brisk speed ratio about 0.80, knife-edge) or X8-150 (0.76, +15 mm hips); AK60-39 roll and twist (about 234 mm hips); X4-36-L knee and ankles; W270 neck at 0.78-0.80; STS3250 tail. About 19.1 / 19.3 kg, about $20.1k, about 35-37 min on the 6S 3300. With Froude 0.05: 48 V, RobStride 04, AK60-39 x2 groups, RobStride 06 knee; about 21 kg, about $20.7-21k, about 60 min.",
+     "reasoning": "RobStride 03 (11.4 N\u00b7m) is over 0.80 against a 9.3-10.2 N\u00b7m hold, so the RobStride 04 is next. The twist rises 6-8% with size, plus about 0.44 N\u00b7m from the RobStride 04's swing-leg mass, which puts the X4-36-L over 0.80 and starts the same AK60-39 cascade. Femur room is consumed by the RobStride 04's larger diameter. So 80 cm raises the requirements more than it adds room."
+    },
+    {
+     "quantity": "Neck and tail servos",
+     "case": "75 cm / 80 cm",
+     "predicted": "75 cm: the XM540-W270 is a drop-in (same 58.5 x 33.5 x 44 mm box, 0.165 kg, $483): continuous 0.97 to 0.67, speed 0.47, neck power -2.6 W. Tail on the Tapered body: STS3250 (+19 g, +$67, same box). 80 cm: W270 at 0.78-0.80; there is no stronger servo, so beyond that the fallback is a QDD such as the 100 cm class's AK45-36.",
+     "reasoning": "Neck load comes from the head and does not change with the leg parts; the 80 cm head is about 17% heavier times the lever."
+    },
+    {
+     "quantity": "Froude 0.05 envelope ratios for the case i body",
+     "case": "75 cm, 24 V, 20% on the sizing walks only",
+     "predicted": "Hip pitch (X6-60) 0.82-0.83 on speed; knee (X4-36-L) 0.95-0.97 on speed; Tapered tail 0.87-0.90 on peak; neck 0.67; twist about 0.71. Within 1.0, not within 0.80.",
+     "reasoning": "The Froude 0.05 walk is kinematic, so these speeds do not depend on the parts: hip pitch 6.60/8.01, knee 8.25-8.47/8.69. Torque ratios are from the what-if envelope screens."
+    }
+   ],
+   "risks_and_caveats": [
+    "The main fork is the X4-36-L thigh twist on the 48 V body. I estimate 0.84-0.88 against a 0.80 limit, but a +/-0.04 error flips the outcome between about 17 kg with 187 mm hips (ii-A) and about 19 kg with 233 mm hips (ii-B). The hold model is a lever model calibrated to one point plus variant sensitivities (65-80 N\u00b7m per metre of half-spacing; about 1.4% per 1% of mass). It is not a solved hold.",
+    "The Hybrid hip pitch on the RobStride 03 sits at about 0.76-0.78 against 0.80. If it goes over, the RobStride 04 (+0.54 kg each, 120 mm) is next, adding about 1.2 kg and making the knee stack worse (knee station 0.90 at 75 cm).",
+    "Which case applies depends on the size study's exact rule: 20% on all groups, the per-group override the current sizing.py now supports, and whether the Froude 0.05 walk joins the sizing walks or is only screened. Case i and case ii differ by about 4 kg and 26 min of runtime.",
+    "The Tapered body may alternate between 24 V and 48 V: with the rear 12S pack the AK10-9 just passes on 24 V (about 0.797), and with the 6S pack it fails again. The current pipeline has a rule that then settles on the higher bus, so the record may carry an oscillation note.",
+    "The RobStride 06 has no sourced phase resistance; the power model uses the 0.25 ohm fallback and flags it. The +14 to +18 W knee power, and so the runtime, are uncertain.",
+    "The clearance screen excludes parent/child pairs, so the femur-mounted knee drive overlapping the knee axis and the shank's tibia plates may not be flagged by any gate. The 12.6 mm overlap is a geometry finding from the stacking rule, not a screen result. Building it would need the knee drive moved, which is a generator change.",
+    "The sizing speed requirement for the thigh twist ignores turning. An AK60-39 twist on 24 V would pass sizing but sit at 0.86-0.87 of its 3.67 rad/s in the 0.50 rad/s walking turn. This matters for the 80 cm 24 V cascade.",
+    "Mass growth of structure and covers (load-sized beams, the larger lower-thigh fairing, wider pelvis covers) is estimated at +0.1 to +0.4 kg. The cascade's spacing increase also raises roll and twist walk RMS, which I scaled by hand.",
+    "80 cm numbers use scaling exponents (M about s^0.85 at fixed parts; hip-pitch lever about s^1.2), not a built model. The forward-moment growth could be steeper, as round one's 60 to 75 cm exponent of 3.9 suggests, which would only strengthen the conclusion that 80 cm raises requirements.",
+    "Independence: I did not open round2/size_study/. git status listed its untracked subfolder names, and I saw the current sizing.py and pipeline.py rule code (per-group headroom, bus-oscillation handling) but no size-study results. The earlier committed Froude 0.05 what-if records (round2/whatif_fr05) were used as a calibration point.",
+    "This covers only the 75 / 80 cm question. The owner's other question (a 5-10% smaller 60 cm body) is not addressed here."
+   ]
+  },
+  "scaling_60cm_smaller": {
+   "predictions": [
+    {
+     "quantity": "(a) Total mass, same component set (60 cm drives, lipo_6s_3300, Pi 5 + AI HAT+, OAK-D Lite, servos)",
+     "case": "57 cm crown (s = 0.95, H = 0.3845 m T / 0.3814 m H)",
+     "predicted": "T: 10.56 kg (-0.29 kg, -2.7 %). H: 10.66 kg (-0.30 kg, -2.7 %).",
+     "reasoning": "I applied each 60 cm ledger row's own generator rule (build.py, hardware.py, mjcf.py), not a blanket cube law. At s = 1 the model reproduces the recorded 10.853 / 10.956 kg exactly. A cube law would give 9.30 kg. Effective exponent: M \u221d H^0.52."
+    },
+    {
+     "quantity": "(a) Total mass",
+     "case": "54 cm crown (s = 0.90, H = 0.3642 m T / 0.3613 m H)",
+     "predicted": "T: 10.28 kg (-0.58 kg, -5.3 %). H: 10.36 kg (-0.59 kg, -5.4 %).",
+     "reasoning": "Same item-level rules. A cube law would give 7.91 kg. The legs shrink least (5.317 \u2192 5.213 \u2192 5.112 kg), so the leg share of the mass rises from 49.0 % to 49.8 %."
+    },
+    {
+     "quantity": "(a) Mass that does not scale vs mass that scales (60-M-T-10; H family is the same within 0.1 kg)",
+     "case": "60 \u2192 57 \u2192 54 cm",
+     "predicted": "Fixed, 5.96 kg (55 %): leg drives 4.156, battery + cassette 0.678, power board 0.300, compute + tray 0.220, control 0.180, neck/tail servos 0.130, cover fasteners 0.148, camera/IMU/ToF 0.146. Volume class A goes 5.560 \u2192 5.558 \u2192 5.556. Scaling: structure 1.672 \u2192 1.588 \u2192 1.506; covers + supports 1.344 \u2192 1.232 \u2192 1.124; linkage 0.365 \u2192 0.343 \u2192 0.321; bearings 0.369 \u2192 0.351 \u2192 0.334; harness 0.242 \u2192 0.226 \u2192 0.209; feet 0.210 \u2192 0.188 \u2192 0.169; 6 % reserve 0.651 \u2192 0.634 \u2192 0.616. Class B 4.165 \u2192 3.966 \u2192 3.774; class C 1.128 \u2192 1.035 \u2192 0.945.",
+     "reasoning": "Even the 'structure' mostly scales only linearly (\u221d s). Every twin-plate beam sits at the 3 mm minimum thickness, and its width is set by the drive envelopes. The hip and thigh brackets (0.26 kg) and joint bearings (0.19 kg) are sized by the drives and stay fixed. Fork bearings, skull mount and tail spar go \u221d s\u00b2. Head, neck and tail shells (fixed 1.6 mm wall) go \u221d s\u00b2, and I used s^1.85 for trunk panels because the hull is widened locally around fixed hardware. Upper thigh \u221d s; lower thigh \u221d (femur \u2212 105 mm); calf fairing \u221d its length above the hock."
+    },
+    {
+     "quantity": "(b) Continuous requirement = max(nominal-walk RMS, single-support hold), N\u00b7m",
+     "case": "57 cm (T / H)",
+     "predicted": "hip_roll 3.05 / 3.05 (hold); hip_pitch 2.68 / 2.95 (hold); hip_yaw 3.47 / 3.51 (hold); knee 3.15 / 3.02 (hold); ankle_a,b 1.60 / 1.60 (hold); neck 0.551 / 0.547 (RMS); tail 0.116 / 0.104 (RMS). For reference, 60 cm: 3.13/3.13, 3.20/3.52, 3.52/3.56, 3.17/3.01, 1.74/1.74, 0.624/0.619, 0.130/0.115.",
+     "reasoning": "Numbers come from the recorded 60 cm MJCF scaled in x and z by s, with the hardware-set lateral offsets and drive offsets kept, re-massed from the ledger rules, and the stance re-solved with the study's own statics.solve_stance and single_support_hold. At s = 1 this reproduces every recorded hold and requirement to 4 decimals. Scaling laws behind the numbers: (1) The ankle goes \u221d M\u00b7H, because the CoM sits over the pad centroid and the pad geometry \u221d H; the law gives 1.610 and the model 1.603. (2) The hip roll goes \u221d M only. Hold/Mg \u2248 0.029 m at both 60 and 75 cm, because the hip and foot spacing are set by the drive envelopes: y_leg is 93.9 \u2192 93.5 \u2192 93.1 mm. (3) The hip yaw (thigh twist) hold \u2248 W\u00b7d\u00b7(sin 22\u00b0 \u2212 \u03b4 cos 22\u00b0), where d \u2248 0.11 m is the fixed outboard offset of the stance hip from its pad. It barely shrinks. (4) The CoM moves aft relative to H: \u03b4 = x_com/H goes 0.087 \u2192 0.081 \u2192 0.074 (T). The battery cassette (\u22120.153 m) and tail pivot (\u22120.244 m) stay fixed behind the hip while the head and chest shrink. So the hip-pitch hold (\u221d M\u00b7x_com) drops 16 %, while the knee hold (CoM behind the knee) stays flat. (5) The neck goes \u221d m_head\u00b7H, with head mass 0.531 \u2192 0.496 \u2192 0.463 kg including the fixed 0.14 kg camera and fasteners."
+    },
+    {
+     "quantity": "(b) Continuous requirement, N\u00b7m",
+     "case": "54 cm (T / H)",
+     "predicted": "hip_roll 2.98 / 2.98; hip_pitch 2.18 / 2.40; hip_yaw 3.43 / 3.47; knee 3.14 / 3.04; ankle 1.47 / 1.47; neck 0.485 / 0.481; tail 0.103 / 0.093.",
+     "reasoning": "Effective exponents from 60 to 54 cm (T): ankle \u221d H^1.59, hip roll \u221d H^0.44, hip yaw \u221d H^0.25, knee \u221d H^0.08, hip pitch \u221d H^3.6, neck \u221d H^2.4. The pure scaling-law estimates agreed with the scaled model within 2 % for the ankle, hip roll, hip yaw and neck. They were 2-6 % high for the hip pitch, and the knee came out at the top of my analytic range."
+    },
+    {
+     "quantity": "(b) Peak requirement = 1.25 \u00d7 max(walk peaks, hold), N\u00b7m",
+     "case": "57 / 54 cm (T; H in brackets where different)",
+     "predicted": "hip_roll 5.28 / 5.17; hip_pitch 8.07 / 7.39 (8.30 / 7.57); hip_yaw 9.00 / 8.94; knee 5.99 / 5.72 (5.81 / 5.57); ankle 3.01 / 2.78; neck 0.81 / 0.72; tail 0.35 / 0.31. At 60 cm: 5.39, 8.83, 9.09, 6.27, 3.22, 0.92, 0.39.",
+     "reasoning": "Brisk-walk peaks follow the same moment-arm laws. Gravity and Froude-scaled inertial torques both go \u221d M\u00b7L, so neither the hold nor the walk peaks favour either term. Fixed armature adds a torque \u221d 1/H but is small. Peak ratios stay 0.27-0.54, so peaks never govern."
+    },
+    {
+     "quantity": "(c) Joint speed requirement in the sizing walks = 1.15 \u00d7 max(nominal, brisk) peak speed, rad/s",
+     "case": "57 / 54 cm",
+     "predicted": "knee 6.80 / 7.03 (T), 6.93 / 7.02 (H), from 6.70 / 6.84. hip_pitch 6.29 / 6.52 (T), 6.26 / 6.48 (H), from 6.09 / 6.05. ankle 5.35 / 5.49 (from 5.23). neck 0.930 / 0.955 (from 0.906). tail 1.117 / 1.147 (from 1.088). hip_roll 1.30 / 1.41 (from 1.21).",
+     "reasoning": "Under Froude similarity, v = sqrt(Fr g H) \u221d H^1/2, stride \u221d H, period \u221d H^1/2, and joint angle histories are unchanged. So \u03c9 \u221d sqrt(g/H) \u221d H^-1/2: +2.6 % at 57 and +5.4 % at 54 cm. Angular acceleration goes \u221d 1/H. The prescribed neck and tail follow this exactly. The IK-driven joints deviate because the stance re-solves with the feet 2.3 / 4.4 mm aft and the lateral geometry fixed: knee +1.4/+4.9 % (T) and +1.3/+2.7 % (H); hip pitch +3.3/+7.0 % (\u221d H^-0.64); hip roll +8/+17 %, from sway against a fixed hip spacing. Single-support CoP margins scale with H: 30.2 \u2192 28.9 \u2192 27.3 mm."
+    },
+    {
+     "quantity": "(c) Froude 0.05 walk (envelope.FAST via turning.generate) speeds",
+     "case": "57 / 54 cm",
+     "predicted": "Walk speed 0.434 / 0.423 m/s (0.446 at 60), cadence 2.82 / 2.90 Hz. Peak knee speed 7.34 / 7.67 rad/s (T) and 7.51 / 7.60 (H), from 7.25 / 7.43. Hip pitch 7.00 / 7.26 (T) and 6.96 / 7.22 (H), from 6.77 / 6.73. Ankle 5.96 / 6.10 (T). The reference CoP stays on the pad (27.9 / 26.4 mm, T) and IK is ok.",
+     "reasoning": "Same H^-1/2 law, with the same joint-specific deviations as the sizing walks. On the 60 cm X4-P36 (8.69 rad/s at 24 V), the knee speed ratio becomes 0.972 / 1.015 (T) and 0.994 / 1.006 (H); hip pitch becomes 0.926 / 0.960 (T) and 0.921 / 0.955 (H)."
+    },
+    {
+     "quantity": "(d) Ratios with the 60 cm drives kept, sizing walks (cont / peak / speed) and governing group",
+     "case": "57 cm",
+     "predicted": "T: hip_roll 0.669/0.31/0.31; hip_pitch 0.448/0.38/0.724; hip_yaw 0.761/0.54/0; knee 0.527/0.29/0.782; ankle 0.703/0.43/0.21; neck 0.673/0.57/0.20; tail 0.236/0.40/0.40. H: hip_yaw 0.771, knee speed 0.797, ankle 0.703, neck 0.668, hip_pitch 0.493 cont / 0.720 speed. Knee speed now governs: worst ratio 0.782 (T) / 0.797 (H). At 60 cm it was 0.771 (hip_yaw cont, knee speed tied) / 0.786. Froude 0.05: knee speed 0.972 / 0.994 (worst), neck 0.680 / 0.675, hip_yaw 0.696 / 0.698.",
+     "reasoning": "The torque ratios improve only where moment arms scale (ankle, neck, hip pitch). The lateral groups that govern torque barely move, and every speed ratio worsens by about H^-1/2. So the worst ratio rises."
+    },
+    {
+     "quantity": "(d) Ratios with the 60 cm drives kept and governing group",
+     "case": "54 cm",
+     "predicted": "T: hip_roll 0.654/0.31/0.34; hip_pitch 0.365/0.35/0.750; hip_yaw 0.751/0.53; knee 0.525/0.27/0.809; ankle 0.645/0.40/0.22; neck 0.592/0.50/0.20; tail 0.210/0.36/0.41. H: hip_yaw 0.761, knee speed 0.808, ankle 0.646, neck 0.588, hip_pitch 0.402 / 0.746. Governing: knee speed, worst 0.809 (T) / 0.808 (H). Froude 0.05: knee speed 1.015 (T) / 1.006 (H), which exceeds the drive; hip pitch 0.960 / 0.955.",
+     "reasoning": "Compared with 60 cm: ankle cont 0.763 \u2192 0.645, neck 0.761 \u2192 0.592, hip pitch 0.535 \u2192 0.365 improve; hip yaw 0.771 \u2192 0.751 and hip roll 0.685 \u2192 0.654 hardly move; knee speed 0.771 \u2192 0.809 and Froude 0.05 knee 0.960 \u2192 1.015 get worse. Torque per unit of robot weight rises only 2.8 % / 5.6 %, because the drives are unchanged and the weight falls only 2.7 % / 5.3 %."
+    },
+    {
+     "quantity": "(e) Re-selection with the round-two rule (sizing.select, HEADROOM 1.0, 24 V bus)",
+     "case": "57 / 54 cm",
+     "predicted": "57 cm: no change to any part. 54 cm: same six leg drives; only the neck servo would drop from STS3250 to STS3215 (needs 0.485 / 0.481 N\u00b7m vs 0.491 sustained, i.e. 0.99 / 0.98 of its rating), saving 19.5 g and $67. The battery is already the smallest 6S pack. Nominal prototype cost: \u2212$290 (\u22122.0 %) at 57 and \u2212$510 (\u22123.4 %) at 54 (\u2212$575 with the STS3215), all in the frame and covers lines; drive cost stays $2,960.",
+     "reasoning": "Parts just below the selected ones, and why they fail: AK45-10 and X2-P28 (1.425 N\u00b7m sustained) and RobStride 05 (0.91) are far below the hip roll/yaw holds of 2.98-3.51. The AK45-36, cheapest for hip roll and yaw, is too slow for hip pitch and knee (4.19 rad/s vs 6.3-7.0 needed). The X4-P12 has the speed but only 2.28 N\u00b7m sustained and 7.0 N\u00b7m planning peak: at 54 cm the T hip pitch meets cont (2.18) and speed but fails the peak (7.39 > 7.0); the knee needs 3.0-3.15. For the ankles to drop to the AK45-10, the hold would have to fall to 1.425; it is 1.472 at 54 cm (3 % too high, roughly 52.5 cm needed). With the 0.80 headroom option in sizing.py: nothing changes at 57 (knee speed 0.782 / 0.797 \u2264 0.80). At 54 the knee breaks it (0.809 / 0.808) and select() picks a RobStride 06 for the knee (0.621 kg, 88 mm, $210). That adds 0.52 kg, close to the 0.58 kg the shrink saves, and it would not fit the thigh pod."
+    },
+    {
+     "quantity": "(f) Packaging: thigh pod and knee drive",
+     "case": "57 / 54 cm",
+     "predicted": "The knee drive centre sits 36.9 mm (60) \u2192 28.3 (57) \u2192 19.7 mm (54) above the knee axis. Its 27.5 mm body radius reaches 0.8 mm past the knee axis at 57 and 7.8 mm past at 54, into the top of the tibia plates. The knee push rod shrinks from 31 mm to about 14 mm.",
+     "reasoning": "The thigh pod stacks the hip-pitch drive radius (30) + twist-drive length (63) + 12 mm + knee-drive radius (30), using envelope dimensions, so the knee drive is a fixed 135 mm down the femur. The femur shortens 171.9 \u2192 163.3 \u2192 154.7 mm. The tibia plates sit at \u00b110.4 mm laterally, inside the drive's \u00b130 mm length. The clearance screen excludes femur\u2013shank (parent\u2013child) pairs, so it will not flag this. At 54 cm the tandem pod effectively becomes a drive on the knee axis."
+    },
+    {
+     "quantity": "(f) Packaging: knee flexion clearance (upper-thigh shell vs calf top / upper ankle drive)",
+     "case": "57 / 54 cm",
+     "predicted": "57 cm, ankle station 0.46: usable flexion \u2248 0.71 rad. The walks reach 0.576, leaving a 0.13 rad margin (gate 0.10; 60 cm has 0.23), so it passes. 54 cm at 0.46: \u2248 0.59 rad against walks at 0.567, a 0.02 margin, so it fails. At the packaging search's maximum station of 0.50 it improves to \u2248 0.65 (margin \u2248 0.09), still short of the 0.10 gate but within my \u00b10.03 rad uncertainty. At 0.50 the lower ankle drive centre sits 4 mm above the hock (17.5 mm at 60), and its envelope reaches 26 mm below the hock, outside the calf fairing.",
+     "reasoning": "I emulated the shrink on the recorded 60 cm proxies (cl_*_thigh_upper_*, cl_*_calf_fairing_0, the upper ankle drive). The thigh shell ends at the fixed 105 mm seam, so relative to the knee it moves 8.6 / 17.2 mm down the femur. The calf top and upper drive move up 3.6 / 7.1 mm (station 0.46 \u00d7 the shorter tibia). I then swept the knee with mj_geomDistance; the s = 1 sweep gives 0.80 vs the screen's 0.811, so I quote deltas. Walk knee ranges came from the scaled-model walks."
+    },
+    {
+     "quantity": "(f) Packaging: stereo camera in the smaller skull",
+     "case": "57 / 54 cm",
+     "predicted": "57 cm: fits at station 0.155 (0.165 at 60). Box top 16.5 mm (T) / 18.0 mm (H) below the roof (14.0 / 15.5 at 60). The widest box that fits is 98 mm (104.6 at 60), so the width margin is 7 mm, down from 13.6. 54 cm: fits only at station 0.140, 19.5 / 21.5 mm below the roof, and the widest fitting box is 91.0 / 91.4 mm for a 91 mm camera, so there is essentially no margin. 54 cm is about the smallest crown that takes the OAK-D Lite under the round-two inset rule.",
+     "reasoning": "The skull cover and eye boxes are pure functions of skull length (\u221d B). I ran the generator's search logic (_camera_fit: stations 0.08-0.30, 0.5 mm drop steps, 2.8 mm inset, 2 mm eye clearance) on the 60 cm skeleton at B = s\u00b7B60. At s = 1 it reproduces the recorded fits. The lower, further-back camera will see more snout, so the near-floor blind zone grows; I did not compute that."
+    },
+    {
+     "quantity": "(f) Packaging: stance width, tail pivot, hull",
+     "case": "57 / 54 cm",
+     "predicted": "Hip half-spacing 93.9 \u2192 93.5 \u2192 93.1 mm, which is 0.232 \u2192 0.243 \u2192 0.256 H; foot spacing 169 \u2192 168 \u2192 168 mm. The stance is 5 % / 11 % wider in units of H. The tail pivot stays 244 mm behind the hip, so its setback grows 40 \u2192 51 \u2192 61 mm (tail root 0.60 \u2192 0.63 \u2192 0.67 H behind the hip). Local hull widening around the roll motors, cassette, power board, ToF and tail motor (3.6-21.8 mm at 60) grows by about the shrink of the designed hull.",
+     "reasoning": "Only the hip_extra\u00b7B term of y_leg scales. The tail-pivot limit is the rear roll motor plus the 158 mm cassette plus clearances, all fixed. The fixed stance width is why the hip roll and twist loads do not shrink. The aft-fixed cassette and pivot move the CoM back, which explains the hip-pitch and knee behaviour."
+    }
+   ],
+   "overall_answer": "Shrinking the 60 cm body by 5 or 10 % (crown 57 or 54 cm, same proportions, same parts) does not buy margin in the sense that matters. The torque-to-weight improvement is small. The ratio that actually limits the 60 cm design, the knee's speed, gets worse. And the packaging is already tight at 57 cm and fails at 54 cm.\n\nWhy:\n1. Mass falls only 2.7 % (57 cm: T 10.56 kg, H 10.66 kg) and 5.3 % (54 cm: T 10.28 kg, H 10.36 kg). About 55 % of the robot is catalog hardware that does not scale (drives 4.16 kg, battery, power, compute, control, servos, sensors, fasteners). Most of the structure also scales only linearly: the plates are already at the 3 mm minimum, with widths set by the drives. Effective law: M \u221d H^0.52, not H^3.\n2. The loads whose moment arms scale with height fall: ankle \u22128 / \u221215 %, neck \u221212 / \u221222 %, hip pitch \u221216 / \u221232 %. The hip-pitch drop is helped by the CoM moving aft relative to H, because the battery cassette and tail pivot stay fixed behind the hip. But the lateral hip loads are set by the hip and foot spacing, which the drive envelopes fix at 93.9 \u2192 93.1 mm. So the hip roll falls only with mass (\u22122 / \u22124.5 %), the thigh twist hardly at all (3.52 \u2192 3.47 \u2192 3.43 N\u00b7m), and the knee hold stays flat (3.17 \u2192 3.15 \u2192 3.14).\n3. In Froude-scaled walks the joint angular speeds rise like H^-1/2 (+2.6 % at 57, +5.4 % at 54; the knee measured +1.4 / +4.9 %).\n\nRatios with the 60 cm drives (T family; H is similar):\n- Sizing walks: hip-yaw continuous 0.771 \u2192 0.761 \u2192 0.751; ankle 0.763 \u2192 0.703 \u2192 0.645; neck 0.761 \u2192 0.673 \u2192 0.592. The knee speed 0.771 \u2192 0.782 \u2192 0.809 becomes the governing group, so the worst ratio rises from 0.771 to 0.782 and 0.809 (H family: 0.786 \u2192 0.797 \u2192 0.808).\n- Froude 0.05 walk: knee speed 0.960 \u2192 0.972 \u2192 1.015 (H: 0.983 \u2192 0.994 \u2192 1.006). The 54 cm body exceeds its knee drive in the animal-like walk.\n\nRe-selection under the round-two rule picks the same six leg drives at both sizes. The catalog parts just below are either too weak (AK45-10 and X2-P28 at 1.43 N\u00b7m) or too slow (AK45-36 at 4.19 rad/s for the hip pitch and knee). The X4-P12 misses the 54 cm hip-pitch peak by 6 %, and the AK45-10 misses the ankle hold by 3 %. Only the neck servo could drop to the STS3215 at 54 cm, and only at 0.98-0.99 of its rating. Build cost falls 2.0 % (\u2212$290) at 57 cm and 3.4 % (\u2212$510) at 54 cm. With the 0.80 headroom option in sizing.py, the 54 cm knee would need a RobStride 06, which adds 0.52 kg.\n\nPackaging:\n- Knee drive: it stays 135 mm down the femur, so at 57 cm it reaches the knee axis and at 54 cm it intrudes 8 mm into the top of the shank. The clearance screen does not check femur\u2013shank pairs, so it will not flag this.\n- Knee flexion (thigh shell against calf): about 0.71 rad at 57 cm, which passes the 0.10 rad gate with 0.13 to spare. At 54 cm it is about 0.59 rad at ankle station 0.46 and about 0.65 rad at the search's maximum of 0.50, so it fails the gate.\n- Camera: at 57 cm it fits with 7 mm of width margin. At 54 cm it fits with essentially none, sitting lower and further back.\n- Tail pivot setback grows from 40 to 61 mm.\n\nIn short, 57 cm is feasible but gains nothing, and 54 cm is worse. Margin at 60 cm has to come from the knee drive's speed and the thigh-twist hold, not from a smaller body.\n\nMethod: I worked only from the committed round-two records and models; I did not open round2/size_study/. For the masses I applied each 60 cm ledger row's own generator rule. For the loads I scaled the recorded 60 cm MuJoCo model by s in x and z, kept the hardware-set lateral offsets and drive offsets, re-massed it from those rules, and ran the study's own statics, gait, turning, sizing.select and camera-search code on it. At s = 1 this reproduces every recorded 60 cm hold, requirement, Froude 0.05 screen and camera fit to 4 decimals.\n\nFiles are in /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/sizepred:\n- mass_scale.py (mass rules)\n- com_scale.py (CoM shift)\n- scaled_model.py (scaled model, holds and walks)\n- analyze.py (requirements, ratios, re-selection)\n- camera_fit.py\n- knee_clear.py\n- walk_range.py\n- outputs: summary.json, scaled_60-M-T-10_walks.json, scaled_60-M-H-10_walks.json, mass_scale.json, com_scale.json\n\ngeom.py and req_table.py in that folder belong to another agent; I did not touch them.",
+   "risks_and_caveats": [
+    "This is an emulation, not a generator rebuild. I placed hardware by hand from the build.py rules, and approximated the generator's hull widening and cover shapes with exponents (s^1.85 for trunk panels, s^2 for head/tail, partly fixed thigh/calf). Expect about \u00b10.1 kg on mass and a few percent on the holds.",
+    "Several verdicts sit within 1-2 % of a threshold and could flip in the full computation: the Froude 0.05 knee at 54 cm (1.015 T, 1.006 H; walk-generator noise is about 1 %), the neck downgrade to STS3215 at 54 cm (0.98-0.99 of its rating), the 0.80-headroom knee at 54 cm (0.808-0.809), and the X4-P12 hip-pitch peak shortfall at 54 cm (6 %).",
+    "The camera fit moves the 0.10 kg camera about 2-4 mm back and 2-5 mm down relative to my scaled head. I did not feed that into the neck torque. Its effect is about 1 % of the 54 cm neck load, which slightly favours the STS3215.",
+    "The knee-flexion estimate comes from translating the 60 cm convex proxies; the shell shapes were not regenerated. The s = 1 sweep gives 0.80 rad against the screen's 0.811, so I quoted deltas. Uncertainty is about \u00b10.03 rad, and the 54 cm verdict at station 0.50 (margin about 0.09 vs the 0.10 gate) is inside it.",
+    "The knee-drive overlap with the shank top at 54 cm is a geometric fact of the thigh-pod stack rule. The study's clearance screen will not report it, because femur\u2013shank (parent\u2013child) pairs are excluded.",
+    "If the sizing loop dropped the neck to the STS3215 at 54 cm, the session-heat screen would put the neck at about 0.99 of its sustained torque, making it the hottest drive.",
+    "Scaled items' central inertias were scaled as (m_s/m_60)\u00b7s\u00b2; catalog parts kept their own. This affects only the walk inertial terms, and the gravity-dominated holds match the scaling laws within 2 %.",
+    "Re-selection used the round-two rule (HEADROOM 1.0, 24 V tried first). The 0.80 headroom result is my reading of the option in sizing.py; I do not know whether the size study applies it to the 54/57 cm cases.",
+    "The owner's 75 cm larger-motor / 80 cm question is outside this step; I did not address it."
+   ]
+  }
+ }
+}

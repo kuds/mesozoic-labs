@@ -1,0 +1,876 @@
+{
+ "schema": 2,
+ "body": "60-N-T-10",
+ "row": "R2/42",
+ "margin": "drive_speed",
+ "title": "Drive speed",
+ "swept": "the smallest envelope speed scale at which the Fr 0.05 walk works",
+ "status": "done",
+ "controller": {
+  "row": "R2/42",
+  "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen20",
+  "tracker_mode": "R2",
+  "terms": [
+   "ankle",
+   "step",
+   "trunk",
+   "heading",
+   "phase",
+   "capture"
+  ],
+  "ankle_cap": [
+   "box",
+   "pad"
+  ],
+  "inward_bound": "pad_clearance",
+  "rate": 1.05,
+  "gains": {
+   "k_dcm": 4.574500527016146,
+   "cop_x": 0.04206077387538906,
+   "cop_y": 0.02499683538946664,
+   "k_step": 0.0,
+   "step_x": 0.06824406222841883,
+   "step_out": 0.021878760875926932,
+   "decay": 0.9327647844662051,
+   "k_trunk": 80.13359667101032,
+   "d_trunk": 0.0,
+   "k_yaw": 0.2732805000632633,
+   "ki_yaw": 0.0,
+   "k_phase": 0.10788128524581518,
+   "ki_phase": 0.8292725240079336,
+   "capture_margin": 0.0
+  },
+  "gains_info": {
+   "rule": "R2/s takes tune.json's seeds[s]: the candidate G5 selected for CMA-ES seed s (selected, selected_gains), refused if that seed has no selection",
+   "file": "stage1/runs/2026-11-08/60-N-T-10/tune.json",
+   "sha256": "bb80b2a4658a93cd98861d64f279b8de39901e262ccd3f0c94f73e72989aa488",
+   "cma_seed": 42,
+   "candidate": "seed42_gen20",
+   "g5_pass": true,
+   "g5_label": "passes G5"
+  },
+  "hard_only": false,
+  "policy": null
+ },
+ "seeds": [
+  3042,
+  3043,
+  3044
+ ],
+ "halvings": 7,
+ "cut_s": null,
+ "definition": {
+  "name": "drive_speed",
+  "title": "Drive speed",
+  "swept": "the smallest envelope speed scale at which the Fr 0.05 walk works",
+  "searches": [
+   {
+    "name": "walk_fr05",
+    "condition": "walk/fr05",
+    "kind": "speed_scale",
+    "parameter": "envelope speed scale",
+    "unit": "",
+    "nominal": 1.0,
+    "far": 0.25,
+    "seek": "lowest",
+    "integer": false
+   }
+  ],
+  "points": [],
+  "worse": [],
+  "not_run": null
+ },
+ "rule": "the smallest scale s on every drive's speed limits at which the Fr 0.05 walk (walk/fr05) works: each drive's corner and no-load speeds x s in the torque-speed envelope (drive.Envelope's speed_scale, as plant.build(speed_scale=s) builds it), and with them the success limit on peak speed (panels.LIMITS_RULE reads the envelope's corner speed: control.run's worst_speed_ratio), from 1 down to 0.25; peak torques unchanged; Stage 0: the knee's speed need at Fr 0.05 over its rated speed (plan section 5), including the screens' 15 % speed margin (0.93 / 0.95 / 0.93); without it 0.81 / 0.83 / 0.81, which is what this limit compares (STAGE0_RULE)",
+ "searches": {
+  "walk_fr05": {
+   "name": "walk_fr05",
+   "condition": "walk/fr05",
+   "kind": "speed_scale",
+   "parameter": "envelope speed scale",
+   "unit": "",
+   "nominal": 1.0,
+   "far": 0.25,
+   "seek": "lowest",
+   "integer": false,
+   "success": {
+    "criterion": "success",
+    "status": "fails at nominal",
+    "threshold": null,
+    "works": null,
+    "fails": 1.0,
+    "halvings": 0,
+    "values": [
+     {
+      "value": 1.0,
+      "ok": false
+     }
+    ],
+    "binding": {
+     "falls": 3,
+     "fall_causes": {
+      "tilt": 3
+     },
+     "fall_candidates": {
+      "leg_drive_at_torque_limit": 3,
+      "slip": 3,
+      "cop_at_pad_edge_with_ankle_saturated": 3
+     },
+     "lifts": {
+      "drive_torque": {
+       "survives": false,
+       "survived": 0
+      },
+      "slip": {
+       "survives": false,
+       "survived": 0
+      }
+     },
+     "untestable": [
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "success_failures": 0,
+     "failed_terms": {},
+     "hardware_terms": [],
+     "success_label": null,
+     "falls_label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "relative_to_nominal": true
+    },
+    "panels": {
+     "record": "60-N-T-10/eval/R2/42/walk/fr05.json",
+     "pass_": false,
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+     "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+     "success_label": "controller-limited",
+     "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+     "decision_20_label": "controller-limited"
+    }
+   },
+   "survival": {
+    "criterion": "survival",
+    "status": "fails at nominal",
+    "threshold": null,
+    "works": null,
+    "fails": 1.0,
+    "halvings": 0,
+    "values": [
+     {
+      "value": 1.0,
+      "ok": false
+     }
+    ],
+    "binding": {
+     "falls": 3,
+     "fall_causes": {
+      "tilt": 3
+     },
+     "fall_candidates": {
+      "leg_drive_at_torque_limit": 3,
+      "slip": 3,
+      "cop_at_pad_edge_with_ankle_saturated": 3
+     },
+     "lifts": {
+      "drive_torque": {
+       "survives": false,
+       "survived": 0
+      },
+      "slip": {
+       "survives": false,
+       "survived": 0
+      }
+     },
+     "untestable": [
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "success_failures": 0,
+     "failed_terms": {},
+     "hardware_terms": [],
+     "success_label": null,
+     "falls_label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "relative_to_nominal": true
+    },
+    "panels": {
+     "record": "60-N-T-10/eval/R2/42/walk/fr05.json",
+     "pass_": false,
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+     "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+     "success_label": "controller-limited",
+     "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+     "decision_20_label": "controller-limited"
+    }
+   }
+  }
+ },
+ "points": {},
+ "summary": {
+  "searches": {
+   "walk_fr05": {
+    "success": {
+     "status": "fails at nominal",
+     "threshold": null,
+     "fails": 1.0,
+     "resolution": null,
+     "search": null,
+     "label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "evaluated": 1,
+     "panels": {
+      "record": "60-N-T-10/eval/R2/42/walk/fr05.json",
+      "pass_": false,
+      "episodes": 20,
+      "survived": 1,
+      "succeeded": 0,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "success_label": "controller-limited",
+      "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "decision_20_label": "controller-limited"
+     },
+     "flag": null
+    },
+    "survival": {
+     "status": "fails at nominal",
+     "threshold": null,
+     "fails": 1.0,
+     "resolution": null,
+     "search": null,
+     "label": "controller-limited (lifting drive_torque, slip saves none of the falls; untestable: cop_at_pad_edge_with_ankle_saturated)",
+     "evaluated": 1,
+     "panels": {
+      "record": "60-N-T-10/eval/R2/42/walk/fr05.json",
+      "pass_": false,
+      "episodes": 20,
+      "survived": 1,
+      "succeeded": 0,
+      "label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "falls_label": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "success_label": "controller-limited",
+      "attribution": "controller-limited (decision 20; untestable candidates: cop_at_pad_edge_with_ankle_saturated)",
+      "decision_20_label": "controller-limited"
+     },
+     "flag": null
+    }
+   }
+  },
+  "points": {}
+ },
+ "stage0": {
+  "values": {
+   "walk_fr05": 0.93
+  },
+  "without_margin": {
+   "walk_fr05": 0.81
+  },
+  "screens": {
+   "knee_speed_ratio": 0.9292711530574435,
+   "knee_peak_over_rated": 0.8080618722238639,
+   "speed_margin": 1.15,
+   "files": {
+    "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json": "0e032ac6faf092d80f6e17854468f51b26b101a6451f9d72b9511891c7f131a8",
+    "round2/refine/narrow_carpet_60/candidates/60-N-T-10.json": "6dd7acb0658330fe8a16c8d277d4518640ab345a6cefeb847f7167897c32957a"
+   }
+  },
+  "text": "the knee's speed need at Fr 0.05 over its rated speed, including the screens' 15 % speed margin; without it 0.81 (0.81 / 0.83 / 0.81), which is what the ledger's limit compares (STAGE0_RULE)"
+ },
+ "evaluations": {
+  "walk/fr05|nominal": {
+   "condition": "walk/fr05",
+   "variant": {
+    "kind": null,
+    "value": null
+   },
+   "relax": [],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "fall_time_s": 20.777999999999363,
+     "fall_cause": "tilt",
+     "fall_onset_s": 20.191999999999688,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 20.777999999999363,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8543720906239899
+     ],
+     "worst_speed_ratio": [
+      "right_ankle_a_servo",
+      1.0430345538796484
+     ],
+     "joint_shortfall_rad": -0.03623658899151841,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 3.2284319250002227,
+     "cpu_s": 3.8597140819999995
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "fall_time_s": 22.39199999999847,
+     "fall_cause": "tilt",
+     "fall_onset_s": 21.99199999999869,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 22.39199999999847,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "tail_yaw_servo",
+      0.858592888145343
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.8751852115592981
+     ],
+     "joint_shortfall_rad": -0.03597569154649985,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 3.275303487000201,
+     "cpu_s": 3.257497129
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "fall_time_s": 18.774000000000473,
+     "fall_cause": "tilt",
+     "fall_onset_s": 18.40200000000068,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 18.774000000000473,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8468667895125122
+     ],
+     "worst_speed_ratio": [
+      "right_knee_servo",
+      1.2428253047598508
+     ],
+     "joint_shortfall_rad": -0.036301369910598874,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 2.843335012999887,
+     "cpu_s": 2.8215488509999993
+    }
+   ],
+   "succeeded": 0,
+   "survived": 0,
+   "errors": 0,
+   "succeeds_all": false,
+   "survives": false,
+   "valid": "db9f9dc6d23a2b3cd509e39dc72622a41926b66d94f5a04c95ec818c1b6bdbff",
+   "wall_s": 9.347070425000311,
+   "cpu_s": 9.938760061999998,
+   "simulated_s": 61.943999999998304,
+   "at": "2026-11-09T22:32:15+00:00"
+  },
+  "walk/fr05|nominal|lift=drive_torque": {
+   "condition": "walk/fr05",
+   "variant": {
+    "kind": null,
+    "value": null
+   },
+   "relax": [
+    "drive_torque"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "fall_time_s": 20.759999999999373,
+     "fall_cause": "tilt",
+     "fall_onset_s": 20.191999999999688,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 20.759999999999373,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8548358911266123
+     ],
+     "worst_speed_ratio": [
+      "neck_pitch_servo",
+      1.0934583106151088
+     ],
+     "joint_shortfall_rad": -0.03623658899151841,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 3.2563627529998485,
+     "cpu_s": 3.236764565999998,
+     "relaxed": [
+      "drive_torque"
+     ]
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "fall_time_s": 21.245999999999103,
+     "fall_cause": "tilt",
+     "fall_onset_s": 21.021999999999228,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 21.245999999999103,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "tail_yaw_servo",
+      0.8621717450687483
+     ],
+     "worst_speed_ratio": [
+      "tail_yaw_servo",
+      1.2750244094809309
+     ],
+     "joint_shortfall_rad": -0.03597569154649985,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 2.9877758350003205,
+     "cpu_s": 2.9748717589999956,
+     "relaxed": [
+      "drive_torque"
+     ]
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "fall_time_s": 18.750000000000487,
+     "fall_cause": "tilt",
+     "fall_onset_s": 18.40200000000068,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 18.750000000000487,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8530026455062499
+     ],
+     "worst_speed_ratio": [
+      "tail_yaw_servo",
+      1.1666902381934023
+     ],
+     "joint_shortfall_rad": -0.036301369910598874,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 2.802540587000294,
+     "cpu_s": 2.7973898429999977,
+     "relaxed": [
+      "drive_torque"
+     ]
+    }
+   ],
+   "succeeded": 0,
+   "survived": 0,
+   "errors": 0,
+   "succeeds_all": false,
+   "survives": false,
+   "valid": "8feedb9d8e19bff3d08bfc9b5debd1443d84f6042a6de046be151faff42f4c72",
+   "wall_s": 9.046679175000463,
+   "cpu_s": 9.009026167999991,
+   "simulated_s": 60.75599999999896,
+   "at": "2026-11-09T22:33:09+00:00"
+  },
+  "walk/fr05|nominal|lift=slip": {
+   "condition": "walk/fr05",
+   "variant": {
+    "kind": null,
+    "value": null
+   },
+   "relax": [
+    "slip"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044
+   ],
+   "episodes": [
+    {
+     "seed": 3042,
+     "fell": true,
+     "fall_time_s": 19.262000000000203,
+     "fall_cause": "tilt",
+     "fall_onset_s": 18.58200000000058,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "ankle_linkage",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 19.262000000000203,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8614476465631717
+     ],
+     "worst_speed_ratio": [
+      "right_knee_servo",
+      1.175688289475077
+     ],
+     "joint_shortfall_rad": -0.036250495479351164,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 2.586018805999629,
+     "cpu_s": 2.574870838999999,
+     "relaxed": [
+      "slip"
+     ]
+    },
+    {
+     "seed": 3043,
+     "fell": true,
+     "fall_time_s": 16.22000000000189,
+     "fall_cause": "tilt",
+     "fall_onset_s": 16.00200000000201,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 16.22000000000189,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8474960628923551
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.8786047226039441
+     ],
+     "joint_shortfall_rad": -0.03595958915597605,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 2.1013634179998917,
+     "cpu_s": 2.0981877749999995,
+     "relaxed": [
+      "slip"
+     ]
+    },
+    {
+     "seed": 3044,
+     "fell": true,
+     "fall_time_s": 17.57200000000114,
+     "fall_cause": "tilt",
+     "fall_onset_s": 17.35200000000126,
+     "fall_candidates": [
+      "leg_drive_at_torque_limit",
+      "slip",
+      "cop_at_pad_edge_with_ankle_saturated"
+     ],
+     "survival_s": 17.57200000000114,
+     "planned_s": 25.675746445184522,
+     "succeeded": false,
+     "failed_terms": [
+      "survived"
+     ],
+     "worst_sustained_ratio": [
+      "neck_pitch_servo",
+      0.8508220181786879
+     ],
+     "worst_speed_ratio": [
+      "left_knee_servo",
+      0.8745325001995051
+     ],
+     "joint_shortfall_rad": -0.036317287567920215,
+     "joint_worst": "left_hip_roll",
+     "captures": 0,
+     "window": {
+      "complete": false,
+      "speed_m_s": null,
+      "yaw_rate_rad_s": null,
+      "duty": null,
+      "flight_s": null,
+      "slip_median_m": null,
+      "slip_worst_m": null,
+      "grf_peak_bw": null,
+      "drive_sustained_worst": null
+     },
+     "wall_s": 2.4998976570004743,
+     "cpu_s": 2.4883440460000017,
+     "relaxed": [
+      "slip"
+     ]
+    }
+   ],
+   "succeeded": 0,
+   "survived": 0,
+   "errors": 0,
+   "succeeds_all": false,
+   "survives": false,
+   "valid": "60868d9c06a97ded6d0a9cfb9a0e2ce9e9b627edf02296f4884130508f7a5c06",
+   "wall_s": 7.187279880999995,
+   "cpu_s": 7.16140266,
+   "simulated_s": 53.05400000000323,
+   "at": "2026-11-09T22:33:09+00:00"
+  }
+ },
+ "rules": {
+  "rows": "plan section 5 bisects on R2 and R3: R2 is the panels' row of the CMA-ES seed the body-level G5 selection comes from (env.tuned_gains, env.GAINS_RULE: 60-N-T-10 R2/42, 60-N-H-10 R2/43, 75-M-H-10 R2/43; the row name 'R2' names it), the tracker on the estimate with that seed's own G5 selection (panels.R2_GAINS_RULE); R3 is R3/42, the policy rows' row (policy_rows.r3_row, policy_rows.POLICY_ROWS_RULE: R2 of the body-level G5 selection plus PPO seed 42's residual policy acting as training's env acts) at its judged checkpoint (train.JUDGED_RULE, policy_rows.CHECKPOINT_SELECTION_RULE), registered through panels.register_rows: the ledger registers the policy rows' R3 and R4 (policy_rows.ROW_FACTORIES) when a row of theirs is asked for and no module has registered that controller (a --row-module may register another, which is kept); a policy row is built only in the PPO venv (its run's libraries).  The row name 'R3' leaves R3 out for a body judged with R2 (train.R2_JUDGED_RULE: G6c failed on seed 42, or FIX_RULE stopped one of its R3 runs), recorded in the session; R3/42 named explicitly is built as asked.  Any row panels.tracker_rows knows can be named, and a row that runs the hard floor only (R0, R1) has no pile search.  One seed per controller (the body-level selection's CMA-ES seed for R2, PPO seed 42 for R3), not plan section 6's 'R2 and R3 on 2 seeds each': the budget of decision 21 (STAGE1_PLAN.md decision 33)",
+  "seeds": "episode seeds 3042-3044 (panels.SEEDS' first three, plan section 5); each episode is the panels' episode of its condition on that seed (panels.EPISODE_RULE: the start noise, the sensor noise and a push's timing from the seed), on the panels' plant and track with the search's variant applied (VARIANT_RULE), so the nominal value of a condition the variant leaves unchanged is the panels' own episode bit for bit; no traces are written",
+  "works": "a value works if none of the 3 episodes falls and none fails a success term that its seed passed at the search's nominal value (a point: its condition's nominal evaluation, which it then needs as well), by the panels' judgement of the condition (panels.judge: its success terms with panels.LIMITS_RULE; a push succeeds if the body is back on its command within 3 s, decision 30, panels.RECOVERY_RULE).  The margin is how far the parameter moves before the row loses something it had at nominal: a term a seed already fails at nominal does not end the search (60-N-T-10's R2/42 nominal walk passes the panels 20/20 survived and 18/20 succeeded, and seed 3042 fails the peak GRF alone; read outright, every margin on that walk would end 'fails at nominal'), and at the nominal value itself works is survives.  Every evaluation also records the outright reading (how many of the 3 succeed, and whether all do).  A value survives if none of the 3 falls (plant.Plant.fall_cause, an episode with a MuJoCo warning counting as a fall, tune.FAILURE_RULE).  An episode that failed to run (panels.FAILED_EPISODE_RULE) leaves the value unjudged: the search waits, and the next sweep runs that value again (decision 33)",
+  "search": "each search moves one parameter on one panel condition from its nominal value (the condition as the panels run it) toward the far end of its interval: the nominal value first, and if it does not work the search ends 'fails at nominal'; then the far end, and if it works the search ends 'works across the interval'; otherwise the bracket between the last value that works and the nearest that does not is halved 7 times (to 1/128 of the interval; an integer parameter is halved until the bracket is one step wide).  Every search runs twice, on success ('works', WORKS_RULE) and on survival alone ('survives'), from the same evaluations: a value evaluated for one is not run again for the other.  The bisection assumes one crossing in the interval; every value it evaluated is recorded with its outcome, and its result is the bracket it found: the last value that works (the threshold) and the nearest that does not",
+  "variant": "the swept parameter is applied to the panels' plant of the condition after it is built and settled (the panels' settled stance is every episode's start, as env.py applies its randomised factors), for one episode, and restored exactly after it (the same model arrays bit for bit): friction (control.set_friction), servo kp (the actuators' gain and bias), trunk mass (env.set_trunk_mass), pile damping (the probes' solref), latency (a delayed servo command), the drives (the envelope and the drive ratings), each by its margin's rule; a push's velocity change replaces the panels' half bound in the pulse's force (PushedBuilt); a lift (LIFT_RULE) runs inside the variant (control.run enters control.relaxed after its reset and restores it before the variant is undone)",
+  "label": "a threshold names what failed at its fails end (the nearest value that does not work, or does not survive): its success failures (episodes that survive but fail a term their seed passed at nominal, WORKS_RULE) by those new failed terms, classed as panels.SUCCESS_LABEL_RULE classes them (body-limited by the hardware terms that failed in more than half of those episodes, else controller-limited), and its falls by LIFT_RULE; the label is the success failures' when nothing falls, else that of the kind with more failed episodes, the falls' on a tie, as panels.FAILURE_LABEL_RULE breaks it (plan section 4: a hardware limit binds before most failures); a survival search takes the falls' label.  A search that fails at nominal also cites the panels' own reading of the row and condition (its 20-seed record: pass, counts, failure label with decision 20's attribution), when the record exists, and is flagged if that record passes",
+  "lift": "decision 20 attributes falls over 20 starts and its sign test needs at least 5 falls (panels.ATTRIBUTION_MIN_FALLS), which 3 seeds cannot give; so at a fails end (and a point) whose episodes fall, the value is run again on the same 3 seeds once for each relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE: the limits active in the 0.5 s before the onset; each lifted from the start by control.relaxed, control.RELAXES, as the panels' attribution lifts it), and its falls are body-limited by the lifts under which all 3 seeds survive, else controller-limited (lifting none of the candidates saves them); a candidate the plant cannot relax (cop_at_pad_edge_with_ankle_saturated) is named untestable, and falls with no candidate are controller-limited with nothing to lift (decision 20).  Each lift is an evaluation of its own, keyed with its relaxation (STAGE1_PLAN.md decision 33)",
+  "record": "one record per (body, row, margin): <out>/<body>/sweeps/<row>/<margin>.json (a row 'R2/43' is two directories) with each search's two results (status, the threshold and the nearest failing value, every value evaluated, the label at the fails end with its lifts, the panels' reading at 'fails at nominal'), the points' outcomes, every evaluation the margin used (its condition, variant, lift, seeds and each episode's outcome: the fall, its cause and candidates, the failed terms, the readings the margin turns on, wall and CPU seconds), Stage 0's values (plan section 5, STAGE0_RULE), the rules, the key, the panel sources and key context it was made with, the provenance and the cost; written after every round of evaluations, so an interrupted sweep keeps what it ran; <out>/<body>/sweeps/summary.json lists the sessions and every record's state",
+  "resume": "a margin whose record holds this run's key and is done is skipped; otherwise every evaluation that any record of the row holds under this run's evaluation key is reused: the sha256 of the panels' record key of its condition on the ledger's seeds (panels.record_key: the row and its sources, the condition and its plan, the inputs, the plant's round-two files, the library versions, the panels' sources, panels.RESUME_RULE) with its variant, its lift (LIFT_RULE) and the ledger's sources (SOURCES_RULE); evaluations that failed to run are run again.  A search replays its evaluations in order, so a resumed sweep ends where an uninterrupted one would.  The margin's key adds its definition (searches, intervals, points, seeds, halvings)",
+  "sources": "the ledger's sources: the sha256 of designlab/stage1/ledger.py (its margins, variants and searches); the panels' sources are in each evaluation's panel key (panels.PANEL_SOURCES_RULE); every worker checks both against the session's, so a worker started after an edit refuses to run",
+  "cost": "the dry run counts, per search, the values it can still need after replaying the evaluations recorded under this run's keys: at most 2 + 7 on success (an integer search: 2 + its halvings) and as many more on survival (none when the two agree), each x 3 seeds at the condition's planned seconds (panels.Planner); a point once, with its condition's nominal evaluation (a value two searches share, such as the nominal walk's nominal value, is counted in each and run once); the lifts (LIFT_RULE) as an upper bound beside: every relaxation at each criterion's fails end; the cost per simulated second is panels.COST_RULE's for a tracker row (R2/42 walking on each floor, measured now) and a policy row's own for R3 and R4 (policy_rows.POLICY_COST_RULE: the row, its network included, on the nominal walk on each floor its searches still need, measured now); core-hours = simulated seconds x CPU seconds per simulated second / 3600",
+  "stage0": "plan section 5's Stage 0 column per body, from the round-two records (STAGE1_PLAN.md decision 33): grip, the friction the turning screen requires in single support (<case>/review/screening/<body>_turning.json, the worse foot's runs.<run>.feet.*.single_support.mu_req_max: 'straight' for the nominal walk, 'walk_0.35_left' and '_right' for the 0.35 rad/s walking turn, the worse direction for 'turn', 'straight_brisk' for the brisk walk; the plan's grip cell is laid out per body, walk / turn / brisk, as ROUND2_REVIEW.md 7.4 and 7.6 give it); push, the envelope screen's forward bound; stop, the one-foot deceleration; drive speed, the knee's sizing speed ratio at Fr 0.05 (<case>/candidates/<body>.json margins.knee.speed_ratio = 1.15 x the peak speed / the rated speed at 24 V: it includes the screens' 15 % speed margin, sizing.SPEED_MARGIN; the value without it, the peak speed over the rated speed, is what the ledger's limit compares, peak speed <= corner speed x s, so equal performance gives s near it: 0.81 / 0.83 / 0.81); drive torque, the worst drive's sustained-torque ratio margins.<drive>.cont_ratio = the larger of the nominal walk's RMS and the one-foot hold over the sustained torque (sizing.requirements: cont = max(rms, hold)), with the nominal walk's worst RMS ratio beside (what the ledger's RMS limit on the walk compares: 0.76 / 0.76 / 0.66); each record holds the screens' unrounded values and the files' sha256 (screens)",
+  "success": "plan section 4 on each validation episode: the nominal walk succeeds if it survives and over the 10 s before the stop command its mean speed is at least the nominal speed, each foot's duty is 0.55-0.65, there is no flight, the cadence is 1.6-2.2 steps/s, the stride 0.5-0.65 H, the peak GRF at most 1.6 BW, roll and pitch about home at most 4 deg RMS and 8 deg peak, the toe clearance at least 0.04 H, the slip at most 5 mm median and 15 mm worst and every drive's motor-space RMS at most its sustained torque (the drive RMS is judged over the same window as the other limits), and over the whole episode every drive's peak speed is at most speed_at(24 V) and every joint keeps 0.1 rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) and the drive RMS hold over its steady turning (the same window), the drives' peak speeds hold over the episode, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at 50 Hz) and, in place, the drift (the root's displacement) is at most 0.1 m.  Cadence and stride are judged at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement over each loaded stance, the drive RMS over the window's physics steps",
+  "limits": "every success also needs every drive's motor-space RMS at most its sustained torque and every drive's peak speed at most speed_at(24 V) (control.run's worst ratios), and every joint keeping its required usable range (walks, stands, pushes, starts and stops 0.1 rad; turns decision 14's margin, tune.SUCCESS_RULE): for walks, turns and the carpet walk read as tune.SUCCESS_RULE reads them (the drive RMS over the judged window, peak speed and range over the episode); for stands, pushes and starts and stops over the whole episode",
+  "recovery": "STAGE1_PLAN.md decision 30: back to the command within 3 s means a feedback update at most 3 s after the pulse's end (at or after it) from which the body is on its command to the episode's end (at least 2 s more).  Standing, on command at an update: the true CoM's horizontal speed below 5 % of the nominal walk's commanded speed (decision 18's 'stopped'), at every update to the end.  Walking, on command from an update: the CoM's mean velocity over the commanded stride that starts there (its displacement over that stride / the stride's time) is 90-110 % of the commanded speed along the episode's starting heading (the straight walk's) and at most 10 % of it across, for every stride that starts at an update from then until one stride before the episode's end.  The window starts at the pulse's end or later, so the reading after the pulse is not the walking before it.  An update at the pulse's end itself is 'never left the command'.  A trace a fall cut short has not recovered; the time from the pulse's end is recorded",
+  "candidates": "the hardware limits (HW_LIMITS) active at an update of the 0.5 s before the fall's onset (the last time the trunk tilt rose through 0.2 rad)",
+  "failed_episode": "an episode that raises, or whose worker process dies or does not answer within 900 s on each of 2 attempts (tune.Pool), failed to run: it is recorded with the traceback or reason (error) as a fall at its start with every success term failed, but it is not a result: the counts give it apart (errors), a record that holds one is not judged (pass_ None, its verdict incomplete), the next eval of the same key runs those seeds again and merges them in (RESUME_RULE), and attribution leaves it out (PANEL_ATTRIBUTION_RULE)"
+ },
+ "key": {
+  "schema": 2,
+  "body": "60-N-T-10",
+  "row": "R2/42",
+  "margin": {
+   "name": "drive_speed",
+   "title": "Drive speed",
+   "swept": "the smallest envelope speed scale at which the Fr 0.05 walk works",
+   "searches": [
+    {
+     "name": "walk_fr05",
+     "condition": "walk/fr05",
+     "kind": "speed_scale",
+     "parameter": "envelope speed scale",
+     "unit": "",
+     "nominal": 1.0,
+     "far": 0.25,
+     "seek": "lowest",
+     "integer": false
+    }
+   ],
+   "points": [],
+   "worse": [],
+   "not_run": null
+  },
+  "seeds": [
+   3042,
+   3043,
+   3044
+  ],
+  "halvings": 7,
+  "cut_s": null,
+  "ledger": "4de8aa89a453ca23888fd9a9fb77b4000ac6530ebfb67b2f81337e366ce13408",
+  "panel_keys": {
+   "walk/fr05": "2a2b2e4633d37e2f8d2696095bcbd339aadb0911be30ea3453000ea412325d8d"
+  },
+  "points": {}
+ },
+ "panel_sources": "7516b9271f1c2377a3c6b11d53355a684abb7c5e8a27b51a794101f7c4758970",
+ "key_context": "7569fb0105886517fde484ceee917c06d7c3c6db9cb20e5f76ce7c2cb66e8bc8",
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0"
+  },
+  "git": {
+   "commit": "2351387fc7594fdfa99014d2d6189c1e0e3ddf22",
+   "dirty": true,
+   "dirty_paths": [
+    " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-H-10/sweeps/R2/43/grip.json",
+    " M hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/R2/42/grip.json",
+    "?? hardware/trex_form_study/stage1/runs/2026-11-08/60-N-T-10/sweeps/summary.json"
+   ]
+  },
+  "stage1_sources": {
+   "sha256": "c2c95bfbbcb7e7fa26137b9322acd9017ae950963bf233acba5d9d5cbf3e3c0e",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "ledger.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "policy_rows.py",
+    "refs.py",
+    "replay.py",
+    "report.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  }
+ },
+ "cost": {
+  "evaluations": 3,
+  "episodes": 9,
+  "simulated_s": 175.7540000000005,
+  "wall_s": 25.58102948100077,
+  "cpu_s": 26.10918888999999,
+  "note": "each evaluation's own cost; one shared with another margin of the row is in both records (the report counts it once, by its key)"
+ },
+ "session": {
+  "started_at": "2026-11-09T22:31:33+00:00"
+ },
+ "written_at": "2026-11-09T22:34:36+00:00"
+}

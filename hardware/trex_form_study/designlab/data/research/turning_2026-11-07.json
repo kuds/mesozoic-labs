@@ -1,0 +1,192 @@
+{
+ "accessed": "2026-11-07",
+ "summary": "Sources and labelled assumptions for the turning screen (designlab/turning.py). Everything else in that screen is computed from the compiled models and the prescribed trajectories. The friction verdict is reported as the friction coefficient the prescribed motion needs (mu_req in single support, the minimum over splits in double support), which does not depend on the assumed mu; the assumed mu and the tile figures below are for comparison only. Revised 2026-11-08 after an adversarial review (Crossville wording re-read; method references added).",
+ "references": [
+  {
+   "key": "BEHAVIOR_SPEC",
+   "citation": "hardware/trex_form_study/BEHAVIOR_SPEC.md, section 1, row 'Turning' (repository document, proposed targets).",
+   "url": null,
+   "values": {
+    "walking_turn_yaw_rate_min_rad_s": 0.35,
+    "turn_in_place_yaw_rate_min_rad_s": 0.5
+   },
+   "used_for": "Yaw-rate targets of the turning cases (walking turn at the nominal speed; turn in place). The 0.5 rad/s walking turn is the round-two stretch case set in the brief."
+  },
+  {
+   "key": "PSU_DISC_FRICTION",
+   "citation": "Mechanics Map (The Pennsylvania State University), 'Disc Friction'.",
+   "url": "https://mechanicsmap.psu.edu/websites/7_friction/7-6_disc_friction/discfriction.html",
+   "accessed": "2026-11-07",
+   "values": {
+    "collar_uniform_pressure_moment": "M = (2/3) mu F (Ro^3 - Ri^3) / (Ro^2 - Ri^2)",
+    "solid_disc_moment": "M = (2/3) mu F R"
+   },
+   "used_for": "Check of the torsional friction radius integration (tests/test_turning.py: a uniformly loaded disc gives r_eff = 2R/3). The pad radius itself is computed from the compiled pad boxes."
+  },
+  {
+   "key": "HOWE_CUTKOSKY_1996",
+   "citation": "Howe RD, Cutkosky MR (1996). Practical force-motion models for sliding manipulation. International Journal of Robotics Research 15(6): 557-572. doi:10.1177/027836499601500603.",
+   "url": "https://journals.sagepub.com/doi/10.1177/027836499601500603",
+   "read_via": "Zhou J, Paolini R, Bagnell JA, Mason MT (2016). A Convex Polynomial Force-Motion Model for Planar Sliding: Identification and Application. arXiv:1602.06056, https://ar5iv.labs.arxiv.org/html/1602.06056 (accessed 2026-11-07). It describes Howe and Cutkosky's ellipsoid approximation of the limit surface, built from the maximum force in pure translation and the maximum torque in pure rotation for a known pressure distribution.",
+   "accessed": "2026-11-07",
+   "used_for": "Combined slip index (F_t / (mu F_n))^2 + (M_z / (mu F_n r))^2 <= 1 for a stance foot carrying tangential force and yaw moment together.",
+   "note": "The original paper's full text was not read; the form used is the one the citing paper describes. The ellipsoid is an approximation of the exact limit surface."
+  },
+  {
+   "key": "CROSSVILLE_DCOF",
+   "citation": "Crossville Inc., 'Tile DCOF Ratings' (manufacturer summary of the ANSI A326.3 product use categories).",
+   "url": "https://www.crossville.com/learn/porcelain-tile-dcof-ratings-and-applications/",
+   "accessed": "2026-11-07; re-read 2026-11-08",
+   "values": {
+    "interior_dry_product_class_min_dry_dcof": 0.42,
+    "interior_wet_product_class_min_wet_dcof": 0.42,
+    "industry_benchmark_level_interior_walked_on_wet_min_wet_dcof": 0.42
+   },
+   "used_for": "Context for the friction result only. Crossville classes its tile products for interior dry use at a dry DCOF of 0.42 or more and for interior wet use at a wet DCOF of 0.42 or more, measured to ANSI A326.3, and cites 0.42 wet as the industry benchmark for tile in level interior spaces walked on when wet. This is a classification of tile products, not a minimum for floors in general.",
+   "note": "DCOF is measured with the standard's own device, not the robot's pad elastomer, and is a dynamic (sliding) value. The page says the classes should not be relied on alone. The standard's text was not read. Earlier wording ('classes level interior hard floors at 0.42 or more', 'the 0.42 floor minimum') overstated the source and is withdrawn.",
+   "quotes": [
+    "Crossville products with this classification have a dry DCOF value of 0.42 or greater (Interior Dry)",
+    "Crossville products with this classification have a wet DCOF value of 0.42 or greater (Interior Wet)",
+    "the industry standard for tile suitable for level interior spaces expected to be walked on when wet with water is a wet dynamic coefficient of friction (DCOF) value of 0.42 or greater",
+    "the classifications provided above are intended to be general in nature and should not be solely relied upon in tile selection"
+   ]
+  },
+  {
+   "key": "ETB_FRICTION",
+   "citation": "Engineering ToolBox, 'Friction - Coefficients for Common Materials and Surfaces'.",
+   "url": "https://www.engineeringtoolbox.com/friction-coefficients-d_778.html",
+   "accessed": "2026-11-07",
+   "values": {
+    "rubber_on_dry_concrete": "0.6-0.85",
+    "rubber_on_wet_concrete": "0.45-0.75",
+    "rubber_on_dry_asphalt": "0.9 and 0.5-0.8"
+   },
+   "used_for": "Context only.",
+   "note": "The page's table has static and kinetic columns, but its text does not show which column the rubber-on-concrete values sit in. No measurement method or accuracy is stated."
+  },
+  {
+   "key": "MUJOCO_CONTACT",
+   "citation": "MuJoCo documentation: Computation chapter, Contact (condim); Modeling chapter, Contact parameters.",
+   "url": "https://mujoco.readthedocs.io/en/stable/computation/index.html",
+   "url_2": "https://mujoco.readthedocs.io/en/stable/modeling.html",
+   "accessed": "2026-11-07",
+   "values": {
+    "condim_3": "regular frictional contact: normal force and tangential friction opposing slip",
+    "condim_4": "adds a torsional friction torque opposing rotation about the contact normal",
+    "torsional_coefficient_units": "length, which can be read as the diameter of the contact patch",
+    "equal_priority_combination": "element-wise maximum of each friction coefficient over the two geoms"
+   },
+   "used_for": "Note on the compiled models: the foot pads use the default condim 3 (pad friction 0.9 0.02 0.001, floor 0.9 0.005 0.0001), so a contact point carries no torsional friction. In simulation a foot's yaw moment can only come from tangential forces at separate contact points of its pad boxes. A controller study should check that this matches the pad design."
+  },
+  {
+   "key": "LAWSON_HANSON_LDP",
+   "citation": "Lawson CL, Hanson RJ. Solving Least Squares Problems. SIAM, 1995 (reprint of the 1974 edition); least-distance programming (LDP) solved by non-negative least squares. scipy.optimize.nnls implements their NNLS algorithm and cites this book.",
+   "url": "https://doi.org/10.1137/1.9781611971217",
+   "used_for": "qp_exact: the exact solution of the double-support minimum-effort QP (null-space reduction, completion to a least-distance problem, NNLS).",
+   "note": "The book was not re-read; the LDP-by-NNLS construction is checked numerically (tests/test_turning.py: feasible and no worse than SLSQP on the same problem)."
+  },
+  {
+   "key": "DINKELBACH_FRACTIONAL",
+   "citation": "Dinkelbach W (1967). On nonlinear fractional programming. Management Science 13(7): 492-498; and the min-max (generalized) form: Crouzeix JP, Ferland JA, Schaible S (1985). An algorithm for generalized fractional programs. Journal of Optimization Theory and Applications 47: 35-49.",
+   "url": null,
+   "used_for": "ds_min_mu: the smallest friction coefficient over double-support splits, a min-max of ratios, found by a Dinkelbach-type iteration with one linear program per step.",
+   "note": "Not re-read. Each result is checked independently of the convergence theory: the polyhedral optimum is a lower bound and the exact cone ratio at the split found is an achievable value; both are reported."
+  }
+ ],
+ "assumptions": [
+  {
+   "name": "mu",
+   "value": 0.8,
+   "basis": "assumption",
+   "rule": "Pad-floor friction coefficient used for the utilisation, the double-support split's friction pyramid and the flags. It equals the friction pyramid of statics._double_support_qp. The compiled MJCF uses 0.9. The reported mu_req and ds_min_mu do not depend on it."
+  },
+  {
+   "name": "pressure over the pads",
+   "value": "uniform (r_eff); linear and zero in tension with the resultant at the computed CoP (r_cop)",
+   "basis": "assumption",
+   "rule": "r_eff is the mean distance from the pad-area centroid, the torsional friction radius of a flat contact under uniform pressure in pure spin. r_cop treats the foot as rigid on uniform elastic pads."
+  },
+  {
+   "name": "fn_min_frac",
+   "value": 0.1,
+   "basis": "assumption",
+   "rule": "Double support, QP-allocation diagnostic only: a foot enters the double_support_qp_allocation statistics while it carries at least 10 % of the weight. Those statistics are the minimum-effort split's choice, not requirements; the double-support requirement is ds_min_mu."
+  },
+  {
+   "name": "trunk attitude",
+   "value": "home roll and pitch, constant yaw rate",
+   "basis": "assumption",
+   "rule": "The trunk does not bank or pitch into the turn."
+  },
+  {
+   "name": "head, tail, cadence, duty, lift, crouch",
+   "value": "sizing.NOMINAL",
+   "basis": "assumption",
+   "rule": "As the round-one nominal reference walk. The turn in place keeps the nominal cadence and duty with zero forward speed."
+  },
+  {
+   "name": "swing profile",
+   "value": "minimum jerk for translation and yaw, sine-squared lift",
+   "basis": "assumption",
+   "rule": "As gait.generate for translation and lift; the yaw uses the same minimum-jerk profile."
+  },
+  {
+   "name": "com_tol",
+   "value": 1e-06,
+   "basis": "assumption",
+   "rule": "CoM-tracking tolerance (m) per frame; gait.generate uses 2e-4 m. The multibody-ZMP correction converges to about a millimetre only with this tolerance and the exact stride-boundary unwrap together (output validation block)."
+  },
+  {
+   "name": "increase flag",
+   "value": 0.1,
+   "basis": "brief",
+   "rule": "Flag a turning requirement more than 10 % above the straight-walk requirement."
+  },
+  {
+   "name": "double-support split rule",
+   "value": "minimum joint effort; CoP box and friction pyramid in each foot's axes",
+   "basis": "assumption (statics' rule, made independent of the heading)",
+   "rule": "statics._double_support_qp takes the CoP box and the friction pyramid in world axes. In a turn that box, of a yawed pad, is larger than the pad's own and turns with the heading, so the split depended on the absolute heading. Taken in the foot's axes it does not; in a straight walk the two are the same."
+  },
+  {
+   "name": "double-support friction model",
+   "value": "||(F_x, F_y, M_z / r_eff)|| <= mu F_n with M_z about the pad-area centroid",
+   "basis": "assumption",
+   "rule": "The limit surface of mu_req with the yaw moment taken about the pad-area centroid, which keeps the minimum over splits a linear program. In single support the same form (mu_req_centroid) is within 0.002 of mu_req on the round-one bodies (output)."
+  },
+  {
+   "name": "phase_tol",
+   "value": 1e-09,
+   "basis": "numerical",
+   "rule": "Frames within 1e-9 of a stride fraction of a lift-off count as swing and of a touchdown as stance, so the classification does not depend on rounding of t / T."
+  },
+  {
+   "name": "near_flag_band",
+   "value": 0.02,
+   "basis": "measured",
+   "rule": "Ratios within 0.02 below the 10 % flag or below a planning limit are listed as near misses. Halving the frame interval (160 to 320 frames per stride, 60-M-T-10 turn in place) moved the ratios to the straight walk by at most 0.010."
+  },
+  {
+   "name": "clearance gate",
+   "value": "no interference (signed distance < 0) between screened parts of two bodies in either turning direction",
+   "basis": "study gate",
+   "rule": "The gait gate of clearance.py (round-one nominal walk; round-two nominal and brisk walks), applied to each turning case with the round-two gate set."
+  },
+  {
+   "name": "clearance probes",
+   "value": {
+    "walk": [
+     0.4,
+     0.45
+    ],
+    "in_place": [
+     0.35,
+     0.4,
+     0.45
+    ]
+   },
+   "basis": "assumption",
+   "rule": "Extra left turns (kinematics only) screened for interference to locate, by linear interpolation of the smallest gap, the yaw rate at which it begins. Left and right turns are mirror images in the computed cases."
+  }
+ ]
+}

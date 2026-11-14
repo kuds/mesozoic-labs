@@ -1,0 +1,5593 @@
+{
+ "body": "60-N-T-10-K",
+ "transitions": {
+  "start": {
+   "name": "start",
+   "kind": "start",
+   "from_": "stand",
+   "to": "nominal",
+   "gaits": {
+    "a": {
+     "name": "stand",
+     "period": NaN,
+     "duty": NaN,
+     "lift": 0.0,
+     "speed": 0.0,
+     "yaw_rate": 0.0,
+     "head_amp": 0.0,
+     "tail_amp": 0.0,
+     "crouch": 0.0,
+     "zmp_iters": 0,
+     "zmp_gain": 0.0,
+     "split": "statics"
+    },
+    "b": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    3
+   ],
+   "frames": 800,
+   "duration_s": 5.09243115686026,
+   "ramps": {
+    "path": [
+     0.0,
+     0.4
+    ],
+    "amplitude": [
+     -0.25,
+     1.0
+    ],
+    "weight_shift": [
+     -0.25,
+     0.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0042227004568463206,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.11551223042398809,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.11128952996714177
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0042227004568463206,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.22680176039112604,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427973
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.11551223042398809,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.33809129035826396,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427587
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.22680176039112604,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4493808203254019,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.33809129035826396,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.5606703502925398,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599342758
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.4493808203254019,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.6719598802596777,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599342758
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.028532942865482313,
+    0.011483378521940034,
+    0.005021634203661902,
+    0.002621388322678177,
+    0.002030615250136163,
+    0.0016876368238292717,
+    0.0014699231861939736
+   ],
+   "split": "statics",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.998585080392538e-07,
+   "min_cop_margin_single_m": 0.030320031305143897,
+   "min_cop_margin_m": -0.021983656726651733,
+   "max_friction_ratio": 0.2640619606856797,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "stand",
+    "com_max_mm": 0.41265421929571916,
+    "com_mean_mm": 0.08119372357436783,
+    "zmp_max_mm": 0.2753250835764172,
+    "zmp_mean_mm": 0.019436465523506898,
+    "joint_max_rad": 0.0015949753169574865,
+    "joint_rate_max_rad_s": 0.00803734386904053,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.0024297493065043602,
+     "zmp_mm": 0.0003168295565197058,
+     "joint_rad": 9.41338674111114e-06,
+     "joint_rate_rad_s": 7.199635448656577e-05
+    },
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.1732869270354269,
+    "com_mean_mm": 0.03363416619609132,
+    "zmp_max_mm": 0.21274655464551473,
+    "zmp_mean_mm": 0.022870716542903635,
+    "joint_max_rad": 0.0004767131259600932,
+    "joint_rate_max_rad_s": 0.002777688896524564,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.1732869270354269,
+     "zmp_mm": 0.11503623770468574,
+     "joint_rad": 0.0004767131259600932,
+     "joint_rate_rad_s": 0.002777688896524564,
+     "tau_Nm": 0.008621787472847808
+    },
+    "tau_max_Nm": 0.017750807337442165,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (nominal)",
+    "com_max_mm": 0.1732869270354269,
+    "zmp_max_mm": 0.21274655464551473,
+    "pass_": true
+   },
+   "seconds": 76.08100099000012,
+   "file": "transitions/start.npz",
+   "sha256": "66a27caab198e8080ec5de5cef858d5f12225aea77990f4607c8e96ead67188d"
+  },
+  "stop": {
+   "name": "stop",
+   "kind": "stop",
+   "from_": "nominal",
+   "to": "stand",
+   "gaits": {
+    "a": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "stand",
+     "period": NaN,
+     "duty": NaN,
+     "lift": 0.0,
+     "speed": 0.0,
+     "yaw_rate": 0.0,
+     "head_amp": 0.0,
+     "tail_amp": 0.0,
+     "crouch": 0.0,
+     "zmp_iters": 0,
+     "zmp_gain": 0.0,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    3
+   ],
+   "frames": 800,
+   "duration_s": 5.09243115686026,
+   "ramps": {
+    "path": [
+     0.0,
+     0.4
+    ],
+    "amplitude": [
+     0.0,
+     0.65
+    ],
+    "settle": [
+     0.4,
+     0.65
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.17384054749057434,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06255101752343643,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599343348
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599344769
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456004
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4938966323126787,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993450033
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4938966323126787,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.1112895299672203
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.028172410604726375,
+    0.011058493780029623,
+    0.004918276422678304,
+    0.0024759635592047284,
+    0.0019527406590400798,
+    0.001640471056133235,
+    0.0014384440701267125
+   ],
+   "split": "statics",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.985101403222348e-07,
+   "min_cop_margin_single_m": 0.030279673963549917,
+   "min_cop_margin_m": -0.021983656727166692,
+   "max_friction_ratio": 0.22899349138487074,
+   "stop": {
+    "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+    "command_speed_m_s": 0.21826592177876797,
+    "stride_s": 1.019760932537567,
+    "forward_stopped_strides": 0.5250000000003503,
+    "within": true,
+    "at_rest_strides": 1.550000000001034,
+    "at_rest_s": 1.5806294454342833,
+    "command_phase": 0.0,
+    "last_touchdown_phase": 0.4,
+    "single_step": true
+   },
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.03278660759615223,
+    "com_mean_mm": 0.007707318721293524,
+    "zmp_max_mm": 0.2127402010590192,
+    "zmp_mean_mm": 0.022542111436840106,
+    "joint_max_rad": 9.07344196233173e-05,
+    "joint_rate_max_rad_s": 0.0004975503710407114,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.00817640869811946,
+     "zmp_mm": 0.20299840715688422,
+     "joint_rad": 4.8201028647498756e-05,
+     "joint_rate_rad_s": 0.00024421192207513265,
+     "tau_Nm": 0.01679313512163849
+    },
+    "tau_max_Nm": 0.01768188160021944,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 2.0,
+    "reference": "stand",
+    "com_max_mm": 0.01945238559953293,
+    "com_mean_mm": 0.0037871485716122395,
+    "zmp_max_mm": 0.22071428354831255,
+    "zmp_mean_mm": 0.007902053553575188,
+    "joint_max_rad": 7.511048593419889e-05,
+    "joint_rate_max_rad_s": 0.00037473285907252564,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.00010362183719196854,
+     "zmp_mm": 0.0002806491495767258,
+     "joint_rad": 6.803334623300961e-07,
+     "joint_rate_rad_s": 0.0
+    },
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (the home stance)",
+    "com_max_mm": 0.01945238559953293,
+    "zmp_max_mm": 0.22071428354831255,
+    "pass_": true
+   },
+   "seconds": 78.47880669100005,
+   "file": "transitions/stop.npz",
+   "sha256": "853705666ad33bf0e2b0cc2443f5129a7e0f2ee9a37d81b2c5e4b6c4d75b8c9d"
+  },
+  "nominal_to_brisk": {
+   "name": "nominal_to_brisk",
+   "kind": "walk",
+   "from_": "nominal",
+   "to": "brisk",
+   "gaits": {
+    "a": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "brisk",
+     "period": 0.7964306930704786,
+     "duty": 0.58,
+     "lift": 0.04451581198685761,
+     "speed": 0.31503972173473377,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 5.3319320652610385,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.17384054749057434,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06255101752343643,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599343348
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599344769
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456004
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4940493858992702,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22273181352109184
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.6133112436778899,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2307041413324315
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.91,
+     "lift_m": 0.042492365987455,
+     "from_xy": [
+      0.4940493858992702,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.7398990164350474,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.24584963053577719
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.42,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.6133112436778899,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.8666072049177055,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25329596123981557
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.92,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.7398990164350474,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.9920608568807333,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2521618404456859
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.42,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.8666072049177055,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.1175145088437533,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392604776
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.92,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.9920608568807333,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.2429681608064969,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392576355
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.42,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.1175145088437533,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.3684218127692405,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039254872
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.92,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.2429681608064969,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.493875464731984,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039254872
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.05035272263821405,
+    0.01719395578883309,
+    0.007819873135901876,
+    0.0035369092308185487,
+    0.0026749434647583025,
+    0.00217587791720886,
+    0.0018716828534020272
+   ],
+   "split": "statics",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.967148501263398e-07,
+   "min_cop_margin_single_m": 0.02975994499871762,
+   "min_cop_margin_m": -0.021983656727299145,
+   "max_friction_ratio": 0.27150938223241955,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.004543168679514065,
+    "com_mean_mm": 0.00162619649855575,
+    "zmp_max_mm": 0.44151465085499214,
+    "zmp_mean_mm": 0.03791389011551752,
+    "joint_max_rad": 2.6316316886654256e-05,
+    "joint_rate_max_rad_s": 0.00048082001726790224,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.004528798535065831,
+     "zmp_mm": 0.2734927670846164,
+     "joint_rad": 2.6316316886654256e-05,
+     "joint_rate_rad_s": 0.00016891599331733675,
+     "tau_Nm": 0.021659907975947412
+    },
+    "tau_max_Nm": 0.03814857279199624,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "brisk",
+    "com_max_mm": 0.2802260253169693,
+    "com_mean_mm": 0.06871806685845898,
+    "zmp_max_mm": 0.35125503921973394,
+    "zmp_mean_mm": 0.03568882285495574,
+    "joint_max_rad": 0.0007701523206494615,
+    "joint_rate_max_rad_s": 0.0040078604353248615,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.2802260253169693,
+     "zmp_mm": 0.26321685862095723,
+     "joint_rad": 0.0007701523206494615,
+     "joint_rate_rad_s": 0.0040078604353248615,
+     "tau_Nm": 0.01870884383858984
+    },
+    "tau_max_Nm": 0.029289139624986582,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (brisk)",
+    "com_max_mm": 0.2802260253169693,
+    "zmp_max_mm": 0.35125503921973394,
+    "pass_": true
+   },
+   "seconds": 114.31302877500002,
+   "file": "transitions/nominal_to_brisk.npz",
+   "sha256": "29ed8b4097c511c00d7bc94270a1ad2388f4460468ca3b4f38cef06a52681713"
+  },
+  "brisk_to_nominal": {
+   "name": "brisk_to_nominal",
+   "kind": "walk",
+   "from_": "brisk",
+   "to": "nominal",
+   "gaits": {
+    "a": {
+     "name": "brisk",
+     "period": 0.7964306930704786,
+     "duty": 0.58,
+     "lift": 0.04451581198685761,
+     "speed": 0.31503972173473377,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 5.553866490728694,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.08,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      -0.1939940696447375,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.056913234281318,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039260555
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.58,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      -0.06854041768170971,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.18236688624434583,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392605554
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.08,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.056913234281318,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.30782053820737365,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392605565
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.58,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.18236688624434583,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4332741901704015,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392605565
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.07999999999999996,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.30782053820737365,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.5586997511104971,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2508792129031234
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.42000000000000004,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.4332741901704015,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.6799893051440568,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.24671511497365528
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.91,
+     "lift_m": 0.042492365987455,
+     "from_xy": [
+      0.5586997511104971,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.790748214399922,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.23204846328942497
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6799893051440568,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.9009248490675292,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22093554392347248
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.790748214399922,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.012214379034809,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.221466164634887
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.9009248490675292,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.123503909002089,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993455984
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.012214379034809,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.234793438969369,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456006
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.123503909002089,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.3460829689366491,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456006
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.234793438969369,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.4573724989039292,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456006
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.04973177401722424,
+    0.016811236417652118,
+    0.007632174184350334,
+    0.0034533319010551723,
+    0.0026074364158355616,
+    0.0023061040956491446,
+    0.002204983689392489
+   ],
+   "split": "statics",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.928681234970996e-07,
+   "min_cop_margin_single_m": 0.029418214201766078,
+   "min_cop_margin_m": -0.021983656726640207,
+   "max_friction_ratio": 0.25931793987925617,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "brisk",
+    "com_max_mm": 0.0251537997697669,
+    "com_mean_mm": 0.01297057220798894,
+    "zmp_max_mm": 0.3413470834260798,
+    "zmp_mean_mm": 0.032818665477484917,
+    "joint_max_rad": 0.00014651394768755432,
+    "joint_rate_max_rad_s": 0.0012060804627100907,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.02493633638861756,
+     "zmp_mm": 0.3413470834260798,
+     "joint_rad": 0.00014651394768755432,
+     "joint_rate_rad_s": 0.0009447941486970812,
+     "tau_Nm": 0.027278391466520002
+    },
+    "tau_max_Nm": 0.027278391466520002,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "nominal",
+    "com_max_mm": 0.17840430232111198,
+    "com_mean_mm": 0.0364506143620814,
+    "zmp_max_mm": 0.45491488005674047,
+    "zmp_mean_mm": 0.039576707363186234,
+    "joint_max_rad": 0.0004888610364469637,
+    "joint_rate_max_rad_s": 0.0029136466376736515,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.17840430232111198,
+     "zmp_mm": 0.24049581385812316,
+     "joint_rad": 0.0004888610364469637,
+     "joint_rate_rad_s": 0.0029136466376736515,
+     "tau_Nm": 0.0161379863240787
+    },
+    "tau_max_Nm": 0.03746093284144092,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (nominal)",
+    "com_max_mm": 0.17840430232111198,
+    "zmp_max_mm": 0.45491488005674047,
+    "pass_": true
+   },
+   "seconds": 129.36282029799986,
+   "file": "transitions/brisk_to_nominal.npz",
+   "sha256": "e4a053964d6e33427d3cc0458a167bc7e9455ad2220268f39141d5bd713010b5"
+  },
+  "brisk_to_fr05": {
+   "name": "brisk_to_fr05",
+   "kind": "walk",
+   "from_": "brisk",
+   "to": "fr05",
+   "gaits": {
+    "a": {
+     "name": "brisk",
+     "period": 0.7964306930704786,
+     "duty": 0.58,
+     "lift": 0.04451581198685761,
+     "speed": 0.31503972173473377,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "fr05",
+     "period": 0.7266600565357902,
+     "duty": 0.56,
+     "lift": 0.04451581198685761,
+     "speed": 0.4455334471635064,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 4.529845305199938,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.08,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      -0.1939940696447375,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.056913234281318,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039260555
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.58,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      -0.06854041768170971,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.18236688624434583,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392605554
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.08,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.056913234281318,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.30782053820737365,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392605565
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.58,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.18236688624434583,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4332741901704015,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25090730392605565
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.07999999999999996,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.30782053820737365,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.55903160100546,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.25121106279808636
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.42000000000000004,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.4332741901704015,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.7012466099217222,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2679724197513207
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9299999999999999,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.55903160100546,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.8639585322017199,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3049269311962599
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.44,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.7012466099217222,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.027452968953464,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3262063590317418
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.94,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.8639585322017199,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.1893286489059227,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3253701167042028
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.44,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.027452968953464,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.3512043288583817,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.32375135990491777
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.94,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.1893286489059227,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.5130800088108407,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.323751359904918
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.44,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.3512043288583817,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.6749556887632997,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.323751359904918
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.94,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.5130800088108407,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.8368313687157587,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.323751359904918
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.0707170445947537,
+    0.026240116000112654,
+    0.011179239289675184,
+    0.004873489984686242,
+    0.003970006763238265,
+    0.0037001419419849363,
+    0.003454953257393655
+   ],
+   "split": "statics",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.995772234183286e-07,
+   "min_cop_margin_single_m": 0.028477508408908756,
+   "min_cop_margin_m": -0.021983656820601577,
+   "max_friction_ratio": 0.3329072638378579,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "brisk",
+    "com_max_mm": 0.036285076051671465,
+    "com_mean_mm": 0.012750501918161105,
+    "zmp_max_mm": 0.7556831937330003,
+    "zmp_mean_mm": 0.06101421482166103,
+    "joint_max_rad": 0.0001917211411773534,
+    "joint_rate_max_rad_s": 0.0018527454160399692,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.02264820082989957,
+     "zmp_mm": 0.7556831937330003,
+     "joint_rad": 0.0001334280192427928,
+     "joint_rate_rad_s": 0.0008362943206301487,
+     "tau_Nm": 0.06032282902472286
+    },
+    "tau_max_Nm": 0.06032282902472286,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "fr05",
+    "com_max_mm": 0.3252446070392557,
+    "com_mean_mm": 0.08648671695992081,
+    "zmp_max_mm": 0.997211302297765,
+    "zmp_mean_mm": 0.08888047382081687,
+    "joint_max_rad": 0.0009053501176339851,
+    "joint_rate_max_rad_s": 0.005254664331558079,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.3252446070392557,
+     "zmp_mm": 0.32454248331487334,
+     "joint_rad": 0.0009053501176339851,
+     "joint_rate_rad_s": 0.004590220824505081,
+     "tau_Nm": 0.014768932921357558
+    },
+    "tau_max_Nm": 0.0864863680328134,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (fr05)",
+    "com_max_mm": 0.3252446070392557,
+    "zmp_max_mm": 0.997211302297765,
+    "pass_": true
+   },
+   "seconds": 129.38488505399982,
+   "file": "transitions/brisk_to_fr05.npz",
+   "sha256": "f3456ab93678e6d0de1cd103d8f3aaf0510fe24ac21509a64de15b50ff1ceb74"
+  },
+  "fr05_to_brisk": {
+   "name": "fr05_to_brisk",
+   "kind": "walk",
+   "from_": "fr05",
+   "to": "brisk",
+   "gaits": {
+    "a": {
+     "name": "fr05",
+     "period": 0.7266600565357902,
+     "duty": 0.56,
+     "lift": 0.04451581198685761,
+     "speed": 0.4455334471635064,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "brisk",
+     "period": 0.7964306930704786,
+     "duty": 0.58,
+     "lift": 0.04451581198685761,
+     "speed": 0.31503972173473377,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 4.599179875251402,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.06,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      -0.24830336026854638,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.0754479996358032,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.32375135990434956
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.56,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      -0.08642768031637159,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.237323679587978,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3237513599043496
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.06,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.0754479996358032,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.39919935954015273,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.32375135990434956
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.56,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.237323679587978,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.5610750394923275,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3237513599043495
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.06000000000000005,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.39919935954015273,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.7226670042445615,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3234676447044088
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.43999999999999995,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.5610750394923275,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.8689182997799737,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.3078432602876462
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9299999999999999,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.7226670042445615,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.9939851721228583,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.27131816787829677
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.42,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.8689182997799737,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.1181842875659747,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.24926598778600095
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.92,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      0.9939851721228583,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.2436379395287183,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.24965276740585995
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.42,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.1181842875659747,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.3690915914914619,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039254872
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.92,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.2436379395287183,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.4945452434542055,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039254872
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.42,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.3690915914914619,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.619998895416949,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039254872
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.92,
+     "lift_m": 0.04451581198685761,
+     "from_xy": [
+      1.4945452434542055,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      1.7454525473796927,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2509073039254872
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.06957013596753767,
+    0.025249516152405834,
+    0.011104098536609328,
+    0.005120173167782205,
+    0.003576908644232792,
+    0.003155606238507234,
+    0.0029248886473840193
+   ],
+   "split": "statics",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.865172742158644e-07,
+   "min_cop_margin_single_m": 0.02896012321704924,
+   "min_cop_margin_m": -0.021983656711174034,
+   "max_friction_ratio": 0.29552541240948443,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "fr05",
+    "com_max_mm": 0.05747573440886636,
+    "com_mean_mm": 0.029643960829543164,
+    "zmp_max_mm": 0.869858239765308,
+    "zmp_mean_mm": 0.05780538739385508,
+    "joint_max_rad": 0.0003353604142960209,
+    "joint_rate_max_rad_s": 0.00457575524568421,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.04668090292629379,
+     "zmp_mm": 0.4682994210011685,
+     "joint_rad": 0.0002975495881771262,
+     "joint_rate_rad_s": 0.002553172365745926,
+     "tau_Nm": 0.042585280611179055
+    },
+    "tau_max_Nm": 0.042585280611179055,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "brisk",
+    "com_max_mm": 0.2733979554093926,
+    "com_mean_mm": 0.06616273953960496,
+    "zmp_max_mm": 0.7461461003911174,
+    "zmp_mean_mm": 0.05846734832123751,
+    "joint_max_rad": 0.0007494104225080206,
+    "joint_rate_max_rad_s": 0.00394892355196963,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.2733979554093926,
+     "zmp_mm": 0.40261344339786215,
+     "joint_rad": 0.0007494104225080206,
+     "joint_rate_rad_s": 0.0038740484089244687,
+     "tau_Nm": 0.028860552363671244
+    },
+    "tau_max_Nm": 0.058992799154705566,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (brisk)",
+    "com_max_mm": 0.2733979554093926,
+    "zmp_max_mm": 0.7461461003911174,
+    "pass_": true
+   },
+   "seconds": 132.09543949,
+   "file": "transitions/fr05_to_brisk.npz",
+   "sha256": "760031bcbcb78d60341eb0640314ae99f6b45ed6c05d813280766917d8e7cdc7"
+  },
+  "enter_walk_0.35_left": {
+   "name": "enter_walk_0.35_left",
+   "kind": "walk",
+   "from_": "nominal",
+   "to": "walk_0.35_left",
+   "gaits": {
+    "a": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "walk_0.35_left",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.35,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.17384054749057434,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06255101752343643,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599343348
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599344769
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456004
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.493981533789153,
+      -0.0766249589802195
+     ],
+     "to_yaw": 0.0011078717626204768,
+     "length_m": 0.22266396191886537
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.5992684860676345,
+      0.07967516409876108
+     ],
+     "to_yaw": 0.07626909887389517,
+     "length_m": 0.21668264219470865
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.493981533789153,
+      -0.0766249589802195
+     ],
+     "from_yaw": 0.0011078717626204768,
+     "to_xy": [
+      0.7336435789160023,
+      -0.052436311407261973
+     ],
+     "to_yaw": 0.2498414284717059,
+     "length_m": 0.2408796100665075
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5992684860676345,
+      0.07967516409876108
+     ],
+     "from_yaw": 0.07626909887389517,
+     "to_xy": [
+      0.7874274853092835,
+      0.12921821188943283
+     ],
+     "to_yaw": 0.42829959166578546,
+     "length_m": 0.19457215263240438
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.7336435789160023,
+      -0.052436311407261973
+     ],
+     "from_yaw": 0.2498414284717059,
+     "to_xy": [
+      0.9591735600877276,
+      0.052180710491026634
+     ],
+     "to_yaw": 0.606757754859865,
+     "length_m": 0.24861314059837175
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.7874274853092835,
+      0.12921821188943283
+     ],
+     "from_yaw": 0.42829959166578546,
+     "to_xy": [
+      0.9461002837416536,
+      0.2411784984850918
+     ],
+     "to_yaw": 0.7852159180539446,
+     "length_m": 0.1941961965048276
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.9591735600877276,
+      0.052180710491026634
+     ],
+     "from_yaw": 0.606757754859865,
+     "to_xy": [
+      1.1339385604389733,
+      0.22900177351921222
+     ],
+     "to_yaw": 0.9636740812480242,
+     "length_m": 0.24861314059837727
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.9461002837416536,
+      0.2411784984850918
+     ],
+     "from_yaw": 0.7852159180539446,
+     "to_xy": [
+      1.0556558918536054,
+      0.40152104264653
+     ],
+     "to_yaw": 1.1421322444421038,
+     "length_m": 0.19419619650482944
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.1339385604389733,
+      0.22900177351921222
+     ],
+     "from_yaw": 0.9636740812480242,
+     "to_xy": [
+      1.2359107347915546,
+      0.45573988089420586
+     ],
+     "to_yaw": 1.3205904076361834,
+     "length_m": 0.24861314059837497
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.031183577175831714,
+    0.01244067115462326,
+    0.00550016227078485,
+    0.0026191124911953247,
+    0.00206401035201149,
+    0.0017302545045574992,
+    0.0015126437541115691
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.949219677498323e-07,
+   "min_cop_margin_single_m": 0.030241619195260843,
+   "min_cop_margin_m": -0.021983656671493646,
+   "max_friction_ratio": 0.24478922759114186,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.008155557367797207,
+    "com_mean_mm": 0.0020827181826902777,
+    "zmp_max_mm": 0.21275685412693282,
+    "zmp_mean_mm": 0.022539904953189215,
+    "joint_max_rad": 4.7912168948477385e-05,
+    "joint_rate_max_rad_s": 0.0003562853784231379,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.008155557367797207,
+     "zmp_mm": 0.20299773778702357,
+     "joint_rad": 4.7912168948477385e-05,
+     "joint_rate_rad_s": 0.00024385358354184206,
+     "tau_Nm": 0.0167937417252354
+    },
+    "tau_max_Nm": 0.017671997925809313,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "walk_0.35_left",
+    "com_max_mm": 0.1898179338369945,
+    "com_mean_mm": 0.03683997929378547,
+    "zmp_max_mm": 0.22459627445999225,
+    "zmp_mean_mm": 0.02215028167403737,
+    "joint_max_rad": 0.0006239518483455442,
+    "joint_rate_max_rad_s": 0.005231197753810868,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.1898179338369945,
+     "zmp_mm": 0.07735866744436809,
+     "joint_rad": 0.0006239518483455442,
+     "joint_rate_rad_s": 0.005231197753810868,
+     "tau_Nm": 0.0071845378410813066
+    },
+    "tau_max_Nm": 0.017748057641536086,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (walk_0.35_left)",
+    "com_max_mm": 0.1898179338369945,
+    "zmp_max_mm": 0.22459627445999225,
+    "pass_": true
+   },
+   "seconds": 118.31198757899983,
+   "file": "transitions/enter_walk_0.35_left.npz",
+   "sha256": "fa38db18ac7a79051918a38f74cb4a05d8c7cf300a668db75f61ad89833d8b0d"
+  },
+  "enter_walk_0.35_right": {
+   "name": "enter_walk_0.35_right",
+   "kind": "walk",
+   "from_": "nominal",
+   "to": "walk_0.35_right",
+   "gaits": {
+    "a": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "walk_0.35_right",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": -0.35,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.17384054749057434,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06255101752343643,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599343348
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599344769
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456004
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.49381171924411893,
+      -0.07665494334051808
+     ],
+     "to_yaw": -0.0011078717626204768,
+     "length_m": 0.22249414736788053
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.6109476826452006,
+      0.07315923536594426
+     ],
+     "to_yaw": -0.07626909887389517,
+     "length_m": 0.2283671086682255
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.49381171924411893,
+      -0.07665494334051808
+     ],
+     "from_yaw": -0.0011078717626204768,
+     "to_xy": [
+      0.695745051645464,
+      -0.09608459258661635
+     ],
+     "to_yaw": -0.2498414284717059,
+     "length_m": 0.20286592124982084
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6109476826452006,
+      0.07315923536594426
+     ],
+     "from_yaw": -0.07626909887389517,
+     "to_xy": [
+      0.8510884365915243,
+      0.01021650607662724
+     ],
+     "to_yaw": -0.42829959166578546,
+     "length_m": 0.24825263115684604
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.695745051645464,
+      -0.09608459258661635
+     ],
+     "from_yaw": -0.2498414284717059,
+     "to_xy": [
+      0.871772240250763,
+      -0.1781003935560312
+     ],
+     "to_yaw": -0.606757754859865,
+     "length_m": 0.19419619650482398
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.8510884365915243,
+      0.01021650607662724
+     ],
+     "from_yaw": -0.42829959166578546,
+     "to_xy": [
+      1.0544658540866612,
+      -0.13277342269878112
+     ],
+     "to_yaw": -0.7852159180539446,
+     "length_m": 0.24861314059837533
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.871772240250763,
+      -0.1781003935560312
+     ],
+     "from_yaw": -0.606757754859865,
+     "to_xy": [
+      1.0080507427048089,
+      -0.31644898410116473
+     ],
+     "to_yaw": -0.9636740812480242,
+     "length_m": 0.19419619650482958
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.0544658540866612,
+      -0.13277342269878112
+     ],
+     "from_yaw": -0.7852159180539446,
+     "to_xy": [
+      1.1950673967341185,
+      -0.3378092729380592
+     ],
+     "to_yaw": -1.1421322444421038,
+     "length_m": 0.24861314059837714
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.0080507427048089,
+      -0.31644898410116473
+     ],
+     "from_yaw": -0.9636740812480242,
+     "to_xy": [
+      1.0874036543233696,
+      -0.493692540132402
+     ],
+     "to_yaw": -1.3205904076361834,
+     "length_m": 0.19419619650482717
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.031165839370297356,
+    0.012442654934265468,
+    0.005501016136994173,
+    0.0026182274533734064,
+    0.0020634361539194636,
+    0.0017299688417830074,
+    0.0015125127103326806
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.971693869284037e-07,
+   "min_cop_margin_single_m": 0.030241359038481144,
+   "min_cop_margin_m": -0.021983656671493674,
+   "max_friction_ratio": 0.24496898313616647,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.00813849633068615,
+    "com_mean_mm": 0.001965408468274161,
+    "zmp_max_mm": 0.21275507242489747,
+    "zmp_mean_mm": 0.02254040924292331,
+    "joint_max_rad": 4.7825828917102964e-05,
+    "joint_rate_max_rad_s": 0.00035620269519864856,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.00813849633068615,
+     "zmp_mm": 0.2029981785993352,
+     "joint_rad": 4.7825828917102964e-05,
+     "joint_rate_rad_s": 0.00024376234583334266,
+     "tau_Nm": 0.01679365546559697
+    },
+    "tau_max_Nm": 0.01767351600043665,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "walk_0.35_right",
+    "com_max_mm": 0.16292741894671456,
+    "com_mean_mm": 0.0315554388236442,
+    "zmp_max_mm": 0.22468740503369605,
+    "zmp_mean_mm": 0.022463734640777673,
+    "joint_max_rad": 0.0004633313609363754,
+    "joint_rate_max_rad_s": 0.0029431236355779156,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.16292741894671456,
+     "zmp_mm": 0.12841489534640946,
+     "joint_rad": 0.0004633313609363754,
+     "joint_rate_rad_s": 0.0029431236355779156,
+     "tau_Nm": 0.008382648800747017
+    },
+    "tau_max_Nm": 0.0177244692539702,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (walk_0.35_right)",
+    "com_max_mm": 0.16292741894671456,
+    "zmp_max_mm": 0.22468740503369605,
+    "pass_": true
+   },
+   "seconds": 115.89260540400028,
+   "file": "transitions/enter_walk_0.35_right.npz",
+   "sha256": "2b8ce4df26dbf217df70a917298a09c393494e99392034ae31202f9ef3085b35"
+  },
+  "enter_walk_0.50_left": {
+   "name": "enter_walk_0.50_left",
+   "kind": "walk",
+   "from_": "nominal",
+   "to": "walk_0.50_left",
+   "gaits": {
+    "a": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "walk_0.50_left",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.17384054749057434,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06255101752343643,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599343348
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599344769
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456004
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.4940179165617776,
+      -0.07661848480990038
+     ],
+     "to_yaw": 0.001582673946600681,
+     "length_m": 0.22270034522272128
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.5966930050451923,
+      0.08083753882747303
+     ],
+     "to_yaw": 0.10895585553413611,
+     "length_m": 0.21412704892687726
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.4940179165617776,
+      -0.07661848480990038
+     ],
+     "from_yaw": 0.001582673946600681,
+     "to_xy": [
+      0.7396293964603253,
+      -0.04079966428797287
+     ],
+     "to_yaw": 0.35691632638815995,
+     "length_m": 0.2482095625908413
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5966930050451923,
+      0.08083753882747303
+     ],
+     "from_yaw": 0.10895585553413611,
+     "to_xy": [
+      0.7665517293265198,
+      0.14638015824553946
+     ],
+     "to_yaw": 0.6118565595225797,
+     "length_m": 0.18206543102594064
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.7396293964603253,
+      -0.04079966428797287
+     ],
+     "from_yaw": 0.35691632638815995,
+     "to_xy": [
+      0.950280818326961,
+      0.10961331651848842
+     ],
+     "to_yaw": 0.8667967926569994,
+     "length_m": 0.25883988550747006
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.7665517293265198,
+      0.14638015824553946
+     ],
+     "from_yaw": 0.6118565595225797,
+     "to_xy": [
+      0.8824213045834275,
+      0.2861244616768828
+     ],
+     "to_yaw": 1.1217370257913513,
+     "length_m": 0.18153299648198273
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.950280818326961,
+      0.10961331651848842
+     ],
+     "from_yaw": 0.8667967926569994,
+     "to_xy": [
+      1.0607254778575281,
+      0.34370745038495404
+     ],
+     "to_yaw": 1.3766772589256289,
+     "length_m": 0.2588398855074573
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.8824213045834275,
+      0.2861244616768828
+     ],
+     "from_yaw": 1.1217370257913513,
+     "to_xy": [
+      0.9153471903149054,
+      0.46464649073921527
+     ],
+     "to_yaw": 1.6316174920599065,
+     "length_m": 0.18153299648200216
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.0607254778575281,
+      0.34370745038495404
+     ],
+     "from_yaw": 1.3766772589256289,
+     "to_xy": [
+      1.0428668843194258,
+      0.6019305263606518
+     ],
+     "to_yaw": 1.886557725194184,
+     "length_m": 0.25883988550745063
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.032860341071906496,
+    0.012986929512955688,
+    0.005707766689486417,
+    0.0025514386151794612,
+    0.0020055425897642217,
+    0.0016848563766082077,
+    0.0014794821531758711
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.92399692528535e-07,
+   "min_cop_margin_single_m": 0.030257114294223203,
+   "min_cop_margin_m": -0.02198365667149371,
+   "max_friction_ratio": 0.25054157316009007,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.008159679865519444,
+    "com_mean_mm": 0.002250592903820577,
+    "zmp_max_mm": 0.2127572174938564,
+    "zmp_mean_mm": 0.022539747707466407,
+    "joint_max_rad": 4.7933826480689445e-05,
+    "joint_rate_max_rad_s": 0.000361860747460252,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.008159679865519444,
+     "zmp_mm": 0.20299764944688617,
+     "joint_rad": 4.7933826480689445e-05,
+     "joint_rate_rad_s": 0.0002438766765124889,
+     "tau_Nm": 0.01679376119210707
+    },
+    "tau_max_Nm": 0.017671681019036045,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "walk_0.50_left",
+    "com_max_mm": 0.19815636913531215,
+    "com_mean_mm": 0.03853082275507305,
+    "zmp_max_mm": 0.22277577858161202,
+    "zmp_mean_mm": 0.021048674041969924,
+    "joint_max_rad": 0.000698702097102627,
+    "joint_rate_max_rad_s": 0.006443713799428652,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.19815636913531215,
+     "zmp_mm": 0.06590888794304142,
+     "joint_rad": 0.000698702097102627,
+     "joint_rate_rad_s": 0.006443713799428652,
+     "tau_Nm": 0.0037949230386659094
+    },
+    "tau_max_Nm": 0.018084450435866817,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (walk_0.50_left)",
+    "com_max_mm": 0.19815636913531215,
+    "zmp_max_mm": 0.22277577858161202,
+    "pass_": true
+   },
+   "seconds": 116.42527792700002,
+   "file": "transitions/enter_walk_0.50_left.npz",
+   "sha256": "2226baa9741486d02786087e3fec2fb193acf40bf22d88f87f8a0453a5b31992"
+  },
+  "enter_walk_0.50_right": {
+   "name": "enter_walk_0.50_right",
+   "kind": "walk",
+   "from_": "nominal",
+   "to": "walk_0.50_right",
+   "gaits": {
+    "a": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    },
+    "b": {
+     "name": "walk_0.50_right",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": -0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.17384054749057434,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993427585
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06255101752343643,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599343348
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04873851244370149,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.2225790599344769
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.16002804241089838,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "to_yaw": 0.0,
+     "length_m": 0.22257905993456004
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2713175723781784,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.49377532440623717,
+      -0.0766613196050343
+     ],
+     "to_yaw": -0.001582673946600681,
+     "length_m": 0.22245775304983165
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3826071023454584,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.6133607343023607,
+      0.07153353485071658
+     ],
+     "to_yaw": -0.10895585553413611,
+     "length_m": 0.2308101267907743
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.49377532440623717,
+      -0.0766613196050343
+     ],
+     "from_yaw": -0.001582673946600681,
+     "to_xy": [
+      0.686075425404795,
+      -0.102820423013971
+     ],
+     "to_yaw": -0.35691632638815995,
+     "length_m": 0.19407119192506395
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6133607343023607,
+      0.07153353485071658
+     ],
+     "from_yaw": -0.10895585553413611,
+     "to_xy": [
+      0.8545939501297412,
+      -0.020907752321083814
+     ],
+     "to_yaw": -0.6118565595225797,
+     "length_m": 0.25833864595216643
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.686075425404795,
+      -0.102820423013971
+     ],
+     "from_yaw": -0.35691632638815995,
+     "to_xy": [
+      0.8334416839679415,
+      -0.20882709567576851
+     ],
+     "to_yaw": -0.8667967926569994,
+     "length_m": 0.1815329964819774
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.8545939501297412,
+      -0.020907752321083814
+     ],
+     "from_yaw": -0.6118565595225797,
+     "to_xy": [
+      1.0205044899291198,
+      -0.21958281143268063
+     ],
+     "to_yaw": -1.1217370257913513,
+     "length_m": 0.25883988550746523
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.8334416839679415,
+      -0.20882709567576851
+     ],
+     "from_yaw": -0.8667967926569994,
+     "to_xy": [
+      0.9103243888108616,
+      -0.3732755025022524
+     ],
+     "to_yaw": -1.3766772589256289,
+     "length_m": 0.18153299648199586
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      1.0205044899291198,
+      -0.21958281143268063
+     ],
+     "from_yaw": -1.1217370257913513,
+     "to_xy": [
+      1.0683437663222457,
+      -0.47396341203676223
+     ],
+     "to_yaw": -1.6316174920599065,
+     "length_m": 0.2588398855074526
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.9103243888108616,
+      -0.3732755025022524
+     ],
+     "from_yaw": -1.3766772589256289,
+     "to_xy": [
+      0.8971650188307718,
+      -0.5543309078163744
+     ],
+     "to_yaw": -1.886557725194184,
+     "length_m": 0.1815329964820002
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.03284071776931925,
+    0.012990072904226787,
+    0.005708483533227314,
+    0.0025954667813901256,
+    0.0019472912549329743,
+    0.0016377286540438707,
+    0.0014376044206735434
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.985690626852487e-07,
+   "min_cop_margin_single_m": 0.030275361843588342,
+   "min_cop_margin_m": -0.021983656671493556,
+   "max_friction_ratio": 0.2507133358430057,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "nominal",
+    "com_max_mm": 0.008135377361743626,
+    "com_mean_mm": 0.002089405929576122,
+    "zmp_max_mm": 0.21275454195834542,
+    "zmp_mean_mm": 0.022540461772123578,
+    "joint_max_rad": 4.78107831470842e-05,
+    "joint_rate_max_rad_s": 0.0003561887232284011,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.008135377361743626,
+     "zmp_mm": 0.20299824599956282,
+     "joint_rad": 4.78107831470842e-05,
+     "joint_rate_rad_s": 0.00024374665005555407,
+     "tau_Nm": 0.016793637038972964
+    },
+    "tau_max_Nm": 0.017673847097261164,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "walk_0.50_right",
+    "com_max_mm": 0.161221954274628,
+    "com_mean_mm": 0.031269289000575684,
+    "zmp_max_mm": 0.2228726188521655,
+    "zmp_mean_mm": 0.02117716231848432,
+    "joint_max_rad": 0.0005510809389733806,
+    "joint_rate_max_rad_s": 0.0037967229724338303,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.161221954274628,
+     "zmp_mm": 0.12472611741900705,
+     "joint_rad": 0.0005510809389733806,
+     "joint_rate_rad_s": 0.0037967229724338303,
+     "tau_Nm": 0.008060061339235203
+    },
+    "tau_max_Nm": 0.018073746606425356,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (walk_0.50_right)",
+    "com_max_mm": 0.161221954274628,
+    "zmp_max_mm": 0.2228726188521655,
+    "pass_": true
+   },
+   "seconds": 115.49445831200046,
+   "file": "transitions/enter_walk_0.50_right.npz",
+   "sha256": "5ee87d404d71513976536398e75028f6c2d80fa08f45966f89b8bd7b47af7e28"
+  },
+  "exit_walk_0.35_left": {
+   "name": "exit_walk_0.35_left",
+   "kind": "walk",
+   "from_": "walk_0.35_left",
+   "to": "nominal",
+   "gaits": {
+    "a": {
+     "name": "walk_0.35_left",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.35,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    },
+    "b": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.19318891390890686,
+      -0.0494771492782896
+     ],
+     "from_yaw": -0.28553306111052734,
+     "to_xy": [
+      0.054156130812434505,
+      -0.0745554771727928
+     ],
+     "to_yaw": 0.07138326527763184,
+     "length_m": 0.2486131405983734
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.05425713209489118,
+      0.07932127626741903
+     ],
+     "from_yaw": -0.10707489791644775,
+     "to_xy": [
+      0.13933180792099747,
+      0.09466679810492755
+     ],
+     "to_yaw": 0.24984142847171142,
+     "length_m": 0.19419619650482547
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.054156130812434505,
+      -0.0745554771727928
+     ],
+     "from_yaw": 0.07138326527763184,
+     "to_xy": [
+      0.2946751928670597,
+      -0.011634300558313146
+     ],
+     "to_yaw": 0.428299591665791,
+     "length_m": 0.24861314059837458
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.13933180792099747,
+      0.09466679810492755
+     ],
+     "from_yaw": 0.24984142847171142,
+     "to_xy": [
+      0.3153589965263016,
+      0.17668259907434672
+     ],
+     "to_yaw": 0.6067577548598158,
+     "length_m": 0.1941961965048304
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2946751928670597,
+      -0.011634300558313146
+     ],
+     "from_yaw": 0.428299591665791,
+     "to_xy": [
+      0.4980030322282908,
+      0.1312849382735448
+     ],
+     "to_yaw": 0.784108046291103,
+     "length_m": 0.2485319277026279
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3153589965263016,
+      0.17668259907434672
+     ],
+     "from_yaw": 0.6067577548598158,
+     "to_xy": [
+      0.45769708835715317,
+      0.3176665076786575
+     ],
+     "to_yaw": 0.8874049823738985,
+     "length_m": 0.20034119614147408
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.4980030322282908,
+      0.1312849382735448
+     ],
+     "from_yaw": 0.784108046291103,
+     "to_xy": [
+      0.646678729711795,
+      0.3077815429179867
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.23077156339814248
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.45769708835715317,
+      0.3176665076786575
+     ],
+     "from_yaw": 0.8874049823738985,
+     "to_xy": [
+      0.5971971537174432,
+      0.4906248922907612
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.22220457025712498
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.646678729711795,
+      0.3077815429179867
+     ],
+     "from_yaw": 0.8922908159701601,
+     "to_xy": [
+      0.7863760803506071,
+      0.48106191729938835
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.2225790599343567
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5971971537174432,
+      0.4906248922907612
+     ],
+     "from_yaw": 0.8922908159701601,
+     "to_xy": [
+      0.7368945043562554,
+      0.6639052666721574
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.22257905993435248
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.7863760803506071,
+      0.48106191729938835
+     ],
+     "from_yaw": 0.8922908159701601,
+     "to_xy": [
+      0.9260734309894193,
+      0.6543422916807888
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.22257905993435578
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.7368945043562554,
+      0.6639052666721574
+     ],
+     "from_yaw": 0.8922908159701601,
+     "to_xy": [
+      0.8765918549950675,
+      0.8371856410535629
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.22257905993435964
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.9260734309894193,
+      0.6543422916807888
+     ],
+     "from_yaw": 0.8922908159701601,
+     "to_xy": [
+      1.0657707816282314,
+      0.8276226660621587
+     ],
+     "to_yaw": 0.8922908159701601,
+     "length_m": 0.2225790599343319
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.031184598758538008,
+    0.012440940232413588,
+    0.005500156434016997,
+    0.002618914006029664,
+    0.0020639043537726063,
+    0.0017302003617135095,
+    0.0015126163928387297
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.94779035902438e-07,
+   "min_cop_margin_single_m": 0.030241788190969947,
+   "min_cop_margin_m": -0.021983656671493743,
+   "max_friction_ratio": 0.24479570458662028,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "walk_0.35_left",
+    "com_max_mm": 0.00735990304222669,
+    "com_mean_mm": 0.0019364456885309828,
+    "zmp_max_mm": 0.22467675525150432,
+    "zmp_mean_mm": 0.022495205137426887,
+    "joint_max_rad": 4.0732156327744073e-05,
+    "joint_rate_max_rad_s": 0.00034110595963288137,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.00735990304222669,
+     "zmp_mm": 0.19250697664627378,
+     "joint_rad": 4.0732156327744073e-05,
+     "joint_rate_rad_s": 0.00025573636459397253,
+     "tau_Nm": 0.016503444815769597
+    },
+    "tau_max_Nm": 0.017741490377775282,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "nominal",
+    "com_max_mm": 0.17328739744769323,
+    "com_mean_mm": 0.033535470845071816,
+    "zmp_max_mm": 0.21274689302068434,
+    "zmp_mean_mm": 0.02287061457569688,
+    "joint_max_rad": 0.00047671852716957286,
+    "joint_rate_max_rad_s": 0.0027774856804062284,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.17328739744769323,
+     "zmp_mm": 0.11503634598139047,
+     "joint_rad": 0.00047671852716957286,
+     "joint_rate_rad_s": 0.0027774856804062284,
+     "tau_Nm": 0.008621934209679383
+    },
+    "tau_max_Nm": 0.017750489492924126,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (nominal)",
+    "com_max_mm": 0.17328739744769323,
+    "zmp_max_mm": 0.21274689302068434,
+    "pass_": true
+   },
+   "seconds": 115.28168733100028,
+   "file": "transitions/exit_walk_0.35_left.npz",
+   "sha256": "72e96fc017daa010643830702130e4fa3eeee6c76f517306c25ef0b56ac2b9a0"
+  },
+  "exit_walk_0.35_right": {
+   "name": "exit_walk_0.35_right",
+   "kind": "walk",
+   "from_": "walk_0.35_right",
+   "to": "nominal",
+   "gaits": {
+    "a": {
+     "name": "walk_0.35_right",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": -0.35,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    },
+    "b": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.1500146952614527,
+      -0.09759679177387771
+     ],
+     "from_yaw": 0.28553306111052734,
+     "to_xy": [
+      0.0432237941064898,
+      -0.0783341604962867
+     ],
+     "to_yaw": -0.07138326527763184,
+     "length_m": 0.19419619650482564
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.07063822850409252,
+      0.0730808791401309
+     ],
+     "from_yaw": 0.10707489791644775,
+     "to_xy": [
+      0.17723033519153664,
+      0.053854105888950524
+     ],
+     "to_yaw": -0.24984142847171142,
+     "length_m": 0.2486131405983732
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0432237941064898,
+      -0.0783341604962867
+     ],
+     "from_yaw": -0.07138326527763184,
+     "to_xy": [
+      0.2310142415848181,
+      -0.1278004174077466
+     ],
+     "to_yaw": -0.428299591665791,
+     "length_m": 0.1941961965048269
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.17723033519153664,
+      0.053854105888950524
+     ],
+     "from_yaw": -0.24984142847171142,
+     "to_xy": [
+      0.4027603163632599,
+      -0.05076291600933788
+     ],
+     "to_yaw": -0.6067577548598158,
+     "length_m": 0.2486131405983698
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2310142415848181,
+      -0.1278004174077466
+     ],
+     "from_yaw": -0.428299591665791,
+     "to_xy": [
+      0.3897576272839792,
+      -0.23981000266365043
+     ],
+     "to_yaw": -0.784108046291103,
+     "length_m": 0.1942822938212132
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.4027603163632599,
+      -0.05076291600933788
+     ],
+     "from_yaw": -0.6067577548598158,
+     "to_xy": [
+      0.5765558846136536,
+      -0.22088146831362823
+     ],
+     "to_yaw": -0.8874049823738985,
+     "length_m": 0.24319790579193898
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3897576272839792,
+      -0.23981000266365043
+     ],
+     "from_yaw": -0.784108046291103,
+     "to_xy": [
+      0.5273484783980371,
+      -0.40398470510005824
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.21420685150193933
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5765558846136536,
+      -0.22088146831362823
+     ],
+     "from_yaw": -0.8874049823738985,
+     "to_xy": [
+      0.716527405031201,
+      -0.3944217301086897
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.22295346822128237
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5273484783980371,
+      -0.40398470510005824
+     ],
+     "from_yaw": -0.8922908159701601,
+     "to_xy": [
+      0.6670458290368493,
+      -0.5772650794814599
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.2225790599343567
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.716527405031201,
+      -0.3944217301086897
+     ],
+     "from_yaw": -0.8922908159701601,
+     "to_xy": [
+      0.8562247556700132,
+      -0.5677021044900858
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.22257905993435242
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6670458290368493,
+      -0.5772650794814599
+     ],
+     "from_yaw": -0.8922908159701601,
+     "to_xy": [
+      0.8067431796756614,
+      -0.7505454538628604
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.22257905993435584
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.8562247556700132,
+      -0.5677021044900858
+     ],
+     "from_yaw": -0.8922908159701601,
+     "to_xy": [
+      0.9959221063088254,
+      -0.7409824788714914
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.22257905993435972
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.8067431796756614,
+      -0.7505454538628604
+     ],
+     "from_yaw": -0.8922908159701601,
+     "to_xy": [
+      0.9464405303144735,
+      -0.9238258282442303
+     ],
+     "to_yaw": -0.8922908159701601,
+     "length_m": 0.2225790599343319
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.031165921181550527,
+    0.01244253165400281,
+    0.0055008713969288,
+    0.0026182355338046355,
+    0.0020634449227094833,
+    0.0017301234497825314,
+    0.0015126850605503422
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.970936215331352e-07,
+   "min_cop_margin_single_m": 0.03024064201955674,
+   "min_cop_margin_m": -0.021983656671493518,
+   "max_friction_ratio": 0.24580572404008222,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "walk_0.35_right",
+    "com_max_mm": 0.00872697456681309,
+    "com_mean_mm": 0.0020538443477692214,
+    "zmp_max_mm": 0.22600437073312024,
+    "zmp_mean_mm": 0.022644753411581103,
+    "joint_max_rad": 5.146944164916012e-05,
+    "joint_rate_max_rad_s": 0.0003507952225580979,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.00872697456681309,
+     "zmp_mm": 0.22600437073312024,
+     "joint_rad": 5.146944164916012e-05,
+     "joint_rate_rad_s": 0.00022519992187233773,
+     "tau_Nm": 0.017985695534455726
+    },
+    "tau_max_Nm": 0.017985695534455726,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "nominal",
+    "com_max_mm": 0.17328737569059227,
+    "com_mean_mm": 0.03353499719855857,
+    "zmp_max_mm": 0.2127468931852824,
+    "zmp_mean_mm": 0.022870616833607423,
+    "joint_max_rad": 0.00047671846620306324,
+    "joint_rate_max_rad_s": 0.0027774857873871413,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.17328737569059227,
+     "zmp_mm": 0.11503634624915939,
+     "joint_rad": 0.00047671846620306324,
+     "joint_rate_rad_s": 0.0027774857873871413,
+     "tau_Nm": 0.008621934148406174
+    },
+    "tau_max_Nm": 0.017750489005201153,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (nominal)",
+    "com_max_mm": 0.17328737569059227,
+    "zmp_max_mm": 0.2127468931852824,
+    "pass_": true
+   },
+   "seconds": 119.00781147100042,
+   "file": "transitions/exit_walk_0.35_right.npz",
+   "sha256": "c2214c48980d0e6a1921439bd2e98c438e401d4e480bbef7a860fa5b6ef6ac43"
+  },
+  "exit_walk_0.50_left": {
+   "name": "exit_walk_0.50_left",
+   "kind": "walk",
+   "from_": "walk_0.50_left",
+   "to": "nominal",
+   "gaits": {
+    "a": {
+     "name": "walk_0.50_left",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    },
+    "b": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.19969210146618496,
+      -0.03621146398542344
+     ],
+     "from_yaw": -0.40790437301488836,
+     "to_xy": [
+      0.056441370004071574,
+      -0.07354417246086417
+     ],
+     "to_yaw": 0.10197609325382473,
+     "length_m": 0.25883988550746384
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.05066272305507958,
+      0.08019876898846552
+     ],
+     "from_yaw": -0.15296413988061075,
+     "to_xy": [
+      0.1296979545283739,
+      0.10079621527091961
+     ],
+     "to_yaw": 0.35691632638838655,
+     "length_m": 0.18153299648196478
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.056441370004071574,
+      -0.07354417246086417
+     ],
+     "from_yaw": 0.10197609325382473,
+     "to_xy": [
+      0.2982164792533454,
+      0.018883544578083153
+     ],
+     "to_yaw": 0.6118565595229484,
+     "length_m": 0.258839885507489
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.1296979545283739,
+      0.10079621527091961
+     ],
+     "from_yaw": 0.35691632638838655,
+     "to_xy": [
+      0.27706421309146523,
+      0.20680288793275822
+     ],
+     "to_yaw": 0.8667967926575102,
+     "length_m": 0.18153299648195667
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.2982164792533454,
+      0.018883544578083153
+     ],
+     "from_yaw": 0.6118565595229484,
+     "to_xy": [
+      0.4640934489230514,
+      0.21743983574048087
+     ],
+     "to_yaw": 1.1201543518453971,
+     "length_m": 0.25872721122249864
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.27706421309146523,
+      0.20680288793275822
+     ],
+     "from_yaw": 0.8667967926575102,
+     "to_xy": [
+      0.36045779679921663,
+      0.3780114839444453
+     ],
+     "to_yaw": 1.2677214033922501,
+     "length_m": 0.19043863355925134
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.4640934489230514,
+      0.21743983574048087
+     ],
+     "from_yaw": 1.1201543518453971,
+     "to_xy": [
+      0.5394500545247222,
+      0.439201063662678
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.2342149871749595
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.36045779679921663,
+      0.3780114839444453
+     ],
+     "from_yaw": 1.2677214033922501,
+     "to_xy": [
+      0.4253132158162645,
+      0.5903728163890948
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.22204405169592767
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5394500545247222,
+      0.439201063662678
+     ],
+     "from_yaw": 1.274701165672631,
+     "to_xy": [
+      0.6043958482228656,
+      0.6520941866191527
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.22257905993431293
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.4253132158162645,
+      0.5903728163890948
+     ],
+     "from_yaw": 1.274701165672631,
+     "to_xy": [
+      0.490259009514408,
+      0.803265939345564
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.22257905993430768
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6043958482228656,
+      0.6520941866191527
+     ],
+     "from_yaw": 1.274701165672631,
+     "to_xy": [
+      0.6693416419210091,
+      0.8649873095756392
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.22257905993432414
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.490259009514408,
+      0.803265939345564
+     ],
+     "from_yaw": 1.274701165672631,
+     "to_xy": [
+      0.5552048032125514,
+      1.0161590623020653
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.22257905993433835
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6693416419210091,
+      0.8649873095756392
+     ],
+     "from_yaw": 1.274701165672631,
+     "to_xy": [
+      0.7342874356191524,
+      1.0778804325321403
+     ],
+     "to_yaw": 1.274701165672631,
+     "length_m": 0.22257905993433813
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.03286097449865251,
+    0.01298747820077657,
+    0.005707967722285163,
+    0.002506405666051356,
+    0.001962606647663916,
+    0.0016552732281924088,
+    0.0014549400649212236
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.927005553039983e-07,
+   "min_cop_margin_single_m": 0.030248350083930876,
+   "min_cop_margin_m": -0.02198365667149362,
+   "max_friction_ratio": 0.2505477055625028,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "walk_0.50_left",
+    "com_max_mm": 0.006983428064551503,
+    "com_mean_mm": 0.002088433336274668,
+    "zmp_max_mm": 0.2227449065138637,
+    "zmp_mean_mm": 0.021354044886761295,
+    "joint_max_rad": 3.757947871121936e-05,
+    "joint_rate_max_rad_s": 0.00032956227611480315,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.006983428064551503,
+     "zmp_mm": 0.193503857093179,
+     "joint_rad": 3.757947871121936e-05,
+     "joint_rate_rad_s": 0.0002402486276917859,
+     "tau_Nm": 0.016409525408304315
+    },
+    "tau_max_Nm": 0.018071884414533113,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "nominal",
+    "com_max_mm": 0.1732874015227611,
+    "com_mean_mm": 0.033535558217671985,
+    "zmp_max_mm": 0.2127468929581065,
+    "zmp_mean_mm": 0.022870614029194086,
+    "joint_max_rad": 0.00047671853906355866,
+    "joint_rate_max_rad_s": 0.002777485638983024,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.1732874015227611,
+     "zmp_mm": 0.11503634583943727,
+     "joint_rad": 0.00047671853906355866,
+     "joint_rate_rad_s": 0.002777485638983024,
+     "tau_Nm": 0.00862193421069768
+    },
+    "tau_max_Nm": 0.017750489535449332,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (nominal)",
+    "com_max_mm": 0.1732874015227611,
+    "zmp_max_mm": 0.2127468929581065,
+    "pass_": true
+   },
+   "seconds": 118.71843740699933,
+   "file": "transitions/exit_walk_0.50_left.npz",
+   "sha256": "c58e1fdd43bbff69cc7fd5c216de1027a61aef04fdf029f31b3490f145a7fb84"
+  },
+  "exit_walk_0.50_right": {
+   "name": "exit_walk_0.50_right",
+   "kind": "walk",
+   "from_": "walk_0.50_right",
+   "to": "nominal",
+   "gaits": {
+    "a": {
+     "name": "walk_0.50_right",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": -0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    },
+    "b": {
+     "name": "nominal",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.21826592177876797,
+     "yaw_rate": 0.0,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    4
+   ],
+   "frames": 960,
+   "duration_s": 6.112192089396234,
+   "ramps": {
+    "all": [
+     0.0,
+     1.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.13888799449792005,
+      -0.10449254401799615
+     ],
+     "from_yaw": 0.40790437301488836,
+     "to_xy": [
+      0.04083755198429236,
+      -0.07893952553875866
+     ],
+     "to_yaw": -0.10197609325382473,
+     "length_m": 0.1815329964819899
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.07401773974012758,
+      0.07129149633599578
+     ],
+     "from_yaw": 0.15296413988061075,
+     "to_xy": [
+      0.18325192558393677,
+      0.042823872031012095
+     ],
+     "to_yaw": -0.35691632638838655,
+     "length_m": 0.2588398855074808
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.04083755198429236,
+      -0.07893952553875866
+     ],
+     "from_yaw": -0.10197609325382473,
+     "to_xy": [
+      0.21017425845007776,
+      -0.14435595050250638
+     ],
+     "to_yaw": -0.6118565595229484,
+     "length_m": 0.1815329964819542
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.18325192558393677,
+      0.042823872031012095
+     ],
+     "from_yaw": -0.35691632638838655,
+     "to_xy": [
+      0.3939033474505354,
+      -0.10758910877553782
+     ],
+     "to_yaw": -0.8667967926575102,
+     "length_m": 0.25883988550749143
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.21017425845007776,
+      -0.14435595050250638
+     ],
+     "from_yaw": -0.6118565595229484,
+     "to_xy": [
+      0.32611575020882344,
+      -0.2841999432146327
+     ],
+     "to_yaw": -1.1201543518453971,
+     "length_m": 0.1816556407296854
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3939033474505354,
+      -0.10758910877553782
+     ],
+     "from_yaw": -0.8667967926575102,
+     "to_xy": [
+      0.5067517925038423,
+      -0.33226408933874624
+     ],
+     "to_yaw": -1.2677214033922501,
+     "length_m": 0.25142318596745866
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.32611575020882344,
+      -0.2841999432146327
+     ],
+     "from_yaw": -1.1201543518453971,
+     "to_xy": [
+      0.3928403189671928,
+      -0.48392625491085345
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.21057722493129755
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5067517925038423,
+      -0.33226408933874624
+     ],
+     "from_yaw": -1.2677214033922501,
+     "to_xy": [
+      0.5719229513737939,
+      -0.5456476251409194
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.22311390207669662
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.3928403189671928,
+      -0.48392625491085345
+     ],
+     "from_yaw": -1.274701165672631,
+     "to_xy": [
+      0.45778611266533625,
+      -0.6968193778673282
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.22257905993431293
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5719229513737939,
+      -0.5456476251409194
+     ],
+     "from_yaw": -1.274701165672631,
+     "to_xy": [
+      0.6368687450719374,
+      -0.7585407480973886
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.22257905993430768
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.45778611266533625,
+      -0.6968193778673282
+     ],
+     "from_yaw": -1.274701165672631,
+     "to_xy": [
+      0.5227319063634797,
+      -0.9097125008238146
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.22257905993432414
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 3.0,
+     "touchdown_phase": 3.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.6368687450719374,
+      -0.7585407480973886
+     ],
+     "from_yaw": -1.274701165672631,
+     "to_xy": [
+      0.7018145387700807,
+      -0.9714338710538898
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.22257905993433824
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 3.5,
+     "touchdown_phase": 3.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.5227319063634797,
+      -0.9097125008238146
+     ],
+     "from_yaw": -1.274701165672631,
+     "to_xy": [
+      0.587677700061623,
+      -1.1226056237803157
+     ],
+     "to_yaw": -1.274701165672631,
+     "length_m": 0.22257905993433813
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.032840489617753384,
+    0.012989978367429378,
+    0.005708416687362609,
+    0.002525859323202177,
+    0.0019472798615033805,
+    0.0016375793430238046,
+    0.0014373423669868082
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.996676769339241e-07,
+   "min_cop_margin_single_m": 0.030274645053345175,
+   "min_cop_margin_m": -0.02198365667149357,
+   "max_friction_ratio": 0.2519942693471017,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "walk_0.50_right",
+    "com_max_mm": 0.008913055124066392,
+    "com_mean_mm": 0.0021832425030349134,
+    "zmp_max_mm": 0.22456398487344084,
+    "zmp_mean_mm": 0.021435784373002392,
+    "joint_max_rad": 5.013946974757877e-05,
+    "joint_rate_max_rad_s": 0.0003460946833284684,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.008913055124066392,
+     "zmp_mm": 0.22456398487344084,
+     "joint_rad": 5.013946974757877e-05,
+     "joint_rate_rad_s": 0.0002350702307765129,
+     "tau_Nm": 0.018413422930085854
+    },
+    "tau_max_Nm": 0.018413422930085854,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 3.0,
+    "reference": "nominal",
+    "com_max_mm": 0.17328737069160957,
+    "com_mean_mm": 0.03353488523271747,
+    "zmp_max_mm": 0.21274689329717758,
+    "zmp_mean_mm": 0.022870617245788073,
+    "joint_max_rad": 0.00047671845241403776,
+    "joint_rate_max_rad_s": 0.0027774857946379437,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.17328737069160957,
+     "zmp_mm": 0.11503634647006716,
+     "joint_rad": 0.00047671845241403776,
+     "joint_rate_rad_s": 0.0027774857946379437,
+     "tau_Nm": 0.008621934126561648
+    },
+    "tau_max_Nm": 0.01775048886886399,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (nominal)",
+    "com_max_mm": 0.17328737069160957,
+    "zmp_max_mm": 0.21274689329717758,
+    "pass_": true
+   },
+   "seconds": 119.33804158700059,
+   "file": "transitions/exit_walk_0.50_right.npz",
+   "sha256": "c9b71302b49ee2d4ec14fbc71b07044fc4d28c7cf0c14959fb8dec633d4dedd7"
+  },
+  "start_in_place_0.50_left": {
+   "name": "start_in_place_0.50_left",
+   "kind": "start",
+   "from_": "stand",
+   "to": "in_place_0.50_left",
+   "gaits": {
+    "a": {
+     "name": "stand",
+     "period": NaN,
+     "duty": NaN,
+     "lift": 0.0,
+     "speed": 0.0,
+     "yaw_rate": 0.0,
+     "head_amp": 0.0,
+     "tail_amp": 0.0,
+     "crouch": 0.0,
+     "zmp_iters": 0,
+     "zmp_gain": 0.0,
+     "split": "statics"
+    },
+    "b": {
+     "name": "in_place_0.50_left",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.0,
+     "yaw_rate": 0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    }
+   },
+   "output_phase": [
+    -2,
+    3
+   ],
+   "frames": 800,
+   "duration_s": 5.09243115686026,
+   "ramps": {
+    "path": [
+     0.0,
+     0.4
+    ],
+    "amplitude": [
+     -0.25,
+     1.0
+    ],
+    "weight_shift": [
+     -0.25,
+     0.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0042227004568463206,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      -0.015241439317137374,
+      0.07522778108218535
+     ],
+     "to_yaw": 0.25494023313438785,
+     "length_m": 0.019515304105005103
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0042227004568463206,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.0410914928082679,
+      -0.06483062352932074
+     ],
+     "to_yaw": 0.5098804662688076,
+     "length_m": 0.0387139403756913
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.015241439317137374,
+      0.07522778108218535
+     ],
+     "from_yaw": 0.25494023313438785,
+     "to_xy": [
+      -0.050019414592820666,
+      0.058220088259914426
+     ],
+     "to_yaw": 0.7648206994032273,
+     "length_m": 0.038713940375693666
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0410914928082679,
+      -0.06483062352932074
+     ],
+     "from_yaw": 0.5098804662688076,
+     "to_xy": [
+      0.0675068440477263,
+      -0.03652870842965399
+     ],
+     "to_yaw": 1.019760932537636,
+     "length_m": 0.038713940375692854
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.050019414592820666,
+      0.058220088259914426
+     ],
+     "from_yaw": 0.7648206994032273,
+     "to_xy": [
+      -0.07207273639154696,
+      0.026401537427833653
+     ],
+     "to_yaw": 1.2747011656719136,
+     "length_m": 0.03871394037568231
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0675068440477263,
+      -0.03652870842965399
+     ],
+     "from_yaw": 1.019760932537636,
+     "to_xy": [
+      0.07674883965464195,
+      0.0010659015113053927
+     ],
+     "to_yaw": 1.5296413988061912,
+     "length_m": 0.038713940375672565
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.022138448958042064,
+    0.008820476092340275,
+    0.004407502530433913,
+    0.002400315937160903,
+    0.0017340889167109074,
+    0.0014345038524080243,
+    0.0012456356415151079
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.979671389655507e-07,
+   "min_cop_margin_single_m": 0.030522593933354925,
+   "min_cop_margin_m": -0.006810963764601507,
+   "max_friction_ratio": 0.2095208841276089,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "stand",
+    "com_max_mm": 0.40693617428373824,
+    "com_mean_mm": 0.08008579478853664,
+    "zmp_max_mm": 0.28313996190322926,
+    "zmp_mean_mm": 0.018334636930917202,
+    "joint_max_rad": 0.0015826838157315948,
+    "joint_rate_max_rad_s": 0.007996153003695076,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.0023969612073565737,
+     "zmp_mm": 0.000310524971719,
+     "joint_rad": 9.292347781894583e-06,
+     "joint_rate_rad_s": 7.106558574445967e-05
+    },
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 2.0,
+    "reference": "in_place_0.50_left",
+    "com_max_mm": 0.13612061137227088,
+    "com_mean_mm": 0.026639698405616734,
+    "zmp_max_mm": 0.17119954180803476,
+    "zmp_mean_mm": 0.017376866466039625,
+    "joint_max_rad": 0.0005539218227491038,
+    "joint_rate_max_rad_s": 0.005289137505205321,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.13612061137227088,
+     "zmp_mm": 0.11171989841688681,
+     "joint_rad": 0.0005539218227491038,
+     "joint_rate_rad_s": 0.005289137505205321,
+     "tau_Nm": 0.007089117003761913
+    },
+    "tau_max_Nm": 0.018910734333736468,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (in_place_0.50_left)",
+    "com_max_mm": 0.13612061137227088,
+    "zmp_max_mm": 0.17119954180803476,
+    "pass_": true
+   },
+   "seconds": 76.9609531369997,
+   "file": "transitions/start_in_place_0.50_left.npz",
+   "sha256": "9f7171cb87bb7f333df229d48fd663ac2025282af9f0bc578face961717a777a"
+  },
+  "start_in_place_0.50_right": {
+   "name": "start_in_place_0.50_right",
+   "kind": "start",
+   "from_": "stand",
+   "to": "in_place_0.50_right",
+   "gaits": {
+    "a": {
+     "name": "stand",
+     "period": NaN,
+     "duty": NaN,
+     "lift": 0.0,
+     "speed": 0.0,
+     "yaw_rate": 0.0,
+     "head_amp": 0.0,
+     "tail_amp": 0.0,
+     "crouch": 0.0,
+     "zmp_iters": 0,
+     "zmp_gain": 0.0,
+     "split": "statics"
+    },
+    "b": {
+     "name": "in_place_0.50_right",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.0,
+     "yaw_rate": -0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    }
+   },
+   "output_phase": [
+    -2,
+    3
+   ],
+   "frames": 800,
+   "duration_s": 5.09243115686026,
+   "ramps": {
+    "path": [
+     0.0,
+     0.4
+    ],
+    "amplitude": [
+     -0.25,
+     1.0
+    ],
+    "weight_shift": [
+     -0.25,
+     0.0
+    ]
+   },
+   "steps": [
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0042227004568463206,
+      0.07663999819355842
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      0.023413871111659657,
+      0.07309795595656289
+     ],
+     "to_yaw": -0.25494023313438785,
+     "length_m": 0.0195153041050051
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 0.5,
+     "touchdown_phase": 0.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.0042227004568463206,
+      -0.07663999819355843
+     ],
+     "from_yaw": 0.0,
+     "to_xy": [
+      -0.03372032275744757,
+      -0.0689525949406949
+     ],
+     "to_yaw": -0.5098804662688076,
+     "length_m": 0.03871394037569131
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 1.0,
+     "touchdown_phase": 1.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.023413871111659657,
+      0.07309795595656289
+     ],
+     "from_yaw": -0.25494023313438785,
+     "to_xy": [
+      0.056112826446829606,
+      0.05237242823345471
+     ],
+     "to_yaw": -0.7648206994032273,
+     "length_m": 0.03871394037569367
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 1.5,
+     "touchdown_phase": 1.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.03372032275744757,
+      -0.0689525949406949
+     ],
+     "from_yaw": -0.5098804662688076,
+     "to_xy": [
+      -0.06308508838799201,
+      -0.043724045262286966
+     ],
+     "to_yaw": -1.019760932537636,
+     "length_m": 0.038713940375692854
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 2.0,
+     "touchdown_phase": 2.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.056112826446829606,
+      0.05237242823345471
+     ],
+     "from_yaw": -0.7648206994032273,
+     "to_xy": [
+      0.0745369991659503,
+      0.01832365382044695
+     ],
+     "to_yaw": -1.2747011656719136,
+     "length_m": 0.03871394037568229
+    },
+    {
+     "side": "right",
+     "lift_off_phase": 2.5,
+     "touchdown_phase": 2.9,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.06308508838799201,
+      -0.043724045262286966
+     ],
+     "from_yaw": -1.019760932537636,
+     "to_xy": [
+      -0.07640136773461341,
+      -0.0073723481385779424
+     ],
+     "to_yaw": -1.5296413988061912,
+     "length_m": 0.038713940375672565
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.02185068639268207,
+    0.009778718230868674,
+    0.0047625919794142425,
+    0.0025955502065744904,
+    0.0016998030416282143,
+    0.001413678310778211,
+    0.0012303053021209143
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.915634260259987e-07,
+   "min_cop_margin_single_m": 0.030521605895789915,
+   "min_cop_margin_m": -0.006801901489936821,
+   "max_friction_ratio": 0.19763793811208083,
+   "stop": null,
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "stand",
+    "com_max_mm": 0.4145988028473206,
+    "com_mean_mm": 0.08160945066011069,
+    "zmp_max_mm": 0.27688824466883977,
+    "zmp_mean_mm": 0.02060645960178935,
+    "joint_max_rad": 0.0016104349823396619,
+    "joint_rate_max_rad_s": 0.008137296755208218,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.002440289595765748,
+     "zmp_mm": 2.518217889675286e-05,
+     "joint_rad": 9.46264001135122e-06,
+     "joint_rate_rad_s": 7.258117484212883e-05
+    },
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 2.0,
+    "reference": "in_place_0.50_right",
+    "com_max_mm": 0.09405517220021394,
+    "com_mean_mm": 0.018034902983982887,
+    "zmp_max_mm": 0.17102866210004447,
+    "zmp_mean_mm": 0.017320104894201334,
+    "joint_max_rad": 0.0003449789610294046,
+    "joint_rate_max_rad_s": 0.002763134341179585,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.09405517220021394,
+     "zmp_mm": 0.16132169389142734,
+     "joint_rad": 0.0003449789610294046,
+     "joint_rate_rad_s": 0.0026461083640496597,
+     "tau_Nm": 0.008272011548859037
+    },
+    "tau_max_Nm": 0.018856986493871353,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (in_place_0.50_right)",
+    "com_max_mm": 0.09405517220021394,
+    "zmp_max_mm": 0.17102866210004447,
+    "pass_": true
+   },
+   "seconds": 80.4136404359997,
+   "file": "transitions/start_in_place_0.50_right.npz",
+   "sha256": "9b8fd3664f2b2c718b6b3cf5b66942eb90242aa9a04c1d99b9ce21553586844a"
+  },
+  "stop_in_place_0.50_left": {
+   "name": "stop_in_place_0.50_left",
+   "kind": "stop",
+   "from_": "in_place_0.50_left",
+   "to": "stand",
+   "gaits": {
+    "a": {
+     "name": "in_place_0.50_left",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.0,
+     "yaw_rate": 0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    },
+    "b": {
+     "name": "stand",
+     "period": NaN,
+     "duty": NaN,
+     "lift": 0.0,
+     "speed": 0.0,
+     "yaw_rate": 0.0,
+     "head_amp": 0.0,
+     "tail_amp": 0.0,
+     "crouch": 0.0,
+     "zmp_iters": 0,
+     "zmp_gain": 0.0,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    3
+   ],
+   "frames": 800,
+   "duration_s": 5.09243115686026,
+   "ramps": {
+    "path": [
+     0.0,
+     0.4
+    ],
+    "amplitude": [
+     0.0,
+     0.65
+    ],
+    "settle": [
+     0.4,
+     0.65
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.026525808090536392,
+      -0.07202709227969153
+     ],
+     "from_yaw": -0.40790437301488836,
+     "to_xy": [
+      0.012002672295693132,
+      -0.07581198046033374
+     ],
+     "to_yaw": 0.10197609325382473,
+     "length_m": 0.03871394037568429
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.015850903617972645,
+      0.075101726868908
+     ],
+     "from_yaw": -0.15296413988061075,
+     "to_xy": [
+      -0.022820405260536917,
+      0.07328539841937595
+     ],
+     "to_yaw": 0.35691632638838655,
+     "length_m": 0.038713940375705386
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.012002672295693132,
+      -0.07581198046033374
+     ],
+     "from_yaw": 0.10197609325382473,
+     "to_xy": [
+      0.047477741407821364,
+      -0.06031073370711661
+     ],
+     "to_yaw": 0.6118565595229484,
+     "length_m": 0.03871394037571479
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.022820405260536917,
+      0.07328539841937595
+     ],
+     "from_yaw": 0.35691632638838655,
+     "to_xy": [
+      -0.0556863333267108,
+      0.05282568308011762
+     ],
+     "to_yaw": 0.8667967926575102,
+     "length_m": 0.03871394037571478
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.047477741407821364,
+      -0.06031073370711661
+     ],
+     "from_yaw": 0.6118565595229484,
+     "to_xy": [
+      0.07087474423046823,
+      -0.029466780680127317
+     ],
+     "to_yaw": 1.1217370257920143,
+     "length_m": 0.03871394037571049
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.0556863333267108,
+      0.05282568308011762
+     ],
+     "from_yaw": 0.8667967926575102,
+     "to_xy": [
+      -0.06720844111526822,
+      0.03707486956398332
+     ],
+     "to_yaw": 1.1217370257920143,
+     "length_m": 0.019515304105013953
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.022019926818098026,
+    0.008788427650419112,
+    0.004063930451615987,
+    0.0022518335835963366,
+    0.0016993507547485261,
+    0.0014133284977248912,
+    0.0012299069258890013
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.952146068074514e-07,
+   "min_cop_margin_single_m": 0.030522610367535112,
+   "min_cop_margin_m": -0.006835460891597506,
+   "max_friction_ratio": 0.19773653147435352,
+   "stop": {
+    "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+    "command_speed_m_s": 0.0,
+    "stride_s": 1.019760932537567,
+    "forward_stopped_strides": null,
+    "within": null,
+    "at_rest_strides": 1.5562500000010382,
+    "at_rest_s": 1.5870029512626473,
+    "command_phase": 0.0,
+    "last_touchdown_phase": 0.4,
+    "single_step": true
+   },
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "in_place_0.50_left",
+    "com_max_mm": 0.026704534744897306,
+    "com_mean_mm": 0.006011864013744899,
+    "zmp_max_mm": 0.17127872100484054,
+    "zmp_mean_mm": 0.017429208725736767,
+    "joint_max_rad": 0.00010582268193792821,
+    "joint_rate_max_rad_s": 0.0007918018333316068,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.004320791992699709,
+     "zmp_mm": 0.14293080113980627,
+     "joint_rad": 1.623545140666538e-05,
+     "joint_rate_rad_s": 5.707740373162018e-05,
+     "tau_Nm": 0.015632455655930078
+    },
+    "tau_max_Nm": 0.018854483739956795,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 2.0,
+    "reference": "stand",
+    "com_max_mm": 0.01967239615660723,
+    "com_mean_mm": 0.0038595005732003336,
+    "zmp_max_mm": 0.2523371165327899,
+    "zmp_mean_mm": 0.009782175585524544,
+    "joint_max_rad": 7.595609179776586e-05,
+    "joint_rate_max_rad_s": 0.0003809895883316259,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.0001115588819748722,
+     "zmp_mm": 0.00028415595370695555,
+     "joint_rad": 5.812329681303963e-07,
+     "joint_rate_rad_s": 0.0
+    },
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (the home stance)",
+    "com_max_mm": 0.01967239615660723,
+    "zmp_max_mm": 0.2523371165327899,
+    "pass_": true
+   },
+   "seconds": 81.61207747800017,
+   "file": "transitions/stop_in_place_0.50_left.npz",
+   "sha256": "59f7b093b4d34f6f591d8afe2c6b1e0ba4f69e3e79d4276903704c241ab2bcf0"
+  },
+  "stop_in_place_0.50_right": {
+   "name": "stop_in_place_0.50_right",
+   "kind": "stop",
+   "from_": "in_place_0.50_right",
+   "to": "stand",
+   "gaits": {
+    "a": {
+     "name": "in_place_0.50_right",
+     "period": 1.019760932537567,
+     "duty": 0.6,
+     "lift": 0.04046891998805238,
+     "speed": 0.0,
+     "yaw_rate": -0.5,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "crouch": 0.012140675996415712,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "split": "exact"
+    },
+    "b": {
+     "name": "stand",
+     "period": NaN,
+     "duty": NaN,
+     "lift": 0.0,
+     "speed": 0.0,
+     "yaw_rate": 0.0,
+     "head_amp": 0.0,
+     "tail_amp": 0.0,
+     "crouch": 0.0,
+     "zmp_iters": 0,
+     "zmp_gain": 0.0,
+     "split": "statics"
+    }
+   },
+   "output_phase": [
+    -2,
+    3
+   ],
+   "frames": 800,
+   "duration_s": 5.09243115686026,
+   "ramps": {
+    "path": [
+     0.0,
+     0.4
+    ],
+    "amplitude": [
+     0.0,
+     0.65
+    ],
+    "settle": [
+     0.4,
+     0.65
+    ]
+   },
+   "steps": [
+    {
+     "side": "right",
+     "lift_off_phase": -2.5,
+     "touchdown_phase": -2.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.034278298877728514,
+      -0.06867691572372805
+     ],
+     "from_yaw": 0.40790437301488836,
+     "to_xy": [
+      -0.0036011457240860754,
+      -0.07667171753928909
+     ],
+     "to_yaw": -0.10197609325382473,
+     "length_m": 0.03871394037568429
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -2.0,
+     "touchdown_phase": -1.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.007504113067075357,
+      0.07638853845555331
+     ],
+     "from_yaw": 0.15296413988061075,
+     "to_xy": [
+      0.030733565795025956,
+      0.07033468888255576
+     ],
+     "to_yaw": -0.35691632638838655,
+     "length_m": 0.03871394037570539
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -1.5,
+     "touchdown_phase": -1.1,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.0036011457240860754,
+      -0.07667171753928909
+     ],
+     "from_yaw": -0.10197609325382473,
+     "to_xy": [
+      -0.040564479395446246,
+      -0.06516167221730661
+     ],
+     "to_yaw": -0.6118565595229484,
+     "length_m": 0.03871394037571478
+    },
+    {
+     "side": "left",
+     "lift_off_phase": -1.0,
+     "touchdown_phase": -0.6,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.030733565795025956,
+      0.07033468888255576
+     ],
+     "from_yaw": -0.35691632638838655,
+     "to_xy": [
+      0.06115280103235937,
+      0.046388096077102786
+     ],
+     "to_yaw": -0.8667967926575102,
+     "length_m": 0.03871394037571478
+    },
+    {
+     "side": "right",
+     "lift_off_phase": -0.5,
+     "touchdown_phase": -0.09999999999999998,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      -0.040564479395446246,
+      -0.06516167221730661
+     ],
+     "from_yaw": -0.6118565595229484,
+     "to_xy": [
+      -0.06720844111526823,
+      -0.03707486956398333
+     ],
+     "to_yaw": -1.1217370257920143,
+     "length_m": 0.03871394037571049
+    },
+    {
+     "side": "left",
+     "lift_off_phase": 0.0,
+     "touchdown_phase": 0.4,
+     "lift_m": 0.04046891998805238,
+     "from_xy": [
+      0.06115280103235937,
+      0.046388096077102786
+     ],
+     "from_yaw": -0.8667967926575102,
+     "to_xy": [
+      0.07087474423046822,
+      0.02946678068012731
+     ],
+     "to_yaw": -1.1217370257920143,
+     "length_m": 0.019515304105013946
+    }
+   ],
+   "zmp_iters": 6,
+   "zmp_gain": 0.5,
+   "zmp_error_history_m": [
+    0.02185379157455764,
+    0.008694598523929509,
+    0.0038001505408244316,
+    0.002177141972734369,
+    0.0016995307839758162,
+    0.001413536151918872,
+    0.0012301356123408504
+   ],
+   "split": "exact",
+   "ik_ok": true,
+   "com_tracking_max_m": 9.995794784640576e-07,
+   "min_cop_margin_single_m": 0.03052053580042191,
+   "min_cop_margin_m": -0.006800709171135215,
+   "max_friction_ratio": 0.20122383037892286,
+   "stop": {
+    "rule": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+    "command_speed_m_s": 0.0,
+    "stride_s": 1.019760932537567,
+    "forward_stopped_strides": null,
+    "within": null,
+    "at_rest_strides": 1.550000000001034,
+    "at_rest_s": 1.5806294454342833,
+    "command_phase": 0.0,
+    "last_touchdown_phase": 0.4,
+    "single_step": true
+   },
+   "join_a": {
+    "stride_phase": -2.0,
+    "reference": "in_place_0.50_right",
+    "com_max_mm": 0.02036258700611625,
+    "com_mean_mm": 0.0048432808007798835,
+    "zmp_max_mm": 0.172713796580896,
+    "zmp_mean_mm": 0.017566500822558534,
+    "joint_max_rad": 7.488506937876338e-05,
+    "joint_rate_max_rad_s": 0.0006671587022766268,
+    "at_join": {
+     "frame": "first output frame",
+     "com_mm": 0.005326151108803566,
+     "zmp_mm": 0.172713796580896,
+     "joint_rad": 2.050835424037903e-05,
+     "joint_rate_rad_s": 0.00013392813828899675,
+     "tau_Nm": 0.019052266600475987
+    },
+    "tau_max_Nm": 0.019052266600475987,
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "join_b": {
+    "stride_phase": 2.0,
+    "reference": "stand",
+    "com_max_mm": 0.019320149683862975,
+    "com_mean_mm": 0.003762727283735165,
+    "zmp_max_mm": 0.24061023645352128,
+    "zmp_mean_mm": 0.00844498497332873,
+    "joint_max_rad": 7.457313155133372e-05,
+    "joint_rate_max_rad_s": 0.00037207534887567057,
+    "at_join": {
+     "frame": "last output frame",
+     "com_mm": 0.00010281563139035502,
+     "zmp_mm": 0.0004605878225853445,
+     "joint_rad": 6.763142514076836e-07,
+     "joint_rate_rad_s": 0.0
+    },
+    "com_ok": true,
+    "zmp_ok": true
+   },
+   "g3": {
+    "rule": "last output stride within 1 mm of the periodic walk's CoM and 2 mm of its multibody ZMP (the home stance)",
+    "com_max_mm": 0.019320149683862975,
+    "zmp_max_mm": 0.24061023645352128,
+    "pass_": true
+   },
+   "seconds": 79.25770243199986,
+   "file": "transitions/stop_in_place_0.50_right.npz",
+   "sha256": "d5662f985cb31d794899fc0b1dd9f41a7cbe3769ec71b2028b093aceea896e8d"
+  }
+ },
+ "method": "Stage 1 transitions: starts, stops, speed changes and turn entries (``STAGE1_PLAN.md`` section 2, section 3\nstep 4, gate G3).",
+ "preview": {
+  "qe": 1.0,
+  "r": 1e-10,
+  "preview_s": 2.5
+ },
+ "shift_strides": 0.25,
+ "settle_strides": 0.25,
+ "path_half_width": 0.2,
+ "walk_ramp_strides": 1.0,
+ "windows": {
+  "start": [
+   -2,
+   3
+  ],
+  "stop": [
+   -2,
+   3
+  ],
+  "walk": [
+   -2,
+   4
+  ]
+ },
+ "g3_com_mm": 1.0,
+ "g3_zmp_mm": 2.0,
+ "seconds": 669.8662778900002,
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0"
+  },
+  "git": {
+   "commit": "07a73f4a12e9079865de4a0385311a67dfc1c86c",
+   "dirty": true,
+   "dirty_paths": [
+    " M hardware/trex_form_study/designlab/refine.py",
+    " M hardware/trex_form_study/designlab/stage1/__init__.py",
+    " M hardware/trex_form_study/designlab/stage1/control.py",
+    " M hardware/trex_form_study/designlab/stage1/gates.py",
+    " M hardware/trex_form_study/designlab/stage1/panels.py",
+    " M hardware/trex_form_study/designlab/stage1/plant.py",
+    " M hardware/trex_form_study/designlab/stage1/refs.py",
+    " M hardware/trex_form_study/designlab/stage1/train.py",
+    " M hardware/trex_form_study/round2/refine/REFINE.md",
+    " M hardware/trex_form_study/round2/refine/refine.json",
+    " M hardware/trex_form_study/tests/test_stage1.py",
+    " M hardware/trex_form_study/tests/test_stage1_ledger.py",
+    " M hardware/trex_form_study/tests/test_stage1_policy_rows.py",
+    "?? hardware/trex_form_study/round2/refine/carpet_lift_narrow_knee_60_0.190_0.195_nominal_only.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/candidates/60-N-H-10.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/candidates/60-N-T-10.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/mjcf/60-N-H-10.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/mjcf/60-N-T-10.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/review_index.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_carpet.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_carpet.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_clearance.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_clearance.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_envelope.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_sensors.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_sensors.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_turning.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-H-10_turning.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_carpet.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_carpet.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_clearance.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_clearance.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_envelope.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_sensors.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_sensors.png",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_turning.json",
+    "?? hardware/trex_form_study/round2/refine/narrow_knee_60/review/screening/60-N-T-10_turning.png",
+    "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/plant.json",
+    "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-H-10-K/refs.json",
+    "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/plant.json",
+    "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/60-N-T-10-K/refs.json",
+    "?? hardware/trex_form_study/stage1/runs/2026-11-10-speed/run_arm_k.sh",
+    "?? hardware/trex_form_study/tests/test_stage1_bodies.py"
+   ]
+  },
+  "stage1_sources": {
+   "sha256": "6c58844f991873bc3071f75dd181fc3b88635556a523717191a88e7315c86645",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "ledger.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "policy_rows.py",
+    "refs.py",
+    "replay.py",
+    "report.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  }
+ }
+}

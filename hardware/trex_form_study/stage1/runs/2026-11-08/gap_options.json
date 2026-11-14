@@ -1,0 +1,1996 @@
+{
+ "extraction": {
+  "baseline": [
+   {
+    "body": "60-N-T-10",
+    "role": "Stage 1 body 1 (P16): 60 cm Tapered, narrow, carpet-ready (scorecard pick 1)",
+    "record": "round2/refine/narrow_carpet_60. Paths are relative to /home/user/mesozoic-labs/hardware/trex_form_study. The cited files are byte-identical in the main checkout and the worktree.",
+    "source": "ROUND2_REVIEW.md:Summary/L22; DECISION_LOG.md:P16/L31",
+    "layout": {
+     "value": "Narrow stance with the legs moved out 6 mm per side (round two: 4 mm), so every target turn clears by at least 3 mm. Ankle drives at 0.60 of the shank. Calf fairings kept. Round-two feet.",
+     "source": "ROUND2_REVIEW.md:Summary/L22; DECISION_LOG.md:P19/L34, P20/L35"
+    },
+    "drives": {
+     "value": "Hip roll CubeMars AK45-36; hip pitch MyActuator X4-36-L; thigh twist AK45-36; knee X4-36-L; ankles A/B X4-P12-10 (two-motor push-rod ankle); neck Feetech STS3250; tail Feetech STS3215. 24 V bus, 6S 3.3 Ah LiPo.",
+     "source": "round2/refine/narrow_carpet_60/candidates/60-N-T-10.json:margins; REFINE.md:Drive changes/L94; ROUND2_REVIEW.md:\u00a71/L122"
+    },
+    "mass_kg": {
+     "value": 10.81,
+     "exact": 10.812,
+     "source": "ROUND2_REVIEW.md:Summary/L22; round2/refine/refine.json:rows[narrow_carpet_60]"
+    },
+    "runtime_min": {
+     "value": 47.6,
+     "source": "ROUND2_REVIEW.md:Summary/L22"
+    },
+    "walking_power_w": {
+     "value": 69.3,
+     "source": "ROUND2_REVIEW.md:\u00a77.6/L488 (69.3-69.6 W for the two picks); refine.json walk_w 69.32"
+    },
+    "cost_nominal_high": {
+     "value": "$14.8k / $20.5k",
+     "exact": "$14,809 / $20,544",
+     "note": "The high-side estimate is already above P4's $10-20k range.",
+     "source": "ROUND2_REVIEW.md:Summary/L22; refine.json:rows[narrow_carpet_60]; DECISION_LOG.md:P4/L19"
+    },
+    "governing_limit": {
+     "value": "Knee speed, 0.93 of its limit in the Froude 0.05 walk, with the 1.15 speed margin",
+     "source": "ROUND2_REVIEW.md:Summary/L22, \u00a77.6/L484"
+    },
+    "scorecard_v2": {
+     "value": "Total 0.703 (rank 1). Walk 0.51, turn 0.81, carpet 0.70, robustness 0.64, following 0.51, endurance 1.00, head/tail 0.86, packaging 0.76, cost 1.00. Stressed worst 1.09.",
+     "source": "ROUND2_REVIEW.md:\u00a76/L281"
+    },
+    "stage0_margins": {
+     "grip_mu_needed": {
+      "value": "Nominal walk 0.48; 0.35 rad/s walking turn 0.54; brisk walk 0.75. These count the stance foot's yaw moment.",
+      "source": "STAGE1_PLAN.md:\u00a75/L109; ROUND2_REVIEW.md:\u00a77.6/L484"
+     },
+     "push_forward_bound_m_s": {
+      "value": 0.487,
+      "note": "An upper bound under ideal balance control (A15)",
+      "source": "STAGE1_PLAN.md:\u00a75/L110; DECISION_LOG.md:A15/L99"
+     },
+     "stop_one_foot_m_s2": {
+      "value": 1.25,
+      "note": "The spec limit is 1.5",
+      "source": "STAGE1_PLAN.md:\u00a75/L111; ROUND2_REVIEW.md:\u00a77.6/L491-492"
+     },
+     "knee_speed_ratio_fr05": {
+      "value": 0.93,
+      "note": "The requirement with the 15 % margin is 8.077 rad/s, against 8.69 rad/s usable at 24 V. The next speed limit is the hip pitch at 0.90.",
+      "source": "STAGE1_PLAN.md:\u00a75/L112; candidate JSON margins.knee and margins.hip_pitch"
+     },
+     "worst_sustained_torque_ratio": {
+      "value": 0.76,
+      "note": "Ankle A 0.763 and neck 0.761 in the candidate record. The knee's own torque ratios are only 0.51 sustained and 0.34 peak.",
+      "source": "STAGE1_PLAN.md:\u00a75/L113; candidate JSON margins"
+     },
+     "pack_voltage_note": {
+      "value": "Stage 0 used 24 V. At 22.2 V (6S nominal) the knee's rated speed, 8.04 rad/s, equals the Fr 0.05 requirement including the screens' 15 % speed margin (8.08-8.12 rad/s). The peak swing speed itself is about 7.0 rad/s. The 6S bus swings 21.0-25.2 V.",
+      "source": "STAGE1_PLAN.md:\u00a75/L115; DECISION_LOG.md:A11/L95, E9/L56"
+     },
+     "pack_voltage_derived_not_in_record": "Using the model's rule (speed derated by bus/24 V below nominal, no credit above it: designlab/catalog.py L77-82, designlab/stage1/drive.py L32-35), the knee ratio with the margin is 0.93 at 24-25.2 V, 1.00 at 22.2 V and 1.06 at 21 V (0.92 at 21 V without the margin). The hip pitch is 0.97 at 22.2 V and 1.03 at 21 V.",
+     "model_doubts": {
+      "value": "kp x0.25-1, latency 0-20 ms, mass +10 %, pile damping 0.5-2. No Stage 0 value.",
+      "source": "STAGE1_PLAN.md:\u00a75/L114"
+     }
+    },
+    "other_figures": [
+     {
+      "figure": "Target turns",
+      "value": "Pass. The governing drive is the neck servo at 0.76. Turn gaps are 3.4 mm in the target turns and 3.1 mm in the 0.5 rad/s walking turn.",
+      "source": "ROUND2_REVIEW.md:\u00a77.6/L484"
+     },
+     {
+      "figure": "Thigh-twist speed in the in-place turn",
+      "value": "2.77 rad/s of 4.19 rad/s usable",
+      "source": "refine.json:rows[narrow_carpet_60].turning"
+     },
+     {
+      "figure": "Tightest joint margin",
+      "value": "0.18 rad",
+      "source": "ROUND2_REVIEW.md:\u00a77.6/L484"
+     },
+     {
+      "figure": "Carpet swing",
+      "value": "With the nominal walk alone lifted to 0.19 H, the toe is 24.3 mm above a high-pile top and meets the target, within the drives (knee 0.84) and every walking gate. With both walks lifted, the brisk walk's knee is 1.05 at 0.19 H and 1.06 at 0.195 H.",
+      "source": "ROUND2_REVIEW.md:\u00a77.6/L497-503"
+     },
+     {
+      "figure": "Toe clearance above a high-pile top, reference lift",
+      "value": "6.1 mm",
+      "source": "REFINE.md:Comparison/L47"
+     },
+     {
+      "figure": "Medium pile with the servos held",
+      "value": "Tips (no 60 cm body stands passively on medium or high pile)",
+      "source": "refine.json:rows[narrow_carpet_60].carpet.medium_upright=false; ROUND2_REVIEW.md:\u00a72/L150, L172-173"
+     },
+     {
+      "figure": "Stage 1 walk speeds",
+      "value": "Nominal 0.218, brisk 0.315, Fr 0.05 0.446 m/s. Carpet target 24.3 mm. Push pulse 0.24 m/s.",
+      "source": "STAGE1_PLAN.md:\u00a74/L85, L89; \u00a79 decision 7/L181"
+     },
+     {
+      "figure": "Pad pressure",
+      "value": "72-74 kPa in static single support (60 cm picks)",
+      "source": "ROUND2_REVIEW.md:\u00a79/L608-609"
+     },
+     {
+      "figure": "Head and tail servos",
+      "value": "Neck STS3250 at 0.76 of its sustained rating; tail at 0.43-0.48 of peak (0.483 on this body)",
+      "source": "ROUND2_REVIEW.md:\u00a710/L636-638; candidate JSON margins.tail"
+     },
+     {
+      "figure": "Sensors",
+      "value": "Nearest visible floor 2.40 m ahead of the toes. The ToF pair covers 68 % of the near foot path. Camera self-occlusion 6.8 %.",
+      "source": "round2/refine/narrow_carpet_60/review/screening/60-N-T-10_sensors.json"
+     },
+     {
+      "figure": "Tether tip threshold and fall energy",
+      "value": "7.1-7.2 N for a pull at the tail-base cable exit; about 36 J in a fall at 60 cm",
+      "source": "round2/refine/MATERIALS.md:\u00a76/L242-244; ROUND2_REVIEW.md:\u00a79/L593"
+     }
+    ],
+    "meets_or_exceeds": [
+     "Runtime 47.6 min against P4's 15-20 min [ROUND2_REVIEW.md:Summary/L22; DECISION_LOG.md:P4/L19]",
+     "Target turns pass with a governing ratio of 0.76; turning score 0.81 is higher than the 75 cm pick's 0.78 [ROUND2_REVIEW.md:\u00a76/L281-282, \u00a77.6/L484]",
+     "The nominal walk carries the carpet swing within the drives [ROUND2_REVIEW.md:\u00a77.6/L502-503]",
+     "Nominal cost $14.8k is about the owner's $15k [ROUND2_REVIEW.md:Summary/L22; DECISION_LOG.md:P25/L40]",
+     "There is servo headroom for livelier head motion [ROUND2_REVIEW.md:\u00a710/L639]"
+    ]
+   },
+   {
+    "body": "60-N-H-10",
+    "role": "Stage 1 body 3 (P16): 60 cm Hybrid, narrow, carpet-ready (scorecard pick 3, the family comparison)",
+    "record": "round2/refine/narrow_carpet_60",
+    "source": "ROUND2_REVIEW.md:Summary/L24; DECISION_LOG.md:P16/L31",
+    "layout": {
+     "value": "The same layout as 60-N-T-10: legs out 6 mm per side, ankle drives at 0.60 of the shank, calf fairings, round-two feet",
+     "source": "ROUND2_REVIEW.md:Summary/L24"
+    },
+    "drives": {
+     "value": "The same parts as 60-N-T-10",
+     "source": "round2/refine/narrow_carpet_60/candidates/60-N-H-10.json:margins; REFINE.md:Drive changes/L95"
+    },
+    "mass_kg": {
+     "value": 10.91,
+     "exact": 10.907,
+     "source": "ROUND2_REVIEW.md:Summary/L24; refine.json"
+    },
+    "runtime_min": {
+     "value": 47.4,
+     "source": "ROUND2_REVIEW.md:Summary/L24"
+    },
+    "walking_power_w": {
+     "value": 69.6,
+     "source": "ROUND2_REVIEW.md:\u00a77.6/L488; refine.json walk_w 69.62"
+    },
+    "cost_nominal_high": {
+     "value": "$14.8k / $20.6k",
+     "exact": "$14,848 / $20,622",
+     "source": "ROUND2_REVIEW.md:Summary/L24; refine.json"
+    },
+    "governing_limit": {
+     "value": "Knee speed, 0.95 in the Froude 0.05 walk",
+     "source": "ROUND2_REVIEW.md:Summary/L24, \u00a77.6/L485"
+    },
+    "scorecard_v2": {
+     "value": "Total 0.699 (rank 3). Walk 0.48, turn 0.82, carpet 0.69, robustness 0.62, following 0.55, endurance 1.00, head/tail 0.88, packaging 0.75, cost 1.00. Stressed worst 1.12.",
+     "source": "ROUND2_REVIEW.md:\u00a76/L283"
+    },
+    "stage0_margins": {
+     "grip_mu_needed": {
+      "value": "Nominal walk 0.47; 0.35 rad/s turn 0.53; brisk walk 0.73",
+      "source": "STAGE1_PLAN.md:\u00a75/L109; ROUND2_REVIEW.md:\u00a77.6/L485"
+     },
+     "push_forward_bound_m_s": {
+      "value": 0.478,
+      "source": "STAGE1_PLAN.md:\u00a75/L110"
+     },
+     "stop_one_foot_m_s2": {
+      "value": 1.25,
+      "source": "STAGE1_PLAN.md:\u00a75/L111"
+     },
+     "knee_speed_ratio_fr05": {
+      "value": 0.95,
+      "note": "The requirement with the margin is 8.253 rad/s in this body's own record, against 8.69 rad/s at 24 V. Hip pitch 0.89.",
+      "source": "STAGE1_PLAN.md:\u00a75/L112; candidate JSON margins.knee and margins.hip_pitch"
+     },
+     "worst_sustained_torque_ratio": {
+      "value": 0.76,
+      "note": "Ankle A 0.763. The knee's torque ratios are 0.49 sustained and 0.33 peak.",
+      "source": "STAGE1_PLAN.md:\u00a75/L113; candidate JSON"
+     },
+     "pack_voltage_note": {
+      "value": "The same ledger note as 60-N-T-10. Its 8.08-8.12 rad/s range does not include this body's 8.25 rad/s (see open questions).",
+      "source": "STAGE1_PLAN.md:\u00a75/L115; candidate JSON margins.knee.speed_req=8.253"
+     },
+     "pack_voltage_derived_not_in_record": "With the model's rule, the knee ratio with the margin is 0.95 at 24-25.2 V, 1.03 at 22.2 V and 1.09 at 21 V (0.94 at 21 V without the margin). The hip pitch is 0.97 at 22.2 V and 1.02 at 21 V.",
+     "model_doubts": {
+      "value": "No Stage 0 value",
+      "source": "STAGE1_PLAN.md:\u00a75/L114"
+     }
+    },
+    "other_figures": [
+     {
+      "figure": "Target turns",
+      "value": "Pass. The governing drive is ankle A at 0.76. Turn gaps are 3.4 mm in the target turns and 3.0 mm in the 0.5 rad/s walking turn.",
+      "source": "ROUND2_REVIEW.md:\u00a77.6/L485"
+     },
+     {
+      "figure": "Thigh-twist speed in the in-place turn",
+      "value": "2.79 rad/s of 4.19 rad/s",
+      "source": "refine.json"
+     },
+     {
+      "figure": "Tightest joint margin",
+      "value": "0.18 rad",
+      "source": "ROUND2_REVIEW.md:\u00a77.6/L485"
+     },
+     {
+      "figure": "Carpet swing",
+      "value": "Needs 0.195 H: at 0.19 H the toe is 24.0 mm above the high pile, 0.05 mm short of 24.1 mm. With the nominal walk alone at 0.195 H it stays within the drives (knee 0.86) and every walking gate (knee margin 0.13 rad). With both walks lifted to 0.195 H, the brisk knee is 1.08 and the knee-range margin is 0.097 rad, under the 0.10 rad gate.",
+      "source": "ROUND2_REVIEW.md:\u00a77.6/L499-505, Summary/L26"
+     },
+     {
+      "figure": "Toe clearance above a high-pile top, reference lift",
+      "value": "6.0 mm",
+      "source": "REFINE.md:Comparison/L48"
+     },
+     {
+      "figure": "Medium pile with the servos held",
+      "value": "Tips",
+      "source": "refine.json:rows[narrow_carpet_60].carpet.medium_upright=false"
+     },
+     {
+      "figure": "Stage 1 walk speeds",
+      "value": "Nominal 0.217, brisk 0.314, Fr 0.05 0.444 m/s. Carpet target 24.1 mm. Push pulse 0.24 m/s.",
+      "source": "STAGE1_PLAN.md:\u00a74/L85, L89; decision 7/L181"
+     },
+     {
+      "figure": "Head and tail servos",
+      "value": "Neck 0.76 sustained (0.756); tail 0.427 of peak",
+      "source": "ROUND2_REVIEW.md:\u00a710/L636-638; candidate JSON"
+     },
+     {
+      "figure": "Sensors",
+      "value": "Nearest visible floor 2.27 m. The ToF pair covers 69 % of the near foot path. Self-occlusion 6.1 %.",
+      "source": "round2/refine/narrow_carpet_60/review/screening/60-N-H-10_sensors.json"
+     }
+    ],
+    "meets_or_exceeds": [
+     "Runtime 47.4 min [ROUND2_REVIEW.md:Summary/L24]",
+     "Turning score 0.82, the highest of the three picks [ROUND2_REVIEW.md:\u00a76/L283]",
+     "Following score 0.55, against 0.51 for the Tapered body [ROUND2_REVIEW.md:\u00a76/L310-311]"
+    ]
+   },
+   {
+    "body": "75-M-H-10",
+    "role": "Stage 1 body 2 (P16): 75 cm Hybrid with the targeted drives and bigger feet (scorecard pick 2)",
+    "record": "round2/refine/feet_75",
+    "source": "ROUND2_REVIEW.md:Summary/L23; DECISION_LOG.md:P16/L31, P18/L33, P20/L35",
+    "layout": {
+     "value": "Base-width stance. Four drives upgraded: hip roll AK45-36 to X4-36-L, hip pitch RobStride 03 to X6-60, thigh twist AK45-36 to X4-36-L, neck XM540-W150 to W270. Toes x1.15 and pads x1.25.",
+     "source": "ROUND2_REVIEW.md:Summary/L23, \u00a74/L210-213; REFINE.md:Drive changes/L99"
+    },
+    "drives": {
+     "value": "Hip roll X4-36-L; hip pitch X6-60; thigh twist X4-36-L; knee X4-36-L; ankles X4-36-L; neck ROBOTIS XM540-W270; tail STS3215. 24 V, 6S 3.3 Ah. There is no AK45 on this body.",
+     "source": "round2/refine/feet_75/candidates/75-M-H-10.json:margins"
+    },
+    "mass_kg": {
+     "value": 14.85,
+     "exact": 14.855,
+     "source": "ROUND2_REVIEW.md:Summary/L23"
+    },
+    "runtime_min": {
+     "value": 36.7,
+     "source": "ROUND2_REVIEW.md:Summary/L23"
+    },
+    "walking_power_w": {
+     "value": 89.8,
+     "source": "round2/refine/MATERIALS.md:\u00a76/L204-205"
+    },
+    "cost_nominal_high": {
+     "value": "$18.5k / $25.7k",
+     "exact": "$18,521 / $25,658",
+     "source": "ROUND2_REVIEW.md:Summary/L23; refine.json"
+    },
+    "governing_limit": {
+     "value": "Knee speed, 0.93 in the Froude 0.05 walk",
+     "source": "ROUND2_REVIEW.md:Summary/L23"
+    },
+    "scorecard_v2": {
+     "value": "Total 0.702 (rank 2). Walk 0.50, turn 0.78, carpet 0.87, robustness 0.69, following 0.58, endurance 0.83, head/tail 0.90, packaging 0.78, cost 0.65. Stressed worst 1.10.",
+     "source": "ROUND2_REVIEW.md:\u00a76/L282"
+    },
+    "stage0_margins": {
+     "grip_mu_needed": {
+      "value": "Nominal walk 0.36; 0.35 rad/s turn 0.41; brisk walk 0.56",
+      "source": "STAGE1_PLAN.md:\u00a75/L109; ROUND2_REVIEW.md:\u00a77.5/L465"
+     },
+     "push_forward_bound_m_s": {
+      "value": 0.589,
+      "source": "STAGE1_PLAN.md:\u00a75/L110"
+     },
+     "stop_one_foot_m_s2": {
+      "value": 1.41,
+      "source": "STAGE1_PLAN.md:\u00a75/L111; ROUND2_REVIEW.md:\u00a77.5/L465"
+     },
+     "knee_speed_ratio_fr05": {
+      "value": 0.93,
+      "note": "The requirement is 8.124 rad/s. The hip pitch (X6-60) is at 0.83.",
+      "source": "STAGE1_PLAN.md:\u00a75/L112; candidate JSON"
+     },
+     "worst_sustained_torque_ratio": {
+      "value": 0.77,
+      "note": "Thigh twist 0.767",
+      "source": "STAGE1_PLAN.md:\u00a75/L113; candidate JSON"
+     },
+     "pack_voltage_note": {
+      "value": "Same ledger note: at 22.2 V the knee's rated speed equals the requirement with the margin",
+      "source": "STAGE1_PLAN.md:\u00a75/L115"
+     },
+     "pack_voltage_derived_not_in_record": "The knee ratio with the margin is 0.93 at 24-25.2 V, 1.01 at 22.2 V and 1.07 at 21 V. The X6-60 hip pitch is 48 V-nominal, so the model credits a higher bus to it: 0.79 at 25.2 V, 0.90 at 22.2 V.",
+     "model_doubts": {
+      "value": "No Stage 0 value",
+      "source": "STAGE1_PLAN.md:\u00a75/L114"
+     }
+    },
+    "other_figures": [
+     {
+      "figure": "Target turns",
+      "value": "Pass, with the thigh twist governing at 0.77. Turn gaps are 4.0 mm (walking turn), 3.98 mm (in place) and 3.52 mm (0.5 rad/s walk).",
+      "source": "ROUND2_REVIEW.md:\u00a77.5/L465; refine.json"
+     },
+     {
+      "figure": "Medium pile with the servos held",
+      "value": "Stands; without the bigger feet it tips",
+      "source": "ROUND2_REVIEW.md:\u00a77.5/L465, \u00a76/L304-309"
+     },
+     {
+      "figure": "Carpet swing",
+      "value": "The targeted bodies meet the 30.1 mm target at 0.18 H with both walks lifted (Hybrid knee 0.99). With the bigger feet, 0.18 H with both walks stays within the drives (knee 0.969) and every walking gate. At 0.19 H the knee is at 1.000 and the knee margin of 0.087 rad fails the gate.",
+      "source": "ROUND2_REVIEW.md:\u00a77.2/L363-368; round2/refine/carpet_lift_feet_75_0.175_0.180_0.190.json"
+     },
+     {
+      "figure": "Floors with PU treads",
+      "value": "Walks and turns on every floor class (turns on laminate have almost no margin). Walks brisk on all floors but vinyl and laminate.",
+      "source": "ROUND2_REVIEW.md:\u00a79/L603-605; MATERIALS.md:\u00a75/L184"
+     },
+     {
+      "figure": "Stage 1 speeds",
+      "value": "Nominal 0.243, brisk 0.351, Fr 0.05 0.496 m/s. Carpet target 30.1 mm. Push pulse 0.29 m/s.",
+      "source": "STAGE1_PLAN.md:\u00a74/L85, L89; decision 7/L181"
+     },
+     {
+      "figure": "Pad pressure",
+      "value": "41 kPa with the larger pads (64 kPa without them)",
+      "source": "MATERIALS.md:\u00a75/L166-167"
+     },
+     {
+      "figure": "Head and tail servos",
+      "value": "Neck W270 at 0.66; tail at 0.79 of peak, so less room for a faster tail",
+      "source": "ROUND2_REVIEW.md:\u00a710/L637-639"
+     },
+     {
+      "figure": "Sensors",
+      "value": "Floor visible from 2.40 m. ToF covers 65 % of the near foot path. Self-occlusion 4.3 %.",
+      "source": "round2/refine/feet_75/review/screening/75-M-H-10_sensors.json"
+     },
+     {
+      "figure": "Fall energy and tip threshold",
+      "value": "About 63 J in a fall; tether tip threshold 12.0 N",
+      "source": "ROUND2_REVIEW.md:\u00a79/L593; MATERIALS.md:\u00a76/L242-244"
+     }
+    ],
+    "meets_or_exceeds": [
+     "Carpet score 0.87 and robustness 0.69, the best of the picks [ROUND2_REVIEW.md:\u00a76/L282, L304-309]",
+     "Runtime 36.7 min, still about twice the requirement [ROUND2_REVIEW.md:Summary/L23]"
+    ]
+   }
+  ],
+  "options": [
+   {
+    "id": "faster_knee",
+    "name": "Faster knee: 15 % knee headroom (RobStride 06 knee)",
+    "what_it_changes": "Re-sizes with 15 % headroom on the knee. Sizing selects a RobStride 06 knee (0.621 kg) in place of the X4-36-L (0.36 kg). No other 60 cm drive changes.",
+    "addresses": [
+     "Knee speed in the Froude 0.05 walk",
+     "Stress-case knee overspeed",
+     "Knee at its limit at the pack's 22.2 V (derived)",
+     "Push recovery, whose Stage 0 bound uses the hip-pitch and knee speeds (A15)"
+    ],
+    "effect": [
+     "60-M-T-10 / 60-M-H-10 knee speed at Fr 0.05: 0.95 to 0.56 and 0.97 to 0.57. The governing limit becomes the hip pitch speed at 0.90. [ROUND2_REVIEW.md:\u00a77.3/L378-379]",
+     "Target-turn ratio 0.76 to 0.83 and 0.77 to 0.84. Friction need in the 0.35 rad/s turn 0.63 to 0.73 and 0.62 to 0.71 (about +15 %). [ROUND2_REVIEW.md:\u00a77.3/L378-379, L385-386]",
+     "Stressed worst 1.12 to 1.08 and 1.15 to 1.09, still over 1. Scorecard 0.68 to 0.63 and 0.66 to 0.63. Every gate passes; tightest joint margin 0.19 / 0.14 rad. [REFINE.md:Comparison/L35-36, L53-54]",
+     "Push bound 0.489 to 0.582 m/s and 0.480 to 0.572 m/s. One-foot stop 1.25 to 1.27 m/s\u00b2. [refine.json:rows[knee_60] vs rows[carpet_60]]",
+     "At 75 cm (targeted, without the bigger feet): knee 0.95 to 0.55 and 0.97 to 0.57. The governing drive becomes the tail servo peak at 0.91 (Tapered) or the thigh twist sustained at 0.84 (Hybrid). Turn friction 0.46 to 0.51 and 0.45 to 0.49. Scorecard 0.675 / 0.682, against 0.671 / 0.664 targeted and 0.702 for the pick. [ROUND2_REVIEW.md:\u00a77.3/L380-381, L387-390, \u00a712 Q3/L683]"
+    ],
+    "mass_change": "+0.74 kg at 60 cm (11.57 vs 10.83; 11.67 vs 10.93); +0.84-0.85 kg at 75 cm",
+    "cost_change_nominal_high": "60 cm: +$20 / +$91 and +$18 / +$88; the nominal shows unchanged at $14.8k / $14.9k. 75 cm: +$73 / +$173 and +$70 / +$169.",
+    "runtime_change": "About -6 min: 46.5 to 40.1 and 46.3 to 40.2 min at 60 cm; 37.6 to 31.4 and 37.3 to 31.5 min at 75 cm",
+    "risks_side_effects": [
+     "Heavier legs cost turning headroom, grip and runtime. The +15 % turn friction undoes most of the narrow stance's 12-14 % gain.",
+     "Runtime uses the model's fallback winding resistance, because RobStride does not publish the RobStride 06's.",
+     "The hip pitch (0.90) binds next, so the gain in Fr 0.05 speed headroom is capped at about 10 %.",
+     "The RobStride 06 is a 48 V-nominal drive run on the 24 V bus (catalog).",
+     "It lowers the scorecard total at 60 cm."
+    ],
+    "applies_to": "both",
+    "tested_on": "60 cm: base-width carpet-ready 60-M-T-10 / 60-M-H-10 (knee_60), not the narrow picks. 75 cm: targeted bodies without the bigger feet (knee_75).",
+    "status": "Not adopted (F23). The owner declined it at 75 cm (P18). Stage 2's single-leg bench will measure the knee's speed in the animal-like walk (ROUND2_REVIEW.md \u00a713 L713-715).",
+    "limit_side": "body (drive)",
+    "source": "ROUND2_REVIEW.md:\u00a77.3/L370-390, \u00a712/L681-683, \u00a714/L726-727; DECISION_LOG.md:F23/L77, P18/L33; REFINE.md:L35-36, L53-56, L100-103; refine.json:rows[knee_60, knee_75]; designlab/data/actuators.json (robstride_06)"
+   },
+   {
+    "id": "pack_voltage_swing",
+    "name": "Supply voltage: where the 6S pack sits in its 21.0-25.2 V swing (25.2 V full, 22.2 V nominal, 21 V near empty)",
+    "what_it_changes": "The leg bus voltage seen by the drives. Stage 0 sized every body at 24 V.",
+    "addresses": [
+     "Knee and hip-pitch speed in the Froude 0.05 walk",
+     "Speed-dependent push bound"
+    ],
+    "effect": [
+     "At 22.2 V the X4-36-L knee's rated speed, 8.04 rad/s, equals the Fr 0.05 requirement with the 15 % margin (8.08-8.12 rad/s). The peak swing speed is about 7.0 rad/s. [STAGE1_PLAN.md:\u00a75/L115]",
+     "Below its nominal voltage a drive's usable speed falls in proportion. [DECISION_LOG.md:E9/L56]",
+     "The model takes no credit above a drive's nominal voltage. The knee and hip pitch on all three bodies are X4-36-L, 24 V-nominal, so 25.2 V gives them nothing over 24 V in either Stage 0 or the Stage 1 envelope. [designlab/catalog.py:speed_at/L77-82; designlab/stage1/drive.py:docstring/L32-35]",
+     "Stage 1 sweeps 25.2 / 22.2 / 21 V in the drive envelope (margin ledger). [STAGE1_PLAN.md:\u00a75/L115]"
+    ],
+    "derived_not_in_record": "Knee ratio with the margin at 24 / 22.2 / 21 V: 60-N-T-10 0.93 / 1.00 / 1.06; 60-N-H-10 0.95 / 1.03 / 1.09; 75-M-H-10 0.93 / 1.01 / 1.07. Without the 15 % margin, 0.87-0.89 at 22.2 V and 0.92-0.94 at 21 V. The 60 cm hip pitch is 0.97 at 22.2 V and 1.02-1.03 at 21 V. Method: the candidate records' speed_req \u00f7 (8.69 rad/s \u00d7 V/24).",
+    "mass_change": "none",
+    "cost_change_nominal_high": "none",
+    "runtime_change": "none",
+    "risks_side_effects": [
+     "Under the planning convention, voltage can only lose speed against the 24 V sizing, never gain it.",
+     "The record does not say what share of a run the bus spends at or above 24 V."
+    ],
+    "applies_to": "both",
+    "tested_on": "Stage 0 at 24 V only; the Stage 1 ledger is pending",
+    "status": "Measured in the Stage 1 margin ledger",
+    "limit_side": "body (electrical / drive speed)",
+    "source": "STAGE1_PLAN.md:\u00a75/L115; DECISION_LOG.md:E9/L56, A11/L95; designlab/catalog.py:L77-82; designlab/stage1/drive.py:L23-35; candidate JSONs margins.knee.speed_req"
+   },
+   {
+    "id": "external_dc_input",
+    "name": "Battery plus an external 24 V DC input (tether hung from a boom)",
+    "what_it_changes": "Adds a 24 V input at the tail base through a priority power path (LTC4417 class). It also adds a regeneration clamp at 27 V or below, a Category 1 E-stop that cuts both sources, a boom-hung tether and an equal-mass dummy pack (0.678 kg) for battery-free runs. The pack stays as the tail-base counterweight.",
+    "addresses": [
+     "On tethered runs the bus comes from the supply, not the pack's 21.0-25.2 V swing. The record does not evaluate this as a knee-speed lever.",
+     "External-power operation (P4)"
+    ],
+    "effect": [
+     "The tether carries the peaks: about 6.2 A at 60 cm and 8.7 A at 75 cm, against means of 3.0 / 3.7 A. 5 m of SJOOW 16/2 drops 0.82 / 1.14 V at those peaks. [MATERIALS.md:\u00a76/L230-233]",
+     "2 N of tether drag raises the brisk friction need on the narrow 60 cm picks from 0.73-0.75 to 0.78-0.85. A trailed 5 m cable drags 1.2-3.6 N, against a 7.1-7.2 N tip threshold. [MATERIALS.md:\u00a76/L242-246]"
+    ],
+    "mass_change": "Not given for the input. The dummy pack is 0.678 kg for battery-free runs.",
+    "cost_change_nominal_high": "About $0.2-0.4k for the input, power path, clamp and puck, plus $0.3-1.5k for a boom if the catch frame cannot carry it (estimates)",
+    "runtime_change": "None on the battery. A plain contactor's 6 W coil would cost about 3.6 min at 60 cm.",
+    "risks_side_effects": [
+     "The clamp must sit at or below 27 V because the 60 cm AK45 drives accept only 15-28 V. The supply's own over-voltage trip is at 27.6-32.4 V.",
+     "Tether drag and snag risk mean the cable is never trailed.",
+     "No practical breakaway connector releases below the tip threshold.",
+     "A balancer stronger than the hanging cable lifts the tail base."
+    ],
+    "applies_to": "both",
+    "tested_on": "Not simulated (design note)",
+    "status": "Adopted (P21)",
+    "limit_side": "body (electrical)",
+    "source": "round2/refine/MATERIALS.md:\u00a76/L224-254; ROUND2_REVIEW.md:\u00a79/L611-618; DECISION_LOG.md:P21/L36, P4/L19"
+   },
+   {
+    "id": "higher_bus_voltage",
+    "name": "Higher bus voltage (7S or 12S) at 60 cm",
+    "what_it_changes": "Raises the leg bus above the 6S range",
+    "addresses": [
+     "Knee speed, only if the drives are credited above 24 V"
+    ],
+    "effect": [
+     "Not studied at 60 cm.",
+     "The 60 cm hip roll and thigh twist are CubeMars AK45-36, rated 15-28 V only; an AK45 cannot share a 12S bus. [DECISION_LOG.md:E9/L56]",
+     "The clamp must be at or below 27 V for the 60 cm AK45 drives. [MATERIALS.md:\u00a76/L236-238]",
+     "On 12S the Pololu D36V50F12 and D24V10F5 cannot be used. [DECISION_LOG.md:E7/L54]",
+     "X-series drives on 12S need the vendor's external bus capacitor and a regeneration clamp below 55 V. [DECISION_LOG.md:A11/L95]",
+     "The model gives no speed credit above 24 V to the X4-36-L knee or hip pitch, so a higher bus does not raise their modelled speed. [designlab/catalog.py:L77-82]",
+     "The only 48 V body in the record is the 75 cm 20 %-headroom Hybrid: 20.0 kg, +$2.8k, a 12S pack with no removal path, and it fails. [ROUND2_REVIEW.md:\u00a78/L520, L540-542]"
+    ],
+    "derived_not_in_record": "Swapping the four AK45-36 (0.349 kg, $185.9 each) for X4-36-L (0.36 kg, $269), as the 75 cm targeted body did, is about +0.044 kg and +$332 in catalog terms (designlab/data/actuators.json). It is not sized or packaged at 60 cm.",
+    "mass_change": "Not in the record",
+    "cost_change_nominal_high": "Not in the record",
+    "runtime_change": "Not in the record",
+    "risks_side_effects": [
+     "Requires replacing the AK45 drives and the regulators",
+     "No modelled speed gain for 24 V-nominal drives"
+    ],
+    "applies_to": "60 cm (the 75 cm pick has no AK45)",
+    "tested_on": "none",
+    "status": "Not studied",
+    "limit_side": "body (electrical)",
+    "source": "DECISION_LOG.md:E7/L54, E9/L56, A11/L95; MATERIALS.md:\u00a76/L236-238; ROUND2_REVIEW.md:\u00a78/L520, L540-542; designlab/catalog.py:L77-82"
+   },
+   {
+    "id": "lighter_liion_pack",
+    "name": "Lighter 6S1P Li-ion pack (Molicel P45B)",
+    "what_it_changes": "Replaces the 6S 3.3 Ah LiPo (0.506 kg; 0.68 kg with cassette) with a 434 g, 97-100 Wh, $60 pack",
+    "addresses": [
+     "Mass (minor)",
+     "Runtime (not a shortfall)"
+    ],
+    "effect": [
+     "72 g lighter. About 54 / 43 min at an estimated 65 % usable energy, or 62 / 50 min at 75 %, against 46.5 / 37.6 min. [MATERIALS.md:\u00a76/L256-260]"
+    ],
+    "mass_change": "-0.072 kg",
+    "cost_change_nominal_high": "$60 for the pack; the cassette redesign is not costed",
+    "runtime_change": "+15-33 % (ROUND2_REVIEW.md:\u00a79/L617-618)",
+    "risks_side_effects": [
+     "The pack is a different shape (65 \u00d7 43 \u00d7 71 mm against 138 \u00d7 42 \u00d7 43 mm, 28 mm taller), so the cassette and removal path must be redesigned and re-screened.",
+     "Hobby packs have no battery-management system.",
+     "Its sloped discharge curve's effect on bus voltage, and so on knee speed, is not assessed."
+    ],
+    "applies_to": "both",
+    "tested_on": "Not simulated",
+    "status": "Not adopted",
+    "limit_side": "body",
+    "source": "MATERIALS.md:\u00a76/L256-261; ROUND2_REVIEW.md:\u00a79/L617-618"
+   },
+   {
+    "id": "toes_x1.15",
+    "name": "Longer toes (x1.15)",
+    "what_it_changes": "Toe length x1.15; no drive changes",
+    "addresses": [
+     "Grip on low-friction floors",
+     "One-foot stop",
+     "Push",
+     "Standing on medium pile with the servos held"
+    ],
+    "effect": [
+     "Friction need falls about 8 %: 60-M-T-10 nominal 0.565 to 0.521, brisk 0.87 to 0.80. On the round-two narrow 60-N-H-10, the turn need goes 0.53 to 0.48. [ROUND2_REVIEW.md:\u00a77.4/L414, L436-437]",
+     "One-foot stop 1.24 to 1.36-1.37 m/s\u00b2. Push 0.48 to 0.51 m/s on 60-N-H-10. [ROUND2_REVIEW.md:\u00a77.4/L412-414]",
+     "Medium pile with the servos held: tips to stands. [refine.json:rows[toes_long].carpet.medium_upright]",
+     "Upper ankle drive (A) 0.76-0.77 to 0.88-0.89 of sustained. It becomes the governing ratio in the target turns (0.87-0.89 against 0.76-0.78). Scorecard 0.67 to 0.62 on 60-N-H-10. [ROUND2_REVIEW.md:\u00a77.4/L414, L437-439]",
+     "The knee's Fr 0.05 ratio moves both ways: 0.96 to 0.93 on 60-N-H-10, and 0.96 to 0.97 on 60-M-T-10. [REFINE.md:L19-21, L10-11]"
+    ],
+    "mass_change": "+0.03 kg (10.96 vs 10.93 kg on 60-N-H-10)",
+    "cost_change_nominal_high": "+$27 / +$40",
+    "runtime_change": "-0.9 min",
+    "risks_side_effects": [
+     "The longer lever loads the upper ankle drive, which then governs the target turns.",
+     "It lowers the natural-walking score."
+    ],
+    "applies_to": "both (tested alone at 60 cm only)",
+    "tested_on": "Round-two 60-M-T-10, 60-M-H-10 and 60-N-H-10, with ankle drives at 0.46 and a 4 mm narrow offset. Not the picks.",
+    "status": "Not adopted at 60 cm (P20)",
+    "limit_side": "body (foot)",
+    "source": "ROUND2_REVIEW.md:\u00a77.4/L412-414, L436-439; REFINE.md:L19-21; refine.json:rows[toes_long]; DECISION_LOG.md:F23/L77, P20/L35"
+   },
+   {
+    "id": "pads_x1.25",
+    "name": "Larger pads (x1.25 in each direction)",
+    "what_it_changes": "Pad size x1.25; no drive changes",
+    "addresses": [
+     "One-foot stop",
+     "Standing on medium pile with the servos held",
+     "Not grip"
+    ],
+    "effect": [
+     "Friction need does not move (0.563 against 0.565; 60-N-H-10 turn 0.53 to 0.53). The stance foot's yaw moment acts over the pads' spread, which a larger pad barely changes. [ROUND2_REVIEW.md:\u00a77.4/L411, L440-441]",
+     "One-foot stop 1.24 to 1.33 m/s\u00b2. Push 0.48 to 0.49 m/s. [ROUND2_REVIEW.md:\u00a77.4/L409-411]",
+     "Medium pile with the servos held: tips to stands on all three 60 cm bodies tested. [refine.json:rows[pads_large].carpet.medium_upright]",
+     "Scorecard 0.669 to 0.666 on 60-N-H-10. The ankle is not loaded; target turns stay at 0.76. [refine.json; ROUND2_REVIEW.md:\u00a77.4/L411]"
+    ],
+    "mass_change": "+0.055 kg",
+    "cost_change_nominal_high": "+$44 / +$64",
+    "runtime_change": "-0.1 min",
+    "risks_side_effects": [
+     "Little in the record.",
+     "The review text does not state the medium-pile result for pads alone; it comes only from refine.json."
+    ],
+    "applies_to": "both",
+    "tested_on": "Round-two 60-M-T-10, 60-M-H-10 and 60-N-H-10",
+    "status": "Not adopted at 60 cm (P20)",
+    "limit_side": "body (foot)",
+    "source": "ROUND2_REVIEW.md:\u00a77.4/L409-411, L440-441; REFINE.md:L22-24; refine.json:rows[pads_large]"
+   },
+   {
+    "id": "toes_and_pads_round2",
+    "name": "Toes x1.15 plus pads x1.25 on the round-two 60 cm bodies",
+    "what_it_changes": "Both foot changes; no drive changes",
+    "addresses": [
+     "Grip",
+     "One-foot stop",
+     "Push",
+     "Standing on medium pile"
+    ],
+    "effect": [
+     "Friction need -8 % (60-N-H-10 turn 0.53 to 0.48). One-foot stop 1.45-1.46 m/s\u00b2 at 60 cm (1.41 at 75 cm), close to the spec's 1.5. Push 0.48 to 0.52 m/s. [ROUND2_REVIEW.md:\u00a77.4/L415-417, L442-444]",
+     "Ankle A at 0.88 governs. Scorecard 0.67 to 0.64 on 60-N-H-10. Stands on medium pile. [ROUND2_REVIEW.md:\u00a77.4/L417; refine.json]"
+    ],
+    "mass_change": "+0.09 kg (11.02 vs 10.93)",
+    "cost_change_nominal_high": "+$70 / +$104",
+    "runtime_change": "-1.0 min",
+    "risks_side_effects": [
+     "The same ankle load as longer toes alone"
+    ],
+    "applies_to": "both",
+    "tested_on": "Round-two 60 cm bodies and round-two 75-M-T-10",
+    "status": "Not adopted at 60 cm (P20)",
+    "limit_side": "body (foot)",
+    "source": "ROUND2_REVIEW.md:\u00a77.4/L415-418, L442-444; REFINE.md:L25-28; refine.json:rows[foot_both]"
+   },
+   {
+    "id": "bigger_feet_carpet_ready_60",
+    "name": "Bigger feet (toes x1.15, pads x1.25) on the carpet-ready 60 cm bodies (feet_60): the closest test to the picks",
+    "what_it_changes": "Bigger feet on the base-width carpet-ready 60-M-T-10 / 60-M-H-10, re-sized and screened",
+    "addresses": [
+     "Grip",
+     "One-foot stop",
+     "Push",
+     "Standing on medium pile"
+    ],
+    "effect": [
+     "Friction need (walk / turn / brisk): 0.55 / 0.63 / 0.86 to 0.51 / 0.58 / 0.78 (Tapered), and 0.54 / 0.62 / 0.83 to 0.50 / 0.57 / 0.76 (Hybrid). [ROUND2_REVIEW.md:\u00a77.5/L462-463]",
+     "One-foot stop 1.25 to 1.46 m/s\u00b2, within 3-6 % of the spec's 1.5. Medium pile: tips to stands. [ROUND2_REVIEW.md:\u00a77.5/L462-463, L467-469]",
+     "Push 0.49 to 0.54 m/s and 0.48 to 0.53 m/s. [ROUND2_REVIEW.md:\u00a77.4/L401-402]",
+     "The upper ankle drive rises from 0.76 to 0.87 of its sustained limit and governs the target turns. [ROUND2_REVIEW.md:\u00a77.5/L469-470]",
+     "The knee's Fr 0.05 ratio goes 0.95 to 0.98 (Tapered) and 0.97 to 0.96 (Hybrid). [ROUND2_REVIEW.md:\u00a77.5/L462-463]",
+     "Scorecard 0.68 to 0.63 and 0.66 to 0.64. [ROUND2_REVIEW.md:\u00a77.5/L472]"
+    ],
+    "mass_change": "+0.09 kg (10.92 vs 10.83; 11.02 vs 10.93)",
+    "cost_change_nominal_high": "+$71 / +$105 and +$70 / +$104; nominal shows $14.8k to $14.9k on the Tapered body",
+    "runtime_change": "-0.9 to -1.0 min (46.5 to 45.6; 46.3 to 45.3)",
+    "risks_side_effects": [
+     "Loads the upper ankle drive to 0.87, which then governs the target turns",
+     "The Tapered body's knee margin at Fr 0.05 shrinks (0.95 to 0.98)",
+     "Lowers the scorecard total, so the owner kept the round-two feet at 60 cm"
+    ],
+    "applies_to": "60 cm",
+    "tested_on": "Base-width carpet-ready bodies; not run on the narrow picks",
+    "status": "Not adopted (P20: bigger feet on the 75 cm body only)",
+    "limit_side": "body (foot)",
+    "source": "ROUND2_REVIEW.md:\u00a77.5/L455-472, \u00a77.4/L401-402, \u00a712 Q5/L686-690; DECISION_LOG.md:F23/L77, P20/L35; REFINE.md:L49-50; refine.json:rows[feet_60]"
+   },
+   {
+    "id": "pad_tread_compound",
+    "name": "Pad tread compound, measured on the owner's floors",
+    "what_it_changes": "The pad tread material. Recommended: cast polyether polyurethane, 50-60 Shore A tread on a 70-80 A core, with 1.0-1.5 mm round studs.",
+    "addresses": [
+     "Grip on low-friction floors"
+    ],
+    "effect": [
+     "Expected PU static \u03bc (source estimates): carpet 0.70-0.85; wood 0.8-0.9; ceramic tile 0.9-1.0; polished concrete 0.6-0.85 dry; laminate and vinyl 0.42-0.8, as low as about 0.50 on vinyl and 0.42 on laminate. Wear 23-40 mm\u00b3 DIN. [MATERIALS.md:\u00a75/L171]",
+     "Against the 60 cm picks' needs (0.47-0.48 / 0.53-0.54 / 0.73-0.75): they walk and turn on carpet, wood, tile and polished concrete. They walk brisk on wood and tile but not on the lowest-grip carpet or concrete. They barely walk on vinyl (nominal walk only) and cannot walk on laminate. [ROUND2_REVIEW.md:\u00a79/L599-607; MATERIALS.md:\u00a75/L183]",
+     "Alternatives: natural gum or SBR 40 A has similar grip but ages (80-120 mm\u00b3). Silicone 30-40 A gives about 1.0 on clean smooth floors, is unknown on carpet, tears easily and picks up dust and lint. Neoprene gives no grip advantage. Hard pads of 90 A and up give 0.35-0.45 on carpet. [MATERIALS.md:\u00a75/L171-175]"
+    ],
+    "mass_change": "Not given",
+    "cost_change_nominal_high": "Bench test about 1 day and $100 (estimate). The tread cost is not given separately.",
+    "runtime_change": "none",
+    "risks_side_effects": [
+     "Every \u03bc is a literature estimate until the pad is measured at the robot's pad pressure (72-74 kPa at 60 cm) on the owner's floors, dry and dusty, before and after two hours of walking.",
+     "Stage 0 uses \u03bc 0.54 (A16)."
+    ],
+    "applies_to": "both",
+    "tested_on": "Literature only",
+    "status": "PU treads adopted (P21); the measurement is pending",
+    "limit_side": "body (pad) and floor",
+    "source": "MATERIALS.md:\u00a75/L164-195; ROUND2_REVIEW.md:\u00a79/L599-610, \u00a713/L710-711; DECISION_LOG.md:P21/L36, F22/L76, A16/L100"
+   },
+   {
+    "id": "narrow_stance",
+    "name": "Narrow stance with every target turn clearing by at least 3 mm (in the 60 cm picks)",
+    "what_it_changes": "Legs move out 6 mm per side from the narrow width (round two: 4 mm). Feet sit 0.36-0.37 H apart (base 0.42 H). Overall width 274 mm (narrow 270 mm, base 279 mm).",
+    "addresses": [
+     "Grip",
+     "Turn clearance against the 1.2-1.6 mm of round two"
+    ],
+    "effect": [
+     "The nominal walk needs 0.48-0.49 against 0.55-0.57 at base width (-13 %); brisk 0.75-0.77 against 0.85-0.87. Turns clear by 3.1-3.5 mm. Scorecard 0.694 / 0.689. [ROUND2_REVIEW.md:\u00a77.4/L419-420, L430-435]",
+     "With the carpet-ready ankle drives (the picks), it needs 12-14 % less friction than the base-width carpet-ready bodies: 0.47-0.48 / 0.53-0.54 / 0.73-0.75 against 0.54-0.55 / 0.62-0.63 / 0.83-0.86. It draws 1.5-1.6 W less (69.3-69.6 W), so it runs about 1 min longer. The knee's Fr 0.05 ratio falls from 0.95-0.97 to 0.93-0.95. Scorecard 0.703 / 0.699 against 0.675 / 0.658. [ROUND2_REVIEW.md:\u00a77.6/L484-489]"
+    ],
+    "mass_change": "About 0: +0.003 kg against the round-two narrow body; -0.01 / -0.02 kg against base-width carpet-ready",
+    "cost_change_nominal_high": "+$2 / +$4 against the round-two narrow body; -$11 / -$18 and -$17 / -$29 against base-width carpet-ready",
+    "runtime_change": "+1 min against base width",
+    "risks_side_effects": [
+     "Turn gaps are 3.4 mm in the target turns against 4.0 mm at base width, and 3.0-3.1 mm against 3.4-4.0 mm in the 0.5 rad/s walking turn.",
+     "The narrowest stance is set by the hip hardware and turning, not by the shell (F16).",
+     "Stage 1 treats the turn gap (the pelvis plate's clearance to the same-side thigh) as not a hardware limit for the controller."
+    ],
+    "applies_to": "60 cm. The 75 cm pick keeps the base stance; the 75 cm narrow bodies cleared the in-place turn by only 0.8-1.0 mm.",
+    "tested_on": "60-N-T-10 / 60-N-H-10",
+    "status": "Adopted (P16)",
+    "limit_side": "body (stance)",
+    "source": "ROUND2_REVIEW.md:\u00a77.4/L419-420, L430-435, \u00a77.6/L476-492, \u00a73/L188, Summary/L37-40; DECISION_LOG.md:F16/L70, F23/L77, F24/L78; STAGE1_PLAN.md:\u00a79 decision 20/L241-247; refine.json"
+   },
+   {
+    "id": "base_width_carpet_ready_60",
+    "name": "Base-width carpet-ready 60 cm instead of narrow (the swap offered in question 1)",
+    "what_it_changes": "Goes back to the 0.42 H stance with the carpet-ready ankle drives",
+    "addresses": [
+     "Wider turn gaps only"
+    ],
+    "effect": [
+     "Turn gaps 4.0 mm in the target turns (3.4-4.0 mm in the 0.5 rad/s walk). Friction need 0.55 / 0.63 / 0.86 (Tapered) and 0.54 / 0.62 / 0.83 (Hybrid), too much for vinyl at any pace. Knee 0.95 / 0.97. Scorecard 0.675 / 0.658. [ROUND2_REVIEW.md:\u00a77.6/L484-491, \u00a79/L607-608, \u00a77.1/L337-338]"
+    ],
+    "mass_change": "+0.01-0.02 kg (10.83 / 10.93 kg)",
+    "cost_change_nominal_high": "$14.8k / $20.6k (Tapered), $14.9k / $20.7k (Hybrid)",
+    "runtime_change": "-1 min (46.5 / 46.3 min)",
+    "risks_side_effects": [
+     "Worse grip on every floor"
+    ],
+    "applies_to": "60 cm",
+    "tested_on": "carpet_60",
+    "status": "Offered, not chosen (P16)",
+    "limit_side": "body (stance)",
+    "source": "ROUND2_REVIEW.md:\u00a77.1/L335-338, \u00a77.6/L484-492, \u00a79/L607-608, \u00a712 Q1/L676-678; MATERIALS.md:\u00a75/L185"
+   },
+   {
+    "id": "carpet_ready_ankle_drives",
+    "name": "Carpet-ready ankle drives at 0.60 of the shank (in the 60 cm picks)",
+    "what_it_changes": "Lowers the ankle drives from 0.46 to 0.60 of the shank with the calf fairing kept. No drive changes. Sized with the nominal walk lifted to 0.19 H and the Fr 0.05 walk as extra sizing walks.",
+    "addresses": [
+     "Carpet swing clearance (target 0.06 H and at least 15 mm above the pile top: 24.3 / 24.1 mm)"
+    ],
+    "effect": [
+     "Knee flexion stop 0.81 rad to 1.05 rad (Tapered) and 1.00 rad (Hybrid); a 0.19 H swing needs about 1.0 rad. [ROUND2_REVIEW.md:\u00a77.1/L328-331]",
+     "On the picks, the nominal walk alone carries 0.19 H (Tapered) or 0.195 H (Hybrid) within the drives (knee 0.84-0.86) and every walking gate. [ROUND2_REVIEW.md:\u00a77.6/L499-503]",
+     "The knee's Fr 0.05 ratio goes from 0.96-0.98 to 0.95-0.97 at base width. [ROUND2_REVIEW.md:\u00a77.1/L340-341]"
+    ],
+    "mass_change": "-0.03 kg",
+    "cost_change_nominal_high": "-$22 / -$37 and -$21 / -$37 against round two",
+    "runtime_change": "+0.1 min",
+    "risks_side_effects": [
+     "A brisk walk lifted for carpet exceeds the knee's speed (1.05-1.08 on the picks).",
+     "The Hybrid needs 0.195 H (0.05 mm short at 0.19 H). With both walks at 0.195 H its knee-range margin is 0.097 rad, under the 0.10 rad gate.",
+     "Knee and ankle clearances at the new station need Stage 2's single-leg bench."
+    ],
+    "applies_to": "60 cm. The 75 cm targeted knee already opens to 0.95-1.00 rad.",
+    "tested_on": "carpet_60; narrow_carpet_60 (the picks)",
+    "status": "Adopted (P19)",
+    "limit_side": "body (knee range)",
+    "source": "ROUND2_REVIEW.md:\u00a77.1/L325-354, \u00a77.6/L494-505, Summary/L26, L34-36, \u00a713/L713-715; DECISION_LOG.md:F20/L74, P19/L34; REFINE.md:L35-36; refine.json; round2/refine/carpet_lift_narrow_carpet_60_0.190_0.195*.json"
+   },
+   {
+    "id": "calf_fairing",
+    "name": "Calf fairing: keep it (adopted) or drop it (exposed ankle drives and push rods)",
+    "what_it_changes": "Removes the calf fairing around the ankle drives",
+    "addresses": [
+     "Mass",
+     "Grip (slightly)",
+     "Look (more robotic)"
+    ],
+    "effect": [
+     "Dropping it makes the 60 cm bodies 0.13-0.14 kg lighter (0.21 kg at 75 cm). Friction need falls about 2-3 %. Every round-two gate passes at 60 cm. [ROUND2_REVIEW.md:\u00a77.4/L405-408, L445-447]",
+     "At 60 cm the knee then stops at 0.80-0.86 rad, still short of the carpet swing, so the ankle drives must move down anyway. [ROUND2_REVIEW.md:\u00a77.4/L447, \u00a712 Q4/L685]"
+    ],
+    "mass_change": "-0.13 to -0.14 kg at 60 cm if dropped",
+    "cost_change_nominal_high": "-$98 / -$173 (60-N-H-10) and -$100 / -$176 (60-M-T-10) if dropped",
+    "runtime_change": "+0.4-0.5 min if dropped",
+    "risks_side_effects": [
+     "Look: exposed ankle drives read as wheels (F10 critique). Easier to service."
+    ],
+    "applies_to": "both",
+    "tested_on": "Round-two 60 cm bodies and 75-M-T-10",
+    "status": "Keep (P19)",
+    "limit_side": "body (look)",
+    "source": "ROUND2_REVIEW.md:\u00a77.4/L405-408, L445-447, \u00a712 Q4/L684-685; DECISION_LOG.md:F23/L77, P19/L34, F10/L64; REFINE.md:L31-34; refine.json:rows[no_calf]"
+   },
+   {
+    "id": "gait_tuning_fr05",
+    "name": "New Froude 0.05 reference walk from gait tuning (F25)",
+    "what_it_changes": "With every drive fixed and the Froude number held at 0.05, a 144-walk grid plus a pattern search over swing lift, duty, stride and crouch",
+    "addresses": [
+     "Knee speed at Fr 0.05 (a new reference walk, plan section 8)"
+    ],
+    "effect": [
+     "60-N-T-10: worst ratio knee 0.929 to hip pitch 0.798; knee speed 0.929 to 0.685. [round2/gait_tune/GAIT_TUNE.md:table/L7]",
+     "60-N-H-10: knee 0.949 to hip pitch 0.793; knee speed 0.949 to 0.699. [GAIT_TUNE.md:L8]",
+     "75-M-H-10: knee 0.935 to thigh twist 0.754; knee 0.754. [GAIT_TUNE.md:L9]",
+     "Tuned 60 cm walks: lift 0.080 H, duty 0.55, stride 0.713 / 0.725 H (from 0.80 H), crouch 0.070 H. Cadence 2.75 to 3.09 and 2.76 to 3.05 steps/s. Hard-floor toe clearance 23.1 to 16.2 mm and 22.9 to 16.1 mm. CoP margin 29.7 to 29.3 mm. Sway 0.103 to 0.090 H and 0.104 to 0.093 H. Peak CoM acceleration 3.21 to 3.03 and 3.22 to 3.05 m/s\u00b2. Walking clearance gates pass. [GAIT_TUNE.md:L7-8, L15-16]"
+    ],
+    "mass_change": "none",
+    "cost_change_nominal_high": "none",
+    "runtime_change": "Not reported",
+    "risks_side_effects": [
+     "The swing sits at the spec's 0.04 H toe clearance with no margin, so it is for flat hard floors only. Thresholds, rugs and carpet keep the higher swing.",
+     "Duty sits at the spec minimum (0.55) and crouch at the search bound (0.07 H).",
+     "Peak CoM acceleration stays about twice the spec's 1.5 m/s\u00b2.",
+     "It is a reference-walk result, not a controller result.",
+     "The look of the higher cadence, shorter stride and deeper crouch is not assessed."
+    ],
+    "applies_to": "both",
+    "tested_on": "The three Stage 1 bodies",
+    "status": "Information only; not applied (P24). Stage 1 keeps envelope.FAST.",
+    "limit_side": "reference walk",
+    "source": "round2/gait_tune/GAIT_TUNE.md:L3-20; DECISION_LOG.md:F25/L79, P24/L39"
+   },
+   {
+    "id": "new_nominal_reference_walk",
+    "name": "New nominal reference walk for sway and acceleration",
+    "what_it_changes": "Would replace the reference walk generator's nominal walk",
+    "addresses": [
+     "Lateral sway",
+     "Start/stop and steady-walk acceleration"
+    ],
+    "effect": [
+     "The nominal reference sways 0.164-0.169 H against the spec's 0.12 H. Lowering the sway gain to 0.7 only brings it to 0.162-0.166 H, because the ZMP correction restores it; gating on sway would need a new reference walk. [STAGE1_PLAN.md:\u00a79 decision 9/L185-187, G7/L75]",
+     "In steady walking the reference already peaks at 2.1-2.2 m/s\u00b2 against the spec's 1.5. [STAGE1_PLAN.md:\u00a79 decision 10/L188-190]",
+     "Gait tuning does not fix the acceleration (about 3 m/s\u00b2 in every Fr 0.05 walk searched). [GAIT_TUNE.md:L20]"
+    ],
+    "mass_change": "none",
+    "cost_change_nominal_high": "none",
+    "runtime_change": "none",
+    "risks_side_effects": [
+     "Not designed; no figures"
+    ],
+    "applies_to": "both",
+    "tested_on": "none",
+    "status": "Finding for the owner; reported, not gated, in Stage 1",
+    "limit_side": "reference walk / controller",
+    "source": "STAGE1_PLAN.md:\u00a79/L185-190, \u00a73/L75, \u00a74/L97; GAIT_TUNE.md:L20; BEHAVIOR_SPEC.md:\u00a71/L19-20"
+   },
+   {
+    "id": "aluminium_2.54mm",
+    "name": "6061-T6 plates at 2.54 mm (brackets stay 3 mm)",
+    "what_it_changes": "Non-bracket frame plates from 3 mm to 2.54 mm",
+    "addresses": [
+     "Mass",
+     "Torque headroom (not knee speed)"
+    ],
+    "effect": [
+     "With fixed drives on the carpet-ready 60-M-T-10: -0.17 kg, walking power 70.8 to 70.1 W, runtime 46.5 to 47.0 min, knee speed unchanged at 0.95, highest leg torque 0.76 to 0.75, neck and tail unchanged (0.76 / 0.52). [MATERIALS.md:\u00a72/L87, L90]",
+     "Rigidity is 0.61\u00d7 that of 3 mm, close to 3 mm carbon's 0.67\u00d7. [MATERIALS.md:\u00a73/L110]"
+    ],
+    "mass_change": "-0.17 kg at 60 cm (-0.16 kg at 75 cm)",
+    "cost_change_nominal_high": "$0 / $0",
+    "runtime_change": "+0.5 min",
+    "risks_side_effects": [
+     "Stiffness: allowed only where a leg bench test confirms it",
+     "Not re-run on the picks"
+    ],
+    "applies_to": "both",
+    "tested_on": "60-M-T-10 carpet-ready and 75-M-T-10 targeted, with fixed drives",
+    "status": "Adopted where a leg bench test allows (P21)",
+    "limit_side": "body (mass)",
+    "source": "MATERIALS.md:\u00a72/L90, \u00a73/L110, L123-125; ROUND2_REVIEW.md:\u00a79/L569, L585, Summary/L42-45; DECISION_LOG.md:P21/L36, F22/L76"
+   },
+   {
+    "id": "pa11_walls_x0.75",
+    "name": "MJF PA11 coverings with graded walls (1.4 / 1.2 / 1.0 mm, about x0.75)",
+    "what_it_changes": "Covering material and wall thickness. EVA foam bumpers go at strike points and stretch fabric only over moving gaps.",
+    "addresses": [
+     "Mass",
+     "Neck and tail servo headroom (livelier head motion)",
+     "Torque headroom and runtime (not knee speed)"
+    ],
+    "effect": [
+     "With fixed drives on the carpet-ready 60-M-T-10: -0.31 kg (about -0.26 kg if supports must rise to 25 %). Walking power 70.8 to 69.0 W; runtime 46.5 to 47.7 min. Neck servo 0.76 to 0.70; tail peak 0.52 to 0.45. Highest leg torque 0.76 to 0.74. Knee speed unchanged at 0.95. [MATERIALS.md:\u00a72/L87, L93, \u00a74/L149-154]",
+     "PA11 has 2.5\u00d7 the elongation and 1.4\u00d7 the notched impact strength of PA12, so walls dent instead of cracking (36 J falls at 60 cm). [ROUND2_REVIEW.md:\u00a79/L591-595]"
+    ],
+    "mass_change": "-0.31 kg at 60 cm (-0.52 kg at 75 cm)",
+    "cost_change_nominal_high": "+$20 / +$40 at 60 cm (+$30 / +$60 at 75 cm)",
+    "runtime_change": "+1.2 min",
+    "risks_side_effects": [
+     "Thinner walls keep about 44 % of today's bending stiffness, so add ribs every 50-80 mm (estimate).",
+     "Not re-run on the picks, and not simulated together with the 2.54 mm plates."
+    ],
+    "applies_to": "both",
+    "tested_on": "60-M-T-10 carpet-ready and 75-M-T-10 targeted, with fixed drives",
+    "status": "Adopted (P21)",
+    "limit_side": "body (mass)",
+    "source": "MATERIALS.md:\u00a72/L93, \u00a74/L137, L149-160, Short answers/L39-47; ROUND2_REVIEW.md:\u00a79/L571, L591-598, \u00a710/L639-641; DECISION_LOG.md:P21/L36, F22/L76"
+   },
+   {
+    "id": "pa12_walls_x0.75",
+    "name": "PA12 covering walls x0.75 (the alternative to PA11)",
+    "what_it_changes": "Thinner PA12 walls",
+    "addresses": [
+     "Mass"
+    ],
+    "effect": [
+     "-0.35 kg; runtime 47.9 min; neck 0.69; tail 0.44; knee 0.95. [MATERIALS.md:\u00a72/L92; ROUND2_REVIEW.md:\u00a79/L570]"
+    ],
+    "mass_change": "-0.35 kg at 60 cm",
+    "cost_change_nominal_high": "-$0.3k / -$0.5k",
+    "runtime_change": "+1.4 min",
+    "risks_side_effects": [
+     "Notch-sensitive.",
+     "Graded PA12 keeps only 40-60 % of the knock tolerance of 1.6 mm walls, and the largest panels risk warping."
+    ],
+    "applies_to": "both",
+    "tested_on": "60-M-T-10 carpet-ready",
+    "status": "Not recommended (PA11 chosen)",
+    "limit_side": "body (mass)",
+    "source": "MATERIALS.md:\u00a72/L92, \u00a74/L135-136; ROUND2_REVIEW.md:\u00a79/L570"
+   },
+   {
+    "id": "carbon_plates",
+    "name": "Carbon-fibre frame plates (3 mm quasi-isotropic, or 3.99 mm at equal rigidity)",
+    "what_it_changes": "Frame plate material",
+    "addresses": [
+     "Mass"
+    ],
+    "effect": [
+     "3 mm: -0.39 kg, runtime 47.6 min, rigidity 0.67\u00d7 today's. At equal rigidity (3.99 mm stock): -0.20 kg. With PA11 walls: -0.70 kg. The knee speed stays 0.95 in every case. [MATERIALS.md:\u00a72/L88-89, L95; ROUND2_REVIEW.md:\u00a79/L567-568, L572]"
+    ],
+    "mass_change": "-0.20 to -0.39 kg at 60 cm",
+    "cost_change_nominal_high": "+$1.6k / +$2.3k (\u00b150 % until quoted)",
+    "runtime_change": "+0.5 to +1.1 min",
+    "risks_side_effects": [
+     "Cannot hold bearing fits or threads, so it needs bonded aluminium inserts.",
+     "Delaminates out of sight in a fall.",
+     "The quasi-isotropic plate is not a stock 2-4 day part."
+    ],
+    "applies_to": "both",
+    "tested_on": "60-M-T-10 carpet-ready",
+    "status": "Not recommended for prototype 1",
+    "limit_side": "body (mass)",
+    "source": "MATERIALS.md:\u00a72/L88-89, L94-95, \u00a73/L112, L123; ROUND2_REVIEW.md:\u00a79/L567-568, L572, L582-590, Summary/L42-45"
+   },
+   {
+    "id": "bracket_7075",
+    "name": "7075-T6 hip and thigh brackets",
+    "what_it_changes": "Bracket alloy",
+    "addresses": [
+     "Fall robustness (brackets that bend)"
+    ],
+    "effect": [
+     "1.8\u00d7 the yield of 6061. About 10 % more mass on 1/8 in stock: +27 g at 60 cm, +42 g at 75 cm. [MATERIALS.md:\u00a73/L111, L123-125]"
+    ],
+    "mass_change": "+0.027 kg at 60 cm",
+    "cost_change_nominal_high": "About 30 % more bracket cost; no absolute figure given",
+    "runtime_change": "Not given",
+    "risks_side_effects": [
+     "No mass saving"
+    ],
+    "applies_to": "both",
+    "tested_on": "Not simulated",
+    "status": "Optional",
+    "limit_side": "body",
+    "source": "MATERIALS.md:\u00a73/L111, L123-125; ROUND2_REVIEW.md:\u00a79/L587"
+   },
+   {
+    "id": "moulded_carbon_skins",
+    "name": "Moulded carbon skins on the skull, jaw, neck and tail",
+    "what_it_changes": "Head and tail coverings",
+    "addresses": [
+     "Neck servo relief, for example for a larger skull"
+    ],
+    "effect": [
+     "Shells of 0.44-0.56 mm. Research estimate: -0.61 kg on the large panels of 60-N-H-10. On the 75 cm larger-skull body's head, neck and tail, about -0.46 kg and -30 % of the neck payload. [MATERIALS.md:\u00a74/L140, L156-160]"
+    ],
+    "mass_change": "About -0.46 to -0.61 kg (estimates)",
+    "cost_change_nominal_high": "$2.4-7.1k with moulds (60-N-H-10); $1.4-4.1k for the 75 cm head, neck and tail",
+    "runtime_change": "Not given",
+    "risks_side_effects": [
+     "Brittle at 1.5 % strain unless aramid plies go in knock zones",
+     "Lead time 3-8 weeks",
+     "Not needed with the W270 neck servo at 0.67"
+    ],
+    "applies_to": "both",
+    "tested_on": "Research estimate only",
+    "status": "Not recommended now",
+    "limit_side": "body",
+    "source": "MATERIALS.md:\u00a74/L140, L156-160; ROUND2_REVIEW.md:\u00a79/L596-598"
+   },
+   {
+    "id": "tether_only",
+    "name": "Tether-only power (no pack or cassette)",
+    "what_it_changes": "Removes the pack, which is also the tail-base counterweight",
+    "addresses": [
+     "Mass"
+    ],
+    "effect": [
+     "With fixed drives: -0.61 kg. The CoM moves from 34 to 49 mm ahead of the hip. The hip-pitch hold rises from 3.11 to 4.27 N\u00b7m (+37 %). The knee goes to 1.07 of its speed limit (1.03 at 75 cm). [MATERIALS.md:\u00a72/L96, \u00a76/L211-218]",
+     "Re-sized at 60 cm it takes an X4-P12-10 knee (0.91 sustained), comes out 0.69 kg lighter and scores 0.59. [MATERIALS.md:\u00a72/L101-102; REFINE.md:L39, L86]"
+    ],
+    "mass_change": "-0.61 kg (fixed drives)",
+    "cost_change_nominal_high": "-$0.1k / -$0.1k",
+    "runtime_change": "Tethered",
+    "risks_side_effects": [
+     "Loses the counterweight; putting it back takes back most of the 0.6 kg saving",
+     "Tether drag, snag and tip risk"
+    ],
+    "applies_to": "both",
+    "tested_on": "60-M-T-10 carpet-ready and 75-M-T-10 targeted",
+    "status": "Not recommended (P21)",
+    "limit_side": "body",
+    "source": "MATERIALS.md:\u00a72/L96, L101-103, \u00a76/L211-218; ROUND2_REVIEW.md:\u00a79/L573, L611-614, Summary/L46-47; DECISION_LOG.md:F22/L76; REFINE.md:L39, L139"
+   },
+   {
+    "id": "blanket_headroom_60",
+    "name": "Blanket 20 % headroom on every drive at 60 cm",
+    "what_it_changes": "RobStride 06 hip pitch and knee; X4-36-L thigh twist and ankles; X4-36-L hip roll on the base-width bodies (the narrow ones keep the AK45-36)",
+    "addresses": [
+     "Every speed and torque margin"
+    ],
+    "effect": [
+     "12.5-12.7 kg. Governing ratio 0.77-0.78. Fr 0.05 hip pitch 0.78-0.81. Push 0.58 m/s; stop 1.27 m/s\u00b2. [ROUND2_REVIEW.md:\u00a77.4/L421-424, L448-452]",
+     "Stressed worst 1.01-1.05. [REFINE.md:L15-18]",
+     "Every body fails clearance: the thigh meets the calf fairing in the brisk walk at the search's ankle limit of 0.50 (tightest joint margin -0.02 to -0.13 rad). [ROUND2_REVIEW.md:\u00a77.4/L421-424, L450-452]"
+    ],
+    "mass_change": "+1.7 to +1.8 kg",
+    "cost_change_nominal_high": "+$166 / +$326 (60-N-T-10) and +$166 / +$325 (60-N-H-10)",
+    "runtime_change": "-10 to -11 min (35-36.5 min)",
+    "risks_side_effects": [
+     "The larger drives no longer fit"
+    ],
+    "applies_to": "60 cm",
+    "tested_on": "60-M-T-10, 60-M-H-10, 60-N-T-10, 60-N-H-10 (round two)",
+    "status": "Not pursued",
+    "limit_side": "body (packaging)",
+    "source": "ROUND2_REVIEW.md:\u00a77.4/L421-424, L448-452; REFINE.md:L15-18, L62-65; DECISION_LOG.md:F23/L77; refine.json:rows[headroom_60]"
+   },
+   {
+    "id": "smaller_60",
+    "name": "A 5-10 % smaller 60 cm body (57 or 54 cm)",
+    "what_it_changes": "Body scale",
+    "addresses": [
+     "Mass"
+    ],
+    "effect": [
+     "57 cm: 10.58 / 10.68 kg (-0.27 to -0.28 kg), knee 0.98 at Fr 0.05, $14.6k. It fails clearance: the hip-roll motor overlaps the power board by 1.6-22.7 mm and the ToF sensors overlap by 0.6-2.0 mm. [ROUND2_REVIEW.md:\u00a78/L517, L524-529]",
+     "54 cm: -0.56 to -0.57 kg, knee 1.02-1.04 (over), $14.3k. It fails clearance and the Fr 0.05 gate. [ROUND2_REVIEW.md:\u00a78/L518, L529-531]"
+    ],
+    "mass_change": "-0.3 to -0.6 kg",
+    "cost_change_nominal_high": "-$0.2k to -$0.5k nominal",
+    "runtime_change": "+1.5 to +3.7 min",
+    "risks_side_effects": [
+     "About half the mass is catalog hardware that does not shrink.",
+     "For the same Froude number a smaller robot steps faster, so the knee gets worse."
+    ],
+    "applies_to": "60 cm",
+    "tested_on": "Size study",
+    "status": "Not pursued (F19)",
+    "limit_side": "body",
+    "source": "ROUND2_REVIEW.md:\u00a78/L514-535, Q1/L57-58; DECISION_LOG.md:F19/L73"
+   },
+   {
+    "id": "body_75cm",
+    "name": "The 75 cm body: 75-M-H-10 with the targeted drives and bigger feet (pick 2)",
+    "what_it_changes": "Switches size class. Four drive upgrades (hip roll and thigh twist to X4-36-L, hip pitch to X6-60, neck to XM540-W270) and toes x1.15, pads x1.25.",
+    "addresses": [
+     "Grip",
+     "Push",
+     "Stop",
+     "Standing on medium pile",
+     "Brisk walk with the carpet swing",
+     "Carpet score"
+    ],
+    "effect": [
+     "Grip need 0.36 / 0.41 / 0.56, against 0.48 / 0.54 / 0.75 and 0.47 / 0.53 / 0.73. [STAGE1_PLAN.md:\u00a75/L109]",
+     "Push bound 0.589 against 0.487 / 0.478 m/s. One-foot stop 1.41 against 1.25 m/s\u00b2. [STAGE1_PLAN.md:\u00a75/L110-111]",
+     "Stands on medium pile with the servos held. [ROUND2_REVIEW.md:\u00a77.5/L465]",
+     "Carries the carpet swing on both walks at 0.18 H within the drives (knee 0.969) and every walking gate. [carpet_lift_feet_75_0.175_0.180_0.190.json; ROUND2_REVIEW.md:\u00a77.2/L367]",
+     "Walks and turns on every floor class (turns on laminate have almost no margin); brisk on all but vinyl and laminate. [ROUND2_REVIEW.md:\u00a79/L603-605]",
+     "The knee at Fr 0.05 is still 0.93, the same binding limit as 60-N-T-10. Stressed worst 1.10 against 1.09 / 1.12. Scorecard 0.702 against 0.703 / 0.699, a tie. Carpet score 0.87 against 0.70 / 0.69; robustness 0.69 against 0.64 / 0.62. [ROUND2_REVIEW.md:\u00a76/L281-283, Summary/L23]",
+     "Tail servo at 0.79 of peak, so less room for a faster tail; neck 0.66. [ROUND2_REVIEW.md:\u00a710/L637-639]"
+    ],
+    "mass_change": "+3.95 to +4.04 kg (14.85 against 10.81 / 10.91 kg)",
+    "cost_change_nominal_high": "+$3.7k / +$5.0-5.1k: $18.5k / $25.7k against $14.8k / $20.5-20.6k. Exactly +$3,712 / +$5,114 against 60-N-T-10 and +$3,673 / +$5,036 against 60-N-H-10.",
+    "runtime_change": "-10.6 to -10.8 min (36.7 against 47.4-47.6)",
+    "risks_side_effects": [
+     "Above the owner's roughly $15k; the high estimate of $25.7k is over P4's $20k.",
+     "Fall energy 63 J against 36 J.",
+     "The knee's speed still governs.",
+     "Only the Hybrid works: the 75 cm Tapered body with the same feet re-sizes to an AK45-36 thigh twist at 1.00 (score 0.551).",
+     "The targeted drives are required, because the round-two 75 cm drives fail Fr 0.05 (hip pitch 1.05-1.08)."
+    ],
+    "applies_to": "75 cm",
+    "tested_on": "feet_75",
+    "status": "One of the three Stage 1 bodies (P16, P18, P20)",
+    "limit_side": "body",
+    "source": "ROUND2_REVIEW.md:Summary/L22-24, \u00a74/L206-218, \u00a76/L281-283, L304-309, \u00a77.2/L356-368, \u00a77.5/L455-472, \u00a79/L593, L603-607, \u00a710/L636-639; STAGE1_PLAN.md:\u00a75/L109-113; DECISION_LOG.md:P16/L31, P18/L33, P20/L35, F19/L73, F24/L78; refine.json; carpet_lift_feet_75_0.175_0.180_0.190.json"
+   },
+   {
+    "id": "body_80cm",
+    "name": "80 cm body",
+    "what_it_changes": "Size class",
+    "addresses": [
+     "None beyond the 75 cm body"
+    ],
+    "effect": [
+     "Sized like round two: 15.64 / 15.81 kg, with the hip pitch over at Fr 0.05 (1.03-1.04). With 20 % headroom it reaches 22.15 / 22.25 kg and has no battery removal path. Nothing at 80 cm beats the targeted 75 cm body. [ROUND2_REVIEW.md:\u00a78/L521-522, L542-546]"
+    ],
+    "mass_change": "+0.7 to +0.8 kg over 75 cm as sized",
+    "cost_change_nominal_high": "$18.0k / $18.3k nominal as sized",
+    "runtime_change": "35.6-36.2 min",
+    "risks_side_effects": [
+     "Fails the Fr 0.05 gate as sized"
+    ],
+    "applies_to": "80 cm",
+    "tested_on": "Size study",
+    "status": "Not pursued (F19)",
+    "limit_side": "body",
+    "source": "ROUND2_REVIEW.md:\u00a78/L521-522, L537-546; DECISION_LOG.md:F19/L73"
+   },
+   {
+    "id": "controller_floor_limits_tail_yaw",
+    "name": "Controller: floor-dependent speed and yaw-rate limits; tail cancels stance-foot yaw",
+    "what_it_changes": "Controller behaviour on slippery floors",
+    "addresses": [
+     "Grip on low-friction floors"
+    ],
+    "effect": [
+     "A controller may need to walk and turn more gently on slippery floors. [ROUND2_REVIEW.md:\u00a72/L165-166]",
+     "The controller needs floor-dependent speed and yaw-rate limits, and the tail can cancel some of the stance foot's yaw. [MATERIALS.md:\u00a75/L188-189]",
+     "F21's remedies include a controller that cancels yaw with the tail. [DECISION_LOG.md:F21/L75]",
+     "No figures are given. At 60 cm the tail servo has headroom (0.43-0.48 of peak). [ROUND2_REVIEW.md:\u00a710/L637-638]"
+    ],
+    "mass_change": "none",
+    "cost_change_nominal_high": "none",
+    "runtime_change": "none",
+    "risks_side_effects": [
+     "Unquantified. Speed limits trade away brisk walking on those floors."
+    ],
+    "applies_to": "both",
+    "tested_on": "none",
+    "status": "Not designed. Stage 1 reports the brisk and Fr 0.05 walks at \u03bc 0.54, not gated.",
+    "limit_side": "controller",
+    "source": "ROUND2_REVIEW.md:\u00a72/L162-166; MATERIALS.md:\u00a75/L188-189; DECISION_LOG.md:F21/L75; STAGE1_PLAN.md:\u00a74/L97"
+   },
+   {
+    "id": "controller_stop_strategy",
+    "name": "Controller: stop at the spec limit with both feet down or a step",
+    "what_it_changes": "Stopping strategy",
+    "addresses": [
+     "Hard stop at 1.5 m/s\u00b2"
+    ],
+    "effect": [
+     "One foot holds only 1.25 m/s\u00b2 (60 cm), so a stop at the spec limit needs double support or a step; gentler stops can be held on one foot. [ROUND2_REVIEW.md:\u00a72/L178-180; DECISION_LOG.md:F12/L66]",
+     "The Stage 1 stop gate allows double support or a step. [STAGE1_PLAN.md:\u00a74/L87]",
+     "The stop reference ends forward motion after 0.76-0.79 strides and reaches full rest after 1.55-1.57 strides. [STAGE1_PLAN.md:\u00a79 decision 18/L236-238]"
+    ],
+    "mass_change": "none",
+    "cost_change_nominal_high": "none",
+    "runtime_change": "none",
+    "risks_side_effects": [
+     "Stage 1 is pending"
+    ],
+    "applies_to": "both",
+    "tested_on": "Stage 1 start/stop panel",
+    "status": "In the Stage 1 gate",
+    "limit_side": "controller",
+    "source": "ROUND2_REVIEW.md:\u00a72/L178-180; STAGE1_PLAN.md:\u00a74/L87, \u00a79/L236-238; DECISION_LOG.md:F12/L66"
+   },
+   {
+    "id": "controller_pile_balance_carpet_fit",
+    "name": "Controller: active ankle balance on medium and high pile; a carpet-aware tracker fit",
+    "what_it_changes": "Balance control on compliant floors and fitting the tracker's gains with carpet in the mix",
+    "addresses": [
+     "Standing on thick pile",
+     "Closed-loop carpet walking"
+    ],
+    "effect": [
+     "A rigid stance holds only on piles that compress less than 5.6-6.7 mm at 60 cm; medium and high pile compress 9.4 and 14.1 mm, so standing on them needs active ankle balance. [DECISION_LOG.md:F13/L67; ROUND2_REVIEW.md:\u00a72/L172-173]",
+     "Stage 1: R2, fitted on hard floor only, fell in every start on robot_floor_carpet and low pile. 60-N-T-10 fell at 3.3-3.5 s on carpet and 3.0-3.1 s on low pile; 75-M-H-10 at 4.9-5.0 s and 4.4 s. Sliding friction alone is not the cause. A carpet-aware refit takes about 6.5 h and is the first follow-up if R3 does not walk on carpet. [STAGE1_PLAN.md:\u00a79 decision 23/L281-295]"
+    ],
+    "mass_change": "none",
+    "cost_change_nominal_high": "none",
+    "runtime_change": "none",
+    "risks_side_effects": [
+     "Carpet damping is not sourced (A16), so medium and high pile are reported, not gated."
+    ],
+    "applies_to": "both",
+    "tested_on": "Stage 1 (pending)",
+    "status": "Stage 1 pending",
+    "limit_side": "controller",
+    "source": "DECISION_LOG.md:F13/L67, A16/L100; ROUND2_REVIEW.md:\u00a72/L150, L172-173; STAGE1_PLAN.md:\u00a79/L183-184, L281-295"
+   },
+   {
+    "id": "knee_transmission",
+    "name": "Knee transmission change (named in plan section 8; not in the round-two record)",
+    "what_it_changes": "Would change the knee's effective reduction to trade torque for speed",
+    "addresses": [
+     "Knee speed in the Froude 0.05 walk"
+    ],
+    "effect": [
+     "The record has no transmission design. The only knee change studied is the RobStride 06 swap.",
+     "Context from the candidate records: the picks' X4-36-L knee (36:1) runs at 0.51 / 0.49 of its sustained torque and 0.34 / 0.33 of its peak, but 0.93 / 0.95 of its speed. The hip pitch, at 0.90 / 0.89, is the next speed limit. [narrow_carpet_60 candidate JSON margins]",
+     "The faster X4-P12-10 (12.5:1) was chosen for the knee only on the lighter tether-only body, at 0.91 sustained. [MATERIALS.md:\u00a72/L101-102; REFINE.md:L86]"
+    ],
+    "derived_not_in_record": "The picks' knees need 3.05 / 2.90 N\u00b7m sustained, against the X4-P12-10's 2.28 N\u00b7m planning limit, so that drive alone cannot carry the battery bodies' knee.",
+    "mass_change": "Not in the record",
+    "cost_change_nominal_high": "Not in the record",
+    "runtime_change": "Not in the record",
+    "risks_side_effects": [
+     "Reflected inertia, packaging at the knee, backlash: none is assessed"
+    ],
+    "applies_to": "both",
+    "tested_on": "none",
+    "status": "Not studied",
+    "limit_side": "body (drive)",
+    "source": "STAGE1_PLAN.md:\u00a78/L163; round2/refine/narrow_carpet_60/candidates/60-N-T-10.json and 60-N-H-10.json:margins.knee, margins.hip_pitch; MATERIALS.md:\u00a72/L101-102; REFINE.md:L86"
+   },
+   {
+    "id": "larger_skull",
+    "name": "Larger skull (look variant)",
+    "what_it_changes": "Skull 23.1-23.2 cm long at 60 cm (base 20.4-20.5 cm)",
+    "addresses": [
+     "Proportions: the head reads small against a long trunk (F5)"
+    ],
+    "effect": [
+     "At 60 cm the neck servo rises from 0.76 to 0.85-0.86 of its rating. On the Hybrid the Fr 0.05 walk goes just over the knee limit (1.00), and 60-M-H-10-bighead fails the Fr 0.05 gate. The bodies come out 0.03-0.09 kg lighter, because sizes are matched at the crown. [ROUND2_REVIEW.md:\u00a73/L189, L193-194, \u00a71/L112-113]",
+     "At 75 cm it selects the XM540-W270 neck at 0.76. [ROUND2_REVIEW.md:\u00a73/L189]"
+    ],
+    "mass_change": "-0.03 to -0.09 kg",
+    "cost_change_nominal_high": "Not given",
+    "runtime_change": "Not given",
+    "risks_side_effects": [
+     "Costs knee and neck margin at 60 cm"
+    ],
+    "applies_to": "both",
+    "tested_on": "Round-two variants (not on the picks)",
+    "status": "Not carried into the picks",
+    "limit_side": "body (look)",
+    "source": "ROUND2_REVIEW.md:\u00a73/L189, L193-194, \u00a71/L112-113; DECISION_LOG.md:F5/L59, F10/L64, P13/L28"
+   },
+   {
+    "id": "compact_proportions",
+    "name": "Compact proportions (look variant)",
+    "what_it_changes": "Shorter legs, tail and neck: length 141.6 / 136.7 cm at 60 cm (base 151.0 / 144.9 cm)",
+    "addresses": [
+     "Proportions"
+    ],
+    "effect": [
+     "The CoM moves to 0.12-0.13 H ahead of the hip (base 0.09-0.10 H), so the hip-pitch hold rises 35-40 %. The Tapered body exceeds the knee limit at Fr 0.05 (1.08) and fails the gate. [ROUND2_REVIEW.md:\u00a73/L190, \u00a71/L112-113]"
+    ],
+    "mass_change": "Not given",
+    "cost_change_nominal_high": "Not given",
+    "runtime_change": "Not given",
+    "risks_side_effects": [
+     "Knee overspeed"
+    ],
+    "applies_to": "both",
+    "tested_on": "Round-two variants",
+    "status": "Not carried",
+    "limit_side": "body (look)",
+    "source": "ROUND2_REVIEW.md:\u00a73/L190, \u00a71/L112-113"
+   },
+   {
+    "id": "level_posture",
+    "name": "Level 0\u00b0 posture (look variant)",
+    "what_it_changes": "The same body pitched level: crown 53.5-53.6 cm",
+    "addresses": [
+     "Proportions closer to modern mounted reconstructions"
+    ],
+    "effect": [
+     "Leg loads, runtime and cost are within 1 % of the base; the tail servo's load is 4 % higher. [ROUND2_REVIEW.md:\u00a73/L191]"
+    ],
+    "mass_change": "About 0",
+    "cost_change_nominal_high": "Within 1 %",
+    "runtime_change": "Within 1 %",
+    "risks_side_effects": [
+     "The owner chose 10\u00b0 (alert stance)"
+    ],
+    "applies_to": "both",
+    "tested_on": "Round-two variants",
+    "status": "Not chosen (P12)",
+    "limit_side": "body (look)",
+    "source": "ROUND2_REVIEW.md:\u00a73/L191; DECISION_LOG.md:P12/L27, P15/L30"
+   },
+   {
+    "id": "head_camera_alternatives",
+    "name": "Head camera alternatives: a low forward camera for the near floor, or the camera moved forward and lower",
+    "what_it_changes": "Sensor layout",
+    "addresses": [
+     "Near-floor view for obstacle avoidance"
+    ],
+    "effect": [
+     "Not quantified. A low forward camera adds cost, power and wiring. Moving the camera gives a better floor view and less of a close person's torso. [ROUND2_REVIEW.md:\u00a712 Q7/L695-697]"
+    ],
+    "mass_change": "Not given",
+    "cost_change_nominal_high": "Not given",
+    "runtime_change": "Not given",
+    "risks_side_effects": [
+     "The owner chose to keep the camera in the skull roof"
+    ],
+    "applies_to": "both",
+    "tested_on": "none",
+    "status": "Not chosen (P22)",
+    "limit_side": "body (sensors)",
+    "source": "ROUND2_REVIEW.md:\u00a712/L695-697, \u00a75/L232-238; DECISION_LOG.md:P22/L37"
+   }
+  ],
+  "shortfalls": [
+   {
+    "id": "SF1_fr05_walk",
+    "behaviour_or_look": "Animal-like walk, Froude 0.05 (0.446 / 0.444 m/s)",
+    "shortfall_60cm": "Marginal. Within the drives at 24 V with the 1.15 speed margin, but thin. At the pack's nominal 22.2 V it is at its limit, and the stress case is over.",
+    "severity": "marginal",
+    "evidence": [
+     "Knee at 0.93 (60-N-T-10) and 0.95 (60-N-H-10) of its speed limit, with the margin [ROUND2_REVIEW.md:Summary/L22, L24; STAGE1_PLAN.md:\u00a75/L112]",
+     "Stress case (robot 10 % heavier, drives 15 % weaker and slower): the knee runs 9-12 % over; stressed worst 1.09 / 1.12 [ROUND2_REVIEW.md:\u00a76/L281, L283, L315-317]",
+     "At 22.2 V the knee's rated speed, 8.04 rad/s, equals the requirement with the margin, 8.08-8.12 rad/s [STAGE1_PLAN.md:\u00a75/L115]. Derived: about 1.00 (Tapered) and 1.03 (Hybrid) at 22.2 V, and 1.06-1.09 at 21 V.",
+     "The untuned pilot tracker, on the true CoM, fell at Fr 0.05 on the 60 cm bodies [STAGE1_PLAN.md:\u00a71/L27-28]",
+     "The limit is kinematic, set by the walk's geometry and timing, so lighter materials leave it at 0.94-0.95 [ROUND2_REVIEW.md:\u00a79/L575-577; DECISION_LOG.md:F22/L76]",
+     "The hip pitch, at 0.90, binds next [ROUND2_REVIEW.md:\u00a77.3/L378-379]",
+     "The Fr 0.05 reference walk runs at 2.75-2.76 steps/s with a peak CoM acceleration of 3.2 m/s\u00b2 [GAIT_TUNE.md:L7-8]",
+     "Stage 2's single-leg bench is to measure the knee's speed in this walk [ROUND2_REVIEW.md:\u00a713/L713-715]"
+    ],
+    "vs_75cm": "The same limit: knee 0.93 on 75-M-H-10, stressed 1.10. So this is not a 60-only gap at Stage 0.",
+    "limited_by_per_record": "Body (knee drive speed) at Stage 0. Stage 1 bisects the speed scale and labels it.",
+    "candidate_options": [
+     "faster_knee",
+     "gait_tuning_fr05",
+     "pack_voltage_swing",
+     "external_dc_input",
+     "knee_transmission",
+     "higher_bus_voltage"
+    ],
+    "source": "ROUND2_REVIEW.md:Summary/L22-24, \u00a76/L315-317, \u00a79/L575-577; STAGE1_PLAN.md:\u00a71/L27-28, \u00a75/L112-115; GAIT_TUNE.md:L7-8"
+   },
+   {
+    "id": "SF2_grip_low_friction_floors",
+    "behaviour_or_look": "Walking and turning on low-friction floors (vinyl, laminate, low-grip carpet or concrete)",
+    "shortfall_60cm": "With PU treads the picks barely walk on vinyl (nominal walk only, no turns) and cannot walk on laminate. The 0.35 rad/s turn's need sits at the carpet band's lower edge.",
+    "severity": "cannot (laminate), marginal (vinyl, turns at \u03bc 0.54)",
+    "evidence": [
+     "Friction needs with the stance foot's yaw moment: 0.48 / 0.47 walking, 0.54 / 0.53 in the 0.35 rad/s turn, 0.75 / 0.73 brisk [STAGE1_PLAN.md:\u00a75/L109]",
+     "PU tread estimates: vinyl about 0.50, laminate about 0.42, polished concrete 0.6-0.85, carpet 0.70-0.85 [ROUND2_REVIEW.md:\u00a79/L599-607; MATERIALS.md:\u00a75/L171, L183]",
+     "The yaw moment a small pad must carry, more than the turn itself, sets the need [ROUND2_REVIEW.md:\u00a72/L162-166; DECISION_LOG.md:F21/L75]",
+     "The 60 cm robot may be confined to carpet, wood, tile and polished concrete [MATERIALS.md:\u00a75/L188-189]",
+     "Every \u03bc is an estimate; slip is not modelled [ROUND2_REVIEW.md:\u00a714/L723-724]"
+    ],
+    "vs_75cm": "0.36 / 0.41 / 0.56: walks and turns on every floor class; turns on laminate have almost no margin.",
+    "limited_by_per_record": "Body (the pad's spread against the stance-foot yaw moment) and the floor. A controller can limit speed and yaw rate and use the tail.",
+    "candidate_options": [
+     "narrow_stance",
+     "toes_x1.15",
+     "toes_and_pads_round2",
+     "bigger_feet_carpet_ready_60",
+     "pad_tread_compound",
+     "controller_floor_limits_tail_yaw",
+     "body_75cm"
+    ],
+    "source": "STAGE1_PLAN.md:\u00a75/L109; ROUND2_REVIEW.md:\u00a72/L162-166, \u00a79/L599-610; MATERIALS.md:\u00a75/L181-189; DECISION_LOG.md:F21/L75"
+   },
+   {
+    "id": "SF3_brisk_walk",
+    "behaviour_or_look": "Brisk walk (Fr 0.025 stretch; 0.315 / 0.314 m/s)",
+    "shortfall_60cm": "Within the drives on hard floor, but floors are limited. It cannot carry the carpet swing.",
+    "severity": "marginal (floors), cannot (with the carpet swing)",
+    "evidence": [
+     "Needs \u03bc 0.75 / 0.73, so brisk walking works on wood and tile but not on the lowest-grip carpet or polished concrete, and not on vinyl or laminate [ROUND2_REVIEW.md:\u00a79/L605-607]",
+     "2 N of tether drag raises the need to 0.78-0.85 [MATERIALS.md:\u00a76/L244-246]",
+     "With the carpet swing the knee exceeds its speed: 1.05 / 1.06 at 0.19 H and 1.06 / 1.08 at 0.195 H [ROUND2_REVIEW.md:\u00a77.6/L499-505]",
+     "On carpet the brisk walk keeps its reference lift, only 8.4-8.6 mm above a high-pile top, against the 24.1-24.3 mm target [round2/refine/carpet_lift_narrow_carpet_60_0.190_0.195_nominal_only.json]",
+     "Both sizes meet the spec's nominal and brisk speeds on hard floor [ROUND2_REVIEW.md:\u00a72/L174-175]"
+    ],
+    "vs_75cm": "Brisk on all floors but vinyl and laminate (need 0.56). It carries the carpet swing on both walks at 0.18 H within the drives.",
+    "limited_by_per_record": "Body: grip, and knee speed with the lifted swing",
+    "candidate_options": [
+     "pad_tread_compound",
+     "toes_x1.15",
+     "bigger_feet_carpet_ready_60",
+     "faster_knee",
+     "controller_floor_limits_tail_yaw",
+     "body_75cm"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a72/L174-175, \u00a77.6/L497-505, \u00a79/L599-607; MATERIALS.md:\u00a76/L242-246; carpet_lift_narrow_carpet_60_*.json; carpet_lift_feet_75_*.json"
+   },
+   {
+    "id": "SF4_carpet_pile",
+    "behaviour_or_look": "Carpet: standing on thick pile, and closed-loop carpet walking",
+    "shortfall_60cm": "With the servos held it tips on medium and high pile. The Stage 1 tracker, fitted on hard floor only, has so far fallen on carpet and low pile. The nominal walk with the carpet swing is within the drives.",
+    "severity": "cannot (passive standing on medium or high pile); pending (closed loop)",
+    "evidence": [
+     "Servo-held stance on low / medium / high pile at 60 cm: stands / tips / tips. Every round-two 60 cm body tips on medium pile, and so do the picks (refine.json). [ROUND2_REVIEW.md:\u00a72/L150, L172-173; refine.json:rows[narrow_carpet_60].carpet.medium_upright]",
+     "A rigid stance holds only on piles compressing less than 5.6-6.7 mm; medium and high pile compress 9.4 and 14.1 mm [DECISION_LOG.md:F13/L67]",
+     "R2 fell on robot_floor_carpet and low pile: 60-N-T-10 at 3.3-3.5 s and 3.0-3.1 s; 75-M-H-10 too. Sliding friction alone is not the cause, and the tracker was never fitted on carpet. [STAGE1_PLAN.md:\u00a79 decision 23/L281-295]",
+     "Carpet damping is not sourced, so medium and high pile are reported, not gated [STAGE1_PLAN.md:\u00a79 decision 8/L183-184; DECISION_LOG.md:A16/L100]",
+     "Carpet score 0.70 / 0.69 [ROUND2_REVIEW.md:\u00a76/L281, L283]"
+    ],
+    "vs_75cm": "Stands on medium pile with the servos held (bigger feet). Carpet score 0.87. Also fell under R2 in Stage 1.",
+    "limited_by_per_record": "Body for passive standing (foot size: bigger feet or pads x1.25 make the 60 cm bodies stand on medium pile). Controller for active balance and closed-loop carpet walking (Stage 1 pending).",
+    "candidate_options": [
+     "pads_x1.25",
+     "toes_x1.15",
+     "bigger_feet_carpet_ready_60",
+     "controller_pile_balance_carpet_fit",
+     "body_75cm"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a72/L150, L172-173, \u00a76/L281-283; DECISION_LOG.md:F13/L67, A16/L100; STAGE1_PLAN.md:\u00a79/L183-184, L281-295; refine.json"
+   },
+   {
+    "id": "SF5_hard_stop",
+    "behaviour_or_look": "Hard stop at the spec's 1.5 m/s\u00b2",
+    "shortfall_60cm": "One foot holds only 1.25 m/s\u00b2, so a stop at the limit needs both feet down or a step",
+    "severity": "cannot on one foot; a controller workaround exists",
+    "evidence": [
+     "One-foot stop 1.25 m/s\u00b2 against 1.5 [STAGE1_PLAN.md:\u00a75/L111; ROUND2_REVIEW.md:\u00a77.6/L491-492]",
+     "A stop at the spec limit needs double support or a step; gentler stops can be held on one foot [ROUND2_REVIEW.md:\u00a72/L178-180]",
+     "A 60 cm foot's pads reach only 15 mm behind the ankle axis (Stage 1 build note) [STAGE1_PLAN.md:\u00a79/L225-226]",
+     "The Stage 1 stop gate allows double support or a step [STAGE1_PLAN.md:\u00a74/L87]"
+    ],
+    "vs_75cm": "1.41 m/s\u00b2",
+    "limited_by_per_record": "Body (ankle and pad reach) for a one-foot stop; the controller can add double support or a step",
+    "candidate_options": [
+     "bigger_feet_carpet_ready_60",
+     "toes_and_pads_round2",
+     "pads_x1.25",
+     "toes_x1.15",
+     "controller_stop_strategy",
+     "body_75cm"
+    ],
+    "source": "STAGE1_PLAN.md:\u00a74/L87, \u00a75/L111, \u00a79/L225-226; ROUND2_REVIEW.md:\u00a72/L152, L178-180, \u00a77.6/L491-492; DECISION_LOG.md:F12/L66"
+   },
+   {
+    "id": "SF6_push_recovery",
+    "behaviour_or_look": "Push recovery",
+    "shortfall_60cm": "The lowest Stage 0 push bound of the three bodies",
+    "severity": "marginal (relative)",
+    "evidence": [
+     "One-step forward push bound 0.487 / 0.478 m/s, an upper bound under ideal balance control [STAGE1_PLAN.md:\u00a75/L110; DECISION_LOG.md:A15/L99]",
+     "The bound uses a swing time from the hip-pitch and knee drive speeds [DECISION_LOG.md:A15/L99]",
+     "The untuned pilot fell under a 2 N\u00b7s push [STAGE1_PLAN.md:\u00a71/L27-28]",
+     "Stage 1 tests a pulse of 0.24 m/s (0.5\u00d7 the bound) in four directions [STAGE1_PLAN.md:\u00a79 decision 7/L181-182]",
+     "Robustness score 0.64 / 0.62 [ROUND2_REVIEW.md:\u00a76/L281, L283]"
+    ],
+    "vs_75cm": "0.589 m/s; robustness 0.69",
+    "limited_by_per_record": "Stage 0 bound: body (step reach, drive speeds). Actual recovery: controller (Stage 1).",
+    "candidate_options": [
+     "faster_knee",
+     "bigger_feet_carpet_ready_60",
+     "body_75cm"
+    ],
+    "source": "STAGE1_PLAN.md:\u00a71/L27-28, \u00a75/L110, \u00a79/L181-182; DECISION_LOG.md:A15/L99; ROUND2_REVIEW.md:\u00a76/L281-283; refine.json (push_ms)"
+   },
+   {
+    "id": "SF7_margin_vs_model_doubts",
+    "behaviour_or_look": "Robustness to model doubts and pack sag",
+    "shortfall_60cm": "No speed margin left for a heavier robot, weaker drives or the pack's nominal voltage",
+    "severity": "marginal",
+    "evidence": [
+     "Stressed worst 1.09 / 1.12 [ROUND2_REVIEW.md:\u00a76/L281, L283, L315-317]",
+     "At 22.2 V the knee is at its limit [STAGE1_PLAN.md:\u00a75/L115]",
+     "Torque has about 24 % headroom (worst sustained 0.76) [STAGE1_PLAN.md:\u00a75/L113]",
+     "kp, latency, mass and pile damping have no Stage 0 value [STAGE1_PLAN.md:\u00a75/L114]"
+    ],
+    "vs_75cm": "Stressed worst 1.10; knee 0.93",
+    "limited_by_per_record": "Body (speed margin)",
+    "candidate_options": [
+     "faster_knee",
+     "gait_tuning_fr05",
+     "external_dc_input",
+     "pack_voltage_swing"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a76/L281-283, L315-317; STAGE1_PLAN.md:\u00a75/L113-115"
+   },
+   {
+    "id": "SF8_turning_details",
+    "behaviour_or_look": "Turning (target turns pass; the margins are thin)",
+    "shortfall_60cm": "Turning grip sits at the carpet band's edge and fails on vinyl. The narrow stance's turn gaps are small, and the fastest turns use nearly all of the thigh-twist range.",
+    "severity": "marginal",
+    "evidence": [
+     "Target turns pass at 0.76. Turning score 0.81 / 0.82, above the 75 cm pick's 0.78. [ROUND2_REVIEW.md:\u00a76/L281-283, \u00a77.6/L484-485]",
+     "The 0.35 rad/s turn needs \u03bc 0.54 / 0.53 [STAGE1_PLAN.md:\u00a75/L109]",
+     "Turn gaps are 3.4 mm in the target turns and 3.0-3.1 mm in the 0.5 rad/s walking stretch, against 4.0 mm and 3.4-4.0 mm at base width [ROUND2_REVIEW.md:\u00a77.6/L489-491]",
+     "The 0.5 rad/s turn references leave only 0.046-0.095 rad of thigh-twist range, on both sizes [STAGE1_PLAN.md:\u00a79 decision 14/L210-214]",
+     "Turning in place uses 0.67-0.69 of the thigh-twist range at 60 cm and 0.78-0.79 at 75 cm [DECISION_LOG.md:F11/L65]"
+    ],
+    "vs_75cm": "Turn need 0.41; gaps about 4.0 / 3.5 mm; turning score 0.78",
+    "limited_by_per_record": "Body (grip, packaging gap, joint range)",
+    "candidate_options": [
+     "narrow_stance",
+     "base_width_carpet_ready_60",
+     "pad_tread_compound",
+     "controller_floor_limits_tail_yaw"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a77.6/L484-491; STAGE1_PLAN.md:\u00a75/L109, \u00a79/L210-214; DECISION_LOG.md:F11/L65"
+   },
+   {
+    "id": "SF9_smooth_motion_looks",
+    "behaviour_or_look": "Smooth, unhurried body motion (look): lateral sway and acceleration",
+    "shortfall_60cm": "The nominal reference walk sways more and accelerates harder than the spec allows",
+    "severity": "exceeds the spec (both sizes)",
+    "evidence": [
+     "Nominal reference sway 0.164-0.169 H against 0.12 H. A sway gain of 0.7 only reaches 0.162-0.166 H. [STAGE1_PLAN.md:\u00a79 decision 9/L185-187, G7/L75; BEHAVIOR_SPEC.md:\u00a71/L20]",
+     "Steady-walk CoM acceleration 2.1-2.2 m/s\u00b2 against 1.5 [STAGE1_PLAN.md:\u00a79 decision 10/L188-190; BEHAVIOR_SPEC.md:\u00a71/L19]",
+     "The Fr 0.05 walks peak at about 3.0-3.2 m/s\u00b2, and gait tuning does not fix it. Their sway is 0.101-0.104 H, within the spec. [GAIT_TUNE.md:L7-9, L20]",
+     "Sway is reported, not gated, in Stage 1 [STAGE1_PLAN.md:\u00a74/L97]"
+    ],
+    "vs_75cm": "The same: 0.164 H [STAGE1_PLAN.md:\u00a73/L75]",
+    "limited_by_per_record": "Reference walk (controller side), not the body",
+    "candidate_options": [
+     "new_nominal_reference_walk",
+     "gait_tuning_fr05"
+    ],
+    "source": "STAGE1_PLAN.md:\u00a73/L75, \u00a74/L97, \u00a79/L185-190; GAIT_TUNE.md:L7-9, L20; BEHAVIOR_SPEC.md:\u00a71/L19-20"
+   },
+   {
+    "id": "SF10_head_tail_jaw_arms",
+    "behaviour_or_look": "Head, tail, jaw and arm motion (look)",
+    "shortfall_60cm": "Head and tail spec amplitudes are met, with servo headroom. There is no head yaw, the jaw is unpowered (deferred) and the arms are fixed, on both sizes by design (P2).",
+    "severity": "not a 60 cm-specific gap; a gap only against P1's long-term robot",
+    "evidence": [
+     "One neck pitch joint (\u00b10.35 rad) and one tail yaw joint (\u00b10.45 rad). In the walk the head nods \u00b10.05 rad and the tail sways \u00b10.12 rad, inside the spec. [ROUND2_REVIEW.md:\u00a710/L630-635; BEHAVIOR_SPEC.md:\u00a71/L24]",
+     "At 60 cm the neck runs at 0.76 sustained (0.70 with PA11) and the tail at 0.43-0.48 of peak, leaving room for livelier head motion [ROUND2_REVIEW.md:\u00a710/L636-641]",
+     "The head does not turn side to side; the jaw is not powered yet and the arms are fixed [ROUND2_REVIEW.md:\u00a710/L630-631; DECISION_LOG.md:P1/L16, P2/L17]",
+     "Following keeps the head near level [ROUND2_REVIEW.md:\u00a710/L642]"
+    ],
+    "vs_75cm": "Neck 0.66 and tail 0.79 of peak, so less room for a faster tail",
+    "limited_by_per_record": "Body (degrees of freedom set by the P2 scope); the camera in the head limits head motion while following",
+    "candidate_options": [
+     "pa11_walls_x0.75",
+     "moulded_carbon_skins"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a710/L625-642; DECISION_LOG.md:P1/L16, P2/L17; BEHAVIOR_SPEC.md:\u00a71/L24"
+   },
+   {
+    "id": "SF11_proportions",
+    "behaviour_or_look": "Proportions and form at 60 cm (look)",
+    "shortfall_60cm": "Hardware that does not shrink constrains the form. Look variants cost knee or neck margin at 60 cm.",
+    "severity": "constraint",
+    "evidence": [
+     "About half the mass (55 % in F19) is catalog hardware that does not shrink [ROUND2_REVIEW.md:\u00a78/L524-526; DECISION_LOG.md:F19/L73]",
+     "The narrowest stance is set by the hip hardware and turning (F16). The 60 cm picks' feet sit 0.36-0.37 H apart, against 0.33-0.34 H on the 75 cm base-width body. [ROUND2_REVIEW.md:\u00a77.4/L432, \u00a73/L188; DECISION_LOG.md:F16/L70]",
+     "A larger skull at 60 cm takes the neck to 0.85-0.86 and the Hybrid's Fr 0.05 knee to 1.00. The compact Tapered body's knee reaches 1.08. [ROUND2_REVIEW.md:\u00a73/L189-190]",
+     "In side view the head still reads small against a long trunk (round one, open) [DECISION_LOG.md:F5/L59]",
+     "Gait naturalness (\u22653.5/5 rated by viewers) has not been assessed [BEHAVIOR_SPEC.md:\u00a71/L25]"
+    ],
+    "vs_75cm": "The 75 cm larger skull takes the W270 neck at 0.76. The 75 cm pick has the bigger feet.",
+    "limited_by_per_record": "Body",
+    "candidate_options": [
+     "larger_skull",
+     "compact_proportions",
+     "level_posture",
+     "calf_fairing",
+     "body_75cm"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a73/L188-194, \u00a77.4/L432, \u00a78/L524-526; DECISION_LOG.md:F5/L59, F16/L70, F19/L73; BEHAVIOR_SPEC.md:\u00a71/L25"
+   },
+   {
+    "id": "SF12_near_floor_sensing_following",
+    "behaviour_or_look": "Near-floor sensing for obstacle avoidance; the following view",
+    "shortfall_60cm": "The floor is visible only from 2.3-2.4 m ahead, so the near field relies on the ToF pair. The following score is the lowest of the picks.",
+    "severity": "constraint (both sizes)",
+    "evidence": [
+     "Nearest visible floor 2.40 m (Tapered) and 2.27 m (Hybrid) ahead of the toes. ToF covers 68-69 % of the near foot path. Camera self-occlusion 6.8 % / 6.1 %. [narrow_carpet_60/review/screening/*_sensors.json; ROUND2_REVIEW.md:\u00a75/L232-238]",
+     "A person's torso is not in view at the neck's pitch limits [ROUND2_REVIEW.md:\u00a75/L236-238]",
+     "Following score 0.51 / 0.55 against 0.58 [ROUND2_REVIEW.md:\u00a76/L281-283; designlab/shortlist.py:L241-255]"
+    ],
+    "vs_75cm": "2.40 m; 65 %; 4.3 %",
+    "limited_by_per_record": "Body (sensor layout, P22)",
+    "candidate_options": [
+     "head_camera_alternatives"
+    ],
+    "source": "ROUND2_REVIEW.md:\u00a75/L232-238, \u00a76/L281-283, \u00a712/L695-697; DECISION_LOG.md:P22/L37"
+   },
+   {
+    "id": "SF13_cost_ceiling",
+    "behaviour_or_look": "Cost against P4",
+    "shortfall_60cm": "The nominal $14.8k matches about $15k, but the high-side $20.5k / $20.6k is already above P4's $20k. Every option adds to it.",
+    "severity": "constraint",
+    "evidence": [
+     "$14.8k / $20.5k and $14.8k / $20.6k [ROUND2_REVIEW.md:Summary/L22, L24]",
+     "P4: a $10-20k prototype [DECISION_LOG.md:P4/L19]",
+     "The review treats $20k as P4's limit [ROUND2_REVIEW.md:\u00a79/L583-584]"
+    ],
+    "vs_75cm": "$18.5k / $25.7k",
+    "limited_by_per_record": "n/a",
+    "candidate_options": [],
+    "source": "ROUND2_REVIEW.md:Summary/L22-24, \u00a79/L583-584; DECISION_LOG.md:P4/L19, P25/L40"
+   },
+   {
+    "id": "SF14_not_shown",
+    "behaviour_or_look": "Not shown at all yet (both sizes)",
+    "shortfall_60cm": "No controller has walked, turned or stood on carpet with these models. Slip, impact, touchdown dynamics and carpet damping are not modelled. Viewer-rated naturalness, slip and impact limits are not screened.",
+    "severity": "unknown",
+    "evidence": [
+     "Prescribed motions and simple balance models only [ROUND2_REVIEW.md:\u00a714/L721-722]",
+     "Slip, impacts, touchdown and carpet damping are not modelled; thermal is the planning fraction only [ROUND2_REVIEW.md:\u00a714/L723-724; DECISION_LOG.md:A1/L85, A16/L100]",
+     "Spec slip \u22645 mm median, impact \u22641.6 BW, visual rating \u22653.5/5 [BEHAVIOR_SPEC.md:\u00a71/L22-25]",
+     "A controller-limited result says nothing about the body [STAGE1_PLAN.md:\u00a78/L161]"
+    ],
+    "vs_75cm": "The same",
+    "limited_by_per_record": "Pending Stage 1 and hardware",
+    "candidate_options": [],
+    "source": "ROUND2_REVIEW.md:\u00a714/L719-729; BEHAVIOR_SPEC.md:\u00a71/L22-25; STAGE1_PLAN.md:\u00a78/L161"
+   }
+  ],
+  "open_questions": [
+   "Knee transmission: the record has no knee transmission or gear-ratio design. The only knee option is the RobStride 06 swap. The picks' X4-36-L knee has torque headroom (0.49-0.51 sustained, 0.33-0.34 peak; candidate JSONs) and the hip pitch, at 0.89-0.90, is the next speed limit. Mass, cost, packaging and reflected inertia of a lower-ratio knee are not in the record.",
+   "Supply voltage: Stage 0 and the Stage 1 envelope take no speed credit above a drive's nominal voltage (designlab/catalog.py L77-82; designlab/stage1/drive.py L32-35). With the X4-36-L knee and hip pitch rated at 24 V, a fuller pack or a higher bus cannot raise their modelled speed; only vendor curves or the Stage 2 bench could show a real gain. The record does not say how much of a run the 6S bus spends below 24 V.",
+   "Higher bus at 60 cm: the AK45-36 hip roll and thigh twist (15-28 V) and the clamp at 27 V or below cap the 60 cm bus. Swapping them for X4-36-L, as the 75 cm targeted body did, is not sized or packaged at 60 cm. 12S also needs other regulators (E7) and a bus capacitor and regeneration clamp (A11).",
+   "STAGE1_PLAN.md \u00a75 L115 gives the Fr 0.05 knee requirement as 8.08-8.12 rad/s, but 60-N-H-10's own record needs 8.253 rad/s (knee 0.949 of 8.69 rad/s). At 22.2 V its knee would be about 1.03 of the limit, not about 1.00. Check the ledger note before quoting it for 60-N-H-10.",
+   "The Fr 0.05 walk's friction need with the stance-foot yaw moment was never screened: the turning screen covers only the nominal and brisk walks. The brisk walk already needs 0.73-0.75 at 60 cm, so the animal-like walk may be grip-limited on many floors even where the knee is within its limit. Stage 1 reports Fr 0.05 at \u03bc 0.54, not gated.",
+   "The faster knee was tested only on the base-width carpet-ready bodies, not on the narrow picks. Its +15 % turn friction would undo most of the narrow stance's 12-14 % gain. A brisk walk with the carpet swing on a faster knee was never run.",
+   "Bigger feet were never run on the narrow carpet-ready picks. Ankle A already governs 60-N-H-10's target turns at 0.76, and the bigger feet raised the Tapered knee's Fr 0.05 ratio from 0.95 to 0.98 at base width. Pads x1.25 alone let the 60 cm bodies stand on medium pile according to refine.json, but the review text does not say so.",
+   "Gait tuning: the look of the tuned walk (about 3.1 steps/s, stride 0.71-0.73 H, crouch at the 0.07 H bound) is not assessed. Settings outside the search bounds were not explored, there is no controller test, and no carpet-swing version was tuned. The owner holds it as information only (P24).",
+   "No new nominal reference walk meeting the 0.12 H sway and 1.5 m/s\u00b2 acceleration limits has been designed. Whether one exists within the 60 cm drives is unknown.",
+   "Pad \u03bc on the owner's floors is unmeasured (estimates only; about a day and $100 to test). Silicone's about 1.0 on clean smooth floors, against its dust pickup and poor wear, is not evaluated as a vinyl or laminate option.",
+   "The materials levers (PA11 walls, 2.54 mm plates) were applied to 60-M-T-10 carpet-ready, not the picks, and were never simulated together. Their effect on grip, stop and push is not reported; the re-sized PA12 walls left the friction need essentially unchanged (0.634 to 0.640 in refine.json).",
+   "How to measure the '80 %': the record has no behaviour-coverage metric. The scorecard (P17 weights) scores margins and ties the 60 and 75 cm picks (0.703 / 0.699 against 0.702). The gap map needs the owner's list of behaviours and looks, with weights.",
+   "Body or controller labels await Stage 1's margin ledger and the decision-20 paired test. Stage 1's carpet falls so far come from a tracker fitted on hard floor only.",
+   "Powered jaw, head yaw and arms (P1) are outside the demonstrator's scope (P2). The record has no mass, cost or servo data for them at 60 cm.",
+   "Neck and tail servo loads at the spec's upper amplitudes (\u00b10.15 rad head, \u00b10.2 rad tail), or for livelier motion, are not reported. Only the reference walk's \u00b10.05 / \u00b10.12 rad is.",
+   "Combined options (for example faster knee plus bigger feet plus PA11) were never run, so their interactions, such as foot mass against knee speed, are unknown.",
+   "The lighter Li-ion pack's sloped discharge was not assessed for its effect on bus voltage and knee speed, and the cassette redesign was not simulated.",
+   "Whether the 3.0-3.4 mm turn gaps survive manufacturing tolerance is not assessed. Stage 1 treats the gap as not a hardware limit for control.",
+   "Once the knee is fixed, the hip pitch (0.89-0.90 at Fr 0.05; about 0.97 at 22.2 V, derived) binds. The record has no hip-pitch-only upgrade at 60 cm; only blanket headroom, which fails clearance.",
+   "Whether the tethered supply can be set above 24 V, up to the 27 V clamp, to offset the 0.82 V cable drop at peaks is not stated.",
+   "All option costs and masses are model estimates with no quotes (carbon \u00b150 %). The 60 cm high-side estimate is already above P4's $20k."
+  ]
+ },
+ "checks": [
+  {
+   "problems": [
+    {
+     "item": "options[pack_voltage_swing].effect[2] and risks_side_effects[0]",
+     "wrong": "\"The knee and hip pitch on all three bodies are X4-36-L, 24 V-nominal, so 25.2 V gives them nothing over 24 V\"; \"voltage can only lose speed against the 24 V sizing, never gain it\".",
+     "correct": "On 75-M-H-10 the hip pitch is a MyActuator X6-60 (RMD-X6-P20-60-E). It is a 48 V-nominal drive, derated to 8.01 rad/s on the 24 V bus. Under the model's rule a fuller pack gains it speed: its Fr 0.05 ratio is 0.83 at 24 V, 0.79 at 25.2 V, 0.90 at 22.2 V and 0.95 at 21 V. Only the 24 V-nominal drives (X4-36-L, X4-P12-10, AK45-36) get no credit above 24 V. The extraction's own 75-M-H-10 baseline note says the same, so the two passages contradict each other.",
+     "source": "round2/refine/feet_75/candidates/75-M-H-10.json margins.hip_pitch (actuator myactuator_rmd_x6_p20_60_e, speed 8.011, speed_req 6.681); designlab/data/actuators.json (nominal_voltage_v 48, 153 rpm); designlab/catalog.py L77-82"
+    },
+    {
+     "item": "options[higher_bus_voltage].effect[6]",
+     "wrong": "\"The only 48 V body in the record is the 75 cm 20 %-headroom Hybrid\"",
+     "correct": "Both 80 cm 20 %-headroom bodies in the size study also run at 48 V on a 12S (2x6S) pack: 80-M-T-10 at 22.15 kg and 80-M-H-10 at 22.25 kg, and both fail on the battery path. Round one also has 18 bodies (100-120 cm) at 48 V. What is true is that no 60 cm body in the record runs above 24 V.",
+     "source": "round2/size_study/80_headroom/candidates/80-M-T-10.json and 80-M-H-10.json (selection.bus 48.0, battery lipo_2x6s_3300_series); round1/stage_a/candidates/*.json (18 at 48 V, e.g. 120-N-H-10); ROUND2_REVIEW.md \u00a78 L522"
+    },
+    {
+     "item": "options[external_dc_input].effect[0] (tether peak current and cable drop)",
+     "wrong": "Tether peaks of \"about 6.2 A at 60 cm and 8.7 A at 75 cm\", and drops of 0.82 / 1.14 V over 5 m of SJOOW at those peaks, given as the design figures.",
+     "correct": "These figures belong to the earlier leaders (60-M-T-10 carpet-ready and 75-M-T-10 targeted), not the picks. For the picks, MATERIALS gives summed drive peaks of 116-118 W and 194 W, which is 5.7-5.8 A at 60 cm and 8.9 A at 75 cm with the auxiliaries. So the 75 cm pick's peak is above the 8.7 A quoted. Separately, the 7.1-7.2 N tip threshold in effect[1] applies to the 60 cm picks only; the 75 cm pick's is 12.0 N.",
+     "source": "round2/refine/MATERIALS.md \u00a76 L203-206, L219-222, L230-233, L242-244; candidate JSONs power.peak_drives_w 115.7 / 117.7 / 193.8 W"
+    },
+    {
+     "item": "shortfalls[SF14_not_shown].shortfall_60cm and evidence[0]",
+     "wrong": "\"No controller has walked, turned or stood on carpet with these models ... Viewer-rated naturalness, slip and impact limits are not screened.\"",
+     "correct": "This repeats ROUND2_REVIEW \u00a714, written on 8 Nov before Stage 1 ran. Stage 1 results since then:\n- G1 passes on all three bodies: standing 20 s with zero command on hard floor and on low pile.\n- G4 passes at the tuning start.\n- G5 passes on all three bodies with both CMA-ES seeds. R2 succeeds on hard floor in the nominal walk, the 0.35 rad/s walking turn and the 0.5 rad/s in-place turn, with 0 falls in 60 validation episodes at the selected gains.\n- G5's success rule includes slip of at most 5 mm median and 15 mm worst, and a peak GRF of at most 1.6 BW.\n\nStill not shown: carpet and pile walking, brisk and Fr 0.05 walking in closed loop, push recovery, the start/stop panels, viewer ratings and hardware.",
+     "source": "STAGE1_PLAN.md L221-227, L274; stage1/runs/2026-11-08/{60-N-T-10,60-N-H-10,75-M-H-10}/gates.json (G1-G4 pass) and tune.json (pass_ true, seeds_passing [42, 43], success_rule, selection falls 0)"
+    },
+    {
+     "item": "options[controller_pile_balance_carpet_fit].effect[1]; shortfalls[SF4].shortfall_60cm and evidence[2]; open_questions[12]",
+     "wrong": "\"R2, fitted on hard floor only, fell in every start on robot_floor_carpet and low pile. 60-N-T-10 fell at 3.3-3.5 s ...\" and \"The Stage 1 tracker, fitted on hard floor only, has so far fallen on carpet and low pile\".",
+     "correct": "Only 3 starts per floor were tried. 60-N-T-10 ran with the tuning-start gains, i.e. the untuned prototype terms. Those same gains had 6 falls in their 60 hard-floor G5 validation episodes, and they are not a fitted selection. Only 75-M-H-10 ran at its fitted G5 selection (falls at 4.9-5.0 s on carpet and 4.4 s on low pile). 60-N-H-10 was not tried on carpet at all. So no fitted 60 cm tracker has yet been run on carpet.",
+     "source": "STAGE1_PLAN.md decision 23 L281-286; stage1/runs/2026-11-08/60-N-T-10/tune.json (selection candidate 'start', falls 6)"
+    },
+    {
+     "item": "shortfalls[SF5_hard_stop].evidence[2]",
+     "wrong": "\"A 60 cm foot's pads reach only 15 mm behind the ankle axis\" is cited as evidence for the one-foot stop limit.",
+     "correct": "The one-foot stop bound comes from how far the pad reaches ahead of its centroid, not behind the ankle. To stop at 1.5 m/s\u00b2 with the CoM at 0.342 m, the ZMP must shift 52.2 mm, but the pad's front reach is only 43.5 mm, which caps the stop at 1.25 m/s\u00b2. The 15 mm figure comes from decision 15. It explains why the tracker caps each ankle axis's torque (more torque only rolls the foot), which is a balance-control limit, not the stop limit.",
+     "source": "designlab/envelope.py L93-106; round2/refine/narrow_carpet_60/review/screening/60-N-T-10_envelope.json stopping (pad_front_reach_m 0.0435, zmp_shift_needed_m 0.0522); STAGE1_PLAN.md L224-231"
+    },
+    {
+     "item": "shortfalls[SF13_cost_ceiling].shortfall_60cm",
+     "wrong": "\"Every option adds to it.\"",
+     "correct": "Several options listed in the extraction cut cost or leave it unchanged:\n- PA12 walls x0.75: -$0.3k / -$0.5k\n- tether-only: -$0.1k\n- dropping the calf fairing: -$98 to -$100 nominal\n- a 57 or 54 cm body: -$0.26k to -$0.55k nominal\n- narrow stance against base-width carpet-ready: -$11 / -$17 nominal\n- carpet-ready ankle station: -$21 / -$22 nominal\n- 2.54 mm plates, gait tuning and pack voltage: $0",
+     "source": "round2/refine/MATERIALS.md \u00a72 L90, L92, L96; round2/refine/refine.json rows no_calf, narrow_carpet_60, carpet_60, round2; round2/size_study/size_study.json"
+    },
+    {
+     "item": "options[smaller_60].effect[0]",
+     "wrong": "For 57 cm: \"the hip-roll motor overlaps the power board by 1.6-22.7 mm and the ToF sensors overlap by 0.6-2.0 mm\".",
+     "correct": "Those ranges cover both 57 and 54 cm. At 57 cm the hip-roll motor overlaps the power board by 1.6 mm (Hybrid) and 10.4 mm (Tapered), and the ToF pair overlaps by 0.6-0.8 mm. The 22.7 mm and 2.0 mm overlaps occur at 54 cm.",
+     "source": "round2/size_study/small_resized/review/screening/57-M-T-10_clearance.json, 57-M-H-10_clearance.json, 54-M-*-10_clearance.json (summary.same_body_component_overlaps); ROUND2_REVIEW.md \u00a78 L527-528 (combined range)"
+    },
+    {
+     "item": "shortfalls[SF7_margin_vs_model_doubts].shortfall_60cm",
+     "wrong": "\"No speed margin left for a heavier robot\"",
+     "correct": "In the stress test, extra mass only scales the torque ratios (x1.10/0.85). Speed ratios are only divided by 0.85, for drives 15 % slower. The stressed worst of 1.09 / 1.12 is the knee speed divided by 0.85 (0.929/0.85 and 0.949/0.85). The knee speed limit is kinematic and does not move with mass (F22). Under the full torque stress the worst sustained ratio is about 0.763 x 1.29 = 0.99, which is still within its limit.",
+     "source": "ROUND2_REVIEW.md \u00a76 L272-273, L315-317; DECISION_LOG.md F22 L76; narrow_carpet_60 candidate JSON margins"
+    },
+    {
+     "item": "shortfalls[SF1_fr05_walk].shortfall_60cm; SF7 evidence[1]",
+     "wrong": "\"At the pack's nominal 22.2 V it is at its limit\", stated for both 60 cm picks.",
+     "correct": "With the 1.15 margin, 60-N-T-10 sits at about 1.00 at 22.2 V, but 60-N-H-10 is over its limit at about 1.03. Its requirement of 8.253 rad/s lies outside the ledger note's 8.08-8.12 rad/s. Without the margin, both bodies are at 0.87-0.89 at 22.2 V.",
+     "source": "narrow_carpet_60/candidates/60-N-T-10.json and 60-N-H-10.json margins.knee.speed_req (8.077, 8.253); designlab/data/actuators.json X4-36-L 83 rpm at 24 V; STAGE1_PLAN.md \u00a75 L115"
+    },
+    {
+     "item": "baseline[60-N-T-10].other_figures 'Medium pile with the servos held'",
+     "wrong": "\"(no 60 cm body stands passively on medium or high pile)\"",
+     "correct": "ROUND2_REVIEW \u00a72's statement covers only the round-two 60 cm bodies. In the refinement, 60 cm bodies with pads x1.25 or with toes x1.15 stand on medium pile. Bodies with both changes (feet_60, foot_both) stand on medium and high pile. It is the picks' round-two feet that tip.",
+     "source": "ROUND2_REVIEW.md \u00a77.5 L467-469; refine.json rows pads_large, toes_long, foot_both, feet_60 (carpet.medium_upright true); round2/refine/feet_60 and foot_both review/screening/*_carpet.json summary.checks.servo_held_upright.high true"
+    },
+    {
+     "item": "options[body_75cm].risks_side_effects[3]",
+     "wrong": "\"Only the Hybrid works: the 75 cm Tapered body with the same feet re-sizes to an AK45-36 thigh twist at 1.00 (score 0.551).\"",
+     "correct": "The Tapered feet_75 body passes every gate: its turn ratio is 0.996 and REFINE lists all gates as yes. The record says it would need to keep the X4-36-L thigh twist and that it scores 0.551 (rank 35). It does not say the body fails.",
+     "source": "round2/refine/REFINE.md L51; ROUND2_REVIEW.md \u00a77.5 L470-472; refine.json rows[feet_75, 75-M-T-10].gates.all = true"
+    },
+    {
+     "item": "options[faster_knee].risks_side_effects[0] and [2]; open_questions[5]",
+     "wrong": "\"the gain in Fr 0.05 speed headroom is capped at about 10 %\"; \"The +15 % turn friction undoes most of the narrow stance's 12-14 % gain\".",
+     "correct": "Neither claim is in the record, and the faster knee was never run on the narrow bodies. The record says only that the hip pitch, at 0.90, becomes the governing limit. Derived from that, headroom to the next limit becomes about 10-11 % (1/0.90), up from about 5 % (1/0.95), a gain of about 5-6 points. On the friction claim, adding 15 % to the narrow picks' 0.53-0.54 gives about 0.61-0.62. That equals the base-width 0.62-0.63, so it would undo essentially all of the narrow stance's gain, not most of it.",
+     "source": "round2/refine/REFINE.md L53-54; ROUND2_REVIEW.md \u00a77.3 L378-379, L385-386, \u00a77.6 L484-488"
+    },
+    {
+     "item": "options[pack_voltage_swing].status",
+     "wrong": "\"Measured in the Stage 1 margin ledger\"",
+     "correct": "Nothing has been measured yet. The 25.2 / 22.2 / 21 V sweep is a planned margin-ledger row and Stage 1 is still pending, as the option's own tested_on field says.",
+     "source": "STAGE1_PLAN.md \u00a75 L105, L115; \u00a73 step 8"
+    },
+    {
+     "item": "options[body_75cm].risks_side_effects[0]",
+     "wrong": "\"Above the owner's roughly $15k\"",
+     "correct": "P25 records the owner's expectation that a 60 cm build costs about $15k; it is not a budget ceiling. The budget is P4's $10-20k. The 75 cm pick's nominal $18.5k is within that range; its high estimate of $25.7k is over it.",
+     "source": "DECISION_LOG.md P4 L19, P25 L40"
+    },
+    {
+     "item": "options[moulded_carbon_skins].effect[0] and cost_change_nominal_high",
+     "wrong": "The -0.61 kg and $2.4-7.1k figures are given under an option for skins on the skull, jaw, neck and tail.",
+     "correct": "The -0.61 kg and $2.4-7.1k figures are for skinning all the large covering panels of the round-two 60-N-H-10. The record's estimate for the skull, jaw, neck and tail (-0.46 kg, -30 % of the neck payload, $1.4-4.1k) is for the 75 cm larger-skull body only. The record has no head-and-tail figure at 60 cm.",
+     "source": "round2/refine/MATERIALS.md \u00a74 L140, L149-151, L156-160"
+    },
+    {
+     "item": "options[pad_tread_compound].risks_side_effects[1]",
+     "wrong": "\"Stage 0 uses \u03bc 0.54 (A16)\"",
+     "correct": "Only the carpet screen uses \u03bc 0.54. The turning screen assumes \u03bc 0.8 at the pads to split the load, and the friction needs it reports do not depend on that value.",
+     "source": "DECISION_LOG.md A16 L100; round2/refine/MATERIALS.md \u00a75 L164-166; narrow_carpet_60/review/screening/*_turning.json (mu 0.8)"
+    },
+    {
+     "item": "shortfalls[SF8_turning_details].evidence[4]",
+     "wrong": "\"Turning in place uses 0.67-0.69 of the thigh-twist range at 60 cm and 0.78-0.79 at 75 cm\" (F11), given as the picks' figures.",
+     "correct": "F11 covers the 20 round-two candidates. The picks' own turning screens give 0.68 (60-N-T-10) and 0.77 (75-M-H-10) of the hip-yaw range in the in-place turn, and 0.77 and 0.85 in the 0.5 rad/s stretch walk.",
+     "source": "DECISION_LOG.md F11 L65; round2/refine/narrow_carpet_60 and feet_75 review/screening/*_turning.json runs.*.range_use (hip_yaw)"
+    },
+    {
+     "item": "shortfalls[SF10_head_tail_jaw_arms].shortfall_60cm; open_questions[13]",
+     "wrong": "No head yaw \"by design (P2)\"; head yaw \"outside the demonstrator's scope (P2)\".",
+     "correct": "P2 defers the jaw and fixes the arms, but it asks for a \"modest powered head and tail\" and does not exclude head yaw. Having a single nodding neck joint is the generator's design choice (ROUND2_REVIEW \u00a710). P1 lists head, tail, jaw and arm motion without singling out yaw.",
+     "source": "DECISION_LOG.md P1 L16, P2 L17; ROUND2_REVIEW.md \u00a710 L630-631"
+    },
+    {
+     "item": "shortfalls[SF10_head_tail_jaw_arms].evidence[1]",
+     "wrong": "\"At 60 cm the neck runs at 0.76 sustained (0.70 with PA11)\", given for the picks.",
+     "correct": "The 0.70 figure is the PA11 lever applied to the 60-M-T-10 carpet-ready body with its drives held fixed. The lever was not run on the picks.",
+     "source": "ROUND2_REVIEW.md \u00a710 L639-641; round2/refine/MATERIALS.md \u00a72 L93"
+    },
+    {
+     "item": "options[pads_x1.25].effect[3]",
+     "wrong": "\"target turns stay at 0.76\"",
+     "correct": "On 60-N-H-10 the target-turn ratio goes from 0.77 (0.767) to 0.76 (0.759). On 60-M-T-10 and 60-M-H-10 it rises, from 0.77 to 0.78 and from 0.78 to 0.79.",
+     "source": "ROUND2_REVIEW.md \u00a77.4 L396-398 vs L409-411; refine.json rows round2 and pads_large turning.worst"
+    },
+    {
+     "item": "options[knee_transmission].effect[0]",
+     "wrong": "\"The only knee change studied is the RobStride 06 swap.\"",
+     "correct": "The re-sized tether-only 60 cm body took an X4-P12-10 knee, as the option's own third bullet says, and the blanket-headroom case also changed the knee. The RobStride 06 swap is the only knee change studied as a lever in its own right.",
+     "source": "round2/refine/REFINE.md L62-65, L86, L100-103"
+    },
+    {
+     "item": "options[bigger_feet_carpet_ready_60].effect[1]; options[blanket_headroom_60].effect[0]",
+     "wrong": "\"within 3-6 % of the spec's 1.5\"; \"Push 0.58 m/s; stop 1.27 m/s\u00b2\".",
+     "correct": "The 3-6 % range spans both the 60 and 75 cm feet bodies; at 60 cm, 1.46 m/s\u00b2 is about 3 % (2.7 %) below 1.5. Across the four blanket-headroom bodies, push is 0.57-0.58 m/s and stop is 1.26-1.27 m/s\u00b2.",
+     "source": "ROUND2_REVIEW.md \u00a77.5 L462-468; \u00a77.4 L421-424"
+    },
+    {
+     "item": "shortfalls[SF12_near_floor_sensing_following].shortfall_60cm",
+     "wrong": "\"The following score is the lowest of the picks.\" (stated for the 60 cm build)",
+     "correct": "Only 60-N-T-10, at 0.51, has the lowest score. 60-N-H-10, at 0.55, sits between it and the 75 cm pick's 0.58.",
+     "source": "ROUND2_REVIEW.md \u00a76 L281-283"
+    }
+   ],
+   "missed": [
+    {
+     "what": "Bigger feet at 60 cm (toes x1.15 plus pads x1.25, in feet_60 and foot_both) let the bodies stand with servos held on high pile as well as medium pile: all settled, with tilt of 1.1-1.4\u00b0. Pads or toes alone reach medium pile only. This is the one body change in the record that closes passive standing on both thick piles at 60 cm (SF4). The margin is thin: the rigid-stance critical compression is 13.2-13.7 mm against 14.1 mm for high pile. The review text mentions medium pile only.",
+     "source": "round2/refine/feet_60/review/screening/60-M-*-10_carpet.json and foot_both/review/screening/60-*_carpet.json (summary.checks.servo_held_upright.high true; passive_tip.whole_foot.critical_compression_98kPa_mm); pads_large and toes_long *_carpet.json (high false)"
+    },
+    {
+     "what": "The 75 cm pick also stands on high pile with servos held: its critical compression is 18.5 mm against 14.1 mm for high pile. The extraction's vs_75cm entries and body_75cm say medium pile only.",
+     "source": "round2/refine/feet_75/review/screening/75-M-H-10_carpet.json (servo_held_upright high true; passive_tip 18.55 mm)"
+    },
+    {
+     "what": "Closed-loop evidence relevant to labelling limits as body or controller:\n- With untuned defaults, the tracker failed G4 on both 60 cm bodies but passed on 75-M-H-10. R1 on hard floor / R1 at \u03bc 0.54 / R2 reached 14.1 / 5.0 / 2.2 and 30.5 / 12.0 / 7.5 strides, against targets of 40 / 20 / 20.\n- Every 60 cm fall was the controller's: lifting every hardware limit did not change survival significantly.\n- The tuning-start gains had 6 and 9 G5 validation falls at 60 cm, against 0 at 75 cm.\n- After the fit, G5 passes on all three bodies with 0 falls.",
+     "source": "STAGE1_PLAN.md L221-227, L274; stage1/runs/2026-11-08/*/tune.json (selection 'start' falls 6 / 9 / 0; selected falls 0)"
+    },
+    {
+     "what": "The 60 cm bodies fall over on the MJCF's own servo gains, which are about 7x softer than the holding-servo gains Stage 1 uses as hard limits. Standing at 60 cm therefore depends on stiff position servos, a hardware and firmware requirement that lies behind the ledger's kp x0.25-1 model-doubt row.",
+     "source": "STAGE1_PLAN.md \u00a79 decision 4, L175-177"
+    },
+    {
+     "what": "The 0.5 rad/s walking turn (the stretch case, reported but not gated in Stage 1) needs \u03bc 0.567 on 60-N-T-10 and 0.556 on 60-N-H-10. Both exceed the 0.54 band edge and vinyl's 0.50. 75-M-H-10 needs 0.427.",
+     "source": "round2/refine/narrow_carpet_60/review/screening/*_turning.json runs.walk_0.50_*; feet_75/review/screening/75-M-H-10_turning.json; STAGE1_PLAN.md \u00a74 L97"
+    },
+    {
+     "what": "Stage 1 judges drive speed against speed_at(24 V) with no 1.15 margin. Its drive envelope also allows speed above the rated value, with torque falling linearly to the no-load speed (about 11.6 rad/s for the X4-36-L). The Fr 0.05 reference's peak knee speeds are 7.02 / 7.18 / 7.07 rad/s, which is 0.81-0.83 of 8.69 rad/s. So the knee has more room in Stage 1 than the Stage 0 figure of 0.93-0.95 suggests, which matters for the SF1 label.",
+     "source": "STAGE1_PLAN.md \u00a72 L41, \u00a74 L91; designlab/stage1/drive.py L19-35; narrow_carpet_60 and feet_75 review/screening/*_envelope.json fast_walk.groups.knee.speed; designlab/data/actuators.json (X4-36-L no-load 111 rpm)"
+    },
+    {
+     "what": "The 60 cm picks' ankle drives (MyActuator RMD-X4-P12-10-E, V4) are flagged in the catalog as discontinued. The replacement is the V4.1 X4-10-L, with different ratings: 11 N\u00b7m peak, Kt 0.62 N\u00b7m/A, and thermal equilibrium at 2.0-2.9 N\u00b7m. The US store still sells the V4. E6 says discontinued models are excluded from selection, yet this one is selected, which is a sourcing risk for both 60 cm picks.",
+     "source": "designlab/data/actuators.json myactuator_rmd_x4_p12_10_e (notes, vendor_rated_definition); DECISION_LOG.md E6 L53"
+    },
+    {
+     "what": "The extraction omits most of the covering alternatives in the record (research estimates on 60-N-H-10):\n- EVA foam: -0.97 kg, the most knock-tolerant, $1.6-6k of hand work\n- vacuum-formed ABS: -0.55 kg, $1.5-4k\n- stretch fabric: -1.03 kg, reads as a costume\n- SLS PA12 graded: -0.35 kg\n- carbon-filled SLS: -0.39 kg, brittle\n\nIt also omits the recommended EVA foam bumpers and stretch-fabric gaiters.",
+     "source": "round2/refine/MATERIALS.md \u00a74 L133-160"
+    },
+    {
+     "what": "The stop reference itself reaches full rest only after 1.55-1.57 strides, which is beyond the spec's \"stop within 1.5 strides\". Stage 1 redefines \"stopped\" as forward speed below 5 % of the command (decision 18). The extraction quotes these numbers but does not list this as a gap against the literal spec.",
+     "source": "STAGE1_PLAN.md decision 18 L236-238; BEHAVIOR_SPEC.md \u00a71 L19"
+    }
+   ]
+  },
+  {
+   "problems": [
+    {
+     "item": "options.pack_voltage_swing.effect[2] and risks_side_effects[0]",
+     "wrong": "\"The knee and hip pitch on all three bodies are X4-36-L, 24 V-nominal, so 25.2 V gives them nothing over 24 V in either Stage 0 or the Stage 1 envelope\" and \"voltage can only lose speed against the 24 V sizing, never gain it\".",
+     "correct": "This holds only for the knees and the 60 cm hip pitch. 75-M-H-10's hip pitch is a MyActuator X6-60 (rmd_x6_p20_60_e), which is 48 V-nominal. The model derates it by bus/48, so a fuller pack does gain it speed: about 0.83 of its limit at 24 V, 0.79 at 25.2 V and 0.90 at 22.2 V. The extraction's own 75-M-H-10 baseline note says the same. Any 48 V drive behaves this way, for example the RobStride 06.",
+     "source": "round2/refine/feet_75/candidates/75-M-H-10.json selection.joints.hip_pitch and margins.hip_pitch (speed 8.011, speed_req 6.681); designlab/data/actuators.json myactuator_rmd_x6_p20_60_e nominal_voltage_v 48; designlab/catalog.py L77-82"
+    },
+    {
+     "item": "options.higher_bus_voltage.effect[6]",
+     "wrong": "\"The only 48 V body in the record is the 75 cm 20 %-headroom Hybrid\".",
+     "correct": "Two other round-two bodies also run a 48 V bus with a 2x6S pack: the 80 cm 20 %-headroom bodies 80-M-T-10 (22.15 kg) and 80-M-H-10 (22.25 kg). Eighteen round-one 120 cm bodies are also on 48 V. The 75-M-T-10 headroom record pairs a 12S pack with the 24 V bus (F17).",
+     "source": "round2/size_study/80_headroom/candidates/80-M-*.json selection.bus 48.0; round2/size_study/size_study.json; round1/stage_a/candidates/120-*.json (18 bodies at bus 48.0); DECISION_LOG.md F17/L71"
+    },
+    {
+     "item": "shortfalls.SF13_cost_ceiling.shortfall_60cm",
+     "wrong": "\"Every option adds to it.\"",
+     "correct": "Several options in the extraction itself lower the cost. PA12 walls x0.75: -$0.3k / -$0.5k. Tether-only: -$0.1k / -$0.1k. No calf fairing: -$98 / -$173 (60-N-H-10). Narrow stance vs base-width carpet-ready: -$11 / -$18 and -$17 / -$29. Carpet-ready ankles vs round two: -$22 / -$37. Smaller 60 cm body: about -$0.26k to -$0.55k nominal. 2.54 mm plates: $0.",
+     "source": "round2/refine/MATERIALS.md \u00a72 L90, L92, L96; round2/refine/refine.json rows no_calf, narrow_carpet_60 vs carpet_60, carpet_60 vs round2; round2/size_study/size_study.json"
+    },
+    {
+     "item": "shortfalls.SF11_proportions.evidence[1]",
+     "wrong": "\"The 60 cm picks' feet sit 0.36-0.37 H apart, against 0.33-0.34 H on the 75 cm base-width body.\"",
+     "correct": "0.33-0.34 H is the round-two 75 cm base, which has AK45 hips. The 75 cm pick has the targeted drives and wider hips (hip_pitch_spacing 0.198 m). Its foot_spacing is 0.1785 m on H 0.5019 m, i.e. 0.356 H, almost the same relative stance as the 60 cm narrow picks (0.363-0.366 H). The 0.356 H figure is not stated in the review text.",
+     "source": "ROUND2_REVIEW.md \u00a73 L188 (round-two values); round2/refine/feet_75/candidates/75-M-H-10.json metrics.foot_spacing and H; round2/candidates/75-M-H-10.json (0.335 H)"
+    },
+    {
+     "item": "shortfalls.SF5_hard_stop.evidence[2]",
+     "wrong": "\"A 60 cm foot's pads reach only 15 mm behind the ankle axis\" is cited as evidence for the one-foot stop limit.",
+     "correct": "The one-foot stop is set by the pad's reach in front of the ankle: max deceleration = g x front reach / CoM height. Front reach against ZMP shift needed is 43.5 vs 52.2 mm on 60-N-T-10, 43.2 vs 51.8 mm on 60-N-H-10 and 62.8 vs 66.7 mm on 75-M-H-10. The 15 mm rear reach in decision 15 explains why the untuned tracker's ankle torque rolled the foot (G4). It does not bound the stop.",
+     "source": "round2/refine/narrow_carpet_60/review/screening/60-N-*_envelope.json and round2/refine/feet_75/review/screening/75-M-H-10_envelope.json (stopping); designlab/envelope.py L100-106; STAGE1_PLAN.md L221-232"
+    },
+    {
+     "item": "options.external_dc_input.effect[0]; options.lighter_liion_pack.effect[0]",
+     "wrong": "\"The tether carries the peaks: about 6.2 A at 60 cm and 8.7 A at 75 cm, against means of 3.0 / 3.7 A\", with the 0.82 / 1.14 V drops at those peaks, presented for this option. The Li-ion runtimes are given \"against 46.5 / 37.6 min\".",
+     "correct": "These are the figures for the material-run leaders (60-M-T-10 carpet-ready and 75-M-T-10 targeted), not the picks. For the final picks the summed drive peaks are 116-118 W and 194 W, i.e. 5.7-5.8 A at 60 cm and 8.9 A at 75 cm with the auxiliaries. The picks' runtimes are 47.4-47.6 min and 36.7 min.",
+     "source": "round2/refine/MATERIALS.md \u00a76 L203-206, L220-221, L230-233, L256-260"
+    },
+    {
+     "item": "options.higher_bus_voltage.derived_not_in_record; open_questions[2]",
+     "wrong": "Swapping the AK45-36 hip roll and thigh twist for X4-36-L \"is not sized or packaged at 60 cm\".",
+     "correct": "The base-width blanket-headroom bodies (headroom_60 60-M-T-10 / 60-M-H-10) were sized and screened at 60 cm with X4-36-L hip roll and thigh twist, so no AK45 remained. They also took RobStride 06 hip pitch and knee and X4-36-L ankles, and they failed clearance. The narrow headroom bodies swapped only the thigh twist. The swap was never studied alone, but it was sized and packaged as part of the blanket case.",
+     "source": "round2/refine/REFINE.md L62-65; round2/refine/refine.json rows[headroom_60].drives; ROUND2_REVIEW.md \u00a77.4 L448-452"
+    },
+    {
+     "item": "options.smaller_60.effect[0]",
+     "wrong": "At 57 cm \"the hip-roll motor overlaps the power board by 1.6-22.7 mm and the ToF sensors overlap by 0.6-2.0 mm\".",
+     "correct": "Those ranges cover 57 and 54 cm together. At 57 cm the overlaps are 1.6-10.4 mm (hip roll against power board) and 0.6-0.8 mm (ToF). At 54 cm they are 5.4-22.7 mm and 1.8-2.0 mm.",
+     "source": "ROUND2_REVIEW.md \u00a78 L527-528 (\"at 57 and 54 cm\"); round2/size_study/small_*/review/screening/5*_clearance.json summary.same_body_component_overlaps"
+    },
+    {
+     "item": "options.faster_knee.risks_side_effects[0] (2nd sentence) and [2]; open_questions[5]",
+     "wrong": "\"The +15 % turn friction undoes most of the narrow stance's 12-14 % gain\" and \"the gain in Fr 0.05 speed headroom is capped at about 10 %\" are presented as findings.",
+     "correct": "Neither is in the record, and neither is labelled as derived. The faster knee was run only on the base-width carpet-ready bodies and the targeted 75 cm bodies. No narrow body with a faster knee exists, so its turn friction on the picks is unknown. On the bodies that were run, the governing Fr 0.05 ratio goes from 0.95 / 0.97 (knee) to 0.90 (hip pitch): a 5-7 % drop, leaving about 10 % headroom, so the gain itself is not about 10 %.",
+     "source": "ROUND2_REVIEW.md \u00a77.3 L376-389; round2/refine/REFINE.md L53-54; round2/refine/refine.json rows[knee_60]"
+    },
+    {
+     "item": "shortfalls.SF14_not_shown.shortfall_60cm and evidence[0]",
+     "wrong": "\"No controller has walked, turned or stood on carpet with these models\"; \"Prescribed motions and simple balance models only\".",
+     "correct": "This comes from ROUND2_REVIEW \u00a714, written before Stage 1, and now holds only for carpet. The Stage 1 pilot walked all three bodies 40 strides (20 at \u03bc 0.54). On the 60 cm bodies, R1 with the prototype's terms walked 60 strides in 19 and 17 of 20 starts. G5 passed on all three bodies with both seeds, so R2 passes the nominal walk and both target turns. On carpet and low pile, R2 has so far fallen.",
+     "source": "STAGE1_PLAN.md \u00a71 L27, \u00a73 L70, L221-227, L274"
+    },
+    {
+     "item": "options.controller_pile_balance_carpet_fit.effect[1]; shortfalls.SF4 evidence[2] and shortfall text",
+     "wrong": "\"R2, fitted on hard floor only, fell in every start on robot_floor_carpet and low pile. 60-N-T-10 fell at 3.3-3.5 s ...\"",
+     "correct": "Only 3 starts per floor were tried. 60-N-T-10 was tested at the tuning start (the prototype's terms), not with fitted gains. Only 75-M-H-10 was tested at its G5 selection, and 60-N-H-10 is not reported.",
+     "source": "STAGE1_PLAN.md decision 23 L281-286"
+    },
+    {
+     "item": "shortfalls.SF10_head_tail_jaw_arms (shortfall_60cm, severity, evidence[1])",
+     "wrong": "\"Head and tail spec amplitudes are met, with servo headroom\"; severity \"not a 60 cm-specific gap\"; \"neck 0.76 sustained (0.70 with PA11)\".",
+     "correct": "Only the reference walk's \u00b10.05 rad head and \u00b10.12 rad tail motion was checked, the bottom of the spec bands (\u00b10.05-0.15 and \u00b10.1-0.2 rad). Loads at larger amplitudes are not reported. The cross-check found that the 60 cm head camera keeps a person at least 75 % in view only from -0.10 to +0.20 rad straight ahead, and from -0.05 (Tapered) or -0.025 rad (Hybrid) at \u00b130\u00b0; at 75 cm the nose-down limits are -0.175 / -0.125 rad. So \u00b10.15 rad of head motion while following fits at 60 cm only if biased nose-up, a 60 cm-specific constraint. The 0.70 PA11 neck figure is for the material-run body 60-M-T-10, not the picks.",
+     "source": "ROUND2_REVIEW.md \u00a710 L634-641; BEHAVIOR_SPEC.md L24, L55; round2/CROSSCHECK.md owner-priorities key risks (head-camera following)"
+    },
+    {
+     "item": "baseline[60-N-T-10].other_figures 'Medium pile with the servos held'",
+     "wrong": "\"(no 60 cm body stands passively on medium or high pile)\"",
+     "correct": "This is true only with the round-two feet. 60 cm bodies with pads x1.25, toes x1.15, both, or bigger feet on the carpet-ready bodies all stand on medium pile. No 60 cm body stands on high pile.",
+     "source": "round2/refine/refine.json rows[pads_large|toes_long|foot_both|feet_60].carpet.medium_upright = true; ROUND2_REVIEW.md \u00a77.5 L467-469"
+    },
+    {
+     "item": "options.body_75cm.risks_side_effects[3]",
+     "wrong": "\"Only the Hybrid works: the 75 cm Tapered body with the same feet re-sizes to an AK45-36 thigh twist at 1.00 (score 0.551).\"",
+     "correct": "That Tapered body passes every gate. Its thigh twist sits at 1.00 in the turns, and the record says it \"would need the X4-36-L kept\". The targeted 75 cm Tapered without the feet (0.671, rank 11) was also offered as a swap in Q1.",
+     "source": "round2/refine/REFINE.md L51 (all gates yes); ROUND2_REVIEW.md \u00a77.5 L470-472, \u00a76 L291, L314, \u00a712 Q1 L677"
+    },
+    {
+     "item": "options.pads_x1.25.effect[3]",
+     "wrong": "\"target turns stay at 0.76\" on 60-N-H-10.",
+     "correct": "The target-turn ratio goes from 0.77 on the round-two 60-N-H-10 to 0.76 with the larger pads.",
+     "source": "ROUND2_REVIEW.md \u00a77.4 L398 vs L411; refine.json round2 60-N-H-10 turning.worst 0.767 vs pads_large 0.759"
+    },
+    {
+     "item": "baseline[60-N-T-10] and [60-N-H-10].other_figures 'Thigh-twist speed in the in-place turn'",
+     "wrong": "\"2.77 (2.79) rad/s of 4.19 rad/s usable\" is presented as the twist speed.",
+     "correct": "This is the speed requirement including the 1.15 speed margin. The peak twist speed itself is about 2.41-2.42 rad/s.",
+     "source": "ROUND2_REVIEW.md \u00a72 L145 (\"with the 1.15 margin\"); round2/refine/narrow_carpet_60/review/screening/60-N-T-10_turning.json flags (\"hip_yaw speed_req 2.77\")"
+    },
+    {
+     "item": "options.pack_voltage_swing.status",
+     "wrong": "\"Measured in the Stage 1 margin ledger\"",
+     "correct": "Planned, not measured. The pack-voltage row is a sweep still to run; Stage 0 used 24 V only, and there are no sweep outputs under stage1/runs. The extraction's own tested_on field says \"pending\".",
+     "source": "STAGE1_PLAN.md \u00a75 L105, L115; stage1/runs/2026-11-08 (no sweeps)"
+    },
+    {
+     "item": "options.pad_tread_compound.risks_side_effects[1]",
+     "wrong": "\"Stage 0 uses \u03bc 0.54 (A16).\"",
+     "correct": "\u03bc 0.54 is the carpet screen's value (A16). The turning screen, which produces the friction needs, assumes \u03bc 0.8 for its load split, and the needs it reports do not depend on that value.",
+     "source": "DECISION_LOG.md A16/L100; round2/refine/MATERIALS.md \u00a75 L164-166"
+    },
+    {
+     "item": "options.bigger_feet_carpet_ready_60.effect[1]",
+     "wrong": "At 60 cm: \"One-foot stop 1.25 to 1.46 m/s\u00b2, within 3-6 % of the spec's 1.5\".",
+     "correct": "The 3-6 % range covers the 60 cm and 75 cm feet bodies together. At 60 cm, 1.46 m/s\u00b2 is within about 3 % of the spec (2.5-2.7 %). The 75 cm feet bodies' 1.41 m/s\u00b2 is the 6 % end.",
+     "source": "ROUND2_REVIEW.md \u00a77.5 L462-468; refine.json feet_60 stop_ms2 1.4628 / 1.4633"
+    },
+    {
+     "item": "shortfalls.SF6_push_recovery.evidence[2]",
+     "wrong": "\"The untuned pilot fell under a 2 N\u00b7s push\" is listed as a 60 cm shortfall.",
+     "correct": "STAGE1_PLAN marks only the Fr 0.05 falls as 60 cm. The push and pile falls are stated for the pilot bodies generally, so this is not a 60-only gap.",
+     "source": "STAGE1_PLAN.md \u00a71 L27-28"
+    },
+    {
+     "item": "options.compact_proportions.what_it_changes",
+     "wrong": "\"Shorter legs, tail and neck\"",
+     "correct": "The compact variant has shorter legs, tail and neck and the larger skull.",
+     "source": "ROUND2_REVIEW.md 'How round two was run' L78-79"
+    },
+    {
+     "item": "options.blanket_headroom_60.effect[0] and [2]",
+     "wrong": "\"Push 0.58 m/s; stop 1.27 m/s\u00b2\"; only clearance failures are mentioned.",
+     "correct": "Push is 0.57-0.58 m/s and the one-foot stop 1.26-1.27 m/s\u00b2. Three of the four bodies (60-M-H-10, 60-N-T-10, 60-N-H-10) also fail the turning targets.",
+     "source": "ROUND2_REVIEW.md \u00a77.4 L421-424; round2/refine/REFINE.md L15-18"
+    },
+    {
+     "item": "open_questions[13]",
+     "wrong": "\"Powered jaw, head yaw and arms (P1) are outside the demonstrator's scope (P2).\"",
+     "correct": "P1 lists head, tail, jaw and arms, not head yaw specifically. P2 defers the jaw and fixes the arms but asks for a \"modest powered head and tail\", so it does not exclude head yaw. The record only states that the head has no side-to-side joint.",
+     "source": "DECISION_LOG.md P1/L16, P2/L17; ROUND2_REVIEW.md \u00a710 L630-631"
+    }
+   ],
+   "missed": [
+    {
+     "what": "A cross-check judge estimated the Fr 0.05 friction need from SHA-matched rebuilds of the round-two bodies: \u03bc 1.05-1.27 at 60 cm and 0.72-0.88 at 75 cm. That is above every PU floor estimate, so the animal-like walk at 60 cm is likely limited by grip, not only by knee speed. The same check found Fr 0.05 with the carpet lift overspeeds the knee on every body (1.22-1.36 at 60 cm). Open question 5's \"never screened\" is true only of the official screens.",
+     "source": "round2/CROSSCHECK.md behavior-risk judge, key risks (stance-foot spin; Fr 0.05 with the carpet lift)"
+    },
+    {
+     "what": "Autonomy and compute are a missing shortfall. None of P3's obstacle avoidance and person following, or P1's navigation and voice commands, is shown at any size, against BEHAVIOR_SPEC \u00a73's targets. The Teensy safety firmware is unwritten, so a Linux crash does not end in a controlled stop. The HOG detector misses its deadline on ARM. The Pi 5 + AI HAT+ load and draw are unmeasured (A14). Voice and mapping are budgeted only for the 100-120 cm NVIDIA builds, not the 60 cm Pi 5.",
+     "source": "DECISION_LOG.md P1/L16, P3/L18, F7/L61, A14/L98; BEHAVIOR_SPEC.md \u00a73 L43-60; COMPUTE.md L26-35, L59-66, L148-183"
+    },
+    {
+     "what": "The narrow stance's turn gaps are measured to the shell mid-surface. The cross-check says the real skin gap is about half a wall less, close to outsourced-part tolerances. This bears directly on the picks' 3.0-3.4 mm gaps and open question 18.",
+     "source": "round2/CROSSCHECK.md owner-priorities key risks (narrow-stance packaging); DECISION_LOG.md A4/L88"
+    },
+    {
+     "what": "Active ankle balance on pile, the controller option for medium and high pile, has less room at 60 cm. The picks' ankle A runs at 0.76 of sustained (X4-P12-10) against 0.57 on 75-M-H-10 (X4-36-L), and the bigger-feet option raises it to 0.87.",
+     "source": "round2/CROSSCHECK.md (ankle drives at 0.74-0.77 / 0.76-0.77 sustained at 60 cm vs 0.49-0.58 at 75 cm); candidate JSON margins.ankle_a (0.763 / 0.763 vs 0.567)"
+    },
+    {
+     "what": "The 60 cm picks' ankle drive, the RMD-X4-P12-10-E (V4), is flagged \"Discontinued\" by MyActuator. Its V4.1 successor reaches thermal equilibrium at 2.0 N\u00b7m at 238 rpm (2.8-2.9 N\u00b7m at low speed), against the 2.28 N\u00b7m planning limit. Ankle A already needs 1.74 N\u00b7m, and about 2.0 N\u00b7m with bigger feet.",
+     "source": "designlab/data/actuators.json myactuator_rmd_x4_p12_10_e (notes, vendor_rated_definition, sources); narrow_carpet_60 candidate margins.ankle_a"
+    },
+    {
+     "what": "SF6 lists only body options for push recovery and misses the controller ones. The Stage 1 tracker has a capture step for pushes while standing; its margin is held at 0.0 because the fit had no standing push. The residual PPO policy (R3) is judged on the push panel.",
+     "source": "STAGE1_PLAN.md \u00a72 L43, decision 22 L262-265, \u00a74 L88"
+    },
+    {
+     "what": "The current controller path for carpet is missing. R3 and R4 train on hard, hard, robot_floor_carpet and low pile, and R3's carpet verdict rests on what the policy learned. A carpet-aware tracker refit is the follow-up only if R3 does not walk on carpet.",
+     "source": "STAGE1_PLAN.md decision 23 L290-295, decision 25 L310"
+    },
+    {
+     "what": "Stage 1 found the 60 cm bodies harder to control than the 75 cm body. G4 failed on both 60 cm bodies with untuned defaults (14.1 / 5.0 / 2.2 and 30.5 / 12.0 / 7.5 strides against 40 / 20 / 20), while 75-M-H-10 passed. The open-loop G2 panel medians were 33.6 / 24.2 / 60 strides. The plan blames the two-motor ankle and the short rear pad reach.",
+     "source": "STAGE1_PLAN.md L216-227"
+    },
+    {
+     "what": "The targeted 75 cm Tapered without the bigger feet is missing as an option: 75-M-T-10, 0.671, rank 11, with the tail at 0.89 of peak. Q1 offered it as a swap for its looks.",
+     "source": "ROUND2_REVIEW.md \u00a76 L291, L314; \u00a710 L638; \u00a712 Q1 L677"
+    },
+    {
+     "what": "P8 context for cost is missing. The owner asked that larger sizes not be ruled out on price, with their cost reported as a note, and the cross-check treats the $20k ceiling the same way. This bears on SF13 and body_75cm's cost risk.",
+     "source": "DECISION_LOG.md P8/L23; round2/CROSSCHECK.md owner-priorities key risks (budget)"
+    },
+    {
+     "what": "Push tolerance in absolute terms is missing. The push bound scales as about 0.24 \u221a(gH), so the 60 cm picks tolerate an impulse of about 5.2-5.3 N\u00b7s against 8.7 N\u00b7s on 75-M-H-10, roughly 40 % less.",
+     "source": "round2/refine/narrow_carpet_60/review/screening/60-N-*_envelope.json and feet_75/.../75-M-H-10_envelope.json summary.push_max_impulse_ns; round2/CROSSCHECK.md behavior-risk key risks"
+    },
+    {
+     "what": "Other covering options with mass, cost and durability estimates are missing, and they are look and mass levers: SLS PA12 graded, Windform XT, vacuum-formed ABS, sealed EVA foam skins (the most knock-tolerant) and stretch fabric (reads as a costume). Separately, the level-posture variant's sensing costs are missing: a narrower head-camera window and ToF foot-path coverage down to 56 % on 60-M-H-00.",
+     "source": "round2/refine/MATERIALS.md \u00a74 L133-143; round2/CROSSCHECK.md owner-priorities variants"
+    }
+   ]
+  }
+ ]
+}

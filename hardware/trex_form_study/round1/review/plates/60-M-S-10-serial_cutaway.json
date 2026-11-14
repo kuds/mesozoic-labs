@@ -1,0 +1,409 @@
+{
+ "plate": "cutaway_plate",
+ "png": "round1/review/plates/60-M-S-10-serial_cutaway.png",
+ "mujoco": "3.10.0",
+ "title": "60-M-S-10-serial installed hardware",
+ "subtitle": "60-M-S-10-serial: covers drawn translucent (top and right) and hidden (bottom left). Each callout points at the named part in the compiled model.",
+ "measurements": {
+  "id": "60-M-S-10-serial",
+  "xml": "round1/review/mjcf/60-M-S-10-serial.xml",
+  "xml_sha256": "e3e015e4fab6ef2bd282ae4f5a335609c4ba99a89b5c54c679526e293f40b888",
+  "mass_kg": 12.358858000000001,
+  "crown_m": 0.6008204794446046,
+  "hip_pitch_axis_m": 0.39722779885885634,
+  "length_m": 1.4840782833175277,
+  "max_width_m": 0.3683257019128175,
+  "torso_width_m": 0.17698000366331643,
+  "thigh_width_m": 0.3342951299910295,
+  "thigh_width_source": "thigh fairings",
+  "foot_centre_spacing_m": 0.2186402152104021,
+  "torso_inclination_deg": 10.0,
+  "torso_inclination_source": "ledger metrics",
+  "ledger_checks": {
+   "crown_m": {
+    "model": 0.6008204794446046,
+    "ledger": 0.600820716671885,
+    "ok": true
+   },
+   "hip_height_m": {
+    "model": 0.39722779885885634,
+    "ledger": 0.39833825994642136,
+    "ok": true,
+    "model_zero_roll": 0.3983379959144913,
+    "stance_hip_roll_deg": 1.8031669362121163,
+    "explained": "ledger H is the design hip height; the stance solve rolls the hips"
+   },
+   "mass_kg": {
+    "model": 12.358858000000001,
+    "ledger": 12.358856867015543,
+    "ok": true
+   },
+   "foot_centre_spacing_m": {
+    "model": 0.2186402152104021,
+    "ledger": 0.2186401773580712,
+    "ok": true
+   },
+   "xml_sha256": {
+    "model": "e3e015e4fab6ef2bd282ae4f5a335609c4ba99a89b5c54c679526e293f40b888",
+    "ledger": "e3e015e4fab6ef2bd282ae4f5a335609c4ba99a89b5c54c679526e293f40b888",
+    "ok": true
+   }
+  }
+ },
+ "callouts": {
+  "side_cutaway": [
+   {
+    "title": "Battery cassette",
+    "detail": [
+     "Gens ace G-Tech 3300mAh",
+     "6S 60C 22.2V LiPo",
+     "0.68 kg with cassette"
+    ],
+    "anchors": [
+     [
+      1124.25,
+      652.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Compute",
+    "detail": [
+     "NVIDIA Jetson Orin Nano",
+     "Super Developer Kit",
+     "0.29 kg with tray"
+    ],
+    "anchors": [
+     [
+      1549.75,
+      632.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Camera",
+    "detail": [
+     "Luxonis OAK-D Lite",
+     "0.10 kg"
+    ],
+    "anchors": [
+     [
+      1830.75,
+      439.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Power distribution",
+    "detail": [
+     "24 V bus",
+     "0.30 kg"
+    ],
+    "anchors": [
+     [
+      1408.25,
+      683.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Control stack",
+    "detail": [
+     "MCU, CAN, IMU",
+     "0.18 kg"
+    ],
+    "anchors": [
+     [
+      1272.75,
+      547.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "ToF sensors",
+    "detail": [
+     "2 x Pololu VL53L5CX ToF",
+     "8x8-zone carrier with",
+     "regulator"
+    ],
+    "anchors": [
+     [
+      1525.25,
+      707.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Neck actuator",
+    "detail": [
+     "ROBOTIS DYNAMIXEL",
+     "XM540-W150-T"
+    ],
+    "anchors": [
+     [
+      1654.75,
+      530.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Tail actuator",
+    "detail": [
+     "Feetech STS3215 12 V"
+    ],
+    "anchors": [
+     [
+      1064.25,
+      593.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Leg actuators",
+    "detail": [
+     "6 x MyActuator",
+     "RMD-X4-P36-36-E-L",
+     "4 x CubeMars AK45-36",
+     "V3.0 KV80",
+     "2 x CubeMars AK60-39",
+     "V3.0 KV80",
+     "5.06 kg in total"
+    ],
+    "anchors": [
+     [
+      1228.75,
+      617.25
+     ],
+     [
+      1280.25,
+      629.25
+     ],
+     [
+      1306.75,
+      695.25
+     ],
+     [
+      1346.75,
+      797.75
+     ],
+     [
+      1289.75,
+      1032.25
+     ],
+     [
+      1243.75,
+      1030.75
+     ]
+    ],
+    "hidden": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   }
+  ],
+  "side_hardware": [
+   {
+    "title": "Hip roll",
+    "detail": [
+     "AK60-39 V3.0 KV80"
+    ],
+    "anchors": [
+     [
+      710.75,
+      1640.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Hip pitch",
+    "detail": [
+     "RMD-X4-P36-36-E-L"
+    ],
+    "anchors": [
+     [
+      744.25,
+      1648.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Thigh twist",
+    "detail": [
+     "AK45-36 V3.0 KV80"
+    ],
+    "anchors": [
+     [
+      761.25,
+      1691.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Knee",
+    "detail": [
+     "RMD-X4-P36-36-E-L"
+    ],
+    "anchors": [
+     [
+      787.75,
+      1759.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Ankle A",
+    "detail": [
+     "RMD-X4-P36-36-E-L"
+    ],
+    "anchors": [
+     [
+      750.25,
+      1912.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Ankle B",
+    "detail": [
+     "AK45-36 V3.0 KV80"
+    ],
+    "anchors": [
+     [
+      720.25,
+      1911.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   }
+  ],
+  "threequarter_cutaway": [
+   {
+    "title": "Battery cassette",
+    "detail": [
+     "Gens ace G-Tech 3300mAh",
+     "6S 60C 22.2V LiPo",
+     "0.68 kg with cassette"
+    ],
+    "anchors": [
+     [
+      1767.25,
+      1627.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Compute",
+    "detail": [
+     "NVIDIA Jetson Orin Nano",
+     "Super Developer Kit",
+     "0.29 kg with tray"
+    ],
+    "anchors": [
+     [
+      1896.75,
+      1660.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Camera",
+    "detail": [
+     "Luxonis OAK-D Lite",
+     "0.10 kg"
+    ],
+    "anchors": [
+     [
+      2084.25,
+      1525.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Power distribution",
+    "detail": [
+     "24 V bus",
+     "0.30 kg"
+    ],
+    "anchors": [
+     [
+      1805.25,
+      1681.25
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   },
+   {
+    "title": "Control stack",
+    "detail": [
+     "MCU, CAN, IMU",
+     "0.18 kg"
+    ],
+    "anchors": [
+     [
+      1755.25,
+      1564.75
+     ]
+    ],
+    "hidden": [
+     false
+    ]
+   }
+  ]
+ }
+}
