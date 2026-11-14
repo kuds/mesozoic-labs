@@ -7,12 +7,16 @@
 #   PYTHON=/usr/local/bin/python3.13 bash ...                        # choose the interpreter (default: python3)
 #   REQS=tools/requirements-stage1-ppo.txt bash ... DIR              # Stage 1's PPO environment (torch 2.9.0+cpu)
 #
-# The default VENV_DIR is git-ignored (.venv/) and, unlike a cloud session's scratchpad, sits on the checkout's own
-# disk. The records since Stage 1 were made on Python 3.13.18; another 3.13 works for development, but say so in any
-# record you make with it. Then, from hardware/trex_form_study:
+# The default VENV_DIR is git-ignored (.venv/), and its path, unlike a cloud session's scratchpad, is the one the
+# documents use. It shares the session's disk allowance with everything else: the PyPI torch build makes the venv
+# about 6 GB, so use TORCH=cpu when free space is short (`df -h`). REQS may be a path relative to the current
+# directory or to hardware/trex_form_study. A REQS other than requirements-study.txt needs its own VENV_DIR. The
+# records since Stage 1 were made on Python 3.13.18; another 3.13 works for development, but say so in any record you
+# make with it. Then, from hardware/trex_form_study:
 #
 #   export PY=$PWD/.venv/bin/python
-#   MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -p no:cacheprovider tests    # no -q: pyproject.toml adds it
+#   mkdir -p logs; MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -p no:cacheprovider tests > logs/pytest.log 2>&1
+#   (no -q: pyproject.toml adds it; logs/ is git-ignored)
 #
 # MUJOCO_GL=disable matters: with libOSMesa loaded, torch segfaults while building a stable-baselines3 policy
 # (tests/conftest.py; LESSONS_LEARNED.md). Render only in a separate process with MUJOCO_GL=osmesa.
@@ -24,6 +28,12 @@ VENV=${1:-$STUDY/.venv}
 PYTHON=${PYTHON:-python3}
 TORCH=${TORCH:-pypi}
 REQS=${REQS:-$HERE/requirements-study.txt}
+case "$REQS" in /*) ;; *) [ -e "$REQS" ] || REQS="$STUDY/$REQS" ;; esac
+[ -e "$REQS" ] || { echo "no such requirements file: $REQS" >&2; exit 1; }
+if ! [ "$REQS" -ef "$HERE/requirements-study.txt" ] && [ "$VENV" -ef "$STUDY/.venv" -o "$VENV" = "$STUDY/.venv" ]; then
+  echo "refusing to install $REQS into the default venv ($STUDY/.venv): give it its own VENV_DIR" >&2
+  exit 1
+fi
 
 "$PYTHON" - <<'EOF'
 import sys

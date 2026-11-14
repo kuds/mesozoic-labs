@@ -41,9 +41,9 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
 
 ### 2.2 What is shown
 
-- **At no servo delay and the model's grip (μ 0.9), R2 shows all three picks on the same 14 of 20 gated conditions.**
-  These are standing on hard floor, robot_floor_carpet and low pile; the nominal walk (0.218 / 0.243 m/s) at μ 0.9
-  and 0.54; the 0.35 rad/s walking turn and the 0.5 rad/s turn in place; starting and stopping; and standing shoves at
+- **At no servo delay (hard floor at μ 0.9 unless stated), R2 shows all three picks on the same 14 of 20 gated
+  conditions.** These are standing on hard floor, robot_floor_carpet and low pile; the nominal walk (0.217–0.218 /
+  0.243 m/s) at μ 0.9 and 0.54; the 0.35 rad/s walking turn and the 0.5 rad/s turn in place; starting and stopping; and standing shoves at
   half the Stage 0 bound (S1 §2; draft F26).
 - **The 75 cm body walks and turns even open loop** (R0) and is the most tolerant body on most margins (S1 Answers).
 - **The fastest walk shown is the nominal one at both sizes.** It is the walk the owner found too slow (S1b Answers).
@@ -51,19 +51,34 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
 ### 2.3 Where it stops
 
 - **Speed.**
-  - At 60 cm the brisk walk (0.315 m/s) is not shown. The Tapered speed refit came closest, one fall short of shown:
-    19 of 20 up and 17 meeting every limit.
-  - The animal-like walk (Froude 0.05, 0.446 m/s) stays up in 16 of 20 after the refit, but about 3 % short of its
-    target speed.
-  - At 75 cm the brisk walk (0.35 m/s) stays up in every Stage 1 episode and misses only the tail servo's planning
-    limit, 1.04–1.07 × A1 (S1, S1b).
+  - At 60 cm the brisk walk (0.315 m/s) is not shown. The Tapered speed refit came closest: 19 of 20 up and 17
+    meeting every limit. That is one fall short of passing on its single fit, and a pass there would still be
+    provisional.
+  - The Tapered's animal-like walk (Froude 0.05, 0.446 m/s) stays up in 16 of 20 after the refit (1 before), about 3 %
+    short of its target speed. The Hybrid's refit kept 1 of 20 up.
+  - At 75 cm the brisk walk (0.35 m/s) stays up in every Stage 1 episode. Under R2, with both fits, it misses only the
+    tail servo's planning limit, 1.04–1.07 × A1. The judged R3's run 43 also misses speed and duty (S1, S1b).
   - A faster knee did not change the 60 cm answer: the refit, not the knee, raised survival (S1b Q2).
 - **Servo delay is the largest unknown.**
   - At 10 ms of command delay every 60 cm walk and walking turn falls in all 20 episodes, refitted or not, on every
     body, with one exception, a Hybrid nominal walk (S1b Answers, §4).
   - The 75 cm nominal walk stays up to 8 ms and falls at 10 ms (S1's correction).
-  - Faster walks tolerate less: about 4 ms for brisk and about 2 ms for Froude 0.05 (hints, S1b §4).
+  - At 60 cm, faster walks tolerate less: about 4 ms for brisk and about 2 ms for Froude 0.05. These are hints from
+    fit and selection episodes (S1b §4). No 75 cm speed walk has been run with delay.
+  - The 75 cm walk falls at 10 ms yet stays up at 20 ms, and nobody knows why. 10 ms is also one 100 Hz feedback period
+    and the bar's judged delay, so read any 10 ms verdict beside its neighbouring delays.
+  - The model's delay comes on top of a loop that already lags (S1b N8):
+    - the whole target, feedforward included, arrives k physics steps of 2 ms late;
+    - the sensors are one step old;
+    - the tracker's feedback is computed every 10 ms and ramped in over 10 ms.
+    A bench figure is an end-to-end delay to set against that.
   - Nobody has measured the real servos' delay (draft A17).
+- **Falls concentrate in transitions.**
+  - At 10 ms, 116 of 120 speed walks fell before the brisk gait began, and 169 of 240 walking-turn falls came in the
+    ramp into the turn.
+  - At 0 ms, 30 of 79 60 cm animal-pace falls came before the Froude reference started (S1b §4, N5; S1 N5).
+  - A rung that starts from standing is decided in its start and change. Read every rung's falls by segment before its
+    verdict, and weight R5's starts, changes and stops to match.
 - **Walking shoves.** At half the Stage 0 bound, 0–8 of 20 walks stay up per direction. Walking shoves are recovered
   only up to 0.07–0.15 / 0.10–0.17 m/s. The tracker's fit never saw a shove (S1 Answers).
 - **Thin carpet.** Every walking start falls, on every body, in the unmeasured carpet model (S1).
@@ -79,23 +94,39 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
 
 - **Not the leg drives, as far as the model shows.**
   - Removing their torque limits never helped significantly where enough walks fell to test it, and only falls and
-    single stumbles pass a drive's rated speed (S1b §5).
+    single stumbles pass a drive's rated speed (S1b Answers; N4 for the lifts, §5 for rated speed).
+  - That headroom is read at a full battery and under an ideal, unmeasured envelope.
+    - The 60 cm plant runs at 25.2 V. At the pack's nominal 22.2 V the knee's peak at the animal pace rises from about
+      0.87 to 0.94 of rated speed, and it reaches 1.00 at 21 V (computed, S1b §5).
+    - The envelope gives full planning peak torque up to rated speed; A2's dyno curves would show whether it is so.
+    - The K knee's rating is 2.9 times RobStride's own 100 rpm figure (S1b N6).
   - In the reference walks the binding limit is the knee's speed: 0.93–0.95 of it at Froude 0.05.
   - Lighter materials buy torque headroom and runtime, not speed headroom (F22).
 - **The tail servo (STS3215) is near its sustained planning limit.**
   - Closed loop, it sits at 0.97–1.03 of A1 at the 60 cm Froude 0.05 walk and 1.04–1.07 at the 75 cm brisk walk.
-  - With the plant's joint damping and friction it is over A1 at the 75 cm animal pace: cont up to 1.071, peak up to
-    1.178 (`stage2/look/SCREEN.md`).
+  - Stage 1's closed loop, where the plant carries the joint damping and friction, ran the 75 cm animal-pace tail at
+    1.17–1.31 of A1 (S1 §2).
+  - The Stage 0 screen of the look walks with today's tail phase (V0–V4) adds those terms and reads up to 1.071 of A1
+    and 1.178 of the planning peak. With look feature F9's phase it reads 0.39–0.43 of A1 (`stage2/look/SCREEN.md`).
 - **Today's tail swings in the wrong phase.**
   - It adds 8–12 % to the stance foot's peak yaw moment.
-  - F9's phase cuts the friction need by 14–18 % and roughly halves the tail servo's load, because the body's sway
-    then drives the tail and the servo brakes it (SCREEN.md, "In brief").
+  - Look feature F9's phase cuts the friction need by 14–18 %.
+  - Counting the plant's default damping and friction, it cuts the tail servo's sustained load by 40–61 %, roughly
+    half; without them the cut is 11–40 %.
+  - It works because the body's sway then drives the tail and the servo brakes it (SCREEN.md, "In brief").
 - **The 60 cm neck is close to its heat budget.**
   - The STS3250 neck runs at 0.83–0.84 of A1 in the closed-loop nominal walk (S1 §3).
-  - With the look's head bob and the plant's damping, its peak reaches up to 1.17 at the animal pace (SCREEN.md).
-  - The `-X` jaw servo in the head would take the closed-loop hold to about 0.93, an estimate (X_COSTS.md).
-- **Joint damping and friction dominate the small servos' loads.** The values are the MJCF defaults on the neck and tail
-  (0.2 N·m·s/rad and 0.15 N·m), unsourced (A16). A bench measurement could move these loads more than any part change.
+  - With the look's hip bob (look features F1/F2) carried through today's head nod, and the plant's damping, its peak
+    torque reaches up to 1.17 of the planning peak at the animal pace (V1B100). It is 0.99 with F10's stabilised head,
+    and the sustained ratio stays at or below 0.89 (SCREEN.md).
+  - The `-X` jaw servo in the head would take the closed-loop nominal-walk load to about 0.93 of A1. That is an
+    estimate scaled from Stage 0; the static hold goes from 0.75 to 0.84 (X_COSTS.md).
+- **Joint damping and friction dominate the tail's load**, and on `-X` the neck yaw's and the jaw's.
+  - On the 60 cm neck pitch they add about 7–12 % to what is mostly a gravity load.
+  - The values (damping 0.2 N·m·s/rad, friction loss 0.15 N·m) are `designlab/mjcf.py`'s defaults on every joint, legs
+    included. They are unsourced, and no decision-log row records them: A16 is the carpet screen, and a draft row is
+    proposed in §7.
+  - A bench measurement could move these loads more than any part change.
 - **Grip.**
   - Stance-foot spin, the pad's yaw moment, is the friction limit that binds (F21).
   - At 60 cm the straight walk at 0.40 m/s or faster needs more than μ 0.54 on every look rung, and more than 0.9 on
@@ -112,8 +143,9 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
 
 - It adds 0.150 kg and moves the centre of mass 5.2 / 4.4 mm forward.
 - The one-foot hip-pitch hold rises from 0.55 to 0.65 / 0.76 to 0.83 of its limit.
-- With the new joints held still, the nominal and Froude 0.05 walks stay within every drive limit. The knee's speed
-  goes from 0.93 to 0.97 / 0.93 to 0.96.
+- With the new joints held still, the nominal and Froude 0.05 walks stay within every drive limit.
+- At the animal pace the knee's speed, the tightest limit, goes from 0.93 to 0.97 / 0.93 to 0.96, with the 15 % margin.
+  At the nominal walk it goes from 0.56 to 0.58 / 0.56 to 0.57.
 - A 0.6 rad gaze shift fits in 0.5 s at 60 cm and in 0.6 s at 75 cm.
 - A 0.6 rad jaw opening in 0.4 s runs the servo at its rated speed; in 0.5 s it keeps both margins. A quick snap is out
   of reach.
@@ -126,9 +158,12 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
   - The feet lift and land flat.
   - Slow walks stretch the swing into slow motion.
   - The head nod and the tail swing run on the stride clock (`stage2/research/research_look.md`, Bottom line 1).
-  - This is the "ASIMO-like" look the owner does not want.
-- **Stage 2 adds the look as options** in `designlab/gait.py`, with today's walk unchanged by default. They are the
-  features of `research_look.md` §3.1:
+  - This is the look the owner asked to avoid. On 10 Nov, in conversation: "I don't want some sort of like Asimo
+    robot where it takes one foot at a time and it's very mechanical looking". `STAGE2_PLAN.md` §1 records it as
+    "lifelike, not mechanical".
+- **Stage 2 adds the look as options** in `designlab/gait.py`, with today's walk unchanged by default.
+  - They are the look features F1–F14 of `research_look.md` §3.1.
+  - These F numbers are not the decision log's F rows; this file says "look feature F3" where it could be confused.
   - F8 imposes no trunk pitch.
   - F11 and F12, for turns, starts and stops, are deferred (`look.DEFERRED`).
   - The variant ladder V0–V6 (with extras) runs at three speeds per body.
@@ -145,12 +180,18 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
 - **What can be shown robustly today?** The nominal walk, the target turns, starting and stopping, and standing shoves,
   all at no servo delay (§2.2). Delay may undo them (§2.3).
 - **Would a plain torso or a 100 cm body help?**
-  - In the model, the T. rex layout is not what stops the robot. The controller, delay and grip do (§2.4).
+  - No plain-torso body has been simulated, so the model cannot answer this directly. P6 rejected a rectangular
+    chassis.
+  - As far as the model shows, the leg drives do not limit speed (S1b Answers).
+  - The 60 cm failures read controller-limited (S1 §2), 10 ms of delay fells every 60 cm walk (§2.3), and grip binds
+    (§2.4).
+  - Parts of the T. rex layout, the head and tail servos, run near or over their planning limits (§2.4).
   - Size buys speed only as √H.
   - Larger sizes wait until much later (P28).
 - **How fast could a robot this size walk?**
   - The Stage 0 screen prices 0.40 m/s and the Froude 0.05 walks (0.446 / 0.496 m/s) within every leg drive limit,
-    except the 75 cm V6's knee speed (`stage2/look/SCREEN.md`).
+    except the knee speed of the 75 cm V6 and V6S at the animal pace (1.012, 1.009; `stage2/look/SCREEN.md`). The same
+    screen puts the 60 cm friction need above μ 0.9 on several rungs at those speeds (§2.4).
   - Whether a controller can walk them is Stage 2's question, and so far it is unanswered.
 - **"Controller" means the software** (the fitted tracker or a learned policy running on the robot's computer), not
   the motor drivers.
@@ -163,6 +204,12 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
   heat beyond A1 and no fall damage.
 - **Unmeasured inputs.** Joint friction and damping, the carpet, grip and delay are unmeasured.
 - **Untestable flag.** The tracker's pad-edge flag could not be tested (S1 N1).
+- **No self-collision.**
+  - Only the foot pads collide: every other geom has `contype` 0, so the legs can pass through each other and through
+    the body.
+  - Leg interference is a 50 Hz geometric check (`legs.LegGap`), judged on turns only, and the env's reward and
+    termination never see it.
+  - A learned policy could exploit this. Put it in R5's termination or reward, or judge it on every bar condition.
 - **No hardware.** No hardware has been built or measured.
 - **Reference walks are not controllers.** Kinematic clips and Stage 0 screens show prescribed motions with perfect
   tracking.
@@ -190,13 +237,18 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
    - The falls at 10 ms were in the same records, from another search.
    - No delay search ran 2 ms or 12–18 ms, and the grip searches skipped μ 0.10–0.20 (S1, correction note).
 6. **Change the generator only behind options that default to today's behaviour, and test that bit for bit.**
-   - G2: with default GaitSpec fields, Stage 1's references regenerate byte for byte.
-   - Every existing model keeps its recorded `xml_sha256` (`tests/test_stage2_x.py`, `tests/test_stage2_look.py`).
+   - G2: with default GaitSpec fields, Stage 1's references regenerate byte for byte (`tests/test_stage2_look.py`).
+   - Every existing model keeps its recorded `xml_sha256` (`tests/test_stage2_x.py`).
 7. **Hash the inputs into the records, and make reports from the records.**
    - Every Stage 1 record key holds the sha256 of the model files the plant reads (`panels.key_context`).
    - The tables are machine-made (`python -m designlab.stage1 report`, `python -m designlab.stage2.screen md`,
      `python -m designlab.stage2.motion md`), and reports cite record paths.
    - The cost: the git-ignored inputs must be restored exactly (§4.1).
+   - Records hash their code too. The panels, tuner and speed fit hash their modules, and `train.py` hashes every
+     `designlab/stage1/*.py`. Any edit there, such as registering a body, generalising `env.py` or adding R5, makes
+     earlier records read as made by other code.
+   - So Stage 1's and 1b's records are cited, never rerun or extended with newer code (`STAGE1B_PLAN.md` decisions 3,
+     5 and 9). The code stays frozen from a merge until the fits and runs built on it have finished.
 8. **Read a metric's definition before reading its verdict.**
    - The speed term passes only when the judged 10 s mean reaches the target; the command is 5 % above it.
    - Toe clearance read on the reference's clock misreads a foot that lifts 10 ms late (S1b N5).
@@ -226,7 +278,22 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
     - Inverse dynamics with the prescribed centre of pressure off the pad gives artifact loads; such cases are marked
       inconclusive (one "1.19" reading was one).
     - Use one OSMesa renderer per process: several in one process corrupted renders.
-15. **Communicate with the owner plainly.**
+15. **A 3-episode monitor gain is not a verdict.**
+    - Both 75 cm R3 runs passed G6c on reward per step, one of them while falling in all 3 low-pile episodes.
+    - Neither gain became a limit met over the 20-episode panels (S1 N3, §4).
+    - Stage 2's monitor decides only the stop rules; judge on the panels.
+16. **PPO's KL early stop can silently shrink updates.**
+    - PPO's KL per update grows as 1/σ², and `target_kl` stops an update early without a message. At σ 0.02 and a
+      1e-4 learning rate, each update ran only 1–9 of its 160 minibatch steps (decision 24).
+    - Record the minibatch steps run per update in every long run.
+    - Repeat decision 24's probe whenever σ or the learning rate changes.
+17. **Fix the delay draws in a fit.**
+    - In Stage 1b's speed fit, which R2L repeats, every member of a generation ran the same single episode per kind.
+      The delays were drawn from the seed alone, so every body drew the same ones.
+    - Generation scores mostly tracked those draws, and selecting over pooled delays hid the Hybrid's 0 ms brisk loss
+      (S1b N1, N2).
+    - Give R2L's fit and selection fixed or repeated delay draws per kind, and read its verdicts per delay.
+18. **Communicate with the owner plainly.**
     - Answer the question first, in plain words, then give the evidence.
     - Never mix measured values with targets.
     - Correct a report in place, with a dated note at the top that lists every changed place.
@@ -285,12 +352,16 @@ tests.
   - The keep-alive below makes idle reclaim less likely; it does not prevent restarts.
   - No restart's cause is recorded. `STAGE1_PLAN.md` decision 36 guessed memory, but S1 N8's logs do not support it.
   - Each time, the filesystem (checkout and scratchpad) survived and every process died.
-- **Every long job is an idempotent chain that resumes from its own checkpoints.** A watchdog starts any chain that is
-  neither done nor running (`stage1/runs/2026-11-10-speed/run_speed_round.sh` and its watchdog). After any pause, check
-  `uptime` first.
+- **Every long job is an idempotent chain that resumes from its own checkpoints.**
+  - A watchdog starts any chain that is neither done nor running; `tools/watchdog_example.sh` is the speed round's,
+    generalised (its chains: `stage1/runs/2026-11-10-speed/run_speed_round.sh`).
+  - `tools/keepalive.sh` runs it every 10 min.
+  - After any pause, check `uptime` first.
 - **Keep the container alive.**
-  - Run `tools/keepalive.sh` with the Bash tool's `run_in_background`. The session then tracks it and is re-invoked
-    when it ends after about 115 min; re-arm it then.
+  - Run `sh tools/keepalive.sh <log>` with the Bash tool's `run_in_background` and `timeout` 7200000, the maximum.
+    The default timeout, 1800000, stops it after 30 min.
+  - Put the log outside the checkout or under a `logs/` directory (ignored).
+  - The session tracks the command and is re-invoked when it ends after about 115 min; re-arm it then.
   - As a backstop, hourly scheduled tasks wake the session after a restart (create_trigger, send_later). Delete them
     when the work is done; none were active on 14 Nov.
 - **Workflows resume with `resumeFromRunId`.**
@@ -334,22 +405,32 @@ tests.
 
 ### 4.5 MuJoCo, OpenGL and torch
 
-- **MuJoCo picks its GL backend when it is first imported.** `designlab/__init__.py` sets `MUJOCO_GL` only if it is
-  unset: EGL when `/dev/dri` exists, else OSMesa. This container has no `/dev/dri`.
+- **MuJoCo picks its GL backend when it is first imported.**
+  - `designlab/__init__.py` sets `MUJOCO_GL` only if it is unset: EGL when `DISPLAY` is unset and `/dev/dri` exists,
+    otherwise OSMesa. It sets `PYOPENGL_PLATFORM` to match.
+  - This container has no `/dev/dri`.
 - **With libOSMesa loaded, torch segfaults while building a stable-baselines3 policy, whichever is imported first.**
   This was seen on 11 Nov after a restart (exit 139).
 - **Shared test processes and training run with `MUJOCO_GL=disable`.** `tests/conftest.py` sets it.
 - **Rendering runs in a child process with `MUJOCO_GL=osmesa`.** `tests/test_stage2_clips.py` re-runs its two rendering
   tests that way.
-- **The R5 and R6 entry points must set `MUJOCO_GL=disable` themselves.** Stage 1's `train.py` relies on the default
-  (`STAGE2_PLAN.md` S2-5).
+- **The R5 and R6 entry points must assign `MUJOCO_GL=disable` themselves, not `setdefault` it.**
+  - Stage 1's `train.py` relies on the default (`STAGE2_PLAN.md` S2-5).
+  - On Colab, the scaffold's setup cell sets `MUJOCO_GL=egl` with NVIDIA's ICD for the whole kernel.
+  - Clips must set `MUJOCO_GL=osmesa` in their own subprocess. Rendering on a CPU runtime stays untested until the
+    smoke.
 - **The first suite crash was GLFW asking for a display.** A test module had imported mujoco before designlab set the
   backend.
 
 ### 4.6 Tests, git and the tools
 
 - **The full suite is `MUJOCO_GL=disable PYTHONPATH=. $PY -m pytest -p no:cacheprovider tests` from this
-  directory.** On 11 Nov it gave 575 passed, 107 skipped and 0 failed in the main checkout.
+  directory.**
+  - On 11 Nov it gave 575 passed, 107 skipped and 0 failed in the first session's checkout. That checkout held the PPO
+    checkpoints and eval traces, which a fresh clone lacks even after the restore.
+  - Compare a fresh clone with the restored counts in `tools/README.md` instead.
+  - Write the log under a `logs/` directory (`mkdir -p logs`; ignored at any depth). A file such as `LOG` in the
+    checkout is untracked, and the stop hook would then ask to commit it.
   - Do not add `-q`. The repository's `pyproject.toml` already sets `addopts = "--tb=short -q"`, and a second `-q`
     hides pytest's "N passed, M skipped" line.
   - Write pytest's own exit code into the log (`; echo PYTEST_EXIT=$? >> LOG`). A pass was once reported from a
@@ -359,7 +440,8 @@ tests.
 - **A stop hook requires every turn to end with all changes committed and pushed.**
   - Push with `git push -u origin <branch>`, retrying up to 4 times on network errors (2, 4, 8, 16 s).
   - Never force-push or rewrite history.
-  - Commit messages end with the session's attribution lines and never name a model.
+  - End each commit message with the attribution lines exactly as the session's system reminder gives them. Name no
+    model anywhere else in a message or in code.
 - **GitHub goes through the GitHub MCP tools.** `gh` is only for search.
   - Comment only when the owner asks, with the attribution footer.
   - Create no pull request unless asked; kuds/mesozoic-labs#667 already carries the branch.
@@ -369,8 +451,23 @@ tests.
   - Republishing to the same URL needs the same file path in the same session, or the artifact's `url` (read it
     first).
 - **The Google Drive tools are connected but untested.** The first session made no Drive call at all, and Stage 2
-  reads Colab results from the owner's Drive (`STAGE2_PLAN.md` §6). Do a round trip with a small file before building
-  the notebook around it. Large binaries cannot pass through a tool call.
+  moves binaries both ways through the owner's Drive (`STAGE2_PLAN.md` §6, [pipeline] §4).
+  - **Up.** `create_file` takes a local file by reference: set `base64Content` to
+    `sha256:<hex>:<absolute path>`, and the app uploads the file once the owner approves the call. The size limit is
+    unknown.
+  - **Down.** `download_file_content` returns the file inline as base64. A judged checkpoint is about 2 MB, and whether
+    a result that size reaches the disk is untested.
+  - **Test both early,** before the notebook is built: upload a small archive, then the real inputs bundle; download a
+    checkpoint-sized `.zip` and check its sha256.
+  - **If either fails,** name a fallback the owner performs and put it in the steps sheet. For inputs: the notebook
+    rebuilds them with `tools/restore_inputs.py` and checks every sha256 (unproven on Colab's numpy and BLAS; the smoke
+    tests it).
+  - The inputs for one body and its `-X` come to about 40–65 MB, and for all seven registry bodies about 185 MB.
+  - **Liveness and order on Drive.** A run's liveness is `STATUS.json`'s modified time, not `run.json`'s status: Stage
+    1's R4 and both 75 cm R3 `run.json` files still read "running" (S1 N8). Order checkpoints by the step count in
+    their names, never by modified time, which on a Drive mount is upload order.
+  - **Check checkpoint pairs before a resume.** `train.checkpoints()` checks only that both files of a pair exist. Add
+    the scaffold's checkpoint-pair integrity check before any resume from Drive.
 
 ### 4.7 Harness mechanics that cost time
 
@@ -403,75 +500,168 @@ tests.
 
 ## 5. Traps and open issues
 
+### 5.1 First
+
 1. **Restore before anything else in a fresh clone** (§4.1).
-2. **G1 of the `-X` bodies is provisional.** To finish it, run `bash stage2/x/run_x.sh g1` on an idle machine. Arm K's
-   G1 failed its step rate on the K bodies and on the pick alike, so `-X` may fail it too (HEAD_X.md §3).
-3. **The Stage 1 env assumes 14 joints.** Its action and observation widths (`designlab/stage1/env.py:138-142,
-   284-286`) need generalising before R5 can drive `-X`'s neck yaw and jaw. New joints take the MJCF's default damping
-   and friction, which are unsourced.
-4. **`designlab/stage1/env.py` imports `environments.shared.direction_commands` from the main repository.** It adds the
-   repository root to `sys.path` if needed. A Colab bundle therefore needs the repository checkout, not the study alone.
-5. **`stage1/runs/2026-11-08/STAGE1_TABLES.md` still reads "works to 10 steps (20 ms)" for the 75 cm delay.** That is
-   the search's own machine-made reading. The corrected reading is in S1's correction note.
-6. **Duty and F3.** A fixed swing time puts the nominal walk's duty at about 0.69, over the spec's 0.65. Widening the
-   band to 0.72 below 0.30 m/s is owner decision 2.
-7. **The 75 cm V6 is over the knee's speed limit at the animal pace** (1.012; V6S 1.009). By the plan's rule it keeps
+2. **Merge PR kuds/mesozoic-labs#667 with a merge commit, never squash or rebase.**
+   - 616 committed records cite 42 commits by hash, and all 42 exist only on its branch.
+   - A squash or rebase merge would leave main without them.
+   - Its auto-generated description is wrong in places ("quadruped", "hip heights" for crown heights). Correct it
+     before merging.
+
+### 5.2 The bodies and the references
+
+3. **G1 of the `-X` bodies is provisional.**
+   - To finish it, run `PY=.venv/bin/python bash stage2/x/run_x.sh g1` on an otherwise idle machine. The script
+     defaults to `python`, which has no MuJoCo.
+   - Arm K's G1 failed its step rate on the K bodies and on the pick alike, so `-X` may fail it too (HEAD_X.md §3).
+4. **The `-X` joint ranges are not cut.**
+   - The clearance screen pairs no body with its parent, so it cannot see the neck against the chest or the jaw
+     against the skull. The plant therefore keeps the MJCF limits: neck yaw ±0.6 rad, jaw 0–0.6 rad.
+   - A seam sweep found no new contact, only growth of overlaps between proxies that already overlap at home:
+     17.8 / 23.6 mm at the neck and 21.6 / 28.7 mm at the jaw. The ranges are therefore annotated, not cut
+     (`refine.HEAD_X_RANGES_DECISION`).
+   - The jaw cover overhangs its hinge (HEAD_X.md §4). Trimming it changes every `-X` record, so settle it at L1 and
+     before any `-X` training.
+   - The yaw stage's bearing, and today's pitch servo riding on the yaw stage, are not modelled.
+5. **The Stage 1 env assumes 14 joints.** Its action and observation widths (`designlab/stage1/env.py:138-142,
+   284-286`) need generalising before R5 can drive `-X`'s neck yaw and jaw.
+6. **Look-aware turns and transitions do not exist yet.**
+   - `turning.generate` refuses a look spec, and `transitions.gait_of` takes only `refs.walk_specs`' walks
+     (`look.DEFERRED`).
+   - The bar's 90° turn from 0.40 m/s, the two-step stop and every look-aware start, change and turn therefore need
+     new paths beside the old ones. G2 keeps the old ones bit-identical.
+   - The quick turn may need more than the plant's ±0.30 rad thigh twist, a range never assessed for packaging
+     (`STAGE2_PLAN.md` §8; S1 §8, G5). Screen the turn reference's twist need first. If it does not fit, take it to the
+     owner as Track D's lever 6.
+7. **R5's zero action, R0L, falls in most 60 cm walks.**
+   - Open loop at 0 ms, `60-N-T-10` keeps 3 of 20 nominal walks up and 2 of 20 of each walking turn, and no brisk or
+     animal-pace walk (S1 §4).
+   - So the 60 cm R5 must learn balance from a base that falls, and Stage 1's σ rule cannot be applied there.
+   - S2-4's 2M steps on `75-M-H-10`, where R0 walks, say nothing about the 60 cm body. Its first evidence will be G8b
+     at 5M steps on Colab, unless a short 60 cm run is made here first.
+8. **Duty and look feature F3.** A fixed swing time puts the nominal walk's duty at about 0.69, over the spec's 0.65.
+   Widening the band to 0.72 below 0.30 m/s is owner decision 2.
+9. **The 75 cm V6 is over the knee's speed limit at the animal pace** (1.012; V6S 1.009). By the plan's rule it keeps
    its features and loses that speed rung unless the owner decides otherwise.
-8. **Clearance of the new joints.** The `-X` joint ranges stop where the clearance screen allows, but the screen
-   cannot see every seam (HEAD_X.md §4).
-9. **Out of scope.** Eleven registry and contract tests fail on PR #662's clean checkout, and merging PR #664 conflicts
-   in 4 files (`REPRODUCTION.md`). They belong to the main repository's integration, not to this study.
-10. **Merge PR kuds/mesozoic-labs#667 with a merge commit, never squash or rebase.**
-    - 616 committed records cite 42 commits by hash, and all 42 exist only on its branch.
-    - A squash or rebase merge would leave main without them.
-    - Its auto-generated description is wrong in places ("quadruped", "hip heights" for crown heights). Correct it
-      before merging.
-11. **`tools/memguard.sh` protects only `designlab.stage1 train` by default.** Set `PROTECT` for Stage 2 trainers, or
+10. **`stage1/runs/2026-11-08/STAGE1_TABLES.md` still reads "works to 10 steps (20 ms)" for the 75 cm delay.**
+    - That is the search's own machine-made reading; S1's correction note has the right one.
+    - Leave the file as it is. Regenerate it only from commit 07a73f4 or earlier (`STAGE1B_PLAN.md` decision 6),
+      because today's code reads Stage 1's records as made by other code.
+11. **`designlab/stage1/env.py` imports `environments.shared.direction_commands` from the main repository.** It adds the
+    repository root to `sys.path` if needed. A Colab bundle therefore needs the repository checkout, not the study
+    alone.
+
+### 5.3 Training, Colab and judging checkpoints
+
+12. **The delay model works in whole 2 ms physics steps** (`env.py`'s latency queue).
+    - The plan's 5 and 15 ms, and the 25 ms top of its randomisation, cannot be run as stated.
+    - Before any run, fix the delays (for example 4 or 6 ms, 14 or 16 ms, 0–24 ms) or build a sub-step delay model.
+    - Record the choice as a decision taken before results.
+13. **The panels' policy rows refuse a checkpoint trained under other library versions** (`policy_rows.check_versions`:
+    Python, numpy, MuJoCo, scipy, torch, stable-baselines3, gymnasium).
+    - They read torch's version from `importlib.metadata` ("2.15.0"), while `train.py` records `torch.__version__`
+      ("2.15.0+cu…" for PyPI's CUDA build). A run trained with Colab's torch is refused even in its own venv.
+    - Before the first Colab run, decide how Colab checkpoints are judged here: either in a local venv that matches
+      Colab exactly, Python's patch version and torch build included, or under a flagged cross-version rule recorded in
+      every policy-row record.
+14. **`train.py` resumes a run only when everything matches.**
+    - It needs the same libraries (Python's patch version included), the same `designlab/stage1/*.py` sources
+      (otherwise `--allow-source-change`, flagged), the same settings (`n_envs` included) and the same env configs.
+    - The env configs hold `run_dir`. So keep one `REPO_REF` and one run path for a run's whole life, and pin numpy,
+      scipy and torch in the notebook.
+    - Colab's image changes without notice, so build the plan's flagged resume across library versions before the
+      first launch (`docs/KNOWN_ISSUES.md`).
+15. **SB3 archives segfault across Python minor versions.**
+    - Every archive pickles `policy.linear_schedule`, a closure, and `train.py` and `policy_rows.py` load it with a
+      plain `PPO.load`.
+    - Loading an archive saved under another Python minor version segfaults, with no traceback
+      (`docs/KNOWN_ISSUES.md`).
+    - Before the first Colab run, replace the closure with a picklable schedule class, or load through
+      `environments/shared/policy_loading.load_sb3_model`. Have the smoke load a Colab-saved archive here.
+16. **G9's toe-clearance check reads Stage 1b's 10 ms turn traces, and a fresh clone has none.** Before G9, regenerate
+    them, or amend G9 (labelled, before any run) to use R0L's own 10 ms turn traces. To regenerate, re-run the R2
+    10 ms turn conditions into a scratch run directory with `--inputs stage1/runs/2026-11-10-speed`, as
+    `run_speed_round.sh` runs them.
+17. **S2-4 has no reading point.**
+    - A 2M-step run never reaches the plan's 2.5M-step monitor.
+    - Before the run, fix S2-4's rule in the plan and label it. For example: §6's monitor on the final checkpoint
+      against R0L on the same 18 episodes, with §6's gain rule.
+18. **Moving binaries through Drive is untested** (§4.6).
+19. **`tools/memguard.sh` protects only `designlab.stage1 train` by default.** Set `PROTECT` for Stage 2 trainers, or
     the guard kills them first.
-12. **The viewers' blind sheet stores nothing.** Its "Copy my scores" button is the only way back: ratings arrive only
+
+### 5.4 Pages, logs and scope
+
+20. **The viewers' blind sheet stores nothing.** Its "Copy my scores" button is the only way back: ratings arrive only
     if the owner pastes them.
-13. **`MUJOCO_LOG.TXT` fills with "Nan ... QVEL" warnings.** A deliberate test writes them (`tests/test_stage1.py`, the
+21. **`MUJOCO_LOG.TXT` fills with "Nan ... QVEL" warnings.** A deliberate test writes them (`tests/test_stage1.py`, the
     BADQVEL check), and they are harmless.
+22. **Out of scope.** Eleven registry and contract tests fail on PR #662's clean checkout, and merging PR #664
+    conflicts in 4 files (`REPRODUCTION.md`). They belong to the main repository's integration, not to this study.
 
 ## 6. Next steps toward long training runs
 
 This is `STAGE2_PLAN.md` §7 in order, with what a new session does first.
 
-1. **Environment.** Run `tools/setup_venv.sh`, then `tools/restore_inputs.py restore` and `check`, then the full test
-   suite. Compare the counts with §4.6 and with `tools/README.md`.
+1. **Environment.**
+   - Run `tools/setup_venv.sh`, then `tools/restore_inputs.py restore` and `check`, then the full test suite.
+   - Compare the counts with the restored counts in `tools/README.md`, not with §4.6's first-session figures.
 2. **The owner's look picks (L1).**
    - The owner picks the features, decides whether a feature may cost a speed rung, and settles the duty band
-     (decisions 1, 2; `STAGE2_PLAN.md` §7).
+     (decisions 1 and 2; `STAGE2_PLAN.md` §7).
    - Then freeze the approved reference by hash (A.5).
-   - The look review page and the viewers' blind sheet are published; see `NEXT_SESSION_PROMPT.md` for their links.
-3. **R5** (B.1).
-   - Build: generalise the env for `-X`; add commands, the references at nominal and 0.30–0.50 m/s, turns and stops,
-     the reward terms and the randomisation.
+   - The look review page and the viewers' blind sheet are in §8.
+3. **Before any run, settle the open rules (§5.3):**
+   - the whole-step delays;
+   - S2-4's reading point;
+   - G9's 10 ms turn traces;
+   - how Colab checkpoints are judged here;
+   - the resume across library versions;
+   - a picklable schedule.
+4. **R5** (B.1).
+   - Build: generalise the env for `-X`; add commands, the references at nominal and 0.30–0.50 m/s, the look-aware turns
+     and transitions (§5.2), the reward terms and the randomisation.
    - Gates: G8a (R5's zero action reproduces the panels' R0 exactly, at 0 and 10 ms) and G9 (the new measures read as
      designed on the references).
-4. **R2L**, the tracker refitted as Stage 1b's speed fit on the bar's tasks, here (B.2).
-5. **Validation on this CPU** (B.3).
+5. **R2L**, the tracker refitted as Stage 1b's speed fit on the bar's tasks, here (B.2), with fixed delay draws (§3).
+6. **Validation on this CPU** (B.3).
    - Measure rates and memory per floor and process count.
-   - Check kill and resume, and a fresh-clone dry run of the Colab bundle.
+   - Check kill and resume.
    - Run the σ and learning-rate probes.
-   - Run the notebook on a tiny budget, and start a training run with `MUJOCO_GL=disable`.
-6. **S2-4.** Train 2M steps here on `75-M-H-10` with training's delay draw. Colab starts only if R5's 10 ms monitor
-   shows a gain over R0L; otherwise tell the owner first.
-7. **S2-5, the notebook.**
-   - Write `stage2/stage2_training.ipynb`, on the scaffold `notebooks/sb3_training.ipynb`.
-   - Write its steps sheet and a sha256-manifested Drive bundle.
-   - Then comes the owner's day-one smoke session (about an hour).
-8. **S2-8.** Fix the budget once after the smoke: 40M env steps per run, or fewer if the smoke's rate cannot reach that
+   - Start a training run with `MUJOCO_GL=disable`.
+7. **S2-4.** Train 2M steps here on `75-M-H-10` with training's delay draw. Colab starts only if R5's 10 ms monitor
+   shows a gain over R0L under the rule fixed in step 3. Otherwise tell the owner first.
+8. **S2-5, the notebook.**
+   - Write `stage2/stage2_training.ipynb`, on the scaffold `notebooks/sb3_training.ipynb`, with its steps sheet and a
+     sha256-manifested Drive bundle.
+   - Then run it here end to end on a tiny budget, with a kill and resume, and dry-run the bundle from a fresh clone.
+   - The Drive transfers are tested first (§4.6).
+   - Then comes the owner's day-one smoke session, about an hour.
+9. **S2-8.** Fix the budget once after the smoke: 40M env steps per run, or fewer if the smoke's rate cannot reach that
    in 20 h. Then run Colab's three phases (High-RAM CPU, up to 3 runtimes, 24 h sessions, a 220 runtime-hour cap,
    P29).
-9. **Panels, levers and report.**
-   - Run the panels here on the judged checkpoints from Drive (Track C).
-   - Run the hardware levers (Track D; `STAGE2_PLAN.md` §4 D), each labelled "untrained transfer" until fine-tuned.
-   - Then write the report.
+10. **Panels, levers and report.**
+    - Run the panels here on the judged checkpoints from Drive (Track C).
+    - Run the hardware levers (Track D; `STAGE2_PLAN.md` §4 D), each labelled "untrained transfer" until fine-tuned.
+    - Then write the report.
 
-**The hardware questions that matter most** are the bench tests: each drive type's command-to-motion delay and
-stiffness (draft A17), the STS3215 tail servo at the speed walks' loads (A1), the treads' grip on the owner's floors
-(P21), and the joints' friction and damping (A16). The delay alone decides whether anything at 60 cm walks.
+**The owner's 14 Nov request: the 75 cm build with a Jetson Orin Nano.** PR kuds/mesozoic-labs#668 studies it.
+`JETSON_PLEM_REVIEW.md` reviews it and sets out the track the next session takes (`NEXT_SESSION_PROMPT.md`).
+
+**The hardware questions that matter most are the bench tests:**
+- each drive type's command-to-motion delay and stiffness (draft A17);
+- the STS3215 tail servo at the speed walks' loads (A1);
+- the treads' grip on the owner's floors (P21);
+- the joints' friction and damping (the MJCF defaults, with no decision-log row yet).
+
+The delay matters most. At 10 ms every 60 cm walk falls under the fitted tracker (S1b §4). A measured delay above S1b
+N8's figures rules out that controller family, not every controller, and one below them still leaves grip and the
+controller to check.
+
+**Before any hardware lever builds on the 60 cm picks' ankle drive,** confirm its supply. MyActuator lists the
+RMD-X4-P12-10-E (V4) as discontinued, against E6, though it is still sold. The other route is to re-check the ankle
+against its successor, the X4-10-L (S1 §6 item 11).
 
 ## 7. Waiting for the owner
 
@@ -480,11 +670,23 @@ stiffness (draft A17), the STS3215 tail servo at the speed walks' loads (A1), th
   - 2: the duty band.
   - 7: raters for L1 (3–5 new viewers) and L2 (at least 12).
   - 8: when the bench tests run.
+- **Colab confirmation.** P29 records the choice; the owner still has to confirm that the plan provides 24 h sessions,
+  background execution, High-RAM CPU runtimes and 3 runtimes at once (`STAGE2_PLAN.md` §6).
 - **Draft decision-log rows, not yet in `DECISION_LOG.md`:**
   - S1 §7: F26 (with the 10 Nov correction from S1b N11), the A15 update and the A16 update.
   - S1b §8 and N11: F27, the A1 update (bench-test the tail servo first) and A17 (new: the servo delay and stiffness
     assumption).
-- **P25 stays open.** After Stage 1, the owner asked what covering the remaining gap at 60 cm would take.
+  - Proposed here: a new A row for the joints' damping (0.2 N·m·s/rad) and friction loss (0.15 N·m), the MJCF
+    defaults on every joint, to be replaced by bench measurement.
+- **P25 stays open.** On 8 Nov the owner asked that, once Stage 1's results were in, the study explore what covering
+  the remaining gap at 60 cm would take. S1 §8's gap map began it.
+- **Owner constraints that bind the work:**
+  - The demonstration floors are hardwood, vinyl and museum floors, perhaps thin compact carpet; long pile is outside
+    the use (P26). Training and verdicts stay on hard floor and robot_floor_carpet.
+  - The jaw is modelled in simulation only; P2's deferral stands for the build (P29).
+  - P4's prototype budget is $10–20k. The high estimates already exceed it: $20.5k for `60-N-T-10` and $25.7k for
+    `75-M-H-10`, against nominals of $14.8k and $18.5k (their round-two records). Cost every hardware lever against it.
+- **PR kuds/mesozoic-labs#668's decisions** are listed in `JETSON_PLEM_REVIEW.md`.
 
 ## 8. Published pages
 

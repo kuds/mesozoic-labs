@@ -28,7 +28,7 @@ difference 0. Figures quoted from other records name them. Tests: `tests/test_st
   nothing.
 - **The roar works, slowly.** Opening the jaw 0.6 rad in 0.4 s runs the servo at its rated speed. Half a second keeps
   both margins. Holding it open costs 4 / 9 % of the servo's sustained budget. A quick snap is out of reach.
-- **Most of each move's load is the model's default joint damping and friction**, unsourced values (A16). A bench
+- **Most of each move's load is the model's default joint damping and friction**, unsourced values (no decision-log row records them; A16 is the carpet screen). A bench
   measurement could move these loads more than any part change ([look] 5.2).
 - **The cost to watch is the 60 cm neck's heat budget.** The jaw servo sits in the head, so the neck-pitch hold rises
   from 0.75 to 0.84 of its limit. In Stage 1's closed loop, today's 60 cm neck already ran at 0.83–0.84 of it in the
@@ -146,7 +146,7 @@ home. The moves are:
 - the jaw: 0 to 0.6 rad and back.
 
 Each joint keeps the MJCF's default damping (0.2 N·m·s/rad) and friction loss (0.15 N·m) (`designlab/mjcf.py`,
-unsourced, A16). The armature is the catalog's. Each move is read two ways:
+unsourced; no decision-log row records them). The armature is the catalog's. Each move is read two ways:
 
 - **ID:** rigid-body inverse dynamics with the trunk held, plus damping × rate and friction × sign(rate);
 - **Plant:** the Stage 1 plant standing on the hard floor. It is commanded every 2 ms with the rigid-body feedforward
@@ -249,7 +249,7 @@ unsourced, A16). The armature is the catalog's. Each move is read two ways:
   Track B's.
 - **The yaw stage's bearing,** and today's pitch servo riding on it (`HEAD_X.md` §7). Its mass, cost and friction are
   not modelled.
-- **The joint damping and friction.** They are the MJCF's defaults (A16), here as in the plant and in training.
+- **The joint damping and friction.** They are the MJCF's defaults (unsourced; no decision-log row records them), here as in the plant and in training.
 - **The jaw cover's overhang** behind the hinge, kept whole (`HEAD_X.md` §4). Trimming it would change every `-X`
   record.
 - **No new model files.** The bodies are rebuilt in temporary directories, and the plant reads the cases' models

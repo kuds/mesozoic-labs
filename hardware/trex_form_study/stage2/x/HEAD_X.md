@@ -69,7 +69,8 @@ The records now read: **G2 and G3 pass; G1 is provisional on its step rate.** Ev
 | G2: nominal panel median (runs ≥ 10 strides), unperturbed with / without envelope | 45.9 (20/20), 50.9 / 50.9 | 60.0 (20/20), 60.0 / 60.0 |
 | G3: transitions, worst CoM, worst ZMP | 18/18, 0.280 mm, 0.895 mm | 18/18, 0.312 mm, 1.075 mm |
 
-**To finish G1:** on an otherwise idle machine, run `bash stage2/x/run_x.sh g1`. That command uses one process per
+**To finish G1:** on an otherwise idle machine, run `PY=<the venv's python> bash stage2/x/run_x.sh g1` (its default,
+`python`, must have MuJoCo). That command uses one process per
 core, as arm K's does (`PYTHON_CPU_COUNT` unset), and replaces both G1 records. On this machine, arm K's G1 failed
 its step rate with 4 processes on the K bodies and on the pick alike (Stage 1b decision 11). So the `-X` bodies may
 fail it too.

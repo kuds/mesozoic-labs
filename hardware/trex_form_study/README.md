@@ -93,7 +93,9 @@ round2/
 Rounds one and two need Python ≥ 3.11 with MuJoCo 3.10.0 (the repository's canonical version), numpy, scipy,
 pillow and matplotlib. Rendering needs an offscreen OpenGL (OSMesa: `apt-get install libosmesa6`, or EGL on a GPU).
 Stage 1 onward was run on Python 3.13.18 with the versions pinned in `tools/requirements-study.txt` (torch,
-stable-baselines3 and gymnasium included); `tools/setup_venv.sh` builds that environment. A fresh clone lacks the
+stable-baselines3 and gymnasium included); `tools/setup_venv.sh` builds that environment. Stage 1's PPO training and
+its R3/R4 evaluation rows used a second set (torch 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0):
+`tools/requirements-stage1-ppo.txt`. A fresh clone lacks the
 git-ignored model files and arrays the Stage 1 and 2 records hash: restore them with `tools/restore_inputs.py`
 before running anything from Stage 1 on (`tools/README.md`). Run tests and training with `MUJOCO_GL=disable`, and
 render only in a separate process (`LESSONS_LEARNED.md` §4.5).

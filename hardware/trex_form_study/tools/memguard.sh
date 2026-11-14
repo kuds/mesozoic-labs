@@ -20,7 +20,10 @@ while true; do
       *"$PROTECT"*) ;;
       *python*)
         a=$(cat /proc/"$p"/oom_score_adj 2>/dev/null)
-        [ -n "$a" ] && [ "$a" -lt 800 ] && echo 800 > /proc/"$p"/oom_score_adj 2>/dev/null
+        if [ -n "$a" ] && [ "$a" -lt 800 ]; then
+          echo 800 > /proc/"$p"/oom_score_adj 2>/dev/null &&
+            echo "$(date -u +%H:%M:%S) oom_score_adj 800: $p $(echo "$c" | cut -c1-160)" >> "$LOG"
+        fi
         r=$(awk '/VmRSS/{print $2}' /proc/"$p"/status 2>/dev/null)
         [ -n "$r" ] && [ "$r" -gt "$bigrss" ] && { bigrss=$r; big=$p; } ;;
     esac
